@@ -1,5 +1,4 @@
-"""
-iOS Background Service
+"""iOS Background Service.
 
 Manages iOS background service for always-on operation.
 
@@ -18,18 +17,19 @@ Author: Agent Guru Team
 """
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 class ServiceState(Enum):
     """Background service states."""
+
     STOPPED = "stopped"
     SLEEPING = "sleeping"
     WAKING = "waking"
@@ -39,6 +39,7 @@ class ServiceState(Enum):
 @dataclass
 class BatteryUsageStats:
     """Battery usage statistics."""
+
     sleep_mode_percent_per_hour: float
     wake_mode_percent_per_hour: float
     total_runtime_hours: float
@@ -46,8 +47,7 @@ class BatteryUsageStats:
 
 
 class IOSBackgroundService:
-    """
-    iOS background service manager for always-on operation.
+    """iOS background service manager for always-on operation.
 
     Features:
     - Background audio mode for continuous operation
@@ -67,39 +67,39 @@ class IOSBackgroundService:
         >>> await service.enter_sleep_mode()
         >>> # Wake word detected
         >>> await service.enter_wake_mode()
+
     """
 
-    def __init__(self, integration) -> None:
-        """
-        Initialize iOS background service.
+    def __init__(self, integration) -> None:  # noqa: ANN001
+        """Initialize iOS background service.
 
         Args:
             integration: IOSIntegration instance
+
         """
         self.integration = integration
         self.state = ServiceState.STOPPED
         self.is_running = False
 
         # Battery tracking
-        self._start_time: Optional[float] = None
-        self._start_battery: Optional[float] = None
-        self._sleep_mode_start: Optional[float] = None
-        self._wake_mode_start: Optional[float] = None
+        self._start_time: float | None = None
+        self._start_battery: float | None = None
+        self._sleep_mode_start: float | None = None
+        self._wake_mode_start: float | None = None
         self._sleep_battery_consumed = 0.0
         self._wake_battery_consumed = 0.0
 
         # Background task
-        self._background_task_id: Optional[int] = None
-        self._service_task: Optional[asyncio.Task] = None
+        self._background_task_id: int | None = None
+        self._service_task: asyncio.Task | None = None
 
         # Callbacks
-        self._wake_word_callback: Optional[Callable] = None
+        self._wake_word_callback: Callable | None = None
 
         logger.info("iOS background service initialized")
 
     async def start_service(self) -> None:
-        """
-        Start background service.
+        """Start background service.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -111,6 +111,7 @@ class IOSBackgroundService:
 
         Example:
             >>> await service.start_service()
+
         """
         if self.is_running:
             logger.warning("Service already running")
@@ -121,14 +122,12 @@ class IOSBackgroundService:
             self.integration.start_background_audio()
 
             # Begin background task
-            self._background_task_id = self.integration.begin_background_task(
-                "agent_guru_service"
-            )
+            self._background_task_id = self.integration.begin_background_task("agent_guru_service")
 
             # Schedule periodic background tasks
             self.integration.schedule_background_task(
                 "agent_guru_wake_check",
-                300  # Every 5 minutes
+                300,  # Every 5 minutes
             )
 
             # Initialize battery tracking
@@ -143,19 +142,18 @@ class IOSBackgroundService:
 
             logger.info("iOS background service started")
 
-        except Exception as e:
-            logger.error("Failed to start service: %s", e)
+        except Exception:
+            logger.exception("Failed to start service")
             raise
-
     async def stop_service(self) -> None:
-        """
-        Stop background service and cleanup resources.
+        """Stop background service and cleanup resources.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
 
         Example:
             >>> await service.stop_service()
+
         """
         if not self.is_running:
             return
@@ -165,10 +163,8 @@ class IOSBackgroundService:
             self.is_running = False
             if self._service_task:
                 self._service_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await self._service_task
-                except asyncio.CancelledError:
-                    pass
 
             # End background task
             if self._background_task_id is not None:
@@ -179,12 +175,10 @@ class IOSBackgroundService:
 
             logger.info("iOS background service stopped")
 
-        except Exception as e:
-            logger.error("Failed to stop service: %s", e)
-
+        except Exception:
+            logger.exception("Failed to stop service")
     async def enter_sleep_mode(self) -> None:
-        """
-        Enter sleep mode for battery optimization.
+        """Enter sleep mode for battery optimization.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -196,6 +190,7 @@ class IOSBackgroundService:
 
         Example:
             >>> await service.enter_sleep_mode()
+
         """
         if self.state == ServiceState.SLEEPING:
             return
@@ -211,12 +206,10 @@ class IOSBackgroundService:
 
             logger.info("Entered sleep mode")
 
-        except Exception as e:
-            logger.error("Failed to enter sleep mode: %s", e)
-
+        except Exception:
+            logger.exception("Failed to enter sleep mode")
     async def enter_wake_mode(self) -> None:
-        """
-        Enter wake mode for full functionality.
+        """Enter wake mode for full functionality.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -228,6 +221,7 @@ class IOSBackgroundService:
 
         Example:
             >>> await service.enter_wake_mode()
+
         """
         if self.state == ServiceState.ACTIVE:
             return
@@ -241,28 +235,24 @@ class IOSBackgroundService:
             self.state = ServiceState.WAKING
 
             # Create notification
-            self.integration.create_notification(
-                "Agent Guru",
-                "Wake word detected"
-            )
+            self.integration.create_notification("Agent Guru", "Wake word detected")
 
             self.state = ServiceState.ACTIVE
             self._wake_mode_start = time.time()
 
             logger.info("Entered wake mode")
 
-        except Exception as e:
-            logger.error("Failed to enter wake mode: %s", e)
-
+        except Exception:
+            logger.exception("Failed to enter wake mode")
     async def handle_wake_word_detected(self) -> None:
-        """
-        Handle wake word detection event.
+        """Handle wake word detection event.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
 
         Example:
             >>> await service.handle_wake_word_detected()
+
         """
         logger.info("Wake word detected")
 
@@ -273,12 +263,10 @@ class IOSBackgroundService:
         if self._wake_word_callback:
             try:
                 await self._wake_word_callback()
-            except Exception as e:
-                logger.error("Wake word callback failed: %s", e)
-
+            except Exception:
+                logger.exception("Wake word callback failed")
     def set_wake_word_callback(self, callback: Callable) -> None:
-        """
-        Set callback for wake word detection.
+        """Set callback for wake word detection.
 
         Args:
             callback: Async function to call on wake word detection
@@ -287,12 +275,12 @@ class IOSBackgroundService:
             >>> async def on_wake_word():
             ...     print("Wake word detected!")
             >>> service.set_wake_word_callback(on_wake_word)
+
         """
         self._wake_word_callback = callback
 
     async def handle_low_battery(self, battery_percent: float) -> None:
-        """
-        Handle low battery condition.
+        """Handle low battery condition.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -302,22 +290,24 @@ class IOSBackgroundService:
 
         Example:
             >>> await service.handle_low_battery(0.15)
+
         """
         logger.warning("Low battery: %.1f%", battery_percent * 100)
 
-        if battery_percent < 0.20:
+        if battery_percent < 0.20:  # noqa: PLR2004 - Threshold value
+
             # Below 20%: Enter sleep mode
             await self.enter_sleep_mode()
             logger.info("Entered sleep mode due to low battery")
 
-        if battery_percent < 0.10:
+        if battery_percent < 0.10:  # noqa: PLR2004 - Threshold value
+
             # Below 10%: Stop service
             await self.stop_service()
             logger.warning("Stopped service due to critical battery")
 
     async def handle_thermal_state(self, thermal_state: str) -> None:
-        """
-        Handle thermal state changes.
+        """Handle thermal state changes.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -327,6 +317,7 @@ class IOSBackgroundService:
 
         Example:
             >>> await service.handle_thermal_state("serious")
+
         """
         logger.info("Thermal state: %s", thermal_state)
 
@@ -336,8 +327,7 @@ class IOSBackgroundService:
             logger.warning("Entered sleep mode due to thermal state")
 
     def get_battery_usage_stats(self) -> BatteryUsageStats:
-        """
-        Get battery usage statistics.
+        """Get battery usage statistics.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -348,13 +338,14 @@ class IOSBackgroundService:
         Example:
             >>> stats = service.get_battery_usage_stats()
             >>> print(f"Sleep mode: {stats.sleep_mode_percent_per_hour:.1f}%/hour")
+
         """
         if not self._start_time or not self._start_battery:
             return BatteryUsageStats(
                 sleep_mode_percent_per_hour=0.0,
                 wake_mode_percent_per_hour=0.0,
                 total_runtime_hours=0.0,
-                total_battery_consumed=0.0
+                total_battery_consumed=0.0,
             )
 
         # Calculate total runtime
@@ -372,7 +363,7 @@ class IOSBackgroundService:
             sleep_mode_percent_per_hour=sleep_rate,
             wake_mode_percent_per_hour=wake_rate,
             total_runtime_hours=runtime_hours,
-            total_battery_consumed=total_consumed
+            total_battery_consumed=total_consumed,
         )
 
     async def _service_loop(self) -> None:
@@ -385,7 +376,8 @@ class IOSBackgroundService:
                 battery_info = self.integration.get_battery_info()
 
                 # Handle low battery
-                if battery_info.level < 0.20:
+                if battery_info.level < 0.20:  # noqa: PLR2004 - Threshold value
+
                     await self.handle_low_battery(battery_info.level)
 
                 # Handle low power mode
@@ -394,7 +386,8 @@ class IOSBackgroundService:
 
                 # Auto-sleep after 30 seconds of inactivity in wake mode
                 if self.state == ServiceState.ACTIVE and self._wake_mode_start:
-                    if time.time() - self._wake_mode_start > 30:
+                    if time.time() - self._wake_mode_start > 30:  # noqa: PLR2004 - Threshold
+
                         await self.enter_sleep_mode()
 
                 # Sleep for 1 second
@@ -402,9 +395,7 @@ class IOSBackgroundService:
 
         except asyncio.CancelledError as e:
             logger.info("Service loop cancelled: %s", e)
-        except Exception as e:
-            logger.error("Service loop error: %s", e)
-
+            logger.exception("Service loop error")
     def _update_sleep_battery_usage(self) -> None:
         """Update sleep mode battery usage."""
         if not self._sleep_mode_start:

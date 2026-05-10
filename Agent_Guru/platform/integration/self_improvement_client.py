@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.platform.integration.self_improvement_client
+"""Module: Agent_Guru.platform.integration.self_improvement_client
 Purpose: Self-Improvement Engine integration client for performance metrics reporting.
 
 Performance Requirements:
@@ -10,8 +9,8 @@ Performance Requirements:
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import aiohttp
 
@@ -26,7 +25,7 @@ class PerformanceMetrics:
     execution_time_ms: float
     success: bool
     resource_usage: dict[str, float] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -49,7 +48,7 @@ class ErrorStatistics:
     operation_type: str
     time_window_minutes: int = 60
     sample_messages: list[str] = field(default_factory=list)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -75,8 +74,7 @@ class ImprovementSuggestion:
 
 
 class SelfImprovementClient:
-    """
-    Async client for Self-Improvement Engine integration.
+    """Async client for Self-Improvement Engine integration.
 
     Reports performance metrics, error statistics, and retrieves
     improvement suggestions.
@@ -88,6 +86,7 @@ class SelfImprovementClient:
         >>> await client.report_performance_metrics(metrics)
         >>> suggestions = await client.get_improvement_suggestions()
         >>> await client.disconnect()
+
     """
 
     def __init__(
@@ -98,19 +97,23 @@ class SelfImprovementClient:
         batch_size: int = 50,
     ) -> None:
         if not base_url:
-            raise ValueError("base_url cannot be empty")
+            msg = "base_url cannot be empty"
+            raise ValueError(msg)
         if timeout <= 0:
-            raise ValueError(f"timeout must be positive, got {timeout}")
+            msg = f"timeout must be positive, got {timeout}"
+            raise ValueError(msg)
         if max_retries < 0:
-            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+            msg = f"max_retries must be non-negative, got {max_retries}"
+            raise ValueError(msg)
         if batch_size <= 0:
-            raise ValueError(f"batch_size must be positive, got {batch_size}")
+            msg = f"batch_size must be positive, got {batch_size}"
+            raise ValueError(msg)
 
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
         self.batch_size = batch_size
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: aiohttp.ClientSession | None = None
         self._metrics_reported = 0
         self._errors_reported = 0
         self._pending_metrics: list[PerformanceMetrics] = []
@@ -118,10 +121,9 @@ class SelfImprovementClient:
     async def connect(self) -> None:
         """Establish connection to Self-Improvement Engine."""
         if self._session is not None:
-            raise RuntimeError("Client already connected")
-        self._session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=self.timeout)
-        )
+            msg = "Client already connected"
+            raise RuntimeError(msg)
+        self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout))
         logger.info("Connected to Self-Improvement Engine at %s", self.base_url)
 
     async def disconnect(self) -> None:
@@ -133,11 +135,8 @@ class SelfImprovementClient:
             self._session = None
             logger.info("Disconnected from Self-Improvement Engine")
 
-    async def report_performance_metrics(
-        self, metrics: PerformanceMetrics
-    ) -> bool:
-        """
-        Report performance metrics to Self-Improvement Engine.
+    async def report_performance_metrics(self, metrics: PerformanceMetrics) -> bool:
+        """Report performance metrics to Self-Improvement Engine.
 
         Batches metrics for efficiency; flushes when batch is full.
 
@@ -146,9 +145,11 @@ class SelfImprovementClient:
 
         Returns:
             True if queued/sent successfully
+
         """
         if self._session is None:
-            raise RuntimeError("Client not connected. Call connect() first.")
+            msg = "Client not connected. Call connect() first."
+            raise RuntimeError(msg)
 
         self._pending_metrics.append(metrics)
 
@@ -176,55 +177,51 @@ class SelfImprovementClient:
                         logger.debug("Flushed %s metrics", len(batch))
                         return True
                     logger.warning("Metrics flush returned %s", resp.status)
-            except Exception as e:
-                logger.warning("Metrics flush attempt %s failed: %s", attempt + 1, e)
+            except Exception:
+                logger.exception("Metrics flush attempt %s failed", attempt + 1)
                 if attempt < self.max_retries - 1:
-                    await asyncio.sleep(0.5 * (2 ** attempt))
+                    await asyncio.sleep(0.5 * (2**attempt))
 
         logger.error("Failed to flush %s metrics", len(batch))
         return False
 
-    async def report_error_statistics(
-        self, error_stats: ErrorStatistics
-    ) -> bool:
-        """
-        Report error statistics to Self-Improvement Engine.
+    async def report_error_statistics(self, error_stats: ErrorStatistics) -> bool:
+        """Report error statistics to Self-Improvement Engine.
 
         Args:
             error_stats: Error statistics to report
 
         Returns:
             True if reported successfully
+
         """
         if self._session is None:
-            raise RuntimeError("Client not connected. Call connect() first.")
+            msg = "Client not connected. Call connect() first."
+            raise RuntimeError(msg)
 
         for attempt in range(self.max_retries):
             try:
                 url = f"{self.base_url}/api/v1/improvement/errors"
-                async with self._session.post(
-                    url, json=error_stats.to_dict()
-                ) as resp:
+                async with self._session.post(url, json=error_stats.to_dict()) as resp:
                     if resp.status in (200, 201):
                         self._errors_reported += 1
-                        logger.debug(
-                            f"Reported error stats: {error_stats.error_type}"
-                        )
+                        logger.debug("Reported error stats: %s", error_stats.error_type)
                         return True
                     logger.warning("Error stats returned %s", resp.status)
-            except Exception as e:
-                logger.warning("Error stats attempt %s failed: %s", attempt + 1, e)
+            except Exception:
+                logger.exception("Error stats attempt %s failed", attempt + 1)
                 if attempt < self.max_retries - 1:
-                    await asyncio.sleep(0.5 * (2 ** attempt))
+                    await asyncio.sleep(0.5 * (2**attempt))
 
         logger.error("Failed to report error stats: %s", error_stats.error_type)
         return False
 
     async def get_improvement_suggestions(
-        self, category: Optional[str] = None, limit: int = 10
+        self,
+        category: str | None = None,
+        limit: int = 10,
     ) -> list[ImprovementSuggestion]:
-        """
-        Retrieve improvement suggestions from Self-Improvement Engine.
+        """Retrieve improvement suggestions from Self-Improvement Engine.
 
         Args:
             category: Filter by category (optional)
@@ -232,9 +229,11 @@ class SelfImprovementClient:
 
         Returns:
             List of improvement suggestions
+
         """
         if self._session is None:
-            raise RuntimeError("Client not connected. Call connect() first.")
+            msg = "Client not connected. Call connect() first."
+            raise RuntimeError(msg)
 
         params: dict[str, Any] = {"limit": limit}
         if category:
@@ -243,7 +242,8 @@ class SelfImprovementClient:
         try:
             url = f"{self.base_url}/api/v1/improvement/suggestions"
             async with self._session.get(url, params=params) as resp:
-                if resp.status == 200:
+                if resp.status == 200:  # noqa: PLR2004 - Percentage/large threshold
+
                     body = await resp.json()
                     return [
                         ImprovementSuggestion(
@@ -258,8 +258,8 @@ class SelfImprovementClient:
                     ]
                 logger.warning("Suggestions returned %s", resp.status)
                 return []
-        except Exception as e:
-            logger.error("Failed to get suggestions: %s", e)
+        except Exception:
+            logger.exception("Failed to get suggestions")
             return []
 
     def get_statistics(self) -> dict[str, Any]:
@@ -274,5 +274,5 @@ class SelfImprovementClient:
         await self.connect()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):  # noqa: ANN001
         await self.disconnect()

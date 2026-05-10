@@ -1,10 +1,13 @@
 """Empathy Adapter for emotional response adaptation."""
+
 from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from Agent_Guru.emotion.detector import EmotionalState
+if TYPE_CHECKING:
+    from Agent_Guru.emotion.detector import EmotionalState
 
 DISTRESS_EMOTIONS = {"sad", "fearful"}
 DISTRESS_CONFIDENCE_THRESHOLD = 0.8
@@ -14,6 +17,7 @@ DISTRESS_CONSECUTIVE_TURNS = 3
 @dataclass
 class AdaptedResponse:
     """Response adapted for emotional state."""
+
     original: str
     adapted: str
     tone: str
@@ -61,7 +65,8 @@ class EmpathyAdapter:
 
         # Adapt text (stub: prepend empathetic acknowledgment)
         adapted = text
-        if state.emotion in DISTRESS_EMOTIONS and state.confidence > 0.5:
+        if state.emotion in DISTRESS_EMOTIONS and state.confidence > 0.5:  # noqa: PLR2004 - Threshold value
+
             adapted = f"I understand this might be difficult. {text}"
 
         return AdaptedResponse(

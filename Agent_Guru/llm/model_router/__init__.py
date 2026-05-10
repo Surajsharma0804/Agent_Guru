@@ -1,5 +1,4 @@
-"""
-Agent_Guru.llm.model_router — Intelligent LLM Model Selection
+"""Agent_Guru.llm.model_router — Intelligent LLM Model Selection.
 
 Dynamically selects optimal language models based on task requirements,
 cost constraints, performance history, and learned patterns.
@@ -41,26 +40,26 @@ from Agent_Guru.llm.model_router.router import ModelRouter
 from Agent_Guru.llm.model_router.selector import ModelSelector
 
 __all__ = [
-    "ModelCapability",
-    "TaskType",
-    "Provider",
-    "ModelMetadata",
-    "ModelFilter",
-    "TaskSpecification",
-    "TaskAnalysis",
-    "SelectionResult",
     "CostRecord",
     "CostSummary",
-    "PerformanceRecord",
-    "PerformanceMetrics",
-    "FallbackEvent",
-    "LearningWeights",
-    "ModelRegistry",
-    "TaskAnalyzer",
-    "ModelSelector",
     "CostTracker",
-    "PerformanceMonitor",
+    "FallbackEvent",
     "FallbackManager",
     "LearningEngine",
+    "LearningWeights",
+    "ModelCapability",
+    "ModelFilter",
+    "ModelMetadata",
+    "ModelRegistry",
     "ModelRouter",
+    "ModelSelector",
+    "PerformanceMetrics",
+    "PerformanceMonitor",
+    "PerformanceRecord",
+    "Provider",
+    "SelectionResult",
+    "TaskAnalysis",
+    "TaskAnalyzer",
+    "TaskSpecification",
+    "TaskType",
 ]

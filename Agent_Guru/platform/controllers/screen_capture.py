@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.controllers.screen_capture
-Purpose: Cross-platform screenshot and screen recording control
+"""Module: agent_guru.platform.controllers.screen_capture
+Purpose: Cross-platform screenshot and screen recording control.
 
 ZERO DUPLICATION - MAXIMUM COVERAGE - NO COMPROMISE
 
@@ -22,16 +21,17 @@ import subprocess
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 # Data Models
 
+
 @dataclass
 class CaptureRegion:
     """Screen capture region coordinates."""
+
     x: int
     y: int
     width: int
@@ -40,21 +40,25 @@ class CaptureRegion:
     def __post_init__(self):
         """Validate region coordinates."""
         if self.width <= 0 or self.height <= 0:
-            raise ValueError(f"Invalid region dimensions: {self.width}x{self.height}")
+            msg = f"Invalid region dimensions: {self.width}x{self.height}"
+            raise ValueError(msg)
         if self.x < 0 or self.y < 0:
-            raise ValueError(f"Invalid region coordinates: ({self.x}, {self.y})")
+            msg = f"Invalid region coordinates: ({self.x}, {self.y})"
+            raise ValueError(msg)
 
 
 @dataclass
 class RecordingState:
     """Current recording state."""
+
     is_recording: bool
-    output_path: Optional[str] = None
-    start_time: Optional[float] = None
-    process: Optional[subprocess.Popen] = None
+    output_path: str | None = None
+    start_time: float | None = None
+    process: subprocess.Popen | None = None
 
 
 # Exceptions
+
 
 class ScreenCaptureError(Exception):
     """Base exception for screen capture errors."""
@@ -74,11 +78,12 @@ class UnsupportedCaptureOperationError(ScreenCaptureError):
 
 # Helper Functions (DRY Principle)
 
+
 def ensure_output_directory(output_path: str) -> None:
     """Ensure output directory exists."""
-    directory = os.path.dirname(os.path.abspath(output_path))
+    directory = os.path.dirname(os.path.abspath(output_path))  # noqa: PTH120
     if directory:
-        os.makedirs(directory, exist_ok=True)
+        os.makedirs(directory, exist_ok=True)  # noqa: PTH103
 
 
 def stop_ffmpeg_process(process: subprocess.Popen, timeout: int = 5) -> None:
@@ -86,10 +91,11 @@ def stop_ffmpeg_process(process: subprocess.Popen, timeout: int = 5) -> None:
 
     Raises:
         RecordingError: If recording stop fails
+
     """
     try:
         if process.stdin and not process.stdin.closed:
-            process.stdin.write(b'q')
+            process.stdin.write(b"q")
             process.stdin.flush()
 
         process.wait(timeout=timeout)
@@ -98,30 +104,29 @@ def stop_ffmpeg_process(process: subprocess.Popen, timeout: int = 5) -> None:
     except subprocess.TimeoutExpired as e:
         process.kill()
         process.wait()
-        logger.warning("Recording process killed (timeout): %s", e)
-    except Exception as e:
+        logger.exception("Recording process killed (timeout)")
         error_msg = f"Failed to stop recording: {e}"
-        logger.error(error_msg)
+        logger.exception(error_msg)
         raise RecordingError(error_msg) from e
-
-
 def run_command(cmd: list, timeout: int = 10, error_prefix: str = "Command failed") -> None:
     """Run subprocess command with error handling.
 
     Raises:
         ScreenshotError: If command fails
+
     """
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)  # nosec B603 B607
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=timeout)  # nosec B603 B607  # noqa: S603
         if result.returncode != 0:
-            raise ScreenshotError(f"{error_prefix}: {result.stderr}")
+            msg = f"{error_prefix}: {result.stderr}"
+            raise ScreenshotError(msg)
     except subprocess.TimeoutExpired as e:
-        raise ScreenshotError(f"{error_prefix}: timeout") from e
-    except FileNotFoundError as e:
-        raise ScreenshotError(f"{error_prefix}: command not found") from e
-
-
+        msg = f"{error_prefix}: timeout"
+        raise ScreenshotError(msg) from e
+        msg = f"{error_prefix}: command not found"
+        raise ScreenshotError(msg) from e
 # Backend Interface
+
 
 class ScreenCaptureBackend(ABC):
     """Abstract base class for platform-specific screen capture backends."""
@@ -145,19 +150,21 @@ class ScreenCaptureBackend(ABC):
 
 # Platform-Specific Backends
 
+
 class WindowsScreenCaptureBackend(ScreenCaptureBackend):
     """Windows screen capture using pyautogui and ffmpeg."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         try:
             import pyautogui
-            self.pyautogui = pyautogui
-        except ImportError as e:
-            self.pyautogui = None
 
+            self.pyautogui = pyautogui
+        except ImportError:
+            self.pyautogui = None
     def capture_screenshot(self, output_path: str) -> None:
         if self.pyautogui is None:
-            raise ScreenshotError("pyautogui not available. Install: pip install pyautogui")
+            msg = "pyautogui not available. Install: pip install pyautogui"
+            raise ScreenshotError(msg)
 
         try:
             ensure_output_directory(output_path)
@@ -165,45 +172,60 @@ class WindowsScreenCaptureBackend(ScreenCaptureBackend):
             screenshot.save(output_path)
             logger.info("Screenshot saved: %s", output_path)
         except Exception as e:
-            raise ScreenshotError(f"Failed to capture screenshot: {e}") from e
-
+            msg = f"Failed to capture screenshot: {e}"
+            raise ScreenshotError(msg) from e
     def capture_region(self, region: CaptureRegion, output_path: str) -> None:
         if self.pyautogui is None:
-            raise ScreenshotError("pyautogui not available. Install: pip install pyautogui")
+            msg = "pyautogui not available. Install: pip install pyautogui"
+            raise ScreenshotError(msg)
 
         try:
             ensure_output_directory(output_path)
             screenshot = self.pyautogui.screenshot(
-                region=(region.x, region.y, region.width, region.height)
+                region=(region.x, region.y, region.width, region.height),
             )
             screenshot.save(output_path)
             logger.info("Region screenshot saved: %s", output_path)
         except Exception as e:
-            raise ScreenshotError(f"Failed to capture region: {e}") from e
-
+            msg = f"Failed to capture region: {e}"
+            raise ScreenshotError(msg) from e
     def start_recording(self, output_path: str, fps: int = 30) -> subprocess.Popen:
         try:
             ensure_output_directory(output_path)
 
             cmd = [
-                "ffmpeg", "-f", "gdigrab", "-framerate", str(fps),
-                "-i", "desktop", "-c:v", "libx264", "-preset", "ultrafast",
-                "-pix_fmt", "yuv420p", "-y", output_path
+                "ffmpeg",
+                "-f",
+                "gdigrab",
+                "-framerate",
+                str(fps),
+                "-i",
+                "desktop",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-pix_fmt",
+                "yuv420p",
+                "-y",
+                output_path,
             ]
 
-            process = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
+            process = subprocess.Popen(  # noqa: S603
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE,
             )  # nosec B603 B607
 
             logger.info("Started recording: %s", output_path)
             return process
 
         except FileNotFoundError as e:
-            raise RecordingError("ffmpeg not found. Install from: https://ffmpeg.org") from e
-        except Exception as e:
-            raise RecordingError(f"Failed to start recording: {e}") from e
-
-
+            msg = "ffmpeg not found. Install from: https://ffmpeg.org"
+            raise RecordingError(msg) from e
+            msg = f"Failed to start recording: {e}"
+            raise RecordingError(msg) from e
 class MacOSScreenCaptureBackend(ScreenCaptureBackend):
     """macOS screen capture using screencapture and ffmpeg."""
 
@@ -217,7 +239,7 @@ class MacOSScreenCaptureBackend(ScreenCaptureBackend):
         geometry = f"{region.x},{region.y},{region.width},{region.height}"
         run_command(
             ["screencapture", "-x", "-R", geometry, output_path],
-            error_prefix="screencapture failed"
+            error_prefix="screencapture failed",
         )
         logger.info("Region screenshot saved: %s", output_path)
 
@@ -226,40 +248,54 @@ class MacOSScreenCaptureBackend(ScreenCaptureBackend):
             ensure_output_directory(output_path)
 
             cmd = [
-                "ffmpeg", "-f", "avfoundation", "-framerate", str(fps),
-                "-i", "1:0", "-c:v", "libx264", "-preset", "ultrafast",
-                "-pix_fmt", "yuv420p", "-y", output_path
+                "ffmpeg",
+                "-f",
+                "avfoundation",
+                "-framerate",
+                str(fps),
+                "-i",
+                "1:0",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-pix_fmt",
+                "yuv420p",
+                "-y",
+                output_path,
             ]
 
-            process = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
+            process = subprocess.Popen(  # noqa: S603
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE,
             )  # nosec B603 B607
 
             logger.info("Started recording: %s", output_path)
             return process
 
         except FileNotFoundError as e:
-            raise RecordingError("ffmpeg not found. Install: brew install ffmpeg") from e
-        except Exception as e:
-            raise RecordingError(f"Failed to start recording: {e}") from e
-
-
+            msg = "ffmpeg not found. Install: brew install ffmpeg"
+            raise RecordingError(msg) from e
+            msg = f"Failed to start recording: {e}"
+            raise RecordingError(msg) from e
 class LinuxScreenCaptureBackend(ScreenCaptureBackend):
     """Linux screen capture using scrot and ffmpeg."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.has_scrot = self._check_scrot()
 
     def _check_scrot(self) -> bool:
         try:
-            result = subprocess.run(["which", "scrot"], capture_output=True, timeout=5)  # nosec B603 B607
+            result = subprocess.run(["which", "scrot"], check=False, capture_output=True, timeout=5)  # nosec B603 B607  # noqa: S607
             return result.returncode == 0
-        except Exception as e:
+        except Exception:
             return False
-
     def capture_screenshot(self, output_path: str) -> None:
         if not self.has_scrot:
-            raise ScreenshotError("scrot not found. Install: sudo apt-get install scrot")
+            msg = "scrot not found. Install: sudo apt-get install scrot"
+            raise ScreenshotError(msg)
 
         ensure_output_directory(output_path)
         run_command(["scrot", output_path], error_prefix="scrot failed")
@@ -267,7 +303,8 @@ class LinuxScreenCaptureBackend(ScreenCaptureBackend):
 
     def capture_region(self, region: CaptureRegion, output_path: str) -> None:
         if not self.has_scrot:
-            raise ScreenshotError("scrot not found. Install: sudo apt-get install scrot")
+            msg = "scrot not found. Install: sudo apt-get install scrot"
+            raise ScreenshotError(msg)
 
         ensure_output_directory(output_path)
         geometry = f"{region.width}x{region.height}+{region.x}+{region.y}"
@@ -280,30 +317,45 @@ class LinuxScreenCaptureBackend(ScreenCaptureBackend):
             display = os.environ.get("DISPLAY", ":0")
 
             cmd = [
-                "ffmpeg", "-f", "x11grab", "-framerate", str(fps),
-                "-i", display, "-c:v", "libx264", "-preset", "ultrafast",
-                "-pix_fmt", "yuv420p", "-y", output_path
+                "ffmpeg",
+                "-f",
+                "x11grab",
+                "-framerate",
+                str(fps),
+                "-i",
+                display,
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-pix_fmt",
+                "yuv420p",
+                "-y",
+                output_path,
             ]
 
-            process = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE
+            process = subprocess.Popen(  # noqa: S603
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE,
             )  # nosec B603 B607
 
             logger.info("Started recording: %s", output_path)
             return process
 
         except FileNotFoundError as e:
-            raise RecordingError("ffmpeg not found. Install: sudo apt-get install ffmpeg") from e
-        except Exception as e:
-            raise RecordingError(f"Failed to start recording: {e}") from e
-
-
+            msg = "ffmpeg not found. Install: sudo apt-get install ffmpeg"
+            raise RecordingError(msg) from e
+            msg = f"Failed to start recording: {e}"
+            raise RecordingError(msg) from e
 # Main Controller
+
 
 class ScreenCaptureController:
     """Cross-platform screen capture controller."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         system = platform.system()
 
         if system == "Windows":
@@ -313,7 +365,8 @@ class ScreenCaptureController:
         elif system == "Linux":
             self._backend = LinuxScreenCaptureBackend()
         else:
-            raise UnsupportedCaptureOperationError(f"Unsupported platform: {system}")
+            msg = f"Unsupported platform: {system}"
+            raise UnsupportedCaptureOperationError(msg)
 
         self._recording_state = RecordingState(is_recording=False)
         logger.info("Initialized screen capture for %s", system)
@@ -329,22 +382,28 @@ class ScreenCaptureController:
 
     def start_recording(self, output_path: str, fps: int = 30) -> None:
         """Start screen recording."""
-        if fps <= 0 or fps > 120:
-            raise ValueError(f"Invalid fps: {fps} (must be 1-120)")
+        if fps <= 0 or fps > 120:  # noqa: PLR2004 - Percentage/large threshold
+
+            msg = f"Invalid fps: {fps} (must be 1-120)"
+            raise ValueError(msg)
 
         if self._recording_state.is_recording:
-            raise RecordingError("Recording already in progress")
+            msg = "Recording already in progress"
+            raise RecordingError(msg)
 
         process = self._backend.start_recording(output_path, fps)
         self._recording_state = RecordingState(
-            is_recording=True, output_path=output_path,
-            start_time=time.time(), process=process
+            is_recording=True,
+            output_path=output_path,
+            start_time=time.time(),
+            process=process,
         )
 
     def stop_recording(self) -> None:
         """Stop screen recording."""
         if not self._recording_state.is_recording:
-            raise RecordingError("No recording in progress")
+            msg = "No recording in progress"
+            raise RecordingError(msg)
 
         try:
             self._backend.stop_recording(self._recording_state.process)
@@ -357,7 +416,7 @@ class ScreenCaptureController:
         """Check if recording is active."""
         return self._recording_state.is_recording
 
-    def get_recording_duration(self) -> Optional[float]:
+    def get_recording_duration(self) -> float | None:
         """Get current recording duration in seconds."""
         if not self._recording_state.is_recording:
             return None

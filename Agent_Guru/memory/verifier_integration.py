@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Protocol
 from uuid import UUID, uuid4
 
@@ -46,7 +46,7 @@ class VerificationAuditEntry:
         self.item_id = item_id
         self.item_type = item_type
         self.result = result
-        self.timestamp = timestamp or datetime.now(tz=timezone.utc)
+        self.timestamp = timestamp or datetime.now(tz=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -57,11 +57,9 @@ class VerificationAuditEntry:
 class VerifierBackend(Protocol):
     """Interface that the real Verifier System must satisfy."""
 
-    def verify(self, item_id: UUID, item_type: str, data: dict[str, Any]) -> VerificationResult:
-        ...
+    def verify(self, item_id: UUID, item_type: str, data: dict[str, Any]) -> VerificationResult: ...
 
-    def is_available(self) -> bool:
-        ...
+    def is_available(self) -> bool: ...
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +91,8 @@ class UnavailableVerifier:
     """Stub that simulates an unavailable verifier service."""
 
     def verify(self, item_id: UUID, item_type: str, data: dict[str, Any]) -> VerificationResult:
-        raise RuntimeError("Verifier unavailable")
+        msg = "Verifier unavailable"
+        raise RuntimeError(msg)
 
     def is_available(self) -> bool:
         return False
@@ -130,7 +129,10 @@ class VerifierIntegration:
     # ------------------------------------------------------------------
 
     def verify_before_storage(
-        self, item_id: UUID, item_type: str, data: dict[str, Any]
+        self,
+        item_id: UUID,
+        item_type: str,
+        data: dict[str, Any],
     ) -> VerificationResult:
         """Verify item before allowing storage. Queue if backend unavailable.
 
@@ -149,7 +151,7 @@ class VerifierIntegration:
         try:
             result = self._backend.verify(item_id, item_type, data)
         except Exception as exc:
-            logger.error("Verification error for %s: %s", item_id, exc)
+            logger.exception("Verification error for %s: %s")
             self._pending_queue.append((item_id, item_type, data))
             return VerificationResult(
                 verified=False,
@@ -171,7 +173,10 @@ class VerifierIntegration:
         return result
 
     def request_reverification(
-        self, item_id: UUID, item_type: str, data: dict[str, Any]
+        self,
+        item_id: UUID,
+        item_type: str,
+        data: dict[str, Any],
     ) -> VerificationResult:
         """Re-verify an already-stored item (Property 31, 34)."""
         return self.verify_before_storage(item_id, item_type, data)

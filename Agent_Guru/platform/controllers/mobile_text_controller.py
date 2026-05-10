@@ -23,12 +23,12 @@ Performance Characteristics:
 Author: Agent Guru Team
 Date: 2026-03-20
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import platform
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ _ANDROID_KEYCODES: dict[str, int] = {
 # Platform detection
 # ---------------------------------------------------------------------------
 
-_PLATFORM_CACHE: Optional[str] = None
+_PLATFORM_CACHE: str | None = None
 
 
 def _detect_platform() -> str:
@@ -90,6 +90,7 @@ def _detect_platform() -> str:
     Returns:
         One of ``"windows"``, ``"macos"``, ``"linux"``, ``"android"``,
         ``"ios"``, or ``"unknown"``.
+
     """
     global _PLATFORM_CACHE
     if _PLATFORM_CACHE is not None:
@@ -103,14 +104,16 @@ def _detect_platform() -> str:
     elif system == "linux":
         try:
             import subprocess  # noqa: PLC0415
+
             out = subprocess.run(
-                ["uname", "-o"], capture_output=True, text=True, timeout=1  # nosec B603 B607
+                ["uname", "-o"],  # noqa: S607
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=1,  # nosec B603 B607
             )
-            if "android" in out.stdout.lower():
-                result = "android"
-            else:
-                result = "linux"
-        except Exception as e:
+            result = "android" if "android" in out.stdout.lower() else "linux"
+        except Exception:
             result = "linux"
     else:
         result = "unknown"
@@ -142,12 +145,11 @@ def _sanitize_text(text: str) -> str:
 
     Returns:
         Sanitized text safe for mobile input.
+
     """
     text = text.replace("\x00", "")
     if len(text) > _MAX_TEXT_LENGTH:
-        logger.warning(
-            "Text truncated from %d to %d characters", len(text), _MAX_TEXT_LENGTH
-        )
+        logger.warning("Text truncated from %d to %d characters", len(text), _MAX_TEXT_LENGTH)
         text = text[:_MAX_TEXT_LENGTH]
     return text
 
@@ -175,9 +177,10 @@ def _escape_for_adb(text: str) -> str:
 
     Returns:
         Shell-escaped text safe for adb input.
+
     """
     # Characters that need escaping in adb shell input text
-    special = set(' \t\n\\\'\"<>|&;(){}$`!#~')
+    special = set(" \t\n\\'\"<>|&;(){}$`!#~")
     escaped = []
     for ch in text:
         if ch in special:
@@ -226,7 +229,7 @@ class MobileTextController:
         Graceful fallback with helpful warning message when xcrun unavailable
     """
 
-    def __init__(self, platform_override: Optional[str] = None) -> None:
+    def __init__(self, platform_override: str | None = None) -> None:
         """Create the controller.
 
         Args:
@@ -236,19 +239,21 @@ class MobileTextController:
         Raises:
             RuntimeError: If the detected platform is a desktop platform
                 (``"windows"``, ``"macos"``, ``"linux"``, or ``"unknown"``).
+
         """
         self._platform: str = platform_override or _detect_platform()
         self._initialized: bool = False
 
         if _is_desktop(self._platform):
-            raise RuntimeError(
+            msg = (
                 f"MobileTextController is not supported on desktop "
                 f"platform '{self._platform}'. Use DesktopTextController instead."
             )
+            raise RuntimeError(
+                msg,
+            )
 
-        logger.info(
-            "MobileTextController created — platform=%s", self._platform
-        )
+        logger.info("MobileTextController created — platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -264,9 +269,7 @@ class MobileTextController:
             return
 
         self._initialized = True
-        logger.info(
-            "MobileTextController initialized — platform=%s", self._platform
-        )
+        logger.info("MobileTextController initialized — platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -290,6 +293,7 @@ class MobileTextController:
 
         Returns:
             ``True`` on success, ``False`` on failure.
+
         """
         if not text:
             return True
@@ -298,17 +302,15 @@ class MobileTextController:
         if not text:
             return True
 
-        logger.info(
-            "type_text: length=%d platform=%s", len(text), self._platform
-        )
+        logger.info("type_text: length=%d platform=%s", len(text), self._platform)
 
         try:
             if self._platform == "android":
                 return await self._type_text_android(text)
-            else:  # ios
-                return await self._type_text_ios(text)
-        except Exception as exc:
-            logger.error("type_text failed: %s", exc)
+            # ios
+            return await self._type_text_ios(text)
+        except Exception:
+            logger.exception("type_text failed")
             return False
 
     async def paste_text(self, text: str) -> bool:
@@ -322,6 +324,7 @@ class MobileTextController:
 
         Returns:
             ``True`` on success, ``False`` on failure.
+
         """
         if not text:
             return True
@@ -330,17 +333,15 @@ class MobileTextController:
         if not text:
             return True
 
-        logger.info(
-            "paste_text: length=%d platform=%s", len(text), self._platform
-        )
+        logger.info("paste_text: length=%d platform=%s", len(text), self._platform)
 
         try:
             if self._platform == "android":
                 return await self._paste_android(text)
-            else:  # ios
-                return await self._paste_ios(text)
-        except Exception as exc:
-            logger.error("paste_text failed: %s", exc)
+            # ios
+            return await self._paste_ios(text)
+        except Exception:
+            logger.exception("paste_text failed")
             return False
 
     async def type_special_key(self, key: str) -> bool:
@@ -357,6 +358,7 @@ class MobileTextController:
 
         Returns:
             ``True`` on success, ``False`` if the key is unknown or press fails.
+
         """
         if not key or not key.strip():
             logger.warning("type_special_key called with empty key")
@@ -369,10 +371,10 @@ class MobileTextController:
         try:
             if self._platform == "android":
                 return await self._special_key_android(normalized)
-            else:  # ios
-                return await self._special_key_ios(normalized)
-        except Exception as exc:
-            logger.error("type_special_key(%r) failed: %s", key, exc)
+            # ios
+            return await self._special_key_ios(normalized)
+        except Exception:
+            logger.exception("type_special_key(%r) failed: %s")
             return False
 
     async def clear_field(self) -> bool:
@@ -383,16 +385,17 @@ class MobileTextController:
 
         Returns:
             ``True`` on success, ``False`` on failure.
+
         """
         logger.info("clear_field: platform=%s", self._platform)
 
         try:
             if self._platform == "android":
                 return await self._clear_field_android()
-            else:  # ios
-                return await self._clear_field_ios()
-        except Exception as exc:
-            logger.error("clear_field failed: %s", exc)
+            # ios
+            return await self._clear_field_ios()
+        except Exception:
+            logger.exception("clear_field failed")
             return False
 
     # ------------------------------------------------------------------
@@ -421,22 +424,25 @@ class MobileTextController:
         if not await self._adb_available():
             logger.warning(
                 "adb not available — cannot type text on Android. "
-                "Ensure adb is installed and the device is connected."
+                "Ensure adb is installed and the device is connected.",
             )
             return False
 
         if _is_ascii_typeable(text):
             return await self._adb_input_text(text)
-        else:
-            # Unicode/emoji: use clipboard
-            return await self._paste_android(text)
+        # Unicode/emoji: use clipboard
+        return await self._paste_android(text)
 
     async def _adb_input_text(self, text: str) -> bool:
         """Send ASCII text via ``adb shell input text``."""
         escaped = _escape_for_adb(text)
         try:
             proc = await asyncio.create_subprocess_exec(
-                "adb", "shell", "input", "text", escaped,
+                "adb",
+                "shell",
+                "input",
+                "text",
+                escaped,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -456,16 +462,22 @@ class MobileTextController:
         if not await self._adb_available():
             logger.warning(
                 "adb not available — cannot paste text on Android. "
-                "Ensure adb is installed and the device is connected."
+                "Ensure adb is installed and the device is connected.",
             )
             return False
 
         # Set clipboard content via adb shell am broadcast
         try:
             proc = await asyncio.create_subprocess_exec(
-                "adb", "shell", "am", "broadcast",
-                "-a", "clipper.set",
-                "-e", "text", text,
+                "adb",
+                "shell",
+                "am",
+                "broadcast",
+                "-a",
+                "clipper.set",
+                "-e",
+                "text",
+                text,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -475,13 +487,17 @@ class MobileTextController:
             # Fallback: use input text with escaped content if ASCII
             if _is_ascii_typeable(text):
                 return await self._adb_input_text(text)
-            logger.warning("Cannot paste unicode text on Android without clipboard tool")
+            logger.exception("Cannot paste unicode text on Android without clipboard tool")
             return False
 
         # Send Ctrl+V (keyevent 279 = KEYCODE_PASTE)
         try:
             proc = await asyncio.create_subprocess_exec(
-                "adb", "shell", "input", "keyevent", "279",
+                "adb",
+                "shell",
+                "input",
+                "keyevent",
+                "279",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -499,9 +515,7 @@ class MobileTextController:
     async def _special_key_android(self, key: str) -> bool:
         """Send a special key on Android via ``adb shell input keyevent``."""
         if not await self._adb_available():
-            logger.warning(
-                "adb not available — cannot send key %r on Android.", key
-            )
+            logger.warning("adb not available — cannot send key %r on Android.", key)
             return False
 
         keycode = _ANDROID_KEYCODES.get(key)
@@ -511,7 +525,11 @@ class MobileTextController:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "adb", "shell", "input", "keyevent", str(keycode),
+                "adb",
+                "shell",
+                "input",
+                "keyevent",
+                str(keycode),
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -535,7 +553,11 @@ class MobileTextController:
         # Select all: KEYCODE_CTRL_A = 277
         try:
             proc = await asyncio.create_subprocess_exec(
-                "adb", "shell", "input", "keyevent", "277",
+                "adb",
+                "shell",
+                "input",
+                "keyevent",
+                "277",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -547,10 +569,13 @@ class MobileTextController:
             logger.debug("adb KEYCODE_CTRL_A failed: %s", exc)
             return False
 
-        # Delete: KEYCODE_DEL = 67
         try:
             proc = await asyncio.create_subprocess_exec(
-                "adb", "shell", "input", "keyevent", "67",
+                "adb",
+                "shell",
+                "input",
+                "keyevent",
+                "67",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -575,7 +600,7 @@ class MobileTextController:
             logger.warning(
                 "xcrun not available — cannot type text on iOS. "
                 "To type text on a physical iOS device, use the Shortcuts app "
-                "or an MDM solution. For simulators, install Xcode."
+                "or an MDM solution. For simulators, install Xcode.",
             )
             return False
 
@@ -587,14 +612,19 @@ class MobileTextController:
             logger.warning(
                 "xcrun not available — cannot paste text on iOS. "
                 "To paste text on a physical iOS device, use the Shortcuts app "
-                "or an MDM solution. For simulators, install Xcode."
+                "or an MDM solution. For simulators, install Xcode.",
             )
             return False
 
         # Set pasteboard content
         try:
             proc = await asyncio.create_subprocess_exec(
-                "xcrun", "simctl", "pasteboard", "set", "booted", text,
+                "xcrun",
+                "simctl",
+                "pasteboard",
+                "set",
+                "booted",
+                text,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -609,8 +639,15 @@ class MobileTextController:
         # Send Cmd+V via xcrun simctl io booted sendkey
         try:
             proc = await asyncio.create_subprocess_exec(
-                "xcrun", "simctl", "io", "booted", "sendkey",
-                "--key", "v", "--modifier", "command",
+                "xcrun",
+                "simctl",
+                "io",
+                "booted",
+                "sendkey",
+                "--key",
+                "v",
+                "--modifier",
+                "command",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -629,8 +666,7 @@ class MobileTextController:
         """Send a special key on iOS via xcrun simctl io booted sendkey."""
         if not await self._xcrun_available():
             logger.warning(
-                "xcrun not available — cannot send key %r on iOS. "
-                "For simulators, install Xcode.",
+                "xcrun not available — cannot send key %r on iOS. For simulators, install Xcode.",
                 key,
             )
             return False
@@ -663,8 +699,13 @@ class MobileTextController:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "xcrun", "simctl", "io", "booted", "sendkey",
-                "--key", ios_key,
+                "xcrun",
+                "simctl",
+                "io",
+                "booted",
+                "sendkey",
+                "--key",
+                ios_key,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -688,8 +729,15 @@ class MobileTextController:
         # Select all: Cmd+A
         try:
             proc = await asyncio.create_subprocess_exec(
-                "xcrun", "simctl", "io", "booted", "sendkey",
-                "--key", "a", "--modifier", "command",
+                "xcrun",
+                "simctl",
+                "io",
+                "booted",
+                "sendkey",
+                "--key",
+                "a",
+                "--modifier",
+                "command",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -704,8 +752,13 @@ class MobileTextController:
         # Delete
         try:
             proc = await asyncio.create_subprocess_exec(
-                "xcrun", "simctl", "io", "booted", "sendkey",
-                "--key", "delete",
+                "xcrun",
+                "simctl",
+                "io",
+                "booted",
+                "sendkey",
+                "--key",
+                "delete",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -724,8 +777,8 @@ class MobileTextController:
     # Availability checks (cached per instance)
     # ------------------------------------------------------------------
 
-    _adb_cache: Optional[bool] = None
-    _xcrun_cache: Optional[bool] = None
+    _adb_cache: bool | None = None
+    _xcrun_cache: bool | None = None
 
     async def _adb_available(self) -> bool:
         """Return True if adb is installed and reachable (cached)."""
@@ -734,13 +787,14 @@ class MobileTextController:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "adb", "version",
+                "adb",
+                "version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
-        except Exception as e:
+        except Exception:
             result = False
 
         MobileTextController._adb_cache = result
@@ -753,13 +807,14 @@ class MobileTextController:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "xcrun", "--version",
+                "xcrun",
+                "--version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
-        except Exception as e:
+        except Exception:
             result = False
 
         MobileTextController._xcrun_cache = result

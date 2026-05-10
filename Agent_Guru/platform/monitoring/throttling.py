@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.monitoring.throttling
-Purpose: Automatic operation throttling based on resource constraints
+"""Module: agent_guru.platform.monitoring.throttling
+Purpose: Automatic operation throttling based on resource constraints.
 
 This module implements automatic throttling with:
 - Resource constraint detection
@@ -32,9 +31,8 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
 from .resource_monitor import ResourceMonitor, ResourceSnapshot, ResourceType
 
@@ -44,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 class OperationPriority(Enum):
     """Priority levels for operations."""
+
     CRITICAL = 1  # Never throttle (system critical)
     HIGH = 2  # Throttle only under severe constraints
     MEDIUM = 3  # Throttle under moderate constraints
@@ -52,6 +51,7 @@ class OperationPriority(Enum):
 
 class ThrottleLevel(Enum):
     """Throttle levels for graceful degradation."""
+
     NONE = 0  # No throttling
     LIGHT = 1  # 25% reduction
     MODERATE = 2  # 50% reduction
@@ -61,6 +61,7 @@ class ThrottleLevel(Enum):
 
 class ThrottleReason(Enum):
     """Reasons for throttling."""
+
     CPU_CONSTRAINT = "cpu_constraint"
     MEMORY_CONSTRAINT = "memory_constraint"
     DISK_CONSTRAINT = "disk_constraint"
@@ -72,10 +73,11 @@ class ThrottleReason(Enum):
 @dataclass
 class ThrottleDecision:
     """Decision about whether to throttle an operation."""
+
     should_throttle: bool
     throttle_level: ThrottleLevel
     delay_seconds: float  # Suggested delay before retry
-    reason: Optional[ThrottleReason]
+    reason: ThrottleReason | None
     constrained_resources: list[ResourceType]
     message: str
     timestamp: datetime
@@ -84,6 +86,7 @@ class ThrottleDecision:
 @dataclass
 class ThrottleConfig:
     """Configuration for automatic throttling."""
+
     # Resource thresholds for throttling (percentage)
     cpu_light_threshold: float = 70.0  # Start light throttling
     cpu_moderate_threshold: float = 80.0
@@ -119,17 +122,15 @@ class ThrottleConfig:
 
     # Graceful degradation
     enable_feature_disabling: bool = True
-    non_critical_features: set[str] = field(default_factory=lambda: {
-        "background_sync",
-        "analytics",
-        "telemetry",
-        "auto_update_check"
-    })
+    non_critical_features: set[str] = field(
+        default_factory=lambda: {"background_sync", "analytics", "telemetry", "auto_update_check"},
+    )
 
 
 @dataclass
 class ThrottleState:
     """Current throttling state."""
+
     active: bool
     level: ThrottleLevel
     reasons: list[ThrottleReason]
@@ -143,14 +144,14 @@ class ThrottleState:
 @dataclass
 class TokenBucket:
     """Token bucket for rate limiting."""
+
     capacity: int
     tokens: float
     refill_rate: float  # Tokens per second
     last_refill: float  # Timestamp
 
     def consume(self, tokens: int = 1) -> bool:
-        """
-        Try to consume tokens.
+        """Try to consume tokens.
 
         Time Complexity: O(1)
 
@@ -159,6 +160,7 @@ class TokenBucket:
 
         Returns:
             True if tokens were consumed, False if insufficient
+
         """
         self._refill()
 
@@ -180,8 +182,7 @@ class TokenBucket:
 
 
 class AutomaticThrottler:
-    """
-    Automatic operation throttling based on resource constraints.
+    """Automatic operation throttling based on resource constraints.
 
     Monitors system resources and automatically throttles operations
     to prevent resource exhaustion. Supports:
@@ -215,19 +216,18 @@ class AutomaticThrottler:
         ...     process_data()
         >>>
         >>> throttler.stop()
+
     """
 
     def __init__(
-        self,
-        resource_monitor: ResourceMonitor,
-        config: Optional[ThrottleConfig] = None
-    ):
-        """
-        Initialize automatic throttler.
+        self, resource_monitor: ResourceMonitor, config: ThrottleConfig | None = None,
+    ) -> None:
+        """Initialize automatic throttler.
 
         Args:
             resource_monitor: Resource monitor instance
             config: Throttle configuration (uses defaults if None)
+
         """
         self.monitor = resource_monitor
         self.config = config or ThrottleConfig()
@@ -238,10 +238,10 @@ class AutomaticThrottler:
             level=ThrottleLevel.NONE,
             reasons=[],
             constrained_resources=[],
-            started_at=datetime.now(tz=timezone.utc),
+            started_at=datetime.now(tz=UTC),
             operations_throttled=0,
             operations_allowed=0,
-            last_check=datetime.now(tz=timezone.utc)
+            last_check=datetime.now(tz=UTC),
         )
 
         # Token buckets per priority level
@@ -250,33 +250,33 @@ class AutomaticThrottler:
                 capacity=self.config.token_bucket_capacity,
                 tokens=self.config.token_bucket_capacity,
                 refill_rate=self.config.token_refill_rate,
-                last_refill=time.time()
+                last_refill=time.time(),
             ),
             OperationPriority.HIGH: TokenBucket(
                 capacity=self.config.token_bucket_capacity,
                 tokens=self.config.token_bucket_capacity,
                 refill_rate=self.config.token_refill_rate * 0.75,
-                last_refill=time.time()
+                last_refill=time.time(),
             ),
             OperationPriority.MEDIUM: TokenBucket(
                 capacity=self.config.token_bucket_capacity,
                 tokens=self.config.token_bucket_capacity,
                 refill_rate=self.config.token_refill_rate * 0.5,
-                last_refill=time.time()
+                last_refill=time.time(),
             ),
             OperationPriority.LOW: TokenBucket(
                 capacity=self.config.token_bucket_capacity,
                 tokens=self.config.token_bucket_capacity,
                 refill_rate=self.config.token_refill_rate * 0.25,
-                last_refill=time.time()
-            )
+                last_refill=time.time(),
+            ),
         }
 
         # Disabled features (for graceful degradation)
         self._disabled_features: set[str] = set()
 
         # Recovery monitoring
-        self._recovery_thread: Optional[threading.Thread] = None
+        self._recovery_thread: threading.Thread | None = None
         self._running = False
 
         # Thread safety
@@ -294,7 +294,7 @@ class AutomaticThrottler:
         self._recovery_thread = threading.Thread(
             target=self._recovery_loop,
             daemon=True,
-            name="ThrottleRecovery"
+            name="ThrottleRecovery",
         )
         self._recovery_thread.start()
 
@@ -313,10 +313,9 @@ class AutomaticThrottler:
         self,
         operation_name: str,
         priority: OperationPriority = OperationPriority.MEDIUM,
-        resource_types: Optional[list[ResourceType]] = None
+        resource_types: list[ResourceType] | None = None,
     ) -> ThrottleDecision:
-        """
-        Check if operation should be throttled.
+        """Check if operation should be throttled.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -328,6 +327,7 @@ class AutomaticThrottler:
 
         Returns:
             Throttle decision with recommendation
+
         """
         start_time = time.time()
 
@@ -342,7 +342,7 @@ class AutomaticThrottler:
                     reason=None,
                     constrained_resources=[],
                     message="Critical operation - no throttling",
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
                 self._throttle_history.append(decision)
                 return decision
@@ -353,14 +353,11 @@ class AutomaticThrottler:
             # Detect resource constraints
             throttle_level, constrained_resources, reasons = self._detect_constraints(
                 snapshot,
-                resource_types
+                resource_types,
             )
 
             # Check if throttling needed based on priority
-            should_throttle = self._should_throttle_for_priority(
-                priority,
-                throttle_level
-            )
+            should_throttle = self._should_throttle_for_priority(priority, throttle_level)
 
             # Check token bucket (only if not already throttled)
             if not should_throttle and self.config.enable_priority_based_throttling:
@@ -371,7 +368,7 @@ class AutomaticThrottler:
                     throttle_level = ThrottleLevel.LIGHT
 
             # Update state
-            self._state.last_check = datetime.now(tz=timezone.utc)
+            self._state.last_check = datetime.now(tz=UTC)
 
             if should_throttle:
                 self._state.operations_throttled += 1
@@ -382,7 +379,7 @@ class AutomaticThrottler:
                     self._state.level = throttle_level
                     self._state.reasons = reasons
                     self._state.constrained_resources = constrained_resources
-                    self._state.started_at = datetime.now(tz=timezone.utc)
+                    self._state.started_at = datetime.now(tz=UTC)
 
                     # Disable non-critical features if configured
                     if self.config.enable_feature_disabling:
@@ -408,9 +405,9 @@ class AutomaticThrottler:
                     message=self._generate_throttle_message(
                         operation_name,
                         throttle_level,
-                        constrained_resources
+                        constrained_resources,
                     ),
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
             else:
                 self._state.operations_allowed += 1
@@ -422,7 +419,7 @@ class AutomaticThrottler:
                     reason=None,
                     constrained_resources=[],
                     message=f"Operation '{operation_name}' allowed",
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
             # Store in history
@@ -430,19 +427,18 @@ class AutomaticThrottler:
 
             # Check overhead
             elapsed = (time.time() - start_time) * 1000  # Convert to ms
-            if elapsed > 5.0:
-                logger.warning(
-                    f"Throttle check took {elapsed:.2f}ms (target: <5ms)"
-                )
+            if elapsed > 5.0:  # noqa: PLR2004 - Threshold
+
+                logger.warning("Throttle check took %.2fms (target: <5ms)", elapsed)
 
             return decision
 
     def get_throttle_state(self) -> ThrottleState:
-        """
-        Get current throttle state.
+        """Get current throttle state.
 
         Returns:
             Current throttle state
+
         """
         with self._lock:
             return ThrottleState(
@@ -453,16 +449,15 @@ class AutomaticThrottler:
                 started_at=self._state.started_at,
                 operations_throttled=self._state.operations_throttled,
                 operations_allowed=self._state.operations_allowed,
-                last_check=self._state.last_check
+                last_check=self._state.last_check,
             )
 
     def get_throttle_history(
         self,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> list[ThrottleDecision]:
-        """
-        Get throttle decision history.
+        """Get throttle decision history.
 
         Args:
             start_time: Filter decisions after this time
@@ -470,6 +465,7 @@ class AutomaticThrottler:
 
         Returns:
             List of throttle decisions
+
         """
         with self._lock:
             decisions = list(self._throttle_history)
@@ -483,24 +479,24 @@ class AutomaticThrottler:
         return decisions
 
     def get_disabled_features(self) -> set[str]:
-        """
-        Get currently disabled features.
+        """Get currently disabled features.
 
         Returns:
             Set of disabled feature names
+
         """
         with self._lock:
             return self._disabled_features.copy()
 
     def is_feature_enabled(self, feature_name: str) -> bool:
-        """
-        Check if feature is currently enabled.
+        """Check if feature is currently enabled.
 
         Args:
             feature_name: Name of feature to check
 
         Returns:
             True if feature is enabled, False if disabled
+
         """
         with self._lock:
             return feature_name not in self._disabled_features
@@ -514,10 +510,9 @@ class AutomaticThrottler:
     def _detect_constraints(
         self,
         snapshot: ResourceSnapshot,
-        resource_types: Optional[list[ResourceType]] = None
+        resource_types: list[ResourceType] | None = None,
     ) -> tuple[ThrottleLevel, list[ResourceType], list[ThrottleReason]]:
-        """
-        Detect resource constraints and determine throttle level.
+        """Detect resource constraints and determine throttle level.
 
         Time Complexity: O(1)
 
@@ -527,6 +522,7 @@ class AutomaticThrottler:
 
         Returns:
             Tuple of (throttle_level, constrained_resources, reasons)
+
         """
         max_level = ThrottleLevel.NONE
         constrained = []
@@ -539,7 +535,7 @@ class AutomaticThrottler:
                 self.config.cpu_light_threshold,
                 self.config.cpu_moderate_threshold,
                 self.config.cpu_heavy_threshold,
-                self.config.cpu_severe_threshold
+                self.config.cpu_severe_threshold,
             )
 
             if cpu_level != ThrottleLevel.NONE:
@@ -554,7 +550,7 @@ class AutomaticThrottler:
                 self.config.memory_light_threshold,
                 self.config.memory_moderate_threshold,
                 self.config.memory_heavy_threshold,
-                self.config.memory_severe_threshold
+                self.config.memory_severe_threshold,
             )
 
             if memory_level != ThrottleLevel.NONE:
@@ -576,7 +572,7 @@ class AutomaticThrottler:
                 self.config.disk_light_threshold,
                 self.config.disk_moderate_threshold,
                 self.config.disk_heavy_threshold,
-                self.config.disk_severe_threshold
+                self.config.disk_severe_threshold,
             )
 
             if disk_level != ThrottleLevel.NONE:
@@ -592,10 +588,9 @@ class AutomaticThrottler:
         light_threshold: float,
         moderate_threshold: float,
         heavy_threshold: float,
-        severe_threshold: float
+        severe_threshold: float,
     ) -> ThrottleLevel:
-        """
-        Determine throttle level based on value and thresholds.
+        """Determine throttle level based on value and thresholds.
 
         Args:
             value: Current value
@@ -606,25 +601,24 @@ class AutomaticThrottler:
 
         Returns:
             Appropriate throttle level
+
         """
         if value >= severe_threshold:
             return ThrottleLevel.SEVERE
-        elif value >= heavy_threshold:
+        if value >= heavy_threshold:
             return ThrottleLevel.HEAVY
-        elif value >= moderate_threshold:
+        if value >= moderate_threshold:
             return ThrottleLevel.MODERATE
-        elif value >= light_threshold:
+        if value >= light_threshold:
             return ThrottleLevel.LIGHT
-        else:
-            return ThrottleLevel.NONE
+        return ThrottleLevel.NONE
 
     def _should_throttle_for_priority(
         self,
         priority: OperationPriority,
-        throttle_level: ThrottleLevel
+        throttle_level: ThrottleLevel,
     ) -> bool:
-        """
-        Determine if operation should be throttled based on priority.
+        """Determine if operation should be throttled based on priority.
 
         Args:
             priority: Operation priority
@@ -632,6 +626,7 @@ class AutomaticThrottler:
 
         Returns:
             True if operation should be throttled
+
         """
         if throttle_level == ThrottleLevel.NONE:
             return False
@@ -652,31 +647,30 @@ class AutomaticThrottler:
         return True
 
     def _calculate_delay(self, throttle_level: ThrottleLevel) -> float:
-        """
-        Calculate delay based on throttle level.
+        """Calculate delay based on throttle level.
 
         Args:
             throttle_level: Current throttle level
 
         Returns:
             Delay in seconds
+
         """
         if throttle_level == ThrottleLevel.LIGHT:
             return self.config.light_delay
-        elif throttle_level == ThrottleLevel.MODERATE:
+        if throttle_level == ThrottleLevel.MODERATE:
             return self.config.moderate_delay
-        elif throttle_level == ThrottleLevel.HEAVY:
+        if throttle_level == ThrottleLevel.HEAVY:
             return self.config.heavy_delay
-        elif throttle_level == ThrottleLevel.SEVERE:
+        if throttle_level == ThrottleLevel.SEVERE:
             return self.config.severe_delay
-        else:
-            return 0.0
+        return 0.0
 
     def _generate_throttle_message(
         self,
         operation_name: str,
         throttle_level: ThrottleLevel,
-        constrained_resources: list[ResourceType]
+        constrained_resources: list[ResourceType],
     ) -> str:
         """Generate human-readable throttle message."""
         resource_names = ", ".join(r.value.upper() for r in constrained_resources)
@@ -692,16 +686,12 @@ class AutomaticThrottler:
             self._disabled_features.add(feature)
 
         if self._disabled_features:
-            logger.info(
-                f"Disabled non-critical features: {', '.join(self._disabled_features)}"
-            )
+            logger.info("Disabled non-critical features: %s", ", ".join(self._disabled_features))
 
     def _enable_all_features(self) -> None:
         """Re-enable all features after recovery."""
         if self._disabled_features:
-            logger.info(
-                f"Re-enabled features: {', '.join(self._disabled_features)}"
-            )
+            logger.info("Re-enabled features: %s", ", ".join(self._disabled_features))
             self._disabled_features.clear()
 
     def _recovery_loop(self) -> None:
@@ -715,7 +705,7 @@ class AutomaticThrottler:
                         self._check_recovery()
 
             except Exception as e:
-                logger.error("Error in recovery loop: %s", e, exc_info=True)
+                logger.exception("Error in recovery loop: %s", e)
 
     def _check_recovery(self) -> None:
         """Check if resources have recovered and throttling can be lifted."""
@@ -732,7 +722,9 @@ class AutomaticThrottler:
                     break
 
             elif resource_type == ResourceType.MEMORY:
-                threshold = self.config.memory_light_threshold - self.config.recovery_threshold_buffer
+                threshold = (
+                    self.config.memory_light_threshold - self.config.recovery_threshold_buffer
+                )
                 if snapshot.memory_percent > threshold:
                     can_recover = False
                     break
@@ -754,12 +746,12 @@ class AutomaticThrottler:
 
     def _recover(self) -> None:
         """Recover from throttling state."""
-        duration = datetime.now(tz=timezone.utc) - self._state.started_at
+        duration = datetime.now(tz=UTC) - self._state.started_at
 
         logger.info(
             f"Recovering from throttling after {duration.total_seconds():.1f}s. "
             f"Throttled: {self._state.operations_throttled}, "
-            f"Allowed: {self._state.operations_allowed}"
+            f"Allowed: {self._state.operations_allowed}",
         )
 
         # Reset state

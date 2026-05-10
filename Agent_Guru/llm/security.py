@@ -1,5 +1,4 @@
-"""
-Security features for the LLM Runtime.
+"""Security features for the LLM Runtime.
 
 Provides:
 - Credential sanitization (API key redaction in logs)
@@ -26,10 +25,10 @@ logger = logging.getLogger(__name__)
 
 _CREDENTIAL_PATTERNS: list[Pattern[str]] = [
     # Patterns with no capture group → entire match replaced with [REDACTED]
-    re.compile(r"sk-[A-Za-z0-9]{20,}", re.IGNORECASE),          # OpenAI keys
-    re.compile(r"sk-ant-[A-Za-z0-9\-]{20,}", re.IGNORECASE),    # Anthropic keys
-    re.compile(r"AIza[A-Za-z0-9\-_]{35}", re.IGNORECASE),       # Google API keys
-    re.compile(r"ghp_[A-Za-z0-9]{36}", re.IGNORECASE),          # GitHub tokens
+    re.compile(r"sk-[A-Za-z0-9]{20,}", re.IGNORECASE),  # OpenAI keys
+    re.compile(r"sk-ant-[A-Za-z0-9\-]{20,}", re.IGNORECASE),  # Anthropic keys
+    re.compile(r"AIza[A-Za-z0-9\-_]{35}", re.IGNORECASE),  # Google API keys
+    re.compile(r"ghp_[A-Za-z0-9]{36}", re.IGNORECASE),  # GitHub tokens
     # Patterns with a prefix capture group → prefix kept, value replaced
     re.compile(r"(Bearer\s+)[A-Za-z0-9\-._~+/]+=*", re.IGNORECASE),  # Bearer tokens
     re.compile(r"(token[\"'\s:=]+)[A-Za-z0-9\-._~+/]{10,}", re.IGNORECASE),
@@ -55,14 +54,14 @@ _PII_PATTERNS: list[tuple[Pattern[str], str]] = [
 
 
 def sanitize_credentials(text: str) -> str:
-    """
-    Redact API keys and authentication tokens from a string.
+    """Redact API keys and authentication tokens from a string.
 
     Args:
         text: Input string that may contain credentials.
 
     Returns:
         String with credentials replaced by [REDACTED].
+
     """
     result = text
     for pattern in _CREDENTIAL_PATTERNS:
@@ -86,8 +85,7 @@ def _redact_match(match: re.Match) -> str:  # type: ignore[type-arg]
 
 
 def redact_pii(text: str) -> str:
-    """
-    Redact personally identifiable information from a string.
+    """Redact personally identifiable information from a string.
 
     Replaces emails, phone numbers, SSNs, and credit card numbers
     with placeholder tokens.
@@ -97,6 +95,7 @@ def redact_pii(text: str) -> str:
 
     Returns:
         String with PII replaced by placeholder tokens.
+
     """
     result = text
     for pattern, placeholder in _PII_PATTERNS:
@@ -110,8 +109,7 @@ def redact_pii(text: str) -> str:
 
 
 class CredentialFilter(logging.Filter):
-    """
-    Logging filter that redacts credentials and PII from log records.
+    """Logging filter that redacts credentials and PII from log records.
 
     Install on any logger or handler to prevent sensitive data leakage:
 
@@ -131,8 +129,7 @@ class CredentialFilter(logging.Filter):
                 }
             elif isinstance(record.args, tuple):
                 record.args = tuple(
-                    sanitize_credentials(str(a)) if isinstance(a, str) else a
-                    for a in record.args
+                    sanitize_credentials(str(a)) if isinstance(a, str) else a for a in record.args
                 )
 
         return True
@@ -143,14 +140,14 @@ class CredentialFilter(logging.Filter):
 # ---------------------------------------------------------------------------
 
 
-def create_secure_http_client() -> Any:
-    """
-    Create an httpx AsyncClient with TLS certificate validation enforced.
+def create_secure_http_client() -> Any:  # noqa: ANN401
+    """Create an httpx AsyncClient with TLS certificate validation enforced.
 
     Rejects self-signed and invalid certificates.
 
     Returns:
         httpx.AsyncClient configured for secure connections.
+
     """
     import httpx  # type: ignore[import]
 

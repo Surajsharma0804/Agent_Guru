@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.controllers.text_input
-Purpose: Ultra-fast text input controller with clipboard integration
+"""Module: agent_guru.platform.controllers.text_input
+Purpose: Ultra-fast text input controller with clipboard integration.
 
 This module provides comprehensive text input control for the Platform Integration System,
 enabling AGENT_GURU to type text into ANY application through voice commands.
@@ -37,7 +36,6 @@ import sys
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 # Lazy imports to avoid cv2 issues
 _pyautogui = None
@@ -50,18 +48,22 @@ def _get_pyautogui(fail_safe: bool = True):
     Args:
         fail_safe: Whether to enable the fail-safe (move mouse to corner to abort).
                    Pass False for automated demos where mouse movement is expected.
+
     """
     global _pyautogui
     if _pyautogui is None:
         try:
             import pyautogui as pg
+
             pg.FAILSAFE = fail_safe
             pg.PAUSE = 0.01
             _pyautogui = pg
         except ImportError as e:
+            msg = (
+                "pyautogui is required for text input control. Install with: pip install pyautogui"
+            )
             raise ImportError(
-                "pyautogui is required for text input control. "
-                "Install with: pip install pyautogui"
+                msg,
             ) from e
     else:
         # Update fail-safe setting on each call so callers can override it
@@ -75,11 +77,15 @@ def _get_pyperclip():
     if _pyperclip is None:
         try:
             import pyperclip as pc
+
             _pyperclip = pc
         except ImportError as e:
-            raise ImportError(
+            msg = (
                 "pyperclip is required for clipboard operations. "
                 "Install with: pip install pyperclip"
+            )
+            raise ImportError(
+                msg,
             ) from e
     return _pyperclip
 
@@ -90,6 +96,7 @@ logger = logging.getLogger(__name__)
 
 class TypingSpeed(Enum):
     """Predefined typing speeds in WPM (Words Per Minute)."""
+
     SLOW = 40
     NORMAL = 100
     FAST = 200
@@ -106,7 +113,9 @@ class TextInputConfig:
         backup_clipboard: Whether to backup and restore clipboard
         parse_special_keys: Whether to parse special key combinations
         fail_safe: Enable fail-safe (move mouse to corner to abort)
+
     """
+
     wpm: int = 100
     use_clipboard_threshold: int = 100
     backup_clipboard: bool = True
@@ -127,26 +136,26 @@ class TextInputController:
         - Clipboard backup: O(m) where m is clipboard size
     """
 
-    def __init__(self, config: Optional[TextInputConfig] = None):
+    def __init__(self, config: TextInputConfig | None = None) -> None:
         """Initialize text input controller.
 
         Args:
             config: Text input configuration (uses defaults if None)
+
         """
         self.platform = sys.platform
         self.config = config or TextInputConfig()
-        self._clipboard_backup: Optional[str] = None
+        self._clipboard_backup: str | None = None
 
         logger.info(
-            f"TextInputController initialized: "
-            f"platform={self.platform}, wpm={self.config.wpm}"
+            f"TextInputController initialized: platform={self.platform}, wpm={self.config.wpm}",
         )
 
     def type_text(
         self,
         text: str,
-        wpm: Optional[int] = None,
-        parse_special: Optional[bool] = None
+        wpm: int | None = None,
+        parse_special: bool | None = None,
     ) -> None:
         """Type text into the active application.
 
@@ -161,20 +170,18 @@ class TextInputController:
         Raises:
             ValueError: If text is empty or invalid
             RuntimeError: If typing fails
+
         """
         if not text:
-            raise ValueError("Text cannot be empty")
+            msg = "Text cannot be empty"
+            raise ValueError(msg)
 
         wpm = wpm if wpm is not None else self.config.wpm
         parse_special = (
-            parse_special if parse_special is not None
-            else self.config.parse_special_keys
+            parse_special if parse_special is not None else self.config.parse_special_keys
         )
 
-        logger.debug(
-            f"Typing text: length={len(text)}, wpm={wpm}, "
-            f"parse_special={parse_special}"
-        )
+        logger.debug("Typing text: length=%s, wpm=%s, parse_special=%s", len(text), wpm, parse_special)
 
         try:
             if len(text) > self.config.use_clipboard_threshold:
@@ -192,8 +199,9 @@ class TextInputController:
             logger.info("Successfully typed %s characters", len(text))
 
         except Exception as e:
-            logger.error("Failed to type text: %s", e)
-            raise RuntimeError(f"Text input failed: {e}") from e
+            logger.exception("Failed to type text")
+            msg = f"Text input failed: {e}"
+            raise RuntimeError(msg) from e
 
     def type_text_via_clipboard(self, text: str) -> None:
         """Type text using clipboard paste (instant for large text).
@@ -207,9 +215,11 @@ class TextInputController:
         Raises:
             ValueError: If text is empty
             RuntimeError: If clipboard operation fails
+
         """
         if not text:
-            raise ValueError("Text cannot be empty")
+            msg = "Text cannot be empty"
+            raise ValueError(msg)
 
         logger.debug("Pasting text via clipboard: length=%s", len(text))
 
@@ -229,12 +239,13 @@ class TextInputController:
             logger.info("Successfully pasted %s characters via clipboard", len(text))
 
         except Exception as e:
-            logger.error("Failed to paste via clipboard: %s", e)
+            logger.exception("Failed to paste via clipboard")
             if self.config.backup_clipboard:
                 self._restore_clipboard()
-            raise RuntimeError(f"Clipboard paste failed: {e}") from e
+            msg = f"Clipboard paste failed: {e}"
+            raise RuntimeError(msg) from e
 
-    def type_special_key(self, key: str, modifiers: Optional[list[str]] = None) -> None:
+    def type_special_key(self, key: str, modifiers: list[str] | None = None) -> None:
         """Type a special key or key combination.
 
         Time Complexity: O(1)
@@ -247,9 +258,11 @@ class TextInputController:
         Raises:
             ValueError: If key is invalid
             RuntimeError: If key press fails
+
         """
         if not key:
-            raise ValueError("Key cannot be empty")
+            msg = "Key cannot be empty"
+            raise ValueError(msg)
 
         logger.debug("Typing special key: key=%s, modifiers=%s", key, modifiers)
 
@@ -263,8 +276,9 @@ class TextInputController:
             logger.info("Successfully pressed key: %s with modifiers %s", key, modifiers)
 
         except Exception as e:
-            logger.error("Failed to press key: %s", e)
-            raise RuntimeError(f"Key press failed: {e}") from e
+            logger.exception("Failed to press key")
+            msg = f"Key press failed: {e}"
+            raise RuntimeError(msg) from e
 
     def type_unicode(self, text: str) -> None:
         """Type Unicode text including emojis and special characters.
@@ -278,9 +292,11 @@ class TextInputController:
         Raises:
             ValueError: If text is empty
             RuntimeError: If typing fails
+
         """
         if not text:
-            raise ValueError("Text cannot be empty")
+            msg = "Text cannot be empty"
+            raise ValueError(msg)
 
         logger.debug("Typing Unicode text: length=%s", len(text))
 
@@ -289,8 +305,9 @@ class TextInputController:
             logger.info("Successfully typed Unicode text: %s characters", len(text))
 
         except Exception as e:
-            logger.error("Failed to type Unicode text: %s", e)
-            raise RuntimeError(f"Unicode text input failed: {e}") from e
+            logger.exception("Failed to type Unicode text")
+            msg = f"Unicode text input failed: {e}"
+            raise RuntimeError(msg) from e
 
     def set_typing_speed(self, wpm: int) -> None:
         """Set the typing speed in words per minute.
@@ -300,9 +317,11 @@ class TextInputController:
 
         Raises:
             ValueError: If wpm is negative
+
         """
         if wpm < 0:
-            raise ValueError(f"WPM must be non-negative, got {wpm}")
+            msg = f"WPM must be non-negative, got {wpm}"
+            raise ValueError(msg)
 
         self.config.wpm = wpm
         logger.info("Typing speed set to %s WPM", wpm)
@@ -318,22 +337,25 @@ class TextInputController:
 
         Raises:
             ValueError: If num_chars is negative
+
         """
         if num_chars < 0:
-            raise ValueError(f"num_chars must be non-negative, got {num_chars}")
+            msg = f"num_chars must be non-negative, got {num_chars}"
+            raise ValueError(msg)
 
         logger.debug("Clearing %s characters", num_chars)
 
         try:
             pyautogui = _get_pyautogui(self.config.fail_safe)
             for _ in range(num_chars):
-                pyautogui.press('backspace')
+                pyautogui.press("backspace")
 
             logger.info("Successfully cleared %s characters", num_chars)
 
         except Exception as e:
-            logger.error("Failed to clear input: %s", e)
-            raise RuntimeError(f"Clear input failed: {e}") from e
+            logger.exception("Failed to clear input")
+            msg = f"Clear input failed: {e}"
+            raise RuntimeError(msg) from e
 
     def _calculate_interval(self, wpm: int) -> float:
         """Calculate interval between keystrokes based on WPM.
@@ -346,6 +368,7 @@ class TextInputController:
 
         Returns:
             Interval in seconds between keystrokes
+
         """
         if wpm == 0:
             return 0.0
@@ -362,21 +385,21 @@ class TextInputController:
         Args:
             text: Text with special key combinations
             interval: Interval between keystrokes
+
         """
         pyautogui = _get_pyautogui(self.config.fail_safe)
         parts = text.split()
 
         for part in parts:
-            if '+' in part and any(
-                mod in part.lower()
-                for mod in ['ctrl', 'alt', 'shift', 'cmd', 'win']
+            if "+" in part and any(
+                mod in part.lower() for mod in ["ctrl", "alt", "shift", "cmd", "win"]
             ):
-                keys = [k.strip().lower() for k in part.split('+')]
+                keys = [k.strip().lower() for k in part.split("+")]
                 modifiers = self._map_modifiers(keys[:-1])
                 key = keys[-1]
                 pyautogui.hotkey(*modifiers, key)
             else:
-                pyautogui.write(part + ' ', interval=interval)
+                pyautogui.write(part + " ", interval=interval)
 
     def _map_modifiers(self, modifiers: list[str]) -> list[str]:
         """Map platform-specific modifier keys.
@@ -389,21 +412,22 @@ class TextInputController:
 
         Returns:
             List of platform-specific modifier names
+
         """
         mapped = []
 
         for mod in modifiers:
             mod_lower = mod.lower()
 
-            if mod_lower in ['cmd', 'command'] and self.platform == 'darwin':
-                mapped.append('command')
-            elif mod_lower in ['win', 'windows'] and self.platform == 'win32':
-                mapped.append('win')
-            elif mod_lower == 'ctrl':
-                if self.platform == 'darwin':
-                    mapped.append('command')
+            if mod_lower in ["cmd", "command"] and self.platform == "darwin":
+                mapped.append("command")
+            elif mod_lower in ["win", "windows"] and self.platform == "win32":
+                mapped.append("win")
+            elif mod_lower == "ctrl":
+                if self.platform == "darwin":
+                    mapped.append("command")
                 else:
-                    mapped.append('ctrl')
+                    mapped.append("ctrl")
             else:
                 mapped.append(mod_lower)
 
@@ -416,10 +440,10 @@ class TextInputController:
         Space Complexity: O(1)
         """
         pyautogui = _get_pyautogui(self.config.fail_safe)
-        if self.platform == 'darwin':
-            pyautogui.hotkey('command', 'v')
+        if self.platform == "darwin":
+            pyautogui.hotkey("command", "v")
         else:
-            pyautogui.hotkey('ctrl', 'v')
+            pyautogui.hotkey("ctrl", "v")
 
     def _backup_clipboard(self) -> None:
         """Backup current clipboard content.
@@ -431,8 +455,8 @@ class TextInputController:
             pyperclip = _get_pyperclip()
             self._clipboard_backup = pyperclip.paste()
             logger.debug("Clipboard backed up")
-        except Exception as e:
-            logger.warning("Failed to backup clipboard: %s", e)
+        except Exception:
+            logger.exception("Failed to backup clipboard")
             self._clipboard_backup = None
 
     def _restore_clipboard(self) -> None:
@@ -446,7 +470,7 @@ class TextInputController:
                 pyperclip = _get_pyperclip()
                 pyperclip.copy(self._clipboard_backup)
                 logger.debug("Clipboard restored")
-            except Exception as e:
-                logger.warning("Failed to restore clipboard: %s", e)
+            except Exception:
+                logger.exception("Failed to restore clipboard")
             finally:
                 self._clipboard_backup = None

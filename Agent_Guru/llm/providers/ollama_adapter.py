@@ -1,5 +1,4 @@
-"""
-Ollama provider adapter for local LLM inference.
+"""Ollama provider adapter for local LLM inference.
 
 Supports GPU-accelerated local models via the Ollama runtime.
 Function calling is not natively supported and raises an error.
@@ -15,9 +14,8 @@ Version: 1.0.0
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from datetime import datetime, timezone
-from typing import Any, Optional, Union
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from Agent_Guru.llm.models import (
     CompletionRequest,
@@ -30,10 +28,12 @@ from Agent_Guru.llm.models import (
 )
 from Agent_Guru.llm.providers.base import ProviderAdapter
 
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
 
 class OllamaAdapter(ProviderAdapter):
-    """
-    Adapter for Ollama local models.
+    """Adapter for Ollama local models.
 
     Supports:
     - Chat completions (non-streaming and streaming)
@@ -47,13 +47,14 @@ class OllamaAdapter(ProviderAdapter):
         >>> config = OllamaConfig(host="http://localhost:11434")
         >>> adapter = OllamaAdapter(config)
         >>> response = await adapter.complete(request)
+
     """
 
     def __init__(self, config: OllamaConfig) -> None:
         self.config = config
-        self._client: Optional[Any] = None
+        self._client: Any | None = None
 
-    def _get_client(self) -> Any:
+    def _get_client(self) -> Any:  # noqa: ANN401
         """Lazy-initialize the Ollama async client."""
         if self._client is None:
             import ollama  # type: ignore[import]
@@ -64,9 +65,12 @@ class OllamaAdapter(ProviderAdapter):
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         """Execute a non-streaming chat completion via Ollama."""
         if request.functions:
-            raise ProviderNotSupportedError(
+            msg = (
                 "Function calling is not supported for Ollama models. "
                 "Use OpenAI or Anthropic for function calling."
+            )
+            raise ProviderNotSupportedError(
+                msg,
             )
 
         client = self._get_client()
@@ -106,15 +110,14 @@ class OllamaAdapter(ProviderAdapter):
             ),
             function_call=None,
             latency_ms=0.0,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )
 
     async def stream(self, request: CompletionRequest) -> AsyncIterator[StreamChunk]:
         """Execute a streaming chat completion via Ollama."""
         if request.functions:
-            raise ProviderNotSupportedError(
-                "Function calling is not supported for Ollama models."
-            )
+            msg = "Function calling is not supported for Ollama models."
+            raise ProviderNotSupportedError(msg)
 
         client = self._get_client()
         messages = [{"role": m.role, "content": m.content} for m in request.messages]
@@ -122,7 +125,7 @@ class OllamaAdapter(ProviderAdapter):
         options: dict[str, Any] = {"temperature": request.temperature}
         if request.max_tokens is not None:
             options["num_predict"] = request.max_tokens
-        options["num_gpu"] = 99   # GPU offloading for streaming too
+        options["num_gpu"] = 99  # GPU offloading for streaming too
         options["num_ctx"] = 1024  # Smaller context = more VRAM for model layers
         options["num_thread"] = 8  # CPU threads for spilled layers
 
@@ -140,9 +143,7 @@ class OllamaAdapter(ProviderAdapter):
                     finish_reason="stop" if chunk.get("done") else None,
                 )
 
-    async def embed(
-        self, text: Union[str, list[str]], model: str
-    ) -> list[list[float]]:
+    async def embed(self, text: str | list[str], model: str) -> list[list[float]]:
         """Generate embeddings using an Ollama embedding model."""
         client = self._get_client()
 

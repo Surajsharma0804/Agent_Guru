@@ -16,9 +16,8 @@ Time Complexity:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any
-from uuid import UUID
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from Agent_Guru.memory.models import (
     DuplicationCandidate,
@@ -28,6 +27,9 @@ from Agent_Guru.memory.models import (
     MergeResult,
     Preference,
 )
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +77,11 @@ class DeduplicationEngine:
         score = 0.7 * attr_sim + 0.3 * type_sim
         return score, {"attribute_overlap": attr_sim, "type_match": type_sim}
 
-    def calculate_preference_similarity(self, p1: Preference, p2: Preference) -> tuple[float, dict[str, float]]:
+    def calculate_preference_similarity(
+        self,
+        p1: Preference,
+        p2: Preference,
+    ) -> tuple[float, dict[str, float]]:
         """Compute similarity between two preferences."""
         if p1.user_id != p2.user_id:
             return 0.0, {"user_match": 0.0}
@@ -85,7 +91,11 @@ class DeduplicationEngine:
         score = 0.3 * type_sim + 0.4 * ctx_sim + 0.3 * val_sim
         return score, {"type_match": type_sim, "context_overlap": ctx_sim, "value_match": val_sim}
 
-    def calculate_experience_similarity(self, ex1: Experience, ex2: Experience) -> tuple[float, dict[str, float]]:
+    def calculate_experience_similarity(
+        self,
+        ex1: Experience,
+        ex2: Experience,
+    ) -> tuple[float, dict[str, float]]:
         """Compute similarity between two experiences."""
         type_sim = 1.0 if ex1.task_type == ex2.task_type else 0.0
         outcome_sim = 1.0 - abs(ex1.success_score - ex2.success_score)
@@ -121,7 +131,9 @@ class DeduplicationEngine:
     # ------------------------------------------------------------------
 
     def detect_entity_duplicates(
-        self, entities: list[Entity], threshold: float | None = None
+        self,
+        entities: list[Entity],
+        threshold: float | None = None,
     ) -> list[DuplicationCandidate]:
         """Find pairs of entities above the similarity threshold."""
         threshold = threshold if threshold is not None else self.review_threshold
@@ -137,18 +149,23 @@ class DeduplicationEngine:
                             item_id_2=entities[j].id,
                             similarity_score=score,
                             similarity_breakdown=breakdown,
-                        )
+                        ),
                     )
         return candidates
 
     def detect_preference_duplicates(
-        self, preferences: list[Preference], threshold: float | None = None
+        self,
+        preferences: list[Preference],
+        threshold: float | None = None,
     ) -> list[DuplicationCandidate]:
         threshold = threshold if threshold is not None else self.review_threshold
         candidates: list[DuplicationCandidate] = []
         for i in range(len(preferences)):
             for j in range(i + 1, len(preferences)):
-                score, breakdown = self.calculate_preference_similarity(preferences[i], preferences[j])
+                score, breakdown = self.calculate_preference_similarity(
+                    preferences[i],
+                    preferences[j],
+                )
                 if score >= threshold:
                     candidates.append(
                         DuplicationCandidate(
@@ -157,18 +174,23 @@ class DeduplicationEngine:
                             item_id_2=preferences[j].id,
                             similarity_score=score,
                             similarity_breakdown=breakdown,
-                        )
+                        ),
                     )
         return candidates
 
     def detect_experience_duplicates(
-        self, experiences: list[Experience], threshold: float | None = None
+        self,
+        experiences: list[Experience],
+        threshold: float | None = None,
     ) -> list[DuplicationCandidate]:
         threshold = threshold if threshold is not None else self.review_threshold
         candidates: list[DuplicationCandidate] = []
         for i in range(len(experiences)):
             for j in range(i + 1, len(experiences)):
-                score, breakdown = self.calculate_experience_similarity(experiences[i], experiences[j])
+                score, breakdown = self.calculate_experience_similarity(
+                    experiences[i],
+                    experiences[j],
+                )
                 if score >= threshold:
                     candidates.append(
                         DuplicationCandidate(
@@ -177,7 +199,7 @@ class DeduplicationEngine:
                             item_id_2=experiences[j].id,
                             similarity_score=score,
                             similarity_breakdown=breakdown,
-                        )
+                        ),
                     )
         return candidates
 
@@ -193,8 +215,8 @@ class DeduplicationEngine:
                 "attributes": merged_attrs,
                 "confidence": max(e1.confidence, e2.confidence),
                 "versions": e1.versions + e2.versions,
-                "updated_at": datetime.now(tz=timezone.utc),
-            }
+                "updated_at": datetime.now(tz=UTC),
+            },
         )
         result = MergeResult(
             merged_id=merged.id,
@@ -213,8 +235,8 @@ class DeduplicationEngine:
             update={
                 "evidence": combined_evidence,
                 "confidence": new_confidence,
-                "updated_at": datetime.now(tz=timezone.utc),
-            }
+                "updated_at": datetime.now(tz=UTC),
+            },
         )
         result = MergeResult(
             merged_id=merged.id,
@@ -233,7 +255,7 @@ class DeduplicationEngine:
                 "patterns": combined_patterns,
                 "success_score": avg_score,
                 "causal_chain": ex1.causal_chain + ex2.causal_chain,
-            }
+            },
         )
         result = MergeResult(
             merged_id=merged.id,

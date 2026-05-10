@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.platform.os_controller
-Purpose: Main OS Controller - Unified facade for complete laptop control
+"""Module: Agent_Guru.platform.os_controller
+Purpose: Main OS Controller - Unified facade for complete laptop control.
 
 This module provides the main OSController class that integrates all specialized
 controllers and provides a unified interface for AGENT_GURU to execute ANY laptop
@@ -59,10 +58,10 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -81,12 +80,11 @@ try:
     from Agent_Guru.platform.controllers.window_management import WindowManager
     from Agent_Guru.platform.hardware.monitor import HardwareMonitor
     from Agent_Guru.platform.process_manager import ProcessManager
-except ImportError as e:
-    logger.warning("Some controllers not available: %s", e)
-
-
+except ImportError:
+    logger.exception("Some controllers not available")
 class OperationCategory(Enum):
     """Categories of OS operations for routing."""
+
     FILE = "file"
     APPLICATION = "application"
     TEXT_INPUT = "text_input"
@@ -113,14 +111,16 @@ class OperationResult:
         error: Error message if operation failed
         metadata: Additional operation metadata
         timestamp: ISO 8601 timestamp of operation
+
     """
+
     success: bool
     category: OperationCategory
     operation: str
     message: str
-    error: Optional[str] = None
+    error: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.now(tz=timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(tz=UTC).isoformat())
 
 
 @dataclass
@@ -134,24 +134,28 @@ class AuditLogEntry:
         success: Whether operation succeeded
         user: User who performed operation
         details: Additional operation details
+
     """
+
     timestamp: str
     category: str
     operation: str
     success: bool
-    user: Optional[str] = None
+    user: str | None = None
     details: dict[str, Any] = field(default_factory=dict)
 
     def to_json(self) -> str:
         """Convert audit entry to JSON string."""
-        return json.dumps({
-            "timestamp": self.timestamp,
-            "category": self.category,
-            "operation": self.operation,
-            "success": self.success,
-            "user": self.user,
-            "details": self.details
-        })
+        return json.dumps(
+            {
+                "timestamp": self.timestamp,
+                "category": self.category,
+                "operation": self.operation,
+                "success": self.success,
+                "user": self.user,
+                "details": self.details,
+            },
+        )
 
 
 class OSControllerError(Exception):
@@ -164,7 +168,6 @@ class OperationNotSupportedError(OSControllerError):
 
 class ConfirmationRequiredError(OSControllerError):
     """Raised when user confirmation is required but not provided."""
-
 
 
 class OSController:
@@ -197,18 +200,18 @@ class OSController:
         _screen_controller: Screen capture controller
         _process_manager: Process management
         _hardware_monitor: Hardware monitoring
+
     """
 
     def __init__(
-        self,
-        audit_log_path: Optional[str] = None,
-        require_confirmation: bool = False
-    ):
+        self, audit_log_path: str | None = None, require_confirmation: bool = False,
+    ) -> None:
         """Initialize OS controller.
 
         Args:
             audit_log_path: Path to audit log file (None = no logging)
             require_confirmation: Whether to require confirmation for destructive ops
+
         """
         self.audit_log_path = audit_log_path
         self.require_confirmation = require_confirmation
@@ -231,9 +234,8 @@ class OSController:
             if not audit_path.exists():
                 audit_path.touch(mode=0o600)
             logger.info("Audit log initialized: %s", self.audit_log_path)
-        except Exception as e:
-            logger.error("Failed to initialize audit log: %s", e)
-
+        except Exception:
+            logger.exception("Failed to initialize audit log")
     def _init_controllers(self) -> None:
         """Initialize all specialized controllers with per-controller error isolation."""
         self._file_controller = self._safe_init(
@@ -265,39 +267,38 @@ class OSController:
 
         Returns:
             Controller instance or None if initialization failed
+
         """
         try:
             return cls(*args, **kwargs)
-        except Exception as exc:
-            cls_name = getattr(cls, "__name__", repr(cls))
-            logger.warning("Controller %s failed to initialize: %s", cls_name, exc)
+        except Exception:
+            getattr(cls, "__name__", repr(cls))
+            logger.exception("Controller %s failed to initialize: %s")
             return None
-
     def _safe_init_desktop_app(self) -> Any:
         """Initialize DesktopApplicationController with platform-aware error handling.
 
         Returns:
             DesktopApplicationController instance or None if not available
+
         """
         try:
             from Agent_Guru.platform.controllers.desktop_app_controller import (
                 DesktopApplicationController,
             )
+
             return DesktopApplicationController()
         except RuntimeError as e:
             logger.info("DesktopApplicationController not available on mobile platform: %s", e)
             return None
-        except Exception as exc:
-            logger.warning("DesktopApplicationController failed to initialize: %s", exc)
+            logger.exception("DesktopApplicationController failed to initialize")
             return None
-
-
     def _log_operation(
         self,
         category: OperationCategory,
         operation: str,
         success: bool,
-        details: Optional[dict[str, Any]] = None
+        details: dict[str, Any] | None = None,
     ) -> None:
         """Log operation to audit log.
 
@@ -306,25 +307,25 @@ class OSController:
             operation: Specific operation name
             success: Whether operation succeeded
             details: Additional operation details
+
         """
         if not self.audit_log_path:
             return
 
         entry = AuditLogEntry(
-            timestamp=datetime.now(tz=timezone.utc).isoformat(),
+            timestamp=datetime.now(tz=UTC).isoformat(),
             category=category.value,
             operation=operation,
             success=success,
             user=os.getenv("USER") or os.getenv("USERNAME"),
-            details=details or {}
+            details=details or {},
         )
 
         try:
             with open(self.audit_log_path, "a", encoding="utf-8") as f:
                 f.write(entry.to_json() + "\n")
-        except Exception as e:
-            logger.error("Failed to write audit log: %s", e)
-
+        except Exception:
+            logger.exception("Failed to write audit log")
     def _require_confirmation(self, operation: str, details: str) -> None:
         """Check if confirmation is required for destructive operation.
 
@@ -334,10 +335,12 @@ class OSController:
 
         Raises:
             ConfirmationRequiredError: If confirmation required but not provided
+
         """
         if self.require_confirmation:
+            msg = f"Confirmation required for destructive operation: {operation} - {details}"
             raise ConfirmationRequiredError(
-                f"Confirmation required for destructive operation: {operation} - {details}"
+                msg,
             )
 
     # ==================== File Operations ====================
@@ -345,8 +348,8 @@ class OSController:
     def create_file(
         self,
         path: str,
-        content: Union[str, bytes] = "",
-        overwrite: bool = False
+        content: str | bytes = "",
+        overwrite: bool = False,
     ) -> OperationResult:
         """Create a new file with optional content.
 
@@ -360,6 +363,7 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             result = self._file_controller.create_file(path, content, overwrite)
@@ -367,7 +371,7 @@ class OSController:
                 OperationCategory.FILE,
                 "create_file",
                 result.success,
-                {"path": path, "size": len(content)}
+                {"path": path, "size": len(content)},
             )
             return OperationResult(
                 success=result.success,
@@ -375,25 +379,24 @@ class OSController:
                 operation="create_file",
                 message=result.message,
                 error=result.error,
-                metadata=result.metadata
+                metadata=result.metadata,
             )
         except Exception as e:
-            logger.error("Failed to create file: %s", e)
+            logger.exception("Failed to create file")
             self._log_operation(OperationCategory.FILE, "create_file", False, {"error": str(e)})
             return OperationResult(
                 success=False,
                 category=OperationCategory.FILE,
                 operation="create_file",
                 message=f"Failed to create file: {path}",
-                error=str(e)
+                error=str(e),
             )
-
     def read_file(
         self,
         path: str,
         binary: bool = False,
-        encoding: str = "utf-8"
-    ) -> Union[str, bytes, None]:
+        encoding: str = "utf-8",
+    ) -> str | bytes | None:
         """Read file content.
 
         Time Complexity: O(n) where n is file size
@@ -406,6 +409,7 @@ class OSController:
 
         Returns:
             File content as string or bytes, None on error
+
         """
         try:
             content = self._file_controller.read_file(path, binary, encoding)
@@ -413,20 +417,14 @@ class OSController:
                 OperationCategory.FILE,
                 "read_file",
                 content is not None,
-                {"path": path, "binary": binary}
+                {"path": path, "binary": binary},
             )
             return content
         except Exception as e:
-            logger.error("Failed to read file: %s", e)
+            logger.exception("Failed to read file")
             self._log_operation(OperationCategory.FILE, "read_file", False, {"error": str(e)})
             return None
-
-
-    def delete_file(
-        self,
-        path: str,
-        confirm: bool = False
-    ) -> OperationResult:
+    def delete_file(self, path: str, confirm: bool = False) -> OperationResult:
         """Delete a file.
 
         Time Complexity: O(1)
@@ -438,6 +436,7 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             result = self._file_controller.delete_file(path, confirm)
@@ -445,7 +444,7 @@ class OSController:
                 OperationCategory.FILE,
                 "delete_file",
                 result.success,
-                {"path": path}
+                {"path": path},
             )
             return OperationResult(
                 success=result.success,
@@ -453,25 +452,19 @@ class OSController:
                 operation="delete_file",
                 message=result.message,
                 error=result.error,
-                metadata=result.metadata
+                metadata=result.metadata,
             )
         except Exception as e:
-            logger.error("Failed to delete file: %s", e)
+            logger.exception("Failed to delete file")
             self._log_operation(OperationCategory.FILE, "delete_file", False, {"error": str(e)})
             return OperationResult(
                 success=False,
                 category=OperationCategory.FILE,
                 operation="delete_file",
                 message=f"Failed to delete file: {path}",
-                error=str(e)
+                error=str(e),
             )
-
-    def copy_file(
-        self,
-        source: str,
-        destination: str,
-        overwrite: bool = False
-    ) -> OperationResult:
+    def copy_file(self, source: str, destination: str, overwrite: bool = False) -> OperationResult:
         """Copy a file to a new location.
 
         Time Complexity: O(n) where n is file size
@@ -484,6 +477,7 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             result = self._file_controller.copy_file(source, destination, overwrite)
@@ -491,7 +485,7 @@ class OSController:
                 OperationCategory.FILE,
                 "copy_file",
                 result.success,
-                {"source": source, "destination": destination}
+                {"source": source, "destination": destination},
             )
             return OperationResult(
                 success=result.success,
@@ -499,25 +493,19 @@ class OSController:
                 operation="copy_file",
                 message=result.message,
                 error=result.error,
-                metadata=result.metadata
+                metadata=result.metadata,
             )
         except Exception as e:
-            logger.error("Failed to copy file: %s", e)
+            logger.exception("Failed to copy file")
             self._log_operation(OperationCategory.FILE, "copy_file", False, {"error": str(e)})
             return OperationResult(
                 success=False,
                 category=OperationCategory.FILE,
                 operation="copy_file",
                 message=f"Failed to copy file: {source} -> {destination}",
-                error=str(e)
+                error=str(e),
             )
-
-    def move_file(
-        self,
-        source: str,
-        destination: str,
-        overwrite: bool = False
-    ) -> OperationResult:
+    def move_file(self, source: str, destination: str, overwrite: bool = False) -> OperationResult:
         """Move a file to a new location.
 
         Time Complexity: O(1) for same filesystem, O(n) for different filesystem
@@ -530,6 +518,7 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             result = self._file_controller.move_file(source, destination, overwrite)
@@ -537,7 +526,7 @@ class OSController:
                 OperationCategory.FILE,
                 "move_file",
                 result.success,
-                {"source": source, "destination": destination}
+                {"source": source, "destination": destination},
             )
             return OperationResult(
                 success=result.success,
@@ -545,27 +534,21 @@ class OSController:
                 operation="move_file",
                 message=result.message,
                 error=result.error,
-                metadata=result.metadata
+                metadata=result.metadata,
             )
         except Exception as e:
-            logger.error("Failed to move file: %s", e)
+            logger.exception("Failed to move file")
             self._log_operation(OperationCategory.FILE, "move_file", False, {"error": str(e)})
             return OperationResult(
                 success=False,
                 category=OperationCategory.FILE,
                 operation="move_file",
                 message=f"Failed to move file: {source} -> {destination}",
-                error=str(e)
+                error=str(e),
             )
-
-
     # ==================== Application Control ====================
 
-    def open_application(
-        self,
-        app_name: str,
-        args: Optional[list[str]] = None
-    ) -> OperationResult:
+    def open_application(self, app_name: str, args: list[str] | None = None) -> OperationResult:
         """Open an application by name.
 
         Time Complexity: O(1)
@@ -580,6 +563,7 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         # Try DesktopApplicationController first (richer async implementation)
         if self._desktop_app_controller is not None:
@@ -588,6 +572,7 @@ class OSController:
                     asyncio.get_running_loop()
                     # Running inside an event loop — run in a separate thread's loop
                     import concurrent.futures
+
                     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                         success = pool.submit(
                             asyncio.run,
@@ -595,9 +580,7 @@ class OSController:
                         ).result()
                 except RuntimeError:
                     # No running event loop — safe to use asyncio.run() directly
-                    success = asyncio.run(
-                        self._desktop_app_controller.open_app(app_name)
-                    )
+                    success = asyncio.run(self._desktop_app_controller.open_app(app_name))
                 if success:
                     self._log_operation(
                         OperationCategory.APPLICATION,
@@ -618,44 +601,37 @@ class OSController:
                     app_name,
                     exc,
                 )
-
-        # Fallback: ApplicationController
         try:
             pid = self._app_controller.open_application(app_name, args)
             self._log_operation(
                 OperationCategory.APPLICATION,
                 "open_application",
                 True,
-                {"app_name": app_name, "pid": pid}
+                {"app_name": app_name, "pid": pid},
             )
             return OperationResult(
                 success=True,
                 category=OperationCategory.APPLICATION,
                 operation="open_application",
                 message=f"Application opened successfully: {app_name}",
-                metadata={"pid": pid}
+                metadata={"pid": pid},
             )
         except Exception as e:
-            logger.error("Failed to open application: %s", e)
+            logger.exception("Failed to open application")
             self._log_operation(
                 OperationCategory.APPLICATION,
                 "open_application",
                 False,
-                {"error": str(e)}
+                {"error": str(e)},
             )
             return OperationResult(
                 success=False,
                 category=OperationCategory.APPLICATION,
                 operation="open_application",
                 message=f"Failed to open application: {app_name}",
-                error=str(e)
+                error=str(e),
             )
-
-    def close_application(
-        self,
-        app_identifier: str,
-        force: bool = False
-    ) -> OperationResult:
+    def close_application(self, app_identifier: str, force: bool = False) -> OperationResult:
         """Close an application by name or PID.
 
         Time Complexity: O(n) where n is number of processes
@@ -667,6 +643,7 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             success = self._app_controller.close_application(app_identifier, force)
@@ -674,38 +651,33 @@ class OSController:
                 OperationCategory.APPLICATION,
                 "close_application",
                 success,
-                {"app_identifier": app_identifier, "force": force}
+                {"app_identifier": app_identifier, "force": force},
             )
             return OperationResult(
                 success=success,
                 category=OperationCategory.APPLICATION,
                 operation="close_application",
                 message=f"Application closed: {app_identifier}",
-                metadata={"force": force}
+                metadata={"force": force},
             )
         except Exception as e:
-            logger.error("Failed to close application: %s", e)
+            logger.exception("Failed to close application")
             self._log_operation(
                 OperationCategory.APPLICATION,
                 "close_application",
                 False,
-                {"error": str(e)}
+                {"error": str(e)},
             )
             return OperationResult(
                 success=False,
                 category=OperationCategory.APPLICATION,
                 operation="close_application",
                 message=f"Failed to close application: {app_identifier}",
-                error=str(e)
+                error=str(e),
             )
-
     # ==================== Text Input ====================
 
-    def type_text(
-        self,
-        text: str,
-        interval: float = 0.0
-    ) -> OperationResult:
+    def type_text(self, text: str, interval: float = 0.0) -> OperationResult:
         """Type text into active application.
 
         Time Complexity: O(n) where n is text length
@@ -717,6 +689,7 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             self._text_controller.type_text(text, interval)
@@ -724,32 +697,25 @@ class OSController:
                 OperationCategory.TEXT_INPUT,
                 "type_text",
                 True,
-                {"length": len(text)}
+                {"length": len(text)},
             )
             return OperationResult(
                 success=True,
                 category=OperationCategory.TEXT_INPUT,
                 operation="type_text",
                 message=f"Text typed successfully ({len(text)} characters)",
-                metadata={"length": len(text)}
+                metadata={"length": len(text)},
             )
         except Exception as e:
-            logger.error("Failed to type text: %s", e)
-            self._log_operation(
-                OperationCategory.TEXT_INPUT,
-                "type_text",
-                False,
-                {"error": str(e)}
-            )
+            logger.exception("Failed to type text")
+            self._log_operation(OperationCategory.TEXT_INPUT, "type_text", False, {"error": str(e)})
             return OperationResult(
                 success=False,
                 category=OperationCategory.TEXT_INPUT,
                 operation="type_text",
                 message="Failed to type text",
-                error=str(e)
+                error=str(e),
             )
-
-
     # ==================== System Settings ====================
 
     def set_volume(self, level: int) -> OperationResult:
@@ -763,6 +729,7 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             self._settings_controller.set_volume(level)
@@ -770,31 +737,30 @@ class OSController:
                 OperationCategory.SYSTEM_SETTINGS,
                 "set_volume",
                 True,
-                {"level": level}
+                {"level": level},
             )
             return OperationResult(
                 success=True,
                 category=OperationCategory.SYSTEM_SETTINGS,
                 operation="set_volume",
                 message=f"Volume set to {level}%",
-                metadata={"level": level}
+                metadata={"level": level},
             )
         except Exception as e:
-            logger.error("Failed to set volume: %s", e)
+            logger.exception("Failed to set volume")
             self._log_operation(
                 OperationCategory.SYSTEM_SETTINGS,
                 "set_volume",
                 False,
-                {"error": str(e)}
+                {"error": str(e)},
             )
             return OperationResult(
                 success=False,
                 category=OperationCategory.SYSTEM_SETTINGS,
                 operation="set_volume",
                 message=f"Failed to set volume to {level}%",
-                error=str(e)
+                error=str(e),
             )
-
     def volume_up(self, amount: int = 10) -> OperationResult:
         """Increase system volume by *amount* percent.
 
@@ -803,11 +769,15 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             self._media_controller.volume_up(amount)
             self._log_operation(
-                OperationCategory.SYSTEM_SETTINGS, "volume_up", True, {"amount": amount}
+                OperationCategory.SYSTEM_SETTINGS,
+                "volume_up",
+                True,
+                {"amount": amount},
             )
             return OperationResult(
                 success=True,
@@ -817,9 +787,12 @@ class OSController:
                 metadata={"amount": amount},
             )
         except Exception as e:
-            logger.error("Failed to increase volume: %s", e)
+            logger.exception("Failed to increase volume")
             self._log_operation(
-                OperationCategory.SYSTEM_SETTINGS, "volume_up", False, {"error": str(e)}
+                OperationCategory.SYSTEM_SETTINGS,
+                "volume_up",
+                False,
+                {"error": str(e)},
             )
             return OperationResult(
                 success=False,
@@ -828,7 +801,6 @@ class OSController:
                 message="Failed to increase volume",
                 error=str(e),
             )
-
     def volume_down(self, amount: int = 10) -> OperationResult:
         """Decrease system volume by *amount* percent.
 
@@ -837,11 +809,15 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             self._media_controller.volume_down(amount)
             self._log_operation(
-                OperationCategory.SYSTEM_SETTINGS, "volume_down", True, {"amount": amount}
+                OperationCategory.SYSTEM_SETTINGS,
+                "volume_down",
+                True,
+                {"amount": amount},
             )
             return OperationResult(
                 success=True,
@@ -851,9 +827,12 @@ class OSController:
                 metadata={"amount": amount},
             )
         except Exception as e:
-            logger.error("Failed to decrease volume: %s", e)
+            logger.exception("Failed to decrease volume")
             self._log_operation(
-                OperationCategory.SYSTEM_SETTINGS, "volume_down", False, {"error": str(e)}
+                OperationCategory.SYSTEM_SETTINGS,
+                "volume_down",
+                False,
+                {"error": str(e)},
             )
             return OperationResult(
                 success=False,
@@ -862,12 +841,12 @@ class OSController:
                 message="Failed to decrease volume",
                 error=str(e),
             )
-
     def mute(self) -> OperationResult:
         """Mute system audio.
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             self._media_controller.mute()
@@ -879,10 +858,8 @@ class OSController:
                 message="Audio muted",
             )
         except Exception as e:
-            logger.error("Failed to mute: %s", e)
-            self._log_operation(
-                OperationCategory.SYSTEM_SETTINGS, "mute", False, {"error": str(e)}
-            )
+            logger.exception("Failed to mute")
+            self._log_operation(OperationCategory.SYSTEM_SETTINGS, "mute", False, {"error": str(e)})
             return OperationResult(
                 success=False,
                 category=OperationCategory.SYSTEM_SETTINGS,
@@ -890,12 +867,12 @@ class OSController:
                 message="Failed to mute audio",
                 error=str(e),
             )
-
     def unmute(self) -> OperationResult:
         """Unmute system audio.
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             self._media_controller.unmute()
@@ -907,9 +884,12 @@ class OSController:
                 message="Audio unmuted",
             )
         except Exception as e:
-            logger.error("Failed to unmute: %s", e)
+            logger.exception("Failed to unmute")
             self._log_operation(
-                OperationCategory.SYSTEM_SETTINGS, "unmute", False, {"error": str(e)}
+                OperationCategory.SYSTEM_SETTINGS,
+                "unmute",
+                False,
+                {"error": str(e)},
             )
             return OperationResult(
                 success=False,
@@ -918,7 +898,6 @@ class OSController:
                 message="Failed to unmute audio",
                 error=str(e),
             )
-
     def set_brightness(self, level: int) -> OperationResult:
         """Set screen brightness level.
 
@@ -930,6 +909,7 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             self._settings_controller.set_brightness(level)
@@ -937,31 +917,30 @@ class OSController:
                 OperationCategory.SYSTEM_SETTINGS,
                 "set_brightness",
                 True,
-                {"level": level}
+                {"level": level},
             )
             return OperationResult(
                 success=True,
                 category=OperationCategory.SYSTEM_SETTINGS,
                 operation="set_brightness",
                 message=f"Brightness set to {level}%",
-                metadata={"level": level}
+                metadata={"level": level},
             )
         except Exception as e:
-            logger.error("Failed to set brightness: %s", e)
+            logger.exception("Failed to set brightness")
             self._log_operation(
                 OperationCategory.SYSTEM_SETTINGS,
                 "set_brightness",
                 False,
-                {"error": str(e)}
+                {"error": str(e)},
             )
             return OperationResult(
                 success=False,
                 category=OperationCategory.SYSTEM_SETTINGS,
                 operation="set_brightness",
                 message=f"Failed to set brightness to {level}%",
-                error=str(e)
+                error=str(e),
             )
-
     # ==================== Window Management ====================
 
     def minimize_window(self, window_identifier: str) -> OperationResult:
@@ -975,6 +954,7 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             success = self._app_controller.minimize_window(window_identifier)
@@ -982,31 +962,30 @@ class OSController:
                 OperationCategory.WINDOW,
                 "minimize_window",
                 success,
-                {"window": window_identifier}
+                {"window": window_identifier},
             )
             return OperationResult(
                 success=success,
                 category=OperationCategory.WINDOW,
                 operation="minimize_window",
                 message=f"Window minimized: {window_identifier}",
-                metadata={"window": window_identifier}
+                metadata={"window": window_identifier},
             )
         except Exception as e:
-            logger.error("Failed to minimize window: %s", e)
+            logger.exception("Failed to minimize window")
             self._log_operation(
                 OperationCategory.WINDOW,
                 "minimize_window",
                 False,
-                {"error": str(e)}
+                {"error": str(e)},
             )
             return OperationResult(
                 success=False,
                 category=OperationCategory.WINDOW,
                 operation="minimize_window",
                 message=f"Failed to minimize window: {window_identifier}",
-                error=str(e)
+                error=str(e),
             )
-
     def maximize_window(self, window_identifier: str) -> OperationResult:
         """Maximize an application window.
 
@@ -1018,6 +997,7 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             success = self._app_controller.maximize_window(window_identifier)
@@ -1025,32 +1005,30 @@ class OSController:
                 OperationCategory.WINDOW,
                 "maximize_window",
                 success,
-                {"window": window_identifier}
+                {"window": window_identifier},
             )
             return OperationResult(
                 success=success,
                 category=OperationCategory.WINDOW,
                 operation="maximize_window",
                 message=f"Window maximized: {window_identifier}",
-                metadata={"window": window_identifier}
+                metadata={"window": window_identifier},
             )
         except Exception as e:
-            logger.error("Failed to maximize window: %s", e)
+            logger.exception("Failed to maximize window")
             self._log_operation(
                 OperationCategory.WINDOW,
                 "maximize_window",
                 False,
-                {"error": str(e)}
+                {"error": str(e)},
             )
             return OperationResult(
                 success=False,
                 category=OperationCategory.WINDOW,
                 operation="maximize_window",
                 message=f"Failed to maximize window: {window_identifier}",
-                error=str(e)
+                error=str(e),
             )
-
-
     # ==================== Media Control ====================
 
     def play_media(self) -> OperationResult:
@@ -1061,37 +1039,27 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             self._media_controller.play()
-            self._log_operation(
-                OperationCategory.MEDIA,
-                "play_media",
-                True,
-                {}
-            )
+            self._log_operation(OperationCategory.MEDIA, "play_media", True, {})
             return OperationResult(
                 success=True,
                 category=OperationCategory.MEDIA,
                 operation="play_media",
-                message="Media play command sent"
+                message="Media play command sent",
             )
         except Exception as e:
-            logger.error("Failed to play media: %s", e)
-            self._log_operation(
-                OperationCategory.MEDIA,
-                "play_media",
-                False,
-                {"error": str(e)}
-            )
+            logger.exception("Failed to play media")
+            self._log_operation(OperationCategory.MEDIA, "play_media", False, {"error": str(e)})
             return OperationResult(
                 success=False,
                 category=OperationCategory.MEDIA,
                 operation="play_media",
                 message="Failed to play media",
-                error=str(e)
+                error=str(e),
             )
-
     def pause_media(self) -> OperationResult:
         """Pause media (simulate media pause key).
 
@@ -1100,42 +1068,33 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             self._media_controller.pause()
-            self._log_operation(
-                OperationCategory.MEDIA,
-                "pause_media",
-                True,
-                {}
-            )
+            self._log_operation(OperationCategory.MEDIA, "pause_media", True, {})
             return OperationResult(
                 success=True,
                 category=OperationCategory.MEDIA,
                 operation="pause_media",
-                message="Media pause command sent"
+                message="Media pause command sent",
             )
         except Exception as e:
-            logger.error("Failed to pause media: %s", e)
-            self._log_operation(
-                OperationCategory.MEDIA,
-                "pause_media",
-                False,
-                {"error": str(e)}
-            )
+            logger.exception("Failed to pause media")
+            self._log_operation(OperationCategory.MEDIA, "pause_media", False, {"error": str(e)})
             return OperationResult(
                 success=False,
                 category=OperationCategory.MEDIA,
                 operation="pause_media",
                 message="Failed to pause media",
-                error=str(e)
+                error=str(e),
             )
-
     def next_track(self) -> OperationResult:
         """Skip to next media track.
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             self._media_controller.next_track()
@@ -1147,7 +1106,7 @@ class OSController:
                 message="Skipped to next track",
             )
         except Exception as e:
-            logger.error("Failed to skip track: %s", e)
+            logger.exception("Failed to skip track")
             return OperationResult(
                 success=False,
                 category=OperationCategory.MEDIA,
@@ -1155,12 +1114,12 @@ class OSController:
                 message="Failed to skip to next track",
                 error=str(e),
             )
-
     def previous_track(self) -> OperationResult:
         """Go to previous media track.
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             self._media_controller.previous_track()
@@ -1172,7 +1131,7 @@ class OSController:
                 message="Went to previous track",
             )
         except Exception as e:
-            logger.error("Failed to go to previous track: %s", e)
+            logger.exception("Failed to go to previous track")
             return OperationResult(
                 success=False,
                 category=OperationCategory.MEDIA,
@@ -1180,12 +1139,12 @@ class OSController:
                 message="Failed to go to previous track",
                 error=str(e),
             )
-
     def stop_media(self) -> OperationResult:
         """Stop media playback.
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             self._media_controller.stop()
@@ -1197,7 +1156,7 @@ class OSController:
                 message="Media stopped",
             )
         except Exception as e:
-            logger.error("Failed to stop media: %s", e)
+            logger.exception("Failed to stop media")
             return OperationResult(
                 success=False,
                 category=OperationCategory.MEDIA,
@@ -1205,10 +1164,9 @@ class OSController:
                 message="Failed to stop media",
                 error=str(e),
             )
-
     # ==================== Web / Browser ====================
 
-    def open_url(self, url: str, browser: Optional[str] = None) -> OperationResult:
+    def open_url(self, url: str, browser: str | None = None) -> OperationResult:
         """Open a URL in the default (or specified) browser.
 
         Handles bare queries like "youtube" → https://www.youtube.com,
@@ -1220,6 +1178,7 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         import webbrowser
 
@@ -1231,14 +1190,12 @@ class OSController:
                 # Try to open with specific browser via app controller
                 try:
                     self._app_controller.open_application(browser, [resolved])
-                except Exception as e:
+                except Exception:
                     webbrowser.open(resolved)
             else:
                 webbrowser.open(resolved)
 
-            self._log_operation(
-                OperationCategory.APPLICATION, "open_url", True, {"url": resolved}
-            )
+            self._log_operation(OperationCategory.APPLICATION, "open_url", True, {"url": resolved})
             return OperationResult(
                 success=True,
                 category=OperationCategory.APPLICATION,
@@ -1247,10 +1204,8 @@ class OSController:
                 metadata={"url": resolved},
             )
         except Exception as e:
-            logger.error("Failed to open URL %s: %s", resolved, e)
-            self._log_operation(
-                OperationCategory.APPLICATION, "open_url", False, {"error": str(e)}
-            )
+            logger.exception("Failed to open URL %s: %s")
+            self._log_operation(OperationCategory.APPLICATION, "open_url", False, {"error": str(e)})
             return OperationResult(
                 success=False,
                 category=OperationCategory.APPLICATION,
@@ -1258,7 +1213,6 @@ class OSController:
                 message=f"Failed to open URL: {resolved}",
                 error=str(e),
             )
-
     def web_search(self, query: str, engine: str = "google") -> OperationResult:
         """Perform a web search by opening the real system browser.
 
@@ -1271,15 +1225,16 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         import urllib.parse
 
         engine = engine.lower().strip()
 
         _engines = {
-            "google":  "https://www.google.com/search?q=",
+            "google": "https://www.google.com/search?q=",
             "youtube": "https://www.youtube.com/results?search_query=",
-            "bing":    "https://www.bing.com/search?q=",
+            "bing": "https://www.bing.com/search?q=",
         }
         base = _engines.get(engine, _engines["google"])
         url = base + urllib.parse.quote_plus(query)
@@ -1290,12 +1245,12 @@ class OSController:
     async def play_youtube_with_controls(
         self,
         query: str,
-        screenshot_path: Optional[str] = None,
+        screenshot_path: str | None = None,
         headless: bool = False,
         play_duration_s: float = 5.0,
         max_ad_wait_s: int = 30,
-        on_status: Optional[Any] = None,
-        pre_close_callback: Optional[Any] = None,
+        on_status: Any | None = None,
+        pre_close_callback: Any | None = None,
     ) -> dict[str, bool]:
         """Open YouTube, search *query*, skip any ad, play the song, then
         demonstrate pause / resume / mute / unmute / volume-up / volume-down.
@@ -1313,35 +1268,34 @@ class OSController:
 
         Returns:
             Dict of step → bool indicating which steps succeeded.
+
         """
+        import urllib.parse as _up
+
         from playwright.async_api import TimeoutError as PlaywrightTimeoutError
         from playwright.async_api import async_playwright
-        import urllib.parse as _up
 
         def _log(msg: str) -> None:
             logger.info(msg)
             if on_status:
                 on_status(msg)
 
-        search_url = (
-            "https://www.youtube.com/results?search_query="
-            + _up.quote_plus(query)
-        )
+        search_url = "https://www.youtube.com/results?search_query=" + _up.quote_plus(query)
 
         results: dict[str, bool] = {
             "browser_launched": False,
-            "page_loaded":      False,
-            "video_found":      False,
-            "ad_handled":       False,
-            "video_played":     False,
-            "paused":           False,
-            "resumed":          False,
-            "muted":            False,
-            "unmuted":          False,
-            "volume_up":        False,
-            "volume_down":      False,
+            "page_loaded": False,
+            "video_found": False,
+            "ad_handled": False,
+            "video_played": False,
+            "paused": False,
+            "resumed": False,
+            "muted": False,
+            "unmuted": False,
+            "volume_up": False,
+            "volume_down": False,
             "screenshot_saved": False,
-            "browser_closed":   False,
+            "browser_closed": False,
         }
 
         async with async_playwright() as p:
@@ -1352,7 +1306,8 @@ class OSController:
             browser = None
             browser_channel = os.environ.get("AGENT_GURU_BROWSER_CHANNEL", "").strip()
             _channels_to_try = (
-                [browser_channel] if browser_channel
+                [browser_channel]
+                if browser_channel
                 else ["chrome", "msedge", "chrome-beta", "msedge-beta"]
             )
             for _ch in _channels_to_try:
@@ -1365,8 +1320,7 @@ class OSController:
                     _log(f"Browser launched (real {_ch}).")
                     break
                 except Exception as _ch_err:
-                    logger.warning("Channel '%s' unavailable: %s", _ch, _ch_err)
-
+                    logger.exception("Channel '%s' unavailable: %s", _ch, _ch_err)
             if browser is None:
                 # Try Firefox as last resort before bundled Chromium
                 try:
@@ -1375,20 +1329,17 @@ class OSController:
                 except Exception:
                     # Final fallback: bundled Playwright Chromium
                     browser = await p.chromium.launch(headless=headless)
-                    _log("Browser launched (Playwright bundled Chromium — install Chrome for best experience).")
-
+                    _log(
+                        "Browser launched (Playwright bundled Chromium — install Chrome for best experience).",
+                    )
             results["browser_launched"] = True
             try:
-                context = await browser.new_context(
-                    viewport={"width": 1440, "height": 900}
-                )
+                context = await browser.new_context(viewport={"width": 1440, "height": 900})
                 page = await context.new_page()
 
                 # Navigate to YouTube search
                 _log(f"Navigating to YouTube search: {query}")
-                await page.goto(
-                    search_url, wait_until="domcontentloaded", timeout=60000
-                )
+                await page.goto(search_url, wait_until="domcontentloaded", timeout=60000)
 
                 # Dismiss cookie / consent dialogs
                 for selector in (
@@ -1403,13 +1354,10 @@ class OSController:
                             _log("Dismissed consent dialog.")
                             break
                     except Exception:
-                        pass
-
+                        logger.exception("Operation failed")
                 # Click first video result
                 _log("Waiting for first video result…")
-                first_video = page.locator(
-                    "ytd-video-renderer a#video-title"
-                ).first
+                first_video = page.locator("ytd-video-renderer a#video-title").first
                 await first_video.wait_for(state="visible", timeout=45000)
                 await first_video.click(timeout=20000)
                 results["video_found"] = True
@@ -1421,24 +1369,23 @@ class OSController:
                     _log("Watch page loaded.")
                 except PlaywrightTimeoutError:
                     _log("Watch URL timeout — continuing anyway.")
-
                 # Give the player time to initialise
                 await page.wait_for_timeout(2500)
 
                 # ── Step 1: Handle ad ─────────────────────────────────
                 _log("Checking for ads…")
                 await self._wait_for_ad_and_skip(
-                    page, max_wait_s=max_ad_wait_s, on_status=on_status
+                    page,
+                    max_wait_s=max_ad_wait_s,
+                    on_status=on_status,
                 )
                 results["ad_handled"] = True
 
                 # ── Step 2: Start playback ────────────────────────────
-                video = page.locator(
-                    "#movie_player video.html5-main-video"
-                ).first
+                video = page.locator("#movie_player video.html5-main-video").first
                 await video.wait_for(state="attached", timeout=20000)
                 await video.evaluate(
-                    "async v => { v.muted = false; v.volume = 0.8; await v.play(); }"
+                    "async v => { v.muted = false; v.volume = 0.8; await v.play(); }",
                 )
                 results["video_played"] = True
                 _log("Song is playing.")
@@ -1446,7 +1393,7 @@ class OSController:
                 # ── Step 3: Skip 20 seconds into the song ────────────
                 _log("Skipping 20 seconds into the song.")
                 await video.evaluate(
-                    "v => { v.currentTime = Math.min((v.duration || v.currentTime + 20), v.currentTime + 20); }"
+                    "v => { v.currentTime = Math.min((v.duration || v.currentTime + 20), v.currentTime + 20); }",
                 )
                 # Wait for playback to stabilise after seek
                 await page.wait_for_timeout(1500)
@@ -1481,17 +1428,13 @@ class OSController:
 
                 # ── Step 9: Volume up ─────────────────────────────────
                 _log("Increasing volume.")
-                await video.evaluate(
-                    "v => { v.volume = Math.min(1.0, v.volume + 0.2); }"
-                )
+                await video.evaluate("v => { v.volume = Math.min(1.0, v.volume + 0.2); }")
                 results["volume_up"] = True
                 await page.wait_for_timeout(500)
 
                 # ── Step 10: Volume down ──────────────────────────────
                 _log("Decreasing volume.")
-                await video.evaluate(
-                    "v => { v.volume = Math.max(0.0, v.volume - 0.2); }"
-                )
+                await video.evaluate("v => { v.volume = Math.max(0.0, v.volume - 0.2); }")
                 results["volume_down"] = True
                 await page.wait_for_timeout(500)
 
@@ -1513,11 +1456,11 @@ class OSController:
                             await pre_close_callback()
                         else:
                             await asyncio.get_running_loop().run_in_executor(
-                                None, pre_close_callback
+                                None,
+                                pre_close_callback,
                             )
                     except Exception as _cb_err:
-                        logger.warning("pre_close_callback error: %s", _cb_err)
-
+                        logger.exception("pre_close_callback error")
                 # Small pause after TTS finishes so user hears it before close
                 await page.wait_for_timeout(500)
                 await page.close()
@@ -1548,19 +1491,20 @@ class OSController:
                     logger.info("Ad skip button clicked: %s", selector)
                     return True
             except Exception:
-                pass
+                logger.exception("Operation failed")
         return False
 
     async def _wait_for_ad_and_skip(
         self,
         page: Any,
         max_wait_s: int = 30,
-        on_status: Optional[Any] = None,
+        on_status: Any | None = None,
     ) -> bool:
         """Poll for a skippable ad for up to max_wait_s seconds.
 
         Returns True if an ad was skipped, False if no ad was found.
         """
+
         def _log(msg: str) -> None:
             logger.info(msg)
             if on_status:
@@ -1576,11 +1520,10 @@ class OSController:
                     "() => {"
                     "  const p = document.querySelector('#movie_player');"
                     "  return p ? p.classList.contains('ad-showing') : false;"
-                    "}"
+                    "}",
                 )
             except Exception:
                 break
-
             if ad_showing:
                 _log("Ad detected — waiting for skip button…")
                 skipped = await self._skip_ad_if_present(page)
@@ -1604,6 +1547,7 @@ class OSController:
 
         Returns:
             Full URL string
+
         """
         import urllib.parse
 
@@ -1643,9 +1587,7 @@ class OSController:
 
     # ==================== Destructive / Permission-Required Operations ====================
 
-    def uninstall_application(
-        self, app_name: str, confirmed: bool = False
-    ) -> OperationResult:
+    def uninstall_application(self, app_name: str, confirmed: bool = False) -> OperationResult:
         """Uninstall an application. Requires explicit confirmation.
 
         Args:
@@ -1654,6 +1596,7 @@ class OSController:
 
         Returns:
             OperationResult — fails with permission error if not confirmed
+
         """
         if not confirmed:
             return OperationResult(
@@ -1661,17 +1604,21 @@ class OSController:
                 category=OperationCategory.APPLICATION,
                 operation="uninstall_application",
                 message=f"Permission required: uninstalling '{app_name}' is a destructive operation. "
-                        "Please confirm before proceeding.",
+                "Please confirm before proceeding.",
                 error="confirmation_required",
                 metadata={"requires_confirmation": True, "app_name": app_name},
             )
         try:
             import subprocess
+
             if self.platform == "win32":
                 # Use winget if available, else warn
-                result = subprocess.run(
-                    ["winget", "uninstall", "--name", app_name, "--silent"],
-                    capture_output=True, text=True, timeout=120
+                result = subprocess.run(  # noqa: S603
+                    ["winget", "uninstall", "--name", app_name, "--silent"],  # noqa: S607
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
                 )
                 success = result.returncode == 0
                 msg = result.stdout or result.stderr
@@ -1680,8 +1627,10 @@ class OSController:
                 msg = f"Uninstall not implemented for platform: {self.platform}"
 
             self._log_operation(
-                OperationCategory.APPLICATION, "uninstall_application", success,
-                {"app_name": app_name, "confirmed": confirmed}
+                OperationCategory.APPLICATION,
+                "uninstall_application",
+                success,
+                {"app_name": app_name, "confirmed": confirmed},
             )
             return OperationResult(
                 success=success,
@@ -1691,7 +1640,7 @@ class OSController:
                 metadata={"app_name": app_name},
             )
         except Exception as e:
-            logger.error("Failed to uninstall %s: %s", app_name, e)
+            logger.exception("Failed to uninstall %s: %s")
             return OperationResult(
                 success=False,
                 category=OperationCategory.APPLICATION,
@@ -1699,7 +1648,6 @@ class OSController:
                 message=f"Failed to uninstall {app_name}",
                 error=str(e),
             )
-
     def reset_pc(self, confirmed: bool = False) -> OperationResult:
         """Reset / restart the PC. Requires explicit confirmation.
 
@@ -1708,6 +1656,7 @@ class OSController:
 
         Returns:
             OperationResult — fails with permission error if not confirmed
+
         """
         if not confirmed:
             return OperationResult(
@@ -1715,24 +1664,28 @@ class OSController:
                 category=OperationCategory.SYSTEM_SETTINGS,
                 operation="reset_pc",
                 message="Permission required: resetting the PC will restart your computer. "
-                        "Please confirm before proceeding.",
+                "Please confirm before proceeding.",
                 error="confirmation_required",
                 metadata={"requires_confirmation": True},
             )
         try:
             import subprocess
+
             if self.platform == "win32":
-                subprocess.Popen(["shutdown", "/r", "/t", "5"])
+                subprocess.Popen(["shutdown", "/r", "/t", "5"])  # noqa: S607
                 msg = "PC will restart in 5 seconds"
             elif self.platform == "darwin":
-                subprocess.Popen(["sudo", "shutdown", "-r", "now"])
+                subprocess.Popen(["sudo", "shutdown", "-r", "now"])  # noqa: S607
                 msg = "PC restarting now"
             else:
-                subprocess.Popen(["sudo", "reboot"])
+                subprocess.Popen(["sudo", "reboot"])  # noqa: S607
                 msg = "PC restarting now"
 
             self._log_operation(
-                OperationCategory.SYSTEM_SETTINGS, "reset_pc", True, {"confirmed": True}
+                OperationCategory.SYSTEM_SETTINGS,
+                "reset_pc",
+                True,
+                {"confirmed": True},
             )
             return OperationResult(
                 success=True,
@@ -1741,7 +1694,7 @@ class OSController:
                 message=msg,
             )
         except Exception as e:
-            logger.error("Failed to reset PC: %s", e)
+            logger.exception("Failed to reset PC")
             return OperationResult(
                 success=False,
                 category=OperationCategory.SYSTEM_SETTINGS,
@@ -1749,7 +1702,6 @@ class OSController:
                 message="Failed to reset PC",
                 error=str(e),
             )
-
     def shutdown_pc(self, confirmed: bool = False) -> OperationResult:
         """Shut down the PC. Requires explicit confirmation.
 
@@ -1758,6 +1710,7 @@ class OSController:
 
         Returns:
             OperationResult — fails with permission error if not confirmed
+
         """
         if not confirmed:
             return OperationResult(
@@ -1765,24 +1718,28 @@ class OSController:
                 category=OperationCategory.SYSTEM_SETTINGS,
                 operation="shutdown_pc",
                 message="Permission required: shutting down the PC. "
-                        "Please confirm before proceeding.",
+                "Please confirm before proceeding.",
                 error="confirmation_required",
                 metadata={"requires_confirmation": True},
             )
         try:
             import subprocess
+
             if self.platform == "win32":
-                subprocess.Popen(["shutdown", "/s", "/t", "5"])
+                subprocess.Popen(["shutdown", "/s", "/t", "5"])  # noqa: S607
                 msg = "PC will shut down in 5 seconds"
             elif self.platform == "darwin":
-                subprocess.Popen(["sudo", "shutdown", "-h", "now"])
+                subprocess.Popen(["sudo", "shutdown", "-h", "now"])  # noqa: S607
                 msg = "PC shutting down now"
             else:
-                subprocess.Popen(["sudo", "poweroff"])
+                subprocess.Popen(["sudo", "poweroff"])  # noqa: S607
                 msg = "PC shutting down now"
 
             self._log_operation(
-                OperationCategory.SYSTEM_SETTINGS, "shutdown_pc", True, {"confirmed": True}
+                OperationCategory.SYSTEM_SETTINGS,
+                "shutdown_pc",
+                True,
+                {"confirmed": True},
             )
             return OperationResult(
                 success=True,
@@ -1791,7 +1748,7 @@ class OSController:
                 message=msg,
             )
         except Exception as e:
-            logger.error("Failed to shut down PC: %s", e)
+            logger.exception("Failed to shut down PC")
             return OperationResult(
                 success=False,
                 category=OperationCategory.SYSTEM_SETTINGS,
@@ -1799,13 +1756,12 @@ class OSController:
                 message="Failed to shut down PC",
                 error=str(e),
             )
-
     # ==================== Screen Capture ====================
 
     def take_screenshot(
         self,
-        save_path: Optional[str] = None,
-        region: Optional[tuple] = None
+        save_path: str | None = None,
+        region: tuple | None = None,
     ) -> OperationResult:
         """Capture a screenshot.
 
@@ -1818,15 +1774,21 @@ class OSController:
 
         Returns:
             OperationResult with operation status
+
         """
         try:
             import os as _os
             import tempfile
+
             # ScreenCaptureController uses capture_screenshot(output_path), not take_screenshot
-            capture_fn = getattr(self._screen_controller, "capture_screenshot", None) \
-                         or getattr(self._screen_controller, "take_screenshot", None)
+            capture_fn = getattr(self._screen_controller, "capture_screenshot", None) or getattr(
+                self._screen_controller,
+                "take_screenshot",
+                None,
+            )
             if capture_fn is None:
-                raise AttributeError("No screenshot method found on screen controller")
+                msg = "No screenshot method found on screen controller"
+                raise AttributeError(msg)
             if save_path is None:
                 save_path = _os.path.join(tempfile.gettempdir(), "guru_screenshot.png")
             capture_fn(save_path)
@@ -1834,31 +1796,30 @@ class OSController:
                 OperationCategory.SCREEN_CAPTURE,
                 "take_screenshot",
                 True,
-                {"save_path": save_path, "region": region}
+                {"save_path": save_path, "region": region},
             )
             return OperationResult(
                 success=True,
                 category=OperationCategory.SCREEN_CAPTURE,
                 operation="take_screenshot",
                 message=f"Screenshot captured: {save_path or 'in-memory'}",
-                metadata={"save_path": save_path}
+                metadata={"save_path": save_path},
             )
         except Exception as e:
-            logger.error("Failed to take screenshot: %s", e)
+            logger.exception("Failed to take screenshot")
             self._log_operation(
                 OperationCategory.SCREEN_CAPTURE,
                 "take_screenshot",
                 False,
-                {"error": str(e)}
+                {"error": str(e)},
             )
             return OperationResult(
                 success=False,
                 category=OperationCategory.SCREEN_CAPTURE,
                 operation="take_screenshot",
                 message="Failed to capture screenshot",
-                error=str(e)
+                error=str(e),
             )
-
     # ==================== Process Management ====================
 
     def list_processes(self) -> list[dict[str, Any]]:
@@ -1869,6 +1830,7 @@ class OSController:
 
         Returns:
             List of process information dictionaries
+
         """
         try:
             processes = self._process_manager.get_process_list()
@@ -1876,7 +1838,7 @@ class OSController:
                 OperationCategory.PROCESS,
                 "list_processes",
                 True,
-                {"count": len(processes)}
+                {"count": len(processes)},
             )
             return [
                 {
@@ -1884,23 +1846,22 @@ class OSController:
                     "name": p.name,
                     "status": p.status,
                     "cpu_percent": p.cpu_percent,
-                    "memory_percent": p.memory_percent
+                    "memory_percent": p.memory_percent,
                 }
                 for p in processes
             ]
         except Exception as e:
-            logger.error("Failed to list processes: %s", e)
+            logger.exception("Failed to list processes")
             self._log_operation(
                 OperationCategory.PROCESS,
                 "list_processes",
                 False,
-                {"error": str(e)}
+                {"error": str(e)},
             )
             return []
-
     # ==================== Hardware Monitoring ====================
 
-    def get_cpu_usage(self) -> Optional[float]:
+    def get_cpu_usage(self) -> float | None:
         """Get current CPU usage percentage.
 
         Time Complexity: O(1)
@@ -1908,27 +1869,22 @@ class OSController:
 
         Returns:
             CPU usage percentage (0-100) or None on error
+
         """
         try:
             usage = self._hardware_monitor.get_cpu_usage()
-            self._log_operation(
-                OperationCategory.HARDWARE,
-                "get_cpu_usage",
-                True,
-                {"usage": usage}
-            )
+            self._log_operation(OperationCategory.HARDWARE, "get_cpu_usage", True, {"usage": usage})
             return usage
         except Exception as e:
-            logger.error("Failed to get CPU usage: %s", e)
+            logger.exception("Failed to get CPU usage")
             self._log_operation(
                 OperationCategory.HARDWARE,
                 "get_cpu_usage",
                 False,
-                {"error": str(e)}
+                {"error": str(e)},
             )
             return None
-
-    def get_memory_info(self) -> Optional[dict[str, Any]]:
+    def get_memory_info(self) -> dict[str, Any] | None:
         """Get current memory usage information.
 
         Time Complexity: O(1)
@@ -1936,6 +1892,7 @@ class OSController:
 
         Returns:
             Memory info dictionary or None on error
+
         """
         try:
             info = self._hardware_monitor.get_memory_info()
@@ -1943,31 +1900,29 @@ class OSController:
                 OperationCategory.HARDWARE,
                 "get_memory_info",
                 True,
-                {"percent": info.percent}
+                {"percent": info.percent},
             )
             return {
                 "total": info.total,
                 "available": info.available,
                 "used": info.used,
-                "percent": info.percent
+                "percent": info.percent,
             }
         except Exception as e:
-            logger.error("Failed to get memory info: %s", e)
+            logger.exception("Failed to get memory info")
             self._log_operation(
                 OperationCategory.HARDWARE,
                 "get_memory_info",
                 False,
-                {"error": str(e)}
+                {"error": str(e)},
             )
             return None
-
-
     # ==================== Utility Methods ====================
 
     def get_operation_history(
         self,
-        limit: Optional[int] = None,
-        category: Optional[OperationCategory] = None
+        limit: int | None = None,
+        category: OperationCategory | None = None,
     ) -> list[dict[str, Any]]:
         """Get operation history from audit log.
 
@@ -1980,6 +1935,7 @@ class OSController:
 
         Returns:
             List of audit log entries
+
         """
         if not self.audit_log_path or not os.path.exists(self.audit_log_path):
             return []
@@ -1994,17 +1950,15 @@ class OSController:
                             entries.append(entry)
                     except json.JSONDecodeError:
                         continue
-
             # Apply limit
             if limit is not None:
                 entries = entries[-limit:]
 
             return entries
 
-        except Exception as e:
-            logger.error("Failed to read operation history: %s", e)
+        except Exception:
+            logger.exception("Failed to read operation history")
             return []
-
     def get_system_info(self) -> dict[str, Any]:
         """Get comprehensive system information.
 
@@ -2013,6 +1967,7 @@ class OSController:
 
         Returns:
             Dictionary with system information
+
         """
         try:
             return {
@@ -2021,20 +1976,12 @@ class OSController:
                 "memory_info": self.get_memory_info(),
                 "process_count": len(self.list_processes()),
                 "audit_log_enabled": self.audit_log_path is not None,
-                "confirmation_required": self.require_confirmation
+                "confirmation_required": self.require_confirmation,
             }
         except Exception as e:
-            logger.error("Failed to get system info: %s", e)
-            return {
-                "platform": self.platform,
-                "error": str(e)
-            }
-
-    def execute_operation(
-        self,
-        operation: str,
-        **kwargs
-    ) -> OperationResult:
+            logger.exception("Failed to get system info")
+            return {"platform": self.platform, "error": str(e)}
+    def execute_operation(self, operation: str, **kwargs) -> OperationResult:
         """Execute an operation by name with dynamic routing.
 
         Time Complexity: O(1) for routing + operation complexity
@@ -2049,6 +1996,7 @@ class OSController:
 
         Raises:
             OperationNotSupportedError: If operation not supported
+
         """
         # Map operation names to methods
         operation_map = {
@@ -2091,32 +2039,29 @@ class OSController:
         }
 
         if operation not in operation_map:
-            raise OperationNotSupportedError(
-                f"Operation not supported: {operation}"
-            )
+            msg = f"Operation not supported: {operation}"
+            raise OperationNotSupportedError(msg)
 
         try:
             method = operation_map[operation]
             return method(**kwargs)
         except TypeError as e:
-            logger.error("Invalid arguments for operation %s: %s", operation, e)
+            logger.exception("Invalid arguments for operation %s: %s")
             return OperationResult(
                 success=False,
                 category=OperationCategory.FILE,  # Default category
                 operation=operation,
                 message=f"Invalid arguments for operation: {operation}",
-                error=str(e)
+                error=str(e),
             )
-        except Exception as e:
-            logger.error("Failed to execute operation %s: %s", operation, e)
+            logger.exception("Failed to execute operation %s: %s")
             return OperationResult(
                 success=False,
                 category=OperationCategory.FILE,  # Default category
                 operation=operation,
                 message=f"Failed to execute operation: {operation}",
-                error=str(e)
+                error=str(e),
             )
-
     def __repr__(self) -> str:
         """String representation of OSController."""
         return (

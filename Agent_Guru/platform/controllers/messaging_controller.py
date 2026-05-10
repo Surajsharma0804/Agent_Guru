@@ -29,15 +29,15 @@ Performance Characteristics:
 Author: Agent Guru Team
 Date: 2026-03-20
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import urllib.parse
-from typing import Optional
 
 from Agent_Guru.platform.platform_detector import PlatformDetector
-from Agent_Guru.platform.utils import fuzzy_match as _fuzzy_match, normalize as _normalize
+from Agent_Guru.platform.utils import normalize as _normalize
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +48,7 @@ logger = logging.getLogger(__name__)
 _MAX_MESSAGE_LENGTH: int = 2_000
 
 # Supported app names (canonical lowercase)
-_SUPPORTED_APPS: frozenset[str] = frozenset(
-    {"whatsapp", "telegram", "slack", "sms", "email"}
-)
+_SUPPORTED_APPS: frozenset[str] = frozenset({"whatsapp", "telegram", "slack", "sms", "email"})
 
 # ---------------------------------------------------------------------------
 # Platform detection (mirrors mobile_app_controller.py)
@@ -85,6 +83,7 @@ def _sanitize_message(message: str) -> str:
 
     Returns:
         Sanitized message safe for sending.
+
     """
     message = message.replace("\x00", "")
     if len(message) > _MAX_MESSAGE_LENGTH:
@@ -93,7 +92,7 @@ def _sanitize_message(message: str) -> str:
             len(message),
             _MAX_MESSAGE_LENGTH,
         )
-        message = message[: _MAX_MESSAGE_LENGTH]
+        message = message[:_MAX_MESSAGE_LENGTH]
     return message
 
 
@@ -137,19 +136,18 @@ class MessagingController:
         Falls back gracefully if xcrun is unavailable.
     """
 
-    def __init__(self, platform_override: Optional[str] = None) -> None:
+    def __init__(self, platform_override: str | None = None) -> None:
         """Create the controller.
 
         Args:
             platform_override: Force a specific platform string (for testing).
                 When ``None`` the platform is auto-detected.
+
         """
         self._platform: str = platform_override or _detect_platform()
         self._initialized: bool = False
 
-        logger.info(
-            "MessagingController created — platform=%s", self._platform
-        )
+        logger.info("MessagingController created — platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -165,9 +163,7 @@ class MessagingController:
             return
 
         self._initialized = True
-        logger.info(
-            "MessagingController initialized — platform=%s", self._platform
-        )
+        logger.info("MessagingController initialized — platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -193,6 +189,7 @@ class MessagingController:
 
         Returns:
             ``True`` if the send command succeeded, ``False`` otherwise.
+
         """
         app_norm = _normalize(app)
         if not app_norm:
@@ -232,14 +229,11 @@ class MessagingController:
             if _is_mobile(self._platform):
                 if self._platform == "android":
                     return await self._send_android(app_norm, contact, message)
-                else:  # ios
-                    return await self._send_ios(app_norm, contact, message)
-            else:
-                return await self._send_desktop(app_norm, contact, message)
-        except Exception as exc:
-            logger.error(
-                "send_message(%r, %r) failed: %s", app_norm, contact, exc
-            )
+                # ios
+                return await self._send_ios(app_norm, contact, message)
+            return await self._send_desktop(app_norm, contact, message)
+        except Exception:
+            logger.exception("send_message(%r, %r) failed", app_norm, contact)
             return False
 
     async def search_contact(self, app: str, query: str) -> list[str]:
@@ -254,6 +248,7 @@ class MessagingController:
 
         Returns:
             List of matching contact name strings (may be empty).
+
         """
         app_norm = _normalize(app)
         if not app_norm or not query or not query.strip():
@@ -271,8 +266,8 @@ class MessagingController:
             # app-specific APIs that are not available in a sandboxed context.
             # Subclasses or future integrations can override this.
             return []
-        except Exception as exc:
-            logger.error("search_contact(%r, %r) failed: %s", app_norm, query, exc)
+        except Exception:
+            logger.exception("search_contact(%r, %r) failed", app_norm, query)
             return []
 
     # ------------------------------------------------------------------
@@ -297,22 +292,21 @@ class MessagingController:
         """Dispatch to the correct desktop send implementation."""
         if app == "whatsapp":
             return await self._send_desktop_whatsapp(contact, message)
-        elif app == "telegram":
+        if app == "telegram":
             return await self._send_desktop_telegram(contact, message)
-        elif app == "slack":
+        if app == "slack":
             return await self._send_desktop_slack(contact, message)
-        elif app == "sms":
+        if app == "sms":
             logger.warning(
                 "SMS is not supported on desktop platform '%s'. "
                 "Use a mobile device or a third-party SMS gateway.",
                 self._platform,
             )
             return False
-        elif app == "email":
+        if app == "email":
             return await self._send_desktop_email(contact, message)
-        else:
-            logger.warning("send_desktop: unknown app %r", app)
-            return False
+        logger.warning("send_desktop: unknown app %r", app)
+        return False
 
     async def _send_desktop_whatsapp(self, contact: str, message: str) -> bool:
         """Open WhatsApp Web in the default browser with pre-filled message.
@@ -321,6 +315,8 @@ class MessagingController:
         otherwise opens web.whatsapp.com.
         """
         try:
+            import asyncio
+
             encoded = urllib.parse.quote(message)
 
             # Detect phone number (digits, +, -, spaces)
@@ -330,27 +326,31 @@ class MessagingController:
             else:
                 url = f"https://web.whatsapp.com/send?text={encoded}"
 
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._blocking_open_url, url)
             logger.info("WhatsApp Web opened: %s", url)
             return True
-        except Exception as exc:
-            logger.error("_send_desktop_whatsapp failed: %s", exc)
+        except Exception:
+            logger.exception("_send_desktop_whatsapp failed")
             return False
 
     async def _send_desktop_telegram(self, contact: str, message: str) -> bool:
         """Open Telegram with a pre-filled message via URL scheme."""
         try:
+            import asyncio
+
             encoded = urllib.parse.quote(message)
 
             # Strip leading @ if present
             username = contact.lstrip("@")
             url = f"https://t.me/{username}?text={encoded}"
 
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._blocking_open_url, url)
             logger.info("Telegram opened: %s", url)
             return True
-        except Exception as exc:
-            logger.error("_send_desktop_telegram failed: %s", exc)
+        except Exception:
+            logger.exception("_send_desktop_telegram failed")
             return False
 
     async def _send_desktop_slack(self, contact: str, message: str) -> bool:
@@ -365,8 +365,8 @@ class MessagingController:
                 contact,
             )
             return True
-        except Exception as exc:
-            logger.error("_send_desktop_slack failed: %s", exc)
+        except Exception:
+            logger.exception("_send_desktop_slack failed")
             return False
 
     async def _send_desktop_email(self, contact: str, message: str) -> bool:
@@ -378,13 +378,14 @@ class MessagingController:
             await loop.run_in_executor(None, self._blocking_open_url, url)
             logger.info("Email client opened: mailto:%s", contact)
             return True
-        except Exception as exc:
-            logger.error("_send_desktop_email failed: %s", exc)
+        except Exception:
+            logger.exception("_send_desktop_email failed")
             return False
 
     def _blocking_open_url(self, url: str) -> None:
         """Open *url* in the default browser/handler — blocking, run in executor."""
         import webbrowser  # noqa: PLC0415
+
         webbrowser.open(url)
 
     # ------------------------------------------------------------------
@@ -403,17 +404,16 @@ class MessagingController:
 
         if app == "whatsapp":
             return await self._send_android_whatsapp(contact, message)
-        elif app == "telegram":
+        if app == "telegram":
             return await self._send_android_telegram(contact, message)
-        elif app == "slack":
+        if app == "slack":
             return await self._send_android_slack(contact, message)
-        elif app == "sms":
+        if app == "sms":
             return await self._send_android_sms(contact, message)
-        elif app == "email":
+        if app == "email":
             return await self._send_android_email(contact, message)
-        else:
-            logger.warning("send_android: unknown app %r", app)
-            return False
+        logger.warning("send_android: unknown app %r", app)
+        return False
 
     async def _send_android_whatsapp(self, contact: str, message: str) -> bool:
         """Send WhatsApp message on Android via adb intent."""
@@ -468,8 +468,8 @@ class MessagingController:
         self,
         action: str,
         data: str,
-        package: Optional[str] = None,
-        extras: Optional[dict[str, str]] = None,
+        package: str | None = None,
+        extras: dict[str, str] | None = None,
     ) -> bool:
         """Run ``adb shell am start`` with the given intent parameters.
 
@@ -481,6 +481,7 @@ class MessagingController:
 
         Returns:
             ``True`` if adb returned exit code 0, ``False`` otherwise.
+
         """
         cmd = ["adb", "shell", "am", "start", "-a", action, "-d", data]
         if package:
@@ -527,17 +528,16 @@ class MessagingController:
 
         if app == "whatsapp":
             return await self._send_ios_whatsapp(contact, message)
-        elif app == "telegram":
+        if app == "telegram":
             return await self._send_ios_telegram(contact, message)
-        elif app == "slack":
+        if app == "slack":
             return await self._send_ios_slack(contact, message)
-        elif app == "sms":
+        if app == "sms":
             return await self._send_ios_sms(contact, message)
-        elif app == "email":
+        if app == "email":
             return await self._send_ios_email(contact, message)
-        else:
-            logger.warning("send_ios: unknown app %r", app)
-            return False
+        logger.warning("send_ios: unknown app %r", app)
+        return False
 
     async def _send_ios_whatsapp(self, contact: str, message: str) -> bool:
         """Send WhatsApp message on iOS via xcrun simctl openurl."""
@@ -580,10 +580,15 @@ class MessagingController:
 
         Returns:
             ``True`` if xcrun returned exit code 0, ``False`` otherwise.
+
         """
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "xcrun", "simctl", "openurl", "booted", url,
+                "xcrun",
+                "simctl",
+                "openurl",
+                "booted",
+                url,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -606,8 +611,8 @@ class MessagingController:
     # Availability checks (cached per-instance)
     # ------------------------------------------------------------------
 
-    _adb_cache: Optional[bool] = None
-    _xcrun_cache: Optional[bool] = None
+    _adb_cache: bool | None = None
+    _xcrun_cache: bool | None = None
 
     async def _adb_available(self) -> bool:
         """Return True if adb is installed and reachable (cached)."""
@@ -616,13 +621,14 @@ class MessagingController:
 
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "adb", "version",
+                "adb",
+                "version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
-        except Exception as e:
+        except Exception:
             result = False
 
         MessagingController._adb_cache = result
@@ -635,13 +641,14 @@ class MessagingController:
 
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "xcrun", "--version",
+                "xcrun",
+                "--version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
-        except Exception as e:
+        except Exception:
             result = False
 
         MessagingController._xcrun_cache = result

@@ -1,8 +1,7 @@
-"""
-Module: agent_guru.platform.network.manager
+"""Module: agent_guru.platform.network.manager
 Purpose: Robust HTTP/HTTPS client with enterprise features
 Author: Agent Guru Team
-Date: 2026-02-26
+Date: 2026-02-26.
 
 Performance Requirements:
 - Time Complexity: O(1) for request initiation
@@ -18,6 +17,7 @@ Design Decisions:
 """
 
 import asyncio
+import builtins
 import logging
 import ssl
 import time
@@ -25,7 +25,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 from urllib.parse import urlparse
 
 import aiohttp
@@ -86,6 +86,7 @@ class NetworkConfig:
         connection_pool_config: Connection pool configuration
         enable_webhooks: Whether to enable webhook support
         webhook_config: Webhook configuration
+
     """
 
     default_timeout: float = 30.0
@@ -96,13 +97,13 @@ class NetworkConfig:
     max_retries: int = 3
     retry_delay: float = 1.0
     enable_rate_limiting: bool = True
-    default_rate_limit: Optional[RateLimitConfig] = None
+    default_rate_limit: RateLimitConfig | None = None
     enable_caching: bool = True
     cache_max_size: int = 100 * 1024 * 1024  # 100MB
     enable_connection_pooling: bool = True
-    connection_pool_config: Optional[ConnectionPoolConfig] = None
+    connection_pool_config: ConnectionPoolConfig | None = None
     enable_webhooks: bool = True
-    webhook_config: Optional[WebhookConfig] = None
+    webhook_config: WebhookConfig | None = None
 
 
 @dataclass
@@ -117,6 +118,7 @@ class HttpResponse:
         from_cache: Whether response came from cache
         url: Final URL after redirects
         method: HTTP method used
+
     """
 
     status_code: int
@@ -130,28 +132,32 @@ class HttpResponse:
     @property
     def text(self) -> str:
         """Decode body as UTF-8 text."""
-        return self.body.decode('utf-8', errors='replace')
+        return self.body.decode("utf-8", errors="replace")
 
     @property
-    def json(self) -> Any:
+    def json(self) -> Any:  # noqa: ANN401
         """Parse body as JSON."""
         import json
+
         return json.loads(self.text)
 
     @property
     def is_success(self) -> bool:
         """Check if status code indicates success (2xx)."""
-        return 200 <= self.status_code < 300
+        return 200 <= self.status_code < 300  # noqa: PLR2004 - Percentage/large threshold
+
 
     @property
     def is_client_error(self) -> bool:
         """Check if status code indicates client error (4xx)."""
-        return 400 <= self.status_code < 500
+        return 400 <= self.status_code < 500  # noqa: PLR2004 - Percentage/large threshold
+
 
     @property
     def is_server_error(self) -> bool:
         """Check if status code indicates server error (5xx)."""
-        return 500 <= self.status_code < 600
+        return 500 <= self.status_code < 600  # noqa: PLR2004 - Percentage/large threshold
+
 
 
 @dataclass
@@ -166,6 +172,7 @@ class DownloadResult:
         average_speed: Average download speed in bytes/second
         success: Whether download completed successfully
         error: Error message if download failed
+
     """
 
     url: str
@@ -174,7 +181,7 @@ class DownloadResult:
     duration: float
     average_speed: float
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
@@ -190,6 +197,7 @@ class UploadResult:
         success: Whether upload completed successfully
         response_status: HTTP response status code
         error: Error message if upload failed
+
     """
 
     url: str
@@ -198,8 +206,8 @@ class UploadResult:
     duration: float
     average_speed: float
     success: bool
-    response_status: Optional[int] = None
-    error: Optional[str] = None
+    response_status: int | None = None
+    error: str | None = None
 
     @dataclass
     class DownloadResult:
@@ -213,6 +221,7 @@ class UploadResult:
             average_speed: Average download speed in bytes/second
             success: Whether download completed successfully
             error: Error message if download failed
+
         """
 
         url: str
@@ -221,8 +230,7 @@ class UploadResult:
         duration: float
         average_speed: float
         success: bool
-        error: Optional[str] = None
-
+        error: str | None = None
 
     @dataclass
     class UploadResult:
@@ -237,6 +245,7 @@ class UploadResult:
             success: bool
             response_status: HTTP response status code
             error: Error message if upload failed
+
         """
 
         url: str
@@ -245,11 +254,12 @@ class UploadResult:
         duration: float
         average_speed: float
         success: bool
-        response_status: Optional[int] = None
-        error: Optional[str] = None
+        response_status: int | None = None
+        error: str | None = None
 
 
 # Exception hierarchy
+
 
 class NetworkError(Exception):
     """Base exception for network operations."""
@@ -270,13 +280,13 @@ class ConnectionError(NetworkError):
 class RateLimitError(NetworkError):
     """Raised when rate limit is exceeded (429 status code)."""
 
-    def __init__(self, service: str, retry_after: float, status_code: int = 429):
+    def __init__(self, service: str, retry_after: float, status_code: int = 429) -> None:
         self.service = service
         self.retry_after = retry_after
         self.status_code = status_code
         super().__init__(
             f"Rate limit exceeded for service '{service}'. "
-            f"Retry after {retry_after:.1f} seconds. (HTTP {status_code})"
+            f"Retry after {retry_after:.1f} seconds. (HTTP {status_code})",
         )
 
 
@@ -305,6 +315,7 @@ class NetworkManager:
         ... )
         >>> print(f"Status: {response.status_code}")
         >>> await manager.close()
+
     """
 
     def __init__(self, config: NetworkConfig) -> None:
@@ -312,14 +323,15 @@ class NetworkManager:
 
         Args:
             config: Network configuration
+
         """
         self.config = config
-        self._session: Optional[aiohttp.ClientSession] = None
-        self._ssl_context: Optional[ssl.SSLContext] = None
-        self._connector: Optional[aiohttp.TCPConnector] = None
+        self._session: aiohttp.ClientSession | None = None
+        self._ssl_context: ssl.SSLContext | None = None
+        self._connector: aiohttp.TCPConnector | None = None
 
         # Initialize connection pool manager
-        self._pool_manager: Optional[ConnectionPoolManager] = None
+        self._pool_manager: ConnectionPoolManager | None = None
         if config.enable_connection_pooling:
             pool_config = config.connection_pool_config or ConnectionPoolConfig(
                 max_connections_per_host=config.max_connections,
@@ -328,18 +340,18 @@ class NetworkManager:
             self._pool_manager = ConnectionPoolManager(pool_config)
 
         # Initialize rate limiter manager
-        self._rate_limiter: Optional[RateLimiterManager] = None
+        self._rate_limiter: RateLimiterManager | None = None
         if config.enable_rate_limiting:
             default_rate_config = config.default_rate_limit or RateLimitConfig()
             self._rate_limiter = RateLimiterManager(default_rate_config)
 
         # Initialize response cache
-        self._cache: Optional[ResponseCache] = None
+        self._cache: ResponseCache | None = None
         if config.enable_caching:
             self._cache = ResponseCache(max_size=config.cache_max_size)
 
         # Initialize webhook manager
-        self._webhook_manager: Optional[WebhookManager] = None
+        self._webhook_manager: WebhookManager | None = None
         if config.enable_webhooks:
             webhook_config = config.webhook_config or WebhookConfig()
             self._webhook_manager = WebhookManager(webhook_config)
@@ -352,10 +364,12 @@ class NetworkManager:
                 "max_connections": config.max_connections,
                 "rate_limiting_enabled": config.enable_rate_limiting,
                 "caching_enabled": config.enable_caching,
-                "cache_max_size_mb": config.cache_max_size / (1024 * 1024) if config.enable_caching else 0,
+                "cache_max_size_mb": config.cache_max_size / (1024 * 1024)
+                if config.enable_caching
+                else 0,
                 "connection_pooling_enabled": config.enable_connection_pooling,
                 "webhooks_enabled": config.enable_webhooks,
-            }
+            },
         )
 
     async def start(self) -> None:
@@ -424,15 +438,11 @@ class NetworkManager:
         await self.start()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):  # noqa: ANN001
         """Context manager exit."""
         await self.close()
 
-    def configure_rate_limit(
-        self,
-        service: str,
-        config: RateLimitConfig
-    ) -> None:
+    def configure_rate_limit(self, service: str, config: RateLimitConfig) -> None:
         """Configure rate limiter for specific service.
 
         Args:
@@ -444,6 +454,7 @@ class NetworkManager:
             ...     "api.example.com",
             ...     RateLimitConfig(requests_per_minute=100, requests_per_hour=1000)
             ... )
+
         """
         if self._rate_limiter is None:
             logger.warning("Rate limiting not enabled - configure_rate_limit ignored")
@@ -452,7 +463,7 @@ class NetworkManager:
         self._rate_limiter.configure_service(service, config)
         logger.info("Rate limit configured for service '%s'", service)
 
-    def get_rate_limit_status(self, service: str) -> Optional[RateLimitStatus]:
+    def get_rate_limit_status(self, service: str) -> RateLimitStatus | None:
         """Get current rate limit status for service.
 
         Args:
@@ -465,6 +476,7 @@ class NetworkManager:
             >>> status = manager.get_rate_limit_status("api.example.com")
             >>> print(f"Remaining: {status.remaining}/{status.limit}")
             >>> print(f"Resets at: {status.reset_time}")
+
         """
         if self._rate_limiter is None:
             return None
@@ -481,13 +493,14 @@ class NetworkManager:
             >>> statuses = manager.get_all_rate_limit_statuses()
             >>> for service, status in statuses.items():
             ...     print(f"{service}: {status.remaining}/{status.limit}")
+
         """
         if self._rate_limiter is None:
             return {}
 
         return self._rate_limiter.get_all_statuses()
 
-    def get_cache_statistics(self) -> Optional[CacheStatistics]:
+    def get_cache_statistics(self) -> CacheStatistics | None:
         """Get cache statistics.
 
         Returns:
@@ -499,13 +512,14 @@ class NetworkManager:
             ...     print(f"Hit rate: {stats.hit_rate:.2%}")
             ...     print(f"Size: {stats.total_size / (1024 * 1024):.2f} MB")
             ...     print(f"Entries: {stats.entry_count}")
+
         """
         if self._cache is None:
             return None
 
         return self._cache.get_statistics()
 
-    async def invalidate_cache(self, url_pattern: Optional[str] = None) -> int:
+    async def invalidate_cache(self, url_pattern: str | None = None) -> int:
         """Invalidate cache entries matching URL pattern.
 
         Args:
@@ -522,6 +536,7 @@ class NetworkManager:
             >>> # Invalidate specific API
             >>> count = await manager.invalidate_cache("api.example.com")
             >>> print(f"Invalidated {count} entries for api.example.com")
+
         """
         if self._cache is None:
             return 0
@@ -537,6 +552,7 @@ class NetworkManager:
         Example:
             >>> count = await manager.cleanup_expired_cache()
             >>> print(f"Removed {count} expired entries")
+
         """
         if self._cache is None:
             return 0
@@ -550,11 +566,12 @@ class NetworkManager:
             >>> manager.reset_cache_statistics()
             >>> stats = manager.get_cache_statistics()
             >>> assert stats.hits == 0 and stats.misses == 0
+
         """
         if self._cache is not None:
             self._cache.reset_statistics()
 
-    async def get_connection_pool_stats(self) -> Optional[PoolStatistics]:
+    async def get_connection_pool_stats(self) -> PoolStatistics | None:
         """Get connection pool statistics.
 
         Returns:
@@ -566,13 +583,14 @@ class NetworkManager:
             ...     print(f"Total hosts: {stats.total_hosts}")
             ...     print(f"Average reuse rate: {stats.average_reuse_rate:.2%}")
             ...     print(f"Total connections: {stats.total_created}")
+
         """
         if self._pool_manager is None:
             return None
 
         return await self._pool_manager.get_all_stats()
 
-    async def get_host_connection_stats(self, host: str) -> Optional[ConnectionStats]:
+    async def get_host_connection_stats(self, host: str) -> ConnectionStats | None:
         """Get connection statistics for specific host.
 
         Args:
@@ -586,6 +604,7 @@ class NetworkManager:
             >>> if stats:
             ...     print(f"Reuse rate: {stats.reuse_rate:.2%}")
             ...     print(f"Active connections: {stats.active_connections}")
+
         """
         if self._pool_manager is None:
             return None
@@ -597,6 +616,7 @@ class NetworkManager:
 
         Example:
             >>> await manager.reset_connection_pool_stats()
+
         """
         if self._pool_manager is not None:
             await self._pool_manager.reset_stats()
@@ -609,6 +629,7 @@ class NetworkManager:
 
         Returns:
             Service name (hostname)
+
         """
         parsed = urlparse(url)
         return parsed.netloc or "unknown"
@@ -617,10 +638,10 @@ class NetworkManager:
         self,
         method: HttpMethod,
         url: str,
-        headers: Optional[dict[str, str]] = None,
-        body: Optional[Union[bytes, str, dict[str, Any]]] = None,
-        timeout: Optional[float] = None,
-        params: Optional[dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
+        body: bytes | str | dict[str, Any] | None = None,
+        timeout: float | None = None,
+        params: dict[str, str] | None = None,
         use_cache: bool = True,
     ) -> HttpResponse:
         """Execute HTTP request with retry logic and caching.
@@ -646,14 +667,17 @@ class NetworkManager:
             TimeoutError: If request times out
             ConnectionError: If connection fails
             ValueError: If URL or method is invalid
+
         """
         if self._session is None:
-            raise NetworkError("NetworkManager not started - call start() first")
+            msg = "NetworkManager not started - call start() first"
+            raise NetworkError(msg)
 
         # Validate URL
         parsed_url = urlparse(url)
         if not parsed_url.scheme or not parsed_url.netloc:
-            raise ValueError(f"Invalid URL: {url}")
+            msg = f"Invalid URL: {url}"
+            raise ValueError(msg)
 
         # Check cache for GET requests (only cacheable method)
         if use_cache and method == HttpMethod.GET and self._cache is not None:
@@ -679,24 +703,23 @@ class NetworkManager:
                 await self._rate_limiter.acquire(service, timeout=timeout)
             except RateLimitExceeded as e:
                 # Rate limit exceeded - return 429 error
-                logger.warning(
+                logger.exception(
                     "Rate limit exceeded",
                     extra={
                         "service": service,
                         "retry_after": e.retry_after,
-                    }
+                    },
                 )
                 raise RateLimitError(service, e.retry_after) from e
-            except asyncio.TimeoutError as e:
-                logger.warning(
+                logger.exception(
                     "Rate limit timeout",
                     extra={
                         "service": service,
                         "timeout": timeout,
-                    }
+                    },
                 )
-                raise TimeoutError(f"Rate limit timeout for service '{service}'") from e
-
+                msg = f"Rate limit timeout for service '{service}'"
+                raise TimeoutError(msg) from e
         # Prepare request
         request_timeout = timeout if timeout is not None else self.config.default_timeout
         request_headers = headers.copy() if headers else {}
@@ -707,10 +730,11 @@ class NetworkManager:
             if isinstance(body, dict):
                 # JSON body
                 import json
-                request_body = json.dumps(body).encode('utf-8')
-                request_headers.setdefault('Content-Type', 'application/json')
+
+                request_body = json.dumps(body).encode("utf-8")
+                request_headers.setdefault("Content-Type", "application/json")
             elif isinstance(body, str):
-                request_body = body.encode('utf-8')
+                request_body = body.encode("utf-8")
             else:
                 request_body = body
 
@@ -728,7 +752,7 @@ class NetworkManager:
                         "url": url,
                         "attempt": attempt + 1,
                         "timeout": request_timeout,
-                    }
+                    },
                 )
 
                 # Execute request
@@ -765,23 +789,27 @@ class NetworkManager:
                     )
 
                     # Handle 429 Rate Limit response
-                    if response.status == 429:
-                        retry_after = float(response.headers.get('Retry-After', 60))
+                    if response.status == 429:  # noqa: PLR2004 - Percentage/large threshold
+
+                        retry_after = float(response.headers.get("Retry-After", 60))
                         logger.warning(
                             "Server returned 429 Rate Limit",
                             extra={
                                 "service": service,
                                 "retry_after": retry_after,
                                 "url": url,
-                            }
+                            },
                         )
                         raise RateLimitError(service, retry_after, status_code=429)
 
                     # Cache successful GET responses
-                    if (use_cache and
-                        method == HttpMethod.GET and
-                        self._cache is not None and
-                        200 <= response.status < 300):
+                    if (
+                        use_cache
+                        and method == HttpMethod.GET
+                        and self._cache is not None
+                        and 200 <= response.status < 300  # noqa: PLR2004 - Percentage/large threshold
+
+                    ):
                         await self._cache.set(
                             url=str(response.url),
                             status_code=response.status,
@@ -800,62 +828,56 @@ class NetworkManager:
                             "response_time": response_time,
                             "body_size": len(response_body),
                             "from_cache": False,
-                        }
+                        },
                     )
 
                     return http_response
 
-            except asyncio.TimeoutError as e:
+            except builtins.TimeoutError as e:
                 last_exception = TimeoutError(f"Request timed out after {request_timeout}s: {url}")
-                logger.warning(
+                logger.exception(
                     "Request timeout",
                     extra={
                         "method": method.value,
                         "url": url,
                         "timeout": request_timeout,
                         "attempt": attempt + 1,
-                    }
+                    },
                 )
-
-            except aiohttp.ClientSSLError as e:
                 # SSL errors are not retryable
-                logger.error(
+                logger.exception(
                     "SSL validation failed",
                     extra={
                         "method": method.value,
                         "url": url,
                         "error": str(e),
-                    }
+                    },
                 )
-                raise SSLValidationError(f"SSL certificate validation failed: {url}") from e
-
-            except aiohttp.ClientConnectionError as e:
+                msg = f"SSL certificate validation failed: {url}"
+                raise SSLValidationError(msg) from e
                 last_exception = ConnectionError(f"Connection failed: {url}")
-                logger.warning(
+                logger.exception(
                     "Connection error",
                     extra={
                         "method": method.value,
                         "url": url,
                         "error": str(e),
                         "attempt": attempt + 1,
-                    }
+                    },
                 )
-
-            except aiohttp.ClientError as e:
                 last_exception = NetworkError(f"Request failed: {url}")
-                logger.warning(
+                logger.exception(
                     "Request error",
                     extra={
                         "method": method.value,
                         "url": url,
                         "error": str(e),
                         "attempt": attempt + 1,
-                    }
+                    },
                 )
-
             # Exponential backoff before retry
             if attempt < self.config.max_retries - 1:
-                delay = self.config.retry_delay * (2 ** attempt)
+                delay = self.config.retry_delay * (2**attempt)
                 logger.debug("Retrying in %ss...", delay)
                 await asyncio.sleep(delay)
 
@@ -866,16 +888,16 @@ class NetworkManager:
                 "method": method.value,
                 "url": url,
                 "max_retries": self.config.max_retries,
-            }
+            },
         )
         raise last_exception or NetworkError(f"Request failed: {url}")
 
     async def get(
         self,
         url: str,
-        headers: Optional[dict[str, str]] = None,
-        params: Optional[dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        timeout: float | None = None,
         use_cache: bool = True,
     ) -> HttpResponse:
         """Execute GET request.
@@ -889,6 +911,7 @@ class NetworkManager:
 
         Returns:
             HTTP response
+
         """
         return await self.http_request(
             HttpMethod.GET,
@@ -902,10 +925,10 @@ class NetworkManager:
     async def post(
         self,
         url: str,
-        body: Optional[Union[bytes, str, dict[str, Any]]] = None,
-        headers: Optional[dict[str, str]] = None,
-        params: Optional[dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        body: bytes | str | dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        timeout: float | None = None,
     ) -> HttpResponse:
         """Execute POST request.
 
@@ -918,6 +941,7 @@ class NetworkManager:
 
         Returns:
             HTTP response
+
         """
         return await self.http_request(
             HttpMethod.POST,
@@ -931,10 +955,10 @@ class NetworkManager:
     async def put(
         self,
         url: str,
-        body: Optional[Union[bytes, str, dict[str, Any]]] = None,
-        headers: Optional[dict[str, str]] = None,
-        params: Optional[dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        body: bytes | str | dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        timeout: float | None = None,
     ) -> HttpResponse:
         """Execute PUT request.
 
@@ -947,6 +971,7 @@ class NetworkManager:
 
         Returns:
             HTTP response
+
         """
         return await self.http_request(
             HttpMethod.PUT,
@@ -960,9 +985,9 @@ class NetworkManager:
     async def delete(
         self,
         url: str,
-        headers: Optional[dict[str, str]] = None,
-        params: Optional[dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        timeout: float | None = None,
     ) -> HttpResponse:
         """Execute DELETE request.
 
@@ -974,6 +999,7 @@ class NetworkManager:
 
         Returns:
             HTTP response
+
         """
         return await self.http_request(
             HttpMethod.DELETE,
@@ -986,10 +1012,10 @@ class NetworkManager:
     async def patch(
         self,
         url: str,
-        body: Optional[Union[bytes, str, dict[str, Any]]] = None,
-        headers: Optional[dict[str, str]] = None,
-        params: Optional[dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        body: bytes | str | dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        timeout: float | None = None,
     ) -> HttpResponse:
         """Execute PATCH request.
 
@@ -1002,6 +1028,7 @@ class NetworkManager:
 
         Returns:
             HTTP response
+
         """
         return await self.http_request(
             HttpMethod.PATCH,
@@ -1015,9 +1042,9 @@ class NetworkManager:
     async def head(
         self,
         url: str,
-        headers: Optional[dict[str, str]] = None,
-        params: Optional[dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        timeout: float | None = None,
     ) -> HttpResponse:
         """Execute HEAD request.
 
@@ -1029,6 +1056,7 @@ class NetworkManager:
 
         Returns:
             HTTP response (body will be empty)
+
         """
         return await self.http_request(
             HttpMethod.HEAD,
@@ -1041,9 +1069,9 @@ class NetworkManager:
     async def options(
         self,
         url: str,
-        headers: Optional[dict[str, str]] = None,
-        params: Optional[dict[str, str]] = None,
-        timeout: Optional[float] = None,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        timeout: float | None = None,
     ) -> HttpResponse:
         """Execute OPTIONS request.
 
@@ -1055,6 +1083,7 @@ class NetworkManager:
 
         Returns:
             HTTP response
+
         """
         return await self.http_request(
             HttpMethod.OPTIONS,
@@ -1070,10 +1099,10 @@ class NetworkManager:
         self,
         method: HttpMethod,
         url: str,
-        headers: Optional[dict[str, str]] = None,
-        body: Optional[Union[bytes, str, dict[str, Any]]] = None,
-        timeout: Optional[float] = None,
-        params: Optional[dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
+        body: bytes | str | dict[str, Any] | None = None,
+        timeout: float | None = None,
+        params: dict[str, str] | None = None,
         chunk_size: int = 8192,
     ) -> AsyncIterator[bytes]:
         """Stream HTTP response in chunks.
@@ -1105,14 +1134,17 @@ class NetworkManager:
             ...     "https://example.com/large-file.zip"
             ... ):
             ...     process_chunk(chunk)
+
         """
         if self._session is None:
-            raise NetworkError("NetworkManager not started - call start() first")
+            msg = "NetworkManager not started - call start() first"
+            raise NetworkError(msg)
 
         # Validate URL
         parsed_url = urlparse(url)
         if not parsed_url.scheme or not parsed_url.netloc:
-            raise ValueError(f"Invalid URL: {url}")
+            msg = f"Invalid URL: {url}"
+            raise ValueError(msg)
 
         # Extract service name for rate limiting
         service = self._extract_service_name(url)
@@ -1122,24 +1154,23 @@ class NetworkManager:
             try:
                 await self._rate_limiter.acquire(service, timeout=timeout)
             except RateLimitExceeded as e:
-                logger.warning(
+                logger.exception(
                     "Rate limit exceeded",
                     extra={
                         "service": service,
                         "retry_after": e.retry_after,
-                    }
+                    },
                 )
                 raise RateLimitError(service, e.retry_after) from e
-            except asyncio.TimeoutError as e:
-                logger.warning(
+                logger.exception(
                     "Rate limit timeout",
                     extra={
                         "service": service,
                         "timeout": timeout,
-                    }
+                    },
                 )
-                raise TimeoutError(f"Rate limit timeout for service '{service}'") from e
-
+                msg = f"Rate limit timeout for service '{service}'"
+                raise TimeoutError(msg) from e
         # Prepare request
         request_timeout = timeout if timeout is not None else self.config.default_timeout
         request_headers = headers.copy() if headers else {}
@@ -1149,10 +1180,11 @@ class NetworkManager:
         if body is not None:
             if isinstance(body, dict):
                 import json
-                request_body = json.dumps(body).encode('utf-8')
-                request_headers.setdefault('Content-Type', 'application/json')
+
+                request_body = json.dumps(body).encode("utf-8")
+                request_headers.setdefault("Content-Type", "application/json")
             elif isinstance(body, str):
-                request_body = body.encode('utf-8')
+                request_body = body.encode("utf-8")
             else:
                 request_body = body
 
@@ -1164,7 +1196,7 @@ class NetworkManager:
                 "url": url,
                 "chunk_size": chunk_size,
                 "timeout": request_timeout,
-            }
+            },
         )
 
         try:
@@ -1179,10 +1211,12 @@ class NetworkManager:
                 allow_redirects=True,
             ) as response:
                 # Check status code
-                if response.status >= 400:
+                if response.status >= 400:  # noqa: PLR2004 - Percentage/large threshold
+
                     error_body = await response.read()
+                    msg = f"HTTP {response.status}: {error_body.decode('utf-8', errors='replace')}"
                     raise NetworkError(
-                        f"HTTP {response.status}: {error_body.decode('utf-8', errors='replace')}"
+                        msg,
                     )
 
                 # Stream response chunks
@@ -1198,61 +1232,58 @@ class NetworkManager:
                         "url": url,
                         "status_code": response.status,
                         "total_bytes": total_bytes,
-                    }
+                    },
                 )
 
-        except asyncio.TimeoutError as e:
-            logger.error(
+        except builtins.TimeoutError as e:
+            logger.exception(
                 "Streaming request timeout",
                 extra={
                     "method": method.value,
                     "url": url,
                     "timeout": request_timeout,
-                }
+                },
             )
-            raise TimeoutError(f"Request timed out after {request_timeout}s: {url}") from e
-
-        except aiohttp.ClientSSLError as e:
-            logger.error(
+            msg = f"Request timed out after {request_timeout}s: {url}"
+            raise TimeoutError(msg) from e
+            logger.exception(
                 "SSL validation failed",
                 extra={
                     "method": method.value,
                     "url": url,
                     "error": str(e),
-                }
+                },
             )
-            raise SSLValidationError(f"SSL certificate validation failed: {url}") from e
-
-        except aiohttp.ClientConnectionError as e:
-            logger.error(
+            msg = f"SSL certificate validation failed: {url}"
+            raise SSLValidationError(msg) from e
+            logger.exception(
                 "Connection error",
                 extra={
                     "method": method.value,
                     "url": url,
                     "error": str(e),
-                }
+                },
             )
-            raise ConnectionError(f"Connection failed: {url}") from e
-
-        except aiohttp.ClientError as e:
-            logger.error(
+            msg = f"Connection failed: {url}"
+            raise ConnectionError(msg) from e
+            logger.exception(
                 "Request error",
                 extra={
                     "method": method.value,
                     "url": url,
                     "error": str(e),
-                }
+                },
             )
-            raise NetworkError(f"Request failed: {url}") from e
-
+            msg = f"Request failed: {url}"
+            raise NetworkError(msg) from e
     async def download_file(
         self,
         url: str,
         destination: Path,
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
         chunk_size: int = 8192,
-        timeout: Optional[float] = None,
-        headers: Optional[dict[str, str]] = None,
+        timeout: float | None = None,
+        headers: dict[str, str] | None = None,
     ) -> DownloadResult:
         """Download file with progress tracking.
 
@@ -1282,6 +1313,7 @@ class NetworkManager:
             ... )
             >>> print(f"Downloaded {result.total_bytes} bytes in {result.duration:.2f}s")
             >>> print(f"Average speed: {result.average_speed / 1024 / 1024:.2f} MB/s")
+
         """
         start_time = time.perf_counter()
         total_bytes = 0
@@ -1292,7 +1324,7 @@ class NetworkManager:
             destination.parent.mkdir(parents=True, exist_ok=True)
 
             # Open file for writing
-            with open(destination, 'wb') as f:
+            with open(destination, "wb") as f:  # noqa: ASYNC230
                 # Stream download - get content-length from response headers
                 request_timeout = timeout if timeout is not None else self.config.default_timeout
                 request_headers = headers.copy() if headers else {}
@@ -1304,14 +1336,16 @@ class NetworkManager:
                     timeout=aiohttp.ClientTimeout(total=request_timeout),
                     allow_redirects=True,
                 ) as response:
-                    if response.status >= 400:
+                    if response.status >= 400:  # noqa: PLR2004 - Percentage/large threshold
+
                         error_body = await response.read()
+                        msg = f"HTTP {response.status}: {error_body.decode('utf-8', errors='replace')}"
                         raise NetworkError(
-                            f"HTTP {response.status}: {error_body.decode('utf-8', errors='replace')}"
+                            msg,
                         )
 
                     # Get content length from response headers
-                    content_length = int(response.headers.get('Content-Length', 0))
+                    content_length = int(response.headers.get("Content-Length", 0))
 
                     # Stream chunks
                     async for chunk in response.content.iter_chunked(chunk_size):
@@ -1322,9 +1356,8 @@ class NetworkManager:
                         if progress_callback is not None:
                             try:
                                 progress_callback(total_bytes, content_length)
-                            except Exception as cb_err:
-                                logger.warning("Progress callback error: %s", cb_err)
-
+                            except Exception:
+                                logger.exception("Progress callback error")
             # Calculate statistics
             duration = time.perf_counter() - start_time
             average_speed = total_bytes / duration if duration > 0 else 0
@@ -1337,7 +1370,7 @@ class NetworkManager:
                     "total_bytes": total_bytes,
                     "duration": duration,
                     "average_speed_mbps": average_speed / 1024 / 1024,
-                }
+                },
             )
 
             return DownloadResult(
@@ -1352,24 +1385,21 @@ class NetworkManager:
         except Exception as e:
             duration = time.perf_counter() - start_time
             average_speed = total_bytes / duration if duration > 0 else 0
-
-            logger.error(
+            logger.exception(
                 "File download failed",
                 extra={
                     "url": url,
                     "destination": str(destination),
                     "error": str(e),
                     "bytes_downloaded": total_bytes,
-                }
+                },
             )
-
             # Clean up partial download
             if destination.exists():
                 try:
                     destination.unlink()
-                except Exception as cleanup_error:
-                    logger.warning("Failed to clean up partial download: %s", cleanup_error)
-
+                except Exception:
+                    logger.exception("Failed to clean up partial download")
             return DownloadResult(
                 url=url,
                 destination=str(destination),
@@ -1379,15 +1409,14 @@ class NetworkManager:
                 success=False,
                 error=str(e),
             )
-
     async def upload_file(
         self,
         url: str,
         file_path: Path,
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
         chunk_size: int = 8192,
-        timeout: Optional[float] = None,
-        headers: Optional[dict[str, str]] = None,
+        timeout: float | None = None,
+        headers: dict[str, str] | None = None,
         method: HttpMethod = HttpMethod.POST,
     ) -> UploadResult:
         """Upload file with progress tracking.
@@ -1419,6 +1448,7 @@ class NetworkManager:
             ... )
             >>> print(f"Uploaded {result.total_bytes} bytes in {result.duration:.2f}s")
             >>> print(f"Response status: {result.response_status}")
+
         """
         start_time = time.perf_counter()
         total_bytes = 0
@@ -1427,7 +1457,8 @@ class NetworkManager:
         try:
             # Validate file exists
             if not file_path.exists():
-                raise FileNotFoundError(f"File not found: {file_path}")
+                msg = f"File not found: {file_path}"
+                raise FileNotFoundError(msg)
 
             # Get file size
             file_size = file_path.stat().st_size
@@ -1435,7 +1466,7 @@ class NetworkManager:
             # Create async generator for file chunks
             async def file_chunk_generator():
                 nonlocal total_bytes
-                with open(file_path, 'rb') as f:
+                with open(file_path, "rb") as f:  # noqa: ASYNC230
                     while True:
                         chunk = f.read(chunk_size)
                         if not chunk:
@@ -1446,15 +1477,14 @@ class NetworkManager:
                         if progress_callback is not None:
                             try:
                                 progress_callback(total_bytes, file_size)
-                            except Exception as e:
-                                logger.warning("Progress callback error: %s", e)
-
+                            except Exception:
+                                logger.exception("Progress callback error")
                         yield chunk
 
             # Prepare headers
             request_headers = headers.copy() if headers else {}
-            request_headers.setdefault('Content-Type', 'application/octet-stream')
-            request_headers.setdefault('Content-Length', str(file_size))
+            request_headers.setdefault("Content-Type", "application/octet-stream")
+            request_headers.setdefault("Content-Length", str(file_size))
 
             # Execute upload request
             request_timeout = timeout if timeout is not None else self.config.default_timeout
@@ -1466,7 +1496,7 @@ class NetworkManager:
                     "file_path": str(file_path),
                     "file_size": file_size,
                     "method": method.value,
-                }
+                },
             )
 
             async with self._session.request(
@@ -1480,10 +1510,14 @@ class NetworkManager:
                 response_body = await response.read()
 
                 # Check for errors
-                if response.status >= 400:
-                    raise NetworkError(
+                if response.status >= 400:  # noqa: PLR2004 - Percentage/large threshold
+
+                    msg = (
                         f"Upload failed with HTTP {response.status}: "
                         f"{response_body.decode('utf-8', errors='replace')}"
+                    )
+                    raise NetworkError(
+                        msg,
                     )
 
             # Calculate statistics
@@ -1499,7 +1533,7 @@ class NetworkManager:
                     "duration": duration,
                     "average_speed_mbps": average_speed / 1024 / 1024,
                     "response_status": response_status,
-                }
+                },
             )
 
             return UploadResult(
@@ -1515,17 +1549,15 @@ class NetworkManager:
         except Exception as e:
             duration = time.perf_counter() - start_time
             average_speed = total_bytes / duration if duration > 0 else 0
-
-            logger.error(
+            logger.exception(
                 "File upload failed",
                 extra={
                     "url": url,
                     "file_path": str(file_path),
                     "error": str(e),
                     "bytes_uploaded": total_bytes,
-                }
+                },
             )
-
             return UploadResult(
                 url=url,
                 source=str(file_path),
@@ -1536,16 +1568,15 @@ class NetworkManager:
                 response_status=response_status,
                 error=str(e),
             )
-
     # Webhook methods
 
     def register_webhook(
         self,
         endpoint: str,
         handler: Callable[[WebhookEvent], Awaitable[None]],
-        secret_key: Optional[str] = None,
-        config: Optional[WebhookConfig] = None,
-        event_types: Optional[list[str]] = None,
+        secret_key: str | None = None,
+        config: WebhookConfig | None = None,
+        event_types: list[str] | None = None,
     ) -> None:
         """Register webhook handler for endpoint.
 
@@ -1570,9 +1601,11 @@ class NetworkManager:
             ...     secret_key="github_webhook_secret",
             ...     event_types=["push", "pull_request"]
             ... )
+
         """
         if self._webhook_manager is None:
-            raise ValueError("Webhooks not enabled - set enable_webhooks=True in config")
+            msg = "Webhooks not enabled - set enable_webhooks=True in config"
+            raise ValueError(msg)
 
         self._webhook_manager.register_webhook(
             endpoint=endpoint,
@@ -1594,6 +1627,7 @@ class NetworkManager:
         Example:
             >>> manager.unregister_webhook("/webhooks/github")
             True
+
         """
         if self._webhook_manager is None:
             return False
@@ -1610,13 +1644,14 @@ class NetworkManager:
             >>> endpoints = manager.get_registered_webhooks()
             >>> print(f"Registered webhooks: {endpoints}")
             ['/webhooks/github', '/webhooks/stripe']
+
         """
         if self._webhook_manager is None:
             return []
 
         return self._webhook_manager.get_registered_endpoints()
 
-    def get_webhook_stats(self, endpoint: str) -> Optional[dict[str, Any]]:
+    def get_webhook_stats(self, endpoint: str) -> dict[str, Any] | None:
         """Get statistics for webhook handler.
 
         Args:
@@ -1630,6 +1665,7 @@ class NetworkManager:
             >>> if stats:
             ...     print(f"Triggers: {stats['trigger_count']}")
             ...     print(f"Last triggered: {stats['last_triggered']}")
+
         """
         if self._webhook_manager is None:
             return None
@@ -1671,9 +1707,11 @@ class NetworkManager:
             ... )
             >>> print(f"Event type: {event.event_type}")
             >>> print(f"Verified: {event.verified}")
+
         """
         if self._webhook_manager is None:
-            raise ValueError("Webhooks not enabled - set enable_webhooks=True in config")
+            msg = "Webhooks not enabled - set enable_webhooks=True in config"
+            raise ValueError(msg)
 
         return await self._webhook_manager.process_webhook(
             endpoint=endpoint,

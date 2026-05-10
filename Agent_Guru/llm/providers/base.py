@@ -1,5 +1,4 @@
-"""
-Abstract base class for LLM provider adapters.
+"""Abstract base class for LLM provider adapters.
 
 All provider adapters must implement this interface to ensure
 cross-provider compatibility.
@@ -12,10 +11,12 @@ Version: 1.0.0
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
-from typing import Union
+from typing import TYPE_CHECKING
 
-from Agent_Guru.llm.models import CompletionRequest, CompletionResponse, StreamChunk
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from Agent_Guru.llm.models import CompletionRequest, CompletionResponse, StreamChunk
 
 
 class ProviderAdapter(ABC):
@@ -23,36 +24,33 @@ class ProviderAdapter(ABC):
 
     @abstractmethod
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
-        """
-        Execute a non-streaming completion request.
+        """Execute a non-streaming completion request.
 
         Args:
             request: Completion request in unified format.
 
         Returns:
             CompletionResponse in unified format.
+
         """
         ...
 
     @abstractmethod
     async def stream(self, request: CompletionRequest) -> AsyncIterator[StreamChunk]:
-        """
-        Execute a streaming completion request.
+        """Execute a streaming completion request.
 
         Args:
             request: Completion request in unified format.
 
         Yields:
             StreamChunk for each token/chunk received.
+
         """
         ...
 
     @abstractmethod
-    async def embed(
-        self, text: Union[str, list[str]], model: str
-    ) -> list[list[float]]:
-        """
-        Generate embeddings for text.
+    async def embed(self, text: str | list[str], model: str) -> list[list[float]]:
+        """Generate embeddings for text.
 
         Args:
             text: Single string or list of strings to embed.
@@ -60,5 +58,6 @@ class ProviderAdapter(ABC):
 
         Returns:
             List of embedding vectors (one per input string).
+
         """
         ...

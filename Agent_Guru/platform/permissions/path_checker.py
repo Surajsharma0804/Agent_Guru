@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.platform.permissions.path_checker
-Purpose: Path permission validation with pattern matching and normalization
+"""Module: Agent_Guru.platform.permissions.path_checker
+Purpose: Path permission validation with pattern matching and normalization.
 
 This module implements comprehensive path validation:
 - Allowed path checking with wildcard patterns
@@ -33,13 +32,13 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 class PermissionType(Enum):
     """File system permission types."""
+
     READ = "read"
     WRITE = "write"
     DELETE = "delete"
@@ -49,9 +48,10 @@ class PermissionType(Enum):
 @dataclass
 class PathValidationResult:
     """Result of path validation."""
+
     allowed: bool
     normalized_path: str
-    matched_pattern: Optional[str]
+    matched_pattern: str | None
     reason: str
     permissions: set[PermissionType]
 
@@ -61,8 +61,7 @@ class PathValidationError(Exception):
 
 
 class PathPermissionChecker:
-    """
-    Path permission checker with pattern matching and normalization.
+    """Path permission checker with pattern matching and normalization.
 
     Features:
     - Wildcard pattern matching (*, **, ?)
@@ -82,15 +81,16 @@ class PathPermissionChecker:
         ...     PermissionType.READ
         ... )
         >>> print(f"Allowed: {result.allowed}")
+
     """
 
-    def __init__(self, case_sensitive: Optional[bool] = None):
-        """
-        Initialize path permission checker.
+    def __init__(self, case_sensitive: bool | None = None) -> None:
+        """Initialize path permission checker.
 
         Args:
             case_sensitive: Whether path matching is case-sensitive.
                            Defaults to False on Windows, True on Unix.
+
         """
         self._allowed_patterns: list[tuple[str, set[PermissionType]]] = []
         self._blocked_patterns: list[str] = []
@@ -101,18 +101,10 @@ class PathPermissionChecker:
         else:
             self._case_sensitive = case_sensitive
 
-        logger.debug(
-            f"PathPermissionChecker initialized "
-            f"(case_sensitive={self._case_sensitive})"
-        )
+        logger.debug("PathPermissionChecker initialized (case_sensitive=%s)", self._case_sensitive)
 
-    def add_allowed_path(
-        self,
-        pattern: str,
-        permissions: set[PermissionType]
-    ) -> None:
-        """
-        Add allowed path pattern with permissions.
+    def add_allowed_path(self, pattern: str, permissions: set[PermissionType]) -> None:
+        """Add allowed path pattern with permissions.
 
         Supports wildcards:
         - * matches any characters except path separator
@@ -126,14 +118,14 @@ class PathPermissionChecker:
         Example:
             >>> checker.add_allowed_path("/home/user/*", {PermissionType.READ})
             >>> checker.add_allowed_path("/tmp/**", {PermissionType.READ, PermissionType.WRITE})
+
         """
         normalized_pattern = self._normalize_pattern(pattern)
         self._allowed_patterns.append((normalized_pattern, permissions))
         logger.debug("Added allowed path pattern: %s", normalized_pattern)
 
     def add_blocked_path(self, pattern: str) -> None:
-        """
-        Add blocked path pattern.
+        """Add blocked path pattern.
 
         Blocked patterns take precedence over allowed patterns.
 
@@ -143,18 +135,14 @@ class PathPermissionChecker:
         Example:
             >>> checker.add_blocked_path("/etc/passwd")
             >>> checker.add_blocked_path("/root/**")
+
         """
         normalized_pattern = self._normalize_pattern(pattern)
         self._blocked_patterns.append(normalized_pattern)
         logger.debug("Added blocked path pattern: %s", normalized_pattern)
 
-    def validate_path(
-        self,
-        path: str,
-        required_permission: PermissionType
-    ) -> PathValidationResult:
-        """
-        Validate path against allowed patterns and permissions.
+    def validate_path(self, path: str, required_permission: PermissionType) -> PathValidationResult:
+        """Validate path against allowed patterns and permissions.
 
         Time Complexity: O(n) where n is number of patterns
         Space Complexity: O(1)
@@ -168,6 +156,7 @@ class PathPermissionChecker:
 
         Raises:
             PathValidationError: If path is invalid or contains directory traversal
+
         """
         # Normalize and validate path
         try:
@@ -178,7 +167,7 @@ class PathPermissionChecker:
                 normalized_path=path,
                 matched_pattern=None,
                 reason=str(e),
-                permissions=set()
+                permissions=set(),
             )
 
         # Check blocked patterns first (security priority)
@@ -190,7 +179,7 @@ class PathPermissionChecker:
                     normalized_path=normalized_path,
                     matched_pattern=blocked_pattern,
                     reason=f"Path matches blocked pattern: {blocked_pattern}",
-                    permissions=set()
+                    permissions=set(),
                 )
 
         # Check allowed patterns
@@ -199,29 +188,27 @@ class PathPermissionChecker:
                 # Check if required permission is granted
                 if required_permission in permissions:
                     logger.debug(
-                        f"Path allowed: {path} -> {allowed_pattern} "
-                        f"({required_permission.value})"
+                        f"Path allowed: {path} -> {allowed_pattern} ({required_permission.value})",
                     )
                     return PathValidationResult(
                         allowed=True,
                         normalized_path=normalized_path,
                         matched_pattern=allowed_pattern,
                         reason="Path matches allowed pattern with required permission",
-                        permissions=permissions
+                        permissions=permissions,
                     )
-                else:
-                    logger.warning(
-                        f"Path matched but permission denied: {path} -> {allowed_pattern} "
-                        f"(required: {required_permission.value}, "
-                        f"available: {[p.value for p in permissions]})"
-                    )
-                    return PathValidationResult(
-                        allowed=False,
-                        normalized_path=normalized_path,
-                        matched_pattern=allowed_pattern,
-                        reason=f"Permission {required_permission.value} not granted",
-                        permissions=permissions
-                    )
+                logger.warning(
+                    f"Path matched but permission denied: {path} -> {allowed_pattern} "
+                    f"(required: {required_permission.value}, "
+                    f"available: {[p.value for p in permissions]})",
+                )
+                return PathValidationResult(
+                    allowed=False,
+                    normalized_path=normalized_path,
+                    matched_pattern=allowed_pattern,
+                    reason=f"Permission {required_permission.value} not granted",
+                    permissions=permissions,
+                )
 
         # No matching pattern found
         logger.warning("Path denied (no matching pattern): %s", path)
@@ -230,12 +217,11 @@ class PathPermissionChecker:
             normalized_path=normalized_path,
             matched_pattern=None,
             reason="Path does not match any allowed pattern",
-            permissions=set()
+            permissions=set(),
         )
 
     def normalize_path(self, path: str) -> str:
-        """
-        Normalize path for consistent comparison.
+        """Normalize path for consistent comparison.
 
         Performs:
         - Resolves relative paths to absolute
@@ -255,6 +241,7 @@ class PathPermissionChecker:
 
         Raises:
             PathValidationError: If path contains directory traversal or is invalid
+
         """
         try:
             # Convert to Path object for normalization
@@ -292,17 +279,18 @@ class PathPermissionChecker:
             return normalized_str
 
         except (ValueError, OSError) as e:
-            raise PathValidationError(f"Invalid path: {path} ({e})") from e
+            msg = f"Invalid path: {path} ({e})"
+            raise PathValidationError(msg) from e
 
     def _normalize_pattern(self, pattern: str) -> str:
-        """
-        Normalize path pattern for matching.
+        """Normalize path pattern for matching.
 
         Args:
             pattern: Path pattern to normalize
 
         Returns:
             Normalized pattern
+
         """
         # Convert backslashes to forward slashes
         normalized = pattern.replace("\\", "/")
@@ -314,8 +302,7 @@ class PathPermissionChecker:
         return normalized
 
     def _match_pattern(self, path: str, pattern: str) -> bool:
-        """
-        Match path against pattern with wildcard support.
+        """Match path against pattern with wildcard support.
 
         Supports:
         - * matches any characters except /
@@ -331,6 +318,7 @@ class PathPermissionChecker:
 
         Returns:
             True if path matches pattern
+
         """
         # Handle ** (match any path components)
         if "**" in pattern:
@@ -346,20 +334,15 @@ class PathPermissionChecker:
 
             try:
                 return bool(re.match(regex_pattern, path))
-            except re.error as e:
-                logger.error("Invalid regex pattern: %s", regex_pattern)
+            except re.error:
+                logger.exception("Invalid regex pattern")
                 return False
         else:
             # Use fnmatch for simple wildcards
             return fnmatch.fnmatch(path, pattern)
 
-    def check_permission_type(
-        self,
-        path: str,
-        permission: PermissionType
-    ) -> bool:
-        """
-        Check if specific permission is granted for path.
+    def check_permission_type(self, path: str, permission: PermissionType) -> bool:
+        """Check if specific permission is granted for path.
 
         Time Complexity: O(n) where n is number of patterns
         Space Complexity: O(1)
@@ -370,13 +353,13 @@ class PathPermissionChecker:
 
         Returns:
             True if permission is granted
+
         """
         result = self.validate_path(path, permission)
         return result.allowed
 
     def get_permissions(self, path: str) -> set[PermissionType]:
-        """
-        Get all permissions granted for path.
+        """Get all permissions granted for path.
 
         Time Complexity: O(n) where n is number of patterns
         Space Complexity: O(1)
@@ -386,6 +369,7 @@ class PathPermissionChecker:
 
         Returns:
             Set of granted permissions (empty if no match)
+
         """
         try:
             normalized_path = self.normalize_path(path)
@@ -422,8 +406,7 @@ class PathPermissionChecker:
 
 
 def validate_path_safe(path: str) -> bool:
-    """
-    Quick validation that path is safe (no directory traversal).
+    """Quick validation that path is safe (no directory traversal).
 
     Time Complexity: O(m) where m is path length
     Space Complexity: O(1)
@@ -433,6 +416,7 @@ def validate_path_safe(path: str) -> bool:
 
     Returns:
         True if path is safe
+
     """
     # Check for directory traversal patterns
     dangerous_patterns = [
@@ -442,16 +426,11 @@ def validate_path_safe(path: str) -> bool:
         "%",
     ]
 
-    for pattern in dangerous_patterns:
-        if pattern in path:
-            return False
-
-    return True
+    return all(pattern not in path for pattern in dangerous_patterns)
 
 
 def is_absolute_path(path: str) -> bool:
-    """
-    Check if path is absolute.
+    """Check if path is absolute.
 
     Time Complexity: O(1)
     Space Complexity: O(1)
@@ -461,13 +440,13 @@ def is_absolute_path(path: str) -> bool:
 
     Returns:
         True if path is absolute
+
     """
     return Path(path).is_absolute()
 
 
 def get_path_extension(path: str) -> str:
-    """
-    Get file extension from path.
+    """Get file extension from path.
 
     Time Complexity: O(1)
     Space Complexity: O(1)
@@ -477,13 +456,13 @@ def get_path_extension(path: str) -> str:
 
     Returns:
         File extension (including dot, e.g., ".txt")
+
     """
     return Path(path).suffix
 
 
 def is_hidden_path(path: str) -> bool:
-    """
-    Check if path is hidden (starts with dot on Unix).
+    """Check if path is hidden (starts with dot on Unix).
 
     Time Complexity: O(1)
     Space Complexity: O(1)
@@ -493,6 +472,7 @@ def is_hidden_path(path: str) -> bool:
 
     Returns:
         True if path is hidden
+
     """
     path_obj = Path(path)
     return path_obj.name.startswith(".")

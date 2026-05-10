@@ -253,7 +253,7 @@ class AuditLogger:
             with open(self._log_path, "a", encoding="utf-8") as f:
                 f.write(entry.to_jsonl() + "\n")
         except Exception as e:
-            logger.error("AuditLogger write failed: %s", e)
+            logger.exception("AuditLogger write failed")
 
     def _maybe_rotate(self) -> None:
         """Rotate log file if it exceeds max size (must hold lock)."""
@@ -287,7 +287,7 @@ class AuditLogger:
                 size / 1024 / 1024,
             )
         except Exception as e:
-            logger.error("AuditLogger rotation failed: %s", e)
+            logger.exception("AuditLogger rotation failed")
 
 
 # ---------------------------------------------------------------------------

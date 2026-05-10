@@ -14,23 +14,27 @@ def init_neo4j() -> None:
     """Create Neo4j constraints and indexes."""
     try:
         from neo4j import GraphDatabase  # type: ignore[import]
+
         uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
         user = os.getenv("NEO4J_USER", "neo4j")
         password = os.getenv("NEO4J_PASSWORD", "password")
         driver = GraphDatabase.driver(uri, auth=(user, password))
         with driver.session() as session:
-            session.run("CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE e.entity_id IS UNIQUE")
+            session.run(
+                "CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE e.entity_id IS UNIQUE",
+            )
             session.run("CREATE INDEX entity_type IF NOT EXISTS FOR (e:Entity) ON (e.entity_type)")
         driver.close()
         logger.info("Neo4j initialized")
-    except Exception as exc:
-        logger.warning("Neo4j init skipped: %s", exc)
+    except Exception:
+        logger.exception("Neo4j init skipped")
 
 
 def init_mongo() -> None:
     """Create MongoDB indexes."""
     try:
         from pymongo import MongoClient  # type: ignore[import]
+
         uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
         db_name = os.getenv("MONGO_DB", "agent_guru_memory")
         client = MongoClient(uri, serverSelectionTimeoutMS=3000)
@@ -40,12 +44,11 @@ def init_mongo() -> None:
         db.personalities.create_index([("user_id", 1)], unique=True)
         client.close()
         logger.info("MongoDB initialized")
-    except Exception as exc:
-        logger.warning("MongoDB init skipped: %s", exc)
+    except Exception:
+        logger.exception("MongoDB init skipped")
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     init_neo4j()
     init_mongo()
-    print("Database initialization complete.")

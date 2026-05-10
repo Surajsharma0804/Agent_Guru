@@ -11,8 +11,8 @@ Consistency formula:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from uuid import UUID
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from Agent_Guru.memory.models import (
     FeedbackType,
@@ -21,6 +21,9 @@ from Agent_Guru.memory.models import (
     PersonalityProfile,
     PersonalitySnapshot,
 )
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +82,7 @@ class PersonalityEvolutionEngine:
         profile.parameters = new_params
         profile.version += 1
         profile.metrics.interaction_count += 1
-        profile.metrics.last_updated = datetime.now(tz=timezone.utc)
+        profile.metrics.last_updated = datetime.now(tz=UTC)
 
         # Update satisfaction metric
         satisfaction_delta = {
@@ -88,11 +91,16 @@ class PersonalityEvolutionEngine:
             FeedbackType.NEUTRAL: 0.0,
         }[feedback.feedback_type]
         profile.metrics.user_satisfaction = min(
-            1.0, max(0.0, profile.metrics.user_satisfaction + satisfaction_delta)
+            1.0,
+            max(0.0, profile.metrics.user_satisfaction + satisfaction_delta),
         )
 
         # Auto-rollback on very negative feedback
-        if profile.metrics.user_satisfaction < _AUTO_ROLLBACK_THRESHOLD and len(profile.evolution_history) >= 2:
+        if (
+            profile.metrics.user_satisfaction < _AUTO_ROLLBACK_THRESHOLD
+            and len(profile.evolution_history) >= 2  # noqa: PLR2004 - Small integer threshold
+
+        ):
             logger.info("Auto-rollback triggered for user %s", feedback.user_id)
             profile = self._do_rollback(profile, profile.version - 2)
 
@@ -143,7 +151,8 @@ class PersonalityEvolutionEngine:
 
     def calculate_consistency(self, profile: PersonalityProfile) -> float:
         """Measure consistency across evolution history."""
-        if len(profile.evolution_history) < 2:
+        if len(profile.evolution_history) < 2:  # noqa: PLR2004 - Small integer threshold
+
             return 1.0
         total_change = 0.0
         for i in range(1, len(profile.evolution_history)):

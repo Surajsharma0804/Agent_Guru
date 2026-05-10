@@ -1,4 +1,5 @@
 """Shared fixtures for model_router tests."""
+
 from __future__ import annotations
 
 import pytest
@@ -43,17 +44,38 @@ def registry() -> ModelRegistry:
 @pytest.fixture
 def populated_registry() -> ModelRegistry:
     reg = ModelRegistry()
-    reg.register_model(make_model("gpt-4", Provider.OPENAI,
-                                  {ModelCapability.CONVERSATION, ModelCapability.REASONING},
-                                  cost_per_input=0.00003))
-    reg.register_model(make_model("gpt-3.5", Provider.OPENAI,
-                                  {ModelCapability.CONVERSATION},
-                                  cost_per_input=0.000001))
-    reg.register_model(make_model("claude-3", Provider.ANTHROPIC,
-                                  {ModelCapability.CONVERSATION, ModelCapability.CODE_GENERATION},
-                                  cost_per_input=0.000015))
-    reg.register_model(make_model("llama3", Provider.OLLAMA,
-                                  {ModelCapability.CONVERSATION, ModelCapability.CODE_GENERATION},
-                                  cost_per_input=0.0, cost_per_output=0.0,
-                                  average_latency_ms=200.0))
+    reg.register_model(
+        make_model(
+            "gpt-4",
+            Provider.OPENAI,
+            {ModelCapability.CONVERSATION, ModelCapability.REASONING},
+            cost_per_input=0.00003,
+        ),
+    )
+    reg.register_model(
+        make_model(
+            "gpt-3.5",
+            Provider.OPENAI,
+            {ModelCapability.CONVERSATION},
+            cost_per_input=0.000001,
+        ),
+    )
+    reg.register_model(
+        make_model(
+            "claude-3",
+            Provider.ANTHROPIC,
+            {ModelCapability.CONVERSATION, ModelCapability.CODE_GENERATION},
+            cost_per_input=0.000015,
+        ),
+    )
+    reg.register_model(
+        make_model(
+            "llama3",
+            Provider.OLLAMA,
+            {ModelCapability.CONVERSATION, ModelCapability.CODE_GENERATION},
+            cost_per_input=0.0,
+            cost_per_output=0.0,
+            average_latency_ms=200.0,
+        ),
+    )
     return reg

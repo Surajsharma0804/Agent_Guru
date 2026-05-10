@@ -1,5 +1,4 @@
-"""
-GitHub Sync Engine for LLM Runtime performance data.
+"""GitHub Sync Engine for LLM Runtime performance data.
 
 CRITICAL: Only updates README.md files. Never creates other markdown files.
 
@@ -19,8 +18,8 @@ import logging
 import uuid
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ class SyncOperation:
     """A pending GitHub sync operation."""
 
     operation_id: str
-    content: str          # Base64-encoded README content
+    content: str  # Base64-encoded README content
     commit_message: str
     timestamp: datetime
     retry_count: int = 0
@@ -38,8 +37,7 @@ class SyncOperation:
 
 
 class GitHubSyncEngine:
-    """
-    Syncs LLM Runtime performance data to GitHub README.md.
+    """Syncs LLM Runtime performance data to GitHub README.md.
 
     CRITICAL: Only updates README.md files, never creates other .md files.
 
@@ -56,6 +54,7 @@ class GitHubSyncEngine:
         ...     auth_token="ghp_...",
         ... )
         >>> op_id = await engine.queue_performance_update(metrics)
+
     """
 
     def __init__(
@@ -73,8 +72,8 @@ class GitHubSyncEngine:
         self.batch_window_s = batch_window_s
 
         self.pending_operations: deque[SyncOperation] = deque()
-        self._client: Optional[Any] = None
-        self._sync_task: Optional[asyncio.Task] = None  # type: ignore[type-arg]
+        self._client: Any | None = None
+        self._sync_task: asyncio.Task | None = None  # type: ignore[type-arg]
 
     def start(self) -> None:
         """Start the background sync loop."""
@@ -86,7 +85,7 @@ class GitHubSyncEngine:
         if self._sync_task and not self._sync_task.done():
             self._sync_task.cancel()
 
-    def _get_client(self) -> Any:
+    def _get_client(self) -> Any:  # noqa: ANN401
         """Lazy-initialize the httpx async client."""
         if self._client is None:
             import httpx  # type: ignore[import]
@@ -105,14 +104,14 @@ class GitHubSyncEngine:
     # ------------------------------------------------------------------
 
     async def queue_performance_update(self, metrics: dict[str, Any]) -> str:
-        """
-        Queue a performance metrics update for GitHub sync.
+        """Queue a performance metrics update for GitHub sync.
 
         Args:
             metrics: Performance metrics dict from PerformanceMonitor.
 
         Returns:
             Operation ID for tracking.
+
         """
         content = self._format_metrics_for_readme(metrics)
         encoded = base64.b64encode(content.encode()).decode()
@@ -121,7 +120,7 @@ class GitHubSyncEngine:
             operation_id=self._generate_operation_id(),
             content=encoded,
             commit_message=self._generate_commit_message(metrics),
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )
 
         self.pending_operations.append(operation)
@@ -140,11 +139,9 @@ class GitHubSyncEngine:
                 await asyncio.sleep(self.batch_window_s)
                 if self.pending_operations:
                     await self._process_pending_operations()
-            except asyncio.CancelledError as e:
+            except asyncio.CancelledError:
                 break
-            except Exception as exc:
-                logger.error("Error in GitHub sync loop: %s", exc)
-
+                logger.exception("Error in GitHub sync loop")
     async def _process_pending_operations(self) -> None:
         """Process (and batch) pending sync operations."""
         if not self.pending_operations:
@@ -167,11 +164,10 @@ class GitHubSyncEngine:
         except Exception as exc:
             operation.retry_count += 1
             operation.status = "pending"
-
             if operation.retry_count >= self.max_retries:
                 operation.status = "failed"
                 self.pending_operations.popleft()
-                logger.error(
+                logger.exception(
                     "GitHub sync failed after %d retries: %s — %s",
                     self.max_retries,
                     operation.operation_id,
@@ -179,8 +175,8 @@ class GitHubSyncEngine:
                 )
             else:
                 # Exponential backoff
-                wait_s = 2 ** operation.retry_count
-                logger.warning(
+                wait_s = 2**operation.retry_count
+                logger.exception(
                     "GitHub sync retry %d/%d in %ds: %s",
                     operation.retry_count,
                     self.max_retries,
@@ -188,10 +184,8 @@ class GitHubSyncEngine:
                     exc,
                 )
                 await asyncio.sleep(wait_s)
-
     async def _update_readme(self, encoded_content: str, commit_message: str) -> None:
-        """
-        Update README.md in the repository.
+        """Update README.md in the repository.
 
         CRITICAL: Only updates README.md, never creates other files.
         """
@@ -226,7 +220,7 @@ class GitHubSyncEngine:
         lines = [
             "# LLM Runtime Performance Metrics",
             "",
-            f"Last Updated: {datetime.now(tz=timezone.utc).isoformat()}",
+            f"Last Updated: {datetime.now(tz=UTC).isoformat()}",
             "",
             "| Model | Provider | Success Rate | Avg Latency (ms) | Total Cost |",
             "|-------|----------|--------------|------------------|------------|",
@@ -243,7 +237,11 @@ class GitHubSyncEngine:
             else:
                 # PerformanceMetrics dataclass
                 model = getattr(m, "model", key)
-                provider = getattr(getattr(m, "provider", None), "value", str(getattr(m, "provider", "?")))
+                provider = getattr(
+                    getattr(m, "provider", None),
+                    "value",
+                    str(getattr(m, "provider", "?")),
+                )
                 success_rate = getattr(m, "success_rate", 0)
                 avg_latency = getattr(m, "average_latency_ms", 0)
                 total_cost = getattr(m, "total_cost", 0)
@@ -252,7 +250,7 @@ class GitHubSyncEngine:
                 f"| {model} | {provider} | "
                 f"{success_rate:.2%} | "
                 f"{avg_latency:.1f} | "
-                f"${total_cost:.4f} |"
+                f"${total_cost:.4f} |",
             )
 
         return "\n".join(lines)
@@ -281,5 +279,5 @@ class GitHubSyncEngine:
             operation_id=self._generate_operation_id(),
             content=latest.content,
             commit_message=f"[LLM Runtime] Batched update — {len(operations)} changes",
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )

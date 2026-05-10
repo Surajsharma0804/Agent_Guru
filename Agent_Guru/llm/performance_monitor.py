@@ -1,5 +1,4 @@
-"""
-Performance Monitor for the LLM Runtime.
+"""Performance Monitor for the LLM Runtime.
 
 Tracks latency, token usage, cost, and reliability per model/provider.
 Emits warnings for slow responses and reliability issues.
@@ -19,10 +18,11 @@ import asyncio
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
-from Agent_Guru.llm.models import ModelProvider
+if TYPE_CHECKING:
+    from Agent_Guru.llm.models import ModelProvider
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +46,11 @@ class PerformanceMetrics:
     total_cost: float = 0.0
     success_rate: float = 1.0
     # BUG-003: use UTC-aware datetime factory
-    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class PerformanceMonitor:
-    """
-    Monitors and tracks LLM request performance metrics.
+    """Monitors and tracks LLM request performance metrics.
 
     Features:
     - Per-model/provider latency tracking (p95, p99)
@@ -71,6 +70,7 @@ class PerformanceMonitor:
         ...     success=True,
         ... )
         >>> metrics = await monitor.get_metrics()
+
     """
 
     def __init__(
@@ -98,10 +98,9 @@ class PerformanceMonitor:
         tokens: int,
         cost: float,
         success: bool,
-        error: Optional[str] = None,
+        error: str | None = None,
     ) -> None:
-        """
-        Record metrics for a completed (or failed) request.
+        """Record metrics for a completed (or failed) request.
 
         Args:
             model: Model name.
@@ -111,6 +110,7 @@ class PerformanceMonitor:
             cost: Estimated cost in USD.
             success: Whether the request succeeded.
             error: Optional error message for failed requests.
+
         """
         async with self._lock:
             key = f"{provider.value}:{model}"
@@ -127,12 +127,10 @@ class PerformanceMonitor:
                 m.failed_requests += 1
                 # BUG-017: single `now` avoids two datetime.now() calls with a
                 # clock-drift window between append and filter.
-                now = datetime.now(tz=timezone.utc)
+                now = datetime.now(tz=UTC)
                 self._recent_failures[key].append(now)
                 cutoff = now - timedelta(seconds=_FAILURE_WINDOW_S)
-                self._recent_failures[key] = [
-                    t for t in self._recent_failures[key] if t >= cutoff
-                ]
+                self._recent_failures[key] = [t for t in self._recent_failures[key] if t >= cutoff]
 
             # Latency history (capped at _MAX_LATENCY_SAMPLES)
             history = self._latency_history[key]
@@ -157,7 +155,7 @@ class PerformanceMonitor:
             # Success rate
             m.success_rate = m.successful_requests / m.total_requests
             # BUG-003: use UTC-aware timestamp
-            m.last_updated = datetime.now(tz=timezone.utc)
+            m.last_updated = datetime.now(tz=UTC)
 
             # BUG-023: capture recent_count INSIDE the lock so it is consistent
             # with the just-updated list (previously read outside, causing a race).
@@ -172,11 +170,10 @@ class PerformanceMonitor:
 
     async def get_metrics(
         self,
-        model: Optional[str] = None,
-        provider: Optional[ModelProvider] = None,
+        model: str | None = None,
+        provider: ModelProvider | None = None,
     ) -> dict[str, PerformanceMetrics]:
-        """
-        Return performance metrics, optionally filtered.
+        """Return performance metrics, optionally filtered.
 
         Args:
             model: Optional model name filter.
@@ -184,29 +181,29 @@ class PerformanceMonitor:
 
         Returns:
             Dict mapping "provider:model" keys to PerformanceMetrics.
+
         """
         async with self._lock:
             if model and provider:
                 key = f"{provider.value}:{model}"
                 return {key: self._metrics[key]} if key in self._metrics else {}
-            elif model:
+            if model:
                 return {k: v for k, v in self._metrics.items() if v.model == model}
-            elif provider:
+            if provider:
                 return {k: v for k, v in self._metrics.items() if v.provider == provider}
-            else:
-                return dict(self._metrics)
+            return dict(self._metrics)
 
     async def report_to_self_improvement(self) -> dict[str, Any]:
-        """
-        Format metrics for the Self-Improvement Engine.
+        """Format metrics for the Self-Improvement Engine.
 
         Returns:
             Dict with timestamp and per-model metrics summary.
+
         """
         metrics = await self.get_metrics()
         return {
             # BUG-003: use UTC-aware timestamp
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "metrics": {
                 key: {
                     "model": m.model,
@@ -227,7 +224,10 @@ class PerformanceMonitor:
     # ------------------------------------------------------------------
 
     async def _emit_slow_warning(
-        self, model: str, provider: ModelProvider, latency_ms: float
+        self,
+        model: str,
+        provider: ModelProvider,
+        latency_ms: float,
     ) -> None:
         logger.warning(
             "SLOW RESPONSE: %s/%s took %.1fms (threshold: %.1fms)",
@@ -238,7 +238,10 @@ class PerformanceMonitor:
         )
 
     async def _emit_reliability_warning(
-        self, model: str, provider: ModelProvider, failure_count: int
+        self,
+        model: str,
+        provider: ModelProvider,
+        failure_count: int,
     ) -> None:
         logger.warning(
             "RELIABILITY WARNING: %s/%s had %d failures in the last %ds",

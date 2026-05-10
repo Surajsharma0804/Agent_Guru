@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.error_handling.graceful_degradation
-Purpose: Graceful degradation for resource-constrained environments
+"""Module: agent_guru.platform.error_handling.graceful_degradation
+Purpose: Graceful degradation for resource-constrained environments.
 
 This module implements graceful degradation to maintain core functionality
 when system resources are constrained. It automatically disables non-critical
@@ -54,12 +53,12 @@ Version: 1.0.0
 """
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 import psutil
 
@@ -68,6 +67,7 @@ logger = logging.getLogger(__name__)
 
 class OperationMode(Enum):
     """System operation modes."""
+
     NORMAL = "normal"
     DEGRADED = "degraded"
     CRITICAL = "critical"
@@ -75,10 +75,11 @@ class OperationMode(Enum):
 
 class FeaturePriority(Enum):
     """Feature priority levels for degradation."""
-    CRITICAL = 1      # Never disabled (core functionality)
-    HIGH = 2          # Disabled only in critical mode
-    MEDIUM = 3        # Disabled in degraded mode
-    LOW = 4           # Disabled first when resources constrained
+
+    CRITICAL = 1  # Never disabled (core functionality)
+    HIGH = 2  # Disabled only in critical mode
+    MEDIUM = 3  # Disabled in degraded mode
+    LOW = 4  # Disabled first when resources constrained
 
 
 @dataclass
@@ -95,7 +96,9 @@ class DegradationConfig:
         recovery_threshold: % below threshold to recover (default: 10%)
         min_degraded_duration: Minimum time in degraded mode (default: 30s)
         enable_auto_recovery: Auto-recover when resources available (default: True)
+
     """
+
     cpu_threshold: float = 80.0
     memory_threshold: float = 85.0
     disk_threshold: float = 90.0
@@ -118,13 +121,15 @@ class FeatureConfig:
         description: Feature description
         disable_callback: Optional callback when feature is disabled
         enable_callback: Optional callback when feature is enabled
+
     """
+
     name: str
     priority: FeaturePriority
     enabled: bool = True
     description: str = ""
-    disable_callback: Optional[Callable[[], None]] = None
-    enable_callback: Optional[Callable[[], None]] = None
+    disable_callback: Callable[[], None] | None = None
+    enable_callback: Callable[[], None] | None = None
 
 
 @dataclass
@@ -138,7 +143,9 @@ class DegradationEvent:
         reason: Reason for degradation
         resource_stats: Resource usage at time of event
         disabled_features: Features disabled in this event
+
     """
+
     timestamp: float
     from_mode: OperationMode
     to_mode: OperationMode
@@ -167,6 +174,7 @@ class DegradationManager:
         >>> await manager.start_monitoring()
         >>> # Manager automatically handles degradation
         >>> await manager.stop_monitoring()
+
     """
 
     def __init__(self, config: DegradationConfig) -> None:
@@ -177,13 +185,14 @@ class DegradationManager:
 
         Raises:
             ValueError: If config parameters are invalid
+
         """
         self._validate_config(config)
         self.config = config
         self._mode = OperationMode.NORMAL
         self._features: dict[str, FeatureConfig] = {}
-        self._monitoring_task: Optional[asyncio.Task] = None
-        self._degraded_since: Optional[float] = None
+        self._monitoring_task: asyncio.Task | None = None
+        self._degraded_since: float | None = None
         self._event_history: list[DegradationEvent] = []
         self._max_history_size = 100
 
@@ -195,8 +204,8 @@ class DegradationManager:
             extra={
                 "mode": self._mode.value,
                 "cpu_threshold": config.cpu_threshold,
-                "memory_threshold": config.memory_threshold
-            }
+                "memory_threshold": config.memory_threshold,
+            },
         )
 
     @property
@@ -210,7 +219,7 @@ class DegradationManager:
         return self._mode != OperationMode.NORMAL
 
     @property
-    def degraded_duration(self) -> Optional[float]:
+    def degraded_duration(self) -> float | None:
         """Get duration in degraded mode (seconds)."""
         if self._degraded_since is None:
             return None
@@ -221,8 +230,8 @@ class DegradationManager:
         name: str,
         priority: FeaturePriority,
         description: str = "",
-        disable_callback: Optional[Callable[[], None]] = None,
-        enable_callback: Optional[Callable[[], None]] = None
+        disable_callback: Callable[[], None] | None = None,
+        enable_callback: Callable[[], None] | None = None,
     ) -> None:
         """Register a degradable feature.
 
@@ -237,9 +246,11 @@ class DegradationManager:
 
         Raises:
             ValueError: If feature already registered
+
         """
         if name in self._features:
-            raise ValueError(f"Feature already registered: {name}")
+            msg = f"Feature already registered: {name}"
+            raise ValueError(msg)
 
         self._features[name] = FeatureConfig(
             name=name,
@@ -247,14 +258,13 @@ class DegradationManager:
             enabled=True,
             description=description,
             disable_callback=disable_callback,
-            enable_callback=enable_callback
+            enable_callback=enable_callback,
         )
 
-        logger.debug("Feature registered: %s", name,
-            extra={
-                "priority": priority.name,
-                "description": description
-            }
+        logger.debug(
+            "Feature registered: %s",
+            name,
+            extra={"priority": priority.name, "description": description},
         )
 
     def unregister_feature(self, name: str) -> None:
@@ -267,9 +277,11 @@ class DegradationManager:
 
         Raises:
             KeyError: If feature not found
+
         """
         if name not in self._features:
-            raise KeyError(f"Feature not found: {name}")
+            msg = f"Feature not found: {name}"
+            raise KeyError(msg)
 
         del self._features[name]
         logger.debug("Feature unregistered: %s", name)
@@ -287,9 +299,11 @@ class DegradationManager:
 
         Raises:
             KeyError: If feature not found
+
         """
         if name not in self._features:
-            raise KeyError(f"Feature not found: {name}")
+            msg = f"Feature not found: {name}"
+            raise KeyError(msg)
 
         return self._features[name].enabled
 
@@ -300,11 +314,9 @@ class DegradationManager:
 
         Returns:
             List of enabled feature names
+
         """
-        return [
-            name for name, feature in self._features.items()
-            if feature.enabled
-        ]
+        return [name for name, feature in self._features.items() if feature.enabled]
 
     def get_disabled_features(self) -> list[str]:
         """Get list of currently disabled features.
@@ -313,11 +325,9 @@ class DegradationManager:
 
         Returns:
             List of disabled feature names
+
         """
-        return [
-            name for name, feature in self._features.items()
-            if not feature.enabled
-        ]
+        return [name for name, feature in self._features.items() if not feature.enabled]
 
     def enter_degraded_mode(self, reason: str) -> None:
         """Manually enter degraded mode.
@@ -326,6 +336,7 @@ class DegradationManager:
 
         Args:
             reason: Reason for entering degraded mode
+
         """
         if self._mode == OperationMode.DEGRADED:
             logger.warning("Already in degraded mode")
@@ -340,6 +351,7 @@ class DegradationManager:
 
         Args:
             reason: Reason for entering critical mode
+
         """
         if self._mode == OperationMode.CRITICAL:
             logger.warning("Already in critical mode")
@@ -362,7 +374,8 @@ class DegradationManager:
             if duration < self.config.min_degraded_duration:
                 logger.warning(
                     "Cannot recover yet (min duration: %.1fs, current: %.1fs)",
-                    self.config.min_degraded_duration, duration,
+                    self.config.min_degraded_duration,
+                    duration,
                 )
                 return
 
@@ -388,10 +401,8 @@ class DegradationManager:
             return
 
         self._monitoring_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await self._monitoring_task
-        except asyncio.CancelledError as e:
-            pass
 
         self._monitoring_task = None
         logger.info("Resource monitoring stopped")
@@ -403,14 +414,15 @@ class DegradationManager:
 
         Returns:
             Dictionary with resource usage percentages
+
         """
         return {
             "cpu_percent": psutil.cpu_percent(interval=0.1),
             "memory_percent": psutil.virtual_memory().percent,
-            "disk_percent": psutil.disk_usage('/').percent
+            "disk_percent": psutil.disk_usage("/").percent,
         }
 
-    def get_event_history(self, limit: Optional[int] = None) -> list[DegradationEvent]:
+    def get_event_history(self, limit: int | None = None) -> list[DegradationEvent]:
         """Get degradation event history.
 
         Args:
@@ -418,6 +430,7 @@ class DegradationManager:
 
         Returns:
             List of degradation events (most recent first)
+
         """
         events = list(reversed(self._event_history))
         if limit is not None:
@@ -430,35 +443,31 @@ class DegradationManager:
         self.register_feature(
             "gpu_acceleration",
             FeaturePriority.MEDIUM,
-            "GPU-accelerated processing"
+            "GPU-accelerated processing",
         )
 
         # Caching (medium priority)
         self.register_feature(
             "response_caching",
             FeaturePriority.MEDIUM,
-            "Response caching for performance"
+            "Response caching for performance",
         )
 
         # Detailed logging (low priority)
-        self.register_feature(
-            "detailed_logging",
-            FeaturePriority.LOW,
-            "Detailed debug logging"
-        )
+        self.register_feature("detailed_logging", FeaturePriority.LOW, "Detailed debug logging")
 
         # Performance metrics (low priority)
         self.register_feature(
             "performance_metrics",
             FeaturePriority.LOW,
-            "Performance metrics collection"
+            "Performance metrics collection",
         )
 
         # Predictive features (low priority)
         self.register_feature(
             "predictive_features",
             FeaturePriority.LOW,
-            "Predictive analysis and suggestions"
+            "Predictive analysis and suggestions",
         )
 
     def _transition_to_mode(self, new_mode: OperationMode, reason: str) -> None:
@@ -469,18 +478,20 @@ class DegradationManager:
         Args:
             new_mode: Target operation mode
             reason: Reason for transition
+
         """
         old_mode = self._mode
         resource_stats = self.get_resource_stats()
 
         logger.info(
             "Mode transition: %s -> %s",
-            old_mode.value, new_mode.value,
+            old_mode.value,
+            new_mode.value,
             extra={
                 "reason": reason,
                 "cpu_percent": resource_stats["cpu_percent"],
-                "memory_percent": resource_stats["memory_percent"]
-            }
+                "memory_percent": resource_stats["memory_percent"],
+            },
         )
 
         # Disable features based on new mode
@@ -503,7 +514,7 @@ class DegradationManager:
             to_mode=new_mode,
             reason=reason,
             resource_stats=resource_stats,
-            disabled_features=disabled_features
+            disabled_features=disabled_features,
         )
         self._add_event(event)
 
@@ -517,6 +528,7 @@ class DegradationManager:
 
         Returns:
             List of disabled feature names
+
         """
         disabled_features = []
 
@@ -529,9 +541,8 @@ class DegradationManager:
                 if feature.enable_callback:
                     try:
                         feature.enable_callback()
-                    except Exception as e:
-                        logger.error("Error enabling feature %s: %s", name, e)
-
+                    except Exception:
+                        logger.exception("Error enabling feature %s: %s")
                 logger.info("Feature enabled: %s", name)
 
             elif not should_enable and feature.enabled:
@@ -540,19 +551,14 @@ class DegradationManager:
                 if feature.disable_callback:
                     try:
                         feature.disable_callback()
-                    except Exception as e:
-                        logger.error("Error disabling feature %s: %s", name, e)
-
+                    except Exception:
+                        logger.exception("Error disabling feature %s: %s")
                 disabled_features.append(name)
                 logger.info("Feature disabled: %s", name)
 
         return disabled_features
 
-    def _should_feature_be_enabled(
-        self,
-        priority: FeaturePriority,
-        mode: OperationMode
-    ) -> bool:
+    def _should_feature_be_enabled(self, priority: FeaturePriority, mode: OperationMode) -> bool:
         """Determine if feature should be enabled in given mode.
 
         Time Complexity: O(1)
@@ -563,6 +569,7 @@ class DegradationManager:
 
         Returns:
             True if feature should be enabled
+
         """
         if mode == OperationMode.NORMAL:
             return True
@@ -589,21 +596,22 @@ class DegradationManager:
                 memory = stats["memory_percent"]
 
                 # Check for critical conditions
-                if (cpu >= self.config.critical_cpu_threshold or
-                    memory >= self.config.critical_memory_threshold):
+                if (
+                    cpu >= self.config.critical_cpu_threshold
+                    or memory >= self.config.critical_memory_threshold
+                ):
                     if self._mode != OperationMode.CRITICAL:
                         self._transition_to_mode(
                             OperationMode.CRITICAL,
-                            f"Critical resources: CPU={cpu:.1f}%, Memory={memory:.1f}%"
+                            f"Critical resources: CPU={cpu:.1f}%, Memory={memory:.1f}%",
                         )
 
                 # Check for degraded conditions
-                elif (cpu >= self.config.cpu_threshold or
-                      memory >= self.config.memory_threshold):
+                elif cpu >= self.config.cpu_threshold or memory >= self.config.memory_threshold:
                     if self._mode == OperationMode.NORMAL:
                         self._transition_to_mode(
                             OperationMode.DEGRADED,
-                            f"High resources: CPU={cpu:.1f}%, Memory={memory:.1f}%"
+                            f"High resources: CPU={cpu:.1f}%, Memory={memory:.1f}%",
                         )
 
                 # Check for recovery conditions
@@ -619,14 +627,12 @@ class DegradationManager:
                             if duration >= self.config.min_degraded_duration:
                                 self._transition_to_mode(
                                     OperationMode.NORMAL,
-                                    f"Resources recovered: CPU={cpu:.1f}%, Memory={memory:.1f}%"
+                                    f"Resources recovered: CPU={cpu:.1f}%, Memory={memory:.1f}%",
                                 )
 
-            except asyncio.CancelledError as e:
+            except asyncio.CancelledError:
                 raise
-            except Exception as e:
-                logger.error("Error in monitoring loop: %s", e)
-
+                logger.exception("Error in monitoring loop")
     def _add_event(self, event: DegradationEvent) -> None:
         """Add event to history with size limit.
 
@@ -634,12 +640,13 @@ class DegradationManager:
 
         Args:
             event: Degradation event
+
         """
         self._event_history.append(event)
 
         # Trim history if too large
         if len(self._event_history) > self._max_history_size:
-            self._event_history = self._event_history[-self._max_history_size:]
+            self._event_history = self._event_history[-self._max_history_size :]
 
     @staticmethod
     def _validate_config(config: DegradationConfig) -> None:
@@ -650,33 +657,49 @@ class DegradationManager:
 
         Raises:
             ValueError: If any parameter is invalid
+
         """
-        if not 0 < config.cpu_threshold <= 100:
-            raise ValueError(f"Invalid cpu_threshold: {config.cpu_threshold}")
+        if not 0 < config.cpu_threshold <= 100:  # noqa: PLR2004 - Percentage/large threshold
 
-        if not 0 < config.memory_threshold <= 100:
-            raise ValueError(f"Invalid memory_threshold: {config.memory_threshold}")
+            msg = f"Invalid cpu_threshold: {config.cpu_threshold}"
+            raise ValueError(msg)
 
-        if not 0 < config.disk_threshold <= 100:
-            raise ValueError(f"Invalid disk_threshold: {config.disk_threshold}")
+        if not 0 < config.memory_threshold <= 100:  # noqa: PLR2004 - Percentage/large threshold
+
+            msg = f"Invalid memory_threshold: {config.memory_threshold}"
+            raise ValueError(msg)
+
+        if not 0 < config.disk_threshold <= 100:  # noqa: PLR2004 - Percentage/large threshold
+
+            msg = f"Invalid disk_threshold: {config.disk_threshold}"
+            raise ValueError(msg)
 
         if config.critical_cpu_threshold <= config.cpu_threshold:
-            raise ValueError(
+            msg = (
                 f"critical_cpu_threshold ({config.critical_cpu_threshold}) must be > "
                 f"cpu_threshold ({config.cpu_threshold})"
             )
+            raise ValueError(
+                msg,
+            )
 
         if config.critical_memory_threshold <= config.memory_threshold:
-            raise ValueError(
+            msg = (
                 f"critical_memory_threshold ({config.critical_memory_threshold}) must be > "
                 f"memory_threshold ({config.memory_threshold})"
             )
+            raise ValueError(
+                msg,
+            )
 
         if config.check_interval <= 0:
-            raise ValueError(f"Invalid check_interval: {config.check_interval}")
+            msg = f"Invalid check_interval: {config.check_interval}"
+            raise ValueError(msg)
 
         if not 0 <= config.recovery_threshold < config.cpu_threshold:
-            raise ValueError(f"Invalid recovery_threshold: {config.recovery_threshold}")
+            msg = f"Invalid recovery_threshold: {config.recovery_threshold}"
+            raise ValueError(msg)
 
         if config.min_degraded_duration < 0:
-            raise ValueError(f"Invalid min_degraded_duration: {config.min_degraded_duration}")
+            msg = f"Invalid min_degraded_duration: {config.min_degraded_duration}"
+            raise ValueError(msg)

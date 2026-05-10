@@ -29,11 +29,10 @@ Performance Characteristics:
 Author: Agent Guru Team
 Date: 2026-03-20
 """
+
 from __future__ import annotations
 
 import logging
-import platform
-from typing import Optional
 
 from Agent_Guru.platform.platform_detector import PlatformDetector
 
@@ -93,12 +92,13 @@ class SystemSettingsController:
     ``get_volume`` and ``get_brightness`` return -1 on error.
     """
 
-    def __init__(self, platform_override: Optional[str] = None) -> None:
+    def __init__(self, platform_override: str | None = None) -> None:
         """Create the controller.
 
         Args:
             platform_override: Force a specific platform string (for testing).
                 When ``None`` the platform is auto-detected.
+
         """
         self._platform: str = platform_override or _detect_platform()
         self._initialized: bool = False
@@ -108,9 +108,7 @@ class SystemSettingsController:
         self._wifi_enabled: bool = True
         self._bluetooth_enabled: bool = True
 
-        logger.info(
-            "SystemSettingsController created — platform=%s", self._platform
-        )
+        logger.info("SystemSettingsController created — platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -125,9 +123,7 @@ class SystemSettingsController:
             logger.debug("SystemSettingsController already initialized")
             return
         self._initialized = True
-        logger.info(
-            "SystemSettingsController initialized — platform=%s", self._platform
-        )
+        logger.info("SystemSettingsController initialized — platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -147,37 +143,34 @@ class SystemSettingsController:
         Returns:
             ``True`` on success, ``False`` if level is out of range or
             the operation fails.
+
         """
-        if not (0 <= level <= 100):
-            logger.warning(
-                "adjust_volume: invalid level %d (must be 0-100)", level
-            )
+        if not (0 <= level <= 100):  # noqa: PLR2004 - Percentage/large threshold
+
+            logger.warning("adjust_volume: invalid level %d (must be 0-100)", level)
             return False
 
-        logger.info(
-            "adjust_volume: level=%d platform=%s", level, self._platform
-        )
+        logger.info("adjust_volume: level=%d platform=%s", level, self._platform)
 
         try:
             if self._platform == "windows":
                 return await self._adjust_volume_windows(level)
-            elif self._platform == "macos":
+            if self._platform == "macos":
                 return await self._adjust_volume_macos(level)
-            elif self._platform == "linux":
+            if self._platform == "linux":
                 return await self._adjust_volume_linux(level)
-            elif self._platform == "android":
+            if self._platform == "android":
                 return await self._adjust_volume_android(level)
-            elif self._platform == "ios":
+            if self._platform == "ios":
                 return await self._adjust_volume_ios(level)
-            else:
-                logger.warning(
-                    "adjust_volume: unknown platform %r — simulating success",
-                    self._platform,
-                )
-                self._volume = level
-                return True
-        except Exception as exc:
-            logger.error("adjust_volume failed: %s", exc)
+            logger.warning(
+                "adjust_volume: unknown platform %r — simulating success",
+                self._platform,
+            )
+            self._volume = level
+            return True
+        except Exception:
+            logger.exception("adjust_volume failed")
             return False
 
     async def get_volume(self) -> int:
@@ -185,12 +178,13 @@ class SystemSettingsController:
 
         Returns:
             Volume level 0–100, or -1 on error.
+
         """
         logger.info("get_volume: platform=%s", self._platform)
         try:
             return self._volume
-        except Exception as exc:
-            logger.error("get_volume failed: %s", exc)
+        except Exception:
+            logger.exception("get_volume failed")
             return -1
 
     # ------------------------------------------------------------------
@@ -206,37 +200,34 @@ class SystemSettingsController:
         Returns:
             ``True`` on success, ``False`` if level is out of range or
             the operation fails.
+
         """
-        if not (0 <= level <= 100):
-            logger.warning(
-                "adjust_brightness: invalid level %d (must be 0-100)", level
-            )
+        if not (0 <= level <= 100):  # noqa: PLR2004 - Percentage/large threshold
+
+            logger.warning("adjust_brightness: invalid level %d (must be 0-100)", level)
             return False
 
-        logger.info(
-            "adjust_brightness: level=%d platform=%s", level, self._platform
-        )
+        logger.info("adjust_brightness: level=%d platform=%s", level, self._platform)
 
         try:
             if self._platform == "windows":
                 return await self._adjust_brightness_windows(level)
-            elif self._platform == "macos":
+            if self._platform == "macos":
                 return await self._adjust_brightness_macos(level)
-            elif self._platform == "linux":
+            if self._platform == "linux":
                 return await self._adjust_brightness_linux(level)
-            elif self._platform == "android":
+            if self._platform == "android":
                 return await self._adjust_brightness_android(level)
-            elif self._platform == "ios":
+            if self._platform == "ios":
                 return await self._adjust_brightness_ios(level)
-            else:
-                logger.warning(
-                    "adjust_brightness: unknown platform %r — simulating success",
-                    self._platform,
-                )
-                self._brightness = level
-                return True
-        except Exception as exc:
-            logger.error("adjust_brightness failed: %s", exc)
+            logger.warning(
+                "adjust_brightness: unknown platform %r — simulating success",
+                self._platform,
+            )
+            self._brightness = level
+            return True
+        except Exception:
+            logger.exception("adjust_brightness failed")
             return False
 
     async def get_brightness(self) -> int:
@@ -244,12 +235,13 @@ class SystemSettingsController:
 
         Returns:
             Brightness level 0–100, or -1 on error.
+
         """
         logger.info("get_brightness: platform=%s", self._platform)
         try:
             return self._brightness
-        except Exception as exc:
-            logger.error("get_brightness failed: %s", exc)
+        except Exception:
+            logger.exception("get_brightness failed")
             return -1
 
     # ------------------------------------------------------------------
@@ -269,10 +261,9 @@ class SystemSettingsController:
         Returns:
             ``True`` on success or unsupported-but-graceful, ``False`` on
             failure.
+
         """
-        logger.info(
-            "toggle_wifi: enabled=%s platform=%s", enabled, self._platform
-        )
+        logger.info("toggle_wifi: enabled=%s platform=%s", enabled, self._platform)
 
         try:
             if _is_desktop(self._platform):
@@ -283,19 +274,18 @@ class SystemSettingsController:
                 )
                 self._wifi_enabled = enabled
                 return True
-            elif self._platform == "android":
+            if self._platform == "android":
                 return await self._toggle_wifi_android(enabled)
-            elif self._platform == "ios":
+            if self._platform == "ios":
                 return await self._toggle_wifi_ios(enabled)
-            else:
-                logger.warning(
-                    "toggle_wifi: unknown platform %r — simulating success",
-                    self._platform,
-                )
-                self._wifi_enabled = enabled
-                return True
-        except Exception as exc:
-            logger.error("toggle_wifi failed: %s", exc)
+            logger.warning(
+                "toggle_wifi: unknown platform %r — simulating success",
+                self._platform,
+            )
+            self._wifi_enabled = enabled
+            return True
+        except Exception:
+            logger.exception("toggle_wifi failed")
             return False
 
     async def toggle_bluetooth(self, enabled: bool) -> bool:
@@ -310,10 +300,9 @@ class SystemSettingsController:
         Returns:
             ``True`` on success or unsupported-but-graceful, ``False`` on
             failure.
+
         """
-        logger.info(
-            "toggle_bluetooth: enabled=%s platform=%s", enabled, self._platform
-        )
+        logger.info("toggle_bluetooth: enabled=%s platform=%s", enabled, self._platform)
 
         try:
             if _is_desktop(self._platform):
@@ -324,19 +313,18 @@ class SystemSettingsController:
                 )
                 self._bluetooth_enabled = enabled
                 return True
-            elif self._platform == "android":
+            if self._platform == "android":
                 return await self._toggle_bluetooth_android(enabled)
-            elif self._platform == "ios":
+            if self._platform == "ios":
                 return await self._toggle_bluetooth_ios(enabled)
-            else:
-                logger.warning(
-                    "toggle_bluetooth: unknown platform %r — simulating success",
-                    self._platform,
-                )
-                self._bluetooth_enabled = enabled
-                return True
-        except Exception as exc:
-            logger.error("toggle_bluetooth failed: %s", exc)
+            logger.warning(
+                "toggle_bluetooth: unknown platform %r — simulating success",
+                self._platform,
+            )
+            self._bluetooth_enabled = enabled
+            return True
+        except Exception:
+            logger.exception("toggle_bluetooth failed")
             return False
 
     # ------------------------------------------------------------------
@@ -357,11 +345,11 @@ class SystemSettingsController:
         Returns:
             ``True`` on success or unsupported-but-graceful, ``False`` on
             invalid dimensions or failure.
+
         """
         if width <= 0 or height <= 0:
             logger.warning(
-                "change_display_settings: invalid dimensions %dx%d "
-                "(must be > 0)",
+                "change_display_settings: invalid dimensions %dx%d (must be > 0)",
                 width,
                 height,
             )
@@ -382,21 +370,19 @@ class SystemSettingsController:
                     self._platform,
                 )
                 return True
-            elif self._platform == "windows":
+            if self._platform == "windows":
                 return await self._change_display_windows(width, height)
-            elif self._platform == "macos":
+            if self._platform == "macos":
                 return await self._change_display_macos(width, height)
-            elif self._platform == "linux":
+            if self._platform == "linux":
                 return await self._change_display_linux(width, height)
-            else:
-                logger.warning(
-                    "change_display_settings: unknown platform %r — "
-                    "simulating success",
-                    self._platform,
-                )
-                return True
-        except Exception as exc:
-            logger.error("change_display_settings failed: %s", exc)
+            logger.warning(
+                "change_display_settings: unknown platform %r — simulating success",
+                self._platform,
+            )
+            return True
+        except Exception:
+            logger.exception("change_display_settings failed")
             return False
 
     # ------------------------------------------------------------------
@@ -419,18 +405,14 @@ class SystemSettingsController:
 
     async def _adjust_volume_windows(self, level: int) -> bool:
         """Adjust volume on Windows via nircmd (simulated)."""
-        logger.info(
-            "Windows: adjust_volume %d via nircmd (simulated)", level
-        )
+        logger.info("Windows: adjust_volume %d via nircmd (simulated)", level)
         # Simulated: nircmd.exe setsysvolume <level * 655>
         self._volume = level
         return True
 
     async def _adjust_brightness_windows(self, level: int) -> bool:
         """Adjust brightness on Windows via WMI (simulated)."""
-        logger.info(
-            "Windows: adjust_brightness %d via WMI (simulated)", level
-        )
+        logger.info("Windows: adjust_brightness %d via WMI (simulated)", level)
         self._brightness = level
         return True
 
@@ -449,18 +431,14 @@ class SystemSettingsController:
 
     async def _adjust_volume_macos(self, level: int) -> bool:
         """Adjust volume on macOS via osascript (simulated)."""
-        logger.info(
-            "macOS: adjust_volume %d via osascript (simulated)", level
-        )
+        logger.info("macOS: adjust_volume %d via osascript (simulated)", level)
         # Simulated: osascript -e "set volume output volume <level>"
         self._volume = level
         return True
 
     async def _adjust_brightness_macos(self, level: int) -> bool:
         """Adjust brightness on macOS via brightness CLI (simulated)."""
-        logger.info(
-            "macOS: adjust_brightness %d via brightness CLI (simulated)", level
-        )
+        logger.info("macOS: adjust_brightness %d via brightness CLI (simulated)", level)
         self._brightness = level
         return True
 
@@ -479,18 +457,14 @@ class SystemSettingsController:
 
     async def _adjust_volume_linux(self, level: int) -> bool:
         """Adjust volume on Linux via amixer (simulated)."""
-        logger.info(
-            "Linux: adjust_volume %d via amixer (simulated)", level
-        )
+        logger.info("Linux: adjust_volume %d via amixer (simulated)", level)
         # Simulated: amixer set Master <level>%
         self._volume = level
         return True
 
     async def _adjust_brightness_linux(self, level: int) -> bool:
         """Adjust brightness on Linux via xbacklight (simulated)."""
-        logger.info(
-            "Linux: adjust_brightness %d via xbacklight (simulated)", level
-        )
+        logger.info("Linux: adjust_brightness %d via xbacklight (simulated)", level)
         self._brightness = level
         return True
 
@@ -509,18 +483,14 @@ class SystemSettingsController:
 
     async def _adjust_volume_android(self, level: int) -> bool:
         """Adjust volume on Android via adb (simulated)."""
-        logger.info(
-            "Android: adjust_volume %d via adb (simulated)", level
-        )
+        logger.info("Android: adjust_volume %d via adb (simulated)", level)
         # Simulated: adb shell media volume --stream 3 --set <level>
         self._volume = level
         return True
 
     async def _adjust_brightness_android(self, level: int) -> bool:
         """Adjust brightness on Android via adb (simulated)."""
-        logger.info(
-            "Android: adjust_brightness %d via adb (simulated)", level
-        )
+        logger.info("Android: adjust_brightness %d via adb (simulated)", level)
         # Simulated: adb shell settings put system screen_brightness <level*2.55>
         self._brightness = level
         return True
@@ -528,9 +498,7 @@ class SystemSettingsController:
     async def _toggle_wifi_android(self, enabled: bool) -> bool:
         """Toggle WiFi on Android via adb (simulated)."""
         action = "enable" if enabled else "disable"
-        logger.info(
-            "Android: toggle_wifi %s via adb (simulated)", action
-        )
+        logger.info("Android: toggle_wifi %s via adb (simulated)", action)
         # Simulated: adb shell svc wifi <enable|disable>
         self._wifi_enabled = enabled
         return True
@@ -538,9 +506,7 @@ class SystemSettingsController:
     async def _toggle_bluetooth_android(self, enabled: bool) -> bool:
         """Toggle Bluetooth on Android via adb (simulated)."""
         action = "enable" if enabled else "disable"
-        logger.info(
-            "Android: toggle_bluetooth %s via adb (simulated)", action
-        )
+        logger.info("Android: toggle_bluetooth %s via adb (simulated)", action)
         # Simulated: adb shell svc bluetooth <enable|disable>
         self._bluetooth_enabled = enabled
         return True
@@ -551,34 +517,26 @@ class SystemSettingsController:
 
     async def _adjust_volume_ios(self, level: int) -> bool:
         """Adjust volume on iOS via xcrun simctl (simulated)."""
-        logger.info(
-            "iOS: adjust_volume %d via xcrun simctl (simulated)", level
-        )
+        logger.info("iOS: adjust_volume %d via xcrun simctl (simulated)", level)
         self._volume = level
         return True
 
     async def _adjust_brightness_ios(self, level: int) -> bool:
         """Adjust brightness on iOS via xcrun simctl (simulated)."""
-        logger.info(
-            "iOS: adjust_brightness %d via xcrun simctl (simulated)", level
-        )
+        logger.info("iOS: adjust_brightness %d via xcrun simctl (simulated)", level)
         self._brightness = level
         return True
 
     async def _toggle_wifi_ios(self, enabled: bool) -> bool:
         """Toggle WiFi on iOS via xcrun simctl (simulated)."""
         action = "enable" if enabled else "disable"
-        logger.info(
-            "iOS: toggle_wifi %s via xcrun simctl (simulated)", action
-        )
+        logger.info("iOS: toggle_wifi %s via xcrun simctl (simulated)", action)
         self._wifi_enabled = enabled
         return True
 
     async def _toggle_bluetooth_ios(self, enabled: bool) -> bool:
         """Toggle Bluetooth on iOS via xcrun simctl (simulated)."""
         action = "enable" if enabled else "disable"
-        logger.info(
-            "iOS: toggle_bluetooth %s via xcrun simctl (simulated)", action
-        )
+        logger.info("iOS: toggle_bluetooth %s via xcrun simctl (simulated)", action)
         self._bluetooth_enabled = enabled
         return True

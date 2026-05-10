@@ -18,7 +18,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -62,7 +62,7 @@ class AccessAuditEntry:
     permission: Permission = Permission.READ
     resource: str = ""
     granted: bool = True
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class MemorySecurityManager:
@@ -92,12 +92,13 @@ class MemorySecurityManager:
         """Encrypt plaintext with AES-256-GCM. Returns nonce + tag + ciphertext."""
         try:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        except ImportError as e:
+        except ImportError:
             # Fallback: XOR with key hash (NOT production-safe, for testing only)
             return self._xor_encrypt(key_id, plaintext)
         key = self._keys.get(key_id)
         if key is None:
-            raise KeyError(f"Key '{key_id}' not found")
+            msg = f"Key '{key_id}' not found"
+            raise KeyError(msg)
         nonce = os.urandom(12)
         aesgcm = AESGCM(key)
         ciphertext = aesgcm.encrypt(nonce, plaintext.encode(), None)
@@ -107,11 +108,12 @@ class MemorySecurityManager:
         """Decrypt AES-256-GCM ciphertext."""
         try:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        except ImportError as e:
+        except ImportError:
             return self._xor_decrypt(key_id, ciphertext)
         key = self._keys.get(key_id)
         if key is None:
-            raise KeyError(f"Key '{key_id}' not found")
+            msg = f"Key '{key_id}' not found"
+            raise KeyError(msg)
         nonce, ct = ciphertext[:12], ciphertext[12:]
         aesgcm = AESGCM(key)
         return aesgcm.decrypt(nonce, ct, None).decode()
@@ -147,10 +149,15 @@ class MemorySecurityManager:
                 permission=permission,
                 resource=resource,
                 granted=granted,
-            )
+            ),
         )
         if not granted:
-            logger.warning("Access denied: user=%s permission=%s resource=%s", user_id, permission, resource)
+            logger.warning(
+                "Access denied: user=%s permission=%s resource=%s",
+                user_id,
+                permission,
+                resource,
+            )
         return granted
 
     def get_audit_log(self) -> list[AccessAuditEntry]:

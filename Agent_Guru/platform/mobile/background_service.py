@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.mobile.background_service
-Purpose: Mobile background service manager for always-on operation
+"""Module: agent_guru.platform.mobile.background_service
+Purpose: Mobile background service manager for always-on operation.
 
 This module implements the background service manager for mobile platforms,
 handling sleep/wake cycles, battery optimization, and service lifecycle.
@@ -32,19 +31,21 @@ Version: 1.0.0
 """
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class ServiceState(Enum):
     """Service lifecycle states."""
+
     STOPPED = "stopped"
     STARTING = "starting"
     RUNNING = "running"
@@ -56,6 +57,7 @@ class ServiceState(Enum):
 
 class ThermalState(Enum):
     """Device thermal states."""
+
     NORMAL = "normal"
     FAIR = "fair"
     SERIOUS = "serious"
@@ -73,14 +75,16 @@ class BatteryUsageStats:
         total_wake_time: Total time spent in wake mode (seconds)
         battery_level_start: Battery level when tracking started
         battery_level_current: Current battery level
+
     """
+
     sleep_usage_per_hour: float = 0.0
     wake_usage_per_hour: float = 0.0
     total_sleep_time: float = 0.0
     total_wake_time: float = 0.0
     battery_level_start: float = 100.0
     battery_level_current: float = 100.0
-    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 @dataclass
@@ -96,7 +100,9 @@ class ServiceConfig:
         max_restart_attempts: Maximum restart attempts before giving up
         low_battery_threshold: Battery % to enter aggressive power saving
         critical_battery_threshold: Battery % to stop service
+
     """
+
     sleep_timeout: float = 30.0
     wake_timeout: float = 60.0
     battery_check_interval: float = 60.0
@@ -117,16 +123,17 @@ class BatteryUsageTracker:
     def __init__(self) -> None:
         """Initialize battery usage tracker."""
         self._stats = BatteryUsageStats()
-        self._sleep_start_time: Optional[float] = None
-        self._wake_start_time: Optional[float] = None
-        self._sleep_start_battery: Optional[float] = None
-        self._wake_start_battery: Optional[float] = None
+        self._sleep_start_time: float | None = None
+        self._wake_start_time: float | None = None
+        self._sleep_start_battery: float | None = None
+        self._wake_start_battery: float | None = None
 
     def start_sleep_tracking(self, battery_level: float) -> None:
         """Start tracking sleep mode battery usage.
 
         Args:
             battery_level: Current battery level (0-100)
+
         """
         self._sleep_start_time = time.time()
         self._sleep_start_battery = battery_level
@@ -136,6 +143,7 @@ class BatteryUsageTracker:
 
         Args:
             battery_level: Current battery level (0-100)
+
         """
         if self._sleep_start_time is None or self._sleep_start_battery is None:
             return
@@ -158,6 +166,7 @@ class BatteryUsageTracker:
 
         Args:
             battery_level: Current battery level (0-100)
+
         """
         self._wake_start_time = time.time()
         self._wake_start_battery = battery_level
@@ -167,6 +176,7 @@ class BatteryUsageTracker:
 
         Args:
             battery_level: Current battery level (0-100)
+
         """
         if self._wake_start_time is None or self._wake_start_battery is None:
             return
@@ -189,8 +199,9 @@ class BatteryUsageTracker:
 
         Returns:
             Battery usage statistics
+
         """
-        self._stats.last_updated = datetime.now(tz=timezone.utc)
+        self._stats.last_updated = datetime.now(tz=UTC)
         return self._stats
 
 
@@ -229,18 +240,16 @@ class MobileBackgroundService:
         >>> # Get battery stats
         >>> stats = await service.monitor_battery_usage()
         >>> print(f"Sleep usage: {stats.sleep_usage_per_hour:.2f}%/hour")
+
     """
 
-    def __init__(
-        self,
-        config: ServiceConfig,
-        platform_integration: Optional[Any] = None
-    ) -> None:
+    def __init__(self, config: ServiceConfig, platform_integration: Any | None = None) -> None:  # noqa: ANN401
         """Initialize mobile background service.
 
         Args:
             config: Service configuration
             platform_integration: Platform-specific integration (Android/iOS)
+
         """
         self.config = config
         self.platform = platform_integration
@@ -248,12 +257,12 @@ class MobileBackgroundService:
         self._state = ServiceState.STOPPED
         self._battery_tracker = BatteryUsageTracker()
         self._restart_attempts = 0
-        self._last_wake_time: Optional[float] = None
-        self._monitoring_task: Optional[asyncio.Task] = None
+        self._last_wake_time: float | None = None
+        self._monitoring_task: asyncio.Task | None = None
 
         # Callbacks
-        self._wake_word_callback: Optional[Callable] = None
-        self._state_change_callback: Optional[Callable] = None
+        self._wake_word_callback: Callable | None = None
+        self._state_change_callback: Callable | None = None
 
     @property
     def state(self) -> ServiceState:
@@ -270,6 +279,7 @@ class MobileBackgroundService:
 
         Args:
             callback: Async function to call when wake word detected
+
         """
         self._wake_word_callback = callback
 
@@ -278,6 +288,7 @@ class MobileBackgroundService:
 
         Args:
             callback: Async function to call on state change
+
         """
         self._state_change_callback = callback
 
@@ -289,6 +300,7 @@ class MobileBackgroundService:
 
         Raises:
             RuntimeError: If service fails to start
+
         """
         if self.is_running:
             logger.warning("Service already running")
@@ -313,10 +325,10 @@ class MobileBackgroundService:
             logger.info("Background service started successfully")
 
         except Exception as e:
-            logger.error("Failed to start service: %s", e)
+            logger.exception("Failed to start service")
             await self._change_state(ServiceState.CRASHED)
-            raise RuntimeError(f"Service start failed: {e}") from e
-
+            msg = f"Service start failed: {e}"
+            raise RuntimeError(msg) from e
     async def stop_service(self) -> None:
         """Stop background service and cleanup resources."""
         if not self.is_running:
@@ -329,10 +341,8 @@ class MobileBackgroundService:
             # Stop monitoring
             if self._monitoring_task:
                 self._monitoring_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await self._monitoring_task
-                except asyncio.CancelledError:
-                    pass
 
             # Platform-specific service stop
             if self.platform:
@@ -342,10 +352,9 @@ class MobileBackgroundService:
 
             logger.info("Background service stopped")
 
-        except Exception as e:
-            logger.error("Error stopping service: %s", e)
+        except Exception:
+            logger.exception("Error stopping service")
             await self._change_state(ServiceState.CRASHED)
-
     async def enter_sleep_mode(self) -> None:
         """Enter sleep mode for battery optimization.
 
@@ -379,9 +388,8 @@ class MobileBackgroundService:
             transition_time = (time.time() - start_time) * 1000
             logger.info("Entered sleep mode (transition: %.1fms)", transition_time)
 
-        except Exception as e:
-            logger.error("Error entering sleep mode: %s", e)
-
+        except Exception:
+            logger.exception("Error entering sleep mode")
     async def enter_wake_mode(self) -> None:
         """Enter wake mode for full functionality.
 
@@ -418,9 +426,8 @@ class MobileBackgroundService:
             transition_time = (time.time() - start_time) * 1000
             logger.info("Entered wake mode (transition: %.1fms)", transition_time)
 
-        except Exception as e:
-            logger.error("Error entering wake mode: %s", e)
-
+        except Exception:
+            logger.exception("Error entering wake mode")
     async def handle_wake_word_detected(self) -> None:
         """Handle wake word detection event.
 
@@ -435,32 +442,32 @@ class MobileBackgroundService:
         if self._wake_word_callback:
             try:
                 await self._wake_word_callback()
-            except Exception as e:
-                logger.error("Wake word callback error: %s", e)
-
+            except Exception:
+                logger.exception("Wake word callback error")
     async def request_battery_optimization_exemption(self) -> bool:
         """Request battery optimization exemption (Android).
 
         Returns:
             True if exemption granted
+
         """
         if not self.platform:
             return False
 
         try:
             # Platform-specific exemption request
-            if hasattr(self.platform, 'request_battery_exemption'):
+            if hasattr(self.platform, "request_battery_exemption"):
                 return await self.platform.request_battery_exemption()
             return False
-        except Exception as e:
-            logger.error("Error requesting battery exemption: %s", e)
+        except Exception:
+            logger.exception("Error requesting battery exemption")
             return False
-
     async def monitor_battery_usage(self) -> BatteryUsageStats:
         """Monitor battery usage statistics.
 
         Returns:
             Battery usage stats (% per hour in sleep/wake modes)
+
         """
         stats = self._battery_tracker.get_stats()
 
@@ -474,16 +481,13 @@ class MobileBackgroundService:
 
         Args:
             battery_percent: Current battery percentage
+
         """
         if battery_percent < self.config.critical_battery_threshold:
-            logger.warning(
-                f"Critical battery ({battery_percent:.1f}%), stopping service"
-            )
+            logger.warning("Critical battery (%.1f%%), stopping service", battery_percent)
             await self.stop_service()
         elif battery_percent < self.config.low_battery_threshold:
-            logger.warning(
-                f"Low battery ({battery_percent:.1f}%), entering sleep mode"
-            )
+            logger.warning("Low battery (%.1f%%), entering sleep mode", battery_percent)
             await self.enter_sleep_mode()
 
     async def handle_thermal_state(self, thermal_state: ThermalState) -> None:
@@ -491,6 +495,7 @@ class MobileBackgroundService:
 
         Args:
             thermal_state: Current thermal state
+
         """
         if thermal_state == ThermalState.CRITICAL:
             logger.warning("Critical thermal state, entering sleep mode")
@@ -521,25 +526,26 @@ class MobileBackgroundService:
                     last_thermal_check = current_time
 
                 # Check wake timeout
-                if (self._state == ServiceState.RUNNING and
-                    self._last_wake_time and
-                    current_time - self._last_wake_time >= self.config.wake_timeout):
+                if (
+                    self._state == ServiceState.RUNNING
+                    and self._last_wake_time
+                    and current_time - self._last_wake_time >= self.config.wake_timeout
+                ):
                     logger.info("Wake timeout, entering sleep mode")
                     await self.enter_sleep_mode()
 
                 await asyncio.sleep(1.0)
 
-            except asyncio.CancelledError as e:
+            except asyncio.CancelledError:
                 break
-            except Exception as e:
-                logger.error("Monitoring loop error: %s", e)
+                logger.exception("Monitoring loop error")
                 await asyncio.sleep(5.0)
-
     async def _change_state(self, new_state: ServiceState) -> None:
         """Change service state and invoke callback.
 
         Args:
             new_state: New service state
+
         """
         old_state = self._state
         self._state = new_state
@@ -549,21 +555,21 @@ class MobileBackgroundService:
         if self._state_change_callback:
             try:
                 await self._state_change_callback(old_state, new_state)
-            except Exception as e:
-                logger.error("State change callback error: %s", e)
-
+            except Exception:
+                logger.exception("State change callback error")
     async def _get_battery_level(self) -> float:
         """Get current battery level.
 
         Returns:
             Battery level (0-100)
+
         """
-        if self.platform and hasattr(self.platform, 'get_battery_info'):
+        if self.platform and hasattr(self.platform, "get_battery_info"):
             try:
                 battery_info = await self.platform.get_battery_info()
                 return battery_info.percent
-            except Exception as e:
-                logger.error("Error getting battery level: %s", e)
+            except Exception:
+                logger.exception("Error getting battery level")
         return 100.0
 
     async def _get_thermal_state(self) -> ThermalState:
@@ -571,34 +577,35 @@ class MobileBackgroundService:
 
         Returns:
             Current thermal state
+
         """
-        if self.platform and hasattr(self.platform, 'get_thermal_state'):
+        if self.platform and hasattr(self.platform, "get_thermal_state"):
             try:
                 return await self.platform.get_thermal_state()
-            except Exception as e:
-                logger.error("Error getting thermal state: %s", e)
+            except Exception:
+                logger.exception("Error getting thermal state")
         return ThermalState.NORMAL
 
     async def _start_platform_service(self) -> None:
         """Start platform-specific service."""
-        if hasattr(self.platform, 'start_foreground_service'):
+        if hasattr(self.platform, "start_foreground_service"):
             await self.platform.start_foreground_service()
-        elif hasattr(self.platform, 'start_background_audio'):
+        elif hasattr(self.platform, "start_background_audio"):
             await self.platform.start_background_audio()
 
     async def _stop_platform_service(self) -> None:
         """Stop platform-specific service."""
-        if hasattr(self.platform, 'stop_foreground_service'):
+        if hasattr(self.platform, "stop_foreground_service"):
             await self.platform.stop_foreground_service()
-        elif hasattr(self.platform, 'stop_background_audio'):
+        elif hasattr(self.platform, "stop_background_audio"):
             await self.platform.stop_background_audio()
 
     async def _enter_platform_sleep_mode(self) -> None:
         """Enter platform-specific sleep mode."""
-        if hasattr(self.platform, 'enter_sleep_mode'):
+        if hasattr(self.platform, "enter_sleep_mode"):
             await self.platform.enter_sleep_mode()
 
     async def _enter_platform_wake_mode(self) -> None:
         """Enter platform-specific wake mode."""
-        if hasattr(self.platform, 'enter_wake_mode'):
+        if hasattr(self.platform, "enter_wake_mode"):
             await self.platform.enter_wake_mode()

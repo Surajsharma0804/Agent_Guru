@@ -1,6 +1,4 @@
-"""
-Pytest configuration and fixtures for network manager tests.
-"""
+"""Pytest configuration and fixtures for network manager tests."""
 
 import asyncio
 from collections.abc import AsyncGenerator

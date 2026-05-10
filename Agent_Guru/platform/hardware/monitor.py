@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.platform.hardware.monitor
-Purpose: Cross-platform hardware monitoring with <1s query response time
+"""Module: Agent_Guru.platform.hardware.monitor
+Purpose: Cross-platform hardware monitoring with <1s query response time.
 
 Performance Requirements:
 - Time Complexity: O(1) per metric query
@@ -21,20 +20,20 @@ Version: 1.0.0
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import psutil
 
 # Optional GPU support
 try:
     import GPUtil
+
     GPU_AVAILABLE = True
 except ImportError:
     GPU_AVAILABLE = False
-
-
 class NetworkInterfaceStatus(Enum):
     """Network interface status."""
+
     UP = "up"
     DOWN = "down"
     UNKNOWN = "unknown"
@@ -52,14 +51,16 @@ class CPUInfo:
         frequency_current: Current CPU frequency in MHz
         frequency_min: Minimum CPU frequency in MHz
         frequency_max: Maximum CPU frequency in MHz
+
     """
+
     percent: float
     per_cpu: list[float]
     count_physical: int
     count_logical: int
-    frequency_current: Optional[float]
-    frequency_min: Optional[float]
-    frequency_max: Optional[float]
+    frequency_current: float | None
+    frequency_min: float | None
+    frequency_max: float | None
 
 
 @dataclass
@@ -74,7 +75,9 @@ class MemoryInfo:
         swap_total: Total swap memory in bytes
         swap_used: Used swap memory in bytes
         swap_percent: Swap usage percentage (0-100)
+
     """
+
     total: int
     available: int
     used: int
@@ -94,7 +97,9 @@ class DiskInfo:
         free: Free disk space in bytes
         percent: Disk usage percentage (0-100)
         path: Disk mount path
+
     """
+
     total: int
     used: int
     free: int
@@ -117,7 +122,9 @@ class NetworkInterface:
         errors_out: Output errors
         drops_in: Input drops
         drops_out: Output drops
+
     """
+
     name: str
     status: NetworkInterfaceStatus
     bytes_sent: int
@@ -142,7 +149,9 @@ class GPUInfo:
         memory_used: Used GPU memory in MB
         memory_free: Free GPU memory in MB
         temperature: GPU temperature in Celsius
+
     """
+
     id: int
     name: str
     load: float
@@ -160,10 +169,12 @@ class BatteryInfo:
         percent: Battery percentage (0-100)
         is_charging: Whether battery is charging
         time_remaining: Estimated time remaining in seconds (None if charging)
+
     """
+
     percent: float
     is_charging: bool
-    time_remaining: Optional[int]
+    time_remaining: int | None
 
 
 class HardwareMonitor:
@@ -179,6 +190,7 @@ class HardwareMonitor:
         >>> print(f"CPU usage: {cpu_info.percent}%")
         >>> memory_info = monitor.get_memory_info()
         >>> print(f"Memory usage: {memory_info.percent}%")
+
     """
 
     def __init__(self) -> None:
@@ -199,6 +211,7 @@ class HardwareMonitor:
 
         Raises:
             RuntimeError: If CPU metrics cannot be retrieved
+
         """
         try:
             # Get CPU usage percentage
@@ -226,11 +239,11 @@ class HardwareMonitor:
                 count_logical=count_logical,
                 frequency_current=frequency_current,
                 frequency_min=frequency_min,
-                frequency_max=frequency_max
+                frequency_max=frequency_max,
             )
         except Exception as e:
-            raise RuntimeError(f"Failed to get CPU usage: {e}") from e
-
+            msg = f"Failed to get CPU usage: {e}"
+            raise RuntimeError(msg) from e
     def get_memory_info(self) -> MemoryInfo:
         """Get memory usage information.
 
@@ -242,6 +255,7 @@ class HardwareMonitor:
 
         Raises:
             RuntimeError: If memory metrics cannot be retrieved
+
         """
         try:
             # Get virtual memory
@@ -257,11 +271,11 @@ class HardwareMonitor:
                 percent=mem.percent,
                 swap_total=swap.total,
                 swap_used=swap.used,
-                swap_percent=swap.percent
+                swap_percent=swap.percent,
             )
         except Exception as e:
-            raise RuntimeError(f"Failed to get memory info: {e}") from e
-
+            msg = f"Failed to get memory info: {e}"
+            raise RuntimeError(msg) from e
     def get_disk_usage(self, path: str = "/") -> DiskInfo:
         """Get disk usage for specified path.
 
@@ -277,6 +291,7 @@ class HardwareMonitor:
         Raises:
             RuntimeError: If disk metrics cannot be retrieved
             ValueError: If path does not exist
+
         """
         try:
             usage = psutil.disk_usage(path)
@@ -286,13 +301,13 @@ class HardwareMonitor:
                 used=usage.used,
                 free=usage.free,
                 percent=usage.percent,
-                path=path
+                path=path,
             )
         except FileNotFoundError as e:
-            raise ValueError(f"Path does not exist: {path}") from e
-        except Exception as e:
-            raise RuntimeError(f"Failed to get disk usage: {e}") from e
-
+            msg = f"Path does not exist: {path}"
+            raise ValueError(msg) from e
+            msg = f"Failed to get disk usage: {e}"
+            raise RuntimeError(msg) from e
     def get_network_interfaces(self) -> list[NetworkInterface]:
         """Get network interface information.
 
@@ -304,6 +319,7 @@ class HardwareMonitor:
 
         Raises:
             RuntimeError: If network metrics cannot be retrieved
+
         """
         try:
             interfaces = []
@@ -322,24 +338,26 @@ class HardwareMonitor:
                 else:
                     status = NetworkInterfaceStatus.UNKNOWN
 
-                interfaces.append(NetworkInterface(
-                    name=name,
-                    status=status,
-                    bytes_sent=stats.bytes_sent,
-                    bytes_recv=stats.bytes_recv,
-                    packets_sent=stats.packets_sent,
-                    packets_recv=stats.packets_recv,
-                    errors_in=stats.errin,
-                    errors_out=stats.errout,
-                    drops_in=stats.dropin,
-                    drops_out=stats.dropout
-                ))
+                interfaces.append(
+                    NetworkInterface(
+                        name=name,
+                        status=status,
+                        bytes_sent=stats.bytes_sent,
+                        bytes_recv=stats.bytes_recv,
+                        packets_sent=stats.packets_sent,
+                        packets_recv=stats.packets_recv,
+                        errors_in=stats.errin,
+                        errors_out=stats.errout,
+                        drops_in=stats.dropin,
+                        drops_out=stats.dropout,
+                    ),
+                )
 
             return interfaces
         except Exception as e:
-            raise RuntimeError(f"Failed to get network interfaces: {e}") from e
-
-    def get_gpu_info(self) -> Optional[list[GPUInfo]]:
+            msg = f"Failed to get network interfaces: {e}"
+            raise RuntimeError(msg) from e
+    def get_gpu_info(self) -> list[GPUInfo] | None:
         """Get GPU information if available.
 
         Time Complexity: O(n) where n is number of GPUs
@@ -347,6 +365,7 @@ class HardwareMonitor:
 
         Returns:
             List of GPUInfo or None if GPU not available
+
         """
         if not GPU_AVAILABLE:
             return None
@@ -359,22 +378,23 @@ class HardwareMonitor:
 
             gpu_info_list = []
             for gpu in gpus:
-                gpu_info_list.append(GPUInfo(
-                    id=gpu.id,
-                    name=gpu.name,
-                    load=gpu.load * 100,  # Convert to percentage
-                    memory_total=gpu.memoryTotal,
-                    memory_used=gpu.memoryUsed,
-                    memory_free=gpu.memoryFree,
-                    temperature=gpu.temperature
-                ))
+                gpu_info_list.append(
+                    GPUInfo(
+                        id=gpu.id,
+                        name=gpu.name,
+                        load=gpu.load * 100,  # Convert to percentage
+                        memory_total=gpu.memoryTotal,
+                        memory_used=gpu.memoryUsed,
+                        memory_free=gpu.memoryFree,
+                        temperature=gpu.temperature,
+                    ),
+                )
 
             return gpu_info_list
-        except Exception as e:
+        except Exception:
             # GPU metrics unavailable
             return None
-
-    def get_battery_info(self) -> Optional[BatteryInfo]:
+    def get_battery_info(self) -> BatteryInfo | None:
         """Get battery information if available.
 
         Time Complexity: O(1)
@@ -382,6 +402,7 @@ class HardwareMonitor:
 
         Returns:
             BatteryInfo or None if no battery
+
         """
         try:
             battery = psutil.sensors_battery()
@@ -392,12 +413,13 @@ class HardwareMonitor:
             return BatteryInfo(
                 percent=battery.percent,
                 is_charging=battery.power_plugged,
-                time_remaining=battery.secsleft if battery.secsleft != psutil.POWER_TIME_UNLIMITED else None
+                time_remaining=battery.secsleft
+                if battery.secsleft != psutil.POWER_TIME_UNLIMITED
+                else None,
             )
-        except Exception as e:
+        except Exception:
             # Battery info unavailable
             return None
-
     def get_all_metrics(self) -> dict[str, Any]:
         """Get all available hardware metrics.
 
@@ -407,37 +429,34 @@ class HardwareMonitor:
 
         Returns:
             Dictionary with all available metrics
+
         """
         metrics = {}
 
         # CPU metrics
         try:
-            metrics['cpu'] = self.get_cpu_usage(per_cpu=True)
-        except Exception as e:
-            metrics['cpu'] = None
-
+            metrics["cpu"] = self.get_cpu_usage(per_cpu=True)
+        except Exception:
+            metrics["cpu"] = None
         # Memory metrics
         try:
-            metrics['memory'] = self.get_memory_info()
-        except Exception as e:
-            metrics['memory'] = None
-
+            metrics["memory"] = self.get_memory_info()
+        except Exception:
+            metrics["memory"] = None
         # Disk metrics
         try:
-            metrics['disk'] = self.get_disk_usage()
-        except Exception as e:
-            metrics['disk'] = None
-
+            metrics["disk"] = self.get_disk_usage()
+        except Exception:
+            metrics["disk"] = None
         # Network metrics
         try:
-            metrics['network'] = self.get_network_interfaces()
-        except Exception as e:
-            metrics['network'] = None
-
+            metrics["network"] = self.get_network_interfaces()
+        except Exception:
+            metrics["network"] = None
         # GPU metrics (optional)
-        metrics['gpu'] = self.get_gpu_info()
+        metrics["gpu"] = self.get_gpu_info()
 
         # Battery metrics (optional)
-        metrics['battery'] = self.get_battery_info()
+        metrics["battery"] = self.get_battery_info()
 
         return metrics

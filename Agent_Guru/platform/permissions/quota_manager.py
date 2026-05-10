@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.platform.permissions.quota_manager
-Purpose: Operation quota tracking and enforcement system
+"""Module: Agent_Guru.platform.permissions.quota_manager
+Purpose: Operation quota tracking and enforcement system.
 
 This module implements comprehensive quota management with:
 - Per-operation-type quota tracking
@@ -23,17 +22,18 @@ Version: 1.0.0
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from threading import RLock
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class OperationType(Enum):
     """Operation types for quota tracking."""
+
     FILE_OPERATION = "file_operation"
     COMMAND_EXECUTION = "command_execution"
     NETWORK_REQUEST = "network_request"
@@ -41,32 +41,33 @@ class OperationType(Enum):
 
 @dataclass
 class QuotaConfig:
-    """
-    Quota configuration for an operation type.
+    """Quota configuration for an operation type.
 
     Attributes:
         per_hour: Maximum operations allowed per hour
         per_day: Maximum operations allowed per day
+
     """
+
     per_hour: int
     per_day: int
 
     def __post_init__(self):
         """Validate quota configuration."""
         if self.per_hour <= 0:
-            raise ValueError(f"per_hour must be positive, got {self.per_hour}")
+            msg = f"per_hour must be positive, got {self.per_hour}"
+            raise ValueError(msg)
         if self.per_day <= 0:
-            raise ValueError(f"per_day must be positive, got {self.per_day}")
+            msg = f"per_day must be positive, got {self.per_day}"
+            raise ValueError(msg)
         if self.per_day < self.per_hour:
-            raise ValueError(
-                f"per_day ({self.per_day}) must be >= per_hour ({self.per_hour})"
-            )
+            msg = f"per_day ({self.per_day}) must be >= per_hour ({self.per_hour})"
+            raise ValueError(msg)
 
 
 @dataclass
 class QuotaStatus:
-    """
-    Current quota status for an operation type.
+    """Current quota status for an operation type.
 
     Attributes:
         operation_type: Type of operation
@@ -77,7 +78,9 @@ class QuotaStatus:
         available: Whether quota is available
         reset_hour_at: When hourly quota resets
         reset_day_at: When daily quota resets
+
     """
+
     operation_type: OperationType
     current_hour: int
     current_day: int
@@ -121,17 +124,17 @@ class QuotaStatus:
             "hour_exceeded": self.hour_exceeded,
             "day_exceeded": self.day_exceeded,
             "reset_hour_at": self.reset_hour_at.isoformat(),
-            "reset_day_at": self.reset_day_at.isoformat()
+            "reset_day_at": self.reset_day_at.isoformat(),
         }
 
 
 @dataclass
 class UserQuotaCounters:
-    """
-    Quota counters for a single user.
+    """Quota counters for a single user.
 
     Tracks hourly and daily usage for each operation type.
     """
+
     counters: dict[OperationType, dict[str, int]] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -168,7 +171,7 @@ class UserQuotaCounters:
 class QuotaExceededError(Exception):
     """Raised when operation quota is exceeded."""
 
-    def __init__(self, status: QuotaStatus):
+    def __init__(self, status: QuotaStatus) -> None:
         self.status = status
         if status.hour_exceeded:
             message = (
@@ -190,8 +193,7 @@ QuotaExceededException = QuotaExceededError
 
 
 class QuotaManager:
-    """
-    Operation quota manager with automatic reset and enforcement.
+    """Operation quota manager with automatic reset and enforcement.
 
     Features:
     - Per-user quota tracking
@@ -219,15 +221,15 @@ class QuotaManager:
         >>> # Get current status without consuming
         >>> status = manager.get_status("user123", OperationType.FILE_OPERATION)
         >>> print(f"Used: {status.current_hour}/{status.limit_hour}")
+
     """
 
     def __init__(
         self,
         quota_configs: dict[OperationType, QuotaConfig],
-        storage_path: Optional[Path] = None
-    ):
-        """
-        Initialize quota manager.
+        storage_path: Path | None = None,
+    ) -> None:
+        """Initialize quota manager.
 
         Args:
             quota_configs: Quota configuration per operation type
@@ -235,9 +237,11 @@ class QuotaManager:
 
         Raises:
             ValueError: If quota_configs is empty or invalid
+
         """
         if not quota_configs:
-            raise ValueError("quota_configs cannot be empty")
+            msg = "quota_configs cannot be empty"
+            raise ValueError(msg)
 
         self.quota_configs = quota_configs
         self.storage_path = storage_path
@@ -247,7 +251,7 @@ class QuotaManager:
         self._user_quotas: dict[str, UserQuotaCounters] = {}
 
         # Track last reset times
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         self._last_hour_reset = now.replace(minute=0, second=0, microsecond=0)
         self._last_day_reset = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -256,18 +260,18 @@ class QuotaManager:
             self._load_from_storage()
 
         logger.info(
-            f"QuotaManager initialized with {len(quota_configs)} operation types, "
-            f"storage: {storage_path is not None}"
+            "QuotaManager initialized with %d operation types, storage: %s",
+            len(quota_configs),
+            storage_path is not None,
         )
 
     def check_and_consume(
         self,
         user_id: str,
         operation_type: OperationType,
-        raise_on_exceeded: bool = False
+        raise_on_exceeded: bool = False,
     ) -> QuotaStatus:
-        """
-        Check quota availability and consume if available.
+        """Check quota availability and consume if available.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -282,6 +286,7 @@ class QuotaManager:
 
         Raises:
             QuotaExceededException: If quota exceeded and raise_on_exceeded=True
+
         """
         with self._lock:
             # Reset counters if needed
@@ -322,15 +327,19 @@ class QuotaManager:
                 limit_day=quota_config.per_day,
                 available=available,
                 reset_hour_at=reset_hour_at,
-                reset_day_at=reset_day_at
+                reset_day_at=reset_day_at,
             )
 
             # Log and optionally raise exception
             if not available:
                 logger.warning(
-                    f"Quota exceeded for user={user_id}, operation={operation_type.value}: "
-                    f"hour={status.current_hour}/{status.limit_hour}, "
-                    f"day={status.current_day}/{status.limit_day}"
+                    "Quota exceeded for user=%s, operation=%s: hour=%d/%d, day=%d/%d",
+                    user_id,
+                    operation_type.value,
+                    status.current_hour,
+                    status.limit_hour,
+                    status.current_day,
+                    status.limit_day,
                 )
                 if raise_on_exceeded:
                     raise QuotaExceededException(status)
@@ -341,13 +350,8 @@ class QuotaManager:
 
             return status
 
-    def get_status(
-        self,
-        user_id: str,
-        operation_type: OperationType
-    ) -> QuotaStatus:
-        """
-        Get current quota status without consuming.
+    def get_status(self, user_id: str, operation_type: OperationType) -> QuotaStatus:
+        """Get current quota status without consuming.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -358,6 +362,7 @@ class QuotaManager:
 
         Returns:
             Current quota status
+
         """
         with self._lock:
             # Reset counters if needed
@@ -391,31 +396,28 @@ class QuotaManager:
                 limit_day=quota_config.per_day,
                 available=available,
                 reset_hour_at=reset_hour_at,
-                reset_day_at=reset_day_at
+                reset_day_at=reset_day_at,
             )
 
     def get_all_statuses(self, user_id: str) -> dict[OperationType, QuotaStatus]:
-        """
-        Get quota status for all operation types.
+        """Get quota status for all operation types.
 
         Args:
             user_id: User identifier
 
         Returns:
             Dictionary mapping operation type to quota status
+
         """
         with self._lock:
-            return {
-                op_type: self.get_status(user_id, op_type)
-                for op_type in OperationType
-            }
+            return {op_type: self.get_status(user_id, op_type) for op_type in OperationType}
 
     def reset_user_quotas(self, user_id: str) -> None:
-        """
-        Reset all quotas for a specific user.
+        """Reset all quotas for a specific user.
 
         Args:
             user_id: User identifier
+
         """
         with self._lock:
             if user_id in self._user_quotas:
@@ -426,13 +428,12 @@ class QuotaManager:
                     self._save_to_storage()
 
     def _reset_quotas_if_needed(self) -> None:
-        """
-        Reset quota counters if hour or day has changed.
+        """Reset quota counters if hour or day has changed.
 
         Time Complexity: O(u * o) where u=users, o=operation types
         Space Complexity: O(1)
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         current_hour = now.replace(minute=0, second=0, microsecond=0)
         current_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -457,8 +458,7 @@ class QuotaManager:
                 self._save_to_storage()
 
     def _save_to_storage(self) -> None:
-        """
-        Save quota counters to persistent storage.
+        """Save quota counters to persistent storage.
 
         Storage format (JSON):
         {
@@ -480,25 +480,24 @@ class QuotaManager:
             data = {
                 "last_hour_reset": self._last_hour_reset.isoformat(),
                 "last_day_reset": self._last_day_reset.isoformat(),
-                "user_quotas": {}
+                "user_quotas": {},
             }
 
             for user_id, user_counters in self._user_quotas.items():
                 data["user_quotas"][user_id] = {
-                    op_type.value: counters
-                    for op_type, counters in user_counters.counters.items()
+                    op_type.value: counters for op_type, counters in user_counters.counters.items()
                 }
 
             # Write atomically (write to temp file, then rename)
-            temp_path = self.storage_path.with_suffix('.tmp')
-            with open(temp_path, 'w', encoding='utf-8') as f:
+            temp_path = self.storage_path.with_suffix(".tmp")
+            with open(temp_path, "w", encoding="utf-8") as f:  # noqa: PTH123
                 json.dump(data, f, indent=2)
             temp_path.replace(self.storage_path)
 
             logger.debug("Quota counters saved to %s", self.storage_path)
 
-        except Exception as e:
-            logger.error("Failed to save quota counters: %s", e)
+        except Exception:
+            logger.exception("Failed to save quota counters")
 
     def _load_from_storage(self) -> None:
         """Load quota counters from persistent storage."""
@@ -506,7 +505,7 @@ class QuotaManager:
             return
 
         try:
-            with open(self.storage_path, encoding='utf-8') as f:
+            with open(self.storage_path, encoding="utf-8") as f:  # noqa: PTH123
                 data = json.load(f)
 
             # Load reset times
@@ -522,16 +521,14 @@ class QuotaManager:
                 self._user_quotas[user_id] = user_counters
 
             logger.info(
-                f"Quota counters loaded from {self.storage_path}: "
-                f"{len(self._user_quotas)} users"
+                f"Quota counters loaded from {self.storage_path}: {len(self._user_quotas)} users",
             )
 
-        except Exception as e:
-            logger.error("Failed to load quota counters: %s", e)
+        except Exception:
+            logger.exception("Failed to load quota counters")
 
     def get_statistics(self) -> dict[str, Any]:
-        """
-        Get quota usage statistics.
+        """Get quota usage statistics.
 
         Returns:
             Dictionary with statistics:
@@ -539,31 +536,28 @@ class QuotaManager:
             - last_hour_reset: Last hourly reset time
             - last_day_reset: Last daily reset time
             - per_operation_stats: Usage stats per operation type
+
         """
         with self._lock:
             stats = {
                 "total_users": len(self._user_quotas),
                 "last_hour_reset": self._last_hour_reset.isoformat(),
                 "last_day_reset": self._last_day_reset.isoformat(),
-                "per_operation_stats": {}
+                "per_operation_stats": {},
             }
 
             # Calculate per-operation statistics
             for op_type in OperationType:
                 total_hour = sum(
-                    user.get_hour_count(op_type)
-                    for user in self._user_quotas.values()
+                    user.get_hour_count(op_type) for user in self._user_quotas.values()
                 )
-                total_day = sum(
-                    user.get_day_count(op_type)
-                    for user in self._user_quotas.values()
-                )
+                total_day = sum(user.get_day_count(op_type) for user in self._user_quotas.values())
 
                 stats["per_operation_stats"][op_type.value] = {
                     "total_hour": total_hour,
                     "total_day": total_day,
                     "limit_hour": self.quota_configs[op_type].per_hour,
-                    "limit_day": self.quota_configs[op_type].per_day
+                    "limit_day": self.quota_configs[op_type].per_day,
                 }
 
             return stats

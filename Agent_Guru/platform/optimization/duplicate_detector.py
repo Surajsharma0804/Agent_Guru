@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.optimization.duplicate_detector
-Purpose: Prevent duplicate operations using SHA-256 content hashing and LRU cache
+"""Module: agent_guru.platform.optimization.duplicate_detector
+Purpose: Prevent duplicate operations using SHA-256 content hashing and LRU cache.
 
 This module implements duplicate operation detection to avoid redundant work and
 improve system efficiency. It uses SHA-256 content hashing for file operations,
@@ -67,6 +66,7 @@ References:
 Author: Agent Guru Team
 Date: 2026-02-25
 Version: 1.0.0
+
 """
 
 import hashlib
@@ -74,11 +74,12 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class OperationType(Enum):
     """Operation types for fingerprinting."""
+
     FILE_WRITE = "file_write"
     FILE_READ = "file_read"
     FILE_DELETE = "file_delete"
@@ -89,8 +90,7 @@ class OperationType(Enum):
 
 @dataclass
 class Operation:
-    """
-    Operation to be fingerprinted.
+    """Operation to be fingerprinted.
 
     Attributes:
         type: Type of operation
@@ -102,56 +102,59 @@ class Operation:
         method: HTTP method (for network operations)
         url: URL (for network operations)
         metadata: Additional operation metadata
+
     """
+
     type: OperationType
-    path: Optional[str] = None
-    content: Optional[bytes] = None
-    command: Optional[str] = None
-    args: Optional[list] = None
-    env: Optional[dict[str, str]] = None
-    method: Optional[str] = None
-    url: Optional[str] = None
+    path: str | None = None
+    content: bytes | None = None
+    command: str | None = None
+    args: list | None = None
+    env: dict[str, str] | None = None
+    method: str | None = None
+    url: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class OperationResult:
-    """
-    Result of an operation execution.
+    """Result of an operation execution.
 
     Attributes:
         success: Whether operation succeeded
         output: Operation output
         error: Error message if failed
         execution_time: Time taken to execute (seconds)
+
     """
+
     success: bool
-    output: Optional[Any] = None
-    error: Optional[str] = None
+    output: Any | None = None
+    error: str | None = None
     execution_time: float = 0.0
 
 
 @dataclass
 class CacheEntry:
-    """
-    Cache entry for duplicate detection.
+    """Cache entry for duplicate detection.
 
     Attributes:
         fingerprint: SHA-256 fingerprint of operation
         operation_type: Type of operation
         timestamp: When operation was executed (Unix timestamp)
         result: Result of operation execution
+
     """
+
     fingerprint: str
     operation_type: OperationType
     timestamp: float
-    result: Optional[OperationResult] = None
+    result: OperationResult | None = None
 
 
 @dataclass
 class CacheStats:
-    """
-    Cache statistics for monitoring.
+    """Cache statistics for monitoring.
 
     Attributes:
         total_operations: Total operations checked
@@ -161,7 +164,9 @@ class CacheStats:
         current_size: Current cache size
         max_size: Maximum cache size
         evictions: Number of cache evictions
+
     """
+
     total_operations: int
     cache_hits: int
     cache_misses: int
@@ -172,8 +177,7 @@ class CacheStats:
 
 
 class DuplicateOperationDetector:
-    """
-    Detect and prevent duplicate operations using SHA-256 hashing and LRU cache.
+    """Detect and prevent duplicate operations using SHA-256 hashing and LRU cache.
 
     Time Complexity: O(1) for duplicate check (hash table lookup)
     Space Complexity: O(n) where n = max_cache_size (bounded)
@@ -196,11 +200,11 @@ class DuplicateOperationDetector:
         >>> if not detector.is_duplicate(operation, fingerprint):
         ...     # Execute operation
         ...     detector.mark_executed(operation, fingerprint)
+
     """
 
     def __init__(self, max_cache_size: int = 1000, ttl: int = 300) -> None:
-        """
-        Initialize duplicate operation detector.
+        """Initialize duplicate operation detector.
 
         Args:
             max_cache_size: Maximum number of cache entries (default: 1000)
@@ -208,11 +212,14 @@ class DuplicateOperationDetector:
 
         Raises:
             ValueError: If max_cache_size <= 0 or ttl <= 0
+
         """
         if max_cache_size <= 0:
-            raise ValueError(f"max_cache_size must be > 0, got {max_cache_size}")
+            msg = f"max_cache_size must be > 0, got {max_cache_size}"
+            raise ValueError(msg)
         if ttl <= 0:
-            raise ValueError(f"ttl must be > 0, got {ttl}")
+            msg = f"ttl must be > 0, got {ttl}"
+            raise ValueError(msg)
 
         self.cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self.max_cache_size = max_cache_size
@@ -225,8 +232,7 @@ class DuplicateOperationDetector:
         self._evictions = 0
 
     def compute_fingerprint(self, operation: Operation) -> str:
-        """
-        Compute unique SHA-256 fingerprint for operation.
+        """Compute unique SHA-256 fingerprint for operation.
 
         Time Complexity: O(m) where m = content size
         Space Complexity: O(1) (fixed hash size)
@@ -247,67 +253,70 @@ class DuplicateOperationDetector:
 
         Raises:
             ValueError: If operation has insufficient data for fingerprinting
+
         """
         hasher = hashlib.sha256()
 
         # Add operation type to hash
-        hasher.update(operation.type.value.encode('utf-8'))
+        hasher.update(operation.type.value.encode("utf-8"))
 
         if operation.type == OperationType.FILE_WRITE:
             if not operation.path or operation.content is None:
-                raise ValueError("FILE_WRITE requires path and content")
-            hasher.update(operation.path.encode('utf-8'))
+                msg = "FILE_WRITE requires path and content"
+                raise ValueError(msg)
+            hasher.update(operation.path.encode("utf-8"))
             hasher.update(operation.content)
 
         elif operation.type == OperationType.FILE_READ:
             if not operation.path:
-                raise ValueError("FILE_READ requires path")
-            hasher.update(operation.path.encode('utf-8'))
+                msg = "FILE_READ requires path"
+                raise ValueError(msg)
+            hasher.update(operation.path.encode("utf-8"))
 
         elif operation.type == OperationType.FILE_DELETE:
             if not operation.path:
-                raise ValueError("FILE_DELETE requires path")
-            hasher.update(operation.path.encode('utf-8'))
+                msg = "FILE_DELETE requires path"
+                raise ValueError(msg)
+            hasher.update(operation.path.encode("utf-8"))
 
         elif operation.type == OperationType.COMMAND_EXECUTE:
             if not operation.command:
-                raise ValueError("COMMAND_EXECUTE requires command")
-            hasher.update(operation.command.encode('utf-8'))
+                msg = "COMMAND_EXECUTE requires command"
+                raise ValueError(msg)
+            hasher.update(operation.command.encode("utf-8"))
             if operation.args:
                 for arg in operation.args:
-                    hasher.update(str(arg).encode('utf-8'))
+                    hasher.update(str(arg).encode("utf-8"))
             if operation.env:
                 # Sort env vars for consistent hashing
                 for key in sorted(operation.env.keys()):
-                    hasher.update(f"{key}={operation.env[key]}".encode('utf-8'))
+                    hasher.update(f"{key}={operation.env[key]}".encode())
 
         elif operation.type == OperationType.NETWORK_REQUEST:
             if not operation.method or not operation.url:
-                raise ValueError("NETWORK_REQUEST requires method and url")
-            hasher.update(operation.method.encode('utf-8'))
-            hasher.update(operation.url.encode('utf-8'))
+                msg = "NETWORK_REQUEST requires method and url"
+                raise ValueError(msg)
+            hasher.update(operation.method.encode("utf-8"))
+            hasher.update(operation.url.encode("utf-8"))
             if operation.content:
                 hasher.update(operation.content)
 
         elif operation.type == OperationType.GIT_COMMIT:
             if not operation.path:  # path contains commit message
-                raise ValueError("GIT_COMMIT requires path (commit message)")
-            hasher.update(operation.path.encode('utf-8'))
+                msg = "GIT_COMMIT requires path (commit message)"
+                raise ValueError(msg)
+            hasher.update(operation.path.encode("utf-8"))
             if operation.content:  # content contains changed files
                 hasher.update(operation.content)
 
         else:
-            raise ValueError(f"Unknown operation type: {operation.type}")
+            msg = f"Unknown operation type: {operation.type}"
+            raise ValueError(msg)
 
         return hasher.hexdigest()
 
-    def is_duplicate(
-        self,
-        operation: Operation,
-        fingerprint: Optional[str] = None
-    ) -> bool:
-        """
-        Check if operation is duplicate of recent operation.
+    def is_duplicate(self, operation: Operation, fingerprint: str | None = None) -> bool:
+        """Check if operation is duplicate of recent operation.
 
         Time Complexity: O(1) - hash table lookup
         Space Complexity: O(1)
@@ -318,6 +327,7 @@ class DuplicateOperationDetector:
 
         Returns:
             True if duplicate (found in cache and not expired), False otherwise
+
         """
         self._total_operations += 1
 
@@ -349,11 +359,10 @@ class DuplicateOperationDetector:
     def mark_executed(
         self,
         operation: Operation,
-        fingerprint: Optional[str] = None,
-        result: Optional[OperationResult] = None
+        fingerprint: str | None = None,
+        result: OperationResult | None = None,
     ) -> None:
-        """
-        Mark operation as executed in cache.
+        """Mark operation as executed in cache.
 
         Time Complexity: O(1) amortized (may trigger eviction)
         Space Complexity: O(1)
@@ -362,6 +371,7 @@ class DuplicateOperationDetector:
             operation: Operation that was executed
             fingerprint: Pre-computed fingerprint (optional)
             result: Result of operation execution (optional)
+
         """
         # Compute fingerprint if not provided
         if fingerprint is None:
@@ -377,15 +387,14 @@ class DuplicateOperationDetector:
             fingerprint=fingerprint,
             operation_type=operation.type,
             timestamp=time.time(),
-            result=result
+            result=result,
         )
 
         self.cache[fingerprint] = entry
         self.cache.move_to_end(fingerprint)  # Move to end (most recent)
 
     def clear_cache(self) -> None:
-        """
-        Clear all cached operations.
+        """Clear all cached operations.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -393,20 +402,16 @@ class DuplicateOperationDetector:
         self.cache.clear()
 
     def get_cache_stats(self) -> CacheStats:
-        """
-        Get cache statistics for monitoring.
+        """Get cache statistics for monitoring.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
 
         Returns:
             Cache statistics including hit rate, size, and evictions
+
         """
-        hit_rate = (
-            self._cache_hits / self._total_operations
-            if self._total_operations > 0
-            else 0.0
-        )
+        hit_rate = self._cache_hits / self._total_operations if self._total_operations > 0 else 0.0
 
         return CacheStats(
             total_operations=self._total_operations,
@@ -415,23 +420,22 @@ class DuplicateOperationDetector:
             hit_rate=hit_rate,
             current_size=len(self.cache),
             max_size=self.max_cache_size,
-            evictions=self._evictions
+            evictions=self._evictions,
         )
 
     def cleanup_expired(self) -> int:
-        """
-        Remove all expired entries from cache.
+        """Remove all expired entries from cache.
 
         Time Complexity: O(n) where n = cache size
         Space Complexity: O(k) where k = expired entries
 
         Returns:
             Number of expired entries removed
+
         """
         current_time = time.time()
         expired_keys = [
-            key for key, entry in self.cache.items()
-            if current_time - entry.timestamp > self.ttl
+            key for key, entry in self.cache.items() if current_time - entry.timestamp > self.ttl
         ]
 
         for key in expired_keys:

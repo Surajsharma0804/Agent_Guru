@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.controllers.application_control
-Purpose: Complete application and window management controller
+"""Module: agent_guru.platform.controllers.application_control
+Purpose: Complete application and window management controller.
 
 This module provides comprehensive application control for the Platform Integration System,
 enabling AGENT_GURU to control ANY application through voice commands.
@@ -51,7 +50,7 @@ import sys
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -59,6 +58,7 @@ logger = logging.getLogger(__name__)
 
 class ApplicationState(Enum):
     """Application window states."""
+
     NORMAL = "normal"
     MINIMIZED = "minimized"
     MAXIMIZED = "maximized"
@@ -77,7 +77,9 @@ class WindowInfo:
         state: Current window state
         position: Window position (x, y, width, height)
         is_active: Whether window is currently active
+
     """
+
     title: str
     handle: Any
     pid: int
@@ -95,7 +97,9 @@ class ApplicationInfo:
         pid: Process ID
         executable: Path to executable
         windows: List of windows owned by application
+
     """
+
     name: str
     pid: int
     executable: str
@@ -120,9 +124,10 @@ class ApplicationController:
     Attributes:
         platform: Current platform name
         _platform_integration: Platform-specific integration instance
+
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize application controller."""
         self.platform = sys.platform
         self._platform_integration = self._get_platform_integration()
@@ -130,34 +135,38 @@ class ApplicationController:
     @staticmethod
     def _sanitize_window_identifier(window_identifier: str) -> str:
         """Sanitize window identifier to prevent injection attacks.
-        
+
         Args:
             window_identifier: Raw window identifier
-            
+
         Returns:
             Sanitized window identifier
-            
+
         Raises:
             ValueError: If identifier contains dangerous characters
+
         """
         # Remove any null bytes
-        if '\x00' in window_identifier:
-            raise ValueError("Window identifier contains null bytes")
-        
+        if "\x00" in window_identifier:
+            msg = "Window identifier contains null bytes"
+            raise ValueError(msg)
+
         # Check for dangerous characters that could be used for injection
-        dangerous_chars = ['\n', '\r', ';', '&', '|', '`', '$', '(', ')', '<', '>', '"', "'", '\\']
+        dangerous_chars = ["\n", "\r", ";", "&", "|", "`", "$", "(", ")", "<", ">", '"', "'", "\\"]
         for char in dangerous_chars:
             if char in window_identifier:
-                raise ValueError(f"Window identifier contains dangerous character: {char}")
-        
+                msg = f"Window identifier contains dangerous character: {char}"
+                raise ValueError(msg)
+
         # Limit length to prevent buffer overflow attacks
-        if len(window_identifier) > 256:
-            raise ValueError("Window identifier too long (max 256 characters)")
-        
+        if len(window_identifier) > 256:  # noqa: PLR2004 - Percentage/large threshold
+
+            msg = "Window identifier too long (max 256 characters)"
+            raise ValueError(msg)
+
         return window_identifier.strip()
 
-
-    def _get_platform_integration(self) -> Any:
+    def _get_platform_integration(self) -> Any:  # noqa: ANN401
         """Get platform-specific integration instance.
 
         Returns:
@@ -165,28 +174,31 @@ class ApplicationController:
 
         Raises:
             ImportError: If platform-specific module not available
+
         """
         try:
             if self.platform == "win32":
                 from Agent_Guru.platform.windows.integration import WindowsIntegration
-                return WindowsIntegration()
-            elif self.platform == "darwin":
-                from Agent_Guru.platform.macos.integration import MacOSIntegration
-                return MacOSIntegration()
-            elif self.platform.startswith("linux"):
-                from Agent_Guru.platform.linux.integration import LinuxIntegration
-                return LinuxIntegration()
-            else:
-                raise ImportError(f"Unsupported platform: {self.platform}")
-        except ImportError as e:
-            logger.error("Failed to load platform integration: %s", e)
-            raise
 
+                return WindowsIntegration()
+            if self.platform == "darwin":
+                from Agent_Guru.platform.macos.integration import MacOSIntegration
+
+                return MacOSIntegration()
+            if self.platform.startswith("linux"):
+                from Agent_Guru.platform.linux.integration import LinuxIntegration
+
+                return LinuxIntegration()
+            msg = f"Unsupported platform: {self.platform}"
+            raise ImportError(msg)
+        except ImportError:
+            logger.exception("Failed to load platform integration")
+            raise
     def open_application(
         self,
         app_name: str,
-        args: Optional[list[str]] = None,
-        wait_for_launch: bool = True
+        args: list[str] | None = None,
+        wait_for_launch: bool = True,
     ) -> int:
         """Open an application by name.
 
@@ -210,6 +222,7 @@ class ApplicationController:
             >>> controller = ApplicationController()
             >>> pid = controller.open_application("notepad")
             >>> print(f"Launched notepad with PID {pid}")
+
         """
         logger.info("Opening application: %s", app_name)
 
@@ -229,16 +242,13 @@ class ApplicationController:
             return pid
 
         except FileNotFoundError as e:
-            logger.error("Application not found: %s", app_name)
+            logger.exception("Application not found")
             raise
-        except PermissionError as e:
-            logger.error("Permission denied to launch: %s", app_name)
+            logger.exception("Permission denied to launch")
             raise
-        except Exception as e:
-            logger.error("Failed to launch %s: %s", app_name, e)
-            raise RuntimeError(f"Failed to launch application: {e}") from e
-
-
+            logger.exception("Failed to launch %s: %s")
+            msg = f"Failed to launch application: {e}"
+            raise RuntimeError(msg) from e
     def _resolve_application_path(self, app_name: str) -> str:
         """Resolve application name to full executable path.
 
@@ -253,25 +263,27 @@ class ApplicationController:
 
         Raises:
             FileNotFoundError: If application not found
+
         """
         # If already a full path, validate and return
-        if os.path.isabs(app_name):
+        if os.path.isabs(app_name):  # noqa: PTH117
             # Security: Validate absolute path doesn't contain traversal sequences
             if ".." in app_name:
-                raise ValueError(f"Invalid application path: {app_name}")
+                msg = f"Invalid application path: {app_name}"
+                raise ValueError(msg)
             # Resolve to canonical path and verify it exists
             app_real = os.path.realpath(app_name)
-            if os.path.exists(app_real):
+            if os.path.exists(app_real):  # noqa: PTH110
                 return app_real
-            raise FileNotFoundError(f"Application not found: {app_name}")
+            msg = f"Application not found: {app_name}"
+            raise FileNotFoundError(msg)
 
         # Platform-specific application resolution
         if self.platform == "win32":
             return self._resolve_windows_application(app_name)
-        elif self.platform == "darwin":
+        if self.platform == "darwin":
             return self._resolve_macos_application(app_name)
-        else:
-            return self._resolve_linux_application(app_name)
+        return self._resolve_linux_application(app_name)
 
     def _resolve_windows_application(self, app_name: str) -> str:
         """Resolve Windows application name to path.
@@ -284,6 +296,7 @@ class ApplicationController:
 
         Returns:
             Full path to executable, or the bare name if found in PATH/System32
+
         """
         import shutil
 
@@ -338,7 +351,8 @@ class ApplicationController:
 
         # Security: Validate exe_name doesn't contain path separators or traversal sequences
         if os.sep in exe_name or "/" in exe_name or "\\" in exe_name or ".." in exe_name:
-            raise ValueError(f"Invalid application name: {app_name}")
+            msg = f"Invalid application name: {app_name}"
+            raise ValueError(msg)
 
         # 1. Check PATH (covers System32, WindowsApps, etc.)
         found = shutil.which(exe_name)
@@ -346,21 +360,21 @@ class ApplicationController:
             return found
 
         # 2. Check System32 / SysWOW64 explicitly
-        system32 = os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32")
-        syswow64 = os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "SysWOW64")
+        system32 = os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32")  # noqa: PTH118
+        syswow64 = os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "SysWOW64")  # noqa: PTH118
         for sys_dir in (system32, syswow64):
             # Prevent path traversal: validate sys_dir is absolute and normalized
             sys_dir_real = os.path.realpath(sys_dir)
-            if not os.path.isabs(sys_dir_real):
+            if not os.path.isabs(sys_dir_real):  # noqa: PTH117
                 continue
-            
-            candidate = os.path.join(sys_dir_real, exe_name)
+
+            candidate = os.path.join(sys_dir_real, exe_name)  # noqa: PTH118
             # Additional validation: ensure candidate starts with sys_dir before checking existence
             if not candidate.startswith(sys_dir_real + os.sep):
                 continue
-            
+
             # Now safe to check if file exists
-            if os.path.exists(candidate):
+            if os.path.exists(candidate):  # noqa: PTH110
                 # Final validation: resolve and verify it's still within sys_dir
                 candidate_real = os.path.realpath(candidate)
                 if candidate_real.startswith(sys_dir_real + os.sep):
@@ -370,38 +384,38 @@ class ApplicationController:
         prog_dirs = [
             os.environ.get("ProgramFiles", r"C:\Program Files"),
             os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"),
-            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs"),
-            os.path.join(os.environ.get("APPDATA", ""), "Local", "Programs"),
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs"),  # noqa: PTH118
+            os.path.join(os.environ.get("APPDATA", ""), "Local", "Programs"),  # noqa: PTH118
         ]
         for prog_dir in prog_dirs:
             if not prog_dir:
                 continue
             prog_dir_real = os.path.realpath(prog_dir)
             # Direct match
-            candidate = os.path.join(prog_dir_real, exe_name)
-            if candidate.startswith(prog_dir_real + os.sep) and os.path.exists(candidate):
+            candidate = os.path.join(prog_dir_real, exe_name)  # noqa: PTH118
+            if candidate.startswith(prog_dir_real + os.sep) and os.path.exists(candidate):  # noqa: PTH110
                 return candidate
             # One-level subdirectory search (e.g. Program Files\Google\Chrome\Application\chrome.exe)
             try:
-                for sub in os.listdir(prog_dir_real):
-                    sub_dir = os.path.join(prog_dir_real, sub)
-                    sub_path = os.path.join(sub_dir, exe_name)
-                    if sub_path.startswith(prog_dir_real + os.sep) and os.path.exists(sub_path):
+                for sub in os.listdir(prog_dir_real):  # noqa: PTH208
+                    sub_dir = os.path.join(prog_dir_real, sub)  # noqa: PTH118
+                    sub_path = os.path.join(sub_dir, exe_name)  # noqa: PTH118
+                    if sub_path.startswith(prog_dir_real + os.sep) and os.path.exists(sub_path):  # noqa: PTH110
                         return sub_path
                     # Two levels deep
-                    if os.path.isdir(sub_dir):
-                        for sub2 in os.listdir(sub_dir):
-                            deep = os.path.join(sub_dir, sub2, exe_name)
-                            if deep.startswith(prog_dir_real + os.sep) and os.path.exists(deep):
+                    if os.path.isdir(sub_dir):  # noqa: PTH112
+                        for sub2 in os.listdir(sub_dir):  # noqa: PTH208
+                            deep = os.path.join(sub_dir, sub2, exe_name)  # noqa: PTH118
+                            if deep.startswith(prog_dir_real + os.sep) and os.path.exists(deep):  # noqa: PTH110
                                 return deep
-            except (PermissionError, OSError) as e:
+            except (PermissionError, OSError):
                 continue
-
         # 4. Last resort: return the bare exe name and let the OS find it
         #    (works for apps registered in App Paths registry key)
         logger.warning(
             "Could not resolve full path for '%s', using bare name '%s'",
-            app_name, exe_name
+            app_name,
+            exe_name,
         )
         return exe_name
 
@@ -413,45 +427,45 @@ class ApplicationController:
 
         Returns:
             Full path to executable
+
         """
         # Security: Validate app_name doesn't contain path separators or traversal sequences
         if "/" in app_name or ".." in app_name or os.sep in app_name:
-            raise ValueError(f"Invalid application name: {app_name}")
-        
+            msg = f"Invalid application name: {app_name}"
+            raise ValueError(msg)
+
         # Check if it's a .app bundle
-        if app_name.endswith('.app'):
-            app_bundle = app_name
-        else:
-            app_bundle = f"{app_name}.app"
+        app_bundle = app_name if app_name.endswith(".app") else f"{app_name}.app"
 
         # Check common macOS application paths
         base_paths = [
             "/Applications",
-            os.path.expanduser("~/Applications"),
+            os.path.expanduser("~/Applications"),  # noqa: PTH111
         ]
-        
+
         for base_path in base_paths:
             base_real = os.path.realpath(base_path)
-            candidate = os.path.join(base_real, app_bundle)
+            candidate = os.path.join(base_real, app_bundle)  # noqa: PTH118
             # Validate candidate is within base_path
             if not candidate.startswith(base_real + os.sep):
                 continue
-            if os.path.exists(candidate):
+            if os.path.exists(candidate):  # noqa: PTH110
                 # Return path to executable inside bundle
-                exec_name = app_name.replace('.app', '')
-                exec_path = os.path.join(candidate, "Contents", "MacOS", exec_name)
+                exec_name = app_name.replace(".app", "")
+                exec_path = os.path.join(candidate, "Contents", "MacOS", exec_name)  # noqa: PTH118
                 # Final validation
                 if exec_path.startswith(base_real + os.sep):
                     return exec_path
 
         # Search in PATH
         import shutil
+
         path = shutil.which(app_name)
         if path:
             return path
 
-        raise FileNotFoundError(f"Application not found: {app_name}")
-
+        msg = f"Application not found: {app_name}"
+        raise FileNotFoundError(msg)
 
     def _resolve_linux_application(self, app_name: str) -> str:
         """Resolve Linux application name to path.
@@ -461,13 +475,16 @@ class ApplicationController:
 
         Returns:
             Full path to executable
+
         """
         # Security: Validate app_name doesn't contain path separators or traversal sequences
         if "/" in app_name or ".." in app_name or os.sep in app_name:
-            raise ValueError(f"Invalid application name: {app_name}")
-        
+            msg = f"Invalid application name: {app_name}"
+            raise ValueError(msg)
+
         # Search in PATH
         import shutil
+
         path = shutil.which(app_name)
         if path:
             return path
@@ -476,37 +493,38 @@ class ApplicationController:
         base_dirs = [
             "/usr/bin",
             "/usr/local/bin",
-            os.path.expanduser("~/.local/bin"),
+            os.path.expanduser("~/.local/bin"),  # noqa: PTH111
         ]
-        
+
         for base_dir in base_dirs:
             base_real = os.path.realpath(base_dir)
-            candidate = os.path.join(base_real, app_name)
+            candidate = os.path.join(base_real, app_name)  # noqa: PTH118
             # Validate candidate is within base_dir
             if not candidate.startswith(base_real + os.sep):
                 continue
-            if os.path.exists(candidate):
+            if os.path.exists(candidate):  # noqa: PTH110
                 # Final validation: resolve and verify it's still within base_dir
                 candidate_real = os.path.realpath(candidate)
                 if candidate_real.startswith(base_real + os.sep):
                     return candidate_real
-        
+
         # Check /opt with subdirectory structure
         opt_base = "/opt"
         opt_real = os.path.realpath(opt_base)
-        opt_candidate = os.path.join(opt_real, app_name, "bin", app_name)
-        if opt_candidate.startswith(opt_real + os.sep) and os.path.exists(opt_candidate):
+        opt_candidate = os.path.join(opt_real, app_name, "bin", app_name)  # noqa: PTH118
+        if opt_candidate.startswith(opt_real + os.sep) and os.path.exists(opt_candidate):  # noqa: PTH110
             opt_candidate_real = os.path.realpath(opt_candidate)
             if opt_candidate_real.startswith(opt_real + os.sep):
                 return opt_candidate_real
 
-        raise FileNotFoundError(f"Application not found: {app_name}")
+        msg = f"Application not found: {app_name}"
+        raise FileNotFoundError(msg)
 
     def close_application(
         self,
         app_identifier: str,
         force: bool = False,
-        timeout: float = 5.0
+        timeout: float = 5.0,
     ) -> bool:
         """Close an application by name or PID.
 
@@ -529,17 +547,27 @@ class ApplicationController:
             >>> controller = ApplicationController()
             >>> controller.close_application("notepad")
             True
+
         """
         logger.info("Closing application: %s (force=%s)", app_identifier, force)
 
         # Guard: never allow closing system-critical or IDE processes
         _PROTECTED_NAMES = {
-            "kiro", "code.exe", "explorer.exe", "winlogon.exe",
-            "csrss.exe", "lsass.exe", "services.exe", "svchost.exe",
-            "system", "smss.exe", "wininit.exe",
+            "kiro",
+            "code.exe",
+            "explorer.exe",
+            "winlogon.exe",
+            "csrss.exe",
+            "lsass.exe",
+            "services.exe",
+            "svchost.exe",
+            "system",
+            "smss.exe",
+            "wininit.exe",
         }
         if isinstance(app_identifier, str) and app_identifier.strip().lower() in _PROTECTED_NAMES:
-            raise ValueError(f"Refusing to close protected process: {app_identifier}")
+            msg = f"Refusing to close protected process: {app_identifier}"
+            raise ValueError(msg)
 
         try:
             # Find process by name or PID
@@ -555,7 +583,8 @@ class ApplicationController:
                 # that may not appear under their friendly name in psutil
                 if self.platform == "win32":
                     return self._taskkill_by_name(app_identifier, force=force)
-                raise ProcessLookupError(f"Application not found: {app_identifier}")
+                msg = f"Application not found: {app_identifier}"
+                raise ProcessLookupError(msg)
 
             # Terminate process via platform integration
             success = self._platform_integration.terminate_process(pid, force=force)
@@ -568,12 +597,11 @@ class ApplicationController:
             return success
 
         except ProcessLookupError as e:
-            logger.error("Application not found: %s", app_identifier)
+            logger.exception("Application not found")
             raise
-        except Exception as e:
-            logger.error("Failed to close %s: %s", app_identifier, e)
-            raise RuntimeError(f"Failed to close application: {e}") from e
-
+            logger.exception("Failed to close %s: %s")
+            msg = f"Failed to close application: {e}"
+            raise RuntimeError(msg) from e
     def _taskkill_by_name(self, app_name: str, force: bool = False) -> bool:
         """Use Windows taskkill to close an application by name.
 
@@ -587,6 +615,7 @@ class ApplicationController:
 
         Returns:
             True if taskkill succeeded
+
         """
         import subprocess as _sp
 
@@ -601,8 +630,9 @@ class ApplicationController:
                 cmd = ["taskkill", "/IM", exe_name]
                 if force:
                     cmd.append("/F")
-                result = _sp.run(
+                result = _sp.run(  # noqa: S603
                     cmd,
+                    check=False,
                     stdout=_sp.DEVNULL,
                     stderr=_sp.DEVNULL,
                     timeout=10,
@@ -610,12 +640,10 @@ class ApplicationController:
                 if result.returncode == 0:
                     logger.info("taskkill succeeded for %s", exe_name)
                     return True
-            except (OSError, _sp.TimeoutExpired) as exc:
-                logger.warning("taskkill failed for %s: %s", exe_name, exc)
-
+            except (OSError, _sp.TimeoutExpired):
+                logger.exception("taskkill failed for %s: %s")
         logger.error("taskkill could not close any alias for '%s'", app_name)
         return False
-
 
     # Map of friendly names → possible process executable names (Windows 11 UWP aliases included)
     _PROCESS_NAME_ALIASES: dict[str, list[str]] = {
@@ -648,7 +676,7 @@ class ApplicationController:
         "snipping tool": ["snippingtool.exe", "sniptool.exe"],
     }
 
-    def _find_process_by_name(self, app_name: str) -> Optional[int]:
+    def _find_process_by_name(self, app_name: str) -> int | None:
         """Find process ID by application name.
 
         Handles Windows 11 UWP app process name aliases (e.g. Calculator →
@@ -662,6 +690,7 @@ class ApplicationController:
 
         Returns:
             Process ID if found, None otherwise
+
         """
         try:
             processes = self._platform_integration.get_process_list()
@@ -687,10 +716,9 @@ class ApplicationController:
 
             return None
 
-        except Exception as e:
-            logger.error("Failed to find process %s: %s", app_name, e)
+        except Exception:
+            logger.exception("Failed to find process %s: %s")
             return None
-
     def minimize_window(self, window_identifier: str) -> bool:
         """Minimize an application window.
 
@@ -710,21 +738,21 @@ class ApplicationController:
             >>> controller = ApplicationController()
             >>> controller.minimize_window("Notepad")
             True
+
         """
         logger.info("Minimizing window: %s", window_identifier)
 
         try:
             if self.platform == "win32":
                 return self._minimize_window_windows(window_identifier)
-            elif self.platform == "darwin":
+            if self.platform == "darwin":
                 return self._minimize_window_macos(window_identifier)
-            else:
-                return self._minimize_window_linux(window_identifier)
+            return self._minimize_window_linux(window_identifier)
 
         except Exception as e:
-            logger.error("Failed to minimize window %s: %s", window_identifier, e)
-            raise RuntimeError(f"Failed to minimize window: {e}") from e
-
+            logger.exception("Failed to minimize window %s: %s")
+            msg = f"Failed to minimize window: {e}"
+            raise RuntimeError(msg) from e
     def _minimize_window_windows(self, window_identifier: str) -> bool:
         """Minimize window on Windows.
 
@@ -733,6 +761,7 @@ class ApplicationController:
 
         Returns:
             True if successful
+
         """
         try:
             import win32con
@@ -752,14 +781,11 @@ class ApplicationController:
             win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
             return True
 
-        except ImportError as e:
-            logger.error("pywin32 not available: %s", e)
+        except ImportError:
+            logger.exception("pywin32 not available")
             return False
-        except Exception as e:
-            logger.error("Failed to minimize window: %s", e)
+            logger.exception("Failed to minimize window")
             return False
-
-
     def _find_window_by_partial_title(self, partial_title: str) -> int:
         """Find window by partial title match (Windows).
 
@@ -768,6 +794,7 @@ class ApplicationController:
 
         Returns:
             Window handle or 0 if not found
+
         """
         try:
             import win32gui
@@ -775,7 +802,7 @@ class ApplicationController:
             found_hwnd = [0]
             partial_lower = partial_title.lower()
 
-            def enum_callback(hwnd, _):
+            def enum_callback(hwnd, _) -> bool:  # noqa: ANN001
                 if win32gui.IsWindowVisible(hwnd):
                     title = win32gui.GetWindowText(hwnd)
                     if partial_lower in title.lower():
@@ -786,10 +813,9 @@ class ApplicationController:
             win32gui.EnumWindows(enum_callback, None)
             return found_hwnd[0]
 
-        except Exception as e:
-            logger.error("Failed to find window: %s", e)
+        except Exception:
+            logger.exception("Failed to find window")
             return 0
-
     def _minimize_window_macos(self, window_identifier: str) -> bool:
         """Minimize window on macOS.
 
@@ -798,14 +824,15 @@ class ApplicationController:
 
         Returns:
             True if successful
+
         """
         try:
             # Sanitize input to prevent injection
             safe_identifier = self._sanitize_window_identifier(window_identifier)
             # Escape quotes for AppleScript
             safe_identifier = safe_identifier.replace('"', '\\"')
-            
-            script = f'''
+
+            script = f"""
             tell application "System Events"
                 set frontApp to name of first application process whose frontmost is true
                 tell process frontApp
@@ -819,24 +846,23 @@ class ApplicationController:
                 end tell
             end tell
             return false
-            '''
+            """
 
-            result = subprocess.run(
-                ['osascript', '-e', script],
+            result = subprocess.run(  # noqa: S603
+                ["osascript", "-e", script],  # noqa: S607
+                check=False,
                 capture_output=True,
                 text=True,
-                timeout=5.0
+                timeout=5.0,
             )
 
-            return result.returncode == 0 and 'true' in result.stdout.lower()
+            return result.returncode == 0 and "true" in result.stdout.lower()
 
-        except ValueError as e:
-            logger.error("Invalid window identifier: %s", e)
+        except ValueError:
+            logger.exception("Invalid window identifier")
             return False
-        except Exception as e:
-            logger.error("Failed to minimize window: %s", e)
+            logger.exception("Failed to minimize window")
             return False
-
     def _minimize_window_linux(self, window_identifier: str) -> bool:
         """Minimize window on Linux.
 
@@ -845,46 +871,45 @@ class ApplicationController:
 
         Returns:
             True if successful
+
         """
         try:
             # Sanitize input to prevent injection
             safe_identifier = self._sanitize_window_identifier(window_identifier)
-            
+
             # Use wmctrl if available
-            result = subprocess.run(
-                ['wmctrl', '-r', safe_identifier, '-b', 'add,hidden'],
+            result = subprocess.run(  # noqa: S603
+                ["wmctrl", "-r", safe_identifier, "-b", "add,hidden"],  # noqa: S607
+                check=False,
                 capture_output=True,
-                timeout=5.0
+                timeout=5.0,
             )
 
             return result.returncode == 0
 
-        except ValueError as e:
-            logger.error("Invalid window identifier: %s", e)
+        except ValueError:
+            logger.exception("Invalid window identifier")
             return False
-        except FileNotFoundError as e:
-            logger.warning("wmctrl not available, trying xdotool: %s", e)
+            logger.exception("wmctrl not available, trying xdotool")
             try:
                 # Sanitize input for xdotool
                 safe_identifier = self._sanitize_window_identifier(window_identifier)
                 # Try xdotool as fallback
-                result = subprocess.run(
-                    ['xdotool', 'search', '--name', safe_identifier, 'windowminimize'],
+                result = subprocess.run(  # noqa: S603
+                    ["xdotool", "search", "--name", safe_identifier, "windowminimize"],  # noqa: S607
+                    check=False,
                     capture_output=True,
-                    timeout=5.0
+                    timeout=5.0,
                 )
                 return result.returncode == 0
-            except ValueError as e:
-                logger.error("Invalid window identifier: %s", e)
+            except ValueError:
+                logger.exception("Invalid window identifier")
                 return False
-            except FileNotFoundError as e:
-                logger.error("Neither wmctrl nor xdotool available: %s", e)
+            except FileNotFoundError:
+                logger.exception("Neither wmctrl nor xdotool available")
                 return False
-        except Exception as e:
-            logger.error("Failed to minimize window: %s", e)
+            logger.exception("Failed to minimize window")
             return False
-
-
     def maximize_window(self, window_identifier: str) -> bool:
         """Maximize an application window.
 
@@ -904,21 +929,21 @@ class ApplicationController:
             >>> controller = ApplicationController()
             >>> controller.maximize_window("Notepad")
             True
+
         """
         logger.info("Maximizing window: %s", window_identifier)
 
         try:
             if self.platform == "win32":
                 return self._maximize_window_windows(window_identifier)
-            elif self.platform == "darwin":
+            if self.platform == "darwin":
                 return self._maximize_window_macos(window_identifier)
-            else:
-                return self._maximize_window_linux(window_identifier)
+            return self._maximize_window_linux(window_identifier)
 
         except Exception as e:
-            logger.error("Failed to maximize window %s: %s", window_identifier, e)
-            raise RuntimeError(f"Failed to maximize window: {e}") from e
-
+            logger.exception("Failed to maximize window %s: %s")
+            msg = f"Failed to maximize window: {e}"
+            raise RuntimeError(msg) from e
     def _maximize_window_windows(self, window_identifier: str) -> bool:
         """Maximize window on Windows."""
         try:
@@ -935,10 +960,9 @@ class ApplicationController:
             win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
             return True
 
-        except Exception as e:
-            logger.error("Failed to maximize window: %s", e)
+        except Exception:
+            logger.exception("Failed to maximize window")
             return False
-
     def _maximize_window_macos(self, window_identifier: str) -> bool:
         """Maximize window on macOS."""
         try:
@@ -946,8 +970,8 @@ class ApplicationController:
             safe_identifier = self._sanitize_window_identifier(window_identifier)
             # Escape quotes for AppleScript
             safe_identifier = safe_identifier.replace('"', '\\"')
-            
-            script = f'''
+
+            script = f"""
             tell application "System Events"
                 set frontApp to name of first application process whose frontmost is true
                 tell process frontApp
@@ -961,56 +985,62 @@ class ApplicationController:
                 end tell
             end tell
             return false
-            '''
+            """
 
-            result = subprocess.run(
-                ['osascript', '-e', script],
+            result = subprocess.run(  # noqa: S603
+                ["osascript", "-e", script],  # noqa: S607
+                check=False,
                 capture_output=True,
                 text=True,
-                timeout=5.0
+                timeout=5.0,
             )
 
             return result.returncode == 0
 
-        except ValueError as e:
-            logger.error("Invalid window identifier: %s", e)
+        except ValueError:
+            logger.exception("Invalid window identifier")
             return False
-        except Exception as e:
-            logger.error("Failed to maximize window: %s", e)
+            logger.exception("Failed to maximize window")
             return False
-
     def _maximize_window_linux(self, window_identifier: str) -> bool:
         """Maximize window on Linux."""
         try:
             # Sanitize input to prevent injection
             safe_identifier = self._sanitize_window_identifier(window_identifier)
-            
-            result = subprocess.run(
-                ['wmctrl', '-r', safe_identifier, '-b', 'add,maximized_vert,maximized_horz'],
+
+            result = subprocess.run(  # noqa: S603
+                ["wmctrl", "-r", safe_identifier, "-b", "add,maximized_vert,maximized_horz"],  # noqa: S607
+                check=False,
                 capture_output=True,
-                timeout=5.0
+                timeout=5.0,
             )
             return result.returncode == 0
 
-        except ValueError as e:
-            logger.error("Invalid window identifier: %s", e)
+        except ValueError:
+            logger.exception("Invalid window identifier")
             return False
-        except FileNotFoundError:
             try:
                 safe_identifier = self._sanitize_window_identifier(window_identifier)
-                result = subprocess.run(
-                    ['xdotool', 'search', '--name', safe_identifier, 'windowsize', '%@', '100%', '100%'],
+                result = subprocess.run(  # noqa: S603
+                    [  # noqa: S607
+                        "xdotool",
+                        "search",
+                        "--name",
+                        safe_identifier,
+                        "windowsize",
+                        "%@",
+                        "100%",
+                        "100%",
+                    ],
+                    check=False,
                     capture_output=True,
-                    timeout=5.0
+                    timeout=5.0,
                 )
                 return result.returncode == 0
-            except (ValueError, FileNotFoundError) as e:
+            except (ValueError, FileNotFoundError):
                 return False
-        except Exception as e:
-            logger.error("Failed to maximize window: %s", e)
+            logger.exception("Failed to maximize window")
             return False
-
-
     def restore_window(self, window_identifier: str) -> bool:
         """Restore an application window to normal state.
 
@@ -1030,21 +1060,21 @@ class ApplicationController:
             >>> controller = ApplicationController()
             >>> controller.restore_window("Notepad")
             True
+
         """
         logger.info("Restoring window: %s", window_identifier)
 
         try:
             if self.platform == "win32":
                 return self._restore_window_windows(window_identifier)
-            elif self.platform == "darwin":
+            if self.platform == "darwin":
                 return self._restore_window_macos(window_identifier)
-            else:
-                return self._restore_window_linux(window_identifier)
+            return self._restore_window_linux(window_identifier)
 
         except Exception as e:
-            logger.error("Failed to restore window %s: %s", window_identifier, e)
-            raise RuntimeError(f"Failed to restore window: {e}") from e
-
+            logger.exception("Failed to restore window %s: %s")
+            msg = f"Failed to restore window: {e}"
+            raise RuntimeError(msg) from e
     def _restore_window_windows(self, window_identifier: str) -> bool:
         """Restore window on Windows."""
         try:
@@ -1061,10 +1091,9 @@ class ApplicationController:
             win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
             return True
 
-        except Exception as e:
-            logger.error("Failed to restore window: %s", e)
+        except Exception:
+            logger.exception("Failed to restore window")
             return False
-
     def _restore_window_macos(self, window_identifier: str) -> bool:
         """Restore window on macOS."""
         try:
@@ -1072,8 +1101,8 @@ class ApplicationController:
             safe_identifier = self._sanitize_window_identifier(window_identifier)
             # Escape quotes for AppleScript
             safe_identifier = safe_identifier.replace('"', '\\"')
-            
-            script = f'''
+
+            script = f"""
             tell application "System Events"
                 set frontApp to name of first application process whose frontmost is true
                 tell process frontApp
@@ -1088,47 +1117,49 @@ class ApplicationController:
                 end tell
             end tell
             return false
-            '''
+            """
 
-            result = subprocess.run(
-                ['osascript', '-e', script],
+            result = subprocess.run(  # noqa: S603
+                ["osascript", "-e", script],  # noqa: S607
+                check=False,
                 capture_output=True,
                 text=True,
-                timeout=5.0
+                timeout=5.0,
             )
 
             return result.returncode == 0
 
-        except ValueError as e:
-            logger.error("Invalid window identifier: %s", e)
+        except ValueError:
+            logger.exception("Invalid window identifier")
             return False
-        except Exception as e:
-            logger.error("Failed to restore window: %s", e)
+            logger.exception("Failed to restore window")
             return False
-
     def _restore_window_linux(self, window_identifier: str) -> bool:
         """Restore window on Linux."""
         try:
             # Sanitize input to prevent injection
             safe_identifier = self._sanitize_window_identifier(window_identifier)
-            
-            result = subprocess.run(
-                ['wmctrl', '-r', safe_identifier, '-b', 'remove,hidden,maximized_vert,maximized_horz'],
+
+            result = subprocess.run(  # noqa: S603
+                [  # noqa: S607
+                    "wmctrl",
+                    "-r",
+                    safe_identifier,
+                    "-b",
+                    "remove,hidden,maximized_vert,maximized_horz",
+                ],
+                check=False,
                 capture_output=True,
-                timeout=5.0
+                timeout=5.0,
             )
             return result.returncode == 0
 
-        except ValueError as e:
-            logger.error("Invalid window identifier: %s", e)
+        except ValueError:
+            logger.exception("Invalid window identifier")
             return False
-        except FileNotFoundError as e:
             return False
-        except Exception as e:
-            logger.error("Failed to restore window: %s", e)
+            logger.exception("Failed to restore window")
             return False
-
-
     def focus_window(self, window_identifier: str) -> bool:
         """Focus (bring to front) an application window.
 
@@ -1148,21 +1179,21 @@ class ApplicationController:
             >>> controller = ApplicationController()
             >>> controller.focus_window("Chrome")
             True
+
         """
         logger.info("Focusing window: %s", window_identifier)
 
         try:
             if self.platform == "win32":
                 return self._focus_window_windows(window_identifier)
-            elif self.platform == "darwin":
+            if self.platform == "darwin":
                 return self._focus_window_macos(window_identifier)
-            else:
-                return self._focus_window_linux(window_identifier)
+            return self._focus_window_linux(window_identifier)
 
         except Exception as e:
-            logger.error("Failed to focus window %s: %s", window_identifier, e)
-            raise RuntimeError(f"Failed to focus window: {e}") from e
-
+            logger.exception("Failed to focus window %s: %s")
+            msg = f"Failed to focus window: {e}"
+            raise RuntimeError(msg) from e
     def _focus_window_windows(self, window_identifier: str) -> bool:
         """Focus window on Windows."""
         try:
@@ -1178,10 +1209,9 @@ class ApplicationController:
             win32gui.SetForegroundWindow(hwnd)
             return True
 
-        except Exception as e:
-            logger.error("Failed to focus window: %s", e)
+        except Exception:
+            logger.exception("Failed to focus window")
             return False
-
     def _focus_window_macos(self, window_identifier: str) -> bool:
         """Focus window on macOS."""
         try:
@@ -1189,8 +1219,8 @@ class ApplicationController:
             safe_identifier = self._sanitize_window_identifier(window_identifier)
             # Escape quotes for AppleScript
             safe_identifier = safe_identifier.replace('"', '\\"')
-            
-            script = f'''
+
+            script = f"""
             tell application "System Events"
                 set appList to every application process
                 repeat with anApp in appList
@@ -1207,56 +1237,53 @@ class ApplicationController:
                 end repeat
             end tell
             return false
-            '''
+            """
 
-            result = subprocess.run(
-                ['osascript', '-e', script],
+            result = subprocess.run(  # noqa: S603
+                ["osascript", "-e", script],  # noqa: S607
+                check=False,
                 capture_output=True,
                 text=True,
-                timeout=5.0
+                timeout=5.0,
             )
 
             return result.returncode == 0
 
-        except ValueError as e:
-            logger.error("Invalid window identifier: %s", e)
+        except ValueError:
+            logger.exception("Invalid window identifier")
             return False
-        except Exception as e:
-            logger.error("Failed to focus window: %s", e)
+            logger.exception("Failed to focus window")
             return False
-
     def _focus_window_linux(self, window_identifier: str) -> bool:
         """Focus window on Linux."""
         try:
             # Sanitize input to prevent injection
             safe_identifier = self._sanitize_window_identifier(window_identifier)
-            
-            result = subprocess.run(
-                ['wmctrl', '-a', safe_identifier],
+
+            result = subprocess.run(  # noqa: S603
+                ["wmctrl", "-a", safe_identifier],  # noqa: S607
+                check=False,
                 capture_output=True,
-                timeout=5.0
+                timeout=5.0,
             )
             return result.returncode == 0
 
-        except ValueError as e:
-            logger.error("Invalid window identifier: %s", e)
+        except ValueError:
+            logger.exception("Invalid window identifier")
             return False
-        except FileNotFoundError:
             try:
                 safe_identifier = self._sanitize_window_identifier(window_identifier)
-                result = subprocess.run(
-                    ['xdotool', 'search', '--name', safe_identifier, 'windowactivate'],
+                result = subprocess.run(  # noqa: S603
+                    ["xdotool", "search", "--name", safe_identifier, "windowactivate"],  # noqa: S607
+                    check=False,
                     capture_output=True,
-                    timeout=5.0
+                    timeout=5.0,
                 )
                 return result.returncode == 0
-            except (ValueError, FileNotFoundError) as e:
+            except (ValueError, FileNotFoundError):
                 return False
-        except Exception as e:
-            logger.error("Failed to focus window: %s", e)
+            logger.exception("Failed to focus window")
             return False
-
-
     def switch_to_application(self, app_name: str) -> bool:
         """Switch to an application (Alt+Tab simulation).
 
@@ -1276,6 +1303,7 @@ class ApplicationController:
             >>> controller = ApplicationController()
             >>> controller.switch_to_application("Chrome")
             True
+
         """
         logger.info("Switching to application: %s", app_name)
 
@@ -1297,9 +1325,9 @@ class ApplicationController:
             return self.focus_window(target_window.title)
 
         except Exception as e:
-            logger.error("Failed to switch to %s: %s", app_name, e)
-            raise RuntimeError(f"Failed to switch to application: {e}") from e
-
+            logger.exception("Failed to switch to %s: %s")
+            msg = f"Failed to switch to application: {e}"
+            raise RuntimeError(msg) from e
     def list_windows(self) -> list[WindowInfo]:
         """List all visible application windows.
 
@@ -1314,21 +1342,20 @@ class ApplicationController:
             >>> windows = controller.list_windows()
             >>> for window in windows:
             ...     print(f"{window.title} (PID: {window.pid})")
+
         """
         logger.debug("Listing all windows")
 
         try:
             if self.platform == "win32":
                 return self._list_windows_windows()
-            elif self.platform == "darwin":
+            if self.platform == "darwin":
                 return self._list_windows_macos()
-            else:
-                return self._list_windows_linux()
+            return self._list_windows_linux()
 
-        except Exception as e:
-            logger.error("Failed to list windows: %s", e)
+        except Exception:
+            logger.exception("Failed to list windows")
             return []
-
     def _list_windows_windows(self) -> list[WindowInfo]:
         """List windows on Windows."""
         try:
@@ -1337,7 +1364,7 @@ class ApplicationController:
 
             windows = []
 
-            def enum_callback(hwnd, _):
+            def enum_callback(hwnd, _) -> bool:  # noqa: ANN001
                 if win32gui.IsWindowVisible(hwnd):
                     title = win32gui.GetWindowText(hwnd)
                     if title:
@@ -1347,37 +1374,39 @@ class ApplicationController:
 
                         # Determine window state
                         placement = win32gui.GetWindowPlacement(hwnd)
-                        if placement[1] == 2:  # SW_SHOWMINIMIZED
+                        if placement[1] == 2:  # SW_SHOWMINIMIZED  # noqa: PLR2004 (Small integer threshold)
+
                             state = ApplicationState.MINIMIZED
-                        elif placement[1] == 3:  # SW_SHOWMAXIMIZED
+                        elif placement[1] == 3:  # SW_SHOWMAXIMIZED  # noqa: PLR2004 (Small integer threshold)
+
                             state = ApplicationState.MAXIMIZED
                         else:
                             state = ApplicationState.NORMAL
 
                         is_active = win32gui.GetForegroundWindow() == hwnd
 
-                        windows.append(WindowInfo(
-                            title=title,
-                            handle=hwnd,
-                            pid=pid,
-                            state=state,
-                            position=position,
-                            is_active=is_active
-                        ))
+                        windows.append(
+                            WindowInfo(
+                                title=title,
+                                handle=hwnd,
+                                pid=pid,
+                                state=state,
+                                position=position,
+                                is_active=is_active,
+                            ),
+                        )
                 return True
 
             win32gui.EnumWindows(enum_callback, None)
             return windows
 
-        except Exception as e:
-            logger.error("Failed to list windows: %s", e)
+        except Exception:
+            logger.exception("Failed to list windows")
             return []
-
-
     def _list_windows_macos(self) -> list[WindowInfo]:
         """List windows on macOS."""
         try:
-            script = '''
+            script = """
             tell application "System Events"
                 set windowList to {}
                 set appList to every application process
@@ -1394,72 +1423,72 @@ class ApplicationController:
                 end repeat
                 return windowList
             end tell
-            '''
+            """
 
-            result = subprocess.run(
-                ['osascript', '-e', script],  # nosec B603 B607
+            result = subprocess.run(  # noqa: S603
+                ["osascript", "-e", script],  # nosec B603 B607  # noqa: S607
+                check=False,
                 capture_output=True,
                 text=True,
-                timeout=10.0
+                timeout=10.0,
             )
 
             if result.returncode != 0:
                 return []
 
             # Parse output (simplified - would need proper parsing)
-            windows = []
+            return []
             # Note: This is a simplified implementation
             # Full implementation would parse AppleScript output properly
 
-            return windows
-
-        except Exception as e:
-            logger.error("Failed to list windows: %s", e)
+        except Exception:
+            logger.exception("Failed to list windows")
             return []
-
     def _list_windows_linux(self) -> list[WindowInfo]:
         """List windows on Linux."""
         try:
             result = subprocess.run(
-                ['wmctrl', '-l', '-p'],  # nosec B603 B607
+                ["wmctrl", "-l", "-p"],  # nosec B603 B607  # noqa: S607
+                check=False,
                 capture_output=True,
                 text=True,
-                timeout=5.0
+                timeout=5.0,
             )
 
             if result.returncode != 0:
                 return []
 
             windows = []
-            for line in result.stdout.strip().split('\n'):
+            for line in result.stdout.strip().split("\n"):
                 if not line:
                     continue
 
                 parts = line.split(None, 3)
-                if len(parts) >= 4:
+                if len(parts) >= 4:  # noqa: PLR2004 - Small integer threshold
+
                     window_id = parts[0]
                     pid = int(parts[2])
                     title = parts[3]
 
-                    windows.append(WindowInfo(
-                        title=title,
-                        handle=window_id,
-                        pid=pid,
-                        state=ApplicationState.NORMAL,
-                        position=(0, 0, 0, 0),  # Would need xwininfo for actual position
-                        is_active=False
-                    ))
+                    windows.append(
+                        WindowInfo(
+                            title=title,
+                            handle=window_id,
+                            pid=pid,
+                            state=ApplicationState.NORMAL,
+                            position=(0, 0, 0, 0),  # Would need xwininfo for actual position
+                            is_active=False,
+                        ),
+                    )
 
             return windows
 
-        except FileNotFoundError as e:
-            logger.warning("wmctrl not available: %s", e)
+        except FileNotFoundError:
+            logger.exception("wmctrl not available")
             return []
-        except Exception as e:
-            logger.error("Failed to list windows: %s", e)
+            logger.exception("Failed to list windows")
             return []
-
-    def get_active_window(self) -> Optional[WindowInfo]:
+    def get_active_window(self) -> WindowInfo | None:
         """Get the currently active (focused) window.
 
         Time Complexity: O(n) where n is number of windows
@@ -1473,6 +1502,7 @@ class ApplicationController:
             >>> active = controller.get_active_window()
             >>> if active:
             ...     print(f"Active window: {active.title}")
+
         """
         logger.debug("Getting active window")
 
@@ -1483,10 +1513,9 @@ class ApplicationController:
                     return window
             return None
 
-        except Exception as e:
-            logger.error("Failed to get active window: %s", e)
+        except Exception:
+            logger.exception("Failed to get active window")
             return None
-
     def list_running_applications(self) -> list[ApplicationInfo]:
         """List all running applications.
 
@@ -1501,6 +1530,7 @@ class ApplicationController:
             >>> apps = controller.list_running_applications()
             >>> for app in apps:
             ...     print(f"{app.name} (PID: {app.pid})")
+
         """
         logger.debug("Listing running applications")
 
@@ -1519,15 +1549,17 @@ class ApplicationController:
             applications = []
             for process in processes:
                 app_windows = windows_by_pid.get(process.pid, [])
-                applications.append(ApplicationInfo(
-                    name=process.name,
-                    pid=process.pid,
-                    executable="",  # Would need additional lookup
-                    windows=app_windows
-                ))
+                applications.append(
+                    ApplicationInfo(
+                        name=process.name,
+                        pid=process.pid,
+                        executable="",  # Would need additional lookup
+                        windows=app_windows,
+                    ),
+                )
 
             return applications
 
-        except Exception as e:
-            logger.error("Failed to list applications: %s", e)
+        except Exception:
+            logger.exception("Failed to list applications")
             return []

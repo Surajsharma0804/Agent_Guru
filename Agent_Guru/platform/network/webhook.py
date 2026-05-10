@@ -1,8 +1,7 @@
-"""
-Module: agent_guru.platform.network.webhook
+"""Module: agent_guru.platform.network.webhook
 Purpose: Webhook registration, signature verification, and event routing
 Author: Agent Guru Team
-Date: 2026-02-26
+Date: 2026-02-26.
 
 Performance Requirements:
 - Time Complexity: O(1) for webhook lookup and routing
@@ -25,9 +24,9 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 # Configure structured logging
 logger = logging.getLogger(__name__)
@@ -51,6 +50,7 @@ class WebhookConfig:
         timestamp_tolerance: Maximum age of webhook in seconds (300s = 5 minutes)
         require_signature: Whether signature verification is required
         require_timestamp: Whether timestamp validation is required
+
     """
 
     signature_algorithm: SignatureAlgorithm = SignatureAlgorithm.HMAC_SHA256
@@ -73,6 +73,7 @@ class WebhookEvent:
         headers: HTTP headers from webhook request
         signature: Signature from webhook request (if present)
         verified: Whether signature was verified successfully
+
     """
 
     event_id: str
@@ -80,7 +81,7 @@ class WebhookEvent:
     timestamp: datetime
     payload: dict[str, Any]
     headers: dict[str, str]
-    signature: Optional[str] = None
+    signature: str | None = None
     verified: bool = False
 
 
@@ -97,19 +98,21 @@ class WebhookHandler:
         created_at: Handler registration timestamp
         last_triggered: Last time handler was triggered
         trigger_count: Number of times handler was triggered
+
     """
 
     endpoint: str
     handler: Callable[[WebhookEvent], Awaitable[None]]
-    secret_key: Optional[str]
+    secret_key: str | None
     config: WebhookConfig
     event_types: list[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    last_triggered: Optional[datetime] = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
+    last_triggered: datetime | None = None
     trigger_count: int = 0
 
 
 # Exception hierarchy
+
 
 class WebhookError(Exception):
     """Base exception for webhook operations."""
@@ -162,13 +165,15 @@ class WebhookManager:
         ...     headers={"X-Webhook-Signature": "sha256=...", "X-Webhook-Timestamp": "1234567890"},
         ...     body=b'{"event": "push", "repository": "agent-guru"}',
         ... )
+
     """
 
-    def __init__(self, default_config: Optional[WebhookConfig] = None) -> None:
+    def __init__(self, default_config: WebhookConfig | None = None) -> None:
         """Initialize webhook manager.
 
         Args:
             default_config: Default webhook configuration
+
         """
         self.default_config = default_config or WebhookConfig()
         self._handlers: dict[str, WebhookHandler] = {}
@@ -181,16 +186,16 @@ class WebhookManager:
                 "require_signature": self.default_config.require_signature,
                 "require_timestamp": self.default_config.require_timestamp,
                 "timestamp_tolerance": self.default_config.timestamp_tolerance,
-            }
+            },
         )
 
     def register_webhook(
         self,
         endpoint: str,
         handler: Callable[[WebhookEvent], Awaitable[None]],
-        secret_key: Optional[str] = None,
-        config: Optional[WebhookConfig] = None,
-        event_types: Optional[list[str]] = None,
+        secret_key: str | None = None,
+        config: WebhookConfig | None = None,
+        event_types: list[str] | None = None,
     ) -> None:
         """Register webhook handler for endpoint.
 
@@ -217,6 +222,7 @@ class WebhookManager:
             ...     secret_key="stripe_webhook_secret",
             ...     event_types=["payment.succeeded", "payment.failed"]
             ... )
+
         """
         # Normalize endpoint (ensure starts with /)
         if not endpoint.startswith("/"):
@@ -224,7 +230,8 @@ class WebhookManager:
 
         # Check if already registered
         if endpoint in self._handlers:
-            raise ValueError(f"Webhook endpoint already registered: {endpoint}")
+            msg = f"Webhook endpoint already registered: {endpoint}"
+            raise ValueError(msg)
 
         # Create handler
         webhook_handler = WebhookHandler(
@@ -243,7 +250,7 @@ class WebhookManager:
                 "endpoint": endpoint,
                 "has_secret": secret_key is not None,
                 "event_types": event_types or ["all"],
-            }
+            },
         )
 
     def unregister_webhook(self, endpoint: str) -> bool:
@@ -258,6 +265,7 @@ class WebhookManager:
         Example:
             >>> manager.unregister_webhook("/webhooks/github")
             True
+
         """
         # Normalize endpoint
         if not endpoint.startswith("/"):
@@ -280,10 +288,11 @@ class WebhookManager:
             >>> endpoints = manager.get_registered_endpoints()
             >>> print(f"Registered: {endpoints}")
             ['webhooks/github', '/webhooks/stripe']
+
         """
         return list(self._handlers.keys())
 
-    def get_handler_stats(self, endpoint: str) -> Optional[dict[str, Any]]:
+    def get_handler_stats(self, endpoint: str) -> dict[str, Any] | None:
         """Get statistics for webhook handler.
 
         Args:
@@ -297,6 +306,7 @@ class WebhookManager:
             >>> if stats:
             ...     print(f"Triggers: {stats['trigger_count']}")
             ...     print(f"Last triggered: {stats['last_triggered']}")
+
         """
         # Normalize endpoint
         if not endpoint.startswith("/"):
@@ -310,7 +320,9 @@ class WebhookManager:
             "endpoint": handler.endpoint,
             "event_types": handler.event_types or ["all"],
             "created_at": handler.created_at.isoformat(),
-            "last_triggered": handler.last_triggered.isoformat() if handler.last_triggered else None,
+            "last_triggered": handler.last_triggered.isoformat()
+            if handler.last_triggered
+            else None,
             "trigger_count": handler.trigger_count,
         }
 
@@ -334,6 +346,7 @@ class WebhookManager:
 
         Returns:
             True if signature is valid, False otherwise
+
         """
         # Select hash algorithm
         if algorithm == SignatureAlgorithm.HMAC_SHA256:
@@ -347,11 +360,7 @@ class WebhookManager:
             return False
 
         # Compute expected signature
-        expected_signature = hmac.new(
-            secret_key.encode('utf-8'),
-            payload,
-            hash_func
-        ).hexdigest()
+        expected_signature = hmac.new(secret_key.encode("utf-8"), payload, hash_func).hexdigest()
 
         # Add prefix if not present in provided signature
         if not signature.startswith(prefix):
@@ -378,12 +387,13 @@ class WebhookManager:
 
         Returns:
             True if timestamp is valid, False otherwise
+
         """
         try:
             # Parse timestamp
             timestamp = float(timestamp_str)
             event_time = datetime.utcfromtimestamp(timestamp)
-            current_time = datetime.now(tz=timezone.utc)
+            current_time = datetime.now(tz=UTC)
 
             # Check if timestamp is within tolerance
             age = (current_time - event_time).total_seconds()
@@ -393,15 +403,13 @@ class WebhookManager:
                 return False
 
             if age > tolerance:
-                logger.warning(
-                    f"Webhook timestamp too old: {age:.1f}s (tolerance: {tolerance}s)"
-                )
+                logger.warning("Webhook timestamp too old: %.1fs (tolerance: %ss)", age, tolerance)
                 return False
 
             return True
 
-        except (ValueError, OSError) as e:
-            logger.error("Invalid timestamp format: %s - %s", timestamp_str, e)
+        except (ValueError, OSError):
+            logger.exception("Invalid timestamp format: %s - %s")
             return False
 
     async def process_webhook(
@@ -441,6 +449,7 @@ class WebhookManager:
             ... )
             >>> print(f"Event type: {event.event_type}")
             >>> print(f"Verified: {event.verified}")
+
         """
         start_time = time.perf_counter()
 
@@ -451,31 +460,35 @@ class WebhookManager:
         # Find handler
         handler = self._handlers.get(endpoint)
         if handler is None:
-            raise HandlerNotFoundError(f"No handler registered for endpoint: {endpoint}")
+            msg = f"No handler registered for endpoint: {endpoint}"
+            raise HandlerNotFoundError(msg)
 
         # Parse payload
         try:
-            payload = json.loads(body.decode('utf-8'))
+            payload = json.loads(body.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            raise WebhookError(f"Invalid JSON payload: {e}") from e
+            msg = f"Invalid JSON payload: {e}"
+            raise WebhookError(msg) from e
 
         # Extract event metadata
         event_id = payload.get("id", hashlib.sha256(body).hexdigest()[:16])
         event_type = payload.get("type") or payload.get("event") or "unknown"
-        timestamp = datetime.now(tz=timezone.utc)
+        timestamp = datetime.now(tz=UTC)
 
         # Verify signature if required
         verified = False
         if handler.config.require_signature:
             signature = headers.get(handler.config.signature_header)
             if not signature:
+                msg = f"Missing signature header: {handler.config.signature_header}"
                 raise SignatureVerificationError(
-                    f"Missing signature header: {handler.config.signature_header}"
+                    msg,
                 )
 
             if handler.secret_key is None:
+                msg = f"No secret key configured for endpoint: {endpoint}"
                 raise SignatureVerificationError(
-                    f"No secret key configured for endpoint: {endpoint}"
+                    msg,
                 )
 
             verified = self._verify_signature(
@@ -486,21 +499,24 @@ class WebhookManager:
             )
 
             if not verified:
+                msg = f"Signature verification failed for endpoint: {endpoint}"
                 raise SignatureVerificationError(
-                    f"Signature verification failed for endpoint: {endpoint}"
+                    msg,
                 )
 
         # Validate timestamp if required
         if handler.config.require_timestamp:
             timestamp_str = headers.get(handler.config.timestamp_header)
             if not timestamp_str:
+                msg = f"Missing timestamp header: {handler.config.timestamp_header}"
                 raise TimestampValidationError(
-                    f"Missing timestamp header: {handler.config.timestamp_header}"
+                    msg,
                 )
 
             if not self._validate_timestamp(timestamp_str, handler.config.timestamp_tolerance):
+                msg = f"Timestamp validation failed for endpoint: {endpoint}"
                 raise TimestampValidationError(
-                    f"Timestamp validation failed for endpoint: {endpoint}"
+                    msg,
                 )
 
         # Create event
@@ -516,14 +532,12 @@ class WebhookManager:
 
         # Check event type filter
         if handler.event_types and event_type not in handler.event_types:
-            logger.debug(
-                f"Event type '{event_type}' not in handler filter: {handler.event_types}"
-            )
+            logger.debug("Event type '%s' not in handler filter: %s", event_type, handler.event_types)
             return event
 
         # Update handler statistics
         async with self._lock:
-            handler.last_triggered = datetime.now(tz=timezone.utc)
+            handler.last_triggered = datetime.now(tz=UTC)
             handler.trigger_count += 1
 
         # Route to handler (async, non-blocking)
@@ -540,11 +554,11 @@ class WebhookManager:
                     "event_type": event_type,
                     "verified": verified,
                     "processing_time": processing_time,
-                }
+                },
             )
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Webhook handler failed",
                 extra={
                     "endpoint": endpoint,
@@ -554,7 +568,8 @@ class WebhookManager:
                 },
                 exc_info=True,
             )
-            raise WebhookError(f"Handler failed for endpoint {endpoint}: {e}") from e
+            msg = f"Handler failed for endpoint {endpoint}: {e}"
+            raise WebhookError(msg) from e
 
         return event
 
@@ -563,6 +578,7 @@ class WebhookManager:
 
         Example:
             >>> await manager.close()
+
         """
         self._handlers.clear()
         logger.info("WebhookManager closed")

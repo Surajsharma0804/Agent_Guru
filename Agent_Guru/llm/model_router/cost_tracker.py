@@ -1,16 +1,15 @@
-"""
-Module: Agent_Guru.llm.model_router.cost_tracker
+"""Module: Agent_Guru.llm.model_router.cost_tracker
 Purpose: Tracks and aggregates model usage costs with budget alerting.
 
 Uses bounded deques for memory-safe time-series storage.
 """
+
 from __future__ import annotations
 
 import threading
 import uuid
 from collections import deque
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import structlog
 
@@ -28,16 +27,23 @@ _MAX_RECORDS = 10_000  # Bounded memory
 class BudgetAlert:
     """Represents a triggered budget alert."""
 
-    def __init__(self, threshold: float, current_spend: float,
-                 period: str, triggered_at: datetime) -> None:
+    def __init__(
+        self,
+        threshold: float,
+        current_spend: float,
+        period: str,
+        triggered_at: datetime,
+    ) -> None:
         self.threshold = threshold
         self.current_spend = current_spend
         self.period = period
         self.triggered_at = triggered_at
 
     def __repr__(self) -> str:
-        return (f"BudgetAlert(threshold={self.threshold}, "
-                f"current={self.current_spend:.4f}, period={self.period})")
+        return (
+            f"BudgetAlert(threshold={self.threshold}, "
+            f"current={self.current_spend:.4f}, period={self.period})"
+        )
 
 
 class CostTracker:
@@ -46,17 +52,27 @@ class CostTracker:
     Args:
         max_records: Maximum number of cost records to retain (bounded memory).
         budget_threshold: Optional total spend threshold for alerts.
+
     """
 
-    def __init__(self, max_records: int = _MAX_RECORDS,
-                 budget_threshold: Optional[float] = None) -> None:
+    def __init__(
+        self,
+        max_records: int = _MAX_RECORDS,
+        budget_threshold: float | None = None,
+    ) -> None:
         self._records: deque[CostRecord] = deque(maxlen=max_records)
         self._lock = threading.RLock()
         self._budget_threshold = budget_threshold
 
-    def record_cost(self, model_id: str, task_type: TaskType,
-                    input_tokens: int, output_tokens: int,
-                    cost_per_input: float, cost_per_output: float) -> CostRecord:
+    def record_cost(
+        self,
+        model_id: str,
+        task_type: TaskType,
+        input_tokens: int,
+        output_tokens: int,
+        cost_per_input: float,
+        cost_per_output: float,
+    ) -> CostRecord:
         """Record cost for a completed task.
 
         Args:
@@ -69,6 +85,7 @@ class CostTracker:
 
         Returns:
             The created CostRecord.
+
         """
         cost = (input_tokens * cost_per_input) + (output_tokens * cost_per_output)
         record = CostRecord(
@@ -78,17 +95,19 @@ class CostTracker:
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost=cost,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         with self._lock:
             self._records.append(record)
 
-        logger.debug("cost_recorded", model_id=model_id,
-                     task_type=task_type.value, cost=cost)
+        logger.debug("cost_recorded", model_id=model_id, task_type=task_type.value, cost=cost)
         return record
 
-    def get_summary(self, since: Optional[datetime] = None,
-                    until: Optional[datetime] = None) -> CostSummary:
+    def get_summary(
+        self,
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> CostSummary:
         """Get aggregated cost summary for a time period.
 
         Args:
@@ -97,18 +116,16 @@ class CostTracker:
 
         Returns:
             CostSummary with aggregated statistics.
+
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         period_end = until or now
-        period_start = since or datetime.min.replace(tzinfo=timezone.utc)
+        period_start = since or datetime.min.replace(tzinfo=UTC)
 
         with self._lock:
             records = list(self._records)
 
-        filtered = [
-            r for r in records
-            if period_start <= r.timestamp <= period_end
-        ]
+        filtered = [r for r in records if period_start <= r.timestamp <= period_end]
 
         total = 0.0
         by_model: dict[str, float] = {}
@@ -134,6 +151,7 @@ class CostTracker:
 
         Returns:
             List of triggered BudgetAlert objects.
+
         """
         if self._budget_threshold is None:
             return []
@@ -142,15 +160,19 @@ class CostTracker:
         alerts: list[BudgetAlert] = []
 
         if summary.total_cost >= self._budget_threshold:
-            alerts.append(BudgetAlert(
+            alerts.append(
+                BudgetAlert(
+                    threshold=self._budget_threshold,
+                    current_spend=summary.total_cost,
+                    period="all_time",
+                    triggered_at=datetime.now(UTC),
+                ),
+            )
+            logger.warning(
+                "budget_threshold_exceeded",
                 threshold=self._budget_threshold,
-                current_spend=summary.total_cost,
-                period="all_time",
-                triggered_at=datetime.now(timezone.utc),
-            ))
-            logger.warning("budget_threshold_exceeded",
-                           threshold=self._budget_threshold,
-                           current=summary.total_cost)
+                current=summary.total_cost,
+            )
 
         return alerts
 
@@ -162,9 +184,11 @@ class CostTracker:
 
         Raises:
             ValueError: If threshold is negative.
+
         """
         if threshold < 0:
-            raise ValueError(f"Budget threshold must be >= 0, got {threshold}")
+            msg = f"Budget threshold must be >= 0, got {threshold}"
+            raise ValueError(msg)
         self._budget_threshold = threshold
 
     def calculate_savings(self, baseline_cost_per_token: float) -> float:
@@ -175,13 +199,13 @@ class CostTracker:
 
         Returns:
             Total savings (positive = saved money).
+
         """
         with self._lock:
             records = list(self._records)
 
         baseline_total = sum(
-            (r.input_tokens + r.output_tokens) * baseline_cost_per_token
-            for r in records
+            (r.input_tokens + r.output_tokens) * baseline_cost_per_token for r in records
         )
         actual_total = sum(r.cost for r in records)
         return baseline_total - actual_total

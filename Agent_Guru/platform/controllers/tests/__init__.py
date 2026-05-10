@@ -1,3 +1,1 @@
-"""
-Tests for Agent Guru Platform Controllers
-"""
+"""Tests for Agent Guru Platform Controllers."""

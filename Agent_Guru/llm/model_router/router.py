@@ -1,16 +1,15 @@
-"""
-Module: Agent_Guru.llm.model_router.router
+"""Module: Agent_Guru.llm.model_router.router
 Purpose: ModelRouter — top-level facade coordinating all sub-components.
 
 Provides a single entry point for model selection with full observability.
 """
+
 from __future__ import annotations
 
 import threading
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import structlog
 
@@ -50,12 +49,13 @@ class ModelRouter:
         budget_threshold: Optional total spend limit for alerts.
         prefer_local: Whether to prefer local (Ollama) models.
         max_registry_models: Maximum models in registry.
+
     """
 
     def __init__(
         self,
-        registry: Optional[ModelRegistry] = None,
-        budget_threshold: Optional[float] = None,
+        registry: ModelRegistry | None = None,
+        budget_threshold: float | None = None,
         prefer_local: bool = True,
         max_registry_models: int = 1000,
     ) -> None:
@@ -83,6 +83,7 @@ class ModelRouter:
 
         Raises:
             RuntimeError: If no suitable model can be found.
+
         """
         start = time.monotonic()
 
@@ -110,8 +111,9 @@ class ModelRouter:
         candidates = self._registry.query_models(model_filter)
 
         if not candidates:
+            msg = f"No available models found for task type '{analysis.task_type.value}'"
             raise RuntimeError(
-                f"No available models found for task type '{analysis.task_type.value}'"
+                msg,
             )
 
         # Build performance map for scoring
@@ -148,22 +150,25 @@ class ModelRouter:
             )
 
         if result is None:
-            raise RuntimeError(
+            msg = (
                 f"No model could be selected for task type '{analysis.task_type.value}' "
                 "even after constraint relaxation"
+            )
+            raise RuntimeError(
+                msg,
             )
 
         # Set fallback sequence for this task type
         if result.fallback_models:
-            self._fallback_manager.set_fallback_sequence(
-                analysis.task_type, result.fallback_models
-            )
+            self._fallback_manager.set_fallback_sequence(analysis.task_type, result.fallback_models)
 
         elapsed_ms = (time.monotonic() - start) * 1000
-        logger.info("selection_complete",
-                    model_id=result.model_id,
-                    task_type=analysis.task_type.value,
-                    elapsed_ms=elapsed_ms)
+        logger.info(
+            "selection_complete",
+            model_id=result.model_id,
+            task_type=analysis.task_type.value,
+            elapsed_ms=elapsed_ms,
+        )
 
         return result
 
@@ -175,8 +180,8 @@ class ModelRouter:
         latency_ms: float,
         input_tokens: int = 0,
         output_tokens: int = 0,
-        quality_score: Optional[float] = None,
-        failure_reason: Optional[str] = None,
+        quality_score: float | None = None,
+        failure_reason: str | None = None,
     ) -> None:
         """Record the outcome of a model invocation.
 
@@ -192,6 +197,7 @@ class ModelRouter:
             output_tokens: Output tokens generated.
             quality_score: Optional quality score (0.0–1.0).
             failure_reason: Optional failure description.
+
         """
         model = self._registry.get_model(model_id)
         cost_per_input = model.cost_per_input_token if model else 0.0
@@ -205,7 +211,7 @@ class ModelRouter:
             latency_ms=latency_ms,
             quality_score=quality_score,
             failure_reason=failure_reason,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         self._monitor.record(perf_record)

@@ -1,9 +1,8 @@
-"""
-Module: Agent_Guru.platform.macos.integration
+"""Module: Agent_Guru.platform.macos.integration
 Purpose: Production-grade macOS platform integration with advanced features
 Author: Agent Guru Team
 Date: 2026-02-23
-Version: 2.0.0 (Production)
+Version: 2.0.0 (Production).
 
 Performance Requirements (PRODUCTION):
 - Time Complexity: O(1) for preference operations, O(n) for process listing
@@ -41,7 +40,7 @@ import time
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, ClassVar
 
 import psutil
 
@@ -49,28 +48,28 @@ import psutil
 try:
     # pyobjc imports for native Objective-C API access
     PYOBJC_AVAILABLE = True
-except ImportError as e:
+except ImportError:
     PYOBJC_AVAILABLE = False
     logging.warning("pyobjc not available - some macOS features will be limited")
-
-
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class CommandResult:
     """Result of command execution with metrics."""
+
     stdout: str
     stderr: str
     return_code: int
     execution_time: float  # seconds
     timestamp: float = field(default_factory=time.time)
-    correlation_id: Optional[str] = None
+    correlation_id: str | None = None
 
 
 @dataclass
 class ProcessInfo:
     """Information about a running process with extended metrics."""
+
     pid: int
     name: str
     status: str  # "running", "sleeping", "stopped", "zombie"
@@ -85,6 +84,7 @@ class ProcessInfo:
 @dataclass
 class SystemInfo:
     """System information with extended metrics."""
+
     hostname: str
     platform: str
     platform_version: str
@@ -101,10 +101,11 @@ class SystemInfo:
 @dataclass
 class PerformanceMetrics:
     """Performance metrics for monitoring."""
+
     operation: str
     duration_ms: float
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
     timestamp: float = field(default_factory=time.time)
 
 
@@ -121,8 +122,7 @@ class CircuitBreakerError(Exception):
 
 
 class MacOSIntegration:
-    """
-    Production-grade macOS platform integration with advanced features.
+    """Production-grade macOS platform integration with advanced features.
 
     Features:
     - AppleScript execution with error handling
@@ -155,39 +155,42 @@ class MacOSIntegration:
         >>> value = await integration.get_system_preference_async(...)
         >>> # AppleScript execution
         >>> result = integration.execute_applescript('tell application "Finder" to activate')
+
     """
 
     # Class-level cache for system preferences (shared across instances)
-    _preference_cache: dict[tuple[str, str], tuple[Any, float]] = {}
-    _cache_ttl: float = 300.0  # 5 minutes
-    _cache_lock = threading.RLock()
+    _preference_cache: ClassVar[dict[tuple[str, str], tuple[Any, float]]] = {}
+    _cache_ttl: ClassVar[float] = 300.0  # 5 minutes
+    _cache_lock: ClassVar[threading.RLock] = threading.RLock()
 
     # Circuit breaker state
-    _circuit_breaker: dict[str, dict[str, Any]] = defaultdict(lambda: {
-        'failures': 0,
-        'last_failure': 0,
-        'state': 'closed'  # closed, open, half-open
-    })
-    _circuit_breaker_threshold = 5
-    _circuit_breaker_timeout = 60.0  # seconds
+    _circuit_breaker: ClassVar[dict[str, dict[str, Any]]] = defaultdict(
+        lambda: {
+            "failures": 0,
+            "last_failure": 0,
+            "state": "closed",  # closed, open, half-open
+        },
+    )
+    _circuit_breaker_threshold: ClassVar[int] = 5
+    _circuit_breaker_timeout: ClassVar[float] = 60.0  # seconds
 
     # Performance metrics
-    _metrics: list[PerformanceMetrics] = []
-    _metrics_lock = threading.Lock()
-    _max_metrics = 10000  # Keep last 10k metrics
+    _metrics: ClassVar[list[PerformanceMetrics]] = []
+    _metrics_lock: ClassVar[threading.Lock] = threading.Lock()
+    _max_metrics: ClassVar[int] = 10000  # Keep last 10k metrics
 
-    def __init__(self, enable_caching: bool = True, enable_metrics: bool = True):
-        """
-        Initialize macOS integration with production features.
+    def __init__(self, enable_caching: bool = True, enable_metrics: bool = True) -> None:
+        """Initialize macOS integration with production features.
 
         Args:
             enable_caching: Enable LRU caching for preference reads (default: True)
             enable_metrics: Enable performance metrics collection (default: True)
+
         """
         if not PYOBJC_AVAILABLE:
             logger.warning(
                 "pyobjc not available - some macOS features will be limited. "
-                "Install with: pip install pyobjc-framework-Cocoa"
+                "Install with: pip install pyobjc-framework-Cocoa",
             )
 
         self._validate_macos_platform()
@@ -203,29 +206,32 @@ class MacOSIntegration:
         self._correlation_id = 0
 
         logger.info(
-            f"MacOSIntegration initialized (caching={enable_caching}, "
-            f"metrics={enable_metrics})"
+            "MacOSIntegration initialized (caching=%s, metrics=%s)",
+            enable_caching,
+            enable_metrics,
         )
 
     def _validate_macos_platform(self) -> None:
-        """
-        Validate that we're running on macOS.
+        """Validate that we're running on macOS.
 
         Raises:
             RuntimeError: If not running on macOS
+
         """
         import platform
+
         if platform.system() != "Darwin":
+            msg = f"MacOSIntegration requires macOS, but running on {platform.system()}"
             raise RuntimeError(
-                f"MacOSIntegration requires macOS, but running on {platform.system()}"
+                msg,
             )
 
     def _get_correlation_id(self) -> str:
-        """
-        Generate unique correlation ID for request tracing.
+        """Generate unique correlation ID for request tracing.
 
         Returns:
             Correlation ID string
+
         """
         with self._lock:
             self._correlation_id += 1
@@ -236,16 +242,16 @@ class MacOSIntegration:
         operation: str,
         duration_ms: float,
         success: bool,
-        error: Optional[str] = None
+        error: str | None = None,
     ) -> None:
-        """
-        Record performance metric.
+        """Record performance metric.
 
         Args:
             operation: Operation name
             duration_ms: Duration in milliseconds
             success: Whether operation succeeded
             error: Error message if failed
+
         """
         if not self.enable_metrics:
             return
@@ -254,68 +260,71 @@ class MacOSIntegration:
             operation=operation,
             duration_ms=duration_ms,
             success=success,
-            error=error
+            error=error,
         )
 
         with self._metrics_lock:
             self._metrics.append(metric)
             # Keep only last N metrics
             if len(self._metrics) > self._max_metrics:
-                self._metrics = self._metrics[-self._max_metrics:]
+                self._metrics = self._metrics[-self._max_metrics :]
 
     def _check_circuit_breaker(self, operation: str) -> None:
-        """
-        Check circuit breaker state for operation.
+        """Check circuit breaker state for operation.
 
         Args:
             operation: Operation name
 
         Raises:
             CircuitBreakerError: If circuit breaker is open
+
         """
         breaker = self._circuit_breaker[operation]
 
-        if breaker['state'] == 'open':
+        if breaker["state"] == "open":
             # Check if timeout has passed
-            if time.time() - breaker['last_failure'] > self._circuit_breaker_timeout:
-                breaker['state'] = 'half-open'
-                breaker['failures'] = 0
+            if time.time() - breaker["last_failure"] > self._circuit_breaker_timeout:
+                breaker["state"] = "half-open"
+                breaker["failures"] = 0
                 logger.info("Circuit breaker half-open for %s", operation)
             else:
-                raise CircuitBreakerError(
+                msg = (
                     f"Circuit breaker open for {operation}. "
                     f"Too many failures. Retry after {self._circuit_breaker_timeout}s"
+                )
+                raise CircuitBreakerError(
+                    msg,
                 )
 
     def _record_success(self, operation: str) -> None:
         """Record successful operation for circuit breaker."""
         breaker = self._circuit_breaker[operation]
-        if breaker['state'] == 'half-open':
-            breaker['state'] = 'closed'
-            breaker['failures'] = 0
+        if breaker["state"] == "half-open":
+            breaker["state"] = "closed"
+            breaker["failures"] = 0
             logger.info("Circuit breaker closed for %s", operation)
 
     def _record_failure(self, operation: str) -> None:
         """Record failed operation for circuit breaker."""
         breaker = self._circuit_breaker[operation]
-        breaker['failures'] += 1
-        breaker['last_failure'] = time.time()
+        breaker["failures"] += 1
+        breaker["last_failure"] = time.time()
 
-        if breaker['failures'] >= self._circuit_breaker_threshold:
-            breaker['state'] = 'open'
+        if breaker["failures"] >= self._circuit_breaker_threshold:
+            breaker["state"] = "open"
             logger.error(
-                f"Circuit breaker opened for {operation} "
-                f"after {breaker['failures']} failures"
+                "Circuit breaker opened for %s after %d failures",
+                operation,
+                breaker["failures"],
             )
 
     def _retry_with_backoff(
         self,
         func: Callable,
         max_retries: int = 3,
-        initial_delay: float = 0.1
-    ) -> Any:
-        """
-        Retry function with exponential backoff.
+        initial_delay: float = 0.1,
+    ) -> Any:  # noqa: ANN401
+        """Retry function with exponential backoff.
 
         Args:
             func: Function to retry
@@ -327,6 +336,7 @@ class MacOSIntegration:
 
         Raises:
             Last exception if all retries fail
+
         """
         delay = initial_delay
         last_exception = None
@@ -337,17 +347,13 @@ class MacOSIntegration:
             except Exception as e:
                 last_exception = e
                 if attempt < max_retries:
-                    logger.warning(
-                        f"Retry {attempt + 1}/{max_retries} after {delay}s: {e}"
-                    )
+                    logger.exception("Retry %s/%s after %ss", attempt + 1, max_retries, delay)
                     time.sleep(delay)
                     delay *= 2  # Exponential backoff
-
         raise last_exception
 
     def get_metrics(self) -> list[PerformanceMetrics]:
-        """
-        Get collected performance metrics.
+        """Get collected performance metrics.
 
         Returns:
             List of performance metrics
@@ -356,6 +362,7 @@ class MacOSIntegration:
             >>> metrics = integration.get_metrics()
             >>> for m in metrics:
             ...     print(f"{m.operation}: {m.duration_ms}ms")
+
         """
         with self._metrics_lock:
             return self._metrics.copy()
@@ -374,8 +381,7 @@ class MacOSIntegration:
     # AppleScript Operations
 
     def execute_applescript(self, script: str) -> str:
-        """
-        Execute an AppleScript.
+        """Execute an AppleScript.
 
         Time Complexity: O(1) + script execution time
         Space Complexity: O(output_size)
@@ -396,6 +402,7 @@ class MacOSIntegration:
             ...     'tell application "Finder" to activate'
             ... )
             >>> print(result)
+
         """
         start_time = time.time()
         operation = "applescript_execute"
@@ -404,11 +411,12 @@ class MacOSIntegration:
             self._check_circuit_breaker(operation)
 
             # Execute AppleScript using osascript command
-            result = subprocess.run(  # nosec B603 B607
-                ['osascript', '-e', script],
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                ["osascript", "-e", script],  # noqa: S607
+                check=False,
                 capture_output=True,
                 text=True,
-                timeout=30  # 30 second timeout
+                timeout=30,  # 30 second timeout
             )
 
             duration_ms = (time.time() - start_time) * 1000
@@ -424,8 +432,10 @@ class MacOSIntegration:
             self._record_success(operation)
 
             logger.debug(
-                f"Executed AppleScript ({duration_ms:.2f}ms): "
-                f"{script[:50]}{'...' if len(script) > 50 else ''}"
+                "Executed AppleScript (%.2fms): %s%s",
+                duration_ms,
+                script[:50],
+                "..." if len(script) > 50 else "",  # noqa: PLR2004 - Threshold
             )
 
             return result.stdout.strip()
@@ -435,20 +445,16 @@ class MacOSIntegration:
             error_msg = "AppleScript execution timed out"
             self._record_metric(operation, duration_ms, False, error_msg)
             self._record_failure(operation)
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise AppleScriptError(error_msg) from e
-
-        except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
             error_msg = f"Error executing AppleScript: {e}"
             self._record_metric(operation, duration_ms, False, error_msg)
             self._record_failure(operation)
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise AppleScriptError(error_msg) from e
-
     async def execute_applescript_async(self, script: str) -> str:
-        """
-        Async version of execute_applescript for non-blocking operations.
+        """Async version of execute_applescript for non-blocking operations.
 
         Args:
             script: AppleScript code to execute
@@ -458,24 +464,15 @@ class MacOSIntegration:
 
         Example:
             >>> result = await integration.execute_applescript_async(...)
+
         """
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None,
-            self.execute_applescript,
-            script
-        )
+        return await loop.run_in_executor(None, self.execute_applescript, script)
 
     # System Preferences Operations
 
-    def get_system_preference(
-        self,
-        domain: str,
-        key: str,
-        use_cache: bool = True
-    ) -> Any:
-        """
-        Read a macOS system preference using defaults command.
+    def get_system_preference(self, domain: str, key: str, use_cache: bool = True) -> Any:  # noqa: ANN401
+        """Read a macOS system preference using defaults command.
 
         Time Complexity: O(1) with cache hit, O(1) with cache miss
         Space Complexity: O(1)
@@ -499,6 +496,7 @@ class MacOSIntegration:
             ...     "autohide"
             ... )
             >>> print(f"Dock autohide: {autohide}")
+
         """
         start_time = time.time()
         operation = "preference_read"
@@ -520,11 +518,12 @@ class MacOSIntegration:
                             return cached_value
 
             # Cache miss or caching disabled - read from defaults
-            result = subprocess.run(  # nosec B603 B607
-                ['defaults', 'read', domain, key],
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                ["defaults", "read", domain, key],  # noqa: S607
+                check=False,
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
 
             if result.returncode != 0:
@@ -548,9 +547,7 @@ class MacOSIntegration:
             self._record_metric(operation, duration_ms, True)
             self._record_success(operation)
 
-            logger.debug(
-                f"Read preference: {domain} {key} = {value} ({duration_ms:.2f}ms)"
-            )
+            logger.debug("Read preference: %s %s = %s (%.2fms)", domain, key, value, duration_ms)
             return value
 
         except subprocess.TimeoutExpired as e:
@@ -558,43 +555,38 @@ class MacOSIntegration:
             error_msg = f"Preference read timed out: {domain} {key}"
             self._record_metric(operation, duration_ms, False, error_msg)
             self._record_failure(operation)
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise TimeoutError(error_msg) from e
-
-        except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
             error_msg = f"Error reading preference {domain} {key}: {e}"
             self._record_metric(operation, duration_ms, False, error_msg)
             self._record_failure(operation)
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
-
-    def _parse_defaults_value(self, value_str: str) -> Any:
-        """
-        Parse defaults command output to Python type.
+    def _parse_defaults_value(self, value_str: str) -> Any:  # noqa: ANN401
+        """Parse defaults command output to Python type.
 
         Args:
             value_str: Output from defaults command
 
         Returns:
             Parsed value (int, float, bool, str, list, dict)
+
         """
         # Try to parse as integer
         try:
             return int(value_str)
         except ValueError:
             pass
-
         # Try to parse as float
         try:
             return float(value_str)
         except ValueError:
             pass
-
         # Check for boolean
-        if value_str.lower() in ('1', 'true', 'yes'):
+        if value_str.lower() in ("1", "true", "yes"):
             return True
-        if value_str.lower() in ('0', 'false', 'no'):
+        if value_str.lower() in ("0", "false", "no"):
             return False
 
         # Return as string
@@ -604,10 +596,9 @@ class MacOSIntegration:
         self,
         domain: str,
         key: str,
-        use_cache: bool = True
-    ) -> Any:
-        """
-        Async version of get_system_preference for non-blocking operations.
+        use_cache: bool = True,
+    ) -> Any:  # noqa: ANN401
+        """Async version of get_system_preference for non-blocking operations.
 
         Args:
             domain: Preference domain
@@ -619,24 +610,13 @@ class MacOSIntegration:
 
         Example:
             >>> value = await integration.get_system_preference_async(...)
+
         """
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None,
-            self.get_system_preference,
-            domain,
-            key,
-            use_cache
-        )
+        return await loop.run_in_executor(None, self.get_system_preference, domain, key, use_cache)
 
-    def set_system_preference(
-        self,
-        domain: str,
-        key: str,
-        value: Any
-    ) -> None:
-        """
-        Write a macOS system preference using defaults command.
+    def set_system_preference(self, domain: str, key: str, value: Any) -> None:  # noqa: ANN401
+        """Write a macOS system preference using defaults command.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -655,35 +635,34 @@ class MacOSIntegration:
             ...     "autohide",
             ...     True
             ... )
+
         """
         try:
             # Convert Python value to defaults format
             if isinstance(value, bool):
-                value_str = '-bool'
-                value_arg = 'true' if value else 'false'
+                value_str = "-bool"
+                value_arg = "true" if value else "false"
             elif isinstance(value, int):
-                value_str = '-int'
+                value_str = "-int"
                 value_arg = str(value)
             elif isinstance(value, float):
-                value_str = '-float'
+                value_str = "-float"
                 value_arg = str(value)
             else:
-                value_str = '-string'
+                value_str = "-string"
                 value_arg = str(value)
 
             # Write preference
-            result = subprocess.run(  # nosec B603 B607
-                ['defaults', 'write', domain, key, value_str, value_arg],
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                ["defaults", "write", domain, key, value_str, value_arg],  # noqa: S607
+                check=False,
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
 
             if result.returncode != 0:
-                error_msg = (
-                    f"Failed to write preference {domain} {key}: "
-                    f"{result.stderr.strip()}"
-                )
+                error_msg = f"Failed to write preference {domain} {key}: {result.stderr.strip()}"
                 logger.error(error_msg)
                 raise RuntimeError(error_msg)
 
@@ -698,19 +677,15 @@ class MacOSIntegration:
 
         except subprocess.TimeoutExpired as e:
             error_msg = f"Preference write timed out: {domain} {key}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise TimeoutError(error_msg) from e
-
-        except Exception as e:
             error_msg = f"Error writing preference {domain} {key}: {e}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
-
     # Process Management
 
     def get_process_list(self) -> list[ProcessInfo]:
-        """
-        Get list of running processes.
+        """Get list of running processes.
 
         Time Complexity: O(n) where n is number of processes
         Space Complexity: O(n)
@@ -722,31 +697,33 @@ class MacOSIntegration:
             >>> processes = integration.get_process_list()
             >>> for proc in processes:
             ...     print(f"{proc.name} (PID: {proc.pid})")
+
         """
         processes = []
 
-        for proc in psutil.process_iter(['pid', 'name', 'status', 'cpu_percent',
-                                         'memory_percent', 'create_time']):
+        for proc in psutil.process_iter(
+            ["pid", "name", "status", "cpu_percent", "memory_percent", "create_time"],
+        ):
             try:
                 info = proc.info
-                processes.append(ProcessInfo(
-                    pid=info['pid'],
-                    name=info['name'],
-                    status=info['status'],
-                    cpu_percent=info['cpu_percent'] or 0.0,
-                    memory_percent=info['memory_percent'] or 0.0,
-                    create_time=info['create_time']
-                ))
-            except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                processes.append(
+                    ProcessInfo(
+                        pid=info["pid"],
+                        name=info["name"],
+                        status=info["status"],
+                        cpu_percent=info["cpu_percent"] or 0.0,
+                        memory_percent=info["memory_percent"] or 0.0,
+                        create_time=info["create_time"],
+                    ),
+                )
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
                 # Process terminated or access denied - skip it
                 continue
-
         logger.debug("Retrieved %s processes", len(processes))
         return processes
 
     def start_process(self, executable: str, args: list[str]) -> int:
-        """
-        Start a new process.
+        """Start a new process.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -765,16 +742,17 @@ class MacOSIntegration:
         Example:
             >>> pid = integration.start_process("open", ["-a", "Safari"])
             >>> print(f"Started Safari with PID: {pid}")
+
         """
         try:
             # Build command
-            cmd = [executable] + args
+            cmd = [executable, *args]
 
             # Start process
-            process = subprocess.Popen(  # nosec B603 B607
+            process = subprocess.Popen(  # nosec B603 B607  # noqa: S603
                 cmd,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stderr=subprocess.PIPE,
             )
 
             logger.info("Started process: %s (PID: %s)", executable, process.pid)
@@ -782,22 +760,16 @@ class MacOSIntegration:
 
         except FileNotFoundError as e:
             error_msg = f"Executable not found: {executable}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise FileNotFoundError(error_msg) from e
-
-        except PermissionError as e:
             error_msg = f"Permission denied starting process: {executable}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise PermissionError(error_msg) from e
-
-        except Exception as e:
             error_msg = f"Error starting process {executable}: {e}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
-
     def terminate_process(self, pid: int, force: bool = False) -> bool:
-        """
-        Terminate a process.
+        """Terminate a process.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -815,6 +787,7 @@ class MacOSIntegration:
 
         Example:
             >>> integration.terminate_process(1234, force=False)
+
         """
         try:
             process = psutil.Process(pid)
@@ -830,25 +803,19 @@ class MacOSIntegration:
 
         except psutil.NoSuchProcess as e:
             error_msg = f"Process not found: PID {pid}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise ProcessLookupError(error_msg) from e
-
-        except psutil.AccessDenied as e:
             error_msg = (
                 f"Permission denied terminating process {pid}. "
                 f"Administrator privileges may be required."
             )
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise PermissionError(error_msg) from e
-
-        except Exception as e:
             error_msg = f"Error terminating process {pid}: {e}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
-
     def execute_command(self, command: str, args: list[str]) -> CommandResult:
-        """
-        Execute a macOS command.
+        """Execute a macOS command.
 
         Time Complexity: O(1) + command execution time
         Space Complexity: O(output_size)
@@ -863,57 +830,60 @@ class MacOSIntegration:
         Example:
             >>> result = integration.execute_command("echo", ["Hello"])
             >>> print(result.stdout)
+
         """
         try:
             start_time = time.time()
 
             # Build command
-            cmd = [command] + args
+            cmd = [command, *args]
 
             # Reject sudo execution without explicit admin check
             _PRIVILEGED_COMMANDS = {"sudo", "su", "doas"}
             if command in _PRIVILEGED_COMMANDS or (args and args[0] in _PRIVILEGED_COMMANDS):
                 if not self.is_admin():
-                    raise PermissionError(
+                    msg = (
                         f"Privileged command '{command}' requires administrator rights. "
                         "Verify permissions before calling execute_command with sudo."
                     )
+                    raise PermissionError(
+                        msg,
+                    )
 
             # Execute command
-            result = subprocess.run(  # nosec B603 B607
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 cmd,
+                check=False,
                 capture_output=True,
                 text=True,
-                timeout=30  # 30 second timeout
+                timeout=30,  # 30 second timeout
             )
 
             execution_time = time.time() - start_time
 
             logger.debug(
-                f"Executed command: {command} (return code: {result.returncode}, "
-                f"time: {execution_time:.3f}s)"
+                "Executed command: %s (return code: %d, time: %.3fs)",
+                command,
+                result.returncode,
+                execution_time,
             )
 
             return CommandResult(
                 stdout=result.stdout,
                 stderr=result.stderr,
                 return_code=result.returncode,
-                execution_time=execution_time
+                execution_time=execution_time,
             )
 
         except subprocess.TimeoutExpired as e:
             error_msg = f"Command timed out: {command}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise TimeoutError(error_msg) from e
-
-        except Exception as e:
             error_msg = f"Error executing command {command}: {e}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
-
     def get_system_info(self) -> SystemInfo:
-        """
-        Get macOS system information.
+        """Get macOS system information.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -924,6 +894,7 @@ class MacOSIntegration:
         Example:
             >>> info = integration.get_system_info()
             >>> print(f"Hostname: {info.hostname}")
+
         """
         import platform
         import socket
@@ -936,14 +907,13 @@ class MacOSIntegration:
             processor=platform.processor(),
             cpu_count_physical=psutil.cpu_count(logical=False) or 0,
             cpu_count_logical=psutil.cpu_count(logical=True) or 0,
-            boot_time=psutil.boot_time()
+            boot_time=psutil.boot_time(),
         )
 
     # Permission Validation
 
     def is_admin(self) -> bool:
-        """
-        Check if running with administrator (root) privileges.
+        """Check if running with administrator (root) privileges.
 
         Returns:
             True if running as root
@@ -951,6 +921,8 @@ class MacOSIntegration:
         Example:
             >>> if integration.is_admin():
             ...     print("Running as administrator")
+
         """
         import os
+
         return os.getuid() == 0

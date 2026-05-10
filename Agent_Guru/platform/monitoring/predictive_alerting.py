@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.monitoring.predictive_alerting
-Purpose: Predictive resource exhaustion detection and alerting
+"""Module: agent_guru.platform.monitoring.predictive_alerting
+Purpose: Predictive resource exhaustion detection and alerting.
 
 This module implements predictive alerting using:
 - Historical metrics storage with efficient time-series data structures
@@ -29,12 +28,12 @@ Version: 1.0.0
 import time
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Optional
 
 try:
     import numpy as np
+
     NUMPY_AVAILABLE = True
 except ImportError:
     NUMPY_AVAILABLE = False
@@ -44,6 +43,7 @@ from .resource_monitor import AlertSeverity, ResourceSnapshot, ResourceType
 
 class TrendDirection(Enum):
     """Trend direction for resource usage."""
+
     INCREASING = "increasing"
     DECREASING = "decreasing"
     STABLE = "stable"
@@ -51,6 +51,7 @@ class TrendDirection(Enum):
 
 class PredictionConfidence(Enum):
     """Confidence level for predictions."""
+
     LOW = "low"  # <60% confidence
     MEDIUM = "medium"  # 60-80% confidence
     HIGH = "high"  # >80% confidence
@@ -59,6 +60,7 @@ class PredictionConfidence(Enum):
 @dataclass
 class TrendAnalysis:
     """Result of trend analysis for a resource."""
+
     resource_type: ResourceType
     direction: TrendDirection
     slope: float  # Rate of change per second
@@ -73,6 +75,7 @@ class TrendAnalysis:
 @dataclass
 class ExhaustionPrediction:
     """Prediction of when a resource will be exhausted."""
+
     resource_type: ResourceType
     current_value: float
     exhaustion_threshold: float
@@ -87,6 +90,7 @@ class ExhaustionPrediction:
 @dataclass
 class PredictiveAlert:
     """Predictive alert for potential resource exhaustion."""
+
     alert_id: str
     resource_type: ResourceType
     severity: AlertSeverity
@@ -99,6 +103,7 @@ class PredictiveAlert:
 @dataclass
 class PredictiveAlertingConfig:
     """Configuration for predictive alerting."""
+
     # Trend analysis
     trend_window_size: int = 120  # Number of samples (10 minutes at 5s interval)
     min_samples_for_prediction: int = 10  # Minimum samples needed
@@ -128,8 +133,7 @@ class PredictiveAlertingConfig:
 
 
 class PredictiveAlerting:
-    """
-    Predictive resource exhaustion detection and alerting.
+    """Predictive resource exhaustion detection and alerting.
 
     Analyzes historical resource metrics to predict future exhaustion
     and generate proactive alerts.
@@ -153,20 +157,21 @@ class PredictiveAlerting:
         >>> prediction = predictor.predict_exhaustion(ResourceType.MEMORY)
         >>> if prediction:
         ...     print(f"Memory exhaustion in {prediction.time_until_exhaustion}")
+
     """
 
-    def __init__(self, config: Optional[PredictiveAlertingConfig] = None):
-        """
-        Initialize predictive alerting.
+    def __init__(self, config: PredictiveAlertingConfig | None = None) -> None:
+        """Initialize predictive alerting.
 
         Args:
             config: Predictive alerting configuration
+
         """
         self.config = config or PredictiveAlertingConfig()
 
         # Historical metrics storage (fixed size for memory efficiency)
         self.metrics_history: deque[ResourceSnapshot] = deque(
-            maxlen=10000  # ~14 hours at 5s interval
+            maxlen=10000,  # ~14 hours at 5s interval
         )
 
         # Trend analysis cache (avoid recomputation)
@@ -180,14 +185,14 @@ class PredictiveAlerting:
         self._prediction_history: deque[ExhaustionPrediction] = deque(maxlen=1000)
 
     def add_snapshot(self, snapshot: ResourceSnapshot) -> None:
-        """
-        Add resource snapshot to historical data.
+        """Add resource snapshot to historical data.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
 
         Args:
             snapshot: Resource usage snapshot
+
         """
         self.metrics_history.append(snapshot)
 
@@ -197,10 +202,9 @@ class PredictiveAlerting:
     def analyze_trend(
         self,
         resource_type: ResourceType,
-        window_size: Optional[int] = None
-    ) -> Optional[TrendAnalysis]:
-        """
-        Analyze resource usage trend using linear regression.
+        window_size: int | None = None,
+    ) -> TrendAnalysis | None:
+        """Analyze resource usage trend using linear regression.
 
         Time Complexity: O(n) where n is window size
         Space Complexity: O(n) for temporary arrays
@@ -211,6 +215,7 @@ class PredictiveAlerting:
 
         Returns:
             Trend analysis result, or None if insufficient data
+
         """
         # Check cache
         cache_key = resource_type
@@ -239,16 +244,14 @@ class PredictiveAlerting:
 
         # Apply moving average for noise reduction
         if self.config.use_moving_average:
-            values = self._moving_average(
-                values,
-                self.config.moving_average_window
-            )
+            values = self._moving_average(values, self.config.moving_average_window)
 
         # Perform linear regression
-        slope, intercept, r_squared = self._linear_regression(values)
+        slope, _intercept, r_squared = self._linear_regression(values)
 
         # Determine trend direction
-        if abs(slope) < 0.01:  # Threshold for "stable"
+        if abs(slope) < 0.01:  # Threshold for "stable"  # noqa: PLR2004 (Threshold value)
+
             direction = TrendDirection.STABLE
         elif slope > 0:
             direction = TrendDirection.INCREASING
@@ -256,15 +259,18 @@ class PredictiveAlerting:
             direction = TrendDirection.DECREASING
 
         # Calculate confidence
-        if r_squared >= 0.8:
+        if r_squared >= 0.8:  # noqa: PLR2004 - Threshold value
+
             confidence = PredictionConfidence.HIGH
-        elif r_squared >= 0.6:
+        elif r_squared >= 0.6:  # noqa: PLR2004 - Threshold value
+
             confidence = PredictionConfidence.MEDIUM
         else:
             confidence = PredictionConfidence.LOW
 
         # Get time interval between samples
-        if len(recent) >= 2:
+        if len(recent) >= 2:  # noqa: PLR2004 - Small integer threshold
+
             time_delta = (recent[-1].timestamp - recent[0].timestamp).total_seconds()
             samples_per_second = len(recent) / time_delta if time_delta > 0 else 1.0
         else:
@@ -291,7 +297,7 @@ class PredictiveAlerting:
             predicted_value_1h=predicted_1h,
             predicted_value_24h=predicted_24h,
             confidence=confidence,
-            timestamp=datetime.now(tz=timezone.utc)
+            timestamp=datetime.now(tz=UTC),
         )
 
         # Cache result
@@ -302,10 +308,9 @@ class PredictiveAlerting:
     def predict_exhaustion(
         self,
         resource_type: ResourceType,
-        horizon: Optional[timedelta] = None
-    ) -> Optional[ExhaustionPrediction]:
-        """
-        Predict when resource will be exhausted based on current trend.
+        horizon: timedelta | None = None,
+    ) -> ExhaustionPrediction | None:
+        """Predict when resource will be exhausted based on current trend.
 
         Time Complexity: O(n) where n is window size
         Space Complexity: O(n) for temporary arrays
@@ -316,6 +321,7 @@ class PredictiveAlerting:
 
         Returns:
             Exhaustion prediction, or None if no exhaustion predicted
+
         """
         if horizon is None:
             horizon = self.config.long_term_horizon
@@ -347,12 +353,12 @@ class PredictiveAlerting:
                 resource_type=resource_type,
                 current_value=current_value,
                 exhaustion_threshold=threshold,
-                predicted_exhaustion_time=datetime.now(tz=timezone.utc),
+                predicted_exhaustion_time=datetime.now(tz=UTC),
                 time_until_exhaustion=timedelta(0),
                 confidence=trend.confidence,
                 trend_slope=trend.slope,
                 r_squared=trend.r_squared,
-                timestamp=datetime.now(tz=timezone.utc)
+                timestamp=datetime.now(tz=UTC),
             )
             self._prediction_history.append(prediction)
             return prediction
@@ -373,12 +379,12 @@ class PredictiveAlerting:
             resource_type=resource_type,
             current_value=current_value,
             exhaustion_threshold=threshold,
-            predicted_exhaustion_time=datetime.now(tz=timezone.utc) + time_to_exhaustion,
+            predicted_exhaustion_time=datetime.now(tz=UTC) + time_to_exhaustion,
             time_until_exhaustion=time_to_exhaustion,
             confidence=trend.confidence,
             trend_slope=trend.slope,
             r_squared=trend.r_squared,
-            timestamp=datetime.now(tz=timezone.utc)
+            timestamp=datetime.now(tz=UTC),
         )
 
         # Store in history
@@ -387,14 +393,14 @@ class PredictiveAlerting:
         return prediction
 
     def generate_predictive_alerts(self) -> list[PredictiveAlert]:
-        """
-        Generate predictive alerts for all resource types.
+        """Generate predictive alerts for all resource types.
 
         Time Complexity: O(k * n) where k is number of resource types, n is window size
         Space Complexity: O(k) for alerts
 
         Returns:
             List of predictive alerts
+
         """
         alerts = []
 
@@ -406,9 +412,7 @@ class PredictiveAlerting:
                 continue
 
             # Determine severity based on time until exhaustion
-            severity = self._calculate_prediction_severity(
-                prediction.time_until_exhaustion
-            )
+            severity = self._calculate_prediction_severity(prediction.time_until_exhaustion)
 
             # Create alert
             alert_id = f"predictive_{resource_type.value}"
@@ -420,7 +424,7 @@ class PredictiveAlerting:
                 prediction=prediction,
                 message=self._generate_alert_message(prediction),
                 recommended_action=self._generate_recommended_action(prediction),
-                timestamp=datetime.now(tz=timezone.utc)
+                timestamp=datetime.now(tz=UTC),
             )
 
             alerts.append(alert)
@@ -430,12 +434,11 @@ class PredictiveAlerting:
 
     def get_prediction_history(
         self,
-        resource_type: Optional[ResourceType] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None
+        resource_type: ResourceType | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> list[ExhaustionPrediction]:
-        """
-        Get prediction history with optional filters.
+        """Get prediction history with optional filters.
 
         Time Complexity: O(n) where n is history size
         Space Complexity: O(m) where m is matching predictions
@@ -447,6 +450,7 @@ class PredictiveAlerting:
 
         Returns:
             List of predictions matching filters
+
         """
         predictions = list(self._prediction_history)
 
@@ -462,23 +466,23 @@ class PredictiveAlerting:
         return predictions
 
     def get_active_predictions(self) -> list[PredictiveAlert]:
-        """
-        Get currently active predictive alerts.
+        """Get currently active predictive alerts.
 
         Returns:
             List of active predictive alerts
+
         """
         return list(self._active_predictions.values())
 
     def clear_prediction(self, alert_id: str) -> bool:
-        """
-        Clear an active predictive alert.
+        """Clear an active predictive alert.
 
         Args:
             alert_id: ID of alert to clear
 
         Returns:
             True if alert was found and cleared
+
         """
         if alert_id in self._active_predictions:
             del self._active_predictions[alert_id]
@@ -488,10 +492,9 @@ class PredictiveAlerting:
     def _extract_values(
         self,
         snapshots: list[ResourceSnapshot],
-        resource_type: ResourceType
+        resource_type: ResourceType,
     ) -> list[float]:
-        """
-        Extract values for specific resource type from snapshots.
+        """Extract values for specific resource type from snapshots.
 
         Args:
             snapshots: List of resource snapshots
@@ -499,6 +502,7 @@ class PredictiveAlerting:
 
         Returns:
             List of values
+
         """
         values = []
 
@@ -520,8 +524,7 @@ class PredictiveAlerting:
         return values
 
     def _moving_average(self, values: list[float], window: int) -> list[float]:
-        """
-        Apply moving average smoothing.
+        """Apply moving average smoothing.
 
         Time Complexity: O(n)
         Space Complexity: O(n)
@@ -532,6 +535,7 @@ class PredictiveAlerting:
 
         Returns:
             Smoothed values
+
         """
         if len(values) < window:
             return values
@@ -540,27 +544,22 @@ class PredictiveAlerting:
             # Use numpy for efficient computation
             arr = np.array(values)
             weights = np.ones(window) / window
-            smoothed = np.convolve(arr, weights, mode='valid')
+            smoothed = np.convolve(arr, weights, mode="valid")
             # Pad beginning to maintain length
             padding = [values[0]] * (window - 1)
             return padding + smoothed.tolist()
-        else:
-            # Pure Python implementation
-            smoothed = []
-            for i in range(len(values)):
-                if i < window - 1:
-                    smoothed.append(values[i])
-                else:
-                    avg = sum(values[i - window + 1:i + 1]) / window
-                    smoothed.append(avg)
-            return smoothed
+        # Pure Python implementation
+        smoothed = []
+        for i in range(len(values)):
+            if i < window - 1:
+                smoothed.append(values[i])
+            else:
+                avg = sum(values[i - window + 1 : i + 1]) / window
+                smoothed.append(avg)
+        return smoothed
 
-    def _linear_regression(
-        self,
-        values: list[float]
-    ) -> tuple[float, float, float]:
-        """
-        Perform simple linear regression.
+    def _linear_regression(self, values: list[float]) -> tuple[float, float, float]:
+        """Perform simple linear regression.
 
         Time Complexity: O(n)
         Space Complexity: O(1)
@@ -570,10 +569,12 @@ class PredictiveAlerting:
 
         Returns:
             Tuple of (slope, intercept, r_squared)
+
         """
         n = len(values)
 
-        if n < 2:
+        if n < 2:  # noqa: PLR2004 - Small integer threshold
+
             return (0.0, values[0] if values else 0.0, 0.0)
 
         if NUMPY_AVAILABLE:
@@ -602,58 +603,52 @@ class PredictiveAlerting:
             r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
 
             return (float(slope), float(intercept), float(r_squared))
-        else:
-            # Pure Python implementation
-            x = list(range(n))
-            y = values
+        # Pure Python implementation
+        x = list(range(n))
+        y = values
 
-            x_mean = sum(x) / n
-            y_mean = sum(y) / n
+        x_mean = sum(x) / n
+        y_mean = sum(y) / n
 
-            numerator = sum((x[i] - x_mean) * (y[i] - y_mean) for i in range(n))
-            denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
+        numerator = sum((x[i] - x_mean) * (y[i] - y_mean) for i in range(n))
+        denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
 
-            if denominator == 0:
-                return (0.0, y_mean, 0.0)
+        if denominator == 0:
+            return (0.0, y_mean, 0.0)
 
-            slope = numerator / denominator
-            intercept = y_mean - slope * x_mean
+        slope = numerator / denominator
+        intercept = y_mean - slope * x_mean
 
-            # Calculate R²
-            y_pred = [slope * x[i] + intercept for i in range(n)]
-            ss_res = sum((y[i] - y_pred[i]) ** 2 for i in range(n))
-            ss_tot = sum((y[i] - y_mean) ** 2 for i in range(n))
+        # Calculate R²
+        y_pred = [slope * x[i] + intercept for i in range(n)]
+        ss_res = sum((y[i] - y_pred[i]) ** 2 for i in range(n))
+        ss_tot = sum((y[i] - y_mean) ** 2 for i in range(n))
 
-            r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
+        r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
 
-            return (slope, intercept, r_squared)
+        return (slope, intercept, r_squared)
 
     def _get_exhaustion_threshold(self, resource_type: ResourceType) -> float:
         """Get exhaustion threshold for resource type."""
         if resource_type == ResourceType.CPU:
             return self.config.cpu_exhaustion_threshold
-        elif resource_type == ResourceType.MEMORY:
+        if resource_type == ResourceType.MEMORY:
             return self.config.memory_exhaustion_threshold
-        elif resource_type == ResourceType.DISK:
+        if resource_type == ResourceType.DISK:
             return self.config.disk_exhaustion_threshold
-        elif resource_type == ResourceType.GPU:
+        if resource_type == ResourceType.GPU:
             return self.config.gpu_exhaustion_threshold
-        else:
-            return 95.0
+        return 95.0
 
-    def _calculate_prediction_severity(
-        self,
-        time_until_exhaustion: timedelta
-    ) -> AlertSeverity:
+    def _calculate_prediction_severity(self, time_until_exhaustion: timedelta) -> AlertSeverity:
         """Calculate alert severity based on time until exhaustion."""
         if time_until_exhaustion <= self.config.critical_threshold:
             return AlertSeverity.CRITICAL
-        elif time_until_exhaustion <= self.config.high_threshold:
+        if time_until_exhaustion <= self.config.high_threshold:
             return AlertSeverity.HIGH
-        elif time_until_exhaustion <= self.config.medium_threshold:
+        if time_until_exhaustion <= self.config.medium_threshold:
             return AlertSeverity.MEDIUM
-        else:
-            return AlertSeverity.LOW
+        return AlertSeverity.LOW
 
     def _generate_alert_message(self, prediction: ExhaustionPrediction) -> str:
         """Generate human-readable alert message."""
@@ -662,10 +657,7 @@ class PredictiveAlerting:
         hours = int(prediction.time_until_exhaustion.total_seconds() / 3600)
         minutes = int((prediction.time_until_exhaustion.total_seconds() % 3600) / 60)
 
-        if hours > 0:
-            time_str = f"{hours}h {minutes}m"
-        else:
-            time_str = f"{minutes}m"
+        time_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
 
         return (
             f"{resource_name} predicted to reach "
@@ -674,10 +666,7 @@ class PredictiveAlerting:
             f"trend: +{prediction.trend_slope:.2f}%/s)"
         )
 
-    def _generate_recommended_action(
-        self,
-        prediction: ExhaustionPrediction
-    ) -> str:
+    def _generate_recommended_action(self, prediction: ExhaustionPrediction) -> str:
         """Generate recommended action for prediction."""
         resource_type = prediction.resource_type
 
@@ -686,20 +675,13 @@ class PredictiveAlerting:
                 "Consider throttling operations, closing applications, "
                 "or scaling up compute resources"
             )
-        elif resource_type == ResourceType.MEMORY:
-            return (
-                "Consider freeing memory, closing applications, "
-                "or increasing available RAM"
-            )
-        elif resource_type == ResourceType.DISK:
+        if resource_type == ResourceType.MEMORY:
+            return "Consider freeing memory, closing applications, or increasing available RAM"
+        if resource_type == ResourceType.DISK:
             return (
                 "Consider cleaning temporary files, archiving old data, "
                 "or expanding storage capacity"
             )
-        elif resource_type == ResourceType.GPU:
-            return (
-                "Consider reducing batch size, model size, "
-                "or adding GPU resources"
-            )
-        else:
-            return "Monitor resource usage and take corrective action"
+        if resource_type == ResourceType.GPU:
+            return "Consider reducing batch size, model size, or adding GPU resources"
+        return "Monitor resource usage and take corrective action"

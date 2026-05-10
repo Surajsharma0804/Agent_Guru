@@ -1,8 +1,7 @@
-"""
-Module: agent_guru.platform.process_manager
+"""Module: agent_guru.platform.process_manager
 Purpose: Cross-platform process management using psutil
 Author: Agent Guru Team
-Date: 2026-02-24
+Date: 2026-02-24.
 
 Performance Requirements:
 - Time Complexity: O(n) for process listing, O(1) for single process operations
@@ -73,13 +72,13 @@ References:
 Author: Agent Guru Team
 Date: 2026-02-24
 Version: 1.0.0
+
 """
 
 import logging
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 import psutil
 
@@ -98,7 +97,9 @@ class ProcessInfo:
         cpu_percent: CPU usage percentage (0-100)
         memory_percent: Memory usage percentage (0-100)
         create_time: Process creation time (Unix timestamp)
+
     """
+
     pid: int
     name: str
     status: str
@@ -109,19 +110,26 @@ class ProcessInfo:
     def __post_init__(self):
         """Validate ProcessInfo fields."""
         if self.pid <= 0:
-            raise ValueError(f"Invalid PID: {self.pid} (must be positive)")
+            msg = f"Invalid PID: {self.pid} (must be positive)"
+            raise ValueError(msg)
         if not self.name:
-            raise ValueError("Process name cannot be empty")
+            msg = "Process name cannot be empty"
+            raise ValueError(msg)
         valid_statuses = {"running", "sleeping", "stopped", "zombie", "disk-sleep", "idle"}
         if self.status not in valid_statuses:
-            raise ValueError(f"Invalid status: {self.status} (must be one of {valid_statuses})")
+            msg = f"Invalid status: {self.status} (must be one of {valid_statuses})"
+            raise ValueError(msg)
         # CPU percent can exceed 100% on multi-core systems (per-core usage)
         if self.cpu_percent < 0:
-            raise ValueError(f"Invalid CPU percent: {self.cpu_percent} (must be non-negative)")
-        if not 0 <= self.memory_percent <= 100:
-            raise ValueError(f"Invalid memory percent: {self.memory_percent} (must be 0-100)")
+            msg = f"Invalid CPU percent: {self.cpu_percent} (must be non-negative)"
+            raise ValueError(msg)
+        if not 0 <= self.memory_percent <= 100:  # noqa: PLR2004 - Percentage/large threshold
+
+            msg = f"Invalid memory percent: {self.memory_percent} (must be 0-100)"
+            raise ValueError(msg)
         if self.create_time < 0:
-            raise ValueError(f"Invalid create_time: {self.create_time} (must be non-negative)")
+            msg = f"Invalid create_time: {self.create_time} (must be non-negative)"
+            raise ValueError(msg)
 
 
 class ProcessManagerError(Exception):
@@ -151,9 +159,10 @@ class ProcessManager:
         >>> processes = manager.list_processes()
         >>> pid = manager.start_process("python", ["script.py"])
         >>> manager.terminate_process(pid)
+
     """
 
-    def __init__(self, cache_ttl: float = 1.0):
+    def __init__(self, cache_ttl: float = 1.0) -> None:
         """Initialize process manager.
 
         Args:
@@ -161,12 +170,14 @@ class ProcessManager:
 
         Raises:
             ValueError: If cache_ttl is negative
+
         """
         if cache_ttl < 0:
-            raise ValueError(f"Invalid cache_ttl: {cache_ttl} (must be non-negative)")
+            msg = f"Invalid cache_ttl: {cache_ttl} (must be non-negative)"
+            raise ValueError(msg)
 
         self.cache_ttl = cache_ttl
-        self._process_cache: Optional[list[ProcessInfo]] = None
+        self._process_cache: list[ProcessInfo] | None = None
         self._cache_timestamp: float = 0.0
 
         logger.info("ProcessManager initialized with cache_ttl=%.2fs", cache_ttl)
@@ -185,6 +196,7 @@ class ProcessManager:
 
         Raises:
             ProcessManagerError: If process listing fails
+
         """
         # Check cache
         if use_cache and self._is_cache_valid():
@@ -219,7 +231,6 @@ class ProcessManager:
                         create_time = proc.create_time()
                     except (psutil.AccessDenied, OSError):
                         create_time = 0.0
-
                     if pid <= 0:
                         continue
 
@@ -229,11 +240,16 @@ class ProcessManager:
                         status=status,
                         cpu_percent=cpu_pct or 0.0,
                         memory_percent=mem_pct or 0.0,
-                        create_time=create_time or 0.0
+                        create_time=create_time or 0.0,
                     )
                     processes.append(process_info)
 
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError) as e:
+                except (
+                    psutil.NoSuchProcess,
+                    psutil.AccessDenied,
+                    psutil.ZombieProcess,
+                    OSError,
+                ) as e:
                     logger.debug("Skipping process %d: %s", pid, e)
                     continue
 
@@ -245,10 +261,10 @@ class ProcessManager:
             return processes.copy()
 
         except Exception as e:
-            logger.error("Failed to list processes: %s", e)
-            raise ProcessManagerError(f"Failed to list processes: {e}") from e
-
-    def start_process(self, executable: str, args: Optional[list[str]] = None) -> int:
+            logger.exception("Failed to list processes")
+            msg = f"Failed to list processes: {e}"
+            raise ProcessManagerError(msg) from e
+    def start_process(self, executable: str, args: list[str] | None = None) -> int:
         """Start a new process.
 
         Time Complexity: O(1)
@@ -264,29 +280,32 @@ class ProcessManager:
         Raises:
             ProcessStartError: If process creation fails
             ValueError: If executable is empty
+
         """
         if not executable:
-            raise ValueError("Executable cannot be empty")
+            msg = "Executable cannot be empty"
+            raise ValueError(msg)
 
         args = args or []
-        command = [executable] + args
+        command = [executable, *args]
 
         try:
             logger.info("Starting process: %s", " ".join(command))
 
             # Start process using subprocess
-            process = subprocess.Popen(
+            process = subprocess.Popen(  # noqa: S603
                 command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                stdin=subprocess.PIPE
+                stdin=subprocess.PIPE,
             )
 
             pid = process.pid
 
             # Validate PID
             if pid <= 0:
-                raise ProcessStartError(f"Invalid PID returned: {pid}")
+                msg = f"Invalid PID returned: {pid}"
+                raise ProcessStartError(msg)
 
             # Invalidate cache
             self._invalidate_cache()
@@ -295,15 +314,15 @@ class ProcessManager:
             return pid
 
         except FileNotFoundError as e:
-            logger.error("Executable not found: %s", executable)
-            raise ProcessStartError(f"Executable not found: {executable}") from e
-        except PermissionError as e:
-            logger.error("Permission denied to start process: %s", executable)
-            raise ProcessStartError(f"Permission denied: {executable}") from e
-        except Exception as e:
-            logger.error("Failed to start process: %s", e)
-            raise ProcessStartError(f"Failed to start process '{executable}': {e}") from e
-
+            logger.exception("Executable not found")
+            msg = f"Executable not found: {executable}"
+            raise ProcessStartError(msg) from e
+            logger.exception("Permission denied to start process")
+            msg = f"Permission denied: {executable}"
+            raise ProcessStartError(msg) from e
+            logger.exception("Failed to start process")
+            msg = f"Failed to start process '{executable}': {e}"
+            raise ProcessStartError(msg) from e
     def terminate_process(self, pid: int, force: bool = False) -> bool:
         """Terminate a process.
 
@@ -321,9 +340,11 @@ class ProcessManager:
             ProcessNotFoundError: If process does not exist
             ProcessTerminationError: If termination fails
             ValueError: If PID is invalid
+
         """
         if pid <= 0:
-            raise ValueError(f"Invalid PID: {pid} (must be positive)")
+            msg = f"Invalid PID: {pid} (must be positive)"
+            raise ValueError(msg)
 
         try:
             # Get process object
@@ -341,14 +362,13 @@ class ProcessManager:
             # Wait for process to terminate (with timeout)
             try:
                 process.wait(timeout=5.0)
-            except psutil.TimeoutExpired as e:
-                logger.warning("Process PID=%d did not terminate within timeout", pid)
+            except psutil.TimeoutExpired:
+                logger.exception("Process PID=%d did not terminate within timeout")
                 if not force:
                     # If graceful termination timed out, force kill
                     logger.info("Force killing process PID=%d", pid)
                     process.kill()
                     process.wait(timeout=5.0)
-
             # Invalidate cache
             self._invalidate_cache()
 
@@ -356,15 +376,15 @@ class ProcessManager:
             return True
 
         except psutil.NoSuchProcess as e:
-            logger.error("Process not found: PID=%d", pid)
-            raise ProcessNotFoundError(f"Process not found: PID={pid}") from e
-        except psutil.AccessDenied as e:
-            logger.error("Permission denied to terminate process PID=%d", pid)
-            raise ProcessTerminationError(f"Permission denied to terminate PID={pid}") from e
-        except Exception as e:
-            logger.error("Failed to terminate process PID=%d: %s", pid, e)
-            raise ProcessTerminationError(f"Failed to terminate PID={pid}: {e}") from e
-
+            logger.exception("Process not found: PID=%d")
+            msg = f"Process not found: PID={pid}"
+            raise ProcessNotFoundError(msg) from e
+            logger.exception("Permission denied to terminate process PID=%d")
+            msg = f"Permission denied to terminate PID={pid}"
+            raise ProcessTerminationError(msg) from e
+            logger.exception("Failed to terminate process PID=%d: %s")
+            msg = f"Failed to terminate PID={pid}: {e}"
+            raise ProcessTerminationError(msg) from e
     def get_process_status(self, pid: int) -> str:
         """Query process status.
 
@@ -380,9 +400,11 @@ class ProcessManager:
         Raises:
             ProcessNotFoundError: If process does not exist
             ValueError: If PID is invalid
+
         """
         if pid <= 0:
-            raise ValueError(f"Invalid PID: {pid} (must be positive)")
+            msg = f"Invalid PID: {pid} (must be positive)"
+            raise ValueError(msg)
 
         try:
             process = psutil.Process(pid)
@@ -395,12 +417,12 @@ class ProcessManager:
             return normalized_status
 
         except psutil.NoSuchProcess as e:
-            logger.error("Process not found: PID=%d", pid)
-            raise ProcessNotFoundError(f"Process not found: PID={pid}") from e
-        except Exception as e:
-            logger.error("Failed to query process status PID=%d: %s", pid, e)
-            raise ProcessManagerError(f"Failed to query status for PID={pid}: {e}") from e
-
+            logger.exception("Process not found: PID=%d")
+            msg = f"Process not found: PID={pid}"
+            raise ProcessNotFoundError(msg) from e
+            logger.exception("Failed to query process status PID=%d: %s")
+            msg = f"Failed to query status for PID={pid}: {e}"
+            raise ProcessManagerError(msg) from e
     def get_process_info(self, pid: int) -> ProcessInfo:
         """Get detailed process information.
 
@@ -416,9 +438,11 @@ class ProcessManager:
         Raises:
             ProcessNotFoundError: If process does not exist
             ValueError: If PID is invalid
+
         """
         if pid <= 0:
-            raise ValueError(f"Invalid PID: {pid} (must be positive)")
+            msg = f"Invalid PID: {pid} (must be positive)"
+            raise ValueError(msg)
 
         try:
             process = psutil.Process(pid)
@@ -437,19 +461,19 @@ class ProcessManager:
                 status=status,
                 cpu_percent=cpu_percent,
                 memory_percent=memory_percent,
-                create_time=create_time
+                create_time=create_time,
             )
 
             logger.debug("Retrieved info for process PID=%d: %s", pid, name)
             return process_info
 
         except psutil.NoSuchProcess as e:
-            logger.error("Process not found: PID=%d", pid)
-            raise ProcessNotFoundError(f"Process not found: PID={pid}") from e
-        except Exception as e:
-            logger.error("Failed to get process info PID=%d: %s", pid, e)
-            raise ProcessManagerError(f"Failed to get info for PID={pid}: {e}") from e
-
+            logger.exception("Process not found: PID=%d")
+            msg = f"Process not found: PID={pid}"
+            raise ProcessNotFoundError(msg) from e
+            logger.exception("Failed to get process info PID=%d: %s")
+            msg = f"Failed to get info for PID={pid}: {e}"
+            raise ProcessManagerError(msg) from e
     def process_exists(self, pid: int) -> bool:
         """Check if process exists.
 
@@ -464,9 +488,11 @@ class ProcessManager:
 
         Raises:
             ValueError: If PID is invalid
+
         """
         if pid <= 0:
-            raise ValueError(f"Invalid PID: {pid} (must be positive)")
+            msg = f"Invalid PID: {pid} (must be positive)"
+            raise ValueError(msg)
 
         return psutil.pid_exists(pid)
 
@@ -478,29 +504,30 @@ class ProcessManager:
 
         Returns:
             Normalized status: "running", "sleeping", "stopped", or "zombie"
+
         """
         # psutil status constants vary by platform
         # Normalize to consistent values
         status_lower = status.lower()
 
-        if status_lower in ('running', 'runnable'):
-            return 'running'
-        elif status_lower in ('sleeping', 'idle', 'disk-sleep'):
-            return 'sleeping'
-        elif status_lower in ('stopped', 'suspended'):
-            return 'stopped'
-        elif status_lower in ('zombie', 'dead'):
-            return 'zombie'
-        else:
-            # Unknown status - default to running
-            logger.warning("Unknown process status: %s, defaulting to 'running'", status)
-            return 'running'
+        if status_lower in ("running", "runnable"):
+            return "running"
+        if status_lower in ("sleeping", "idle", "disk-sleep"):
+            return "sleeping"
+        if status_lower in ("stopped", "suspended"):
+            return "stopped"
+        if status_lower in ("zombie", "dead"):
+            return "zombie"
+        # Unknown status - default to running
+        logger.warning("Unknown process status: %s, defaulting to 'running'", status)
+        return "running"
 
     def _is_cache_valid(self) -> bool:
         """Check if process cache is valid.
 
         Returns:
             True if cache exists and is not expired
+
         """
         if self._process_cache is None:
             return False

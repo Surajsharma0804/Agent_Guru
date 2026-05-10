@@ -1,5 +1,4 @@
-"""
-Mobile Permission Manager - Android and iOS permission handling.
+"""Mobile Permission Manager - Android and iOS permission handling.
 
 This module provides mobile-specific permission request flows and runtime
 permission handling for Android 6.0+ and iOS.
@@ -20,11 +19,11 @@ import platform
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class MobilePermission(Enum):
     """Mobile permission types."""
+
     # Android permissions
     RECORD_AUDIO = "android.permission.RECORD_AUDIO"
     CAMERA = "android.permission.CAMERA"
@@ -48,6 +47,7 @@ class MobilePermission(Enum):
 
 class PermissionStatus(Enum):
     """Permission status states."""
+
     GRANTED = "granted"
     DENIED = "denied"
     DENIED_PERMANENTLY = "denied_permanently"
@@ -62,7 +62,9 @@ class PermissionRequest:
         permission: Permission being requested
         rationale: User-friendly explanation of why permission is needed
         required: Whether permission is required for core functionality
+
     """
+
     permission: MobilePermission
     rationale: str
     required: bool = True
@@ -76,7 +78,9 @@ class PermissionResult:
         permission: Permission that was requested
         status: Current status of the permission
         can_request_again: Whether permission can be requested again
+
     """
+
     permission: MobilePermission
     status: PermissionStatus
     can_request_again: bool
@@ -101,18 +105,16 @@ class MobilePermissionManager:
         >>> result = manager.request_permission(request)
         >>> if result.status == PermissionStatus.GRANTED:
         ...     print("Permission granted!")
+
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize mobile permission manager."""
         self._platform = platform.system()
         self._permission_status: dict[MobilePermission, PermissionStatus] = {}
         self._request_callbacks: dict[MobilePermission, Callable] = {}
 
-    def request_permission(
-        self,
-        request: PermissionRequest
-    ) -> PermissionResult:
+    def request_permission(self, request: PermissionRequest) -> PermissionResult:
         """Request a mobile permission with user-friendly explanation.
 
         Time Complexity: O(1)
@@ -130,6 +132,7 @@ class MobilePermissionManager:
             ...     rationale="For face recognition authentication"
             ... )
             >>> result = manager.request_permission(request)
+
         """
         # Check current status
         current_status = self.check_permission_status(request.permission)
@@ -138,33 +141,29 @@ class MobilePermissionManager:
             return PermissionResult(
                 permission=request.permission,
                 status=PermissionStatus.GRANTED,
-                can_request_again=False
+                can_request_again=False,
             )
 
         if current_status == PermissionStatus.DENIED_PERMANENTLY:
             return PermissionResult(
                 permission=request.permission,
                 status=PermissionStatus.DENIED_PERMANENTLY,
-                can_request_again=False
+                can_request_again=False,
             )
 
         # Request permission from platform
         if self._platform == "Android":
             return self._request_android_permission(request)
-        elif self._platform == "iOS":
+        if self._platform == "iOS":
             return self._request_ios_permission(request)
-        else:
-            # Not on mobile platform
-            return PermissionResult(
-                permission=request.permission,
-                status=PermissionStatus.NOT_DETERMINED,
-                can_request_again=False
-            )
+        # Not on mobile platform
+        return PermissionResult(
+            permission=request.permission,
+            status=PermissionStatus.NOT_DETERMINED,
+            can_request_again=False,
+        )
 
-    def check_permission_status(
-        self,
-        permission: MobilePermission
-    ) -> PermissionStatus:
+    def check_permission_status(self, permission: MobilePermission) -> PermissionStatus:
         """Check current status of a permission.
 
         Time Complexity: O(1)
@@ -182,6 +181,7 @@ class MobilePermissionManager:
             ... )
             >>> if status == PermissionStatus.GRANTED:
             ...     print("Microphone access granted")
+
         """
         # Check cached status
         if permission in self._permission_status:
@@ -202,7 +202,7 @@ class MobilePermissionManager:
     def handle_permission_denial(
         self,
         permission: MobilePermission,
-        fallback_action: Optional[Callable] = None
+        fallback_action: Callable | None = None,
     ) -> None:
         """Handle permission denial with fallback action.
 
@@ -220,6 +220,7 @@ class MobilePermissionManager:
             ...     MobilePermission.RECORD_AUDIO,
             ...     fallback_action=fallback
             ... )
+
         """
         status = self.check_permission_status(permission)
 
@@ -236,7 +237,7 @@ class MobilePermissionManager:
 
     def request_multiple_permissions(
         self,
-        requests: list[PermissionRequest]
+        requests: list[PermissionRequest],
     ) -> dict[MobilePermission, PermissionResult]:
         """Request multiple permissions at once.
 
@@ -261,6 +262,7 @@ class MobilePermissionManager:
             ...     )
             ... ]
             >>> results = manager.request_multiple_permissions(requests)
+
         """
         results = {}
 
@@ -283,6 +285,7 @@ class MobilePermissionManager:
             >>> denied = manager.get_denied_permissions()
             >>> if MobilePermission.CAMERA in denied:
             ...     print("Camera access denied")
+
         """
         denied = set()
 
@@ -292,10 +295,7 @@ class MobilePermissionManager:
 
         return denied
 
-    def _request_android_permission(
-        self,
-        request: PermissionRequest
-    ) -> PermissionResult:
+    def _request_android_permission(self, request: PermissionRequest) -> PermissionResult:
         """Request Android permission (Android 6.0+).
 
         Time Complexity: O(1)
@@ -305,6 +305,7 @@ class MobilePermissionManager:
 
         Returns:
             Permission result
+
         """
         # This would use Android APIs via pyjnius
         # For now, return mock result
@@ -313,13 +314,10 @@ class MobilePermissionManager:
         return PermissionResult(
             permission=request.permission,
             status=PermissionStatus.NOT_DETERMINED,
-            can_request_again=True
+            can_request_again=True,
         )
 
-    def _request_ios_permission(
-        self,
-        request: PermissionRequest
-    ) -> PermissionResult:
+    def _request_ios_permission(self, request: PermissionRequest) -> PermissionResult:
         """Request iOS permission.
 
         Time Complexity: O(1)
@@ -329,6 +327,7 @@ class MobilePermissionManager:
 
         Returns:
             Permission result
+
         """
         # This would use iOS APIs via pyobjus
         # For now, return mock result
@@ -337,13 +336,10 @@ class MobilePermissionManager:
         return PermissionResult(
             permission=request.permission,
             status=PermissionStatus.NOT_DETERMINED,
-            can_request_again=True
+            can_request_again=True,
         )
 
-    def _check_android_permission(
-        self,
-        permission: MobilePermission
-    ) -> PermissionStatus:
+    def _check_android_permission(self, permission: MobilePermission) -> PermissionStatus:
         """Check Android permission status.
 
         Time Complexity: O(1)
@@ -353,6 +349,7 @@ class MobilePermissionManager:
 
         Returns:
             Permission status
+
         """
         # This would use Android APIs via pyjnius
         # For now, return mock status
@@ -360,10 +357,7 @@ class MobilePermissionManager:
 
         return PermissionStatus.NOT_DETERMINED
 
-    def _check_ios_permission(
-        self,
-        permission: MobilePermission
-    ) -> PermissionStatus:
+    def _check_ios_permission(self, permission: MobilePermission) -> PermissionStatus:
         """Check iOS permission status.
 
         Time Complexity: O(1)
@@ -373,6 +367,7 @@ class MobilePermissionManager:
 
         Returns:
             Permission status
+
         """
         # This would use iOS APIs via pyobjus
         # For now, return mock status
@@ -385,6 +380,7 @@ class MobilePermissionManager:
 
         Args:
             permission: Permission that needs to be enabled
+
         """
         # This would show platform-specific UI
         # TODO: Implement actual settings guidance
@@ -394,6 +390,7 @@ class MobilePermissionManager:
 
         Args:
             permission: Permission to explain
+
         """
         # This would show platform-specific UI
         # TODO: Implement actual rationale display

@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.llm.voice_context
-Purpose: Voice-optimized conversation context management
+"""Module: Agent_Guru.llm.voice_context
+Purpose: Voice-optimized conversation context management.
 
 Wraps ContextManager with voice-specific features:
 - System prompt injection for voice personality
@@ -22,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.llm.context_manager import ContextManager
 from Agent_Guru.llm.models import Message
@@ -59,17 +58,18 @@ class VoiceContextConfig:
         personality: 'guru' or 'maya'
         context_window_tokens: Maximum tokens in context window
         compression_threshold: Fraction of context window before compression
+
     """
+
     max_turns: int = 50
-    system_prompt: Optional[str] = None
+    system_prompt: str | None = None
     personality: str = "guru"
     context_window_tokens: int = 4096
     compression_threshold: float = 0.8
 
 
 class VoiceContextManager:
-    """
-    Voice-optimized conversation context manager.
+    """Voice-optimized conversation context manager.
 
     Extends ContextManager with:
     - Automatic voice system prompt injection
@@ -82,9 +82,10 @@ class VoiceContextManager:
         >>> vcm.add_turn("session1", "open youtube", "Opening YouTube for you.")
         >>> messages = vcm.get_context_messages("session1")
         >>> print(len(messages))  # system + history
+
     """
 
-    def __init__(self, config: Optional[VoiceContextConfig] = None) -> None:
+    def __init__(self, config: VoiceContextConfig | None = None) -> None:
         """Initialize voice context manager."""
         self._config = config or VoiceContextConfig()
         self._token_counter = TokenCounter()
@@ -110,8 +111,7 @@ class VoiceContextManager:
         user_text: str,
         assistant_text: str,
     ) -> None:
-        """
-        Add a conversation turn to the session history.
+        """Add a conversation turn to the session history.
 
         Time Complexity: O(1) amortized
         Space Complexity: O(1)
@@ -120,6 +120,7 @@ class VoiceContextManager:
             session_id: Session identifier
             user_text: User's utterance
             assistant_text: Assistant's response
+
         """
         user_msg = Message(role="user", content=user_text)
         assistant_msg = Message(role="assistant", content=assistant_text)
@@ -129,24 +130,16 @@ class VoiceContextManager:
             loop = asyncio.get_running_loop()
             if loop.is_running():
                 # Schedule as a task
-                asyncio.ensure_future(
-                    self._context_manager.update_context(
-                        session_id, user_msg, assistant_msg
-                    )
+                asyncio.ensure_future(  # noqa: RUF006
+                    self._context_manager.update_context(session_id, user_msg, assistant_msg),
                 )
             else:
                 loop.run_until_complete(
-                    self._context_manager.update_context(
-                        session_id, user_msg, assistant_msg
-                    )
+                    self._context_manager.update_context(session_id, user_msg, assistant_msg),
                 )
         except RuntimeError:
             # No event loop — create one
-            asyncio.run(
-                self._context_manager.update_context(
-                    session_id, user_msg, assistant_msg
-                )
-            )
+            asyncio.run(self._context_manager.update_context(session_id, user_msg, assistant_msg))
 
     def add_turn_sync(
         self,
@@ -154,22 +147,21 @@ class VoiceContextManager:
         user_text: str,
         assistant_text: str,
     ) -> None:
-        """
-        Synchronous version of add_turn for non-async contexts.
+        """Synchronous version of add_turn for non-async contexts.
 
         Args:
             session_id: Session identifier
             user_text: User's utterance
             assistant_text: Assistant's response
+
         """
         user_msg = Message(role="user", content=user_text)
         assistant_msg = Message(role="assistant", content=assistant_text)
 
         if session_id not in self._context_manager.sessions:
             from Agent_Guru.llm.context_manager import SessionContext
-            self._context_manager.sessions[session_id] = SessionContext(
-                session_id=session_id
-            )
+
+            self._context_manager.sessions[session_id] = SessionContext(session_id=session_id)
 
         ctx = self._context_manager.sessions[session_id]
         ctx.messages.extend([user_msg, assistant_msg])
@@ -180,17 +172,14 @@ class VoiceContextManager:
             ctx.messages = ctx.messages[-max_msgs:]
 
         # Update token count
-        ctx.token_count = self._token_counter.count_messages(
-            ctx.messages, "gpt-3.5-turbo"
-        )
+        ctx.token_count = self._token_counter.count_messages(ctx.messages, "gpt-3.5-turbo")
 
     def get_context_messages(
         self,
         session_id: str,
-        new_messages: Optional[list[Message]] = None,
+        new_messages: list[Message] | None = None,
     ) -> list[Message]:
-        """
-        Get full context for a session including system prompt.
+        """Get full context for a session including system prompt.
 
         Time Complexity: O(n) where n = history length
         Space Complexity: O(n)
@@ -201,6 +190,7 @@ class VoiceContextManager:
 
         Returns:
             [system_prompt] + [history] + [new_messages]
+
         """
         system_msg = Message(role="system", content=self._system_prompt)
         new_messages = new_messages or []
@@ -210,7 +200,7 @@ class VoiceContextManager:
         # Ensure system message is first
         if history and history[0].role == "system":
             return history
-        return [system_msg] + history
+        return [system_msg, *history]
 
     def get_turn_count(self, session_id: str) -> int:
         """Return number of conversation turns for a session."""
@@ -228,11 +218,11 @@ class VoiceContextManager:
         return self._context_manager.get_context_usage(session_id, "gpt-3.5-turbo")
 
     def switch_personality(self, personality: str) -> None:
-        """
-        Switch voice personality (guru/maya).
+        """Switch voice personality (guru/maya).
 
         Args:
             personality: 'guru' or 'maya'
+
         """
         self._config.personality = personality.lower()
         self._system_prompt = self._resolve_system_prompt()

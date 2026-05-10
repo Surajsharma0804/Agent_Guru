@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.android.integration
-Purpose: Android-specific platform integration for AGENT_GURU
+"""Module: agent_guru.platform.android.integration
+Purpose: Android-specific platform integration for AGENT_GURU.
 
 This module implements Android-specific operations using pyjnius for Java API access.
 It provides comprehensive Android platform control including:
@@ -31,17 +30,17 @@ Version: 1.0.0
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 # Android-specific imports (only available on Android)
 try:
     from jnius import autoclass, cast
+
     ANDROID_AVAILABLE = True
-except ImportError as e:
+except ImportError:
     ANDROID_AVAILABLE = False
     autoclass = None
     cast = None
-
 logger = logging.getLogger(__name__)
 
 
@@ -52,6 +51,7 @@ def _is_android_available() -> bool:
 
 class PermissionStatus(Enum):
     """Android permission status."""
+
     GRANTED = "granted"
     DENIED = "denied"
     DENIED_PERMANENTLY = "denied_permanently"
@@ -61,6 +61,7 @@ class PermissionStatus(Enum):
 @dataclass
 class BatteryInfo:
     """Android battery information."""
+
     percent: float
     is_charging: bool
     temperature: float
@@ -72,6 +73,7 @@ class BatteryInfo:
 @dataclass
 class NotificationConfig:
     """Configuration for Android notifications."""
+
     channel_id: str
     title: str
     message: str
@@ -93,8 +95,7 @@ class AppNotFoundError(AndroidIntegrationError):
 
 
 class AndroidIntegration:
-    """
-    Android-specific platform integration.
+    """Android-specific platform integration.
 
     Provides comprehensive Android platform control through Java API access.
 
@@ -110,18 +111,23 @@ class AndroidIntegration:
         - Android 6.0+ (API level 23+)
         - pyjnius for Java API access
         - Proper permissions in AndroidManifest.xml
+
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize Android integration.
 
         Raises:
             AndroidIntegrationError: If not running on Android platform
+
         """
         if not _is_android_available():
-            raise AndroidIntegrationError(
+            msg = (
                 "Android integration not available. "
                 "This module requires pyjnius and Android platform."
+            )
+            raise AndroidIntegrationError(
+                msg,
             )
 
         self._init_android_classes()
@@ -131,32 +137,32 @@ class AndroidIntegration:
     def _init_android_classes(self) -> None:
         """Initialize Android Java class references."""
         try:
-            self.Intent = autoclass('android.content.Intent')
-            self.PythonActivity = autoclass('org.kivy.android.PythonActivity')
-            self.PackageManager = autoclass('android.content.pm.PackageManager')
-            self.ContextCompat = autoclass('androidx.core.content.ContextCompat')
-            self.ActivityCompat = autoclass('androidx.core.app.ActivityCompat')
-            self.NotificationManager = autoclass('android.app.NotificationManager')
-            self.NotificationCompat = autoclass('androidx.core.app.NotificationCompat')
-            self.NotificationChannel = autoclass('android.app.NotificationChannel')
-            self.BatteryManager = autoclass('android.os.BatteryManager')
-            self.IntentFilter = autoclass('android.content.IntentFilter')
-            self.Environment = autoclass('android.os.Environment')
-            self.Settings = autoclass('android.provider.Settings')
+            self.Intent = autoclass("android.content.Intent")
+            self.PythonActivity = autoclass("org.kivy.android.PythonActivity")
+            self.PackageManager = autoclass("android.content.pm.PackageManager")
+            self.ContextCompat = autoclass("androidx.core.content.ContextCompat")
+            self.ActivityCompat = autoclass("androidx.core.app.ActivityCompat")
+            self.NotificationManager = autoclass("android.app.NotificationManager")
+            self.NotificationCompat = autoclass("androidx.core.app.NotificationCompat")
+            self.NotificationChannel = autoclass("android.app.NotificationChannel")
+            self.BatteryManager = autoclass("android.os.BatteryManager")
+            self.IntentFilter = autoclass("android.content.IntentFilter")
+            self.Environment = autoclass("android.os.Environment")
+            self.Settings = autoclass("android.provider.Settings")
             logger.debug("Android Java classes initialized")
         except Exception as e:
-            logger.error("Failed to initialize Android classes: %s", e)
-            raise AndroidIntegrationError(f"Failed to initialize Android classes: {e}") from e
-
+            logger.exception("Failed to initialize Android classes")
+            msg = f"Failed to initialize Android classes: {e}"
+            raise AndroidIntegrationError(msg) from e
     def _get_context(self):
         """Get Android application context."""
         try:
             activity = self.PythonActivity.mActivity
             return activity.getApplicationContext()
         except Exception as e:
-            logger.error("Failed to get Android context: %s", e)
-            raise AndroidIntegrationError(f"Failed to get Android context: {e}") from e
-
+            logger.exception("Failed to get Android context")
+            msg = f"Failed to get Android context: {e}"
+            raise AndroidIntegrationError(msg) from e
     # ========== App Launching ==========
 
     def launch_app_by_package(self, package_name: str) -> bool:
@@ -170,17 +176,19 @@ class AndroidIntegration:
 
         Raises:
             AppNotFoundError: If package not installed
+
         """
         try:
             pm = self.context.getPackageManager()
             try:
                 pm.getPackageInfo(package_name, 0)
             except Exception as pkg_exc:
-                raise AppNotFoundError(f"Package not found: {package_name}") from pkg_exc
-
+                msg = f"Package not found: {package_name}"
+                raise AppNotFoundError(msg) from pkg_exc
             intent = pm.getLaunchIntentForPackage(package_name)
             if intent is None:
-                raise AppNotFoundError(f"No launch intent for package: {package_name}")
+                msg = f"No launch intent for package: {package_name}"
+                raise AppNotFoundError(msg)
 
             intent.addFlags(self.Intent.FLAG_ACTIVITY_NEW_TASK)
             self.context.startActivity(intent)
@@ -189,15 +197,14 @@ class AndroidIntegration:
 
         except AppNotFoundError as e:
             raise
-        except Exception as e:
-            logger.error("Failed to launch app %s: %s", package_name, e)
-            raise AndroidIntegrationError(f"Failed to launch app: {e}") from e
-
+            logger.exception("Failed to launch app %s: %s")
+            msg = f"Failed to launch app: {e}"
+            raise AndroidIntegrationError(msg) from e
     def send_intent(
         self,
         action: str,
-        data: Optional[str] = None,
-        extras: Optional[dict[str, Any]] = None,
+        data: str | None = None,
+        extras: dict[str, Any] | None = None,
     ) -> bool:
         """Send Android Intent.
 
@@ -208,19 +215,18 @@ class AndroidIntegration:
 
         Returns:
             True if intent sent successfully
+
         """
         try:
             intent = self.Intent(action)
 
             if data:
-                Uri = autoclass('android.net.Uri')  # noqa: N806
+                Uri = autoclass("android.net.Uri")  # noqa: N806
                 intent.setData(Uri.parse(data))
 
             if extras:
                 for key, value in extras.items():
-                    if isinstance(value, bool):
-                        intent.putExtra(key, value)
-                    elif isinstance(value, int):
+                    if isinstance(value, (bool, int)):
                         intent.putExtra(key, value)
                     elif isinstance(value, float):
                         intent.putExtra(key, float(value))
@@ -233,22 +239,20 @@ class AndroidIntegration:
             return True
 
         except Exception as e:
-            logger.error("Failed to send intent %s: %s", action, e)
-            raise AndroidIntegrationError(f"Failed to send intent: {e}") from e
-
+            logger.exception("Failed to send intent %s: %s")
+            msg = f"Failed to send intent: {e}"
+            raise AndroidIntegrationError(msg) from e
     # ========== UI Automation ==========
 
     def simulate_touch(self, x: int, y: int) -> None:
         """Simulate touch — requires Accessibility Service."""
-        raise NotImplementedError(
-            "Touch simulation requires Accessibility Service implementation"
-        )
+        msg = "Touch simulation requires Accessibility Service implementation"
+        raise NotImplementedError(msg)
 
     def type_text(self, text: str) -> None:
         """Type text — requires Accessibility Service."""
-        raise NotImplementedError(
-            "Text input requires Accessibility Service implementation"
-        )
+        msg = "Text input requires Accessibility Service implementation"
+        raise NotImplementedError(msg)
 
     # ========== Battery Information ==========
 
@@ -260,27 +264,36 @@ class AndroidIntegration:
 
         Raises:
             AndroidIntegrationError: If retrieval fails
+
         """
         try:
             intent_filter = self.IntentFilter(self.Intent.ACTION_BATTERY_CHANGED)
             battery_status = self.context.registerReceiver(None, intent_filter)
 
             if battery_status is None:
-                raise AndroidIntegrationError("Failed to get battery status")
+                msg = "Failed to get battery status"
+                raise AndroidIntegrationError(msg)
 
             level = battery_status.getIntExtra("level", -1)
             scale = battery_status.getIntExtra("scale", -1)
             percent = (level / scale) * 100.0 if scale > 0 else 0.0
 
             status = battery_status.getIntExtra("status", -1)
-            is_charging = status == 2 or status == 5  # CHARGING or FULL
+            is_charging = status in {2, 5}  # CHARGING or FULL
 
             temp_raw = battery_status.getIntExtra("temperature", -1)
             temperature = temp_raw / 10.0 if temp_raw > 0 else 0.0
 
             health_code = battery_status.getIntExtra("health", -1)
-            health_map = {1: "unknown", 2: "good", 3: "overheat", 4: "dead",
-                          5: "overvoltage", 6: "failure", 7: "cold"}
+            health_map = {
+                1: "unknown",
+                2: "good",
+                3: "overheat",
+                4: "dead",
+                5: "overvoltage",
+                6: "failure",
+                7: "cold",
+            }
             health = health_map.get(health_code, "unknown")
 
             voltage = battery_status.getIntExtra("voltage", -1)
@@ -297,10 +310,9 @@ class AndroidIntegration:
 
         except AndroidIntegrationError as e:
             raise
-        except Exception as e:
-            logger.error("Failed to get battery info: %s", e)
-            raise AndroidIntegrationError(f"Failed to get battery info: {e}") from e
-
+            logger.exception("Failed to get battery info")
+            msg = f"Failed to get battery info: {e}"
+            raise AndroidIntegrationError(msg) from e
     # ========== Permission Management ==========
 
     def check_permission(self, permission: str) -> PermissionStatus:
@@ -310,10 +322,9 @@ class AndroidIntegration:
             if result == self.PackageManager.PERMISSION_GRANTED:
                 return PermissionStatus.GRANTED
             return PermissionStatus.DENIED
-        except Exception as e:
-            logger.error("Failed to check permission %s: %s", permission, e)
+        except Exception:
+            logger.exception("Failed to check permission %s: %s")
             return PermissionStatus.NOT_REQUESTED
-
     def request_permission(self, permission: str) -> bool:
         """Request Android runtime permission."""
         try:
@@ -322,17 +333,17 @@ class AndroidIntegration:
             logger.info("Requested permission: %s", permission)
             return True
         except Exception as e:
-            logger.error("Failed to request permission %s: %s", permission, e)
-            raise AndroidIntegrationError(f"Failed to request permission: {e}") from e
-
+            logger.exception("Failed to request permission %s: %s")
+            msg = f"Failed to request permission: {e}"
+            raise AndroidIntegrationError(msg) from e
     # ========== Notification Management ==========
 
     def create_notification(self, config: NotificationConfig) -> None:
         """Create Android notification."""
         try:
             nm = cast(
-                'android.app.NotificationManager',
-                self.context.getSystemService('notification'),
+                "android.app.NotificationManager",
+                self.context.getSystemService("notification"),
             )
             self._create_notification_channel(config.channel_id)
 
@@ -351,37 +362,36 @@ class AndroidIntegration:
             logger.info("Created notification: %s", config.title)
 
         except Exception as e:
-            logger.error("Failed to create notification: %s", e)
-            raise AndroidIntegrationError(f"Failed to create notification: {e}") from e
-
+            logger.exception("Failed to create notification")
+            msg = f"Failed to create notification: {e}"
+            raise AndroidIntegrationError(msg) from e
     def _create_notification_channel(self, channel_id: str) -> None:
         """Create notification channel for Android 8.0+."""
         try:
             # Use module-level autoclass (patchable in tests)
-            Build = autoclass('android.os.Build')  # noqa: N806
+            Build = autoclass("android.os.Build")  # noqa: N806
             sdk_int = int(Build.VERSION.SDK_INT)
-            if sdk_int >= 26:
+            if sdk_int >= 26:  # noqa: PLR2004 - Threshold
+
                 nm = cast(
-                    'android.app.NotificationManager',
-                    self.context.getSystemService('notification'),
+                    "android.app.NotificationManager",
+                    self.context.getSystemService("notification"),
                 )
                 channel = self.NotificationChannel(channel_id, "Agent Guru", 3)
                 nm.createNotificationChannel(channel)
-        except Exception as e:
-            logger.warning("Failed to create notification channel: %s", e)
-
+        except Exception:
+            logger.exception("Failed to create notification channel")
     # ========== Storage Access ==========
 
-    def get_external_storage_path(self) -> Optional[str]:
+    def get_external_storage_path(self) -> str | None:
         """Get external storage path."""
         try:
             if self.Environment.getExternalStorageState() == self.Environment.MEDIA_MOUNTED:
                 return str(self.Environment.getExternalStorageDirectory().getAbsolutePath())
             return None
-        except Exception as e:
-            logger.error("Failed to get external storage path: %s", e)
+        except Exception:
+            logger.exception("Failed to get external storage path")
             return None
-
     # ========== Battery Optimization ==========
 
     def request_battery_optimization_exemption(self) -> bool:
@@ -392,15 +402,17 @@ class AndroidIntegration:
 
         Raises:
             AndroidIntegrationError: If request fails
+
         """
         try:
-            Build = autoclass('android.os.Build')  # noqa: N806
+            Build = autoclass("android.os.Build")  # noqa: N806
             sdk_int = int(Build.VERSION.SDK_INT)
 
-            if sdk_int >= 23:
+            if sdk_int >= 23:  # noqa: PLR2004 - Threshold
+
                 pm = cast(
-                    'android.os.PowerManager',
-                    self.context.getSystemService('power'),
+                    "android.os.PowerManager",
+                    self.context.getSystemService("power"),
                 )
                 package_name = self.context.getPackageName()
 
@@ -410,7 +422,7 @@ class AndroidIntegration:
 
                 intent = self.Intent()
                 intent.setAction(self.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                Uri = autoclass('android.net.Uri')  # noqa: N806
+                Uri = autoclass("android.net.Uri")  # noqa: N806
                 intent.setData(Uri.parse(f"package:{package_name}"))
                 intent.addFlags(self.Intent.FLAG_ACTIVITY_NEW_TASK)
                 self.context.startActivity(intent)
@@ -420,27 +432,28 @@ class AndroidIntegration:
             return False
 
         except Exception as e:
-            logger.error("Failed to request battery optimization exemption: %s", e)
+            logger.exception("Failed to request battery optimization exemption")
+            msg = f"Failed to request battery optimization exemption: {e}"
             raise AndroidIntegrationError(
-                f"Failed to request battery optimization exemption: {e}"
+                msg,
             ) from e
-
     def is_battery_optimization_exempted(self) -> bool:
         """Check if app is exempted from battery optimization."""
         try:
-            Build = autoclass('android.os.Build')  # noqa: N806
+            Build = autoclass("android.os.Build")  # noqa: N806
             sdk_int = int(Build.VERSION.SDK_INT)
 
-            if sdk_int >= 23:
+            if sdk_int >= 23:  # noqa: PLR2004 - Threshold
+
                 pm = cast(
-                    'android.os.PowerManager',
-                    self.context.getSystemService('power'),
+                    "android.os.PowerManager",
+                    self.context.getSystemService("power"),
                 )
                 package_name = self.context.getPackageName()
                 return bool(pm.isIgnoringBatteryOptimizations(package_name))
 
             return True
 
-        except Exception as e:
-            logger.error("Failed to check battery optimization status: %s", e)
+        except Exception:
+            logger.exception("Failed to check battery optimization status")
             return False

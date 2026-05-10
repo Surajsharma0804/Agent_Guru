@@ -25,6 +25,7 @@ Performance Characteristics:
 Author: Agent Guru Team
 Date: 2026-03-20
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -32,7 +33,6 @@ import logging
 import os
 import platform
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ _BLOCKED_PATHS_IOS: tuple[str, ...] = (
 # Platform detection
 # ---------------------------------------------------------------------------
 
-_PLATFORM_CACHE: Optional[str] = None
+_PLATFORM_CACHE: str | None = None
 
 
 def _detect_platform() -> str:
@@ -65,6 +65,7 @@ def _detect_platform() -> str:
     Returns:
         One of ``"windows"``, ``"macos"``, ``"linux"``, ``"android"``,
         ``"ios"``, or ``"unknown"``.
+
     """
     global _PLATFORM_CACHE
     if _PLATFORM_CACHE is not None:
@@ -78,14 +79,16 @@ def _detect_platform() -> str:
     elif system == "linux":
         try:
             import subprocess  # noqa: PLC0415
+
             out = subprocess.run(
-                ["uname", "-o"], capture_output=True, text=True, timeout=1  # nosec B603 B607
+                ["uname", "-o"],  # noqa: S607
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=1,  # nosec B603 B607
             )
-            if "android" in out.stdout.lower():
-                result = "android"
-            else:
-                result = "linux"
-        except Exception as e:
+            result = "android" if "android" in out.stdout.lower() else "linux"
+        except Exception:
             result = "linux"
     else:
         result = "unknown"
@@ -117,10 +120,11 @@ def _resolve_path(raw: str) -> Path:
 
     Returns:
         Absolute :class:`pathlib.Path`.
+
     """
     # Strip null bytes — they cause ValueError on Windows resolve()
     raw = raw.replace("\x00", "")
-    expanded = os.path.expandvars(os.path.expanduser(raw))
+    expanded = os.path.expandvars(os.path.expanduser(raw))  # noqa: PTH111
     try:
         return Path(expanded).resolve()
     except (ValueError, OSError):
@@ -144,6 +148,7 @@ def _is_blocked(path: Path, plat: str) -> bool:
 
     Returns:
         ``True`` if the path is blocked, ``False`` otherwise.
+
     """
     # Use POSIX representation for cross-platform consistency
     path_str = path.as_posix()
@@ -174,6 +179,7 @@ def _is_blocked_raw(raw: str, plat: str) -> bool:
 
     Returns:
         ``True`` if the path is blocked, ``False`` otherwise.
+
     """
     # Normalise separators to forward slash for comparison
     normalised = raw.replace("\\", "/")
@@ -226,7 +232,7 @@ class MobileFileController:
     They never raise exceptions for normal operational failures.
     """
 
-    def __init__(self, platform_override: Optional[str] = None) -> None:
+    def __init__(self, platform_override: str | None = None) -> None:
         """Create the controller.
 
         Args:
@@ -236,14 +242,18 @@ class MobileFileController:
         Raises:
             RuntimeError: If the detected platform is a desktop platform
                 (``"windows"``, ``"macos"``, ``"linux"``, or ``"unknown"``).
+
         """
         self._platform: str = platform_override or _detect_platform()
         self._initialized: bool = False
 
         if _is_desktop(self._platform):
-            raise RuntimeError(
+            msg = (
                 f"MobileFileController is not supported on desktop "
                 f"platform '{self._platform}'. Use DesktopFileController instead."
+            )
+            raise RuntimeError(
+                msg,
             )
 
         logger.info("MobileFileController created — platform=%s", self._platform)
@@ -285,24 +295,27 @@ class MobileFileController:
 
         Returns:
             ``True`` on success, ``False`` on failure or blocked path.
+
         """
         # Strip null bytes before expansion
-        expanded = os.path.expandvars(os.path.expanduser(path.replace("\x00", "")))
+        expanded = os.path.expandvars(os.path.expanduser(path.replace("\x00", "")))  # noqa: PTH111
         if _is_blocked_raw(expanded, self._platform):
             return False
 
         resolved = _resolve_path(path)
         logger.info(
             "create_file: %s (platform=%s, content_len=%d)",
-            resolved, self._platform, len(content),
+            resolved,
+            self._platform,
+            len(content),
         )
         try:
             if self._platform == "android":
                 return await self._android_create_file(resolved, content)
-            else:  # ios
-                return await self._ios_create_file(resolved, content)
-        except Exception as exc:
-            logger.error("create_file(%s) failed: %s", resolved, exc)
+            # ios
+            return await self._ios_create_file(resolved, content)
+        except Exception:
+            logger.exception("create_file(%s) failed", resolved)
             return False
 
     async def delete_file(self, path: str) -> bool:
@@ -313,8 +326,9 @@ class MobileFileController:
 
         Returns:
             ``True`` on success, ``False`` on failure or blocked path.
+
         """
-        expanded = os.path.expandvars(os.path.expanduser(path.replace("\x00", "")))
+        expanded = os.path.expandvars(os.path.expanduser(path.replace("\x00", "")))  # noqa: PTH111
         if _is_blocked_raw(expanded, self._platform):
             return False
 
@@ -323,10 +337,10 @@ class MobileFileController:
         try:
             if self._platform == "android":
                 return await self._android_delete_file(resolved)
-            else:  # ios
-                return await self._ios_delete_file(resolved)
-        except Exception as exc:
-            logger.error("delete_file(%s) failed: %s", resolved, exc)
+            # ios
+            return await self._ios_delete_file(resolved)
+        except Exception:
+            logger.exception("delete_file(%s) failed", resolved)
             return False
 
     async def move_file(self, src: str, dst: str) -> bool:
@@ -338,25 +352,27 @@ class MobileFileController:
 
         Returns:
             ``True`` on success, ``False`` on failure or blocked path.
-        """
-        expanded_src = os.path.expandvars(os.path.expanduser(src.replace("\x00", "")))
-        expanded_dst = os.path.expandvars(os.path.expanduser(dst.replace("\x00", "")))
 
-        if _is_blocked_raw(expanded_src, self._platform) or _is_blocked_raw(expanded_dst, self._platform):
+        """
+        expanded_src = os.path.expandvars(os.path.expanduser(src.replace("\x00", "")))  # noqa: PTH111
+        expanded_dst = os.path.expandvars(os.path.expanduser(dst.replace("\x00", "")))  # noqa: PTH111
+
+        if _is_blocked_raw(expanded_src, self._platform) or _is_blocked_raw(
+            expanded_dst,
+            self._platform,
+        ):
             return False
 
         resolved_src = _resolve_path(src)
         resolved_dst = _resolve_path(dst)
-        logger.info(
-            "move_file: %s → %s (platform=%s)", resolved_src, resolved_dst, self._platform
-        )
+        logger.info("move_file: %s → %s (platform=%s)", resolved_src, resolved_dst, self._platform)
         try:
             if self._platform == "android":
                 return await self._android_move_file(resolved_src, resolved_dst)
-            else:  # ios
-                return await self._ios_move_file(resolved_src, resolved_dst)
-        except Exception as exc:
-            logger.error("move_file(%s → %s) failed: %s", resolved_src, resolved_dst, exc)
+            # ios
+            return await self._ios_move_file(resolved_src, resolved_dst)
+        except Exception:
+            logger.exception("move_file(%s → %s) failed", resolved_src, resolved_dst)
             return False
 
     async def copy_file(self, src: str, dst: str) -> bool:
@@ -368,25 +384,27 @@ class MobileFileController:
 
         Returns:
             ``True`` on success, ``False`` on failure or blocked path.
-        """
-        expanded_src = os.path.expandvars(os.path.expanduser(src.replace("\x00", "")))
-        expanded_dst = os.path.expandvars(os.path.expanduser(dst.replace("\x00", "")))
 
-        if _is_blocked_raw(expanded_src, self._platform) or _is_blocked_raw(expanded_dst, self._platform):
+        """
+        expanded_src = os.path.expandvars(os.path.expanduser(src.replace("\x00", "")))  # noqa: PTH111
+        expanded_dst = os.path.expandvars(os.path.expanduser(dst.replace("\x00", "")))  # noqa: PTH111
+
+        if _is_blocked_raw(expanded_src, self._platform) or _is_blocked_raw(
+            expanded_dst,
+            self._platform,
+        ):
             return False
 
         resolved_src = _resolve_path(src)
         resolved_dst = _resolve_path(dst)
-        logger.info(
-            "copy_file: %s → %s (platform=%s)", resolved_src, resolved_dst, self._platform
-        )
+        logger.info("copy_file: %s → %s (platform=%s)", resolved_src, resolved_dst, self._platform)
         try:
             if self._platform == "android":
                 return await self._android_copy_file(resolved_src, resolved_dst)
-            else:  # ios
-                return await self._ios_copy_file(resolved_src, resolved_dst)
-        except Exception as exc:
-            logger.error("copy_file(%s → %s) failed: %s", resolved_src, resolved_dst, exc)
+            # ios
+            return await self._ios_copy_file(resolved_src, resolved_dst)
+        except Exception:
+            logger.exception("copy_file(%s → %s) failed", resolved_src, resolved_dst)
             return False
 
     async def list_directory(self, path: str) -> list[str]:
@@ -398,8 +416,9 @@ class MobileFileController:
         Returns:
             List of filenames (not full paths) in the directory.
             Returns an empty list on error or blocked path.
+
         """
-        expanded = os.path.expandvars(os.path.expanduser(path.replace("\x00", "")))
+        expanded = os.path.expandvars(os.path.expanduser(path.replace("\x00", "")))  # noqa: PTH111
         if _is_blocked_raw(expanded, self._platform):
             return []
 
@@ -408,10 +427,10 @@ class MobileFileController:
         try:
             if self._platform == "android":
                 return await self._android_list_directory(resolved)
-            else:  # ios
-                return await self._ios_list_directory(resolved)
-        except Exception as exc:
-            logger.error("list_directory(%s) failed: %s", resolved, exc)
+            # ios
+            return await self._ios_list_directory(resolved)
+        except Exception:
+            logger.exception("list_directory(%s) failed: %s")
             return []
 
     async def request_permission(self, permission: str) -> bool:
@@ -427,10 +446,12 @@ class MobileFileController:
 
         Returns:
             ``True`` — always granted in simulation.
+
         """
         logger.info(
             "request_permission: %r (platform=%s) — simulated, always True",
-            permission, self._platform,
+            permission,
+            self._platform,
         )
         return True
 
@@ -455,8 +476,9 @@ class MobileFileController:
     async def _android_create_file(self, path: Path, content: str) -> bool:
         """Simulate Android Storage Access Framework file creation via adb."""
         logger.debug(
-            "[Android SAF simulation] Would run: "
-            "adb shell 'echo %r > %s'", content[:50], path
+            "[Android SAF simulation] Would run: adb shell 'echo %r > %s'",
+            content[:50],
+            path,
         )
         # Simulate async I/O delay
         await asyncio.sleep(0)
@@ -493,26 +515,25 @@ class MobileFileController:
     async def _ios_create_file(self, path: Path, content: str) -> bool:
         """Simulate iOS Files app file creation via xcrun simctl."""
         logger.debug(
-            "[iOS Files simulation] Would run: "
-            "xcrun simctl spawn booted sh -c 'echo %r > %s'", content[:50], path
+            "[iOS Files simulation] Would run: xcrun simctl spawn booted sh -c 'echo %r > %s'",
+            content[:50],
+            path,
         )
         await asyncio.sleep(0)
         return True
 
     async def _ios_delete_file(self, path: Path) -> bool:
         """Simulate iOS file deletion via xcrun simctl."""
-        logger.debug(
-            "[iOS Files simulation] Would run: "
-            "xcrun simctl spawn booted rm %s", path
-        )
+        logger.debug("[iOS Files simulation] Would run: xcrun simctl spawn booted rm %s", path)
         await asyncio.sleep(0)
         return True
 
     async def _ios_move_file(self, src: Path, dst: Path) -> bool:
         """Simulate iOS file move via xcrun simctl."""
         logger.debug(
-            "[iOS Files simulation] Would run: "
-            "xcrun simctl spawn booted mv %s %s", src, dst
+            "[iOS Files simulation] Would run: xcrun simctl spawn booted mv %s %s",
+            src,
+            dst,
         )
         await asyncio.sleep(0)
         return True
@@ -520,17 +541,15 @@ class MobileFileController:
     async def _ios_copy_file(self, src: Path, dst: Path) -> bool:
         """Simulate iOS file copy via xcrun simctl."""
         logger.debug(
-            "[iOS Files simulation] Would run: "
-            "xcrun simctl spawn booted cp %s %s", src, dst
+            "[iOS Files simulation] Would run: xcrun simctl spawn booted cp %s %s",
+            src,
+            dst,
         )
         await asyncio.sleep(0)
         return True
 
     async def _ios_list_directory(self, path: Path) -> list[str]:
         """Simulate iOS directory listing via xcrun simctl."""
-        logger.debug(
-            "[iOS Files simulation] Would run: "
-            "xcrun simctl spawn booted ls %s", path
-        )
+        logger.debug("[iOS Files simulation] Would run: xcrun simctl spawn booted ls %s", path)
         await asyncio.sleep(0)
         return []

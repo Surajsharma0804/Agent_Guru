@@ -9,11 +9,11 @@ Also handles clipboard operations:
   "summarize my clipboard" → LLM summarizes clipboard text
   "fix my clipboard" → LLM fixes grammar/spelling in clipboard text
 """
+
 from __future__ import annotations
 
 import logging
 import re
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -21,22 +21,27 @@ logger = logging.getLogger(__name__)
 def is_dictation_command(transcript: str) -> bool:
     """Return True if the transcript is a dictation command."""
     t = transcript.strip().lower()
-    return bool(re.match(
-        r"^(dictate|type this|type:|write this|input|say this|paste this)[:\s]",
-        t, re.I,
-    ))
+    return bool(
+        re.match(
+            r"^(dictate|type this|type:|write this|input|say this|paste this)[:\s]",
+            t,
+            re.IGNORECASE,
+        ),
+    )
 
 
-def extract_dictation_text(transcript: str) -> Optional[str]:
+def extract_dictation_text(transcript: str) -> str | None:
     """Extract the text to type from a dictation command.
 
     Examples:
         "dictate: hello world" → "hello world"
         "type this: my name is John" → "my name is John"
+
     """
     m = re.match(
         r"^(?:dictate|type this|type|write this|input|say this|paste this)[:\s]+(.+)",
-        transcript.strip(), re.I | re.DOTALL,
+        transcript.strip(),
+        re.IGNORECASE | re.DOTALL,
     )
     return m.group(1).strip() if m else None
 
@@ -44,26 +49,31 @@ def extract_dictation_text(transcript: str) -> Optional[str]:
 def is_clipboard_command(transcript: str) -> bool:
     """Return True if the transcript is a clipboard command."""
     t = transcript.strip().lower()
-    return bool(re.search(
-        r"\b(clipboard|what.s in my clipboard|read my clipboard|"
-        r"summarize my clipboard|fix my clipboard|correct my clipboard|"
-        r"improve my clipboard)\b",
-        t, re.I,
-    ))
+    return bool(
+        re.search(
+            r"\b(clipboard|what.s in my clipboard|read my clipboard|"
+            r"summarize my clipboard|fix my clipboard|correct my clipboard|"
+            r"improve my clipboard)\b",
+            t,
+            re.IGNORECASE,
+        ),
+    )
 
 
-def get_clipboard_text() -> Optional[str]:
+def get_clipboard_text() -> str | None:
     """Read the current clipboard content."""
     try:
         import pyperclip  # type: ignore[import]
+
         text = pyperclip.paste()
         return text.strip() if text else None
     except Exception:
-        pass
+        logger.exception("Operation failed")
 
     # Windows fallback
     try:
         import win32clipboard  # type: ignore[import]
+
         win32clipboard.OpenClipboard()
         try:
             text = win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
@@ -71,7 +81,7 @@ def get_clipboard_text() -> Optional[str]:
         finally:
             win32clipboard.CloseClipboard()
     except Exception:
-        pass
+        logger.exception("Operation failed")
 
     return None
 
@@ -80,13 +90,15 @@ def set_clipboard_text(text: str) -> bool:
     """Write text to the clipboard."""
     try:
         import pyperclip  # type: ignore[import]
+
         pyperclip.copy(text)
         return True
     except Exception:
-        pass
+        logger.exception("Operation failed")
 
     try:
         import win32clipboard  # type: ignore[import]
+
         win32clipboard.OpenClipboard()
         try:
             win32clipboard.EmptyClipboard()
@@ -95,7 +107,7 @@ def set_clipboard_text(text: str) -> bool:
         finally:
             win32clipboard.CloseClipboard()
     except Exception:
-        pass
+        logger.exception("Operation failed")
 
     return False
 

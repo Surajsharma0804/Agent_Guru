@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 from Agent_Guru.memory.models import (
     CausalLink,
@@ -21,6 +21,9 @@ from Agent_Guru.memory.models import (
     PatternAbstraction,
     PatternType,
 )
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +71,10 @@ class ExperienceRepository:
             if not subsequent_states:
                 continue
             # Nearest subsequent state is most likely caused by this action
-            nearest = min(subsequent_states, key=lambda s: (s.timestamp - action.timestamp).total_seconds())
+            nearest = min(
+                subsequent_states,
+                key=lambda s: (s.timestamp - action.timestamp).total_seconds(),
+            )
             # Causal strength inversely proportional to time gap
             gap = (nearest.timestamp - action.timestamp).total_seconds()
             strength = max(0.1, 1.0 / (1.0 + gap))
@@ -78,7 +84,7 @@ class ExperienceRepository:
                     effect_state_id=nearest.state_id,
                     causal_strength=min(1.0, strength),
                     explanation=f"Action {action.action_type} preceded state change by {gap:.2f}s",
-                )
+                ),
             )
         return links
 
@@ -129,7 +135,9 @@ class ExperienceRepository:
         return 0.4 * action_sim + 0.3 * state_sim + 0.3 * outcome_sim
 
     def query_similar_experiences(
-        self, query: ExperienceQuery, reference: Experience
+        self,
+        query: ExperienceQuery,
+        reference: Experience,
     ) -> list[Experience]:
         """Return experiences ranked by similarity to reference."""
         candidates = list(self._experiences.values())
@@ -141,10 +149,7 @@ class ExperienceRepository:
         # Exclude the reference itself
         candidates = [e for e in candidates if e.id != reference.id]
 
-        scored = [
-            (e, self.calculate_similarity(reference, e))
-            for e in candidates
-        ]
+        scored = [(e, self.calculate_similarity(reference, e)) for e in candidates]
         scored = [(e, s) for e, s in scored if s >= query.similarity_threshold]
         scored.sort(key=lambda x: x[1], reverse=True)
         return [e.model_copy(deep=True) for e, _ in scored[: query.max_results]]
@@ -164,12 +169,14 @@ class ExperienceRepository:
 
         patterns: list[Pattern] = []
         for seq, exp_ids in seq_groups.items():
-            if len(exp_ids) < 2:
+            if len(exp_ids) < 2:  # noqa: PLR2004 - Small integer threshold
+
                 continue
             action_types = seq.split(",")
             # Calculate success rate for this pattern
             successes = sum(
-                1 for eid in exp_ids
+                1
+                for eid in exp_ids
                 if self._experiences.get(eid) and self._experiences[eid].success
             )
             success_rate = successes / len(exp_ids)
@@ -200,7 +207,9 @@ class ExperienceRepository:
     # ------------------------------------------------------------------
 
     def get_experiences_by_time(
-        self, task_type: str | None = None, limit: int = 100
+        self,
+        task_type: str | None = None,
+        limit: int = 100,
     ) -> list[Experience]:
         """Return experiences in temporal order."""
         exps = list(self._experiences.values())

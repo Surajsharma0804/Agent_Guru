@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.llm.failover_router
-Purpose: Provider failover chain with automatic fallback and rule-based responses
+"""Module: Agent_Guru.llm.failover_router
+Purpose: Provider failover chain with automatic fallback and rule-based responses.
 
 Implements the failover chain: Ollama → OpenAI → Gemini → Rule-based
 with availability checking, context preservation across switches, and
@@ -22,9 +21,9 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.llm.models import (
     CompletionRequest,
@@ -41,8 +40,10 @@ logger = logging.getLogger(__name__)
 # Provider availability status
 # ---------------------------------------------------------------------------
 
+
 class ProviderStatus(Enum):
     """Provider availability status."""
+
     AVAILABLE = "available"
     UNAVAILABLE = "unavailable"
     UNKNOWN = "unknown"
@@ -51,11 +52,12 @@ class ProviderStatus(Enum):
 @dataclass
 class ProviderHealth:
     """Health state for a single provider."""
+
     provider: ModelProvider
     status: ProviderStatus = ProviderStatus.UNKNOWN
     last_check_ts: float = 0.0
     consecutive_failures: int = 0
-    last_error: Optional[str] = None
+    last_error: str | None = None
 
     def is_healthy(self, ttl_seconds: float = 30.0) -> bool:
         """Return True if the provider is available OR its TTL has expired
@@ -100,14 +102,14 @@ _DEFAULT_FALLBACK = (
 
 
 def _rule_based_response(user_message: str) -> str:
-    """
-    Generate a rule-based response for common queries.
+    """Generate a rule-based response for common queries.
 
     Args:
         user_message: User's message text
 
     Returns:
         Rule-based response string
+
     """
     normalized = user_message.lower().strip().rstrip("?!.,")
     for pattern, response in _RULE_BASED_RESPONSES.items():
@@ -120,6 +122,7 @@ def _rule_based_response(user_message: str) -> str:
 # Failover router
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class FailoverConfig:
     """Configuration for the failover router.
@@ -130,13 +133,17 @@ class FailoverConfig:
         max_failures_before_skip: Consecutive failures before skipping provider
         enable_rule_based_fallback: Whether to use rule-based fallback
         voice_system_prompt: System prompt for voice interaction personality
+
     """
-    provider_chain: list[ModelProvider] = field(default_factory=lambda: [
-        ModelProvider.OLLAMA,
-        ModelProvider.OPENAI,
-        ModelProvider.GOOGLE,
-        ModelProvider.ANTHROPIC,
-    ])
+
+    provider_chain: list[ModelProvider] = field(
+        default_factory=lambda: [
+            ModelProvider.OLLAMA,
+            ModelProvider.OPENAI,
+            ModelProvider.GOOGLE,
+            ModelProvider.ANTHROPIC,
+        ],
+    )
     health_check_ttl_seconds: float = 30.0
     max_failures_before_skip: int = 3
     enable_rule_based_fallback: bool = True
@@ -158,17 +165,18 @@ class FailoverResult:
         providers_tried: All providers that were attempted
         used_fallback: Whether rule-based fallback was used
         latency_ms: Total latency including failover attempts
+
     """
+
     response: CompletionResponse
-    provider_used: Optional[ModelProvider]
+    provider_used: ModelProvider | None
     providers_tried: list[ModelProvider]
     used_fallback: bool
     latency_ms: float
 
 
 class ProviderFailoverRouter:
-    """
-    Intelligent provider failover router.
+    """Intelligent provider failover router.
 
     Tries providers in order (Ollama → OpenAI → Gemini → Anthropic),
     falling back to rule-based responses if all providers fail.
@@ -184,6 +192,7 @@ class ProviderFailoverRouter:
         >>> result = await router.complete_with_failover(request)
         >>> print(result.response.content)
         >>> print(f"Used: {result.provider_used}")
+
     """
 
     def __init__(
@@ -191,18 +200,17 @@ class ProviderFailoverRouter:
         config: FailoverConfig,
         adapters: dict[ModelProvider, Any],
     ) -> None:
-        """
-        Initialize the failover router.
+        """Initialize the failover router.
 
         Args:
             config: Failover configuration
             adapters: Dict mapping ModelProvider → ProviderAdapter
+
         """
         self._config = config
         self._adapters = adapters
         self._health: dict[ModelProvider, ProviderHealth] = {
-            p: ProviderHealth(provider=p)
-            for p in config.provider_chain
+            p: ProviderHealth(provider=p) for p in config.provider_chain
         }
         self._lock = asyncio.Lock()
 
@@ -211,8 +219,7 @@ class ProviderFailoverRouter:
         request: CompletionRequest,
         inject_system_prompt: bool = True,
     ) -> FailoverResult:
-        """
-        Execute completion with automatic provider failover.
+        """Execute completion with automatic provider failover.
 
         Tries each provider in the chain. If a provider fails, moves to
         the next. If all fail, returns a rule-based response.
@@ -225,6 +232,7 @@ class ProviderFailoverRouter:
 
         Returns:
             FailoverResult with response and metadata
+
         """
         start = time.perf_counter()
         providers_tried: list[ModelProvider] = []
@@ -277,10 +285,9 @@ class ProviderFailoverRouter:
                 )
 
             except Exception as e:
-                logger.warning(
-                    "Provider %s failed: %s. Trying next provider...",
-                    provider.value, e,
-                )
+                logger.exception(
+                    "Provider %s failed. Trying next provider...",
+                    provider.value)
                 async with self._lock:
                     health.status = ProviderStatus.UNAVAILABLE
                     health.consecutive_failures += 1
@@ -318,7 +325,7 @@ class ProviderFailoverRouter:
                 estimated_cost=0.0,
             ),
             latency_ms=latency_ms,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )
 
         return FailoverResult(
@@ -329,17 +336,15 @@ class ProviderFailoverRouter:
             latency_ms=latency_ms,
         )
 
-    async def check_provider_availability(
-        self, provider: ModelProvider
-    ) -> ProviderStatus:
-        """
-        Check if a provider is available by making a minimal test request.
+    async def check_provider_availability(self, provider: ModelProvider) -> ProviderStatus:
+        """Check if a provider is available by making a minimal test request.
 
         Args:
             provider: Provider to check
 
         Returns:
             ProviderStatus
+
         """
         if provider not in self._adapters:
             return ProviderStatus.UNAVAILABLE
@@ -393,17 +398,21 @@ class ProviderFailoverRouter:
             return request
 
         system_msg = Message(role="system", content=self._config.voice_system_prompt)
-        new_messages = [system_msg] + list(request.messages)
+        new_messages = [system_msg, *list(request.messages)]
 
         # Return a shallow copy with updated messages
         import dataclasses
+
         return dataclasses.replace(request, messages=new_messages)
 
     def _adapt_request(
-        self, request: CompletionRequest, provider: ModelProvider
+        self,
+        request: CompletionRequest,
+        provider: ModelProvider,
     ) -> CompletionRequest:
         """Adapt request model name for the target provider."""
         import dataclasses
+
         default_model = self._get_default_model(provider)
         # Only override model if it doesn't match the provider's prefix
         if not self._model_matches_provider(request.model, provider):

@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.memory.conversation_memory
-Purpose: Encrypted conversation memory with LRU eviction and persistence
+"""Module: Agent_Guru.memory.conversation_memory
+Purpose: Encrypted conversation memory with LRU eviction and persistence.
 
 Provides:
 - AES-256-GCM encryption for stored conversations
@@ -27,13 +26,15 @@ import os
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 # Default limits
 _DEFAULT_MAX_TURNS = 50
+
+
 # BUG-002: use OS-appropriate app-data directory so data survives working-directory
 # changes and is never accidentally committed to git.
 def _default_persist_path() -> Path:
@@ -42,6 +43,7 @@ def _default_persist_path() -> Path:
     else:
         base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
     return base / "agent_guru" / "memory" / "conversations.enc"
+
 
 _DEFAULT_PERSIST_PATH = _default_persist_path()
 _KEY_ID = os.environ.get("CONVERSATION_KEY_ID", "conversation_key")
@@ -56,10 +58,12 @@ class ConversationTurn:
         content: Text content of the turn
         timestamp: ISO-format timestamp
         turn_id: Sequential turn identifier
+
     """
+
     role: str
     content: str
-    timestamp: str = field(default_factory=lambda: datetime.now(tz=timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(tz=UTC).isoformat())
     turn_id: int = 0
 
     def to_dict(self) -> dict:
@@ -81,8 +85,7 @@ class ConversationTurn:
 
 
 class ConversationMemory:
-    """
-    Encrypted conversation memory with LRU eviction and disk persistence.
+    """Encrypted conversation memory with LRU eviction and disk persistence.
 
     Stores conversation turns in an LRU-ordered dict (O(1) add/evict).
     Encrypts data with AES-256-GCM before writing to disk.
@@ -99,6 +102,7 @@ class ConversationMemory:
         - add_turn: O(1) amortized
         - get_context: O(k) where k = last_n
         - Retrieval latency: ≤10ms P99
+
     """
 
     def __init__(
@@ -113,9 +117,11 @@ class ConversationMemory:
             max_turns: Maximum number of turns to keep (LRU eviction)
             persist_path: Path for encrypted persistence file
             auto_persist: Whether to auto-save after each turn
+
         """
         if max_turns < 1:
-            raise ValueError(f"max_turns must be >= 1, got {max_turns}")
+            msg = f"max_turns must be >= 1, got {max_turns}"
+            raise ValueError(msg)
 
         self._max_turns = max_turns
         self._persist_path = persist_path or _DEFAULT_PERSIST_PATH
@@ -153,11 +159,14 @@ class ConversationMemory:
 
         Raises:
             ValueError: If role is not 'user' or 'assistant'
+
         """
         if role not in ("user", "assistant"):
-            raise ValueError(f"role must be 'user' or 'assistant', got '{role}'")
+            msg = f"role must be 'user' or 'assistant', got '{role}'"
+            raise ValueError(msg)
         if not isinstance(content, str):
-            raise TypeError(f"content must be str, got {type(content)}")
+            msg = f"content must be str, got {type(content)}"
+            raise TypeError(msg)
 
         with self._lock:
             self._turn_counter += 1
@@ -187,6 +196,7 @@ class ConversationMemory:
 
         Returns:
             List of ConversationTurn in chronological order
+
         """
         with self._lock:
             turns = list(self._turns.values())
@@ -207,11 +217,9 @@ class ConversationMemory:
 
         Returns:
             List of {"role": ..., "content": ...} dicts
+
         """
-        return [
-            {"role": t.role, "content": t.content}
-            for t in self.get_context(last_n=last_n)
-        ]
+        return [{"role": t.role, "content": t.content} for t in self.get_context(last_n=last_n)]
 
     def clear(self) -> None:
         """Clear all conversation history."""
@@ -228,8 +236,8 @@ class ConversationMemory:
             if self._persist_path.exists():
                 self._persist_path.unlink()
                 logger.info("ConversationMemory: deleted %s", self._persist_path)
-        except OSError as e:
-            logger.warning("ConversationMemory: could not delete file: %s", e)
+        except OSError:
+            logger.exception("ConversationMemory: could not delete file")
 
     def turn_count(self) -> int:
         """Return current number of stored turns."""
@@ -252,6 +260,7 @@ class ConversationMemory:
 
         Raises:
             OSError: If the file cannot be written
+
         """
         with self._lock:
             turns_data = [t.to_dict() for t in self._turns.values()]
@@ -268,6 +277,7 @@ class ConversationMemory:
 
         Returns:
             True if loaded successfully, False if file doesn't exist or is corrupt
+
         """
         if not self._persist_path.exists():
             return False
@@ -287,8 +297,8 @@ class ConversationMemory:
             logger.info("ConversationMemory: loaded %s turns", len(turns_data))
             return True
 
-        except Exception as e:
-            logger.error("ConversationMemory: failed to load: %s", e)
+        except Exception:
+            logger.exception("ConversationMemory: failed to load")
             return False
 
     # ------------------------------------------------------------------
@@ -314,20 +324,22 @@ class ConversationMemory:
         """Encrypt with AES-256-GCM. Returns nonce + ciphertext."""
         try:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
             key = self._get_key()
             nonce = os.urandom(12)
             aesgcm = AESGCM(key)
             ct = aesgcm.encrypt(nonce, plaintext.encode("utf-8"), None)
             return nonce + ct
-        except ImportError as e:
+        except ImportError:
             # Fallback: store as plain JSON (dev/test only)
-            logger.warning("cryptography not available - storing unencrypted: %s", e)
+            logger.exception("cryptography not available - storing unencrypted")
             return plaintext.encode("utf-8")
 
     def _decrypt(self, data: bytes) -> str:
         """Decrypt AES-256-GCM data."""
         try:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
             key = self._get_key()
             nonce, ct = data[:12], data[12:]
             aesgcm = AESGCM(key)

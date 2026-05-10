@@ -26,6 +26,7 @@ Performance Characteristics:
 Author: Agent Guru Team
 Date: 2026-03-20
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -33,11 +34,12 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 # BUG-029: aiosqlite is a soft dependency — fall back gracefully if not installed
 try:
     import aiosqlite as _aiosqlite
+
     _AIOSQLITE_AVAILABLE = True
 except ImportError:
     _aiosqlite = None  # type: ignore[assignment]
@@ -84,14 +86,14 @@ def _is_mobile(plat: str) -> bool:
 class _Interaction:
     """A single stored conversation turn."""
 
-    __slots__ = ("personality", "user_message", "ai_message", "timestamp", "embedding")
+    __slots__ = ("ai_message", "embedding", "personality", "timestamp", "user_message")
 
     def __init__(
         self,
         personality: str,
         user_message: str,
         ai_message: str,
-        timestamp: Optional[float] = None,
+        timestamp: float | None = None,
     ) -> None:
         self.personality = personality.upper()
         self.user_message = user_message
@@ -141,10 +143,11 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
     Time Complexity: O(d) where d = len(a)
     Space Complexity: O(1)
     """
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     mag_a = sum(x * x for x in a) ** 0.5
     mag_b = sum(x * x for x in b) ** 0.5
-    if mag_a < 1e-10 or mag_b < 1e-10:
+    if mag_a < 1e-10 or mag_b < 1e-10:  # noqa: PLR2004 - Epsilon value
+
         return 0.0
     return dot / (mag_a * mag_b)
 
@@ -187,8 +190,8 @@ class MemoryManager:
 
     def __init__(
         self,
-        config: Optional["MemoryConfig"] = None,
-        platform_override: Optional[str] = None,
+        config: MemoryConfig | None = None,
+        platform_override: str | None = None,
     ) -> None:
         """Create the memory manager.
 
@@ -198,8 +201,9 @@ class MemoryManager:
                 Stored for future use by persistence backends.
             platform_override: Force a specific platform string (for testing).
                 When ``None`` the platform is auto-detected.
+
         """
-        self._config: Optional["MemoryConfig"] = config
+        self._config: MemoryConfig | None = config
         self._platform: str = platform_override or _detect_platform()
         self._initialized: bool = False
 
@@ -211,7 +215,7 @@ class MemoryManager:
         self._db: Any = None
 
         # Resolved database path (set during _initialize_desktop)
-        self._db_path: Optional[Path] = None
+        self._db_path: Path | None = None
 
         logger.info("MemoryManager created — platform=%s", self._platform)
 
@@ -226,6 +230,7 @@ class MemoryManager:
 
         Returns:
             ``True`` on success, ``False`` on failure.
+
         """
         if self._initialized:
             logger.debug("MemoryManager already initialized")
@@ -245,12 +250,10 @@ class MemoryManager:
                 )
 
             self._initialized = True
-            logger.info(
-                "MemoryManager initialized — platform=%s", self._platform
-            )
+            logger.info("MemoryManager initialized — platform=%s", self._platform)
             return True
-        except Exception as exc:
-            logger.error("MemoryManager.initialize failed: %s", exc)
+        except Exception:
+            logger.exception("MemoryManager.initialize failed")
             return False
 
     async def shutdown(self) -> bool:
@@ -258,6 +261,7 @@ class MemoryManager:
 
         Returns:
             ``True`` on success, ``False`` on failure.
+
         """
         try:
             if _is_desktop(self._platform):
@@ -275,8 +279,8 @@ class MemoryManager:
             self._initialized = False
             logger.info("MemoryManager shut down")
             return True
-        except Exception as exc:
-            logger.error("MemoryManager.shutdown failed: %s", exc)
+        except Exception:
+            logger.exception("MemoryManager.shutdown failed")
             return False
 
     # ------------------------------------------------------------------
@@ -298,6 +302,7 @@ class MemoryManager:
 
         Returns:
             ``True`` on success, ``False`` on invalid personality or failure.
+
         """
         personality = personality.upper()
         if personality not in PERSONALITIES:
@@ -334,19 +339,18 @@ class MemoryManager:
 
             if _is_desktop(self._platform):
                 return await self._store_desktop(interaction)
-            elif self._platform == "android":
+            if self._platform == "android":
                 return await self._store_android(interaction)
-            elif self._platform == "ios":
+            if self._platform == "ios":
                 return await self._store_ios(interaction)
-            else:
-                logger.warning(
-                    "store_interaction: unknown platform %r — simulating success",
-                    self._platform,
-                )
-                self._store[personality].append(interaction)
-                return True
-        except Exception as exc:
-            logger.error("store_interaction failed: %s", exc)
+            logger.warning(
+                "store_interaction: unknown platform %r — simulating success",
+                self._platform,
+            )
+            self._store[personality].append(interaction)
+            return True
+        except Exception:
+            logger.exception("store_interaction failed")
             return False
 
     async def recall(
@@ -362,12 +366,11 @@ class MemoryManager:
 
         Returns:
             List of interaction dicts (newest first), empty list on failure.
+
         """
         personality = personality.upper()
         if personality not in PERSONALITIES:
-            logger.warning(
-                "recall: unknown personality %r (must be GURU or MAYA)", personality
-            )
+            logger.warning("recall: unknown personality %r (must be GURU or MAYA)", personality)
             return []
 
         if limit <= 0:
@@ -384,26 +387,25 @@ class MemoryManager:
         try:
             if _is_desktop(self._platform):
                 return await self._recall_desktop(personality, limit)
-            elif self._platform == "android":
+            if self._platform == "android":
                 return await self._recall_android(personality, limit)
-            elif self._platform == "ios":
+            if self._platform == "ios":
                 return await self._recall_ios(personality, limit)
-            else:
-                logger.warning(
-                    "recall: unknown platform %r — simulating success",
-                    self._platform,
-                )
-                items = self._store.get(personality, [])
-                return [i.to_dict() for i in reversed(items[-limit:])]
-        except Exception as exc:
-            logger.error("recall failed: %s", exc)
+            logger.warning(
+                "recall: unknown platform %r — simulating success",
+                self._platform,
+            )
+            items = self._store.get(personality, [])
+            return [i.to_dict() for i in reversed(items[-limit:])]
+        except Exception:
+            logger.exception("recall failed")
             return []
 
     async def search(
         self,
         query: str,
         limit: int = 5,
-        personality: Optional[str] = None,
+        personality: str | None = None,
     ) -> list[dict[str, Any]]:
         """Semantic search over stored interactions using stub embeddings.
 
@@ -417,6 +419,7 @@ class MemoryManager:
         Returns:
             List of interaction dicts ranked by similarity (best first),
             empty list on failure or no results.
+
         """
         if not query or not query.strip():
             logger.warning("search: empty query — returning empty list")
@@ -429,9 +432,7 @@ class MemoryManager:
         if personality is not None:
             personality = personality.upper()
             if personality not in PERSONALITIES:
-                logger.warning(
-                    "search: unknown personality %r (must be GURU or MAYA)", personality
-                )
+                logger.warning("search: unknown personality %r (must be GURU or MAYA)", personality)
                 return []
 
         logger.info(
@@ -445,18 +446,17 @@ class MemoryManager:
         try:
             if _is_desktop(self._platform):
                 return await self._search_desktop(query, limit, personality)
-            elif self._platform == "android":
+            if self._platform == "android":
                 return await self._search_android(query, limit, personality)
-            elif self._platform == "ios":
+            if self._platform == "ios":
                 return await self._search_ios(query, limit, personality)
-            else:
-                logger.warning(
-                    "search: unknown platform %r — simulating success",
-                    self._platform,
-                )
-                return self._semantic_search_in_memory(query, limit, personality)
-        except Exception as exc:
-            logger.error("search failed: %s", exc)
+            logger.warning(
+                "search: unknown platform %r — simulating success",
+                self._platform,
+            )
+            return self._semantic_search_in_memory(query, limit, personality)
+        except Exception:
+            logger.exception("search failed")
             return []
 
     # ------------------------------------------------------------------
@@ -473,7 +473,7 @@ class MemoryManager:
         """Whether the manager has been initialized."""
         return self._initialized
 
-    def interaction_count(self, personality: Optional[str] = None) -> int:
+    def interaction_count(self, personality: str | None = None) -> int:
         """Return the number of stored interactions (from in-memory cache)."""
         if personality is not None:
             p = personality.upper()
@@ -501,14 +501,12 @@ class MemoryManager:
             logger.warning(
                 "BUG-029: aiosqlite not installed — memory will be in-RAM only "
                 "(install with: pip install aiosqlite). "
-                "Conversation history will be lost on restart."
+                "Conversation history will be lost on restart.",
             )
             return
 
         self._db_path = self._resolve_db_path()
-        logger.info(
-            "Desktop: opening SQLite database at %s", self._db_path
-        )
+        logger.info("Desktop: opening SQLite database at %s", self._db_path)
 
         self._db = await _aiosqlite.connect(str(self._db_path))
         # Enable WAL mode for concurrent readers
@@ -525,7 +523,7 @@ class MemoryManager:
         """)
         await self._db.execute(
             "CREATE INDEX IF NOT EXISTS idx_personality_ts "
-            "ON interactions (personality, timestamp DESC)"
+            "ON interactions (personality, timestamp DESC)",
         )
         await self._db.commit()
 
@@ -550,9 +548,7 @@ class MemoryManager:
                 self._store[personality].append(interaction)
 
         total = sum(len(v) for v in self._store.values())
-        logger.info(
-            "Desktop: loaded %d interactions from SQLite cache", total
-        )
+        logger.info("Desktop: loaded %d interactions from SQLite cache", total)
 
     async def _shutdown_desktop(self) -> None:
         """Shut down desktop storage and close the SQLite connection."""
@@ -575,15 +571,17 @@ class MemoryManager:
         await self._db.execute(
             "INSERT INTO interactions (personality, user_message, ai_message, timestamp) "
             "VALUES (?, ?, ?, ?)",
-            (interaction.personality, interaction.user_message,
-             interaction.ai_message, interaction.timestamp),
+            (
+                interaction.personality,
+                interaction.user_message,
+                interaction.ai_message,
+                interaction.timestamp,
+            ),
         )
         await self._db.commit()
         return True
 
-    async def _recall_desktop(
-        self, personality: str, limit: int
-    ) -> list[dict[str, Any]]:
+    async def _recall_desktop(self, personality: str, limit: int) -> list[dict[str, Any]]:
         """Recall the *limit* most-recent interactions from SQLite (or cache)."""
         if self._db is not None:
             async with self._db.execute(
@@ -594,8 +592,7 @@ class MemoryManager:
             ) as cursor:
                 rows = await cursor.fetchall()
             return [
-                {"personality": r[0], "user_message": r[1],
-                 "ai_message": r[2], "timestamp": r[3]}
+                {"personality": r[0], "user_message": r[1], "ai_message": r[2], "timestamp": r[3]}
                 for r in rows
             ]
 
@@ -604,7 +601,10 @@ class MemoryManager:
         return [i.to_dict() for i in reversed(items[-limit:])]
 
     async def _search_desktop(
-        self, query: str, limit: int, personality: Optional[str]
+        self,
+        query: str,
+        limit: int,
+        personality: str | None,
     ) -> list[dict[str, Any]]:
         """Semantic search using stub embeddings against the in-memory cache."""
         # NOTE: real FTS would use SQLite FTS5 or a vector extension.
@@ -618,8 +618,7 @@ class MemoryManager:
     async def _initialize_android(self) -> None:
         """Initialize Android storage (SharedPreferences + SQLite via adb — simulated)."""
         logger.info(
-            "Android: MemoryManager initializing SharedPreferences + SQLite "
-            "via adb (simulated)"
+            "Android: MemoryManager initializing SharedPreferences + SQLite via adb (simulated)",
         )
         # Simulated: adb shell am broadcast -a guru.memory.init
         await asyncio.sleep(0)
@@ -627,8 +626,7 @@ class MemoryManager:
     async def _shutdown_android(self) -> None:
         """Shut down Android storage."""
         logger.info(
-            "Android: MemoryManager shutting down SharedPreferences + SQLite "
-            "via adb (simulated)"
+            "Android: MemoryManager shutting down SharedPreferences + SQLite via adb (simulated)",
         )
         await asyncio.sleep(0)
 
@@ -642,9 +640,7 @@ class MemoryManager:
         self._store[interaction.personality].append(interaction)
         return True
 
-    async def _recall_android(
-        self, personality: str, limit: int
-    ) -> list[dict[str, Any]]:
+    async def _recall_android(self, personality: str, limit: int) -> list[dict[str, Any]]:
         """Recall interactions on Android via adb (simulated)."""
         logger.info(
             "Android: recalling personality=%s limit=%d via adb (simulated)",
@@ -656,7 +652,10 @@ class MemoryManager:
         return [i.to_dict() for i in reversed(items[-limit:])]
 
     async def _search_android(
-        self, query: str, limit: int, personality: Optional[str]
+        self,
+        query: str,
+        limit: int,
+        personality: str | None,
     ) -> list[dict[str, Any]]:
         """Semantic search on Android (simulated)."""
         logger.info(
@@ -673,8 +672,7 @@ class MemoryManager:
     async def _initialize_ios(self) -> None:
         """Initialize iOS storage (UserDefaults + Core Data via xcrun — simulated)."""
         logger.info(
-            "iOS: MemoryManager initializing UserDefaults + Core Data "
-            "via xcrun simctl (simulated)"
+            "iOS: MemoryManager initializing UserDefaults + Core Data via xcrun simctl (simulated)",
         )
         # Simulated: xcrun simctl spawn booted defaults write guru.memory initialized 1
         await asyncio.sleep(0)
@@ -682,8 +680,7 @@ class MemoryManager:
     async def _shutdown_ios(self) -> None:
         """Shut down iOS storage."""
         logger.info(
-            "iOS: MemoryManager shutting down UserDefaults + Core Data "
-            "via xcrun simctl (simulated)"
+            "iOS: MemoryManager shutting down UserDefaults + Core Data via xcrun simctl (simulated)",
         )
         await asyncio.sleep(0)
 
@@ -697,9 +694,7 @@ class MemoryManager:
         self._store[interaction.personality].append(interaction)
         return True
 
-    async def _recall_ios(
-        self, personality: str, limit: int
-    ) -> list[dict[str, Any]]:
+    async def _recall_ios(self, personality: str, limit: int) -> list[dict[str, Any]]:
         """Recall interactions on iOS via xcrun (simulated)."""
         logger.info(
             "iOS: recalling personality=%s limit=%d via xcrun simctl (simulated)",
@@ -711,7 +706,10 @@ class MemoryManager:
         return [i.to_dict() for i in reversed(items[-limit:])]
 
     async def _search_ios(
-        self, query: str, limit: int, personality: Optional[str]
+        self,
+        query: str,
+        limit: int,
+        personality: str | None,
     ) -> list[dict[str, Any]]:
         """Semantic search on iOS (simulated)."""
         logger.info(
@@ -729,7 +727,7 @@ class MemoryManager:
         self,
         query: str,
         limit: int,
-        personality: Optional[str],
+        personality: str | None,
     ) -> list[dict[str, Any]]:
         """Rank stored interactions by cosine similarity to *query*.
 
@@ -746,6 +744,7 @@ class MemoryManager:
 
         Returns:
             List of interaction dicts ranked by similarity (best first).
+
         """
         query_emb = _stub_embed(query)
 

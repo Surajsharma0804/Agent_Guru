@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.github.auto_commit
-Purpose: Automatic commit and push with task completion detection and batching
+"""Module: agent_guru.platform.github.auto_commit
+Purpose: Automatic commit and push with task completion detection and batching.
 
 This module implements the AutoCommitManager class that provides:
 - Task completion detection
@@ -29,11 +28,11 @@ Version: 1.0.0
 """
 
 import asyncio
+import contextlib
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 from .integrator import GitHubIntegrator, GitOperationResult
 
@@ -41,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 # Data Models
+
 
 @dataclass
 class TaskContext:
@@ -52,12 +52,14 @@ class TaskContext:
         component: Component affected by task
         files_changed: List of changed file paths
         timestamp: Task completion timestamp
+
     """
+
     task_id: str
     task_description: str
     component: str
     files_changed: list[str] = field(default_factory=list)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 @dataclass
@@ -69,11 +71,13 @@ class PendingCommit:
         message: Generated commit message
         files: Files to commit
         created_at: When commit was created
+
     """
+
     task_context: TaskContext
     message: str
     files: list[str]
-    created_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 @dataclass
@@ -87,7 +91,9 @@ class AutoCommitConfig:
         auto_push: Whether to automatically push commits
         commit_message_template: Template for commit messages
         include_file_summary: Include file change summary in message
+
     """
+
     enabled: bool = True
     batch_window_seconds: int = 60
     max_pending_commits: int = 10
@@ -97,8 +103,7 @@ class AutoCommitConfig:
 
 
 class AutoCommitManager:
-    """
-    Automatic commit and push manager with batching.
+    """Automatic commit and push manager with batching.
 
     Provides intelligent commit automation including:
     - Task completion detection
@@ -131,13 +136,14 @@ class AutoCommitManager:
         - File detection: ~100-500ms (depends on repo size)
         - Commit creation: ~200ms
         - Batch processing: ~2-5s (network dependent)
+
     """
 
     def __init__(
         self,
         repo_path: str,
-        config: Optional[AutoCommitConfig] = None,
-        integrator: Optional[GitHubIntegrator] = None
+        config: AutoCommitConfig | None = None,
+        integrator: GitHubIntegrator | None = None,
     ) -> None:
         """Initialize auto-commit manager.
 
@@ -148,6 +154,7 @@ class AutoCommitManager:
 
         Raises:
             ValueError: If repo_path is invalid
+
         """
         self.repo_path = Path(repo_path).resolve()
         self.config = config or AutoCommitConfig()
@@ -155,13 +162,13 @@ class AutoCommitManager:
 
         # Pending commits queue
         self._pending_commits: list[PendingCommit] = []
-        self._last_push_time: Optional[datetime] = None
-        self._batch_task: Optional[asyncio.Task] = None
+        self._last_push_time: datetime | None = None
+        self._batch_task: asyncio.Task | None = None
         self._running = False
 
         logger.info(
             f"AutoCommitManager initialized: repo={repo_path}, "
-            f"batch_window={self.config.batch_window_seconds}s"
+            f"batch_window={self.config.batch_window_seconds}s",
         )
 
     async def start(self) -> None:
@@ -196,10 +203,8 @@ class AutoCommitManager:
         # Cancel batch task
         if self._batch_task:
             self._batch_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._batch_task
-            except asyncio.CancelledError as e:
-                pass
 
         logger.info("AutoCommitManager stopped")
 
@@ -219,27 +224,23 @@ class AutoCommitManager:
 
         Raises:
             ValueError: If task_context is invalid
+
         """
         if not self.config.enabled:
-            return GitOperationResult(
-                success=False,
-                message="Auto-commit is disabled"
-            )
+            return GitOperationResult(success=False, message="Auto-commit is disabled")
 
         if not task_context.task_id:
-            raise ValueError("Task ID cannot be empty")
+            msg = "Task ID cannot be empty"
+            raise ValueError(msg)
 
-        start_time = datetime.now(tz=timezone.utc)
+        start_time = datetime.now(tz=UTC)
 
         try:
             changed_files = await self._detect_changed_files(task_context)
 
             if not changed_files:
                 logger.info("No changes detected for task %s", task_context.task_id)
-                return GitOperationResult(
-                    success=True,
-                    message="No changes to commit"
-                )
+                return GitOperationResult(success=True, message="No changes to commit")
 
             # Generate commit message
             commit_message = self._generate_commit_message(task_context, changed_files)
@@ -248,17 +249,19 @@ class AutoCommitManager:
             pending = PendingCommit(
                 task_context=task_context,
                 message=commit_message,
-                files=changed_files
+                files=changed_files,
             )
 
             # Add to queue
             self._pending_commits.append(pending)
 
-            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
 
             logger.info(
                 "Commit queued for task %s: %d file(s), pending=%d",
-                task_context.task_id, len(changed_files), len(self._pending_commits),
+                task_context.task_id,
+                len(changed_files),
+                len(self._pending_commits),
             )
 
             # Check if we should force push
@@ -269,19 +272,18 @@ class AutoCommitManager:
             return GitOperationResult(
                 success=True,
                 message=f"Commit queued: {len(changed_files)} file(s)",
-                duration_ms=duration_ms
+                duration_ms=duration_ms,
             )
 
         except Exception as e:
-            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
-            logger.error("Failed to queue commit for task %s: %s", task_context.task_id, e)
+            duration_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
+            logger.exception("Failed to queue commit for task %s", task_context.task_id)
             return GitOperationResult(
                 success=False,
                 message=f"Failed to queue commit: {e}",
                 stderr=str(e),
-                duration_ms=duration_ms
+                duration_ms=duration_ms,
             )
-
     async def _detect_changed_files(self, task_context: TaskContext) -> list[str]:
         """Detect changed files for task.
 
@@ -295,6 +297,7 @@ class AutoCommitManager:
 
         Returns:
             List of changed file paths
+
         """
         # Use task context files if provided
         if task_context.files_changed:
@@ -319,11 +322,7 @@ class AutoCommitManager:
         # Remove duplicates
         return list(set(changed_files))
 
-    def _generate_commit_message(
-        self,
-        task_context: TaskContext,
-        changed_files: list[str]
-    ) -> str:
+    def _generate_commit_message(self, task_context: TaskContext, changed_files: list[str]) -> str:
         """Generate descriptive commit message.
 
         Format:
@@ -343,11 +342,12 @@ class AutoCommitManager:
 
         Returns:
             Formatted commit message
+
         """
         # Format header
         header = self.config.commit_message_template.format(
             task_id=task_context.task_id,
-            task_description=task_context.task_description
+            task_description=task_context.task_description,
         )
 
         # Build message parts
@@ -357,7 +357,8 @@ class AutoCommitManager:
             parts.append("")  # Blank line
 
             # File changes summary
-            if len(changed_files) <= 5:
+            if len(changed_files) <= 5:  # noqa: PLR2004 - Small integer threshold
+
                 # List all files
                 for file_path in changed_files:
                     parts.append(f"- {file_path}")
@@ -394,19 +395,17 @@ class AutoCommitManager:
 
                 # Check batch window
                 if self._last_push_time:
-                    elapsed = datetime.now(tz=timezone.utc) - self._last_push_time
+                    elapsed = datetime.now(tz=UTC) - self._last_push_time
                     if elapsed.total_seconds() < self.config.batch_window_seconds:
                         continue
 
                 # Process pending commits
                 await self._process_pending_commits()
 
-            except asyncio.CancelledError as e:
+            except asyncio.CancelledError:
                 break
-            except Exception as e:
-                logger.error("Error in batch processor: %s", e)
+                logger.exception("Error in batch processor")
                 await asyncio.sleep(5)  # Back off on error
-
         logger.info("Batch processor stopped")
 
     async def _process_pending_commits(self) -> None:
@@ -420,7 +419,7 @@ class AutoCommitManager:
         if not self._pending_commits:
             return
 
-        start_time = datetime.now(tz=timezone.utc)
+        start_time = datetime.now(tz=UTC)
 
         try:
             # Collect all files and messages
@@ -431,7 +430,7 @@ class AutoCommitManager:
                 all_files.extend(pending.files)
                 all_messages.append(
                     f"- Task {pending.task_context.task_id}: "
-                    f"{pending.task_context.task_description}"
+                    f"{pending.task_context.task_description}",
                 )
 
             # Remove duplicates
@@ -450,46 +449,46 @@ class AutoCommitManager:
 
             logger.info(
                 "Processing batch: %d commit(s), %d file(s)",
-                len(self._pending_commits), len(all_files),
+                len(self._pending_commits),
+                len(all_files),
             )
 
             # Commit and push
-            result = self.integrator.commit_and_push(
-                message=commit_message,
-                files=all_files
-            )
+            result = self.integrator.commit_and_push(message=commit_message, files=all_files)
 
-            duration_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
+            duration_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
 
             if result.success:
                 logger.info(
                     "Batch processed successfully: %d commit(s), duration=%.0fms",
-                    len(self._pending_commits), duration_ms,
+                    len(self._pending_commits),
+                    duration_ms,
                 )
 
                 # Clear pending commits
                 self._pending_commits.clear()
-                self._last_push_time = datetime.now(tz=timezone.utc)
+                self._last_push_time = datetime.now(tz=UTC)
             else:
                 logger.error("Batch processing failed: %s", result.message)
                 # Keep pending commits for retry
 
-        except Exception as e:
-            logger.error("Failed to process pending commits: %s", e)
-
+        except Exception:
+            logger.exception("Failed to process pending commits")
     def get_pending_count(self) -> int:
         """Get number of pending commits.
 
         Returns:
             Number of commits waiting to be pushed
+
         """
         return len(self._pending_commits)
 
-    def get_time_until_next_push(self) -> Optional[float]:
+    def get_time_until_next_push(self) -> float | None:
         """Get time until next batch push.
 
         Returns:
             Seconds until next push, or None if no pending commits
+
         """
         if not self._pending_commits:
             return None
@@ -497,7 +496,7 @@ class AutoCommitManager:
         if not self._last_push_time:
             return 0.0
 
-        elapsed = datetime.now(tz=timezone.utc) - self._last_push_time
+        elapsed = datetime.now(tz=UTC) - self._last_push_time
         remaining = self.config.batch_window_seconds - elapsed.total_seconds()
 
         return max(0.0, remaining)
@@ -509,17 +508,15 @@ class AutoCommitManager:
 
         Returns:
             GitOperationResult with push status
+
         """
         if not self._pending_commits:
-            return GitOperationResult(
-                success=True,
-                message="No pending commits to push"
-            )
+            return GitOperationResult(success=True, message="No pending commits to push")
 
         logger.info("Force pushing %s pending commit(s)", len(self._pending_commits))
         await self._process_pending_commits()
 
         return GitOperationResult(
             success=True,
-            message=f"Force pushed {len(self._pending_commits)} commit(s)"
+            message=f"Force pushed {len(self._pending_commits)} commit(s)",
         )

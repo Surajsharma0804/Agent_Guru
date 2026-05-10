@@ -1,5 +1,4 @@
-"""
-GitHub Integration Module
+"""GitHub Integration Module.
 
 This module provides automated Git operations for Agent Guru, including:
 - Repository operations (status, add, commit, push, pull)
@@ -36,16 +35,16 @@ from Agent_Guru.platform.github.integrator import (
 )
 
 __all__ = [
+    "AutoCommitConfig",
+    # Auto-commit
+    "AutoCommitManager",
+    "GitAuthenticationError",
+    "GitConflictError",
     # Integrator
     "GitHubIntegrator",
     "GitOperationResult",
-    "GitRepositoryStatus",
-    "GitConflictError",
-    "GitAuthenticationError",
     "GitRemoteError",
-    # Auto-commit
-    "AutoCommitManager",
-    "AutoCommitConfig",
-    "TaskContext",
+    "GitRepositoryStatus",
     "PendingCommit",
+    "TaskContext",
 ]

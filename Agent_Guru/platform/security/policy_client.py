@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.security.policy_client
-Purpose: World-class Policy Engine integration - BEATS Alexa & Siri
+"""Module: agent_guru.platform.security.policy_client
+Purpose: World-class Policy Engine integration - BEATS Alexa & Siri.
 
 This module implements PRODUCTION-GRADE Policy Engine integration with:
 - Dynamic policy evaluation with caching
@@ -49,7 +48,7 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -73,14 +72,14 @@ class PolicyEffect(Enum):
 
 @dataclass
 class PolicyContext:
-    """
-    Context for policy evaluation.
+    """Context for policy evaluation.
 
     Attributes:
         principal: User/service performing the operation
         resource: Resource being accessed
         action: Action being performed
         environment: Environmental context (time, location, etc.)
+
     """
 
     principal: str
@@ -91,8 +90,7 @@ class PolicyContext:
 
 @dataclass
 class PolicyEvaluationResult:
-    """
-    Result of policy evaluation.
+    """Result of policy evaluation.
 
     Attributes:
         decision: Policy decision (ALLOW/DENY/ABSTAIN)
@@ -101,10 +99,11 @@ class PolicyEvaluationResult:
         matched_rules: List of rules that matched
         evaluation_time_ms: Time taken to evaluate (milliseconds)
         cached: Whether result was from cache
+
     """
 
     decision: PolicyDecision
-    policy_id: Optional[str] = None
+    policy_id: str | None = None
     reason: str = ""
     matched_rules: list[str] = field(default_factory=list)
     evaluation_time_ms: float = 0.0
@@ -113,14 +112,14 @@ class PolicyEvaluationResult:
 
 @dataclass
 class CacheEntry:
-    """
-    Cache entry for policy evaluation results.
+    """Cache entry for policy evaluation results.
 
     Attributes:
         result: Cached evaluation result
         timestamp: When entry was cached
         ttl: Time-to-live in seconds
         access_count: Number of times accessed
+
     """
 
     result: PolicyEvaluationResult
@@ -130,8 +129,7 @@ class CacheEntry:
 
 
 class PolicyEngineClient:
-    """
-    World-class Policy Engine client - BEATS Alexa & Siri.
+    """World-class Policy Engine client - BEATS Alexa & Siri.
 
     Time Complexity: O(1) for cached lookups, O(n) for evaluation
     Space Complexity: O(m) where m is cache size (bounded)
@@ -159,18 +157,18 @@ class PolicyEngineClient:
         >>> result = client.evaluate_policy(context)
         >>> if result.decision == PolicyDecision.ALLOW:
         ...     print("Access granted")
+
     """
 
     def __init__(
         self,
-        policy_engine_url: Optional[str] = None,
+        policy_engine_url: str | None = None,
         cache_size: int = 1000,
         cache_ttl_seconds: float = 300.0,
         enable_cache: bool = True,
         timeout_seconds: float = 5.0,
-    ):
-        """
-        Initialize Policy Engine client.
+    ) -> None:
+        """Initialize Policy Engine client.
 
         Args:
             policy_engine_url: URL of Policy Engine service (None = local evaluation)
@@ -181,6 +179,7 @@ class PolicyEngineClient:
 
         Raises:
             ValueError: If parameters are invalid
+
         """
         self._validate_config(cache_size, cache_ttl_seconds, timeout_seconds)
 
@@ -204,7 +203,7 @@ class PolicyEngineClient:
         self._circuit_breaker_failures = 0
         self._circuit_breaker_threshold = 5
         self._circuit_breaker_open = False
-        self._circuit_breaker_reset_time: Optional[float] = None
+        self._circuit_breaker_reset_time: float | None = None
         self._circuit_breaker_timeout = 60.0  # seconds
 
         logger.info(
@@ -220,8 +219,7 @@ class PolicyEngineClient:
         context: PolicyContext,
         bypass_cache: bool = False,
     ) -> PolicyEvaluationResult:
-        """
-        Evaluate policy for given context.
+        """Evaluate policy for given context.
 
         Time Complexity: O(1) for cache hit, O(n) for evaluation
         Space Complexity: O(1)
@@ -247,6 +245,7 @@ class PolicyEngineClient:
             ... )
             >>> result = client.evaluate_policy(context)
             >>> print(f"Decision: {result.decision.value}")
+
         """
         start_time = time.time()
         self._total_evaluations += 1
@@ -256,8 +255,9 @@ class PolicyEngineClient:
             if self._should_reset_circuit_breaker():
                 self._reset_circuit_breaker()
             else:
+                msg = f"Circuit breaker open, retry after {self._circuit_breaker_timeout}s"
                 raise CircuitBreakerOpenError(
-                    f"Circuit breaker open, retry after {self._circuit_breaker_timeout}s"
+                    msg,
                 )
 
         # Compute cache key (fingerprint of context)
@@ -294,22 +294,22 @@ class PolicyEngineClient:
             if self._circuit_breaker_failures >= self._circuit_breaker_threshold:
                 self._open_circuit_breaker()
 
-            logger.error(
+            logger.exception(
                 "policy_evaluation_failed",
                 principal=context.principal,
                 resource=context.resource,
                 action=context.action,
                 error=str(e),
             )
-            raise PolicyEngineError(f"Policy evaluation failed: {e}") from e
+            msg = f"Policy evaluation failed: {e}"
+            raise PolicyEngineError(msg) from e
 
     async def evaluate_policy_async(
         self,
         context: PolicyContext,
         bypass_cache: bool = False,
     ) -> PolicyEvaluationResult:
-        """
-        Async policy evaluation (non-blocking).
+        """Async policy evaluation (non-blocking).
 
         Time Complexity: O(1) for cache hit, O(n) for evaluation
         Space Complexity: O(1)
@@ -330,19 +330,17 @@ class PolicyEngineClient:
             ...     action="write"
             ... )
             >>> result = await client.evaluate_policy_async(context)
+
         """
         # Run synchronous evaluation in thread pool (avoid blocking event loop)
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None, self.evaluate_policy, context, bypass_cache
-        )
+        return await loop.run_in_executor(None, self.evaluate_policy, context, bypass_cache)
 
     def batch_evaluate_policies(
         self,
         contexts: list[PolicyContext],
     ) -> list[PolicyEvaluationResult]:
-        """
-        Batch evaluate multiple policies (optimized).
+        """Batch evaluate multiple policies (optimized).
 
         Time Complexity: O(n) where n is number of contexts
         Space Complexity: O(n)
@@ -361,6 +359,7 @@ class PolicyEngineClient:
             ...     PolicyContext("user2", "/file2", "write"),
             ... ]
             >>> results = client.batch_evaluate_policies(contexts)
+
         """
         results = []
 
@@ -370,7 +369,7 @@ class PolicyEngineClient:
                 results.append(result)
             except Exception as e:
                 # Continue with other evaluations on error
-                logger.error(
+                logger.exception(
                     "batch_evaluation_failed",
                     principal=context.principal,
                     resource=context.resource,
@@ -383,7 +382,7 @@ class PolicyEngineClient:
                         decision=PolicyDecision.DENY,
                         reason=f"Evaluation failed: {e}",
                         evaluation_time_ms=0.0,
-                    )
+                    ),
                 )
 
         return results
@@ -392,8 +391,7 @@ class PolicyEngineClient:
         self,
         context: PolicyContext,
     ) -> tuple[bool, str]:
-        """
-        Validate operation against policy (simplified interface).
+        """Validate operation against policy (simplified interface).
 
         Time Complexity: O(1) for cache hit, O(n) for evaluation
         Space Complexity: O(1)
@@ -410,18 +408,18 @@ class PolicyEngineClient:
             >>> is_allowed, reason = client.validate_against_policy(context)
             >>> if not is_allowed:
             ...     print(f"Access denied: {reason}")
+
         """
         try:
             result = self.evaluate_policy(context)
 
             if result.decision == PolicyDecision.ALLOW:
                 return True, result.reason
-            else:
-                self._policy_violations += 1
-                return False, result.reason
+            self._policy_violations += 1
+            return False, result.reason
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "policy_validation_failed",
                 principal=context.principal,
                 resource=context.resource,
@@ -431,9 +429,8 @@ class PolicyEngineClient:
             # Fail closed (deny on error)
             return False, f"Policy validation failed: {e}"
 
-    def clear_cache(self, cache_key: Optional[str] = None) -> None:
-        """
-        Clear policy cache.
+    def clear_cache(self, cache_key: str | None = None) -> None:
+        """Clear policy cache.
 
         Args:
             cache_key: Specific cache key to clear (None = clear all)
@@ -442,6 +439,7 @@ class PolicyEngineClient:
             >>> client = PolicyEngineClient()
             >>> client.clear_cache()  # Clear all
             >>> client.clear_cache("specific_key")  # Clear specific entry
+
         """
         with self._cache_lock:
             if cache_key is None:
@@ -452,8 +450,7 @@ class PolicyEngineClient:
                 logger.info("policy_cache_cleared", scope="key", cache_key=cache_key)
 
     def get_cache_statistics(self) -> dict[str, Any]:
-        """
-        Get cache statistics.
+        """Get cache statistics.
 
         Returns:
             Dictionary with cache statistics
@@ -462,6 +459,7 @@ class PolicyEngineClient:
             >>> client = PolicyEngineClient()
             >>> stats = client.get_cache_statistics()
             >>> print(f"Cache hit rate: {stats['hit_rate']:.2%}")
+
         """
         with self._cache_lock:
             total_requests = self._cache_hits + self._cache_misses
@@ -480,8 +478,7 @@ class PolicyEngineClient:
             }
 
     def _evaluate_policy_internal(self, context: PolicyContext) -> PolicyEvaluationResult:
-        """
-        Internal policy evaluation logic.
+        """Internal policy evaluation logic.
 
         This is where the actual policy evaluation happens.
         Can be extended to call external Policy Engine service.
@@ -491,6 +488,7 @@ class PolicyEngineClient:
 
         Returns:
             Policy evaluation result
+
         """
         # Default policy: Allow all operations (can be customized)
         # In production, this would call the Policy Engine service
@@ -512,7 +510,6 @@ class PolicyEngineClient:
                 matched_rules=["system_files_rule"],
             )
 
-        # Default: Allow
         return PolicyEvaluationResult(
             decision=PolicyDecision.ALLOW,
             policy_id="default_allow_all",
@@ -521,8 +518,7 @@ class PolicyEngineClient:
         )
 
     def _compute_cache_key(self, context: PolicyContext) -> str:
-        """
-        Compute cache key from context.
+        """Compute cache key from context.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -532,23 +528,21 @@ class PolicyEngineClient:
 
         Returns:
             Cache key (SHA-256 hash)
+
         """
         # Create deterministic string representation
         key_str = f"{context.principal}:{context.resource}:{context.action}"
 
         # Add environment context (sorted for determinism)
         if context.environment:
-            env_str = ",".join(
-                f"{k}={v}" for k, v in sorted(context.environment.items())
-            )
+            env_str = ",".join(f"{k}={v}" for k, v in sorted(context.environment.items()))
             key_str += f":{env_str}"
 
         # Hash for fixed-size key
         return hashlib.sha256(key_str.encode()).hexdigest()
 
-    def _get_from_cache(self, cache_key: str) -> Optional[PolicyEvaluationResult]:
-        """
-        Get result from cache.
+    def _get_from_cache(self, cache_key: str) -> PolicyEvaluationResult | None:
+        """Get result from cache.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -558,6 +552,7 @@ class PolicyEngineClient:
 
         Returns:
             Cached result or None if not found/expired
+
         """
         with self._cache_lock:
             entry = self._cache.get(cache_key)
@@ -580,8 +575,7 @@ class PolicyEngineClient:
             return entry.result
 
     def _add_to_cache(self, cache_key: str, result: PolicyEvaluationResult) -> None:
-        """
-        Add result to cache.
+        """Add result to cache.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -589,6 +583,7 @@ class PolicyEngineClient:
         Args:
             cache_key: Cache key
             result: Policy evaluation result
+
         """
         with self._cache_lock:
             # Evict oldest entry if cache full (LRU)
@@ -638,18 +633,19 @@ class PolicyEngineClient:
     ) -> None:
         """Validate configuration parameters."""
         if cache_size <= 0:
-            raise ValueError(f"cache_size must be positive, got {cache_size}")
+            msg = f"cache_size must be positive, got {cache_size}"
+            raise ValueError(msg)
         if cache_ttl_seconds <= 0:
-            raise ValueError(f"cache_ttl_seconds must be positive, got {cache_ttl_seconds}")
+            msg = f"cache_ttl_seconds must be positive, got {cache_ttl_seconds}"
+            raise ValueError(msg)
         if timeout_seconds <= 0:
-            raise ValueError(f"timeout_seconds must be positive, got {timeout_seconds}")
+            msg = f"timeout_seconds must be positive, got {timeout_seconds}"
+            raise ValueError(msg)
 
 
 class PolicyEngineError(Exception):
     """Base exception for Policy Engine errors."""
 
 
-
 class CircuitBreakerOpenError(PolicyEngineError):
     """Raised when circuit breaker is open."""
-

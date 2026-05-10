@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.platform.integration.goal_manager_client
-Purpose: Goal Manager integration client for task completion notifications
+"""Module: Agent_Guru.platform.integration.goal_manager_client
+Purpose: Goal Manager integration client for task completion notifications.
 
 This module provides async client for notifying Goal Manager about task
 completions and operation results from the Platform Integration System.
@@ -23,9 +22,9 @@ Date: 2026-02-26
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 import aiohttp
@@ -53,8 +52,7 @@ class OperationStatus(Enum):
 
 @dataclass
 class OperationResult:
-    """
-    Result of a platform operation.
+    """Result of a platform operation.
 
     Attributes:
         operation_id: Unique operation identifier
@@ -67,6 +65,7 @@ class OperationResult:
         result_data: Operation result data
         error_message: Error message if failed
         resource_usage: Resource usage metrics
+
     """
 
     operation_id: str
@@ -76,15 +75,14 @@ class OperationResult:
     end_time: datetime
     execution_time: float
     parameters: dict[str, Any] = field(default_factory=dict)
-    result_data: Optional[dict[str, Any]] = None
-    error_message: Optional[str] = None
-    resource_usage: Optional[dict[str, float]] = None
+    result_data: dict[str, Any] | None = None
+    error_message: str | None = None
+    resource_usage: dict[str, float] | None = None
 
 
 @dataclass
 class TaskCompletionNotification:
-    """
-    Notification for task completion.
+    """Notification for task completion.
 
     Attributes:
         notification_id: Unique notification identifier
@@ -94,12 +92,13 @@ class TaskCompletionNotification:
         operations: List of operations performed
         overall_status: Overall task status
         metadata: Additional metadata
+
     """
 
     notification_id: UUID = field(default_factory=uuid4)
     task_id: str = ""
     task_description: str = ""
-    completion_time: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    completion_time: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     operations: list[OperationResult] = field(default_factory=list)
     overall_status: OperationStatus = OperationStatus.SUCCESS
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -132,8 +131,7 @@ class TaskCompletionNotification:
 
 
 class GoalManagerClient:
-    """
-    Async client for Goal Manager integration.
+    """Async client for Goal Manager integration.
 
     Provides:
     - Task completion notifications
@@ -157,6 +155,7 @@ class GoalManagerClient:
         >>> await client.notify_task_completion(notification)
         >>>
         >>> await client.disconnect()
+
     """
 
     def __init__(
@@ -168,8 +167,7 @@ class GoalManagerClient:
         circuit_breaker_threshold: int = 5,
         circuit_breaker_timeout: float = 60.0,
     ) -> None:
-        """
-        Initialize Goal Manager client.
+        """Initialize Goal Manager client.
 
         Args:
             base_url: Goal Manager service base URL
@@ -181,10 +179,15 @@ class GoalManagerClient:
 
         Raises:
             ValueError: If configuration parameters are invalid
+
         """
         self._validate_config(
-            base_url, timeout, max_retries, retry_delay,
-            circuit_breaker_threshold, circuit_breaker_timeout
+            base_url,
+            timeout,
+            max_retries,
+            retry_delay,
+            circuit_breaker_threshold,
+            circuit_breaker_timeout,
         )
 
         self.base_url = base_url.rstrip("/")
@@ -195,12 +198,12 @@ class GoalManagerClient:
         self.circuit_breaker_timeout = circuit_breaker_timeout
 
         # Session management
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: aiohttp.ClientSession | None = None
 
         # Circuit breaker state
         self._failure_count = 0
         self._circuit_open = False
-        self._circuit_open_time: Optional[datetime] = None
+        self._circuit_open_time: datetime | None = None
 
         # Statistics
         self._notifications_sent = 0
@@ -208,26 +211,24 @@ class GoalManagerClient:
         self._total_retry_attempts = 0
 
     async def connect(self) -> None:
-        """
-        Establish connection to Goal Manager.
+        """Establish connection to Goal Manager.
 
         Creates HTTP session for async requests.
 
         Raises:
             RuntimeError: If already connected
+
         """
         if self._session is not None:
-            raise RuntimeError("Client already connected")
+            msg = "Client already connected"
+            raise RuntimeError(msg)
 
-        self._session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=self.timeout)
-        )
+        self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout))
 
         logger.info("Connected to Goal Manager at %s", self.base_url)
 
     async def disconnect(self) -> None:
-        """
-        Disconnect from Goal Manager.
+        """Disconnect from Goal Manager.
 
         Closes HTTP session and cleans up resources.
         """
@@ -238,10 +239,9 @@ class GoalManagerClient:
 
     async def notify_task_completion(
         self,
-        notification: TaskCompletionNotification
+        notification: TaskCompletionNotification,
     ) -> NotificationStatus:
-        """
-        Notify Goal Manager of task completion.
+        """Notify Goal Manager of task completion.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -255,9 +255,11 @@ class GoalManagerClient:
         Raises:
             RuntimeError: If not connected
             CircuitBreakerOpenError: If circuit breaker is open
+
         """
         if self._session is None:
-            raise RuntimeError("Client not connected. Call connect() first.")
+            msg = "Client not connected. Call connect() first."
+            raise RuntimeError(msg)
 
         # Check circuit breaker
         if self._circuit_open:
@@ -278,19 +280,16 @@ class GoalManagerClient:
                 if status == NotificationStatus.SENT:
                     self._on_success()
                     self._notifications_sent += 1
-                    logger.info(
-                        f"Task completion notification sent: {notification.task_id}"
-                    )
+                    logger.info("Task completion notification sent: %s", notification.task_id)
                     return status
 
-            except Exception as e:
-                logger.warning("Notification attempt %s failed: %s", attempt + 1, e
-                )
+            except Exception:
+                logger.exception("Notification attempt %s failed", attempt + 1)
                 self._total_retry_attempts += 1
 
                 if attempt < self.max_retries - 1:
                     # Exponential backoff with jitter
-                    delay = self.retry_delay * (2 ** attempt)
+                    delay = self.retry_delay * (2**attempt)
                     jitter = delay * 0.2 * (2 * asyncio.get_running_loop().time() % 1 - 1)
                     await asyncio.sleep(delay + jitter)
 
@@ -298,17 +297,12 @@ class GoalManagerClient:
         self._on_failure()
         self._notifications_failed += 1
         logger.error(
-            f"Failed to send notification after {self.max_retries} attempts: "
-            f"{notification.task_id}"
+            f"Failed to send notification after {self.max_retries} attempts: {notification.task_id}",
         )
         return NotificationStatus.FAILED
 
-    async def report_operation_result(
-        self,
-        operation: OperationResult
-    ) -> NotificationStatus:
-        """
-        Report individual operation result to Goal Manager.
+    async def report_operation_result(self, operation: OperationResult) -> NotificationStatus:
+        """Report individual operation result to Goal Manager.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -321,9 +315,11 @@ class GoalManagerClient:
 
         Raises:
             RuntimeError: If not connected
+
         """
         if self._session is None:
-            raise RuntimeError("Client not connected. Call connect() first.")
+            msg = "Client not connected. Call connect() first."
+            raise RuntimeError(msg)
 
         # Create notification with single operation
         notification = TaskCompletionNotification(
@@ -337,10 +333,9 @@ class GoalManagerClient:
 
     async def _send_notification(
         self,
-        notification: TaskCompletionNotification
+        notification: TaskCompletionNotification,
     ) -> NotificationStatus:
-        """
-        Send notification to Goal Manager.
+        """Send notification to Goal Manager.
 
         Args:
             notification: Notification to send
@@ -350,24 +345,24 @@ class GoalManagerClient:
 
         Raises:
             aiohttp.ClientError: If HTTP request fails
+
         """
         url = f"{self.base_url}/api/v1/notifications/task-completion"
         payload = notification.to_dict()
 
         async with self._session.post(url, json=payload) as response:
-            if response.status == 200:
+            if response.status == 200:  # noqa: PLR2004 - Percentage/large threshold
+
                 return NotificationStatus.SENT
-            elif response.status == 429:
+            if response.status == 429:  # noqa: PLR2004 - Percentage/large threshold
+
                 # Rate limited, should retry
                 logger.warning("Goal Manager rate limit exceeded")
                 return NotificationStatus.RETRYING
-            else:
-                # Other error
-                error_text = await response.text()
-                logger.error(
-                    f"Goal Manager returned error {response.status}: {error_text}"
-                )
-                return NotificationStatus.FAILED
+            # Other error
+            error_text = await response.text()
+            logger.error("Goal Manager returned error %s: %s", response.status, error_text)
+            return NotificationStatus.FAILED
 
     def _on_success(self) -> None:
         """Handle successful notification."""
@@ -379,30 +374,28 @@ class GoalManagerClient:
 
         if self._failure_count >= self.circuit_breaker_threshold:
             self._circuit_open = True
-            self._circuit_open_time = datetime.now(tz=timezone.utc)
-            logger.error(
-                "Circuit breaker opened after %d failures", self._failure_count
-            )
+            self._circuit_open_time = datetime.now(tz=UTC)
+            logger.error("Circuit breaker opened after %d failures", self._failure_count)
 
     def _should_attempt_reset(self) -> bool:
-        """
-        Check if circuit breaker should attempt reset.
+        """Check if circuit breaker should attempt reset.
 
         Returns:
             True if enough time has passed since circuit opened
+
         """
         if not self._circuit_open or self._circuit_open_time is None:
             return False
 
-        elapsed = (datetime.now(tz=timezone.utc) - self._circuit_open_time).total_seconds()
+        elapsed = (datetime.now(tz=UTC) - self._circuit_open_time).total_seconds()
         return elapsed >= self.circuit_breaker_timeout
 
     def get_statistics(self) -> dict[str, Any]:
-        """
-        Get client statistics.
+        """Get client statistics.
 
         Returns:
             Dictionary with statistics
+
         """
         return {
             "notifications_sent": self._notifications_sent,
@@ -421,8 +414,7 @@ class GoalManagerClient:
         circuit_breaker_threshold: int,
         circuit_breaker_timeout: float,
     ) -> None:
-        """
-        Validate configuration parameters.
+        """Validate configuration parameters.
 
         Args:
             base_url: Goal Manager service base URL
@@ -434,29 +426,34 @@ class GoalManagerClient:
 
         Raises:
             ValueError: If any parameter is invalid
+
         """
         if not base_url:
-            raise ValueError("base_url cannot be empty")
+            msg = "base_url cannot be empty"
+            raise ValueError(msg)
 
         if timeout <= 0:
-            raise ValueError(f"timeout must be positive, got {timeout}")
+            msg = f"timeout must be positive, got {timeout}"
+            raise ValueError(msg)
 
         if max_retries < 0:
-            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+            msg = f"max_retries must be non-negative, got {max_retries}"
+            raise ValueError(msg)
 
         if retry_delay <= 0:
-            raise ValueError(f"retry_delay must be positive, got {retry_delay}")
+            msg = f"retry_delay must be positive, got {retry_delay}"
+            raise ValueError(msg)
 
         if circuit_breaker_threshold <= 0:
+            msg = f"circuit_breaker_threshold must be positive, got {circuit_breaker_threshold}"
             raise ValueError(
-                f"circuit_breaker_threshold must be positive, "
-                f"got {circuit_breaker_threshold}"
+                msg,
             )
 
         if circuit_breaker_timeout <= 0:
+            msg = f"circuit_breaker_timeout must be positive, got {circuit_breaker_timeout}"
             raise ValueError(
-                f"circuit_breaker_timeout must be positive, "
-                f"got {circuit_breaker_timeout}"
+                msg,
             )
 
     async def __aenter__(self):
@@ -464,6 +461,6 @@ class GoalManagerClient:
         await self.connect()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):  # noqa: ANN001
         """Async context manager exit."""
         await self.disconnect()

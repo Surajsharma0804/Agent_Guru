@@ -1,10 +1,10 @@
 """Emotion Detector with 7-class Ekman classification."""
+
 from __future__ import annotations
 
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
@@ -15,6 +15,7 @@ EKMAN_EMOTIONS = ["happy", "sad", "angry", "fearful", "disgusted", "surprised", 
 @dataclass
 class EmotionalState:
     """Detected emotional state."""
+
     emotion: str
     confidence: float
     timestamp: float = field(default_factory=time.time)
@@ -24,6 +25,7 @@ class EmotionalState:
 @dataclass
 class EmotionTrend:
     """7-day emotion trend."""
+
     dominant_emotion: str
     emotion_counts: dict[str, int]
     period_days: int = 7
@@ -44,9 +46,9 @@ class EmotionDetector:
 
     def detect(
         self,
-        audio: Optional[np.ndarray] = None,
-        text: Optional[str] = None,
-        face_features: Optional[np.ndarray] = None,
+        audio: np.ndarray | None = None,
+        text: str | None = None,
+        face_features: np.ndarray | None = None,
     ) -> EmotionalState:
         """Detect emotion from available modalities."""
         if self._opted_out:
@@ -87,8 +89,9 @@ class EmotionDetector:
 
     def _detect_from_voice(self, audio: np.ndarray) -> dict[str, float]:
         """Stub: prosody-based emotion detection."""
-        energy = float(np.mean(audio ** 2))
-        if energy > 0.1:
+        energy = float(np.mean(audio**2))
+        if energy > 0.1:  # noqa: PLR2004 - Threshold value
+
             return {"happy": 0.5, "neutral": 0.3, "angry": 0.2}
         return {"neutral": 0.7, "sad": 0.2, "fearful": 0.1}
 

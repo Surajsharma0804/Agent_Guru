@@ -1,5 +1,4 @@
-"""
-Health Check System for Platform Integration.
+"""Health Check System for Platform Integration.
 
 This module provides comprehensive health checking for all platform components,
 dependencies, and system resources. It enables monitoring systems to detect
@@ -40,9 +39,9 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +66,7 @@ class ComponentHealth:
         last_check: Timestamp of last health check
         response_time_ms: Time taken for health check in milliseconds
         metadata: Additional component-specific metadata
+
     """
 
     name: str
@@ -84,7 +84,7 @@ class ComponentHealth:
             "message": self.message,
             "last_check": self.last_check.isoformat(),
             "response_time_ms": self.response_time_ms,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
@@ -100,6 +100,7 @@ class SystemHealth:
         healthy_count: Number of healthy components
         degraded_count: Number of degraded components
         unhealthy_count: Number of unhealthy components
+
     """
 
     status: HealthStatus
@@ -135,9 +136,9 @@ class SystemHealth:
                 "healthy": self.healthy_count,
                 "degraded": self.degraded_count,
                 "unhealthy": self.unhealthy_count,
-                "total": len(self.components)
+                "total": len(self.components),
             },
-            "components": [comp.to_dict() for comp in self.components]
+            "components": [comp.to_dict() for comp in self.components],
         }
 
 
@@ -159,26 +160,24 @@ class HealthCheckManager:
         >>> manager.register_check("database", check_db)
         >>> status = await manager.check_health()
         >>> print(f"System healthy: {status.is_healthy}")
+
     """
 
-    def __init__(self, check_timeout: float = 5.0):
+    def __init__(self, check_timeout: float = 5.0) -> None:
         """Initialize health check manager.
 
         Args:
             check_timeout: Maximum time to wait for each health check (seconds)
+
         """
         self._checks: dict[str, HealthCheckFunc] = {}
         self._check_timeout = check_timeout
-        self._last_health_status: Optional[SystemHealth] = None
+        self._last_health_status: SystemHealth | None = None
         self._cache_ttl = timedelta(seconds=10)  # Cache health status for 10s
 
         logger.info("HealthCheckManager initialized")
 
-    def register_check(
-        self,
-        component_name: str,
-        check_func: HealthCheckFunc
-    ) -> None:
+    def register_check(self, component_name: str, check_func: HealthCheckFunc) -> None:
         """Register a health check for a component.
 
         Time Complexity: O(1)
@@ -189,9 +188,11 @@ class HealthCheckManager:
 
         Raises:
             ValueError: If component_name already registered
+
         """
         if component_name in self._checks:
-            raise ValueError(f"Health check already registered for: {component_name}")
+            msg = f"Health check already registered for: {component_name}"
+            raise ValueError(msg)
 
         self._checks[component_name] = check_func
         logger.info("Registered health check for component: %s", component_name)
@@ -203,6 +204,7 @@ class HealthCheckManager:
 
         Args:
             component_name: Name of component to unregister
+
         """
         if component_name in self._checks:
             del self._checks[component_name]
@@ -219,10 +221,11 @@ class HealthCheckManager:
 
         Returns:
             SystemHealth with aggregated status
+
         """
         # Return cached result if available and fresh
         if use_cache and self._last_health_status:
-            age = datetime.now(tz=timezone.utc) - self._last_health_status.timestamp
+            age = datetime.now(tz=UTC) - self._last_health_status.timestamp
             if age < self._cache_ttl:
                 logger.debug("Returning cached health status")
                 return self._last_health_status
@@ -232,10 +235,7 @@ class HealthCheckManager:
 
         # Execute all health checks concurrently
         if self._checks:
-            tasks = [
-                self._execute_check(name, func)
-                for name, func in self._checks.items()
-            ]
+            tasks = [self._execute_check(name, func) for name, func in self._checks.items()]
             component_results = await asyncio.gather(*tasks)
 
         end_time = time.perf_counter()
@@ -259,11 +259,11 @@ class HealthCheckManager:
         system_health = SystemHealth(
             status=overall_status,
             components=component_results,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
             total_response_time_ms=total_time_ms,
             healthy_count=healthy_count,
             degraded_count=degraded_count,
-            unhealthy_count=unhealthy_count
+            unhealthy_count=unhealthy_count,
         )
 
         # Cache result
@@ -272,7 +272,7 @@ class HealthCheckManager:
         logger.info(
             f"Health check complete: {overall_status.value} "
             f"({healthy_count} healthy, {degraded_count} degraded, "
-            f"{unhealthy_count} unhealthy) in {total_time_ms:.2f}ms"
+            f"{unhealthy_count} unhealthy) in {total_time_ms:.2f}ms",
         )
 
         return system_health
@@ -280,7 +280,7 @@ class HealthCheckManager:
     async def _execute_check(
         self,
         component_name: str,
-        check_func: HealthCheckFunc
+        check_func: HealthCheckFunc,
     ) -> ComponentHealth:
         """Execute a single health check with timeout.
 
@@ -292,58 +292,45 @@ class HealthCheckManager:
 
         Returns:
             ComponentHealth with check results
+
         """
         start_time = time.perf_counter()
 
         try:
             # Execute check with timeout
-            result = await asyncio.wait_for(
-                check_func(),
-                timeout=self._check_timeout
-            )
+            result = await asyncio.wait_for(check_func(), timeout=self._check_timeout)
 
             end_time = time.perf_counter()
             result.response_time_ms = (end_time - start_time) * 1000
-            result.last_check = datetime.now(tz=timezone.utc)
+            result.last_check = datetime.now(tz=UTC)
 
             return result
 
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             end_time = time.perf_counter()
             response_time_ms = (end_time - start_time) * 1000
-
-            logger.warning(
-                f"Health check timeout for {component_name} "
-                f"after {response_time_ms:.2f}ms"
+            logger.exception(
+                f"Health check timeout for {component_name} after {response_time_ms:.2f}ms",
             )
-
             return ComponentHealth(
                 name=component_name,
                 status=HealthStatus.UNHEALTHY,
                 message=f"Health check timed out after {self._check_timeout}s",
-                last_check=datetime.now(tz=timezone.utc),
-                response_time_ms=response_time_ms
+                last_check=datetime.now(tz=UTC),
+                response_time_ms=response_time_ms,
             )
-
-        except Exception as e:
             end_time = time.perf_counter()
             response_time_ms = (end_time - start_time) * 1000
-
-            logger.error(
-                f"Health check failed for {component_name}: {e}",
-                exc_info=True
-            )
-
+            logger.exception("Health check failed for %s: %s", component_name, e)
             return ComponentHealth(
                 name=component_name,
                 status=HealthStatus.UNHEALTHY,
-                message=f"Health check failed: {str(e)}",
-                last_check=datetime.now(tz=timezone.utc),
+                message=f"Health check failed: {e!s}",
+                last_check=datetime.now(tz=UTC),
                 response_time_ms=response_time_ms,
-                metadata={"error": str(e)}
+                metadata={"error": str(e)},
             )
-
-    def get_component_status(self, component_name: str) -> Optional[ComponentHealth]:
+    def get_component_status(self, component_name: str) -> ComponentHealth | None:
         """Get health status for a specific component.
 
         Time Complexity: O(n) where n is number of components
@@ -353,6 +340,7 @@ class HealthCheckManager:
 
         Returns:
             ComponentHealth if available, None otherwise
+
         """
         if not self._last_health_status:
             return None
@@ -370,12 +358,13 @@ class HealthCheckManager:
 
         Returns:
             List of component names
+
         """
         return list(self._checks.keys())
 
 
 # Global health check manager instance
-_global_health_manager: Optional[HealthCheckManager] = None
+_global_health_manager: HealthCheckManager | None = None
 
 
 def get_health_manager() -> HealthCheckManager:
@@ -383,6 +372,7 @@ def get_health_manager() -> HealthCheckManager:
 
     Returns:
         Global HealthCheckManager instance
+
     """
     global _global_health_manager
 
@@ -394,11 +384,13 @@ def get_health_manager() -> HealthCheckManager:
 
 # Built-in health check functions
 
+
 async def check_system_resources() -> ComponentHealth:
     """Check system resource availability.
 
     Returns:
         ComponentHealth for system resources
+
     """
     try:
         import psutil
@@ -411,14 +403,16 @@ async def check_system_resources() -> ComponentHealth:
         memory_percent = memory.percent
 
         # Check disk usage
-        disk = psutil.disk_usage('/')
+        disk = psutil.disk_usage("/")
         disk_percent = disk.percent
 
         # Determine status based on thresholds
-        if cpu_percent > 90 or memory_percent > 90 or disk_percent > 90:
+        if cpu_percent > 90 or memory_percent > 90 or disk_percent > 90:  # noqa: PLR2004 - Threshold
+
             status = HealthStatus.UNHEALTHY
             message = "System resources critically low"
-        elif cpu_percent > 80 or memory_percent > 80 or disk_percent > 80:
+        elif cpu_percent > 80 or memory_percent > 80 or disk_percent > 80:  # noqa: PLR2004 - Threshold
+
             status = HealthStatus.DEGRADED
             message = "System resources under pressure"
         else:
@@ -429,13 +423,13 @@ async def check_system_resources() -> ComponentHealth:
             name="system_resources",
             status=status,
             message=message,
-            last_check=datetime.now(tz=timezone.utc),
+            last_check=datetime.now(tz=UTC),
             response_time_ms=0.0,  # Will be set by manager
             metadata={
                 "cpu_percent": cpu_percent,
                 "memory_percent": memory_percent,
-                "disk_percent": disk_percent
-            }
+                "disk_percent": disk_percent,
+            },
         )
 
     except Exception as e:
@@ -443,16 +437,15 @@ async def check_system_resources() -> ComponentHealth:
             name="system_resources",
             status=HealthStatus.UNHEALTHY,
             message=f"Failed to check system resources: {e}",
-            last_check=datetime.now(tz=timezone.utc),
-            response_time_ms=0.0
+            last_check=datetime.now(tz=UTC),
+            response_time_ms=0.0,
         )
-
-
 async def check_platform_integration() -> ComponentHealth:
     """Check platform integration health.
 
     Returns:
         ComponentHealth for platform integration
+
     """
     try:
         from Agent_Guru.platform.platform_detector import PlatformDetector
@@ -464,13 +457,13 @@ async def check_platform_integration() -> ComponentHealth:
             name="platform_integration",
             status=HealthStatus.HEALTHY,
             message=f"Platform integration operational ({platform_info.os_name})",
-            last_check=datetime.now(tz=timezone.utc),
+            last_check=datetime.now(tz=UTC),
             response_time_ms=0.0,
             metadata={
                 "os_name": platform_info.os_name,
                 "os_version": platform_info.os_version,
-                "architecture": platform_info.architecture
-            }
+                "architecture": platform_info.architecture,
+            },
         )
 
     except Exception as e:
@@ -478,6 +471,6 @@ async def check_platform_integration() -> ComponentHealth:
             name="platform_integration",
             status=HealthStatus.UNHEALTHY,
             message=f"Platform integration failed: {e}",
-            last_check=datetime.now(tz=timezone.utc),
-            response_time_ms=0.0
+            last_check=datetime.now(tz=UTC),
+            response_time_ms=0.0,
         )

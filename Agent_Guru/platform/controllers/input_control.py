@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.controllers.input_control
-Purpose: Cross-platform mouse and keyboard control for complete input automation
+"""Module: agent_guru.platform.controllers.input_control
+Purpose: Cross-platform mouse and keyboard control for complete input automation.
 
 This module provides comprehensive input control capabilities including mouse
 operations (move, click, drag) and keyboard operations (shortcuts, typing).
@@ -38,12 +37,13 @@ Version: 1.0.0
 
 import logging
 from dataclasses import dataclass
-from typing import Literal, Optional, Union
+from typing import Literal
 
 try:
     import pyautogui
+
     PYAUTOGUI_AVAILABLE = True
-except ImportError as e:
+except ImportError:
     PYAUTOGUI_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,9 @@ class MouseConfig:
         pause: Pause after each operation in seconds
         fail_safe: Enable fail-safe (move to corner to abort)
         tween: Easing function for movement (linear, easeInQuad, etc.)
+
     """
+
     duration: float = 0.1
     pause: float = 0.01
     fail_safe: bool = True
@@ -76,7 +78,9 @@ class KeyboardConfig:
     Attributes:
         interval: Interval between key presses in seconds
         pause: Pause after each operation in seconds
+
     """
+
     interval: float = 0.01
     pause: float = 0.01
 
@@ -99,9 +103,10 @@ class MouseController:
         >>> mouse.click()
         >>> mouse.drag_to(300, 400)
         >>> mouse.scroll(10)
+
     """
 
-    def __init__(self, config: Optional[MouseConfig] = None) -> None:
+    def __init__(self, config: MouseConfig | None = None) -> None:
         """Initialize mouse controller.
 
         Args:
@@ -109,11 +114,12 @@ class MouseController:
 
         Raises:
             ImportError: If pyautogui is not available
+
         """
         if not PYAUTOGUI_AVAILABLE:
+            msg = "pyautogui is required for mouse control. Install with: pip install pyautogui"
             raise ImportError(
-                "pyautogui is required for mouse control. "
-                "Install with: pip install pyautogui"
+                msg,
             )
 
         self.config = config or MouseConfig()
@@ -136,16 +142,12 @@ class MouseController:
             >>> mouse = MouseController()
             >>> x, y = mouse.get_position()
             >>> print(f"Cursor at ({x}, {y})")
+
         """
         x, y = pyautogui.position()
         return int(x), int(y)
 
-    def move_to(
-        self,
-        x: int,
-        y: int,
-        duration: Optional[float] = None
-    ) -> None:
+    def move_to(self, x: int, y: int, duration: float | None = None) -> None:
         """Move cursor to absolute position.
 
         Time Complexity: O(1)
@@ -162,31 +164,23 @@ class MouseController:
             >>> mouse = MouseController()
             >>> mouse.move_to(100, 200)  # Move to (100, 200)
             >>> mouse.move_to(300, 400, duration=0.5)  # Slow movement
+
         """
         screen_width, screen_height = pyautogui.size()
 
         if not (0 <= x < screen_width and 0 <= y < screen_height):
+            msg = f"Coordinates ({x}, {y}) out of screen bounds ({screen_width}x{screen_height})"
             raise ValueError(
-                f"Coordinates ({x}, {y}) out of screen bounds "
-                f"({screen_width}x{screen_height})"
+                msg,
             )
 
         duration = duration if duration is not None else self.config.duration
 
-        pyautogui.moveTo(
-            x, y,
-            duration=duration,
-            tween=getattr(pyautogui, self.config.tween)
-        )
+        pyautogui.moveTo(x, y, duration=duration, tween=getattr(pyautogui, self.config.tween))
 
         logger.debug("Moved cursor to (%s, %s)", x, y)
 
-    def move_relative(
-        self,
-        dx: int,
-        dy: int,
-        duration: Optional[float] = None
-    ) -> None:
+    def move_relative(self, dx: int, dy: int, duration: float | None = None) -> None:
         """Move cursor relative to current position.
 
         Time Complexity: O(1)
@@ -200,23 +194,15 @@ class MouseController:
             >>> mouse = MouseController()
             >>> mouse.move_relative(50, 100)  # Move 50 right, 100 down
             >>> mouse.move_relative(-50, -100)  # Move back
+
         """
         duration = duration if duration is not None else self.config.duration
 
-        pyautogui.move(
-            dx, dy,
-            duration=duration,
-            tween=getattr(pyautogui, self.config.tween)
-        )
+        pyautogui.move(dx, dy, duration=duration, tween=getattr(pyautogui, self.config.tween))
 
         logger.debug("Moved cursor by (%s, %s)", dx, dy)
 
-    def click(
-        self,
-        button: MouseButton = "left",
-        clicks: int = 1,
-        interval: float = 0.0
-    ) -> None:
+    def click(self, button: MouseButton = "left", clicks: int = 1, interval: float = 0.0) -> None:
         """Click mouse button at current position.
 
         Time Complexity: O(1)
@@ -231,17 +217,12 @@ class MouseController:
             >>> mouse.click()  # Single left click
             >>> mouse.click("right")  # Right click
             >>> mouse.click("left", clicks=2)  # Double click
+
         """
         pyautogui.click(button=button, clicks=clicks, interval=interval)
         logger.debug("Clicked %s button %s time(s)", button, clicks)
 
-    def click_at(
-        self,
-        x: int,
-        y: int,
-        button: MouseButton = "left",
-        clicks: int = 1
-    ) -> None:
+    def click_at(self, x: int, y: int, button: MouseButton = "left", clicks: int = 1) -> None:
         """Click mouse button at specific position.
 
         Time Complexity: O(1)
@@ -256,6 +237,7 @@ class MouseController:
             >>> mouse = MouseController()
             >>> mouse.click_at(100, 200)  # Click at (100, 200)
             >>> mouse.click_at(300, 400, "right")  # Right click
+
         """
         pyautogui.click(x=x, y=y, button=button, clicks=clicks)
         logger.debug("Clicked %s at (%s, %s)", button, x, y)
@@ -271,6 +253,7 @@ class MouseController:
         Example:
             >>> mouse = MouseController()
             >>> mouse.double_click()  # Double left click
+
         """
         self.click(button=button, clicks=2)
 
@@ -282,6 +265,7 @@ class MouseController:
         Example:
             >>> mouse = MouseController()
             >>> mouse.right_click()
+
         """
         self.click(button="right")
 
@@ -290,7 +274,7 @@ class MouseController:
         x: int,
         y: int,
         button: MouseButton = "left",
-        duration: Optional[float] = None
+        duration: float | None = None,
     ) -> None:
         """Drag from current position to target position.
 
@@ -306,14 +290,16 @@ class MouseController:
             >>> mouse = MouseController()
             >>> mouse.move_to(100, 100)
             >>> mouse.drag_to(200, 200)  # Drag to (200, 200)
+
         """
         duration = duration if duration is not None else self.config.duration
 
         pyautogui.dragTo(
-            x, y,
+            x,
+            y,
             duration=duration,
             button=button,
-            tween=getattr(pyautogui, self.config.tween)
+            tween=getattr(pyautogui, self.config.tween),
         )
 
         logger.debug("Dragged to (%s, %s)", x, y)
@@ -323,7 +309,7 @@ class MouseController:
         dx: int,
         dy: int,
         button: MouseButton = "left",
-        duration: Optional[float] = None
+        duration: float | None = None,
     ) -> None:
         """Drag relative to current position.
 
@@ -338,24 +324,21 @@ class MouseController:
         Example:
             >>> mouse = MouseController()
             >>> mouse.drag_relative(100, 100)  # Drag 100 right, 100 down
+
         """
         duration = duration if duration is not None else self.config.duration
 
         pyautogui.drag(
-            dx, dy,
+            dx,
+            dy,
             duration=duration,
             button=button,
-            tween=getattr(pyautogui, self.config.tween)
+            tween=getattr(pyautogui, self.config.tween),
         )
 
         logger.debug("Dragged by (%s, %s)", dx, dy)
 
-    def scroll(
-        self,
-        clicks: int,
-        x: Optional[int] = None,
-        y: Optional[int] = None
-    ) -> None:
+    def scroll(self, clicks: int, x: int | None = None, y: int | None = None) -> None:
         """Scroll mouse wheel.
 
         Time Complexity: O(1)
@@ -370,6 +353,7 @@ class MouseController:
             >>> mouse.scroll(10)  # Scroll up 10 clicks
             >>> mouse.scroll(-5)  # Scroll down 5 clicks
             >>> mouse.scroll(3, x=100, y=200)  # Scroll at position
+
         """
         pyautogui.scroll(clicks, x=x, y=y)
         logger.debug("Scrolled %s clicks", clicks)
@@ -386,6 +370,7 @@ class MouseController:
             >>> mouse = MouseController()
             >>> width, height = mouse.get_screen_size()
             >>> print(f"Screen: {width}x{height}")
+
         """
         width, height = pyautogui.size()
         return int(width), int(height)
@@ -408,9 +393,10 @@ class KeyboardController:
         >>> keyboard.type_text("Hello World")
         >>> keyboard.press_shortcut("ctrl", "c")
         >>> keyboard.press_key("enter")
+
     """
 
-    def __init__(self, config: Optional[KeyboardConfig] = None) -> None:
+    def __init__(self, config: KeyboardConfig | None = None) -> None:
         """Initialize keyboard controller.
 
         Args:
@@ -418,11 +404,12 @@ class KeyboardController:
 
         Raises:
             ImportError: If pyautogui is not available
+
         """
         if not PYAUTOGUI_AVAILABLE:
+            msg = "pyautogui is required for keyboard control. Install with: pip install pyautogui"
             raise ImportError(
-                "pyautogui is required for keyboard control. "
-                "Install with: pip install pyautogui"
+                msg,
             )
 
         self.config = config or KeyboardConfig()
@@ -432,7 +419,7 @@ class KeyboardController:
 
         logger.info("KeyboardController initialized")
 
-    def type_text(self, text: str, interval: Optional[float] = None) -> None:
+    def type_text(self, text: str, interval: float | None = None) -> None:
         """Type text string.
 
         Time Complexity: O(n) where n is text length
@@ -446,6 +433,7 @@ class KeyboardController:
             >>> keyboard = KeyboardController()
             >>> keyboard.type_text("Hello World")
             >>> keyboard.type_text("Fast typing", interval=0.0)
+
         """
         interval = interval if interval is not None else self.config.interval
 
@@ -465,6 +453,7 @@ class KeyboardController:
             >>> keyboard = KeyboardController()
             >>> keyboard.press_key("enter")
             >>> keyboard.press_key("space", presses=3)
+
         """
         pyautogui.press(key, presses=presses)
         logger.debug("Pressed key: %s (%s times)", key, presses)
@@ -482,6 +471,7 @@ class KeyboardController:
             >>> keyboard.key_down("shift")
             >>> keyboard.press_key("a")  # Types "A"
             >>> keyboard.key_up("shift")
+
         """
         pyautogui.keyDown(key)
         logger.debug("Key down: %s", key)
@@ -499,6 +489,7 @@ class KeyboardController:
             >>> keyboard.key_down("ctrl")
             >>> keyboard.press_key("c")
             >>> keyboard.key_up("ctrl")
+
         """
         pyautogui.keyUp(key)
         logger.debug("Key up: %s", key)
@@ -517,9 +508,10 @@ class KeyboardController:
             >>> keyboard.press_shortcut("ctrl", "v")  # Paste
             >>> keyboard.press_shortcut("alt", "tab")  # Switch window
             >>> keyboard.press_shortcut("ctrl", "shift", "esc")  # Task manager
+
         """
         pyautogui.hotkey(*keys)
-        logger.debug("Pressed shortcut: %s", '+'.join(keys))
+        logger.debug("Pressed shortcut: %s", "+".join(keys))
 
     def hold_keys(self, keys: list[str]) -> "KeyHoldContext":
         """Context manager to hold keys down.
@@ -536,6 +528,7 @@ class KeyboardController:
             >>> keyboard = KeyboardController()
             >>> with keyboard.hold_keys(["ctrl", "shift"]):
             ...     keyboard.press_key("a")  # Ctrl+Shift+A
+
         """
         return KeyHoldContext(self, keys)
 
@@ -572,11 +565,12 @@ class KeyboardController:
         """Find shortcut (Ctrl+F)."""
         self.press_shortcut("ctrl", "f")
 
-    def press(self, keys: Union[str, list[str]]) -> None:
+    def press(self, keys: str | list[str]) -> None:
         """Press key(s).
 
         Args:
             keys: Single key or list of keys to press
+
         """
         if isinstance(keys, str):
             self.press_key(keys)
@@ -595,6 +589,7 @@ class KeyboardController:
 
         Returns:
             Context manager that releases key on exit
+
         """
         return KeyHoldContext(self, [key])
 
@@ -606,6 +601,7 @@ class KeyHoldContext:
         >>> keyboard = KeyboardController()
         >>> with KeyHoldContext(keyboard, ["ctrl"]):
         ...     keyboard.press_key("c")  # Ctrl+C
+
     """
 
     def __init__(self, controller: KeyboardController, keys: list[str]) -> None:
@@ -614,6 +610,7 @@ class KeyHoldContext:
         Args:
             controller: Keyboard controller instance
             keys: Keys to hold down
+
         """
         self.controller = controller
         self.keys = keys
@@ -624,7 +621,7 @@ class KeyHoldContext:
             self.controller.key_down(key)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:  # noqa: ANN001
         """Release all keys."""
         for key in reversed(self.keys):
             self.controller.key_up(key)
@@ -638,6 +635,7 @@ class Shortcuts:
         >>> keyboard = KeyboardController()
         >>> keyboard.press_shortcut(*Shortcuts.COPY)
         >>> keyboard.press_shortcut(*Shortcuts.PASTE)
+
     """
 
     # Clipboard operations
@@ -659,7 +657,7 @@ class Shortcuts:
     NEW_TAB = ("ctrl", "t")
     CLOSE_TAB = ("ctrl", "w")
     REOPEN_TAB = ("ctrl", "shift", "t")
-    REFRESH = ("f5")
+    REFRESH = "f5"
     SAVE = ("ctrl", "s")
     PRINT = ("ctrl", "p")
 

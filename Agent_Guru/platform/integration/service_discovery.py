@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.platform.integration.service_discovery
+"""Module: Agent_Guru.platform.integration.service_discovery
 Purpose: Service discovery for component registration and lookup.
 
 Performance Requirements:
@@ -8,11 +7,12 @@ Performance Requirements:
 """
 
 import asyncio
+import contextlib
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +36,8 @@ class ServiceEndpoint:
     protocol: str = "http"
     version: str = "1.0.0"
     metadata: dict[str, Any] = field(default_factory=dict)
-    registered_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    last_health_check: Optional[datetime] = None
+    registered_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
+    last_health_check: datetime | None = None
     status: ServiceStatus = ServiceStatus.UNKNOWN
 
     @property
@@ -54,17 +54,14 @@ class ServiceEndpoint:
             "metadata": self.metadata,
             "registered_at": self.registered_at.isoformat(),
             "last_health_check": (
-                self.last_health_check.isoformat()
-                if self.last_health_check
-                else None
+                self.last_health_check.isoformat() if self.last_health_check else None
             ),
             "status": self.status.value,
         }
 
 
 class ServiceRegistry:
-    """
-    Local service registry for component registration and lookup.
+    """Local service registry for component registration and lookup.
 
     Provides O(1) lookup by service name, health check integration,
     and TTL-based expiry for stale registrations.
@@ -75,6 +72,7 @@ class ServiceRegistry:
         >>> registry.register(endpoint)
         >>> ep = registry.lookup("memory-system")
         >>> print(ep.base_url)
+
     """
 
     def __init__(
@@ -83,47 +81,51 @@ class ServiceRegistry:
         ttl_seconds: float = 300.0,
     ) -> None:
         if health_check_interval <= 0:
-            raise ValueError("health_check_interval must be positive")
+            msg = "health_check_interval must be positive"
+            raise ValueError(msg)
         if ttl_seconds <= 0:
-            raise ValueError("ttl_seconds must be positive")
+            msg = "ttl_seconds must be positive"
+            raise ValueError(msg)
 
         self.health_check_interval = health_check_interval
         self.ttl_seconds = ttl_seconds
         self._services: dict[str, ServiceEndpoint] = {}
-        self._health_check_task: Optional[asyncio.Task] = None
+        self._health_check_task: asyncio.Task | None = None
         self._running = False
 
     def register(self, endpoint: ServiceEndpoint) -> None:
-        """
-        Register a service endpoint.
+        """Register a service endpoint.
 
         Args:
             endpoint: Service endpoint to register
 
         Raises:
             ValueError: If endpoint is invalid
+
         """
         if not endpoint.service_name:
-            raise ValueError("service_name cannot be empty")
+            msg = "service_name cannot be empty"
+            raise ValueError(msg)
         if not endpoint.host:
-            raise ValueError("host cannot be empty")
-        if not (1 <= endpoint.port <= 65535):
-            raise ValueError(f"Invalid port: {endpoint.port}")
+            msg = "host cannot be empty"
+            raise ValueError(msg)
+        if not (1 <= endpoint.port <= 65535):  # noqa: PLR2004 - Percentage/large threshold
+
+            msg = f"Invalid port: {endpoint.port}"
+            raise ValueError(msg)
 
         self._services[endpoint.service_name] = endpoint
-        logger.info(
-            f"Registered service: {endpoint.service_name} at {endpoint.base_url}"
-        )
+        logger.info("Registered service: %s at %s", endpoint.service_name, endpoint.base_url)
 
     def deregister(self, service_name: str) -> bool:
-        """
-        Deregister a service.
+        """Deregister a service.
 
         Args:
             service_name: Name of service to deregister
 
         Returns:
             True if service was found and removed
+
         """
         if service_name in self._services:
             del self._services[service_name]
@@ -131,9 +133,8 @@ class ServiceRegistry:
             return True
         return False
 
-    def lookup(self, service_name: str) -> Optional[ServiceEndpoint]:
-        """
-        Look up a service endpoint by name.
+    def lookup(self, service_name: str) -> ServiceEndpoint | None:
+        """Look up a service endpoint by name.
 
         Time Complexity: O(1)
 
@@ -142,13 +143,14 @@ class ServiceRegistry:
 
         Returns:
             ServiceEndpoint if found and healthy, None otherwise
+
         """
         endpoint = self._services.get(service_name)
         if endpoint is None:
             return None
 
         # Check TTL
-        age = (datetime.now(tz=timezone.utc) - endpoint.registered_at).total_seconds()
+        age = (datetime.now(tz=UTC) - endpoint.registered_at).total_seconds()
         if age > self.ttl_seconds:
             logger.warning("Service %s registration expired", service_name)
             del self._services[service_name]
@@ -156,26 +158,23 @@ class ServiceRegistry:
 
         return endpoint
 
-    def lookup_all(self, status_filter: Optional[ServiceStatus] = None) -> list[ServiceEndpoint]:
-        """
-        Look up all registered services, optionally filtered by status.
+    def lookup_all(self, status_filter: ServiceStatus | None = None) -> list[ServiceEndpoint]:
+        """Look up all registered services, optionally filtered by status.
 
         Args:
             status_filter: Filter by service status
 
         Returns:
             List of matching service endpoints
+
         """
         endpoints = list(self._services.values())
         if status_filter is not None:
             endpoints = [e for e in endpoints if e.status == status_filter]
         return endpoints
 
-    def update_health(
-        self, service_name: str, status: ServiceStatus
-    ) -> bool:
-        """
-        Update health status for a service.
+    def update_health(self, service_name: str, status: ServiceStatus) -> bool:
+        """Update health status for a service.
 
         Args:
             service_name: Service to update
@@ -183,13 +182,14 @@ class ServiceRegistry:
 
         Returns:
             True if service found and updated
+
         """
         endpoint = self._services.get(service_name)
         if endpoint is None:
             return False
 
         endpoint.status = status
-        endpoint.last_health_check = datetime.now(tz=timezone.utc)
+        endpoint.last_health_check = datetime.now(tz=UTC)
         logger.debug("Health updated: %s -> %s", service_name, status.value)
         return True
 
@@ -206,16 +206,13 @@ class ServiceRegistry:
         self._running = False
         if self._health_check_task is not None:
             self._health_check_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._health_check_task
-            except asyncio.CancelledError as e:
-                pass
             self._health_check_task = None
         logger.info("Service discovery health checks stopped")
 
     async def _health_check_loop(self) -> None:
-        """
-        Background loop that pings all registered services.
+        """Background loop that pings all registered services.
 
         Uses a single shared aiohttp.ClientSession for the entire loop
         lifetime (not one per check — that was O(n) session overhead).
@@ -242,7 +239,7 @@ class ServiceRegistry:
 
     async def _check_one(
         self,
-        session: Any,
+        session: Any,  # noqa: ANN401
         name: str,
         endpoint: "ServiceEndpoint",
     ) -> None:
@@ -250,11 +247,12 @@ class ServiceRegistry:
         try:
             url = f"{endpoint.base_url}/health"
             async with session.get(url) as resp:
-                if resp.status == 200:
+                if resp.status == 200:  # noqa: PLR2004 - Percentage/large threshold
+
                     self.update_health(name, ServiceStatus.HEALTHY)
                 else:
                     self.update_health(name, ServiceStatus.DEGRADED)
-        except Exception as e:
+        except Exception:
             self.update_health(name, ServiceStatus.UNHEALTHY)
 
     def get_registry_stats(self) -> dict[str, Any]:

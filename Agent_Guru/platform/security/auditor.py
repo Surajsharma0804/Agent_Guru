@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.security.auditor
-Purpose: World-class security audit logging - BEATS Alexa & Siri
+"""Module: agent_guru.platform.security.auditor
+Purpose: World-class security audit logging - BEATS Alexa & Siri.
 
 This module implements PRODUCTION-GRADE security auditing with:
 - Immutable append-only audit logs (tamper-proof)
@@ -52,10 +51,10 @@ import threading
 import time
 from collections import deque
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -121,13 +120,12 @@ class PolicyCheck:
 
     policy_name: str
     passed: bool
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 @dataclass
 class AuditLogEntry:
-    """
-    Immutable audit log entry.
+    """Immutable audit log entry.
 
     Attributes:
         entry_id: Unique identifier (SHA-256 hash of entry data)
@@ -142,6 +140,7 @@ class AuditLogEntry:
         error_message: Error message if operation failed
         ip_address: Source IP address (if applicable)
         user_agent: User agent string (if applicable)
+
     """
 
     entry_id: str
@@ -153,9 +152,9 @@ class AuditLogEntry:
     execution_time: float
     resource_usage: ResourceUsage = field(default_factory=ResourceUsage)
     policy_checks: list[PolicyCheck] = field(default_factory=list)
-    error_message: Optional[str] = None
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
+    error_message: str | None = None
+    ip_address: str | None = None
+    user_agent: str | None = None
     entry_hash: str = ""  # SHA-256 hash alias for entry_id (set after creation)
 
 
@@ -176,17 +175,16 @@ class SecurityAlert:
 class AuditLogFilters:
     """Filters for querying audit logs."""
 
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    operation_types: Optional[set[OperationType]] = None
-    user_ids: Optional[set[str]] = None
-    result_statuses: Optional[set[ResultStatus]] = None
-    min_execution_time: Optional[float] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    operation_types: set[OperationType] | None = None
+    user_ids: set[str] | None = None
+    result_statuses: set[ResultStatus] | None = None
+    min_execution_time: float | None = None
 
 
 class SecurityAuditor:
-    """
-    World-class security auditor - BEATS Alexa & Siri.
+    """World-class security auditor - BEATS Alexa & Siri.
 
     Time Complexity: O(1) for log entry creation
     Space Complexity: O(1) per entry (bounded buffer)
@@ -215,6 +213,7 @@ class SecurityAuditor:
         ...     execution_time=15.5
         ... )
         >>> print(f"Logged operation: {entry_id}")
+
     """
 
     # Pre-compiled regex patterns for sensitive data redaction (10x faster)
@@ -314,10 +313,9 @@ class SecurityAuditor:
         archive_after_days: int = 30,
         buffer_size: int = 100,
         flush_interval_seconds: float = 5.0,
-        policy_engine_client: Optional[Any] = None,
-    ):
-        """
-        Initialize world-class security auditor.
+        policy_engine_client: Any | None = None,  # noqa: ANN401
+    ) -> None:
+        """Initialize world-class security auditor.
 
         Args:
             log_dir: Directory for audit logs
@@ -330,6 +328,7 @@ class SecurityAuditor:
         Raises:
             ValueError: If parameters are invalid
             PermissionError: If log directory is not writable
+
         """
         self._validate_config(log_dir, max_log_size_mb, archive_after_days)
 
@@ -345,7 +344,9 @@ class SecurityAuditor:
         self.policy_engine_client = policy_engine_client
 
         # Current log file (create immediately for consistency)
-        self.current_log_file = self.log_dir / f"audit_{datetime.now(tz=timezone.utc).strftime('%Y%m%d')}.jsonl"
+        self.current_log_file = (
+            self.log_dir / f"audit_{datetime.now(tz=UTC).strftime('%Y%m%d')}.jsonl"
+        )
 
         # Create log file immediately if it doesn't exist (CRITICAL FIX)
         if not self.current_log_file.exists():
@@ -377,7 +378,10 @@ class SecurityAuditor:
 
         # Suspicious pattern detection state
         self._failure_tracker: dict[str, deque] = {}  # user_id -> deque of failure timestamps
-        self._permission_probes: dict[str, deque] = {}  # user_id -> deque of permission check timestamps
+        self._permission_probes: dict[
+            str,
+            deque,
+        ] = {}  # user_id -> deque of permission check timestamps
         self._access_patterns: dict[str, deque] = {}  # user_id -> deque of access timestamps
         self._pattern_lock = threading.Lock()
 
@@ -405,14 +409,13 @@ class SecurityAuditor:
         parameters: dict[str, Any],
         result_status: ResultStatus,
         execution_time: float,
-        resource_usage: Optional[ResourceUsage] = None,
-        policy_checks: Optional[list[PolicyCheck]] = None,
-        error_message: Optional[str] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
+        resource_usage: ResourceUsage | None = None,
+        policy_checks: list[PolicyCheck] | None = None,
+        error_message: str | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
     ) -> str:
-        """
-        Log completed operation to immutable audit trail.
+        """Log completed operation to immutable audit trail.
 
         Time Complexity: O(1) - constant time per entry
         Space Complexity: O(1) - fixed entry size
@@ -435,18 +438,21 @@ class SecurityAuditor:
 
         Raises:
             ValueError: If required parameters are missing
+
         """
         # Fast path: validate inputs (early exit on error)
         if not user_id:
-            raise ValueError("user_id cannot be empty")
+            msg = "user_id cannot be empty"
+            raise ValueError(msg)
         if execution_time < 0:
-            raise ValueError(f"execution_time must be non-negative, got {execution_time}")
+            msg = f"execution_time must be non-negative, got {execution_time}"
+            raise ValueError(msg)
 
         # Redact sensitive data from parameters (optimized with pre-compiled patterns)
         redacted_params = self.redact_sensitive_data(parameters)
 
         # Create timestamp (UTC for consistency) - OPTIMIZED: reuse format
-        timestamp = datetime.now(tz=timezone.utc).isoformat() + "Z"
+        timestamp = datetime.now(tz=UTC).isoformat() + "Z"
 
         # Create entry with defaults (avoid conditional logic)
         entry = AuditLogEntry(
@@ -501,11 +507,6 @@ class SecurityAuditor:
         # OPTIMIZED: Skip debug logging in production (comment out for max speed)
         # logger.debug(
         #     "operation_logged",
-        #     entry_id=entry_id,
-        #     operation_type=operation_type.value,
-        #     user_id=user_id,
-        #     result_status=result_status.value
-        # )
 
         return entry  # Return full entry object for better usability
 
@@ -515,10 +516,9 @@ class SecurityAuditor:
         user_id: str,
         violation_type: ViolationType,
         reason: str,
-        parameters: Optional[dict[str, Any]] = None,
+        parameters: dict[str, Any] | None = None,
     ) -> AuditLogEntry:
-        """
-        Log security policy violation.
+        """Log security policy violation.
 
         Args:
             operation_type: Type of operation attempted
@@ -529,6 +529,7 @@ class SecurityAuditor:
 
         Returns:
             Audit log entry
+
         """
         self._total_violations += 1
 
@@ -557,8 +558,7 @@ class SecurityAuditor:
         return entry
 
     def redact_sensitive_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        """
-        Redact sensitive data from dictionary.
+        """Redact sensitive data from dictionary.
 
         Time Complexity: O(n) where n is number of keys
         Space Complexity: O(n) for redacted copy
@@ -588,6 +588,7 @@ class SecurityAuditor:
             >>> redacted = auditor.redact_sensitive_data(data)
             >>> print(redacted)
             {'username': 'alice', 'password': '[REDACTED]'}
+
         """
         if not isinstance(data, dict):
             return data
@@ -607,11 +608,13 @@ class SecurityAuditor:
                         if name == "bearer_token":
                             # Keep "Bearer " prefix, redact only the token (group 2)
                             redacted_value = pattern.sub(
-                                r"\1***BEARER_TOKEN_REDACTED***", redacted_value
+                                r"\1***BEARER_TOKEN_REDACTED***",
+                                redacted_value,
                             )
                         else:
                             redacted_value = pattern.sub(
-                                f"***{name.upper()}_REDACTED***", redacted_value
+                                f"***{name.upper()}_REDACTED***",
+                                redacted_value,
                             )
 
                 # Then check if key name indicates sensitive data (O(1))
@@ -634,9 +637,8 @@ class SecurityAuditor:
 
         return redacted
 
-    def archive_logs(self, before_date: Optional[datetime] = None) -> int:
-        """
-        Archive old log files with compression.
+    def archive_logs(self, before_date: datetime | None = None) -> int:
+        """Archive old log files with compression.
 
         Time Complexity: O(n) where n is file size
         Space Complexity: O(1) - streaming compression (constant memory)
@@ -650,9 +652,10 @@ class SecurityAuditor:
 
         Raises:
             IOError: If archiving fails
+
         """
         if before_date is None:
-            before_date = datetime.now(tz=timezone.utc) - timedelta(days=self.archive_after_days)
+            before_date = datetime.now(tz=UTC) - timedelta(days=self.archive_after_days)
 
         archived_count = 0
 
@@ -671,13 +674,13 @@ class SecurityAuditor:
                 file_size = log_file.stat().st_size
                 if file_size == 0:
                     continue
-            except (OSError, IOError):
+            except OSError:
                 continue
 
             # Check file modification time
             try:
                 mtime = datetime.utcfromtimestamp(log_file.stat().st_mtime)
-            except (OSError, IOError):
+            except OSError:
                 continue
 
             if mtime < before_date:
@@ -686,7 +689,7 @@ class SecurityAuditor:
 
                 try:
                     # Windows fix: Ensure file is not locked
-                    with open(log_file, "rb") as f_in:
+                    with open(log_file, "rb") as f_in:  # noqa: PTH123
                         with gzip.open(archive_path, "wb", compresslevel=9) as f_out:
                             # Stream compression to avoid loading entire file (constant memory)
                             while chunk := f_in.read(8192):
@@ -704,16 +707,15 @@ class SecurityAuditor:
                             file_size / archive_path.stat().st_size if archive_path.exists() else 0
                         ),
                     )
-                except (OSError, IOError) as e:
-                    logger.error("archive_failed", log_file=str(log_file), error=str(e))
+                except OSError as e:
+                    logger.exception("archive_failed", log_file=str(log_file), error=str(e))
                     # Continue with next file instead of raising
                     continue
 
         return archived_count
 
     def query_audit_logs(self, filters: AuditLogFilters, limit: int = 100) -> list[AuditLogEntry]:
-        """
-        Query audit logs with filters.
+        """Query audit logs with filters.
 
         Time Complexity: O(n) where n is number of log entries
         Space Complexity: O(m) where m is number of matching entries
@@ -728,9 +730,11 @@ class SecurityAuditor:
 
         Raises:
             ValueError: If limit is invalid
+
         """
         if limit <= 0:
-            raise ValueError(f"limit must be positive, got {limit}")
+            msg = f"limit must be positive, got {limit}"
+            raise ValueError(msg)
 
         # Flush buffer to ensure all entries are written
         with self._buffer_lock:
@@ -743,7 +747,7 @@ class SecurityAuditor:
 
         for log_file in log_files:
             try:
-                with open(log_file, encoding="utf-8") as f:
+                with open(log_file, encoding="utf-8") as f:  # noqa: PTH123
                     for line in f:
                         if len(results) >= limit:
                             return results  # Early exit on limit reached
@@ -755,18 +759,17 @@ class SecurityAuditor:
                             # Apply filters (optimized with early exit)
                             if self._matches_filters(entry, filters):
                                 results.append(entry)
-                        except json.JSONDecodeError as e:
-                            logger.warning("invalid_log_entry", line=line[:100])
+                        except json.JSONDecodeError:
+                            logger.exception("invalid_log_entry", line=line[:100])
                             continue
-            except IOError as e:
-                logger.error("log_read_failed", log_file=str(log_file), error=str(e))
+            except OSError as e:
+                logger.exception("log_read_failed", log_file=str(log_file), error=str(e))
                 continue
 
         return results
 
-    def detect_dangerous_command(self, command: str) -> Optional[dict[str, Any]]:
-        """
-        Detect dangerous command patterns with severity classification.
+    def detect_dangerous_command(self, command: str) -> dict[str, Any] | None:
+        """Detect dangerous command patterns with severity classification.
 
         Time Complexity: O(p) where p is number of patterns
         Space Complexity: O(1)
@@ -783,6 +786,7 @@ class SecurityAuditor:
             >>> auditor = SecurityAuditor()
             >>> result = auditor.detect_dangerous_command("rm -rf /")
             >>> print(f"Dangerous: {result['severity']} - {result['description']}")
+
         """
         # Check dangerous patterns by severity (critical first)
         for severity in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
@@ -794,15 +798,15 @@ class SecurityAuditor:
                         "severity": severity,
                         "matched_text": match.group(0),
                         "description": self._get_threat_description(
-                            pattern_regex.pattern, severity
+                            pattern_regex.pattern,
+                            severity,
                         ),
                     }
 
         return None
 
-    def detect_sql_injection(self, query: str) -> Optional[dict[str, Any]]:
-        """
-        Detect SQL injection patterns.
+    def detect_sql_injection(self, query: str) -> dict[str, Any] | None:
+        """Detect SQL injection patterns.
 
         Time Complexity: O(p) where p is number of patterns
         Space Complexity: O(1)
@@ -813,6 +817,7 @@ class SecurityAuditor:
         Returns:
             Dictionary with pattern and matched text if injection detected,
             None if safe
+
         """
         for pattern_regex in self._sql_injection_regex:
             match = pattern_regex.search(query)
@@ -826,9 +831,8 @@ class SecurityAuditor:
 
         return None
 
-    def detect_command_injection(self, input_str: str) -> Optional[dict[str, Any]]:
-        """
-        Detect command injection patterns.
+    def detect_command_injection(self, input_str: str) -> dict[str, Any] | None:
+        """Detect command injection patterns.
 
         Time Complexity: O(p) where p is number of patterns
         Space Complexity: O(1)
@@ -839,6 +843,7 @@ class SecurityAuditor:
         Returns:
             Dictionary with pattern and matched text if injection detected,
             None if safe
+
         """
         for pattern_regex in self._command_injection_regex:
             match = pattern_regex.search(input_str)
@@ -853,8 +858,7 @@ class SecurityAuditor:
         return None
 
     def sanitize_command(self, command: str) -> str:
-        """
-        Sanitize command by removing dangerous characters and patterns.
+        """Sanitize command by removing dangerous characters and patterns.
 
         Time Complexity: O(n) where n is command length
         Space Complexity: O(n) for sanitized copy
@@ -869,6 +873,7 @@ class SecurityAuditor:
             >>> auditor = SecurityAuditor()
             >>> safe = auditor.sanitize_command("ls -la; rm -rf /")
             >>> print(safe)  # "ls -la"
+
         """
         # Remove command substitution FIRST (including content inside)
         sanitized = re.sub(r"\$\([^)]*\)", "", command)
@@ -890,8 +895,7 @@ class SecurityAuditor:
         return sanitized.strip()
 
     def validate_command_safety(self, command: str) -> dict[str, Any]:
-        """
-        Comprehensive command safety validation.
+        """Comprehensive command safety validation.
 
         Checks for:
         - Dangerous command patterns
@@ -909,6 +913,7 @@ class SecurityAuditor:
                 "sanitized_command": str,
                 "recommendation": str
             }
+
         """
         threats = []
 
@@ -938,7 +943,8 @@ class SecurityAuditor:
             # Get highest severity using dict lookup (faster than lambda)
             severity_order = {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}
             highest_severity = max(
-                (t.get("severity", "LOW") for t in threats), key=severity_order.get
+                (t.get("severity", "LOW") for t in threats),
+                key=severity_order.get,
             )
             recommendation = f"BLOCK: {highest_severity} threat detected. Do not execute."
         else:
@@ -969,9 +975,12 @@ class SecurityAuditor:
 
         return descriptions.get(pattern, f"{severity} severity command detected")
 
-    def detect_rapid_failures(self, user_id: str, timestamp: Optional[float] = None) -> Optional[SecurityAlert]:
-        """
-        Detect rapid failure pattern (>10 failures in 1 minute).
+    def detect_rapid_failures(
+        self,
+        user_id: str,
+        timestamp: float | None = None,
+    ) -> SecurityAlert | None:
+        """Detect rapid failure pattern (>10 failures in 1 minute).
 
         Time Complexity: O(n) where n is number of failures in window
         Space Complexity: O(n) for failure tracking
@@ -989,6 +998,7 @@ class SecurityAuditor:
             >>> alert = auditor.detect_rapid_failures("user123")
             >>> if alert:
             ...     print(f"Alert: {alert.description}")
+
         """
         if timestamp is None:
             timestamp = time.time()
@@ -1004,8 +1014,7 @@ class SecurityAuditor:
             # Remove old timestamps outside window (O(n) but n is small)
             cutoff_time = timestamp - self._rapid_failure_window
             while (
-                self._failure_tracker[user_id]
-                and self._failure_tracker[user_id][0] < cutoff_time
+                self._failure_tracker[user_id] and self._failure_tracker[user_id][0] < cutoff_time
             ):
                 self._failure_tracker[user_id].popleft()
 
@@ -1014,7 +1023,7 @@ class SecurityAuditor:
             if failure_count >= self._rapid_failure_threshold:
                 # Generate alert
                 alert_id = hashlib.sha256(
-                    f"rapid_failures_{user_id}_{timestamp}".encode()
+                    f"rapid_failures_{user_id}_{timestamp}".encode(),
                 ).hexdigest()[:16]
 
                 alert = SecurityAlert(
@@ -1023,7 +1032,7 @@ class SecurityAuditor:
                     alert_type="rapid_failures",
                     description=f"Rapid failure pattern detected: {failure_count} failures in {self._rapid_failure_window}s",
                     affected_operations=[user_id],
-                    timestamp=datetime.now(tz=timezone.utc).isoformat() + "Z",
+                    timestamp=datetime.now(tz=UTC).isoformat() + "Z",
                     recommended_action="Investigate user activity, check for brute force attacks or system issues",
                 )
 
@@ -1040,10 +1049,11 @@ class SecurityAuditor:
         return None
 
     def detect_permission_probing(
-        self, user_id: str, timestamp: Optional[float] = None
-    ) -> Optional[SecurityAlert]:
-        """
-        Detect permission probing pattern (>5 permission checks in 30 seconds).
+        self,
+        user_id: str,
+        timestamp: float | None = None,
+    ) -> SecurityAlert | None:
+        """Detect permission probing pattern (>5 permission checks in 30 seconds).
 
         Time Complexity: O(n) where n is number of checks in window
         Space Complexity: O(n) for probe tracking
@@ -1061,6 +1071,7 @@ class SecurityAuditor:
             >>> alert = auditor.detect_permission_probing("user123")
             >>> if alert:
             ...     print(f"Alert: {alert.description}")
+
         """
         if timestamp is None:
             timestamp = time.time()
@@ -1069,7 +1080,7 @@ class SecurityAuditor:
             # Initialize tracker for user if not exists
             if user_id not in self._permission_probes:
                 self._permission_probes[user_id] = deque(
-                    maxlen=self._permission_probe_threshold * 2
+                    maxlen=self._permission_probe_threshold * 2,
                 )
 
             # Add current probe timestamp
@@ -1088,7 +1099,7 @@ class SecurityAuditor:
             if probe_count >= self._permission_probe_threshold:
                 # Generate alert
                 alert_id = hashlib.sha256(
-                    f"permission_probing_{user_id}_{timestamp}".encode()
+                    f"permission_probing_{user_id}_{timestamp}".encode(),
                 ).hexdigest()[:16]
 
                 alert = SecurityAlert(
@@ -1097,7 +1108,7 @@ class SecurityAuditor:
                     alert_type="permission_probing",
                     description=f"Permission probing detected: {probe_count} permission checks in {self._permission_probe_window}s",
                     affected_operations=[user_id],
-                    timestamp=datetime.now(tz=timezone.utc).isoformat() + "Z",
+                    timestamp=datetime.now(tz=UTC).isoformat() + "Z",
                     recommended_action="Review user permissions, check for privilege escalation attempts",
                 )
 
@@ -1114,10 +1125,11 @@ class SecurityAuditor:
         return None
 
     def detect_unusual_access_pattern(
-        self, user_id: str, timestamp: Optional[float] = None
-    ) -> Optional[SecurityAlert]:
-        """
-        Detect unusual access pattern (>20 accesses in 10 seconds).
+        self,
+        user_id: str,
+        timestamp: float | None = None,
+    ) -> SecurityAlert | None:
+        """Detect unusual access pattern (>20 accesses in 10 seconds).
 
         Time Complexity: O(n) where n is number of accesses in window
         Space Complexity: O(n) for access tracking
@@ -1135,6 +1147,7 @@ class SecurityAuditor:
             >>> alert = auditor.detect_unusual_access_pattern("user123")
             >>> if alert:
             ...     print(f"Alert: {alert.description}")
+
         """
         if timestamp is None:
             timestamp = time.time()
@@ -1150,8 +1163,7 @@ class SecurityAuditor:
             # Remove old timestamps outside window
             cutoff_time = timestamp - self._unusual_access_window
             while (
-                self._access_patterns[user_id]
-                and self._access_patterns[user_id][0] < cutoff_time
+                self._access_patterns[user_id] and self._access_patterns[user_id][0] < cutoff_time
             ):
                 self._access_patterns[user_id].popleft()
 
@@ -1160,7 +1172,7 @@ class SecurityAuditor:
             if access_count >= self._unusual_access_threshold:
                 # Generate alert
                 alert_id = hashlib.sha256(
-                    f"unusual_access_{user_id}_{timestamp}".encode()
+                    f"unusual_access_{user_id}_{timestamp}".encode(),
                 ).hexdigest()[:16]
 
                 alert = SecurityAlert(
@@ -1169,7 +1181,7 @@ class SecurityAuditor:
                     alert_type="unusual_access_pattern",
                     description=f"Unusual access pattern detected: {access_count} accesses in {self._unusual_access_window}s",
                     affected_operations=[user_id],
-                    timestamp=datetime.now(tz=timezone.utc).isoformat() + "Z",
+                    timestamp=datetime.now(tz=UTC).isoformat() + "Z",
                     recommended_action="Monitor user activity, check for automated scripts or bots",
                 )
 
@@ -1186,10 +1198,12 @@ class SecurityAuditor:
         return None
 
     def check_suspicious_patterns(
-        self, user_id: str, operation_type: OperationType, result_status: ResultStatus
+        self,
+        user_id: str,
+        operation_type: OperationType,
+        result_status: ResultStatus,
     ) -> list[SecurityAlert]:
-        """
-        Check for all suspicious patterns and generate alerts.
+        """Check for all suspicious patterns and generate alerts.
 
         Time Complexity: O(1) - constant number of pattern checks
         Space Complexity: O(1) - bounded tracking structures
@@ -1212,6 +1226,7 @@ class SecurityAuditor:
             ... )
             >>> for alert in alerts:
             ...     print(f"Alert: {alert.severity.value} - {alert.description}")
+
         """
         alerts: list[SecurityAlert] = []
         current_time = time.time()
@@ -1243,8 +1258,7 @@ class SecurityAuditor:
         affected_operations: list[str],
         recommended_action: str,
     ) -> SecurityAlert:
-        """
-        Generate a security alert.
+        """Generate a security alert.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -1268,11 +1282,12 @@ class SecurityAuditor:
             ...     ["op1", "op2"],
             ...     "Investigate immediately"
             ... )
+
         """
-        timestamp = datetime.now(tz=timezone.utc).isoformat() + "Z"
-        alert_id = hashlib.sha256(
-            f"{alert_type}_{timestamp}_{description}".encode()
-        ).hexdigest()[:16]
+        timestamp = datetime.now(tz=UTC).isoformat() + "Z"
+        alert_id = hashlib.sha256(f"{alert_type}_{timestamp}_{description}".encode()).hexdigest()[
+            :16
+        ]
 
         alert = SecurityAlert(
             alert_id=alert_id,
@@ -1294,9 +1309,8 @@ class SecurityAuditor:
 
         return alert
 
-    def clear_pattern_tracking(self, user_id: Optional[str] = None) -> None:
-        """
-        Clear pattern tracking data for a user or all users.
+    def clear_pattern_tracking(self, user_id: str | None = None) -> None:
+        """Clear pattern tracking data for a user or all users.
 
         Args:
             user_id: User ID to clear (None = clear all)
@@ -1305,6 +1319,7 @@ class SecurityAuditor:
             >>> auditor = SecurityAuditor()
             >>> auditor.clear_pattern_tracking("user123")  # Clear specific user
             >>> auditor.clear_pattern_tracking()  # Clear all users
+
         """
         with self._pattern_lock:
             if user_id is None:
@@ -1320,9 +1335,8 @@ class SecurityAuditor:
                 self._access_patterns.pop(user_id, None)
                 logger.info("pattern_tracking_cleared", scope="user", user_id=user_id)
 
-    def get_pattern_statistics(self, user_id: Optional[str] = None) -> dict[str, Any]:
-        """
-        Get pattern detection statistics.
+    def get_pattern_statistics(self, user_id: str | None = None) -> dict[str, Any]:
+        """Get pattern detection statistics.
 
         Args:
             user_id: User ID to get stats for (None = all users)
@@ -1334,6 +1348,7 @@ class SecurityAuditor:
             >>> auditor = SecurityAuditor()
             >>> stats = auditor.get_pattern_statistics("user123")
             >>> print(f"Failures: {stats['failure_count']}")
+
         """
         with self._pattern_lock:
             if user_id is None:
@@ -1350,24 +1365,22 @@ class SecurityAuditor:
                         len(accesses) for accesses in self._access_patterns.values()
                     ),
                 }
-            else:
-                # Stats for specific user
-                return {
-                    "user_id": user_id,
-                    "failure_count": len(self._failure_tracker.get(user_id, [])),
-                    "permission_probe_count": len(self._permission_probes.get(user_id, [])),
-                    "access_count": len(self._access_patterns.get(user_id, [])),
-                }
+            # Stats for specific user
+            return {
+                "user_id": user_id,
+                "failure_count": len(self._failure_tracker.get(user_id, [])),
+                "permission_probe_count": len(self._permission_probes.get(user_id, [])),
+                "access_count": len(self._access_patterns.get(user_id, [])),
+            }
 
     def validate_against_policy(
         self,
         principal: str,
         resource: str,
         action: str,
-        environment: Optional[dict[str, Any]] = None,
-    ) -> tuple[bool, str, Optional[PolicyCheck]]:
-        """
-        Validate operation against Policy Engine.
+        environment: dict[str, Any] | None = None,
+    ) -> tuple[bool, str, PolicyCheck | None]:
+        """Validate operation against Policy Engine.
 
         Time Complexity: O(1) for cached policies, O(n) for evaluation
         Space Complexity: O(1)
@@ -1391,6 +1404,7 @@ class SecurityAuditor:
             ... )
             >>> if not is_allowed:
             ...     print(f"Access denied: {reason}")
+
         """
         # If no Policy Engine client, allow by default
         if self.policy_engine_client is None:
@@ -1431,7 +1445,7 @@ class SecurityAuditor:
             return is_allowed, reason, policy_check
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "policy_validation_error",
                 principal=principal,
                 resource=resource,
@@ -1452,10 +1466,9 @@ class SecurityAuditor:
         resource: str,
         action: str,
         reason: str,
-        policy_check: Optional[PolicyCheck] = None,
+        policy_check: PolicyCheck | None = None,
     ) -> AuditLogEntry:
-        """
-        Log policy violation to audit trail.
+        """Log policy violation to audit trail.
 
         Args:
             principal: User/service that attempted the operation
@@ -1475,6 +1488,7 @@ class SecurityAuditor:
             ...     "write",
             ...     "Insufficient privileges"
             ... )
+
         """
         return self.log_security_violation(
             operation_type=OperationType.PERMISSION_CHECK,
@@ -1507,11 +1521,11 @@ class SecurityAuditor:
         return descriptions.get(pattern, f"{severity} severity command detected")
 
     def get_statistics(self) -> dict[str, Any]:
-        """
-        Get audit statistics.
+        """Get audit statistics.
 
         Returns:
             Dictionary with statistics
+
         """
         # Flush buffer to ensure all entries are written to disk
         with self._buffer_lock:
@@ -1537,28 +1551,27 @@ class SecurityAuditor:
         }
 
     def get_log_stats(self) -> dict[str, Any]:
-        """
-        Get log statistics (alias for get_statistics with extended fields).
+        """Get log statistics (alias for get_statistics with extended fields).
 
         Returns:
             Dictionary with log statistics including current_log_entries and total_size
+
         """
         stats = self.get_statistics()
         # Count entries in current log file
         current_entries = 0
         if self.current_log_file.exists():
             try:
-                with open(self.current_log_file, encoding="utf-8") as f:
+                with open(self.current_log_file, encoding="utf-8") as f:  # noqa: PTH123
                     current_entries = sum(1 for line in f if line.strip())
-            except IOError:
+            except OSError:
                 pass
         stats["current_log_entries"] = current_entries
         stats["total_size"] = stats["current_log_size"]
         return stats
 
     def flush(self) -> None:
-        """
-        Manually flush buffered entries to disk.
+        """Manually flush buffered entries to disk.
 
         This is useful for testing or when you need to ensure
         all entries are written immediately.
@@ -1567,8 +1580,7 @@ class SecurityAuditor:
             self._flush_buffer()
 
     def _flush_buffer(self) -> None:
-        """
-        Flush buffered entries to disk.
+        """Flush buffered entries to disk.
 
         Time Complexity: O(n) where n is buffer size
         Space Complexity: O(n) - temporary list for batch write
@@ -1612,35 +1624,36 @@ class SecurityAuditor:
                 lines.append(json.dumps(entry_dict, separators=(",", ":"), sort_keys=False))
 
             # Single write call with buffering (reduces syscalls by 100x, MUCH faster)
-            with open(self.current_log_file, "a", encoding="utf-8", buffering=8192) as f:
+            with open(self.current_log_file, "a", encoding="utf-8", buffering=8192) as f:  # noqa: PTH123
                 f.write("\n".join(lines) + "\n")
 
             self._buffer.clear()
             self._last_flush_time = time.time()
 
-        except IOError as e:
-            logger.error("flush_failed", error=str(e))
+        except OSError as e:
+            logger.exception("flush_failed", error=str(e))
             raise
 
     def _rotate_log(self) -> None:
         """Rotate log file when size limit reached."""
-        timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
         rotated_file = self.log_dir / f"audit_{timestamp}.jsonl"
 
         # Windows fix: Check if rotated file already exists
         if rotated_file.exists():
             # Add microseconds to make unique
-            timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+            timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S_%f")
             rotated_file = self.log_dir / f"audit_{timestamp}.jsonl"
 
         self.current_log_file.rename(rotated_file)
-        self.current_log_file = self.log_dir / f"audit_{datetime.now(tz=timezone.utc).strftime('%Y%m%d')}.jsonl"
+        self.current_log_file = (
+            self.log_dir / f"audit_{datetime.now(tz=UTC).strftime('%Y%m%d')}.jsonl"
+        )
 
         logger.info("log_rotated", new_file=str(self.current_log_file))
 
     def _matches_filters(self, entry: AuditLogEntry, filters: AuditLogFilters) -> bool:
-        """
-        Check if entry matches filters.
+        """Check if entry matches filters.
 
         Time Complexity: O(1) - all checks are constant time
         Optimized: Early exit on first failed filter (short-circuit evaluation)
@@ -1666,7 +1679,7 @@ class SecurityAuditor:
 
         # Time range filter (more expensive - parse timestamp only if needed)
         if filters.start_time or filters.end_time:
-            entry_time = datetime.fromisoformat(entry.timestamp.replace("Z", "+00:00"))
+            entry_time = datetime.fromisoformat(entry.timestamp)
 
             if filters.start_time and entry_time < filters.start_time:
                 return False
@@ -1698,18 +1711,21 @@ class SecurityAuditor:
     def _validate_config(log_dir: str, max_log_size_mb: int, archive_after_days: int) -> None:
         """Validate configuration parameters."""
         if not log_dir:
-            raise ValueError("log_dir cannot be empty")
+            msg = "log_dir cannot be empty"
+            raise ValueError(msg)
         if max_log_size_mb <= 0:
-            raise ValueError(f"max_log_size_mb must be positive, got {max_log_size_mb}")
+            msg = f"max_log_size_mb must be positive, got {max_log_size_mb}"
+            raise ValueError(msg)
         if archive_after_days <= 0:
-            raise ValueError(f"archive_after_days must be positive, got {archive_after_days}")
+            msg = f"archive_after_days must be positive, got {archive_after_days}"
+            raise ValueError(msg)
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Flush buffer on cleanup."""
         try:
             # Check if _buffer_lock exists (initialization might have failed)
             if hasattr(self, "_buffer_lock") and hasattr(self, "_buffer"):
                 with self._buffer_lock:
                     self._flush_buffer()
-        except (IOError, OSError, RuntimeError):
+        except (OSError, RuntimeError):
             pass  # Ignore errors during cleanup (file/lock/runtime errors)

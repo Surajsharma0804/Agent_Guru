@@ -1,5 +1,4 @@
-"""
-Configuration loading for the LLM Runtime.
+"""Configuration loading for the LLM Runtime.
 
 Loads RuntimeConfig from environment variables or YAML/JSON files,
 with validation and sensible defaults.
@@ -23,8 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def load_config_from_env() -> RuntimeConfig:
-    """
-    Load RuntimeConfig from environment variables.
+    """Load RuntimeConfig from environment variables.
 
     Environment variables:
         OLLAMA_HOST: Ollama host URL (default: http://localhost:11434)
@@ -36,6 +34,7 @@ def load_config_from_env() -> RuntimeConfig:
 
     Returns:
         RuntimeConfig populated from environment.
+
     """
     return RuntimeConfig(
         ollama_config=OllamaConfig(
@@ -50,8 +49,7 @@ def load_config_from_env() -> RuntimeConfig:
 
 
 def load_config_from_file(path: str) -> RuntimeConfig:
-    """
-    Load RuntimeConfig from a YAML or JSON file.
+    """Load RuntimeConfig from a YAML or JSON file.
 
     Args:
         path: Path to configuration file (.yaml, .yml, or .json).
@@ -62,11 +60,13 @@ def load_config_from_file(path: str) -> RuntimeConfig:
     Raises:
         FileNotFoundError: If the config file does not exist.
         ValueError: If the file format is unsupported.
+
     """
     config_path = Path(path)
 
     if not config_path.exists():
-        raise FileNotFoundError(f"Config file not found: {path}")
+        msg = f"Config file not found: {path}"
+        raise FileNotFoundError(msg)
 
     suffix = config_path.suffix.lower()
 
@@ -74,15 +74,17 @@ def load_config_from_file(path: str) -> RuntimeConfig:
         try:
             import yaml  # type: ignore[import-untyped]
 
-            with open(config_path) as f:
+            with open(config_path) as f:  # noqa: PTH123
                 data: dict[str, Any] = yaml.safe_load(f) or {}
         except ImportError as e:
-            raise ImportError("PyYAML is required for YAML config files: pip install pyyaml") from e
+            msg = "PyYAML is required for YAML config files: pip install pyyaml"
+            raise ImportError(msg) from e
     elif suffix == ".json":
-        with open(config_path) as f:
+        with open(config_path) as f:  # noqa: PTH123
             data = json.load(f)
     else:
-        raise ValueError(f"Unsupported config file format: {suffix}. Use .yaml or .json")
+        msg = f"Unsupported config file format: {suffix}. Use .yaml or .json"
+        raise ValueError(msg)
 
     return _dict_to_config(data)
 

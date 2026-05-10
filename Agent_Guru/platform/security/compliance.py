@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.security.compliance
-Purpose: World-class compliance reporting - GDPR, CCPA, HIPAA, SOC 2
+"""Module: agent_guru.platform.security.compliance
+Purpose: World-class compliance reporting - GDPR, CCPA, HIPAA, SOC 2.
 
 This module implements PRODUCTION-GRADE compliance reporting with:
 - GDPR compliance (EU data protection)
@@ -36,10 +35,10 @@ Version: 1.0.0
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -55,8 +54,7 @@ logger = structlog.get_logger(__name__)
 
 
 def get_local_timezone() -> timezone:
-    """
-    Get the device's local timezone.
+    """Get the device's local timezone.
 
     Returns timezone-aware datetime in local timezone.
     This automatically detects the system timezone for worldwide deployment.
@@ -68,19 +66,19 @@ def get_local_timezone() -> timezone:
         >>> tz = get_local_timezone()
         >>> now = datetime.now(tz)
         >>> print(now)  # 2026-02-25 14:30:00+05:30 (India)
+
     """
     # Get local timezone from system
     # This works on Windows, macOS, Linux, Android, iOS
-    tz = datetime.now(tz=timezone.utc).astimezone().tzinfo
+    tz = datetime.now(tz=UTC).astimezone().tzinfo
     if tz is None:
         # Fallback to UTC if timezone detection fails
-        return timezone.utc
+        return UTC
     return tz
 
 
 def get_current_time_with_timezone() -> datetime:
-    """
-    Get current time in device's local timezone.
+    """Get current time in device's local timezone.
 
     Returns:
         Timezone-aware datetime in local timezone
@@ -88,6 +86,7 @@ def get_current_time_with_timezone() -> datetime:
     Example:
         >>> now = get_current_time_with_timezone()
         >>> print(now.isoformat())  # 2026-02-25T14:30:00+05:30
+
     """
     return datetime.now(get_local_timezone())
 
@@ -99,7 +98,6 @@ class ComplianceStandard(Enum):
     CCPA = "ccpa"  # California Consumer Privacy Act
     HIPAA = "hipaa"  # Health Insurance Portability and Accountability Act
     SOC2 = "soc2"  # Service Organization Control 2
-
 
 
 class SIEMFormat(Enum):
@@ -156,7 +154,6 @@ class CCPAReport:
     business_purposes: list[str]
 
 
-
 @dataclass
 class HIPAAReport:
     """HIPAA audit trail report (45 CFR § 164.312)."""
@@ -198,10 +195,8 @@ class SOC2Report:
     incident_response: list[dict[str, Any]]
 
 
-
 class ComplianceReporter:
-    """
-    World-class compliance reporter - BEATS Alexa & Siri.
+    """World-class compliance reporter - BEATS Alexa & Siri.
 
     Time Complexity: O(n) for report generation where n is log entries
     Space Complexity: O(n) for report data
@@ -229,6 +224,7 @@ class ComplianceReporter:
         ...     "https://splunk.example.com:8088",
         ...     "HEC-TOKEN-HERE"
         ... )
+
     """
 
     def __init__(
@@ -238,9 +234,8 @@ class ComplianceReporter:
         data_processor: str = "Agent Guru Platform",
         covered_entity: str = "Agent Guru Healthcare Services",
         service_organization: str = "Agent Guru Cloud Services",
-    ):
-        """
-        Initialize compliance reporter.
+    ) -> None:
+        """Initialize compliance reporter.
 
         Args:
             auditor: SecurityAuditor instance
@@ -248,6 +243,7 @@ class ComplianceReporter:
             data_processor: GDPR data processor name
             covered_entity: HIPAA covered entity name
             service_organization: SOC 2 service organization name
+
         """
         self.auditor = auditor
         self.data_controller = data_controller
@@ -266,14 +262,14 @@ class ComplianceReporter:
         )
 
     def _ensure_timezone_aware(self, dt: datetime) -> datetime:
-        """
-        Ensure datetime is timezone-aware using local timezone.
+        """Ensure datetime is timezone-aware using local timezone.
 
         Args:
             dt: Datetime object (timezone-aware or naive)
 
         Returns:
             Timezone-aware datetime in local timezone
+
         """
         if dt.tzinfo is None:
             # Naive datetime - assume it's in local timezone
@@ -281,23 +277,21 @@ class ComplianceReporter:
         return dt
 
     def _get_current_time_local(self) -> datetime:
-        """
-        Get current time in local timezone.
+        """Get current time in local timezone.
 
         Returns:
             Current datetime in local timezone
+
         """
         return datetime.now(self.local_timezone)
-
 
     def generate_gdpr_report(
         self,
         period_start: datetime,
         period_end: datetime,
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
     ) -> GDPRReport:
-        """
-        Generate GDPR compliance report (Article 30).
+        """Generate GDPR compliance report (Article 30).
 
         Time Complexity: O(n) where n is log entries in period
         Space Complexity: O(n) for report data
@@ -320,6 +314,7 @@ class ComplianceReporter:
             ...     Path("/reports/gdpr_jan2026.json")
             ... )
             >>> # Report timestamps will be in local timezone (e.g., +05:30 for India)
+
         """
         # Convert to timezone-aware if needed (use local timezone)
         period_start = self._ensure_timezone_aware(period_start)
@@ -414,15 +409,13 @@ class ComplianceReporter:
 
         return report
 
-
     def generate_ccpa_report(
         self,
         period_start: datetime,
         period_end: datetime,
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
     ) -> CCPAReport:
-        """
-        Generate CCPA compliance report (Section 1798.100).
+        """Generate CCPA compliance report (Section 1798.100).
 
         Time Complexity: O(n) where n is log entries in period
         Space Complexity: O(n) for report data
@@ -434,6 +427,7 @@ class ComplianceReporter:
 
         Returns:
             CCPAReport object with timestamps in local timezone
+
         """
         # Convert to timezone-aware if needed (use local timezone)
         period_start = self._ensure_timezone_aware(period_start)
@@ -516,15 +510,13 @@ class ComplianceReporter:
 
         return report
 
-
     def generate_hipaa_report(
         self,
         period_start: datetime,
         period_end: datetime,
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
     ) -> HIPAAReport:
-        """
-        Generate HIPAA audit trail report (45 CFR § 164.312).
+        """Generate HIPAA audit trail report (45 CFR § 164.312).
 
         Time Complexity: O(n) where n is log entries in period
         Space Complexity: O(n) for report data
@@ -536,6 +528,7 @@ class ComplianceReporter:
 
         Returns:
             HIPAAReport object with timestamps in local timezone
+
         """
         # Convert to timezone-aware if needed (use local timezone)
         period_start = self._ensure_timezone_aware(period_start)
@@ -585,16 +578,10 @@ class ComplianceReporter:
         )
 
         # Count authentication events
-        auth_events = sum(
-            1 for entry in entries if "auth" in entry.operation_type.value.lower()
-        )
+        auth_events = sum(1 for entry in entries if "auth" in entry.operation_type.value.lower())
 
         # Count authorization failures
-        auth_failures = sum(
-            1
-            for entry in entries
-            if entry.result_status == ResultStatus.DENIED
-        )
+        auth_failures = sum(1 for entry in entries if entry.result_status == ResultStatus.DENIED)
 
         # Identify security incidents
         security_incidents = [
@@ -651,15 +638,13 @@ class ComplianceReporter:
 
         return report
 
-
     def generate_soc2_report(
         self,
         period_start: datetime,
         period_end: datetime,
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
     ) -> SOC2Report:
-        """
-        Generate SOC 2 compliance report (Trust Services Criteria).
+        """Generate SOC 2 compliance report (Trust Services Criteria).
 
         Time Complexity: O(n) where n is log entries in period
         Space Complexity: O(n) for report data
@@ -671,6 +656,7 @@ class ComplianceReporter:
 
         Returns:
             SOC2Report object with timestamps in local timezone
+
         """
         # Convert to timezone-aware if needed (use local timezone)
         period_start = self._ensure_timezone_aware(period_start)
@@ -731,9 +717,7 @@ class ComplianceReporter:
         )
         availability_metrics = {
             "uptime_percentage": (
-                (successful_operations / total_operations * 100)
-                if total_operations > 0
-                else 100.0
+                (successful_operations / total_operations * 100) if total_operations > 0 else 100.0
             ),
             "total_operations": total_operations,
             "successful_operations": successful_operations,
@@ -773,7 +757,7 @@ class ComplianceReporter:
                 "description": "Security patch deployment",
                 "date": current_time.isoformat(),
                 "status": "Completed",
-            }
+            },
         ]
 
         # Incident response
@@ -820,20 +804,18 @@ class ComplianceReporter:
 
         return report
 
-
     def export_to_siem(
         self,
         siem_format: SIEMFormat,
         endpoint_url: str,
-        auth_token: Optional[str] = None,
-        period_start: Optional[datetime] = None,
-        period_end: Optional[datetime] = None,
+        auth_token: str | None = None,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
         batch_size: int = 1000,
         max_retries: int = 3,
         retry_delay: float = 1.0,
     ) -> dict[str, Any]:
-        """
-        Export audit logs to SIEM system with automatic retry.
+        """Export audit logs to SIEM system with automatic retry.
 
         Time Complexity: O(n) where n is log entries
         Space Complexity: O(batch_size) - streaming export
@@ -860,6 +842,7 @@ class ComplianceReporter:
             ...     "HEC-TOKEN-HERE"
             ... )
             >>> print(f"Exported {stats['entries_exported']} entries")
+
         """
         logger.info(
             "exporting_to_siem",
@@ -888,11 +871,21 @@ class ComplianceReporter:
         for attempt in range(max_retries):
             try:
                 if siem_format == SIEMFormat.SPLUNK:
-                    result = self._export_to_splunk(entries, endpoint_url, auth_token or "", batch_size)
+                    result = self._export_to_splunk(
+                        entries,
+                        endpoint_url,
+                        auth_token or "",
+                        batch_size,
+                    )
                 elif siem_format == SIEMFormat.ELK:
                     result = self._export_to_elk(entries, endpoint_url, auth_token, batch_size)
                 elif siem_format == SIEMFormat.DATADOG:
-                    result = self._export_to_datadog(entries, endpoint_url, auth_token or "", batch_size)
+                    result = self._export_to_datadog(
+                        entries,
+                        endpoint_url,
+                        auth_token or "",
+                        batch_size,
+                    )
                 elif siem_format == SIEMFormat.SYSLOG:
                     result = self._export_to_syslog(entries, endpoint_url, batch_size)
                 elif siem_format == SIEMFormat.CEF:
@@ -900,7 +893,8 @@ class ComplianceReporter:
                 elif siem_format == SIEMFormat.LEEF:
                     result = self._export_to_leef(entries, endpoint_url, batch_size)
                 else:
-                    raise ValueError(f"Unsupported SIEM format: {siem_format}")
+                    msg = f"Unsupported SIEM format: {siem_format}"
+                    raise ValueError(msg)
 
                 logger.info(
                     "siem_export_completed",
@@ -912,7 +906,7 @@ class ComplianceReporter:
                 return result
 
             except Exception as e:
-                logger.warning(
+                logger.exception(
                     "siem_export_attempt_failed",
                     siem_format=siem_format.value,
                     attempt=attempt + 1,
@@ -923,10 +917,11 @@ class ComplianceReporter:
                 if attempt < max_retries - 1:
                     # Wait before retrying (exponential backoff)
                     import time
-                    time.sleep(retry_delay * (2 ** attempt))
+
+                    time.sleep(retry_delay * (2**attempt))
                 else:
                     # Final attempt failed
-                    logger.error(
+                    logger.exception(
                         "siem_export_failed_all_attempts",
                         siem_format=siem_format.value,
                         max_retries=max_retries,
@@ -935,8 +930,8 @@ class ComplianceReporter:
                     raise
 
         # Should never reach here, but for type safety
-        raise RuntimeError("SIEM export failed after all retry attempts")
-
+        msg = "SIEM export failed after all retry attempts"
+        raise RuntimeError(msg)
 
     def _export_to_splunk(
         self,
@@ -954,7 +949,7 @@ class ComplianceReporter:
         self,
         entries: list[AuditLogEntry],
         endpoint_url: str,
-        auth_token: Optional[str],
+        auth_token: str | None,
         batch_size: int,
     ) -> dict[str, Any]:
         """Export to Elasticsearch."""
@@ -1000,7 +995,7 @@ class ComplianceReporter:
                 response.raise_for_status()
                 exported_count += len(batch)
             except Exception as e:
-                logger.error("elk_export_failed", error=str(e))
+                logger.exception("elk_export_failed", error=str(e))
                 failed_count += len(batch)
 
         return {
@@ -1008,7 +1003,6 @@ class ComplianceReporter:
             "entries_failed": failed_count,
             "total_entries": len(entries),
         }
-
 
     def _export_to_datadog(
         self,
@@ -1060,7 +1054,7 @@ class ComplianceReporter:
                 response.raise_for_status()
                 exported_count += len(batch)
             except Exception as e:
-                logger.error("datadog_export_failed", error=str(e))
+                logger.exception("datadog_export_failed", error=str(e))
                 failed_count += len(batch)
 
         return {
@@ -1070,7 +1064,10 @@ class ComplianceReporter:
         }
 
     def _export_to_syslog(
-        self, entries: list[AuditLogEntry], endpoint_url: str, batch_size: int
+        self,
+        entries: list[AuditLogEntry],
+        endpoint_url: str,
+        batch_size: int,
     ) -> dict[str, Any]:
         """Export to Syslog (RFC 5424)."""
         import socket
@@ -1093,7 +1090,9 @@ class ComplianceReporter:
             app_name = "agent-guru"
             proc_id = "-"
             msg_id = entry.entry_id[:32]
-            structured_data = f'[audit user_id="{entry.user_id}" operation="{entry.operation_type.value}"]'
+            structured_data = (
+                f'[audit user_id="{entry.user_id}" operation="{entry.operation_type.value}"]'
+            )
             message = f"Operation {entry.operation_type.value} - {entry.result_status.value}"
 
             syslog_msg = (
@@ -1105,7 +1104,7 @@ class ComplianceReporter:
                 sock.sendto(syslog_msg.encode(), (host, port))
                 exported_count += 1
             except Exception as e:
-                logger.error("syslog_export_failed", error=str(e))
+                logger.exception("syslog_export_failed", error=str(e))
                 failed_count += 1
 
         sock.close()
@@ -1116,9 +1115,11 @@ class ComplianceReporter:
             "total_entries": len(entries),
         }
 
-
     def _export_to_cef(
-        self, entries: list[AuditLogEntry], endpoint_url: str, batch_size: int
+        self,
+        entries: list[AuditLogEntry],
+        endpoint_url: str,
+        batch_size: int,
     ) -> dict[str, Any]:
         """Export to Common Event Format (CEF) for ArcSight."""
         import socket
@@ -1148,7 +1149,7 @@ class ComplianceReporter:
                 sock.sendto(cef_msg.encode(), (host, port))
                 exported_count += 1
             except Exception as e:
-                logger.error("cef_export_failed", error=str(e))
+                logger.exception("cef_export_failed", error=str(e))
                 failed_count += 1
 
         sock.close()
@@ -1160,7 +1161,10 @@ class ComplianceReporter:
         }
 
     def _export_to_leef(
-        self, entries: list[AuditLogEntry], endpoint_url: str, batch_size: int
+        self,
+        entries: list[AuditLogEntry],
+        endpoint_url: str,
+        batch_size: int,
     ) -> dict[str, Any]:
         """Export to Log Event Extended Format (LEEF) for QRadar."""
         import socket
@@ -1189,7 +1193,7 @@ class ComplianceReporter:
                 sock.sendto(leef_msg.encode(), (host, port))
                 exported_count += 1
             except Exception as e:
-                logger.error("leef_export_failed", error=str(e))
+                logger.exception("leef_export_failed", error=str(e))
                 failed_count += 1
 
         sock.close()
@@ -1200,12 +1204,9 @@ class ComplianceReporter:
             "total_entries": len(entries),
         }
 
-
     # Helper methods for GDPR report generation
 
-    def _analyze_processing_activities(
-        self, entries: list[AuditLogEntry]
-    ) -> list[dict[str, Any]]:
+    def _analyze_processing_activities(self, entries: list[AuditLogEntry]) -> list[dict[str, Any]]:
         """Analyze processing activities from audit logs."""
         activities = {}
 
@@ -1236,9 +1237,7 @@ class ComplianceReporter:
         }
         return purposes.get(operation_type, "Service provision")
 
-    def _identify_personal_data_categories(
-        self, entries: list[AuditLogEntry]
-    ) -> list[str]:
+    def _identify_personal_data_categories(self, entries: list[AuditLogEntry]) -> list[str]:
         """Identify personal data categories from audit logs."""
         categories = set()
 
@@ -1288,12 +1287,14 @@ class ComplianceReporter:
             if entry.operation_type.value == "network_request":
                 url = entry.parameters.get("url", "")
                 if url and any(tld in url for tld in [".eu", ".uk", ".ca"]):
-                    transfers.append({
-                        "timestamp": entry.timestamp,
-                        "destination": url,
-                        "safeguards": "Standard Contractual Clauses",
-                        "data_category": "User data",
-                    })
+                    transfers.append(
+                        {
+                            "timestamp": entry.timestamp,
+                            "destination": url,
+                            "safeguards": "Standard Contractual Clauses",
+                            "data_category": "User data",
+                        },
+                    )
 
         return transfers[:100]  # Limit for report size
 
@@ -1302,16 +1303,19 @@ class ComplianceReporter:
         breaches = []
 
         for entry in entries:
-            if entry.result_status == ResultStatus.DENIED and "unauthorized" in str(
-                entry.error_message
-            ).lower():
-                breaches.append({
-                    "timestamp": entry.timestamp,
-                    "type": "Unauthorized access attempt",
-                    "affected_data": "Unknown",
-                    "status": "Blocked",
-                    "notification_required": False,
-                })
+            if (
+                entry.result_status == ResultStatus.DENIED
+                and "unauthorized" in str(entry.error_message).lower()
+            ):
+                breaches.append(
+                    {
+                        "timestamp": entry.timestamp,
+                        "type": "Unauthorized access attempt",
+                        "affected_data": "Unknown",
+                        "status": "Blocked",
+                        "notification_required": False,
+                    },
+                )
 
         return breaches[:50]  # Limit for report size
 
@@ -1322,22 +1326,25 @@ class ComplianceReporter:
         for entry in entries:
             params_str = str(entry.parameters).lower()
             if "access_request" in params_str:
-                requests.append({
-                    "timestamp": entry.timestamp,
-                    "type": "access",
-                    "user_id": entry.user_id,
-                    "status": "completed",
-                })
+                requests.append(
+                    {
+                        "timestamp": entry.timestamp,
+                        "type": "access",
+                        "user_id": entry.user_id,
+                        "status": "completed",
+                    },
+                )
             elif "deletion_request" in params_str:
-                requests.append({
-                    "timestamp": entry.timestamp,
-                    "type": "deletion",
-                    "user_id": entry.user_id,
-                    "status": "completed",
-                })
+                requests.append(
+                    {
+                        "timestamp": entry.timestamp,
+                        "type": "deletion",
+                        "user_id": entry.user_id,
+                        "status": "completed",
+                    },
+                )
 
         return requests
-
 
     # Helper methods for CCPA report generation
 
@@ -1354,12 +1361,14 @@ class ComplianceReporter:
         for op_type, category in data_categories.items():
             count = sum(1 for e in entries if e.operation_type.value == op_type)
             if count > 0:
-                collected.append({
-                    "category": category,
-                    "source": "Direct user interaction",
-                    "purpose": "Service provision",
-                    "count": count,
-                })
+                collected.append(
+                    {
+                        "category": category,
+                        "source": "Direct user interaction",
+                        "purpose": "Service provision",
+                        "count": count,
+                    },
+                )
 
         return collected
 
@@ -1374,12 +1383,14 @@ class ComplianceReporter:
 
         for entry in entries:
             if entry.operation_type.value == "network_request":
-                disclosed.append({
-                    "timestamp": entry.timestamp,
-                    "recipient": "External API service",
-                    "purpose": "Service provision",
-                    "data_category": "Usage data",
-                })
+                disclosed.append(
+                    {
+                        "timestamp": entry.timestamp,
+                        "recipient": "External API service",
+                        "purpose": "Service provision",
+                        "data_category": "Usage data",
+                    },
+                )
 
         return disclosed[:100]  # Limit for report size
 
@@ -1390,36 +1401,42 @@ class ComplianceReporter:
         for entry in entries:
             params_str = str(entry.parameters).lower()
             if "opt_out" in params_str:
-                requests.append({
-                    "timestamp": entry.timestamp,
-                    "type": "opt_out",
-                    "user_id": entry.user_id,
-                    "status": "completed",
-                })
+                requests.append(
+                    {
+                        "timestamp": entry.timestamp,
+                        "type": "opt_out",
+                        "user_id": entry.user_id,
+                        "status": "completed",
+                    },
+                )
             elif "delete" in params_str or "deletion" in params_str:
-                requests.append({
-                    "timestamp": entry.timestamp,
-                    "type": "deletion",
-                    "user_id": entry.user_id,
-                    "status": "completed",
-                })
+                requests.append(
+                    {
+                        "timestamp": entry.timestamp,
+                        "type": "deletion",
+                        "user_id": entry.user_id,
+                        "status": "completed",
+                    },
+                )
             elif "access" in params_str:
-                requests.append({
-                    "timestamp": entry.timestamp,
-                    "type": "access",
-                    "user_id": entry.user_id,
-                    "status": "completed",
-                })
+                requests.append(
+                    {
+                        "timestamp": entry.timestamp,
+                        "type": "access",
+                        "user_id": entry.user_id,
+                        "status": "completed",
+                    },
+                )
 
         return requests
 
     # Helper method for saving reports
 
-    def _save_report_json(self, report: Any, output_path: Path) -> None:
+    def _save_report_json(self, report: Any, output_path: Path) -> None:  # noqa: ANN401
         """Save report to JSON file."""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w", encoding="utf-8") as f:
+        with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
             json.dump(asdict(report), f, indent=2, default=str)
 
         logger.info("report_saved", output_path=str(output_path))
