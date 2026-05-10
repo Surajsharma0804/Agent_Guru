@@ -50,7 +50,7 @@ class GoalManagerClient:
 
     """
 
-    def __init__(self, goal_manager: Any | None = None) -> None:  # noqa: ANN401
+    def __init__(self, goal_manager: Any | None = None) -> None:
         """Initialize the client.
 
         Args:

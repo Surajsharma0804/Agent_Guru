@@ -252,7 +252,7 @@ class IOSSpeechRecognizer:
 
         return request
 
-    async def _perform_recognition(self, request, audio_data: bytes) -> TranscriptionResult:  # noqa: ANN001
+    async def _perform_recognition(self, request, audio_data: bytes) -> TranscriptionResult:
         """Perform speech recognition with the given request.
 
         Args:
@@ -315,7 +315,7 @@ class IOSSpeechRecognizer:
 
     async def recognize_streaming(
         self,
-        audio_stream,  # noqa: ANN001
+        audio_stream,
         sample_rate: int = 16000,
         language: str | None = None,
     ):

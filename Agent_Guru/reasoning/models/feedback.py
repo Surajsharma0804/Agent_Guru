@@ -156,7 +156,7 @@ class ModelPerformanceMetrics(BaseModel):
 
     @field_validator("correct_predictions")
     @classmethod
-    def validate_correct_predictions(cls, v: int, info) -> int:  # noqa: ANN001
+    def validate_correct_predictions(cls, v: int, info) -> int:
         """Validate correct predictions <= total predictions."""
         if "total_predictions" in info.data and v > info.data["total_predictions"]:
             msg = "Correct predictions cannot exceed total predictions"

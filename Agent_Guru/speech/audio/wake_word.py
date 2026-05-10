@@ -177,7 +177,7 @@ class WakeWordDetector:
     # Lazy initialisers
     # ------------------------------------------------------------------
 
-    def _get_vosk_recognizer(self) -> Any:  # noqa: ANN401
+    def _get_vosk_recognizer(self) -> Any:
         """Lazily initialise and return the Vosk recogniser."""
         if self._vosk_recognizer is None:
             if not _HAS_VOSK:
@@ -201,7 +201,7 @@ class WakeWordDetector:
             logger.info("Vosk recogniser initialised (model=%s)", self.config.vosk_model_path)
         return self._vosk_recognizer
 
-    def _get_porcupine(self) -> Any:  # noqa: ANN401
+    def _get_porcupine(self) -> Any:
         """Lazily initialise and return the Porcupine handle."""
         if self._porcupine is None:
             if not _HAS_PORCUPINE:
@@ -642,8 +642,7 @@ class WakeWordDetector:
         - Speech ZCR std: typically 0.05 – 0.20
         - Music ZCR std: typically 0.01 – 0.06
         """
-        if len(audio) < 512:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(audio) < 512:
             return False
 
         audio_f = audio.astype(np.float32)
@@ -676,8 +675,7 @@ class WakeWordDetector:
             zcr_std = 1.0  # can't compute — assume speech
 
         # Music: high flatness AND low ZCR variance
-        is_music = flatness > 0.20 and zcr_std < 0.08  # noqa: PLR2004 - Threshold value
-
+        is_music = flatness > 0.20 and zcr_std < 0.08
 
         if is_music:
             logger.debug(
@@ -741,8 +739,7 @@ class WakeWordDetector:
         guru_phrases = [p for p, pt in self.config.wake_words.items() if pt.value.lower() == "guru"]
 
         # Maya voices tend to have more high-frequency energy (threshold ~0.45)
-        if maya_phrases and high_ratio >= 0.45:  # noqa: PLR2004 - Threshold value
-
+        if maya_phrases and high_ratio >= 0.45:
             phrase = maya_phrases[0]
             return phrase, self.config.wake_words[phrase]
 
@@ -819,7 +816,7 @@ class WakeWordDetector:
         if self._porcupine is not None:
             try:
                 self._porcupine.delete()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 import logging as _logging
 
                 _logging.getLogger(__name__).debug("Porcupine cleanup failed: %s", exc)

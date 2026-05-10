@@ -51,7 +51,7 @@ class ExecutionResult:
         self,
         task_id: str,
         status: ExecutionStatus,
-        output: Any | None = None,  # noqa: ANN401
+        output: Any | None = None,
         error: str | None = None,
         started_at: datetime | None = None,
         finished_at: datetime | None = None,

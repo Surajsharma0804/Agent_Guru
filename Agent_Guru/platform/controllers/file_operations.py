@@ -193,6 +193,7 @@ class FileOperationsController:
                 audit_path.touch(mode=0o600)
         except Exception:
             logger.exception("Failed to initialize audit log")
+
     def _log_operation(
         self,
         operation: FileOperationType,
@@ -222,10 +223,11 @@ class FileOperationsController:
         )
 
         try:
-            with open(self.audit_log_path, "a", encoding="utf-8") as f:  # noqa: PTH123
+            with open(self.audit_log_path, "a", encoding="utf-8") as f:
                 f.write(entry.to_json() + "\n")
         except Exception:
             logger.exception("Failed to write audit log")
+
     def _validate_path(self, path: str) -> Path:
         """Validate and normalize file path using safe base-directory enforcement.
 
@@ -317,7 +319,7 @@ class FileOperationsController:
 
             # Write content
             mode = "wb" if isinstance(content, bytes) else "w"
-            with open(file_path, mode) as f:  # noqa: PTH123
+            with open(file_path, mode) as f:
                 f.write(content)
 
             # Log operation
@@ -345,6 +347,7 @@ class FileOperationsController:
                 message=f"Failed to create file: {path}",
                 error=str(e),
             )
+
     # ==================== File Reading Operations ====================
 
     def read_file(
@@ -393,7 +396,7 @@ class FileOperationsController:
 
             # Read content
             mode = "rb" if binary else "r"
-            with open(file_path, mode, encoding=None if binary else encoding) as f:  # noqa: PTH123
+            with open(file_path, mode, encoding=None if binary else encoding) as f:
                 content = f.read()
 
             # Log operation
@@ -412,6 +415,7 @@ class FileOperationsController:
             self._log_operation(FileOperationType.READ, path, False, {"error": str(e)})
             logger.exception("Failed to read file %s: %s")
             return None
+
     # ==================== File Update Operations ====================
 
     def update_file(
@@ -461,7 +465,7 @@ class FileOperationsController:
                 else "w"
             )
 
-            with open(file_path, mode) as f:  # noqa: PTH123
+            with open(file_path, mode) as f:
                 f.write(content)
 
             # Log operation
@@ -489,6 +493,7 @@ class FileOperationsController:
                 message=f"Failed to update file: {path}",
                 error=str(e),
             )
+
     # ==================== File Deletion Operations ====================
 
     def delete_file(self, path: str, confirm: bool = False) -> FileOperationResult:
@@ -552,6 +557,7 @@ class FileOperationsController:
                 message=f"Failed to delete file: {path}",
                 error=str(e),
             )
+
     # ==================== File Move/Copy/Rename Operations ====================
 
     def move_file(
@@ -637,6 +643,7 @@ class FileOperationsController:
                 message=f"Failed to move file: {source} -> {destination}",
                 error=str(e),
             )
+
     def copy_file(
         self,
         source: str,
@@ -720,6 +727,7 @@ class FileOperationsController:
                 message=f"Failed to copy file: {source} -> {destination}",
                 error=str(e),
             )
+
     def rename_file(self, path: str, new_name: str, overwrite: bool = False) -> FileOperationResult:
         """Rename a file.
 
@@ -796,6 +804,7 @@ class FileOperationsController:
                 message=f"Failed to rename file: {path} -> {new_name}",
                 error=str(e),
             )
+
     # ==================== Directory Operations ====================
 
     def create_directory(
@@ -858,6 +867,7 @@ class FileOperationsController:
                 message=f"Failed to create directory: {path}",
                 error=str(e),
             )
+
     def delete_directory(
         self,
         path: str,
@@ -934,6 +944,7 @@ class FileOperationsController:
                 message=f"Failed to delete directory: {path}",
                 error=str(e),
             )
+
     def list_directory(
         self,
         path: str,
@@ -986,6 +997,7 @@ class FileOperationsController:
         except Exception:
             logger.exception("Failed to list directory %s: %s")
             return None
+
     # ==================== Utility Operations ====================
 
     def file_exists(self, path: str) -> bool:
@@ -1006,6 +1018,7 @@ class FileOperationsController:
             return file_path.exists() and file_path.is_file()
         except Exception:
             return False
+
     def directory_exists(self, path: str) -> bool:
         """Check if directory exists.
 
@@ -1024,6 +1037,7 @@ class FileOperationsController:
             return dir_path.exists() and dir_path.is_dir()
         except Exception:
             return False
+
     def get_file_info(self, path: str) -> dict[str, Any] | None:
         """Get file metadata.
 
@@ -1061,6 +1075,7 @@ class FileOperationsController:
         except Exception:
             logger.exception("Failed to get file info for %s: %s")
             return None
+
     def compute_file_hash(self, path: str, algorithm: str = "sha256") -> str | None:
         """Compute file hash.
 
@@ -1096,7 +1111,7 @@ class FileOperationsController:
                 raise ValueError(msg)
 
             # Compute hash in chunks (memory efficient)
-            with open(file_path, "rb") as f:  # noqa: PTH123
+            with open(file_path, "rb") as f:
                 while chunk := f.read(8192):
                     hasher.update(chunk)
 

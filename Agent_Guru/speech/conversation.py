@@ -75,8 +75,7 @@ class BargeInHandler:
                 msg,
             )
         # Simple energy-based detection stub
-        return len(audio_chunk) > 0 and any(b > 128 for b in audio_chunk[:10])  # noqa: PLR2004 - Percentage/large threshold
-
+        return len(audio_chunk) > 0 and any(b > 128 for b in audio_chunk[:10])
 
     async def halt_output(self, current_response: str) -> None:
         """Halt output within 200ms and preserve context."""

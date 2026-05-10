@@ -96,7 +96,7 @@ class StressTester:
 
     def test_low_light(
         self,
-        model: Any,  # noqa: ANN401
+        model: Any,
         images: np.ndarray,
         labels: np.ndarray,
         brightness_factor: float = 0.3,
@@ -122,7 +122,7 @@ class StressTester:
 
     def test_extreme_pose(
         self,
-        model: Any,  # noqa: ANN401
+        model: Any,
         images: np.ndarray,
         labels: np.ndarray,
         pose_range: tuple[float, float] = (45.0, 90.0),
@@ -137,7 +137,7 @@ class StressTester:
 
     def test_accessories(
         self,
-        model: Any,  # noqa: ANN401
+        model: Any,
         images: np.ndarray,
         labels: np.ndarray,
         accessory_type: str = "glasses",
@@ -152,7 +152,7 @@ class StressTester:
 
     def test_motion_blur(
         self,
-        model: Any,  # noqa: ANN401
+        model: Any,
         images: np.ndarray,
         labels: np.ndarray,
         blur_kernel_size: int = 5,
@@ -167,7 +167,7 @@ class StressTester:
 
     def test_distance(
         self,
-        model: Any,  # noqa: ANN401
+        model: Any,
         images: np.ndarray,
         labels: np.ndarray,
         scale_factor: float = 0.5,
@@ -182,7 +182,7 @@ class StressTester:
 
     def test_camera_type(
         self,
-        model: Any,  # noqa: ANN401
+        model: Any,
         images: np.ndarray,
         labels: np.ndarray,
         camera_profile: str = "webcam",
@@ -197,7 +197,7 @@ class StressTester:
 
     def run_all_stress_tests(
         self,
-        model: Any,  # noqa: ANN401
+        model: Any,
         images: np.ndarray,
         labels: np.ndarray,
         conditions: list[StressCondition] | None = None,
@@ -240,7 +240,7 @@ class StressTester:
 
     def _run_stress_test(
         self,
-        model: Any,  # noqa: ANN401
+        model: Any,
         images: np.ndarray,
         labels: np.ndarray,
         condition: StressCondition,
@@ -264,7 +264,7 @@ class StressTester:
         )
 
     @staticmethod
-    def _compute_accuracy(model: Any, images: np.ndarray, labels: np.ndarray) -> float:  # noqa: ANN401
+    def _compute_accuracy(model: Any, images: np.ndarray, labels: np.ndarray) -> float:
         """Compute accuracy using the model (stub: returns random accuracy)."""
         # In a real pipeline, this would run inference and compute accuracy.
         # Here we return a plausible value based on image quality.

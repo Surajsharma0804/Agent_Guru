@@ -532,7 +532,11 @@ class WebhookManager:
 
         # Check event type filter
         if handler.event_types and event_type not in handler.event_types:
-            logger.debug("Event type '%s' not in handler filter: %s", event_type, handler.event_types)
+            logger.debug(
+                "Event type '%s' not in handler filter: %s",
+                event_type,
+                handler.event_types,
+            )
             return event
 
         # Update handler statistics

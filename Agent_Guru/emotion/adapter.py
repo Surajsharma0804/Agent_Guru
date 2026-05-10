@@ -65,8 +65,7 @@ class EmpathyAdapter:
 
         # Adapt text (stub: prepend empathetic acknowledgment)
         adapted = text
-        if state.emotion in DISTRESS_EMOTIONS and state.confidence > 0.5:  # noqa: PLR2004 - Threshold value
-
+        if state.emotion in DISTRESS_EMOTIONS and state.confidence > 0.5:
             adapted = f"I understand this might be difficult. {text}"
 
         return AdaptedResponse(

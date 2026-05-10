@@ -80,8 +80,7 @@ async def _get_weather(location: str) -> str | None:
                 headers={"User-Agent": "AgentGuru/1.0"},
             ) as resp,
         ):
-            if resp.status == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+            if resp.status == 200:
                 text = (await resp.text()).strip()
                 # wttr.in format 3: "City: ⛅ +22°C"
                 # Clean up emoji and format for TTS
@@ -113,8 +112,7 @@ async def _get_news_headlines(max_items: int = 3) -> list[str]:
                 headers={"User-Agent": "AgentGuru/1.0"},
             ) as resp,
         ):
-            if resp.status != 200:  # noqa: PLR2004 - Percentage/large threshold
-
+            if resp.status != 200:
                 return []
             content = await resp.text()
 
@@ -122,8 +120,7 @@ async def _get_news_headlines(max_items: int = 3) -> list[str]:
         headlines = []
         for item in root.findall(".//item")[:max_items]:
             title = item.findtext("title", "").strip()
-            if title and len(title) > 10:  # noqa: PLR2004 - Threshold
-
+            if title and len(title) > 10:
                 headlines.append(title + ".")
 
         return headlines

@@ -50,8 +50,7 @@ class SecurityConfig:
 
     def validate(self) -> None:
         """Validate configuration meets security standards."""
-        if self.kdf_iterations < 100_000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if self.kdf_iterations < 100_000:
             msg = f"KDF iterations must be >= 100000, got {self.kdf_iterations}"
             raise ConfigurationError(msg)
         if not 0.0 <= self.default_trust_score <= 1.0:

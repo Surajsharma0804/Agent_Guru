@@ -31,6 +31,8 @@ def run_command(cmd: list[str], description: str) -> bool:
     except subprocess.CalledProcessError:
         return False
         return False
+
+
 def check_prerequisites() -> bool:
     """Check if all prerequisites are met.
 

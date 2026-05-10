@@ -62,6 +62,8 @@ try:
 except ImportError:
     ANTHROPIC_AVAILABLE = False
     anthropic_module = None
+
+
 @dataclass
 class LLMFallbackConfig:
     """Configuration for LLM fallback classifier.
@@ -401,8 +403,7 @@ Classify the following input:"""
         )
         response = await asyncio.to_thread(_post)
 
-        if response.status_code == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+        if response.status_code == 200:
             data = response.json()
             result = data.get("response", "")
             return str(result) if result else ""
@@ -498,6 +499,7 @@ Classify the following input:"""
         except Exception as exc:
             msg = f"LLM response failed schema validation: {exc}"
             raise ValueError(msg) from exc
+
     def _parse_entities(self, entities_dict: dict[str, Any]) -> dict[str, Entity]:
         """Parse entities from LLM response into Entity objects.
 

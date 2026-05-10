@@ -165,6 +165,7 @@ class _AudioCapture:
                 self._pyaudio_instance = None
         except Exception:  # pragma: no cover
             logger.exception("Error closing audio stream")
+
     # ------------------------------------------------------------------
     # Desktop (PyAudio primary, sounddevice fallback)
     # ------------------------------------------------------------------
@@ -187,6 +188,7 @@ class _AudioCapture:
         except Exception as exc:
             logger.debug("PyAudio unavailable (%s), trying sounddevice", exc)
             self._open_sounddevice()
+
     def _capture_desktop(self) -> np.ndarray:
         """Capture audio on desktop."""
         if self._stream is not None and self._pyaudio_instance is not None:
@@ -206,6 +208,7 @@ class _AudioCapture:
         except Exception:
             logger.exception("PyAudio read error")
             return np.zeros(n_samples, dtype=np.float32)
+
     def _open_sounddevice(self) -> None:
         """Open sounddevice stream (fallback)."""
         try:
@@ -222,6 +225,7 @@ class _AudioCapture:
         except Exception:
             logger.exception("sounddevice unavailable: %s — using silence")
             self._stream = None
+
     def _capture_sounddevice(self) -> np.ndarray:
         """Read one frame from a sounddevice stream."""
         n_samples = int(self._sample_rate * self._duration)
@@ -233,6 +237,7 @@ class _AudioCapture:
         except Exception:
             logger.exception("sounddevice read error")
             return np.zeros(n_samples, dtype=np.float32)
+
     # ------------------------------------------------------------------
     # Android (AudioRecord via Kivy/pyjnius)
     # ------------------------------------------------------------------
@@ -263,6 +268,7 @@ class _AudioCapture:
         except Exception:
             logger.exception("Android AudioRecord unavailable: %s — using silence")
             self._stream = None
+
     def _capture_android(self) -> np.ndarray:
         """Read audio from Android AudioRecord."""
         n_samples = int(self._sample_rate * self._duration)
@@ -276,6 +282,7 @@ class _AudioCapture:
         except Exception:
             logger.exception("Android capture error")
             return np.zeros(n_samples, dtype=np.float32)
+
     # ------------------------------------------------------------------
     # iOS (AVAudioEngine via pyobjc)
     # ------------------------------------------------------------------
@@ -295,6 +302,7 @@ class _AudioCapture:
         except Exception:
             logger.exception("iOS AVAudioEngine unavailable: %s — using silence")
             self._stream = None
+
     def _capture_ios(self) -> np.ndarray:
         """Read audio from iOS AVAudioEngine."""
         n_samples = int(self._sample_rate * self._duration)
@@ -318,6 +326,8 @@ class _AudioCapture:
         except Exception:
             logger.exception("iOS capture error")
             return np.zeros(n_samples, dtype=np.float32)
+
+
 # ---------------------------------------------------------------------------
 # WakeWordManager
 # ---------------------------------------------------------------------------
@@ -637,6 +647,7 @@ class WakeWordManager:
                 break
                 logger.exception("Listen loop error")
                 await asyncio.sleep(0.1)
+
     @staticmethod
     def _resolve_personality(detection: WakeWordDetection) -> WakeWordDetection:
         """Ensure personality is correctly set from the wake word phrase.

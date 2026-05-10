@@ -62,8 +62,7 @@ class SkillManifestModel(BaseModel):
     def validate_version(cls, v: str) -> str:
         """Validate version format (semver)."""
         parts = v.split(".")
-        if len(parts) != 3:  # noqa: PLR2004 - Small integer threshold
-
+        if len(parts) != 3:
             msg = "Version must be in semver format (x.y.z)"
             raise ValueError(msg)
         if not all(part.isdigit() for part in parts):
@@ -78,8 +77,7 @@ class SkillManifestModel(BaseModel):
         if v <= 0:
             msg = "Max latency must be positive"
             raise ValueError(msg)
-        if v > 60000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if v > 60000:
             msg = "Max latency cannot exceed 60 seconds"
             raise ValueError(msg)
         return v

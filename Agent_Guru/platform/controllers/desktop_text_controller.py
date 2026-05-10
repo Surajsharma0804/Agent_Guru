@@ -261,6 +261,7 @@ class DesktopTextController:
         except Exception:
             logger.exception("type_text failed")
             return False
+
     async def type_special_key(self, key: str) -> bool:
         """Press a special key by logical name.
 
@@ -293,6 +294,7 @@ class DesktopTextController:
         except Exception:
             logger.exception("type_special_key(%r) failed: %s")
             return False
+
     async def paste_text(self, text: str) -> bool:
         """Paste *text* into the focused application via the clipboard.
 
@@ -321,6 +323,7 @@ class DesktopTextController:
         except Exception:
             logger.exception("paste_text failed")
             return False
+
     async def clear_field(self) -> bool:
         """Clear the currently focused input field (Ctrl+A then Delete).
 
@@ -336,6 +339,7 @@ class DesktopTextController:
         except Exception:
             logger.exception("clear_field failed")
             return False
+
     # ------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------
@@ -423,10 +427,10 @@ class DesktopTextController:
 
     def _clipboard_copy_macos(self, text: str) -> None:
         """Copy to macOS clipboard via pbcopy."""
-        import subprocess  # noqa: PLC0415
+        import subprocess
 
         proc = subprocess.run(
-            ["pbcopy"],  # nosec B603 B607  # noqa: S607
+            ["pbcopy"],  # nosec B603 B607
             check=False,
             input=text.encode("utf-8"),
             timeout=5,
@@ -438,8 +442,8 @@ class DesktopTextController:
     def _clipboard_copy_windows(self, text: str) -> None:
         """Copy to Windows clipboard via ctypes."""
         try:
-            import ctypes  # noqa: PLC0415
-            import ctypes.wintypes  # noqa: PLC0415
+            import ctypes
+            import ctypes.wintypes
 
             CF_UNICODETEXT = 13
             GMEM_MOVEABLE = 0x0002
@@ -460,9 +464,10 @@ class DesktopTextController:
         except Exception as exc:
             msg = f"Windows clipboard copy failed: {exc}"
             raise RuntimeError(msg) from exc
+
     def _clipboard_copy_linux(self, text: str) -> None:
         """Copy to Linux clipboard via xclip or xdotool."""
-        import subprocess  # noqa: PLC0415
+        import subprocess
 
         for cmd in (["xclip", "-selection", "clipboard"], ["xdotool", "type", "--clearmodifiers"]):
             try:

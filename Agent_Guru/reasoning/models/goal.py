@@ -154,7 +154,7 @@ class PersistentGoal(BaseModel):
 
     @field_validator("trigger_condition")
     @classmethod
-    def validate_trigger_condition(cls, v: dict, info) -> dict:  # noqa: ANN001
+    def validate_trigger_condition(cls, v: dict, info) -> dict:
         """Validate trigger condition matches trigger type."""
         if "trigger_type" not in info.data:
             return v

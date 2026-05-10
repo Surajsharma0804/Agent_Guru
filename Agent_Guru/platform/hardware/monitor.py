@@ -31,6 +31,8 @@ try:
     GPU_AVAILABLE = True
 except ImportError:
     GPU_AVAILABLE = False
+
+
 class NetworkInterfaceStatus(Enum):
     """Network interface status."""
 
@@ -244,6 +246,7 @@ class HardwareMonitor:
         except Exception as e:
             msg = f"Failed to get CPU usage: {e}"
             raise RuntimeError(msg) from e
+
     def get_memory_info(self) -> MemoryInfo:
         """Get memory usage information.
 
@@ -276,6 +279,7 @@ class HardwareMonitor:
         except Exception as e:
             msg = f"Failed to get memory info: {e}"
             raise RuntimeError(msg) from e
+
     def get_disk_usage(self, path: str = "/") -> DiskInfo:
         """Get disk usage for specified path.
 
@@ -308,6 +312,7 @@ class HardwareMonitor:
             raise ValueError(msg) from e
             msg = f"Failed to get disk usage: {e}"
             raise RuntimeError(msg) from e
+
     def get_network_interfaces(self) -> list[NetworkInterface]:
         """Get network interface information.
 
@@ -357,6 +362,7 @@ class HardwareMonitor:
         except Exception as e:
             msg = f"Failed to get network interfaces: {e}"
             raise RuntimeError(msg) from e
+
     def get_gpu_info(self) -> list[GPUInfo] | None:
         """Get GPU information if available.
 
@@ -394,6 +400,7 @@ class HardwareMonitor:
         except Exception:
             # GPU metrics unavailable
             return None
+
     def get_battery_info(self) -> BatteryInfo | None:
         """Get battery information if available.
 
@@ -420,6 +427,7 @@ class HardwareMonitor:
         except Exception:
             # Battery info unavailable
             return None
+
     def get_all_metrics(self) -> dict[str, Any]:
         """Get all available hardware metrics.
 

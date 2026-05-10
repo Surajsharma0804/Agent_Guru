@@ -154,6 +154,7 @@ class DesktopApplicationController:
         except Exception:
             logger.exception("open_app(%r) failed: %s")
             return False
+
     async def close_app(self, app_name: str) -> bool:
         """Terminate an application by name.
 
@@ -178,6 +179,7 @@ class DesktopApplicationController:
         except Exception:
             logger.exception("close_app(%r) failed: %s")
             return False
+
     async def minimize_app(self, app_name: str) -> bool:
         """Minimize the window of an application.
 
@@ -201,6 +203,7 @@ class DesktopApplicationController:
         except Exception:
             logger.exception("minimize_app(%r) failed: %s")
             return False
+
     async def maximize_app(self, app_name: str) -> bool:
         """Maximize the window of an application.
 
@@ -224,6 +227,7 @@ class DesktopApplicationController:
         except Exception:
             logger.exception("maximize_app(%r) failed: %s")
             return False
+
     async def restore_app(self, app_name: str) -> bool:
         """Restore a minimized/maximized application to its normal state.
 
@@ -247,6 +251,7 @@ class DesktopApplicationController:
         except Exception:
             logger.exception("restore_app(%r) failed: %s")
             return False
+
     async def switch_app(self, app_name: str) -> bool:
         """Switch focus to an application (Alt+Tab equivalent).
 
@@ -270,6 +275,7 @@ class DesktopApplicationController:
         except Exception:
             logger.exception("switch_app(%r) failed: %s")
             return False
+
     # ------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------
@@ -292,7 +298,7 @@ class DesktopApplicationController:
         """Launch an application on Windows."""
         # Try os.startfile first (handles .exe, registered apps, documents)
         try:
-            import os  # noqa: PLC0415
+            import os
 
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, os.startfile, app_name)
@@ -316,6 +322,7 @@ class DesktopApplicationController:
         except Exception as exc:
             logger.debug("Windows shell start failed for %r: %s", app_name, exc)
             return False
+
     async def _close_windows(self, app_name: str) -> bool:
         """Terminate an application on Windows."""
         # Try graceful close via win32api first
@@ -337,6 +344,7 @@ class DesktopApplicationController:
         except Exception as exc:
             logger.debug("taskkill failed for %r: %s", app_name, exc)
             return False
+
     async def _close_windows_win32(self, app_name: str) -> bool:
         """Graceful close via win32api (optional dependency)."""
         try:
@@ -353,6 +361,7 @@ class DesktopApplicationController:
             return False
             logger.debug("win32 close failed: %s", e)
             return False
+
     def _find_window_win32(self, app_name: str) -> int | None:
         """Find a window handle by fuzzy app name match."""
         try:
@@ -369,6 +378,7 @@ class DesktopApplicationController:
             return found[0] if found else None
         except Exception:
             return None
+
     async def _minimize_windows(self, app_name: str) -> bool:
         """Minimize a window on Windows."""
         # Try win32api
@@ -446,6 +456,7 @@ class DesktopApplicationController:
         except Exception as exc:
             logger.debug("pyautogui %s failed for %r: %s", op, app_name, exc)
             return False
+
     # ------------------------------------------------------------------
     # macOS implementations
     # ------------------------------------------------------------------
@@ -465,6 +476,7 @@ class DesktopApplicationController:
         except Exception as exc:
             logger.debug("open -a failed for %r: %s", app_name, exc)
             return False
+
     async def _close_macos(self, app_name: str) -> bool:
         """Terminate an application on macOS via AppleScript."""
         script = f'tell application "{app_name}" to quit'
@@ -481,6 +493,7 @@ class DesktopApplicationController:
         except Exception as exc:
             logger.debug("osascript quit failed for %r: %s", app_name, exc)
             return False
+
     async def _minimize_macos(self, app_name: str) -> bool:
         """Minimize a window on macOS via AppleScript."""
         script = f'tell application "{app_name}" to set miniaturized of front window to true'
@@ -520,6 +533,7 @@ class DesktopApplicationController:
         except Exception as exc:
             logger.debug("osascript %s failed for %r: %s", op, app_name, exc)
             return False
+
     # ------------------------------------------------------------------
     # Linux implementations
     # ------------------------------------------------------------------
@@ -548,6 +562,7 @@ class DesktopApplicationController:
         except Exception as exc:
             logger.debug("xdg-open failed for %r: %s", app_name, exc)
             return False
+
     async def _close_linux(self, app_name: str) -> bool:
         """Terminate an application on Linux via wmctrl or pkill."""
         # Try wmctrl graceful close
@@ -578,6 +593,7 @@ class DesktopApplicationController:
         except Exception as exc:
             logger.debug("pkill failed for %r: %s", app_name, exc)
             return False
+
     async def _minimize_linux(self, app_name: str) -> bool:
         """Minimize a window on Linux via wmctrl."""
         if not await self._wmctrl_available():
@@ -599,6 +615,7 @@ class DesktopApplicationController:
         except Exception as exc:
             logger.debug("wmctrl minimize failed for %r: %s", app_name, exc)
             return False
+
     async def _maximize_linux(self, app_name: str) -> bool:
         """Maximize a window on Linux via wmctrl."""
         if not await self._wmctrl_available():
@@ -619,6 +636,7 @@ class DesktopApplicationController:
         except Exception as exc:
             logger.debug("wmctrl maximize failed for %r: %s", app_name, exc)
             return False
+
     async def _restore_linux(self, app_name: str) -> bool:
         """Restore a window on Linux via wmctrl."""
         if not await self._wmctrl_available():
@@ -638,6 +656,7 @@ class DesktopApplicationController:
         except Exception as exc:
             logger.debug("wmctrl restore failed for %r: %s", app_name, exc)
             return False
+
     async def _switch_linux(self, app_name: str) -> bool:
         """Switch focus to a window on Linux via wmctrl."""
         if not await self._wmctrl_available():
@@ -655,6 +674,7 @@ class DesktopApplicationController:
         except Exception as exc:
             logger.debug("wmctrl switch failed for %r: %s", app_name, exc)
             return False
+
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------

@@ -129,6 +129,7 @@ class SkillSandboxExecutor:
                 error=f"Execution failed: {e!s}",
                 execution_time_ms=execution_time_ms,
             )
+
     async def _check_permissions(self, skill: InstalledSkill, user_id: str) -> None:
         """Check if skill has required permissions.
 
@@ -297,6 +298,7 @@ class SkillSandboxExecutor:
             raise TimeoutError(
                 msg,
             ) from None
+
     async def _validate_result(self, result: dict[str, Any]) -> None:
         """Validate execution result.
 
@@ -338,6 +340,7 @@ class SkillSandboxExecutor:
         except Exception as e:
             # Log cleanup error but don't fail
             _logger.warning("Failed to cleanup sandbox for %s: %s", skill_id, e)
+
     def get_statistics(self) -> dict[str, Any]:
         """Get execution statistics.
 
@@ -369,4 +372,3 @@ def get_sandbox_executor() -> SkillSandboxExecutor:
     if _global_executor is None:
         _global_executor = SkillSandboxExecutor()
     return _global_executor
-

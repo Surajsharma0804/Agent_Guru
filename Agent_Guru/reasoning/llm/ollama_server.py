@@ -164,8 +164,7 @@ class OllamaServer:
                     lambda: requests.get(f"{self._base_url}/api/tags", timeout=2.0),  # noqa: ASYNC210
                 )
 
-            if response.status_code == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+            if response.status_code == 200:
                 data = response.json()
                 models = data.get("models", [])
                 return [model.get("name", "") for model in models]
@@ -204,8 +203,7 @@ class OllamaServer:
 
             latency_ms = (time.time() - start_time) * 1000
 
-            if response.status_code == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+            if response.status_code == 200:
                 return ServerHealth(
                     is_healthy=True,
                     model_loaded=len(self._available_models) > 0,
@@ -307,8 +305,7 @@ class OllamaServer:
 
             latency_ms = (time.time() - start_time) * 1000
 
-            if response.status_code == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+            if response.status_code == 200:
                 data = response.json()
 
                 # Extract response text

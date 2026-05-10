@@ -56,7 +56,7 @@ class MemoryClient:
 
     def __init__(
         self,
-        memory_system: Any | None = None,  # noqa: ANN401
+        memory_system: Any | None = None,
         max_buffer_size: int = 1000,
     ) -> None:
         """Initialize the client.
@@ -177,7 +177,7 @@ class MemoryClient:
         self,
         user_id: str,
         preference_key: str,
-        preference_value: Any,  # noqa: ANN401
+        preference_value: Any,
     ) -> bool:
         """Store a user preference extracted from conversation.
 

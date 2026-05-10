@@ -92,7 +92,7 @@ class GestureRecognizer:
                 max_num_hands=2,
                 min_detection_confidence=_LANDMARK_CONFIDENCE_THRESHOLD,
             ) as hands:
-                rgb = frame if frame.shape[2] == 3 else frame[:, :, :3]  # noqa: PLR2004 - Small integer threshold
+                rgb = frame if frame.shape[2] == 3 else frame[:, :, :3]
 
                 results = hands.process(rgb)
                 if not results.multi_hand_landmarks:
@@ -129,17 +129,16 @@ class GestureRecognizer:
 
         Returns (gesture_name, confidence).
         """
-        if len(keypoints) < 21:  # noqa: PLR2004 - Threshold
-
+        if len(keypoints) < 21:
             return "open_palm", 0.5
 
         # Landmark indices (MediaPipe convention)
         WRIST = 0
-        THUMB_TIP, THUMB_MCP = 4, 2  # noqa: N806
-        INDEX_TIP, INDEX_MCP = 8, 5  # noqa: N806
-        MIDDLE_TIP, MIDDLE_MCP = 12, 9  # noqa: N806
-        RING_TIP, RING_MCP = 16, 13  # noqa: N806
-        PINKY_TIP, PINKY_MCP = 20, 17  # noqa: N806
+        THUMB_TIP, THUMB_MCP = 4, 2
+        INDEX_TIP, INDEX_MCP = 8, 5
+        MIDDLE_TIP, MIDDLE_MCP = 12, 9
+        RING_TIP, RING_MCP = 16, 13
+        PINKY_TIP, PINKY_MCP = 20, 17
 
         def tip_above_mcp(tip: int, mcp: int) -> bool:
             return keypoints[tip][1] < keypoints[mcp][1]  # y decreases upward
@@ -153,8 +152,7 @@ class GestureRecognizer:
         n_extended = sum(fingers_extended)
         thumb_up = keypoints[THUMB_TIP][1] < keypoints[THUMB_MCP][1]
 
-        if n_extended == 4 and thumb_up:  # noqa: PLR2004 - Small integer threshold
-
+        if n_extended == 4 and thumb_up:
             return "open_palm", 0.9
         if n_extended == 0 and not thumb_up:
             return "closed_fist", 0.9
@@ -166,8 +164,7 @@ class GestureRecognizer:
             return "pointing_index", 0.9
         if fingers_extended[0] and fingers_extended[1] and not any(fingers_extended[2:]):
             return "peace_sign", 0.9
-        if n_extended == 4 and not thumb_up:  # noqa: PLR2004 - Small integer threshold
-
+        if n_extended == 4 and not thumb_up:
             return "stop", 0.85
 
         # Swipe heuristic: use wrist x-velocity (not available in static frame)

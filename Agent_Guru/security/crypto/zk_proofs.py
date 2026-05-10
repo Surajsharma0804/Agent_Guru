@@ -57,7 +57,7 @@ class ZKProofSystem:
     The private key is never included in the proof.
     """
 
-    def __init__(self, identity_manager: Any) -> None:  # noqa: ANN401
+    def __init__(self, identity_manager: Any) -> None:
         self._identity_manager = identity_manager
         # Track seen proof nonces to prevent replay
         self._seen_nonces: set[bytes] = set()
@@ -123,6 +123,7 @@ class ZKProofSystem:
             raise
             msg = f"Proof generation failed: type={type(exc).__name__}"
             raise ZKProofError(msg) from exc
+
     def verify_proof(self, proof: ZKProof, expected_claim_type: str) -> bool:
         """Verify zero-knowledge proof.
 
@@ -189,6 +190,7 @@ class ZKProofSystem:
             raise
             msg = f"Verification failed: type={type(exc).__name__}"
             raise ZKProofError(msg) from exc
+
     def _check_replay(self, proof: ZKProof) -> bool:
         """Check if proof timestamp indicates replay attack.
 

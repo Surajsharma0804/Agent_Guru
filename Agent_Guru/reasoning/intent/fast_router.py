@@ -156,7 +156,7 @@ class FastIntentRouter:
             msg = f"Patterns file not found: {patterns_file}"
             raise FileNotFoundError(msg)
 
-        with open(patterns_path) as f:  # noqa: PTH123
+        with open(patterns_path) as f:
             data = yaml.safe_load(f)
 
         if not data or "patterns" not in data:
@@ -272,8 +272,7 @@ class FastIntentRouter:
         confidence = self._calculate_confidence(len(words), len(entity_positions))
 
         # Determine match quality
-        quality = MatchQuality.EXACT if confidence > 0.95 else MatchQuality.PARTIAL  # noqa: PLR2004 - Threshold value
-
+        quality = MatchQuality.EXACT if confidence > 0.95 else MatchQuality.PARTIAL
 
         latency_ms = (time.perf_counter() - start_time) * 1000
 
@@ -441,7 +440,7 @@ class FastIntentRouter:
 
         return type_mapping.get(entity_name.lower(), EntityType.UNKNOWN)
 
-    def _parse_entity_value(self, value: str, entity_type: EntityType) -> Any | None:  # noqa: ANN401
+    def _parse_entity_value(self, value: str, entity_type: EntityType) -> Any | None:
         """Parse entity value using type-specific regex patterns.
 
         Args:
@@ -469,7 +468,7 @@ class FastIntentRouter:
 
         return None
 
-    def _format_entity_value(self, match: re.Match, pattern_data: dict[str, Any]) -> Any:  # noqa: ANN401
+    def _format_entity_value(self, match: re.Match, pattern_data: dict[str, Any]) -> Any:
         """Format extracted entity value based on pattern metadata.
 
         Args:
@@ -501,7 +500,7 @@ class FastIntentRouter:
         if "format" in pattern_data:
             if pattern_data["format"] == "12hour":
                 hour, minute = int(groups[0]), int(groups[1])
-                period = groups[2].upper() if len(groups) > 2 and groups[2] else "AM"  # noqa: PLR2004 - Small integer threshold
+                period = groups[2].upper() if len(groups) > 2 and groups[2] else "AM"
 
                 return {"hour": hour, "minute": minute, "period": period, "format": "12hour"}
             if pattern_data["format"] == "24hour":
@@ -526,8 +525,7 @@ class FastIntentRouter:
         base_confidence = 0.95
 
         # Reduce confidence for very short inputs (ambiguous)
-        if num_words < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if num_words < 2:
             base_confidence -= 0.1
 
         # Increase confidence if entities were extracted

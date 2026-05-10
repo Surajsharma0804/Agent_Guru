@@ -276,6 +276,7 @@ class WindowsController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     # ------------------------------------------------------------------
     # Keyboard simulation
     # ------------------------------------------------------------------
@@ -328,6 +329,7 @@ class WindowsController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     def press_key(self, key: str) -> WindowsControllerResult:
         """Press a single key or key combination.
 
@@ -375,6 +377,7 @@ class WindowsController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     def hotkey(self, *keys: str) -> WindowsControllerResult:
         """Press a hotkey combination simultaneously.
 
@@ -416,6 +419,7 @@ class WindowsController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     # ------------------------------------------------------------------
     # Mouse simulation
     # ------------------------------------------------------------------
@@ -469,6 +473,7 @@ class WindowsController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     def move_mouse(self, x: int, y: int, duration: float = 0.0) -> WindowsControllerResult:
         """Move mouse to coordinates."""
         start = time.perf_counter()
@@ -500,6 +505,7 @@ class WindowsController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     # ------------------------------------------------------------------
     # Window management
     # ------------------------------------------------------------------
@@ -510,13 +516,13 @@ class WindowsController:
             try:
                 hwnd = win32gui.GetForegroundWindow()
                 return win32gui.GetWindowText(hwnd)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("win32gui active window title failed: %s", exc)
         if _PYAUTOGUI_AVAILABLE:
             try:
                 win = pyautogui.getActiveWindow()
                 return win.title if win else ""
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("pyautogui active window title failed: %s", exc)
         return ""
 
@@ -536,20 +542,20 @@ class WindowsController:
         title_lower = title.lower()
         found_hwnd: int | None = None
 
-        def _enum_callback(hwnd: int, _: Any) -> bool:  # noqa: ANN401
+        def _enum_callback(hwnd: int, _: Any) -> bool:
             nonlocal found_hwnd
             try:
                 window_title = win32gui.GetWindowText(hwnd).lower()
                 if title_lower in window_title and win32gui.IsWindowVisible(hwnd):
                     found_hwnd = hwnd
                     return False  # Stop enumeration
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("Window enumeration callback error: %s", exc)
             return True
 
         try:
             win32gui.EnumWindows(_enum_callback, None)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("EnumWindows failed in find_window: %s", exc)
         return found_hwnd
 
@@ -600,6 +606,7 @@ class WindowsController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     def minimize_window(self, title: str) -> WindowsControllerResult:
         """Minimize a window by title."""
         start = time.perf_counter()
@@ -630,6 +637,7 @@ class WindowsController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     def maximize_window(self, title: str) -> WindowsControllerResult:
         """Maximize a window by title."""
         start = time.perf_counter()
@@ -660,6 +668,7 @@ class WindowsController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     def list_windows(self) -> list[WindowInfo]:
         """List all visible windows.
 
@@ -672,7 +681,7 @@ class WindowsController:
         if not _PYWIN32_AVAILABLE:
             return windows
 
-        def _enum_callback(hwnd: int, _: Any) -> bool:  # noqa: ANN401
+        def _enum_callback(hwnd: int, _: Any) -> bool:
             try:
                 if not win32gui.IsWindowVisible(hwnd):
                     return True
@@ -695,13 +704,13 @@ class WindowsController:
                         is_maximized=is_maximized,
                     ),
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("Window info collection failed for hwnd %s: %s", hwnd, exc)
             return True
 
         try:
             win32gui.EnumWindows(_enum_callback, None)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("EnumWindows failed in list_windows: %s", exc)
         return windows
 
@@ -719,6 +728,7 @@ class WindowsController:
             return bool(ctypes.windll.shell32.IsUserAnAdmin())
         except Exception:
             return False
+
     def check_permission(self, operation: str) -> bool:
         """Check if the current process has permission for an operation.
 

@@ -430,7 +430,7 @@ class InputNormalizer:
         metadata["transcribed"] = True
         return metadata
 
-    def _extract_system_event_metadata(self, content: Any) -> dict[str, Any]:  # noqa: ANN401
+    def _extract_system_event_metadata(self, content: Any) -> dict[str, Any]:
         """Extract metadata from system event.
 
         Args:

@@ -49,7 +49,7 @@ class PlatformSystemController:
                     f"for ($i = 0; $i -lt {level * 2}; $i++) {{ $obj.SendKeys([char]175) }}"
                 )
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["powershell", "-Command", ps_script],  # noqa: S607
+                    ["powershell", "-Command", ps_script],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -58,7 +58,7 @@ class PlatformSystemController:
                     return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
             elif system == "darwin":
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["osascript", "-e", f"set volume output volume {level}"],  # noqa: S607
+                    ["osascript", "-e", f"set volume output volume {level}"],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -67,7 +67,7 @@ class PlatformSystemController:
                     return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
             elif system == "linux":
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["amixer", "set", "Master", f"{level}%"],  # noqa: S607
+                    ["amixer", "set", "Master", f"{level}%"],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -107,7 +107,7 @@ class PlatformSystemController:
                     f".WmiSetBrightness(1,{level})"
                 )
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["powershell", "-Command", ps_script],  # noqa: S607
+                    ["powershell", "-Command", ps_script],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -116,7 +116,7 @@ class PlatformSystemController:
                     return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
             elif system == "darwin":
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["brightness", str(level / 100.0)],  # noqa: S607
+                    ["brightness", str(level / 100.0)],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -125,14 +125,14 @@ class PlatformSystemController:
                     return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
             elif system == "linux":
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["brightnessctl", "set", f"{level}%"],  # noqa: S607
+                    ["brightnessctl", "set", f"{level}%"],
                     check=False,
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
                     result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                        ["xbacklight", "-set", str(level)],  # noqa: S607
+                        ["xbacklight", "-set", str(level)],
                         check=False,
                         capture_output=True,
                         text=True,
@@ -173,7 +173,7 @@ class PlatformSystemController:
             if system == "windows":
                 state = "enable" if enable else "disable"
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["netsh", "interface", "set", "interface", "Wi-Fi", state],  # noqa: S607
+                    ["netsh", "interface", "set", "interface", "Wi-Fi", state],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -183,7 +183,7 @@ class PlatformSystemController:
             elif system == "darwin":
                 state = "on" if enable else "off"
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["networksetup", "-setairportpower", "en0", state],  # noqa: S607
+                    ["networksetup", "-setairportpower", "en0", state],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -193,7 +193,7 @@ class PlatformSystemController:
             elif system == "linux":
                 state = "on" if enable else "off"
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["nmcli", "radio", "wifi", state],  # noqa: S607
+                    ["nmcli", "radio", "wifi", state],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -238,7 +238,7 @@ class PlatformSystemController:
                     f"$bluetooth.SetStateAsync({state}).GetAwaiter().GetResult() | Out-Null"
                 )
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["powershell", "-Command", ps_script],  # noqa: S607
+                    ["powershell", "-Command", ps_script],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -251,7 +251,7 @@ class PlatformSystemController:
             elif system == "darwin":
                 state = "1" if enable else "0"
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["blueutil", "--power", state],  # noqa: S607
+                    ["blueutil", "--power", state],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -264,7 +264,7 @@ class PlatformSystemController:
             elif system == "linux":
                 state = "unblock" if enable else "block"
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["rfkill", state, "bluetooth"],  # noqa: S607
+                    ["rfkill", state, "bluetooth"],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -313,7 +313,7 @@ class PlatformSystemController:
 class SetVolumeTool(Tool):
     """Tool for setting system volume."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute volume setting.
 
         Args:
@@ -324,8 +324,7 @@ class SetVolumeTool(Tool):
 
         """
         level = kwargs["level"]
-        if not 0 <= level <= 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if not 0 <= level <= 100:
             return {"success": False, "error": "Volume level must be between 0 and 100"}
         return await PlatformSystemController.set_volume(level)
 
@@ -355,7 +354,7 @@ class SetVolumeTool(Tool):
 class SetBrightnessTool(Tool):
     """Tool for setting screen brightness."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute brightness setting.
 
         Args:
@@ -366,8 +365,7 @@ class SetBrightnessTool(Tool):
 
         """
         level = kwargs["level"]
-        if not 0 <= level <= 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if not 0 <= level <= 100:
             return {"success": False, "error": "Brightness level must be between 0 and 100"}
         return await PlatformSystemController.set_brightness(level)
 
@@ -397,7 +395,7 @@ class SetBrightnessTool(Tool):
 class ToggleWifiTool(Tool):
     """Tool for toggling WiFi."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute WiFi toggling.
 
         Args:
@@ -436,7 +434,7 @@ class ToggleWifiTool(Tool):
 class ToggleBluetoothTool(Tool):
     """Tool for toggling Bluetooth."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute Bluetooth toggling.
 
         Args:

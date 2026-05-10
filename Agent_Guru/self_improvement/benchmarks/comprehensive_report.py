@@ -59,7 +59,7 @@ class ComprehensiveBenchmarkReport:
 
         # Save JSON analysis
         json_path = output_path.replace(".md", ".json")
-        with open(json_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(json_path, "w", encoding="utf-8") as f:
             json.dump(analysis, f, indent=2)
 
         return analysis
@@ -230,7 +230,7 @@ class ComprehensiveBenchmarkReport:
 
     def _generate_markdown(self, analysis: dict[str, Any], output_path: str) -> None:
         """Generate markdown report."""
-        with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write("# Comprehensive Agent Framework Benchmark Report\n\n")
             f.write(f"**Generated**: {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             f.write(f"**Frameworks Tested**: {', '.join(analysis['frameworks_tested'])}\n\n")
@@ -417,7 +417,7 @@ def generate_comprehensive_report(
     os.makedirs(output_dir, exist_ok=True)  # noqa: PTH103
 
     timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
-    report_path = os.path.join(output_dir, f"comprehensive_report_{timestamp}.md")  # noqa: PTH118
+    report_path = os.path.join(output_dir, f"comprehensive_report_{timestamp}.md")
 
     reporter = ComprehensiveBenchmarkReport(results)
     return reporter.generate_report(report_path)

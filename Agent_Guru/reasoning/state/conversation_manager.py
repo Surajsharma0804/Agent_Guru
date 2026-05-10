@@ -276,7 +276,7 @@ class ConversationStateManager:
 
         return pruned_count
 
-    async def generate_summary(self, conversation_id: str, llm_generate_fn) -> str | None:  # noqa: ANN001
+    async def generate_summary(self, conversation_id: str, llm_generate_fn) -> str | None:
         """Generate conversation summary using LLM.
 
         Args:
@@ -305,7 +305,7 @@ class ConversationStateManager:
         self,
         conversation_id: str,
         max_turns: int = 20,
-        llm_generate_fn=None,  # noqa: ANN001
+        llm_generate_fn=None,
     ) -> bool:
         """Compress conversation context to fit within token limits.
 
@@ -631,8 +631,7 @@ class ConversationStateManager:
             if len(people) > 1:
                 # Get people mentioned in last 3 turns
                 recent_people = [
-                    e for e in people if state.get_turn_count() - e.last_mentioned <= 3  # noqa: PLR2004 - Small integer threshold
-
+                    e for e in people if state.get_turn_count() - e.last_mentioned <= 3
                 ]
 
                 if len(recent_people) > 1:

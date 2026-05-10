@@ -248,6 +248,7 @@ class TaskModelGenerator:
                 message=f"Failed to generate task: {e}",
             )
             raise ValueError(error.user_message) from e
+
     def _extract_goal(self, llm_output: dict[str, Any]) -> str:
         """Extract and validate goal from LLM output.
 
@@ -274,8 +275,7 @@ class TaskModelGenerator:
         if not goal_str:
             self._raise_generation_error("Goal cannot be empty")
 
-        if len(goal_str) > 500:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(goal_str) > 500:
             self._raise_generation_error(f"Goal too long: {len(goal_str)} chars (max 500)")
 
         return goal_str
@@ -405,8 +405,7 @@ class TaskModelGenerator:
             return TaskType.SINGLE_STEP
 
         # Multi-step tasks (2-5 steps)
-        if 2 <= num_steps <= self.MAX_STEPS:  # noqa: PLR2004 - Small integer threshold
-
+        if 2 <= num_steps <= self.MAX_STEPS:
             return TaskType.MULTI_STEP
 
         # Should never reach here due to validation
@@ -454,8 +453,7 @@ class TaskModelGenerator:
         adjusted -= missing_fields * 0.05
 
         # Penalty for complex multi-step tasks
-        if len(steps) > 3:  # noqa: PLR2004 - Small integer threshold
-
+        if len(steps) > 3:
             adjusted -= 0.1
 
         # Bonus for complete parameters
@@ -464,8 +462,7 @@ class TaskModelGenerator:
             adjusted += 0.05
 
         # Bonus for high intent confidence
-        if intent.confidence > 0.9:  # noqa: PLR2004 - Threshold value
-
+        if intent.confidence > 0.9:
             adjusted += 0.1
 
         # Ensure bounds
@@ -502,8 +499,7 @@ class TaskModelGenerator:
                 return True
 
         # Multi-step tasks with >3 steps require confirmation
-        if len(steps) > 3:  # noqa: PLR2004 - Small integer threshold
-
+        if len(steps) > 3:
             return True
 
         # Check intent-level confirmation requirement
@@ -566,8 +562,7 @@ class TaskModelGenerator:
                 f"SINGLE_STEP task must have exactly 1 step, got {num_steps}",
             )
 
-        if task.task_type == TaskType.MULTI_STEP and not (2 <= num_steps <= self.MAX_STEPS):  # noqa: PLR2004 - Small integer threshold
-
+        if task.task_type == TaskType.MULTI_STEP and not (2 <= num_steps <= self.MAX_STEPS):
             self._raise_validation_error(
                 f"MULTI_STEP task must have 2-{self.MAX_STEPS} steps, got {num_steps}",
             )
@@ -586,8 +581,7 @@ class TaskModelGenerator:
 
         # Validate total duration
         calculated_duration = sum(step.estimated_duration for step in task.steps)
-        if abs(task.estimated_duration - calculated_duration) > 0.1:  # noqa: PLR2004 - Threshold value
-
+        if abs(task.estimated_duration - calculated_duration) > 0.1:
             self._raise_validation_error(
                 f"Total duration mismatch: task={task.estimated_duration}, "
                 f"calculated={calculated_duration}",

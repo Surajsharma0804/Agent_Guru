@@ -69,7 +69,7 @@ def example_basic_rollback() -> None:
         pool.close_all()
 
     finally:
-        os.unlink(db_path)  # noqa: PTH108
+        os.unlink(db_path)
 
 
 def example_degradation_triggered_rollback() -> None:
@@ -138,7 +138,7 @@ def example_degradation_triggered_rollback() -> None:
         pool.close_all()
 
     finally:
-        os.unlink(db_path)  # noqa: PTH108
+        os.unlink(db_path)
 
 
 def example_selective_rollback() -> None:
@@ -191,7 +191,7 @@ def example_selective_rollback() -> None:
         pool.close_all()
 
     finally:
-        os.unlink(db_path)  # noqa: PTH108
+        os.unlink(db_path)
 
 
 def example_rollback_statistics() -> None:
@@ -236,7 +236,7 @@ def example_rollback_statistics() -> None:
         pool.close_all()
 
     finally:
-        os.unlink(db_path)  # noqa: PTH108
+        os.unlink(db_path)
 
 
 def example_change_history() -> None:
@@ -282,7 +282,7 @@ def example_change_history() -> None:
         pool.close_all()
 
     finally:
-        os.unlink(db_path)  # noqa: PTH108
+        os.unlink(db_path)
 
 
 if __name__ == "__main__":

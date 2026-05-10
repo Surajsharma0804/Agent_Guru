@@ -95,8 +95,7 @@ class FaceAligner:
     """
 
     def __init__(self, output_size: tuple[int, int] = (112, 112)) -> None:
-        if len(output_size) != 2 or output_size[0] <= 0 or output_size[1] <= 0:  # noqa: PLR2004 - Small integer threshold
-
+        if len(output_size) != 2 or output_size[0] <= 0 or output_size[1] <= 0:
             msg = f"output_size must be a tuple of two positive integers, got {output_size}"
             raise ValueError(
                 msg,
@@ -128,8 +127,7 @@ class FaceAligner:
         if not isinstance(frame, np.ndarray):
             msg = "frame must be a numpy ndarray"
             raise ValueError(msg)
-        if frame.ndim != 3 or frame.shape[2] != 3:  # noqa: PLR2004 - Small integer threshold
-
+        if frame.ndim != 3 or frame.shape[2] != 3:
             msg = f"frame must have shape (H, W, 3), got {frame.shape}"
             raise ValueError(msg)
 

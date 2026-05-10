@@ -43,7 +43,7 @@ class GitHubSyncEngine:
 
     def __init__(
         self,
-        github_client: Any,  # noqa: ANN401
+        github_client: Any,
         max_retries: int = 3,
         batch_size: int = 10,
         base_backoff_seconds: float = 1.0,
@@ -144,8 +144,7 @@ class GitHubSyncEngine:
         safe_type = self._sanitize(event.event_type)
         safe_ids = [self._sanitize(a) for a in event.agent_ids]
         agents_str = ", ".join(safe_ids[:3])
-        if len(event.agent_ids) > 3:  # noqa: PLR2004 - Small integer threshold
-
+        if len(event.agent_ids) > 3:
             agents_str += f" (+{len(event.agent_ids) - 3} more)"
         safe_ts = self._sanitize(event.timestamp.isoformat())
         return f"[agent-evolution] {safe_type}: {agents_str} at {safe_ts}"

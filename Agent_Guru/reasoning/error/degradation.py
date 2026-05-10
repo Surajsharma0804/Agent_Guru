@@ -164,8 +164,7 @@ class DegradationManager:
         )
 
         # Keep only last 100 entries
-        if len(self._degradation_history) > 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(self._degradation_history) > 100:
             self._degradation_history = self._degradation_history[-100:]
 
     def recover_to_level(self, level: DegradationLevel, reason: str) -> None:

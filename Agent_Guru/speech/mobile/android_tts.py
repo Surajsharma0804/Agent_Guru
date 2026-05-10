@@ -23,6 +23,8 @@ try:
 except ImportError:
     autoclass = None
     ANDROID_AVAILABLE = False
+
+
 class AndroidTTSError(GuruSpeechError):
     """Android TTS-specific errors."""
 
@@ -96,6 +98,7 @@ class AndroidTTS:
         except Exception as e:
             msg = f"Failed to initialize Android TTS: {e}"
             raise AndroidTTSError(msg, e) from e
+
     def _init_tts(self) -> None:
         """Initialize TTS engine and cache voices."""
         context = self.PythonActivity.mActivity
@@ -136,6 +139,7 @@ class AndroidTTS:
         except Exception:
             # If voice caching fails, continue with default
             pass
+
     def synthesize(
         self,
         text: str,
@@ -168,8 +172,7 @@ class AndroidTTS:
             msg = "Text cannot be empty"
             raise AndroidTTSError(msg)
 
-        if not 0.5 <= speech_rate <= 2.0:  # noqa: PLR2004 - Threshold
-
+        if not 0.5 <= speech_rate <= 2.0:
             msg = f"Speech rate must be in [0.5, 2.0], got {speech_rate}"
             raise AndroidTTSError(msg)
 
@@ -244,6 +247,7 @@ class AndroidTTS:
                 raise
             msg = f"Synthesis failed: {e}"
             raise AndroidTTSError(msg, e) from e
+
     def get_voice_info(self, personality: PersonalityType) -> dict[str, str]:
         """Get voice information.
 

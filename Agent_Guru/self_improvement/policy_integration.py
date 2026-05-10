@@ -58,8 +58,8 @@ class PolicyIntegration:
 
     def __init__(
         self,
-        self_improvement_engine: Any,  # noqa: ANN401
-        policy_engine: Any | None = None,  # noqa: ANN401
+        self_improvement_engine: Any,
+        policy_engine: Any | None = None,
         enforce_policies: bool = True,
     ) -> None:
         """Initialize policy integration.
@@ -263,8 +263,8 @@ class PolicyIntegration:
 
 
 def create_policy_integration(
-    self_improvement_engine: Any,  # noqa: ANN401
-    policy_engine: Any | None = None,  # noqa: ANN401
+    self_improvement_engine: Any,
+    policy_engine: Any | None = None,
     enforce_policies: bool = True,
 ) -> PolicyIntegration:
     """Create policy integration for self-improvement engine.

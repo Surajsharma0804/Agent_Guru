@@ -155,7 +155,7 @@ class FaceDatabase:
         self._identities: dict[str, Identity] = {}
 
         # Ensure parent directory exists
-        parent = os.path.dirname(db_path)  # noqa: PTH120
+        parent = os.path.dirname(db_path)
         if parent:
             os.makedirs(parent, exist_ok=True)  # noqa: PTH103
 
@@ -394,14 +394,14 @@ class FaceDatabase:
         data = self._serialise()
         tmp_path = self._db_path + ".tmp"
         try:
-            with open(tmp_path, "w", encoding="utf-8") as fh:  # noqa: PTH123
+            with open(tmp_path, "w", encoding="utf-8") as fh:
                 json.dump(data, fh, indent=2)
             os.replace(tmp_path, self._db_path)  # noqa: PTH105
             logger.debug("save: database written to '%s'", self._db_path)
         except OSError:
             logger.exception("save: failed to write database")
             # Clean up temp file if it exists
-            if os.path.exists(tmp_path):  # noqa: PTH110
+            if os.path.exists(tmp_path):
                 with contextlib.suppress(OSError):
                     os.remove(tmp_path)  # noqa: PTH107
 
@@ -411,13 +411,13 @@ class FaceDatabase:
         If the file does not exist the database starts empty (no error).
         Embedding vectors are base64-decoded back to float32 numpy arrays.
         """
-        if not os.path.exists(self._db_path):  # noqa: PTH110
+        if not os.path.exists(self._db_path):
             logger.debug("load: no database file at '%s', starting empty", self._db_path)
             self._identities = {}
             return
 
         try:
-            with open(self._db_path, encoding="utf-8") as fh:  # noqa: PTH123
+            with open(self._db_path, encoding="utf-8") as fh:
                 data = json.load(fh)
             self._identities = self._deserialise(data)
             logger.info(

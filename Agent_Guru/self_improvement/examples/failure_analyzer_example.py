@@ -22,7 +22,7 @@ def main() -> None:
     """Run failure analyzer example."""
     # Create temporary database
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = os.path.join(tmpdir, "example.db")  # noqa: PTH118
+        db_path = os.path.join(tmpdir, "example.db")
 
         # Initialize database schema
         DatabaseSchema.create_schema(db_path)

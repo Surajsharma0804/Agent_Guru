@@ -344,4 +344,3 @@ class CloudSyncService:
 
         except Exception:
             return None
-

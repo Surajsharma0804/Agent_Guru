@@ -190,8 +190,7 @@ class BackgroundServiceManager:
 
         # Verify transition latency
         elapsed = time.time() - start_time
-        if elapsed > 0.5:  # noqa: PLR2004 - Threshold value
-
+        if elapsed > 0.5:
             self.logger.warning("Wake transition took %.3fs (target: <0.5s)", elapsed)
 
         self.logger.info("Wake word detected, transitioned to wake mode in %.3fs", elapsed)

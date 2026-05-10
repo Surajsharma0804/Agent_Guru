@@ -41,8 +41,8 @@ class StateChangeEvent:
         event_id: str,
         timestamp: datetime,
         field_path: str,
-        old_value: Any,  # noqa: ANN401
-        new_value: Any,  # noqa: ANN401
+        old_value: Any,
+        new_value: Any,
     ) -> None:
         """Initialize state change event.
 
@@ -96,7 +96,7 @@ class WorldStateEngine:
             # Return a copy to prevent external modifications
             return self._state.model_copy(deep=True)
 
-    async def update_state(self, **updates: Any) -> None:  # noqa: ANN401
+    async def update_state(self, **updates: Any) -> None:
         """Update world state fields.
 
         Time Complexity: O(1) + O(n) for n subscribers
@@ -236,7 +236,7 @@ class WorldStateEngine:
             return True
         return False
 
-    async def query_state(self, field_path: str) -> Any | None:  # noqa: ANN401
+    async def query_state(self, field_path: str) -> Any | None:
         """Query specific state field.
 
         Time Complexity: O(1)

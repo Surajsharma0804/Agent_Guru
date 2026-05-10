@@ -284,6 +284,7 @@ class AutoCommitManager:
                 stderr=str(e),
                 duration_ms=duration_ms,
             )
+
     async def _detect_changed_files(self, task_context: TaskContext) -> list[str]:
         """Detect changed files for task.
 
@@ -357,8 +358,7 @@ class AutoCommitManager:
             parts.append("")  # Blank line
 
             # File changes summary
-            if len(changed_files) <= 5:  # noqa: PLR2004 - Small integer threshold
-
+            if len(changed_files) <= 5:
                 # List all files
                 for file_path in changed_files:
                     parts.append(f"- {file_path}")
@@ -474,6 +474,7 @@ class AutoCommitManager:
 
         except Exception:
             logger.exception("Failed to process pending commits")
+
     def get_pending_count(self) -> int:
         """Get number of pending commits.
 

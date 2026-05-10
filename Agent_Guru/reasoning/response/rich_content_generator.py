@@ -432,8 +432,7 @@ class RichContentGenerator:
             "type": "list",
             "title": data.get("title", "Results"),
             "items": formatted_items,
-            "footer": f"{len(items)} items" if len(items) > 10 else None,  # noqa: PLR2004 - Threshold
-
+            "footer": f"{len(items)} items" if len(items) > 10 else None,
         }
 
     def _generate_carousel(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:

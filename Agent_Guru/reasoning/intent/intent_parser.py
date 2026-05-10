@@ -56,7 +56,7 @@ class ParseResult:
     latency_ms: float
     method: str = "pattern"
 
-    def get(self, key: str, default: Any = None) -> Any:  # noqa: ANN401
+    def get(self, key: str, default: Any = None) -> Any:
         """Get entity value by name with optional default."""
         return self.entities.get(key, default)
 

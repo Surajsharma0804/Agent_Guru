@@ -667,8 +667,7 @@ class PromptEvolutionSystem:
             prompt.hallucination_count / prompt.total_uses if prompt.total_uses > 0 else 0.0
         )
 
-        return failure_rate >= min_failure_rate or hallucination_rate >= 0.2  # noqa: PLR2004 - Threshold value
-
+        return failure_rate >= min_failure_rate or hallucination_rate >= 0.2
 
     def generate_improved_prompt(
         self,
@@ -750,14 +749,11 @@ class PromptEvolutionSystem:
 
         # Identify primary weakness
         primary_issue = "general performance"
-        if hallucination_rate > 0.15:  # noqa: PLR2004 - Threshold value
-
+        if hallucination_rate > 0.15:
             primary_issue = "hallucinations (fabricated information)"
-        elif failure_rate > 0.4:  # noqa: PLR2004 - Threshold value
-
+        elif failure_rate > 0.4:
             primary_issue = "task failures"
-        elif success_rate < 0.6:  # noqa: PLR2004 - Threshold value
-
+        elif success_rate < 0.6:
             primary_issue = "low success rate"
 
         return f"""You are a prompt engineering expert. Your task is to improve the following prompt based on performance analysis.
@@ -1080,21 +1076,18 @@ IMPROVED PROMPT:"""
         """
         # Get current active prompt
         current = self.get_active_prompt(prompt_type)
-        if not current or current.total_uses < 10:  # noqa: PLR2004 - Threshold
-
+        if not current or current.total_uses < 10:
             # Not enough data
             return False, {}
 
         # Get previous version
         history = self.get_prompt_history(prompt_type, limit=2)
-        if len(history) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(history) < 2:
             # No previous version to compare
             return False, {}
 
         previous = history[1]  # Second in history (first is current)
-        if previous.total_uses < 10:  # noqa: PLR2004 - Threshold
-
+        if previous.total_uses < 10:
             # Not enough data in previous version
             return False, {}
 
@@ -1223,8 +1216,7 @@ IMPROVED PROMPT:"""
 
         # Simple statistical significance test (chi-square would be better)
         # For now, require at least 10% improvement with sufficient sample size
-        statistical_significance = abs(improvement) >= 0.10 and num_tests >= 20  # noqa: PLR2004 - Threshold
-
+        statistical_significance = abs(improvement) >= 0.10 and num_tests >= 20
 
         # Recommendation
         recommendation = "adopt" if improvement > 0 and statistical_significance else "reject"
@@ -1381,15 +1373,14 @@ IMPROVED PROMPT:"""
             recent_versions = [row[0] for row in cursor.fetchall()]
 
             # No oscillation if not enough history
-            if len(recent_versions) < 2:  # noqa: PLR2004 - Small integer threshold
-
+            if len(recent_versions) < 2:
                 return False, recent_versions
 
             # Oscillation detected if:
             # 1. Target version appears in recent history (last 4 updates)
             # 2. The target version appears at least twice in recent history
             # This catches back-and-forth switching patterns
-            last_four = recent_versions[:4] if len(recent_versions) >= 4 else recent_versions  # noqa: PLR2004 - Small integer threshold
+            last_four = recent_versions[:4] if len(recent_versions) >= 4 else recent_versions
 
             target_count_in_recent = recent_versions.count(target_version)
 

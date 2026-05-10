@@ -275,7 +275,7 @@ class ModelRouterClient:
         """
         return self._metrics.get(model_id)
 
-    def cache_result(self, key: str, result: Any) -> None:  # noqa: ANN401
+    def cache_result(self, key: str, result: Any) -> None:
         """Cache model result for common phrases.
 
         Args:
@@ -286,7 +286,7 @@ class ModelRouterClient:
         if self.enable_caching:
             self._cache[key] = result
 
-    def get_cached_result(self, key: str) -> Any | None:  # noqa: ANN401
+    def get_cached_result(self, key: str) -> Any | None:
         """Get cached result.
 
         Args:

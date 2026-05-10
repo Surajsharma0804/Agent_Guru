@@ -356,8 +356,7 @@ class SafetyGate:
         self._blocked_actions.append((timestamp, user_id, tool_id, reason))
 
         # Keep only last 1000 blocked actions
-        if len(self._blocked_actions) > 1000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(self._blocked_actions) > 1000:
             self._blocked_actions = self._blocked_actions[-1000:]
 
     def get_blocked_actions(

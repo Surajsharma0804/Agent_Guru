@@ -83,7 +83,7 @@ class Skill:
         """
         return self._capabilities.get(capability)
 
-    async def execute_capability(self, capability: str, **kwargs: Any) -> Any:  # noqa: ANN401
+    async def execute_capability(self, capability: str, **kwargs: Any) -> Any:
         """Execute a capability with given parameters.
 
         Args:
@@ -185,7 +185,7 @@ def skill_parameter(
     param_type: str,
     description: str,
     required: bool = True,
-    default: Any = None,  # noqa: ANN401
+    default: Any = None,
 ) -> dict[str, Any]:
     """Define a skill parameter.
 
@@ -212,7 +212,7 @@ def skill_parameter(
     }
 
 
-def _type_to_string(type_hint: Any) -> str:  # noqa: ANN401
+def _type_to_string(type_hint: Any) -> str:
     """Convert Python type hint to string representation.
 
     Args:

@@ -136,7 +136,7 @@ class IntentClassifierEvaluator:
         ):
             msg = "intent_mappings.json path outside allowed directory"
             raise ValueError(msg)
-        with open(mappings_path, encoding="utf-8") as f:  # nosec B101  # noqa: PTH123
+        with open(mappings_path, encoding="utf-8") as f:  # nosec B101
             mappings = json.load(f)
         self.intent_to_id = mappings["intent_to_id"]
         self.id_to_intent = {int(k): v for k, v in mappings["id_to_intent"].items()}
@@ -201,7 +201,7 @@ class IntentClassifierEvaluator:
             raise ValueError(msg)
 
         # Load test data
-        with open(resolved_test, encoding="utf-8") as f:  # nosec B101  # noqa: PTH123
+        with open(resolved_test, encoding="utf-8") as f:  # nosec B101
             test_data = yaml.safe_load(f)
 
         # Warmup
@@ -333,7 +333,7 @@ class IntentClassifierEvaluator:
 
         # Save results
         output_path = self.model_path / "evaluation_results.json"
-        with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(asdict(results), f, indent=2)
 
         return results
@@ -459,18 +459,14 @@ def main() -> None:
 
     # Final summary
 
-    if (results.accuracy > 0.99 and results.p95_latency < 50) or (  # noqa: PLR2004 - Threshold
-
-        results.accuracy > 0.95 and results.p95_latency < 100  # noqa: PLR2004 - Percentage/large threshold
-
+    if (results.accuracy > 0.99 and results.p95_latency < 50) or (
+        results.accuracy > 0.95 and results.p95_latency < 100
     ):
         pass
     else:
-        if results.accuracy <= 0.95:  # noqa: PLR2004 - Threshold value
-
+        if results.accuracy <= 0.95:
             pass
-        if results.p95_latency >= 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if results.p95_latency >= 100:
             pass
 
 

@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(autouse=True)
-def _isolate_insightface_cache() -> Any:  # noqa: ANN401
+def _isolate_insightface_cache() -> Any:
     """Save and restore FaceFeatureExtractor class-level InsightFace cache.
 
     Some tests (e.g. TestInsightfaceDetect, TestInsightfaceExtract) inject
@@ -205,7 +205,7 @@ def make_vision_event(
     event_type: str = "object_detected",
     source_module: str = "scene",
     confidence: float = 0.9,
-    **metadata: Any,  # noqa: ANN401
+    **metadata: Any,
 ) -> VisionEvent:
     """Create a VisionEvent with sensible defaults.
 

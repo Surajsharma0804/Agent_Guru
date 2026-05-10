@@ -87,8 +87,7 @@ class ConvergenceAnalyzer:
         scores = [
             a.specializations.get(task_type, 0.0) for a in agents if task_type in a.specializations
         ]
-        if len(scores) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(scores) < 2:
             return 0.0
         return statistics.variance(scores)
 
@@ -136,8 +135,7 @@ class ConvergenceAnalyzer:
             report[task_type] = {
                 "snapshots": len(snapshots),
                 "latest_success_rate": rates[-1],
-                "improving": len(rates) >= 2 and rates[-1] > rates[0],  # noqa: PLR2004 - Small integer threshold
-
+                "improving": len(rates) >= 2 and rates[-1] > rates[0],
                 "latest_variance": snapshots[-1].specialization_variance,
                 "reassignments": self._reassignment_counts.get(task_type, 0),
             }

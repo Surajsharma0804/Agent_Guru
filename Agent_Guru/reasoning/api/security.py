@@ -323,13 +323,13 @@ class SecureProcessRequest(BaseModel):
 
     @field_validator("text")
     @classmethod
-    def validate_text(cls, v):  # noqa: ANN001
+    def validate_text(cls, v):
         """Validate and sanitize text input."""
         return SecurityValidator.validate_string(v, "text")
 
     @field_validator("user_id")
     @classmethod
-    def validate_user_id(cls, v):  # noqa: ANN001
+    def validate_user_id(cls, v):
         """Validate user_id format."""
         # Only allow alphanumeric and underscore
         if not re.match(r"^[a-zA-Z0-9_-]+$", v):
@@ -339,7 +339,7 @@ class SecureProcessRequest(BaseModel):
 
     @field_validator("source")
     @classmethod
-    def validate_source(cls, v):  # noqa: ANN001
+    def validate_source(cls, v):
         """Validate source value."""
         allowed_sources = ["text", "voice", "system_event"]
         if v not in allowed_sources:
@@ -349,7 +349,7 @@ class SecureProcessRequest(BaseModel):
 
     @field_validator("metadata")
     @classmethod
-    def validate_metadata(cls, v):  # noqa: ANN001
+    def validate_metadata(cls, v):
         """Validate metadata structure."""
         if v is not None:
             return SecurityValidator.validate_dict(v, "metadata")
@@ -377,7 +377,7 @@ CSP_HEADERS = {
 }
 
 
-def add_security_headers(response):  # noqa: ANN001
+def add_security_headers(response):
     """Add security headers to response.
 
     Args:

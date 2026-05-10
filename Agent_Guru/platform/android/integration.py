@@ -154,6 +154,7 @@ class AndroidIntegration:
             logger.exception("Failed to initialize Android classes")
             msg = f"Failed to initialize Android classes: {e}"
             raise AndroidIntegrationError(msg) from e
+
     def _get_context(self):
         """Get Android application context."""
         try:
@@ -163,6 +164,7 @@ class AndroidIntegration:
             logger.exception("Failed to get Android context")
             msg = f"Failed to get Android context: {e}"
             raise AndroidIntegrationError(msg) from e
+
     # ========== App Launching ==========
 
     def launch_app_by_package(self, package_name: str) -> bool:
@@ -200,6 +202,7 @@ class AndroidIntegration:
             logger.exception("Failed to launch app %s: %s")
             msg = f"Failed to launch app: {e}"
             raise AndroidIntegrationError(msg) from e
+
     def send_intent(
         self,
         action: str,
@@ -221,7 +224,7 @@ class AndroidIntegration:
             intent = self.Intent(action)
 
             if data:
-                Uri = autoclass("android.net.Uri")  # noqa: N806
+                Uri = autoclass("android.net.Uri")
                 intent.setData(Uri.parse(data))
 
             if extras:
@@ -242,6 +245,7 @@ class AndroidIntegration:
             logger.exception("Failed to send intent %s: %s")
             msg = f"Failed to send intent: {e}"
             raise AndroidIntegrationError(msg) from e
+
     # ========== UI Automation ==========
 
     def simulate_touch(self, x: int, y: int) -> None:
@@ -313,6 +317,7 @@ class AndroidIntegration:
             logger.exception("Failed to get battery info")
             msg = f"Failed to get battery info: {e}"
             raise AndroidIntegrationError(msg) from e
+
     # ========== Permission Management ==========
 
     def check_permission(self, permission: str) -> PermissionStatus:
@@ -325,6 +330,7 @@ class AndroidIntegration:
         except Exception:
             logger.exception("Failed to check permission %s: %s")
             return PermissionStatus.NOT_REQUESTED
+
     def request_permission(self, permission: str) -> bool:
         """Request Android runtime permission."""
         try:
@@ -336,6 +342,7 @@ class AndroidIntegration:
             logger.exception("Failed to request permission %s: %s")
             msg = f"Failed to request permission: {e}"
             raise AndroidIntegrationError(msg) from e
+
     # ========== Notification Management ==========
 
     def create_notification(self, config: NotificationConfig) -> None:
@@ -365,14 +372,14 @@ class AndroidIntegration:
             logger.exception("Failed to create notification")
             msg = f"Failed to create notification: {e}"
             raise AndroidIntegrationError(msg) from e
+
     def _create_notification_channel(self, channel_id: str) -> None:
         """Create notification channel for Android 8.0+."""
         try:
             # Use module-level autoclass (patchable in tests)
-            Build = autoclass("android.os.Build")  # noqa: N806
+            Build = autoclass("android.os.Build")
             sdk_int = int(Build.VERSION.SDK_INT)
-            if sdk_int >= 26:  # noqa: PLR2004 - Threshold
-
+            if sdk_int >= 26:
                 nm = cast(
                     "android.app.NotificationManager",
                     self.context.getSystemService("notification"),
@@ -381,6 +388,7 @@ class AndroidIntegration:
                 nm.createNotificationChannel(channel)
         except Exception:
             logger.exception("Failed to create notification channel")
+
     # ========== Storage Access ==========
 
     def get_external_storage_path(self) -> str | None:
@@ -392,6 +400,7 @@ class AndroidIntegration:
         except Exception:
             logger.exception("Failed to get external storage path")
             return None
+
     # ========== Battery Optimization ==========
 
     def request_battery_optimization_exemption(self) -> bool:
@@ -405,11 +414,10 @@ class AndroidIntegration:
 
         """
         try:
-            Build = autoclass("android.os.Build")  # noqa: N806
+            Build = autoclass("android.os.Build")
             sdk_int = int(Build.VERSION.SDK_INT)
 
-            if sdk_int >= 23:  # noqa: PLR2004 - Threshold
-
+            if sdk_int >= 23:
                 pm = cast(
                     "android.os.PowerManager",
                     self.context.getSystemService("power"),
@@ -422,7 +430,7 @@ class AndroidIntegration:
 
                 intent = self.Intent()
                 intent.setAction(self.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                Uri = autoclass("android.net.Uri")  # noqa: N806
+                Uri = autoclass("android.net.Uri")
                 intent.setData(Uri.parse(f"package:{package_name}"))
                 intent.addFlags(self.Intent.FLAG_ACTIVITY_NEW_TASK)
                 self.context.startActivity(intent)
@@ -437,14 +445,14 @@ class AndroidIntegration:
             raise AndroidIntegrationError(
                 msg,
             ) from e
+
     def is_battery_optimization_exempted(self) -> bool:
         """Check if app is exempted from battery optimization."""
         try:
-            Build = autoclass("android.os.Build")  # noqa: N806
+            Build = autoclass("android.os.Build")
             sdk_int = int(Build.VERSION.SDK_INT)
 
-            if sdk_int >= 23:  # noqa: PLR2004 - Threshold
-
+            if sdk_int >= 23:
                 pm = cast(
                     "android.os.PowerManager",
                     self.context.getSystemService("power"),

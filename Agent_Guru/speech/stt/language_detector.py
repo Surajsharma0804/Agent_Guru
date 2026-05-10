@@ -602,8 +602,7 @@ class LanguageDetector:
 
         # Check character-based languages first (Chinese, Japanese, Hindi, Punjabi, etc.)
         char_lang, char_conf = self._detect_by_characters(text_original)
-        if char_lang != Language.UNKNOWN and char_conf > 0.3:  # noqa: PLR2004 - Threshold value
-
+        if char_lang != Language.UNKNOWN and char_conf > 0.3:
             # For Arabic script, disambiguate between Arabic, Urdu, Persian
             if char_lang in [Language.ARABIC, Language.URDU]:
                 arabic_urdu_lang = self._disambiguate_arabic_script(text_original)
@@ -611,8 +610,7 @@ class LanguageDetector:
                     char_lang = arabic_urdu_lang
 
             # High confidence character-based detection (>50% of characters)
-            if char_conf > 0.5:  # noqa: PLR2004 - Threshold value
-
+            if char_conf > 0.5:
                 return LanguageDetectionResult(language=char_lang, confidence=char_conf)
 
             # Medium confidence - add to scores but continue checking
@@ -650,8 +648,7 @@ class LanguageDetector:
         alternatives = [
             (lang, min(1.0, score / max_possible_score))
             for lang, score in sorted_langs[1:4]  # Top 3 alternatives
-            if score > 0.1  # noqa: PLR2004 - Threshold value
-
+            if score > 0.1
         ]
 
         # Check minimum confidence

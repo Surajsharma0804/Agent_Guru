@@ -108,7 +108,7 @@ class SelfCorrectionFeedbackGenerator:
                     "Avoid citing specific statistics, dates, or studies unless you are certain they are accurate",
                 )
 
-        severity = "high" if len(result.hallucination_types) >= 2 else "medium"  # noqa: PLR2004 - Small integer threshold
+        severity = "high" if len(result.hallucination_types) >= 2 else "medium"
 
         return issues, suggestions, severity
 
@@ -135,7 +135,7 @@ class SelfCorrectionFeedbackGenerator:
                 issues.append(f"Constraint violation at '{violation.field}': {violation.message}")
                 suggestions.append(f"Adjust '{violation.field}' to satisfy: {violation.expected}")
 
-        severity = "high" if len(result.violations) > 3 else "medium"  # noqa: PLR2004 - Small integer threshold
+        severity = "high" if len(result.violations) > 3 else "medium"
 
         return issues, suggestions, severity
 

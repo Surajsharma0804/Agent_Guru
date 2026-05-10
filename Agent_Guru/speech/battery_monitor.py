@@ -226,20 +226,17 @@ class BatteryMonitor:
         }
 
         # Check if usage exceeds targets
-        if stats.sleep_mode_percent_per_hour > 5.0:  # noqa: PLR2004 - Threshold
-
+        if stats.sleep_mode_percent_per_hour > 5.0:
             recommendations["warnings"].append(
                 f"Sleep mode using {stats.sleep_mode_percent_per_hour:.1f}% per hour (target: <5%)",
             )
 
-        if stats.wake_mode_percent_per_hour > 10.0:  # noqa: PLR2004 - Threshold
-
+        if stats.wake_mode_percent_per_hour > 10.0:
             recommendations["warnings"].append(
                 f"Wake mode using {stats.wake_mode_percent_per_hour:.1f}% per hour (target: <10%)",
             )
 
-        if stats.total_usage_percent_per_hour > 15.0:  # noqa: PLR2004 - Threshold
-
+        if stats.total_usage_percent_per_hour > 15.0:
             recommendations["warnings"].append(
                 f"Total usage {stats.total_usage_percent_per_hour:.1f}% per hour exceeds 15%",
             )
@@ -266,10 +263,8 @@ class BatteryMonitor:
             return BatteryStatus(
                 percentage=battery.percent,
                 is_charging=battery.power_plugged,
-                is_low=battery.percent < 20,  # noqa: PLR2004 - Threshold
-
-                is_critical=battery.percent < 5,  # noqa: PLR2004 - Small integer threshold
-
+                is_low=battery.percent < 20,
+                is_critical=battery.percent < 5,
                 time_remaining_minutes=battery.secsleft / 60 if battery.secsleft != -1 else None,
             )
         except ImportError:
@@ -288,10 +283,8 @@ class BatteryMonitor:
             return BatteryStatus(
                 percentage=battery.percent,
                 is_charging=battery.power_plugged,
-                is_low=battery.percent < 20,  # noqa: PLR2004 - Threshold
-
-                is_critical=battery.percent < 5,  # noqa: PLR2004 - Small integer threshold
-
+                is_low=battery.percent < 20,
+                is_critical=battery.percent < 5,
                 time_remaining_minutes=battery.secsleft / 60 if battery.secsleft != -1 else None,
             )
         except ImportError:
@@ -310,10 +303,8 @@ class BatteryMonitor:
             return BatteryStatus(
                 percentage=battery.percent,
                 is_charging=battery.power_plugged,
-                is_low=battery.percent < 20,  # noqa: PLR2004 - Threshold
-
-                is_critical=battery.percent < 5,  # noqa: PLR2004 - Small integer threshold
-
+                is_low=battery.percent < 20,
+                is_critical=battery.percent < 5,
                 time_remaining_minutes=battery.secsleft / 60 if battery.secsleft != -1 else None,
             )
         except ImportError:

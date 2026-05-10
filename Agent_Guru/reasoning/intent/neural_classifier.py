@@ -187,7 +187,7 @@ class NeuralIntentClassifier:
         self.tokenizer = DebertaV2Tokenizer.from_pretrained(str(tokenizer_path))  # nosec B615
 
         # Load label mappings
-        with open(label_mappings_path) as f:  # noqa: PTH123
+        with open(label_mappings_path) as f:
             mappings = yaml.safe_load(f)
             self.label_to_id = mappings["label_to_id"]
             self.id_to_label = {int(k): v for k, v in mappings["id_to_label"].items()}

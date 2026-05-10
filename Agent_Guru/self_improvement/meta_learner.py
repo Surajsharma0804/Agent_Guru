@@ -232,7 +232,7 @@ class MetaLearner:
 
             conn.commit()
 
-    def process_execution(self, execution: Any) -> None:  # noqa: ANN401
+    def process_execution(self, execution: Any) -> None:
         """Process a task execution for meta-learning.
 
         Extracts features and triggers incremental pattern update.
@@ -257,7 +257,7 @@ class MetaLearner:
         if self._should_update_patterns():
             self.update_patterns()
 
-    def extract_features(self, execution: Any) -> TaskFeatures:  # noqa: ANN401
+    def extract_features(self, execution: Any) -> TaskFeatures:
         """Extract numerical features from task execution.
 
         Converts task execution into numerical feature vector for ML.
@@ -390,7 +390,7 @@ class MetaLearner:
             for v in d.values()
         )
 
-    def _store_execution_features(self, execution: Any, features: TaskFeatures) -> None:  # noqa: ANN401
+    def _store_execution_features(self, execution: Any, features: TaskFeatures) -> None:
         """Store execution features for later clustering.
 
         Args:
@@ -915,8 +915,7 @@ class MetaLearner:
 
             rows = cursor.fetchall()
 
-        if len(rows) < 10:  # noqa: PLR2004 - Threshold
-
+        if len(rows) < 10:
             # Not enough data for correlation analysis
             return {}
 

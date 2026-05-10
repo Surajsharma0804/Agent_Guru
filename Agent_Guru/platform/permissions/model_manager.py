@@ -261,7 +261,7 @@ class PermissionModelManager:
         with self._lock:
             try:
                 # Read configuration file
-                with open(self.config_path) as f:  # noqa: PTH123
+                with open(self.config_path) as f:
                     config_data = yaml.safe_load(f)
 
                 # Compute configuration hash for change detection
@@ -291,6 +291,7 @@ class PermissionModelManager:
                 logger.exception("Configuration loading error")
                 msg = f"Failed to load configuration: {e}"
                 raise ConfigurationError(msg) from e
+
     def _validate_config(self, config: dict[str, Any]) -> None:
         """Validate configuration structure and values.
 
@@ -456,6 +457,7 @@ class PermissionModelManager:
             except Exception:
                 logger.exception("Configuration reload failed")
                 raise
+
     def is_path_allowed(
         self,
         path: Path,

@@ -218,8 +218,7 @@ class MemoryMonitor:
     def _trigger_gc(self) -> None:
         """Trigger garbage collection."""
         # Avoid triggering GC too frequently
-        if time.time() - self._last_gc_time < 10.0:  # noqa: PLR2004 - Threshold
-
+        if time.time() - self._last_gc_time < 10.0:
             return
 
         start_time = time.time()
@@ -252,8 +251,7 @@ class MemoryMonitor:
         if not self.leak_detection_enabled:
             return
 
-        if len(self.memory_history) < 10:  # noqa: PLR2004 - Threshold
-
+        if len(self.memory_history) < 10:
             return  # Need more data
 
         try:
@@ -267,8 +265,7 @@ class MemoryMonitor:
             growth_rate = growth_mb / first_mb if first_mb > 0 else 0
 
             # Check for sustained growth (potential leak)
-            if growth_rate > 0.1 and growth_mb > 100:  # 10% growth and >100MB  # noqa: PLR2004 (Percentage/large threshold)
-
+            if growth_rate > 0.1 and growth_mb > 100:  # 10% growth and >100MB
                 warning = (
                     f"Potential memory leak detected: "
                     f"growth={growth_mb:.1f}MB ({growth_rate * 100:.1f}%) "

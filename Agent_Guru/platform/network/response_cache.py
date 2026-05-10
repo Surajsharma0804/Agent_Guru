@@ -365,8 +365,7 @@ class ResponseCache:
 
         """
         # Only cache successful responses
-        if not (200 <= status_code < 300):  # noqa: PLR2004 - Percentage/large threshold
-
+        if not (200 <= status_code < 300):
             logger.debug(
                 "Response not cacheable (status code)",
                 extra={

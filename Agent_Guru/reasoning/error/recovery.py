@@ -65,10 +65,10 @@ class RetryHandler:
     async def execute_with_retry(
         self,
         func: Callable,
-        *args: Any,  # noqa: ANN401
+        *args: Any,
         operation_id: str = "default",
-        **kwargs: Any,  # noqa: ANN401
-    ) -> Any:  # noqa: ANN401
+        **kwargs: Any,
+    ) -> Any:
         """Execute function with retry logic.
 
         Args:
@@ -254,9 +254,9 @@ class CircuitBreaker:
     async def execute(
         self,
         func: Callable,
-        *args: Any,  # noqa: ANN401
-        **kwargs: Any,  # noqa: ANN401
-    ) -> Any:  # noqa: ANN401
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
         """Execute function through circuit breaker.
 
         Args:
@@ -414,9 +414,9 @@ class FailoverManager:
         self,
         service_type: str,
         func: Callable[[str], Any],
-        *args: Any,  # noqa: ANN401
-        **kwargs: Any,  # noqa: ANN401
-    ) -> Any:  # noqa: ANN401
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
         """Execute function with automatic failover.
 
         Args:

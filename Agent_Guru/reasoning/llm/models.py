@@ -41,8 +41,7 @@ class LLMRequest:
 
     def __post_init__(self):
         """Validate request parameters."""
-        if not 0.0 <= self.temperature <= 2.0:  # noqa: PLR2004 - Threshold
-
+        if not 0.0 <= self.temperature <= 2.0:
             msg = f"temperature must be 0.0-2.0, got {self.temperature}"
             raise ValueError(msg)
         if not 0.0 <= self.top_p <= 1.0:
@@ -106,12 +105,10 @@ class LocalLLMConfig:
         if self.n_threads <= 0:
             msg = f"n_threads must be positive, got {self.n_threads}"
             raise ValueError(msg)
-        if not 1024 <= self.port <= 65535:  # noqa: PLR2004 - Percentage/large threshold
-
+        if not 1024 <= self.port <= 65535:
             msg = f"port must be 1024-65535, got {self.port}"
             raise ValueError(msg)
-        if not 0.0 <= self.temperature <= 2.0:  # noqa: PLR2004 - Threshold
-
+        if not 0.0 <= self.temperature <= 2.0:
             msg = f"temperature must be 0.0-2.0, got {self.temperature}"
             raise ValueError(msg)
         if not 0.0 <= self.top_p <= 1.0:

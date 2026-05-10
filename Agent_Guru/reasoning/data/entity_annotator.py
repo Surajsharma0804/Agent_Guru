@@ -569,7 +569,7 @@ class EntityAnnotator:
         self.entity_patterns = self._build_entity_patterns()
 
     def _load_intents(self) -> dict[Any, Any]:
-        with open(self.intents_file, encoding="utf-8") as f:  # noqa: PTH123
+        with open(self.intents_file, encoding="utf-8") as f:
             data: dict[Any, Any] = yaml.safe_load(f)
             return data
 
@@ -669,8 +669,7 @@ class EntityAnnotator:
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
                     name = m.group(1).strip().lower()
-                    if name in self._KNOWN_CONTACTS or len(name) >= 3:  # noqa: PLR2004 - Small integer threshold
-
+                    if name in self._KNOWN_CONTACTS or len(name) >= 3:
                         entities.append((m.group(1), m.start(1), m.end(1), "recipient"))
             # Also match standalone known contacts
             entities.extend(self._find_known_entity(utterance, self._KNOWN_CONTACTS, "recipient"))
@@ -746,8 +745,7 @@ class EntityAnnotator:
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
                     content = m.group(1).strip()
-                    if content and len(content) > 2:  # noqa: PLR2004 - Small integer threshold
-
+                    if content and len(content) > 2:
                         entities.append((content, m.start(1), m.end(1), "message_content"))
 
         if "event_name" in expected or not expected:
@@ -758,8 +756,7 @@ class EntityAnnotator:
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
                     name = m.group(1).strip()
-                    if name and len(name) > 2:  # noqa: PLR2004 - Small integer threshold
-
+                    if name and len(name) > 2:
                         entities.append((name, m.start(1), m.end(1), "event_name"))
 
         if "search_query" in expected or not expected:
@@ -769,8 +766,7 @@ class EntityAnnotator:
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
                     query = m.group(1).strip()
-                    if query and len(query) > 2:  # noqa: PLR2004 - Small integer threshold
-
+                    if query and len(query) > 2:
                         entities.append((query, m.start(1), m.end(1), "search_query"))
 
         if "command_type" in expected or not expected:
@@ -817,8 +813,7 @@ class EntityAnnotator:
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
                     query = m.group(1).strip()
-                    if query and len(query) > 2:  # noqa: PLR2004 - Small integer threshold
-
+                    if query and len(query) > 2:
                         entities.append((query, m.start(1), m.end(1), "video_query"))
 
         if "help_topic" in expected or not expected:
@@ -830,8 +825,7 @@ class EntityAnnotator:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
                     if m.lastindex and m.lastindex >= 1:
                         topic = m.group(1).strip()
-                        if topic and len(topic) > 2:  # noqa: PLR2004 - Small integer threshold
-
+                        if topic and len(topic) > 2:
                             entities.append((topic, m.start(1), m.end(1), "help_topic"))
                     else:
                         # Pattern matched but no capture group — use whole match as topic
@@ -1109,8 +1103,7 @@ class EntityAnnotator:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
                     if m.lastindex and m.group(1):
                         topic = m.group(1).strip()
-                        if topic and len(topic) > 2:  # noqa: PLR2004 - Small integer threshold
-
+                        if topic and len(topic) > 2:
                             entities.append((topic, m.start(1), m.end(1), "help_topic"))
 
         # ---- cancellation: extract what is being cancelled ----
@@ -1121,8 +1114,7 @@ class EntityAnnotator:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
                     if m.lastindex and m.group(1):
                         action = m.group(1).strip()
-                        if action and len(action) > 2:  # noqa: PLR2004 - Small integer threshold
-
+                        if action and len(action) > 2:
                             entities.append((action, m.start(1), m.end(1), "action"))
 
         # ---- query_weather: extract location + weather condition ----
@@ -1212,14 +1204,13 @@ class EntityAnnotator:
     def annotate_dataset(self, input_file: str, output_file: str) -> None:
         """Annotate dataset file and save results."""
         annotated_data = []
-        with open(input_file, encoding="utf-8") as f:  # noqa: PTH123
+        with open(input_file, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
                     continue
                 parts = line.split("\t")
-                if len(parts) != 2:  # noqa: PLR2004 - Small integer threshold
-
+                if len(parts) != 2:
                     continue
                 intent, utterance = parts
                 entities = self.extract_entities(utterance, intent)
@@ -1233,7 +1224,7 @@ class EntityAnnotator:
                         ],
                     },
                 )
-        with open(output_file, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_file, "w", encoding="utf-8") as f:
             yaml.dump(annotated_data, f, default_flow_style=False, allow_unicode=True)
 
     def validate_annotations(self, annotated_file: str) -> dict[str, Any]:
@@ -1244,7 +1235,7 @@ class EntityAnnotator:
         - adjusted_coverage: excludes intents that intentionally have no entities
           (confirmation, cancellation, clarification_request, unknown, multi_intent)
         """
-        with open(annotated_file, encoding="utf-8") as f:  # noqa: PTH123
+        with open(annotated_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         total = len(data)
         with_entities = sum(1 for item in data if item["entities"])
@@ -1309,8 +1300,7 @@ def main() -> None:
         low = {
             k: v
             for k, v in metrics["per_intent_coverage"].items()
-            if v["coverage"] < 0.90 and k not in annotator._NO_ENTITY_INTENTS  # noqa: PLR2004 - Threshold value
-
+            if v["coverage"] < 0.90 and k not in annotator._NO_ENTITY_INTENTS
         }
         if low:
             for _intent, _info in sorted(low.items(), key=lambda x: x[1]["coverage"]):

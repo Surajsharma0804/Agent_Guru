@@ -209,6 +209,7 @@ class VoiceCloner:
                 raise
             msg = f"Voice enrollment failed: {e}"
             raise VoiceCloningError(msg) from e
+
     def update_voice_model(
         self,
         voice_id: str,
@@ -311,6 +312,7 @@ class VoiceCloner:
                 raise
             msg = f"Voice model update failed: {e}"
             raise VoiceCloningError(msg) from e
+
     def synthesize_with_cloned_voice(
         self,
         text: str,
@@ -378,6 +380,7 @@ class VoiceCloner:
             raise
             msg = f"Voice synthesis failed: {exc}"
             raise VoiceCloningError(msg) from exc
+
     def compute_similarity(
         self,
         audio1: np.ndarray,
@@ -420,6 +423,7 @@ class VoiceCloner:
         except Exception:
             logger.exception("Similarity computation failed")
             return 0.0
+
     def is_voice_match(
         self,
         audio1: np.ndarray,
@@ -449,6 +453,7 @@ class VoiceCloner:
         except Exception:
             logger.exception("Voice match check failed")
             return False
+
     def get_voice_model(self, voice_id: str) -> VoiceModel | None:
         """Get voice model by ID.
 
@@ -532,7 +537,7 @@ class VoiceCloner:
                 "created_at": profile.created_at,
                 "updated_at": profile.updated_at,
             }
-            with open(filepath, "w", encoding="utf-8") as f:  # noqa: PTH123
+            with open(filepath, "w", encoding="utf-8") as f:
                 _json.dump(profile_data, f)
 
             logger.info("Voice profile '%s' saved to %s", voice_id, filepath)
@@ -542,6 +547,7 @@ class VoiceCloner:
                 raise
             msg = f"Failed to save voice profile: {e}"
             raise VoiceCloningError(msg) from e
+
     def load_voice_profile(self, filepath: str) -> str:
         """Load voice profile from file.
 
@@ -558,7 +564,7 @@ class VoiceCloner:
         try:
             import json as _json
 
-            with open(filepath, encoding="utf-8") as f:  # noqa: PTH123
+            with open(filepath, encoding="utf-8") as f:
                 profile_data = _json.load(f)
 
             profile = VoiceProfile(
@@ -582,6 +588,7 @@ class VoiceCloner:
                 raise
             msg = f"Failed to load voice profile: {e}"
             raise VoiceCloningError(msg) from e
+
     def _extract_voice_features(self, audio: np.ndarray, sample_rate: int) -> np.ndarray:
         """Extract voice features for cloning.
 
@@ -596,8 +603,7 @@ class VoiceCloner:
         # Adjust n_fft for short audio
         audio_length = len(audio)
         n_fft = min(self.n_fft, audio_length)
-        n_fft = 2 if n_fft < 2 else 2 ** int(np.log2(n_fft))  # noqa: PLR2004 - Small integer threshold
-
+        n_fft = 2 if n_fft < 2 else 2 ** int(np.log2(n_fft))
 
         hop_length = min(self.hop_length, n_fft // 4)
         hop_length = max(hop_length, 1)
@@ -693,8 +699,7 @@ class VoiceCloner:
         duration = len(audio) / sample_rate
         if duration < 1.0:
             duration_score = duration
-        elif duration > 10.0:  # noqa: PLR2004 - Threshold
-
+        elif duration > 10.0:
             duration_score = max(0.5, 1.0 - (duration - 10.0) / 20.0)
         else:
             duration_score = 1.0
@@ -702,11 +707,9 @@ class VoiceCloner:
 
         # 2. Energy check
         rms = np.sqrt(np.mean(audio**2))
-        if rms > 0.05:  # noqa: PLR2004 - Threshold value
-
+        if rms > 0.05:
             energy_score = 1.0
-        elif rms > 0.01:  # noqa: PLR2004 - Threshold value
-
+        elif rms > 0.01:
             energy_score = 0.7
         else:
             energy_score = 0.3
@@ -714,18 +717,16 @@ class VoiceCloner:
 
         # 3. Clipping check
         max_val = np.max(np.abs(audio))
-        clipping_score = 0.5 if max_val >= 0.99 else 1.0  # noqa: PLR2004 - Threshold value
+        clipping_score = 0.5 if max_val >= 0.99 else 1.0
 
         scores.append(clipping_score)
 
         # 4. Voice activity
         threshold = np.max(np.abs(audio)) * 0.1
         voice_ratio = np.sum(np.abs(audio) > threshold) / len(audio)
-        if 0.3 <= voice_ratio <= 0.9:  # noqa: PLR2004 - Threshold value
-
+        if 0.3 <= voice_ratio <= 0.9:
             voice_score = 1.0
-        elif voice_ratio < 0.3:  # noqa: PLR2004 - Threshold value
-
+        elif voice_ratio < 0.3:
             voice_score = voice_ratio / 0.3
         else:
             voice_score = 0.7

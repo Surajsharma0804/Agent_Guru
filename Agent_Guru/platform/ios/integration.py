@@ -323,7 +323,7 @@ class IOSIntegration:
         """Request microphone permission."""
         from pyobjus import autoclass
 
-        AVAudioSession = autoclass("AVAudioSession")  # noqa: N806
+        AVAudioSession = autoclass("AVAudioSession")
         session = AVAudioSession.sharedInstance()
 
         # Request permission (blocks until user responds)
@@ -336,7 +336,7 @@ class IOSIntegration:
         """Request camera permission."""
         from pyobjus import autoclass
 
-        AVCaptureDevice = autoclass("AVCaptureDevice")  # noqa: N806
+        AVCaptureDevice = autoclass("AVCaptureDevice")
 
         # Request permission
         AVCaptureDevice.requestAccessForMediaType_completionHandler_(
@@ -346,8 +346,7 @@ class IOSIntegration:
 
         # Check if granted
         status = AVCaptureDevice.authorizationStatusForMediaType_("vide")
-        return status == 3  # AVAuthorizationStatusAuthorized  # noqa: PLR2004 (Small integer threshold)
-
+        return status == 3  # AVAuthorizationStatusAuthorized
 
     def _request_notification_permission(self) -> bool:
         """Request notification permission."""
@@ -365,7 +364,7 @@ class IOSIntegration:
         """Request location permission."""
         from pyobjus import autoclass
 
-        CLLocationManager = autoclass("CLLocationManager")  # noqa: N806
+        CLLocationManager = autoclass("CLLocationManager")
         manager = CLLocationManager.alloc().init()
 
         # Request when-in-use authorization
@@ -428,11 +427,11 @@ class IOSIntegration:
         try:
             from pyobjus import autoclass
 
-            BGTaskScheduler = autoclass("BGTaskScheduler")  # noqa: N806
+            BGTaskScheduler = autoclass("BGTaskScheduler")
             scheduler = BGTaskScheduler.sharedScheduler()
 
             # Create task request
-            BGAppRefreshTaskRequest = autoclass("BGAppRefreshTaskRequest")  # noqa: N806
+            BGAppRefreshTaskRequest = autoclass("BGAppRefreshTaskRequest")
             request = BGAppRefreshTaskRequest.alloc().initWithIdentifier_(task_id)
 
             # Set earliest begin date
@@ -474,14 +473,14 @@ class IOSIntegration:
             center = self.UNUserNotificationCenter.currentNotificationCenter()
 
             # Create notification content
-            UNMutableNotificationContent = autoclass("UNMutableNotificationContent")  # noqa: N806
+            UNMutableNotificationContent = autoclass("UNMutableNotificationContent")
             content = UNMutableNotificationContent.alloc().init()
             content.setTitle_(title)
             content.setBody_(message)
             content.setSound_(autoclass("UNNotificationSound").defaultSound())
 
             # Create trigger (deliver immediately)
-            UNTimeIntervalNotificationTrigger = autoclass(  # noqa: N806
+            UNTimeIntervalNotificationTrigger = autoclass(
                 "UNTimeIntervalNotificationTrigger",
             )
             trigger = UNTimeIntervalNotificationTrigger.triggerWithTimeInterval_repeats_(
@@ -490,7 +489,7 @@ class IOSIntegration:
             )
 
             # Create request
-            UNNotificationRequest = autoclass("UNNotificationRequest")  # noqa: N806
+            UNNotificationRequest = autoclass("UNNotificationRequest")
             request = UNNotificationRequest.requestWithIdentifier_content_trigger_(
                 "agent_guru_notification",
                 content,

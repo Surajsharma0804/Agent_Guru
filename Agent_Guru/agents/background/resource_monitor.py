@@ -159,8 +159,7 @@ class ResourceMonitor:
         Validates: Requirement 12.5, 12.10
 
         """
-        if not 0.0 <= percent <= 100.0:  # noqa: PLR2004 - Percentage/large threshold
-
+        if not 0.0 <= percent <= 100.0:
             msg = f"Battery percent must be in [0, 100], got {percent}"
             raise ValueError(msg)
 

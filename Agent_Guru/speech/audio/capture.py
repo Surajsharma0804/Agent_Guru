@@ -35,7 +35,10 @@ class MicrophoneCapture(AudioCapture):
     """Captures audio from system microphone using sounddevice."""
 
     def __init__(
-        self, sample_rate: int = 16000, channels: int = 1, device: int | None = None,
+        self,
+        sample_rate: int = 16000,
+        channels: int = 1,
+        device: int | None = None,
     ) -> None:
         """Initialize microphone capture.
 
@@ -59,6 +62,7 @@ class MicrophoneCapture(AudioCapture):
         except Exception as e:
             msg = f"Failed to query audio device: {e}"
             raise AudioInputError(msg) from e
+
     def capture(self, duration: float | None = None) -> tuple[np.ndarray, int]:
         """Capture audio from microphone.
 
@@ -107,6 +111,7 @@ class MicrophoneCapture(AudioCapture):
         except Exception as e:
             msg = f"Failed to capture audio: {e}"
             raise AudioInputError(msg) from e
+
     @staticmethod
     def list_devices() -> list:
         """List available audio input devices.
@@ -130,6 +135,8 @@ class MicrophoneCapture(AudioCapture):
         except Exception:
             logger.exception("Failed to list devices")
             return []
+
+
 class FileCapture(AudioCapture):
     """Loads audio from files using soundfile."""
 
@@ -203,6 +210,7 @@ class FileCapture(AudioCapture):
             raise AudioInputError(msg) from e
             msg = f"Failed to load audio file: {e}"
             raise AudioInputError(msg) from e
+
     @staticmethod
     def get_file_info(file_path: str) -> dict:
         """Get information about an audio file.

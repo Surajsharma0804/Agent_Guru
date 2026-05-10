@@ -214,7 +214,7 @@ class SkillSandbox:
                 # Kill container on timeout
                 if process.pid:
                     subprocess.run(  # noqa: S603
-                        ["docker", "kill", str(process.pid)],  # noqa: S607
+                        ["docker", "kill", str(process.pid)],
                         check=False,
                         capture_output=True,
                     )

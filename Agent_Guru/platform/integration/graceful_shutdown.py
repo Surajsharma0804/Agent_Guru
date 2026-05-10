@@ -226,6 +226,7 @@ class GracefulShutdownManager:
                 "asyncio signal handlers not supported on this platform. "
                 "SIGTERM will not trigger graceful shutdown.",
             )
+
     # ─── In-Flight Tracking ───────────────────────────────────────────────
 
     def track_operation(self) -> "OperationTracker":
@@ -364,6 +365,7 @@ class GracefulShutdownManager:
             logger.debug("Shutdown state persisted to '%s'", self.state_file)
         except OSError as e:
             logger.exception("Failed to persist shutdown state to '%s': %s", self.state_file, e)
+
     # ─── Observability ────────────────────────────────────────────────────
 
     def get_status(self) -> dict[str, Any]:
@@ -408,7 +410,7 @@ class OperationTracker:
         self._manager._in_flight += 1
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:  # noqa: ANN401
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
         self._manager._in_flight = max(0, self._manager._in_flight - 1)
         return False
 
@@ -417,6 +419,6 @@ class OperationTracker:
         await self._manager._increment_in_flight()
         return self
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:  # noqa: ANN401
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
         await self._manager._decrement_in_flight()
         return False

@@ -137,7 +137,7 @@ class SkillLoader:
 
         return manifest
 
-    def _load_module(self, skill_dir: Path, entry_point: str) -> Any:  # noqa: ANN401
+    def _load_module(self, skill_dir: Path, entry_point: str) -> Any:
         """Load skill module.
 
         Args:
@@ -174,7 +174,7 @@ class SkillLoader:
 
         return module
 
-    async def _register_tools(self, module: Any, manifest: SkillManifest) -> None:  # noqa: ANN401
+    async def _register_tools(self, module: Any, manifest: SkillManifest) -> None:
         """Register tools from skill module.
 
         Args:
@@ -246,4 +246,3 @@ class SkillLoader:
 
         """
         return skill_id in self.loaded_skills
-

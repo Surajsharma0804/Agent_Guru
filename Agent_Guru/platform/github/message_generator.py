@@ -360,8 +360,7 @@ class CommitMessageGenerator:
 
         # Multiple components - return comma-separated list
         sorted_components = sorted(components)
-        if len(sorted_components) <= 3:  # noqa: PLR2004 - Small integer threshold
-
+        if len(sorted_components) <= 3:
             return ", ".join(sorted_components)
 
         return f"{', '.join(sorted_components[:3])}, ..."
@@ -437,8 +436,7 @@ class CommitMessageGenerator:
         )
 
         # Add file list if requested
-        if self.template.include_file_list and len(files) <= 20:  # noqa: PLR2004 - Threshold
-
+        if self.template.include_file_list and len(files) <= 20:
             body += "\nFiles:\n"
             for file_path in sorted(files):
                 body += f"- {file_path}\n"

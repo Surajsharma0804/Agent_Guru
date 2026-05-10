@@ -123,8 +123,7 @@ class ProcessInfo:
         if self.cpu_percent < 0:
             msg = f"Invalid CPU percent: {self.cpu_percent} (must be non-negative)"
             raise ValueError(msg)
-        if not 0 <= self.memory_percent <= 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if not 0 <= self.memory_percent <= 100:
             msg = f"Invalid memory percent: {self.memory_percent} (must be 0-100)"
             raise ValueError(msg)
         if self.create_time < 0:
@@ -264,6 +263,7 @@ class ProcessManager:
             logger.exception("Failed to list processes")
             msg = f"Failed to list processes: {e}"
             raise ProcessManagerError(msg) from e
+
     def start_process(self, executable: str, args: list[str] | None = None) -> int:
         """Start a new process.
 
@@ -323,6 +323,7 @@ class ProcessManager:
             logger.exception("Failed to start process")
             msg = f"Failed to start process '{executable}': {e}"
             raise ProcessStartError(msg) from e
+
     def terminate_process(self, pid: int, force: bool = False) -> bool:
         """Terminate a process.
 
@@ -385,6 +386,7 @@ class ProcessManager:
             logger.exception("Failed to terminate process PID=%d: %s")
             msg = f"Failed to terminate PID={pid}: {e}"
             raise ProcessTerminationError(msg) from e
+
     def get_process_status(self, pid: int) -> str:
         """Query process status.
 
@@ -423,6 +425,7 @@ class ProcessManager:
             logger.exception("Failed to query process status PID=%d: %s")
             msg = f"Failed to query status for PID={pid}: {e}"
             raise ProcessManagerError(msg) from e
+
     def get_process_info(self, pid: int) -> ProcessInfo:
         """Get detailed process information.
 
@@ -474,6 +477,7 @@ class ProcessManager:
             logger.exception("Failed to get process info PID=%d: %s")
             msg = f"Failed to get info for PID={pid}: {e}"
             raise ProcessManagerError(msg) from e
+
     def process_exists(self, pid: int) -> bool:
         """Check if process exists.
 

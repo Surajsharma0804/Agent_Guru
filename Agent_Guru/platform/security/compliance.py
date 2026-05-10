@@ -1432,11 +1432,11 @@ class ComplianceReporter:
 
     # Helper method for saving reports
 
-    def _save_report_json(self, report: Any, output_path: Path) -> None:  # noqa: ANN401
+    def _save_report_json(self, report: Any, output_path: Path) -> None:
         """Save report to JSON file."""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(asdict(report), f, indent=2, default=str)
 
         logger.info("report_saved", output_path=str(output_path))

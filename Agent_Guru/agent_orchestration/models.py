@@ -180,7 +180,7 @@ class Agent(BaseModel):
 
     @field_validator("successful_tasks")
     @classmethod
-    def validate_successful_tasks(cls, v: int, info) -> int:  # noqa: ANN001
+    def validate_successful_tasks(cls, v: int, info) -> int:
         """Validate that successful_tasks <= total_tasks."""
         # Note: info.data contains already-validated fields
         total = info.data.get("total_tasks", 0)

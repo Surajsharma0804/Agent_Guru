@@ -141,8 +141,7 @@ class VerifierClient:
                 url = f"{self.base_url}/api/v1/verify/validate"
                 async with self._session.post(url, json=request.to_dict()) as resp:
                     elapsed_ms = (time.monotonic() - start) * 1000
-                    if resp.status == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+                    if resp.status == 200:
                         body = await resp.json()
                         status = ValidationStatus(body.get("status", "uncertain"))
                         result = ValidationResult(
@@ -204,5 +203,5 @@ class VerifierClient:
         await self.connect()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):  # noqa: ANN001
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.disconnect()

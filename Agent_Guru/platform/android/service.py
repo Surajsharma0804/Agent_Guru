@@ -333,8 +333,7 @@ class AndroidForegroundService:
     def _create_notification_channel(self) -> None:
         """Create notification channel for Android 8.0+."""
         try:
-            if self.Build.VERSION.SDK_INT >= 26:  # Android 8.0+  # noqa: PLR2004 (Threshold)
-
+            if self.Build.VERSION.SDK_INT >= 26:  # Android 8.0+
                 nm = cast(
                     "android.app.NotificationManager",
                     self.context.getSystemService("notification"),
@@ -378,7 +377,7 @@ class AndroidForegroundService:
             msg = f"Failed to create notification: {e}"
             raise AndroidServiceError(msg) from e
 
-    def _show_notification(self, notification) -> None:  # noqa: ANN001
+    def _show_notification(self, notification) -> None:
         """Show notification."""
         try:
             nm = cast(

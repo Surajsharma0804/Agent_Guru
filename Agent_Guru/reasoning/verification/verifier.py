@@ -367,8 +367,7 @@ Respond in JSON format:
         for idx, step in enumerate(steps):
             # Extract resource from tool_id (e.g., "app.open" -> "app")
             parts = step.tool_id.split(".")
-            if len(parts) >= 2:  # noqa: PLR2004 - Small integer threshold
-
+            if len(parts) >= 2:
                 resource = parts[0]
                 action = parts[1]
 

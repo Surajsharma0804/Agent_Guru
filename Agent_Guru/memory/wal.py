@@ -134,7 +134,7 @@ def retry_with_backoff(
     fn: Callable[[], Any],
     max_retries: int = _MAX_RETRIES,
     base_delay: float = _BACKOFF_BASE,
-) -> Any:  # noqa: ANN401
+) -> Any:
     """Execute fn with exponential backoff on exception. Raises on final failure."""
     last_exc: Exception | None = None
     for attempt in range(max_retries):
@@ -170,7 +170,7 @@ class CircuitBreaker:
             return False
         return True
 
-    def call(self, fn: Callable[[], Any]) -> Any:  # noqa: ANN401
+    def call(self, fn: Callable[[], Any]) -> Any:
         if self.is_open:
             msg = "Circuit breaker is OPEN — call rejected"
             raise RuntimeError(msg)

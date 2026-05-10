@@ -261,8 +261,7 @@ class MobileHardwareMonitor:
             PermissionError: If WRITE_SETTINGS permission not granted
 
         """
-        if not 0 <= level <= 255:  # noqa: PLR2004 - Percentage/large threshold
-
+        if not 0 <= level <= 255:
             msg = f"Brightness level must be 0-255, got {level}"
             raise ValueError(msg)
 
@@ -401,8 +400,7 @@ class MobileHardwareMonitor:
         """
         # Check battery level
         battery = self.get_battery_info()
-        if battery and battery.percent < 20:  # noqa: PLR2004 - Threshold
-
+        if battery and battery.percent < 20:
             return True
 
         # Check thermal state
@@ -442,13 +440,11 @@ class MobileHardwareMonitor:
             return True, "High temperature - reducing processing"
 
         # Very low battery
-        if battery and battery.percent < 10:  # noqa: PLR2004 - Threshold
-
+        if battery and battery.percent < 10:
             return True, "Very low battery (<10%) - minimal processing"
 
         # Low battery
-        if battery and battery.percent < 20:  # noqa: PLR2004 - Threshold
-
+        if battery and battery.percent < 20:
             return True, "Low battery (<20%) - reduced processing"
 
         # Low power mode

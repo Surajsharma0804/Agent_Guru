@@ -54,7 +54,9 @@ class NotificationService:
     """
 
     def __init__(
-        self, slack_webhook_url: str | None = None, slack_channel: str | None = None,
+        self,
+        slack_webhook_url: str | None = None,
+        slack_channel: str | None = None,
     ) -> None:
         """Initialize notification service.
 
@@ -106,8 +108,7 @@ class NotificationService:
                     timeout=aiohttp.ClientTimeout(total=10),
                 ) as response,
             ):
-                if response.status == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+                if response.status == 200:
                     logger.info("slack_notification_sent")
                 else:
                     logger.warning(

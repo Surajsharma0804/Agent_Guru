@@ -240,7 +240,7 @@ class Intent(BaseModel):
             raise ValueError(msg)
         return v
 
-    def get_entity(self, key: str, default: Any = None) -> Any:  # noqa: ANN401
+    def get_entity(self, key: str, default: Any = None) -> Any:
         """Get entity value by key.
 
         Args:
@@ -281,8 +281,7 @@ class Intent(BaseModel):
 
         # Check if any alternative is close in confidence
         for _, alt_confidence in self.alternative_intents:
-            if abs(self.confidence - alt_confidence) < 0.2:  # noqa: PLR2004 - Threshold value
-
+            if abs(self.confidence - alt_confidence) < 0.2:
                 return True
 
         return False

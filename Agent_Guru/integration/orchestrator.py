@@ -318,6 +318,7 @@ class IntegrationOrchestrator:
             logger.info("Policy: seeded default allow policy for guru_pipeline")
         except Exception:
             logger.exception("Policy seed failed: %s — policy check will default to allow")
+
     async def _init_subsystem(self, name: str, subsystem: Any, device_cfg: Any = None) -> None:
         """Initialise a single subsystem, passing device_cfg if accepted."""
         try:
@@ -345,6 +346,7 @@ class IntegrationOrchestrator:
             logger.debug("Subsystem '%s' initialised", name)
         except Exception as exc:
             logger.exception("Subsystem '%s' init failed: %s — continuing", name, exc)
+
     # ------------------------------------------------------------------
     # Startup caches
     # ------------------------------------------------------------------
@@ -659,6 +661,7 @@ class IntegrationOrchestrator:
         except Exception:
             logger.exception("Vision pipeline error")
             return None
+
     # ------------------------------------------------------------------
     # Pipeline stage helpers
     # ------------------------------------------------------------------
@@ -732,13 +735,11 @@ class IntegrationOrchestrator:
                 return ("", "")
 
             # Skip if audio is too short or silent
-            if len(audio_np) < 1600:  # noqa: PLR2004 - Percentage/large threshold
-
+            if len(audio_np) < 1600:
                 logger.debug("STT: audio too short (%d samples), skipping", len(audio_np))
                 return ("", "")
             rms = float(np.sqrt(np.mean(audio_np**2)))
-            if rms < 0.0003:  # noqa: PLR2004 - Threshold value
-
+            if rms < 0.0003:
                 logger.debug("STT: audio too quiet (rms=%.5f), skipping", rms)
                 return ("", "")
 
@@ -783,8 +784,7 @@ class IntegrationOrchestrator:
                 if lang_prob is None:
                     # Try to get it from the info object if available
                     lang_prob = getattr(result, "language_confidence", None)
-                if lang_prob is not None and float(lang_prob) < 0.70:  # noqa: PLR2004 - Threshold value
-
+                if lang_prob is not None and float(lang_prob) < 0.70:
                     logger.info(
                         "STT: low language confidence (%.2f) for '%s' — defaulting to 'en'",
                         float(lang_prob),
@@ -808,6 +808,7 @@ class IntegrationOrchestrator:
         except Exception:
             logger.exception("STT stage error")
             return ("", "")
+
     async def _stage_memory(self, transcript: str) -> Any:
         """Stage 2: Retrieve memory context."""
         try:
@@ -821,6 +822,7 @@ class IntegrationOrchestrator:
         except Exception:
             logger.exception("Memory stage error")
             return None
+
     async def _stage_reasoning(self, transcript: str, memory_context: Any) -> Any:
         """Stage 3: Reasoning analysis.
 
@@ -868,6 +870,7 @@ class IntegrationOrchestrator:
         except Exception:
             logger.exception("Reasoning stage error")
             return None
+
     async def _stage_llm(
         self,
         transcript: str,
@@ -1040,6 +1043,7 @@ class IntegrationOrchestrator:
         except Exception:
             logger.exception("LLM stage error")
             return ""
+
     async def _stage_intent(self, llm_response: str) -> str:
         """Stage 5: Extract structured intent from the user's transcript.
 
@@ -1085,6 +1089,7 @@ class IntegrationOrchestrator:
         except Exception:
             logger.exception("Intent stage error")
             return llm_response.strip()[:200]
+
     @staticmethod
     def _clean_transcript(text: str) -> str:
         """Clean STT transcript noise before intent detection.
@@ -1355,6 +1360,7 @@ class IntegrationOrchestrator:
         except Exception:
             logger.exception("Policy stage error: %s — defaulting to deny for safety")
             return False  # Deny by default when policy check fails
+
     async def _stage_action(self, intent: str) -> Any:
         """Stage 7: Execute action via agent_orchestrator or OSController.
 
@@ -1422,10 +1428,9 @@ class IntegrationOrchestrator:
             parts = safe_intent.split(":", 3)
             intent_type = parts[0] if len(parts) > 0 else ""
             action = parts[1] if len(parts) > 1 else ""
-            param = parts[2] if len(parts) > 2 else ""  # noqa: PLR2004 - Small integer threshold
+            param = parts[2] if len(parts) > 2 else ""
 
-            level_str = parts[3] if len(parts) > 3 else ""  # noqa: PLR2004 - Small integer threshold
-
+            level_str = parts[3] if len(parts) > 3 else ""
 
             # The raw text the user actually said — used for feature detection
             # param holds the extracted parameter, safe_intent holds the full encoded intent
@@ -1480,6 +1485,7 @@ class IntegrationOrchestrator:
                                 _sd.wait()
                             except Exception as _e:
                                 logger.exception("Reminder TTS failed")
+
                         self._reminder_mgr.set_speak_callback(_speak_reminder)
                 msg = reminder_params.get("message", "reminder")
                 mins = reminder_params.get("minutes")
@@ -2052,6 +2058,7 @@ class IntegrationOrchestrator:
         except Exception:
             logger.exception("Action stage error")
             return None
+
     async def _get_browser_mgr(self) -> Any:
         """Return the BrowserManager, starting it on first call."""
         if self._browser_mgr is None:
@@ -2091,8 +2098,7 @@ class IntegrationOrchestrator:
                 result = await fn(text, pt)
             else:
                 result = await asyncio.to_thread(fn, text, pt)
-            if isinstance(result, tuple) and len(result) == 2:  # noqa: PLR2004 - Small integer threshold
-
+            if isinstance(result, tuple) and len(result) == 2:
                 audio_array, sample_rate = result
             elif isinstance(result, np.ndarray):
                 audio_array = result
@@ -2102,8 +2108,7 @@ class IntegrationOrchestrator:
                 wav_bytes = await fn(text, pt)
             else:
                 wav_bytes = await asyncio.to_thread(fn, text, pt)
-            if isinstance(wav_bytes, (bytes, bytearray)) and len(wav_bytes) > 44:  # noqa: PLR2004 - Threshold
-
+            if isinstance(wav_bytes, (bytes, bytearray)) and len(wav_bytes) > 44:
                 with io.BytesIO(wav_bytes) as buf, wave.open(buf, "rb") as wf:
                     sample_rate = wf.getframerate()
                     frames = wf.readframes(wf.getnframes())
@@ -2199,6 +2204,7 @@ class IntegrationOrchestrator:
                     )
                     try:
                         import pyttsx3  # type: ignore[import]
+
                         def _play_pyttsx3() -> None:
                             engine = pyttsx3.init()
                             # Match voice gender to personality
@@ -2222,6 +2228,7 @@ class IntegrationOrchestrator:
                             engine.setProperty("rate", 175)
                             engine.say(text)
                             engine.runAndWait()
+
                         loop = asyncio.get_running_loop()
                         await loop.run_in_executor(None, _play_pyttsx3)
                         logger.info("TTS played via pyttsx3 fallback")
@@ -2235,6 +2242,7 @@ class IntegrationOrchestrator:
         except Exception:
             logger.exception("TTS stage error")
             return text
+
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
@@ -2257,6 +2265,7 @@ class IntegrationOrchestrator:
         if not text:
             return text
         import html as _html_mod
+
         return _html_mod.escape(str(text), quote=True)
 
     @staticmethod
@@ -2277,6 +2286,7 @@ class IntegrationOrchestrator:
         if not text:
             return text
         import shlex as _shlex
+
         # Shell-quote for OS safety, then HTML-escape for any log/display output
         return _shlex.quote(str(text))
 

@@ -350,8 +350,7 @@ class ToolSelectionCache:
         self._tool_access_counts[tool_id] = self._tool_access_counts.get(tool_id, 0) + 1
 
         # Update hot path if tool is frequently used (>100 accesses)
-        if self._tool_access_counts[tool_id] > 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if self._tool_access_counts[tool_id] > 100:
             self._hot_path_tools.add(tool_id)
 
     def get_availability(self, tool_id: str) -> bool | None:

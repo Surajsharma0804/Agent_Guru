@@ -37,11 +37,11 @@ class AgentGuruBenchmark(BaseBenchmark):
         # Create temporary storage if not provided
         if storage_path is None:
             self.temp_dir = tempfile.mkdtemp()
-            storage_path = os.path.join(self.temp_dir, "benchmark.db")  # noqa: PTH118
+            storage_path = os.path.join(self.temp_dir, "benchmark.db")
             self.git_repo_path = self.temp_dir
         else:
             self.temp_dir = None
-            self.git_repo_path = os.path.dirname(storage_path)  # noqa: PTH120
+            self.git_repo_path = os.path.dirname(storage_path)
 
         # Initialize self-improvement engine
         self.engine = SelfImprovementEngine(
@@ -55,7 +55,7 @@ class AgentGuruBenchmark(BaseBenchmark):
         self.initial_success_rate: float | None = None
         self.task_count = 0
 
-    def execute_scenario(self, scenario: TestScenario) -> Any:  # noqa: ANN401
+    def execute_scenario(self, scenario: TestScenario) -> Any:
         """Execute a test scenario using Agent Guru engine.
 
         Args:
@@ -82,8 +82,7 @@ class AgentGuruBenchmark(BaseBenchmark):
             self.task_count += 1
 
             # Track initial success rate (first 10 tasks)
-            if self.task_count == 10:  # noqa: PLR2004 - Threshold
-
+            if self.task_count == 10:
                 self.initial_success_rate = self.successes / max(self.task_count, 1) * 100
 
             return result
@@ -92,7 +91,7 @@ class AgentGuruBenchmark(BaseBenchmark):
             self.task_count += 1
             return f"Error: {e!s}"
 
-    def _simulate_task_execution(self, scenario: TestScenario) -> Any:  # noqa: ANN401
+    def _simulate_task_execution(self, scenario: TestScenario) -> Any:
         """Simulate task execution with Agent Guru.
 
         This is a simplified simulation. In a real implementation,
@@ -184,7 +183,7 @@ class AgentGuruBenchmark(BaseBenchmark):
         # Default response
         return f"Processed: {question[:50]}..."
 
-    def run_benchmark(self, scenarios, warmup_runs=0) -> BenchmarkResult:  # noqa: ANN001
+    def run_benchmark(self, scenarios, warmup_runs=0) -> BenchmarkResult:
         """Run benchmark and calculate improvement metrics.
 
         Overrides base class to add improvement rate calculation.
@@ -201,8 +200,7 @@ class AgentGuruBenchmark(BaseBenchmark):
         result = super().run_benchmark(scenarios, warmup_runs)
 
         # Calculate improvement rate if we have enough data
-        if self.task_count >= 20 and self.initial_success_rate is not None:  # noqa: PLR2004 - Threshold
-
+        if self.task_count >= 20 and self.initial_success_rate is not None:
             final_success_rate = result.metrics.success_rate
 
             if self.initial_success_rate > 0:
@@ -228,7 +226,7 @@ class AgentGuruBenchmark(BaseBenchmark):
 
     def __del__(self) -> None:
         """Cleanup temporary directory if created."""
-        if self.temp_dir and os.path.exists(self.temp_dir):  # noqa: PTH110
+        if self.temp_dir and os.path.exists(self.temp_dir):
             import shutil
 
             try:

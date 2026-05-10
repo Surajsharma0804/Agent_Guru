@@ -51,7 +51,7 @@ MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 class FileReadTool(Tool):
     """Tool for reading files."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute file reading.
 
         Args:
@@ -113,6 +113,8 @@ class FileReadTool(Tool):
                 "success": False,
                 "error": f"Failed to read file: {e!s}",
             }
+
+
 @tool(
     tool_id="file.write",
     name="Write File",
@@ -157,7 +159,7 @@ class FileReadTool(Tool):
 class FileWriteTool(Tool):
     """Tool for writing files."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute file writing.
 
         Args:
@@ -207,6 +209,8 @@ class FileWriteTool(Tool):
                 "success": False,
                 "error": f"Failed to write file: {e!s}",
             }
+
+
 @tool(
     tool_id="file.delete",
     name="Delete File",
@@ -231,7 +235,7 @@ class FileWriteTool(Tool):
 class FileDeleteTool(Tool):
     """Tool for deleting files."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute file deletion.
 
         Args:
@@ -276,6 +280,8 @@ class FileDeleteTool(Tool):
                 "success": False,
                 "error": f"Failed to delete file: {e!s}",
             }
+
+
 @tool(
     tool_id="file.move",
     name="Move File",
@@ -306,7 +312,7 @@ class FileDeleteTool(Tool):
 class FileMoveTool(Tool):
     """Tool for moving/renaming files."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute file moving.
 
         Args:
@@ -358,6 +364,8 @@ class FileMoveTool(Tool):
                 "success": False,
                 "error": f"Failed to move file: {e!s}",
             }
+
+
 @tool(
     tool_id="file.copy",
     name="Copy File",
@@ -388,7 +396,7 @@ class FileMoveTool(Tool):
 class FileCopyTool(Tool):
     """Tool for copying files."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute file copying.
 
         Args:

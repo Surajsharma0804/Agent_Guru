@@ -133,8 +133,7 @@ class HallucinationDetector:
         # Aggregate: confidence = mean of technique scores
         # Lower score = more likely hallucination
         avg_score = sum(technique_scores) / len(technique_scores)
-        detected = avg_score < self._threshold or len(hallucination_types) >= 2  # noqa: PLR2004 - Small integer threshold
-
+        detected = avg_score < self._threshold or len(hallucination_types) >= 2
 
         return HallucinationDetectionResult(
             detected=detected,
@@ -196,8 +195,7 @@ class HallucinationDetector:
         words = len(text.split())
         contradiction_density = contradiction_count / max(words, 1)
 
-        if contradiction_density > 0.1:  # >10% contradiction markers  # noqa: PLR2004 (Threshold value)
-
+        if contradiction_density > 0.1:  # >10% contradiction markers
             return {
                 "flagged": True,
                 "score": max(0.2, 0.8 - contradiction_density),
@@ -208,8 +206,7 @@ class HallucinationDetector:
         # Simple heuristic: specific numbers/dates not in context
         specific_claims = re.findall(r"\b\d{4}\b|\b\d+%\b|\$\d+", text)
         unsupported = [c for c in specific_claims if c not in context_str]
-        if len(unsupported) > 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(unsupported) > 2:
             return {
                 "flagged": True,
                 "score": max(0.3, 0.85 - len(unsupported) * 0.1),
@@ -229,8 +226,7 @@ class HallucinationDetector:
         uncertainty_density = uncertainty_count / max(words, 1)
 
         # High uncertainty density suggests the model is guessing
-        if uncertainty_density > 0.05:  # >5% uncertainty markers  # noqa: PLR2004 (Threshold value)
-
+        if uncertainty_density > 0.05:  # >5% uncertainty markers
             score = max(0.3, 0.8 - uncertainty_density * 2)
             return {
                 "flagged": True,
@@ -255,8 +251,7 @@ class HallucinationDetector:
         words = len(text.split())
         fabrication_density = fabrication_count / max(words, 1)
 
-        if fabrication_density > 0.08:  # >8% fabrication markers  # noqa: PLR2004 (Threshold value)
-
+        if fabrication_density > 0.08:  # >8% fabrication markers
             score = max(0.2, 0.85 - fabrication_density * 2)
             return {
                 "flagged": True,

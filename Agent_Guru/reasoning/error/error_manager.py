@@ -274,8 +274,7 @@ class ErrorManager:
         self._error_history.append(error)
 
         # Keep only last 1000 errors
-        if len(self._error_history) > 1000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(self._error_history) > 1000:
             self._error_history = self._error_history[-1000:]
 
         return error

@@ -291,8 +291,7 @@ class AgentMerger:
         norm2 = np.linalg.norm(vec2)
 
         # Handle zero vectors (no specializations)
-        if norm1 < 1e-10 or norm2 < 1e-10:  # noqa: PLR2004 - Epsilon value
-
+        if norm1 < 1e-10 or norm2 < 1e-10:
             result = 0.0
         else:
             result = float(np.clip(dot_product / (norm1 * norm2), 0.0, 1.0))

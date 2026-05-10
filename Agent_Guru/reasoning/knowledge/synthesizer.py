@@ -80,6 +80,8 @@ try:
 except ImportError:
     ANTHROPIC_AVAILABLE = False
     anthropic: Any = None  # type: ignore[assignment]
+
+
 class LLMSynthesisResponse(BaseModel):
     """Structured response from LLM answer synthesis.
 
@@ -329,8 +331,7 @@ class KnowledgeSynthesizer:
             },
         )
 
-        if elapsed_ms > 1500:  # noqa: PLR2004 - Percentage/large threshold
-
+        if elapsed_ms > 1500:
             # Log warning but don't fail
             logger.warning(
                 "Knowledge query exceeded latency budget",
@@ -756,8 +757,7 @@ class KnowledgeSynthesizer:
                 timestamp_str = memory.timestamp.strftime("%Y-%m-%d %H:%M")
                 if timestamp_str in strongest_pattern.examples:
                     supporting_memories.append(str(memory.memory_id))
-                    if len(supporting_memories) >= 5:  # noqa: PLR2004 - Small integer threshold
-
+                    if len(supporting_memories) >= 5:
                         break
 
         return KnowledgeAnswer(
@@ -827,8 +827,7 @@ class KnowledgeSynthesizer:
             Pattern if detected, None otherwise
 
         """
-        if len(memories) < 3:  # Need at least 3 occurrences  # noqa: PLR2004 (Small integer threshold)
-
+        if len(memories) < 3:  # Need at least 3 occurrences
             return None
 
         # Group by hour of day
@@ -875,8 +874,7 @@ class KnowledgeSynthesizer:
             Pattern if detected, None otherwise
 
         """
-        if len(memories) < 3:  # Need at least 3 occurrences  # noqa: PLR2004 (Small integer threshold)
-
+        if len(memories) < 3:  # Need at least 3 occurrences
             return None
 
         # Group by day of week
@@ -920,8 +918,7 @@ class KnowledgeSynthesizer:
             Pattern if detected, None otherwise
 
         """
-        if len(memories) < 3:  # Need at least 3 occurrences  # noqa: PLR2004 (Small integer threshold)
-
+        if len(memories) < 3:  # Need at least 3 occurrences
             return None
 
         # Group by day of month
@@ -950,8 +947,7 @@ class KnowledgeSynthesizer:
         # Format day with ordinal suffix
         suffix = (
             "th"
-            if 11 <= most_common_day <= 13  # noqa: PLR2004 - Threshold
-
+            if 11 <= most_common_day <= 13
             else {1: "st", 2: "nd", 3: "rd"}.get(most_common_day % 10, "th")
         )
 
@@ -986,8 +982,7 @@ class KnowledgeSynthesizer:
             # Simple entity extraction (can be improved with NER)
             words = memory.content.split()
             for word in words:
-                if word[0].isupper() and len(word) > 2:  # Capitalized words  # noqa: PLR2004 (Small integer threshold)
-
+                if word[0].isupper() and len(word) > 2:  # Capitalized words
                     entity_mentions[word] += 1
 
         # Top entities
@@ -1039,8 +1034,7 @@ class KnowledgeSynthesizer:
             confidence = min(1.0, confidence + 0.1)
 
         # Reduce confidence if insufficient data
-        if len(memories) < 3:  # noqa: PLR2004 - Small integer threshold
-
+        if len(memories) < 3:
             confidence *= 0.7
 
         return round(confidence, 2)
@@ -1079,11 +1073,9 @@ class KnowledgeSynthesizer:
         days_ago = (datetime.now(tz=UTC) - most_recent.timestamp).days
         if days_ago == 0:
             recency_boost = 0.15  # Today
-        elif days_ago <= 7:  # noqa: PLR2004 - Threshold
-
+        elif days_ago <= 7:
             recency_boost = 0.10  # This week
-        elif days_ago <= 30:  # noqa: PLR2004 - Threshold
-
+        elif days_ago <= 30:
             recency_boost = 0.05  # This month
         else:
             recency_boost = 0.0  # Older
@@ -1091,11 +1083,9 @@ class KnowledgeSynthesizer:
         confidence = min(1.0, confidence + recency_boost)
 
         # Factor 2: Sample size boost (more memories = higher confidence)
-        if len(memories) >= 5:  # noqa: PLR2004 - Small integer threshold
-
+        if len(memories) >= 5:
             confidence = min(1.0, confidence + 0.10)
-        elif len(memories) >= 3:  # noqa: PLR2004 - Small integer threshold
-
+        elif len(memories) >= 3:
             confidence = min(1.0, confidence + 0.05)
         else:
             # Penalize small sample size
@@ -1107,8 +1097,7 @@ class KnowledgeSynthesizer:
             requested_days = (query.time_range.end - query.time_range.start).days
             if requested_days > 0:
                 coverage = min(1.0, time_span_days / requested_days)
-                if coverage > 0.8:  # noqa: PLR2004 - Threshold value
-
+                if coverage > 0.8:
                     confidence = min(1.0, confidence + 0.05)
 
         return round(confidence, 2)
@@ -1144,14 +1133,11 @@ class KnowledgeSynthesizer:
 
         # Factor 1: Sample size boost (statistical significance)
         sample_size = len(memories)
-        if sample_size >= 20:  # noqa: PLR2004 - Threshold
-
+        if sample_size >= 20:
             confidence = min(1.0, confidence + 0.15)  # Large sample
-        elif sample_size >= 10:  # noqa: PLR2004 - Threshold
-
+        elif sample_size >= 10:
             confidence = min(1.0, confidence + 0.10)  # Medium sample
-        elif sample_size >= 5:  # noqa: PLR2004 - Small integer threshold
-
+        elif sample_size >= 5:
             confidence = min(1.0, confidence + 0.05)  # Small sample
         else:
             # Penalize very small sample
@@ -1159,8 +1145,7 @@ class KnowledgeSynthesizer:
 
         # Factor 2: Distribution clarity (clear winner vs close race)
         top_entities = statistics.get("top_entities", [])
-        if len(top_entities) >= 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(top_entities) >= 2:
             top_count = top_entities[0]["count"]
             second_count = top_entities[1]["count"]
             if top_count > second_count * 2:
@@ -1172,8 +1157,7 @@ class KnowledgeSynthesizer:
             # Close race: no boost
 
         # Factor 3: Entity coverage
-        if len(top_entities) >= 3:  # noqa: PLR2004 - Small integer threshold
-
+        if len(top_entities) >= 3:
             # Multiple entities tracked = more comprehensive data
             confidence = min(1.0, confidence + 0.05)
 
@@ -1212,29 +1196,23 @@ class KnowledgeSynthesizer:
 
         # Factor 1: Pattern strength (frequency)
         strongest_pattern = max(patterns, key=lambda p: p.frequency)
-        if strongest_pattern.frequency >= 0.7:  # noqa: PLR2004 - Threshold value
-
+        if strongest_pattern.frequency >= 0.7:
             confidence = min(1.0, confidence + 0.15)  # Very strong pattern
-        elif strongest_pattern.frequency >= 0.5:  # noqa: PLR2004 - Threshold value
-
+        elif strongest_pattern.frequency >= 0.5:
             confidence = min(1.0, confidence + 0.10)  # Strong pattern
-        elif strongest_pattern.frequency >= 0.3:  # noqa: PLR2004 - Threshold value
-
+        elif strongest_pattern.frequency >= 0.3:
             confidence = min(1.0, confidence + 0.05)  # Moderate pattern
         # Weak pattern: no boost
 
         # Factor 2: Pattern consistency (multiple patterns detected)
-        if len(patterns) >= 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(patterns) >= 2:
             # Multiple patterns reinforce each other
             confidence = min(1.0, confidence + 0.10)
 
         # Factor 3: Sample size (more occurrences = more reliable pattern)
-        if len(memories) >= 10:  # noqa: PLR2004 - Threshold
-
+        if len(memories) >= 10:
             confidence = min(1.0, confidence + 0.10)
-        elif len(memories) >= 5:  # noqa: PLR2004 - Small integer threshold
-
+        elif len(memories) >= 5:
             confidence = min(1.0, confidence + 0.05)
         else:
             # Penalize small sample for pattern detection
@@ -1273,14 +1251,11 @@ class KnowledgeSynthesizer:
 
         # Factor 1: Memory relevance (first memory is most relevant)
         most_relevant = memories[0]
-        if most_relevant.relevance_score >= 0.9:  # noqa: PLR2004 - Threshold value
-
+        if most_relevant.relevance_score >= 0.9:
             confidence = min(1.0, confidence + 0.15)  # Highly relevant
-        elif most_relevant.relevance_score >= 0.7:  # noqa: PLR2004 - Threshold value
-
+        elif most_relevant.relevance_score >= 0.7:
             confidence = min(1.0, confidence + 0.10)  # Relevant
-        elif most_relevant.relevance_score >= 0.5:  # noqa: PLR2004 - Threshold value
-
+        elif most_relevant.relevance_score >= 0.5:
             confidence = min(1.0, confidence + 0.05)  # Moderately relevant
         # Low relevance: no boost
 
@@ -1293,12 +1268,10 @@ class KnowledgeSynthesizer:
                 confidence = min(1.0, confidence + 0.10)
 
         # Factor 3: Corroboration (multiple sources agree)
-        if len(memories) >= 3:  # noqa: PLR2004 - Small integer threshold
-
+        if len(memories) >= 3:
             # Multiple memories support the answer
             confidence = min(1.0, confidence + 0.10)
-        elif len(memories) >= 2:  # noqa: PLR2004 - Small integer threshold
-
+        elif len(memories) >= 2:
             confidence = min(1.0, confidence + 0.05)
 
         return round(confidence, 2)
@@ -1332,11 +1305,9 @@ class KnowledgeSynthesizer:
             time_ref = "today"
         elif days_ago == 1:
             time_ref = "yesterday"
-        elif days_ago < 7:  # noqa: PLR2004 - Threshold
-
+        elif days_ago < 7:
             time_ref = f"{days_ago} days ago"
-        elif days_ago < 30:  # noqa: PLR2004 - Threshold
-
+        elif days_ago < 30:
             weeks = days_ago // 7
             time_ref = f"{weeks} week{'s' if weeks > 1 else ''} ago"
         else:
@@ -1786,8 +1757,7 @@ Generate a natural language answer that directly addresses the query."""
         # Adjust confidence based on data availability
         if not memories:
             confidence *= 0.5  # Reduce confidence if no supporting data
-        elif len(memories) < 3:  # noqa: PLR2004 - Small integer threshold
-
+        elif len(memories) < 3:
             confidence *= 0.8  # Reduce confidence for small sample
 
         # Ensure confidence is within bounds

@@ -35,8 +35,7 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     """Cosine similarity in [-1.0, 1.0] (raw, not normalised to [0,1])."""
     norm_a = float(np.linalg.norm(a))
     norm_b = float(np.linalg.norm(b))
-    if norm_a < 1e-10 or norm_b < 1e-10:  # noqa: PLR2004 - Epsilon value
-
+    if norm_a < 1e-10 or norm_b < 1e-10:
         return 0.0
     return float(np.dot(a, b) / (norm_a * norm_b))
 
@@ -204,7 +203,7 @@ class BiometricAuthenticator:
         """
         # Local import to break circular dependency:
         # security -> speech -> security
-        from Agent_Guru.speech.engine import SpeechEngine  # noqa: PLC0415
+        from Agent_Guru.speech.engine import SpeechEngine
 
         # Reuse a cached engine instance to avoid re-initializing on every call
         if not hasattr(self, "_speech_engine") or self._speech_engine is None:
@@ -226,7 +225,7 @@ class BiometricAuthenticator:
         """
         # Local import to break circular dependency:
         # security -> speech -> security
-        from Agent_Guru.speech.engine import SpeechEngine  # noqa: PLC0415
+        from Agent_Guru.speech.engine import SpeechEngine
 
         # Reuse a cached engine instance to avoid re-initializing on every call
         if not hasattr(self, "_speech_engine") or self._speech_engine is None:

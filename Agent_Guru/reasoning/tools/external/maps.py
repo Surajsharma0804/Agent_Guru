@@ -45,7 +45,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class GetWeatherTool(Tool):
     """Tool for getting weather information."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute weather retrieval.
 
         Args:
@@ -135,7 +135,7 @@ class GetWeatherTool(Tool):
 class GetDirectionsTool(Tool):
     """Tool for getting directions."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute directions retrieval.
 
         Args:
@@ -237,7 +237,7 @@ class GetDirectionsTool(Tool):
 class SearchPlacesTool(Tool):
     """Tool for searching places."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute place search.
 
         Args:
@@ -268,8 +268,7 @@ class SearchPlacesTool(Tool):
             }
 
         # Validate radius
-        if radius <= 0 or radius > 50000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if radius <= 0 or radius > 50000:
             return {
                 "success": False,
                 "error": "Radius must be between 1 and 50000 meters",

@@ -346,7 +346,7 @@ class BrowserManager:
                     timeout=aiohttp.ClientTimeout(total=1),
                 ) as r,
             ):
-                return r.status == 200  # noqa: PLR2004 - Percentage/large threshold
+                return r.status == 200
 
         except Exception:
             logger.exception("Operation failed")
@@ -356,10 +356,11 @@ class BrowserManager:
 
             async with httpx.AsyncClient() as c:
                 r = await c.get(f"{_CDP_URL}/json/version", timeout=1.0)
-                return r.status_code == 200  # noqa: PLR2004 - Percentage/large threshold
+                return r.status_code == 200
 
         except Exception:
             return False
+
     async def _get_or_create_page(self) -> Any:
         """Get the current page or open a new tab."""
         if self._browser is None:

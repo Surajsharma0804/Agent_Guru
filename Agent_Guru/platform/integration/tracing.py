@@ -90,13 +90,11 @@ class SpanContext:
         """
         traceparent = headers.get("traceparent", "")
         parts = traceparent.split("-")
-        if len(parts) != 4 or parts[0] != "00":  # noqa: PLR2004 - Small integer threshold
-
+        if len(parts) != 4 or parts[0] != "00":
             return None
 
         _, trace_id, span_id, flags = parts
-        if len(trace_id) != 32 or len(span_id) != 16:  # noqa: PLR2004 - Threshold
-
+        if len(trace_id) != 32 or len(span_id) != 16:
             return None
 
         sampled = flags == "01"
@@ -183,7 +181,7 @@ class Span:
         """True if span has been finished."""
         return self.end_time is not None
 
-    def set_attribute(self, key: str, value: Any) -> None:  # noqa: ANN401
+    def set_attribute(self, key: str, value: Any) -> None:
         """Set a span attribute.
 
         Args:
@@ -467,7 +465,7 @@ class SpanManager:
     def __enter__(self) -> Span | None:
         return self.span
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:  # noqa: ANN401
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
         if self.span is not None:
             error = str(exc_val) if exc_val is not None else None
             self._tracer.finish_span(self.span, error=error)
@@ -477,7 +475,7 @@ class SpanManager:
     async def __aenter__(self) -> Span | None:
         return self.span
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:  # noqa: ANN401
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
         if self.span is not None:
             error = str(exc_val) if exc_val is not None else None
             self._tracer.finish_span(self.span, error=error)

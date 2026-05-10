@@ -65,7 +65,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class CreateCalendarEventTool(Tool):
     """Tool for creating calendar events."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute calendar event creation.
 
         Args:
@@ -172,7 +172,7 @@ class CreateCalendarEventTool(Tool):
 class GetCalendarEventsTool(Tool):
     """Tool for retrieving calendar events."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute calendar event retrieval.
 
         Args:
@@ -206,8 +206,7 @@ class GetCalendarEventsTool(Tool):
             }
 
         # Validate max_results
-        if max_results <= 0 or max_results > 1000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if max_results <= 0 or max_results > 1000:
             return {
                 "success": False,
                 "error": "max_results must be between 1 and 1000",

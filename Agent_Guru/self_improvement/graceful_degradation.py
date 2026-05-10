@@ -62,9 +62,9 @@ class GracefulDegradationHandler:
     def wrap_operation(
         self,
         operation: Callable[[], Any],
-        fallback_value: Any = None,  # noqa: ANN401
+        fallback_value: Any = None,
         operation_name: str = "operation",
-    ) -> Any:  # noqa: ANN401
+    ) -> Any:
         """Wrap an operation with graceful degradation.
 
         If operation fails, logs error and returns fallback value.
@@ -98,11 +98,9 @@ class GracefulDegradationHandler:
             self.last_failure = datetime.now(tz=UTC)
 
             # Update degradation mode based on failure count
-            if self.failure_count >= 10:  # noqa: PLR2004 - Threshold
-
+            if self.failure_count >= 10:
                 self.mode = DegradationMode.FALLBACK
-            elif self.failure_count >= 3:  # noqa: PLR2004 - Small integer threshold
-
+            elif self.failure_count >= 3:
                 self.mode = DegradationMode.DEGRADED
 
             self.logger.exception(
@@ -123,7 +121,7 @@ class GracefulDegradationHandler:
         self,
         get_strategy_func: Callable[[], Any],
         task_type: str,
-    ) -> Any:  # noqa: ANN401
+    ) -> Any:
         """Get optimal strategy with fallback.
 
         Args:
@@ -217,7 +215,9 @@ class SelfImprovementEngineWrapper:
     """
 
     def __init__(
-        self, engine: Any, degradation_handler: GracefulDegradationHandler | None = None,  # noqa: ANN401
+        self,
+        engine: Any,
+        degradation_handler: GracefulDegradationHandler | None = None,
     ) -> None:
         """Initialize wrapper.
 
@@ -255,7 +255,7 @@ class SelfImprovementEngineWrapper:
 
         self.degradation_handler.record_execution_with_fallback(record_func=record, task_id=task_id)
 
-    def get_optimal_strategy(self, task_type: str, context: dict | None = None) -> Any:  # noqa: ANN401
+    def get_optimal_strategy(self, task_type: str, context: dict | None = None) -> Any:
         """Get optimal strategy with fallback."""
 
         def get_strategy():

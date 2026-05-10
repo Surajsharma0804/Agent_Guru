@@ -209,7 +209,7 @@ class RequestQueue:
         priority: Priority = Priority.NORMAL,
         *args,
         **kwargs,
-    ) -> Any:  # noqa: ANN401
+    ) -> Any:
         """Enqueue a request for processing.
 
         Args:
@@ -412,7 +412,7 @@ async def enqueue_request(
     priority: Priority = Priority.NORMAL,
     *args,
     **kwargs,
-) -> Any:  # noqa: ANN401
+) -> Any:
     """Enqueue a request (convenience function).
 
     Args:

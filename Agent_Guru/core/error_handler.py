@@ -183,7 +183,7 @@ class RetryPolicy:
         self._backoff_factor = backoff_factor
         self._retryable = retryable_exceptions or (Exception,)
 
-    def execute(self, func: Callable, *args, **kwargs) -> Any:  # noqa: ANN401
+    def execute(self, func: Callable, *args, **kwargs) -> Any:
         """Execute function with retry on failure.
 
         Time Complexity: O(max_retries)
@@ -288,7 +288,7 @@ class ErrorLogger:
         with self._lock:
             self._rotate_if_needed()
             try:
-                with open(self._log_path, "a", encoding="utf-8") as f:  # noqa: PTH123
+                with open(self._log_path, "a", encoding="utf-8") as f:
                     f.write(json.dumps(record.to_dict()) + "\n")
             except OSError:
                 logger.exception("ErrorLogger: could not write to %s", self._log_path)
@@ -318,7 +318,7 @@ class ErrorLogger:
 
         records = []
         try:
-            with open(self._log_path, encoding="utf-8") as f:  # noqa: PTH123
+            with open(self._log_path, encoding="utf-8") as f:
                 lines = f.readlines()
             for line in lines[-n:]:
                 try:

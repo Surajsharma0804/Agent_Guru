@@ -124,7 +124,7 @@ class PreferenceLearner:
         user_id: str,
         preference_type: PreferenceType,
         preference_key: str,
-        preference_value: Any,  # noqa: ANN401
+        preference_value: Any,
         learned_from: str = "behavior",
         metadata: dict | None = None,
     ) -> UserPreference:
@@ -510,8 +510,7 @@ class PreferenceLearner:
             "high_confidence": [
                 {"key": p.preference_key, "value": p.preference_value, "confidence": p.confidence}
                 for p in prefs
-                if p.confidence >= 0.8  # noqa: PLR2004 - Threshold value
-
+                if p.confidence >= 0.8
             ],
         }
 

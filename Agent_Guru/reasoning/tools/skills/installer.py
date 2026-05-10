@@ -405,7 +405,7 @@ class SkillInstaller:
         stats_path = self.skills_dir / "usage_stats.json"
         if stats_path.exists():
             try:
-                with open(stats_path, encoding="utf-8") as f:  # noqa: PTH123
+                with open(stats_path, encoding="utf-8") as f:
                     self._usage_stats = json.load(f)
             except Exception as e:
                 _logger.warning("Failed to load usage stats: %s", e)

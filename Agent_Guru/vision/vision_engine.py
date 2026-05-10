@@ -208,7 +208,7 @@ class VisionEngine:
     # Module handlers (registered with FrameDispatcher)
     # ------------------------------------------------------------------
 
-    async def _handle_scene(self, frame: np.ndarray, frame_seq: int) -> Any:  # noqa: ANN401
+    async def _handle_scene(self, frame: np.ndarray, frame_seq: int) -> Any:
         if self._object_detector is None:
             return None
         with self._obs.time_module("scene"):
@@ -231,37 +231,37 @@ class VisionEngine:
             "relations": relations,
         }
 
-    async def _handle_depth(self, frame: np.ndarray, frame_seq: int) -> Any:  # noqa: ANN401
+    async def _handle_depth(self, frame: np.ndarray, frame_seq: int) -> Any:
         if self._depth_estimator is None:
             return None
         with self._obs.time_module("depth"):
             return await self._depth_estimator.estimate(frame)
 
-    async def _handle_ocr(self, frame: np.ndarray, frame_seq: int) -> Any:  # noqa: ANN401
+    async def _handle_ocr(self, frame: np.ndarray, frame_seq: int) -> Any:
         if self._ocr_engine is None:
             return None
         with self._obs.time_module("ocr"):
             return await self._ocr_engine.extract(frame)
 
-    async def _handle_handwriting(self, frame: np.ndarray, frame_seq: int) -> Any:  # noqa: ANN401
+    async def _handle_handwriting(self, frame: np.ndarray, frame_seq: int) -> Any:
         if self._handwriting_recognizer is None:
             return None
         with self._obs.time_module("handwriting"):
             return await self._handwriting_recognizer.recognize(frame)
 
-    async def _handle_gesture(self, frame: np.ndarray, frame_seq: int) -> Any:  # noqa: ANN401
+    async def _handle_gesture(self, frame: np.ndarray, frame_seq: int) -> Any:
         if self._gesture_recognizer is None:
             return None
         with self._obs.time_module("gesture"):
             return await self._gesture_recognizer.process_frame(frame)
 
-    async def _handle_pose(self, frame: np.ndarray, frame_seq: int) -> Any:  # noqa: ANN401
+    async def _handle_pose(self, frame: np.ndarray, frame_seq: int) -> Any:
         if self._pose_estimator is None:
             return None
         with self._obs.time_module("pose"):
             return await self._pose_estimator.estimate(frame)
 
-    async def _handle_activity(self, frame: np.ndarray, frame_seq: int) -> Any:  # noqa: ANN401
+    async def _handle_activity(self, frame: np.ndarray, frame_seq: int) -> Any:
         if self._activity_recognizer is None:
             return None
         self._activity_recognizer.push_frame(frame)

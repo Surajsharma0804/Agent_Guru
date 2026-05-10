@@ -54,7 +54,7 @@ class OllamaAdapter(ProviderAdapter):
         self.config = config
         self._client: Any | None = None
 
-    def _get_client(self) -> Any:  # noqa: ANN401
+    def _get_client(self) -> Any:
         """Lazy-initialize the Ollama async client."""
         if self._client is None:
             import ollama  # type: ignore[import]

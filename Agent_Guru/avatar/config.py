@@ -215,7 +215,7 @@ class ConfigWatcher:
     def __init__(
         self,
         config_path: str,
-        callback: Any,  # noqa: ANN401
+        callback: Any,
         poll_interval: float = 2.0,
     ) -> None:
         self._config_path = Path(config_path).resolve()

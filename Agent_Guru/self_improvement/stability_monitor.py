@@ -179,8 +179,7 @@ class StabilityMonitor:
         """
         if metric_name:
             key = f"{component}:{metric_name}"
-            if key not in self._change_history or len(self._change_history[key]) < 2:  # noqa: PLR2004 - Small integer threshold
-
+            if key not in self._change_history or len(self._change_history[key]) < 2:
                 return True, None
 
             metrics = self._calculate_stability_metrics(component, metric_name, key)
@@ -228,8 +227,7 @@ class StabilityMonitor:
         timestamps = [t for t, _ in history]
 
         # Calculate variance
-        if len(values) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(values) < 2:
             variance = 0.0
         else:
             mean = sum(values) / len(values)
@@ -284,8 +282,7 @@ class StabilityMonitor:
         unique_values = list(set(recent))
 
         # If there are more than 3 unique values, it's likely a trend, not oscillation
-        if len(unique_values) > 3:  # noqa: PLR2004 - Small integer threshold
-
+        if len(unique_values) > 3:
             return False
 
         # If only 1 unique value, no oscillation
@@ -311,8 +308,7 @@ class StabilityMonitor:
         # For oscillation, values should appear multiple times (alternating)
         # If each value appears only once, it's a trend, not oscillation
         min_appearances = min(value_counts.values())
-        return not min_appearances < 2  # noqa: PLR2004 - Small integer threshold
-
+        return not min_appearances < 2
 
     def apply_dampening(
         self,
@@ -403,8 +399,7 @@ class StabilityMonitor:
             change_magnitude = abs(proposed_value - current_value)
 
             # Block very large changes (>50% of current value)
-            if change_magnitude > 0.5:  # noqa: PLR2004 - Threshold value
-
+            if change_magnitude > 0.5:
                 return (
                     False,
                     f"Change too large: {change_magnitude:.3f} "
@@ -447,8 +442,7 @@ class StabilityMonitor:
                 continue
 
             # Only check if we have enough data
-            if len(self._change_history[key]) < 2:  # noqa: PLR2004 - Small integer threshold
-
+            if len(self._change_history[key]) < 2:
                 continue
 
             is_stable, metrics = self.check_stability(comp, metric)
@@ -549,9 +543,7 @@ class StabilityMonitor:
             # Use timestamp with microseconds and a random suffix for uniqueness
             import secrets
 
-            metric_id = (
-                f"{component}_{metric_name}_{timestamp.timestamp()}_{secrets.randbelow(999999 - 0 + 1) + 0}"
-            )
+            metric_id = f"{component}_{metric_name}_{timestamp.timestamp()}_{secrets.randbelow(999999 - 0 + 1) + 0}"
 
             cursor.execute(
                 """

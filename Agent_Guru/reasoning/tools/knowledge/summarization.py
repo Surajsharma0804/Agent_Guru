@@ -45,7 +45,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class SummarizeTextTool(Tool):
     """Tool for summarizing text."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute text summarization.
 
         Args:
@@ -67,8 +67,7 @@ class SummarizeTextTool(Tool):
             }
 
         # Validate max_length
-        if max_length <= 0 or max_length > 1000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if max_length <= 0 or max_length > 1000:
             return {
                 "success": False,
                 "error": "max_length must be between 1 and 1000",
@@ -132,7 +131,7 @@ class SummarizeTextTool(Tool):
 class SummarizeArticleTool(Tool):
     """Tool for summarizing articles."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute article summarization.
 
         Args:
@@ -154,8 +153,7 @@ class SummarizeArticleTool(Tool):
             }
 
         # Validate max_length
-        if max_length <= 0 or max_length > 1000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if max_length <= 0 or max_length > 1000:
             return {
                 "success": False,
                 "error": "max_length must be between 1 and 1000",
@@ -215,7 +213,7 @@ class SummarizeArticleTool(Tool):
 class SummarizeDocumentTool(Tool):
     """Tool for summarizing documents."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute document summarization.
 
         Args:
@@ -237,8 +235,7 @@ class SummarizeDocumentTool(Tool):
             }
 
         # Validate max_length
-        if max_length <= 0 or max_length > 1000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if max_length <= 0 or max_length > 1000:
             return {
                 "success": False,
                 "error": "max_length must be between 1 and 1000",

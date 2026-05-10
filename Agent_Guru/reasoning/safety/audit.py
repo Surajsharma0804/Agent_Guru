@@ -459,7 +459,7 @@ class AuditLogger:
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_file, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_file, "w", encoding="utf-8") as f:
             json.dump(entries_dict, f, indent=2)
 
         logger.info(

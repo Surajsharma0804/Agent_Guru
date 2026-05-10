@@ -111,13 +111,13 @@ class GoalManager:
         self,
         storage_path: str | None = None,
         git_repo_path: str = ".",
-        llm_runtime: Any = None,  # noqa: ANN401
-        agent_orchestration: Any = None,  # noqa: ANN401
-        memory_system: Any = None,  # noqa: ANN401
-        self_improvement_engine: Any = None,  # noqa: ANN401
+        llm_runtime: Any = None,
+        agent_orchestration: Any = None,
+        memory_system: Any = None,
+        self_improvement_engine: Any = None,
         db_path: str | None = None,  # Alias for storage_path
-        storage: Any | None = None,  # Direct storage injection (for tests)  # noqa: ANN401
-        git_repo: Any | None = None,  # Unused, accepted for test compat  # noqa: ANN401
+        storage: Any | None = None,  # Direct storage injection (for tests)
+        git_repo: Any | None = None,  # Unused, accepted for test compat
     ) -> None:
         """Initialize Goal Manager with all dependencies.
 
@@ -553,7 +553,7 @@ class GoalManager:
             return []
         return [goal]
 
-    async def retry_goal(self, goal_id: str) -> Any:  # noqa: ANN401
+    async def retry_goal(self, goal_id: str) -> Any:
         """Retry a failed goal.
 
         Resets status to PENDING and re-executes.

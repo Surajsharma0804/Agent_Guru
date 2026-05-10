@@ -344,6 +344,7 @@ class ParallelExecutor:
                 execution_time=execution_time,
                 action_id=step.step_id,
             )
+
     def detect_independent_steps(self, steps: list[StepExecution]) -> list[list[str]]:
         """Detect which steps can be executed in parallel.
 

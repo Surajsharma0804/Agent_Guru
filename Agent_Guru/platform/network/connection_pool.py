@@ -295,6 +295,7 @@ class ConnectionPoolManager:
         except AttributeError:
             # Fallback if internal API changes
             return {}
+
     async def record_connection_activity(
         self,
         host: str,
@@ -421,6 +422,6 @@ class ConnectionPoolManager:
         await self.start_cleanup()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):  # noqa: ANN001
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         await self.close()

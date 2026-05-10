@@ -174,8 +174,7 @@ class PreferenceLearningEngine:
         # Use the most recent preference's evidence
         pref = max(prefs, key=lambda p: p.updated_at)
         recent = sorted(pref.evidence, key=lambda e: e.timestamp)[-window:]
-        if len(recent) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(recent) < 2:
             return {"shift_detected": False, "direction": None}
 
         weights = [e.weight for e in recent]

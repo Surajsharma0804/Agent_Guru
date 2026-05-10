@@ -220,7 +220,7 @@ class RetryStrategy:
         )
         return RetryDecision.RETRY
 
-    def execute(self, operation: Callable[..., T], *args: Any, **kwargs: Any) -> RetryResult:  # noqa: ANN401
+    def execute(self, operation: Callable[..., T], *args: Any, **kwargs: Any) -> RetryResult:
         """Execute operation with retry logic.
 
         Time Complexity: O(max_attempts) worst case
@@ -314,8 +314,8 @@ class RetryStrategy:
     async def execute_async(
         self,
         operation: Callable[..., T],
-        *args: Any,  # noqa: ANN401
-        **kwargs: Any,  # noqa: ANN401
+        *args: Any,
+        **kwargs: Any,
     ) -> RetryResult:
         """Execute async operation with retry logic.
 

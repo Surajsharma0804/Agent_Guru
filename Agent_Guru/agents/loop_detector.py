@@ -57,12 +57,10 @@ class LoopDetector:
         Validates: Requirements 11.3, 11.4
 
         """
-        if pattern_window < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if pattern_window < 2:
             msg = "pattern_window must be >= 2"
             raise ValueError(msg)
-        if repetition_threshold < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if repetition_threshold < 2:
             msg = "repetition_threshold must be >= 2"
             raise ValueError(msg)
         if repetition_threshold > pattern_window:
@@ -129,8 +127,7 @@ class LoopDetector:
             return True
 
         # Pattern 2: alternating A-B-A-B (requires at least 4 actions)
-        if len(recent) >= 4:  # noqa: PLR2004 - Small integer threshold
-
+        if len(recent) >= 4:
             pattern = recent[:2]
             if all(recent[i] == pattern[i % 2] for i in range(len(recent))):
                 return True

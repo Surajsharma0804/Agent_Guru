@@ -351,11 +351,9 @@ class GoalManagerClient:
         payload = notification.to_dict()
 
         async with self._session.post(url, json=payload) as response:
-            if response.status == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+            if response.status == 200:
                 return NotificationStatus.SENT
-            if response.status == 429:  # noqa: PLR2004 - Percentage/large threshold
-
+            if response.status == 429:
                 # Rate limited, should retry
                 logger.warning("Goal Manager rate limit exceeded")
                 return NotificationStatus.RETRYING
@@ -461,6 +459,6 @@ class GoalManagerClient:
         await self.connect()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):  # noqa: ANN001
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.disconnect()

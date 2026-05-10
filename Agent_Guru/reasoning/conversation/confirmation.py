@@ -159,8 +159,7 @@ class ConfirmationRules:
             1 for step in task.steps if step.tool_id in ConfirmationRules.SENSITIVE_TOOLS
         )
 
-        return sensitive_count >= 2  # noqa: PLR2004 - Small integer threshold
-
+        return sensitive_count >= 2
 
     @staticmethod
     def get_risk_level(category: SensitiveActionCategory, task: Task) -> str:

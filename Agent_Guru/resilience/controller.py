@@ -52,7 +52,7 @@ class DegradationController:
         try:
             async with httpx.AsyncClient(timeout=NETWORK_CHECK_TIMEOUT_S) as client:
                 resp = await client.head(NETWORK_CHECK_URL)
-                self._online = resp.status_code < 500  # noqa: PLR2004 - Percentage/large threshold
+                self._online = resp.status_code < 500
 
         except Exception as e:
             logger.debug("Network check failed: %s", e)

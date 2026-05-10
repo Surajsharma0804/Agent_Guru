@@ -145,8 +145,7 @@ class SystemSettingsController:
             the operation fails.
 
         """
-        if not (0 <= level <= 100):  # noqa: PLR2004 - Percentage/large threshold
-
+        if not (0 <= level <= 100):
             logger.warning("adjust_volume: invalid level %d (must be 0-100)", level)
             return False
 
@@ -202,8 +201,7 @@ class SystemSettingsController:
             the operation fails.
 
         """
-        if not (0 <= level <= 100):  # noqa: PLR2004 - Percentage/large threshold
-
+        if not (0 <= level <= 100):
             logger.warning("adjust_brightness: invalid level %d (must be 0-100)", level)
             return False
 

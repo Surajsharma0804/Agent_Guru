@@ -135,6 +135,8 @@ def _download(url: str, dest: Path) -> None:
             tmp.unlink(missing_ok=True)
         msg = f"Failed to download {dest.name}: {exc}"
         raise TTSError(msg, exc) from exc
+
+
 # ---------------------------------------------------------------------------
 # KokoroTTSEngine  (primary engine)
 # ---------------------------------------------------------------------------
@@ -229,8 +231,7 @@ class KokoroTTSEngine:
         if not text or not text.strip():
             msg = "Text cannot be empty"
             raise TTSError(msg)
-        if not 0.5 <= speech_rate <= 2.0:  # noqa: PLR2004 - Threshold
-
+        if not 0.5 <= speech_rate <= 2.0:
             msg = f"speech_rate must be in [0.5, 2.0], got {speech_rate}"
             raise TTSError(msg)
         if not 0.0 <= volume <= 1.0:
@@ -324,6 +325,8 @@ class KokoroTTSEngine:
             raise TTSError(msg, exc) from exc
             msg = f"Failed to load Kokoro model: {exc}"
             raise TTSError(msg, exc) from exc
+
+
 # ---------------------------------------------------------------------------
 # Pyttsx3 fallback engine
 # ---------------------------------------------------------------------------
@@ -370,6 +373,7 @@ class _Pyttsx3Engine:
         except Exception as exc:
             _logger.warning("pyttsx3 unavailable: %s", exc)
             return False
+
     def synthesize(
         self,
         text: str,
@@ -399,14 +403,16 @@ class _Pyttsx3Engine:
                 try:
                     self._engine.save_to_file(text, tmp)
                     self._engine.runAndWait()
-                    with open(tmp, "rb") as f:  # noqa: PTH123
+                    with open(tmp, "rb") as f:
                         return f.read()
                 finally:
-                    if os.path.exists(tmp):  # noqa: PTH110
-                        os.unlink(tmp)  # noqa: PTH108
+                    if os.path.exists(tmp):
+                        os.unlink(tmp)
             except Exception as exc:
                 _logger.warning("pyttsx3 synthesis failed: %s", exc)
                 return _silence_wav(text)
+
+
 # ---------------------------------------------------------------------------
 # Unified engine (used by the rest of the project)
 # ---------------------------------------------------------------------------
@@ -610,8 +616,7 @@ def _wav_to_array(wav_bytes: bytes) -> tuple[np.ndarray, int]:
             sr = wf.getframerate()
             frames = wf.readframes(wf.getnframes())
             sw = wf.getsampwidth()
-        if sw == 2:  # noqa: PLR2004 - Small integer threshold
-
+        if sw == 2:
             audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
         elif sw == 1:
             audio = (np.frombuffer(frames, dtype=np.uint8).astype(np.float32) - 128) / 128.0
@@ -620,6 +625,8 @@ def _wav_to_array(wav_bytes: bytes) -> tuple[np.ndarray, int]:
         return audio, sr
     except Exception:
         return np.zeros(12000, dtype=np.float32), 24000
+
+
 def _silence_wav(text: str, sample_rate: int = 24000) -> bytes:
     """Generate silence WAV proportional to text length."""
     words = max(1, len(text.split()))

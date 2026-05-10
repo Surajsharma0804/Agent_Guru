@@ -41,7 +41,7 @@ class OutputValidator:
 
     def validate(
         self,
-        output: Any,  # noqa: ANN401
+        output: Any,
         expected_schema: dict[str, Any] | None = None,
         expected_format: str | None = None,
     ) -> OutputValidationResult:
@@ -110,7 +110,7 @@ class OutputValidator:
             return "markdown"
         return "text"
 
-    def _validate_format(self, output: Any, expected_format: str) -> list[ValidationViolation]:  # noqa: ANN401
+    def _validate_format(self, output: Any, expected_format: str) -> list[ValidationViolation]:
         """Validate that output matches expected format."""
         violations: list[ValidationViolation] = []
         fmt = expected_format.lower()
@@ -183,7 +183,7 @@ class OutputValidator:
 
     def _validate_schema(
         self,
-        output: Any,  # noqa: ANN401
+        output: Any,
         schema: dict[str, Any],
         path: str = "",
     ) -> list[ValidationViolation]:

@@ -233,8 +233,7 @@ class TaskDecomposer:
         if max_decomposition_depth < 1:
             msg = "max_decomposition_depth must be >= 1"
             raise ValueError(msg)
-        if min_subtask_count < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if min_subtask_count < 2:
             msg = "min_subtask_count must be >= 2"
             raise ValueError(msg)
         if max_subtask_count < min_subtask_count:
@@ -355,29 +354,23 @@ class TaskDecomposer:
 
         # Factor 1: description length
         words = task.description.lower().split()
-        if len(words) > 50:  # noqa: PLR2004 - Threshold
-
+        if len(words) > 50:
             score += 0.3
-        elif len(words) > 20:  # noqa: PLR2004 - Threshold
-
+        elif len(words) > 20:
             score += 0.2
 
         # Factor 2: number of requirements
         req_count = len(task.requirements)
-        if req_count > 5:  # noqa: PLR2004 - Small integer threshold
-
+        if req_count > 5:
             score += 0.3
-        elif req_count > 3:  # noqa: PLR2004 - Small integer threshold
-
+        elif req_count > 3:
             score += 0.2
 
         # Factor 3: number of success criteria
         criteria_count = len(task.success_criteria)
-        if criteria_count > 5:  # noqa: PLR2004 - Small integer threshold
-
+        if criteria_count > 5:
             score += 0.2
-        elif criteria_count > 3:  # noqa: PLR2004 - Small integer threshold
-
+        elif criteria_count > 3:
             score += 0.1
 
         # Factor 4: complex task type

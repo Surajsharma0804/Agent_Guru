@@ -83,7 +83,7 @@ class ModelRouterIntegration:
     Validates: Requirements 16.1, 16.2, 16.3, 16.4, 16.5
     """
 
-    def __init__(self, model_router_client: Any = None) -> None:  # noqa: ANN401
+    def __init__(self, model_router_client: Any = None) -> None:
         self._client = model_router_client
         self._cache: dict[str, ModelSelection] = {}
 
@@ -123,7 +123,7 @@ class VerifierSystemIntegration:
     Validates: Requirements 17.1, 17.2, 17.3, 17.4, 17.5
     """
 
-    def __init__(self, verifier_client: Any = None, max_retries: int = 2) -> None:  # noqa: ANN401
+    def __init__(self, verifier_client: Any = None, max_retries: int = 2) -> None:
         self._client = verifier_client
         self.max_retries = max_retries
 
@@ -131,7 +131,7 @@ class VerifierSystemIntegration:
         self,
         agent_id: str,
         task_id: str,
-        output: Any,  # noqa: ANN401
+        output: Any,
     ) -> VerificationResult:
         """Verify agent output, retrying on failure."""
         for attempt in range(self.max_retries + 1):
@@ -158,7 +158,7 @@ class MemorySystemIntegration:
     Validates: Requirements 18.1, 18.2, 18.3, 18.4, 18.5
     """
 
-    def __init__(self, memory_client: Any = None) -> None:  # noqa: ANN401
+    def __init__(self, memory_client: Any = None) -> None:
         self._client = memory_client
 
     async def store_agent_knowledge(self, agent_id: str, knowledge: dict[str, Any]) -> None:
@@ -197,7 +197,7 @@ class SelfImprovementIntegration:
     Validates: Requirements 19.1, 19.2, 19.3, 19.4, 19.5
     """
 
-    def __init__(self, sie_client: Any = None) -> None:  # noqa: ANN401
+    def __init__(self, sie_client: Any = None) -> None:
         self._client = sie_client
 
     async def report_performance_metrics(self, metrics: "PerformanceMetrics") -> None:

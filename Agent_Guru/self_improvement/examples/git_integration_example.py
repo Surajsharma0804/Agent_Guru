@@ -20,6 +20,7 @@ from Agent_Guru.self_improvement import AuthMethod, FailureType, GitIntegration,
 
 logger = logging.getLogger(__name__)
 
+
 def example_basic_usage() -> None:
     """Basic usage of GitIntegration."""
     # Initialize Git integration

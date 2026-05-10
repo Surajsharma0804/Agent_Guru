@@ -52,7 +52,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class CalendarTool(Tool):
     """Tool for creating calendar events."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute calendar event creation.
 
         Args:
@@ -84,8 +84,7 @@ class CalendarTool(Tool):
                 "error": "Duration must be positive",
             }
 
-        if duration_minutes > 1440:  # 24 hours  # noqa: PLR2004 (Percentage/large threshold)
-
+        if duration_minutes > 1440:  # 24 hours
             return {
                 "success": False,
                 "error": "Duration cannot exceed 24 hours",

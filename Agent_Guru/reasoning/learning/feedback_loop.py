@@ -443,11 +443,9 @@ class FeedbackAnalyzer:
             timestamps = [f.timestamp for f in failures]
 
             failure_count = len(failures)
-            if failure_count >= 20:  # noqa: PLR2004 - Threshold
-
+            if failure_count >= 20:
                 severity = "high"
-            elif failure_count >= 10:  # noqa: PLR2004 - Threshold
-
+            elif failure_count >= 10:
                 severity = "medium"
             else:
                 severity = "low"

@@ -581,7 +581,7 @@ Response:"""
         self,
         intent: Intent,
         result: ExecutionResult,
-        conversation_state: Any | None = None,  # noqa: ANN401
+        conversation_state: Any | None = None,
         user_preferences: dict[str, Any] | None = None,
     ) -> list[str]:
         """Generate follow-up suggestions using proactive suggestion generator.
@@ -608,7 +608,7 @@ Response:"""
         # Fallback to template generator's suggestion logic
         return self.template_generator._get_intent_suggestions(intent.intent_type)
 
-    def set_proactive_generator(self, generator: Any) -> None:  # noqa: ANN401
+    def set_proactive_generator(self, generator: Any) -> None:
         """Set proactive suggestion generator.
 
         Args:

@@ -107,8 +107,8 @@ class ActivityRecognizer:
 
                 from Agent_Guru.vision.model_manager import ModelManager
 
-                model_path = os.path.join("models", "activity_slowfast.onnx")  # noqa: PTH118
-                if not os.path.exists(model_path):  # noqa: PTH110
+                model_path = os.path.join("models", "activity_slowfast.onnx")
+                if not os.path.exists(model_path):
                     # Graceful fallback: uniform distribution
                     return np.ones(len(ACTIVITY_CATEGORIES), dtype=np.float32) / len(
                         ACTIVITY_CATEGORIES,

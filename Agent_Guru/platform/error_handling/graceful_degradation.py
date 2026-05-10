@@ -633,6 +633,7 @@ class DegradationManager:
             except asyncio.CancelledError:
                 raise
                 logger.exception("Error in monitoring loop")
+
     def _add_event(self, event: DegradationEvent) -> None:
         """Add event to history with size limit.
 
@@ -659,18 +660,15 @@ class DegradationManager:
             ValueError: If any parameter is invalid
 
         """
-        if not 0 < config.cpu_threshold <= 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if not 0 < config.cpu_threshold <= 100:
             msg = f"Invalid cpu_threshold: {config.cpu_threshold}"
             raise ValueError(msg)
 
-        if not 0 < config.memory_threshold <= 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if not 0 < config.memory_threshold <= 100:
             msg = f"Invalid memory_threshold: {config.memory_threshold}"
             raise ValueError(msg)
 
-        if not 0 < config.disk_threshold <= 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if not 0 < config.disk_threshold <= 100:
             msg = f"Invalid disk_threshold: {config.disk_threshold}"
             raise ValueError(msg)
 

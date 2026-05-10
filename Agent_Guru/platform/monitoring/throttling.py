@@ -220,7 +220,9 @@ class AutomaticThrottler:
     """
 
     def __init__(
-        self, resource_monitor: ResourceMonitor, config: ThrottleConfig | None = None,
+        self,
+        resource_monitor: ResourceMonitor,
+        config: ThrottleConfig | None = None,
     ) -> None:
         """Initialize automatic throttler.
 
@@ -427,8 +429,7 @@ class AutomaticThrottler:
 
             # Check overhead
             elapsed = (time.time() - start_time) * 1000  # Convert to ms
-            if elapsed > 5.0:  # noqa: PLR2004 - Threshold
-
+            if elapsed > 5.0:
                 logger.warning("Throttle check took %.2fms (target: <5ms)", elapsed)
 
             return decision

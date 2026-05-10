@@ -45,11 +45,11 @@ def make_policy(
     )
 
 
-def make_principal(pid: str = "user1", **attrs: Any) -> Principal:  # noqa: ANN401
+def make_principal(pid: str = "user1", **attrs: Any) -> Principal:
     return Principal(id=pid, attributes=dict(attrs))
 
 
-def make_resource(rid: str = "res1", rtype: str = "file", **attrs: Any) -> Resource:  # noqa: ANN401
+def make_resource(rid: str = "res1", rtype: str = "file", **attrs: Any) -> Resource:
     return Resource(id=rid, type=rtype, attributes=dict(attrs))
 
 

@@ -44,7 +44,7 @@ def configure_logging() -> None:
     )
 
 
-def get_logger(name: str) -> Any:  # noqa: ANN401
+def get_logger(name: str) -> Any:
     """Get a structured logger instance.
 
     Args:

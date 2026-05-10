@@ -117,14 +117,12 @@ class LivenessDetector:
             shape = inp.shape
             model_h = (
                 int(shape[2])
-                if len(shape) >= 4 and isinstance(shape[2], int) and shape[2] > 0  # noqa: PLR2004 - Small integer threshold
-
+                if len(shape) >= 4 and isinstance(shape[2], int) and shape[2] > 0
                 else 80
             )
             model_w = (
                 int(shape[3])
-                if len(shape) >= 4 and isinstance(shape[3], int) and shape[3] > 0  # noqa: PLR2004 - Small integer threshold
-
+                if len(shape) >= 4 and isinstance(shape[3], int) and shape[3] > 0
                 else 80
             )
 
@@ -145,8 +143,7 @@ class LivenessDetector:
             outputs = session.run(None, {input_name: blob})  # type: ignore[union-attr]
             logits = outputs[0][0]
             # Assume binary output: [spoof_score, live_score]
-            if len(logits) >= 2:  # noqa: PLR2004 - Small integer threshold
-
+            if len(logits) >= 2:
                 exp = np.exp(logits - np.max(logits))
                 probs = exp / exp.sum()
                 return float(probs[1])  # live probability
@@ -237,7 +234,7 @@ class LivenessDetector:
                 + 0.299 * face[:, :, 2].astype(np.float64)
             )
             kernel = np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]], dtype=np.float64)
-            from numpy.lib.stride_tricks import sliding_window_view  # noqa: PLC0415
+            from numpy.lib.stride_tricks import sliding_window_view
 
             padded = np.pad(gray, 1, mode="reflect")
             windows = sliding_window_view(padded, (3, 3))

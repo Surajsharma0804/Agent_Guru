@@ -69,23 +69,25 @@ class AgentLifecycleManager:
 
     # Forbidden role names that violate the dynamic agent principle
     # These represent static roles, not task-specific capabilities
-    FORBIDDEN_ROLE_NAMES: ClassVar[frozenset[str]] = frozenset({
-        "researcher",
-        "coder",
-        "planner",
-        "writer",
-        "analyst",
-        "reviewer",
-        "tester",
-        "designer",
-        "architect",
-        "developer",
-        "engineer",
-        "programmer",
-        "debugger",
-        "optimizer",
-        "documenter",
-    })
+    FORBIDDEN_ROLE_NAMES: ClassVar[frozenset[str]] = frozenset(
+        {
+            "researcher",
+            "coder",
+            "planner",
+            "writer",
+            "analyst",
+            "reviewer",
+            "tester",
+            "designer",
+            "architect",
+            "developer",
+            "engineer",
+            "programmer",
+            "debugger",
+            "optimizer",
+            "documenter",
+        },
+    )
 
     def __init__(self, storage: AgentStorage) -> None:
         """Initialize agent lifecycle manager.

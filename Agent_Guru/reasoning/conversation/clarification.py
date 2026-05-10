@@ -91,8 +91,7 @@ class ClarificationRules:
             return True, ClarificationTrigger.LOW_CONFIDENCE
 
         # Task requires confirmation (might need clarification first)
-        if task and task.requires_confirmation and confidence < 0.85:  # noqa: PLR2004 - Threshold value
-
+        if task and task.requires_confirmation and confidence < 0.85:
             return True, ClarificationTrigger.INCOMPLETE_REQUEST
 
         return False, None
@@ -114,13 +113,11 @@ class ClarificationRules:
         """
         # Offer options for ambiguous intents with clear alternatives
         if trigger == ClarificationTrigger.AMBIGUOUS_INTENT:
-            return len(alternative_intents) >= 2  # noqa: PLR2004 - Small integer threshold
-
+            return len(alternative_intents) >= 2
 
         # Offer options for low confidence with alternatives
         if trigger == ClarificationTrigger.LOW_CONFIDENCE:
-            return len(alternative_intents) >= 2 and alternative_intents[0][1] > 0.5  # noqa: PLR2004 - Small integer threshold
-
+            return len(alternative_intents) >= 2 and alternative_intents[0][1] > 0.5
 
         return False
 
@@ -306,14 +303,12 @@ class ClarificationGenerator:
 
         # Fill in template based on trigger
         if trigger == ClarificationTrigger.AMBIGUOUS_INTENT and options:
-            if len(options) == 2:  # noqa: PLR2004 - Small integer threshold
-
+            if len(options) == 2:
                 return template.format(
                     option1=options[0].description,
                     option2=options[1].description,
                 )
-            if len(options) >= 3:  # noqa: PLR2004 - Small integer threshold
-
+            if len(options) >= 3:
                 return template.format(
                     option1=options[0].description,
                     option2=options[1].description,

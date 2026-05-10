@@ -512,7 +512,7 @@ def require_permission(permission: Permission):
 
     """
 
-    def decorator(func):  # noqa: ANN001
+    def decorator(func):
         async def wrapper(*args, **kwargs):
             # Get user from kwargs (injected by get_current_user)
             user_data = kwargs.get("user_data")
@@ -601,6 +601,8 @@ def verify_token(token: str) -> TokenData:
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Security(security),  # noqa: B008
     api_key: str | None = Security(api_key_header),

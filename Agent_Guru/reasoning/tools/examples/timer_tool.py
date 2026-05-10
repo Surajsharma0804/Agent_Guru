@@ -39,7 +39,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class SetTimerTool(Tool):
     """Tool for setting timers."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute timer setting.
 
         Args:
@@ -60,8 +60,7 @@ class SetTimerTool(Tool):
                 "error": "Duration must be positive",
             }
 
-        if duration_seconds > 86400:  # 24 hours  # noqa: PLR2004 (Percentage/large threshold)
-
+        if duration_seconds > 86400:  # 24 hours
             return {
                 "success": False,
                 "error": "Duration cannot exceed 24 hours",
@@ -103,7 +102,7 @@ class SetTimerTool(Tool):
 class CancelTimerTool(Tool):
     """Tool for canceling timers."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute timer cancellation.
 
         Args:

@@ -313,7 +313,7 @@ class SecurityAuditor:
         archive_after_days: int = 30,
         buffer_size: int = 100,
         flush_interval_seconds: float = 5.0,
-        policy_engine_client: Any | None = None,  # noqa: ANN401
+        policy_engine_client: Any | None = None,
     ) -> None:
         """Initialize world-class security auditor.
 
@@ -689,7 +689,7 @@ class SecurityAuditor:
 
                 try:
                     # Windows fix: Ensure file is not locked
-                    with open(log_file, "rb") as f_in:  # noqa: PTH123
+                    with open(log_file, "rb") as f_in:
                         with gzip.open(archive_path, "wb", compresslevel=9) as f_out:
                             # Stream compression to avoid loading entire file (constant memory)
                             while chunk := f_in.read(8192):
@@ -747,7 +747,7 @@ class SecurityAuditor:
 
         for log_file in log_files:
             try:
-                with open(log_file, encoding="utf-8") as f:  # noqa: PTH123
+                with open(log_file, encoding="utf-8") as f:
                     for line in f:
                         if len(results) >= limit:
                             return results  # Early exit on limit reached
@@ -1562,7 +1562,7 @@ class SecurityAuditor:
         current_entries = 0
         if self.current_log_file.exists():
             try:
-                with open(self.current_log_file, encoding="utf-8") as f:  # noqa: PTH123
+                with open(self.current_log_file, encoding="utf-8") as f:
                     current_entries = sum(1 for line in f if line.strip())
             except OSError:
                 pass
@@ -1624,7 +1624,7 @@ class SecurityAuditor:
                 lines.append(json.dumps(entry_dict, separators=(",", ":"), sort_keys=False))
 
             # Single write call with buffering (reduces syscalls by 100x, MUCH faster)
-            with open(self.current_log_file, "a", encoding="utf-8", buffering=8192) as f:  # noqa: PTH123
+            with open(self.current_log_file, "a", encoding="utf-8", buffering=8192) as f:
                 f.write("\n".join(lines) + "\n")
 
             self._buffer.clear()

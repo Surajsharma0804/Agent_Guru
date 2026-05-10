@@ -62,7 +62,7 @@ class OrchestrationSystem:
         tracker: PerformanceTracker,
         delegation_manager: DelegationManager | None = None,
         loop_detector: LoopDetector | None = None,
-        executor: Any | None = None,  # noqa: ANN401
+        executor: Any | None = None,
     ) -> None:
         self.storage = storage
         self.decomposer = decomposer

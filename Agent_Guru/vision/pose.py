@@ -98,8 +98,7 @@ def _classify_posture(kps: list[PoseKeypoint]) -> str | None:
             return "raising_hand"
 
     # lying_down: shoulders and hips at similar y (horizontal body)
-    if abs(shoulder_y - hip_y) < 0.12:  # noqa: PLR2004 - Threshold value
-
+    if abs(shoulder_y - hip_y) < 0.12:
         return "lying_down"
 
     # sitting: hips close to or below knees
@@ -159,7 +158,7 @@ class PoseEstimator:
                 enable_segmentation=False,
                 min_detection_confidence=0.5,
             ) as pose:
-                rgb = frame[:, :, :3] if frame.ndim == 3 else frame  # noqa: PLR2004 - Small integer threshold
+                rgb = frame[:, :, :3] if frame.ndim == 3 else frame
 
                 result = pose.process(rgb)
                 if not result.pose_landmarks:

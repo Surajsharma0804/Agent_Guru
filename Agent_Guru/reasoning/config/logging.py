@@ -9,14 +9,14 @@ import structlog
 from structlog.types import EventDict, Processor
 
 
-def add_app_context(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:  # noqa: ANN401
+def add_app_context(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     """Add application context to log entries."""
     event_dict["app"] = "agent_guru"
     event_dict["component"] = "reasoning_engine"
     return event_dict
 
 
-def add_trace_context(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:  # noqa: ANN401
+def add_trace_context(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     """Add trace context if available."""
     # This will be populated by the tracing system
     if "trace_id" not in event_dict:
@@ -104,7 +104,7 @@ def configure_logging(
         logging.root.addHandler(file_handler)
 
 
-def get_logger(name: str) -> Any:  # noqa: ANN401
+def get_logger(name: str) -> Any:
     """Get a structured logger instance.
 
     Args:
@@ -117,7 +117,7 @@ def get_logger(name: str) -> Any:  # noqa: ANN401
     return structlog.get_logger(name)
 
 
-def bind_context(**kwargs: Any) -> None:  # noqa: ANN401
+def bind_context(**kwargs: Any) -> None:
     """Bind context variables that will be included in all subsequent log entries.
 
     Args:

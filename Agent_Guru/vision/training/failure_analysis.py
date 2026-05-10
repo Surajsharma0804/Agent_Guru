@@ -154,8 +154,7 @@ class FailureAnalyzer:
         # Check pose
         if metadata.pose_angles is not None:
             angle = metadata.pose_angles.get(pair_idx)
-            if angle is not None and abs(angle) > 30:  # noqa: PLR2004 - Threshold
-
+            if angle is not None and abs(angle) > 30:
                 return "pose"
 
         # Check accessories
@@ -167,8 +166,7 @@ class FailureAnalyzer:
         # Check blur
         if metadata.blur_scores is not None:
             blur = metadata.blur_scores.get(pair_idx)
-            if blur is not None and blur > 0.5:  # noqa: PLR2004 - Threshold value
-
+            if blur is not None and blur > 0.5:
                 return "blur"
 
         # Check lighting
@@ -180,15 +178,13 @@ class FailureAnalyzer:
         # Check age difference
         if metadata.age_differences is not None:
             for (i, j), diff in metadata.age_differences.items():
-                if (pair_idx in (i, j)) and diff > 10:  # noqa: PLR2004 - Threshold
-
+                if (pair_idx in (i, j)) and diff > 10:
                     return "aging"
 
         # Check occlusion
         if metadata.occlusion_masks is not None:
             mask = metadata.occlusion_masks.get(pair_idx)
-            if mask is not None and np.mean(mask) > 0.2:  # noqa: PLR2004 - Threshold value
-
+            if mask is not None and np.mean(mask) > 0.2:
                 return "occlusion"
 
         return "unknown"
@@ -269,7 +265,7 @@ class FailureAnalyzer:
 
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
 
         logger.info("Failure report written to '%s'", output_path)

@@ -377,7 +377,7 @@ class LatencyController:
         finally:
             self.end_stage(timer, error=error)
 
-    def get_stage_statistics(self, stage: PipelineStage) -> Any | None:  # noqa: ANN401
+    def get_stage_statistics(self, stage: PipelineStage) -> Any | None:
         """Get statistics for a stage.
 
         Args:

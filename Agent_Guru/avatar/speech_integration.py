@@ -187,7 +187,7 @@ class SpeechAvatarBridge:
         except Exception:
             logger.exception("Failed to initialize LipSyncController")
 
-    def _fire_playback_event(self, event_type: str, data: Any) -> None:  # noqa: ANN401
+    def _fire_playback_event(self, event_type: str, data: Any) -> None:
         for cb in self._playback_callbacks:
             try:
                 cb(event_type, data)

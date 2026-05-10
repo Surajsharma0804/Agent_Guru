@@ -37,7 +37,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class MessagingTool(Tool):
     """Tool for sending messages."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute message sending.
 
         Args:
@@ -65,8 +65,7 @@ class MessagingTool(Tool):
                 "error": "Message cannot be empty",
             }
 
-        if len(message) > 1000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(message) > 1000:
             return {
                 "success": False,
                 "error": "Message exceeds maximum length of 1000 characters",

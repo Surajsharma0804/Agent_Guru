@@ -120,7 +120,9 @@ class EmotionRecognizer:
             return self._session
         except Exception as exc:
             logger.exception(
-                "Failed to load emotion ONNX model from '%s': %s", self.model_path, exc,
+                "Failed to load emotion ONNX model from '%s': %s",
+                self.model_path,
+                exc,
             )
             return None
 

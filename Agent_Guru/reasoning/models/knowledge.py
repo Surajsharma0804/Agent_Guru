@@ -485,8 +485,7 @@ class KnowledgeAnswer(BaseModel):
     @classmethod
     def validate_patterns_limit(cls, v: list[Pattern]) -> list[Pattern]:
         """Validate that patterns list is not too large."""
-        if len(v) > 10:  # noqa: PLR2004 - Threshold
-
+        if len(v) > 10:
             msg = f"Too many patterns ({len(v)}), maximum is 10"
             raise ValueError(msg)
         return v

@@ -430,16 +430,14 @@ class MemorySystemClient:
                         logger.debug("Stored %s operation(s) [attempt %s]", len(batch), attempt + 1)
                         return True
 
-                    if resp.status == 429:  # noqa: PLR2004 - Percentage/large threshold
-
+                    if resp.status == 429:
                         # Rate limited — always retry with backoff
                         retry_after = float(resp.headers.get("Retry-After", 1.0))
                         logger.warning("Memory System rate limited, retrying in %ss", retry_after)
                         await asyncio.sleep(retry_after)
                         continue
 
-                    if resp.status >= 500:  # noqa: PLR2004 - Percentage/large threshold
-
+                    if resp.status >= 500:
                         # Server error — retryable
                         body = await resp.text()
                         logger.warning("Memory System server error %s: %s", resp.status, body[:200])
@@ -511,8 +509,7 @@ class MemorySystemClient:
                         self._circuit.record_success()
                         self._stored_count += 1
                         return True
-                    if resp.status >= 500:  # noqa: PLR2004 - Percentage/large threshold
-
+                    if resp.status >= 500:
                         self._circuit.record_failure()
                     else:
                         return False
@@ -559,8 +556,7 @@ class MemorySystemClient:
             ValueError: If limit is out of range
 
         """
-        if not 1 <= limit <= 1000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if not 1 <= limit <= 1000:
             msg = f"limit must be 1–1000, got {limit}"
             raise ValueError(msg)
         self._require_connected()
@@ -591,8 +587,7 @@ class MemorySystemClient:
                 query_time_ms = (time.monotonic() - t0) * 1000
                 self._query_count += 1
 
-                if resp.status == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+                if resp.status == 200:
                     body = await resp.json()
                     self._circuit.record_success()
                     return MemoryQueryResult(
@@ -614,6 +609,7 @@ class MemorySystemClient:
             logger.exception("Memory query failed")
             self._circuit.record_failure()
             return MemoryQueryResult()
+
     async def query_all_pages(
         self,
         operation_type: str | None = None,
@@ -671,10 +667,11 @@ class MemorySystemClient:
                 f"{self.base_url}/health",
                 timeout=aiohttp.ClientTimeout(total=5.0),
             ) as resp:
-                return resp.status == 200  # noqa: PLR2004 - Percentage/large threshold
+                return resp.status == 200
 
         except Exception:
             return False
+
     # ─── Observability ────────────────────────────────────────────────────
 
     def get_statistics(self) -> dict[str, Any]:
@@ -729,6 +726,6 @@ class MemorySystemClient:
         await self.connect()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> bool:  # noqa: ANN001
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> bool:
         await self.disconnect()
         return False

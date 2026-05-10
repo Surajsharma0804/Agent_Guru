@@ -161,7 +161,7 @@ class WindowsIntegration:
 
     # Registry Operations
 
-    def read_registry_key(self, hive: int, key_path: str, value_name: str) -> Any:  # noqa: ANN401
+    def read_registry_key(self, hive: int, key_path: str, value_name: str) -> Any:
         r"""Read a Windows registry key.
 
         Time Complexity: O(1)
@@ -209,12 +209,13 @@ class WindowsIntegration:
             error_msg = f"Error reading registry key {key_path}\\{value_name}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def write_registry_key(
         self,
         hive: int,
         key_path: str,
         value_name: str,
-        value: Any,  # noqa: ANN401
+        value: Any,
         value_type: int = 1,  # winreg.REG_SZ = 1
     ) -> None:
         r"""Write a Windows registry key.
@@ -259,6 +260,7 @@ class WindowsIntegration:
             error_msg = f"Error writing registry key {key_path}\\{value_name}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def delete_registry_key(self, hive: int, key_path: str, value_name: str | None = None) -> None:
         r"""Delete a Windows registry key or value.
 
@@ -314,6 +316,7 @@ class WindowsIntegration:
             error_msg = f"Error deleting registry key {key_path}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     # Service Management
 
     def get_service_status(self, service_name: str) -> ServiceStatus:
@@ -382,6 +385,7 @@ class WindowsIntegration:
             error_msg = f"Error querying service {service_name}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def _get_service_startup_type(self, service_name: str) -> str:
         """Get service startup type from registry.
 
@@ -409,6 +413,7 @@ class WindowsIntegration:
 
         except Exception:
             return "unknown"
+
     # Process Management
 
     def get_process_list(self) -> list[ProcessInfo]:
@@ -519,6 +524,7 @@ class WindowsIntegration:
             error_msg = f"Error starting process {executable}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def terminate_process(self, pid: int, force: bool = False) -> bool:
         """Terminate a process.
 
@@ -565,6 +571,7 @@ class WindowsIntegration:
             error_msg = f"Error terminating process {pid}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def execute_command(self, command: str, args: list[str]) -> CommandResult:
         """Execute a Windows command.
 
@@ -634,6 +641,7 @@ class WindowsIntegration:
             error_msg = f"Error executing command {command}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def get_system_info(self) -> SystemInfo:
         """Get Windows system information.
 

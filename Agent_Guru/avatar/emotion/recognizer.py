@@ -488,9 +488,7 @@ class EmotionRecognizer:
     def _is_valid_frame(frame: np.ndarray) -> bool:
         return (
             isinstance(frame, np.ndarray)
-            and frame.ndim == 3  # noqa: PLR2004 - Small integer threshold
-
-            and frame.shape[2] == 3  # noqa: PLR2004 - Small integer threshold
-
+            and frame.ndim == 3
+            and frame.shape[2] == 3
             and frame.dtype == np.uint8
         )

@@ -303,7 +303,7 @@ class SynthesisEngine:
         # Fallback: generate silence (for testing/offline mode)
         return self._generate_silence(text), self._config.sample_rate
 
-    def _profile_to_personality(self) -> Any:  # noqa: ANN401
+    def _profile_to_personality(self) -> Any:
         """Map VoiceProfile to PersonalityType."""
         try:
             from Agent_Guru.speech.models import PersonalityType

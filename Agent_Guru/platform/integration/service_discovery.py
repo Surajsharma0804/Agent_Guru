@@ -109,8 +109,7 @@ class ServiceRegistry:
         if not endpoint.host:
             msg = "host cannot be empty"
             raise ValueError(msg)
-        if not (1 <= endpoint.port <= 65535):  # noqa: PLR2004 - Percentage/large threshold
-
+        if not (1 <= endpoint.port <= 65535):
             msg = f"Invalid port: {endpoint.port}"
             raise ValueError(msg)
 
@@ -239,7 +238,7 @@ class ServiceRegistry:
 
     async def _check_one(
         self,
-        session: Any,  # noqa: ANN401
+        session: Any,
         name: str,
         endpoint: "ServiceEndpoint",
     ) -> None:
@@ -247,8 +246,7 @@ class ServiceRegistry:
         try:
             url = f"{endpoint.base_url}/health"
             async with session.get(url) as resp:
-                if resp.status == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+                if resp.status == 200:
                     self.update_health(name, ServiceStatus.HEALTHY)
                 else:
                     self.update_health(name, ServiceStatus.DEGRADED)

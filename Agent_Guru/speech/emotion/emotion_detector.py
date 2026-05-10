@@ -129,8 +129,7 @@ class EmotionDetector:
 
             # Check processing time (should be < 200ms)
             processing_time = (time.time() - start_time) * 1000
-            if processing_time > 200:  # noqa: PLR2004 - Percentage/large threshold
-
+            if processing_time > 200:
                 logger.warning("Emotion detection took %.1fms (target: <200ms)", processing_time)
 
             result = EmotionResult(
@@ -294,8 +293,7 @@ class EmotionDetector:
                 # Adjust n_fft for short audio to prevent warnings
                 audio_length = len(audio)
                 n_fft_pitch = min(2048, audio_length)
-                if n_fft_pitch < 2:  # noqa: PLR2004 - Small integer threshold
-
+                if n_fft_pitch < 2:
                     n_fft_pitch = 2
                 else:
                     # Round down to nearest power of 2
@@ -377,8 +375,7 @@ class EmotionDetector:
                 else:
                     tempo = float(tempo)
                 # Ensure reasonable tempo range
-                if tempo <= 0 or tempo > 300:  # noqa: PLR2004 - Percentage/large threshold
-
+                if tempo <= 0 or tempo > 300:
                     tempo = 100.0
                 features["tempo"] = tempo
             except Exception:
@@ -389,8 +386,7 @@ class EmotionDetector:
             # Adjust n_fft for short audio
             audio_length = len(audio)
             n_fft_mfcc = min(2048, audio_length)
-            n_fft_mfcc = 2 if n_fft_mfcc < 2 else 2 ** int(np.log2(n_fft_mfcc))  # noqa: PLR2004 - Small integer threshold
-
+            n_fft_mfcc = 2 if n_fft_mfcc < 2 else 2 ** int(np.log2(n_fft_mfcc))
 
             hop_length_mfcc = min(512, n_fft_mfcc // 4)
             hop_length_mfcc = max(hop_length_mfcc, 1)
@@ -438,8 +434,7 @@ class EmotionDetector:
             # Adjust n_fft for short audio
             audio_length = len(audio)
             n_fft_spectral = min(2048, audio_length)
-            n_fft_spectral = 2 if n_fft_spectral < 2 else 2 ** int(np.log2(n_fft_spectral))  # noqa: PLR2004 - Small integer threshold
-
+            n_fft_spectral = 2 if n_fft_spectral < 2 else 2 ** int(np.log2(n_fft_spectral))
 
             hop_length_spectral = min(512, n_fft_spectral // 4)
             hop_length_spectral = max(hop_length_spectral, 1)
@@ -509,8 +504,7 @@ class EmotionDetector:
         emotion_scores = {}
 
         # If audio quality is poor, return low confidence for all emotions
-        if audio_quality < 0.3:  # noqa: PLR2004 - Threshold value
-
+        if audio_quality < 0.3:
             return dict.fromkeys(EmotionType, 0.3)
 
         # Calculate match score for each emotion
@@ -583,8 +577,7 @@ class EmotionDetector:
 
         # 1. Check audio duration (prefer 1-5 seconds)
         duration = len(audio) / 16000.0  # Assume 16kHz
-        if 1.0 <= duration <= 5.0:  # noqa: PLR2004 - Threshold
-
+        if 1.0 <= duration <= 5.0:
             duration_score = 1.0
         elif duration < 1.0:
             duration_score = duration  # Linear penalty for short audio
@@ -594,11 +587,9 @@ class EmotionDetector:
 
         # 2. Check energy level (not too quiet or too loud)
         energy = features.get("energy_mean", 0.1)
-        if 0.05 <= energy <= 0.3:  # noqa: PLR2004 - Threshold value
-
+        if 0.05 <= energy <= 0.3:
             energy_score = 1.0
-        elif energy < 0.05:  # noqa: PLR2004 - Threshold value
-
+        elif energy < 0.05:
             # Very quiet audio - strong penalty
             energy_score = max(0.1, energy / 0.05)
         else:
@@ -607,11 +598,9 @@ class EmotionDetector:
 
         # 3. Check pitch reliability (should have reasonable variance)
         pitch_std = features.get("pitch_std", 20.0)
-        if 10.0 <= pitch_std <= 100.0:  # noqa: PLR2004 - Percentage/large threshold
-
+        if 10.0 <= pitch_std <= 100.0:
             pitch_score = 1.0
-        elif pitch_std < 10.0:  # noqa: PLR2004 - Threshold
-
+        elif pitch_std < 10.0:
             # Very low variance - likely noise or silence
             pitch_score = max(0.1, pitch_std / 10.0)
         else:
@@ -620,17 +609,15 @@ class EmotionDetector:
 
         # 4. Check zero crossing rate (voice quality indicator)
         zcr = features.get("zcr_mean", 0.1)
-        zcr_score = 1.0 if 0.05 <= zcr <= 0.35 else 0.5  # noqa: PLR2004 - Threshold value
+        zcr_score = 1.0 if 0.05 <= zcr <= 0.35 else 0.5
 
         quality_factors.append(zcr_score)
 
         # 5. Check signal strength (RMS)
         rms = np.sqrt(np.mean(audio**2))
-        if rms > 0.02:  # Reasonable signal strength  # noqa: PLR2004 (Threshold value)
-
+        if rms > 0.02:  # Reasonable signal strength
             signal_score = 1.0
-        elif rms > 0.005:  # Weak signal  # noqa: PLR2004 (Threshold value)
-
+        elif rms > 0.005:  # Weak signal
             signal_score = 0.5
         else:
             # Very weak signal - likely silence or noise

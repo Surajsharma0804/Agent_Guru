@@ -50,7 +50,7 @@ class ToolOutputChecker:
     def check(
         self,
         tool_name: str,
-        output: Any,  # noqa: ANN401
+        output: Any,
         input_params: dict[str, Any] | None = None,
     ) -> ToolOutputCheckResult:
         """Check tool output for errors and consistency.
@@ -102,7 +102,7 @@ class ToolOutputChecker:
             details="; ".join(details_parts) if details_parts else "Tool output is safe",
         )
 
-    def _check_schema(self, output: Any, schema: dict[str, Any]) -> bool:  # noqa: ANN401
+    def _check_schema(self, output: Any, schema: dict[str, Any]) -> bool:
         """Simple schema check: verify required fields present."""
         if not isinstance(output, dict):
             return schema.get("type") != "object"
@@ -132,7 +132,7 @@ class ToolOutputChecker:
 
         return True
 
-    def _check_semantic_consistency(self, output: Any, input_params: dict[str, Any]) -> bool:  # noqa: ANN401
+    def _check_semantic_consistency(self, output: Any, input_params: dict[str, Any]) -> bool:
         """Check if output is semantically consistent with inputs.
 
         Heuristic: if input specifies a count/limit, output shouldn't exceed it.
@@ -144,8 +144,7 @@ class ToolOutputChecker:
         has_success = any(p.search(output_str) for p in _SUCCESS_PATTERNS)
 
         # If output has errors but no success signals, flag it
-        if has_error and not has_success and len(output_str) < 500:  # noqa: PLR2004 - Percentage/large threshold
-
+        if has_error and not has_success and len(output_str) < 500:
             return False
 
         # Check limit consistency

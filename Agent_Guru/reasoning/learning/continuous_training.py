@@ -191,8 +191,7 @@ class DataCollectionPipeline:
 
         if correct_intent and correct_intent != predicted_intent:
             feedback_type = FeedbackType.CORRECTION
-        elif predicted_confidence >= 0.8:  # noqa: PLR2004 - Threshold value
-
+        elif predicted_confidence >= 0.8:
             feedback_type = FeedbackType.POSITIVE
         else:
             feedback_type = FeedbackType.NEGATIVE
@@ -226,8 +225,7 @@ class DataCollectionPipeline:
 
     def _passes_quality_check(self, text: str, intent: str, confidence: float) -> bool:
         """Check if interaction meets quality standards."""
-        if not text or len(text.strip()) < 3:  # noqa: PLR2004 - Small integer threshold
-
+        if not text or len(text.strip()) < 3:
             return False
         if not intent:
             return False
@@ -408,8 +406,7 @@ class DriftMonitor:
         self._drift_history.append((datetime.now(tz=UTC), current_accuracy, has_drifted))
 
         # Trim history to last 1000 checks
-        if len(self._drift_history) > 1000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(self._drift_history) > 1000:
             self._drift_history = self._drift_history[-1000:]
 
         # Alert on significant drop

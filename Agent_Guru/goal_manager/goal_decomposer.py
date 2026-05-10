@@ -28,7 +28,7 @@ from Agent_Guru.goal_manager.models import Goal, GoalStatus
 logger = get_logger(__name__)
 
 
-def _escape_strings(obj: Any) -> Any:  # noqa: ANN401
+def _escape_strings(obj: Any) -> Any:
     """Recursively HTML-escape all strings in a nested structure.
 
     Prevents CWE-20/79/80 by neutralising HTML/script sequences in any
@@ -60,7 +60,7 @@ class GoalDecomposer:
 
     """
 
-    def __init__(self, llm_runtime: Any, memory_system: Any) -> None:  # noqa: ANN401
+    def __init__(self, llm_runtime: Any, memory_system: Any) -> None:
         """Initialize with LLM Runtime and Memory System.
 
         Args:
@@ -132,6 +132,7 @@ class GoalDecomposer:
         except Exception:
             # If memory query fails, continue with empty context
             return {"similar_goals": [], "metadata": goal.metadata}
+
     def _build_prompt(self, goal: Goal, context: dict[str, Any]) -> str:
         """Build decomposition prompt for LLM.
 
@@ -263,8 +264,7 @@ class GoalDecomposer:
                     goal_id=parent_goal.id,
                     operation="parse_response",
                     error="No JSON array found in LLM response",
-                    response_preview=response[:200] if len(response) > 200 else response,  # noqa: PLR2004 - Percentage/large threshold
-
+                    response_preview=response[:200] if len(response) > 200 else response,
                 )
                 msg = "No JSON array found in LLM response"
                 raise DecompositionError(msg)
@@ -326,6 +326,7 @@ class GoalDecomposer:
             )
             msg = f"Failed to parse LLM response: {e}"
             raise DecompositionError(msg) from e
+
     def _validate_subgoals(self, sub_goals: list[Goal]) -> None:
         """Validate sub-goals meet quality criteria.
 
@@ -351,8 +352,7 @@ class GoalDecomposer:
             msg = "No sub-goals generated"
             raise DecompositionError(msg)
 
-        if len(sub_goals) > 10:  # noqa: PLR2004 - Threshold
-
+        if len(sub_goals) > 10:
             logger.error(
                 "subgoal_validation_failed",
                 operation="validate",
@@ -366,8 +366,7 @@ class GoalDecomposer:
             )
 
         for sub_goal in sub_goals:
-            if len(sub_goal.description) < 10:  # noqa: PLR2004 - Threshold
-
+            if len(sub_goal.description) < 10:
                 logger.error(
                     "subgoal_validation_failed",
                     operation="validate",

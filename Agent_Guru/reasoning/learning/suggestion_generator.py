@@ -299,7 +299,7 @@ class SuggestionGenerator:
         # Sort by score (descending)
         return sorted(suggestions, key=lambda s: s.metadata["score"], reverse=True)
 
-    def _calculate_time_relevance(self, pattern, current_hour: int, current_day: int) -> float:  # noqa: ANN001
+    def _calculate_time_relevance(self, pattern, current_hour: int, current_day: int) -> float:
         """Calculate time relevance for a pattern.
 
         Args:

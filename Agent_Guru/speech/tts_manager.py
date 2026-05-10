@@ -210,11 +210,11 @@ class _DesktopTTSBackend:
             try:
                 self._engine.save_to_file(text, tmp_path)
                 self._engine.runAndWait()
-                with open(tmp_path, "rb") as f:  # noqa: PTH123
+                with open(tmp_path, "rb") as f:
                     return f.read()
             finally:
-                if os.path.exists(tmp_path):  # noqa: PTH110
-                    os.unlink(tmp_path)  # noqa: PTH108
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
         except Exception:
             logger.exception("pyttsx3 synthesis failed: %s — using silence")
             return self._silence_bytes(text)
@@ -301,11 +301,11 @@ class _AndroidTTSBackend:
             try:
                 # Android TTS synthesizeToFile
                 self._tts.synthesizeToFile(text, None, tmp_path, "utteranceId")
-                with open(tmp_path, "rb") as f:  # noqa: PTH123
+                with open(tmp_path, "rb") as f:
                     return f.read()
             finally:
-                if os.path.exists(tmp_path):  # noqa: PTH110
-                    os.unlink(tmp_path)  # noqa: PTH108
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
         except Exception:
             logger.exception("Android TTS synthesis failed")
             return _DesktopTTSBackend._silence_bytes(text)
@@ -776,8 +776,7 @@ class TTSManager:
             ValueError: If rate is outside [0.5, 2.0].
 
         """
-        if not 0.5 <= rate <= 2.0:  # noqa: PLR2004 - Threshold
-
+        if not 0.5 <= rate <= 2.0:
             msg = f"speech_rate must be in [0.5, 2.0], got {rate}"
             raise ValueError(msg)
         self._config.speech_rate = rate

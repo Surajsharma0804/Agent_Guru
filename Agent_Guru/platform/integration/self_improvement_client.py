@@ -242,8 +242,7 @@ class SelfImprovementClient:
         try:
             url = f"{self.base_url}/api/v1/improvement/suggestions"
             async with self._session.get(url, params=params) as resp:
-                if resp.status == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+                if resp.status == 200:
                     body = await resp.json()
                     return [
                         ImprovementSuggestion(
@@ -274,5 +273,5 @@ class SelfImprovementClient:
         await self.connect()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):  # noqa: ANN001
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.disconnect()

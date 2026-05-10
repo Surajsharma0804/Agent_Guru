@@ -73,19 +73,19 @@ except ImportError:
     _PROM_AVAILABLE = False
 
     class _NoOpCounter:
-        def inc(self, *a: Any, **kw: Any) -> None: ...  # noqa: ANN401
-        def labels(self, *a: Any, **kw: Any) -> _NoOpCounter:  # noqa: ANN401
+        def inc(self, *a: Any, **kw: Any) -> None: ...
+        def labels(self, *a: Any, **kw: Any) -> _NoOpCounter:
             return self
 
     class _NoOpHistogram:
-        def observe(self, *a: Any, **kw: Any) -> None: ...  # noqa: ANN401
-        def labels(self, *a: Any, **kw: Any) -> _NoOpHistogram:  # noqa: ANN401
+        def observe(self, *a: Any, **kw: Any) -> None: ...
+        def labels(self, *a: Any, **kw: Any) -> _NoOpHistogram:
             return self
 
     class _NoOpGauge:
-        def set(self, *a: Any, **kw: Any) -> None: ...  # noqa: ANN401
-        def inc(self, *a: Any, **kw: Any) -> None: ...  # noqa: ANN401
-        def dec(self, *a: Any, **kw: Any) -> None: ...  # noqa: ANN401
+        def set(self, *a: Any, **kw: Any) -> None: ...
+        def inc(self, *a: Any, **kw: Any) -> None: ...
+        def dec(self, *a: Any, **kw: Any) -> None: ...
 
     frames_processed_total = _NoOpCounter()  # type: ignore[assignment]
     events_emitted_total = _NoOpCounter()  # type: ignore[assignment]
@@ -167,7 +167,7 @@ class VisionObservability:
         """Increment the frames_processed_total counter."""
         frames_processed_total.inc()
 
-    def record_event(self, event: Any) -> None:  # noqa: ANN401
+    def record_event(self, event: Any) -> None:
         """Increment events_emitted_total and emit a structured log entry.
 
         Args:

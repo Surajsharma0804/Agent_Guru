@@ -178,8 +178,7 @@ class PopulationManager:
             return {"trend": "unknown", "snapshots": 0}
 
         counts = [s.active_agents for s in self._history]
-        if len(counts) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(counts) < 2:
             return {"trend": "stable", "snapshots": len(counts), "current": counts[-1]}
 
         delta = counts[-1] - counts[0]

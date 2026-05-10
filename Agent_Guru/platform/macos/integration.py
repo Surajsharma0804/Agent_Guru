@@ -323,7 +323,7 @@ class MacOSIntegration:
         func: Callable,
         max_retries: int = 3,
         initial_delay: float = 0.1,
-    ) -> Any:  # noqa: ANN401
+    ) -> Any:
         """Retry function with exponential backoff.
 
         Args:
@@ -412,7 +412,7 @@ class MacOSIntegration:
 
             # Execute AppleScript using osascript command
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["osascript", "-e", script],  # noqa: S607
+                ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -435,7 +435,7 @@ class MacOSIntegration:
                 "Executed AppleScript (%.2fms): %s%s",
                 duration_ms,
                 script[:50],
-                "..." if len(script) > 50 else "",  # noqa: PLR2004 - Threshold
+                "..." if len(script) > 50 else "",
             )
 
             return result.stdout.strip()
@@ -453,6 +453,7 @@ class MacOSIntegration:
             self._record_failure(operation)
             logger.exception(error_msg)
             raise AppleScriptError(error_msg) from e
+
     async def execute_applescript_async(self, script: str) -> str:
         """Async version of execute_applescript for non-blocking operations.
 
@@ -471,7 +472,7 @@ class MacOSIntegration:
 
     # System Preferences Operations
 
-    def get_system_preference(self, domain: str, key: str, use_cache: bool = True) -> Any:  # noqa: ANN401
+    def get_system_preference(self, domain: str, key: str, use_cache: bool = True) -> Any:
         """Read a macOS system preference using defaults command.
 
         Time Complexity: O(1) with cache hit, O(1) with cache miss
@@ -519,7 +520,7 @@ class MacOSIntegration:
 
             # Cache miss or caching disabled - read from defaults
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["defaults", "read", domain, key],  # noqa: S607
+                ["defaults", "read", domain, key],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -563,7 +564,8 @@ class MacOSIntegration:
             self._record_failure(operation)
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
-    def _parse_defaults_value(self, value_str: str) -> Any:  # noqa: ANN401
+
+    def _parse_defaults_value(self, value_str: str) -> Any:
         """Parse defaults command output to Python type.
 
         Args:
@@ -597,7 +599,7 @@ class MacOSIntegration:
         domain: str,
         key: str,
         use_cache: bool = True,
-    ) -> Any:  # noqa: ANN401
+    ) -> Any:
         """Async version of get_system_preference for non-blocking operations.
 
         Args:
@@ -615,7 +617,7 @@ class MacOSIntegration:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.get_system_preference, domain, key, use_cache)
 
-    def set_system_preference(self, domain: str, key: str, value: Any) -> None:  # noqa: ANN401
+    def set_system_preference(self, domain: str, key: str, value: Any) -> None:
         """Write a macOS system preference using defaults command.
 
         Time Complexity: O(1)
@@ -654,7 +656,7 @@ class MacOSIntegration:
 
             # Write preference
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["defaults", "write", domain, key, value_str, value_arg],  # noqa: S607
+                ["defaults", "write", domain, key, value_str, value_arg],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -682,6 +684,7 @@ class MacOSIntegration:
             error_msg = f"Error writing preference {domain} {key}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     # Process Management
 
     def get_process_list(self) -> list[ProcessInfo]:
@@ -768,6 +771,7 @@ class MacOSIntegration:
             error_msg = f"Error starting process {executable}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def terminate_process(self, pid: int, force: bool = False) -> bool:
         """Terminate a process.
 
@@ -814,6 +818,7 @@ class MacOSIntegration:
             error_msg = f"Error terminating process {pid}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def execute_command(self, command: str, args: list[str]) -> CommandResult:
         """Execute a macOS command.
 
@@ -882,6 +887,7 @@ class MacOSIntegration:
             error_msg = f"Error executing command {command}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def get_system_info(self) -> SystemInfo:
         """Get macOS system information.
 

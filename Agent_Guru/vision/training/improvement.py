@@ -173,8 +173,8 @@ class ImprovementStrategyManager:
     def apply_strategy(
         self,
         strategy: ImprovementStrategy,
-        model: Any | None = None,  # noqa: ANN401
-        dataset: Any | None = None,  # noqa: ANN401
+        model: Any | None = None,
+        dataset: Any | None = None,
     ) -> AppliedStrategy:
         """Apply an improvement strategy.
 
@@ -205,9 +205,9 @@ class ImprovementStrategyManager:
 
     def apply_hard_sample_mining(
         self,
-        dataset: Any,  # noqa: ANN401
+        dataset: Any,
         failure_analysis: FailureAnalysis,
-    ) -> Any:  # noqa: ANN401
+    ) -> Any:
         """Create a dataset focused on hard samples.
 
         Args:
@@ -225,7 +225,7 @@ class ImprovementStrategyManager:
         # In a real implementation, this would filter/reweight the dataset
         return dataset
 
-    def apply_quality_weighting(self, dataset: Any) -> Any:  # noqa: ANN401
+    def apply_quality_weighting(self, dataset: Any) -> Any:
         """Apply quality-based sample weighting.
 
         Args:
@@ -257,14 +257,13 @@ class ImprovementStrategyManager:
             return predictions
         kernel = np.ones(window_size) / window_size
         smoothed = np.convolve(predictions.astype(float), kernel, mode="same")
-        return (smoothed >= 0.5).astype(predictions.dtype)  # noqa: PLR2004 - Threshold value
-
+        return (smoothed >= 0.5).astype(predictions.dtype)
 
     def run_improvement_loop(
         self,
-        evaluate_fn: Any,  # noqa: ANN401
-        failure_analyze_fn: Any,  # noqa: ANN401
-        retrain_fn: Any,  # noqa: ANN401
+        evaluate_fn: Any,
+        failure_analyze_fn: Any,
+        retrain_fn: Any,
         max_iterations: int = 3,
     ) -> dict[str, Any]:
         """Run iterative improvement loop.
@@ -332,7 +331,7 @@ class ImprovementStrategyManager:
     def _apply_hard_sample_mining(
         self,
         strategy: ImprovementStrategy,
-        dataset: Any | None,  # noqa: ANN401
+        dataset: Any | None,
     ) -> AppliedStrategy:
         return AppliedStrategy(
             strategy=strategy,
@@ -343,7 +342,7 @@ class ImprovementStrategyManager:
     def _apply_quality_weighting(
         self,
         strategy: ImprovementStrategy,
-        dataset: Any | None,  # noqa: ANN401
+        dataset: Any | None,
     ) -> AppliedStrategy:
         return AppliedStrategy(
             strategy=strategy,

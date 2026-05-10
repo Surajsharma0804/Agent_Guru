@@ -111,7 +111,7 @@ class LLMFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=1,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("Local LLM fallback failed: %s", exc)
 
         if current_backend in ["cloud", "local"]:
@@ -124,7 +124,7 @@ class LLMFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=2,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("Rule-based fallback failed: %s", exc)
 
         # Final fallback: cached response
@@ -144,7 +144,7 @@ class LLMFallbackHandler(FallbackHandler):
                 fallback_count=3,
             )
 
-    async def _try_local_llm(self, context: dict[str, Any]) -> Any:  # noqa: ANN401
+    async def _try_local_llm(self, context: dict[str, Any]) -> Any:
         """Try local LLM.
 
         Args:
@@ -169,7 +169,7 @@ class LLMFallbackHandler(FallbackHandler):
         msg = "Local LLM execution not implemented"
         raise NotImplementedError(msg)
 
-    async def _try_rule_based(self, context: dict[str, Any]) -> Any:  # noqa: ANN401
+    async def _try_rule_based(self, context: dict[str, Any]) -> Any:
         """Try rule-based processing.
 
         Args:
@@ -195,7 +195,7 @@ class LLMFallbackHandler(FallbackHandler):
             "message": "Using rule-based fallback",
         }
 
-    async def _try_cache(self, context: dict[str, Any]) -> Any:  # noqa: ANN401
+    async def _try_cache(self, context: dict[str, Any]) -> Any:
         """Try cached response.
 
         Args:
@@ -250,7 +250,7 @@ class ToolFallbackHandler(FallbackHandler):
                 result=result,
                 fallback_count=1,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.warning("Alternative tool fallback failed: %s", exc)
 
         # Try simplified request
@@ -262,7 +262,7 @@ class ToolFallbackHandler(FallbackHandler):
                 result=result,
                 fallback_count=2,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.warning("Simplified request fallback failed: %s", exc)
 
         # Final fallback: notify user
@@ -276,7 +276,7 @@ class ToolFallbackHandler(FallbackHandler):
             fallback_count=3,
         )
 
-    async def _try_alternative_tool(self, context: dict[str, Any]) -> Any:  # noqa: ANN401
+    async def _try_alternative_tool(self, context: dict[str, Any]) -> Any:
         """Try alternative tool.
 
         Args:
@@ -303,7 +303,7 @@ class ToolFallbackHandler(FallbackHandler):
             "used_tool": alternative_tools[0],
         }
 
-    async def _try_simplified_request(self, context: dict[str, Any]) -> Any:  # noqa: ANN401
+    async def _try_simplified_request(self, context: dict[str, Any]) -> Any:
         """Try simplified request.
 
         Args:
@@ -365,7 +365,7 @@ class TimeoutFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=2,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("Async execution fallback failed: %s", exc)
 
         # Final fallback: simplify
@@ -379,7 +379,7 @@ class TimeoutFallbackHandler(FallbackHandler):
             fallback_count=3,
         )
 
-    async def _execute_async(self, context: dict[str, Any]) -> Any:  # noqa: ANN401
+    async def _execute_async(self, context: dict[str, Any]) -> Any:
         """Execute asynchronously.
 
         Args:
@@ -481,7 +481,7 @@ class FallbackRegistry:
 
                 return result
 
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("Fallback handler failed: %s", exc)
                 continue
 

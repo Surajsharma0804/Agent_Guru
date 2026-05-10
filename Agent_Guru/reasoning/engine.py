@@ -332,7 +332,7 @@ class ReasoningEngine:
             enable_tracing=enable_tracing,
         )
 
-    def _initialize_llm_provider(self) -> Any | None:  # noqa: ANN401
+    def _initialize_llm_provider(self) -> Any | None:
         """Initialize LLM provider with fallback chain.
 
         Priority order (first available wins):
@@ -442,6 +442,7 @@ class ReasoningEngine:
         except Exception:
             logger.exception("Ollama provider failed")
             return None
+
     async def process(self, raw_input: RawInput) -> ReasoningResult:
         """Process user input through the reasoning pipeline.
 
@@ -539,6 +540,7 @@ class ReasoningEngine:
                     error=str(e),
                     trace_id=trace_id,
                 )
+
     async def _normalize_input(
         self,
         raw_input: RawInput,
@@ -633,8 +635,7 @@ class ReasoningEngine:
 
         """
         # High confidence required
-        if intent.confidence < 0.9:  # noqa: PLR2004 - Threshold value
-
+        if intent.confidence < 0.9:
             return False
 
         # No reasoning required
@@ -1128,7 +1129,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
         self,
         normalized_input: NormalizedInput,
         intent: Intent,
-    ) -> Any | None:  # noqa: ANN401
+    ) -> Any | None:
         """Retrieve relevant memory context.
 
         Args:

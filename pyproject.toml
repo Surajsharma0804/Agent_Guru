@@ -54,23 +54,11 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = [
-    "E",      # pycodestyle errors
-    "W",      # pycodestyle warnings
-    "F",      # pyflakes
-    "I",      # isort
-    "B",      # flake8-bugbear
-    "C4",     # flake8-comprehensions
-    "UP",     # pyupgrade
-    "TRY",    # tryceratops — better try/except structure
-    "BLE",    # flake8-blind-except — no bare except
-    "FBT",    # flake8-boolean-trap — no bool positional args
-    "D",      # pydocstyle — enforce docstrings
-    "PLC",    # pylint convention rules (includes PLC0415)
-]
+select = ["ALL"]
 ignore = [
     # ── Formatting ─────────────────────────────────────────────────────────
     "E501",    # line too long — handled by black (line-length = 100)
+    "COM812",  # missing-trailing-comma — conflicts with ruff formatter
 
     # ── PLC0415: Import not at top-level (ARCHITECTURAL DECISION) ──────────
     # Agent_Guru uses intentional lazy imports for optional ML dependencies:
@@ -135,6 +123,185 @@ ignore = [
     "FBT001",  # boolean positional arg — legacy gap (295 violations)
     "FBT002",  # boolean default value — legacy gap (195 violations)
     "FBT003",  # boolean literal in call — legacy gap (96 violations)
+
+    # ── ARG: Unused arguments ────────────────────────────────────────────────
+    # ARG001/002/003/004/005: Many overridden methods and callbacks intentionally
+    # accept but do not use all parameters (Protocol conformance, ABC overrides).
+    "ARG001",  # unused function argument — Protocol/ABC conformance
+    "ARG002",  # unused method argument — 169 violations, overrides
+    "ARG003",  # unused class method argument — overrides
+    "ARG004",  # unused static method argument — overrides
+    "ARG005",  # unused lambda argument — design choice
+
+    # ── N999: Invalid module name (legacy file naming) ───────────────────────
+    # 160 violations — existing module/package names use camelCase or mixed case
+    # that predate this project's naming conventions. Renaming would break imports.
+    "N999",    # invalid-module-name — legacy naming, renaming breaks imports
+
+    # ── PLR0913: Too many arguments ──────────────────────────────────────────
+    # 108 violations — AI pipeline classes legitimately need many config params.
+    # Breaking into config objects would cause more complexity than it solves.
+    "PLR0913", # too-many-arguments — legitimate for complex AI pipeline ctors
+
+    # ── C901: Complex functions ───────────────────────────────────────────────
+    # 96 violations — AI model routing, platform dispatch, and format converters
+    # are inherently complex. Tracked in backlog for incremental refactoring.
+    "C901",    # complex-structure — backlog item, fix incrementally
+
+    # ── RUF002/003: Ambiguous unicode docstrings ─────────────────────────────
+    # 95+24 violations — legitimate Unicode in docstring examples and emojis.
+    "RUF002",  # ambiguous-unicode-character-docstring — legitimate unicode
+    "RUF003",  # ambiguous-unicode-character-comment — legitimate unicode
+
+    # ── RUF012: Mutable class attributes without ClassVar ────────────────────
+    # 73 violations — Pydantic models and dataclasses handle mutability correctly.
+    "RUF012",  # mutable-class-attributes — Pydantic/dataclass pattern
+
+    # ── PERF401/402/403: Performance suggestions ─────────────────────────────
+    # 68+1+1 violations — readability preferred over micro-optimisation here.
+    "PERF401", # manual-list-comprehension — readability preferred
+    "PERF402", # manual-list-copy — readability preferred
+    "PERF403", # manual-dict-comprehension — readability preferred
+
+    # ── SLF001: Private member access ────────────────────────────────────────
+    # 62 violations — test helpers and internal coordination between sibling
+    # classes within the same module legitimately access private members.
+    "SLF001",  # private-member-access — test helpers and sibling access
+
+    # ── G004/G202: Logging format string ─────────────────────────────────────
+    # 54+18 violations — f-string logging is deliberate for structlog compatibility.
+    "G004",    # logging-f-string — structlog pattern
+    "G202",    # logging-warn-with-format — structlog pattern
+
+    # ── PLW0603: Global statement ────────────────────────────────────────────
+    # 53 violations — singleton initialization patterns use module-level globals.
+    "PLW0603", # global-statement — singleton init pattern
+
+    # ── PLR0911/0912/0915: Too many returns/branches/statements ──────────────
+    # Complex dispatchers and state machines legitimately exceed these limits.
+    "PLR0911", # too-many-return-statements — dispatcher pattern
+    "PLR0912", # too-many-branches — state machine pattern
+    "PLR0915", # too-many-statements — complex initialization
+
+    # ── SIM102/105/108/112/117: Simplification suggestions ───────────────────
+    # Stylistic preferences that reduce readability in complex conditional chains.
+    "SIM102",  # collapsible-if — readability preferred
+    "SIM105",  # suppressible-exception — contextlib.suppress preferred
+    "SIM108",  # if-else-block-instead-of-ternary — readability
+    "SIM112",  # use-capitalized-env-var — naming convention varies
+    "SIM117",  # multiple-with-statements — readability preferred
+
+    # ── ANN: Missing type annotations (INCREMENTAL) ───────────────────────────
+    # ANN001/002/003: Missing parameter annotations in legacy code.
+    # ANN201/202/204/205/206: Missing return annotations in legacy code.
+    # ANN401: Any in public API — used deliberately in AI adapters.
+    # New code MUST be fully annotated; these are legacy gaps.
+    "ANN001",  # missing-type-function-argument — legacy gap
+    "ANN002",  # missing-type-args — legacy gap
+    "ANN003",  # missing-type-kwargs — legacy gap
+    "ANN201",  # missing-return-type-public-function — legacy gap
+    "ANN202",  # missing-return-type-private-function — legacy gap
+    "ANN204",  # missing-return-type-special-method — legacy gap
+    "ANN205",  # missing-return-type-static-method — legacy gap
+    "ANN206",  # missing-return-type-class-method — legacy gap
+    "ANN401",  # any-type — deliberate in AI adapters (dynamic types)
+
+    # ── ASYNC: Async suggestions ──────────────────────────────────────────────
+    # ASYNC109: async-function-with-timeout — trio-style, not applicable here.
+    # ASYNC110: async-busy-wait — deliberate polling loops.
+    # ASYNC220/221: create_subprocess_exec/shell — used with explicit await.
+    "ASYNC109", # async-function-with-timeout — trio pattern, not used
+    "ASYNC110", # async-busy-wait — deliberate polling
+    "ASYNC220", # create-subprocess-exec — used correctly
+    "ASYNC221", # create-subprocess-shell — used correctly
+
+    # ── TD/FIX: TODO comments ─────────────────────────────────────────────────
+    # 23+23+23 violations — TODO comments are tracked in the issue backlog.
+    "TD002",   # missing-todo-author — not required in this project
+    "TD003",   # missing-todo-link — not required in this project
+    "FIX002",  # line-contains-todo — tracked in backlog
+
+    # ── N806: Uppercase variable names ────────────────────────────────────────
+    # 24 violations — ML/AI convention uses uppercase for constants (e.g. X, Y).
+    "N806",    # non-lowercase-variable-in-function — ML convention (X, Y)
+
+    # ── INP001: Implicit namespace package ───────────────────────────────────
+    # 24 violations — intentional namespace packages without __init__.py.
+    "INP001",  # implicit-namespace-package — intentional
+
+    # ── RUF001: Ambiguous unicode string ─────────────────────────────────────
+    # 14 violations — legitimate Unicode in user-facing strings and TTS output.
+    "RUF001",  # ambiguous-unicode-character-string — legitimate unicode
+
+    # ── PYI036: Bad annotations in __exit__ ──────────────────────────────────
+    "PYI036",  # bad-exit-annotation — legacy pattern
+
+    # ── NPY002: Legacy numpy random ──────────────────────────────────────────
+    # 12 violations — random number generation in ML models uses the legacy API
+    # for reproducibility with fixed seeds in existing trained models.
+    "NPY002",  # numpy-legacy-random — reproducibility requirement
+
+    # ── PTH: Use pathlib ─────────────────────────────────────────────────────
+    # 10+6+4+4+3+2+1+1+1 violations — os.path used in legacy code alongside
+    # pathlib. Fix incrementally when touching those files.
+    "PTH100",  # os-path-abspath — legacy
+    "PTH108",  # os-unlink — legacy
+    "PTH110",  # os-path-exists — legacy
+    "PTH118",  # os-path-join — legacy
+    "PTH120",  # os-path-dirname — legacy
+    "PTH123",  # open-builtin-with-mode — legacy
+    "PTH202",  # os-path-getsize — legacy
+
+    # ── PLR2004: Magic values ─────────────────────────────────────────────────
+    # 17 violations — numeric literals in ML code are domain constants
+    # (e.g. 0.5 threshold, 16000 sample rate). Extracting to named constants
+    # would reduce readability in mathematical expressions.
+    "PLR2004", # magic-value-comparison — ML domain constants
+
+    # ── PLW2901: Overwriting loop variable ────────────────────────────────────
+    "PLW2901", # redefined-loop-name — intentional pattern
+
+    # ── DTZ: Timezone-naive datetime ─────────────────────────────────────────
+    # 6+3+2 violations — audit timestamps use UTC explicitly; some legacy
+    # code uses datetime.now() which is being migrated incrementally.
+    "DTZ004",  # call-datetime-fromtimestamp — legacy, fix incrementally
+    "DTZ005",  # call-datetime-now — legacy, fix incrementally
+    "DTZ006",  # call-datetime-utcfromtimestamp — legacy, fix incrementally
+
+    # ── PGH003: Broad type ignore ────────────────────────────────────────────
+    # 7 violations — intentional type: ignore[assignment] for dynamic adapters.
+    "PGH003",  # blanket-type-ignore — intentional for dynamic adapters
+
+    # ── SIM103: Return boolean expression ────────────────────────────────────
+    "SIM103",  # return-in-try-except-else — readability
+
+    # ── A: shadowing builtins ─────────────────────────────────────────────────
+    "A001",    # builtin-variable-shadowing — legacy parameter names
+    "A002",    # builtin-argument-shadowing — legacy parameter names (e.g. input, type)
+    "A004",    # builtin-import-shadowing — intentional in compatibility shims
+
+    # ── S: Security ───────────────────────────────────────────────────────────
+    # Flagged items that are safe in context or already have nosec comments.
+    "S110",    # try-except-pass — intentional guard clause
+    "S112",    # try-except-continue — intentional guard clause
+    "S311",    # suspicious-non-cryptographic-random-usage — ML non-crypto use
+    "S314",    # suspicious-xml-element-tree — safe, no untrusted input
+    "S310",    # suspicious-url-open — HTTP within own infrastructure
+    "S602",    # subprocess-popen-with-shell-equals-true — guarded by nosec
+    "S606",    # start-process-no-shell — guarded by nosec
+    "S607",    # start-process-with-partial-path — guarded by nosec
+
+    # ── EM102: Exception with f-string ────────────────────────────────────────
+    "EM102",   # f-string-in-exception — readability preferred over variable
+
+    # ── LOG015: logging.exception in except ───────────────────────────────────
+    "LOG015",  # root-logger-call — structlog used exclusively in new code
+
+    # ── ASYNC110 / PLW0602 / PERF402 / N818 / PIE796 / ICN001 ─────────────────
+    "PLW0602", # global-variable-not-assigned — intentional sentinel
+    "N818",    # exception-name — legacy naming
+    "PIE796",  # duplicate-union-member — false positive in complex generics
+    "ICN001",  # unconventional-import-alias — deliberate alias for long names
 ]
 
 [tool.ruff.lint.per-file-ignores]

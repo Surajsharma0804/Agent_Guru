@@ -92,14 +92,14 @@ class ManifestGenerator:
         """
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(manifest, f, indent=2)
 
     @staticmethod
     def generate_and_save(
         skill_class: type[Skill],
         output_path: Path,
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: Any,
     ) -> dict[str, Any]:
         """Generate manifest from skill class and save to file.
 

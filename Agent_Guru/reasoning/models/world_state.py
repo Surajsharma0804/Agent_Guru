@@ -64,7 +64,7 @@ class CalendarEvent(BaseModel):
 
     @field_validator("end_time")
     @classmethod
-    def validate_end_time(cls, v: datetime, info) -> datetime:  # noqa: ANN001
+    def validate_end_time(cls, v: datetime, info) -> datetime:
         if "start_time" in info.data and v < info.data["start_time"]:
             msg = "end_time must be after start_time"
             raise ValueError(msg)

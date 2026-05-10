@@ -29,7 +29,7 @@ class LoopDetector:
         # Per-session state tracking: session_id -> deque of state hashes (bounded)
         self._traces: dict[str, deque[str]] = {}
 
-    def record_state(self, session_id: str, state: Any) -> LoopDetectionResult:  # noqa: ANN401
+    def record_state(self, session_id: str, state: Any) -> LoopDetectionResult:
         """Record a new state and check for loops.
 
         Args:
@@ -116,7 +116,7 @@ class LoopDetector:
         return list(self._traces.get(session_id, []))
 
     @staticmethod
-    def _hash_state(state: Any) -> str:  # noqa: ANN401
+    def _hash_state(state: Any) -> str:
         """Compute a deterministic hash of a state."""
         try:
             if isinstance(state, str):

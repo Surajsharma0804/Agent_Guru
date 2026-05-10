@@ -98,8 +98,7 @@ class PersonalityEvolutionEngine:
         # Auto-rollback on very negative feedback
         if (
             profile.metrics.user_satisfaction < _AUTO_ROLLBACK_THRESHOLD
-            and len(profile.evolution_history) >= 2  # noqa: PLR2004 - Small integer threshold
-
+            and len(profile.evolution_history) >= 2
         ):
             logger.info("Auto-rollback triggered for user %s", feedback.user_id)
             profile = self._do_rollback(profile, profile.version - 2)
@@ -151,8 +150,7 @@ class PersonalityEvolutionEngine:
 
     def calculate_consistency(self, profile: PersonalityProfile) -> float:
         """Measure consistency across evolution history."""
-        if len(profile.evolution_history) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(profile.evolution_history) < 2:
             return 1.0
         total_change = 0.0
         for i in range(1, len(profile.evolution_history)):

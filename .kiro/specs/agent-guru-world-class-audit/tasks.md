@@ -61,12 +61,12 @@ This plan implements the complete Agent Guru World-Class Audit system across all
     - Call `settings.load_profile("ci")`
     - _Requirements: Design — Testing Strategy_
 
-  - [ ]* 1.6 Write unit tests for `audit/models.py` in `audit/tests/test_models.py`
+  - [x] 1.6 Write unit tests for `audit/models.py` in `audit/tests/test_models.py`
     - Test that every dataclass can be instantiated with valid arguments
     - Test that `Severity` and `FindingCategory` enums have the expected members
     - _Requirements: 9.1_
 
-  - [ ]* 1.7 Write unit tests for `audit/report.py` in `audit/tests/test_report.py`
+  - [x] 1.7 Write unit tests for `audit/report.py` in `audit/tests/test_report.py`
     - Test `atomic_write` produces the correct file content
     - Test `write` produces a document with exactly 9 top-level `##` headings
     - _Requirements: 9.1, 9.6_
@@ -98,11 +98,11 @@ This plan implements the complete Agent Guru World-Class Audit system across all
     - Include: module inventory table, dependency DAG as Mermaid diagram (top 20 nodes), cycle list, voice pipeline trace table, startup lifecycle table, external service boundary table, configuration entry point table, `__pycache__`/`.pyc` count
     - _Requirements: 1.7_
 
-  - [ ]* 2.6 Write property test for `RepositoryScanner` in `audit/tests/test_phase1.py`
+  - [x] 2.6 Write property test for `RepositoryScanner` in `audit/tests/test_phase1.py`
     - **Property 1: Module Inventory Completeness** — for any set of Python file paths, `scan_all_modules()` returns exactly one `ModuleInventory` per file with no duplicates
     - **Validates: Requirements 1.1, 1.7**
 
-  - [ ]* 2.7 Write property test for dependency DAG in `audit/tests/test_phase1.py`
+  - [x] 2.7 Write property test for dependency DAG in `audit/tests/test_phase1.py`
     - **Property 2: Dependency DAG Correctness** — for any module A with `import B`, the DAG contains edge A->B; if no import exists, no edge is present
     - **Property 3: Cycle Detection Completeness** — for any graph with known cycles, every cycle is reported with no false positives
     - **Validates: Requirements 1.2, 3.5**
@@ -127,7 +127,7 @@ This plan implements the complete Agent Guru World-Class Audit system across all
     - Each remediation item must specify: gap, affected module, required change, expected metric improvement as absolute delta with unit and percentile
     - _Requirements: 2.5, 2.6_
 
-  - [ ]* 3.4 Write property tests for competitive analysis in `audit/tests/test_phase1.py`
+  - [x] 3.4 Write property tests for competitive analysis in `audit/tests/test_phase1.py`
     - **Property 4: Competitive Gap Detection Correctness** — for any (measured, target) pair where measured > target, gap analysis classifies as gap; where measured <= target, no gap
     - **Property 5: Remediation List Ordering** — for any list of `RemediationItem` objects, the output is sorted descending by `competitive_impact_score` with no inversions
     - **Validates: Requirements 2.2, 2.3, 2.6, 9.3**
@@ -174,7 +174,7 @@ This plan implements the complete Agent Guru World-Class Audit system across all
     - Severity-sorted table of all findings with file path, line number, rule code, description, and fixed status
     - _Requirements: 3.13_
 
-  - [ ]* 4.8 Write property tests for bug detection in `audit/tests/test_phase3_properties.py`
+  - [x] 4.8 Write property tests for bug detection in `audit/tests/test_phase3_properties.py`
     - **Property 6: Async Anti-pattern Detection Completeness** — any `async def` with a blocking call produces >= 1 finding; any `async def` without blocking calls produces 0 findings
     - **Property 7: Broken Import Detection Correctness** — any import of a non-existent symbol produces a finding; any import of an existing symbol produces no finding
     - **Property 8: Duplicate Implementation Detection** — any module pair sharing >= 2 public symbols with identical signatures produces a finding; pairs sharing < 2 do not
@@ -212,7 +212,7 @@ This plan implements the complete Agent Guru World-Class Audit system across all
     - Replace blocking `sd.rec()` in `MicrophoneCapture` with sounddevice callback that calls `ring_buffer.write()`
     - _Requirements: 4.3_
 
-  - [ ]* 5.6 Write property tests for `LockFreeRingBuffer` in `audit/tests/test_phase4_properties.py`
+  - [x] 5.6 Write property tests for `LockFreeRingBuffer` in `audit/tests/test_phase4_properties.py`
     - **Property 9: Ring Buffer Capacity Invariant** — for any sequence of writes, `available_samples` never exceeds `CAPACITY - 1`
     - **Property 10: Ring Buffer Read/Write Round Trip** — for any samples written that do not exceed capacity, reading back returns the exact samples in order
     - **Validates: Requirements 4.3**
@@ -229,7 +229,7 @@ This plan implements the complete Agent Guru World-Class Audit system across all
     - Wire GPU pool into STT, TTS, vision, and avatar subsystems so they share VRAM without reallocation
     - _Requirements: 4.5_
 
-  - [ ]* 5.9 Write property test for `GPUMemoryPool` in `audit/tests/test_phase4_properties.py`
+  - [x] 5.9 Write property test for `GPUMemoryPool` in `audit/tests/test_phase4_properties.py`
     - **Property 21: GPU Pool VRAM Invariant** — for any sequence of `allocate()` and `release()` operations, `allocated_bytes` never exceeds `max_vram_bytes`; any `allocate()` that would exceed the limit returns `None`
     - **Validates: Requirements 4.5**
 
@@ -246,7 +246,7 @@ This plan implements the complete Agent Guru World-Class Audit system across all
     - Wire cache into `reasoning/engine.py` so repeated identical queries return within 1ms
     - _Requirements: 4.7_
 
-  - [ ]* 5.12 Write property tests for `LRUResponseCache` in `audit/tests/test_phase4_properties.py`
+  - [x] 5.12 Write property tests for `LRUResponseCache` in `audit/tests/test_phase4_properties.py`
     - **Property 11: LRU Cache Size Invariant** — for any sequence of `put()` operations, `size` never exceeds `max_size`
     - **Property 12: LRU Cache Eviction Order** — at capacity, the entry evicted is the one whose last access was earliest
     - **Property 13: LRU Cache TTL Expiry** — any entry older than `ttl_seconds` returns `None` on `get()`
@@ -282,7 +282,7 @@ This plan implements the complete Agent Guru World-Class Audit system across all
     - Target: P95 intent classification latency < 50ms for the 200 most common commands
     - _Requirements: 4.10_
 
-  - [ ]* 5.18 Write property test for trie intent classification in `audit/tests/test_phase4_properties.py`
+  - [x] 5.18 Write property test for trie intent classification in `audit/tests/test_phase4_properties.py`
     - **Property 22: Trie Intent Classification Correctness** — any command exactly matching a registered pattern returns the correct intent type; any non-matching command returns `None` or routes to neural fallback
     - **Validates: Requirements 4.10**
 
@@ -414,7 +414,7 @@ This plan implements the complete Agent Guru World-Class Audit system across all
     - Fix any failing check in the relevant `Agent_Guru/` source file before proceeding
     - _Requirements: 6.13_
 
-  - [ ]* 9.6 Write property tests for integration validation in `audit/tests/test_phase6_properties.py`
+  - [x] 9.6 Write property tests for integration validation in `audit/tests/test_phase6_properties.py`
     - **Property 15: Conversation Memory LRU Eviction** — for any sequence of `add_turn()` calls with `max_turns=N`, `turn_count` never exceeds N; after N+1 turns, oldest turn is evicted and remaining turns are in insertion order
     - **Property 16: Audit Trail Hash Chain Integrity** — for any sequence of `log_action()` calls, each entry at index i (i>0) has `prev_hash` equal to SHA-256 of entry at index i-1; first entry has genesis hash
     - **Property 17: Policy DENY Enforcement** — for any action where `PolicyEngine` returns DENY, the action callable is not invoked and pipeline result has DENY status, regardless of action type, user identity, or resource
@@ -474,7 +474,7 @@ This plan implements the complete Agent Guru World-Class Audit system across all
     - Move every API key, password, and private key to environment variables or OS keychain; remove all string literals containing secrets
     - _Requirements: 7.12, 7.13_
 
-  - [ ]* 10.9 Write property tests for code quality checks in `audit/tests/test_phase7_properties.py`
+  - [x] 10.9 Write property tests for code quality checks in `audit/tests/test_phase7_properties.py`
     - **Property 19: Layer Violation Detection** — any import in `llm/`, `memory/`, or `reasoning/` referencing `platform/` or `deployment/` produces a finding; imports that do not cross this boundary produce no finding
     - **Validates: Requirements 7.11**
 
@@ -548,7 +548,7 @@ This plan implements the complete Agent Guru World-Class Audit system across all
     - Verify the document renders correctly
     - _Requirements: 9.6_
 
-  - [ ]* 13.6 Write property tests for report generation in `audit/tests/test_phase9_properties.py`
+  - [x] 13.6 Write property tests for report generation in `audit/tests/test_phase9_properties.py`
     - **Property 20: Report Section Completeness** — for any `AuditReport` object passed to `MasterReportWriter.write()`, the resulting `AUDIT_REPORT_MASTER.md` contains exactly 9 top-level sections with the exact headings in the specified order
     - **Validates: Requirements 9.1, 9.2**
 

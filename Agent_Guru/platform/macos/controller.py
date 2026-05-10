@@ -204,7 +204,7 @@ class MacOSController:
             # URL → open in default browser
             if resolved.startswith(("http://", "https://")):
                 subprocess.Popen(  # nosec B603 B607  # noqa: S603
-                    ["open", resolved],  # noqa: S607
+                    ["open", resolved],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
@@ -272,6 +272,7 @@ class MacOSController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     # ------------------------------------------------------------------
     # Keyboard simulation
     # ------------------------------------------------------------------
@@ -316,7 +317,7 @@ class MacOSController:
             escaped = text.replace('"', '\\"').replace("\\", "\\\\")
             script = f'tell application "System Events" to keystroke "{escaped}"'
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["osascript", "-e", script],  # noqa: S607
+                ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -348,6 +349,7 @@ class MacOSController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     def press_key(self, key: str) -> MacOSControllerResult:
         """Press a single key or key combination.
 
@@ -397,7 +399,7 @@ class MacOSController:
             # Simpler approach: use keystroke for printable, key code for special
             script = f'tell application "System Events" to keystroke (ASCII character {ord(key[0]) if len(key) == 1 else 13})'
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["osascript", "-e", script],  # noqa: S607
+                ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -422,6 +424,7 @@ class MacOSController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     def hotkey(self, *keys: str) -> MacOSControllerResult:
         """Press a hotkey combination simultaneously."""
         start = time.perf_counter()
@@ -495,6 +498,7 @@ class MacOSController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     # ------------------------------------------------------------------
     # Window management via NSWorkspace / AppleScript
     # ------------------------------------------------------------------
@@ -512,7 +516,7 @@ class MacOSController:
         try:
             script = 'tell application "System Events" to get name of every process whose background only is false'
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["osascript", "-e", script],  # noqa: S607
+                ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -561,7 +565,7 @@ class MacOSController:
         try:
             script = f'tell application "{resolved}" to activate'
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["osascript", "-e", script],  # noqa: S607
+                ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -585,6 +589,7 @@ class MacOSController:
                 error=str(e),
                 latency_ms=latency_ms,
             )
+
     # ------------------------------------------------------------------
     # Permission checking
     # ------------------------------------------------------------------
@@ -610,7 +615,7 @@ class MacOSController:
         # Fallback: try a benign AppleScript operation
         try:
             result = subprocess.run(  # nosec B603 B607
-                [  # noqa: S607
+                [
                     "osascript",
                     "-e",
                     'tell application "System Events" to get name of first process',
@@ -624,6 +629,7 @@ class MacOSController:
         except (OSError, subprocess.TimeoutExpired) as exc:
             logger.debug("AppleScript accessibility check failed: %s", exc)
             return False
+
     def check_permission(self, operation: str) -> bool:
         """Check if the current process has permission for an operation.
 

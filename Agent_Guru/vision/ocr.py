@@ -328,14 +328,12 @@ class DocumentAnalyzer:
         if current_row:
             rows.append(sorted(current_row, key=lambda w: w.get("x", 0)))
 
-        if len(rows) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(rows) < 2:
             return []
 
         # Only treat as table if rows have consistent column counts
         col_counts = [len(r) for r in rows]
-        if max(col_counts) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if max(col_counts) < 2:
             return []
 
         table = [[w.get("text", "") for w in row] for row in rows]

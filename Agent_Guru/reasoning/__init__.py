@@ -21,7 +21,7 @@ def __getattr__(name: str):
     """Lazy-load ReasoningEngine to avoid crashing on missing optional deps."""
     if name == "ReasoningEngine":
         try:
-            from Agent_Guru.reasoning.engine import ReasoningEngine  # noqa: PLC0415
+            from Agent_Guru.reasoning.engine import ReasoningEngine
 
             globals()["ReasoningEngine"] = ReasoningEngine
             return ReasoningEngine

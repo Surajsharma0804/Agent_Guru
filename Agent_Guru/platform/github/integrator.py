@@ -332,6 +332,7 @@ class GitHubIntegrator:
             logger.exception("Failed to get repository status")
             msg = f"Status check failed: {e}"
             raise GitError(msg) from e
+
     def add_files(self, files: list[str]) -> GitOperationResult:
         """Stage files for commit.
 
@@ -388,6 +389,7 @@ class GitHubIntegrator:
                 stderr=str(e),
                 duration_ms=duration_ms,
             )
+
     def commit(self, message: str, allow_empty: bool = False) -> GitOperationResult:
         """Create a commit with staged changes.
 
@@ -453,6 +455,7 @@ class GitHubIntegrator:
                 stderr=str(e),
                 duration_ms=duration_ms,
             )
+
     def push(
         self,
         branch: str | None = None,
@@ -546,6 +549,7 @@ class GitHubIntegrator:
                 stderr=str(e),
                 duration_ms=duration_ms,
             )
+
     def pull(self, branch: str | None = None, rebase: bool = True) -> GitOperationResult:
         """Pull changes from remote repository.
 
@@ -612,6 +616,7 @@ class GitHubIntegrator:
                 stderr=str(e),
                 duration_ms=duration_ms,
             )
+
     def commit_and_push(
         self,
         message: str,
@@ -677,6 +682,7 @@ class GitHubIntegrator:
                 stderr=str(e),
                 duration_ms=duration_ms,
             )
+
     # Private helper methods
 
     def _is_git_repository(self) -> bool:
@@ -722,6 +728,7 @@ class GitHubIntegrator:
                 stderr=f"Timeout: {' '.join(cmd)}",
             )
             return GitOperationResult(success=False, message=f"Command failed: {e}", stderr=str(e))
+
     def _parse_status_output(self, output: str) -> tuple[list[str], list[str], list[str]]:
         """Parse git status --porcelain output.
 
@@ -782,6 +789,7 @@ class GitHubIntegrator:
         except Exception:
             logger.exception("Failed to get ahead/behind count")
             return 0, 0
+
     def _get_last_commit_hash(self) -> str:
         """Get hash of last commit."""
         result = self._run_git_command(["rev-parse", "HEAD"])
@@ -940,6 +948,7 @@ class GitHubIntegrator:
                 message=f"Auto commit and push failed: {e}",
                 stderr=str(e),
             )
+
     def _get_file_stats(self, files: list[str]) -> dict[str, str]:
         """Get file status for each file (A=added, M=modified, D=deleted).
 
@@ -1033,6 +1042,7 @@ class GitHubIntegrator:
         except Exception:
             logger.exception("Failed to detect conflicts")
             return False, []
+
     def resolve_conflicts_with_rebase(
         self,
         branch: str | None = None,
@@ -1206,6 +1216,7 @@ class GitHubIntegrator:
                 stderr=str(e),
                 duration_ms=duration_ms,
             )
+
     def push_with_conflict_resolution(
         self,
         branch: str | None = None,
@@ -1351,6 +1362,7 @@ class GitHubIntegrator:
                 stderr=str(e),
                 duration_ms=duration_ms,
             )
+
     def _notify_goal_manager_of_failure(
         self,
         operation: str,
@@ -1387,6 +1399,7 @@ class GitHubIntegrator:
 
         except Exception:
             logger.exception("Failed to notify Goal Manager")
+
     def create_branch(self, branch_name: str, base_branch: str | None = None) -> GitOperationResult:
         """Create a new branch.
 
@@ -1457,6 +1470,7 @@ class GitHubIntegrator:
                 stderr=str(e),
                 duration_ms=duration_ms,
             )
+
     def get_branch_info(self, branch_name: str) -> BranchInfo:
         """Get information about a branch.
 
@@ -1512,6 +1526,7 @@ class GitHubIntegrator:
                 exists_remotely=False,
                 is_current=False,
             )
+
     def generate_pr_description(
         self,
         task_id: str,
@@ -1555,8 +1570,7 @@ class GitHubIntegrator:
         for file_path in changed_files:
             # Extract component from path (e.g., "Agent_Guru/platform/github" -> "github")
             parts = Path(file_path).parts
-            if len(parts) >= 3 and parts[0] == "Agent_Guru":  # noqa: PLR2004 - Small integer threshold
-
+            if len(parts) >= 3 and parts[0] == "Agent_Guru":
                 components.add(parts[2])
 
             # Extract file extension
@@ -1588,8 +1602,7 @@ class GitHubIntegrator:
             }.get(file_stats.get(file_path, "M"), "📝")
             description_parts.append(f"- {status_symbol} `{file_path}`")
 
-        if len(changed_files) > 20:  # noqa: PLR2004 - Threshold
-
+        if len(changed_files) > 20:
             description_parts.append(f"- ... and {len(changed_files) - 20} more files")
 
         description_parts.extend(
@@ -1684,7 +1697,7 @@ class GitHubIntegrator:
 
             # Check if GitHub CLI is available
             gh_check = subprocess.run(
-                ["gh", "--version"],  # noqa: S607
+                ["gh", "--version"],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1774,6 +1787,7 @@ class GitHubIntegrator:
                 message=f"PR creation failed: {e}",
                 error=str(e),
             )
+
     def create_pr_from_task(
         self,
         task_id: str,

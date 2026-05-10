@@ -54,7 +54,7 @@ class AgentOrchestrationClient:
 
     def __init__(
         self,
-        orchestration_system: Any | None = None,  # noqa: ANN401
+        orchestration_system: Any | None = None,
         status_callback: Callable[[str, str, Any], None] | None = None,
     ) -> None:
         """Initialize the client.
@@ -128,7 +128,7 @@ class AgentOrchestrationClient:
                 error=str(exc),
             )
 
-    def _build_task(self, command: CommandResult, user_id: str) -> Any:  # noqa: ANN401
+    def _build_task(self, command: CommandResult, user_id: str) -> Any:
         """Build an orchestration Task from a CommandResult.
 
         Uses duck-typing so we don't hard-import the agents module.
@@ -165,7 +165,7 @@ class AgentOrchestrationClient:
             task.dependencies = []
             return task
 
-    def _notify_status(self, task_id: str, status: str, output: Any) -> None:  # noqa: ANN401
+    def _notify_status(self, task_id: str, status: str, output: Any) -> None:
         """Fire status callback if registered."""
         if self._status_callback:
             try:

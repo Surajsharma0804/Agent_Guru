@@ -291,8 +291,8 @@ class LatencyEnforcer:
         self,
         stage: PipelineStage,
         func: Callable,
-        *args: Any,  # noqa: ANN401
-        **kwargs: Any,  # noqa: ANN401
+        *args: Any,
+        **kwargs: Any,
     ) -> tuple[Any, StageMetrics]:
         """Execute a function with latency budget enforcement.
 
@@ -348,6 +348,8 @@ class LatencyEnforcer:
                 timestamp=datetime.now(tz=UTC).isoformat(),
             )
             raise
+
+
 class DegradedModeManager:
     """Manager for degraded mode activation."""
 

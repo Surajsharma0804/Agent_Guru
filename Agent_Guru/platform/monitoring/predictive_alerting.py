@@ -250,8 +250,7 @@ class PredictiveAlerting:
         slope, _intercept, r_squared = self._linear_regression(values)
 
         # Determine trend direction
-        if abs(slope) < 0.01:  # Threshold for "stable"  # noqa: PLR2004 (Threshold value)
-
+        if abs(slope) < 0.01:  # Threshold for "stable"
             direction = TrendDirection.STABLE
         elif slope > 0:
             direction = TrendDirection.INCREASING
@@ -259,18 +258,15 @@ class PredictiveAlerting:
             direction = TrendDirection.DECREASING
 
         # Calculate confidence
-        if r_squared >= 0.8:  # noqa: PLR2004 - Threshold value
-
+        if r_squared >= 0.8:
             confidence = PredictionConfidence.HIGH
-        elif r_squared >= 0.6:  # noqa: PLR2004 - Threshold value
-
+        elif r_squared >= 0.6:
             confidence = PredictionConfidence.MEDIUM
         else:
             confidence = PredictionConfidence.LOW
 
         # Get time interval between samples
-        if len(recent) >= 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(recent) >= 2:
             time_delta = (recent[-1].timestamp - recent[0].timestamp).total_seconds()
             samples_per_second = len(recent) / time_delta if time_delta > 0 else 1.0
         else:
@@ -573,8 +569,7 @@ class PredictiveAlerting:
         """
         n = len(values)
 
-        if n < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if n < 2:
             return (0.0, values[0] if values else 0.0, 0.0)
 
         if NUMPY_AVAILABLE:

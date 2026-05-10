@@ -61,8 +61,7 @@ class DeploymentConfig:
             msg = "improvement_threshold must be between 0 and 1"
             raise ValueError(msg)
 
-        if self.measurement_window < 10:  # noqa: PLR2004 - Threshold
-
+        if self.measurement_window < 10:
             msg = "measurement_window must be at least 10"
             raise ValueError(msg)
 

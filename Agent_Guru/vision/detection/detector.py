@@ -327,14 +327,12 @@ class FaceDetector:
     @staticmethod
     def _ensure_bgr(frame: np.ndarray) -> np.ndarray:
         """Convert frame to 3-channel uint8 BGR if needed."""
-        if frame.ndim == 2:  # noqa: PLR2004 - Small integer threshold
-
+        if frame.ndim == 2:
             # Greyscale → BGR
             if _CV2_AVAILABLE:
                 return cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
             return np.stack([frame, frame, frame], axis=-1).astype(np.uint8)
-        if frame.ndim == 3 and frame.shape[2] == 4:  # noqa: PLR2004 - Small integer threshold
-
+        if frame.ndim == 3 and frame.shape[2] == 4:
             # BGRA → BGR
             if _CV2_AVAILABLE:
                 return cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)

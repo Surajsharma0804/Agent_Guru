@@ -104,7 +104,7 @@ SUPPORTED_LANGUAGES = {
 class TranslateTool(Tool):
     """Tool for translating text."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute text translation.
 
         Args:

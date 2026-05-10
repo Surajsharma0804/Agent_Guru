@@ -51,14 +51,14 @@ _original_download = nltk.download
 
 
 def _patched_download(
-    info_or_id=None,  # noqa: ANN001
-    download_dir=None,  # noqa: ANN001
-    quiet=False,  # noqa: ANN001
-    force=False,  # noqa: ANN001
-    prefix=None,  # noqa: ANN001
-    halt_on_error=True,  # noqa: ANN001
-    raise_on_error=False,  # noqa: ANN001
-    print_error_to=None,  # noqa: ANN001
+    info_or_id=None,
+    download_dir=None,
+    quiet=False,
+    force=False,
+    prefix=None,
+    halt_on_error=True,
+    raise_on_error=False,
+    print_error_to=None,
 ):
     """Patched NLTK download that only downloads once per package."""
     if info_or_id:
@@ -244,7 +244,7 @@ class DataAugmenter:
                 augmented.extend(aug_text[:num_augmentations])
             else:
                 augmented.append(aug_text)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.debug("Synonym augmentation skipped: %s", exc)
 
         # Contextual embeddings
@@ -254,7 +254,7 @@ class DataAugmenter:
                 augmented.extend(aug_text[:num_augmentations])
             else:
                 augmented.append(aug_text)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.debug("Contextual augmentation skipped: %s", exc)
 
         # Back translation (slower but high quality)
@@ -265,7 +265,7 @@ class DataAugmenter:
                     augmented.extend(aug_text[:1])
                 else:
                     augmented.append(aug_text)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.debug("Back-translation augmentation skipped: %s", exc)
 
         return augmented[: num_augmentations + 1]
@@ -419,7 +419,7 @@ class IntentDataset(Dataset):
         self.use_augmentation = use_augmentation
 
         # Load data
-        with open(data_path, encoding="utf-8") as f:  # nosec - path validated by caller via safe_path  # noqa: PTH123
+        with open(data_path, encoding="utf-8") as f:  # nosec - path validated by caller via safe_path
             self.data = yaml.safe_load(f)
 
         # Filter out unknown intents for training (keep for validation/test)
@@ -649,8 +649,7 @@ class IntentClassifierModule(pl.LightningModule):
             loss = ce_loss
 
         # Adversarial training
-        if self.use_adversarial and secrets.SystemRandom().random() < 0.5:  # noqa: PLR2004 - Threshold value
-
+        if self.use_adversarial and secrets.SystemRandom().random() < 0.5:
             adv_loss = self.adversarial_perturbation(input_ids, attention_mask, labels, epsilon=1.0)
             loss = 0.5 * loss + 0.5 * adv_loss
 
@@ -789,7 +788,7 @@ class IntentClassifierModule(pl.LightningModule):
         # Save to file
         output_path = Path(self.config.output_dir) / "test_results.json"
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2)
 
         # Clear outputs
@@ -849,7 +848,7 @@ def load_intent_mapping(data_dir: str) -> tuple[dict[str, int], dict[int, str]]:
     """Load intent to ID mapping from intents.yaml."""
     _data_base = Path(data_dir).resolve()
     intents_path = safe_path("intents.yaml", _data_base)
-    with open(intents_path, encoding="utf-8") as f:  # nosec - path validated by safe_path  # noqa: PTH123
+    with open(intents_path, encoding="utf-8") as f:  # nosec - path validated by safe_path
         intents_data = yaml.safe_load(f)
 
     # Create mappings
@@ -879,13 +878,12 @@ def load_data_from_txt(
     def read_file(filepath: str) -> tuple[list[str], list[str]]:
         texts = []
         labels = []
-        with open(filepath, encoding="utf-8") as f:  # nosec - path validated by safe_path  # noqa: PTH123
+        with open(filepath, encoding="utf-8") as f:  # nosec - path validated by safe_path
             for line in f:
                 line = line.strip()
                 if line:
                     parts = line.split("\t")
-                    if len(parts) == 2:  # noqa: PLR2004 - Small integer threshold
-
+                    if len(parts) == 2:
                         labels.append(parts[0])
                         texts.append(parts[1])
         return texts, labels
@@ -1126,7 +1124,7 @@ def train_intent_classifier(config: TrainingConfig) -> None:
         "id_to_intent": id_to_intent,
         "num_labels": num_labels,
     }
-    with open(final_model_path / "intent_mappings.json", "w", encoding="utf-8") as f:  # nosec - path validated by safe_path  # noqa: PTH123
+    with open(final_model_path / "intent_mappings.json", "w", encoding="utf-8") as f:  # nosec - path validated by safe_path
         json.dump(mappings, f, indent=2)
 
     # Also save in the format expected by NeuralIntentClassifier (label_mappings.yaml)
@@ -1135,11 +1133,11 @@ def train_intent_classifier(config: TrainingConfig) -> None:
         "id_to_label": {str(k): v for k, v in id_to_intent.items()},
         "num_labels": num_labels,
     }
-    with open(final_model_path / "label_mappings.yaml", "w") as f:  # nosec - path validated by safe_path  # noqa: PTH123
+    with open(final_model_path / "label_mappings.yaml", "w") as f:  # nosec - path validated by safe_path
         yaml.dump(label_mappings, f, default_flow_style=False)
 
     # Save training config
-    with open(final_model_path / "training_config.json", "w", encoding="utf-8") as f:  # nosec - path validated by safe_path  # noqa: PTH123
+    with open(final_model_path / "training_config.json", "w", encoding="utf-8") as f:  # nosec - path validated by safe_path
         json.dump(vars(config), f, indent=2)
 
     if checkpoint_callback.best_model_score is not None:

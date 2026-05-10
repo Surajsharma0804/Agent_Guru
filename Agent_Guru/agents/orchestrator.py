@@ -107,15 +107,15 @@ class AgentOrchestrator:
 
     def __init__(
         self,
-        self_improvement_engine: Any | None = None,  # noqa: ANN401
+        self_improvement_engine: Any | None = None,
         enable_learning: bool = True,
-        fusion_engine: Any | None = None,  # noqa: ANN401
-        context_engine: Any | None = None,  # noqa: ANN401
-        proactive_engine: Any | None = None,  # noqa: ANN401
-        audit_trail: Any | None = None,  # noqa: ANN401
-        emotion_detector: Any | None = None,  # noqa: ANN401
-        empathy_adapter: Any | None = None,  # noqa: ANN401
-        degradation_controller: Any | None = None,  # noqa: ANN401
+        fusion_engine: Any | None = None,
+        context_engine: Any | None = None,
+        proactive_engine: Any | None = None,
+        audit_trail: Any | None = None,
+        emotion_detector: Any | None = None,
+        empathy_adapter: Any | None = None,
+        degradation_controller: Any | None = None,
     ) -> None:
         """Initialize agent orchestrator with capability module wiring.
 
@@ -399,7 +399,7 @@ class AgentOrchestrator:
     # Capability module integration (requirements 2.1, 8.3, 3.2, 6.3, 11.2, 7.1)
     # ------------------------------------------------------------------
 
-    async def fuse_intent(self, modality_inputs: list[Any]) -> Any | None:  # noqa: ANN401
+    async def fuse_intent(self, modality_inputs: list[Any]) -> Any | None:
         """Resolve multi-modal inputs into a fused intent via FusionEngine.
 
         Requirements: 2.1, 2.2
@@ -418,7 +418,7 @@ class AgentOrchestrator:
             logger.exception("FusionEngine.fuse failed")
             return None
 
-    def get_context_snapshot(self) -> Any | None:  # noqa: ANN401
+    def get_context_snapshot(self) -> Any | None:
         """Get ambient context snapshot for personality/response adaptation.
 
         Requirements: 8.3, 8.4
@@ -431,7 +431,7 @@ class AgentOrchestrator:
             logger.exception("ContextEngine.get_snapshot failed")
             return None
 
-    async def evaluate_proactive(self) -> Any | None:  # noqa: ANN401
+    async def evaluate_proactive(self) -> Any | None:
         """Evaluate and deliver proactive suggestions if appropriate.
 
         Requirements: 3.2, 3.3, 3.7

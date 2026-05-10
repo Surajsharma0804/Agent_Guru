@@ -59,7 +59,7 @@ class CrewAIBenchmark(BaseBenchmark):
         except Exception:
             self.simulation_mode = True
 
-    def execute_scenario(self, scenario: TestScenario) -> Any:  # noqa: ANN401
+    def execute_scenario(self, scenario: TestScenario) -> Any:
         """Execute a test scenario using CrewAI.
 
         Args:
@@ -95,7 +95,7 @@ class CrewAIBenchmark(BaseBenchmark):
         except Exception:
             return None
 
-    def _simulate_execution(self, scenario: TestScenario) -> Any:  # noqa: ANN401
+    def _simulate_execution(self, scenario: TestScenario) -> Any:
         """Simulate CrewAI execution when not installed.
 
         Args:

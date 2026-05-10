@@ -78,8 +78,7 @@ class ReasoningPlan:
         if not self.steps:
             msg = "steps cannot be empty"
             raise ValueError(msg)
-        if len(self.steps) > 5:  # noqa: PLR2004 - Small integer threshold
-
+        if len(self.steps) > 5:
             msg = f"Maximum 5 steps allowed, got {len(self.steps)}"
             raise ValueError(msg)
         if not 0.0 <= self.confidence <= 1.0:
@@ -115,7 +114,7 @@ class ReasoningPlanGenerator:
     MAX_RETRIES = 3
     TIMEOUT_SECONDS = 5.0
 
-    def __init__(self, llm_provider: Any) -> None:  # noqa: ANN401
+    def __init__(self, llm_provider: Any) -> None:
         """Initialize reasoning plan generator.
 
         Args:

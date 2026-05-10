@@ -174,7 +174,7 @@ class ProactiveSuggestionGenerator:
     def generate_alternative_suggestions(
         self,
         task: Task,
-        error: Any | None = None,  # noqa: ANN401
+        error: Any | None = None,
     ) -> list[Suggestion]:
         """Generate alternative suggestions when primary action fails.
 
@@ -301,8 +301,7 @@ class ProactiveSuggestionGenerator:
                 relevance += 0.2
 
         # Decrease for long conversations (user might be tired)
-        if len(conversation_state.turns) > 10:  # noqa: PLR2004 - Threshold
-
+        if len(conversation_state.turns) > 10:
             relevance -= 0.1
 
         return max(0.0, min(1.0, relevance))
@@ -365,8 +364,7 @@ class ProactiveSuggestionGenerator:
                 return True
 
         # Check frequency (suggest if done frequently)
-        return pattern.get("frequency", 0) >= 5  # noqa: PLR2004 - Small integer threshold
-
+        return pattern.get("frequency", 0) >= 5
 
     def _pattern_to_suggestion(self, pattern: dict[str, Any]) -> Suggestion | None:
         """Convert pattern to suggestion.
@@ -423,8 +421,7 @@ class ProactiveSuggestionGenerator:
             hour = current_time.hour
 
             # Morning suggestions
-            if 6 <= hour < 9:  # noqa: PLR2004 - Threshold
-
+            if 6 <= hour < 9:
                 suggestions.append(
                     Suggestion(
                         description="Would you like to hear today's weather?",
@@ -437,8 +434,7 @@ class ProactiveSuggestionGenerator:
                 )
 
             # Evening suggestions
-            elif 18 <= hour < 21:  # noqa: PLR2004 - Threshold
-
+            elif 18 <= hour < 21:
                 suggestions.append(
                     Suggestion(
                         description="Would you like to set a reminder for tomorrow?",

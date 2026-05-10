@@ -67,8 +67,7 @@ class HistoricalAccuracy:
             Multiplier to apply to confidence (0.5-1.5)
 
         """
-        if self.total_attempts < 10:  # noqa: PLR2004 - Threshold
-
+        if self.total_attempts < 10:
             return 1.0  # Need more data for calibration
 
         avg_conf = self.average_confidence
@@ -301,11 +300,10 @@ class ConfidenceScorer:
             score -= 0.1 * min(empty_params, 3)  # Cap penalty at 0.3
 
         # Check if descriptions are meaningful (>10 chars)
-        if len(task.goal) < 10:  # noqa: PLR2004 - Threshold
-
+        if len(task.goal) < 10:
             score -= 0.15
 
-        short_descriptions = sum(1 for step in task.steps if len(step.description) < 10)  # noqa: PLR2004 - Threshold
+        short_descriptions = sum(1 for step in task.steps if len(step.description) < 10)
 
         if short_descriptions > 0:
             score -= 0.05 * min(short_descriptions, 3)  # Cap penalty at 0.15
@@ -341,8 +339,7 @@ class ConfidenceScorer:
 
         # Check task type consistency
         if (task.task_type == TaskType.SINGLE_STEP and len(task.steps) != 1) or (
-            task.task_type == TaskType.MULTI_STEP and not 2 <= len(task.steps) <= 5  # noqa: PLR2004 - Small integer threshold
-
+            task.task_type == TaskType.MULTI_STEP and not 2 <= len(task.steps) <= 5
         ):
             score -= 0.25
 
@@ -355,8 +352,7 @@ class ConfidenceScorer:
 
         # Check for reasonable durations (0.1s to 60s per step)
         unreasonable_durations = sum(
-            1 for step in task.steps if not 0.1 <= step.estimated_duration <= 60.0  # noqa: PLR2004 - Threshold
-
+            1 for step in task.steps if not 0.1 <= step.estimated_duration <= 60.0
         )
         if unreasonable_durations > 0:
             score -= 0.1 * min(unreasonable_durations, 3)
@@ -425,20 +421,16 @@ class ConfidenceScorer:
             score -= 0.1
 
         # Check for reasonable length (not too short, not too long)
-        if len(task.goal) < 5:  # noqa: PLR2004 - Small integer threshold
-
+        if len(task.goal) < 5:
             score -= 0.2
-        elif len(task.goal) > 200:  # noqa: PLR2004 - Percentage/large threshold
-
+        elif len(task.goal) > 200:
             score -= 0.1
 
         # Check step descriptions
         for step in task.steps:
-            if len(step.description) < 5:  # noqa: PLR2004 - Small integer threshold
-
+            if len(step.description) < 5:
                 score -= 0.1
-            elif len(step.description) > 200:  # noqa: PLR2004 - Percentage/large threshold
-
+            elif len(step.description) > 200:
                 score -= 0.05
 
             # Check for proper capitalization
@@ -468,8 +460,7 @@ class ConfidenceScorer:
         task_type_key = task.task_type
         history = self._history.get(task_type_key)
 
-        if not history or history.total_attempts < 5:  # noqa: PLR2004 - Small integer threshold
-
+        if not history or history.total_attempts < 5:
             # Not enough data, return neutral
             return 0.5
 
@@ -493,8 +484,7 @@ class ConfidenceScorer:
         task_type_key = task.task_type
         history = self._history.get(task_type_key)
 
-        if not history or history.total_attempts < 10:  # noqa: PLR2004 - Threshold
-
+        if not history or history.total_attempts < 10:
             # Not enough data for calibration
             return raw_confidence
 

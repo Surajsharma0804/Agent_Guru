@@ -26,8 +26,8 @@ def temp_db_path() -> Generator[str, None, None]:
     yield db_path
 
     # Cleanup
-    if os.path.exists(db_path):  # noqa: PTH110
-        os.unlink(db_path)  # noqa: PTH108
+    if os.path.exists(db_path):
+        os.unlink(db_path)
 
 
 @pytest.fixture

@@ -168,7 +168,7 @@ def expand_dataset() -> None:
     data_dir = Path("Agent_Guru/reasoning/data")
     train_file = data_dir / "train_annotated.yaml"
 
-    with open(train_file) as f:  # noqa: PTH123
+    with open(train_file) as f:
         train_data = yaml.safe_load(f)
 
     # Track all utterances to prevent duplication
@@ -241,7 +241,7 @@ def expand_dataset() -> None:
                     added += 1
 
     # OVERWRITE original file - NO DUPLICATES
-    with open(train_file, "w", encoding="utf-8") as f:  # noqa: PTH123
+    with open(train_file, "w", encoding="utf-8") as f:
         yaml.dump(expanded_data, f, default_flow_style=False, allow_unicode=True)
 
     # Update stats

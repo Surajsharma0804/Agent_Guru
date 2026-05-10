@@ -63,7 +63,7 @@ class IOSTTS:
         EmotionType.DISGUSTED: {"pitch_mult": 0.85, "rate_mult": 0.9},
     }
 
-    def __init__(self, autoclass_override=None) -> None:  # noqa: ANN001
+    def __init__(self, autoclass_override=None) -> None:
         """Initialize iOS TTS.
 
         Args:
@@ -168,8 +168,7 @@ class IOSTTS:
             msg = "Text cannot be empty"
             raise IOSTTSError(msg)
 
-        if not 0.5 <= speech_rate <= 2.0:  # noqa: PLR2004 - Threshold
-
+        if not 0.5 <= speech_rate <= 2.0:
             msg = f"Speech rate must be in [0.5, 2.0], got {speech_rate}"
             raise IOSTTSError(msg)
 
@@ -218,7 +217,7 @@ class IOSTTS:
                 # Write to file using AVAudioFile
                 # Note: iOS doesn't have direct synthesizeToFile, so we use audio session
                 autoclass("AVAudioFile") if autoclass is not None else None
-                AVAudioSession = autoclass("AVAudioSession") if autoclass is not None else None  # noqa: N806
+                AVAudioSession = autoclass("AVAudioSession") if autoclass is not None else None
 
                 if AVAudioSession:
                     # Configure audio session
@@ -256,14 +255,14 @@ class IOSTTS:
                     wav.writeframes(audio_data.tobytes())
 
                 # Read audio file
-                with open(tmp_path, "rb") as f:  # noqa: PTH123
+                with open(tmp_path, "rb") as f:
                     return f.read()
 
             finally:
                 # Cleanup
                 try:
-                    if os.path.exists(tmp_path):  # noqa: PTH110
-                        os.unlink(tmp_path)  # noqa: PTH108
+                    if os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
                 except OSError:
                     pass
 

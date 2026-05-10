@@ -212,6 +212,7 @@ class ConnectionManager:
                 exc_info=True,
             )
             await self.disconnect(websocket)
+
     async def send_to_user(
         self,
         user_id: str,
@@ -392,6 +393,7 @@ class ConnectionManager:
                     error=str(e),
                     exc_info=True,
                 )
+
     def get_connection_count(self, user_id: str | None = None) -> int:
         """Get connection count.
 

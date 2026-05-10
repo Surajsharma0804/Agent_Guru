@@ -167,7 +167,7 @@ class GitIntegration:
             f"auth={auth_method.value}, pending={len(self._pending_commits)}",
         )
 
-    def commit_execution_data(self, execution: Any, push: bool = True) -> bool:  # noqa: ANN401
+    def commit_execution_data(self, execution: Any, push: bool = True) -> bool:
         """Commit task execution data to Git.
 
         Creates a commit with performance data after each task execution.
@@ -330,7 +330,7 @@ class GitIntegration:
             pass
         # NONE method doesn't configure authentication
 
-    def _generate_execution_commit_message(self, execution: Any) -> str:  # noqa: ANN401
+    def _generate_execution_commit_message(self, execution: Any) -> str:
         """Generate meaningful commit message for task execution.
 
         Args:
@@ -364,8 +364,7 @@ class GitIntegration:
         improvement = report.get("relative_improvement", 0) * 100
         tasks_completed = report.get("total_tasks", 0)
 
-        if improvement >= 15:  # noqa: PLR2004 - Threshold
-
+        if improvement >= 15:
             return (
                 f"📈 Improvement Report: +{improvement:.1f}% after {tasks_completed} tasks "
                 f"(Target: +15% ✅)"
@@ -395,7 +394,7 @@ class GitIntegration:
             if full_path.exists() and full_path.suffix == ".json":
                 # Append to JSON array
                 try:
-                    with open(full_path, encoding="utf-8") as f:  # noqa: PTH123
+                    with open(full_path, encoding="utf-8") as f:
                         existing_data = json.load(f)
                     if not isinstance(existing_data, list):
                         existing_data = [existing_data]
@@ -404,11 +403,11 @@ class GitIntegration:
 
                 existing_data.append(commit_data.data)
 
-                with open(full_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+                with open(full_path, "w", encoding="utf-8") as f:
                     json.dump(existing_data, f, indent=2)
             else:
                 # Write new file - always create as list for consistency
-                with open(full_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+                with open(full_path, "w", encoding="utf-8") as f:
                     json.dump([commit_data.data], f, indent=2)
 
     def _queue_commit(self, commit_data: CommitData) -> None:
@@ -444,7 +443,7 @@ class GitIntegration:
             for c in self._pending_commits
         ]
 
-        with open(queue_file, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(queue_file, "w", encoding="utf-8") as f:
             json.dump(queue_data, f, indent=2)
 
     def _load_queue(self) -> None:
@@ -455,7 +454,7 @@ class GitIntegration:
             return
 
         try:
-            with open(queue_file, encoding="utf-8") as f:  # noqa: PTH123
+            with open(queue_file, encoding="utf-8") as f:
                 queue_data = json.load(f)
 
             self._pending_commits = [

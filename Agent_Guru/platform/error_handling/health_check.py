@@ -330,6 +330,7 @@ class HealthCheckManager:
                 response_time_ms=response_time_ms,
                 metadata={"error": str(e)},
             )
+
     def get_component_status(self, component_name: str) -> ComponentHealth | None:
         """Get health status for a specific component.
 
@@ -407,12 +408,10 @@ async def check_system_resources() -> ComponentHealth:
         disk_percent = disk.percent
 
         # Determine status based on thresholds
-        if cpu_percent > 90 or memory_percent > 90 or disk_percent > 90:  # noqa: PLR2004 - Threshold
-
+        if cpu_percent > 90 or memory_percent > 90 or disk_percent > 90:
             status = HealthStatus.UNHEALTHY
             message = "System resources critically low"
-        elif cpu_percent > 80 or memory_percent > 80 or disk_percent > 80:  # noqa: PLR2004 - Threshold
-
+        elif cpu_percent > 80 or memory_percent > 80 or disk_percent > 80:
             status = HealthStatus.DEGRADED
             message = "System resources under pressure"
         else:
@@ -440,6 +439,8 @@ async def check_system_resources() -> ComponentHealth:
             last_check=datetime.now(tz=UTC),
             response_time_ms=0.0,
         )
+
+
 async def check_platform_integration() -> ComponentHealth:
     """Check platform integration health.
 

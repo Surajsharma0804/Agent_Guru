@@ -270,8 +270,7 @@ class StreamingAudioManager:
         self._buffer_size_samples = int(self.config.buffer_size_ms * self.config.sample_rate / 1000)
 
         # Log adaptation (in production, use proper logging)
-        if abs(old_buffer_ms - self.config.buffer_size_ms) > 10:  # noqa: PLR2004 - Threshold
-
+        if abs(old_buffer_ms - self.config.buffer_size_ms) > 10:
             pass  # Buffer size adapted
 
     async def stop(self) -> None:

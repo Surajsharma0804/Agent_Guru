@@ -424,16 +424,15 @@ class LLMManager:
             return False
         key = api_key.strip()
         if provider == LLMProvider.OPENAI:
-            return key.startswith("sk-") and len(key) > 20  # noqa: PLR2004 - Threshold
+            return key.startswith("sk-") and len(key) > 20
 
         if provider == LLMProvider.ANTHROPIC:
-            return key.startswith("sk-ant-") and len(key) > 20  # noqa: PLR2004 - Threshold
+            return key.startswith("sk-ant-") and len(key) > 20
 
         if provider == LLMProvider.GOOGLE:
-            return len(key) >= 20  # noqa: PLR2004 - Threshold
+            return len(key) >= 20
 
-        return len(key) >= 10  # noqa: PLR2004 - Threshold
-
+        return len(key) >= 10
 
     def store_api_key(self, provider: LLMProvider, api_key: str) -> bool:
         """Store an API key securely in the OS keychain."""
@@ -679,7 +678,7 @@ class LLMManager:
             logger.debug("Keyring unavailable: %s", exc)
             return ""
 
-    def _create_adapter_for_provider(self, provider: LLMProvider, api_key: str) -> Any:  # noqa: ANN401
+    def _create_adapter_for_provider(self, provider: LLMProvider, api_key: str) -> Any:
         """Create a provider adapter for API key testing."""
         if provider == LLMProvider.OPENAI:
             if not _HAS_OPENAI or _OpenAIAdapter is None:

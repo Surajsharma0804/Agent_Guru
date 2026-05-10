@@ -131,7 +131,7 @@ class ComputerUseAgent:
     async def execute(
         self,
         task: AgenticTask,
-        confirm_callback: Any | None = None,  # noqa: ANN401
+        confirm_callback: Any | None = None,
     ) -> AgenticTask:
         """Execute task with confirmation gate and timeout."""
         self._cancelled = False
@@ -163,7 +163,11 @@ class ComputerUseAgent:
 
         except TimeoutError:
             task.status = "timeout"
-            logger.exception("Task %s timed out after %ds", task.task_id, task.timeout_seconds if hasattr(task, "timeout_seconds") else 0)
+            logger.exception(
+                "Task %s timed out after %ds",
+                task.task_id,
+                task.timeout_seconds if hasattr(task, "timeout_seconds") else 0,
+            )
             return task
 
         task.status = "completed"

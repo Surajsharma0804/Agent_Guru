@@ -90,8 +90,7 @@ class EmotionDetector:
     def _detect_from_voice(self, audio: np.ndarray) -> dict[str, float]:
         """Stub: prosody-based emotion detection."""
         energy = float(np.mean(audio**2))
-        if energy > 0.1:  # noqa: PLR2004 - Threshold value
-
+        if energy > 0.1:
             return {"happy": 0.5, "neutral": 0.3, "angry": 0.2}
         return {"neutral": 0.7, "sad": 0.2, "fearful": 0.1}
 

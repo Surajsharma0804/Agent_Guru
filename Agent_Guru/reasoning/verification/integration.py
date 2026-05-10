@@ -714,8 +714,7 @@ class VerificationIntegration:
         self.result_cache[cache_key] = (result, time.time())
 
         # Limit cache size (LRU eviction)
-        if len(self.result_cache) > 1000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(self.result_cache) > 1000:
             # Remove oldest entry
             oldest_key = min(self.result_cache.items(), key=lambda x: x[1][1])[0]
             del self.result_cache[oldest_key]
@@ -847,14 +846,12 @@ class VerificationIntegration:
         issues = []
 
         # Check P95 latency
-        if stats["p95_latency_ms"] > 400:  # 2x target  # noqa: PLR2004 (Percentage/large threshold)
-
+        if stats["p95_latency_ms"] > 400:  # 2x target
             is_healthy = False
             issues.append(f"High P95 latency: {stats['p95_latency_ms']:.1f}ms")
 
         # Check abort rate
-        if stats["abort_rate"] > 0.1:  # >10%  # noqa: PLR2004 (Threshold value)
-
+        if stats["abort_rate"] > 0.1:  # >10%
             is_healthy = False
             issues.append(f"High abort rate: {stats['abort_rate']:.1%}")
 

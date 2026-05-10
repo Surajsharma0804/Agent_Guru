@@ -67,10 +67,10 @@ class GoalExecutor:
 
     def __init__(
         self,
-        agent_orchestration: Any,  # Type: 'AgentOrchestration'  # noqa: ANN401
+        agent_orchestration: Any,  # Type: 'AgentOrchestration'
         storage: GoalStorage,
         git_repo_path: str,
-        self_improvement_engine: Any,  # Type: 'SelfImprovementEngine'  # noqa: ANN401
+        self_improvement_engine: Any,  # Type: 'SelfImprovementEngine'
     ) -> None:
         """Initialize Goal Executor with dependencies.
 

@@ -85,7 +85,7 @@ class TaskStep(BaseModel):
 
     @field_validator("depends_on")
     @classmethod
-    def validate_depends_on(cls, v: list[int], info) -> list[int]:  # noqa: ANN001
+    def validate_depends_on(cls, v: list[int], info) -> list[int]:
         """Validate that dependencies reference valid step IDs."""
         if v:
             step_id = info.data.get("step_id")
@@ -106,8 +106,7 @@ class TaskStep(BaseModel):
     @classmethod
     def validate_duration(cls, v: float) -> float:
         """Validate duration is reasonable (0.1s to 60s)."""
-        if not 0.1 <= v <= 60.0:  # noqa: PLR2004 - Threshold
-
+        if not 0.1 <= v <= 60.0:
             msg = f"estimated_duration must be 0.1-60.0 seconds, got {v}"
             raise ValueError(msg)
         return v
@@ -162,14 +161,13 @@ class Task(BaseModel):
 
     @field_validator("steps")
     @classmethod
-    def validate_steps(cls, v: list[TaskStep], info) -> list[TaskStep]:  # noqa: ANN001
+    def validate_steps(cls, v: list[TaskStep], info) -> list[TaskStep]:
         """Validate steps are properly structured."""
         if not v:
             msg = "Task must have at least one step"
             raise ValueError(msg)
 
-        if len(v) > 5:  # noqa: PLR2004 - Small integer threshold
-
+        if len(v) > 5:
             msg = f"Task cannot have more than 5 steps, got {len(v)}"
             raise ValueError(msg)
 
@@ -200,8 +198,7 @@ class Task(BaseModel):
                 raise ValueError(msg)
 
             # Multi-step tasks must have 2-5 steps
-            if task_type == TaskType.MULTI_STEP and not 2 <= len(v) <= 5:  # noqa: PLR2004 - Small integer threshold
-
+            if task_type == TaskType.MULTI_STEP and not 2 <= len(v) <= 5:
                 msg = f"multi_step task must have 2-5 steps, got {len(v)}"
                 raise ValueError(msg)
 
@@ -209,7 +206,7 @@ class Task(BaseModel):
 
     @field_validator("estimated_duration")
     @classmethod
-    def validate_total_duration(cls, v: float, info) -> float:  # noqa: ANN001
+    def validate_total_duration(cls, v: float, info) -> float:
         """Validate total duration matches sum of step durations."""
         steps = info.data.get("steps", [])
 
@@ -226,8 +223,7 @@ class Task(BaseModel):
                 )
 
         # Validate duration is reasonable (0.1s to 300s = 5 minutes)
-        if not 0.1 <= v <= 300.0:  # noqa: PLR2004 - Percentage/large threshold
-
+        if not 0.1 <= v <= 300.0:
             msg = f"estimated_duration must be 0.1-300.0 seconds, got {v}"
             raise ValueError(msg)
 
@@ -237,16 +233,14 @@ class Task(BaseModel):
     @classmethod
     def validate_retry_count(cls, v: int) -> int:
         """Validate retry count is within limits."""
-        if v > 3:  # noqa: PLR2004 - Small integer threshold
-
+        if v > 3:
             msg = f"retry_count cannot exceed 3, got {v}"
             raise ValueError(msg)
         return v
 
     def increment_retry(self) -> None:
         """Increment retry count (max 3)."""
-        if self.retry_count >= 3:  # noqa: PLR2004 - Small integer threshold
-
+        if self.retry_count >= 3:
             msg = "Maximum retry count (3) exceeded"
             raise ValueError(msg)
         self.retry_count += 1
@@ -274,8 +268,7 @@ class Task(BaseModel):
 
     def can_retry(self) -> bool:
         """Check if task can be retried."""
-        return self.status == TaskStatus.FAILED and self.retry_count < 3  # noqa: PLR2004 - Small integer threshold
-
+        return self.status == TaskStatus.FAILED and self.retry_count < 3
 
     def is_complete(self) -> bool:
         """Check if task is in a terminal state."""

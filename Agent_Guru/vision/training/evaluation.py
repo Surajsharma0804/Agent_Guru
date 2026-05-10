@@ -121,22 +121,21 @@ class BenchmarkLoader:
         path = Path(self.benchmark_path)
         labels_file = path / "labels.txt"
         if labels_file.exists():
-            with open(labels_file) as f:  # noqa: PTH123
+            with open(labels_file) as f:
                 return [line.strip() == "1" for line in f if line.strip()]
         return []
 
-    def load_metadata(self) -> Any | None:  # noqa: ANN401
+    def load_metadata(self) -> Any | None:
         """Load benchmark metadata if available."""
         return None
 
     @staticmethod
     def _parse_pairs_file(pairs_file: Path) -> list[tuple[str, str]]:
         pairs: list[tuple[str, str]] = []
-        with open(pairs_file) as f:  # noqa: PTH123
+        with open(pairs_file) as f:
             for line in f:
                 parts = line.strip().split()
-                if len(parts) >= 2:  # noqa: PLR2004 - Small integer threshold
-
+                if len(parts) >= 2:
                     pairs.append((parts[0], parts[1]))
         return pairs
 
@@ -163,7 +162,7 @@ class EvaluationEngine:
         self.targets = targets or DEFAULT_TARGETS.copy()
         self.embedding_dim = embedding_dim
 
-    def load_model(self, model_path: str, use_onnx: bool = False) -> Any:  # noqa: ANN401
+    def load_model(self, model_path: str, use_onnx: bool = False) -> Any:
         """Load a model for inference.
 
         Args:
@@ -187,7 +186,7 @@ class EvaluationEngine:
 
     def extract_embeddings(
         self,
-        model: Any,  # noqa: ANN401
+        model: Any,
         images: np.ndarray,
         use_onnx: bool = False,
     ) -> np.ndarray:
@@ -316,7 +315,7 @@ class EvaluationEngine:
 
     def evaluate_benchmark(
         self,
-        model: Any,  # noqa: ANN401
+        model: Any,
         benchmark_name: str,
         benchmark_path: str = "",
         use_onnx: bool = False,
@@ -427,7 +426,7 @@ class EvaluationEngine:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _load_pytorch(self, model_path: str) -> Any:  # noqa: ANN401
+    def _load_pytorch(self, model_path: str) -> Any:
         import torch
         from torch import nn
         from torchvision import models  # type: ignore[import]
@@ -441,13 +440,13 @@ class EvaluationEngine:
         return backbone
 
     @staticmethod
-    def _load_onnx(model_path: str) -> Any:  # noqa: ANN401
+    def _load_onnx(model_path: str) -> Any:
         import onnxruntime as ort  # type: ignore[import]
 
         return ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
 
     @staticmethod
-    def _extract_pytorch(model: Any, images: np.ndarray) -> np.ndarray:  # noqa: ANN401
+    def _extract_pytorch(model: Any, images: np.ndarray) -> np.ndarray:
         import torch
 
         with torch.no_grad():
@@ -456,15 +455,14 @@ class EvaluationEngine:
         return out.numpy()
 
     @staticmethod
-    def _extract_onnx(session: Any, images: np.ndarray) -> np.ndarray:  # noqa: ANN401
+    def _extract_onnx(session: Any, images: np.ndarray) -> np.ndarray:
         input_name = session.get_inputs()[0].name
         return session.run(None, {input_name: images})[0]
 
     @staticmethod
     def _compute_auc(roc: ROCCurve) -> float:
         """Compute AUC using trapezoidal rule."""
-        if len(roc.fpr) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(roc.fpr) < 2:
             return 0.0
         # Sort by fpr
         idx = np.argsort(roc.fpr)

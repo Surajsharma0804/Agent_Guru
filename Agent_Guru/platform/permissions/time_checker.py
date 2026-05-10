@@ -153,6 +153,7 @@ class TimeWindow:
             raise ValueError(
                 msg,
             ) from e
+
     def __str__(self) -> str:
         """String representation."""
         return f"{self.start_time.strftime('%H:%M')}-{self.end_time.strftime('%H:%M')}"
@@ -290,6 +291,7 @@ class TimeRestriction:
             return UTC
             msg = f"Invalid timezone name: {tz_name}. Error: {e}"
             raise ValueError(msg) from e
+
     @classmethod
     def from_dict(cls, config: dict) -> "TimeRestriction":
         """Create TimeRestriction from configuration dictionary.

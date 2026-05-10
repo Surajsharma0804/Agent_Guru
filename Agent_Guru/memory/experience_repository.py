@@ -169,8 +169,7 @@ class ExperienceRepository:
 
         patterns: list[Pattern] = []
         for seq, exp_ids in seq_groups.items():
-            if len(exp_ids) < 2:  # noqa: PLR2004 - Small integer threshold
-
+            if len(exp_ids) < 2:
                 continue
             action_types = seq.split(",")
             # Calculate success rate for this pattern

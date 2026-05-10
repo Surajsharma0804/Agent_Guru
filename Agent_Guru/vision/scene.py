@@ -181,7 +181,7 @@ class ObjectDetector:
             threshold=config.detection_threshold,
         )
 
-    def _get_session(self) -> Any:  # noqa: ANN401
+    def _get_session(self) -> Any:
         if self._infer_fn is not None:
             return None
         if self._session is None:
@@ -282,7 +282,7 @@ class SceneClassifier:
         self._session: Any = None
         logger.info("SceneClassifier initialised", model_path=model_path)
 
-    def _get_session(self) -> Any:  # noqa: ANN401
+    def _get_session(self) -> Any:
         if self._infer_fn is not None:
             return None
         if self._session is None:
@@ -452,8 +452,7 @@ class SpatialReasoner:
                 result.append((la, "far", lb))
 
         iou = self._iou(a, b)
-        if iou > 0.1:  # noqa: PLR2004 - Threshold value
-
+        if iou > 0.1:
             if a.depth_range is not None and b.depth_range is not None:
                 depth_a = (a.depth_range[0] + a.depth_range[1]) / 2.0
                 depth_b = (b.depth_range[0] + b.depth_range[1]) / 2.0

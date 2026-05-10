@@ -38,6 +38,7 @@ class LangChainBenchmark(BaseBenchmark):
             self._initialize_agent()
         except ImportError:
             logger.warning("LangChain not installed — benchmark will run in simulation mode")
+
     def _initialize_agent(self) -> None:
         """Initialize LangChain agent."""
         try:
@@ -61,6 +62,7 @@ class LangChainBenchmark(BaseBenchmark):
         except ImportError as e:
             msg = "LangChain not installed"
             raise ImportError(msg) from e
+
     def execute_scenario(self, scenario: TestScenario) -> Any:
         """Execute a test scenario using LangChain agent.
 
@@ -93,6 +95,7 @@ class LangChainBenchmark(BaseBenchmark):
         except Exception as e:
             # Return error message
             return f"Error: {e!s}"
+
     def _simulate_execution(self, scenario: TestScenario) -> Any:
         """Simulate execution when LangChain is not available.
 

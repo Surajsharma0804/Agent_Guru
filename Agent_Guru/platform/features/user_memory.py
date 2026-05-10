@@ -48,13 +48,13 @@ class UserMemory:
         self._facts: dict[str, Any] = {}
         self._load()
 
-    def set(self, key: str, value: Any) -> None:  # noqa: ANN401
+    def set(self, key: str, value: Any) -> None:
         """Store a fact about the user."""
         self._facts[key] = value
         self._save()
         logger.debug("UserMemory: set %r = %r", key, value)
 
-    def get(self, key: str, default: Any = None) -> Any:  # noqa: ANN401
+    def get(self, key: str, default: Any = None) -> Any:
         """Retrieve a stored fact."""
         return self._facts.get(key, default)
 
@@ -163,8 +163,7 @@ def extract_user_fact(transcript: str) -> tuple[str, str] | None:
         m = re.search(pattern, t, re.IGNORECASE)
         if m:
             value = m.group(1).strip().rstrip(".,!?")
-            if len(value) > 1 and len(value) < 100:  # noqa: PLR2004 - Percentage/large threshold
-
+            if len(value) > 1 and len(value) < 100:
                 return key, value
 
     return None

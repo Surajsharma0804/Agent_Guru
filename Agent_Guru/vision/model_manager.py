@@ -107,7 +107,7 @@ class ModelManager:
     # Model loading
     # ------------------------------------------------------------------
 
-    def load_model(self, name: str, path: str) -> Any:  # noqa: ANN401
+    def load_model(self, name: str, path: str) -> Any:
         """Load an ONNX model, cache it, and return the session.
 
         If the model is already cached it is returned immediately (cache hit).
@@ -168,7 +168,7 @@ class ModelManager:
         del self._cache[lru_name]
         logger.info("Evicted LRU model", model=lru_name, cache_size=len(self._cache))
 
-    def get_cached_model(self, name: str) -> Any | None:  # noqa: ANN401
+    def get_cached_model(self, name: str) -> Any | None:
         """Return a cached model session without loading from disk.
 
         Accessing a model via this method counts as a use and moves it to

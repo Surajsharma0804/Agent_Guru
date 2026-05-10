@@ -127,8 +127,7 @@ class PerformanceMonitor:
 
         """
         metrics = self.get_metrics(model_id, task_type)
-        if metrics.sample_size < 5:  # noqa: PLR2004 - Small integer threshold
-
+        if metrics.sample_size < 5:
             return False  # Not enough data
         return metrics.success_rate < threshold
 

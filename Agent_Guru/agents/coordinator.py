@@ -176,7 +176,7 @@ class ComponentCoordinator:
     # Dispatch
     # ------------------------------------------------------------------
 
-    async def dispatch(self, capability: str, payload: Any = None) -> CoordinationResult:  # noqa: ANN401
+    async def dispatch(self, capability: str, payload: Any = None) -> CoordinationResult:
         """Dispatch a capability request to the appropriate component.
 
         Retries up to max_retries times on failure before returning an

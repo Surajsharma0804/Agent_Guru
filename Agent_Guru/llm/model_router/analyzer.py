@@ -144,11 +144,9 @@ class TaskAnalyzer:
         word_count = len(content.split())
 
         # Base complexity from word count
-        if word_count < 20:  # noqa: PLR2004 - Threshold
-
+        if word_count < 20:
             base = "low"
-        elif word_count < 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        elif word_count < 100:
             base = "medium"
         else:
             base = "high"

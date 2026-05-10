@@ -66,7 +66,7 @@ class HandwritingRecognizer:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _get_session(self) -> Any:  # noqa: ANN401
+    def _get_session(self) -> Any:
         if self._recognize_fn is not None:
             return None
         if self._session is None:
@@ -107,8 +107,7 @@ class HandwritingRecognizer:
             peri = cv2.arcLength(largest, True)
             approx = cv2.approxPolyDP(largest, 0.02 * peri, True)
 
-            if len(approx) != 4:  # noqa: PLR2004 - Small integer threshold
-
+            if len(approx) != 4:
                 return image
 
             src_pts = approx.reshape(4, 2).astype(np.float32)
@@ -117,12 +116,12 @@ class HandwritingRecognizer:
                 [[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]],
                 dtype=np.float32,
             )
-            M = cv2.getPerspectiveTransform(src_pts, dst_pts)  # noqa: N806
+            M = cv2.getPerspectiveTransform(src_pts, dst_pts)
             return cv2.warpPerspective(image, M, (w, h))
         except Exception:
             return image
 
-    def _get_tokenizer(self) -> Any:  # noqa: ANN401
+    def _get_tokenizer(self) -> Any:
         """Load HuggingFace tokenizer for TrOCR token-ID decoding.
 
         Tries ``transformers.AutoTokenizer`` first (full HuggingFace stack),
@@ -141,7 +140,7 @@ class HandwritingRecognizer:
 
             tokenizer = AutoTokenizer.from_pretrained(model_name)  # nosec B615
             logger.info("HandwritingRecognizer: loaded transformers tokenizer")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("HandwritingRecognizer: transformers tokenizer unavailable: %s", exc)
 
         # Attempt 2: tokenizers library (lighter, no PyTorch dependency)
@@ -168,7 +167,7 @@ class HandwritingRecognizer:
         Falls back to an empty string when no tokenizer is available so the
         confidence check downstream can mark the result as unreadable.
         """
-        ids = [int(t) for t in token_ids if int(t) > 2]  # noqa: PLR2004 - Small integer threshold
+        ids = [int(t) for t in token_ids if int(t) > 2]
 
         if not ids:
             return ""
@@ -323,11 +322,9 @@ class HandwritingRecognizer:
 
             angle_var = float(np.var(angle[mask]))
             # High angle variance → irregular strokes → handwritten
-            if angle_var > 1.2:  # noqa: PLR2004 - Threshold
-
+            if angle_var > 1.2:
                 return "handwritten"
-            if angle_var > 0.6:  # noqa: PLR2004 - Threshold value
-
+            if angle_var > 0.6:
                 return "mixed"
             return "printed"
         except ImportError:

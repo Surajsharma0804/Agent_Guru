@@ -39,7 +39,10 @@ class AndroidSpeechRecognizer:
     """
 
     def __init__(
-        self, prefer_offline: bool = True, language: str = "en-US", max_results: int = 5,
+        self,
+        prefer_offline: bool = True,
+        language: str = "en-US",
+        max_results: int = 5,
     ) -> None:
         """Initialize Android speech recognizer.
 
@@ -227,7 +230,7 @@ class AndroidSpeechRecognizer:
 
         return intent
 
-    async def _perform_recognition(self, intent, audio_data: bytes) -> TranscriptionResult:  # noqa: ANN001
+    async def _perform_recognition(self, intent, audio_data: bytes) -> TranscriptionResult:
         """Perform speech recognition with the given intent.
 
         Args:
@@ -293,7 +296,7 @@ class AndroidSpeechRecognizer:
 
     async def recognize_streaming(
         self,
-        audio_stream,  # noqa: ANN001
+        audio_stream,
         sample_rate: int = 16000,
         language: str | None = None,
     ):

@@ -75,8 +75,7 @@ async def _search_ddgs(query: str, max_chars: int) -> str | None:
             parts = []
             for r in results[:3]:
                 body = r.get("body", "").strip()
-                if body and len(body) > 20:  # noqa: PLR2004 - Threshold
-
+                if body and len(body) > 20:
                     parts.append(body)
             combined = " ".join(parts)
             return combined[:max_chars] if combined else None
@@ -93,6 +92,8 @@ async def _search_ddgs(query: str, max_chars: int) -> str | None:
         return None
         logger.debug("ddgs search failed: %s", exc)
         return None
+
+
 async def _search_ddg_instant(query: str, max_chars: int) -> str | None:
     """Fallback: DuckDuckGo instant answer API (shallow but always works)."""
     try:
@@ -109,8 +110,7 @@ async def _search_ddg_instant(query: str, max_chars: int) -> str | None:
                 headers={"User-Agent": "AgentGuru/1.0"},
             ) as resp,
         ):
-            if resp.status != 200:  # noqa: PLR2004 - Percentage/large threshold
-
+            if resp.status != 200:
                 return None
             data = await resp.json(content_type=None)
 
@@ -125,8 +125,7 @@ async def _search_ddg_instant(query: str, max_chars: int) -> str | None:
         topics = data.get("RelatedTopics", [])
         for topic in topics[:3]:
             text = topic.get("Text", "").strip() if isinstance(topic, dict) else ""
-            if text and len(text) > 30:  # noqa: PLR2004 - Threshold
-
+            if text and len(text) > 30:
                 return text[:max_chars]
 
         return None

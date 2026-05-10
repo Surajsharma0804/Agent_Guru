@@ -45,11 +45,9 @@ class WorldStateContextGenerator:
         )
 
         # System resources
-        if state.system_resources.cpu_usage > 80:  # noqa: PLR2004 - Threshold
-
+        if state.system_resources.cpu_usage > 80:
             context_parts.append("System: High CPU usage")
-        if state.system_resources.memory_usage > 80:  # noqa: PLR2004 - Threshold
-
+        if state.system_resources.memory_usage > 80:
             context_parts.append("System: High memory usage")
 
         # Active apps
@@ -89,10 +87,8 @@ class WorldStateContextGenerator:
             "battery_critical": state.is_battery_low(threshold=10.0),
             "network_available": state.device_status.network_type != "offline",
             "do_not_disturb": state.device_status.do_not_disturb,
-            "high_cpu": state.system_resources.cpu_usage > 80,  # noqa: PLR2004 - Threshold
-
-            "high_memory": state.system_resources.memory_usage > 80,  # noqa: PLR2004 - Threshold
-
+            "high_cpu": state.system_resources.cpu_usage > 80,
+            "high_memory": state.system_resources.memory_usage > 80,
             "has_upcoming_events": len(state.get_upcoming_events(hours=1)) > 0,
         }
 
@@ -166,8 +162,7 @@ class WorldStateContextGenerator:
         return (
             state.is_battery_low(threshold=15.0)
             or state.device_status.do_not_disturb
-            or state.system_resources.cpu_usage > 90  # noqa: PLR2004 - Threshold
-
+            or state.system_resources.cpu_usage > 90
         )
 
     def get_location_constraints(self, state: WorldState) -> dict[str, any]:

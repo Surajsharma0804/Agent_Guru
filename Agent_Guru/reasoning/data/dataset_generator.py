@@ -35,7 +35,7 @@ class DatasetGenerator:
 
     def _load_intents(self) -> dict[Any, Any]:
         """Load intents from YAML file."""
-        with open(self.intents_file, encoding="utf-8") as f:  # noqa: PTH123
+        with open(self.intents_file, encoding="utf-8") as f:
             data: dict[Any, Any] = yaml.safe_load(f)
             return data
 
@@ -157,15 +157,15 @@ class DatasetGenerator:
         output_path.mkdir(parents=True, exist_ok=True)
 
         # Save train set
-        with open(output_path / "train.txt", "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_path / "train.txt", "w", encoding="utf-8") as f:
             f.writelines(f"{intent}\t{utterance}\n" for utterance, intent in train_data)
 
         # Save validation set
-        with open(output_path / "val.txt", "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_path / "val.txt", "w", encoding="utf-8") as f:
             f.writelines(f"{intent}\t{utterance}\n" for utterance, intent in val_data)
 
         # Save test set
-        with open(output_path / "test.txt", "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_path / "test.txt", "w", encoding="utf-8") as f:
             f.writelines(f"{intent}\t{utterance}\n" for utterance, intent in test_data)
 
         # Save statistics
@@ -177,7 +177,7 @@ class DatasetGenerator:
             "num_intents": len(self.intents_data["intents"]),
         }
 
-        with open(output_path / "dataset_stats.yaml", "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_path / "dataset_stats.yaml", "w", encoding="utf-8") as f:
             yaml.dump(stats, f, default_flow_style=False)
 
     def get_intent_distribution(self, data: list[tuple[str, str]]) -> dict[str, int]:

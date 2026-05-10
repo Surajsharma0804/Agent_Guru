@@ -27,7 +27,7 @@ class MockServer:
         self._runner: Any | None = None
         self._port = 0
 
-    def set_fixture(self, path: str, response: Any) -> None:  # noqa: ANN401
+    def set_fixture(self, path: str, response: Any) -> None:
         self.fixtures[path] = response
 
     async def start(self, port: int = 0) -> int:
@@ -50,7 +50,7 @@ class MockServer:
         if self._runner:
             await self._runner.cleanup()
 
-    async def _handle(self, request: Any) -> Any:  # noqa: ANN401
+    async def _handle(self, request: Any) -> Any:
         path = "/" + request.match_info.get("path_info", "")
         fixture = self.fixtures.get(path, {"status": "ok"})
         return web.Response(
@@ -75,8 +75,7 @@ class MockServer:
             try:
                 async with httpx.AsyncClient(timeout=2.0) as client:
                     resp = await client.post(url, json=payload)
-                    if resp.status_code < 500:  # noqa: PLR2004 - Percentage/large threshold
-
+                    if resp.status_code < 500:
                         self._webhook_deliveries.append(
                             {"url": url, "payload": payload, "delivered": True},
                         )

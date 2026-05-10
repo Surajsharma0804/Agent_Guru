@@ -257,16 +257,13 @@ class RootCauseInvestigator:
         for change in changes:
             suspicion_score = self._calculate_suspicion_score(change, performance_metrics)
 
-            if suspicion_score > 0.5:  # noqa: PLR2004 - Threshold value
-
+            if suspicion_score > 0.5:
                 # Create root cause with suspicion-based confidence
                 confidence = (
                     RootCauseConfidence.HIGH
-                    if suspicion_score > 0.8  # noqa: PLR2004 - Threshold value
-
+                    if suspicion_score > 0.8
                     else RootCauseConfidence.MEDIUM
-                    if suspicion_score > 0.6  # noqa: PLR2004 - Threshold value
-
+                    if suspicion_score > 0.6
                     else RootCauseConfidence.LOW
                 )
 
@@ -436,11 +433,9 @@ class RootCauseInvestigator:
 
         """
         # Determine confidence based on correlation strength
-        if abs(correlation) > 0.8:  # noqa: PLR2004 - Threshold value
-
+        if abs(correlation) > 0.8:
             confidence = RootCauseConfidence.HIGH
-        elif abs(correlation) > 0.6:  # noqa: PLR2004 - Threshold value
-
+        elif abs(correlation) > 0.6:
             confidence = RootCauseConfidence.MEDIUM
         else:
             confidence = RootCauseConfidence.LOW
@@ -518,8 +513,7 @@ class RootCauseInvestigator:
         factors = []
 
         # Check for rapid change rate
-        if len(changes) > 10:  # noqa: PLR2004 - Threshold
-
+        if len(changes) > 10:
             factors.append(f"High change rate: {len(changes)} changes in analysis window")
 
         # Check for multiple changes to same component
@@ -529,8 +523,7 @@ class RootCauseInvestigator:
             component_counts[component_id] = component_counts.get(component_id, 0) + 1
 
         for component_id, count in component_counts.items():
-            if count > 3:  # noqa: PLR2004 - Small integer threshold
-
+            if count > 3:
                 factors.append(f"Multiple changes to {component_id}: {count} changes")
 
         # Check for changes without performance_after (untested changes)
@@ -693,11 +686,9 @@ class RootCauseInvestigator:
         change_time = datetime.fromisoformat(change["timestamp"])
         hours_ago = (datetime.now(tz=UTC) - change_time).total_seconds() / 3600
 
-        if hours_ago < 6:  # noqa: PLR2004 - Threshold
-
+        if hours_ago < 6:
             score += 0.2
-        elif hours_ago < 12:  # noqa: PLR2004 - Threshold
-
+        elif hours_ago < 12:
             score += 0.1
 
         return min(1.0, score)

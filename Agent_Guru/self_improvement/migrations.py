@@ -449,9 +449,7 @@ class MigrationSystem:
             try:
                 cursor.execute("ROLLBACK")
             except sqlite3.Error:
-                logger.exception(
-                    "ROLLBACK failed during migration %s",
-                    migration.version)
+                logger.exception("ROLLBACK failed during migration %s", migration.version)
             logger.exception("Migration %s failed", migration.version)
             raise
         finally:
@@ -507,7 +505,8 @@ class MigrationSystem:
             except sqlite3.Error:
                 logger.exception(
                     "ROLLBACK failed during rollback of migration %s",
-                    migration.version)
+                    migration.version,
+                )
             logger.exception("Rollback of migration %s failed", migration.version)
             raise
         finally:
@@ -639,4 +638,3 @@ if __name__ == "__main__":
             logger.info("\n✓ Migrations applied successfully")
     else:
         logger.info("\n✓ Database is up to date")
-

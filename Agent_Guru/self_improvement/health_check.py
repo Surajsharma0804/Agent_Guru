@@ -46,7 +46,7 @@ class HealthChecker:
     Monitors system health and provides diagnostic information.
     """
 
-    def __init__(self, storage_path: str, config: Any | None = None) -> None:  # noqa: ANN401
+    def __init__(self, storage_path: str, config: Any | None = None) -> None:
         """Initialize health checker.
 
         Args:
@@ -94,7 +94,7 @@ class HealthChecker:
         """Check database health."""
         try:
             # Check if database exists
-            if not os.path.exists(self.storage_path):  # noqa: PTH110
+            if not os.path.exists(self.storage_path):
                 return HealthCheckResult(
                     status=HealthStatus.UNHEALTHY,
                     message="Database file not found",
@@ -103,7 +103,7 @@ class HealthChecker:
                 )
 
             # Check database size
-            db_size_mb = os.path.getsize(self.storage_path) / (1024 * 1024)  # noqa: PTH202
+            db_size_mb = os.path.getsize(self.storage_path) / (1024 * 1024)
             max_size_mb = self.config.max_database_size_mb if self.config else 1000
 
             if db_size_mb > max_size_mb:
@@ -172,7 +172,7 @@ class HealthChecker:
     def _check_disk(self) -> HealthCheckResult:
         """Check disk space."""
         try:
-            disk = psutil.disk_usage(os.path.dirname(self.storage_path) or ".")  # noqa: PTH120
+            disk = psutil.disk_usage(os.path.dirname(self.storage_path) or ".")
             free_gb = disk.free / (1024 * 1024 * 1024)
 
             if free_gb < 1.0:
@@ -182,8 +182,7 @@ class HealthChecker:
                     details={"free_gb": free_gb, "total_gb": disk.total / (1024**3)},
                     timestamp=datetime.now(tz=UTC),
                 )
-            if free_gb < 5.0:  # noqa: PLR2004 - Threshold
-
+            if free_gb < 5.0:
                 return HealthCheckResult(
                     status=HealthStatus.DEGRADED,
                     message=f"Disk space running low: {free_gb:.1f}GB free",
@@ -282,8 +281,7 @@ class HealthChecker:
                 result = cursor.fetchone()
                 recent_improvement = result[0] if result else None
 
-            if total_tasks < 100:  # noqa: PLR2004 - Percentage/large threshold
-
+            if total_tasks < 100:
                 return HealthCheckResult(
                     status=HealthStatus.HEALTHY,
                     message=f"Learning in progress ({total_tasks}/100 tasks)",

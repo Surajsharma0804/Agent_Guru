@@ -238,8 +238,7 @@ class LocalLLMServer:
 
             latency_ms = (time.time() - start_time) * 1000
 
-            if response.status_code == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+            if response.status_code == 200:
                 data = response.json()
                 return ServerHealth(
                     is_healthy=True,
@@ -319,8 +318,7 @@ class LocalLLMServer:
 
             latency_ms = (time.time() - start_time) * 1000
 
-            if response.status_code == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+            if response.status_code == 200:
                 data = response.json()
                 return LLMResponse(
                     text=data.get("content", ""),

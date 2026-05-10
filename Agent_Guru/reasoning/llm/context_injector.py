@@ -65,8 +65,7 @@ class ContextExtractionConfig:
         if self.max_memories < 0:
             msg = f"max_memories must be >= 0, got {self.max_memories}"
             raise ValueError(msg)
-        if self.max_tokens < 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if self.max_tokens < 100:
             msg = f"max_tokens must be >= 100, got {self.max_tokens}"
             raise ValueError(msg)
 
@@ -284,7 +283,7 @@ class ContextInjector:
 
         return actions
 
-    def _format_action(self, action: Any) -> str:  # noqa: ANN401
+    def _format_action(self, action: Any) -> str:
         """Format action for display.
 
         Args:

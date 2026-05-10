@@ -231,11 +231,9 @@ class HealthEngine:
 
         # Stress level
         stress = recent.stress_score or 50.0
-        if stress < 33:  # noqa: PLR2004 - Threshold
-
+        if stress < 33:
             stress_level = "low"
-        elif stress < 66:  # noqa: PLR2004 - Threshold
-
+        elif stress < 66:
             stress_level = "moderate"
         else:
             stress_level = "high"
@@ -259,16 +257,14 @@ class HealthEngine:
     def get_behavioral_trends(self) -> list[BehavioralInsight]:
         """Analyze 7-day rolling window for behavioral trends."""
         insights: list[BehavioralInsight] = []
-        if len(self._snapshots) < 7:  # noqa: PLR2004 - Threshold
-
+        if len(self._snapshots) < 7:
             return insights
 
         recent_7 = self._snapshots[-7:]
 
         # Sleep regression: average sleep declining
         sleep_values = [s.sleep_hours for s in recent_7 if s.sleep_hours is not None]
-        if len(sleep_values) >= 4:  # noqa: PLR2004 - Small integer threshold
-
+        if len(sleep_values) >= 4:
             first_half = sum(sleep_values[: len(sleep_values) // 2]) / (len(sleep_values) // 2)
             second_half = sum(sleep_values[len(sleep_values) // 2 :]) / (
                 len(sleep_values) - len(sleep_values) // 2
@@ -285,8 +281,7 @@ class HealthEngine:
 
         # Activity decline
         step_values = [s.steps for s in recent_7 if s.steps is not None]
-        if len(step_values) >= 4:  # noqa: PLR2004 - Small integer threshold
-
+        if len(step_values) >= 4:
             first_half = sum(step_values[: len(step_values) // 2]) / (len(step_values) // 2)
             second_half = sum(step_values[len(step_values) // 2 :]) / (
                 len(step_values) - len(step_values) // 2
@@ -303,8 +298,7 @@ class HealthEngine:
 
         # Elevated resting HR
         hr_values = [s.heart_rate_bpm for s in recent_7 if s.heart_rate_bpm is not None]
-        if hr_values and sum(hr_values) / len(hr_values) > 90:  # noqa: PLR2004 - Threshold
-
+        if hr_values and sum(hr_values) / len(hr_values) > 90:
             insights.append(
                 BehavioralInsight(
                     insight_type="elevated_resting_hr",

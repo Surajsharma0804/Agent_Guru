@@ -269,7 +269,7 @@ class ConversationState(BaseModel):
     def track_entity(
         self,
         entity_type: str,
-        value: Any,  # noqa: ANN401
+        value: Any,
         turn_number: int,
         confidence: float = 1.0,
     ) -> None:

@@ -8,7 +8,6 @@ import platform
 import subprocess
 from typing import Any
 
-
 from Agent_Guru.reasoning.tools.base import (
     Tool,
     ToolParameter,
@@ -45,7 +44,8 @@ class PlatformAppController:
         try:
             if system == "windows":
                 # Lazy import: keeps reasoning/ free of module-level platform/ dependency
-                from Agent_Guru.platform.subprocess_utils import run_cmd  # noqa: PLC0415
+                from Agent_Guru.platform.subprocess_utils import run_cmd
+
                 # Windows: use cmd /c start to launch via App Paths registry
                 run_cmd(["cmd", "/c", "start", "", app_name], check=False)  # nosec B603 B607
             elif system == "darwin":
@@ -98,7 +98,7 @@ class PlatformAppController:
             if system == "windows":
                 # Windows: use taskkill
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["taskkill", "/F", "/IM", f"{app_name}.exe"],  # noqa: S607
+                    ["taskkill", "/F", "/IM", f"{app_name}.exe"],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -111,7 +111,7 @@ class PlatformAppController:
             elif system == "darwin":
                 # macOS: use osascript to quit application
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["osascript", "-e", f'quit app "{app_name}"'],  # noqa: S607
+                    ["osascript", "-e", f'quit app "{app_name}"'],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -124,7 +124,7 @@ class PlatformAppController:
             elif system == "linux":
                 # Linux: use pkill
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["pkill", "-f", app_name],  # noqa: S607
+                    ["pkill", "-f", app_name],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -182,7 +182,7 @@ class PlatformAppController:
                 }}
                 """
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["powershell", "-Command", ps_script],  # noqa: S607
+                    ["powershell", "-Command", ps_script],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -195,7 +195,7 @@ class PlatformAppController:
             elif system == "darwin":
                 # macOS: use osascript to activate application
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["osascript", "-e", f'tell application "{app_name}" to activate'],  # noqa: S607
+                    ["osascript", "-e", f'tell application "{app_name}" to activate'],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -208,7 +208,7 @@ class PlatformAppController:
             elif system == "linux":
                 # Linux: use wmctrl if available
                 result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["wmctrl", "-a", app_name],  # noqa: S607
+                    ["wmctrl", "-a", app_name],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -265,7 +265,7 @@ class PlatformAppController:
 class OpenAppTool(Tool):
     """Tool for opening applications."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute application opening.
 
         Args:
@@ -311,7 +311,7 @@ class OpenAppTool(Tool):
 class CloseAppTool(Tool):
     """Tool for closing applications."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute application closing.
 
         Args:
@@ -357,7 +357,7 @@ class CloseAppTool(Tool):
 class SwitchAppTool(Tool):
     """Tool for switching to applications."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute application switching.
 
         Args:

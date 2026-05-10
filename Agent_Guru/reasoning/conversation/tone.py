@@ -164,19 +164,16 @@ class ToneAdapter:
             warmth = max(0.0, warmth - 0.1)
 
         # Low battery: decrease verbosity (be concise)
-        if context.battery_level is not None and context.battery_level < 0.2:  # noqa: PLR2004 - Threshold value
-
+        if context.battery_level is not None and context.battery_level < 0.2:
             verbosity = max(0.0, verbosity - 0.3)
 
         # High stress: increase warmth, decrease verbosity
-        if context.user_stress_level is not None and context.user_stress_level > 0.7:  # noqa: PLR2004 - Threshold value
-
+        if context.user_stress_level is not None and context.user_stress_level > 0.7:
             warmth = min(1.0, warmth + 0.2)
             verbosity = max(0.0, verbosity - 0.2)
 
         # Long conversation: decrease verbosity
-        if context.conversation_length > 10:  # noqa: PLR2004 - Threshold
-
+        if context.conversation_length > 10:
             verbosity = max(0.0, verbosity - 0.1)
 
         # Time of day adjustments
@@ -184,14 +181,12 @@ class ToneAdapter:
             hour = context.time_of_day.hour
 
             # Early morning (5-8): more formal, less verbose
-            if 5 <= hour < 8:  # noqa: PLR2004 - Threshold
-
+            if 5 <= hour < 8:
                 formality = min(1.0, formality + 0.1)
                 verbosity = max(0.0, verbosity - 0.1)
 
             # Late night (22-24): more casual, warmer
-            elif 22 <= hour < 24:  # noqa: PLR2004 - Threshold
-
+            elif 22 <= hour < 24:
                 formality = max(0.0, formality - 0.1)
                 warmth = min(1.0, warmth + 0.1)
 
@@ -209,27 +204,21 @@ class ToneAdapter:
 
         """
         # Apply formality adjustments
-        if tone_profile.formality > 0.7:  # noqa: PLR2004 - Threshold value
-
+        if tone_profile.formality > 0.7:
             response = self._make_formal(response)
-        elif tone_profile.formality < 0.3:  # noqa: PLR2004 - Threshold value
-
+        elif tone_profile.formality < 0.3:
             response = self._make_casual(response)
 
         # Apply warmth adjustments
-        if tone_profile.warmth > 0.7:  # noqa: PLR2004 - Threshold value
-
+        if tone_profile.warmth > 0.7:
             response = self._make_friendly(response)
-        elif tone_profile.warmth < 0.3:  # noqa: PLR2004 - Threshold value
-
+        elif tone_profile.warmth < 0.3:
             response = self._make_neutral(response)
 
         # Apply verbosity adjustments
-        if tone_profile.verbosity > 0.7:  # noqa: PLR2004 - Threshold value
-
+        if tone_profile.verbosity > 0.7:
             response = self._make_verbose(response)
-        elif tone_profile.verbosity < 0.3:  # noqa: PLR2004 - Threshold value
-
+        elif tone_profile.verbosity < 0.3:
             response = self._make_concise(response)
 
         return response
@@ -329,8 +318,7 @@ class ToneAdapter:
 
         """
         # Weekend check
-        if current_time.weekday() >= 5:  # Saturday = 5, Sunday = 6  # noqa: PLR2004 (Small integer threshold)
-
+        if current_time.weekday() >= 5:  # Saturday = 5, Sunday = 6
             return False
 
         # Time check
@@ -382,11 +370,9 @@ class ResponseTemplateSelector:
 
         """
         # Determine tone category
-        if tone_profile.formality > 0.7:  # noqa: PLR2004 - Threshold value
-
+        if tone_profile.formality > 0.7:
             tone_key = f"{template_type}_formal"
-        elif tone_profile.warmth > 0.7:  # noqa: PLR2004 - Threshold value
-
+        elif tone_profile.warmth > 0.7:
             tone_key = f"{template_type}_friendly"
         else:
             tone_key = f"{template_type}_casual"

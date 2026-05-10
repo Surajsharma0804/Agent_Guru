@@ -77,8 +77,8 @@ class ScreenAnalyzer:
 
             from Agent_Guru.vision.model_manager import ModelManager
 
-            model_path = os.path.join("models", "yolov8_ui.onnx")  # noqa: PTH118
-            if not os.path.exists(model_path):  # noqa: PTH110
+            model_path = os.path.join("models", "yolov8_ui.onnx")
+            if not os.path.exists(model_path):
                 logger.warning("ScreenAnalyzer: UI model not found, returning empty")
                 return []
 
@@ -91,8 +91,7 @@ class ScreenAnalyzer:
 
                 resized = cv2.resize(screenshot, (640, 640))
             except ImportError:
-                resized = screenshot[:640, :640] if screenshot.shape[0] >= 640 else screenshot  # noqa: PLR2004 - Percentage/large threshold
-
+                resized = screenshot[:640, :640] if screenshot.shape[0] >= 640 else screenshot
 
             inp = resized.astype(np.float32) / 255.0
             inp = np.transpose(inp, (2, 0, 1))[np.newaxis]  # (1, 3, 640, 640)

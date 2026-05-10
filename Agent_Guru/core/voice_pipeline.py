@@ -146,7 +146,7 @@ class VoicePipeline:
         """Return current pipeline state."""
         return self._state
 
-    def dispatch(self, event: PipelineEvent, data: Any = None) -> bool:  # noqa: ANN401
+    def dispatch(self, event: PipelineEvent, data: Any = None) -> bool:
         """Dispatch an event to drive a state transition.
 
         Time Complexity: O(1) for transition lookup + O(k) for listeners

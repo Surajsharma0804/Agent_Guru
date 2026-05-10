@@ -116,8 +116,7 @@ class MemoryRetriever:
         self.embedding_dim = self.embedding_model.get_sentence_embedding_dimension()
 
         # Validate embedding dimension matches Memory model expectation (768)
-        if self.embedding_dim != 768:  # noqa: PLR2004 - Percentage/large threshold
-
+        if self.embedding_dim != 768:
             msg = (
                 f"Embedding model must produce 768-dimensional embeddings, "
                 f"got {self.embedding_dim}. Use 'sentence-transformers/all-mpnet-base-v2' "
@@ -245,8 +244,7 @@ class MemoryRetriever:
 
         # Check latency budget
         elapsed_ms = (time.perf_counter() - start_time) * 1000
-        if elapsed_ms > 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if elapsed_ms > 100:
             logger.warning("retrieve() took %.1fms (>100ms budget)", elapsed_ms)
 
         return results

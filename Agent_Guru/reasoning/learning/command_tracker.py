@@ -388,8 +388,7 @@ class CommandTracker:
 
                 # Get least successful (with min 5 executions)
                 least_successful = sorted(
-                    [c for c in commands if c.total_executions >= 5],  # noqa: PLR2004 - Small integer threshold
-
+                    [c for c in commands if c.total_executions >= 5],
                     key=lambda c: c.success_rate,
                 )[:5]
 

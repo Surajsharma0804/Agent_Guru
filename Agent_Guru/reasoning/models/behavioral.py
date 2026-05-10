@@ -50,7 +50,7 @@ class CommandFrequency(BaseModel):
 
     @field_validator("successful_executions")
     @classmethod
-    def validate_successful_executions(cls, v: int, info) -> int:  # noqa: ANN001
+    def validate_successful_executions(cls, v: int, info) -> int:
         """Validate successful executions <= total executions."""
         if "total_executions" in info.data and v > info.data["total_executions"]:
             msg = "successful_executions cannot exceed total_executions"
@@ -220,7 +220,7 @@ class UserPreference(BaseModel):
     )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
-    def update_preference(self, new_value: Any, weight: float = 0.2) -> None:  # noqa: ANN401
+    def update_preference(self, new_value: Any, weight: float = 0.2) -> None:
         """Update preference with new observation.
 
         Uses exponential moving average for numeric values,
@@ -247,8 +247,7 @@ class UserPreference(BaseModel):
                 self.confidence = min(0.95, self.confidence + 0.05)
 
             # Update value if confidence drops below threshold
-            if self.confidence < 0.5:  # noqa: PLR2004 - Threshold value
-
+            if self.confidence < 0.5:
                 self.preference_value = new_value
                 self.confidence = 0.5
 

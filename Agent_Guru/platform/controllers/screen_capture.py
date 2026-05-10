@@ -81,7 +81,7 @@ class UnsupportedCaptureOperationError(ScreenCaptureError):
 
 def ensure_output_directory(output_path: str) -> None:
     """Ensure output directory exists."""
-    directory = os.path.dirname(os.path.abspath(output_path))  # noqa: PTH120
+    directory = os.path.dirname(os.path.abspath(output_path))
     if directory:
         os.makedirs(directory, exist_ok=True)  # noqa: PTH103
 
@@ -108,6 +108,8 @@ def stop_ffmpeg_process(process: subprocess.Popen, timeout: int = 5) -> None:
         error_msg = f"Failed to stop recording: {e}"
         logger.exception(error_msg)
         raise RecordingError(error_msg) from e
+
+
 def run_command(cmd: list, timeout: int = 10, error_prefix: str = "Command failed") -> None:
     """Run subprocess command with error handling.
 
@@ -125,6 +127,8 @@ def run_command(cmd: list, timeout: int = 10, error_prefix: str = "Command faile
         raise ScreenshotError(msg) from e
         msg = f"{error_prefix}: command not found"
         raise ScreenshotError(msg) from e
+
+
 # Backend Interface
 
 
@@ -161,6 +165,7 @@ class WindowsScreenCaptureBackend(ScreenCaptureBackend):
             self.pyautogui = pyautogui
         except ImportError:
             self.pyautogui = None
+
     def capture_screenshot(self, output_path: str) -> None:
         if self.pyautogui is None:
             msg = "pyautogui not available. Install: pip install pyautogui"
@@ -174,6 +179,7 @@ class WindowsScreenCaptureBackend(ScreenCaptureBackend):
         except Exception as e:
             msg = f"Failed to capture screenshot: {e}"
             raise ScreenshotError(msg) from e
+
     def capture_region(self, region: CaptureRegion, output_path: str) -> None:
         if self.pyautogui is None:
             msg = "pyautogui not available. Install: pip install pyautogui"
@@ -189,6 +195,7 @@ class WindowsScreenCaptureBackend(ScreenCaptureBackend):
         except Exception as e:
             msg = f"Failed to capture region: {e}"
             raise ScreenshotError(msg) from e
+
     def start_recording(self, output_path: str, fps: int = 30) -> subprocess.Popen:
         try:
             ensure_output_directory(output_path)
@@ -226,6 +233,8 @@ class WindowsScreenCaptureBackend(ScreenCaptureBackend):
             raise RecordingError(msg) from e
             msg = f"Failed to start recording: {e}"
             raise RecordingError(msg) from e
+
+
 class MacOSScreenCaptureBackend(ScreenCaptureBackend):
     """macOS screen capture using screencapture and ffmpeg."""
 
@@ -280,6 +289,8 @@ class MacOSScreenCaptureBackend(ScreenCaptureBackend):
             raise RecordingError(msg) from e
             msg = f"Failed to start recording: {e}"
             raise RecordingError(msg) from e
+
+
 class LinuxScreenCaptureBackend(ScreenCaptureBackend):
     """Linux screen capture using scrot and ffmpeg."""
 
@@ -288,10 +299,11 @@ class LinuxScreenCaptureBackend(ScreenCaptureBackend):
 
     def _check_scrot(self) -> bool:
         try:
-            result = subprocess.run(["which", "scrot"], check=False, capture_output=True, timeout=5)  # nosec B603 B607  # noqa: S607
+            result = subprocess.run(["which", "scrot"], check=False, capture_output=True, timeout=5)  # nosec B603 B607
             return result.returncode == 0
         except Exception:
             return False
+
     def capture_screenshot(self, output_path: str) -> None:
         if not self.has_scrot:
             msg = "scrot not found. Install: sudo apt-get install scrot"
@@ -349,6 +361,8 @@ class LinuxScreenCaptureBackend(ScreenCaptureBackend):
             raise RecordingError(msg) from e
             msg = f"Failed to start recording: {e}"
             raise RecordingError(msg) from e
+
+
 # Main Controller
 
 
@@ -382,8 +396,7 @@ class ScreenCaptureController:
 
     def start_recording(self, output_path: str, fps: int = 30) -> None:
         """Start screen recording."""
-        if fps <= 0 or fps > 120:  # noqa: PLR2004 - Percentage/large threshold
-
+        if fps <= 0 or fps > 120:
             msg = f"Invalid fps: {fps} (must be 1-120)"
             raise ValueError(msg)
 

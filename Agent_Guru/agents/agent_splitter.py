@@ -186,8 +186,7 @@ class AgentSplitter:
         # Partition specializations into clusters
         clusters = self._partition_specializations(agent.specializations)
 
-        if len(clusters) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(clusters) < 2:
             msg = f"Agent {agent_id} cannot be split: only {len(clusters)} cluster(s) found"
             raise ValueError(
                 msg,
@@ -287,8 +286,7 @@ class AgentSplitter:
         Validates: Requirement 4.1
 
         """
-        if len(specializations) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(specializations) < 2:
             return 0.0
 
         task_types = list(specializations.keys())
@@ -368,8 +366,7 @@ class AgentSplitter:
 
         # Check if one is a prefix/stem of the other (e.g. "coding" / "coder")
         shorter, longer = (t1, t2) if len(t1) <= len(t2) else (t2, t1)
-        if len(shorter) >= 3 and longer.startswith(shorter[: min(len(shorter), 4)]):  # noqa: PLR2004 - Small integer threshold
-
+        if len(shorter) >= 3 and longer.startswith(shorter[: min(len(shorter), 4)]):
             return 0.2  # Morphologically related
 
         # Check if both terms belong to the same domain group
@@ -413,8 +410,7 @@ class AgentSplitter:
         Validates: Requirement 4.3
 
         """
-        if len(specializations) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(specializations) < 2:
             return {tuple(specializations.keys()): specializations}
 
         task_types = list(specializations.keys())
@@ -455,8 +451,7 @@ class AgentSplitter:
                     ),
                 )
 
-                if avg_similarity > 0.5:  # Similarity threshold  # noqa: PLR2004 (Threshold value)
-
+                if avg_similarity > 0.5:  # Similarity threshold
                     clusters[cluster_id].append(j)
                     assigned.add(j)
 

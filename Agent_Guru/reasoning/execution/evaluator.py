@@ -135,7 +135,7 @@ class ResultValidator:
 
     def validate(
         self,
-        result_data: Any,  # noqa: ANN401
+        result_data: Any,
         expected_schema: dict[str, type] | None = None,
         business_rules: dict[str, Callable[[Any], bool]] | None = None,
     ) -> EvaluationResult:
@@ -224,7 +224,7 @@ class ResultValidator:
 
     def _validate_schema(
         self,
-        result_data: Any,  # noqa: ANN401
+        result_data: Any,
         expected_schema: dict[str, type],
     ) -> list[ValidationIssue]:
         """Validate result matches expected schema.
@@ -284,7 +284,7 @@ class ResultValidator:
 
     def _validate_business_rules(
         self,
-        result_data: Any,  # noqa: ANN401
+        result_data: Any,
         business_rules: dict[str, Callable[[Any], bool]],
     ) -> list[ValidationIssue]:
         """Validate result against business rules.
@@ -330,7 +330,7 @@ class ResultValidator:
 
         return issues
 
-    def _validate_sanity(self, result_data: Any) -> list[ValidationIssue]:  # noqa: ANN401
+    def _validate_sanity(self, result_data: Any) -> list[ValidationIssue]:
         """Perform sanity checks on result values.
 
         Args:
@@ -362,8 +362,7 @@ class ResultValidator:
                         )
 
                 # Check for unreasonably large values
-                if value > 1e10:  # Arbitrary large threshold  # noqa: PLR2004 (Epsilon value)
-
+                if value > 1e10:  # Arbitrary large threshold
                     issues.append(
                         ValidationIssue(
                             issue_type=ValidationResult.INVALID,
@@ -388,7 +387,7 @@ class ResultValidator:
 
     def _validate_completeness(
         self,
-        result_data: Any,  # noqa: ANN401
+        result_data: Any,
         expected_schema: dict[str, type] | None,
     ) -> list[ValidationIssue]:
         """Check if result has all required data.
@@ -494,7 +493,7 @@ class ExecutionEvaluator:
 
     def evaluate(
         self,
-        execution_result: Any,  # noqa: ANN401
+        execution_result: Any,
         retry_count: int = 0,
         expected_schema: dict[str, type] | None = None,
         business_rules: dict[str, Callable[[Any], bool]] | None = None,
@@ -577,7 +576,7 @@ class ExecutionEvaluator:
             abandonment_reason=abandonment_reason,
         )
 
-    def _classify_error(self, error: Any) -> ErrorType:  # noqa: ANN401
+    def _classify_error(self, error: Any) -> ErrorType:
         """Classify error type.
 
         Args:
@@ -700,7 +699,7 @@ class ExecutionEvaluator:
         self,
         error_type: ErrorType,
         retry_count: int,
-        execution_result: Any,  # noqa: ANN401
+        execution_result: Any,
     ) -> tuple[bool, str | None]:
         """Check if task should be abandoned.
 
@@ -727,8 +726,7 @@ class ExecutionEvaluator:
 
         # Timeout exceeded (check if total timeout exceeded)
         if hasattr(execution_result, "execution_time"):
-            if execution_result.execution_time > 60.0:  # 60s total timeout  # noqa: PLR2004 (Threshold)
-
+            if execution_result.execution_time > 60.0:  # 60s total timeout
                 return True, "Total timeout (60s) exceeded"
 
         return False, None

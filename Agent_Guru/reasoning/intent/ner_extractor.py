@@ -276,7 +276,7 @@ class NEREntityExtractor:
         self._update_metrics(result)
         return result
 
-    def _create_entity(self, ent: Any, text: str) -> Entity:  # noqa: ANN401
+    def _create_entity(self, ent: Any, text: str) -> Entity:
         """Create Entity object from spaCy entity.
 
         Args:
@@ -527,19 +527,17 @@ class NEREntityExtractor:
 
         """
 
-        def format_12h(match) -> str:  # noqa: ANN001
+        def format_12h(match) -> str:
             hour = int(match.group(1))
             minute = int(match.group(2)) if match.group(2) else 0
             am_pm = match.group(3).lower()
-            if am_pm == "pm" and hour != 12:  # noqa: PLR2004 - Threshold
-
+            if am_pm == "pm" and hour != 12:
                 hour += 12
-            elif am_pm == "am" and hour == 12:  # noqa: PLR2004 - Threshold
-
+            elif am_pm == "am" and hour == 12:
                 hour = 0
             return f"{hour:02d}:{minute:02d}"
 
-        def format_24h(match) -> str:  # noqa: ANN001
+        def format_24h(match) -> str:
             hour = int(match.group(1))
             minute = int(match.group(2))
             return f"{hour:02d}:{minute:02d}"
@@ -556,8 +554,7 @@ class NEREntityExtractor:
                             "group": lambda s: m.group(1)
                             if s == 1
                             else "0"
-                            if s == 2  # noqa: PLR2004 - Small integer threshold
-
+                            if s == 2
                             else m.group(2),
                         },
                     )(),

@@ -73,7 +73,7 @@ class AutomationEngine:
         logger.info("Created scene '%s' (%s)", name, scene_id)
         return scene
 
-    async def activate_scene(self, scene_id: str, controller: Any) -> bool:  # noqa: ANN401
+    async def activate_scene(self, scene_id: str, controller: Any) -> bool:
         """Activate a scene by executing all its device commands."""
         try:
             with self._conn:
@@ -132,6 +132,7 @@ class AutomationEngine:
         except (json.JSONDecodeError, TypeError):
             logger.exception("Failed to deserialize scene %s: %s")
             return None
+
     # ------------------------------------------------------------------
     # Natural language automation parsing
     # ------------------------------------------------------------------

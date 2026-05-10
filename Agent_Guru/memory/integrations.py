@@ -158,8 +158,7 @@ class GoalManagerIntegration:
         gaps: list[str] = []
         # Flag task types with low success rates
         success_rate = sum(1 for e in experiences if e.success) / len(experiences)
-        if success_rate < 0.5:  # noqa: PLR2004 - Threshold value
-
+        if success_rate < 0.5:
             gaps.append(f"Low success rate ({success_rate:.0%}) for {goal_task_type}")
         return gaps
 

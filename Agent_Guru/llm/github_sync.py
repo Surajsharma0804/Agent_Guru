@@ -85,7 +85,7 @@ class GitHubSyncEngine:
         if self._sync_task and not self._sync_task.done():
             self._sync_task.cancel()
 
-    def _get_client(self) -> Any:  # noqa: ANN401
+    def _get_client(self) -> Any:
         """Lazy-initialize the httpx async client."""
         if self._client is None:
             import httpx  # type: ignore[import]
@@ -142,6 +142,7 @@ class GitHubSyncEngine:
             except asyncio.CancelledError:
                 break
                 logger.exception("Error in GitHub sync loop")
+
     async def _process_pending_operations(self) -> None:
         """Process (and batch) pending sync operations."""
         if not self.pending_operations:
@@ -184,6 +185,7 @@ class GitHubSyncEngine:
                     exc,
                 )
                 await asyncio.sleep(wait_s)
+
     async def _update_readme(self, encoded_content: str, commit_message: str) -> None:
         """Update README.md in the repository.
 

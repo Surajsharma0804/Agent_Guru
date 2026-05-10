@@ -73,8 +73,7 @@ class FeatureFlag:
         """
         if not self.enabled:
             return False
-        if self.rollout_percentage >= 100.0:  # noqa: PLR2004 - Percentage/large threshold
-
+        if self.rollout_percentage >= 100.0:
             return True
         if self.rollout_percentage <= 0.0:
             return False
@@ -94,14 +93,11 @@ class FeatureFlag:
             self.strategy = RolloutStrategy.DISABLED
         elif percentage <= 1.0:
             self.strategy = RolloutStrategy.CANARY
-        elif percentage <= 10.0:  # noqa: PLR2004 - Threshold
-
+        elif percentage <= 10.0:
             self.strategy = RolloutStrategy.EARLY_ADOPTERS
-        elif percentage <= 50.0:  # noqa: PLR2004 - Threshold
-
+        elif percentage <= 50.0:
             self.strategy = RolloutStrategy.MAJORITY
-        elif percentage >= 100.0:  # noqa: PLR2004 - Percentage/large threshold
-
+        elif percentage >= 100.0:
             self.strategy = RolloutStrategy.FULL
         else:
             self.strategy = RolloutStrategy.CUSTOM
@@ -319,8 +315,7 @@ class StatisticalAnalyzer:
         n1 = control.impressions
         n2 = treatment.impressions
 
-        if n1 < 30 or n2 < 30:  # noqa: PLR2004 - Threshold
-
+        if n1 < 30 or n2 < 30:
             return False, 1.0  # Insufficient data
 
         p1 = control.conversion_rate

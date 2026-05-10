@@ -70,7 +70,7 @@ class IOSBackgroundService:
 
     """
 
-    def __init__(self, integration) -> None:  # noqa: ANN001
+    def __init__(self, integration) -> None:
         """Initialize iOS background service.
 
         Args:
@@ -145,6 +145,7 @@ class IOSBackgroundService:
         except Exception:
             logger.exception("Failed to start service")
             raise
+
     async def stop_service(self) -> None:
         """Stop background service and cleanup resources.
 
@@ -177,6 +178,7 @@ class IOSBackgroundService:
 
         except Exception:
             logger.exception("Failed to stop service")
+
     async def enter_sleep_mode(self) -> None:
         """Enter sleep mode for battery optimization.
 
@@ -208,6 +210,7 @@ class IOSBackgroundService:
 
         except Exception:
             logger.exception("Failed to enter sleep mode")
+
     async def enter_wake_mode(self) -> None:
         """Enter wake mode for full functionality.
 
@@ -244,6 +247,7 @@ class IOSBackgroundService:
 
         except Exception:
             logger.exception("Failed to enter wake mode")
+
     async def handle_wake_word_detected(self) -> None:
         """Handle wake word detection event.
 
@@ -265,6 +269,7 @@ class IOSBackgroundService:
                 await self._wake_word_callback()
             except Exception:
                 logger.exception("Wake word callback failed")
+
     def set_wake_word_callback(self, callback: Callable) -> None:
         """Set callback for wake word detection.
 
@@ -294,14 +299,12 @@ class IOSBackgroundService:
         """
         logger.warning("Low battery: %.1f%", battery_percent * 100)
 
-        if battery_percent < 0.20:  # noqa: PLR2004 - Threshold value
-
+        if battery_percent < 0.20:
             # Below 20%: Enter sleep mode
             await self.enter_sleep_mode()
             logger.info("Entered sleep mode due to low battery")
 
-        if battery_percent < 0.10:  # noqa: PLR2004 - Threshold value
-
+        if battery_percent < 0.10:
             # Below 10%: Stop service
             await self.stop_service()
             logger.warning("Stopped service due to critical battery")
@@ -376,8 +379,7 @@ class IOSBackgroundService:
                 battery_info = self.integration.get_battery_info()
 
                 # Handle low battery
-                if battery_info.level < 0.20:  # noqa: PLR2004 - Threshold value
-
+                if battery_info.level < 0.20:
                     await self.handle_low_battery(battery_info.level)
 
                 # Handle low power mode
@@ -386,8 +388,7 @@ class IOSBackgroundService:
 
                 # Auto-sleep after 30 seconds of inactivity in wake mode
                 if self.state == ServiceState.ACTIVE and self._wake_mode_start:
-                    if time.time() - self._wake_mode_start > 30:  # noqa: PLR2004 - Threshold
-
+                    if time.time() - self._wake_mode_start > 30:
                         await self.enter_sleep_mode()
 
                 # Sleep for 1 second
@@ -396,6 +397,7 @@ class IOSBackgroundService:
         except asyncio.CancelledError as e:
             logger.info("Service loop cancelled: %s", e)
             logger.exception("Service loop error")
+
     def _update_sleep_battery_usage(self) -> None:
         """Update sleep mode battery usage."""
         if not self._sleep_mode_start:

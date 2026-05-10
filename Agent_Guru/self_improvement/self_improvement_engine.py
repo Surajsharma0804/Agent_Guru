@@ -266,8 +266,7 @@ class SelfImprovementEngine:
 
         # Performance monitoring
         elapsed_ms = (time.time() - start_time) * 1000
-        if elapsed_ms > 50:  # noqa: PLR2004 - Threshold
-
+        if elapsed_ms > 50:
             _logger.warning("record_task_execution took %.2fms (target: <50ms)", elapsed_ms)
 
     def get_optimal_strategy(self, task_type: str, context: dict | None = None) -> Strategy | None:
@@ -312,8 +311,7 @@ class SelfImprovementEngine:
 
         # Performance monitoring
         elapsed_ms = (time.time() - start_time) * 1000
-        if elapsed_ms > 10:  # noqa: PLR2004 - Threshold
-
+        if elapsed_ms > 10:
             _logger.warning("get_optimal_strategy took %.2fms (target: <10ms)", elapsed_ms)
 
         return strategy
@@ -407,8 +405,7 @@ class SelfImprovementEngine:
 
         # Calculate improvement if enough data
         improvement = None
-        if self._task_sequence >= 20:  # Need at least 20 tasks  # noqa: PLR2004 (Threshold)
-
+        if self._task_sequence >= 20:  # Need at least 20 tasks
             improvement = self.performance_tracker.calculate_improvement(
                 baseline_size=10,
                 recent_size=10,

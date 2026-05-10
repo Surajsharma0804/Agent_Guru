@@ -190,4 +190,3 @@ class AgentGuruClient:
             msg = "url"
             raise InvalidParameterError(msg, "must not be empty")
         return self._response({"webhook_id": f"wh_{int(time.time())}", "events": events})
-

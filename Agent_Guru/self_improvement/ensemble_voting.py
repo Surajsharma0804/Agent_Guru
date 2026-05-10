@@ -119,7 +119,7 @@ class EnsembleVotingSystem:
     def __init__(
         self,
         pool: "ConnectionPool",
-        strategy_optimizer: Any,  # StrategyOptimizer  # noqa: ANN401
+        strategy_optimizer: Any,  # StrategyOptimizer
         default_voting_method: VotingMethod = VotingMethod.WEIGHTED,
         min_agreement_threshold: float = 0.6,
     ) -> None:

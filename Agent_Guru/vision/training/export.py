@@ -91,7 +91,7 @@ def export_to_onnx(
         opset_version,
         saved_embedding_dim,
     )
-    return os.path.abspath(output_path)  # noqa: PTH100
+    return os.path.abspath(output_path)
 
 
 def validate_onnx_equivalence(

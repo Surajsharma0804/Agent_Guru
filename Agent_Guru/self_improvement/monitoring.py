@@ -51,7 +51,7 @@ class ImprovementMonitor:
     def __init__(
         self,
         storage_path: str,
-        config: Any | None = None,  # noqa: ANN401
+        config: Any | None = None,
         alert_callback: Callable[[Alert], None] | None = None,
     ) -> None:
         """Initialize improvement monitor.

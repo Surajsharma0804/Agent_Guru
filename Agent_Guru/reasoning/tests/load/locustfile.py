@@ -166,8 +166,7 @@ class ReasoningEngineUser(HttpUser):
                     f"Latency {response.elapsed.total_seconds() * 1000:.0f}ms "
                     f"exceeds {LATENCY_TARGET_MS}ms target",
                 )
-            elif response.status_code >= 500:  # noqa: PLR2004 - Percentage/large threshold
-
+            elif response.status_code >= 500:
                 response.failure(f"Server error: {response.status_code}")
             else:
                 response.success()

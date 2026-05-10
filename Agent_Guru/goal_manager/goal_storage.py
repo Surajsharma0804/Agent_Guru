@@ -202,6 +202,7 @@ class GoalStorage:
             raise
             msg = f"Failed to update goal status: {e}"
             raise _StorageError(msg) from e
+
     def _connect(self) -> sqlite3.Connection:
         """Return the persistent connection."""
         return self._conn
@@ -268,6 +269,7 @@ class GoalStorage:
             )
             msg = f"Failed to initialize database schema: {e}"
             raise StorageError(msg) from e
+
     async def store_goal(self, goal: Goal) -> None:
         """Store goal with immediate persistence.
 
@@ -475,6 +477,7 @@ class GoalStorage:
             )
             msg = f"Failed to retrieve goal: {e}"
             raise StorageError(msg) from e
+
     async def query_goals(
         self,
         status: GoalStatus | None = None,
@@ -537,6 +540,7 @@ class GoalStorage:
             )
             msg = f"Failed to query goals: {e}"
             raise StorageError(msg) from e
+
     def _row_to_goal(self, row: tuple) -> Goal:
         """Convert database row to Goal object.
 
@@ -584,6 +588,7 @@ class GoalStorage:
             )
             msg = f"Failed to convert row to goal: {e}"
             raise StorageError(msg) from e
+
     async def export_to_json(self, output_path: str) -> None:
         """Export all goals to JSON file.
 
@@ -614,6 +619,7 @@ class GoalStorage:
             )
             msg = f"Failed to export goals: {e}"
             raise StorageError(msg) from e
+
     async def import_from_json(self, input_path: str) -> int:
         """Import goals from JSON file.
 
@@ -656,6 +662,7 @@ class GoalStorage:
             )
             msg = f"Failed to import goals: {e}"
             raise StorageError(msg) from e
+
     def _goal_to_dict(self, goal: Goal) -> dict:
         """Convert Goal to dictionary for JSON serialization.
 
@@ -691,7 +698,7 @@ class GoalStorage:
         }
 
     @staticmethod
-    def _get_enum_value(enum_field):  # noqa: ANN001
+    def _get_enum_value(enum_field):
         """Extract value from enum field (handles both Enum objects and strings).
 
         Time Complexity: O(1)

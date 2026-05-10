@@ -71,7 +71,8 @@ def _detect_platform() -> str:
     """
     # Lazy import: platform layer is only needed at runtime, not import time.
     # This keeps memory/ independent of platform/ at the module boundary.
-    from Agent_Guru.platform.platform_detector import PlatformDetector  # noqa: PLC0415
+    from Agent_Guru.platform.platform_detector import PlatformDetector
+
     return PlatformDetector.detect().os_name.lower()
 
 
@@ -153,8 +154,7 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
     dot = sum(x * y for x, y in zip(a, b, strict=False))
     mag_a = sum(x * x for x in a) ** 0.5
     mag_b = sum(x * x for x in b) ** 0.5
-    if mag_a < 1e-10 or mag_b < 1e-10:  # noqa: PLR2004 - Epsilon value
-
+    if mag_a < 1e-10 or mag_b < 1e-10:
         return 0.0
     return dot / (mag_a * mag_b)
 

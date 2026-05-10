@@ -511,7 +511,7 @@ class NetworkPermissionChecker:
             return (False, "; ".join(warnings))
         return (True, "")
 
-    def _sanitize_url(self, parsed_url: Any) -> str:  # noqa: ANN401
+    def _sanitize_url(self, parsed_url: Any) -> str:
         """Sanitize URL by removing potentially dangerous elements.
 
         Args:

@@ -49,6 +49,8 @@ def run_training_script(script_name: str, description: str) -> bool:
     except subprocess.CalledProcessError:
         return False
         return False
+
+
 def main() -> None:
     """Run all training scripts in sequence."""
     # Check GPU

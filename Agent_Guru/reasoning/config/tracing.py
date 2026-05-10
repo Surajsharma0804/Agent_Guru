@@ -115,13 +115,13 @@ class ErrorAwareSampler(sampling.Sampler):
 
     def should_sample(
         self,
-        parent_context,  # noqa: ANN001
-        trace_id,  # noqa: ANN001
-        name,  # noqa: ANN001
-        kind=None,  # noqa: ANN001
-        attributes=None,  # noqa: ANN001
-        links=None,  # noqa: ANN001
-        trace_state=None,  # noqa: ANN001
+        parent_context,
+        trace_id,
+        name,
+        kind=None,
+        attributes=None,
+        links=None,
+        trace_state=None,
     ):
         """Determine if a span should be sampled.
 
@@ -206,7 +206,7 @@ class TracingManager:
         """
         span.add_event(name, attributes=attributes or {})
 
-    def set_attribute(self, span: Span, key: str, value) -> None:  # noqa: ANN001
+    def set_attribute(self, span: Span, key: str, value) -> None:
         """Set an attribute on a span.
 
         Args:

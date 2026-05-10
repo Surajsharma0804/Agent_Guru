@@ -84,7 +84,10 @@ class BatchProcessor(Generic[T, R]):
     """
 
     def __init__(
-        self, batch_size: int = 32, max_wait: float = 0.1, max_queue_size: int = 1000,
+        self,
+        batch_size: int = 32,
+        max_wait: float = 0.1,
+        max_queue_size: int = 1000,
     ) -> None:
         """Initialize batch processor.
 
@@ -281,7 +284,7 @@ class DatabaseBatchWriter:
 
     """
 
-    def __init__(self, connection: Any, batch_size: int = 100, max_wait: float = 1.0) -> None:  # noqa: ANN401
+    def __init__(self, connection: Any, batch_size: int = 100, max_wait: float = 1.0) -> None:
         """Initialize database batch writer.
 
         Args:
@@ -360,7 +363,8 @@ class DatabaseBatchWriter:
             # Execute
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(
-                None, lambda q=query, v=values: self.connection.execute(q, v),
+                None,
+                lambda q=query, v=values: self.connection.execute(q, v),
             )
 
         # Commit

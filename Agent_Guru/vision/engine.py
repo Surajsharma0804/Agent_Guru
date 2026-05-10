@@ -345,7 +345,8 @@ class GuruVisionEngine:
                 active_tracks = self._tracker.update(detections)
             except Exception as exc:
                 logger.exception(
-                    "Tracker update failed (%s) — processing frames independently", exc,
+                    "Tracker update failed (%s) — processing frames independently",
+                    exc,
                 )
                 self._emit("error", {"stage": "tracking", "error": str(exc)})
                 active_tracks = []
@@ -610,8 +611,8 @@ class GuruVisionEngine:
 
     def open_video_source(
         self,
-        source: Any | None = None,  # noqa: ANN401
-    ) -> Any:  # cv2.VideoCapture  # noqa: ANN401
+        source: Any | None = None,
+    ) -> Any:  # cv2.VideoCapture
         """Open a video source and return an OpenCV VideoCapture object.
 
         Args:
@@ -660,7 +661,7 @@ class GuruVisionEngine:
 
     def process_video_source(
         self,
-        source: Any | None = None,  # noqa: ANN401
+        source: Any | None = None,
         max_frames: int | None = None,
         on_result: Callable[[RecognitionResult], None] | None = None,
     ) -> list[RecognitionResult]:
@@ -716,7 +717,7 @@ class GuruVisionEngine:
     def setup_signal_handlers(self) -> None:
         """Register SIGINT / SIGTERM handlers to call shutdown() gracefully."""
 
-        def _handler(signum: int, frame: Any) -> None:  # noqa: ANN401
+        def _handler(signum: int, frame: Any) -> None:
             logger.info("Signal %d received — shutting down", signum)
             self.shutdown()
 
@@ -734,6 +735,7 @@ class GuruVisionEngine:
                 cb(data)
             except Exception as exc:
                 logger.exception("Callback for '%s' raised: %s", event_type, exc)
+
     def _require_initialized(self) -> None:
         if not self._initialized:
             msg = "GuruVisionEngine.initialize() must be called first"

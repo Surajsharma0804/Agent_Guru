@@ -243,7 +243,7 @@ class MobileBackgroundService:
 
     """
 
-    def __init__(self, config: ServiceConfig, platform_integration: Any | None = None) -> None:  # noqa: ANN401
+    def __init__(self, config: ServiceConfig, platform_integration: Any | None = None) -> None:
         """Initialize mobile background service.
 
         Args:
@@ -329,6 +329,7 @@ class MobileBackgroundService:
             await self._change_state(ServiceState.CRASHED)
             msg = f"Service start failed: {e}"
             raise RuntimeError(msg) from e
+
     async def stop_service(self) -> None:
         """Stop background service and cleanup resources."""
         if not self.is_running:
@@ -355,6 +356,7 @@ class MobileBackgroundService:
         except Exception:
             logger.exception("Error stopping service")
             await self._change_state(ServiceState.CRASHED)
+
     async def enter_sleep_mode(self) -> None:
         """Enter sleep mode for battery optimization.
 
@@ -390,6 +392,7 @@ class MobileBackgroundService:
 
         except Exception:
             logger.exception("Error entering sleep mode")
+
     async def enter_wake_mode(self) -> None:
         """Enter wake mode for full functionality.
 
@@ -428,6 +431,7 @@ class MobileBackgroundService:
 
         except Exception:
             logger.exception("Error entering wake mode")
+
     async def handle_wake_word_detected(self) -> None:
         """Handle wake word detection event.
 
@@ -444,6 +448,7 @@ class MobileBackgroundService:
                 await self._wake_word_callback()
             except Exception:
                 logger.exception("Wake word callback error")
+
     async def request_battery_optimization_exemption(self) -> bool:
         """Request battery optimization exemption (Android).
 
@@ -462,6 +467,7 @@ class MobileBackgroundService:
         except Exception:
             logger.exception("Error requesting battery exemption")
             return False
+
     async def monitor_battery_usage(self) -> BatteryUsageStats:
         """Monitor battery usage statistics.
 
@@ -540,6 +546,7 @@ class MobileBackgroundService:
                 break
                 logger.exception("Monitoring loop error")
                 await asyncio.sleep(5.0)
+
     async def _change_state(self, new_state: ServiceState) -> None:
         """Change service state and invoke callback.
 
@@ -557,6 +564,7 @@ class MobileBackgroundService:
                 await self._state_change_callback(old_state, new_state)
             except Exception:
                 logger.exception("State change callback error")
+
     async def _get_battery_level(self) -> float:
         """Get current battery level.
 

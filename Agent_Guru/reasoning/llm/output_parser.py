@@ -170,7 +170,7 @@ class TaskOutputParser:
             )
             raise ValueError(structured_error.user_message) from e
 
-    def parse_with_retry(self, llm_output_generator, initial_prompt: str) -> tuple[Task, float]:  # noqa: ANN001
+    def parse_with_retry(self, llm_output_generator, initial_prompt: str) -> tuple[Task, float]:
         """Parse LLM output with automatic retry on failure.
 
         If parsing fails, this method will retry up to max_retries times
@@ -349,13 +349,11 @@ class TaskOutputParser:
                 score -= 0.1
 
         # Check if descriptions are meaningful (>10 chars)
-        if len(task.goal) < 10:  # noqa: PLR2004 - Threshold
-
+        if len(task.goal) < 10:
             score -= 0.1
 
         for step in task.steps:
-            if len(step.description) < 10:  # noqa: PLR2004 - Threshold
-
+            if len(step.description) < 10:
                 score -= 0.05
 
         return max(0.0, score)
@@ -377,8 +375,7 @@ class TaskOutputParser:
 
         # Check task type consistency (already validated, but double-check)
         if (task.task_type == TaskType.SINGLE_STEP and len(task.steps) != 1) or (
-            task.task_type == TaskType.MULTI_STEP and not 2 <= len(task.steps) <= 5  # noqa: PLR2004 - Small integer threshold
-
+            task.task_type == TaskType.MULTI_STEP and not 2 <= len(task.steps) <= 5
         ):
             score -= 0.3
 
@@ -389,8 +386,7 @@ class TaskOutputParser:
 
         # Check for reasonable durations (0.1s to 60s per step)
         for step in task.steps:
-            if not 0.1 <= step.estimated_duration <= 60.0:  # noqa: PLR2004 - Threshold
-
+            if not 0.1 <= step.estimated_duration <= 60.0:
                 score -= 0.1
 
         # Check dependencies are valid
@@ -430,13 +426,11 @@ class TaskOutputParser:
             score -= 0.1
 
         # Check for reasonable length (not too short, not too long)
-        if len(task.goal) < 5 or len(task.goal) > 200:  # noqa: PLR2004 - Small integer threshold
-
+        if len(task.goal) < 5 or len(task.goal) > 200:
             score -= 0.1
 
         for step in task.steps:
-            if len(step.description) < 5 or len(step.description) > 200:  # noqa: PLR2004 - Small integer threshold
-
+            if len(step.description) < 5 or len(step.description) > 200:
                 score -= 0.05
 
         return max(0.0, score)
@@ -524,8 +518,7 @@ Please generate a corrected Task object:
                 errors.append("steps must be a list")
             elif len(steps) == 0:
                 errors.append("steps must contain at least one step")
-            elif len(steps) > 5:  # noqa: PLR2004 - Small integer threshold
-
+            elif len(steps) > 5:
                 errors.append(f"steps cannot contain more than 5 steps, got {len(steps)}")
             else:
                 # Validate each step

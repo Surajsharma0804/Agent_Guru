@@ -186,11 +186,9 @@ class HybridLLMRouter:
 
         # Factor 1: Prompt length (0.0-0.3)
         prompt_length = len(request.prompt)
-        if prompt_length < 50:  # noqa: PLR2004 - Threshold
-
+        if prompt_length < 50:
             factors["prompt_length"] = 0.0
-        elif prompt_length < 200:  # noqa: PLR2004 - Percentage/large threshold
-
+        elif prompt_length < 200:
             factors["prompt_length"] = 0.15
         else:
             factors["prompt_length"] = 0.3
@@ -198,8 +196,7 @@ class HybridLLMRouter:
         # Factor 2: Entity count (0.0-0.2)
         if entity_count == 0:
             factors["entity_count"] = 0.0
-        elif entity_count <= 2:  # noqa: PLR2004 - Small integer threshold
-
+        elif entity_count <= 2:
             factors["entity_count"] = 0.1
         else:
             factors["entity_count"] = 0.2
@@ -207,8 +204,7 @@ class HybridLLMRouter:
         # Factor 3: Step count (0.0-0.3)
         if step_count == 1:
             factors["step_count"] = 0.0
-        elif step_count <= 3:  # noqa: PLR2004 - Small integer threshold
-
+        elif step_count <= 3:
             factors["step_count"] = 0.15
         else:
             factors["step_count"] = 0.3

@@ -281,6 +281,7 @@ def create_app(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Processing failed: {e!s}",
             ) from e
+
     # Conversations endpoint
     @app.get(
         "/v1/conversations/{conversation_id}",
@@ -364,6 +365,7 @@ def create_app(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve conversation: {e!s}",
             ) from e
+
     # List conversations endpoint
     @app.get(
         "/v1/conversations",
@@ -419,6 +421,7 @@ def create_app(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to list conversations: {e!s}",
             ) from e
+
     # Tasks endpoint
     @app.get(
         "/v1/tasks/{task_id}",
@@ -487,6 +490,7 @@ def create_app(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve task status: {e!s}",
             ) from e
+
     # Statistics endpoint
     @app.get(
         "/v1/stats",
@@ -521,6 +525,7 @@ def create_app(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve statistics: {e!s}",
             ) from e
+
     # WebSocket endpoint
     @app.websocket("/v1/ws")
     async def websocket_route(

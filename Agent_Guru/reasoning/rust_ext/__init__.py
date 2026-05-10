@@ -239,7 +239,7 @@ def fast_similarity_score(text: str, patterns: list[str]) -> list[tuple[int, flo
 # ============================================================================
 
 
-def fast_json_parse(json_str: str) -> Any:  # noqa: ANN401
+def fast_json_parse(json_str: str) -> Any:
     """Fast JSON parsing using Rust (5x faster than Python json).
 
     Args:

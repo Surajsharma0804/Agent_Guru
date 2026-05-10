@@ -420,8 +420,7 @@ class PerformanceTracker:
         if baseline.success_rate == 0:
             # If baseline is 0%, any improvement is infinite
             relative_improvement = 100.0 if recent.success_rate > 0 else 0.0
-        elif baseline.success_rate >= 0.99:  # noqa: PLR2004 - Threshold value
-
+        elif baseline.success_rate >= 0.99:
             # If baseline is already near perfect (>=99%), calculate improvement
             # based on error rate reduction instead
             baseline_error_rate = 1.0 - baseline.success_rate
@@ -533,8 +532,7 @@ class PerformanceTracker:
         return {
             "t_statistic": round(float(t_statistic), 4),
             "p_value": round(float(p_value), 4),
-            "is_significant": p_value < 0.05,  # noqa: PLR2004 - Threshold value
-
+            "is_significant": p_value < 0.05,
             "confidence_interval_95": (
                 round(improvement - ci_95, 4),
                 round(improvement + ci_95, 4),

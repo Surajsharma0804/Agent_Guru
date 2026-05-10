@@ -194,7 +194,7 @@ class OnlineLearner:
         # Confidence metrics
         confidences = [f.predicted_confidence for f in feedback_list]
         avg_confidence = sum(confidences) / len(confidences)
-        low_confidence_count = sum(1 for c in confidences if c < 0.8)  # noqa: PLR2004 - Threshold value
+        low_confidence_count = sum(1 for c in confidences if c < 0.8)
 
         low_confidence_rate = low_confidence_count / total
 
@@ -269,13 +269,11 @@ class OnlineLearner:
             return True, f"Model drift detected (accuracy: {metrics.accuracy:.2%})"
 
         # Check correction rate
-        if metrics and metrics.correction_rate > 0.10:  # >10% corrections  # noqa: PLR2004 (Threshold value)
-
+        if metrics and metrics.correction_rate > 0.10:  # >10% corrections
             return True, f"High correction rate ({metrics.correction_rate:.2%})"
 
         # Check low confidence rate
-        if metrics and metrics.low_confidence_rate > 0.20:  # >20% low confidence  # noqa: PLR2004 (Threshold value)
-
+        if metrics and metrics.low_confidence_rate > 0.20:  # >20% low confidence
             return True, f"High low-confidence rate ({metrics.low_confidence_rate:.2%})"
 
         return False, "Model performance acceptable"

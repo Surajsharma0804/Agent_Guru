@@ -129,8 +129,7 @@ class MetricsEngine:
         """Linear trend over the last `window` snapshots. Returns None if <2 points."""
         snaps = self._store.get(metric_type, [])[-window:]
         n = len(snaps)
-        if n < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if n < 2:
             return None
         values = [s.value for s in snaps]
         mean = sum(values) / n

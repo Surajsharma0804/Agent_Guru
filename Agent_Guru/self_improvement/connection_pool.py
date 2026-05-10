@@ -106,6 +106,8 @@ class PooledConnection:
         except Exception:
             self.healthy = False
             return False
+
+
 class ConnectionPool:
     """Thread-safe connection pool for SQLite.
 
@@ -265,6 +267,7 @@ class ConnectionPool:
             with self._lock:
                 self._failed_acquisitions += 1
             raise
+
     def _create_connection_unlocked(self) -> PooledConnection:
         """Create new database connection without locking.
 
@@ -324,6 +327,7 @@ class ConnectionPool:
             conn.connection.close()
             with self._lock:
                 self._total_connections -= 1
+
     def close_all(self) -> None:
         """Close all connections in pool."""
         while not self._pool.empty():
@@ -496,6 +500,8 @@ class ConnectionPool:
         except Exception:
             conn.execute(f"ROLLBACK TO SAVEPOINT {name}")  # nosec B608
             raise
+
+
 # Global connection pool instance
 _global_pool: ConnectionPool | None = None
 _pool_lock = threading.Lock()

@@ -26,7 +26,7 @@ class LLMRuntimeIntegration:
     Requirements: 8.1, 8.2, 8.3, 8.5
     """
 
-    def __init__(self, verifier: Any) -> None:  # noqa: ANN401
+    def __init__(self, verifier: Any) -> None:
         self._verifier = verifier
 
     async def intercept_response(
@@ -67,7 +67,7 @@ class AgentOrchestrationIntegration:
     Requirements: 9.1, 9.2, 9.3, 9.4, 9.5
     """
 
-    def __init__(self, verifier: Any, max_retries: int = 3) -> None:  # noqa: ANN401
+    def __init__(self, verifier: Any, max_retries: int = 3) -> None:
         self._verifier = verifier
         self._max_retries = max_retries
         # task_id -> retry count
@@ -76,7 +76,7 @@ class AgentOrchestrationIntegration:
     async def validate_task_output(
         self,
         task_id: str,
-        output: Any,  # noqa: ANN401
+        output: Any,
         expected_schema: dict[str, Any] | None = None,
     ) -> tuple[bool, VerificationResult, bool]:
         """Validate task output before completion.
@@ -121,7 +121,7 @@ class MemorySystemIntegration:
     Requirements: 10.1, 10.2, 10.3, 10.4, 10.5
     """
 
-    def __init__(self, verifier: Any, reverification_age_days: float = 30.0) -> None:  # noqa: ANN401
+    def __init__(self, verifier: Any, reverification_age_days: float = 30.0) -> None:
         self._verifier = verifier
         self._reverification_age_days = reverification_age_days
         # content_id -> (timestamp, confidence)
@@ -184,7 +184,7 @@ class SelfImprovementIntegration:
     Requirements: 11.1, 11.2, 11.3, 11.4, 11.5
     """
 
-    def __init__(self, verifier: Any) -> None:  # noqa: ANN401
+    def __init__(self, verifier: Any) -> None:
         self._verifier = verifier
         self._reported_patterns: list[dict[str, Any]] = []
 

@@ -24,6 +24,7 @@ from Agent_Guru.reasoning.latency.tracker import (
 
 logger = logging.getLogger(__name__)
 
+
 class AlertSeverity(str, Enum):
     """Alert severity levels."""
 
@@ -128,8 +129,7 @@ class LatencyMonitor:
                 continue
 
             # Check timeout rate against 5% threshold
-            if stats.timeout_rate > 0.05:  # noqa: PLR2004 - Threshold value
-
+            if stats.timeout_rate > 0.05:
                 alert = Alert(
                     alert_type=AlertType.TIMEOUT_RATE_HIGH,
                     severity=AlertSeverity.WARNING,
@@ -163,8 +163,7 @@ class LatencyMonitor:
                 continue
 
             # Check degraded rate against 10% threshold
-            if stats.degraded_rate > 0.10:  # noqa: PLR2004 - Threshold value
-
+            if stats.degraded_rate > 0.10:
                 alert = Alert(
                     alert_type=AlertType.DEGRADED_MODE_HIGH,
                     severity=AlertSeverity.WARNING,
@@ -237,14 +236,12 @@ class LatencyMonitor:
                     "timeout": {
                         "rate": stats.timeout_rate,
                         "count": stats.timeout_count,
-                        "threshold_exceeded": stats.timeout_rate > 0.05,  # noqa: PLR2004 - Threshold value
-
+                        "threshold_exceeded": stats.timeout_rate > 0.05,
                     },
                     "degraded": {
                         "rate": stats.degraded_rate,
                         "count": stats.degraded_count,
-                        "threshold_exceeded": stats.degraded_rate > 0.10,  # noqa: PLR2004 - Threshold value
-
+                        "threshold_exceeded": stats.degraded_rate > 0.10,
                         "is_degraded": self.degraded_manager.is_degraded(stage),
                     },
                     "total_requests": stats.count,
@@ -262,8 +259,7 @@ class LatencyMonitor:
         self._alerts.append(alert)
 
         # Keep only last 1000 alerts
-        if len(self._alerts) > 1000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(self._alerts) > 1000:
             self._alerts = self._alerts[-1000:]
 
         # Call alert callback if provided

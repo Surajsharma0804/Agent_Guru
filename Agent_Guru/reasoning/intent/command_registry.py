@@ -85,7 +85,7 @@ class CommandRegistry:
             msg = f"Patterns file not found: {path}"
             raise FileNotFoundError(msg)
 
-        with open(path, encoding="utf-8") as f:  # noqa: PTH123
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         if "patterns" not in data:

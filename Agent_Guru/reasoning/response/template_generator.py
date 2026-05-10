@@ -462,7 +462,7 @@ class TemplateGenerator:
         template: ResponseTemplate,
         intent: Intent,
         result: ExecutionResult,
-        conversation_state: Any | None = None,  # noqa: ANN401
+        conversation_state: Any | None = None,
         user_preferences: dict[str, Any] | None = None,
     ) -> list[str]:
         """Generate follow-up suggestions using proactive suggestion generator.
@@ -503,7 +503,7 @@ class TemplateGenerator:
         # Limit to 3 suggestions
         return suggestions[:3]
 
-    def _get_intent_suggestions(self, intent_type: Any) -> list[str]:  # noqa: ANN401
+    def _get_intent_suggestions(self, intent_type: Any) -> list[str]:
         """Get suggestions for specific intent type."""
         # Normalize to string value
         intent_type_str = intent_type.value if hasattr(intent_type, "value") else str(intent_type)
@@ -741,7 +741,7 @@ class TemplateGenerator:
         """
         return list(self._templates.keys())
 
-    def set_proactive_generator(self, generator: Any) -> None:  # noqa: ANN401
+    def set_proactive_generator(self, generator: Any) -> None:
         """Set proactive suggestion generator.
 
         Args:

@@ -197,8 +197,7 @@ class FACSExpressionRenderer:
         cv2.circle(frame, (cx + int(r * 0.3), eye_y), pupil_r, (10, 10, 10), -1)
 
         # --- Draw cheeks (AU6) ---
-        if cheek_raise > 0.2:  # noqa: PLR2004 - Threshold value
-
+        if cheek_raise > 0.2:
             int(cheek_raise * 40)
             cheek_color = (80, 80, 200)
             cheek_r = int(r * 0.15)
@@ -211,8 +210,7 @@ class FACSExpressionRenderer:
         mouth_y = cy + int(r * 0.3)
         mouth_w = int(r * 0.35)
 
-        if smile > 0.3:  # noqa: PLR2004 - Threshold value
-
+        if smile > 0.3:
             # Smile arc
             smile_depth = int(smile * r * 0.15)
             cv2.ellipse(
@@ -225,8 +223,7 @@ class FACSExpressionRenderer:
                 (30, 30, 30),
                 2,
             )
-        elif frown > 0.3:  # noqa: PLR2004 - Threshold value
-
+        elif frown > 0.3:
             # Frown arc (inverted)
             frown_depth = int(frown * r * 0.12)
             cv2.ellipse(
@@ -417,16 +414,14 @@ class AvatarRenderer:
             # Apply lip sync mouth override
             mouth_open = state.lip_sync.mouth_open_ratio
             lip_spread = state.lip_sync.lip_spread
-            if mouth_open > 0.05:  # noqa: PLR2004 - Threshold value
-
+            if mouth_open > 0.05:
                 mouth_y = cy + int(face_radius * 0.3)
                 mouth_w = int(face_radius * 0.35 * (1.0 + lip_spread * 0.2))
                 mouth_h = max(2, int(face_radius * 0.15 * mouth_open))
                 # Draw open mouth
                 cv2.ellipse(frame, (cx, mouth_y), (mouth_w, mouth_h), 0, 0, 180, (20, 20, 20), -1)
                 # Teeth
-                if mouth_open > 0.3:  # noqa: PLR2004 - Threshold value
-
+                if mouth_open > 0.3:
                     teeth_h = max(1, mouth_h - 2)
                     cv2.ellipse(
                         frame,

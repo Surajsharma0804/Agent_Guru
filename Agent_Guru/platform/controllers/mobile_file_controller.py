@@ -78,10 +78,10 @@ def _detect_platform() -> str:
         result = "macos"
     elif system == "linux":
         try:
-            import subprocess  # noqa: PLC0415
+            import subprocess
 
             out = subprocess.run(
-                ["uname", "-o"],  # noqa: S607
+                ["uname", "-o"],
                 check=False,
                 capture_output=True,
                 text=True,

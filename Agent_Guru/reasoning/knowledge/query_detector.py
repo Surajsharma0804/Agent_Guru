@@ -135,7 +135,7 @@ class KnowledgeQueryDetector:
         "talk",
     }
 
-    def __init__(self, llm_fallback: Any | None = None) -> None:  # noqa: ANN401
+    def __init__(self, llm_fallback: Any | None = None) -> None:
         """Initialize the knowledge query detector.
 
         Args:
@@ -331,8 +331,7 @@ class KnowledgeQueryDetector:
                     valid_matches = [
                         m
                         for m in matches
-                        if m.lower() not in self.PERSON_EXCLUDE_WORDS and len(m) > 2  # noqa: PLR2004 - Small integer threshold
-
+                        if m.lower() not in self.PERSON_EXCLUDE_WORDS and len(m) > 2
                     ]
                     if valid_matches:
                         entities[entity_type] = valid_matches[0]

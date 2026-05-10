@@ -30,7 +30,7 @@ from datetime import UTC, datetime
 
 
 # Load modules directly
-def load_module(module_path, module_name):  # noqa: ANN001
+def load_module(module_path, module_name):
     spec = importlib.util.spec_from_file_location(module_name, module_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -38,20 +38,20 @@ def load_module(module_path, module_name):  # noqa: ANN001
 
 
 # Get base directory
-base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa: PTH100
+base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 # Load self_improvement_engine
-engine_path = os.path.join(base_dir, "self_improvement_engine.py")  # noqa: PTH118
+engine_path = os.path.join(base_dir, "self_improvement_engine.py")
 engine_module = load_module(engine_path, "self_improvement_engine")
 SelfImprovementEngine = engine_module.SelfImprovementEngine
 
 # Load failure_analyzer for FailureType
-analyzer_path = os.path.join(base_dir, "failure_analyzer.py")  # noqa: PTH118
+analyzer_path = os.path.join(base_dir, "failure_analyzer.py")
 analyzer_module = load_module(analyzer_path, "failure_analyzer")
 FailureType = analyzer_module.FailureType
 
 # Load test scenarios
-scenarios_path = os.path.join(base_dir, "benchmarks", "test_scenarios.py")  # noqa: PTH118
+scenarios_path = os.path.join(base_dir, "benchmarks", "test_scenarios.py")
 scenarios_module = load_module(scenarios_path, "test_scenarios")
 get_all_scenarios = scenarios_module.get_all_scenarios
 TestScenario = scenarios_module.TestScenario
@@ -340,7 +340,7 @@ def run_100_task_cycle(
 
     # Create database path
     timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
-    db_path = os.path.join(output_dir, f"validation_{timestamp}.db")  # noqa: PTH118
+    db_path = os.path.join(output_dir, f"validation_{timestamp}.db")
 
     # Initialize self-improvement engine
     engine = SelfImprovementEngine(
@@ -476,8 +476,7 @@ def run_100_task_cycle(
     reasoning_improvement = ((final_reasoning - baseline_reasoning) / baseline_reasoning) * 100
 
     # Check if 15% target met
-    meets_target = success_improvement >= 15.0  # noqa: PLR2004 - Threshold
-
+    meets_target = success_improvement >= 15.0
 
     # Overall validation
     validation_passed = (
@@ -517,17 +516,17 @@ def run_100_task_cycle(
     )
 
     # Save detailed results
-    results_file = os.path.join(output_dir, f"task_results_{timestamp}.json")  # noqa: PTH118
-    with open(results_file, "w", encoding="utf-8") as f:  # noqa: PTH123
+    results_file = os.path.join(output_dir, f"task_results_{timestamp}.json")
+    with open(results_file, "w", encoding="utf-8") as f:
         json.dump([asdict(r) for r in all_results], f, indent=2)
 
     # Save validation report
-    report_file = os.path.join(output_dir, f"validation_report_{timestamp}.json")  # noqa: PTH118
-    with open(report_file, "w", encoding="utf-8") as f:  # noqa: PTH123
+    report_file = os.path.join(output_dir, f"validation_report_{timestamp}.json")
+    with open(report_file, "w", encoding="utf-8") as f:
         json.dump(asdict(report), f, indent=2)
 
     # Generate markdown report
-    markdown_file = os.path.join(output_dir, f"validation_report_{timestamp}.md")  # noqa: PTH118
+    markdown_file = os.path.join(output_dir, f"validation_report_{timestamp}.md")
     generate_markdown_report(report, all_results, markdown_file)
 
     # Close engine
@@ -542,7 +541,7 @@ def generate_markdown_report(
     output_path: str,
 ) -> None:
     """Generate markdown validation report."""
-    with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write("# 100-Task Learning Cycle Validation Report\n\n")
         f.write(f"**Generated:** {report.timestamp}\n\n")
         f.write(f"**Database:** `{report.database_path}`\n\n")

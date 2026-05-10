@@ -237,8 +237,7 @@ class UpdateManager:
             timeout = aiohttp.ClientTimeout(total=self._config.network_timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(url) as resp:
-                    if resp.status != 200:  # noqa: PLR2004 - Percentage/large threshold
-
+                    if resp.status != 200:
                         msg = f"HTTP {resp.status} for {url}"
                         raise NetworkError(msg)
                     return await resp.json()
@@ -256,8 +255,7 @@ class UpdateManager:
             timeout = aiohttp.ClientTimeout(total=self._config.network_timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(url) as resp:
-                    if resp.status != 200:  # noqa: PLR2004 - Percentage/large threshold
-
+                    if resp.status != 200:
                         msg = f"HTTP {resp.status} for {url}"
                         raise NetworkError(msg)
                     with self._resolve_cache_path(dest).open("wb") as fh:

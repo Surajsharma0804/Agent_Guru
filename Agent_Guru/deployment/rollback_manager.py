@@ -288,6 +288,7 @@ class RollbackManager:
                 path=str(path),
                 error=str(exc),
             )  # Non-fatal if disk check fails
+
     def _audit(
         self,
         operation: OperationType,

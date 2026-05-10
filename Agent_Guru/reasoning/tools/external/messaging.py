@@ -44,7 +44,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class SendSMSTool(Tool):
     """Tool for sending SMS messages."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute SMS sending.
 
         Args:
@@ -73,8 +73,7 @@ class SendSMSTool(Tool):
             }
 
         # Check message length (SMS limit is typically 160 characters)
-        if len(message) > 1600:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(message) > 1600:
             return {
                 "success": False,
                 "error": "Message too long (max 1600 characters)",
@@ -130,7 +129,7 @@ class SendSMSTool(Tool):
 class SendWhatsAppTool(Tool):
     """Tool for sending WhatsApp messages."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute WhatsApp sending.
 
         Args:
@@ -208,7 +207,7 @@ class SendWhatsAppTool(Tool):
 class SendTelegramTool(Tool):
     """Tool for sending Telegram messages."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute Telegram sending.
 
         Args:
@@ -286,7 +285,7 @@ class SendTelegramTool(Tool):
 class SendSlackTool(Tool):
     """Tool for sending Slack messages."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute Slack sending.
 
         Args:

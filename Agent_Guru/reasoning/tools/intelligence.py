@@ -327,7 +327,7 @@ class ToolStats(BaseModel):
 
     @field_validator("total_executions", mode="after")
     @classmethod
-    def validate_total_executions(cls, v: int, info: Any) -> int:  # noqa: ANN401
+    def validate_total_executions(cls, v: int, info: Any) -> int:
         """Validate that total executions equals sum of successful and failed."""
         # Access validated data from the model
         data = info.data
@@ -446,31 +446,26 @@ class ToolStats(BaseModel):
 
         # Check if tool should be marked as degraded
         # Only mark as degraded if we have enough data (at least 5 executions)
-        if not self.is_degraded and self.total_executions >= 5:  # noqa: PLR2004 - Small integer threshold
-
+        if not self.is_degraded and self.total_executions >= 5:
             # Determine severity and send alert
             severity = None
             reason = None
 
             # Check consecutive failures first (higher priority)
-            if self.consecutive_failures >= 3:  # noqa: PLR2004 - Small integer threshold
-
+            if self.consecutive_failures >= 3:
                 self.is_degraded = True
                 reason = f"Consecutive failures: {self.consecutive_failures}"
                 # Critical if >= 5 consecutive failures
                 severity = (
                     AlertSeverity.CRITICAL
-                    if self.consecutive_failures >= 5  # noqa: PLR2004 - Small integer threshold
-
+                    if self.consecutive_failures >= 5
                     else AlertSeverity.ERROR
                 )
-            elif self.success_rate < 0.7:  # noqa: PLR2004 - Threshold value
-
+            elif self.success_rate < 0.7:
                 self.is_degraded = True
                 reason = f"Success rate below threshold: {self.success_rate:.2%}"
                 # Error if < 0.5, Warning if < 0.7
-                severity = AlertSeverity.ERROR if self.success_rate < 0.5 else AlertSeverity.WARNING  # noqa: PLR2004 - Threshold value
-
+                severity = AlertSeverity.ERROR if self.success_rate < 0.5 else AlertSeverity.WARNING
 
             # Send production-grade alert
             if severity and reason:
@@ -504,8 +499,7 @@ class ToolStats(BaseModel):
             rating: User rating (0.0-5.0)
 
         """
-        if not 0.0 <= rating <= 5.0:  # noqa: PLR2004 - Threshold
-
+        if not 0.0 <= rating <= 5.0:
             msg = f"Rating must be between 0.0 and 5.0, got {rating}"
             raise ValueError(msg)
 
@@ -937,7 +931,7 @@ class ToolIntelligenceEngine:
         # Default to fully relevant if no intent information
         return 1.0
 
-    def _calculate_intent_match_score(self, intent: Any, tool_metadata: Any) -> float:  # noqa: ANN401
+    def _calculate_intent_match_score(self, intent: Any, tool_metadata: Any) -> float:
         """Calculate how well a tool matches an intent.
 
         Scoring factors:
@@ -1066,7 +1060,7 @@ class ToolIntelligenceEngine:
 
         # Write to file
         self._stats_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._stats_file, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(self._stats_file, "w", encoding="utf-8") as f:
             json.dump(stats_data, f, indent=2, default=str)
 
     def _load_stats(self) -> None:
@@ -1075,7 +1069,7 @@ class ToolIntelligenceEngine:
             return
 
         try:
-            with open(self._stats_file, encoding="utf-8") as f:  # noqa: PTH123
+            with open(self._stats_file, encoding="utf-8") as f:
                 stats_data = json.load(f)
 
             # Convert from JSON to ToolStats objects
@@ -1099,7 +1093,7 @@ class ToolIntelligenceEngine:
 
         # Write to file
         self._preferences_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._preferences_file, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(self._preferences_file, "w", encoding="utf-8") as f:
             json.dump(prefs_data, f, indent=2, default=str)
 
     def _load_preferences(self) -> None:
@@ -1108,7 +1102,7 @@ class ToolIntelligenceEngine:
             return
 
         try:
-            with open(self._preferences_file, encoding="utf-8") as f:  # noqa: PTH123
+            with open(self._preferences_file, encoding="utf-8") as f:
                 prefs_data = json.load(f)
 
             # Convert from JSON to UserToolPreference objects

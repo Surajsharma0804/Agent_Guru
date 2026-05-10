@@ -397,14 +397,11 @@ class DegradationDetector:
     def _interpret_effect_size(self, cohens_d: float) -> str:
         """Interpret Cohen's d effect size."""
         abs_d = abs(cohens_d)
-        if abs_d < 0.2:  # noqa: PLR2004 - Threshold value
-
+        if abs_d < 0.2:
             return "negligible"
-        if abs_d < 0.5:  # noqa: PLR2004 - Threshold value
-
+        if abs_d < 0.5:
             return "small"
-        if abs_d < 0.8:  # noqa: PLR2004 - Threshold value
-
+        if abs_d < 0.8:
             return "medium"
         return "large"
 
@@ -432,14 +429,11 @@ class DegradationDetector:
         max_change = max(abs(v) for v in metric_changes.values()) if metric_changes else 0.0
 
         # Determine severity
-        if critical_degradation and max_change > 0.25:  # >25% change in critical metric  # noqa: PLR2004 (Threshold value)
-
+        if critical_degradation and max_change > 0.25:  # >25% change in critical metric
             return DegradationSeverity.SEVERE
-        if num_degraded >= 3 or (critical_degradation and max_change > 0.15):  # noqa: PLR2004 - Small integer threshold
-
+        if num_degraded >= 3 or (critical_degradation and max_change > 0.15):
             return DegradationSeverity.MODERATE
-        if num_degraded >= 2 or max_change > 0.10:  # noqa: PLR2004 - Small integer threshold
-
+        if num_degraded >= 2 or max_change > 0.10:
             return DegradationSeverity.MINOR
         return DegradationSeverity.NONE
 

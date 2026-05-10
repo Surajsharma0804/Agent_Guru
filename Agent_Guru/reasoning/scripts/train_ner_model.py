@@ -86,7 +86,7 @@ def load_ner_data(data_path: str) -> list[dict]:
         List of examples in GLiNER format
 
     """
-    with open(data_path) as f:  # nosec - path validated by caller via safe_path  # noqa: PTH123
+    with open(data_path) as f:  # nosec - path validated by caller via safe_path
         data = yaml.safe_load(f)
 
     training_data = []
@@ -337,10 +337,10 @@ def train_ner_model(config: NERTrainingConfig) -> None:
         "num_entity_types": len(entity_types),
     }
 
-    with open(final_model_path / "test_results.json", "w") as f:  # nosec - path validated by safe_path  # noqa: PTH123
+    with open(final_model_path / "test_results.json", "w") as f:  # nosec - path validated by safe_path
         json.dump(results, f, indent=2)
 
-    with open(final_model_path / "training_config.json", "w") as f:  # nosec - path validated by safe_path  # noqa: PTH123
+    with open(final_model_path / "training_config.json", "w") as f:  # nosec - path validated by safe_path
         json.dump(vars(config), f, indent=2)
 
 

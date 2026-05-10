@@ -135,7 +135,7 @@ class HttpResponse:
         return self.body.decode("utf-8", errors="replace")
 
     @property
-    def json(self) -> Any:  # noqa: ANN401
+    def json(self) -> Any:
         """Parse body as JSON."""
         import json
 
@@ -144,20 +144,17 @@ class HttpResponse:
     @property
     def is_success(self) -> bool:
         """Check if status code indicates success (2xx)."""
-        return 200 <= self.status_code < 300  # noqa: PLR2004 - Percentage/large threshold
-
+        return 200 <= self.status_code < 300
 
     @property
     def is_client_error(self) -> bool:
         """Check if status code indicates client error (4xx)."""
-        return 400 <= self.status_code < 500  # noqa: PLR2004 - Percentage/large threshold
-
+        return 400 <= self.status_code < 500
 
     @property
     def is_server_error(self) -> bool:
         """Check if status code indicates server error (5xx)."""
-        return 500 <= self.status_code < 600  # noqa: PLR2004 - Percentage/large threshold
-
+        return 500 <= self.status_code < 600
 
 
 @dataclass
@@ -438,7 +435,7 @@ class NetworkManager:
         await self.start()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):  # noqa: ANN001
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         await self.close()
 
@@ -789,8 +786,7 @@ class NetworkManager:
                     )
 
                     # Handle 429 Rate Limit response
-                    if response.status == 429:  # noqa: PLR2004 - Percentage/large threshold
-
+                    if response.status == 429:
                         retry_after = float(response.headers.get("Retry-After", 60))
                         logger.warning(
                             "Server returned 429 Rate Limit",
@@ -807,8 +803,7 @@ class NetworkManager:
                         use_cache
                         and method == HttpMethod.GET
                         and self._cache is not None
-                        and 200 <= response.status < 300  # noqa: PLR2004 - Percentage/large threshold
-
+                        and 200 <= response.status < 300
                     ):
                         await self._cache.set(
                             url=str(response.url),
@@ -1211,8 +1206,7 @@ class NetworkManager:
                 allow_redirects=True,
             ) as response:
                 # Check status code
-                if response.status >= 400:  # noqa: PLR2004 - Percentage/large threshold
-
+                if response.status >= 400:
                     error_body = await response.read()
                     msg = f"HTTP {response.status}: {error_body.decode('utf-8', errors='replace')}"
                     raise NetworkError(
@@ -1276,6 +1270,7 @@ class NetworkManager:
             )
             msg = f"Request failed: {url}"
             raise NetworkError(msg) from e
+
     async def download_file(
         self,
         url: str,
@@ -1336,8 +1331,7 @@ class NetworkManager:
                     timeout=aiohttp.ClientTimeout(total=request_timeout),
                     allow_redirects=True,
                 ) as response:
-                    if response.status >= 400:  # noqa: PLR2004 - Percentage/large threshold
-
+                    if response.status >= 400:
                         error_body = await response.read()
                         msg = f"HTTP {response.status}: {error_body.decode('utf-8', errors='replace')}"
                         raise NetworkError(
@@ -1409,6 +1403,7 @@ class NetworkManager:
                 success=False,
                 error=str(e),
             )
+
     async def upload_file(
         self,
         url: str,
@@ -1510,8 +1505,7 @@ class NetworkManager:
                 response_body = await response.read()
 
                 # Check for errors
-                if response.status >= 400:  # noqa: PLR2004 - Percentage/large threshold
-
+                if response.status >= 400:
                     msg = (
                         f"Upload failed with HTTP {response.status}: "
                         f"{response_body.decode('utf-8', errors='replace')}"
@@ -1568,6 +1562,7 @@ class NetworkManager:
                 response_status=response_status,
                 error=str(e),
             )
+
     # Webhook methods
 
     def register_webhook(

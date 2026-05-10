@@ -57,7 +57,7 @@ class GoalEngine:
         db_path: str = "goals.db",
         evaluation_interval: int = 60,
         max_active_goals: int = 50,
-        world_state_engine=None,  # noqa: ANN001
+        world_state_engine=None,
     ) -> None:
         """Initialize goal engine.
 
@@ -521,6 +521,7 @@ class GoalEngine:
                 # Log error but continue running
                 _logger.exception("Error in goal evaluation loop")
                 await asyncio.sleep(self.evaluation_interval)
+
     async def evaluate_triggers(self) -> list[PersistentGoal]:
         """Evaluate all active goal triggers.
 
@@ -662,6 +663,7 @@ class GoalEngine:
         except Exception as e:
             _logger.warning("Error evaluating location trigger: %s", e)
             return False
+
     async def _evaluate_event_trigger(self, goal: PersistentGoal) -> bool:
         """Evaluate event-based trigger.
 
@@ -698,6 +700,7 @@ class GoalEngine:
         except Exception as e:
             _logger.warning("Error evaluating event trigger: %s", e)
             return False
+
     def _matches_event_filter(self, event_data: dict, event_filter: dict) -> bool:
         """Check if event data matches filter criteria.
 
@@ -771,6 +774,7 @@ class GoalEngine:
         except Exception as e:
             _logger.warning("Error evaluating conditional trigger: %s", e)
             return False
+
     def _safe_eval_condition(self, expression: str, context: dict) -> bool:
         """Safely evaluate boolean expression.
 
@@ -806,7 +810,7 @@ class GoalEngine:
             tree = ast.parse(expression, mode="eval")
 
             # Evaluate AST safely
-            def eval_node(node):  # noqa: ANN001
+            def eval_node(node):
                 if isinstance(node, ast.Expression):
                     return eval_node(node.body)
                 if isinstance(node, ast.Compare):
@@ -860,6 +864,7 @@ class GoalEngine:
         except Exception as e:
             _logger.warning("Error evaluating condition %r: %s", expression, e)
             return False
+
     async def execute_triggered_goal(self, goal: PersistentGoal) -> GoalExecutionResult:
         """Execute a triggered goal.
 
@@ -953,6 +958,7 @@ class GoalEngine:
             # Check for consecutive failures
             await self._check_failure_threshold(goal)
             return result
+
     async def _send_notification(self, goal: PersistentGoal) -> None:
         """Send notification to user before execution.
 
@@ -1002,8 +1008,7 @@ class GoalEngine:
 
         # Check recent failure rate
         recent_failures = await self._get_recent_failure_count(goal.goal_id, limit=5)
-        if recent_failures >= 5:  # noqa: PLR2004 - Small integer threshold
-
+        if recent_failures >= 5:
             return {
                 "allowed": False,
                 "reason": "Goal disabled after 5 consecutive failures",
@@ -1151,8 +1156,7 @@ class GoalEngine:
             recent_executions = [row[0] for row in cursor.fetchall()]
 
             # Check if last 5 executions all failed
-            if len(recent_executions) >= 5 and not any(recent_executions):  # noqa: PLR2004 - Small integer threshold
-
+            if len(recent_executions) >= 5 and not any(recent_executions):
                 # Disable goal
                 await self.pause_goal(goal.goal_id)
                 _logger.warning("Goal '%s' paused after 5 consecutive failures", goal.description)

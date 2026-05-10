@@ -75,7 +75,7 @@ class LLMConfig(BaseModel):
 
     @field_validator("api_key")
     @classmethod
-    def validate_api_key(cls, v: str | None, info: Any) -> str | None:  # noqa: ANN401
+    def validate_api_key(cls, v: str | None, info: Any) -> str | None:
         # Cloud providers require an API key
         if v is not None and len(v.strip()) == 0:
             msg = "api_key must not be empty if provided"

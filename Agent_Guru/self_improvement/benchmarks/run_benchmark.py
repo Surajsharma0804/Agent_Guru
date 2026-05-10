@@ -71,7 +71,7 @@ def run_all_benchmarks(
     results.append(agent_guru_result)
 
     # Save Agent Guru results
-    agent_guru_result.to_json(os.path.join(output_dir, f"agent_guru_{timestamp}.json"))  # noqa: PTH118
+    agent_guru_result.to_json(os.path.join(output_dir, f"agent_guru_{timestamp}.json"))
     if agent_guru_result.metrics.improvement_rate is not None:
         pass
     if agent_guru_result.metrics.recovery_rate is not None:
@@ -83,7 +83,7 @@ def run_all_benchmarks(
     results.append(langchain_result)
 
     # Save LangChain results
-    langchain_result.to_json(os.path.join(output_dir, f"langchain_{timestamp}.json"))  # noqa: PTH118
+    langchain_result.to_json(os.path.join(output_dir, f"langchain_{timestamp}.json"))
 
     # Run CrewAI benchmark
     crewai = create_crewai_benchmark()
@@ -91,7 +91,7 @@ def run_all_benchmarks(
     results.append(crewai_result)
 
     # Save CrewAI results
-    crewai_result.to_json(os.path.join(output_dir, f"crewai_{timestamp}.json"))  # noqa: PTH118
+    crewai_result.to_json(os.path.join(output_dir, f"crewai_{timestamp}.json"))
 
     # Run AutoGen benchmark
     autogen = create_autogen_benchmark()
@@ -99,7 +99,7 @@ def run_all_benchmarks(
     results.append(autogen_result)
 
     # Save AutoGen results
-    autogen_result.to_json(os.path.join(output_dir, f"autogen_{timestamp}.json"))  # noqa: PTH118
+    autogen_result.to_json(os.path.join(output_dir, f"autogen_{timestamp}.json"))
 
     # Run AutoGPT benchmark
     autogpt = create_autogpt_benchmark()
@@ -107,7 +107,7 @@ def run_all_benchmarks(
     results.append(autogpt_result)
 
     # Save AutoGPT results
-    autogpt_result.to_json(os.path.join(output_dir, f"autogpt_{timestamp}.json"))  # noqa: PTH118
+    autogpt_result.to_json(os.path.join(output_dir, f"autogpt_{timestamp}.json"))
 
     # Generate comparison report
 
@@ -115,7 +115,7 @@ def run_all_benchmarks(
     analysis = generate_comprehensive_report(results, output_dir)
 
     # Also generate simple markdown report
-    report_path = os.path.join(output_dir, f"comparison_{timestamp}.md")  # noqa: PTH118
+    report_path = os.path.join(output_dir, f"comparison_{timestamp}.md")
     agent_guru.generate_markdown_report(results, report_path)
 
     # Print key findings

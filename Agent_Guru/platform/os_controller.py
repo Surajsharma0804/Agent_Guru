@@ -82,6 +82,8 @@ try:
     from Agent_Guru.platform.process_manager import ProcessManager
 except ImportError:
     logger.exception("Some controllers not available")
+
+
 class OperationCategory(Enum):
     """Categories of OS operations for routing."""
 
@@ -204,7 +206,9 @@ class OSController:
     """
 
     def __init__(
-        self, audit_log_path: str | None = None, require_confirmation: bool = False,
+        self,
+        audit_log_path: str | None = None,
+        require_confirmation: bool = False,
     ) -> None:
         """Initialize OS controller.
 
@@ -236,6 +240,7 @@ class OSController:
             logger.info("Audit log initialized: %s", self.audit_log_path)
         except Exception:
             logger.exception("Failed to initialize audit log")
+
     def _init_controllers(self) -> None:
         """Initialize all specialized controllers with per-controller error isolation."""
         self._file_controller = self._safe_init(
@@ -275,6 +280,7 @@ class OSController:
             getattr(cls, "__name__", repr(cls))
             logger.exception("Controller %s failed to initialize: %s")
             return None
+
     def _safe_init_desktop_app(self) -> Any:
         """Initialize DesktopApplicationController with platform-aware error handling.
 
@@ -293,6 +299,7 @@ class OSController:
             return None
             logger.exception("DesktopApplicationController failed to initialize")
             return None
+
     def _log_operation(
         self,
         category: OperationCategory,
@@ -326,6 +333,7 @@ class OSController:
                 f.write(entry.to_json() + "\n")
         except Exception:
             logger.exception("Failed to write audit log")
+
     def _require_confirmation(self, operation: str, details: str) -> None:
         """Check if confirmation is required for destructive operation.
 
@@ -391,6 +399,7 @@ class OSController:
                 message=f"Failed to create file: {path}",
                 error=str(e),
             )
+
     def read_file(
         self,
         path: str,
@@ -424,6 +433,7 @@ class OSController:
             logger.exception("Failed to read file")
             self._log_operation(OperationCategory.FILE, "read_file", False, {"error": str(e)})
             return None
+
     def delete_file(self, path: str, confirm: bool = False) -> OperationResult:
         """Delete a file.
 
@@ -464,6 +474,7 @@ class OSController:
                 message=f"Failed to delete file: {path}",
                 error=str(e),
             )
+
     def copy_file(self, source: str, destination: str, overwrite: bool = False) -> OperationResult:
         """Copy a file to a new location.
 
@@ -505,6 +516,7 @@ class OSController:
                 message=f"Failed to copy file: {source} -> {destination}",
                 error=str(e),
             )
+
     def move_file(self, source: str, destination: str, overwrite: bool = False) -> OperationResult:
         """Move a file to a new location.
 
@@ -546,6 +558,7 @@ class OSController:
                 message=f"Failed to move file: {source} -> {destination}",
                 error=str(e),
             )
+
     # ==================== Application Control ====================
 
     def open_application(self, app_name: str, args: list[str] | None = None) -> OperationResult:
@@ -631,6 +644,7 @@ class OSController:
                 message=f"Failed to open application: {app_name}",
                 error=str(e),
             )
+
     def close_application(self, app_identifier: str, force: bool = False) -> OperationResult:
         """Close an application by name or PID.
 
@@ -675,6 +689,7 @@ class OSController:
                 message=f"Failed to close application: {app_identifier}",
                 error=str(e),
             )
+
     # ==================== Text Input ====================
 
     def type_text(self, text: str, interval: float = 0.0) -> OperationResult:
@@ -716,6 +731,7 @@ class OSController:
                 message="Failed to type text",
                 error=str(e),
             )
+
     # ==================== System Settings ====================
 
     def set_volume(self, level: int) -> OperationResult:
@@ -761,6 +777,7 @@ class OSController:
                 message=f"Failed to set volume to {level}%",
                 error=str(e),
             )
+
     def volume_up(self, amount: int = 10) -> OperationResult:
         """Increase system volume by *amount* percent.
 
@@ -801,6 +818,7 @@ class OSController:
                 message="Failed to increase volume",
                 error=str(e),
             )
+
     def volume_down(self, amount: int = 10) -> OperationResult:
         """Decrease system volume by *amount* percent.
 
@@ -841,6 +859,7 @@ class OSController:
                 message="Failed to decrease volume",
                 error=str(e),
             )
+
     def mute(self) -> OperationResult:
         """Mute system audio.
 
@@ -867,6 +886,7 @@ class OSController:
                 message="Failed to mute audio",
                 error=str(e),
             )
+
     def unmute(self) -> OperationResult:
         """Unmute system audio.
 
@@ -898,6 +918,7 @@ class OSController:
                 message="Failed to unmute audio",
                 error=str(e),
             )
+
     def set_brightness(self, level: int) -> OperationResult:
         """Set screen brightness level.
 
@@ -941,6 +962,7 @@ class OSController:
                 message=f"Failed to set brightness to {level}%",
                 error=str(e),
             )
+
     # ==================== Window Management ====================
 
     def minimize_window(self, window_identifier: str) -> OperationResult:
@@ -986,6 +1008,7 @@ class OSController:
                 message=f"Failed to minimize window: {window_identifier}",
                 error=str(e),
             )
+
     def maximize_window(self, window_identifier: str) -> OperationResult:
         """Maximize an application window.
 
@@ -1029,6 +1052,7 @@ class OSController:
                 message=f"Failed to maximize window: {window_identifier}",
                 error=str(e),
             )
+
     # ==================== Media Control ====================
 
     def play_media(self) -> OperationResult:
@@ -1060,6 +1084,7 @@ class OSController:
                 message="Failed to play media",
                 error=str(e),
             )
+
     def pause_media(self) -> OperationResult:
         """Pause media (simulate media pause key).
 
@@ -1089,6 +1114,7 @@ class OSController:
                 message="Failed to pause media",
                 error=str(e),
             )
+
     def next_track(self) -> OperationResult:
         """Skip to next media track.
 
@@ -1114,6 +1140,7 @@ class OSController:
                 message="Failed to skip to next track",
                 error=str(e),
             )
+
     def previous_track(self) -> OperationResult:
         """Go to previous media track.
 
@@ -1139,6 +1166,7 @@ class OSController:
                 message="Failed to go to previous track",
                 error=str(e),
             )
+
     def stop_media(self) -> OperationResult:
         """Stop media playback.
 
@@ -1164,6 +1192,7 @@ class OSController:
                 message="Failed to stop media",
                 error=str(e),
             )
+
     # ==================== Web / Browser ====================
 
     def open_url(self, url: str, browser: str | None = None) -> OperationResult:
@@ -1213,6 +1242,7 @@ class OSController:
                 message=f"Failed to open URL: {resolved}",
                 error=str(e),
             )
+
     def web_search(self, query: str, engine: str = "google") -> OperationResult:
         """Perform a web search by opening the real system browser.
 
@@ -1614,7 +1644,7 @@ class OSController:
             if self.platform == "win32":
                 # Use winget if available, else warn
                 result = subprocess.run(  # noqa: S603
-                    ["winget", "uninstall", "--name", app_name, "--silent"],  # noqa: S607
+                    ["winget", "uninstall", "--name", app_name, "--silent"],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -1648,6 +1678,7 @@ class OSController:
                 message=f"Failed to uninstall {app_name}",
                 error=str(e),
             )
+
     def reset_pc(self, confirmed: bool = False) -> OperationResult:
         """Reset / restart the PC. Requires explicit confirmation.
 
@@ -1672,13 +1703,13 @@ class OSController:
             import subprocess
 
             if self.platform == "win32":
-                subprocess.Popen(["shutdown", "/r", "/t", "5"])  # noqa: S607
+                subprocess.Popen(["shutdown", "/r", "/t", "5"])
                 msg = "PC will restart in 5 seconds"
             elif self.platform == "darwin":
-                subprocess.Popen(["sudo", "shutdown", "-r", "now"])  # noqa: S607
+                subprocess.Popen(["sudo", "shutdown", "-r", "now"])
                 msg = "PC restarting now"
             else:
-                subprocess.Popen(["sudo", "reboot"])  # noqa: S607
+                subprocess.Popen(["sudo", "reboot"])
                 msg = "PC restarting now"
 
             self._log_operation(
@@ -1702,6 +1733,7 @@ class OSController:
                 message="Failed to reset PC",
                 error=str(e),
             )
+
     def shutdown_pc(self, confirmed: bool = False) -> OperationResult:
         """Shut down the PC. Requires explicit confirmation.
 
@@ -1726,13 +1758,13 @@ class OSController:
             import subprocess
 
             if self.platform == "win32":
-                subprocess.Popen(["shutdown", "/s", "/t", "5"])  # noqa: S607
+                subprocess.Popen(["shutdown", "/s", "/t", "5"])
                 msg = "PC will shut down in 5 seconds"
             elif self.platform == "darwin":
-                subprocess.Popen(["sudo", "shutdown", "-h", "now"])  # noqa: S607
+                subprocess.Popen(["sudo", "shutdown", "-h", "now"])
                 msg = "PC shutting down now"
             else:
-                subprocess.Popen(["sudo", "poweroff"])  # noqa: S607
+                subprocess.Popen(["sudo", "poweroff"])
                 msg = "PC shutting down now"
 
             self._log_operation(
@@ -1756,6 +1788,7 @@ class OSController:
                 message="Failed to shut down PC",
                 error=str(e),
             )
+
     # ==================== Screen Capture ====================
 
     def take_screenshot(
@@ -1820,6 +1853,7 @@ class OSController:
                 message="Failed to capture screenshot",
                 error=str(e),
             )
+
     # ==================== Process Management ====================
 
     def list_processes(self) -> list[dict[str, Any]]:
@@ -1859,6 +1893,7 @@ class OSController:
                 {"error": str(e)},
             )
             return []
+
     # ==================== Hardware Monitoring ====================
 
     def get_cpu_usage(self) -> float | None:
@@ -1884,6 +1919,7 @@ class OSController:
                 {"error": str(e)},
             )
             return None
+
     def get_memory_info(self) -> dict[str, Any] | None:
         """Get current memory usage information.
 
@@ -1917,6 +1953,7 @@ class OSController:
                 {"error": str(e)},
             )
             return None
+
     # ==================== Utility Methods ====================
 
     def get_operation_history(
@@ -1959,6 +1996,7 @@ class OSController:
         except Exception:
             logger.exception("Failed to read operation history")
             return []
+
     def get_system_info(self) -> dict[str, Any]:
         """Get comprehensive system information.
 
@@ -1981,6 +2019,7 @@ class OSController:
         except Exception as e:
             logger.exception("Failed to get system info")
             return {"platform": self.platform, "error": str(e)}
+
     def execute_operation(self, operation: str, **kwargs) -> OperationResult:
         """Execute an operation by name with dynamic routing.
 
@@ -2062,6 +2101,7 @@ class OSController:
                 message=f"Failed to execute operation: {operation}",
                 error=str(e),
             )
+
     def __repr__(self) -> str:
         """String representation of OSController."""
         return (

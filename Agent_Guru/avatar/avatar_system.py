@@ -53,7 +53,7 @@ class GuruAvatarSystem:
 
     def __init__(
         self,
-        config: Any | None = None,  # noqa: ANN401
+        config: Any | None = None,
         render_backend: str = "headless",
         personality: PersonalityType = PersonalityType.GURU,
     ) -> None:

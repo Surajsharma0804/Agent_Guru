@@ -147,7 +147,7 @@ class PipelineOrchestrator:
                 stages_completed=stages,
             )
 
-    def run_training_stage(self) -> Any:  # noqa: ANN401
+    def run_training_stage(self) -> Any:
         """Run the training stage.
 
         Returns:

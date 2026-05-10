@@ -352,12 +352,12 @@ def _select_largest(detections: list[object]) -> object:
 class _StubDetector:
     """Returns an empty detection list — simulates no-face scenario."""
 
-    def detect(self, frame: np.ndarray) -> list[object]:  # noqa: ARG002
+    def detect(self, frame: np.ndarray) -> list[object]:
         return []
 
 
 class _StubAligner:
     """Returns a blank 112x112 uint8 image."""
 
-    def align(self, frame: np.ndarray, detection: object) -> np.ndarray:  # noqa: ARG002
+    def align(self, frame: np.ndarray, detection: object) -> np.ndarray:
         return np.zeros((112, 112, 3), dtype=np.uint8)

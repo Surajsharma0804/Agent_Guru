@@ -40,7 +40,7 @@ class ToolParameter(BaseModel):
 
     @field_validator("default")
     @classmethod
-    def validate_default(cls, v: Any, info: Any) -> Any:  # noqa: ANN401
+    def validate_default(cls, v: Any, info: Any) -> Any:
         """Validate that default is only set for optional parameters."""
         if v is not None and info.data.get("required", True):
             msg = "Default value can only be set for optional parameters"
@@ -99,7 +99,7 @@ class Tool(ABC):
         return self._metadata
 
     @abstractmethod
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute the tool with given parameters.
 
         Args:
@@ -117,7 +117,7 @@ class Tool(ABC):
 
         """
 
-    def validate_parameters(self, **kwargs: Any) -> None:  # noqa: ANN401
+    def validate_parameters(self, **kwargs: Any) -> None:
         """Validate that all required parameters are present and valid.
 
         Args:
@@ -152,7 +152,7 @@ class Tool(ABC):
                     msg,
                 )
 
-    def _validate_type(self, value: Any, expected_type: ToolParameterType) -> bool:  # noqa: ANN401
+    def _validate_type(self, value: Any, expected_type: ToolParameterType) -> bool:
         """Validate that value matches expected type."""
         if expected_type == ToolParameterType.STRING:
             return isinstance(value, str)

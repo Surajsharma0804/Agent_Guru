@@ -176,7 +176,7 @@ class EvaluationContext:
     action: str
     environment: dict[str, Any] = field(default_factory=dict)
 
-    def get_attribute(self, path: str) -> Any:  # noqa: ANN401
+    def get_attribute(self, path: str) -> Any:
         """Get attribute by dot-notation path.
 
         Supports paths like:
@@ -192,8 +192,7 @@ class EvaluationContext:
 
         """
         parts = path.split(".", 1)
-        if len(parts) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(parts) < 2:
             return None
 
         namespace, key = parts[0], parts[1]

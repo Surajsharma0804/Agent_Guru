@@ -196,7 +196,7 @@ class RollbackMonitor:
                 self.config.health_check_url,
                 timeout=aiohttp.ClientTimeout(total=5),
             ) as response:
-                return response.status == 200  # noqa: PLR2004 - Percentage/large threshold
+                return response.status == 200
 
         except Exception as e:
             logger.exception("health_check_failed", error=str(e))
@@ -362,7 +362,7 @@ class RollbackMonitor:
         """
         try:
             result = subprocess.run(  # noqa: S603
-                [  # noqa: S607
+                [
                     "kubectl",
                     "get",
                     "service",
@@ -409,7 +409,7 @@ class RollbackMonitor:
 
             # Scale up target deployment
             subprocess.run(  # noqa: S603
-                [  # noqa: S607
+                [
                     "kubectl",
                     "scale",
                     f"deployment/agent-guru-reasoning-{target_color}",
@@ -422,7 +422,7 @@ class RollbackMonitor:
 
             # Wait for target deployment to be ready
             subprocess.run(  # noqa: S603
-                [  # noqa: S607
+                [
                     "kubectl",
                     "rollout",
                     "status",
@@ -436,7 +436,7 @@ class RollbackMonitor:
 
             # Switch service to target color
             subprocess.run(  # noqa: S603
-                [  # noqa: S607
+                [
                     "kubectl",
                     "patch",
                     "service",
@@ -451,7 +451,7 @@ class RollbackMonitor:
 
             # Scale down failed deployment
             subprocess.run(  # noqa: S603
-                [  # noqa: S607
+                [
                     "kubectl",
                     "scale",
                     f"deployment/agent-guru-reasoning-{self.current_color}",
@@ -513,8 +513,7 @@ class RollbackMonitor:
                     timeout=aiohttp.ClientTimeout(total=5),
                 ) as response,
             ):
-                if response.status == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+                if response.status == 200:
                     logger.debug("notification_sent")
                 else:
                     logger.warning("notification_failed", status=response.status)

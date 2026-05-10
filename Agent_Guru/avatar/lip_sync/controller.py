@@ -206,8 +206,7 @@ class PhonemeEstimator:
         # Average across frames
         energy = float(np.mean(np.abs(features[0])))
         zcr = float(np.mean(np.abs(features[1]))) if features.shape[0] > 1 else 0.0
-        centroid = float(np.mean(features[2])) if features.shape[0] > 2 else 0.5  # noqa: PLR2004 - Small integer threshold
-
+        centroid = float(np.mean(features[2])) if features.shape[0] > 2 else 0.5
 
         # Silence
         if energy < self._SILENCE_THRESHOLD:
@@ -215,25 +214,21 @@ class PhonemeEstimator:
 
         # Fricatives: high ZCR
         if zcr > self._FRICATIVE_ZCR_THRESHOLD:
-            if centroid > 0.6:  # noqa: PLR2004 - Threshold value
-
+            if centroid > 0.6:
                 return "s"  # S, Z
             return "sh"  # SH, ZH
 
         # Plosives: energy burst
         if energy > self._PLOSIVE_ENERGY_THRESHOLD:
-            if zcr < 0.05:  # noqa: PLR2004 - Threshold value
-
+            if zcr < 0.05:
                 return "p"  # P, B, M
             return "t"  # T, D
 
         # Vowels: moderate energy, low ZCR
         if energy > self._VOWEL_ENERGY_THRESHOLD:
-            if centroid > 0.5:  # noqa: PLR2004 - Threshold value
-
+            if centroid > 0.5:
                 return "ih"  # IH, IY (bright vowels)
-            if centroid > 0.3:  # noqa: PLR2004 - Threshold value
-
+            if centroid > 0.3:
                 return "eh"  # EH, EY (mid vowels)
             return "ah"  # AH, AA (open vowels)
 

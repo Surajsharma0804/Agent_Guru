@@ -32,7 +32,7 @@ async def retry_with_backoff(
     operation: Callable[[], Any],
     max_retries: int = 3,
     base_delay: float = 1.0,
-) -> Any:  # noqa: ANN401
+) -> Any:
     """Retry an async operation with exponential backoff.
 
     This function implements exponential backoff retry logic for handling

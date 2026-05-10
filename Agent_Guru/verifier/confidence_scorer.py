@@ -122,14 +122,11 @@ class ConfidenceScorer:
         )
 
     def _get_recommendation(self, score: float) -> str:
-        if score >= 0.8:  # noqa: PLR2004 - Threshold value
-
+        if score >= 0.8:
             return "proceed"
-        if score >= 0.6:  # noqa: PLR2004 - Threshold value
-
+        if score >= 0.6:
             return "proceed_with_caution"
-        if score >= 0.4:  # noqa: PLR2004 - Threshold value
-
+        if score >= 0.4:
             return "request_review"
         return "reject"
 

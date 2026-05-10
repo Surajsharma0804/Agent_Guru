@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 _noisereduce: Any | None = None
 
 
-def _get_noisereduce() -> Any | None:  # noqa: ANN401
+def _get_noisereduce() -> Any | None:
     """Lazy import of noisereduce to avoid torch loading issues."""
     global _noisereduce
     if _noisereduce is None:
@@ -208,8 +208,7 @@ class AudioProcessor:
             # Calculate current RMS
             rms = np.sqrt(np.mean(audio**2))
 
-            if rms < 1e-6:  # Silence  # noqa: PLR2004 (Epsilon value)
-
+            if rms < 1e-6:  # Silence
                 return audio
 
             # Target RMS (normalized to -20dB)

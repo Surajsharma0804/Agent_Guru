@@ -247,8 +247,7 @@ class ToolSelector:
         candidates: list[tuple[ToolMetadata, float]] = []
         for metadata in all_tool_metadata:
             score = self._calculate_match_score(metadata, intent)
-            if score > 0.5:  # Minimum threshold  # noqa: PLR2004 (Threshold value)
-
+            if score > 0.5:  # Minimum threshold
                 candidates.append((metadata, score))
 
         if not candidates:
@@ -298,8 +297,7 @@ class ToolSelector:
         parameters = self._extract_parameters_from_entities(best_tool, intent)
 
         # Only accept if score is high enough
-        if best_score < 0.5:  # noqa: PLR2004 - Threshold value
-
+        if best_score < 0.5:
             return None
 
         # Track selection decision for learning
@@ -444,7 +442,7 @@ class ToolSelector:
         tool_id: str,
         success: bool,
         latency_ms: float,
-        failure_pattern: Any | None = None,  # noqa: ANN401
+        failure_pattern: Any | None = None,
     ) -> None:
         """Record tool execution result for learning.
 

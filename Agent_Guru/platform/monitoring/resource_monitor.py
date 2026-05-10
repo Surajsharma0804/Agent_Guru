@@ -570,16 +570,14 @@ class ResourceMonitor:
 
         """
         with self._lock:
-            if len(self.metrics_history) < 10:  # noqa: PLR2004 - Threshold
-
+            if len(self.metrics_history) < 10:
                 # Not enough data for prediction
                 return None
 
             # Get recent snapshots (last 10 minutes)
             recent = list(self.metrics_history)[-120:]  # 120 samples at 5s interval
 
-            if len(recent) < 2:  # noqa: PLR2004 - Small integer threshold
-
+            if len(recent) < 2:
                 return None
 
             # Extract values based on resource type
@@ -621,8 +619,7 @@ class ResourceMonitor:
             slope = numerator / denominator
 
             # If slope is negative or near zero, no exhaustion predicted
-            if slope <= 0.01:  # noqa: PLR2004 - Threshold value
-
+            if slope <= 0.01:
                 return None
 
             # Calculate when resource will reach 100%
@@ -763,14 +760,11 @@ class ResourceMonitor:
         else:
             ratio = current / threshold
 
-        if ratio >= 1.5:  # noqa: PLR2004 - Threshold
-
+        if ratio >= 1.5:
             return AlertSeverity.CRITICAL
-        if ratio >= 1.25:  # noqa: PLR2004 - Threshold
-
+        if ratio >= 1.25:
             return AlertSeverity.HIGH
-        if ratio >= 1.1:  # noqa: PLR2004 - Threshold
-
+        if ratio >= 1.1:
             return AlertSeverity.MEDIUM
         return AlertSeverity.LOW
 

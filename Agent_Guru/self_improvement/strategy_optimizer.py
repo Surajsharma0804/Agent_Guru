@@ -753,8 +753,7 @@ class StrategyOptimizer:
         validation_success_rate = successes / len(validation_tasks)
 
         # Strategy is valid if it achieves >50% success rate
-        return validation_success_rate > 0.5  # noqa: PLR2004 - Threshold value
-
+        return validation_success_rate > 0.5
 
     def merge_similar_strategies(
         self,
@@ -786,8 +785,7 @@ class StrategyOptimizer:
             ... )
 
         """
-        if len(strategy_ids) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(strategy_ids) < 2:
             return None
 
         # Get all strategies
@@ -943,8 +941,7 @@ class StrategyOptimizer:
             True if strategies are similar above threshold
 
         """
-        if len(strategies) < 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(strategies) < 2:
             return False
 
         # Compare first strategy with all others

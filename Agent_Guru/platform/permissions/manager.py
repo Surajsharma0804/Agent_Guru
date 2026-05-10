@@ -175,7 +175,7 @@ class PermissionManager:
         mode_map = {"r": os.R_OK, "w": os.W_OK, "x": os.X_OK}
 
         # Check if path exists and is accessible
-        return os.path.exists(path) and os.access(path, mode_map[mode])  # noqa: PTH110
+        return os.path.exists(path) and os.access(path, mode_map[mode])
 
     def get_current_user(self) -> UserInfo:
         """Get current user information.

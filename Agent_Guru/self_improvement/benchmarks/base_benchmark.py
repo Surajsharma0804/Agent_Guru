@@ -94,7 +94,7 @@ class BenchmarkResult:
 
     def to_json(self, filepath: str) -> None:
         """Save result to JSON file."""
-        with open(filepath, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=2)
 
 
@@ -147,7 +147,7 @@ class BaseBenchmark:
                 scenario = scenarios[i % len(scenarios)]
                 try:
                     self.execute_scenario(scenario)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     _logger.debug("Warmup iteration %d skipped: %s", i, exc)  # Ignore warmup errors
 
         # Actual benchmark runs
@@ -233,7 +233,7 @@ class BaseBenchmark:
             errors=self.errors,
         )
 
-    def execute_scenario(self, scenario: TestScenario) -> Any:  # noqa: ANN401
+    def execute_scenario(self, scenario: TestScenario) -> Any:
         """Execute a single test scenario.
 
         Must be implemented by subclasses.
@@ -248,7 +248,7 @@ class BaseBenchmark:
         msg = "Subclasses must implement execute_scenario"
         raise NotImplementedError(msg)
 
-    def _check_success(self, scenario: TestScenario, result: Any) -> bool:  # noqa: ANN401
+    def _check_success(self, scenario: TestScenario, result: Any) -> bool:
         """Check if scenario execution was successful.
 
         Args:
@@ -291,7 +291,7 @@ class BaseBenchmark:
             output_path: Path to save markdown report
 
         """
-        with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write("# Agent Framework Benchmark Results\n\n")
             f.write(f"Generated: {datetime.now(tz=UTC).strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 

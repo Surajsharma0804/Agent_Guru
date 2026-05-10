@@ -284,8 +284,7 @@ class ConflictResolver:
         # Detect oscillation: too few runs indicates alternating pattern
         # Critical value for 95% confidence: z > 1.96
         # Critical value for 90% confidence: z > 1.645
-        oscillation_detected = runs < expected_runs * 0.8 and z_score > 1.645  # noqa: PLR2004 - Threshold
-
+        oscillation_detected = runs < expected_runs * 0.8 and z_score > 1.645
 
         # Calculate variance-based confidence
         success_rate = n1 / n
@@ -304,8 +303,7 @@ class ConflictResolver:
         if oscillation_detected:
             # Strong signal: oscillation detected
             confidence = min(0.95, 0.6 + (z_score - 1.645) * 0.1 + variance_score * 0.2)
-        elif variance_score > 0.7 and abs(success_rate - 0.5) < 0.2:  # noqa: PLR2004 - Threshold value
-
+        elif variance_score > 0.7 and abs(success_rate - 0.5) < 0.2:
             # Moderate signal: high variance near 50% success rate
             confidence = min(0.85, variance_score * 0.8)
         elif z_score > 1.0:
@@ -318,15 +316,14 @@ class ConflictResolver:
         conflicting_ids = []
         if has_conflict:
             # Identify minority outcome
-            minority_outcome = 0 if success_rate > 0.5 else 1  # noqa: PLR2004 - Threshold value
+            minority_outcome = 0 if success_rate > 0.5 else 1
 
             conflicting_ids = [
                 task_ids[i] for i, outcome in enumerate(outcomes) if outcome == minority_outcome
             ]
 
         elapsed_ms = (time.time() - start_time) * 1000
-        if elapsed_ms > 20:  # noqa: PLR2004 - Threshold
-
+        if elapsed_ms > 20:
             _logger.warning("WARNING: Conflict detection took %.2fms (target: <20ms)", elapsed_ms)
 
         return ConflictDetection(
@@ -441,13 +438,13 @@ class ConflictResolver:
             features.append(feature_vec)
             task_ids.append(ex.task_id)
 
-        X = np.array(features)  # noqa: N806
+        X = np.array(features)
 
         # Feature scaling using StandardScaler (research-backed best practice)
         from sklearn.preprocessing import StandardScaler
 
         scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)  # noqa: N806
+        X_scaled = scaler.fit_transform(X)
 
         try:
             # Method 1: Isolation Forest (global outlier detection)
@@ -481,8 +478,7 @@ class ConflictResolver:
             # This is the KEY fix - using robust statistics
             # Research-backed: Modified Z-score with threshold 3.5 for MAD
             modified_zscores = np.abs((np.array(execution_times) - median_time) / mad_scaled)
-            z_anomalies = set(np.where(modified_zscores > 3.5)[0])  # noqa: PLR2004 - Threshold
-
+            z_anomalies = set(np.where(modified_zscores > 3.5)[0])
 
             # Additional check: Success rate anomalies (for cases where execution time is uniform)
             # If execution times are all similar, check for success rate anomalies
@@ -490,10 +486,9 @@ class ConflictResolver:
             success_rate = np.mean(success_values)
 
             # If success rate is far from 50/50 and we have mixed outcomes, flag minority
-            if 0.2 < success_rate < 0.8:  # Mixed outcomes  # noqa: PLR2004 (Threshold value)
-
+            if 0.2 < success_rate < 0.8:  # Mixed outcomes
                 # Identify minority outcome as potential poisoning
-                minority_is_failure = success_rate > 0.5  # noqa: PLR2004 - Threshold value
+                minority_is_failure = success_rate > 0.5
 
                 for i, ex in enumerate(executions):
                     if (minority_is_failure and not ex.success) or (
@@ -514,8 +509,7 @@ class ConflictResolver:
                 )
 
             # Primary: Anomalies detected by at least 2 methods
-            anomaly_indices = [idx for idx, votes in vote_counts.items() if votes >= 2]  # noqa: PLR2004 - Small integer threshold
-
+            anomaly_indices = [idx for idx, votes in vote_counts.items() if votes >= 2]
 
             # Fallback: If MAD detects many anomalies but ML methods don't,
             # trust MAD (it's robust to outliers, ML methods may be confused by high contamination)
@@ -573,8 +567,7 @@ class ConflictResolver:
             has_conflict = confidence >= self.poisoning_threshold
 
             elapsed_ms = (time.time() - start_time) * 1000
-            if elapsed_ms > 50:  # noqa: PLR2004 - Threshold
-
+            if elapsed_ms > 50:
                 _logger.warning(
                     "WARNING: Poisoning detection took %.2fms (target: <50ms)",
                     elapsed_ms,
@@ -700,8 +693,7 @@ class ConflictResolver:
             # Use majority vote
             if use_majority_vote:
                 outcomes = [1 if ex.success else 0 for ex in executions]
-                majority_outcome = np.mean(outcomes) > 0.5  # noqa: PLR2004 - Threshold value
-
+                majority_outcome = np.mean(outcomes) > 0.5
 
                 # Quarantine minority outcomes
                 quarantined_count = 0

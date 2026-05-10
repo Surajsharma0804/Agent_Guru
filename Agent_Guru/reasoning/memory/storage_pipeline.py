@@ -122,8 +122,7 @@ class MemoryStoragePipeline:
         if min_content_length < 1:
             msg = f"min_content_length must be >= 1, got {min_content_length}"
             raise ValueError(msg)
-        if max_memories_per_user < 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if max_memories_per_user < 100:
             msg = f"max_memories_per_user must be >= 100, got {max_memories_per_user}"
             raise ValueError(msg)
 

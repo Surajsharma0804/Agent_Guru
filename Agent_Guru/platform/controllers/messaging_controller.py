@@ -384,7 +384,7 @@ class MessagingController:
 
     def _blocking_open_url(self, url: str) -> None:
         """Open *url* in the default browser/handler — blocking, run in executor."""
-        import webbrowser  # noqa: PLC0415
+        import webbrowser
 
         webbrowser.open(url)
 

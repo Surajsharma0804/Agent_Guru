@@ -52,7 +52,11 @@ class DatabasePool:
     """
 
     def __init__(
-        self, database: str, min_size: int = 5, max_size: int = 20, timeout: float = 30.0,
+        self,
+        database: str,
+        min_size: int = 5,
+        max_size: int = 20,
+        timeout: float = 30.0,
     ) -> None:
         """Initialize database connection pool.
 
@@ -277,6 +281,7 @@ class RedisPool:
             self._pool = None
             logger.exception("Failed to initialize Redis pool")
             self._pool = None
+
     async def get(self, key: str) -> str | None:
         """Get value from Redis."""
         if not self._initialized:
@@ -474,6 +479,7 @@ class HTTPPool:
             self._error_count += 1
             logger.exception("HTTP GET error")
             raise
+
     async def post(self, url: str, **kwargs) -> aiohttp.ClientResponse:
         """Make POST request using pooled connection.
 
@@ -499,6 +505,7 @@ class HTTPPool:
             self._error_count += 1
             logger.exception("HTTP POST error")
             raise
+
     async def request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
         """Make HTTP request using pooled connection.
 
@@ -521,6 +528,7 @@ class HTTPPool:
             self._error_count += 1
             logger.exception("HTTP %s error: %s")
             raise
+
     async def close(self) -> None:
         """Close the HTTP connection pool."""
         if self._session is not None:

@@ -279,9 +279,9 @@ class BehavioralEngine:
     async def learn_preference(
         self,
         user_id: str,
-        preference_type,  # noqa: ANN001
+        preference_type,
         preference_key: str,
-        preference_value,  # noqa: ANN001
+        preference_value,
     ) -> None:
         """Learn user preference (if learning enabled).
 

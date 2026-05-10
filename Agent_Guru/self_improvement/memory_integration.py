@@ -48,7 +48,7 @@ class MemoryIntegration:
 
     """
 
-    def __init__(self, self_improvement_engine: Any, memory_system: Any | None = None) -> None:  # noqa: ANN401
+    def __init__(self, self_improvement_engine: Any, memory_system: Any | None = None) -> None:
         """Initialize memory integration.
 
         Args:
@@ -187,8 +187,8 @@ class MemoryIntegration:
 
 
 def create_memory_integration(
-    self_improvement_engine: Any,  # noqa: ANN401
-    memory_system: Any | None = None,  # noqa: ANN401
+    self_improvement_engine: Any,
+    memory_system: Any | None = None,
 ) -> MemoryIntegration:
     """Create memory integration for self-improvement engine.
 

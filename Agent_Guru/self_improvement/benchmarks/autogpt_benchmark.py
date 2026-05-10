@@ -35,7 +35,7 @@ class AutoGPTBenchmark(BaseBenchmark):
         super().__init__("AutoGPT")
         self.simulation_mode = True  # Always simulate for AutoGPT
 
-    def execute_scenario(self, scenario: TestScenario) -> Any:  # noqa: ANN401
+    def execute_scenario(self, scenario: TestScenario) -> Any:
         """Execute a test scenario using AutoGPT simulation.
 
         Args:
@@ -47,7 +47,7 @@ class AutoGPTBenchmark(BaseBenchmark):
         """
         return self._simulate_execution(scenario)
 
-    def _simulate_execution(self, scenario: TestScenario) -> Any:  # noqa: ANN401
+    def _simulate_execution(self, scenario: TestScenario) -> Any:
         """Simulate AutoGPT execution.
 
         Args:

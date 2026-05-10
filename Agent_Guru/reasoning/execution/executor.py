@@ -274,7 +274,7 @@ class SyncExecutor:
         parameters: dict[str, Any],
         timeout: float,
         cancellation_token: dict[str, Any] | None = None,
-    ) -> Any:  # noqa: ANN401
+    ) -> Any:
         """Execute function with timeout enforcement.
 
         Args:
@@ -332,6 +332,7 @@ class SyncExecutor:
                 future.cancel()
                 msg = f"Execution exceeded timeout of {timeout}s"
                 raise TimeoutError(msg) from e
+
     def _is_transient_error(self, error: Exception) -> bool:
         """Check if error is transient and retryable.
 
@@ -379,8 +380,7 @@ class SyncExecutor:
         # Keep last 100 measurements per tool — use deque for O(1) eviction
         stats = self._latency_stats[tool_id]
         stats.append(latency)
-        if len(stats) > 100:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(stats) > 100:
             del stats[0]  # O(n) but only triggers once per 100 samples
 
     def get_latency_stats(self, tool_id: str) -> dict[str, float]:
@@ -472,6 +472,7 @@ class ExecutionController:
             except ImportError:
                 # Celery not available, async execution disabled
                 pass
+
     def execute_sync(
         self,
         action: Action,
@@ -496,7 +497,7 @@ class ExecutionController:
         action: Action,
         tool_module: str,
         tool_function_name: str,
-    ) -> Any:  # noqa: ANN401
+    ) -> Any:
         """Execute action asynchronously.
 
         Args:
@@ -519,7 +520,7 @@ class ExecutionController:
 
         return self.async_executor.execute_async(action, tool_module, tool_function_name)
 
-    def get_async_status(self, task_id: str) -> Any:  # noqa: ANN401
+    def get_async_status(self, task_id: str) -> Any:
         """Get status of async task.
 
         Args:

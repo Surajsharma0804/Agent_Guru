@@ -173,7 +173,7 @@ class DuplicateAwareFileOperations(FileOperationsController):
     def _check_duplicate_and_execute(
         self,
         operation: Operation,
-        execute_func,  # noqa: ANN001
+        execute_func,
         *args,
         **kwargs,
     ) -> FileOperationResult:
@@ -351,7 +351,7 @@ class DuplicateAwareFileOperations(FileOperationsController):
         # Read source file content for fingerprinting
         try:
             source_path = Path(source).resolve()
-            with open(source_path, "rb") as f:  # noqa: PTH123
+            with open(source_path, "rb") as f:
                 content = f.read()
         except Exception:
             logger.exception("Failed to read source file for duplicate detection")
@@ -554,7 +554,12 @@ class DuplicateAwareCommandExecutor:
 
             # Execute command
             result = subprocess.run(  # noqa: S603
-                cmd_list, check=False, capture_output=True, text=True, env=env, timeout=30,
+                cmd_list,
+                check=False,
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=30,
             )
 
             exec_time = (time.perf_counter() - start_time) * 1000

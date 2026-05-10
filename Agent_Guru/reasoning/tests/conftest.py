@@ -58,10 +58,10 @@ class _MockOllamaProvider:
     Used by the global autouse fixture to patch all Ollama usage.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    async def generate(self, request: Any) -> Any:  # noqa: ANN401
+    async def generate(self, request: Any) -> Any:
         from Agent_Guru.reasoning.llm.models import LLMProvider, LLMResponse
 
         return LLMResponse(
@@ -82,7 +82,7 @@ class _MockOllamaProvider:
     async def health_check(self) -> bool:
         return False
 
-    def get_provider_type(self) -> Any:  # noqa: ANN401
+    def get_provider_type(self) -> Any:
         from Agent_Guru.reasoning.llm.models import LLMProvider
 
         return LLMProvider.LOCAL
@@ -100,7 +100,7 @@ class _MockOllamaProvider:
 
 
 @pytest.fixture(autouse=True, scope="session")
-def _patch_ollama_globally() -> Any:  # noqa: ANN401
+def _patch_ollama_globally() -> Any:
     """Session-scoped autouse fixture that replaces OllamaProvider with a mock
     for the entire test session.
 
@@ -173,7 +173,7 @@ def _preload_tools():
 
 
 @pytest.fixture
-def make_engine(shared_intent_engine):  # noqa: ANN001
+def make_engine(shared_intent_engine):
     """Factory fixture that creates a ReasoningEngine with:
     - LLM disabled by default (llm_reasoning=None)
     - Shared intent engine injected (no re-initialization cost).
@@ -186,7 +186,7 @@ def make_engine(shared_intent_engine):  # noqa: ANN001
     Accepts optional keyword args forwarded to ReasoningEngine.__init__.
     """
 
-    def _factory(llm_reasoning=None, **kwargs):  # noqa: ANN001
+    def _factory(llm_reasoning=None, **kwargs):
         from Agent_Guru.reasoning.engine import ReasoningEngine
 
         return ReasoningEngine(
@@ -237,14 +237,14 @@ def mock_intent_engine():
 
 
 @pytest.fixture
-def make_engine_fast(mock_intent_engine):  # noqa: ANN001
+def make_engine_fast(mock_intent_engine):
     """Factory fixture like make_engine but uses a mock intent engine.
 
     Use for tests that need fast execution and don't care about real
     NLP inference (e.g. testing pipeline plumbing, error handling, stats).
     """
 
-    def _factory(llm_reasoning=None, **kwargs):  # noqa: ANN001
+    def _factory(llm_reasoning=None, **kwargs):
         from Agent_Guru.reasoning.engine import ReasoningEngine
 
         return ReasoningEngine(
@@ -304,7 +304,7 @@ def mock_llm_reasoning():
 
 
 @pytest.fixture(autouse=True)
-def _isolate_tool_registry(_preload_tools):  # noqa: ANN001
+def _isolate_tool_registry(_preload_tools):
     """Function-scoped autouse fixture that snapshots the tool registry before
     each test and restores it after, preventing cross-test pollution from
     double-registration errors.
@@ -336,7 +336,7 @@ def _isolate_tool_registry(_preload_tools):  # noqa: ANN001
 
 
 @pytest.fixture
-async def register_example_tools(shared_intent_engine):  # noqa: ANN001
+async def register_example_tools(shared_intent_engine):
     """Register example tools for tests that need them.
 
     Yields the registry. Tools are cleaned up automatically by

@@ -146,8 +146,8 @@ class VQAEngine:
         try:
             from llama_cpp import Llama  # type: ignore[import]
 
-            model_path = os.path.join("models", "llava-1.6-mistral-7b.Q4_K_M.gguf")  # noqa: PTH118
-            if not os.path.exists(model_path):  # noqa: PTH110
+            model_path = os.path.join("models", "llava-1.6-mistral-7b.Q4_K_M.gguf")
+            if not os.path.exists(model_path):
                 return _NOT_VISIBLE_PHRASE
 
             llm = Llama(

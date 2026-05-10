@@ -86,7 +86,7 @@ class ParameterExtractor:
 
         return parameters
 
-    def _extract_parameter(self, param: ToolParameter, intent: Intent) -> Any | None:  # noqa: ANN401
+    def _extract_parameter(self, param: ToolParameter, intent: Intent) -> Any | None:
         """Extract single parameter from intent entities.
 
         Args:
@@ -109,7 +109,7 @@ class ParameterExtractor:
 
         return None
 
-    def _convert_and_validate(self, value: Any, param: ToolParameter) -> Any:  # noqa: ANN401
+    def _convert_and_validate(self, value: Any, param: ToolParameter) -> Any:
         """Convert value to correct type and validate.
 
         Args:

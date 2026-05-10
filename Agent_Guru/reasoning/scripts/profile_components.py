@@ -94,14 +94,15 @@ def profile_intent_detection() -> None:
                 logger.exception("Operation failed")
         avg_time = total_time / len(test_inputs)
 
-        if avg_time * 1000 < 200:  # noqa: PLR2004 - Percentage/large threshold
-
+        if avg_time * 1000 < 200:
             pass
         else:
             pass
 
     except Exception:
         logger.exception("Operation failed")
+
+
 def profile_fast_router() -> None:
     """Profile fast intent router."""
     try:
@@ -135,14 +136,15 @@ def profile_fast_router() -> None:
         avg_time = total_time / len(test_inputs)
         hit_rate = hits / len(test_inputs) * 100
 
-        if avg_time * 1000 < 50 and hit_rate > 80:  # noqa: PLR2004 - Threshold
-
+        if avg_time * 1000 < 50 and hit_rate > 80:
             pass
         else:
             pass
 
     except Exception:
         logger.exception("Operation failed")
+
+
 def profile_llm_reasoning() -> None:
     """Profile LLM reasoning component."""
     try:
@@ -176,14 +178,15 @@ def profile_llm_reasoning() -> None:
             elapsed = time.perf_counter() - start
         except Exception:
             elapsed = time.perf_counter() - start
-        if elapsed * 1000 < 400:  # noqa: PLR2004 - Percentage/large threshold
-
+        if elapsed * 1000 < 400:
             pass
         else:
             pass
 
     except Exception:
         logger.exception("Operation failed")
+
+
 def profile_tool_selection() -> None:
     """Profile tool selection component."""
     try:
@@ -211,14 +214,15 @@ def profile_tool_selection() -> None:
             elapsed = time.perf_counter() - start
         except Exception:
             elapsed = time.perf_counter() - start
-        if elapsed * 1000 < 50:  # noqa: PLR2004 - Threshold
-
+        if elapsed * 1000 < 50:
             pass
         else:
             pass
 
     except Exception:
         logger.exception("Operation failed")
+
+
 def profile_safety_gate() -> None:
     """Profile safety gate component."""
     try:
@@ -258,14 +262,15 @@ def profile_safety_gate() -> None:
             elapsed = time.perf_counter() - start
         except Exception:
             elapsed = time.perf_counter() - start
-        if elapsed * 1000 < 50:  # noqa: PLR2004 - Threshold
-
+        if elapsed * 1000 < 50:
             pass
         else:
             pass
 
     except Exception:
         logger.exception("Operation failed")
+
+
 def profile_response_generation() -> None:
     """Profile response generation component."""
     try:
@@ -298,14 +303,15 @@ def profile_response_generation() -> None:
             elapsed = time.perf_counter() - start
         except Exception:
             elapsed = time.perf_counter() - start
-        if elapsed * 1000 < 150:  # noqa: PLR2004 - Percentage/large threshold
-
+        if elapsed * 1000 < 150:
             pass
         else:
             pass
 
     except Exception:
         logger.exception("Operation failed")
+
+
 def main() -> None:
     """Main profiling function."""
     # Profile each component

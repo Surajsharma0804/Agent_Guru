@@ -18,7 +18,7 @@ def load_json_file(file_path: Path) -> dict[str, Any]:
     """Load a JSON file."""
     if not file_path.exists():
         return {}
-    with open(file_path, encoding="utf-8") as f:  # noqa: PTH123
+    with open(file_path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -106,8 +106,7 @@ def generate_final_validation_report() -> dict[str, Any]:
                     "improvement_percentage",
                     0,
                 )
-                >= 15,  # noqa: PLR2004 - Threshold
-
+                >= 15,
             },
             "task_24_3": {
                 "name": "Verify improvement in execution time",
@@ -189,8 +188,7 @@ def generate_recommendations(validation_results: dict[str, Any]) -> list[str]:
 
     # Success rate recommendations
     improvement = task_24_2.get("improvement_metrics", {}).get("improvement_percentage", 0)
-    if improvement >= 15:  # noqa: PLR2004 - Threshold
-
+    if improvement >= 15:
         recommendations.append(
             f"✅ SUCCESS: Achieved {improvement:.1f}% improvement in success rate, "
             f"exceeding the 15% target by {improvement - 15:.1f}%",
@@ -356,7 +354,7 @@ def main() -> None:
     json_path = output_dir / f"final_validation_report_{timestamp}.json"
     md_path = output_dir / f"final_validation_report_{timestamp}.md"
 
-    with open(json_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+    with open(json_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
 
     # Generate markdown report

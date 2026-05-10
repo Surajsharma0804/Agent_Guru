@@ -210,7 +210,7 @@ class LRUCache(Generic[T]):
         # Check if key exists
         if key not in self._cache:
             self._misses += 1
-            logger.debug("cache_miss", key=key[:32] if len(key) > 32 else key)  # noqa: PLR2004 - Threshold
+            logger.debug("cache_miss", key=key[:32] if len(key) > 32 else key)
 
             return None
 
@@ -225,8 +225,7 @@ class LRUCache(Generic[T]):
             self._misses += 1
             logger.debug(
                 "cache_expired",
-                key=key[:32] if len(key) > 32 else key,  # noqa: PLR2004 - Threshold
-
+                key=key[:32] if len(key) > 32 else key,
                 age_seconds=current_time - timestamp,
             )
             return None
@@ -236,7 +235,7 @@ class LRUCache(Generic[T]):
 
         # Cache hit
         self._hits += 1
-        logger.debug("cache_hit", key=key[:32] if len(key) > 32 else key)  # noqa: PLR2004 - Threshold
+        logger.debug("cache_hit", key=key[:32] if len(key) > 32 else key)
 
         return value
 
@@ -261,7 +260,7 @@ class LRUCache(Generic[T]):
             self._cache[key] = (value, time.time())
             self._cache.move_to_end(key)
             self._updates += 1
-            logger.debug("cache_update", key=key[:32] if len(key) > 32 else key)  # noqa: PLR2004 - Threshold
+            logger.debug("cache_update", key=key[:32] if len(key) > 32 else key)
 
             return
 
@@ -273,15 +272,13 @@ class LRUCache(Generic[T]):
             self._evictions += 1
             logger.debug(
                 "cache_eviction_lru",
-                evicted_key=oldest_key[:32] if len(oldest_key) > 32 else oldest_key,  # noqa: PLR2004 - Threshold
-
+                evicted_key=oldest_key[:32] if len(oldest_key) > 32 else oldest_key,
             )
 
         # Store with current timestamp
         self._cache[key] = (value, time.time())
         self._sets += 1
-        logger.debug("cache_set", key=key[:32] if len(key) > 32 else key)  # noqa: PLR2004 - Threshold
-
+        logger.debug("cache_set", key=key[:32] if len(key) > 32 else key)
 
     def remove(self, key: str) -> bool:
         """Remove specific entry from cache.
@@ -301,7 +298,7 @@ class LRUCache(Generic[T]):
         """
         if key in self._cache:
             del self._cache[key]
-            logger.debug("cache_remove", key=key[:32] if len(key) > 32 else key)  # noqa: PLR2004 - Threshold
+            logger.debug("cache_remove", key=key[:32] if len(key) > 32 else key)
 
             return True
         return False

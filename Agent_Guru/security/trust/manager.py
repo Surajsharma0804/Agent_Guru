@@ -67,7 +67,7 @@ class TrustManager:
     def __init__(
         self,
         storage_path: str = ":memory:",
-        audit_logger: Any | None = None,  # noqa: ANN401
+        audit_logger: Any | None = None,
     ) -> None:
         self._conn = sqlite3.connect(storage_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
@@ -245,7 +245,7 @@ class TrustManager:
                     outcome="success",
                     details={"trust_level": trust_level},
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("Audit log failed for trust relationship creation: %s", exc)
 
         return rel
@@ -275,7 +275,7 @@ class TrustManager:
                     outcome="success",
                     details={},
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("Audit log failed for trust relationship revocation: %s", exc)
 
     def get_relationships(

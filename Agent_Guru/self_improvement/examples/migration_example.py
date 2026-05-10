@@ -41,8 +41,8 @@ def example_basic_usage() -> None:
 
     finally:
         # Cleanup
-        if os.path.exists(db_path):  # noqa: PTH110
-            os.unlink(db_path)  # noqa: PTH108
+        if os.path.exists(db_path):
+            os.unlink(db_path)
 
 
 def example_step_by_step() -> None:
@@ -80,8 +80,8 @@ def example_step_by_step() -> None:
 
     finally:
         # Cleanup
-        if os.path.exists(db_path):  # noqa: PTH110
-            os.unlink(db_path)  # noqa: PTH108
+        if os.path.exists(db_path):
+            os.unlink(db_path)
 
 
 def example_rollback() -> None:
@@ -112,8 +112,8 @@ def example_rollback() -> None:
 
     finally:
         # Cleanup
-        if os.path.exists(db_path):  # noqa: PTH110
-            os.unlink(db_path)  # noqa: PTH108
+        if os.path.exists(db_path):
+            os.unlink(db_path)
 
 
 def example_error_handling() -> None:
@@ -143,8 +143,8 @@ def example_error_handling() -> None:
 
     finally:
         # Cleanup
-        if os.path.exists(db_path):  # noqa: PTH110
-            os.unlink(db_path)  # noqa: PTH108
+        if os.path.exists(db_path):
+            os.unlink(db_path)
 
 
 def example_monitoring() -> None:
@@ -174,8 +174,8 @@ def example_monitoring() -> None:
 
     finally:
         # Cleanup
-        if os.path.exists(db_path):  # noqa: PTH110
-            os.unlink(db_path)  # noqa: PTH108
+        if os.path.exists(db_path):
+            os.unlink(db_path)
 
 
 def main() -> None:

@@ -56,7 +56,7 @@ class IdentityManager:
     references to the original profile and its key_pair).
     """
 
-    def __init__(self, key_store: Any, audit_logger: Any | None = None) -> None:  # noqa: ANN401
+    def __init__(self, key_store: Any, audit_logger: Any | None = None) -> None:
         self._key_store = key_store
         self._audit_logger = audit_logger
         self._profiles: dict[str, IdentityProfile] = {}
@@ -127,8 +127,9 @@ class IdentityManager:
                         outcome="success",
                         details={"profile_name": profile_name},
                     )
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     import logging as _logging
+
                     _logging.getLogger(__name__).warning(
                         "Audit log failed for key generation: %s",
                         exc,
@@ -140,6 +141,7 @@ class IdentityManager:
             raise KeyGenerationError(
                 msg,
             ) from exc
+
     def rotate_key(self, profile_id: str) -> KeyPair:
         """Generate new key pair and deprecate old one.
 
@@ -196,8 +198,9 @@ class IdentityManager:
                         outcome="success",
                         details={},
                     )
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     import logging as _logging
+
                     _logging.getLogger(__name__).warning(
                         "Audit log failed for key rotation: %s",
                         exc,
@@ -206,6 +209,7 @@ class IdentityManager:
         except Exception as exc:
             msg = f"Key rotation failed: type={type(exc).__name__}"
             raise KeyGenerationError(msg) from exc
+
     def derive_key(self, master_key: bytes, context: str, index: int) -> bytes:
         """Derive child key from master key using PBKDF2.
 
@@ -222,8 +226,7 @@ class IdentityManager:
         """
         salt = f"{context}:{index}".encode()
         # Pad salt to 16 bytes minimum
-        if len(salt) < 16:  # noqa: PLR2004 - Threshold
-
+        if len(salt) < 16:
             salt = salt + b"\x00" * (16 - len(salt))
 
         kdf = PBKDF2HMAC(
@@ -261,6 +264,7 @@ class IdentityManager:
             raise
             msg = f"Signing failed: type={type(exc).__name__}"
             raise SignatureError(msg) from exc
+
     def verify(self, public_key: bytes, message: bytes, signature: bytes) -> bool:
         """Verify Ed25519 signature.
 
@@ -284,6 +288,7 @@ class IdentityManager:
             # All other exceptions (ValueError for bad key length, etc.) also mean
             # verification failed — return False rather than propagating.
             return False
+
     def get_identity(self, profile_id: str) -> IdentityProfile:
         """Retrieve identity profile.
 

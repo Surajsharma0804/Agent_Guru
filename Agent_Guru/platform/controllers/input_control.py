@@ -621,7 +621,7 @@ class KeyHoldContext:
             self.controller.key_down(key)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:  # noqa: ANN001
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Release all keys."""
         for key in reversed(self.keys):
             self.controller.key_up(key)

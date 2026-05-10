@@ -429,8 +429,7 @@ class SensitiveActionGuard:
 
         # Check timeout (30 seconds)
         age = time.monotonic() - pending["timestamp"]
-        if age > 30.0:  # noqa: PLR2004 - Threshold
-
+        if age > 30.0:
             logger.warning("Confirmation token expired: %s", token)
             return False
 

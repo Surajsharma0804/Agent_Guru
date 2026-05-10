@@ -220,8 +220,7 @@ class ConfigManager:
 
         # Validate export config
         xc = config.export
-        if xc.opset_version < 9:  # noqa: PLR2004 - Threshold
-
+        if xc.opset_version < 9:
             errors.append(f"opset_version must be >= 9, got {xc.opset_version}")
 
         # Validate reporting config
@@ -272,7 +271,7 @@ class ConfigManager:
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         data = self._config_to_dict(config)
-        with open(path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
         logger.info("Saved configuration to '%s'", output_path)
 
@@ -317,16 +316,16 @@ class ConfigManager:
         try:
             import yaml  # type: ignore[import]
 
-            with open(path, encoding="utf-8") as f:  # noqa: PTH123
+            with open(path, encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
         except ImportError:
             # Fallback: try to parse as JSON (subset of YAML)
-            with open(path, encoding="utf-8") as f:  # noqa: PTH123
+            with open(path, encoding="utf-8") as f:
                 return json.load(f)
 
     @staticmethod
     def _load_json(path: Path) -> dict[str, Any]:
-        with open(path, encoding="utf-8") as f:  # noqa: PTH123
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
 
     @staticmethod

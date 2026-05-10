@@ -342,7 +342,7 @@ class AgentGuru:
             getattr(self._memory_manager, "interaction_count", lambda: "n/a")(),
         )
 
-    def _handle_signal(self, signum: int, frame: Any) -> None:  # noqa: ANN401
+    def _handle_signal(self, signum: int, frame: Any) -> None:
         """Handle OS signals for graceful shutdown."""
         logger.info("Received signal %d — shutting down", signum)
         self.shutdown()

@@ -231,7 +231,7 @@ class AsyncTimeoutExecutor:
         tool_function: Callable[[dict[str, Any]], Awaitable[Any]],
         parameters: dict[str, Any],
         task_id: str,
-    ) -> Any:  # noqa: ANN401
+    ) -> Any:
         """Execute function with partial result tracking.
 
         Args:
@@ -249,7 +249,7 @@ class AsyncTimeoutExecutor:
         # Execute tool function
         return await tool_function(parameters)
 
-    def store_partial_result(self, task_id: str, partial_result: Any) -> None:  # noqa: ANN401
+    def store_partial_result(self, task_id: str, partial_result: Any) -> None:
         """Store partial result for task (called by tool functions).
 
         Args:
@@ -451,7 +451,7 @@ class AsyncExecutionController:
         """
         return self.executor.get_in_flight_tasks()
 
-    def store_partial_result(self, task_id: str, partial_result: Any) -> None:  # noqa: ANN401
+    def store_partial_result(self, task_id: str, partial_result: Any) -> None:
         """Store partial result for task.
 
         Args:

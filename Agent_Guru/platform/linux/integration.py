@@ -121,6 +121,7 @@ class LinuxIntegration:
                 logger.debug("D-Bus system bus connected")
             except Exception:
                 logger.exception("Failed to connect to D-Bus system bus")
+
     def _validate_linux_platform(self) -> None:
         """Validate that we're running on Linux.
 
@@ -144,7 +145,7 @@ class LinuxIntegration:
         interface: str,
         method: str,
         *args,
-    ) -> Any:  # noqa: ANN401
+    ) -> Any:
         """Query a D-Bus service.
 
         Time Complexity: O(1)
@@ -205,6 +206,7 @@ class LinuxIntegration:
             error_msg = f"Error calling D-Bus method {method}: {e}"
             logger.exception(error_msg)
             raise DBusError(error_msg) from e
+
     # systemd Service Management
 
     def get_systemd_service_status(self, service_name: str) -> ServiceStatus:
@@ -234,7 +236,7 @@ class LinuxIntegration:
 
             # Query service status using systemctl
             result = subprocess.run(  # noqa: S603
-                ["systemctl", "is-active", service_name],  # noqa: S607
+                ["systemctl", "is-active", service_name],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -253,7 +255,12 @@ class LinuxIntegration:
             # Get startup type
             startup_type = self._get_service_startup_type(service_name)
 
-            logger.debug("Service %s: status=%s, startup=%s", service_name, service_status, startup_type)
+            logger.debug(
+                "Service %s: status=%s, startup=%s",
+                service_name,
+                service_status,
+                startup_type,
+            )
 
             return ServiceStatus(
                 name=service_name,
@@ -271,6 +278,7 @@ class LinuxIntegration:
             error_msg = f"Error querying service {service_name}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def _get_service_startup_type(self, service_name: str) -> str:
         """Get service startup type from systemctl.
 
@@ -283,7 +291,7 @@ class LinuxIntegration:
         """
         try:
             result = subprocess.run(  # noqa: S603
-                ["systemctl", "is-enabled", service_name],  # noqa: S607
+                ["systemctl", "is-enabled", service_name],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -305,6 +313,7 @@ class LinuxIntegration:
 
         except Exception:
             return "unknown"
+
     def start_systemd_service(self, service_name: str) -> bool:
         """Start a systemd service.
 
@@ -332,7 +341,7 @@ class LinuxIntegration:
 
             # Start service using systemctl
             result = subprocess.run(  # noqa: S603
-                ["systemctl", "start", service_name],  # noqa: S607
+                ["systemctl", "start", service_name],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -367,6 +376,7 @@ class LinuxIntegration:
             error_msg = f"Error starting service {service_name}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def stop_systemd_service(self, service_name: str) -> bool:
         """Stop a systemd service.
 
@@ -394,7 +404,7 @@ class LinuxIntegration:
 
             # Stop service using systemctl
             result = subprocess.run(  # noqa: S603
-                ["systemctl", "stop", service_name],  # noqa: S607
+                ["systemctl", "stop", service_name],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -429,6 +439,7 @@ class LinuxIntegration:
             error_msg = f"Error stopping service {service_name}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def restart_systemd_service(self, service_name: str) -> bool:
         """Restart a systemd service.
 
@@ -456,7 +467,7 @@ class LinuxIntegration:
 
             # Restart service using systemctl
             result = subprocess.run(  # noqa: S603
-                ["systemctl", "restart", service_name],  # noqa: S607
+                ["systemctl", "restart", service_name],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -491,6 +502,7 @@ class LinuxIntegration:
             error_msg = f"Error restarting service {service_name}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     # Process Management
 
     def get_process_list(self) -> list[ProcessInfo]:
@@ -578,6 +590,7 @@ class LinuxIntegration:
             error_msg = f"Error starting process {executable}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def terminate_process(self, pid: int, force: bool = False) -> bool:
         """Terminate a process.
 
@@ -624,6 +637,7 @@ class LinuxIntegration:
             error_msg = f"Error terminating process {pid}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def execute_command(self, command: str, args: list[str]) -> CommandResult:
         """Execute a Linux command.
 
@@ -678,6 +692,7 @@ class LinuxIntegration:
             error_msg = f"Error executing command {command}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+
     def get_system_info(self) -> SystemInfo:
         """Get Linux system information.
 
@@ -725,6 +740,7 @@ class LinuxIntegration:
             return os.geteuid() == 0
         except Exception:
             return False
+
     def require_root(self) -> None:
         """Raise error if not running with root privileges.
 

@@ -233,8 +233,7 @@ class LearningEngine:
         key = (model_id, task_type.value)
         with self._lock:
             w = self._weights.get(key)
-            if w is None or w.sample_size < 5:  # noqa: PLR2004 - Small integer threshold
-
+            if w is None or w.sample_size < 5:
                 return False
 
             # Normalize weight to [0, 1] range for comparison

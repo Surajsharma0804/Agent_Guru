@@ -256,7 +256,7 @@ class CircuitBreaker(Generic[T]):
         """
         return self.state == CircuitState.HALF_OPEN
 
-    def call(self, func: Callable[..., T], *args: Any, **kwargs: Any) -> T:  # noqa: ANN401
+    def call(self, func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         """Execute function with circuit breaker protection.
 
         Time Complexity: O(1) + O(func)
@@ -302,7 +302,7 @@ class CircuitBreaker(Generic[T]):
             raise CircuitBreakerOpenError(msg)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):  # noqa: ANN001
+    def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit.
 
         Records success or failure based on exception.

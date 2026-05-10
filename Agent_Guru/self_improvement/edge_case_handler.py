@@ -390,8 +390,7 @@ class EdgeCaseHandler:
             )
 
         # Check confidence score
-        if metrics.confidence_score < 0.5:  # noqa: PLR2004 - Threshold value
-
+        if metrics.confidence_score < 0.5:
             return (
                 False,
                 f"Low confidence: {metrics.confidence_score:.3f} "
@@ -490,14 +489,12 @@ class EdgeCaseHandler:
                 "This is a rare event - use weighted score to prevent overgeneralization",
             )
 
-        if metrics.confidence_score < 0.5:  # noqa: PLR2004 - Threshold value
-
+        if metrics.confidence_score < 0.5:
             recommendations.append(
                 "Low confidence - collect more data or use conservative estimates",
             )
 
-        if metrics.confidence_score >= 0.8 and metrics.meets_threshold:  # noqa: PLR2004 - Threshold value
-
+        if metrics.confidence_score >= 0.8 and metrics.meets_threshold:
             recommendations.append("High confidence - safe to use for learning")
 
         return {

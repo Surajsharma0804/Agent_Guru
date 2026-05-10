@@ -285,9 +285,7 @@ class ProviderFailoverRouter:
                 )
 
             except Exception as e:
-                logger.exception(
-                    "Provider %s failed. Trying next provider...",
-                    provider.value)
+                logger.exception("Provider %s failed. Trying next provider...", provider.value)
                 async with self._lock:
                     health.status = ProviderStatus.UNAVAILABLE
                     health.consecutive_failures += 1

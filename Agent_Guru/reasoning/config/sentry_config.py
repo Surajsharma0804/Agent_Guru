@@ -150,7 +150,7 @@ class SentryContextManager:
         user_id: str | None = None,
         username: str | None = None,
         email: str | None = None,
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: Any,
     ) -> None:
         """Set user context for error tracking.
 
@@ -177,7 +177,7 @@ class SentryContextManager:
         conversation_id: str,
         turn_id: str | None = None,
         intent_type: str | None = None,
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: Any,
     ) -> None:
         """Set conversation context for error tracking.
 
@@ -203,7 +203,7 @@ class SentryContextManager:
     def set_input_context(
         input_text: str,
         input_source: str,
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: Any,
     ) -> None:
         """Set input context for error tracking.
 
@@ -214,8 +214,7 @@ class SentryContextManager:
 
         """
         # Truncate input to avoid sending too much data
-        truncated_input = input_text[:200] + "..." if len(input_text) > 200 else input_text  # noqa: PLR2004 - Percentage/large threshold
-
+        truncated_input = input_text[:200] + "..." if len(input_text) > 200 else input_text
 
         with sentry_sdk.configure_scope() as scope:
             scope.set_context(

@@ -131,8 +131,7 @@ class FailureAnalyzer:
 
         # Performance monitoring
         elapsed_ms = (time.time() - start_time) * 1000
-        if elapsed_ms > 10:  # noqa: PLR2004 - Threshold
-
+        if elapsed_ms > 10:
             _logger.warning("WARNING: Failure analysis took %.2fms (target: <10ms)", elapsed_ms)
 
     def _store_failure(self, execution: TaskExecution) -> None:
@@ -422,7 +421,9 @@ class FailureAnalyzer:
             # Generate unique pattern_id using timestamp + random component
             import secrets
 
-            pattern_id = f"pattern_{int(time.time() * 1000000)}_{secrets.randbelow(9999 - 1000 + 1) + 1000}"
+            pattern_id = (
+                f"pattern_{int(time.time() * 1000000)}_{secrets.randbelow(9999 - 1000 + 1) + 1000}"
+            )
             now = datetime.now(tz=UTC).isoformat()
 
             cursor.execute(

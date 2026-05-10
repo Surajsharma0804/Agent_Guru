@@ -114,8 +114,7 @@ class VerificationIssue(BaseModel):
         if not v or not v.strip():
             msg = "Description cannot be empty"
             raise ValueError(msg)
-        if len(v.strip()) < 10:  # noqa: PLR2004 - Threshold
-
+        if len(v.strip()) < 10:
             msg = "Description must be at least 10 characters"
             raise ValueError(msg)
         return v.strip()
@@ -194,8 +193,7 @@ class VerificationResult(BaseModel):
         if v < 0:
             msg = f"Verification time cannot be negative, got {v}"
             raise ValueError(msg)
-        if v > 5000:  # 5 seconds is too long  # noqa: PLR2004 (Percentage/large threshold)
-
+        if v > 5000:  # 5 seconds is too long
             msg = f"Verification time exceeds maximum (5000ms), got {v}"
             raise ValueError(msg)
         return v
@@ -204,8 +202,7 @@ class VerificationResult(BaseModel):
     @classmethod
     def validate_issues(cls, v: list[VerificationIssue]) -> list[VerificationIssue]:
         """Validate issues list is reasonable size."""
-        if len(v) > 50:  # Sanity check  # noqa: PLR2004 (Threshold)
-
+        if len(v) > 50:  # Sanity check
             msg = f"Too many issues ({len(v)}), maximum is 50"
             raise ValueError(msg)
         return v

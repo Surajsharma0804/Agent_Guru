@@ -57,7 +57,7 @@ logger = logging.getLogger(__name__)
 def create_health_app(
     title: str = "Platform Integration Health",
     version: str = "1.0.0",
-) -> Any | None:  # noqa: ANN401
+) -> Any | None:
     """Create FastAPI application with health check endpoints.
 
     Args:

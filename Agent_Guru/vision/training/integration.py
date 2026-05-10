@@ -67,7 +67,7 @@ class GuruVisionIntegration:
     def generate_deployment_artifacts(
         self,
         onnx_model_path: str,
-        config: Any | None = None,  # noqa: ANN401
+        config: Any | None = None,
         report_path: str | None = None,
         production_ready: bool = False,
         metadata: ModelMetadataFile | None = None,
@@ -169,6 +169,7 @@ class GuruVisionIntegration:
             return True
             logger.exception("ONNX compatibility check failed")
             return False
+
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
@@ -186,11 +187,11 @@ class GuruVisionIntegration:
             "input_range": metadata.input_range,
             "onnx_opset": metadata.onnx_opset,
         }
-        with open(path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
     @staticmethod
-    def _write_config(config: Any | None, path: str) -> None:  # noqa: ANN401
+    def _write_config(config: Any | None, path: str) -> None:
         if config is None:
             data: dict[str, Any] = {"note": "No configuration provided"}
         elif hasattr(config, "__dict__"):
@@ -203,7 +204,7 @@ class GuruVisionIntegration:
         else:
             data = {"config": str(config)}
 
-        with open(path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
 
     @staticmethod
@@ -227,5 +228,5 @@ class GuruVisionIntegration:
                 "report": report_path,
             },
         }
-        with open(manifest_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(manifest, f, indent=2)

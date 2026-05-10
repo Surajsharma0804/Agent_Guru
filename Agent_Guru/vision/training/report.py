@@ -86,7 +86,7 @@ class ReportGenerator:
 
     def compile_results(
         self,
-        training_result: Any | None = None,  # noqa: ANN401
+        training_result: Any | None = None,
         benchmark_results: list[BenchmarkResult] | None = None,
         failure_analysis: FailureAnalysis | None = None,
         stress_test_results: list[StressTestResult] | None = None,
@@ -186,8 +186,7 @@ class ReportGenerator:
                 key=lambda r: r.degradation,
                 default=None,
             )
-            if worst and worst.degradation > 0.05:  # noqa: PLR2004 - Threshold value
-
+            if worst and worst.degradation > 0.05:
                 recommendations.append(
                     f"Significant degradation under '{worst.condition.type}' "
                     f"({worst.degradation:.2%}). Consider robustness training.",
@@ -278,7 +277,7 @@ class ReportGenerator:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
         data = self._report_to_dict(report)
-        with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=self._json_default)
 
         logger.info("JSON report written to '%s'", output_path)
@@ -301,7 +300,7 @@ class ReportGenerator:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
         html = self._render_html(report)
-        with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html)
 
         logger.info("HTML report written to '%s'", output_path)
@@ -362,7 +361,7 @@ class ReportGenerator:
         """Convert Report to a JSON-serializable dict."""
         import numpy as np
 
-        def _safe(v: Any) -> Any:  # noqa: ANN401
+        def _safe(v: Any) -> Any:
             if isinstance(v, np.ndarray):
                 return v.tolist()
             if isinstance(v, np.floating):
@@ -446,7 +445,7 @@ class ReportGenerator:
         }
 
     @staticmethod
-    def _json_default(obj: Any) -> Any:  # noqa: ANN401
+    def _json_default(obj: Any) -> Any:
         import numpy as np
 
         if isinstance(obj, np.ndarray):

@@ -104,7 +104,7 @@ class SkillToolAdapter(Tool):
             return ToolSensitivity.SENSITIVE
         return ToolSensitivity.SAFE
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute the skill.
 
         Args:

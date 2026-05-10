@@ -285,8 +285,7 @@ class PermissionManager:
         self._permission_history.append(event)
 
         # Keep only last 10000 events
-        if len(self._permission_history) > 10000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(self._permission_history) > 10000:
             self._permission_history = self._permission_history[-10000:]
 
     def _log_trust_event(self, skill_id: str, old_level: TrustLevel, new_level: TrustLevel) -> None:
@@ -332,7 +331,7 @@ class PermissionManager:
             return
 
         try:
-            with open(self.storage_path, encoding="utf-8") as f:  # noqa: PTH123
+            with open(self.storage_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             # Load permissions

@@ -28,6 +28,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+
 def get_directory_size(path: Path) -> float:
     """Get total size of directory in GB.
 

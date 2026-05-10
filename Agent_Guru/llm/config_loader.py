@@ -74,13 +74,13 @@ def load_config_from_file(path: str) -> RuntimeConfig:
         try:
             import yaml  # type: ignore[import-untyped]
 
-            with open(config_path) as f:  # noqa: PTH123
+            with open(config_path) as f:
                 data: dict[str, Any] = yaml.safe_load(f) or {}
         except ImportError as e:
             msg = "PyYAML is required for YAML config files: pip install pyyaml"
             raise ImportError(msg) from e
     elif suffix == ".json":
-        with open(config_path) as f:  # noqa: PTH123
+        with open(config_path) as f:
             data = json.load(f)
     else:
         msg = f"Unsupported config file format: {suffix}. Use .yaml or .json"

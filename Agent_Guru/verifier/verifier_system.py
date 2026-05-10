@@ -187,7 +187,7 @@ class VerifierSystem:
     async def verify_task_output(
         self,
         task_id: str,
-        output: Any,  # noqa: ANN401
+        output: Any,
         expected_schema: dict[str, Any] | None = None,
         priority: str = "normal",
     ) -> VerificationResult:
@@ -285,7 +285,7 @@ class VerifierSystem:
             logger.exception("Failed to store pre-storage result (non-fatal)")
         return result
 
-    def update_config(self, **kwargs: Any) -> None:  # noqa: ANN401
+    def update_config(self, **kwargs: Any) -> None:
         """Update configuration at runtime."""
         for key, value in kwargs.items():
             if hasattr(self.config, key):
@@ -322,9 +322,9 @@ class VerifierSystem:
         expected_format: str | None = None,
         expected_facts: list[str] | None = None,
         expected_schema: dict[str, Any] | None = None,
-        raw_output: Any = None,  # noqa: ANN401
+        raw_output: Any = None,
         session_id: str | None = None,
-        strategy: Any = None,  # noqa: ANN401
+        strategy: Any = None,
         context_type: str = "",
     ) -> VerificationResult:
         """Execute verification strategies in parallel with timeout and graceful degradation.
@@ -447,10 +447,10 @@ class VerifierSystem:
 
     def _determine_status(
         self,
-        hallucination: Any,  # noqa: ANN401
-        validation: Any,  # noqa: ANN401
-        loop_detection: Any,  # noqa: ANN401
-        confidence_score: Any,  # noqa: ANN401
+        hallucination: Any,
+        validation: Any,
+        loop_detection: Any,
+        confidence_score: Any,
     ) -> VerificationStatus:
         """Determine overall verification status."""
         # Hard failures
@@ -462,15 +462,13 @@ class VerifierSystem:
 
         if validation and not validation.valid:
             # Minor violations → uncertain; major → failed
-            if len(validation.violations) > 2:  # noqa: PLR2004 - Small integer threshold
-
+            if len(validation.violations) > 2:
                 return VerificationStatus.FAILED
             return VerificationStatus.UNCERTAIN
 
         # Confidence-based
         if confidence_score:
-            if confidence_score.score < 0.4:  # noqa: PLR2004 - Threshold value
-
+            if confidence_score.score < 0.4:
                 return VerificationStatus.FAILED
             if confidence_score.score < self.config.min_confidence_threshold:
                 return VerificationStatus.UNCERTAIN
@@ -503,8 +501,7 @@ class VerifierSystem:
         if p <= 1:
             # critical or high — no throttling
             return None
-        if p == 2:  # noqa: PLR2004 - Small integer threshold
-
+        if p == 2:
             await self._semaphore_normal.acquire()
             return self._semaphore_normal
         await self._semaphore_low.acquire()
@@ -523,6 +520,5 @@ class VerifierSystem:
             },
         )
         # Keep last 1000 reports — use list slicing to avoid O(n) pop(0)
-        if len(self._failure_reports) > 1000:  # noqa: PLR2004 - Percentage/large threshold
-
+        if len(self._failure_reports) > 1000:
             self._failure_reports = self._failure_reports[-1000:]

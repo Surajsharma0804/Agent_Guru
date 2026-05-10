@@ -124,7 +124,7 @@ class FaceAligner:
         if use_insightface:
             self._detector = self._try_load_insightface()
 
-    def _try_load_insightface(self) -> Any | None:  # noqa: ANN401
+    def _try_load_insightface(self) -> Any | None:
         try:
             import insightface  # type: ignore[import]
 
@@ -183,8 +183,7 @@ class FaceAligner:
             faces = self._detector.get(image)
             for face in faces:
                 fb = face.bbox
-                if abs(float(fb[0]) - bbox.x1) < 5 and abs(float(fb[1]) - bbox.y1) < 5:  # noqa: PLR2004 - Small integer threshold
-
+                if abs(float(fb[0]) - bbox.x1) < 5 and abs(float(fb[1]) - bbox.y1) < 5:
                     kps = face.kps
                     return Landmarks(
                         left_eye=(float(kps[0][0]), float(kps[0][1])),
@@ -316,19 +315,18 @@ class FaceDataset:
         except ImportError:
             return np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
 
-    def _to_tensor(self, image: np.ndarray) -> Any:  # noqa: ANN401
+    def _to_tensor(self, image: np.ndarray) -> Any:
         import torch
 
         rgb = image[:, :, ::-1].copy()
         return torch.from_numpy(rgb.astype(np.float32).transpose(2, 0, 1) / 127.5 - 1.0)
 
-    def _augment(self, tensor: Any) -> Any:  # noqa: ANN401
+    def _augment(self, tensor: Any) -> Any:
         """Apply random augmentation: flip, brightness jitter."""
         import torch
 
         # Random horizontal flip
-        if torch.rand(1).item() > 0.5:  # noqa: PLR2004 - Threshold value
-
+        if torch.rand(1).item() > 0.5:
             tensor = torch.flip(tensor, dims=[2])
         # Random brightness jitter
         factor = 0.8 + torch.rand(1).item() * 0.4  # [0.8, 1.2]
@@ -535,7 +533,7 @@ class DatasetManager:
         shuffle: bool = True,
         augment: bool = False,
         num_workers: int = 0,
-    ) -> Any:  # noqa: ANN401
+    ) -> Any:
         """Create a PyTorch DataLoader for the dataset.
 
         Args:

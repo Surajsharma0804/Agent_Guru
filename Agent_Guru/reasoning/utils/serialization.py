@@ -35,7 +35,7 @@ except ImportError:
     HAS_ORJSON = False
 
 
-def _default_serializer(obj: Any) -> Any:  # noqa: ANN401
+def _default_serializer(obj: Any) -> Any:
     """Default serializer for types not natively supported by orjson.
 
     Handles:
@@ -63,7 +63,7 @@ def _default_serializer(obj: Any) -> Any:  # noqa: ANN401
     raise TypeError(msg)
 
 
-def dumps(obj: Any, *, default: Callable[[Any], Any] | None = None, option: int = 0) -> bytes:  # noqa: ANN401
+def dumps(obj: Any, *, default: Callable[[Any], Any] | None = None, option: int = 0) -> bytes:
     """Serialize object to JSON bytes using orjson (5-10x faster than json.dumps).
 
     Args:
@@ -89,7 +89,7 @@ def dumps(obj: Any, *, default: Callable[[Any], Any] | None = None, option: int 
     return json.dumps(obj, default=serializer).encode("utf-8")
 
 
-def dumps_str(obj: Any, *, default: Callable[[Any], Any] | None = None, option: int = 0) -> str:  # noqa: ANN401
+def dumps_str(obj: Any, *, default: Callable[[Any], Any] | None = None, option: int = 0) -> str:
     """Serialize object to JSON string using orjson.
 
     Args:
@@ -110,7 +110,7 @@ def dumps_str(obj: Any, *, default: Callable[[Any], Any] | None = None, option: 
     return dumps(obj, default=default, option=option).decode("utf-8")
 
 
-def loads(data: bytes | str) -> Any:  # noqa: ANN401
+def loads(data: bytes | str) -> Any:
     """Deserialize JSON bytes/string to Python object using orjson (2-3x faster than json.loads).
 
     Args:
@@ -136,7 +136,7 @@ def loads(data: bytes | str) -> Any:  # noqa: ANN401
     return json.loads(data)
 
 
-def pretty_dumps(obj: Any, *, default: Callable[[Any], Any] | None = None) -> str:  # noqa: ANN401
+def pretty_dumps(obj: Any, *, default: Callable[[Any], Any] | None = None) -> str:
     """Serialize object to pretty-printed JSON string.
 
     Args:
@@ -169,7 +169,7 @@ load = loads
 
 
 # Performance benchmarking function
-def benchmark_serialization(obj: Any, iterations: int = 1000) -> dict:  # noqa: ANN401
+def benchmark_serialization(obj: Any, iterations: int = 1000) -> dict:
     """Benchmark serialization performance.
 
     Args:

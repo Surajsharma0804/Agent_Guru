@@ -38,7 +38,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class MusicTool(Tool):
     """Tool for playing music."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute music playback.
 
         Args:

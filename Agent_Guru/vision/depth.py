@@ -64,7 +64,7 @@ class DepthEstimator:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _get_session(self) -> Any:  # noqa: ANN401
+    def _get_session(self) -> Any:
         if self._infer_fn is not None:
             return None
         if self._session is None:
@@ -118,15 +118,14 @@ class DepthEstimator:
     def _normalise(raw: np.ndarray) -> np.ndarray:
         """Normalise raw depth values to [0.0, 1.0]."""
         mn, mx = float(raw.min()), float(raw.max())
-        if mx - mn < 1e-6:  # noqa: PLR2004 - Epsilon value
-
+        if mx - mn < 1e-6:
             return np.zeros_like(raw, dtype=np.float32)
         return ((raw - mn) / (mx - mn)).astype(np.float32)
 
     @staticmethod
     def _is_dark_or_featureless(frame: np.ndarray) -> bool:
         """Return True when the frame is too dark or featureless for depth."""
-        grey = frame.mean(axis=2) if frame.ndim == 3 else frame.astype(np.float32)  # noqa: PLR2004 - Small integer threshold
+        grey = frame.mean(axis=2) if frame.ndim == 3 else frame.astype(np.float32)
 
         mean_brightness = float(grey.mean())
         variance = float(grey.var())

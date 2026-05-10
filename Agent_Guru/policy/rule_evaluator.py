@@ -225,7 +225,8 @@ class RuleEvaluator:
             raise RuleEvaluationError(
                 msg,
             ) from exc
-    def _compare(self, operator: str, actual: Any, expected: Any) -> bool:  # noqa: ANN401
+
+    def _compare(self, operator: str, actual: Any, expected: Any) -> bool:
         """Apply a comparison operator."""
         if operator == "equals":
             return actual == expected
@@ -269,7 +270,7 @@ class RuleEvaluator:
     # Validation
     # ------------------------------------------------------------------
 
-    def _validate_node(self, node: Any, errors: list[str], path: str) -> None:  # noqa: ANN401
+    def _validate_node(self, node: Any, errors: list[str], path: str) -> None:
         """Recursively validate a rule node."""
         if not isinstance(node, dict):
             errors.append(f"{path}: expected dict, got {type(node).__name__}")

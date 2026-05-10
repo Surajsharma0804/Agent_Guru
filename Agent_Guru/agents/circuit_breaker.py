@@ -66,7 +66,7 @@ class CircuitBreaker:
         elapsed = (datetime.now(tz=UTC) - self._last_failure_time).total_seconds()
         return elapsed >= self.config.recovery_timeout_seconds
 
-    async def call(self, func: Callable[..., Awaitable[Any]], *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+    async def call(self, func: Callable[..., Awaitable[Any]], *args: Any, **kwargs: Any) -> Any:
         """Execute func through the circuit breaker.
 
         Raises:

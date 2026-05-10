@@ -243,8 +243,7 @@ class IntentDetectionEngine:
                 # Check which APIs are available â€” only use a key if it's
                 # non-empty and not a placeholder value
                 def _valid_key(k: str | None) -> bool:
-                    return bool(k and k.strip() and "your-" not in k.lower() and len(k) > 8)  # noqa: PLR2004 - Threshold
-
+                    return bool(k and k.strip() and "your-" not in k.lower() and len(k) > 8)
 
                 deepseek_key = (
                     os.environ.get("DEEPSEEK_API_KEY")
@@ -381,8 +380,7 @@ class IntentDetectionEngine:
             fast_path_attempted = True
             match = self.fast_router.match(text)
 
-            if match and match.confidence >= 0.95:  # noqa: PLR2004 - Threshold value
-
+            if match and match.confidence >= 0.95:
                 # Fast-path success!
                 intent = self._create_intent_from_fast_path(match, text)
                 latency_ms = (time.perf_counter() - start_time) * 1000
@@ -412,8 +410,7 @@ class IntentDetectionEngine:
             )
 
             # Check if confidence is high enough
-            if neural_result.confidence >= 0.8:  # noqa: PLR2004 - Threshold value
-
+            if neural_result.confidence >= 0.8:
                 # Neural classifier success!
                 # Extract entities using NER
                 entities = {}

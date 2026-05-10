@@ -140,7 +140,7 @@ class CredentialFilter(logging.Filter):
 # ---------------------------------------------------------------------------
 
 
-def create_secure_http_client() -> Any:  # noqa: ANN401
+def create_secure_http_client() -> Any:
     """Create an httpx AsyncClient with TLS certificate validation enforced.
 
     Rejects self-signed and invalid certificates.

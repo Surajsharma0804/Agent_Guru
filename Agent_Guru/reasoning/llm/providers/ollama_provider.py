@@ -33,7 +33,7 @@ class OllamaProviderConfig(ProviderConfig):
         host: str = "127.0.0.1",
         port: int = 11434,
         model: str = "gemma3:4b",
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: Any,
     ) -> None:
         """Initialize Ollama config.
 
@@ -138,8 +138,7 @@ class OllamaProvider(BaseLLMProvider):
             ):
                 latency_ms = (time.perf_counter() - start_time) * 1000
 
-                if response.status == 200:  # noqa: PLR2004 - Percentage/large threshold
-
+                if response.status == 200:
                     data = await response.json()
 
                     text: str = data.get("response", "")
@@ -184,6 +183,7 @@ class OllamaProvider(BaseLLMProvider):
             ) from e
             msg = f"Ollama HTTP client error: {e}"
             raise RuntimeError(msg) from e
+
     async def health_check(self) -> bool:
         """Check if Ollama server is available.
 
@@ -195,7 +195,7 @@ class OllamaProvider(BaseLLMProvider):
             timeout = aiohttp.ClientTimeout(connect=2.0, total=3.0)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(f"{self.ollama_config.base_url}/api/tags") as response:
-                    return response.status == 200  # noqa: PLR2004 - Percentage/large threshold
+                    return response.status == 200
 
         except Exception:
             return False

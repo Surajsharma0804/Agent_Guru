@@ -398,13 +398,11 @@ class ErrorResponseStrategy:
 
         # Modify message based on empathy
         message = response.message
-        if adjusted_empathy > 0.7:  # noqa: PLR2004 - Threshold value
-
+        if adjusted_empathy > 0.7:
             # Add empathetic prefix
             if not message.startswith(("Sorry", "I apologize")):
                 message = f"I'm sorry, {message[0].lower()}{message[1:]}"
-        elif adjusted_empathy < 0.3:  # noqa: PLR2004 - Threshold value
-
+        elif adjusted_empathy < 0.3:
             # Remove empathetic language
             message = message.replace("Sorry, ", "").replace("I'm sorry, ", "")
 

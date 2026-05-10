@@ -47,8 +47,7 @@ class SkillManifest(BaseModel):
     def validate_version(cls, v: str) -> str:
         """Validate version format (semver)."""
         parts = v.split(".")
-        if len(parts) != 3:  # noqa: PLR2004 - Small integer threshold
-
+        if len(parts) != 3:
             msg = "Version must be in semver format (x.y.z)"
             raise ValueError(msg)
         if not all(part.isdigit() for part in parts):
@@ -85,7 +84,7 @@ class SkillManifestParser:
 
         """
         try:
-            with open(file_path, encoding="utf-8") as f:  # noqa: PTH123
+            with open(file_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
             if not data:
@@ -99,6 +98,7 @@ class SkillManifestParser:
             raise ValueError(msg) from e
             msg = f"Failed to parse manifest: {e!s}"
             raise ValueError(msg) from e
+
     @staticmethod
     def parse_dict(data: dict[str, Any]) -> SkillManifest:
         """Parse skill manifest from dictionary.
@@ -118,6 +118,8 @@ class SkillManifestParser:
         except Exception as e:
             msg = f"Failed to parse manifest: {e!s}"
             raise ValueError(msg) from e
+
+
 class SkillManifestValidator:
     """Validator for skill manifests."""
 

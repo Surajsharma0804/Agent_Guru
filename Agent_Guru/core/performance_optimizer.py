@@ -159,11 +159,11 @@ class PerformanceOptimizer:
 
     # Latency targets per stage (ms) — matches _TARGETS_MS in core.performance
     _TARGETS: dict[str, float] = {
-        "wake_word": 50.0,   # ≤50ms  (core.performance.PipelineStage.WAKE_WORD)
-        "stt": 120.0,        # ≤120ms/s of audio
-        "intent": 50.0,      # ≤50ms
-        "llm": 300.0,        # ≤300ms first token
-        "tts": 200.0,        # ≤200ms
+        "wake_word": 50.0,  # ≤50ms  (core.performance.PipelineStage.WAKE_WORD)
+        "stt": 120.0,  # ≤120ms/s of audio
+        "intent": 50.0,  # ≤50ms
+        "llm": 300.0,  # ≤300ms first token
+        "tts": 200.0,  # ≤200ms
         "end_to_end": 2500.0,  # ≤2500ms
     }
 
@@ -228,7 +228,7 @@ class PerformanceOptimizer:
     def cache_response(self, prompt_key: str, response: str) -> None:
         """Cache an LLM response. Evicts oldest entry when cache exceeds 512 entries."""
         with self._cache_lock:
-            if len(self._response_cache) >= 512:  # noqa: PLR2004
+            if len(self._response_cache) >= 512:
                 # Evict oldest key (O(1) amortized with dict ordering in Python 3.7+)
                 oldest = next(iter(self._response_cache))
                 del self._response_cache[oldest]

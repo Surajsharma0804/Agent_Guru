@@ -38,7 +38,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class QuestionAnswerTool(Tool):
     """Tool for answering questions."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute question answering.
 
         Args:
@@ -79,6 +79,8 @@ class QuestionAnswerTool(Tool):
                 "success": False,
                 "error": f"Failed to answer question: {e!s}",
             }
+
+
 @tool(
     tool_id="knowledge.define_word",
     name="Define Word",
@@ -103,7 +105,7 @@ class QuestionAnswerTool(Tool):
 class DefineWordTool(Tool):
     """Tool for defining words."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute word definition.
 
         Args:
@@ -146,6 +148,8 @@ class DefineWordTool(Tool):
                 "success": False,
                 "error": f"Failed to define word: {e!s}",
             }
+
+
 @tool(
     tool_id="knowledge.calculate",
     name="Calculate",
@@ -170,7 +174,7 @@ class DefineWordTool(Tool):
 class CalculateTool(Tool):
     """Tool for calculations."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute calculation.
 
         Args:
@@ -202,7 +206,7 @@ class CalculateTool(Tool):
             import ast as _ast
             import operator as _op
 
-            _SAFE_OPS = {  # noqa: N806
+            _SAFE_OPS = {
                 _ast.Add: _op.add,
                 _ast.Sub: _op.sub,
                 _ast.Mult: _op.mul,
@@ -243,6 +247,8 @@ class CalculateTool(Tool):
                 "success": False,
                 "error": f"Failed to calculate: {e!s}",
             }
+
+
 # Unit conversion factors (to base unit)
 UNIT_CONVERSIONS = {
     # Length (base: meter)
@@ -320,7 +326,7 @@ UNIT_CONVERSIONS = {
 class ConvertUnitsTool(Tool):
     """Tool for unit conversion."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute unit conversion.
 
         Args:

@@ -178,7 +178,8 @@ _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # Power
     (
         re.compile(
-            r"\b(shutdown|turn off|power off)\b.*\b(pc|computer|laptop|system)\b", re.IGNORECASE,
+            r"\b(shutdown|turn off|power off)\b.*\b(pc|computer|laptop|system)\b",
+            re.IGNORECASE,
         ),
         "shutdown",
     ),
@@ -213,7 +214,8 @@ _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(next track|skip track|next song|skip song)\b", re.IGNORECASE), "next_track"),
     (
         re.compile(
-            r"\b(previous track|prev track|previous song|last song|go back)\b", re.IGNORECASE,
+            r"\b(previous track|prev track|previous song|last song|go back)\b",
+            re.IGNORECASE,
         ),
         "previous_track",
     ),
@@ -506,7 +508,8 @@ _FILE_OPS_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(rename)\b.+", re.IGNORECASE), "rename"),
     (
         re.compile(
-            r"\b(open|show|list)\b.*(file|folder|directory|documents|downloads)\b", re.IGNORECASE,
+            r"\b(open|show|list)\b.*(file|folder|directory|documents|downloads)\b",
+            re.IGNORECASE,
         ),
         "open_file",
     ),
@@ -554,7 +557,9 @@ def _extract_web_query(text: str) -> dict[str, str]:
 
     # "search python tutorials on google/youtube/bing"
     m = re.search(
-        r"\b(?:search|look up|find)\s+(.+?)\s+on\s+(youtube|google|bing)\b", text, re.IGNORECASE,
+        r"\b(?:search|look up|find)\s+(.+?)\s+on\s+(youtube|google|bing)\b",
+        text,
+        re.IGNORECASE,
     )
     if m:
         return {"query": m.group(1).strip(), "engine": m.group(2).lower()}
@@ -638,7 +643,9 @@ def _extract_contact_name(text: str) -> str:
     """Extract contact name from a communication command."""
     # Patterns like "send message to John" or "call Sarah"
     match = re.search(
-        r"\b(?:to|call|phone|dial|ring)\s+([A-Za-z][A-Za-z\s]{0,30})", text, re.IGNORECASE,
+        r"\b(?:to|call|phone|dial|ring)\s+([A-Za-z][A-Za-z\s]{0,30})",
+        text,
+        re.IGNORECASE,
     )
     if match:
         return match.group(1).strip()
@@ -660,7 +667,10 @@ def _extract_file_path(text: str) -> str:
     ).strip()
     # Strip leading "file", "folder", "directory", "document" keywords
     cleaned = re.sub(
-        r"^(file|folder|directory|document)\s+", "", cleaned, flags=re.IGNORECASE,
+        r"^(file|folder|directory|document)\s+",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
     ).strip()
     return cleaned[:100]  # Limit length
 
@@ -984,7 +994,7 @@ class IntentRecognizer:
     def __init__(
         self,
         platform_override: str | None = None,
-        llm_manager: Any | None = None,  # noqa: ANN401
+        llm_manager: Any | None = None,
     ) -> None:
         """Initialise the intent recognizer.
 

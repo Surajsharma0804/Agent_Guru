@@ -123,7 +123,7 @@ class VerificationStrategySelector:
 
     def select_for_task_output(
         self,
-        output: Any,  # noqa: ANN401
+        output: Any,
         expected_schema: dict[str, Any] | None = None,
     ) -> VerificationStrategy:
         """Select strategy for verifying a task output."""

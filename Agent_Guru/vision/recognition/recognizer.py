@@ -200,8 +200,7 @@ class FaceRecognizer:
     @staticmethod
     def _l2_normalize(vec: np.ndarray) -> np.ndarray:
         norm = np.linalg.norm(vec)
-        if norm < 1e-10:  # noqa: PLR2004 - Epsilon value
-
+        if norm < 1e-10:
             return vec
         return vec / norm
 

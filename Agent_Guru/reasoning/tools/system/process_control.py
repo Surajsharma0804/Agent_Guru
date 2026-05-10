@@ -41,8 +41,8 @@ class PlatformProcessController:
         try:
             if system == "windows":
                 # Windows: use tasklist
-                result = subprocess.run(  # noqa: ASYNC221
-                    ["tasklist", "/FO", "CSV", "/NH"],  # noqa: S607
+                result = subprocess.run(
+                    ["tasklist", "/FO", "CSV", "/NH"],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -58,8 +58,7 @@ class PlatformProcessController:
                 for line in result.stdout.strip().split("\n"):
                     if line:
                         parts = line.strip('"').split('","')
-                        if len(parts) >= 2:  # noqa: PLR2004 - Small integer threshold
-
+                        if len(parts) >= 2:
                             processes.append(
                                 {
                                     "name": parts[0],
@@ -69,8 +68,8 @@ class PlatformProcessController:
 
             elif system in {"darwin", "linux"}:
                 # macOS/Linux: use ps
-                result = subprocess.run(  # noqa: ASYNC221
-                    ["ps", "aux"],  # noqa: S607
+                result = subprocess.run(
+                    ["ps", "aux"],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -86,8 +85,7 @@ class PlatformProcessController:
                 lines = result.stdout.strip().split("\n")[1:]  # Skip header
                 for line in lines:
                     parts = line.split(None, 10)
-                    if len(parts) >= 11:  # noqa: PLR2004 - Threshold
-
+                    if len(parts) >= 11:
                         processes.append(
                             {
                                 "user": parts[0],
@@ -159,7 +157,7 @@ class PlatformProcessController:
                 # macOS/Linux: use kill
                 signal = "-9" if force else "-15"
                 result = subprocess.run(  # noqa: S603
-                    ["kill", signal, str(pid)],  # noqa: S607
+                    ["kill", signal, str(pid)],
                     check=False,
                     capture_output=True,
                     text=True,
@@ -212,7 +210,7 @@ class PlatformProcessController:
 class ProcessListTool(Tool):
     """Tool for listing processes."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute process listing.
 
         Returns:
@@ -253,7 +251,7 @@ class ProcessListTool(Tool):
 class ProcessKillTool(Tool):
     """Tool for killing processes."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute process killing.
 
         Args:

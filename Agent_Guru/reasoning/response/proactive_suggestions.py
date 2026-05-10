@@ -393,8 +393,7 @@ class ProactiveSuggestionGenerator:
         suggestions = []
 
         # Check recent turns for patterns
-        if len(conversation_state.turns) >= 2:  # noqa: PLR2004 - Small integer threshold
-
+        if len(conversation_state.turns) >= 2:
             # Get last two intents
             recent_intents = [
                 turn.intent.intent_type

@@ -81,8 +81,7 @@ class VoiceFeatureExtractor:
             # Adjust n_fft and hop_length for short audio to prevent warnings
             audio_length = len(audio)
             n_fft_adjusted = min(self.n_fft, audio_length)
-            if n_fft_adjusted < 2:  # noqa: PLR2004 - Small integer threshold
-
+            if n_fft_adjusted < 2:
                 n_fft_adjusted = 2
             else:
                 # Round down to nearest power of 2
@@ -253,11 +252,9 @@ class VoiceFeatureExtractor:
             if sample_rate is not None:
                 duration = len(audio) / sample_rate
                 # Optimal duration: 1-5 seconds
-                if duration < 0.5:  # noqa: PLR2004 - Threshold value
-
+                if duration < 0.5:
                     duration_score = duration / 0.5
-                elif duration > 5.0:  # noqa: PLR2004 - Threshold
-
+                elif duration > 5.0:
                     duration_score = max(0.5, 1.0 - (duration - 5.0) / 10.0)
                 else:
                     duration_score = 1.0
@@ -269,11 +266,9 @@ class VoiceFeatureExtractor:
             voice_frames = np.sum(np.abs(audio) > threshold)
             voice_ratio = voice_frames / len(audio)
             # Optimal: 50-90% voice activity
-            if voice_ratio < 0.3:  # noqa: PLR2004 - Threshold value
-
+            if voice_ratio < 0.3:
                 voice_score = voice_ratio / 0.3
-            elif voice_ratio > 0.95:  # noqa: PLR2004 - Threshold value
-
+            elif voice_ratio > 0.95:
                 voice_score = 0.8  # Too much activity might be noise
             else:
                 voice_score = 1.0
@@ -281,8 +276,7 @@ class VoiceFeatureExtractor:
 
             # 4. Clipping detection
             max_val = np.max(np.abs(audio))
-            if max_val >= 0.99:  # noqa: PLR2004 - Threshold value
-
+            if max_val >= 0.99:
                 clipping_score = 0.5  # Penalize clipping
             else:
                 clipping_score = 1.0
@@ -337,11 +331,9 @@ class VoiceFeatureExtractor:
                 if total_energy > 0:
                     high_ratio = high_energy / total_energy
                     # Live speech typically has 5-20% energy in high frequencies
-                    if 0.05 <= high_ratio <= 0.30:  # noqa: PLR2004 - Threshold value
-
+                    if 0.05 <= high_ratio <= 0.30:
                         liveness_scores.append(1.0)
-                    elif high_ratio < 0.02:  # noqa: PLR2004 - Threshold value
-
+                    elif high_ratio < 0.02:
                         liveness_scores.append(0.3)  # Likely recorded/synthesized
                     else:
                         liveness_scores.append(0.7)
@@ -351,8 +343,7 @@ class VoiceFeatureExtractor:
             # Adjust n_fft for short audio
             audio_length = len(audio)
             n_fft_flux = min(self.n_fft, audio_length)
-            n_fft_flux = 2 if n_fft_flux < 2 else 2 ** int(np.log2(n_fft_flux))  # noqa: PLR2004 - Small integer threshold
-
+            n_fft_flux = 2 if n_fft_flux < 2 else 2 ** int(np.log2(n_fft_flux))
 
             hop_length_flux = min(self.hop_length, n_fft_flux // 4)
             hop_length_flux = max(hop_length_flux, 1)
@@ -392,8 +383,7 @@ class VoiceFeatureExtractor:
                 if pitch > 0:
                     pitch_values.append(pitch)
 
-            if len(pitch_values) > 10:  # noqa: PLR2004 - Threshold
-
+            if len(pitch_values) > 10:
                 # Check pitch variation
                 pitch_std = np.std(pitch_values)
                 pitch_mean = np.mean(pitch_values)
@@ -401,11 +391,9 @@ class VoiceFeatureExtractor:
                     pitch_cv = pitch_std / pitch_mean
                     # Natural speech has CV around 0.05-0.4
                     # More lenient range to accommodate various voice types
-                    if 0.02 <= pitch_cv <= 0.5:  # noqa: PLR2004 - Threshold value
-
+                    if 0.02 <= pitch_cv <= 0.5:
                         liveness_scores.append(0.8)
-                    elif pitch_cv < 0.01:  # noqa: PLR2004 - Threshold value
-
+                    elif pitch_cv < 0.01:
                         liveness_scores.append(0.3)  # Too regular
                     else:
                         liveness_scores.append(0.6)
@@ -413,7 +401,7 @@ class VoiceFeatureExtractor:
             # Calculate overall liveness
             if liveness_scores:
                 confidence = float(np.mean(liveness_scores))
-                is_live = confidence >= 0.55  # Slightly lower threshold for better sensitivity  # noqa: PLR2004 (Threshold value)
+                is_live = confidence >= 0.55  # Slightly lower threshold for better sensitivity
 
                 return is_live, confidence
             return False, 0.5  # Uncertain

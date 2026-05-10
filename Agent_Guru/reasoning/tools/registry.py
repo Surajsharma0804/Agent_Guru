@@ -152,7 +152,7 @@ class ToolRegistry:
         self,
         tool_id: str,
         timeout_ms: int | None = None,
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute a tool with given parameters.
 
@@ -202,6 +202,8 @@ class ToolRegistry:
                 "error": f"Tool execution failed: {e!s}",
                 "execution_time_ms": execution_time_ms,
             }
+
+
 # Global registry instance
 _global_registry = ToolRegistry()
 
@@ -283,7 +285,7 @@ def tool(
         original_init = cls.__init__
 
         @wraps(original_init)
-        def new_init(self: Tool, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        def new_init(self: Tool, *args: Any, **kwargs: Any) -> None:
             original_init(self, *args, **kwargs)
             # Store metadata on instance
             self._metadata = metadata

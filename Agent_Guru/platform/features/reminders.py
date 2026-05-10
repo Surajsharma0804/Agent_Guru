@@ -99,11 +99,9 @@ class ReminderManager:
         self._tasks[rid] = task
 
         # Human-readable confirmation
-        if delay < 60:  # noqa: PLR2004 - Threshold
-
+        if delay < 60:
             time_str = f"{int(delay)} seconds"
-        elif delay < 3600:  # noqa: PLR2004 - Percentage/large threshold
-
+        elif delay < 3600:
             mins = int(delay / 60)
             time_str = f"{mins} minute{'s' if mins != 1 else ''}"
         else:
@@ -173,20 +171,16 @@ class ReminderManager:
             groups = m.groups()
             if has_minutes is True:
                 hour, minute, ampm = int(groups[0]), int(groups[1]), groups[2]
-                if ampm == "pm" and hour != 12:  # noqa: PLR2004 - Threshold
-
+                if ampm == "pm" and hour != 12:
                     hour += 12
-                elif ampm == "am" and hour == 12:  # noqa: PLR2004 - Threshold
-
+                elif ampm == "am" and hour == 12:
                     hour = 0
             elif has_minutes is False:
                 hour, ampm = int(groups[0]), groups[1]
                 minute = 0
-                if ampm == "pm" and hour != 12:  # noqa: PLR2004 - Threshold
-
+                if ampm == "pm" and hour != 12:
                     hour += 12
-                elif ampm == "am" and hour == 12:  # noqa: PLR2004 - Threshold
-
+                elif ampm == "am" and hour == 12:
                     hour = 0
             else:
                 hour, minute = int(groups[0]), int(groups[1])

@@ -151,7 +151,7 @@ class WindowManager:
         self._cache_timestamp: float = 0.0
         self._cache_ttl: float = 5.0  # Cache screens for 5 seconds
 
-    def _get_platform_integration(self) -> Any:  # noqa: ANN401
+    def _get_platform_integration(self) -> Any:
         """Get platform-specific integration instance.
 
         Returns:
@@ -179,6 +179,7 @@ class WindowManager:
         except ImportError:
             logger.exception("Failed to load platform integration")
             raise
+
     def get_screens(self, use_cache: bool = True) -> list[ScreenInfo]:
         """Get information about all display screens.
 
@@ -235,7 +236,7 @@ class WindowManager:
             screens = []
             monitor_enum = win32api.EnumDisplayMonitors()
 
-            for i, (hMonitor, _hdcMonitor, rect) in enumerate(monitor_enum):  # noqa: N806
+            for i, (hMonitor, _hdcMonitor, rect) in enumerate(monitor_enum):
                 monitor_info = win32api.GetMonitorInfo(hMonitor)
                 is_primary = monitor_info["Flags"] & win32con.MONITORINFOF_PRIMARY != 0
 
@@ -245,7 +246,12 @@ class WindowManager:
 
                 screens.append(
                     ScreenInfo(
-                        index=i, x=x, y=y, width=width, height=height, is_primary=is_primary,
+                        index=i,
+                        x=x,
+                        y=y,
+                        width=width,
+                        height=height,
+                        is_primary=is_primary,
                     ),
                 )
 
@@ -255,6 +261,7 @@ class WindowManager:
             logger.exception("win32api not available, using fallback")
             # Fallback: single screen with common resolution
             return [ScreenInfo(index=0, x=0, y=0, width=1920, height=1080, is_primary=True)]
+
     def _get_screens_macos(self) -> list[ScreenInfo]:
         """Get screen information on macOS.
 
@@ -265,7 +272,7 @@ class WindowManager:
         try:
             # Use system_profiler to get display information
             result = subprocess.run(  # nosec B603 B607
-                ["system_profiler", "SPDisplaysDataType", "-json"],  # noqa: S607
+                ["system_profiler", "SPDisplaysDataType", "-json"],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -314,7 +321,7 @@ class WindowManager:
         try:
             # Try xrandr first
             result = subprocess.run(  # nosec B603 B607
-                ["xrandr", "--query"],  # noqa: S607
+                ["xrandr", "--query"],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -338,8 +345,7 @@ class WindowManager:
                                 res_pos = part.split("+")
                                 width, height = map(int, res_pos[0].split("x"))
                                 x = int(res_pos[1]) if len(res_pos) > 1 else 0
-                                y = int(res_pos[2]) if len(res_pos) > 2 else 0  # noqa: PLR2004 - Small integer threshold
-
+                                y = int(res_pos[2]) if len(res_pos) > 2 else 0
 
                                 screens.append(
                                     ScreenInfo(
@@ -522,7 +528,7 @@ class WindowManager:
             hwnd = win32gui.FindWindow(None, window_identifier)
             if not hwnd:
                 # Try partial match
-                def callback(hwnd, windows) -> bool:  # noqa: ANN001
+                def callback(hwnd, windows) -> bool:
                     if win32gui.IsWindowVisible(hwnd):
                         title = win32gui.GetWindowText(hwnd)
                         if window_identifier.lower() in title.lower():
@@ -561,6 +567,7 @@ class WindowManager:
             return False
             logger.exception("Failed to snap window on Windows")
             return False
+
     def _snap_window_macos(
         self,
         window_identifier: str,
@@ -596,7 +603,7 @@ class WindowManager:
             """
 
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["osascript", "-e", script],  # noqa: S607
+                ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -612,6 +619,7 @@ class WindowManager:
         except Exception:
             logger.exception("Failed to snap window on macOS")
             return False
+
     def _snap_window_linux(
         self,
         window_identifier: str,
@@ -637,7 +645,7 @@ class WindowManager:
             # Use wmctrl to move and resize window
             # First, find window ID
             result = subprocess.run(  # nosec B603 B607
-                ["wmctrl", "-l"],  # noqa: S607
+                ["wmctrl", "-l"],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -662,7 +670,7 @@ class WindowManager:
             # Move and resize window
             # Format: wmctrl -i -r <window_id> -e 0,x,y,width,height
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["wmctrl", "-i", "-r", window_id, "-e", f"0,{x},{y},{width},{height}"],  # noqa: S607
+                ["wmctrl", "-i", "-r", window_id, "-e", f"0,{x},{y},{width},{height}"],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -680,6 +688,7 @@ class WindowManager:
             return False
             logger.exception("Failed to snap window on Linux")
             return False
+
     def snap_window_left(self, window_identifier: str) -> bool:
         """Snap window to left half of screen.
 
@@ -782,7 +791,7 @@ class WindowManager:
 
             windows = []
 
-            def callback(hwnd, windows_list) -> bool:  # noqa: ANN001
+            def callback(hwnd, windows_list) -> bool:
                 if win32gui.IsWindowVisible(hwnd):
                     title = win32gui.GetWindowText(hwnd)
                     if title:  # Ignore windows without titles
@@ -795,6 +804,7 @@ class WindowManager:
         except ImportError:
             logger.exception("win32gui not available")
             return []
+
     def _get_visible_windows_macos(self) -> list[str]:
         """Get visible windows on macOS.
 
@@ -816,7 +826,7 @@ class WindowManager:
             """
 
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["osascript", "-e", script],  # noqa: S607
+                ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -832,6 +842,7 @@ class WindowManager:
         except Exception:
             logger.exception("Failed to get macOS windows")
             return []
+
     def _get_visible_windows_linux(self) -> list[str]:
         """Get visible windows on Linux.
 
@@ -841,7 +852,7 @@ class WindowManager:
         """
         try:
             result = subprocess.run(  # nosec B603 B607
-                ["wmctrl", "-l"],  # noqa: S607
+                ["wmctrl", "-l"],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -854,8 +865,7 @@ class WindowManager:
                     if line.strip():
                         # Format: window_id desktop_id hostname title
                         parts = line.split(None, 3)
-                        if len(parts) >= 4:  # noqa: PLR2004 - Small integer threshold
-
+                        if len(parts) >= 4:
                             windows.append(parts[3])
                 return windows
             return []
@@ -863,6 +873,7 @@ class WindowManager:
         except FileNotFoundError:
             logger.exception("wmctrl not installed")
             return []
+
     def _arrange_tile(self, windows: list[str], screen: ScreenInfo) -> bool:
         """Arrange windows in tile layout.
 
@@ -1058,6 +1069,7 @@ class WindowManager:
             return None
             logger.exception("Failed to create virtual desktop on Windows")
             return None
+
     def _create_virtual_desktop_macos(self) -> str | None:
         """Create virtual desktop (Mission Control space) on macOS.
 
@@ -1078,7 +1090,7 @@ class WindowManager:
             """
 
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["osascript", "-e", script],  # noqa: S607
+                ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1094,6 +1106,7 @@ class WindowManager:
         except Exception:
             logger.exception("Failed to create virtual desktop on macOS")
             return None
+
     def _create_virtual_desktop_linux(self) -> str | None:
         """Create virtual desktop on Linux.
 
@@ -1104,7 +1117,7 @@ class WindowManager:
         try:
             # Use wmctrl to add desktop
             result = subprocess.run(  # nosec B603 B607
-                ["wmctrl", "-n", "1"],  # Add 1 desktop  # noqa: S607
+                ["wmctrl", "-n", "1"],  # Add 1 desktop
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1122,6 +1135,7 @@ class WindowManager:
             return None
             logger.exception("Failed to create virtual desktop on Linux")
             return None
+
     def switch_virtual_desktop(self, desktop_id: str) -> bool:
         """Switch to specified virtual desktop.
 
@@ -1177,6 +1191,7 @@ class WindowManager:
             return False
             logger.exception("Failed to switch desktop on Windows")
             return False
+
     def _switch_virtual_desktop_macos(self, desktop_id: str) -> bool:
         """Switch virtual desktop on macOS.
 
@@ -1196,7 +1211,7 @@ class WindowManager:
             """
 
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["osascript", "-e", script],  # noqa: S607
+                ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1212,6 +1227,7 @@ class WindowManager:
         except Exception:
             logger.exception("Failed to switch desktop on macOS")
             return False
+
     def _switch_virtual_desktop_linux(self, desktop_id: str) -> bool:
         """Switch virtual desktop on Linux.
 
@@ -1232,7 +1248,7 @@ class WindowManager:
 
             # Use wmctrl to switch desktop
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["wmctrl", "-s", str(desktop_index)],  # noqa: S607
+                ["wmctrl", "-s", str(desktop_index)],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1250,6 +1266,7 @@ class WindowManager:
             return False
             logger.exception("Failed to switch desktop on Linux")
             return False
+
     def close_virtual_desktop(self, desktop_id: str) -> bool:
         """Close specified virtual desktop.
 
@@ -1301,6 +1318,7 @@ class WindowManager:
             return False
             logger.exception("Failed to close desktop on Windows")
             return False
+
     def _close_virtual_desktop_macos(self, desktop_id: str) -> bool:
         """Close virtual desktop on macOS.
 
@@ -1324,7 +1342,7 @@ class WindowManager:
             """
 
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                ["osascript", "-e", script],  # noqa: S607
+                ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1340,6 +1358,7 @@ class WindowManager:
         except Exception:
             logger.exception("Failed to close desktop on macOS")
             return False
+
     def _close_virtual_desktop_linux(self, desktop_id: str) -> bool:
         """Close virtual desktop on Linux.
 
@@ -1353,7 +1372,7 @@ class WindowManager:
         try:
             # Use wmctrl to remove desktop
             result = subprocess.run(  # nosec B603 B607
-                ["wmctrl", "-n", "-1"],  # Remove 1 desktop  # noqa: S607
+                ["wmctrl", "-n", "-1"],  # Remove 1 desktop
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1371,6 +1390,7 @@ class WindowManager:
             return False
             logger.exception("Failed to close desktop on Linux")
             return False
+
     def list_virtual_desktops(self) -> list[VirtualDesktopInfo]:
         """List all virtual desktops.
 
@@ -1431,7 +1451,7 @@ class WindowManager:
         try:
             # Get number of desktops
             result = subprocess.run(  # nosec B603 B607
-                ["wmctrl", "-d"],  # noqa: S607
+                ["wmctrl", "-d"],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1444,8 +1464,7 @@ class WindowManager:
                     if line.strip():
                         # Format: desktop_id flags geometry viewport name
                         parts = line.split(None, 4)
-                        if len(parts) >= 5:  # noqa: PLR2004 - Small integer threshold
-
+                        if len(parts) >= 5:
                             desktop_id = parts[0]
                             is_active = "*" in parts[1]
                             name = parts[4]

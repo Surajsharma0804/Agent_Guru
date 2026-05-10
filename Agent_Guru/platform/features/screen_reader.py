@@ -67,15 +67,14 @@ foreach ($el in $elements) {
 $texts | Select-Object -First 100 | Out-String
 """
         result = subprocess.run(  # noqa: S603
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script],  # noqa: S607
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script],
             check=False,
             capture_output=True,
             text=True,
             timeout=5,
         )
         text = result.stdout.strip()
-        if text and len(text) > 20:  # noqa: PLR2004 - Threshold
-
+        if text and len(text) > 20:
             logger.debug("UIA screen read: %d chars", len(text))
             return text[:max_chars]
     except Exception as exc:
@@ -105,8 +104,7 @@ def _read_via_ocr(max_chars: int) -> str | None:
             buf = io.BytesIO()
             screenshot.save(buf, format="PNG")
             text = _asyncio.run(_winrt_ocr(buf.getvalue()))
-            if text and len(text) > 10:  # noqa: PLR2004 - Threshold
-
+            if text and len(text) > 10:
                 logger.debug("WinRT OCR: %d chars", len(text))
                 return text[:max_chars]
         except Exception:
@@ -136,8 +134,7 @@ def _read_via_ocr(max_chars: int) -> str | None:
 
             text = pytesseract.image_to_string(screenshot, lang="eng")
             text = text.strip()
-            if text and len(text) > 10:  # noqa: PLR2004 - Threshold
-
+            if text and len(text) > 10:
                 logger.debug("Tesseract OCR: %d chars", len(text))
                 return text[:max_chars]
         except ImportError as exc:
@@ -186,6 +183,8 @@ async def _winrt_ocr(image_bytes: bytes) -> str:
         return result.text or ""
     except Exception:
         return ""
+
+
 def is_screen_read_command(transcript: str) -> bool:
     """Return True if the user is asking about screen content."""
     import re

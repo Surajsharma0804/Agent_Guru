@@ -181,7 +181,12 @@ class TextInputController:
             parse_special if parse_special is not None else self.config.parse_special_keys
         )
 
-        logger.debug("Typing text: length=%s, wpm=%s, parse_special=%s", len(text), wpm, parse_special)
+        logger.debug(
+            "Typing text: length=%s, wpm=%s, parse_special=%s",
+            len(text),
+            wpm,
+            parse_special,
+        )
 
         try:
             if len(text) > self.config.use_clipboard_threshold:

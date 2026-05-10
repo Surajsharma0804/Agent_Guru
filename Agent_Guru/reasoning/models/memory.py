@@ -116,13 +116,11 @@ class Memory(BaseModel):
     def validate_embedding_dimension(cls, v: list[float] | None) -> list[float] | None:
         """Validate embedding dimension is 768 (sentence-transformers default)."""
         if v is not None:
-            if len(v) != 768:  # noqa: PLR2004 - Percentage/large threshold
-
+            if len(v) != 768:
                 msg = f"Embedding must be 768-dimensional, got {len(v)}"
                 raise ValueError(msg)
             # Validate all values are finite
-            if not all(isinstance(x, (int, float)) and -1e10 < x < 1e10 for x in v):  # noqa: PLR2004 - Epsilon value
-
+            if not all(isinstance(x, (int, float)) and -1e10 < x < 1e10 for x in v):
                 msg = "Embedding values must be finite numbers"
                 raise ValueError(msg)
         return v
