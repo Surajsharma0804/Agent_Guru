@@ -1,5 +1,4 @@
-"""
-Tone and personality adaptation for conversation strategy.
+"""Tone and personality adaptation for conversation strategy.
 
 This module implements:
 - Personality dimension definitions
@@ -11,9 +10,8 @@ Requirements: 19.4, 26.2, 26.3
 """
 
 from dataclasses import dataclass
-from datetime import datetime, time, timezone
+from datetime import datetime, time
 from enum import Enum
-from typing import Optional
 
 
 class PersonalityDimension(Enum):
@@ -48,10 +46,10 @@ class ToneProfile:
 class ContextualFactors:
     """Contextual factors affecting tone."""
 
-    time_of_day: Optional[datetime] = None
+    time_of_day: datetime | None = None
     is_work_hours: bool = False
-    battery_level: Optional[float] = None
-    user_stress_level: Optional[float] = None
+    battery_level: float | None = None
+    user_stress_level: float | None = None
     conversation_length: int = 0
 
 
@@ -65,15 +63,16 @@ class ToneAdapter:
     WORK_START = time(9, 0)
     WORK_END = time(17, 0)
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize tone adapter."""
         self.user_profiles: dict[str, ToneProfile] = {}
 
     def get_tone_profile(
-        self, user_id: str, context: Optional[ContextualFactors] = None
+        self,
+        user_id: str,
+        context: ContextualFactors | None = None,
     ) -> ToneProfile:
-        """
-        Get tone profile for user with contextual adjustments.
+        """Get tone profile for user with contextual adjustments.
 
         Args:
             user_id: User identifier
@@ -81,6 +80,7 @@ class ToneAdapter:
 
         Returns:
             Adjusted tone profile
+
         """
         # Get base profile
         base_profile = self.user_profiles.get(user_id, self.DEFAULT_PROFILE)
@@ -92,16 +92,20 @@ class ToneAdapter:
         return base_profile
 
     def learn_preference(
-        self, user_id: str, dimension: PersonalityDimension, value: float, weight: float = 0.1
+        self,
+        user_id: str,
+        dimension: PersonalityDimension,
+        value: float,
+        weight: float = 0.1,
     ) -> None:
-        """
-        Learn user's tone preference using exponential moving average.
+        """Learn user's tone preference using exponential moving average.
 
         Args:
             user_id: User identifier
             dimension: Personality dimension to update
             value: New observed value (0.0 to 1.0)
             weight: Learning rate (0.0 to 1.0)
+
         """
         # Get current profile
         current = self.user_profiles.get(user_id, self.DEFAULT_PROFILE)
@@ -110,32 +114,37 @@ class ToneAdapter:
         if dimension == PersonalityDimension.FORMALITY:
             new_formality = (1 - weight) * current.formality + weight * value
             self.user_profiles[user_id] = ToneProfile(
-                formality=new_formality, warmth=current.warmth, verbosity=current.verbosity
+                formality=new_formality,
+                warmth=current.warmth,
+                verbosity=current.verbosity,
             )
         elif dimension == PersonalityDimension.WARMTH:
             new_warmth = (1 - weight) * current.warmth + weight * value
             self.user_profiles[user_id] = ToneProfile(
-                formality=current.formality, warmth=new_warmth, verbosity=current.verbosity
+                formality=current.formality,
+                warmth=new_warmth,
+                verbosity=current.verbosity,
             )
         elif dimension == PersonalityDimension.VERBOSITY:
             new_verbosity = (1 - weight) * current.verbosity + weight * value
             self.user_profiles[user_id] = ToneProfile(
-                formality=current.formality, warmth=current.warmth, verbosity=new_verbosity
+                formality=current.formality,
+                warmth=current.warmth,
+                verbosity=new_verbosity,
             )
 
     def set_profile(self, user_id: str, profile: ToneProfile) -> None:
-        """
-        Set user's tone profile directly.
+        """Set user's tone profile directly.
 
         Args:
             user_id: User identifier
             profile: Tone profile to set
+
         """
         self.user_profiles[user_id] = profile
 
     def _apply_context(self, base_profile: ToneProfile, context: ContextualFactors) -> ToneProfile:
-        """
-        Apply contextual adjustments to tone profile.
+        """Apply contextual adjustments to tone profile.
 
         Args:
             base_profile: Base tone profile
@@ -143,6 +152,7 @@ class ToneAdapter:
 
         Returns:
             Adjusted tone profile
+
         """
         formality = base_profile.formality
         warmth = base_profile.warmth
@@ -154,16 +164,19 @@ class ToneAdapter:
             warmth = max(0.0, warmth - 0.1)
 
         # Low battery: decrease verbosity (be concise)
-        if context.battery_level is not None and context.battery_level < 0.2:
+        if context.battery_level is not None and context.battery_level < 0.2:  # noqa: PLR2004 - Threshold value
+
             verbosity = max(0.0, verbosity - 0.3)
 
         # High stress: increase warmth, decrease verbosity
-        if context.user_stress_level is not None and context.user_stress_level > 0.7:
+        if context.user_stress_level is not None and context.user_stress_level > 0.7:  # noqa: PLR2004 - Threshold value
+
             warmth = min(1.0, warmth + 0.2)
             verbosity = max(0.0, verbosity - 0.2)
 
         # Long conversation: decrease verbosity
-        if context.conversation_length > 10:
+        if context.conversation_length > 10:  # noqa: PLR2004 - Threshold
+
             verbosity = max(0.0, verbosity - 0.1)
 
         # Time of day adjustments
@@ -171,20 +184,21 @@ class ToneAdapter:
             hour = context.time_of_day.hour
 
             # Early morning (5-8): more formal, less verbose
-            if 5 <= hour < 8:
+            if 5 <= hour < 8:  # noqa: PLR2004 - Threshold
+
                 formality = min(1.0, formality + 0.1)
                 verbosity = max(0.0, verbosity - 0.1)
 
             # Late night (22-24): more casual, warmer
-            elif 22 <= hour < 24:
+            elif 22 <= hour < 24:  # noqa: PLR2004 - Threshold
+
                 formality = max(0.0, formality - 0.1)
                 warmth = min(1.0, warmth + 0.1)
 
         return ToneProfile(formality=formality, warmth=warmth, verbosity=verbosity)
 
     def adapt_response(self, response: str, tone_profile: ToneProfile) -> str:
-        """
-        Adapt response text to match tone profile.
+        """Adapt response text to match tone profile.
 
         Args:
             response: Original response text
@@ -192,23 +206,30 @@ class ToneAdapter:
 
         Returns:
             Adapted response text
+
         """
         # Apply formality adjustments
-        if tone_profile.formality > 0.7:
+        if tone_profile.formality > 0.7:  # noqa: PLR2004 - Threshold value
+
             response = self._make_formal(response)
-        elif tone_profile.formality < 0.3:
+        elif tone_profile.formality < 0.3:  # noqa: PLR2004 - Threshold value
+
             response = self._make_casual(response)
 
         # Apply warmth adjustments
-        if tone_profile.warmth > 0.7:
+        if tone_profile.warmth > 0.7:  # noqa: PLR2004 - Threshold value
+
             response = self._make_friendly(response)
-        elif tone_profile.warmth < 0.3:
+        elif tone_profile.warmth < 0.3:  # noqa: PLR2004 - Threshold value
+
             response = self._make_neutral(response)
 
         # Apply verbosity adjustments
-        if tone_profile.verbosity > 0.7:
+        if tone_profile.verbosity > 0.7:  # noqa: PLR2004 - Threshold value
+
             response = self._make_verbose(response)
-        elif tone_profile.verbosity < 0.3:
+        elif tone_profile.verbosity < 0.3:  # noqa: PLR2004 - Threshold value
+
             response = self._make_concise(response)
 
         return response
@@ -298,17 +319,18 @@ class ToneAdapter:
 
     @staticmethod
     def is_work_hours(current_time: datetime) -> bool:
-        """
-        Determine if current time is work hours.
+        """Determine if current time is work hours.
 
         Args:
             current_time: Current datetime
 
         Returns:
             True if work hours
+
         """
         # Weekend check
-        if current_time.weekday() >= 5:  # Saturday = 5, Sunday = 6
+        if current_time.weekday() >= 5:  # Saturday = 5, Sunday = 6  # noqa: PLR2004 (Small integer threshold)
+
             return False
 
         # Time check
@@ -349,8 +371,7 @@ class ResponseTemplateSelector:
 
     @staticmethod
     def select_template(template_type: str, tone_profile: ToneProfile) -> str:
-        """
-        Select appropriate template based on tone profile.
+        """Select appropriate template based on tone profile.
 
         Args:
             template_type: Type of template ("success" or "error")
@@ -358,11 +379,14 @@ class ResponseTemplateSelector:
 
         Returns:
             Selected template string
+
         """
         # Determine tone category
-        if tone_profile.formality > 0.7:
+        if tone_profile.formality > 0.7:  # noqa: PLR2004 - Threshold value
+
             tone_key = f"{template_type}_formal"
-        elif tone_profile.warmth > 0.7:
+        elif tone_profile.warmth > 0.7:  # noqa: PLR2004 - Threshold value
+
             tone_key = f"{template_type}_friendly"
         else:
             tone_key = f"{template_type}_casual"

@@ -1,5 +1,4 @@
-"""
-Online learning manager for continuous model improvement.
+"""Online learning manager for continuous model improvement.
 
 This module coordinates feedback collection, performance tracking, drift detection,
 and periodic model retraining to continuously improve intent detection accuracy.
@@ -15,8 +14,7 @@ Date: 2024
 
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from Agent_Guru.reasoning.learning.feedback_store import FeedbackStore
 from Agent_Guru.reasoning.models.feedback import (
@@ -27,8 +25,7 @@ from Agent_Guru.reasoning.models.feedback import (
 
 
 class OnlineLearner:
-    """
-    Online learning manager for continuous model improvement.
+    """Online learning manager for continuous model improvement.
 
     Coordinates:
     - Feedback collection from user corrections
@@ -44,6 +41,7 @@ class OnlineLearner:
         >>> await learner.initialize()
         >>> await learner.collect_feedback(...)
         >>> metrics = await learner.calculate_metrics()
+
     """
 
     def __init__(
@@ -53,9 +51,8 @@ class OnlineLearner:
         baseline_accuracy: float = 0.95,
         drift_threshold: float = 0.05,
         retraining_threshold: int = 100,
-    ):
-        """
-        Initialize online learner.
+    ) -> None:
+        """Initialize online learner.
 
         Args:
             model_version: Current model version
@@ -63,6 +60,7 @@ class OnlineLearner:
             baseline_accuracy: Baseline accuracy for drift detection
             drift_threshold: Accuracy drop threshold for drift (default 5%)
             retraining_threshold: Min feedback count to trigger retraining
+
         """
         self.model_version = model_version
         self.baseline_accuracy = baseline_accuracy
@@ -87,13 +85,12 @@ class OnlineLearner:
         predicted_intent: str,
         predicted_entities: dict,
         predicted_confidence: float,
-        correct_intent: Optional[str] = None,
-        correct_entities: Optional[dict] = None,
+        correct_intent: str | None = None,
+        correct_entities: dict | None = None,
         feedback_type: FeedbackType = FeedbackType.POSITIVE,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> IntentFeedback:
-        """
-        Collect user feedback on intent prediction.
+        """Collect user feedback on intent prediction.
 
         Time Complexity: O(1)
 
@@ -110,6 +107,7 @@ class OnlineLearner:
 
         Returns:
             Created feedback entry
+
         """
         if not self._initialized:
             await self.initialize()
@@ -117,7 +115,7 @@ class OnlineLearner:
         feedback = IntentFeedback(
             feedback_id=str(uuid.uuid4()),
             user_id=user_id,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
             original_input=original_input,
             predicted_intent=predicted_intent,
             predicted_entities=predicted_entities,
@@ -132,9 +130,8 @@ class OnlineLearner:
         await self.store.store_feedback(feedback)
         return feedback
 
-    async def calculate_metrics(self, since: Optional[datetime] = None) -> ModelPerformanceMetrics:
-        """
-        Calculate performance metrics from feedback.
+    async def calculate_metrics(self, since: datetime | None = None) -> ModelPerformanceMetrics:
+        """Calculate performance metrics from feedback.
 
         Time Complexity: O(n) where n is number of feedback entries
 
@@ -144,17 +141,19 @@ class OnlineLearner:
 
         Returns:
             Performance metrics
+
         """
         if not self._initialized:
             await self.initialize()
 
         # Default to last 7 days
         if since is None:
-            since = datetime.now(tz=timezone.utc) - timedelta(days=7)
+            since = datetime.now(tz=UTC) - timedelta(days=7)
 
         # Get feedback entries
         feedback_list = await self.store.get_feedback_since(
-            since=since, model_version=self.model_version
+            since=since,
+            model_version=self.model_version,
         )
 
         if not feedback_list:
@@ -162,7 +161,7 @@ class OnlineLearner:
             return ModelPerformanceMetrics(
                 metric_id=str(uuid.uuid4()),
                 model_version=self.model_version,
-                timestamp=datetime.now(tz=timezone.utc),
+                timestamp=datetime.now(tz=UTC),
                 total_predictions=0,
                 correct_predictions=0,
                 accuracy=0.0,
@@ -195,14 +194,15 @@ class OnlineLearner:
         # Confidence metrics
         confidences = [f.predicted_confidence for f in feedback_list]
         avg_confidence = sum(confidences) / len(confidences)
-        low_confidence_count = sum(1 for c in confidences if c < 0.8)
+        low_confidence_count = sum(1 for c in confidences if c < 0.8)  # noqa: PLR2004 - Threshold value
+
         low_confidence_rate = low_confidence_count / total
 
         # Create metrics object
         metrics = ModelPerformanceMetrics(
             metric_id=str(uuid.uuid4()),
             model_version=self.model_version,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
             total_predictions=total,
             correct_predictions=correct,
             accuracy=correct / total,
@@ -212,7 +212,7 @@ class OnlineLearner:
             correction_rate=corrections / total,
             metadata={
                 "period_start": since.isoformat(),
-                "period_end": datetime.now(tz=timezone.utc).isoformat(),
+                "period_end": datetime.now(tz=UTC).isoformat(),
             },
         )
 
@@ -221,14 +221,14 @@ class OnlineLearner:
 
         return metrics
 
-    async def detect_drift(self) -> tuple[bool, Optional[ModelPerformanceMetrics]]:
-        """
-        Detect if model has drifted from baseline performance.
+    async def detect_drift(self) -> tuple[bool, ModelPerformanceMetrics | None]:
+        """Detect if model has drifted from baseline performance.
 
         Time Complexity: O(n) where n is feedback entries
 
         Returns:
             Tuple of (has_drifted, current_metrics)
+
         """
         if not self._initialized:
             await self.initialize()
@@ -238,19 +238,20 @@ class OnlineLearner:
 
         # Check for drift
         has_drifted = metrics.has_drift(
-            baseline_accuracy=self.baseline_accuracy, threshold=self.drift_threshold
+            baseline_accuracy=self.baseline_accuracy,
+            threshold=self.drift_threshold,
         )
 
         return has_drifted, metrics
 
     async def should_retrain(self) -> tuple[bool, str]:
-        """
-        Check if model should be retrained.
+        """Check if model should be retrained.
 
         Time Complexity: O(n) where n is feedback entries
 
         Returns:
             Tuple of (should_retrain, reason)
+
         """
         if not self._initialized:
             await self.initialize()
@@ -268,18 +269,19 @@ class OnlineLearner:
             return True, f"Model drift detected (accuracy: {metrics.accuracy:.2%})"
 
         # Check correction rate
-        if metrics and metrics.correction_rate > 0.10:  # >10% corrections
+        if metrics and metrics.correction_rate > 0.10:  # >10% corrections  # noqa: PLR2004 (Threshold value)
+
             return True, f"High correction rate ({metrics.correction_rate:.2%})"
 
         # Check low confidence rate
-        if metrics and metrics.low_confidence_rate > 0.20:  # >20% low confidence
+        if metrics and metrics.low_confidence_rate > 0.20:  # >20% low confidence  # noqa: PLR2004 (Threshold value)
+
             return True, f"High low-confidence rate ({metrics.low_confidence_rate:.2%})"
 
         return False, "Model performance acceptable"
 
-    async def get_training_data(self, limit: Optional[int] = None) -> list[tuple[str, str]]:
-        """
-        Get training data from feedback corrections.
+    async def get_training_data(self, limit: int | None = None) -> list[tuple[str, str]]:
+        """Get training data from feedback corrections.
 
         Time Complexity: O(n) where n is number of corrections
 
@@ -288,30 +290,30 @@ class OnlineLearner:
 
         Returns:
             List of (input, label) tuples for training
+
         """
         if not self._initialized:
             await self.initialize()
 
         # Get corrections
         corrections = await self.store.get_corrections_for_training(
-            model_version=self.model_version, limit=limit
+            model_version=self.model_version,
+            limit=limit,
         )
 
         # Convert to training format
-        training_data = [
+        return [
             (feedback.original_input, feedback.get_training_label()) for feedback in corrections
         ]
 
-        return training_data
-
     async def get_performance_summary(self) -> dict:
-        """
-        Get summary of model performance.
+        """Get summary of model performance.
 
         Time Complexity: O(n) where n is feedback entries
 
         Returns:
             Performance summary dictionary
+
         """
         if not self._initialized:
             await self.initialize()
@@ -322,7 +324,8 @@ class OnlineLearner:
         # Get feedback counts
         total_feedback = await self.store.get_feedback_count(model_version=self.model_version)
         recent_feedback = await self.store.get_feedback_count(
-            model_version=self.model_version, since=datetime.now(tz=timezone.utc) - timedelta(days=7)
+            model_version=self.model_version,
+            since=datetime.now(tz=UTC) - timedelta(days=7),
         )
 
         # Check retraining status

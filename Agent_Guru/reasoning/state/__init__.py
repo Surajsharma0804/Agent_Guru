@@ -1,5 +1,4 @@
-"""
-Conversation State Management.
+"""Conversation State Management.
 
 This module provides conversation state tracking and management.
 """

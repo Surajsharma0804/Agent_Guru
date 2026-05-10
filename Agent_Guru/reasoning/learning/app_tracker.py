@@ -1,5 +1,4 @@
-"""
-Application usage tracking system.
+"""Application usage tracking system.
 
 This module tracks application usage patterns including open count, duration,
 and usage patterns to enable context-aware suggestions.
@@ -16,16 +15,14 @@ Date: 2024
 import asyncio
 import json
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 from Agent_Guru.reasoning.models.behavioral import AppUsage
 
 
 class AppTracker:
-    """
-    Tracks application usage patterns per user.
+    """Tracks application usage patterns per user.
 
     Time Complexity: O(1) for tracking, O(n log n) for analysis
     Space Complexity: O(n) where n is number of apps
@@ -36,14 +33,15 @@ class AppTracker:
         >>> await tracker.track_app_open("user123", "spotify", "Spotify")
         >>> await tracker.track_app_close("user123", "spotify", duration=300.0)
         >>> usage = await tracker.get_app_usage("user123", "spotify")
+
     """
 
-    def __init__(self, db_path: str = "behavioral.db"):
-        """
-        Initialize app tracker.
+    def __init__(self, db_path: str = "behavioral.db") -> None:
+        """Initialize app tracker.
 
         Args:
             db_path: Path to SQLite database
+
         """
         self.db_path = Path(db_path)
         self._lock = asyncio.Lock()
@@ -81,7 +79,7 @@ class AppTracker:
                         updated_at TEXT NOT NULL,
                         PRIMARY KEY (user_id, app_id)
                     )
-                """
+                """,
                 )
 
                 # Create indexes
@@ -89,19 +87,19 @@ class AppTracker:
                     """
                     CREATE INDEX IF NOT EXISTS idx_app_user_id
                     ON app_usage(user_id)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_app_open_count
                     ON app_usage(user_id, open_count DESC)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_app_last_used
                     ON app_usage(user_id, last_used DESC)
-                """
+                """,
                 )
 
                 conn.commit()
@@ -111,10 +109,13 @@ class AppTracker:
             self._initialized = True
 
     async def track_app_open(
-        self, user_id: str, app_id: str, app_name: str, metadata: Optional[dict] = None
+        self,
+        user_id: str,
+        app_id: str,
+        app_name: str,
+        metadata: dict | None = None,
     ) -> AppUsage:
-        """
-        Track app open event.
+        """Track app open event.
 
         Time Complexity: O(1)
 
@@ -126,13 +127,14 @@ class AppTracker:
 
         Returns:
             Updated app usage
+
         """
         if not self._initialized:
             await self.initialize()
 
         # Record session start time
         session_key = (user_id, app_id)
-        self._active_sessions[session_key] = datetime.now(tz=timezone.utc)
+        self._active_sessions[session_key] = datetime.now(tz=UTC)
 
         async with self._lock:
             conn = sqlite3.connect(str(self.db_path))
@@ -153,7 +155,7 @@ class AppTracker:
                     # Update existing record
                     usage = self._row_to_usage(row)
                     usage.open_count += 1
-                    usage.last_used = datetime.now(tz=timezone.utc)
+                    usage.last_used = datetime.now(tz=UTC)
 
                     cursor.execute(
                         """
@@ -166,7 +168,7 @@ class AppTracker:
                         (
                             usage.open_count,
                             usage.last_used.isoformat(),
-                            datetime.now(tz=timezone.utc).isoformat(),
+                            datetime.now(tz=UTC).isoformat(),
                             user_id,
                             app_id,
                         ),
@@ -180,12 +182,12 @@ class AppTracker:
                         open_count=1,
                         total_duration=0.0,
                         avg_duration=0.0,
-                        last_used=datetime.now(tz=timezone.utc),
+                        last_used=datetime.now(tz=UTC),
                         usage_patterns=[],
                         metadata=metadata or {},
                     )
 
-                    now = datetime.now(tz=timezone.utc).isoformat()
+                    now = datetime.now(tz=UTC).isoformat()
                     cursor.execute(
                         """
                         INSERT INTO app_usage (
@@ -215,10 +217,12 @@ class AppTracker:
                 conn.close()
 
     async def track_app_close(
-        self, user_id: str, app_id: str, duration: Optional[float] = None
+        self,
+        user_id: str,
+        app_id: str,
+        duration: float | None = None,
     ) -> AppUsage:
-        """
-        Track app close event.
+        """Track app close event.
 
         Time Complexity: O(1)
 
@@ -229,6 +233,7 @@ class AppTracker:
 
         Returns:
             Updated app usage
+
         """
         if not self._initialized:
             await self.initialize()
@@ -237,7 +242,7 @@ class AppTracker:
         session_key = (user_id, app_id)
         if duration is None and session_key in self._active_sessions:
             start_time = self._active_sessions[session_key]
-            duration = (datetime.now(tz=timezone.utc) - start_time).total_seconds()
+            duration = (datetime.now(tz=UTC) - start_time).total_seconds()
             del self._active_sessions[session_key]
 
         if duration is None:
@@ -276,7 +281,7 @@ class AppTracker:
                             usage.total_duration,
                             usage.avg_duration,
                             usage.last_used.isoformat(),
-                            datetime.now(tz=timezone.utc).isoformat(),
+                            datetime.now(tz=UTC).isoformat(),
                             user_id,
                             app_id,
                         ),
@@ -284,52 +289,50 @@ class AppTracker:
 
                     conn.commit()
                     return usage
-                else:
-                    # No existing record, create minimal one
-                    usage = AppUsage(
-                        app_id=app_id,
-                        user_id=user_id,
-                        app_name=app_id,  # Use app_id as name
-                        open_count=1,
-                        total_duration=duration,
-                        avg_duration=duration,
-                        last_used=datetime.now(tz=timezone.utc),
-                        usage_patterns=[],
-                        metadata={},
-                    )
+                # No existing record, create minimal one
+                usage = AppUsage(
+                    app_id=app_id,
+                    user_id=user_id,
+                    app_name=app_id,  # Use app_id as name
+                    open_count=1,
+                    total_duration=duration,
+                    avg_duration=duration,
+                    last_used=datetime.now(tz=UTC),
+                    usage_patterns=[],
+                    metadata={},
+                )
 
-                    now = datetime.now(tz=timezone.utc).isoformat()
-                    cursor.execute(
-                        """
+                now = datetime.now(tz=UTC).isoformat()
+                cursor.execute(
+                    """
                         INSERT INTO app_usage (
                             app_id, user_id, app_name, open_count,
                             total_duration, avg_duration, last_used,
                             usage_patterns, metadata, created_at, updated_at
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                        (
-                            app_id,
-                            user_id,
-                            usage.app_name,
-                            usage.open_count,
-                            usage.total_duration,
-                            usage.avg_duration,
-                            usage.last_used.isoformat(),
-                            json.dumps(usage.usage_patterns),
-                            json.dumps(usage.metadata),
-                            now,
-                            now,
-                        ),
-                    )
+                    (
+                        app_id,
+                        user_id,
+                        usage.app_name,
+                        usage.open_count,
+                        usage.total_duration,
+                        usage.avg_duration,
+                        usage.last_used.isoformat(),
+                        json.dumps(usage.usage_patterns),
+                        json.dumps(usage.metadata),
+                        now,
+                        now,
+                    ),
+                )
 
-                    conn.commit()
-                    return usage
+                conn.commit()
+                return usage
             finally:
                 conn.close()
 
-    async def get_app_usage(self, user_id: str, app_id: str) -> Optional[AppUsage]:
-        """
-        Get usage data for a specific app.
+    async def get_app_usage(self, user_id: str, app_id: str) -> AppUsage | None:
+        """Get usage data for a specific app.
 
         Time Complexity: O(1) with index
 
@@ -339,6 +342,7 @@ class AppTracker:
 
         Returns:
             App usage or None
+
         """
         if not self._initialized:
             await self.initialize()
@@ -360,10 +364,12 @@ class AppTracker:
                 conn.close()
 
     async def get_most_used_apps(
-        self, user_id: str, limit: int = 10, min_open_count: int = 1
+        self,
+        user_id: str,
+        limit: int = 10,
+        min_open_count: int = 1,
     ) -> list[AppUsage]:
-        """
-        Get most frequently used apps.
+        """Get most frequently used apps.
 
         Time Complexity: O(n log n) for sorting
 
@@ -374,6 +380,7 @@ class AppTracker:
 
         Returns:
             List of app usage sorted by open count
+
         """
         if not self._initialized:
             await self.initialize()
@@ -397,10 +404,12 @@ class AppTracker:
                 conn.close()
 
     async def get_recently_used_apps(
-        self, user_id: str, since: Optional[datetime] = None, limit: int = 20
+        self,
+        user_id: str,
+        since: datetime | None = None,
+        limit: int = 20,
     ) -> list[AppUsage]:
-        """
-        Get recently used apps.
+        """Get recently used apps.
 
         Time Complexity: O(n log n) for sorting
 
@@ -411,12 +420,13 @@ class AppTracker:
 
         Returns:
             List of app usage sorted by last used
+
         """
         if not self._initialized:
             await self.initialize()
 
         if since is None:
-            since = datetime.now(tz=timezone.utc) - timedelta(days=7)
+            since = datetime.now(tz=UTC) - timedelta(days=7)
 
         async with self._lock:
             conn = sqlite3.connect(str(self.db_path))
@@ -437,8 +447,7 @@ class AppTracker:
                 conn.close()
 
     async def analyze_usage(self, user_id: str) -> dict:
-        """
-        Analyze app usage patterns.
+        """Analyze app usage patterns.
 
         Time Complexity: O(n) where n is number of apps
 
@@ -447,6 +456,7 @@ class AppTracker:
 
         Returns:
             Analysis dictionary with statistics
+
         """
         if not self._initialized:
             await self.initialize()
@@ -505,8 +515,7 @@ class AppTracker:
                 conn.close()
 
     async def get_app_count(self, user_id: str) -> int:
-        """
-        Get total number of tracked apps for a user.
+        """Get total number of tracked apps for a user.
 
         Time Complexity: O(1) with index
 
@@ -515,6 +524,7 @@ class AppTracker:
 
         Returns:
             Number of tracked apps
+
         """
         if not self._initialized:
             await self.initialize()

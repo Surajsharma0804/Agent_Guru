@@ -1,5 +1,4 @@
-"""
-Web search tool for searching the internet.
+"""Web search tool for searching the internet.
 
 Supports multiple search engines: Google, Bing, DuckDuckGo.
 """
@@ -54,7 +53,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class WebSearchTool(Tool):
     """Tool for web searching."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute web search.
 
         Args:
@@ -64,6 +63,7 @@ class WebSearchTool(Tool):
 
         Returns:
             Execution result with search results
+
         """
         query = kwargs["query"]
         engine = kwargs.get("engine", "google").lower()
@@ -85,7 +85,8 @@ class WebSearchTool(Tool):
             }
 
         # Validate max_results
-        if max_results <= 0 or max_results > 100:
+        if max_results <= 0 or max_results > 100:  # noqa: PLR2004 - Percentage/large threshold
+
             return {
                 "success": False,
                 "error": "max_results must be between 1 and 100",
@@ -119,5 +120,5 @@ class WebSearchTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to perform web search: {str(e)}",
+                "error": f"Failed to perform web search: {e!s}",
             }

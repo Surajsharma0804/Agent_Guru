@@ -1,5 +1,4 @@
-"""
-Cache Manager - LRU cache for policy evaluation results.
+"""Cache Manager - LRU cache for policy evaluation results.
 
 Provides O(1) cache lookups with configurable TTL and LRU eviction.
 Tracks hit/miss/eviction statistics.
@@ -18,7 +17,7 @@ import json
 import logging
 import time
 from collections import OrderedDict
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.policy.models import AccessDecision, CacheStats
 
@@ -44,11 +43,14 @@ class CacheManager:
         Args:
             max_size: Maximum number of entries before LRU eviction.
             default_ttl: Default time-to-live in seconds.
+
         """
         if max_size < 1:
-            raise ValueError("max_size must be >= 1")
+            msg = "max_size must be >= 1"
+            raise ValueError(msg)
         if default_ttl < 1:
-            raise ValueError("default_ttl must be >= 1")
+            msg = "default_ttl must be >= 1"
+            raise ValueError(msg)
 
         self.max_size = max_size
         self.default_ttl = default_ttl
@@ -64,7 +66,7 @@ class CacheManager:
     # Core operations
     # ------------------------------------------------------------------
 
-    def get(self, cache_key: str) -> Optional[AccessDecision]:
+    def get(self, cache_key: str) -> AccessDecision | None:
         """Return cached decision if valid, else None.
 
         Moves the entry to the end (most recently used) on hit.
@@ -92,7 +94,7 @@ class CacheManager:
         self,
         cache_key: str,
         decision: AccessDecision,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
     ) -> None:
         """Cache a decision.
 
@@ -112,7 +114,7 @@ class CacheManager:
 
         self._cache[cache_key] = (decision, expiry)
 
-    def invalidate(self, pattern: Optional[str] = None) -> int:
+    def invalidate(self, pattern: str | None = None) -> int:
         """Invalidate cache entries.
 
         Args:
@@ -123,6 +125,7 @@ class CacheManager:
             Number of entries invalidated.
 
         Validates: Requirement 7.4
+
         """
         if pattern is None:
             count = len(self._cache)
@@ -170,8 +173,8 @@ class CacheManager:
         resource_id: str,
         action: str,
         context: dict[str, Any],
-        principal_attrs: Optional[dict[str, Any]] = None,
-        resource_attrs: Optional[dict[str, Any]] = None,
+        principal_attrs: dict[str, Any] | None = None,
+        resource_attrs: dict[str, Any] | None = None,
     ) -> str:
         """Compute a stable cache key from request parameters.
 
@@ -188,6 +191,7 @@ class CacheManager:
 
         Returns:
             SHA256 hex string cache key.
+
         """
         data = {
             "principal_id": principal_id,

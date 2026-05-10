@@ -1,5 +1,4 @@
-"""
-Task data models for structured LLM output parsing.
+"""Task data models for structured LLM output parsing.
 
 This module defines the Task and TaskStep data models that represent
 the structured output from the Semantic LLM Interpreter. These models
@@ -8,16 +7,15 @@ are used to convert natural language requests into executable tasks.
 Requirements: 16.2, 17.2, 17.3, 17.5, 28.1, 28.2
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 
 class TaskType(str, Enum):
-    """
-    Type of task to be executed.
+    """Type of task to be executed.
 
     - single_step: One action to complete (e.g., "set timer", "play music")
     - multi_step: 2-5 sequential actions (e.g., "check weather and remind me if raining")
@@ -32,8 +30,7 @@ class TaskType(str, Enum):
 
 
 class TaskStatus(str, Enum):
-    """
-    Execution status of a task or task step.
+    """Execution status of a task or task step.
 
     - pending: Not yet started
     - running: Currently executing
@@ -50,8 +47,7 @@ class TaskStatus(str, Enum):
 
 
 class TaskStep(BaseModel):
-    """
-    A single step in a task execution plan.
+    """A single step in a task execution plan.
 
     Each step represents one atomic action that can be executed by a tool.
     Steps can depend on previous steps and have their own status tracking.
@@ -68,6 +64,7 @@ class TaskStep(BaseModel):
         error: Error message if execution failed
         started_at: Timestamp when execution started
         completed_at: Timestamp when execution completed
+
     """
 
     step_id: int = Field(..., ge=1, description="Step ID (1-indexed)")
@@ -76,17 +73,19 @@ class TaskStep(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict, description="Tool parameters")
     depends_on: list[int] = Field(default_factory=list, description="Dependent step IDs")
     estimated_duration: float = Field(
-        default=1.0, gt=0, description="Estimated duration in seconds"
+        default=1.0,
+        gt=0,
+        description="Estimated duration in seconds",
     )
     status: TaskStatus = Field(default=TaskStatus.PENDING, description="Execution status")
-    result: Optional[Any] = Field(default=None, description="Execution result")
-    error: Optional[str] = Field(default=None, description="Error message if failed")
-    started_at: Optional[datetime] = Field(default=None, description="Start timestamp")
-    completed_at: Optional[datetime] = Field(default=None, description="Completion timestamp")
+    result: Any | None = Field(default=None, description="Execution result")
+    error: str | None = Field(default=None, description="Error message if failed")
+    started_at: datetime | None = Field(default=None, description="Start timestamp")
+    completed_at: datetime | None = Field(default=None, description="Completion timestamp")
 
     @field_validator("depends_on")
     @classmethod
-    def validate_depends_on(cls, v: list[int], info) -> list[int]:
+    def validate_depends_on(cls, v: list[int], info) -> list[int]:  # noqa: ANN001
         """Validate that dependencies reference valid step IDs."""
         if v:
             step_id = info.data.get("step_id")
@@ -94,9 +93,12 @@ class TaskStep(BaseModel):
                 # Dependencies must reference earlier steps
                 for dep_id in v:
                     if dep_id >= step_id:
-                        raise ValueError(
+                        msg = (
                             f"Step {step_id} cannot depend on step {dep_id} "
                             f"(dependencies must reference earlier steps)"
+                        )
+                        raise ValueError(
+                            msg,
                         )
         return v
 
@@ -104,14 +106,15 @@ class TaskStep(BaseModel):
     @classmethod
     def validate_duration(cls, v: float) -> float:
         """Validate duration is reasonable (0.1s to 60s)."""
-        if not 0.1 <= v <= 60.0:
-            raise ValueError(f"estimated_duration must be 0.1-60.0 seconds, got {v}")
+        if not 0.1 <= v <= 60.0:  # noqa: PLR2004 - Threshold
+
+            msg = f"estimated_duration must be 0.1-60.0 seconds, got {v}"
+            raise ValueError(msg)
         return v
 
 
 class Task(BaseModel):
-    """
-    Structured task representation from LLM output.
+    """Structured task representation from LLM output.
 
     A Task represents a complete user request that has been parsed and
     structured by the Semantic LLM Interpreter. It contains all information
@@ -132,64 +135,81 @@ class Task(BaseModel):
         started_at: Timestamp when execution started
         completed_at: Timestamp when execution completed
         error: Error message if task failed
+
     """
 
     goal: str = Field(..., min_length=1, description="Task goal description")
     task_type: TaskType = Field(..., description="Type of task")
     entities: dict[str, Any] = Field(default_factory=dict, description="Extracted entities")
     steps: list[TaskStep] = Field(
-        ..., min_length=1, max_length=5, description="Execution steps (1-5)"
+        ...,
+        min_length=1,
+        max_length=5,
+        description="Execution steps (1-5)",
     )
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score (0.0-1.0)")
     requires_confirmation: bool = Field(default=False, description="Requires user confirmation")
     estimated_duration: float = Field(..., gt=0, description="Total estimated duration in seconds")
     status: TaskStatus = Field(default=TaskStatus.PENDING, description="Execution status")
     retry_count: int = Field(default=0, ge=0, le=3, description="Retry attempts (max 3)")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Creation timestamp")
-    started_at: Optional[datetime] = Field(default=None, description="Start timestamp")
-    completed_at: Optional[datetime] = Field(default=None, description="Completion timestamp")
-    error: Optional[str] = Field(default=None, description="Error message if failed")
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="Creation timestamp",
+    )
+    started_at: datetime | None = Field(default=None, description="Start timestamp")
+    completed_at: datetime | None = Field(default=None, description="Completion timestamp")
+    error: str | None = Field(default=None, description="Error message if failed")
 
     @field_validator("steps")
     @classmethod
-    def validate_steps(cls, v: list[TaskStep], info) -> list[TaskStep]:
+    def validate_steps(cls, v: list[TaskStep], info) -> list[TaskStep]:  # noqa: ANN001
         """Validate steps are properly structured."""
         if not v:
-            raise ValueError("Task must have at least one step")
+            msg = "Task must have at least one step"
+            raise ValueError(msg)
 
-        if len(v) > 5:
-            raise ValueError(f"Task cannot have more than 5 steps, got {len(v)}")
+        if len(v) > 5:  # noqa: PLR2004 - Small integer threshold
+
+            msg = f"Task cannot have more than 5 steps, got {len(v)}"
+            raise ValueError(msg)
 
         # Validate step IDs are sequential starting from 1
         expected_ids = list(range(1, len(v) + 1))
         actual_ids = [step.step_id for step in v]
         if actual_ids != expected_ids:
-            raise ValueError(
+            msg = (
                 f"Step IDs must be sequential starting from 1, "
                 f"expected {expected_ids}, got {actual_ids}"
+            )
+            raise ValueError(
+                msg,
             )
 
         # Validate no circular dependencies
         for step in v:
             if step.step_id in step.depends_on:
-                raise ValueError(f"Step {step.step_id} cannot depend on itself")
+                msg = f"Step {step.step_id} cannot depend on itself"
+                raise ValueError(msg)
 
         # Validate task type consistency
         task_type = info.data.get("task_type")
         if task_type is not None:
             # Single-step tasks must have exactly 1 step
             if task_type == TaskType.SINGLE_STEP and len(v) != 1:
-                raise ValueError(f"single_step task must have exactly 1 step, got {len(v)}")
+                msg = f"single_step task must have exactly 1 step, got {len(v)}"
+                raise ValueError(msg)
 
             # Multi-step tasks must have 2-5 steps
-            if task_type == TaskType.MULTI_STEP and not 2 <= len(v) <= 5:
-                raise ValueError(f"multi_step task must have 2-5 steps, got {len(v)}")
+            if task_type == TaskType.MULTI_STEP and not 2 <= len(v) <= 5:  # noqa: PLR2004 - Small integer threshold
+
+                msg = f"multi_step task must have 2-5 steps, got {len(v)}"
+                raise ValueError(msg)
 
         return v
 
     @field_validator("estimated_duration")
     @classmethod
-    def validate_total_duration(cls, v: float, info) -> float:
+    def validate_total_duration(cls, v: float, info) -> float:  # noqa: ANN001
         """Validate total duration matches sum of step durations."""
         steps = info.data.get("steps", [])
 
@@ -197,14 +217,19 @@ class Task(BaseModel):
             step_total = sum(step.estimated_duration for step in steps)
             # Allow 10% tolerance for rounding
             if abs(v - step_total) > step_total * 0.1:
-                raise ValueError(
+                msg = (
                     f"estimated_duration ({v}s) should approximately match "
                     f"sum of step durations ({step_total}s)"
                 )
+                raise ValueError(
+                    msg,
+                )
 
         # Validate duration is reasonable (0.1s to 300s = 5 minutes)
-        if not 0.1 <= v <= 300.0:
-            raise ValueError(f"estimated_duration must be 0.1-300.0 seconds, got {v}")
+        if not 0.1 <= v <= 300.0:  # noqa: PLR2004 - Percentage/large threshold
+
+            msg = f"estimated_duration must be 0.1-300.0 seconds, got {v}"
+            raise ValueError(msg)
 
         return v
 
@@ -212,46 +237,51 @@ class Task(BaseModel):
     @classmethod
     def validate_retry_count(cls, v: int) -> int:
         """Validate retry count is within limits."""
-        if v > 3:
-            raise ValueError(f"retry_count cannot exceed 3, got {v}")
+        if v > 3:  # noqa: PLR2004 - Small integer threshold
+
+            msg = f"retry_count cannot exceed 3, got {v}"
+            raise ValueError(msg)
         return v
 
     def increment_retry(self) -> None:
         """Increment retry count (max 3)."""
-        if self.retry_count >= 3:
-            raise ValueError("Maximum retry count (3) exceeded")
+        if self.retry_count >= 3:  # noqa: PLR2004 - Small integer threshold
+
+            msg = "Maximum retry count (3) exceeded"
+            raise ValueError(msg)
         self.retry_count += 1
 
     def mark_started(self) -> None:
         """Mark task as started."""
         self.status = TaskStatus.RUNNING
-        self.started_at = datetime.now(tz=timezone.utc)
+        self.started_at = datetime.now(tz=UTC)
 
     def mark_completed(self) -> None:
         """Mark task as completed."""
         self.status = TaskStatus.COMPLETED
-        self.completed_at = datetime.now(tz=timezone.utc)
+        self.completed_at = datetime.now(tz=UTC)
 
     def mark_failed(self, error: str) -> None:
         """Mark task as failed with error message."""
         self.status = TaskStatus.FAILED
-        self.completed_at = datetime.now(tz=timezone.utc)
+        self.completed_at = datetime.now(tz=UTC)
         self.error = error
 
     def mark_cancelled(self) -> None:
         """Mark task as cancelled."""
         self.status = TaskStatus.CANCELLED
-        self.completed_at = datetime.now(tz=timezone.utc)
+        self.completed_at = datetime.now(tz=UTC)
 
     def can_retry(self) -> bool:
         """Check if task can be retried."""
-        return self.status == TaskStatus.FAILED and self.retry_count < 3
+        return self.status == TaskStatus.FAILED and self.retry_count < 3  # noqa: PLR2004 - Small integer threshold
+
 
     def is_complete(self) -> bool:
         """Check if task is in a terminal state."""
         return self.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]
 
-    def get_next_pending_step(self) -> Optional[TaskStep]:
+    def get_next_pending_step(self) -> TaskStep | None:
         """Get the next pending step that has all dependencies completed."""
         for step in self.steps:
             if step.status != TaskStatus.PENDING:

@@ -1,5 +1,4 @@
-"""
-Summarization tools for text, articles, and documents.
+"""Summarization tools for text, articles, and documents.
 
 Uses LLM for intelligent summarization.
 """
@@ -46,7 +45,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class SummarizeTextTool(Tool):
     """Tool for summarizing text."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute text summarization.
 
         Args:
@@ -55,6 +54,7 @@ class SummarizeTextTool(Tool):
 
         Returns:
             Execution result with summary
+
         """
         text = kwargs["text"]
         max_length = kwargs.get("max_length", 100)
@@ -67,7 +67,8 @@ class SummarizeTextTool(Tool):
             }
 
         # Validate max_length
-        if max_length <= 0 or max_length > 1000:
+        if max_length <= 0 or max_length > 1000:  # noqa: PLR2004 - Percentage/large threshold
+
             return {
                 "success": False,
                 "error": "max_length must be between 1 and 1000",
@@ -79,10 +80,7 @@ class SummarizeTextTool(Tool):
             words = text.split()
             word_count = len(words)
 
-            if word_count <= max_length:
-                summary = text
-            else:
-                summary = " ".join(words[:max_length]) + "..."
+            summary = text if word_count <= max_length else " ".join(words[:max_length]) + "..."
 
             return {
                 "success": True,
@@ -99,7 +97,7 @@ class SummarizeTextTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to summarize text: {str(e)}",
+                "error": f"Failed to summarize text: {e!s}",
             }
 
 
@@ -134,7 +132,7 @@ class SummarizeTextTool(Tool):
 class SummarizeArticleTool(Tool):
     """Tool for summarizing articles."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute article summarization.
 
         Args:
@@ -143,6 +141,7 @@ class SummarizeArticleTool(Tool):
 
         Returns:
             Execution result with summary
+
         """
         url = kwargs["url"]
         max_length = kwargs.get("max_length", 150)
@@ -155,7 +154,8 @@ class SummarizeArticleTool(Tool):
             }
 
         # Validate max_length
-        if max_length <= 0 or max_length > 1000:
+        if max_length <= 0 or max_length > 1000:  # noqa: PLR2004 - Percentage/large threshold
+
             return {
                 "success": False,
                 "error": "max_length must be between 1 and 1000",
@@ -180,7 +180,7 @@ class SummarizeArticleTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to summarize article: {str(e)}",
+                "error": f"Failed to summarize article: {e!s}",
             }
 
 
@@ -215,7 +215,7 @@ class SummarizeArticleTool(Tool):
 class SummarizeDocumentTool(Tool):
     """Tool for summarizing documents."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute document summarization.
 
         Args:
@@ -224,6 +224,7 @@ class SummarizeDocumentTool(Tool):
 
         Returns:
             Execution result with summary
+
         """
         file_path = kwargs["file_path"]
         max_length = kwargs.get("max_length", 200)
@@ -236,7 +237,8 @@ class SummarizeDocumentTool(Tool):
             }
 
         # Validate max_length
-        if max_length <= 0 or max_length > 1000:
+        if max_length <= 0 or max_length > 1000:  # noqa: PLR2004 - Percentage/large threshold
+
             return {
                 "success": False,
                 "error": "max_length must be between 1 and 1000",
@@ -261,5 +263,5 @@ class SummarizeDocumentTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to summarize document: {str(e)}",
+                "error": f"Failed to summarize document: {e!s}",
             }

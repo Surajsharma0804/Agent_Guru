@@ -1,5 +1,4 @@
-"""
-Convert PyTorch DeBERTa-v3 model to ONNX format for optimized inference.
+"""Convert PyTorch DeBERTa-v3 model to ONNX format for optimized inference.
 
 This script converts the trained PyTorch DeBERTa-v3-large model to ONNX format
 with optimizations for GPU inference using ONNX Runtime.
@@ -37,9 +36,8 @@ def convert_to_onnx(
         output_path: Path to save ONNX model
         opset_version: ONNX opset version (14 recommended)
         optimize: Whether to apply ONNX optimizations
-    """
-    print(f"Loading PyTorch DeBERTa-v3 model from: {model_path}")
 
+    """
     # Load model and tokenizer (DeBERTa-v3-large)
     model = DebertaV2ForSequenceClassification.from_pretrained(model_path)  # nosec B615
     tokenizer = DebertaV2Tokenizer.from_pretrained(model_path)  # nosec B615
@@ -72,8 +70,6 @@ def convert_to_onnx(
         "logits": {0: "batch_size"},
     }
 
-    print(f"Converting to ONNX (opset {opset_version})...")
-
     # Export to ONNX (no_grad disables gradient tracking during the forward pass)
     with torch.no_grad():
         torch.onnx.export(
@@ -88,15 +84,11 @@ def convert_to_onnx(
             export_params=True,  # Export model parameters
         )
 
-    print(f"✓ ONNX model saved to: {output_path}")
-
     # Optimize ONNX model if requested
     if optimize:
         try:
             import onnx
             from onnxruntime.transformers import optimizer  # type: ignore
-
-            print("Optimizing ONNX model...")
 
             # Load and verify ONNX model before optimization
             onnx_model = onnx.load(output_path)
@@ -113,14 +105,10 @@ def convert_to_onnx(
             # Save optimized model
             optimized_model.save_model_to_file(output_path)
 
-            print("✓ ONNX model optimized")
-
         except ImportError:
-            print("⚠ ONNX optimizer not available, skipping optimization")
-            print("  Install with: pip install onnx onnxruntime-tools")
+            pass
 
     # Verify ONNX model
-    print("Verifying ONNX model...")
     verify_onnx_model(output_path, tokenizer)
 
 
@@ -130,6 +118,7 @@ def verify_onnx_model(onnx_path: str, tokenizer: DebertaV2Tokenizer) -> None:
     Args:
         onnx_path: Path to ONNX model
         tokenizer: DeBERTa-v3 tokenizer for preprocessing
+
     """
     try:
         import numpy as np
@@ -156,19 +145,13 @@ def verify_onnx_model(onnx_path: str, tokenizer: DebertaV2Tokenizer) -> None:
 
         # Run inference
         ort_outputs = session.run(None, ort_inputs)
-        logits = ort_outputs[0]
-
-        print("✓ ONNX model verification passed")
-        print(f"  Input: {test_text}")
-        print(f"  Output shape: {logits.shape}")
-        print(f"  Execution providers: {session.get_providers()}")
+        ort_outputs[0]
 
     except ImportError:
-        print("⚠ ONNX Runtime not available, skipping verification")
-        print("  Install with: pip install onnxruntime-gpu")
+        pass
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Convert PyTorch model to ONNX format")
     parser.add_argument(
@@ -208,13 +191,6 @@ def main():
         opset_version=args.opset_version,
         optimize=not args.no_optimize,
     )
-
-    print("\n✓ Conversion complete!")
-    print("\nTo use the ONNX model:")
-    print("  from Agent_Guru.reasoning.intent.neural_classifier import NeuralIntentClassifier")
-    print("  classifier = NeuralIntentClassifier()")
-    print("  classifier.load_model()")
-    print("  result = classifier.classify('set timer for 5 minutes')")
 
 
 if __name__ == "__main__":

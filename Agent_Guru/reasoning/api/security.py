@@ -1,5 +1,4 @@
-"""
-API security utilities for input validation and sanitization.
+"""API security utilities for input validation and sanitization.
 
 This module implements comprehensive input validation and sanitization
 to prevent injection attacks and ensure data integrity.
@@ -29,11 +28,11 @@ Version: 1.0.0
 
 import html
 import re
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from fastapi import HTTPException, Request, status
-from pydantic import BaseModel, Field, validator, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 logger = structlog.get_logger(__name__)
 
@@ -108,6 +107,7 @@ class SecurityValidator:
         Example:
             >>> validator = SecurityValidator()
             >>> clean = validator.validate_string("user input", "text")
+
         """
         # Check length
         if len(value) > max_length:
@@ -189,6 +189,7 @@ class SecurityValidator:
 
         Raises:
             HTTPException: If validation fails
+
         """
         if current_depth >= max_depth:
             logger.warning(
@@ -239,6 +240,7 @@ class SecurityValidator:
 
         Raises:
             HTTPException: If validation fails
+
         """
         if len(value) > max_length:
             logger.warning(
@@ -284,6 +286,7 @@ async def validate_request_size(request: Request) -> None:
         >>> async def check_request_size(request: Request, call_next):
         >>>     await validate_request_size(request)
         >>>     return await call_next(request)
+
     """
     content_length = request.headers.get("content-length")
 
@@ -310,40 +313,43 @@ class SecureProcessRequest(BaseModel):
         user_id: User identifier (validated)
         source: Input source (validated)
         metadata: Optional metadata (validated)
+
     """
 
     text: str = Field(..., max_length=MAX_STRING_LENGTH)
     user_id: str = Field(..., max_length=100)
     source: str = Field(..., max_length=50)
-    metadata: Optional[dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
 
     @field_validator("text")
     @classmethod
-    def validate_text(cls, v):
+    def validate_text(cls, v):  # noqa: ANN001
         """Validate and sanitize text input."""
         return SecurityValidator.validate_string(v, "text")
 
     @field_validator("user_id")
     @classmethod
-    def validate_user_id(cls, v):
+    def validate_user_id(cls, v):  # noqa: ANN001
         """Validate user_id format."""
         # Only allow alphanumeric and underscore
         if not re.match(r"^[a-zA-Z0-9_-]+$", v):
-            raise ValueError("user_id contains invalid characters")
+            msg = "user_id contains invalid characters"
+            raise ValueError(msg)
         return v
 
     @field_validator("source")
     @classmethod
-    def validate_source(cls, v):
+    def validate_source(cls, v):  # noqa: ANN001
         """Validate source value."""
         allowed_sources = ["text", "voice", "system_event"]
         if v not in allowed_sources:
-            raise ValueError(f"source must be one of {allowed_sources}")
+            msg = f"source must be one of {allowed_sources}"
+            raise ValueError(msg)
         return v
 
     @field_validator("metadata")
     @classmethod
-    def validate_metadata(cls, v):
+    def validate_metadata(cls, v):  # noqa: ANN001
         """Validate metadata structure."""
         if v is not None:
             return SecurityValidator.validate_dict(v, "metadata")
@@ -371,7 +377,7 @@ CSP_HEADERS = {
 }
 
 
-def add_security_headers(response):
+def add_security_headers(response):  # noqa: ANN001
     """Add security headers to response.
 
     Args:
@@ -385,6 +391,7 @@ def add_security_headers(response):
         >>> async def add_headers(request: Request, call_next):
         >>>     response = await call_next(request)
         >>>     return add_security_headers(response)
+
     """
     for header, value in CSP_HEADERS.items():
         response.headers[header] = value

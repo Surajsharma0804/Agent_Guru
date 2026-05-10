@@ -1,6 +1,4 @@
-"""
-Weather tool for querying weather information.
-"""
+"""Weather tool for querying weather information."""
 
 from typing import Any
 
@@ -40,7 +38,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class WeatherTool(Tool):
     """Tool for querying weather information."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute weather query.
 
         Args:
@@ -49,6 +47,7 @@ class WeatherTool(Tool):
 
         Returns:
             Execution result with weather data
+
         """
         location = kwargs["location"]
         units = kwargs.get("units", "celsius")

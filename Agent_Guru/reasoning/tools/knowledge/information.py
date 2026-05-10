@@ -1,5 +1,4 @@
-"""
-Information tools for question answering, definitions, calculations, and unit conversions.
+"""Information tools for question answering, definitions, calculations, and unit conversions.
 
 Provides access to knowledge bases and computational tools.
 """
@@ -25,7 +24,7 @@ from Agent_Guru.reasoning.tools.registry import tool
             type=ToolParameterType.STRING,
             description="Question to answer",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=1500,
@@ -39,7 +38,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class QuestionAnswerTool(Tool):
     """Tool for answering questions."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute question answering.
 
         Args:
@@ -47,6 +46,7 @@ class QuestionAnswerTool(Tool):
 
         Returns:
             Execution result with answer
+
         """
         question = kwargs["question"]
 
@@ -77,10 +77,8 @@ class QuestionAnswerTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to answer question: {str(e)}",
+                "error": f"Failed to answer question: {e!s}",
             }
-
-
 @tool(
     tool_id="knowledge.define_word",
     name="Define Word",
@@ -91,7 +89,7 @@ class QuestionAnswerTool(Tool):
             type=ToolParameterType.STRING,
             description="Word to define",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=500,
@@ -105,7 +103,7 @@ class QuestionAnswerTool(Tool):
 class DefineWordTool(Tool):
     """Tool for defining words."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute word definition.
 
         Args:
@@ -113,6 +111,7 @@ class DefineWordTool(Tool):
 
         Returns:
             Execution result with definition
+
         """
         word = kwargs["word"]
 
@@ -134,7 +133,7 @@ class DefineWordTool(Tool):
                             "part_of_speech": "noun",
                             "definition": f"Definition of '{word}' would appear here",
                             "example": f"Example usage of '{word}' in a sentence",
-                        }
+                        },
                     ],
                     "pronunciation": f"Pronunciation of '{word}'",
                     "message": f"Definition retrieved for: {word}",
@@ -145,10 +144,8 @@ class DefineWordTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to define word: {str(e)}",
+                "error": f"Failed to define word: {e!s}",
             }
-
-
 @tool(
     tool_id="knowledge.calculate",
     name="Calculate",
@@ -159,7 +156,7 @@ class DefineWordTool(Tool):
             type=ToolParameterType.STRING,
             description="Mathematical expression to evaluate",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=100,
@@ -173,7 +170,7 @@ class DefineWordTool(Tool):
 class CalculateTool(Tool):
     """Tool for calculations."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute calculation.
 
         Args:
@@ -181,6 +178,7 @@ class CalculateTool(Tool):
 
         Returns:
             Execution result with calculation result
+
         """
         expression = kwargs["expression"]
 
@@ -222,7 +220,8 @@ class CalculateTool(Tool):
                     return _SAFE_OPS[type(node.op)](_safe_eval(node.left), _safe_eval(node.right))
                 if isinstance(node, _ast.UnaryOp) and type(node.op) in _SAFE_OPS:
                     return _SAFE_OPS[type(node.op)](_safe_eval(node.operand))
-                raise ValueError(f"Unsupported expression node: {type(node).__name__}")
+                msg = f"Unsupported expression node: {type(node).__name__}"
+                raise ValueError(msg)
 
             result = _safe_eval(_ast.parse(expression, mode="eval").body)
 
@@ -235,18 +234,15 @@ class CalculateTool(Tool):
                 },
             }
 
-        except ZeroDivisionError:
+        except ZeroDivisionError as e:
             return {
                 "success": False,
                 "error": "Division by zero",
             }
-        except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to calculate: {str(e)}",
+                "error": f"Failed to calculate: {e!s}",
             }
-
-
 # Unit conversion factors (to base unit)
 UNIT_CONVERSIONS = {
     # Length (base: meter)
@@ -324,7 +320,7 @@ UNIT_CONVERSIONS = {
 class ConvertUnitsTool(Tool):
     """Tool for unit conversion."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute unit conversion.
 
         Args:
@@ -334,6 +330,7 @@ class ConvertUnitsTool(Tool):
 
         Returns:
             Execution result with converted value
+
         """
         value = kwargs["value"]
         from_unit = kwargs["from_unit"].lower()
@@ -404,5 +401,5 @@ class ConvertUnitsTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to convert units: {str(e)}",
+                "error": f"Failed to convert units: {e!s}",
             }

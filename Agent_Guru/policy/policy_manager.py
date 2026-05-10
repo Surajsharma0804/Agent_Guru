@@ -12,7 +12,7 @@ Provides a unified permission + safety API for all platforms.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.policy.engine import PolicyEngine
 from Agent_Guru.policy.models import (
@@ -42,6 +42,7 @@ class PolicyManager:
     Performance:
         - Permission check: <1ms (cached), <10ms (uncached)
         - Audit log write: async, non-blocking
+
     """
 
     def __init__(
@@ -55,14 +56,21 @@ class PolicyManager:
         self._cache_size = cache_size
         self._default_ttl = default_ttl
         self._enable_caching = enable_caching
-        self._engine: Optional[PolicyEngine] = None
-        self._permissions: Optional[PermissionManager] = None
+        self._engine: PolicyEngine | None = None
+        self._permissions: PermissionManager | None = None
         self._initialized = False
 
         # Operations that always require explicit confirmation
         self._dangerous_actions = {
-            "delete", "format", "wipe", "uninstall", "shutdown", "reboot",
-            "send_message", "make_call", "purchase",
+            "delete",
+            "format",
+            "wipe",
+            "uninstall",
+            "shutdown",
+            "reboot",
+            "send_message",
+            "make_call",
+            "purchase",
         }
 
     def initialize(self) -> None:
@@ -87,9 +95,9 @@ class PolicyManager:
         user_id: str,
         resource_id: str,
         action: str,
-        context: Optional[dict[str, Any]] = None,
-        roles: Optional[list[str]] = None,
-        attributes: Optional[dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
+        roles: list[str] | None = None,
+        attributes: dict[str, Any] | None = None,
     ) -> bool:
         """Check if a user has permission to perform an action on a resource.
 
@@ -103,6 +111,7 @@ class PolicyManager:
 
         Returns:
             True if access is allowed, False otherwise.
+
         """
         self._ensure_initialized()
         principal = Principal(
@@ -120,7 +129,10 @@ class PolicyManager:
         allowed = decision.effect == PolicyEffect.ALLOW
         logger.debug(
             "Permission check: user=%s resource=%s action=%s → %s",
-            user_id, resource_id, action, "ALLOW" if allowed else "DENY",
+            user_id,
+            resource_id,
+            action,
+            "ALLOW" if allowed else "DENY",
         )
         return allowed
 
@@ -129,12 +141,13 @@ class PolicyManager:
         user_id: str,
         resource_id: str,
         actions: list[str],
-        conditions: Optional[dict[str, Any]] = None,
+        conditions: dict[str, Any] | None = None,
     ) -> str:
         """Grant a user permission to perform actions on a resource.
 
         Returns:
             Policy ID of the created grant.
+
         """
         self._ensure_initialized()
         return self._permissions.grant(  # type: ignore[union-attr]
@@ -171,6 +184,7 @@ class PolicyManager:
 
         Returns:
             True if confirmation is required before proceeding.
+
         """
         return action.lower() in self._dangerous_actions
 
@@ -190,15 +204,17 @@ class PolicyManager:
 
         Returns:
             True if user confirmed, False if denied or timed out.
+
         """
         self._ensure_initialized()
         # Delegate to policy confirmation module if available
         try:
             from Agent_Guru.policy.confirmation import ConfirmationDialog
+
             dialog = ConfirmationDialog(timeout_seconds=timeout_seconds)
             return dialog.ask(message)
-        except Exception as exc:
-            logger.warning("Confirmation dialog unavailable: %s — defaulting to DENY", exc)
+        except Exception:
+            logger.exception("Confirmation dialog unavailable: %s — defaulting to DENY")
             return False
 
     # ------------------------------------------------------------------
@@ -207,15 +223,16 @@ class PolicyManager:
 
     def get_audit_log(
         self,
-        user_id: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        action: Optional[str] = None,
+        user_id: str | None = None,
+        resource_id: str | None = None,
+        action: str | None = None,
         limit: int = 100,
     ) -> list[Any]:
         """Query the audit log for policy decisions.
 
         Returns:
             List of AuditRecord objects.
+
         """
         self._ensure_initialized()
         return self._engine.query_audit_logs(  # type: ignore[union-attr]
@@ -240,4 +257,5 @@ class PolicyManager:
 
     def _ensure_initialized(self) -> None:
         if not self._initialized:
-            raise RuntimeError("PolicyManager not initialized. Call initialize() first.")
+            msg = "PolicyManager not initialized. Call initialize() first."
+            raise RuntimeError(msg)

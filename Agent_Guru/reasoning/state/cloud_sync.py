@@ -1,5 +1,4 @@
-"""
-Cloud synchronization for conversation state using PostgreSQL.
+"""Cloud synchronization for conversation state using PostgreSQL.
 
 This module provides cloud sync capabilities for cross-device conversation state
 synchronization with conflict resolution and real-time updates.
@@ -17,7 +16,7 @@ Version: 1.0.0
 
 import json
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 try:
     import asyncpg  # type: ignore[import-untyped]
@@ -42,8 +41,7 @@ class SyncConfig:
 
 
 class CloudSyncService:
-    """
-    Cloud synchronization service using PostgreSQL.
+    """Cloud synchronization service using PostgreSQL.
 
     Provides real-time sync with conflict resolution (last-write-wins).
 
@@ -56,29 +54,31 @@ class CloudSyncService:
         >>> await sync.initialize()
         >>> await sync.sync_to_cloud(conversation_state)
         >>> state = await sync.sync_from_cloud("conv_123", "user_456")
+
     """
 
-    def __init__(self, config: SyncConfig):
-        """
-        Initialize cloud sync service.
+    def __init__(self, config: SyncConfig) -> None:
+        """Initialize cloud sync service.
 
         Args:
             config: Sync configuration
+
         """
         self.config = config
-        self._pool: Optional[asyncpg.Pool] = None
+        self._pool: asyncpg.Pool | None = None
         self._initialized = False
 
     async def initialize(self) -> None:
-        """
-        Initialize database connection pool.
+        """Initialize database connection pool.
 
         Raises:
             RuntimeError: If asyncpg is not installed
             ConnectionError: If cannot connect to database
+
         """
         if asyncpg is None:
-            raise RuntimeError("asyncpg is not installed. Install with: pip install asyncpg")
+            msg = "asyncpg is not installed. Install with: pip install asyncpg"
+            raise RuntimeError(msg)
 
         try:
             self._pool = await asyncpg.create_pool(
@@ -98,7 +98,8 @@ class CloudSyncService:
             self._initialized = True
 
         except Exception as e:
-            raise ConnectionError(f"Failed to connect to PostgreSQL: {e}") from e
+            msg = f"Failed to connect to PostgreSQL: {e}"
+            raise ConnectionError(msg) from e
 
     async def close(self) -> None:
         """Close database connection pool."""
@@ -123,7 +124,7 @@ class CloudSyncService:
                     version INTEGER NOT NULL DEFAULT 1,
                     created_at TIMESTAMP NOT NULL DEFAULT NOW()
                 )
-            """
+            """,
             )
 
             # Create index for user_id lookups
@@ -131,7 +132,7 @@ class CloudSyncService:
                 """
                 CREATE INDEX IF NOT EXISTS idx_conversations_user_id
                 ON conversations(user_id)
-            """
+            """,
             )
 
             # Create index for updated_at for sync queries
@@ -139,12 +140,11 @@ class CloudSyncService:
                 """
                 CREATE INDEX IF NOT EXISTS idx_conversations_updated_at
                 ON conversations(updated_at DESC)
-            """
+            """,
             )
 
     async def sync_to_cloud(self, state: ConversationState) -> bool:
-        """
-        Sync conversation state to cloud.
+        """Sync conversation state to cloud.
 
         Uses last-write-wins conflict resolution based on updated_at timestamp.
 
@@ -158,9 +158,11 @@ class CloudSyncService:
 
         Raises:
             RuntimeError: If service not initialized
+
         """
         if not self._initialized or not self._pool:
-            raise RuntimeError("CloudSyncService not initialized") from e
+            msg = "CloudSyncService not initialized"
+            raise RuntimeError(msg)
 
         try:
             state_json = state.model_dump_json()
@@ -188,14 +190,11 @@ class CloudSyncService:
 
             return True
 
-        except Exception as e:
+        except Exception:
             return False
 
-    async def sync_from_cloud(
-        self, conversation_id: str, user_id: str
-    ) -> Optional[ConversationState]:
-        """
-        Sync conversation state from cloud.
+    async def sync_from_cloud(self, conversation_id: str, user_id: str) -> ConversationState | None:
+        """Sync conversation state from cloud.
 
         Time Complexity: O(1)
 
@@ -208,9 +207,11 @@ class CloudSyncService:
 
         Raises:
             RuntimeError: If service not initialized
+
         """
         if not self._initialized or not self._pool:
-            raise RuntimeError("CloudSyncService not initialized") from e
+            msg = "CloudSyncService not initialized"
+            raise RuntimeError(msg)
 
         try:
             async with self._pool.acquire() as conn:
@@ -230,12 +231,11 @@ class CloudSyncService:
 
                 return None
 
-        except Exception as e:
+        except Exception:
             return None
 
     async def list_user_conversations(self, user_id: str, limit: int = 100) -> list[str]:
-        """
-        List conversation IDs for a user.
+        """List conversation IDs for a user.
 
         Time Complexity: O(n) where n is number of conversations
 
@@ -248,9 +248,11 @@ class CloudSyncService:
 
         Raises:
             RuntimeError: If service not initialized
+
         """
         if not self._initialized or not self._pool:
-            raise RuntimeError("CloudSyncService not initialized") from e
+            msg = "CloudSyncService not initialized"
+            raise RuntimeError(msg)
 
         try:
             async with self._pool.acquire() as conn:
@@ -268,12 +270,11 @@ class CloudSyncService:
 
                 return [row["conversation_id"] for row in rows]
 
-        except Exception as e:
+        except Exception:
             return []
 
     async def delete_conversation(self, conversation_id: str, user_id: str) -> bool:
-        """
-        Delete conversation from cloud.
+        """Delete conversation from cloud.
 
         Time Complexity: O(1)
 
@@ -286,9 +287,11 @@ class CloudSyncService:
 
         Raises:
             RuntimeError: If service not initialized
+
         """
         if not self._initialized or not self._pool:
-            raise RuntimeError("CloudSyncService not initialized") from e
+            msg = "CloudSyncService not initialized"
+            raise RuntimeError(msg)
 
         try:
             async with self._pool.acquire() as conn:
@@ -304,12 +307,11 @@ class CloudSyncService:
                 # Check if any rows were deleted
                 return result.split()[-1] != "0"
 
-        except Exception as e:
+        except Exception:
             return False
 
-    async def get_sync_status(self, conversation_id: str, user_id: str) -> Optional[dict[str, Any]]:
-        """
-        Get sync status for a conversation.
+    async def get_sync_status(self, conversation_id: str, user_id: str) -> dict[str, Any] | None:
+        """Get sync status for a conversation.
 
         Args:
             conversation_id: Conversation ID
@@ -317,9 +319,11 @@ class CloudSyncService:
 
         Returns:
             Dict with version, updated_at, or None if not found
+
         """
         if not self._initialized or not self._pool:
-            raise RuntimeError("CloudSyncService not initialized") from e
+            msg = "CloudSyncService not initialized"
+            raise RuntimeError(msg)
 
         try:
             async with self._pool.acquire() as conn:
@@ -338,5 +342,6 @@ class CloudSyncService:
 
                 return None
 
-        except Exception as e:
+        except Exception:
             return None
+

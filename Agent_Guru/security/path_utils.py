@@ -1,5 +1,4 @@
-"""
-Safe path resolver for Agent Guru.
+"""Safe path resolver for Agent Guru.
 
 This module provides canonicalized path resolution that prevents path
 traversal attacks (CWE-22) by asserting that any resolved path remains
@@ -50,6 +49,7 @@ def safe_path(user_input: str | Path, base_dir: Path) -> Path:
         p = safe_path(user_filename, DATA_DIR)
         with open(p) as fh:
             ...
+
     """
     candidate = Path(user_input)
     # Relative paths are resolved within base_dir, not the CWD
@@ -59,10 +59,13 @@ def safe_path(user_input: str | Path, base_dir: Path) -> Path:
     resolved_base = base_dir.resolve()
 
     if not resolved.is_relative_to(resolved_base):
-        raise ValueError(
+        msg = (
             f"Path traversal detected: {str(user_input)!r} resolves to "
             f"{str(resolved)!r} which is outside the permitted base "
             f"directory {str(resolved_base)!r}."
+        )
+        raise ValueError(
+            msg,
         )
 
     return resolved

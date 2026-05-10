@@ -1,7 +1,7 @@
 """Sentry error tracking configuration."""
 
 import os
-from typing import Any, Optional
+from typing import Any
 
 import sentry_sdk
 from sentry_sdk.integrations.asyncio import AsyncioIntegration
@@ -13,18 +13,17 @@ class SentryConfig:
 
     def __init__(
         self,
-        dsn: Optional[str] = None,
+        dsn: str | None = None,
         environment: str = "development",
-        release: Optional[str] = None,
+        release: str | None = None,
         traces_sample_rate: float = 0.1,
         profiles_sample_rate: float = 0.1,
         send_default_pii: bool = False,
         attach_stacktrace: bool = True,
         max_breadcrumbs: int = 50,
         debug: bool = False,
-    ):
-        """
-        Initialize Sentry configuration.
+    ) -> None:
+        """Initialize Sentry configuration.
 
         Args:
             dsn: Sentry DSN (Data Source Name)
@@ -36,6 +35,7 @@ class SentryConfig:
             attach_stacktrace: Whether to attach stack traces to messages
             max_breadcrumbs: Maximum number of breadcrumbs to keep
             debug: Enable debug mode
+
         """
         self.dsn = dsn or os.getenv("SENTRY_DSN")
         self.environment = environment
@@ -49,11 +49,11 @@ class SentryConfig:
 
 
 def configure_sentry(config: SentryConfig) -> None:
-    """
-    Configure Sentry error tracking.
+    """Configure Sentry error tracking.
 
     Args:
         config: Sentry configuration
+
     """
     if not config.dsn:
         # Sentry not configured, skip initialization
@@ -88,9 +88,8 @@ def configure_sentry(config: SentryConfig) -> None:
     )
 
 
-def before_send_filter(event: dict[str, Any], hint: dict[str, Any]) -> Optional[dict[str, Any]]:
-    """
-    Filter and modify events before sending to Sentry.
+def before_send_filter(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
+    """Filter and modify events before sending to Sentry.
 
     Args:
         event: Event dictionary
@@ -98,6 +97,7 @@ def before_send_filter(event: dict[str, Any], hint: dict[str, Any]) -> Optional[
 
     Returns:
         Modified event or None to drop the event
+
     """
     # Add custom tags
     if "tags" not in event:
@@ -123,9 +123,8 @@ def before_send_filter(event: dict[str, Any], hint: dict[str, Any]) -> Optional[
     return event
 
 
-def before_breadcrumb_filter(crumb: dict[str, Any], hint: dict[str, Any]) -> Optional[dict[str, Any]]:
-    """
-    Filter and modify breadcrumbs before adding to event.
+def before_breadcrumb_filter(crumb: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
+    """Filter and modify breadcrumbs before adding to event.
 
     Args:
         crumb: Breadcrumb dictionary
@@ -133,6 +132,7 @@ def before_breadcrumb_filter(crumb: dict[str, Any], hint: dict[str, Any]) -> Opt
 
     Returns:
         Modified breadcrumb or None to drop it
+
     """
     # Filter out noisy breadcrumbs
     if crumb.get("category") == "query" and crumb.get("message", "").startswith("SELECT"):
@@ -147,19 +147,19 @@ class SentryContextManager:
 
     @staticmethod
     def set_user_context(
-        user_id: Optional[str] = None,
-        username: Optional[str] = None,
-        email: Optional[str] = None,
-        **kwargs: Any,
+        user_id: str | None = None,
+        username: str | None = None,
+        email: str | None = None,
+        **kwargs: Any,  # noqa: ANN401
     ) -> None:
-        """
-        Set user context for error tracking.
+        """Set user context for error tracking.
 
         Args:
             user_id: User ID
             username: Username
             email: User email
             **kwargs: Additional user attributes
+
         """
         user_data = {}
         if user_id:
@@ -175,66 +175,73 @@ class SentryContextManager:
     @staticmethod
     def set_conversation_context(
         conversation_id: str,
-        turn_id: Optional[str] = None,
-        intent_type: Optional[str] = None,
-        **kwargs: Any,
+        turn_id: str | None = None,
+        intent_type: str | None = None,
+        **kwargs: Any,  # noqa: ANN401
     ) -> None:
-        """
-        Set conversation context for error tracking.
+        """Set conversation context for error tracking.
 
         Args:
             conversation_id: Conversation ID
             turn_id: Turn ID
             intent_type: Detected intent type
             **kwargs: Additional context
+
         """
         with sentry_sdk.configure_scope() as scope:
-            scope.set_context("conversation", {
-                "conversation_id": conversation_id,
-                "turn_id": turn_id,
-                "intent_type": intent_type,
-                **kwargs,
-            })
+            scope.set_context(
+                "conversation",
+                {
+                    "conversation_id": conversation_id,
+                    "turn_id": turn_id,
+                    "intent_type": intent_type,
+                    **kwargs,
+                },
+            )
 
     @staticmethod
     def set_input_context(
         input_text: str,
         input_source: str,
-        **kwargs: Any,
+        **kwargs: Any,  # noqa: ANN401
     ) -> None:
-        """
-        Set input context for error tracking.
+        """Set input context for error tracking.
 
         Args:
             input_text: User input text (will be truncated)
             input_source: Input source (voice, text, etc.)
             **kwargs: Additional context
+
         """
         # Truncate input to avoid sending too much data
-        truncated_input = input_text[:200] + "..." if len(input_text) > 200 else input_text
+        truncated_input = input_text[:200] + "..." if len(input_text) > 200 else input_text  # noqa: PLR2004 - Percentage/large threshold
+
 
         with sentry_sdk.configure_scope() as scope:
-            scope.set_context("input", {
-                "text": truncated_input,
-                "source": input_source,
-                **kwargs,
-            })
+            scope.set_context(
+                "input",
+                {
+                    "text": truncated_input,
+                    "source": input_source,
+                    **kwargs,
+                },
+            )
 
     @staticmethod
     def add_breadcrumb(
         message: str,
         category: str = "default",
         level: str = "info",
-        data: Optional[dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Add a breadcrumb for error context.
+        """Add a breadcrumb for error context.
 
         Args:
             message: Breadcrumb message
             category: Breadcrumb category
             level: Breadcrumb level (debug, info, warning, error)
             data: Additional breadcrumb data
+
         """
         sentry_sdk.add_breadcrumb(
             message=message,
@@ -247,11 +254,10 @@ class SentryContextManager:
     def capture_exception(
         error: Exception,
         level: str = "error",
-        tags: Optional[dict[str, str]] = None,
-        extras: Optional[dict[str, Any]] = None,
+        tags: dict[str, str] | None = None,
+        extras: dict[str, Any] | None = None,
     ) -> str:
-        """
-        Capture an exception and send to Sentry.
+        """Capture an exception and send to Sentry.
 
         Args:
             error: Exception to capture
@@ -261,6 +267,7 @@ class SentryContextManager:
 
         Returns:
             Event ID
+
         """
         with sentry_sdk.push_scope() as scope:
             if tags:
@@ -279,11 +286,10 @@ class SentryContextManager:
     def capture_message(
         message: str,
         level: str = "info",
-        tags: Optional[dict[str, str]] = None,
-        extras: Optional[dict[str, Any]] = None,
+        tags: dict[str, str] | None = None,
+        extras: dict[str, Any] | None = None,
     ) -> str:
-        """
-        Capture a message and send to Sentry.
+        """Capture a message and send to Sentry.
 
         Args:
             message: Message to capture
@@ -293,6 +299,7 @@ class SentryContextManager:
 
         Returns:
             Event ID
+
         """
         with sentry_sdk.push_scope() as scope:
             if tags:

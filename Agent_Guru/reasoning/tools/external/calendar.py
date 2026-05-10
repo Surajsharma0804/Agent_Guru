@@ -1,10 +1,9 @@
-"""
-Calendar tools for creating and retrieving calendar events.
+"""Calendar tools for creating and retrieving calendar events.
 
 Supports Google Calendar, Outlook Calendar, and other calendar services.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
@@ -66,7 +65,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class CreateCalendarEventTool(Tool):
     """Tool for creating calendar events."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute calendar event creation.
 
         Args:
@@ -78,6 +77,7 @@ class CreateCalendarEventTool(Tool):
 
         Returns:
             Execution result
+
         """
         title = kwargs["title"]
         start_time = kwargs["start_time"]
@@ -94,8 +94,8 @@ class CreateCalendarEventTool(Tool):
 
         # Validate times
         try:
-            start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
-            end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+            start_dt = datetime.fromisoformat(start_time)
+            end_dt = datetime.fromisoformat(end_time)
 
             if end_dt <= start_dt:
                 return {
@@ -106,7 +106,7 @@ class CreateCalendarEventTool(Tool):
         except ValueError as e:
             return {
                 "success": False,
-                "error": f"Invalid time format: {str(e)}",
+                "error": f"Invalid time format: {e!s}",
             }
 
         try:
@@ -131,7 +131,7 @@ class CreateCalendarEventTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to create calendar event: {str(e)}",
+                "error": f"Failed to create calendar event: {e!s}",
             }
 
 
@@ -172,7 +172,7 @@ class CreateCalendarEventTool(Tool):
 class GetCalendarEventsTool(Tool):
     """Tool for retrieving calendar events."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute calendar event retrieval.
 
         Args:
@@ -182,6 +182,7 @@ class GetCalendarEventsTool(Tool):
 
         Returns:
             Execution result with events
+
         """
         start_date = kwargs["start_date"]
         end_date = kwargs["end_date"]
@@ -189,8 +190,8 @@ class GetCalendarEventsTool(Tool):
 
         # Validate dates
         try:
-            start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-            end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+            start_dt = datetime.fromisoformat(start_date)
+            end_dt = datetime.fromisoformat(end_date)
 
             if end_dt <= start_dt:
                 return {
@@ -201,11 +202,12 @@ class GetCalendarEventsTool(Tool):
         except ValueError as e:
             return {
                 "success": False,
-                "error": f"Invalid date format: {str(e)}",
+                "error": f"Invalid date format: {e!s}",
             }
 
         # Validate max_results
-        if max_results <= 0 or max_results > 1000:
+        if max_results <= 0 or max_results > 1000:  # noqa: PLR2004 - Percentage/large threshold
+
             return {
                 "success": False,
                 "error": "max_results must be between 1 and 1000",
@@ -228,5 +230,5 @@ class GetCalendarEventsTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to get calendar events: {str(e)}",
+                "error": f"Failed to get calendar events: {e!s}",
             }

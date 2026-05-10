@@ -1,5 +1,4 @@
-"""
-Error handling and recovery module.
+"""Error handling and recovery module.
 
 Provides comprehensive error management:
 - Error classification and structured errors
@@ -47,37 +46,37 @@ from Agent_Guru.reasoning.error.recovery import (
 )
 
 __all__ = [
-    # Error management
-    "ErrorType",
-    "ErrorSeverity",
-    "ErrorContext",
-    "StructuredError",
-    "ErrorClassifier",
-    "ErrorManager",
-    "get_error_manager",
-    # Fallback strategies
-    "FallbackStrategy",
-    "FallbackResult",
-    "FallbackHandler",
-    "LLMFallbackHandler",
-    "ToolFallbackHandler",
-    "TimeoutFallbackHandler",
-    "FallbackRegistry",
-    "get_fallback_registry",
+    "CircuitBreaker",
+    "CircuitBreakerConfig",
     # Recovery mechanisms
     "CircuitState",
-    "RetryConfig",
-    "CircuitBreakerConfig",
-    "RetryHandler",
-    "CircuitBreaker",
-    "FailoverManager",
-    "get_retry_handler",
-    "get_circuit_breaker",
-    "get_failover_manager",
+    "DegradationConfig",
     # Graceful degradation
     "DegradationLevel",
-    "FeatureCategory",
-    "DegradationConfig",
     "DegradationManager",
+    "ErrorClassifier",
+    "ErrorContext",
+    "ErrorManager",
+    "ErrorSeverity",
+    # Error management
+    "ErrorType",
+    "FailoverManager",
+    "FallbackHandler",
+    "FallbackRegistry",
+    "FallbackResult",
+    # Fallback strategies
+    "FallbackStrategy",
+    "FeatureCategory",
+    "LLMFallbackHandler",
+    "RetryConfig",
+    "RetryHandler",
+    "StructuredError",
+    "TimeoutFallbackHandler",
+    "ToolFallbackHandler",
+    "get_circuit_breaker",
     "get_degradation_manager",
+    "get_error_manager",
+    "get_failover_manager",
+    "get_fallback_registry",
+    "get_retry_handler",
 ]

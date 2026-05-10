@@ -1,5 +1,4 @@
-"""
-STATE-OF-THE-ART Intent Classification Training - DeBERTa-v3
+"""STATE-OF-THE-ART Intent Classification Training - DeBERTa-v3.
 
 Based on latest research (2024-2025):
 - DeBERTa-v3-large: SOTA for text classification (91.37% GLUE)
@@ -27,7 +26,7 @@ Date: 2026
 import json
 import logging
 import os
-import random
+import secrets
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -46,26 +45,26 @@ torch.cuda.manual_seed_all(42)  # nosec
 # pl.seed_everything called after pytorch_lightning import below
 
 # CRITICAL FIX: Monkey-patch NLTK to prevent download loop
-import nltk  # type: ignore[import-untyped]
+import nltk  # type: ignore[import-untyped]  # noqa: E402
 
 _original_download = nltk.download
 
 
 def _patched_download(
-    info_or_id=None,
-    download_dir=None,
-    quiet=False,
-    force=False,
-    prefix=None,
-    halt_on_error=True,
-    raise_on_error=False,
-    print_error_to=None,
+    info_or_id=None,  # noqa: ANN001
+    download_dir=None,  # noqa: ANN001
+    quiet=False,  # noqa: ANN001
+    force=False,  # noqa: ANN001
+    prefix=None,  # noqa: ANN001
+    halt_on_error=True,  # noqa: ANN001
+    raise_on_error=False,  # noqa: ANN001
+    print_error_to=None,  # noqa: ANN001
 ):
     """Patched NLTK download that only downloads once per package."""
     if info_or_id:
         try:
             nltk.data.find(  # nosec - local filesystem lookup, not a DB query
-                f"taggers/{info_or_id}" if "tagger" in info_or_id else f"corpora/{info_or_id}"
+                f"taggers/{info_or_id}" if "tagger" in info_or_id else f"corpora/{info_or_id}",
             )
             return True  # Already exists, skip download
         except LookupError:
@@ -83,28 +82,28 @@ def _patched_download(
 
 nltk.download = _patched_download
 
-import numpy as np
-import pytorch_lightning as pl
+import numpy as np  # noqa: E402
+import pytorch_lightning as pl  # noqa: E402
 
 pl.seed_everything(42, workers=True)  # nosec
 
-import torch.nn as nn
-import torch.nn.functional as F  # noqa: N812
-import yaml
-from pytorch_lightning.callbacks import (
+import torch.nn.functional as F  # noqa: N812, E402
+import yaml  # noqa: E402
+from pytorch_lightning.callbacks import (  # noqa: E402
     EarlyStopping,
     LearningRateMonitor,
     ModelCheckpoint,
     StochasticWeightAveraging,
 )
-from pytorch_lightning.loggers import TensorBoardLogger
-from sklearn.metrics import (  # type: ignore[import-untyped]
+from pytorch_lightning.loggers import TensorBoardLogger  # noqa: E402
+from sklearn.metrics import (  # type: ignore[import-untyped]  # noqa: E402
     accuracy_score,
     confusion_matrix,
     precision_recall_fscore_support,
 )
-from torch.utils.data import DataLoader, Dataset
-from transformers import (
+from torch import nn  # noqa: E402
+from torch.utils.data import DataLoader, Dataset  # noqa: E402
+from transformers import (  # noqa: E402
     DebertaV2Config,
     DebertaV2ForSequenceClassification,
     DebertaV2Tokenizer,
@@ -179,7 +178,7 @@ class DataAugmenter:
 
     _nltk_initialized = False
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize augmenters."""
         # Download NLTK data ONCE (not every time)
         if not DataAugmenter._nltk_initialized:
@@ -208,15 +207,18 @@ class DataAugmenter:
 
         # Contextual word embeddings (BERT-based)
         self.context_aug = naw.ContextualWordEmbsAug(
-            model_path="roberta-base", action="substitute", aug_max=3
+            model_path="roberta-base",
+            action="substitute",
+            aug_max=3,
         )
 
         # Back translation (if available)
         try:
             self.back_translation_aug = nas.BackTranslationAug(
-                from_model_name="facebook/wmt19-en-de", to_model_name="facebook/wmt19-de-en"
+                from_model_name="facebook/wmt19-en-de",
+                to_model_name="facebook/wmt19-de-en",
             )
-        except Exception as e:
+        except Exception:
             self.back_translation_aug = None
 
     def augment(self, text: str, num_augmentations: int = 2) -> list[str]:
@@ -228,6 +230,7 @@ class DataAugmenter:
 
         Returns:
             List of augmented texts
+
         """
         augmented = []
 
@@ -276,13 +279,14 @@ class FocalLoss(nn.Module):
     Focuses training on hard examples by down-weighting easy examples.
     """
 
-    def __init__(self, alpha: float = 1.0, gamma: float = 2.0, reduction: str = "mean"):
+    def __init__(self, alpha: float = 1.0, gamma: float = 2.0, reduction: str = "mean") -> None:
         """Initialize focal loss.
 
         Args:
             alpha: Weighting factor
             gamma: Focusing parameter (higher = more focus on hard examples)
             reduction: Reduction method
+
         """
         super().__init__()
         self.alpha = alpha
@@ -298,6 +302,7 @@ class FocalLoss(nn.Module):
 
         Returns:
             Loss value
+
         """
         ce_loss = F.cross_entropy(inputs, targets, reduction="none")
         p_t = torch.exp(-ce_loss)
@@ -305,14 +310,15 @@ class FocalLoss(nn.Module):
 
         if self.reduction == "mean":
             return focal_loss.mean()
-        elif self.reduction == "sum":
+        if self.reduction == "sum":
             return focal_loss.sum()
-        else:
-            return focal_loss
+        return focal_loss
 
 
 def mixup_data(
-    x: torch.Tensor, y: torch.Tensor, alpha: float = 0.2
+    x: torch.Tensor,
+    y: torch.Tensor,
+    alpha: float = 0.2,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, float]:
     """Apply mixup augmentation.
 
@@ -325,11 +331,9 @@ def mixup_data(
 
     Returns:
         Tuple of (mixed_x, y_a, y_b, lambda)
+
     """
-    if alpha > 0:
-        lam = np.random.beta(alpha, alpha)
-    else:
-        lam = 1
+    lam = np.random.beta(alpha, alpha) if alpha > 0 else 1
 
     batch_size = x.size(0)
     index = torch.randperm(batch_size).to(x.device)
@@ -341,7 +345,11 @@ def mixup_data(
 
 
 def mixup_criterion(
-    criterion: nn.Module, pred: torch.Tensor, y_a: torch.Tensor, y_b: torch.Tensor, lam: float
+    criterion: nn.Module,
+    pred: torch.Tensor,
+    y_a: torch.Tensor,
+    y_b: torch.Tensor,
+    lam: float,
 ) -> torch.Tensor:
     """Compute mixup loss.
 
@@ -354,6 +362,7 @@ def mixup_criterion(
 
     Returns:
         Mixed loss
+
     """
     return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
@@ -370,6 +379,7 @@ def compute_kl_loss(p: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
 
     Returns:
         KL divergence loss
+
     """
     p_loss = F.kl_div(F.log_softmax(p, dim=-1), F.softmax(q, dim=-1), reduction="batchmean")
     q_loss = F.kl_div(F.log_softmax(q, dim=-1), F.softmax(p, dim=-1), reduction="batchmean")
@@ -391,7 +401,7 @@ class IntentDataset(Dataset):
         max_length: int = 256,
         use_augmentation: bool = False,
         augmentation_factor: int = 3,
-    ):
+    ) -> None:
         """Initialize dataset with optional augmentation.
 
         Args:
@@ -401,6 +411,7 @@ class IntentDataset(Dataset):
             max_length: Maximum sequence length
             use_augmentation: Whether to use data augmentation
             augmentation_factor: How many augmented versions per example
+
         """
         self.tokenizer = tokenizer
         self.intent_to_id = intent_to_id
@@ -408,7 +419,7 @@ class IntentDataset(Dataset):
         self.use_augmentation = use_augmentation
 
         # Load data
-        with open(data_path, encoding='utf-8') as f:  # nosec - path validated by caller via safe_path
+        with open(data_path, encoding="utf-8") as f:  # nosec - path validated by caller via safe_path  # noqa: PTH123
             self.data = yaml.safe_load(f)
 
         # Filter out unknown intents for training (keep for validation/test)
@@ -417,7 +428,6 @@ class IntentDataset(Dataset):
 
             # Apply data augmentation for training
             if use_augmentation:
-                print(f"Applying data augmentation (factor={augmentation_factor})...")
                 augmenter = DataAugmenter()
                 augmented_data = []
 
@@ -427,7 +437,8 @@ class IntentDataset(Dataset):
 
                     # Augmented versions
                     augmented_texts = augmenter.augment(
-                        item["utterance"], num_augmentations=augmentation_factor - 1
+                        item["utterance"],
+                        num_augmentations=augmentation_factor - 1,
                     )
 
                     for aug_text in augmented_texts[1:]:  # Skip original
@@ -436,11 +447,10 @@ class IntentDataset(Dataset):
                                 "utterance": aug_text,
                                 "intent": item["intent"],
                                 "entities": item["entities"],
-                            }
+                            },
                         )
 
                 self.data = augmented_data
-                print(f"Dataset size after augmentation: {len(self.data)}")
 
         # Compute class weights for handling imbalance
         intent_counts = Counter([self.intent_to_id[item["intent"]] for item in self.data])
@@ -506,7 +516,7 @@ class IntentClassifierModule(pl.LightningModule):
         num_labels: int,
         id_to_intent: dict[int, str],
         class_weights: torch.Tensor | None = None,
-    ):
+    ) -> None:
         """Initialize module.
 
         Args:
@@ -514,6 +524,7 @@ class IntentClassifierModule(pl.LightningModule):
             num_labels: Number of intent classes
             id_to_intent: Mapping from IDs to intent names
             class_weights: Class weights for imbalanced data
+
         """
         super().__init__()
         self.save_hyperparameters(ignore=["class_weights"])
@@ -528,12 +539,14 @@ class IntentClassifierModule(pl.LightningModule):
         )
 
         self.model = DebertaV2ForSequenceClassification.from_pretrained(  # nosec B615
-            config.model_name, config=model_config
+            config.model_name,
+            config=model_config,
         )
 
         # Loss function
         self.criterion = nn.CrossEntropyLoss(
-            weight=class_weights, label_smoothing=config.label_smoothing
+            weight=class_weights,
+            label_smoothing=config.label_smoothing,
         )
 
         # Metrics storage
@@ -553,6 +566,7 @@ class IntentClassifierModule(pl.LightningModule):
 
         Returns:
             Logits [batch_size, num_labels]
+
         """
         outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
         return outputs.logits
@@ -574,6 +588,7 @@ class IntentClassifierModule(pl.LightningModule):
 
         Returns:
             Adversarial loss
+
         """
         # Get embeddings
         embeddings = self.model.deberta.embeddings.word_embeddings(input_ids)
@@ -593,7 +608,9 @@ class IntentClassifierModule(pl.LightningModule):
         # Adversarial forward pass
         adv_embeddings = embeddings + perturbation
         adv_outputs = self.model(
-            inputs_embeds=adv_embeddings.detach(), attention_mask=attention_mask, labels=labels
+            inputs_embeds=adv_embeddings.detach(),
+            attention_mask=attention_mask,
+            labels=labels,
         )
 
         return adv_outputs.loss
@@ -607,6 +624,7 @@ class IntentClassifierModule(pl.LightningModule):
 
         Returns:
             Loss value
+
         """
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
@@ -631,7 +649,8 @@ class IntentClassifierModule(pl.LightningModule):
             loss = ce_loss
 
         # Adversarial training
-        if self.use_adversarial and random.random() < 0.5:
+        if self.use_adversarial and secrets.SystemRandom().random() < 0.5:  # noqa: PLR2004 - Threshold value
+
             adv_loss = self.adversarial_perturbation(input_ids, attention_mask, labels, epsilon=1.0)
             loss = 0.5 * loss + 0.5 * adv_loss
 
@@ -643,7 +662,9 @@ class IntentClassifierModule(pl.LightningModule):
         return loss  # type: ignore[no-any-return]
 
     def validation_step(
-        self, batch: dict[str, torch.Tensor], batch_idx: int
+        self,
+        batch: dict[str, torch.Tensor],
+        batch_idx: int,
     ) -> dict[str, torch.Tensor]:
         """Validation step.
 
@@ -653,6 +674,7 @@ class IntentClassifierModule(pl.LightningModule):
 
         Returns:
             Dictionary with loss, predictions, and labels
+
         """
         outputs = self.model(
             input_ids=batch["input_ids"],
@@ -665,12 +687,12 @@ class IntentClassifierModule(pl.LightningModule):
         preds = torch.argmax(logits, dim=1)
 
         self.validation_step_outputs.append(
-            {"loss": loss, "preds": preds, "labels": batch["labels"]}
+            {"loss": loss, "preds": preds, "labels": batch["labels"]},
         )
 
         return {"loss": loss, "preds": preds, "labels": batch["labels"]}
 
-    def on_validation_epoch_end(self):
+    def on_validation_epoch_end(self) -> None:
         """Compute validation metrics at epoch end."""
         # Gather all predictions and labels
         all_preds = torch.cat([x["preds"] for x in self.validation_step_outputs]).cpu().numpy()
@@ -680,7 +702,10 @@ class IntentClassifierModule(pl.LightningModule):
         # Compute metrics
         accuracy = accuracy_score(all_labels, all_preds)
         precision, recall, f1, _ = precision_recall_fscore_support(
-            all_labels, all_preds, average="weighted", zero_division=0
+            all_labels,
+            all_preds,
+            average="weighted",
+            zero_division=0,
         )
 
         # Log metrics
@@ -702,6 +727,7 @@ class IntentClassifierModule(pl.LightningModule):
 
         Returns:
             Dictionary with predictions and labels
+
         """
         outputs = self.model(
             input_ids=batch["input_ids"],
@@ -716,7 +742,7 @@ class IntentClassifierModule(pl.LightningModule):
 
         return {"preds": preds, "labels": batch["labels"]}
 
-    def on_test_epoch_end(self):
+    def on_test_epoch_end(self) -> None:
         """Compute test metrics and generate report."""
         # Gather all predictions and labels
         all_preds = torch.cat([x["preds"] for x in self.test_step_outputs]).cpu().numpy()
@@ -725,7 +751,10 @@ class IntentClassifierModule(pl.LightningModule):
         # Compute metrics
         accuracy = accuracy_score(all_labels, all_preds)
         precision, recall, f1, support = precision_recall_fscore_support(
-            all_labels, all_preds, average=None, zero_division=0
+            all_labels,
+            all_preds,
+            average=None,
+            zero_division=0,
         )
 
         # Per-class metrics
@@ -760,17 +789,8 @@ class IntentClassifierModule(pl.LightningModule):
         # Save to file
         output_path = Path(self.config.output_dir) / "test_results.json"
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w", encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
             json.dump(results, f, indent=2)
-
-        print(f"\n{'='*60}")
-        print("Test Results:")
-        print(f"{'='*60}")
-        print(f"Overall Accuracy: {accuracy:.4f}")
-        print(f"Overall Precision: {precision.mean():.4f}")
-        print(f"Overall Recall: {recall.mean():.4f}")
-        print(f"Overall F1: {f1.mean():.4f}")
-        print(f"{'='*60}\n")
 
         # Clear outputs
         self.test_step_outputs.clear()
@@ -829,7 +849,7 @@ def load_intent_mapping(data_dir: str) -> tuple[dict[str, int], dict[int, str]]:
     """Load intent to ID mapping from intents.yaml."""
     _data_base = Path(data_dir).resolve()
     intents_path = safe_path("intents.yaml", _data_base)
-    with open(intents_path, encoding='utf-8') as f:  # nosec - path validated by safe_path
+    with open(intents_path, encoding="utf-8") as f:  # nosec - path validated by safe_path  # noqa: PTH123
         intents_data = yaml.safe_load(f)
 
     # Create mappings
@@ -843,7 +863,7 @@ def load_intent_mapping(data_dir: str) -> tuple[dict[str, int], dict[int, str]]:
 def load_data_from_txt(
     data_dir: str,
 ) -> tuple[list[str], list[str], list[str], list[str], list[str], list[str]]:
-    """Load training, validation, and test data from .txt files.
+    r"""Load training, validation, and test data from .txt files.
 
     Alternative data loader for tab-separated .txt format.
     Format: intent\tutterance
@@ -853,17 +873,19 @@ def load_data_from_txt(
 
     Returns:
         Tuple of (train_texts, train_labels, val_texts, val_labels, test_texts, test_labels)
+
     """
 
     def read_file(filepath: str) -> tuple[list[str], list[str]]:
         texts = []
         labels = []
-        with open(filepath, encoding="utf-8") as f:  # nosec - path validated by safe_path
+        with open(filepath, encoding="utf-8") as f:  # nosec - path validated by safe_path  # noqa: PTH123
             for line in f:
                 line = line.strip()
                 if line:
                     parts = line.split("\t")
-                    if len(parts) == 2:
+                    if len(parts) == 2:  # noqa: PLR2004 - Small integer threshold
+
                         labels.append(parts[0])
                         texts.append(parts[1])
         return texts, labels
@@ -877,7 +899,9 @@ def load_data_from_txt(
 
 
 def create_label_mappings_from_data(
-    train_labels: list[str], val_labels: list[str], test_labels: list[str]
+    train_labels: list[str],
+    val_labels: list[str],
+    test_labels: list[str],
 ) -> tuple[dict[str, int], dict[int, str]]:
     """Create label to ID and ID to label mappings from data.
 
@@ -890,6 +914,7 @@ def create_label_mappings_from_data(
 
     Returns:
         Tuple of (label_to_id, id_to_label)
+
     """
     # Get all unique labels
     all_labels = sorted(set(train_labels + val_labels + test_labels))
@@ -901,7 +926,7 @@ def create_label_mappings_from_data(
     return label_to_id, id_to_label
 
 
-def train_intent_classifier(config: TrainingConfig):
+def train_intent_classifier(config: TrainingConfig) -> None:
     """Train RoBERTa-LARGE intent classifier with RUTHLESS optimization.
 
     ZERO COMPROMISE - MAXIMUM PERFORMANCE
@@ -927,34 +952,17 @@ def train_intent_classifier(config: TrainingConfig):
     - Inference: <50ms per batch with GPU
 
     Training Time: 6-12 hours with GPU (WORTH IT)
-    """
-    print(f"\n{'='*80}")
-    print("STATE-OF-THE-ART Intent Classification Training")
-    print("DeBERTa-v3-large (435M parameters)")
-    print(f"{'='*80}\n")
 
+    """
     # Set deterministic seeds for reproducibility (Task 17.2 / Req 2.24)
     set_deterministic_seeds(42)
 
     # Check GPU availability
     if torch.cuda.is_available():
-        print(f"✓ GPU available: {torch.cuda.get_device_name(0)}")
-        print(f"✓ CUDA version: {torch.version.cuda}")
-        print(f"✓ GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
-        print(f"✓ Mixed precision: {config.mixed_precision}")
-        print(f"✓ Model: {config.model_name} (DeBERTa-v3-large, 435M params)")
-        print(f"✓ Max epochs: {config.num_epochs}")
-        print(f"✓ Effective batch size: {config.batch_size * config.gradient_accumulation_steps}")
-        print(f"✓ Data augmentation: {config.use_augmentation}")
-        print(f"✓ R-Drop regularization: {config.use_rdrop}")
-        print(f"✓ Adversarial training: {config.use_adversarial_training}\n")
+        pass
     else:
-        print("⚠ WARNING: GPU not available!")
-        print("⚠ Training RoBERTa-LARGE on CPU will take DAYS!")
-        print("⚠ Please use a GPU with 16GB+ VRAM\n")
         response = input("Continue anyway? (yes/no): ")
         if response.lower() != "yes":
-            print("Exiting...")
             return
 
     # Set random seeds for reproducibility
@@ -963,15 +971,12 @@ def train_intent_classifier(config: TrainingConfig):
     # Load intent mappings
     intent_to_id, id_to_intent = load_intent_mapping(config.data_dir)
     num_labels = len(intent_to_id)
-    print(f"Number of intent classes: {num_labels}\n")
 
     # Initialize tokenizer
-    print("Loading DeBERTa-v3 tokenizer...")
     tokenizer = DebertaV2Tokenizer.from_pretrained(config.model_name)  # nosec B615
 
     # Create datasets with augmentation
     _data_base = Path(config.data_dir).resolve()
-    print("\nCreating datasets...")
     train_dataset = IntentDataset(
         data_path=safe_path("train_annotated.yaml", _data_base),  # nosec
         tokenizer=tokenizer,
@@ -996,11 +1001,6 @@ def train_intent_classifier(config: TrainingConfig):
         max_length=config.max_length,
         use_augmentation=False,
     )
-
-    print("\nDataset sizes:")
-    print(f"  Train: {len(train_dataset)} (with augmentation)")
-    print(f"  Validation: {len(val_dataset)}")
-    print(f"  Test: {len(test_dataset)}\n")
 
     # Get class weights for balanced training
     _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -1034,7 +1034,6 @@ def train_intent_classifier(config: TrainingConfig):
     )
 
     # Initialize model
-    print("Initializing model...")
     model = IntentClassifierModule(
         config=config,
         num_labels=num_labels,
@@ -1096,22 +1095,13 @@ def train_intent_classifier(config: TrainingConfig):
     )
 
     # Train
-    print(f"\n{'='*80}")
-    print("Starting training with DeBERTa-v3...")
-    print(f"{'='*80}\n")
-    print("Estimated training time: 8-12 hours")
-    print("Target accuracy: >99%\n")
 
     trainer.fit(model, train_loader, val_loader)
 
     # Test
-    print(f"\n{'='*80}")
-    print("Running final evaluation on test set...")
-    print(f"{'='*80}\n")
     trainer.test(model, test_loader, ckpt_path="best")
 
     # Save final model and tokenizer
-    print("\nSaving final model and tokenizer...")
     _output_base = Path(config.output_dir).resolve()
     final_model_path = safe_path("final_model", _output_base)  # nosec
     final_model_path.mkdir(parents=True, exist_ok=True)
@@ -1136,7 +1126,7 @@ def train_intent_classifier(config: TrainingConfig):
         "id_to_intent": id_to_intent,
         "num_labels": num_labels,
     }
-    with open(final_model_path / "intent_mappings.json", "w", encoding='utf-8') as f:  # nosec - path validated by safe_path
+    with open(final_model_path / "intent_mappings.json", "w", encoding="utf-8") as f:  # nosec - path validated by safe_path  # noqa: PTH123
         json.dump(mappings, f, indent=2)
 
     # Also save in the format expected by NeuralIntentClassifier (label_mappings.yaml)
@@ -1145,21 +1135,15 @@ def train_intent_classifier(config: TrainingConfig):
         "id_to_label": {str(k): v for k, v in id_to_intent.items()},
         "num_labels": num_labels,
     }
-    with open(final_model_path / "label_mappings.yaml", "w") as f:  # nosec - path validated by safe_path
+    with open(final_model_path / "label_mappings.yaml", "w") as f:  # nosec - path validated by safe_path  # noqa: PTH123
         yaml.dump(label_mappings, f, default_flow_style=False)
 
     # Save training config
-    with open(final_model_path / "training_config.json", "w", encoding='utf-8') as f:  # nosec - path validated by safe_path
+    with open(final_model_path / "training_config.json", "w", encoding="utf-8") as f:  # nosec - path validated by safe_path  # noqa: PTH123
         json.dump(vars(config), f, indent=2)
 
-    print(f"\n{'='*80}")
-    print(f"✓ Model saved to: {final_model_path}")
-    print(f"✓ Best checkpoint: {checkpoint_callback.best_model_path}")
     if checkpoint_callback.best_model_score is not None:
-        print(f"✓ Best validation accuracy: {checkpoint_callback.best_model_score:.4f}")
-    print("✓ Training complete!")
-    print("\nThis is the BEST intent classifier - ZERO COMPROMISE!")
-    print(f"{'='*80}\n")
+        pass
 
 
 if __name__ == "__main__":

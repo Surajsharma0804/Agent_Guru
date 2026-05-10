@@ -1,5 +1,4 @@
-"""
-Persistent Goal & Trigger Engine.
+"""Persistent Goal & Trigger Engine.
 
 This module implements a background service that evaluates goal triggers
 and executes actions automatically based on time, location, events, or conditions.
@@ -14,11 +13,12 @@ Date: 2024
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from Agent_Guru.reasoning.models.goal import (
@@ -32,8 +32,7 @@ _logger = logging.getLogger(__name__)
 
 
 class GoalEngine:
-    """
-    Persistent goal engine with background trigger evaluation.
+    """Persistent goal engine with background trigger evaluation.
 
     Manages persistent goals that can be triggered automatically based on:
     - Time (specific time of day, day of week, etc.)
@@ -50,6 +49,7 @@ class GoalEngine:
         >>> await engine.start_background_service()
         >>> goal = await engine.register_goal(...)
         >>> await engine.stop_background_service()
+
     """
 
     def __init__(
@@ -57,16 +57,16 @@ class GoalEngine:
         db_path: str = "goals.db",
         evaluation_interval: int = 60,
         max_active_goals: int = 50,
-        world_state_engine=None,
-    ):
-        """
-        Initialize goal engine.
+        world_state_engine=None,  # noqa: ANN001
+    ) -> None:
+        """Initialize goal engine.
 
         Args:
             db_path: Path to SQLite database
             evaluation_interval: Trigger evaluation interval (seconds)
             max_active_goals: Maximum active goals per user
             world_state_engine: WorldStateEngine instance for state queries
+
         """
         self.db_path = Path(db_path)
         self.evaluation_interval = evaluation_interval
@@ -111,7 +111,7 @@ class GoalEngine:
                         notification_sent BOOLEAN NOT NULL DEFAULT 0,
                         metadata TEXT NOT NULL DEFAULT '{}'
                     )
-                """
+                """,
                 )
 
                 # Execution history table
@@ -127,7 +127,7 @@ class GoalEngine:
                         timestamp TEXT NOT NULL,
                         FOREIGN KEY (goal_id) REFERENCES persistent_goals(goal_id)
                     )
-                """
+                """,
                 )
 
                 # Create indexes
@@ -135,25 +135,25 @@ class GoalEngine:
                     """
                     CREATE INDEX IF NOT EXISTS idx_goals_user_id
                     ON persistent_goals(user_id)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_goals_status
                     ON persistent_goals(user_id, status)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_goals_trigger_type
                     ON persistent_goals(trigger_type, status)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_executions_goal_id
                     ON goal_executions(goal_id, timestamp DESC)
-                """
+                """,
                 )
 
                 conn.commit()
@@ -163,8 +163,7 @@ class GoalEngine:
             self._initialized = True
 
     async def register_goal(self, goal: PersistentGoal) -> PersistentGoal:
-        """
-        Register a new persistent goal.
+        """Register a new persistent goal.
 
         Time Complexity: O(1)
 
@@ -176,6 +175,7 @@ class GoalEngine:
 
         Raises:
             ValueError: If max active goals exceeded
+
         """
         if not self._initialized:
             await self.initialize()
@@ -183,8 +183,9 @@ class GoalEngine:
         # Check active goal limit
         active_count = await self._count_active_goals(goal.user_id)
         if active_count >= self.max_active_goals:
+            msg = f"Maximum active goals ({self.max_active_goals}) exceeded for user {goal.user_id}"
             raise ValueError(
-                f"Maximum active goals ({self.max_active_goals}) exceeded for user {goal.user_id}"
+                msg,
             )
 
         async with self._lock:
@@ -223,8 +224,7 @@ class GoalEngine:
                 conn.close()
 
     async def update_goal(self, goal_id: str, updates: dict) -> PersistentGoal | None:
-        """
-        Update goal properties.
+        """Update goal properties.
 
         Args:
             goal_id: Goal identifier
@@ -232,6 +232,7 @@ class GoalEngine:
 
         Returns:
             Updated goal or None if not found
+
         """
         if not self._initialized:
             await self.initialize()
@@ -242,19 +243,30 @@ class GoalEngine:
                 cursor = conn.cursor()
 
                 # Allowlist of valid column names to prevent SQL injection
-                _ALLOWED_UPDATE_KEYS = frozenset({
-                    "trigger_condition", "action_plan", "metadata",
-                    "last_evaluated", "last_triggered", "created_at",
-                    "status", "description", "trigger_type", "notify_before_execution",
-                    "notification_sent", "trigger_count",
-                })
+                _ALLOWED_UPDATE_KEYS = frozenset(
+                    {
+                        "trigger_condition",
+                        "action_plan",
+                        "metadata",
+                        "last_evaluated",
+                        "last_triggered",
+                        "created_at",
+                        "status",
+                        "description",
+                        "trigger_type",
+                        "notify_before_execution",
+                        "notification_sent",
+                        "trigger_count",
+                    },
+                )
 
                 # Build update query
                 set_clauses = []
                 values = []
                 for key, value in updates.items():
                     if key not in _ALLOWED_UPDATE_KEYS:
-                        raise ValueError(f"Invalid update key: {key!r}")
+                        msg = f"Invalid update key: {key!r}"
+                        raise ValueError(msg)
                     if key in ["trigger_condition", "action_plan", "metadata"]:
                         set_clauses.append(key + " = ?")
                         values.append(json.dumps(value))
@@ -272,7 +284,7 @@ class GoalEngine:
                 values.append(goal_id)
                 # Build query — column names are validated against allowlist above; values are parameterized
                 query = (
-                    "UPDATE persistent_goals SET " + ", ".join(set_clauses) + " WHERE goal_id = ?"  # nosec B608
+                    "UPDATE persistent_goals SET " + ", ".join(set_clauses) + " WHERE goal_id = ?"  # nosec B608  # noqa: S608 - SQL parameterization reviewed
                 )
 
                 cursor.execute(query, values)
@@ -283,38 +295,38 @@ class GoalEngine:
                 conn.close()
 
     async def cancel_goal(self, goal_id: str) -> bool:
-        """
-        Cancel a goal.
+        """Cancel a goal.
 
         Args:
             goal_id: Goal identifier
 
         Returns:
             True if cancelled, False if not found
+
         """
         return await self._update_goal_status(goal_id, GoalStatus.CANCELLED)
 
     async def pause_goal(self, goal_id: str) -> bool:
-        """
-        Pause a goal.
+        """Pause a goal.
 
         Args:
             goal_id: Goal identifier
 
         Returns:
             True if paused, False if not found
+
         """
         return await self._update_goal_status(goal_id, GoalStatus.PAUSED)
 
     async def resume_goal(self, goal_id: str) -> bool:
-        """
-        Resume a paused goal.
+        """Resume a paused goal.
 
         Args:
             goal_id: Goal identifier
 
         Returns:
             True if resumed, False if not found
+
         """
         return await self._update_goal_status(goal_id, GoalStatus.ACTIVE)
 
@@ -341,8 +353,7 @@ class GoalEngine:
                 conn.close()
 
     async def get_goal(self, goal_id: str) -> PersistentGoal | None:
-        """
-        Get goal by ID.
+        """Get goal by ID.
 
         Time Complexity: O(1) with index
 
@@ -351,6 +362,7 @@ class GoalEngine:
 
         Returns:
             Goal or None if not found
+
         """
         if not self._initialized:
             await self.initialize()
@@ -372,8 +384,7 @@ class GoalEngine:
                 conn.close()
 
     async def get_active_goals(self, user_id: str | None = None) -> list[PersistentGoal]:
-        """
-        Get all active goals.
+        """Get all active goals.
 
         Time Complexity: O(n) where n is active goals
 
@@ -382,6 +393,7 @@ class GoalEngine:
 
         Returns:
             List of active goals
+
         """
         if not self._initialized:
             await self.initialize()
@@ -406,7 +418,7 @@ class GoalEngine:
                         SELECT * FROM persistent_goals
                         WHERE status = 'active'
                         ORDER BY created_at DESC
-                    """
+                    """,
                     )
 
                 rows = cursor.fetchall()
@@ -415,8 +427,7 @@ class GoalEngine:
                 conn.close()
 
     async def get_goal_history(self, user_id: str, limit: int = 100) -> list[PersistentGoal]:
-        """
-        Get goal history for a user.
+        """Get goal history for a user.
 
         Args:
             user_id: User identifier
@@ -424,6 +435,7 @@ class GoalEngine:
 
         Returns:
             List of goals
+
         """
         if not self._initialized:
             await self.initialize()
@@ -447,11 +459,11 @@ class GoalEngine:
                 conn.close()
 
     async def record_execution(self, result: GoalExecutionResult) -> None:
-        """
-        Record goal execution result.
+        """Record goal execution result.
 
         Args:
             result: Execution result
+
         """
         if not self._initialized:
             await self.initialize()
@@ -494,10 +506,8 @@ class GoalEngine:
         self._running = False
         if self._background_task:
             self._background_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._background_task
-            except asyncio.CancelledError:
-                pass
             self._background_task = None
 
     async def _evaluation_loop(self) -> None:
@@ -506,21 +516,19 @@ class GoalEngine:
             try:
                 await self.evaluate_triggers()
                 await asyncio.sleep(self.evaluation_interval)
-            except asyncio.CancelledError as e:
+            except asyncio.CancelledError:
                 break
-            except Exception as e:
                 # Log error but continue running
-                _logger.error("Error in goal evaluation loop: %s", e)
+                _logger.exception("Error in goal evaluation loop")
                 await asyncio.sleep(self.evaluation_interval)
-
     async def evaluate_triggers(self) -> list[PersistentGoal]:
-        """
-        Evaluate all active goal triggers.
+        """Evaluate all active goal triggers.
 
         Time Complexity: O(n) where n is active goals
 
         Returns:
             List of triggered goals
+
         """
         if not self._initialized:
             await self.initialize()
@@ -556,8 +564,7 @@ class GoalEngine:
         return triggered
 
     async def _evaluate_time_trigger(self, goal: PersistentGoal) -> bool:
-        """
-        Evaluate time-based trigger.
+        """Evaluate time-based trigger.
 
         Checks if current time matches trigger condition.
 
@@ -566,11 +573,12 @@ class GoalEngine:
 
         Returns:
             True if trigger condition is met
+
         """
         from Agent_Guru.reasoning.models.goal import TimeBasedTrigger
 
         trigger = TimeBasedTrigger(**goal.trigger_condition)
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         # Parse time_of_day
         hour, minute = map(int, trigger.time_of_day.split(":"))
@@ -582,14 +590,12 @@ class GoalEngine:
             return False
 
         # Check day of week if specified
-        if trigger.day_of_week is not None:
-            if now.weekday() != trigger.day_of_week:
-                return False
+        if trigger.day_of_week is not None and now.weekday() != trigger.day_of_week:
+            return False
 
         # Check day of month if specified
-        if trigger.day_of_month is not None:
-            if now.day != trigger.day_of_month:
-                return False
+        if trigger.day_of_month is not None and now.day != trigger.day_of_month:
+            return False
 
         # Check recurrence
         if trigger.recurrence == "once":
@@ -599,8 +605,7 @@ class GoalEngine:
         return True
 
     async def _evaluate_location_trigger(self, goal: PersistentGoal) -> bool:
-        """
-        Evaluate location-based trigger.
+        """Evaluate location-based trigger.
 
         Checks if current location is within geofence using WorldState.
 
@@ -609,6 +614,7 @@ class GoalEngine:
 
         Returns:
             True if trigger condition is met
+
         """
         from Agent_Guru.reasoning.models.goal import LocationBasedTrigger
 
@@ -629,8 +635,9 @@ class GoalEngine:
             import math
 
             lat1, lon1 = math.radians(trigger.latitude), math.radians(trigger.longitude)
-            lat2, lon2 = math.radians(current_location.latitude), math.radians(
-                current_location.longitude
+            lat2, lon2 = (
+                math.radians(current_location.latitude),
+                math.radians(current_location.longitude),
             )
 
             dlat = lat2 - lat1
@@ -644,10 +651,10 @@ class GoalEngine:
             if trigger.trigger_on == "enter":
                 # Trigger when entering geofence
                 return distance <= trigger.radius
-            elif trigger.trigger_on == "exit":
+            if trigger.trigger_on == "exit":
                 # Trigger when exiting geofence
                 return distance > trigger.radius
-            elif trigger.trigger_on == "dwell":
+            if trigger.trigger_on == "dwell":
                 # Trigger when dwelling in geofence
                 return distance <= trigger.radius
 
@@ -655,10 +662,8 @@ class GoalEngine:
         except Exception as e:
             _logger.warning("Error evaluating location trigger: %s", e)
             return False
-
     async def _evaluate_event_trigger(self, goal: PersistentGoal) -> bool:
-        """
-        Evaluate event-based trigger.
+        """Evaluate event-based trigger.
 
         Checks if specified event has occurred using WorldState.
 
@@ -667,6 +672,7 @@ class GoalEngine:
 
         Returns:
             True if trigger condition is met
+
         """
         from Agent_Guru.reasoning.models.goal import EventBasedTrigger
 
@@ -692,10 +698,8 @@ class GoalEngine:
         except Exception as e:
             _logger.warning("Error evaluating event trigger: %s", e)
             return False
-
     def _matches_event_filter(self, event_data: dict, event_filter: dict) -> bool:
-        """
-        Check if event data matches filter criteria.
+        """Check if event data matches filter criteria.
 
         Args:
             event_data: Event data to check
@@ -703,6 +707,7 @@ class GoalEngine:
 
         Returns:
             True if event matches filter
+
         """
         if not event_filter:
             return True
@@ -714,8 +719,7 @@ class GoalEngine:
         return True
 
     async def _evaluate_conditional_trigger(self, goal: PersistentGoal) -> bool:
-        """
-        Evaluate conditional trigger.
+        """Evaluate conditional trigger.
 
         Evaluates boolean expression against WorldState.
 
@@ -724,6 +728,7 @@ class GoalEngine:
 
         Returns:
             True if trigger condition is met
+
         """
         from Agent_Guru.reasoning.models.goal import ConditionalTrigger
 
@@ -761,16 +766,13 @@ class GoalEngine:
 
             # Safely evaluate expression
             # (Using simple comparison operators only for safety)
-            result = self._safe_eval_condition(trigger.condition_expression, context)
-            return result
+            return self._safe_eval_condition(trigger.condition_expression, context)
 
         except Exception as e:
             _logger.warning("Error evaluating conditional trigger: %s", e)
             return False
-
     def _safe_eval_condition(self, expression: str, context: dict) -> bool:
-        """
-        Safely evaluate boolean expression.
+        """Safely evaluate boolean expression.
 
         Only allows simple comparisons for security.
 
@@ -780,6 +782,7 @@ class GoalEngine:
 
         Returns:
             Evaluation result
+
         """
         # Simple safe evaluation using ast module instead of eval
         import ast
@@ -803,36 +806,40 @@ class GoalEngine:
             tree = ast.parse(expression, mode="eval")
 
             # Evaluate AST safely
-            def eval_node(node):
+            def eval_node(node):  # noqa: ANN001
                 if isinstance(node, ast.Expression):
                     return eval_node(node.body)
-                elif isinstance(node, ast.Compare):
+                if isinstance(node, ast.Compare):
                     left = eval_node(node.left)
                     for op, comparator in zip(node.ops, node.comparators, strict=True):
                         if type(op) not in safe_operators:
-                            raise ValueError(f"Unsafe operator: {type(op)}")
+                            msg = f"Unsafe operator: {type(op)}"
+                            raise ValueError(msg)
                         right = eval_node(comparator)
                         op_func = safe_operators[type(op)]
                         if not op_func(left, right):
                             return False
                         left = right
                     return True
-                elif isinstance(node, ast.BoolOp):
+                if isinstance(node, ast.BoolOp):
                     if type(node.op) not in safe_operators:
-                        raise ValueError(f"Unsafe operator: {type(node.op)}")
+                        msg = f"Unsafe operator: {type(node.op)}"
+                        raise ValueError(msg)
                     values = [eval_node(v) for v in node.values]
                     if isinstance(node.op, ast.And):
                         return all(values)
-                    elif isinstance(node.op, ast.Or):
+                    if isinstance(node.op, ast.Or):
                         return any(values)
                 elif isinstance(node, ast.UnaryOp):
                     if type(node.op) not in safe_operators:
-                        raise ValueError(f"Unsafe operator: {type(node.op)}")
+                        msg = f"Unsafe operator: {type(node.op)}"
+                        raise ValueError(msg)
                     op_func = safe_operators[type(node.op)]
                     return op_func(eval_node(node.operand))
                 elif isinstance(node, ast.Name):
                     if node.id not in context:
-                        raise ValueError(f"Unknown variable: {node.id}")
+                        msg = f"Unknown variable: {node.id}"
+                        raise ValueError(msg)
                     return context[node.id]
                 elif isinstance(node, ast.Constant):
                     return node.value
@@ -843,7 +850,9 @@ class GoalEngine:
                 elif isinstance(node, ast.NameConstant):  # Python 3.7 compatibility
                     return node.value
                 else:
-                    raise ValueError(f"Unsupported node type: {type(node)}")
+                    msg = f"Unsupported node type: {type(node)}"
+                    raise ValueError(msg)
+                return None
 
             result = eval_node(tree)
             return bool(result)
@@ -851,10 +860,8 @@ class GoalEngine:
         except Exception as e:
             _logger.warning("Error evaluating condition %r: %s", expression, e)
             return False
-
     async def execute_triggered_goal(self, goal: PersistentGoal) -> GoalExecutionResult:
-        """
-        Execute a triggered goal.
+        """Execute a triggered goal.
 
         Execution flow:
         1. Check safety constraints
@@ -870,14 +877,16 @@ class GoalEngine:
 
         Returns:
             Execution result
+
         """
-        start_time = datetime.now(tz=timezone.utc)
+        start_time = datetime.now(tz=UTC)
 
         try:
             # Check safety constraints
             safety_check = await self._check_goal_safety(goal)
             if not safety_check["allowed"]:
-                raise ValueError(f"Goal execution blocked: {safety_check['reason']}")
+                msg = f"Goal execution blocked: {safety_check['reason']}"
+                raise ValueError(msg)
 
             # Check if notification required
             if goal.notify_before_execution and not goal.notification_sent:
@@ -911,7 +920,7 @@ class GoalEngine:
             )
 
             # Calculate execution time
-            execution_time = (datetime.now(tz=timezone.utc) - start_time).total_seconds()
+            execution_time = (datetime.now(tz=UTC) - start_time).total_seconds()
 
             # Create result
             result = GoalExecutionResult(
@@ -920,7 +929,7 @@ class GoalEngine:
                 result_data=result_data,
                 error=error,
                 execution_time=execution_time,
-                timestamp=datetime.now(tz=timezone.utc),
+                timestamp=datetime.now(tz=UTC),
             )
 
             # Record execution
@@ -930,39 +939,33 @@ class GoalEngine:
 
         except Exception as e:
             # Handle execution error
-            execution_time = (datetime.now(tz=timezone.utc) - start_time).total_seconds()
-
+            execution_time = (datetime.now(tz=UTC) - start_time).total_seconds()
             result = GoalExecutionResult(
                 goal_id=goal.goal_id,
                 success=False,
                 result_data=None,
                 error=str(e),
                 execution_time=execution_time,
-                timestamp=datetime.now(tz=timezone.utc),
+                timestamp=datetime.now(tz=UTC),
             )
-
             # Record failed execution
             await self.record_execution(result)
-
             # Check for consecutive failures
             await self._check_failure_threshold(goal)
-
             return result
-
     async def _send_notification(self, goal: PersistentGoal) -> None:
-        """
-        Send notification to user before execution.
+        """Send notification to user before execution.
 
         Args:
             goal: Goal to notify about
+
         """
         # TODO: Integrate with notification system
         # For now, just log
         _logger.info("Goal '%s' is about to execute (notification stub)", goal.description)
 
     async def _check_goal_safety(self, goal: PersistentGoal) -> dict:
-        """
-        Check if goal execution is safe.
+        """Check if goal execution is safe.
 
         Safety checks:
         - Trigger frequency limit (max once per hour)
@@ -975,6 +978,7 @@ class GoalEngine:
 
         Returns:
             Dictionary with 'allowed' (bool) and 'reason' (str)
+
         """
         # Check if goal is active
         if goal.status != GoalStatus.ACTIVE:
@@ -998,7 +1002,8 @@ class GoalEngine:
 
         # Check recent failure rate
         recent_failures = await self._get_recent_failure_count(goal.goal_id, limit=5)
-        if recent_failures >= 5:
+        if recent_failures >= 5:  # noqa: PLR2004 - Small integer threshold
+
             return {
                 "allowed": False,
                 "reason": "Goal disabled after 5 consecutive failures",
@@ -1007,8 +1012,7 @@ class GoalEngine:
         return {"allowed": True, "reason": ""}
 
     def _is_sensitive_action(self, action_plan: dict) -> bool:
-        """
-        Check if action plan contains sensitive actions.
+        """Check if action plan contains sensitive actions.
 
         Sensitive actions include:
         - Messaging/calling
@@ -1021,6 +1025,7 @@ class GoalEngine:
 
         Returns:
             True if action is sensitive
+
         """
         # Check action type
         action_type = action_plan.get("type", "")
@@ -1036,8 +1041,7 @@ class GoalEngine:
         return action_type in sensitive_types
 
     async def _get_recent_failure_count(self, goal_id: str, limit: int = 5) -> int:
-        """
-        Get count of recent consecutive failures.
+        """Get count of recent consecutive failures.
 
         Args:
             goal_id: Goal identifier
@@ -1045,6 +1049,7 @@ class GoalEngine:
 
         Returns:
             Number of consecutive failures
+
         """
         conn = sqlite3.connect(str(self.db_path))
         try:
@@ -1073,14 +1078,14 @@ class GoalEngine:
             conn.close()
 
     async def get_goal_metrics(self, goal_id: str) -> dict:
-        """
-        Get execution metrics for a goal.
+        """Get execution metrics for a goal.
 
         Args:
             goal_id: Goal identifier
 
         Returns:
             Metrics dictionary
+
         """
         if not self._initialized:
             await self.initialize()
@@ -1122,13 +1127,13 @@ class GoalEngine:
             conn.close()
 
     async def _check_failure_threshold(self, goal: PersistentGoal) -> None:
-        """
-        Check if goal has exceeded failure threshold.
+        """Check if goal has exceeded failure threshold.
 
         Disables goal after 5 consecutive failures.
 
         Args:
             goal: Goal to check
+
         """
         # Get recent executions
         conn = sqlite3.connect(str(self.db_path))
@@ -1146,7 +1151,8 @@ class GoalEngine:
             recent_executions = [row[0] for row in cursor.fetchall()]
 
             # Check if last 5 executions all failed
-            if len(recent_executions) >= 5 and not any(recent_executions):
+            if len(recent_executions) >= 5 and not any(recent_executions):  # noqa: PLR2004 - Small integer threshold
+
                 # Disable goal
                 await self.pause_goal(goal.goal_id)
                 _logger.warning("Goal '%s' paused after 5 consecutive failures", goal.description)

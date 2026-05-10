@@ -1,8 +1,8 @@
 """Error handling data models."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -83,17 +83,19 @@ class FallbackStrategy(str, Enum):
 class Error(BaseModel):
     """Represents an error that occurred during processing."""
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "error_code": "ERR_INTENT_001",
-            "error_type": "intent_detection_failed",
-            "message": "Failed to detect intent from input",
-            "details": {"input": "mumble mumble", "confidence": 0.12},
-            "recoverable": True,
-            "suggested_fallback": "user_notification",
-            "user_message": "I didn't understand that. Could you rephrase?",
-        }
-    })
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "error_code": "ERR_INTENT_001",
+                "error_type": "intent_detection_failed",
+                "message": "Failed to detect intent from input",
+                "details": {"input": "mumble mumble", "confidence": 0.12},
+                "recoverable": True,
+                "suggested_fallback": "user_notification",
+                "user_message": "I didn't understand that. Could you rephrase?",
+            },
+        },
+    )
 
     error_code: str = Field(..., description="Error code for identification")
     error_type: ErrorType = Field(..., description="Type of error")
@@ -107,18 +109,18 @@ class Error(BaseModel):
         description="Whether error is recoverable",
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
+        default_factory=lambda: datetime.now(tz=UTC),
         description="Error timestamp",
     )
-    stack_trace: Optional[str] = Field(
+    stack_trace: str | None = Field(
         default=None,
         description="Stack trace for debugging",
     )
-    suggested_fallback: Optional[FallbackStrategy] = Field(
+    suggested_fallback: FallbackStrategy | None = Field(
         default=None,
         description="Suggested fallback strategy",
     )
-    user_message: Optional[str] = Field(
+    user_message: str | None = Field(
         default=None,
         description="User-friendly error message",
     )
@@ -128,7 +130,8 @@ class Error(BaseModel):
     def validate_error_code(cls, v: str) -> str:
         """Validate error code is not empty."""
         if not v or not v.strip():
-            raise ValueError("Error code cannot be empty")
+            msg = "Error code cannot be empty"
+            raise ValueError(msg)
         return v
 
     @field_validator("message")
@@ -136,15 +139,16 @@ class Error(BaseModel):
     def validate_message(cls, v: str) -> str:
         """Validate error message is not empty."""
         if not v or not v.strip():
-            raise ValueError("Error message cannot be empty")
+            msg = "Error message cannot be empty"
+            raise ValueError(msg)
         return v
 
     def is_timeout_error(self) -> bool:
-        """
-        Check if error is a timeout error.
+        """Check if error is a timeout error.
 
         Returns:
             True if error is timeout-related
+
         """
         return self.error_type in {
             ErrorType.REASONING_TIMEOUT,
@@ -153,11 +157,11 @@ class Error(BaseModel):
         }
 
     def is_llm_error(self) -> bool:
-        """
-        Check if error is LLM-related.
+        """Check if error is LLM-related.
 
         Returns:
             True if error is LLM-related
+
         """
         return self.error_type in {
             ErrorType.LLM_UNAVAILABLE,
@@ -167,11 +171,11 @@ class Error(BaseModel):
         }
 
     def is_safety_error(self) -> bool:
-        """
-        Check if error is safety-related.
+        """Check if error is safety-related.
 
         Returns:
             True if error is safety-related
+
         """
         return self.error_type in {
             ErrorType.PERMISSION_DENIED,
@@ -180,29 +184,26 @@ class Error(BaseModel):
         }
 
     def should_retry(self) -> bool:
-        """
-        Check if error should trigger a retry.
+        """Check if error should trigger a retry.
 
         Returns:
             True if retry is recommended
+
         """
-        return (
-            self.recoverable
-            and self.error_type in {
-                ErrorType.LLM_TIMEOUT,
-                ErrorType.EXECUTION_TIMEOUT,
-                ErrorType.NETWORK_ERROR,
-                ErrorType.SERVICE_UNAVAILABLE,
-                ErrorType.LLM_RATE_LIMIT,
-            }
-        )
+        return self.recoverable and self.error_type in {
+            ErrorType.LLM_TIMEOUT,
+            ErrorType.EXECUTION_TIMEOUT,
+            ErrorType.NETWORK_ERROR,
+            ErrorType.SERVICE_UNAVAILABLE,
+            ErrorType.LLM_RATE_LIMIT,
+        }
 
     def get_user_friendly_message(self) -> str:
-        """
-        Get user-friendly error message.
+        """Get user-friendly error message.
 
         Returns:
             User-friendly error message
+
         """
         if self.user_message:
             return self.user_message
@@ -228,10 +229,7 @@ class Error(BaseModel):
         """Check equality based on error code and type."""
         if not isinstance(other, Error):
             return False
-        return (
-            self.error_code == other.error_code
-            and self.error_type == other.error_type
-        )
+        return self.error_code == other.error_code and self.error_type == other.error_type
 
     def __hash__(self) -> int:
         """Generate hash for error."""

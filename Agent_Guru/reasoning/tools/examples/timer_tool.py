@@ -1,6 +1,4 @@
-"""
-Timer tool for setting and canceling timers.
-"""
+"""Timer tool for setting and canceling timers."""
 
 import time
 from typing import Any
@@ -41,7 +39,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class SetTimerTool(Tool):
     """Tool for setting timers."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute timer setting.
 
         Args:
@@ -50,6 +48,7 @@ class SetTimerTool(Tool):
 
         Returns:
             Execution result with timer ID and expiration time
+
         """
         duration_seconds = kwargs["duration_seconds"]
         label = kwargs.get("label", "Timer")
@@ -61,7 +60,8 @@ class SetTimerTool(Tool):
                 "error": "Duration must be positive",
             }
 
-        if duration_seconds > 86400:  # 24 hours
+        if duration_seconds > 86400:  # 24 hours  # noqa: PLR2004 (Percentage/large threshold)
+
             return {
                 "success": False,
                 "error": "Duration cannot exceed 24 hours",
@@ -93,7 +93,7 @@ class SetTimerTool(Tool):
             type=ToolParameterType.STRING,
             description="ID of the timer to cancel",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=50,
@@ -103,7 +103,7 @@ class SetTimerTool(Tool):
 class CancelTimerTool(Tool):
     """Tool for canceling timers."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute timer cancellation.
 
         Args:
@@ -111,6 +111,7 @@ class CancelTimerTool(Tool):
 
         Returns:
             Execution result
+
         """
         timer_id = kwargs["timer_id"]
 

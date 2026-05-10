@@ -1,5 +1,4 @@
-"""
-User preference learning system.
+"""User preference learning system.
 
 This module learns user preferences from behavior including tone, confirmation,
 tool choices, and other interaction patterns.
@@ -17,16 +16,15 @@ import asyncio
 import json
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.models.behavioral import PreferenceType, UserPreference
 
 
 class PreferenceLearner:
-    """
-    Learns and manages user preferences.
+    """Learns and manages user preferences.
 
     Tracks preferences for:
     - Tone (professional vs casual)
@@ -45,15 +43,16 @@ class PreferenceLearner:
         ...     "user123", PreferenceType.TOOL, "music_service", "spotify"
         ... )
         >>> pref = await learner.get_preference("user123", "music_service")
+
     """
 
-    def __init__(self, db_path: str = "behavioral.db", decay_weight: float = 0.2):
-        """
-        Initialize preference learner.
+    def __init__(self, db_path: str = "behavioral.db", decay_weight: float = 0.2) -> None:
+        """Initialize preference learner.
 
         Args:
             db_path: Path to SQLite database
             decay_weight: Weight for new observations (0.0-1.0)
+
         """
         self.db_path = Path(db_path)
         self.decay_weight = decay_weight
@@ -91,7 +90,7 @@ class PreferenceLearner:
                         created_at TEXT NOT NULL,
                         UNIQUE(user_id, preference_key)
                     )
-                """
+                """,
                 )
 
                 # Create indexes
@@ -99,19 +98,19 @@ class PreferenceLearner:
                     """
                     CREATE INDEX IF NOT EXISTS idx_pref_user_id
                     ON user_preferences(user_id)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_pref_type
                     ON user_preferences(user_id, preference_type)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_pref_confidence
                     ON user_preferences(user_id, confidence DESC)
-                """
+                """,
                 )
 
                 conn.commit()
@@ -125,12 +124,11 @@ class PreferenceLearner:
         user_id: str,
         preference_type: PreferenceType,
         preference_key: str,
-        preference_value: Any,
+        preference_value: Any,  # noqa: ANN401
         learned_from: str = "behavior",
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> UserPreference:
-        """
-        Learn or update user preference.
+        """Learn or update user preference.
 
         Time Complexity: O(1)
 
@@ -144,6 +142,7 @@ class PreferenceLearner:
 
         Returns:
             Updated preference
+
         """
         if not self._initialized:
             await self.initialize()
@@ -198,11 +197,11 @@ class PreferenceLearner:
                         confidence=0.5,
                         learned_from=learned_from,
                         sample_count=1,
-                        last_updated=datetime.now(tz=timezone.utc),
+                        last_updated=datetime.now(tz=UTC),
                         metadata=metadata or {},
                     )
 
-                    now = datetime.now(tz=timezone.utc).isoformat()
+                    now = datetime.now(tz=UTC).isoformat()
                     cursor.execute(
                         """
                         INSERT INTO user_preferences (
@@ -231,9 +230,8 @@ class PreferenceLearner:
             finally:
                 conn.close()
 
-    async def get_preference(self, user_id: str, preference_key: str) -> Optional[UserPreference]:
-        """
-        Get user preference by key.
+    async def get_preference(self, user_id: str, preference_key: str) -> UserPreference | None:
+        """Get user preference by key.
 
         Time Complexity: O(1) with index
 
@@ -243,6 +241,7 @@ class PreferenceLearner:
 
         Returns:
             User preference or None
+
         """
         if not self._initialized:
             await self.initialize()
@@ -264,10 +263,12 @@ class PreferenceLearner:
                 conn.close()
 
     async def get_preferences_by_type(
-        self, user_id: str, preference_type: PreferenceType, min_confidence: float = 0.5
+        self,
+        user_id: str,
+        preference_type: PreferenceType,
+        min_confidence: float = 0.5,
     ) -> list[UserPreference]:
-        """
-        Get all preferences of a specific type.
+        """Get all preferences of a specific type.
 
         Time Complexity: O(n) where n is matching preferences
 
@@ -278,6 +279,7 @@ class PreferenceLearner:
 
         Returns:
             List of preferences
+
         """
         if not self._initialized:
             await self.initialize()
@@ -300,10 +302,11 @@ class PreferenceLearner:
                 conn.close()
 
     async def get_all_preferences(
-        self, user_id: str, min_confidence: float = 0.5
+        self,
+        user_id: str,
+        min_confidence: float = 0.5,
     ) -> list[UserPreference]:
-        """
-        Get all preferences for a user.
+        """Get all preferences for a user.
 
         Time Complexity: O(n) where n is total preferences
 
@@ -313,6 +316,7 @@ class PreferenceLearner:
 
         Returns:
             List of all preferences
+
         """
         if not self._initialized:
             await self.initialize()
@@ -335,10 +339,12 @@ class PreferenceLearner:
                 conn.close()
 
     async def learn_tone_preference(
-        self, user_id: str, tone: str, context: Optional[dict] = None
+        self,
+        user_id: str,
+        tone: str,
+        context: dict | None = None,
     ) -> UserPreference:
-        """
-        Learn tone preference (professional vs casual).
+        """Learn tone preference (professional vs casual).
 
         Args:
             user_id: User identifier
@@ -347,6 +353,7 @@ class PreferenceLearner:
 
         Returns:
             Updated preference
+
         """
         return await self.learn_preference(
             user_id=user_id,
@@ -358,10 +365,12 @@ class PreferenceLearner:
         )
 
     async def learn_confirmation_preference(
-        self, user_id: str, always_confirm: bool, context: Optional[dict] = None
+        self,
+        user_id: str,
+        always_confirm: bool,
+        context: dict | None = None,
     ) -> UserPreference:
-        """
-        Learn confirmation preference.
+        """Learn confirmation preference.
 
         Args:
             user_id: User identifier
@@ -370,6 +379,7 @@ class PreferenceLearner:
 
         Returns:
             Updated preference
+
         """
         return await self.learn_preference(
             user_id=user_id,
@@ -381,10 +391,13 @@ class PreferenceLearner:
         )
 
     async def learn_tool_preference(
-        self, user_id: str, tool_category: str, tool_id: str, context: Optional[dict] = None
+        self,
+        user_id: str,
+        tool_category: str,
+        tool_id: str,
+        context: dict | None = None,
     ) -> UserPreference:
-        """
-        Learn tool preference (e.g., preferred music service).
+        """Learn tool preference (e.g., preferred music service).
 
         Args:
             user_id: User identifier
@@ -394,6 +407,7 @@ class PreferenceLearner:
 
         Returns:
             Updated preference
+
         """
         return await self.learn_preference(
             user_id=user_id,
@@ -405,10 +419,12 @@ class PreferenceLearner:
         )
 
     async def learn_verbosity_preference(
-        self, user_id: str, verbosity: str, context: Optional[dict] = None
+        self,
+        user_id: str,
+        verbosity: str,
+        context: dict | None = None,
     ) -> UserPreference:
-        """
-        Learn verbosity preference (concise vs detailed).
+        """Learn verbosity preference (concise vs detailed).
 
         Args:
             user_id: User identifier
@@ -417,6 +433,7 @@ class PreferenceLearner:
 
         Returns:
             Updated preference
+
         """
         return await self.learn_preference(
             user_id=user_id,
@@ -428,10 +445,12 @@ class PreferenceLearner:
         )
 
     async def learn_proactivity_preference(
-        self, user_id: str, proactive: bool, context: Optional[dict] = None
+        self,
+        user_id: str,
+        proactive: bool,
+        context: dict | None = None,
     ) -> UserPreference:
-        """
-        Learn proactivity preference (suggestions on/off).
+        """Learn proactivity preference (suggestions on/off).
 
         Args:
             user_id: User identifier
@@ -440,6 +459,7 @@ class PreferenceLearner:
 
         Returns:
             Updated preference
+
         """
         return await self.learn_preference(
             user_id=user_id,
@@ -451,8 +471,7 @@ class PreferenceLearner:
         )
 
     async def get_preference_summary(self, user_id: str) -> dict:
-        """
-        Get summary of all learned preferences.
+        """Get summary of all learned preferences.
 
         Time Complexity: O(n) where n is total preferences
 
@@ -461,6 +480,7 @@ class PreferenceLearner:
 
         Returns:
             Summary dictionary
+
         """
         if not self._initialized:
             await self.initialize()
@@ -480,7 +500,7 @@ class PreferenceLearner:
                     "value": pref.preference_value,
                     "confidence": pref.confidence,
                     "sample_count": pref.sample_count,
-                }
+                },
             )
 
         return {
@@ -490,13 +510,13 @@ class PreferenceLearner:
             "high_confidence": [
                 {"key": p.preference_key, "value": p.preference_value, "confidence": p.confidence}
                 for p in prefs
-                if p.confidence >= 0.8
+                if p.confidence >= 0.8  # noqa: PLR2004 - Threshold value
+
             ],
         }
 
     async def delete_preference(self, user_id: str, preference_key: str) -> bool:
-        """
-        Delete a user preference.
+        """Delete a user preference.
 
         Args:
             user_id: User identifier
@@ -504,6 +524,7 @@ class PreferenceLearner:
 
         Returns:
             True if deleted, False if not found
+
         """
         if not self._initialized:
             await self.initialize()

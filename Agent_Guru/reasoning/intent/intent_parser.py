@@ -1,5 +1,4 @@
-"""
-IntentParser - Voice Pipeline Intent Parsing Interface
+"""IntentParser - Voice Pipeline Intent Parsing Interface.
 
 Provides a simple, synchronous interface for the voice pipeline to parse
 user commands into structured intents with extracted parameters.
@@ -46,6 +45,7 @@ class ParseResult:
         raw_text: Original user input
         latency_ms: Parse time in milliseconds
         method: Detection method used ("pattern" | "llm" | "unknown")
+
     """
 
     intent_type: str
@@ -56,7 +56,7 @@ class ParseResult:
     latency_ms: float
     method: str = "pattern"
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def get(self, key: str, default: Any = None) -> Any:  # noqa: ANN401
         """Get entity value by name with optional default."""
         return self.entities.get(key, default)
 
@@ -75,6 +75,7 @@ class IntentParserConfig:
         cache_ttl_seconds: Cache entry TTL
         confidence_threshold: Minimum confidence for pattern match
         enable_llm_fallback: Whether to route low-confidence to LLM
+
     """
 
     patterns_file: str | Path = _DEFAULT_PATTERNS
@@ -102,6 +103,7 @@ class IntentParser:
         - Pattern match: <50ms P95
         - LLM fallback: <400ms P95
         - Cache hit: <1ms
+
     """
 
     def __init__(self, config: IntentParserConfig | None = None) -> None:
@@ -109,6 +111,7 @@ class IntentParser:
 
         Args:
             config: Parser configuration. Uses defaults if None.
+
         """
         self._config = config or IntentParserConfig()
         self._router = FastIntentRouter(
@@ -140,6 +143,7 @@ class IntentParser:
 
         Raises:
             RuntimeError: If initialize() has not been called.
+
         """
         if not self._initialized:
             self.initialize()
@@ -154,7 +158,9 @@ class IntentParser:
         if match and match.confidence >= self._config.confidence_threshold:
             return ParseResult(
                 intent_type=match.intent_type,
-                entities={k: v.value if hasattr(v, "value") else v for k, v in match.entities.items()},
+                entities={
+                    k: v.value if hasattr(v, "value") else v for k, v in match.entities.items()
+                },
                 confidence=match.confidence,
                 requires_llm=False,
                 raw_text=text,
@@ -184,15 +190,18 @@ class IntentParser:
             pattern: Pattern string (e.g. "open {app}")
             intent: Intent type string (e.g. "open_app")
             entities: Entity name → type mapping (e.g. {"app": "APP"})
+
         """
         # Rebuild router with new pattern appended
         # For production, this would hot-reload the YAML
         # For now, we rebuild the trie with the new entry
-        self._router._patterns.append({  # type: ignore[attr-defined]
-            "pattern": pattern,
-            "intent": intent,
-            "entities": entities,
-        })
+        self._router._patterns.append(
+            {  # type: ignore[attr-defined]
+                "pattern": pattern,
+                "intent": intent,
+                "entities": entities,
+            },
+        )
         self._router._build_trie()
 
     def get_supported_intents(self) -> list[str]:
@@ -200,6 +209,7 @@ class IntentParser:
 
         Returns:
             Sorted list of unique intent type strings.
+
         """
         if not self._initialized:
             self.initialize()
@@ -210,5 +220,6 @@ class IntentParser:
 
         Returns:
             Dict with latency stats, cache hit rate, and match counts.
+
         """
         return self._router.get_metrics()

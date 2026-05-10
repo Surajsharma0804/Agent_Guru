@@ -1,5 +1,4 @@
-"""
-Latency optimization dashboard.
+"""Latency optimization dashboard.
 
 Provides visualization and analysis of latency metrics:
 - P50/P95/P99 latency per stage
@@ -12,8 +11,8 @@ Provides visualization and analysis of latency metrics:
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from Agent_Guru.reasoning.latency.tracker import (
     LATENCY_BUDGETS,
@@ -47,7 +46,7 @@ class LatencyDashboard:
         degraded_manager: DegradedModeManager,
         history_duration: int = 3600,  # 1 hour
         snapshot_interval: int = 60,  # 1 minute
-    ):
+    ) -> None:
         """Initialize latency dashboard.
 
         Args:
@@ -55,6 +54,7 @@ class LatencyDashboard:
             degraded_manager: Degraded mode manager instance
             history_duration: Duration to keep history in seconds
             snapshot_interval: Interval between snapshots in seconds
+
         """
         self.tracker = tracker
         self.degraded_manager = degraded_manager
@@ -63,13 +63,13 @@ class LatencyDashboard:
 
         # History storage
         self._snapshots: dict[PipelineStage, deque[LatencySnapshot]] = defaultdict(
-            lambda: deque(maxlen=history_duration // snapshot_interval)
+            lambda: deque(maxlen=history_duration // snapshot_interval),
         )
         self._last_snapshot_time = time.time()
 
     def capture_snapshot(self) -> None:
         """Capture current latency metrics snapshot."""
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         for stage in PipelineStage:
             stats = self.tracker.get_statistics(stage)
@@ -93,7 +93,9 @@ class LatencyDashboard:
         self._last_snapshot_time = time.time()
 
     def get_latency_trends(
-        self, stage: PipelineStage, duration_minutes: int = 60
+        self,
+        stage: PipelineStage,
+        duration_minutes: int = 60,
     ) -> dict[str, list[tuple[datetime, float]]]:
         """Get latency trends for a stage.
 
@@ -103,11 +105,10 @@ class LatencyDashboard:
 
         Returns:
             Dictionary of metric trends
+
         """
-        cutoff_time = datetime.now(tz=timezone.utc) - timedelta(minutes=duration_minutes)
-        snapshots = [
-            s for s in self._snapshots[stage] if s.timestamp >= cutoff_time
-        ]
+        cutoff_time = datetime.now(tz=UTC) - timedelta(minutes=duration_minutes)
+        snapshots = [s for s in self._snapshots[stage] if s.timestamp >= cutoff_time]
 
         if not snapshots:
             return {
@@ -125,7 +126,9 @@ class LatencyDashboard:
         }
 
     def get_timeout_trends(
-        self, stage: PipelineStage, duration_minutes: int = 60
+        self,
+        stage: PipelineStage,
+        duration_minutes: int = 60,
     ) -> list[tuple[datetime, float]]:
         """Get timeout rate trends for a stage.
 
@@ -135,16 +138,17 @@ class LatencyDashboard:
 
         Returns:
             List of (timestamp, timeout_rate) tuples
+
         """
-        cutoff_time = datetime.now(tz=timezone.utc) - timedelta(minutes=duration_minutes)
-        snapshots = [
-            s for s in self._snapshots[stage] if s.timestamp >= cutoff_time
-        ]
+        cutoff_time = datetime.now(tz=UTC) - timedelta(minutes=duration_minutes)
+        snapshots = [s for s in self._snapshots[stage] if s.timestamp >= cutoff_time]
 
         return [(s.timestamp, s.timeout_rate) for s in snapshots]
 
     def get_degraded_trends(
-        self, stage: PipelineStage, duration_minutes: int = 60
+        self,
+        stage: PipelineStage,
+        duration_minutes: int = 60,
     ) -> list[tuple[datetime, float]]:
         """Get degraded mode rate trends for a stage.
 
@@ -154,11 +158,10 @@ class LatencyDashboard:
 
         Returns:
             List of (timestamp, degraded_rate) tuples
+
         """
-        cutoff_time = datetime.now(tz=timezone.utc) - timedelta(minutes=duration_minutes)
-        snapshots = [
-            s for s in self._snapshots[stage] if s.timestamp >= cutoff_time
-        ]
+        cutoff_time = datetime.now(tz=UTC) - timedelta(minutes=duration_minutes)
+        snapshots = [s for s in self._snapshots[stage] if s.timestamp >= cutoff_time]
 
         return [(s.timestamp, s.degraded_rate) for s in snapshots]
 
@@ -167,6 +170,7 @@ class LatencyDashboard:
 
         Returns:
             Dictionary of budget comparisons per stage
+
         """
         comparison = {}
 
@@ -212,6 +216,7 @@ class LatencyDashboard:
 
         Returns:
             Summary dictionary
+
         """
         stats = self.tracker.get_statistics(stage)
         if not stats:
@@ -266,6 +271,7 @@ class LatencyDashboard:
 
         Returns:
             Overall summary dictionary
+
         """
         all_stats = self.tracker.get_all_statistics()
 
@@ -293,7 +299,7 @@ class LatencyDashboard:
                 stages_meeting_maximum += 1
 
         return {
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "overall_metrics": {
                 "total_requests": total_requests,
                 "total_timeouts": total_timeouts,
@@ -310,8 +316,12 @@ class LatencyDashboard:
                 "stages_meeting_target": stages_meeting_target,
                 "stages_meeting_maximum": stages_meeting_maximum,
                 "total_stages": len(all_stats),
-                "target_compliance_rate": stages_meeting_target / len(all_stats) if all_stats else 0,
-                "maximum_compliance_rate": stages_meeting_maximum / len(all_stats) if all_stats else 0,
+                "target_compliance_rate": stages_meeting_target / len(all_stats)
+                if all_stats
+                else 0,
+                "maximum_compliance_rate": stages_meeting_maximum / len(all_stats)
+                if all_stats
+                else 0,
             },
             "degraded_stages": [
                 stage.value for stage in self.degraded_manager.get_degraded_stages()
@@ -323,15 +333,16 @@ class LatencyDashboard:
 
         Returns:
             Text report
+
         """
         summary = self.get_overall_summary()
         budget_comparison = self.get_budget_comparison()
 
         # Type assertions for mypy
-        overall_metrics = summary.get('overall_metrics', {})
-        average_latency = summary.get('average_latency', {})
-        budget_compliance = summary.get('budget_compliance', {})
-        degraded_stages = summary.get('degraded_stages', [])
+        overall_metrics = summary.get("overall_metrics", {})
+        average_latency = summary.get("average_latency", {})
+        budget_compliance = summary.get("budget_compliance", {})
+        degraded_stages = summary.get("degraded_stages", [])
 
         lines = [
             "=" * 80,
@@ -367,20 +378,22 @@ class LatencyDashboard:
         lines.append("")
 
         for stage_name, comparison in budget_comparison.items():
-            comp_status = comparison.get('status', {})
-            comp_current = comparison.get('current', {})
-            comp_budget = comparison.get('budget', {})
-            comp_performance = comparison.get('performance', {})
+            comp_status = comparison.get("status", {})
+            comp_current = comparison.get("current", {})
+            comp_budget = comparison.get("budget", {})
+            comp_performance = comparison.get("performance", {})
 
-            status_icon = "✓" if comp_status.get('meets_target', False) else "✗"
-            lines.extend([
-                f"{status_icon} {stage_name.upper()}:",
-                f"  Current P95: {comp_current.get('p95', 0):.1f}ms",
-                f"  Target: {comp_budget.get('target', 0):.1f}ms",
-                f"  Maximum: {comp_budget.get('maximum', 0):.1f}ms",
-                f"  Performance: {comp_performance.get('vs_target_percent', 0):.1f}% of target",
-                "",
-            ])
+            status_icon = "✓" if comp_status.get("meets_target", False) else "✗"
+            lines.extend(
+                [
+                    f"{status_icon} {stage_name.upper()}:",
+                    f"  Current P95: {comp_current.get('p95', 0):.1f}ms",
+                    f"  Target: {comp_budget.get('target', 0):.1f}ms",
+                    f"  Maximum: {comp_budget.get('maximum', 0):.1f}ms",
+                    f"  Performance: {comp_performance.get('vs_target_percent', 0):.1f}% of target",
+                    "",
+                ],
+            )
 
         lines.append("=" * 80)
 
@@ -388,12 +401,12 @@ class LatencyDashboard:
 
 
 # Global dashboard instance
-_global_dashboard: Optional[LatencyDashboard] = None
+_global_dashboard: LatencyDashboard | None = None
 
 
 def get_latency_dashboard(
-    tracker: Optional[LatencyTracker] = None,
-    degraded_manager: Optional[DegradedModeManager] = None,
+    tracker: LatencyTracker | None = None,
+    degraded_manager: DegradedModeManager | None = None,
 ) -> LatencyDashboard:
     """Get the global latency dashboard instance.
 
@@ -403,6 +416,7 @@ def get_latency_dashboard(
 
     Returns:
         Global LatencyDashboard instance
+
     """
     global _global_dashboard
 

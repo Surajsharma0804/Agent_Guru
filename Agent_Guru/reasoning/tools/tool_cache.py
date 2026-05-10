@@ -1,5 +1,4 @@
-"""
-Tool Selection Caching System
+"""Tool Selection Caching System.
 
 Implements caching for tool selection to reduce latency.
 Caches intent→tool mappings and tool availability checks.
@@ -16,8 +15,8 @@ Version: 1.0.0
 import hashlib
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from Agent_Guru.reasoning.models.intent import Intent
 
@@ -34,6 +33,7 @@ class CachedToolMapping:
         created_at: When entry was created
         last_accessed: When entry was last accessed
         access_count: Number of times accessed
+
     """
 
     tool_id: str
@@ -46,7 +46,7 @@ class CachedToolMapping:
 
     def update_access(self) -> None:
         """Update access statistics."""
-        self.last_accessed = datetime.now(tz=timezone.utc)
+        self.last_accessed = datetime.now(tz=UTC)
         self.access_count += 1
 
 
@@ -60,6 +60,7 @@ class CachedAvailability:
         cache_key: Cache key
         created_at: When entry was created
         last_accessed: When entry was last accessed
+
     """
 
     tool_id: str
@@ -70,7 +71,7 @@ class CachedAvailability:
 
     def update_access(self) -> None:
         """Update access statistics."""
-        self.last_accessed = datetime.now(tz=timezone.utc)
+        self.last_accessed = datetime.now(tz=UTC)
 
 
 @dataclass
@@ -87,6 +88,7 @@ class ToolCacheStats:
         mapping_evictions: Mapping cache evictions
         availability_evictions: Availability cache evictions
         last_reset: When stats were last reset
+
     """
 
     mapping_requests: int = 0
@@ -97,7 +99,7 @@ class ToolCacheStats:
     availability_misses: int = 0
     mapping_evictions: int = 0
     availability_evictions: int = 0
-    last_reset: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    last_reset: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def record_mapping_hit(self) -> None:
         """Record mapping cache hit."""
@@ -166,6 +168,7 @@ class ToolSelectionCache:
         >>> cached = cache.get_mapping(intent)
         >>> if cached:
         ...     print(f"Tool: {cached['tool_id']}")
+
     """
 
     def __init__(
@@ -174,7 +177,7 @@ class ToolSelectionCache:
         mapping_ttl_seconds: float = 300.0,  # 5 minutes
         availability_max_size: int = 1000,
         availability_ttl_seconds: float = 60.0,  # 1 minute
-    ):
+    ) -> None:
         """Initialize tool selection cache.
 
         Args:
@@ -185,16 +188,21 @@ class ToolSelectionCache:
 
         Raises:
             ValueError: If any size or TTL parameter is invalid
+
         """
         if mapping_max_size <= 0:
-            raise ValueError(f"mapping_max_size must be positive, got {mapping_max_size}")
+            msg = f"mapping_max_size must be positive, got {mapping_max_size}"
+            raise ValueError(msg)
         if availability_max_size <= 0:
-            raise ValueError(f"availability_max_size must be positive, got {availability_max_size}")
+            msg = f"availability_max_size must be positive, got {availability_max_size}"
+            raise ValueError(msg)
         if mapping_ttl_seconds <= 0:
-            raise ValueError(f"mapping_ttl_seconds must be positive, got {mapping_ttl_seconds}")
+            msg = f"mapping_ttl_seconds must be positive, got {mapping_ttl_seconds}"
+            raise ValueError(msg)
         if availability_ttl_seconds <= 0:
+            msg = f"availability_ttl_seconds must be positive, got {availability_ttl_seconds}"
             raise ValueError(
-                f"availability_ttl_seconds must be positive, got {availability_ttl_seconds}"
+                msg,
             )
 
         self.mapping_max_size = mapping_max_size
@@ -220,6 +228,7 @@ class ToolSelectionCache:
             Cache key string (SHA256 hash)
 
         Time Complexity: O(n) where n = intent size
+
         """
         # Create key from intent type and entities
         key_parts = [intent.intent_type]
@@ -242,20 +251,21 @@ class ToolSelectionCache:
             Cache key string
 
         Time Complexity: O(1)
+
         """
         return f"avail:{tool_id}"
 
     def _is_mapping_expired(self, entry: CachedToolMapping) -> bool:
         """Check if mapping entry is expired."""
-        age = datetime.now(tz=timezone.utc) - entry.created_at
+        age = datetime.now(tz=UTC) - entry.created_at
         return age > self.mapping_ttl
 
     def _is_availability_expired(self, entry: CachedAvailability) -> bool:
         """Check if availability entry is expired."""
-        age = datetime.now(tz=timezone.utc) - entry.created_at
+        age = datetime.now(tz=UTC) - entry.created_at
         return age > self.availability_ttl
 
-    def get_mapping(self, intent: Intent) -> Optional[dict[str, Any]]:
+    def get_mapping(self, intent: Intent) -> dict[str, Any] | None:
         """Get cached tool mapping for intent.
 
         Args:
@@ -265,6 +275,7 @@ class ToolSelectionCache:
             Dictionary with tool_id, parameters, confidence if found, None otherwise
 
         Time Complexity: O(1) average case
+
         """
         cache_key = self._generate_mapping_key(intent)
 
@@ -311,11 +322,15 @@ class ToolSelectionCache:
             confidence: Selection confidence
 
         Time Complexity: O(1) amortized
+
         """
         cache_key = self._generate_mapping_key(intent)
 
         # Evict LRU if at capacity
-        if len(self._mapping_cache) >= self.mapping_max_size and cache_key not in self._mapping_cache:
+        if (
+            len(self._mapping_cache) >= self.mapping_max_size
+            and cache_key not in self._mapping_cache
+        ):
             self._mapping_cache.popitem(last=False)
             self.stats.mapping_evictions += 1
 
@@ -325,8 +340,8 @@ class ToolSelectionCache:
             parameters=parameters,
             confidence=confidence,
             cache_key=cache_key,
-            created_at=datetime.now(tz=timezone.utc),
-            last_accessed=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
+            last_accessed=datetime.now(tz=UTC),
         )
 
         self._mapping_cache[cache_key] = entry
@@ -335,10 +350,11 @@ class ToolSelectionCache:
         self._tool_access_counts[tool_id] = self._tool_access_counts.get(tool_id, 0) + 1
 
         # Update hot path if tool is frequently used (>100 accesses)
-        if self._tool_access_counts[tool_id] > 100:
+        if self._tool_access_counts[tool_id] > 100:  # noqa: PLR2004 - Percentage/large threshold
+
             self._hot_path_tools.add(tool_id)
 
-    def get_availability(self, tool_id: str) -> Optional[bool]:
+    def get_availability(self, tool_id: str) -> bool | None:
         """Get cached tool availability.
 
         Args:
@@ -348,6 +364,7 @@ class ToolSelectionCache:
             True if available, False if not available, None if not cached
 
         Time Complexity: O(1) average case
+
         """
         cache_key = self._generate_availability_key(tool_id)
 
@@ -382,6 +399,7 @@ class ToolSelectionCache:
             is_available: Whether tool is available
 
         Time Complexity: O(1) amortized
+
         """
         cache_key = self._generate_availability_key(tool_id)
 
@@ -398,8 +416,8 @@ class ToolSelectionCache:
             tool_id=tool_id,
             is_available=is_available,
             cache_key=cache_key,
-            created_at=datetime.now(tz=timezone.utc),
-            last_accessed=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
+            last_accessed=datetime.now(tz=UTC),
         )
 
         self._availability_cache[cache_key] = entry
@@ -414,6 +432,7 @@ class ToolSelectionCache:
             True if tool is frequently used, False otherwise
 
         Time Complexity: O(1)
+
         """
         return tool_id in self._hot_path_tools
 
@@ -424,6 +443,7 @@ class ToolSelectionCache:
             List of frequently used tool IDs
 
         Time Complexity: O(1)
+
         """
         return list(self._hot_path_tools)
 
@@ -434,6 +454,7 @@ class ToolSelectionCache:
             tool_id: Tool ID to invalidate
 
         Time Complexity: O(n) where n = cache size
+
         """
         # Invalidate mappings
         keys_to_remove = [
@@ -462,6 +483,7 @@ class ToolSelectionCache:
 
         Returns:
             Dictionary with cache statistics
+
         """
         stats = self.stats.get_stats()
         stats["mapping"]["current_size"] = len(self._mapping_cache)

@@ -1,5 +1,4 @@
-"""
-Proactive suggestion generation for conversation strategy.
+"""Proactive suggestion generation for conversation strategy.
 
 This module implements:
 - Follow-up suggestions based on context
@@ -11,8 +10,8 @@ Requirements: 19.3, 27.4
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from Agent_Guru.reasoning.models.conversation import ConversationState
 from Agent_Guru.reasoning.models.result import ExecutionResult
@@ -82,15 +81,17 @@ class ProactiveSuggestionGenerator:
         ],
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize suggestion generator."""
         self.user_patterns: dict[str, list[dict[str, Any]]] = {}
 
     def generate_follow_up_suggestions(
-        self, task: Task, result: ExecutionResult, conversation_state: ConversationState
+        self,
+        task: Task,
+        result: ExecutionResult,
+        conversation_state: ConversationState,
     ) -> list[Suggestion]:
-        """
-        Generate follow-up suggestions based on completed action.
+        """Generate follow-up suggestions based on completed action.
 
         Args:
             task: Completed task
@@ -99,6 +100,7 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             List of follow-up suggestions
+
         """
         suggestions: list[Suggestion] = []
 
@@ -112,7 +114,9 @@ class ProactiveSuggestionGenerator:
         for template in templates:
             # Calculate relevance based on context
             relevance = self._calculate_relevance(
-                task, conversation_state, SuggestionCategory.FOLLOW_UP
+                task,
+                conversation_state,
+                SuggestionCategory.FOLLOW_UP,
             )
 
             suggestions.append(
@@ -126,7 +130,7 @@ class ProactiveSuggestionGenerator:
                         "original_task": task.task_type,
                         "original_goal": task.goal,
                     },
-                )
+                ),
             )
 
         return suggestions
@@ -135,10 +139,9 @@ class ProactiveSuggestionGenerator:
         self,
         user_id: str,
         conversation_state: ConversationState,
-        current_time: Optional[datetime] = None,
+        current_time: datetime | None = None,
     ) -> list[Suggestion]:
-        """
-        Generate proactive suggestions based on learned patterns.
+        """Generate proactive suggestions based on learned patterns.
 
         Args:
             user_id: User identifier
@@ -147,6 +150,7 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             List of proactive suggestions
+
         """
         suggestions: list[Suggestion] = []
 
@@ -168,10 +172,11 @@ class ProactiveSuggestionGenerator:
         return suggestions
 
     def generate_alternative_suggestions(
-        self, task: Task, error: Optional[Any] = None
+        self,
+        task: Task,
+        error: Any | None = None,  # noqa: ANN401
     ) -> list[Suggestion]:
-        """
-        Generate alternative suggestions when primary action fails.
+        """Generate alternative suggestions when primary action fails.
 
         Args:
             task: Failed task
@@ -179,6 +184,7 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             List of alternative suggestions
+
         """
         suggestions: list[Suggestion] = []
 
@@ -198,16 +204,17 @@ class ProactiveSuggestionGenerator:
                         "failed_goal": task.goal,
                         "error": str(error) if error else None,
                     },
-                )
+                ),
             )
 
         return suggestions
 
     def rank_suggestions(
-        self, suggestions: list[Suggestion], max_suggestions: int = 3
+        self,
+        suggestions: list[Suggestion],
+        max_suggestions: int = 3,
     ) -> list[Suggestion]:
-        """
-        Rank suggestions by relevance and confidence.
+        """Rank suggestions by relevance and confidence.
 
         Args:
             suggestions: List of suggestions to rank
@@ -215,6 +222,7 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             Ranked list of top suggestions
+
         """
         # Calculate combined score
         for suggestion in suggestions:
@@ -227,13 +235,13 @@ class ProactiveSuggestionGenerator:
         return ranked[:max_suggestions]
 
     def learn_pattern(self, user_id: str, action: str, context: dict[str, Any]) -> None:
-        """
-        Learn a user pattern for proactive suggestions.
+        """Learn a user pattern for proactive suggestions.
 
         Args:
             user_id: User identifier
             action: Action performed
             context: Context information (time, location, etc.)
+
         """
         if user_id not in self.user_patterns:
             self.user_patterns[user_id] = []
@@ -243,7 +251,7 @@ class ProactiveSuggestionGenerator:
             "action": action,
             "context": context,
             "frequency": 1,
-            "last_seen": datetime.now(tz=timezone.utc),
+            "last_seen": datetime.now(tz=UTC),
         }
 
         # Check if pattern already exists
@@ -251,16 +259,18 @@ class ProactiveSuggestionGenerator:
         if existing:
             # Update frequency
             existing["frequency"] += 1
-            existing["last_seen"] = datetime.now(tz=timezone.utc)
+            existing["last_seen"] = datetime.now(tz=UTC)
         else:
             # Add new pattern
             self.user_patterns[user_id].append(pattern)
 
     def _calculate_relevance(
-        self, task: Task, conversation_state: ConversationState, category: str
+        self,
+        task: Task,
+        conversation_state: ConversationState,
+        category: str,
     ) -> float:
-        """
-        Calculate relevance score for suggestion.
+        """Calculate relevance score for suggestion.
 
         Args:
             task: The task
@@ -269,6 +279,7 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             Relevance score (0.0 to 1.0)
+
         """
         relevance = 0.5  # Base relevance
 
@@ -284,22 +295,20 @@ class ProactiveSuggestionGenerator:
                 else str(conversation_state.last_intent.intent_type)
             )
             task_type_str = (
-                task.task_type.value
-                if hasattr(task.task_type, "value")
-                else str(task.task_type)
+                task.task_type.value if hasattr(task.task_type, "value") else str(task.task_type)
             )
             if last_intent_str == task_type_str:
                 relevance += 0.2
 
         # Decrease for long conversations (user might be tired)
-        if len(conversation_state.turns) > 10:
+        if len(conversation_state.turns) > 10:  # noqa: PLR2004 - Threshold
+
             relevance -= 0.1
 
         return max(0.0, min(1.0, relevance))
 
     def _template_to_action(self, template: str, task: Task) -> str:
-        """
-        Convert template to action string.
+        """Convert template to action string.
 
         Args:
             template: Template string
@@ -307,27 +316,25 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             Action string
+
         """
         # Simple extraction from template
         if "set another timer" in template:
             return "set_timer"
-        elif "send another message" in template:
+        if "send another message" in template:
             return "send_message"
-        elif "check the weather" in template:
+        if "check the weather" in template:
             return "query_weather"
-        elif "play" in template:
+        if "play" in template:
             return "play_music"
-        elif "call" in template:
+        if "call" in template:
             return "make_call"
 
         # Default to original task type
         return task.task_type if isinstance(task.task_type, str) else task.task_type.value
 
-    def _is_pattern_relevant(
-        self, pattern: dict[str, Any], current_time: Optional[datetime]
-    ) -> bool:
-        """
-        Check if pattern is relevant at current time.
+    def _is_pattern_relevant(self, pattern: dict[str, Any], current_time: datetime | None) -> bool:
+        """Check if pattern is relevant at current time.
 
         Args:
             pattern: User pattern
@@ -335,6 +342,7 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             True if pattern is relevant
+
         """
         if not current_time:
             return False
@@ -357,20 +365,18 @@ class ProactiveSuggestionGenerator:
                 return True
 
         # Check frequency (suggest if done frequently)
-        if pattern.get("frequency", 0) >= 5:
-            return True
+        return pattern.get("frequency", 0) >= 5  # noqa: PLR2004 - Small integer threshold
 
-        return False
 
-    def _pattern_to_suggestion(self, pattern: dict[str, Any]) -> Optional[Suggestion]:
-        """
-        Convert pattern to suggestion.
+    def _pattern_to_suggestion(self, pattern: dict[str, Any]) -> Suggestion | None:
+        """Convert pattern to suggestion.
 
         Args:
             pattern: User pattern
 
         Returns:
             Suggestion or None
+
         """
         action = pattern.get("action")
         if not action:
@@ -396,10 +402,11 @@ class ProactiveSuggestionGenerator:
         )
 
     def _generate_context_suggestions(
-        self, conversation_state: ConversationState, current_time: Optional[datetime]
+        self,
+        conversation_state: ConversationState,
+        current_time: datetime | None,
     ) -> list[Suggestion]:
-        """
-        Generate suggestions based on current context.
+        """Generate suggestions based on current context.
 
         Args:
             conversation_state: Conversation state
@@ -407,6 +414,7 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             List of context-based suggestions
+
         """
         suggestions: list[Suggestion] = []
 
@@ -415,7 +423,8 @@ class ProactiveSuggestionGenerator:
             hour = current_time.hour
 
             # Morning suggestions
-            if 6 <= hour < 9:
+            if 6 <= hour < 9:  # noqa: PLR2004 - Threshold
+
                 suggestions.append(
                     Suggestion(
                         description="Would you like to hear today's weather?",
@@ -424,11 +433,12 @@ class ProactiveSuggestionGenerator:
                         relevance=0.7,
                         category=SuggestionCategory.PROACTIVE,
                         context={"time_context": "morning"},
-                    )
+                    ),
                 )
 
             # Evening suggestions
-            elif 18 <= hour < 21:
+            elif 18 <= hour < 21:  # noqa: PLR2004 - Threshold
+
                 suggestions.append(
                     Suggestion(
                         description="Would you like to set a reminder for tomorrow?",
@@ -437,16 +447,13 @@ class ProactiveSuggestionGenerator:
                         relevance=0.6,
                         category=SuggestionCategory.PROACTIVE,
                         context={"time_context": "evening"},
-                    )
+                    ),
                 )
 
         return suggestions
 
-    def _find_similar_pattern(
-        self, user_id: str, pattern: dict[str, Any]
-    ) -> Optional[dict[str, Any]]:
-        """
-        Find similar existing pattern.
+    def _find_similar_pattern(self, user_id: str, pattern: dict[str, Any]) -> dict[str, Any] | None:
+        """Find similar existing pattern.
 
         Args:
             user_id: User identifier
@@ -454,6 +461,7 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             Existing pattern or None
+
         """
         patterns = self.user_patterns.get(user_id, [])
 
@@ -467,8 +475,7 @@ class ProactiveSuggestionGenerator:
         return None
 
     def _contexts_similar(self, context1: dict[str, Any], context2: dict[str, Any]) -> bool:
-        """
-        Check if two contexts are similar.
+        """Check if two contexts are similar.
 
         Args:
             context1: First context
@@ -476,6 +483,7 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             True if similar
+
         """
         # Check time similarity
         if "time_of_day" in context1 and "time_of_day" in context2:

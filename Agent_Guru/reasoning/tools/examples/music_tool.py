@@ -1,6 +1,4 @@
-"""
-Music tool for playing music.
-"""
+"""Music tool for playing music."""
 
 from typing import Any
 
@@ -40,7 +38,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class MusicTool(Tool):
     """Tool for playing music."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute music playback.
 
         Args:
@@ -49,6 +47,7 @@ class MusicTool(Tool):
 
         Returns:
             Execution result
+
         """
         query = kwargs["query"]
         shuffle = kwargs.get("shuffle", False)

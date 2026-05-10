@@ -1,5 +1,4 @@
-"""
-Safety Policy Engine - Detect and prevent dangerous operations.
+"""Safety Policy Engine - Detect and prevent dangerous operations.
 
 Provides a dedicated safety layer that runs before standard policy
 evaluation to block operations that could harm the system or data.
@@ -12,7 +11,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.policy.models import AccessDecision, PolicyEffect, Principal, Resource
 
@@ -31,6 +30,7 @@ class SafetyRule:
         action_patterns: Regex patterns matched against action names.
         severity: Severity level ("critical", "high", "medium", "low").
         active: Whether this rule is enforced.
+
     """
 
     id: str
@@ -48,9 +48,7 @@ class SafetyRule:
         resource_match = any(
             re.search(p, resource_id, re.IGNORECASE) for p in self.resource_patterns
         )
-        action_match = any(
-            re.search(p, action, re.IGNORECASE) for p in self.action_patterns
-        )
+        action_match = any(re.search(p, action, re.IGNORECASE) for p in self.action_patterns)
         return resource_match and action_match
 
 
@@ -65,6 +63,7 @@ class SafetyViolation:
         description: Why the operation was blocked.
         resource_id: Resource that triggered the violation.
         action: Action that triggered the violation.
+
     """
 
     rule_id: str
@@ -143,13 +142,14 @@ class SafetyPolicyEngine:
     def __init__(
         self,
         include_builtins: bool = True,
-        custom_rules: Optional[list[SafetyRule]] = None,
+        custom_rules: list[SafetyRule] | None = None,
     ) -> None:
         """Initialise the safety engine.
 
         Args:
             include_builtins: Whether to include built-in dangerous operation rules.
             custom_rules: Additional custom safety rules.
+
         """
         self._rules: dict[str, SafetyRule] = {}
 
@@ -157,7 +157,7 @@ class SafetyPolicyEngine:
             for rule in BUILTIN_SAFETY_RULES:
                 self._rules[rule.id] = rule
 
-        for rule in (custom_rules or []):
+        for rule in custom_rules or []:
             self._rules[rule.id] = rule
 
     # ------------------------------------------------------------------
@@ -191,7 +191,7 @@ class SafetyPolicyEngine:
         principal: Principal,
         resource: Resource,
         action: str,
-        context: Optional[dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> AccessDecision:
         """Check if an operation is safe to perform.
 
@@ -203,13 +203,18 @@ class SafetyPolicyEngine:
 
         Returns:
             AccessDecision with ALLOW if safe, DENY if dangerous.
+
         """
         violations = self.get_violations(resource.id, action)
         if violations:
             v = violations[0]  # Report the first (most severe) violation
             logger.warning(
                 "Safety violation [%s] blocked %s on %s by %s: %s",
-                v.severity, action, resource.id, principal.id, v.description,
+                v.severity,
+                action,
+                resource.id,
+                principal.id,
+                v.description,
             )
             return AccessDecision(
                 effect=PolicyEffect.DENY,
@@ -234,18 +239,21 @@ class SafetyPolicyEngine:
 
         Returns:
             List of SafetyViolation objects (empty if safe).
+
         """
         violations = []
         for rule in self._rules.values():
             if rule.matches(resource_id, action):
-                violations.append(SafetyViolation(
-                    rule_id=rule.id,
-                    rule_name=rule.name,
-                    severity=rule.severity,
-                    description=rule.description,
-                    resource_id=resource_id,
-                    action=action,
-                ))
+                violations.append(
+                    SafetyViolation(
+                        rule_id=rule.id,
+                        rule_name=rule.name,
+                        severity=rule.severity,
+                        description=rule.description,
+                        resource_id=resource_id,
+                        action=action,
+                    ),
+                )
         # Sort by severity: critical > high > medium > low
         severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
         violations.sort(key=lambda v: severity_order.get(v.severity, 99))

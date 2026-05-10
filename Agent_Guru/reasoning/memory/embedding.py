@@ -1,5 +1,4 @@
-"""
-Embedding generation for semantic search using sentence-transformers.
+"""Embedding generation for semantic search using sentence-transformers.
 
 This module provides GPU-accelerated embedding generation for memory content
 using the sentence-transformers library with the all-MiniLM-L6-v2 model.
@@ -22,7 +21,6 @@ Version: 1.0.0
 """
 
 import logging
-from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -59,13 +57,14 @@ class EmbeddingGenerator:
         ... ])
         >>> print(len(embeddings))
         2
+
     """
 
     def __init__(
         self,
         model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
-        device: Optional[str] = None,
-    ):
+        device: str | None = None,
+    ) -> None:
         """Initialize embedding generator.
 
         Args:
@@ -75,6 +74,7 @@ class EmbeddingGenerator:
         Raises:
             ImportError: If sentence-transformers is not installed
             RuntimeError: If model loading fails
+
         """
         self.model_name = model_name
 
@@ -85,16 +85,19 @@ class EmbeddingGenerator:
             self.device = device
 
         logger.info(
-            f"Initializing EmbeddingGenerator with model={model_name}, " f"device={self.device}"
+            f"Initializing EmbeddingGenerator with model={model_name}, device={self.device}",
         )
 
         # Lazy import to avoid dependency issues
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as e:
-            raise ImportError(
+            msg = (
                 "sentence-transformers is required for embedding generation. "
                 "Install with: pip install sentence-transformers"
+            )
+            raise ImportError(
+                msg,
             ) from e
 
         # Load model
@@ -102,8 +105,9 @@ class EmbeddingGenerator:
             self.model = SentenceTransformer(model_name, device=self.device)
             logger.info("Successfully loaded model on %s", self.device)
         except Exception as e:
-            logger.error("Failed to load model: %s", e)
-            raise RuntimeError(f"Failed to load embedding model: {e}") from e
+            logger.exception("Failed to load model")
+            msg = f"Failed to load embedding model: {e}"
+            raise RuntimeError(msg) from e
 
     def generate(self, text: str) -> list[float]:
         """Generate embedding for a single text.
@@ -126,9 +130,11 @@ class EmbeddingGenerator:
             >>> embedding = generator.generate("Hello world")
             >>> len(embedding)
             384
+
         """
         if not text or not text.strip():
-            raise ValueError("Text cannot be empty")
+            msg = "Text cannot be empty"
+            raise ValueError(msg)
 
         try:
             # Generate embedding (automatically normalized by sentence-transformers)
@@ -143,8 +149,9 @@ class EmbeddingGenerator:
             return embedding.tolist()
 
         except Exception as e:
-            logger.error("Failed to generate embedding: %s", e)
-            raise RuntimeError(f"Embedding generation failed: {e}") from e
+            logger.exception("Failed to generate embedding")
+            msg = f"Embedding generation failed: {e}"
+            raise RuntimeError(msg) from e
 
     def generate_batch(self, texts: list[str], batch_size: int = 32) -> list[list[float]]:
         """Generate embeddings for multiple texts (10x faster than individual).
@@ -172,15 +179,18 @@ class EmbeddingGenerator:
             ... ])
             >>> len(embeddings)
             3
+
         """
         if not texts:
-            raise ValueError("Texts list cannot be empty")
+            msg = "Texts list cannot be empty"
+            raise ValueError(msg)
 
         # Validate all texts are non-empty
         cleaned_texts = []
         for i, text in enumerate(texts):
             if not text or not text.strip():
-                raise ValueError(f"Text at index {i} is empty")
+                msg = f"Text at index {i} is empty"
+                raise ValueError(msg)
             cleaned_texts.append(text.strip())
 
         try:
@@ -197,8 +207,9 @@ class EmbeddingGenerator:
             return embeddings.tolist()
 
         except Exception as e:
-            logger.error("Failed to generate batch embeddings: %s", e)
-            raise RuntimeError(f"Batch embedding generation failed: {e}") from e
+            logger.exception("Failed to generate batch embeddings")
+            msg = f"Batch embedding generation failed: {e}"
+            raise RuntimeError(msg) from e
 
     def get_embedding_dimension(self) -> int:
         """Get the dimension of embeddings produced by this model.
@@ -210,11 +221,14 @@ class EmbeddingGenerator:
             >>> generator = EmbeddingGenerator()
             >>> generator.get_embedding_dimension()
             384
+
         """
         return self.model.get_sentence_embedding_dimension()
 
     def compute_similarity(
-        self, embedding1: Union[list[float], np.ndarray], embedding2: Union[list[float], np.ndarray]
+        self,
+        embedding1: list[float] | np.ndarray,
+        embedding2: list[float] | np.ndarray,
     ) -> float:
         """Compute cosine similarity between two embeddings.
 
@@ -239,15 +253,15 @@ class EmbeddingGenerator:
             >>> similarity = generator.compute_similarity(emb1, emb2)
             >>> 0.0 <= similarity <= 1.0
             True
+
         """
         # Convert to numpy arrays
         arr1 = np.array(embedding1)
         arr2 = np.array(embedding2)
 
         if arr1.shape != arr2.shape:
-            raise ValueError(
-                f"Embeddings must have same dimension: " f"{arr1.shape} vs {arr2.shape}"
-            )
+            msg = f"Embeddings must have same dimension: {arr1.shape} vs {arr2.shape}"
+            raise ValueError(msg)
 
         # Compute cosine similarity (dot product of normalized vectors)
         similarity = np.dot(arr1, arr2)
@@ -257,8 +271,8 @@ class EmbeddingGenerator:
 
     def is_similar(
         self,
-        embedding1: Union[list[float], np.ndarray],
-        embedding2: Union[list[float], np.ndarray],
+        embedding1: list[float] | np.ndarray,
+        embedding2: list[float] | np.ndarray,
         threshold: float = RETRIEVAL_THRESHOLD,
     ) -> bool:
         """Return True iff cosine similarity between the two embeddings >= *threshold*.
@@ -275,6 +289,7 @@ class EmbeddingGenerator:
 
         Returns:
             ``True`` if similarity >= *threshold*, ``False`` otherwise.
+
         """
         arr1 = np.array(embedding1, dtype=np.float32)
         arr2 = np.array(embedding2, dtype=np.float32)

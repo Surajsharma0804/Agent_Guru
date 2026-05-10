@@ -1,5 +1,4 @@
-"""
-Maps and location tools for weather, directions, and place search.
+"""Maps and location tools for weather, directions, and place search.
 
 Integrates with weather APIs, mapping services, and location databases.
 """
@@ -46,7 +45,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class GetWeatherTool(Tool):
     """Tool for getting weather information."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute weather retrieval.
 
         Args:
@@ -55,6 +54,7 @@ class GetWeatherTool(Tool):
 
         Returns:
             Execution result with weather data
+
         """
         location = kwargs["location"]
         units = kwargs.get("units", "metric").lower()
@@ -94,7 +94,7 @@ class GetWeatherTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to get weather: {str(e)}",
+                "error": f"Failed to get weather: {e!s}",
             }
 
 
@@ -135,7 +135,7 @@ class GetWeatherTool(Tool):
 class GetDirectionsTool(Tool):
     """Tool for getting directions."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute directions retrieval.
 
         Args:
@@ -145,6 +145,7 @@ class GetDirectionsTool(Tool):
 
         Returns:
             Execution result with directions
+
         """
         origin = kwargs["origin"]
         destination = kwargs["destination"]
@@ -195,7 +196,7 @@ class GetDirectionsTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to get directions: {str(e)}",
+                "error": f"Failed to get directions: {e!s}",
             }
 
 
@@ -236,7 +237,7 @@ class GetDirectionsTool(Tool):
 class SearchPlacesTool(Tool):
     """Tool for searching places."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute place search.
 
         Args:
@@ -246,6 +247,7 @@ class SearchPlacesTool(Tool):
 
         Returns:
             Execution result with places
+
         """
         query = kwargs["query"]
         location = kwargs["location"]
@@ -266,7 +268,8 @@ class SearchPlacesTool(Tool):
             }
 
         # Validate radius
-        if radius <= 0 or radius > 50000:
+        if radius <= 0 or radius > 50000:  # noqa: PLR2004 - Percentage/large threshold
+
             return {
                 "success": False,
                 "error": "Radius must be between 1 and 50000 meters",
@@ -291,5 +294,5 @@ class SearchPlacesTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to search places: {str(e)}",
+                "error": f"Failed to search places: {e!s}",
             }

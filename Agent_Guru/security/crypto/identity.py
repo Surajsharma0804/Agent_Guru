@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -34,7 +34,7 @@ class KeyPair:
     public_key: bytes  # 32 bytes raw
     private_key: bytes  # 32 bytes raw seed
     created_at: datetime
-    deprecated_at: Optional[datetime] = None
+    deprecated_at: datetime | None = None
 
 
 @dataclass
@@ -56,7 +56,7 @@ class IdentityManager:
     references to the original profile and its key_pair).
     """
 
-    def __init__(self, key_store: Any, audit_logger: Optional[Any] = None) -> None:
+    def __init__(self, key_store: Any, audit_logger: Any | None = None) -> None:  # noqa: ANN401
         self._key_store = key_store
         self._audit_logger = audit_logger
         self._profiles: dict[str, IdentityProfile] = {}
@@ -81,6 +81,7 @@ class IdentityManager:
 
         Raises:
             KeyGenerationError: If key generation fails.
+
         """
         try:
             private_key_obj = Ed25519PrivateKey.generate()
@@ -101,7 +102,7 @@ class IdentityManager:
             key_pair = KeyPair(
                 public_key=public_bytes,
                 private_key=private_bytes,
-                created_at=datetime.now(tz=timezone.utc),
+                created_at=datetime.now(tz=UTC),
             )
 
             # Store private key in key store
@@ -128,13 +129,17 @@ class IdentityManager:
                     )
                 except Exception as exc:  # noqa: BLE001
                     import logging as _logging
-                    _logging.getLogger(__name__).warning("Audit log failed for key generation: %s", exc)  # Audit logging is best-effort
-
+                    _logging.getLogger(__name__).warning(
+                        "Audit log failed for key generation: %s",
+                        exc,
+                    )  # Audit logging is best-effort
             return profile
 
         except Exception as exc:
-            raise KeyGenerationError(f"Failed to generate identity: type={type(exc).__name__}") from exc
-
+            msg = f"Failed to generate identity: type={type(exc).__name__}"
+            raise KeyGenerationError(
+                msg,
+            ) from exc
     def rotate_key(self, profile_id: str) -> KeyPair:
         """Generate new key pair and deprecate old one.
 
@@ -147,6 +152,7 @@ class IdentityManager:
         Raises:
             IdentityNotFoundError: If profile doesn't exist.
             KeyGenerationError: If rotation fails.
+
         """
         profile = self._get_profile_or_raise(profile_id)
 
@@ -165,12 +171,12 @@ class IdentityManager:
             )
 
             # Deprecate old key (mark on the profile's original key_pair)
-            profile.key_pair.deprecated_at = datetime.now(tz=timezone.utc)
+            profile.key_pair.deprecated_at = datetime.now(tz=UTC)
 
             new_key_pair = KeyPair(
                 public_key=public_bytes,
                 private_key=private_bytes,
-                created_at=datetime.now(tz=timezone.utc),
+                created_at=datetime.now(tz=UTC),
             )
 
             # Store new private key; update profile.key_pair to the new key
@@ -192,11 +198,14 @@ class IdentityManager:
                     )
                 except Exception as exc:  # noqa: BLE001
                     import logging as _logging
-                    _logging.getLogger(__name__).warning("Audit log failed for key rotation: %s", exc)
+                    _logging.getLogger(__name__).warning(
+                        "Audit log failed for key rotation: %s",
+                        exc,
+                    )
             return new_key_pair
         except Exception as exc:
-            raise KeyGenerationError(f"Key rotation failed: type={type(exc).__name__}") from exc
-
+            msg = f"Key rotation failed: type={type(exc).__name__}"
+            raise KeyGenerationError(msg) from exc
     def derive_key(self, master_key: bytes, context: str, index: int) -> bytes:
         """Derive child key from master key using PBKDF2.
 
@@ -209,10 +218,12 @@ class IdentityManager:
 
         Returns:
             Derived key bytes (32 bytes).
+
         """
-        salt = f"{context}:{index}".encode("utf-8")
+        salt = f"{context}:{index}".encode()
         # Pad salt to 16 bytes minimum
-        if len(salt) < 16:
+        if len(salt) < 16:  # noqa: PLR2004 - Threshold
+
             salt = salt + b"\x00" * (16 - len(salt))
 
         kdf = PBKDF2HMAC(
@@ -238,6 +249,7 @@ class IdentityManager:
         Raises:
             IdentityNotFoundError: If profile doesn't exist.
             SignatureError: If signing fails.
+
         """
         profile = self._get_profile_or_raise(profile_id)
 
@@ -245,11 +257,10 @@ class IdentityManager:
             active_key = self._active_keys.get(profile_id, profile.key_pair)
             private_key_obj = Ed25519PrivateKey.from_private_bytes(active_key.private_key)
             return private_key_obj.sign(message)
-        except IdentityNotFoundError as e:
+        except IdentityNotFoundError as exc:
             raise
-        except Exception as exc:
-            raise SignatureError(f"Signing failed: type={type(exc).__name__}") from exc
-
+            msg = f"Signing failed: type={type(exc).__name__}"
+            raise SignatureError(msg) from exc
     def verify(self, public_key: bytes, message: bytes, signature: bytes) -> bool:
         """Verify Ed25519 signature.
 
@@ -262,6 +273,7 @@ class IdentityManager:
 
         Returns:
             True if signature is valid.
+
         """
         try:
             public_key_obj = Ed25519PublicKey.from_public_bytes(public_key)
@@ -272,12 +284,12 @@ class IdentityManager:
             # All other exceptions (ValueError for bad key length, etc.) also mean
             # verification failed — return False rather than propagating.
             return False
-
     def get_identity(self, profile_id: str) -> IdentityProfile:
         """Retrieve identity profile.
 
         Raises:
             IdentityNotFoundError: If profile doesn't exist.
+
         """
         return self._get_profile_or_raise(profile_id)
 
@@ -292,5 +304,6 @@ class IdentityManager:
     def _get_profile_or_raise(self, profile_id: str) -> IdentityProfile:
         profile = self._profiles.get(profile_id)
         if profile is None:
-            raise IdentityNotFoundError("Identity not found")
+            msg = "Identity not found"
+            raise IdentityNotFoundError(msg)
         return profile

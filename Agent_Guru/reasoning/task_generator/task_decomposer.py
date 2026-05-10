@@ -1,5 +1,4 @@
-"""
-Task Model Generator - Converts LLM outputs into structured Task objects.
+"""Task Model Generator - Converts LLM outputs into structured Task objects.
 
 This module implements the Task Model Generator that parses LLM reasoning outputs
 and converts them into validated, executable Task objects with proper lifecycle
@@ -16,7 +15,7 @@ Performance Targets:
 Requirements: 16.1, 16.2, 16.3, 16.4, 17.1, 17.2, 17.3, 17.4, 17.5, 28.1-28.7
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -34,8 +33,7 @@ logger = structlog.get_logger(__name__)
 
 
 class TaskModelGenerator:
-    """
-    Generates structured Task objects from LLM reasoning outputs.
+    """Generates structured Task objects from LLM reasoning outputs.
 
     This class is responsible for:
     1. Parsing LLM JSON outputs into Task objects
@@ -61,6 +59,7 @@ class TaskModelGenerator:
         >>> task = generator.generate_task(llm_output, intent, confidence=0.95)
         >>> assert task.task_type == TaskType.SINGLE_STEP
         >>> assert len(task.steps) == 1
+
     """
 
     # Maximum allowed steps per task
@@ -101,6 +100,7 @@ class TaskModelGenerator:
 
         Raises:
             ValueError: With user-friendly message
+
         """
         context = ErrorContext(additional_data=context_data)
         error = self.error_manager.create_error(
@@ -119,6 +119,7 @@ class TaskModelGenerator:
 
         Raises:
             ValueError: With user-friendly message
+
         """
         context = ErrorContext(additional_data=context_data)
         error = self.error_manager.create_error(
@@ -134,8 +135,7 @@ class TaskModelGenerator:
         intent: Intent,
         confidence: float,
     ) -> Task:
-        """
-        Generate a validated Task object from LLM output.
+        """Generate a validated Task object from LLM output.
 
         Time Complexity: O(n) where n is number of steps
         Space Complexity: O(n) for task storage
@@ -175,13 +175,15 @@ class TaskModelGenerator:
             >>> task = generator.generate_task(llm_output, intent, 0.92)
             >>> assert task.task_type == TaskType.MULTI_STEP
             >>> assert len(task.steps) == 2
+
         """
-        start_time = datetime.now(tz=timezone.utc)
+        start_time = datetime.now(tz=UTC)
 
         try:
             # Validate confidence range
             if not 0.0 <= confidence <= 1.0:
-                raise ValueError(f"Confidence must be in [0.0, 1.0], got {confidence}")
+                msg = f"Confidence must be in [0.0, 1.0], got {confidence}"
+                raise ValueError(msg)
 
             # Extract and validate required fields
             goal = self._extract_goal(llm_output)
@@ -219,7 +221,7 @@ class TaskModelGenerator:
             self._validate_task(task)
 
             # Log successful generation
-            generation_time = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
+            generation_time = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
             self.logger.info(
                 "task_generated",
                 task_type=task_type.value,
@@ -232,26 +234,22 @@ class TaskModelGenerator:
             return task
 
         except ValidationError as e:
-            self.logger.error("task_validation_failed", error=str(e), llm_output=llm_output)
+            self.logger.exception("task_validation_failed", error=str(e), llm_output=llm_output)
             error_manager = get_error_manager()
             error = error_manager.create_error(
                 error_type=ErrorType.PLAN_VALIDATION_FAILED,
                 message=f"Task validation failed: {e}",
             )
             raise ValueError(error.user_message) from e
-
-        except Exception as e:
-            self.logger.error("task_generation_failed", error=str(e), llm_output=llm_output)
+            self.logger.exception("task_generation_failed", error=str(e), llm_output=llm_output)
             error_manager = get_error_manager()
             error = error_manager.create_error(
                 error_type=ErrorType.PLAN_GENERATION_FAILED,
                 message=f"Failed to generate task: {e}",
             )
             raise ValueError(error.user_message) from e
-
     def _extract_goal(self, llm_output: dict[str, Any]) -> str:
-        """
-        Extract and validate goal from LLM output.
+        """Extract and validate goal from LLM output.
 
         Args:
             llm_output: LLM output dictionary
@@ -261,6 +259,7 @@ class TaskModelGenerator:
 
         Raises:
             TaskGenerationError: If goal is missing or invalid
+
         """
         goal = llm_output.get("goal")
 
@@ -275,14 +274,14 @@ class TaskModelGenerator:
         if not goal_str:
             self._raise_generation_error("Goal cannot be empty")
 
-        if len(goal_str) > 500:
+        if len(goal_str) > 500:  # noqa: PLR2004 - Percentage/large threshold
+
             self._raise_generation_error(f"Goal too long: {len(goal_str)} chars (max 500)")
 
         return goal_str
 
     def _extract_steps(self, llm_output: dict[str, Any]) -> list[dict[str, Any]]:
-        """
-        Extract and validate steps from LLM output.
+        """Extract and validate steps from LLM output.
 
         Args:
             llm_output: LLM output dictionary
@@ -292,6 +291,7 @@ class TaskModelGenerator:
 
         Raises:
             TaskGenerationError: If steps are missing or invalid
+
         """
         steps = llm_output.get("steps")
 
@@ -310,8 +310,7 @@ class TaskModelGenerator:
         return list(steps) if steps else []
 
     def _generate_steps(self, steps_data: list[dict[str, Any]]) -> list[TaskStep]:
-        """
-        Generate TaskStep objects from step data.
+        """Generate TaskStep objects from step data.
 
         Time Complexity: O(n) where n is number of steps
         Space Complexity: O(n) for storing steps
@@ -324,6 +323,7 @@ class TaskModelGenerator:
 
         Raises:
             TaskGenerationError: If step data is invalid
+
         """
         steps: list[TaskStep] = []
 
@@ -352,7 +352,7 @@ class TaskModelGenerator:
                 parameters = step_data.get("parameters", {})
                 if not isinstance(parameters, dict):
                     self._raise_generation_error(
-                        f"Step {i}: parameters must be dict, got {type(parameters)}"
+                        f"Step {i}: parameters must be dict, got {type(parameters)}",
                     )
 
                 # Extract optional fields
@@ -379,12 +379,10 @@ class TaskModelGenerator:
 
             except ValidationError as e:
                 self._raise_generation_error(f"Step {i} validation failed: {e}")
-
         return list(steps) if steps else []
 
     def _classify_task_type(self, steps: list[TaskStep], intent: Intent) -> TaskType:
-        """
-        Classify task type based on steps and intent.
+        """Classify task type based on steps and intent.
 
         Args:
             steps: List of task steps
@@ -398,6 +396,7 @@ class TaskModelGenerator:
             >>> steps = [TaskStep(...)]  # Single step
             >>> task_type = generator._classify_task_type(steps, intent)
             >>> assert task_type == TaskType.SINGLE_STEP
+
         """
         num_steps = len(steps)
 
@@ -406,11 +405,13 @@ class TaskModelGenerator:
             return TaskType.SINGLE_STEP
 
         # Multi-step tasks (2-5 steps)
-        if 2 <= num_steps <= self.MAX_STEPS:
+        if 2 <= num_steps <= self.MAX_STEPS:  # noqa: PLR2004 - Small integer threshold
+
             return TaskType.MULTI_STEP
 
         # Should never reach here due to validation
         self._raise_generation_error(f"Invalid number of steps: {num_steps}")
+        return None
 
     def _calculate_confidence(
         self,
@@ -419,8 +420,7 @@ class TaskModelGenerator:
         steps: list[TaskStep],
         intent: Intent,
     ) -> float:
-        """
-        Calculate adjusted confidence score based on multiple factors.
+        """Calculate adjusted confidence score based on multiple factors.
 
         Confidence adjustments:
         - Complete output: +0.0 (baseline)
@@ -444,6 +444,7 @@ class TaskModelGenerator:
             ...     0.85, llm_output, steps, intent
             ... )
             >>> assert 0.0 <= confidence <= 1.0
+
         """
         adjusted = base_confidence
 
@@ -453,7 +454,8 @@ class TaskModelGenerator:
         adjusted -= missing_fields * 0.05
 
         # Penalty for complex multi-step tasks
-        if len(steps) > 3:
+        if len(steps) > 3:  # noqa: PLR2004 - Small integer threshold
+
             adjusted -= 0.1
 
         # Bonus for complete parameters
@@ -462,7 +464,8 @@ class TaskModelGenerator:
             adjusted += 0.05
 
         # Bonus for high intent confidence
-        if intent.confidence > 0.9:
+        if intent.confidence > 0.9:  # noqa: PLR2004 - Threshold value
+
             adjusted += 0.1
 
         # Ensure bounds
@@ -471,8 +474,7 @@ class TaskModelGenerator:
         return round(adjusted, 3)
 
     def _requires_confirmation(self, steps: list[TaskStep], intent: Intent) -> bool:
-        """
-        Determine if task requires user confirmation before execution.
+        """Determine if task requires user confirmation before execution.
 
         Confirmation required if:
         - Any step contains sensitive keywords
@@ -491,6 +493,7 @@ class TaskModelGenerator:
             >>> steps = [TaskStep(tool_id="delete_file", ...)]
             >>> requires = generator._requires_confirmation(steps, intent)
             >>> assert requires is True  # "delete" is sensitive
+
         """
         # Check for sensitive keywords in descriptions or tool_ids
         for step in steps:
@@ -499,7 +502,8 @@ class TaskModelGenerator:
                 return True
 
         # Multi-step tasks with >3 steps require confirmation
-        if len(steps) > 3:
+        if len(steps) > 3:  # noqa: PLR2004 - Small integer threshold
+
             return True
 
         # Check intent-level confirmation requirement
@@ -509,8 +513,7 @@ class TaskModelGenerator:
         return False
 
     def _calculate_total_duration(self, steps: list[TaskStep]) -> float:
-        """
-        Calculate total estimated duration for all steps.
+        """Calculate total estimated duration for all steps.
 
         For sequential execution, this is the sum of all step durations.
         For parallel execution (future), this would be max of parallel branches.
@@ -529,12 +532,12 @@ class TaskModelGenerator:
             ... ]
             >>> duration = generator._calculate_total_duration(steps)
             >>> assert duration == 3.0
+
         """
         return sum(step.estimated_duration for step in steps)
 
     def _validate_task(self, task: Task) -> None:
-        """
-        Perform comprehensive validation on generated task.
+        """Perform comprehensive validation on generated task.
 
         Validates:
         - Task type matches step count
@@ -553,16 +556,20 @@ class TaskModelGenerator:
             >>> generator = TaskModelGenerator()
             >>> task = Task(...)  # Valid task
             >>> generator._validate_task(task)  # No exception
+
         """
         # Validate task type matches step count
         num_steps = len(task.steps)
 
         if task.task_type == TaskType.SINGLE_STEP and num_steps != 1:
-            self._raise_validation_error(f"SINGLE_STEP task must have exactly 1 step, got {num_steps}")
-
-        if task.task_type == TaskType.MULTI_STEP and not (2 <= num_steps <= self.MAX_STEPS):
             self._raise_validation_error(
-                f"MULTI_STEP task must have 2-{self.MAX_STEPS} steps, got {num_steps}"
+                f"SINGLE_STEP task must have exactly 1 step, got {num_steps}",
+            )
+
+        if task.task_type == TaskType.MULTI_STEP and not (2 <= num_steps <= self.MAX_STEPS):  # noqa: PLR2004 - Small integer threshold
+
+            self._raise_validation_error(
+                f"MULTI_STEP task must have 2-{self.MAX_STEPS} steps, got {num_steps}",
             )
 
         # Validate step IDs are sequential
@@ -571,7 +578,7 @@ class TaskModelGenerator:
 
         if actual_ids != expected_ids:
             self._raise_validation_error(
-                f"Step IDs must be sequential 1-{num_steps}, got {actual_ids}"
+                f"Step IDs must be sequential 1-{num_steps}, got {actual_ids}",
             )
 
         # Validate dependencies
@@ -579,15 +586,15 @@ class TaskModelGenerator:
 
         # Validate total duration
         calculated_duration = sum(step.estimated_duration for step in task.steps)
-        if abs(task.estimated_duration - calculated_duration) > 0.1:
+        if abs(task.estimated_duration - calculated_duration) > 0.1:  # noqa: PLR2004 - Threshold value
+
             self._raise_validation_error(
                 f"Total duration mismatch: task={task.estimated_duration}, "
-                f"calculated={calculated_duration}"
+                f"calculated={calculated_duration}",
             )
 
     def _validate_dependencies(self, steps: list[TaskStep]) -> None:
-        """
-        Validate step dependencies for correctness.
+        """Validate step dependencies for correctness.
 
         Checks:
         - Dependencies reference valid step IDs
@@ -607,6 +614,7 @@ class TaskModelGenerator:
             ...     TaskStep(step_id=2, depends_on=[1], ...)
             ... ]
             >>> generator._validate_dependencies(steps)  # Valid
+
         """
         step_ids = {step.step_id for step in steps}
 
@@ -615,22 +623,21 @@ class TaskModelGenerator:
             for dep_id in step.depends_on:
                 if dep_id not in step_ids:
                     self._raise_validation_error(
-                        f"Step {step.step_id} depends on non-existent step {dep_id}"
+                        f"Step {step.step_id} depends on non-existent step {dep_id}",
                     )
 
                 # Check dependencies only reference earlier steps
                 if dep_id >= step.step_id:
                     self._raise_validation_error(
                         f"Step {step.step_id} cannot depend on step {dep_id} "
-                        f"(must depend on earlier steps only)"
+                        f"(must depend on earlier steps only)",
                     )
 
         # Check for circular dependencies using DFS
         self._check_circular_dependencies(steps)
 
     def _check_circular_dependencies(self, steps: list[TaskStep]) -> None:
-        """
-        Check for circular dependencies using depth-first search.
+        """Check for circular dependencies using depth-first search.
 
         Args:
             steps: List of task steps
@@ -647,6 +654,7 @@ class TaskModelGenerator:
             ...     TaskStep(step_id=3, depends_on=[2], ...)
             ... ]
             >>> generator._check_circular_dependencies(steps)  # No exception
+
         """
         # Build adjacency list
         graph: dict[int, list[int]] = {step.step_id: step.depends_on for step in steps}
@@ -673,8 +681,7 @@ class TaskModelGenerator:
 
         # Check each node
         for step in steps:
-            if step.step_id not in visited:
-                if has_cycle(step.step_id):
-                    self._raise_validation_error(
-                        f"Circular dependency detected involving step {step.step_id}"
-                    )
+            if step.step_id not in visited and has_cycle(step.step_id):
+                self._raise_validation_error(
+                    f"Circular dependency detected involving step {step.step_id}",
+                )

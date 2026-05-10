@@ -12,7 +12,7 @@ It integrates:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.security.audit.logger import AuditLogger, EventType, LogQuery
 from Agent_Guru.security.crypto.errors import (
@@ -50,16 +50,19 @@ class SecurityConfig:
 
     def validate(self) -> None:
         """Validate configuration meets security standards."""
-        if self.kdf_iterations < 100_000:
-            raise ConfigurationError(
-                f"KDF iterations must be >= 100000, got {self.kdf_iterations}"
-            )
+        if self.kdf_iterations < 100_000:  # noqa: PLR2004 - Percentage/large threshold
+
+            msg = f"KDF iterations must be >= 100000, got {self.kdf_iterations}"
+            raise ConfigurationError(msg)
         if not 0.0 <= self.default_trust_score <= 1.0:
-            raise ConfigurationError("default_trust_score must be in [0.0, 1.0]")
+            msg = "default_trust_score must be in [0.0, 1.0]"
+            raise ConfigurationError(msg)
         if not 0.0 <= self.min_trust_for_operations <= 1.0:
-            raise ConfigurationError("min_trust_for_operations must be in [0.0, 1.0]")
+            msg = "min_trust_for_operations must be in [0.0, 1.0]"
+            raise ConfigurationError(msg)
         if not 0.0 <= self.biometric_threshold <= 1.0:
-            raise ConfigurationError("biometric_threshold must be in [0.0, 1.0]")
+            msg = "biometric_threshold must be in [0.0, 1.0]"
+            raise ConfigurationError(msg)
 
 
 class GuruSecuritySystem:
@@ -80,20 +83,21 @@ class GuruSecuritySystem:
         valid = security.verify(profile.key_pair.public_key, b"hello", sig)
     """
 
-    def __init__(self, config: Optional[SecurityConfig] = None) -> None:
+    def __init__(self, config: SecurityConfig | None = None) -> None:
         self._config = config or SecurityConfig()
         self._initialized = False
-        self._key_store: Optional[KeyStore] = None
-        self._audit_logger: Optional[AuditLogger] = None
-        self._trust_manager: Optional[TrustManager] = None
-        self._identity_manager: Optional[IdentityManager] = None
-        self._zk_proof_system: Optional[ZKProofSystem] = None
+        self._key_store: KeyStore | None = None
+        self._audit_logger: AuditLogger | None = None
+        self._trust_manager: TrustManager | None = None
+        self._identity_manager: IdentityManager | None = None
+        self._zk_proof_system: ZKProofSystem | None = None
 
     def initialize(self) -> None:
         """Initialize all security subsystems.
 
         Raises:
             ConfigurationError: If configuration is invalid.
+
         """
         self._config.validate()
 
@@ -186,10 +190,10 @@ class GuruSecuritySystem:
     def audit_operation(
         self,
         event_type: EventType,
-        actor_id: Optional[str],
-        target_id: Optional[str],
+        actor_id: str | None,
+        target_id: str | None,
         outcome: str,
-        details: Optional[dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         """Log a security event to the audit log."""
         self._ensure_initialized()
@@ -236,7 +240,9 @@ class GuruSecuritySystem:
         self._trust_manager.revoke_relationship(from_id, to_id)  # type: ignore[union-attr]
 
     def get_trust_relationships(
-        self, profile_id: str, transitive: bool = False
+        self,
+        profile_id: str,
+        transitive: bool = False,
     ) -> list[TrustRelationship]:
         """Get trust relationships for an identity."""
         self._ensure_initialized()
@@ -246,7 +252,7 @@ class GuruSecuritySystem:
         self,
         profile_id: str,
         success: bool,
-        biometric_score: Optional[float] = None,
+        biometric_score: float | None = None,
     ) -> None:
         """Record an authentication event for trust computation."""
         self._ensure_initialized()
@@ -287,7 +293,8 @@ class GuruSecuritySystem:
 
     def _ensure_initialized(self) -> None:
         if not self._initialized:
+            msg = "GuruSecuritySystem not initialized. Call initialize() first."
             raise SecurityError(
-                "GuruSecuritySystem not initialized. Call initialize() first.",
+                msg,
                 "SYSTEM_NOT_INITIALIZED",
             )

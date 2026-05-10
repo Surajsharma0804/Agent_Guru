@@ -1,5 +1,4 @@
-"""
-Proactive suggestion generation system.
+"""Proactive suggestion generation system.
 
 This module generates proactive suggestions based on learned patterns,
 context, and user preferences.
@@ -14,8 +13,7 @@ Date: 2024
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from Agent_Guru.reasoning.learning.app_tracker import AppTracker
 from Agent_Guru.reasoning.learning.command_tracker import CommandTracker
@@ -25,8 +23,7 @@ from Agent_Guru.reasoning.models.behavioral import ProactiveSuggestion
 
 
 class SuggestionGenerator:
-    """
-    Generates proactive suggestions based on learned behavior.
+    """Generates proactive suggestions based on learned behavior.
 
     Generates suggestions from:
     - Time-based patterns (morning routine, evening routine)
@@ -42,6 +39,7 @@ class SuggestionGenerator:
         >>> suggestions = await generator.generate_suggestions(
         ...     "user123", context={"hour": 8, "day": 0}
         ... )
+
     """
 
     def __init__(
@@ -49,14 +47,14 @@ class SuggestionGenerator:
         db_path: str = "behavioral.db",
         max_suggestions: int = 5,
         min_confidence: float = 0.6,
-    ):
-        """
-        Initialize suggestion generator.
+    ) -> None:
+        """Initialize suggestion generator.
 
         Args:
             db_path: Path to SQLite database
             max_suggestions: Maximum suggestions to generate
             min_confidence: Minimum confidence threshold
+
         """
         self.db_path = db_path
         self.max_suggestions = max_suggestions
@@ -83,10 +81,11 @@ class SuggestionGenerator:
         self._initialized = True
 
     async def generate_suggestions(
-        self, user_id: str, context: Optional[dict] = None
+        self,
+        user_id: str,
+        context: dict | None = None,
     ) -> list[ProactiveSuggestion]:
-        """
-        Generate proactive suggestions for user.
+        """Generate proactive suggestions for user.
 
         Time Complexity: O(n) where n is patterns
 
@@ -96,12 +95,13 @@ class SuggestionGenerator:
 
         Returns:
             List of ranked suggestions
+
         """
         if not self._initialized:
             await self.initialize()
 
         if context is None:
-            now = datetime.now(tz=timezone.utc)
+            now = datetime.now(tz=UTC)
             context = {"hour": now.hour, "day": now.weekday()}
 
         suggestions = []
@@ -125,10 +125,11 @@ class SuggestionGenerator:
         return filtered[: self.max_suggestions]
 
     async def _generate_time_based_suggestions(
-        self, user_id: str, context: dict
+        self,
+        user_id: str,
+        context: dict,
     ) -> list[ProactiveSuggestion]:
-        """
-        Generate suggestions based on time patterns.
+        """Generate suggestions based on time patterns.
 
         Args:
             user_id: User identifier
@@ -136,13 +137,17 @@ class SuggestionGenerator:
 
         Returns:
             List of time-based suggestions
+
         """
-        hour = context.get("hour", datetime.now(tz=timezone.utc).hour)
-        day = context.get("day", datetime.now(tz=timezone.utc).weekday())
+        hour = context.get("hour", datetime.now(tz=UTC).hour)
+        day = context.get("day", datetime.now(tz=UTC).weekday())
 
         # Get patterns for current time
         patterns = await self.pattern_detector.get_patterns_for_time(
-            user_id, hour, day, min_confidence=self.min_confidence
+            user_id,
+            hour,
+            day,
+            min_confidence=self.min_confidence,
         )
 
         suggestions = []
@@ -157,8 +162,8 @@ class SuggestionGenerator:
                 relevance=self._calculate_time_relevance(pattern, hour, day),
                 based_on=f"time_pattern_{pattern.pattern_type.value}",
                 context=context,
-                created_at=datetime.now(tz=timezone.utc),
-                expires_at=datetime.now(tz=timezone.utc) + timedelta(hours=1),
+                created_at=datetime.now(tz=UTC),
+                expires_at=datetime.now(tz=UTC) + timedelta(hours=1),
                 metadata={
                     "pattern_id": pattern.pattern_id,
                     "pattern_type": pattern.pattern_type.value,
@@ -170,10 +175,11 @@ class SuggestionGenerator:
         return suggestions
 
     async def _generate_context_based_suggestions(
-        self, user_id: str, context: dict
+        self,
+        user_id: str,
+        context: dict,
     ) -> list[ProactiveSuggestion]:
-        """
-        Generate suggestions based on current context.
+        """Generate suggestions based on current context.
 
         Args:
             user_id: User identifier
@@ -181,6 +187,7 @@ class SuggestionGenerator:
 
         Returns:
             List of context-based suggestions
+
         """
         suggestions = []
 
@@ -199,8 +206,8 @@ class SuggestionGenerator:
                     relevance=0.7,
                     based_on="location_context",
                     context=context,
-                    created_at=datetime.now(tz=timezone.utc),
-                    expires_at=datetime.now(tz=timezone.utc) + timedelta(minutes=30),
+                    created_at=datetime.now(tz=UTC),
+                    expires_at=datetime.now(tz=UTC) + timedelta(minutes=30),
                     metadata={"app_id": app.app_id, "open_count": app.open_count},
                 )
                 suggestions.append(suggestion)
@@ -214,10 +221,11 @@ class SuggestionGenerator:
         return suggestions
 
     async def _generate_predictive_suggestions(
-        self, user_id: str, context: dict
+        self,
+        user_id: str,
+        context: dict,
     ) -> list[ProactiveSuggestion]:
-        """
-        Generate predictive suggestions based on history.
+        """Generate predictive suggestions based on history.
 
         Args:
             user_id: User identifier
@@ -225,17 +233,22 @@ class SuggestionGenerator:
 
         Returns:
             List of predictive suggestions
+
         """
         suggestions = []
 
         # Get most frequent commands
         frequent_commands = await self.command_tracker.get_most_frequent_commands(
-            user_id, limit=10, min_frequency=5
+            user_id,
+            limit=10,
+            min_frequency=5,
         )
 
         # Get recent commands to avoid duplicates
         recent_commands = await self.command_tracker.get_recent_commands(
-            user_id, since=datetime.now(tz=timezone.utc) - timedelta(hours=1), limit=10
+            user_id,
+            since=datetime.now(tz=UTC) - timedelta(hours=1),
+            limit=10,
         )
         recent_command_set = {c.command for c in recent_commands}
 
@@ -255,8 +268,8 @@ class SuggestionGenerator:
                         relevance=0.6,
                         based_on="frequency_pattern",
                         context=context,
-                        created_at=datetime.now(tz=timezone.utc),
-                        expires_at=datetime.now(tz=timezone.utc) + timedelta(hours=2),
+                        created_at=datetime.now(tz=UTC),
+                        expires_at=datetime.now(tz=UTC) + timedelta(hours=2),
                         metadata={
                             "frequency": cmd_freq.frequency,
                             "success_rate": cmd_freq.success_rate,
@@ -267,16 +280,17 @@ class SuggestionGenerator:
         return suggestions
 
     def _rank_suggestions(
-        self, suggestions: list[ProactiveSuggestion]
+        self,
+        suggestions: list[ProactiveSuggestion],
     ) -> list[ProactiveSuggestion]:
-        """
-        Rank suggestions by combined score.
+        """Rank suggestions by combined score.
 
         Args:
             suggestions: List of suggestions
 
         Returns:
             Sorted list of suggestions
+
         """
         # Calculate scores
         for suggestion in suggestions:
@@ -285,9 +299,8 @@ class SuggestionGenerator:
         # Sort by score (descending)
         return sorted(suggestions, key=lambda s: s.metadata["score"], reverse=True)
 
-    def _calculate_time_relevance(self, pattern, current_hour: int, current_day: int) -> float:
-        """
-        Calculate time relevance for a pattern.
+    def _calculate_time_relevance(self, pattern, current_hour: int, current_day: int) -> float:  # noqa: ANN001
+        """Calculate time relevance for a pattern.
 
         Args:
             pattern: Time pattern
@@ -296,6 +309,7 @@ class SuggestionGenerator:
 
         Returns:
             Relevance score (0.0-1.0)
+
         """
         relevance = 1.0
 
@@ -315,8 +329,7 @@ class SuggestionGenerator:
         return relevance
 
     def _format_suggestion_text(self, command: str, suggestion_type: str) -> str:
-        """
-        Format suggestion text for display.
+        """Format suggestion text for display.
 
         Args:
             command: Command to suggest
@@ -324,38 +337,38 @@ class SuggestionGenerator:
 
         Returns:
             Formatted suggestion text
+
         """
         # Simple formatting (can be enhanced with templates)
         if suggestion_type == "time":
             return f"It's time for: {command}"
-        elif suggestion_type == "frequent":
+        if suggestion_type == "frequent":
             return f"You often use: {command}"
-        elif suggestion_type == "context":
+        if suggestion_type == "context":
             return f"Based on your location: {command}"
-        else:
-            return f"Suggestion: {command}"
+        return f"Suggestion: {command}"
 
     async def record_suggestion_feedback(self, suggestion_id: str, accepted: bool) -> None:
-        """
-        Record user feedback on suggestion.
+        """Record user feedback on suggestion.
 
         Args:
             suggestion_id: Suggestion identifier
             accepted: Whether user accepted suggestion
+
         """
         # This would update suggestion acceptance rates
         # and adjust future suggestion generation
         # (Implementation would require suggestion storage)
 
     async def get_suggestion_stats(self, user_id: str) -> dict:
-        """
-        Get suggestion statistics for a user.
+        """Get suggestion statistics for a user.
 
         Args:
             user_id: User identifier
 
         Returns:
             Statistics dictionary
+
         """
         # This would return acceptance rates, most accepted types, etc.
         # (Implementation would require suggestion history storage)

@@ -1,5 +1,4 @@
-"""
-Latency tracking and budget enforcement for pipeline stages.
+"""Latency tracking and budget enforcement for pipeline stages.
 
 Provides high-resolution timing, budget enforcement, and monitoring
 for all stages of the reasoning pipeline.
@@ -11,9 +10,9 @@ import time
 from collections import defaultdict, deque
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -76,11 +75,11 @@ class StageMetrics:
 
     stage: PipelineStage
     start_time: float
-    end_time: Optional[float] = None
-    duration_ms: Optional[float] = None
+    end_time: float | None = None
+    duration_ms: float | None = None
     timeout: bool = False
     degraded: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
@@ -104,15 +103,16 @@ class LatencyStatistics:
 class LatencyTracker:
     """Tracker for pipeline stage latencies."""
 
-    def __init__(self, max_history: int = 10000):
+    def __init__(self, max_history: int = 10000) -> None:
         """Initialize latency tracker.
 
         Args:
             max_history: Maximum number of measurements to keep per stage
+
         """
         self.max_history = max_history
         self._measurements: dict[PipelineStage, deque[float]] = defaultdict(
-            lambda: deque(maxlen=max_history)
+            lambda: deque(maxlen=max_history),
         )
         self._timeout_counts: dict[PipelineStage, int] = defaultdict(int)
         self._degraded_counts: dict[PipelineStage, int] = defaultdict(int)
@@ -126,6 +126,7 @@ class LatencyTracker:
 
         Returns:
             Stage metrics object
+
         """
         return StageMetrics(
             stage=stage,
@@ -137,7 +138,7 @@ class LatencyTracker:
         metrics: StageMetrics,
         timeout: bool = False,
         degraded: bool = False,
-        error: Optional[str] = None,
+        error: str | None = None,
     ) -> StageMetrics:
         """End tracking a pipeline stage.
 
@@ -149,6 +150,7 @@ class LatencyTracker:
 
         Returns:
             Updated stage metrics
+
         """
         metrics.end_time = time.perf_counter()
         metrics.duration_ms = (metrics.end_time - metrics.start_time) * 1000
@@ -174,12 +176,12 @@ class LatencyTracker:
             timeout=timeout,
             degraded=degraded,
             error=error,
-            timestamp=datetime.now(tz=timezone.utc).isoformat(),
+            timestamp=datetime.now(tz=UTC).isoformat(),
         )
 
         return metrics
 
-    def get_statistics(self, stage: PipelineStage) -> Optional[LatencyStatistics]:
+    def get_statistics(self, stage: PipelineStage) -> LatencyStatistics | None:
         """Get latency statistics for a stage.
 
         Args:
@@ -187,6 +189,7 @@ class LatencyTracker:
 
         Returns:
             Latency statistics or None if no data
+
         """
         measurements = list(self._measurements[stage])
         if not measurements:
@@ -224,6 +227,7 @@ class LatencyTracker:
 
         Returns:
             Dictionary of stage statistics
+
         """
         stats = {}
         for stage in PipelineStage:
@@ -240,6 +244,7 @@ class LatencyTracker:
 
         Returns:
             Budget check result
+
         """
         if metrics.duration_ms is None:
             return {
@@ -257,9 +262,7 @@ class LatencyTracker:
         met_maximum = metrics.duration_ms <= maximum
 
         exceeded_by_ms = max(0, metrics.duration_ms - target)
-        exceeded_by_percent = (
-            (exceeded_by_ms / target * 100) if target > 0 else 0
-        )
+        exceeded_by_percent = (exceeded_by_ms / target * 100) if target > 0 else 0
 
         return {
             "met_target": met_target,
@@ -275,11 +278,12 @@ class LatencyTracker:
 class LatencyEnforcer:
     """Enforcer for latency budgets with timeout support."""
 
-    def __init__(self, tracker: LatencyTracker):
+    def __init__(self, tracker: LatencyTracker) -> None:
         """Initialize latency enforcer.
 
         Args:
             tracker: Latency tracker instance
+
         """
         self.tracker = tracker
 
@@ -287,8 +291,8 @@ class LatencyEnforcer:
         self,
         stage: PipelineStage,
         func: Callable,
-        *args: Any,
-        **kwargs: Any,
+        *args: Any,  # noqa: ANN401
+        **kwargs: Any,  # noqa: ANN401
     ) -> tuple[Any, StageMetrics]:
         """Execute a function with latency budget enforcement.
 
@@ -303,6 +307,7 @@ class LatencyEnforcer:
 
         Raises:
             asyncio.TimeoutError: If execution exceeds maximum budget
+
         """
         metrics = self.tracker.start_stage(stage)
         budget = LATENCY_BUDGETS.get(stage, {})
@@ -324,40 +329,34 @@ class LatencyEnforcer:
 
             return result, metrics
 
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             # Mark as timeout and log
             self.tracker.end_stage(metrics, timeout=True)
-            logger.warning(
+            logger.exception(
                 "stage_timeout",
                 stage=stage.value,
                 maximum_ms=maximum_ms,
-                timestamp=datetime.now(tz=timezone.utc).isoformat(),
+                timestamp=datetime.now(tz=UTC).isoformat(),
             )
             raise
-
-        except Exception as e:
             # Mark as error and log
             self.tracker.end_stage(metrics, error=str(e))
-            logger.error(
+            logger.exception(
                 "stage_error",
                 stage=stage.value,
                 error=str(e),
-                timestamp=datetime.now(tz=timezone.utc).isoformat(),
+                timestamp=datetime.now(tz=UTC).isoformat(),
             )
             raise
-
-
 class DegradedModeManager:
     """Manager for degraded mode activation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize degraded mode manager."""
         self._degraded_stages: set[PipelineStage] = set()
         self._degraded_count = 0
 
-    def should_degrade(
-        self, stage: PipelineStage, metrics: StageMetrics
-    ) -> bool:
+    def should_degrade(self, stage: PipelineStage, metrics: StageMetrics) -> bool:
         """Check if stage should enter degraded mode.
 
         Args:
@@ -366,6 +365,7 @@ class DegradedModeManager:
 
         Returns:
             True if should degrade
+
         """
         if metrics.duration_ms is None:
             return False
@@ -381,6 +381,7 @@ class DegradedModeManager:
 
         Args:
             stage: Pipeline stage
+
         """
         if stage not in self._degraded_stages:
             self._degraded_stages.add(stage)
@@ -391,6 +392,7 @@ class DegradedModeManager:
 
         Args:
             stage: Pipeline stage
+
         """
         if stage in self._degraded_stages:
             self._degraded_stages.discard(stage)
@@ -403,6 +405,7 @@ class DegradedModeManager:
 
         Returns:
             True if degraded
+
         """
         return stage in self._degraded_stages
 
@@ -411,6 +414,7 @@ class DegradedModeManager:
 
         Returns:
             List of degraded stages
+
         """
         return list(self._degraded_stages)
 
@@ -419,14 +423,15 @@ class DegradedModeManager:
 
         Returns:
             Degraded count
+
         """
         return self._degraded_count
 
 
 # Global instances
-_global_tracker: Optional[LatencyTracker] = None
-_global_enforcer: Optional[LatencyEnforcer] = None
-_global_degraded_manager: Optional[DegradedModeManager] = None
+_global_tracker: LatencyTracker | None = None
+_global_enforcer: LatencyEnforcer | None = None
+_global_degraded_manager: DegradedModeManager | None = None
 
 
 def get_latency_tracker() -> LatencyTracker:
@@ -434,6 +439,7 @@ def get_latency_tracker() -> LatencyTracker:
 
     Returns:
         Global LatencyTracker instance
+
     """
     global _global_tracker
     if _global_tracker is None:
@@ -446,6 +452,7 @@ def get_latency_enforcer() -> LatencyEnforcer:
 
     Returns:
         Global LatencyEnforcer instance
+
     """
     global _global_enforcer
     if _global_enforcer is None:
@@ -458,6 +465,7 @@ def get_degraded_mode_manager() -> DegradedModeManager:
 
     Returns:
         Global DegradedModeManager instance
+
     """
     global _global_degraded_manager
     if _global_degraded_manager is None:

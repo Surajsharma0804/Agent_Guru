@@ -1,5 +1,4 @@
-"""
-Enhanced confidence scoring for LLM-generated Task objects.
+"""Enhanced confidence scoring for LLM-generated Task objects.
 
 This module implements sophisticated confidence scoring that goes beyond
 basic completeness checks. It tracks historical accuracy per task type
@@ -14,7 +13,7 @@ Requirements: 17.5
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from Agent_Guru.reasoning.config.logging import get_logger
@@ -26,8 +25,7 @@ logger = get_logger(__name__)
 
 @dataclass
 class HistoricalAccuracy:
-    """
-    Tracks historical accuracy for a specific task type.
+    """Tracks historical accuracy for a specific task type.
 
     Attributes:
         task_type: Type of task being tracked
@@ -35,13 +33,14 @@ class HistoricalAccuracy:
         successful_attempts: Number of successful completions
         confidence_sum: Sum of confidence scores for calibration
         last_updated: Timestamp of last update
+
     """
 
     task_type: str
     total_attempts: int = 0
     successful_attempts: int = 0
     confidence_sum: float = 0.0
-    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     @property
     def success_rate(self) -> float:
@@ -59,16 +58,17 @@ class HistoricalAccuracy:
 
     @property
     def calibration_factor(self) -> float:
-        """
-        Calculate calibration factor to adjust confidence.
+        """Calculate calibration factor to adjust confidence.
 
         If success rate > average confidence: increase confidence
         If success rate < average confidence: decrease confidence
 
         Returns:
             Multiplier to apply to confidence (0.5-1.5)
+
         """
-        if self.total_attempts < 10:
+        if self.total_attempts < 10:  # noqa: PLR2004 - Threshold
+
             return 1.0  # Need more data for calibration
 
         avg_conf = self.average_confidence
@@ -81,8 +81,7 @@ class HistoricalAccuracy:
 
 
 class ConfidenceScorer:
-    """
-    Enhanced confidence scorer for LLM-generated Task objects.
+    """Enhanced confidence scorer for LLM-generated Task objects.
 
     This scorer combines multiple dimensions:
     1. LLM confidence indicators (if provided by LLM)
@@ -105,13 +104,13 @@ class ConfidenceScorer:
     - Memory: O(n) where n = number of unique task types
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize confidence scorer with empty history."""
         self.logger = get_logger(__name__)
 
         # Historical accuracy tracking per task type
         self._history: dict[str, HistoricalAccuracy] = defaultdict(
-            lambda: HistoricalAccuracy(task_type="unknown")
+            lambda: HistoricalAccuracy(task_type="unknown"),
         )
 
         # Scoring weights (sum to 1.0)
@@ -124,10 +123,12 @@ class ConfidenceScorer:
         }
 
     def score(
-        self, task: Task, task_dict: dict[str, Any], context: dict[str, Any] | None = None
+        self,
+        task: Task,
+        task_dict: dict[str, Any],
+        context: dict[str, Any] | None = None,
     ) -> float:
-        """
-        Calculate comprehensive confidence score for Task.
+        """Calculate comprehensive confidence score for Task.
 
         Args:
             task: Validated Task object
@@ -142,6 +143,7 @@ class ConfidenceScorer:
             >>> task = Task(goal="Set timer", ...)
             >>> confidence = scorer.score(task, task_dict)
             >>> print(f"Confidence: {confidence:.2f}")
+
         """
         start_time = time.time()
 
@@ -190,8 +192,7 @@ class ConfidenceScorer:
         return final_confidence
 
     def update_history(self, task: Task, success: bool, confidence: float) -> None:
-        """
-        Update historical accuracy data after task execution.
+        """Update historical accuracy data after task execution.
 
         This method should be called after each task execution to track
         success rates and calibrate future confidence scores.
@@ -205,6 +206,7 @@ class ConfidenceScorer:
             >>> scorer = ConfidenceScorer()
             >>> task = Task(goal="Set timer", task_type="single_step", ...)
             >>> scorer.update_history(task, success=True, confidence=0.85)
+
         """
         task_type_key = task.task_type
 
@@ -214,7 +216,7 @@ class ConfidenceScorer:
         if success:
             history.successful_attempts += 1
         history.confidence_sum += confidence
-        history.last_updated = datetime.now(tz=timezone.utc)
+        history.last_updated = datetime.now(tz=UTC)
 
         self.logger.info(
             "Updated historical accuracy",
@@ -229,23 +231,23 @@ class ConfidenceScorer:
         )
 
     def get_history(self, task_type: str) -> HistoricalAccuracy | None:
-        """
-        Get historical accuracy data for a task type.
+        """Get historical accuracy data for a task type.
 
         Args:
             task_type: Task type to query
 
         Returns:
             HistoricalAccuracy object or None if no history
+
         """
         return self._history.get(task_type)
 
     def get_all_history(self) -> dict[str, HistoricalAccuracy]:
-        """
-        Get all historical accuracy data.
+        """Get all historical accuracy data.
 
         Returns:
             Dictionary mapping task types to HistoricalAccuracy objects
+
         """
         return dict(self._history)
 
@@ -255,8 +257,7 @@ class ConfidenceScorer:
         self.logger.info("Cleared historical accuracy data")
 
     def _score_llm_confidence(self, task: Task) -> float:
-        """
-        Score based on LLM-provided confidence indicators.
+        """Score based on LLM-provided confidence indicators.
 
         Uses the confidence field from the Task object, which may be
         provided by the LLM or set to a default value.
@@ -266,12 +267,12 @@ class ConfidenceScorer:
 
         Returns:
             LLM confidence score (0.0-1.0)
+
         """
         return task.confidence
 
     def _score_completeness(self, task: Task, task_dict: dict[str, Any]) -> float:
-        """
-        Score based on output completeness.
+        """Score based on output completeness.
 
         Checks:
         - All required fields present
@@ -286,6 +287,7 @@ class ConfidenceScorer:
 
         Returns:
             Completeness score (0.0-1.0)
+
         """
         score = 1.0
 
@@ -299,10 +301,12 @@ class ConfidenceScorer:
             score -= 0.1 * min(empty_params, 3)  # Cap penalty at 0.3
 
         # Check if descriptions are meaningful (>10 chars)
-        if len(task.goal) < 10:
+        if len(task.goal) < 10:  # noqa: PLR2004 - Threshold
+
             score -= 0.15
 
-        short_descriptions = sum(1 for step in task.steps if len(step.description) < 10)
+        short_descriptions = sum(1 for step in task.steps if len(step.description) < 10)  # noqa: PLR2004 - Threshold
+
         if short_descriptions > 0:
             score -= 0.05 * min(short_descriptions, 3)  # Cap penalty at 0.15
 
@@ -316,8 +320,7 @@ class ConfidenceScorer:
         return max(0.0, score)
 
     def _score_consistency(self, task: Task, context: dict[str, Any] | None = None) -> float:
-        """
-        Score based on consistency with context.
+        """Score based on consistency with context.
 
         Checks:
         - Task type matches step count
@@ -332,13 +335,15 @@ class ConfidenceScorer:
 
         Returns:
             Consistency score (0.0-1.0)
+
         """
         score = 1.0
 
         # Check task type consistency
-        if task.task_type == TaskType.SINGLE_STEP and len(task.steps) != 1:
-            score -= 0.25
-        elif task.task_type == TaskType.MULTI_STEP and not 2 <= len(task.steps) <= 5:
+        if (task.task_type == TaskType.SINGLE_STEP and len(task.steps) != 1) or (
+            task.task_type == TaskType.MULTI_STEP and not 2 <= len(task.steps) <= 5  # noqa: PLR2004 - Small integer threshold
+
+        ):
             score -= 0.25
 
         # Check duration consistency
@@ -350,7 +355,8 @@ class ConfidenceScorer:
 
         # Check for reasonable durations (0.1s to 60s per step)
         unreasonable_durations = sum(
-            1 for step in task.steps if not 0.1 <= step.estimated_duration <= 60.0
+            1 for step in task.steps if not 0.1 <= step.estimated_duration <= 60.0  # noqa: PLR2004 - Threshold
+
         )
         if unreasonable_durations > 0:
             score -= 0.1 * min(unreasonable_durations, 3)
@@ -369,8 +375,7 @@ class ConfidenceScorer:
         return max(0.0, score)
 
     def _check_context_consistency(self, task: Task, context: dict[str, Any]) -> float:
-        """
-        Check consistency with provided context.
+        """Check consistency with provided context.
 
         Args:
             task: Task object
@@ -378,6 +383,7 @@ class ConfidenceScorer:
 
         Returns:
             Consistency multiplier (0.5-1.0)
+
         """
         multiplier = 1.0
 
@@ -396,8 +402,7 @@ class ConfidenceScorer:
         return max(0.5, multiplier)
 
     def _score_quality(self, task: Task) -> float:
-        """
-        Score based on description quality.
+        """Score based on description quality.
 
         Checks:
         - Descriptions are clear and specific
@@ -411,6 +416,7 @@ class ConfidenceScorer:
 
         Returns:
             Quality score (0.0-1.0)
+
         """
         score = 1.0
 
@@ -419,16 +425,20 @@ class ConfidenceScorer:
             score -= 0.1
 
         # Check for reasonable length (not too short, not too long)
-        if len(task.goal) < 5:
+        if len(task.goal) < 5:  # noqa: PLR2004 - Small integer threshold
+
             score -= 0.2
-        elif len(task.goal) > 200:
+        elif len(task.goal) > 200:  # noqa: PLR2004 - Percentage/large threshold
+
             score -= 0.1
 
         # Check step descriptions
         for step in task.steps:
-            if len(step.description) < 5:
+            if len(step.description) < 5:  # noqa: PLR2004 - Small integer threshold
+
                 score -= 0.1
-            elif len(step.description) > 200:
+            elif len(step.description) > 200:  # noqa: PLR2004 - Percentage/large threshold
+
                 score -= 0.05
 
             # Check for proper capitalization
@@ -443,8 +453,7 @@ class ConfidenceScorer:
         return max(0.0, score)
 
     def _score_historical(self, task: Task) -> float:
-        """
-        Score based on historical accuracy for this task type.
+        """Score based on historical accuracy for this task type.
 
         Uses success rate from past executions to adjust confidence.
         If no history exists, returns neutral score (0.5).
@@ -454,11 +463,13 @@ class ConfidenceScorer:
 
         Returns:
             Historical score (0.0-1.0)
+
         """
         task_type_key = task.task_type
         history = self._history.get(task_type_key)
 
-        if not history or history.total_attempts < 5:
+        if not history or history.total_attempts < 5:  # noqa: PLR2004 - Small integer threshold
+
             # Not enough data, return neutral
             return 0.5
 
@@ -466,8 +477,7 @@ class ConfidenceScorer:
         return history.success_rate
 
     def _apply_calibration(self, task: Task, raw_confidence: float) -> float:
-        """
-        Apply historical calibration to confidence score.
+        """Apply historical calibration to confidence score.
 
         Adjusts confidence based on how well past confidence scores
         correlated with actual success rates.
@@ -478,11 +488,13 @@ class ConfidenceScorer:
 
         Returns:
             Calibrated confidence score
+
         """
         task_type_key = task.task_type
         history = self._history.get(task_type_key)
 
-        if not history or history.total_attempts < 10:
+        if not history or history.total_attempts < 10:  # noqa: PLR2004 - Threshold
+
             # Not enough data for calibration
             return raw_confidence
 
@@ -499,11 +511,11 @@ _global_scorer: ConfidenceScorer | None = None
 
 
 def get_confidence_scorer() -> ConfidenceScorer:
-    """
-    Get global confidence scorer instance.
+    """Get global confidence scorer instance.
 
     Returns:
         Global ConfidenceScorer instance
+
     """
     global _global_scorer
     if _global_scorer is None:
@@ -512,10 +524,11 @@ def get_confidence_scorer() -> ConfidenceScorer:
 
 
 def score_task_confidence(
-    task: Task, task_dict: dict[str, Any], context: dict[str, Any] | None = None
+    task: Task,
+    task_dict: dict[str, Any],
+    context: dict[str, Any] | None = None,
 ) -> float:
-    """
-    Convenience function to score task confidence.
+    """Convenience function to score task confidence.
 
     Args:
         task: Task object
@@ -524,6 +537,7 @@ def score_task_confidence(
 
     Returns:
         Confidence score (0.0-1.0)
+
     """
     scorer = get_confidence_scorer()
     return scorer.score(task, task_dict, context)

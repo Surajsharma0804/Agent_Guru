@@ -1,5 +1,4 @@
-"""
-Hybrid LLM Router
+"""Hybrid LLM Router.
 
 Intelligently routes requests between local and cloud LLM providers based on:
 - Task complexity (simple → local, complex → cloud)
@@ -12,9 +11,9 @@ Performance Target: <50ms routing decision overhead
 
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider
@@ -39,7 +38,8 @@ class ComplexityScore:
     def __post_init__(self):
         """Validate score."""
         if not 0.0 <= self.score <= 1.0:
-            raise ValueError(f"score must be 0.0-1.0, got {self.score}")
+            msg = f"score must be 0.0-1.0, got {self.score}"
+            raise ValueError(msg)
 
 
 @dataclass
@@ -54,10 +54,13 @@ class RoutingMetrics:
     cloud_latency_ms: list[float] = field(default_factory=list)
     local_errors: int = 0
     cloud_errors: int = 0
-    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    last_updated: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def record_request(
-        self, decision: RoutingDecision, latency_ms: float, error: bool = False
+        self,
+        decision: RoutingDecision,
+        latency_ms: float,
+        error: bool = False,
     ) -> None:
         """Record a routing decision and its outcome."""
         self.total_requests += 1
@@ -75,7 +78,7 @@ class RoutingMetrics:
         elif decision == RoutingDecision.FALLBACK:
             self.fallback_requests += 1
 
-        self.last_updated = datetime.now(tz=timezone.utc)
+        self.last_updated = datetime.now(tz=UTC)
 
     def get_stats(self) -> dict[str, Any]:
         """Get routing statistics."""
@@ -111,8 +114,7 @@ class RoutingMetrics:
 
 
 class HybridLLMRouter:
-    """
-    Hybrid LLM router for intelligent provider selection.
+    """Hybrid LLM router for intelligent provider selection.
 
     Routes requests between local and cloud providers based on:
     - Task complexity
@@ -123,15 +125,16 @@ class HybridLLMRouter:
         >>> router = HybridLLMRouter(local_provider, cloud_provider)
         >>> request = LLMRequest(prompt="Simple task")
         >>> response = await router.generate(request)
+
     """
 
     def __init__(
         self,
-        local_provider: Optional[BaseLLMProvider] = None,
-        cloud_provider: Optional[BaseLLMProvider] = None,
+        local_provider: BaseLLMProvider | None = None,
+        cloud_provider: BaseLLMProvider | None = None,
         complexity_threshold: float = 0.5,
         enable_fallback: bool = True,
-    ):
+    ) -> None:
         """Initialize hybrid router.
 
         Args:
@@ -142,9 +145,11 @@ class HybridLLMRouter:
 
         Raises:
             ValueError: If both providers are None
+
         """
         if local_provider is None and cloud_provider is None:
-            raise ValueError("At least one provider (local or cloud) must be provided")
+            msg = "At least one provider (local or cloud) must be provided"
+            raise ValueError(msg)
 
         self.local_provider = local_provider
         self.cloud_provider = cloud_provider
@@ -155,12 +160,11 @@ class HybridLLMRouter:
     def calculate_complexity(
         self,
         request: LLMRequest,
-        intent_type: Optional[str] = None,
+        intent_type: str | None = None,
         entity_count: int = 0,
         step_count: int = 1,
     ) -> ComplexityScore:
-        """
-        Calculate task complexity score.
+        """Calculate task complexity score.
 
         Complexity factors:
         - Prompt length (longer = more complex)
@@ -176,14 +180,17 @@ class HybridLLMRouter:
 
         Returns:
             ComplexityScore with score 0.0-1.0
+
         """
         factors = {}
 
         # Factor 1: Prompt length (0.0-0.3)
         prompt_length = len(request.prompt)
-        if prompt_length < 50:
+        if prompt_length < 50:  # noqa: PLR2004 - Threshold
+
             factors["prompt_length"] = 0.0
-        elif prompt_length < 200:
+        elif prompt_length < 200:  # noqa: PLR2004 - Percentage/large threshold
+
             factors["prompt_length"] = 0.15
         else:
             factors["prompt_length"] = 0.3
@@ -191,7 +198,8 @@ class HybridLLMRouter:
         # Factor 2: Entity count (0.0-0.2)
         if entity_count == 0:
             factors["entity_count"] = 0.0
-        elif entity_count <= 2:
+        elif entity_count <= 2:  # noqa: PLR2004 - Small integer threshold
+
             factors["entity_count"] = 0.1
         else:
             factors["entity_count"] = 0.2
@@ -199,7 +207,8 @@ class HybridLLMRouter:
         # Factor 3: Step count (0.0-0.3)
         if step_count == 1:
             factors["step_count"] = 0.0
-        elif step_count <= 3:
+        elif step_count <= 3:  # noqa: PLR2004 - Small integer threshold
+
             factors["step_count"] = 0.15
         else:
             factors["step_count"] = 0.3
@@ -230,8 +239,7 @@ class HybridLLMRouter:
         local_available: bool = True,
         cloud_available: bool = True,
     ) -> RoutingDecision:
-        """
-        Make routing decision based on complexity and availability.
+        """Make routing decision based on complexity and availability.
 
         Routing logic:
         - Simple tasks (score < threshold) → local
@@ -245,38 +253,38 @@ class HybridLLMRouter:
 
         Returns:
             RoutingDecision (LOCAL, CLOUD, or FALLBACK)
+
         """
         # Check availability
         if not local_available and not cloud_available:
-            raise RuntimeError("No LLM providers available")
+            msg = "No LLM providers available"
+            raise RuntimeError(msg)
 
         # Simple task → prefer local
         if complexity.score < self.complexity_threshold:
             if local_available and self.local_provider:
                 return RoutingDecision.LOCAL
-            elif cloud_available and self.cloud_provider:
+            if cloud_available and self.cloud_provider:
                 return RoutingDecision.FALLBACK  # Fallback to cloud
-            else:
-                raise RuntimeError("No suitable provider available for simple task")
+            msg = "No suitable provider available for simple task"
+            raise RuntimeError(msg)
 
         # Complex task → prefer cloud
-        else:
-            if cloud_available and self.cloud_provider:
-                return RoutingDecision.CLOUD
-            elif local_available and self.local_provider:
-                return RoutingDecision.FALLBACK  # Fallback to local
-            else:
-                raise RuntimeError("No suitable provider available for complex task")
+        if cloud_available and self.cloud_provider:
+            return RoutingDecision.CLOUD
+        if local_available and self.local_provider:
+            return RoutingDecision.FALLBACK  # Fallback to local
+        msg = "No suitable provider available for complex task"
+        raise RuntimeError(msg)
 
     async def generate(
         self,
         request: LLMRequest,
-        intent_type: Optional[str] = None,
+        intent_type: str | None = None,
         entity_count: int = 0,
         step_count: int = 1,
     ) -> LLMResponse:
-        """
-        Generate response with intelligent routing.
+        """Generate response with intelligent routing.
 
         Args:
             request: LLM request
@@ -289,6 +297,7 @@ class HybridLLMRouter:
 
         Raises:
             RuntimeError: If all providers fail
+
         """
         start_time = time.perf_counter()
 
@@ -310,36 +319,39 @@ class HybridLLMRouter:
                     routing_latency_ms = (time.perf_counter() - start_time) * 1000
                     self.metrics.record_request(decision, routing_latency_ms, error=False)
                     return response
-                else:
-                    raise RuntimeError("Local provider not available")
+                msg = "Local provider not available"
+                raise RuntimeError(msg)
 
-            elif decision == RoutingDecision.CLOUD:
+            if decision == RoutingDecision.CLOUD:
                 if self.cloud_provider is not None:
                     response = await self.cloud_provider.generate(request)
                     routing_latency_ms = (time.perf_counter() - start_time) * 1000
                     self.metrics.record_request(decision, routing_latency_ms, error=False)
                     return response
-                else:
-                    raise RuntimeError("Cloud provider not available")
+                msg = "Cloud provider not available"
+                raise RuntimeError(msg)
 
-            elif decision == RoutingDecision.FALLBACK:
+            if decision == RoutingDecision.FALLBACK:
                 # Fallback already determined by routing logic
                 if complexity.score < self.complexity_threshold:
                     # Simple task, fallback to cloud
                     if self.cloud_provider is not None:
                         response = await self.cloud_provider.generate(request)
                     else:
-                        raise RuntimeError("Cloud provider not available")
+                        msg = "Cloud provider not available"
+                        raise RuntimeError(msg)
+                # Complex task, fallback to local
+                elif self.local_provider is not None:
+                    response = await self.local_provider.generate(request)
                 else:
-                    # Complex task, fallback to local
-                    if self.local_provider is not None:
-                        response = await self.local_provider.generate(request)
-                    else:
-                        raise RuntimeError("Local provider not available")
+                    msg = "Local provider not available"
+                    raise RuntimeError(msg)
 
                 routing_latency_ms = (time.perf_counter() - start_time) * 1000
                 self.metrics.record_request(
-                    RoutingDecision.FALLBACK, routing_latency_ms, error=False
+                    RoutingDecision.FALLBACK,
+                    routing_latency_ms,
+                    error=False,
                 )
                 return response
 
@@ -355,27 +367,34 @@ class HybridLLMRouter:
                         # Fallback to cloud
                         response = await self.cloud_provider.generate(request)
                         self.metrics.record_request(
-                            RoutingDecision.FALLBACK, routing_latency_ms, error=False
+                            RoutingDecision.FALLBACK,
+                            routing_latency_ms,
+                            error=False,
                         )
                         return response
 
-                    elif decision == RoutingDecision.CLOUD and self.local_provider:
+                    if decision == RoutingDecision.CLOUD and self.local_provider:
                         # Fallback to local
                         response = await self.local_provider.generate(request)
                         self.metrics.record_request(
-                            RoutingDecision.FALLBACK, routing_latency_ms, error=False
+                            RoutingDecision.FALLBACK,
+                            routing_latency_ms,
+                            error=False,
                         )
                         return response
 
                 except Exception as fallback_error:
                     # Both providers failed
-                    raise RuntimeError(
+                    msg = (
                         f"Primary provider failed: {primary_error}. "
                         f"Fallback provider failed: {fallback_error}"
+                    )
+                    raise RuntimeError(
+                        msg,
                     ) from fallback_error
 
             # No fallback, raise original error
-            raise primary_error
+            raise
 
     def get_metrics(self) -> dict[str, Any]:
         """Get routing metrics and statistics."""

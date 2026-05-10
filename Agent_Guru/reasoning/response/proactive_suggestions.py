@@ -1,5 +1,4 @@
-"""
-Proactive Suggestions Generator
+"""Proactive Suggestions Generator.
 
 Generates intelligent follow-up suggestions based on:
 - Conversation context and history
@@ -24,7 +23,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.config.logging import get_logger
 from Agent_Guru.reasoning.config.metrics import get_metrics_collector
@@ -49,8 +48,7 @@ class SuggestionType(str, Enum):
 
 @dataclass
 class Suggestion:
-    """
-    A proactive suggestion for the user.
+    """A proactive suggestion for the user.
 
     Attributes:
         text: Suggestion text to display
@@ -59,11 +57,12 @@ class Suggestion:
         confidence: Confidence score (0.0-1.0)
         context: Additional context for the suggestion
         priority: Priority for ranking (higher = more important)
+
     """
 
     text: str
     suggestion_type: SuggestionType
-    intent_type: Optional[str] = None
+    intent_type: str | None = None
     confidence: float = 1.0
     context: dict[str, Any] = field(default_factory=dict)
     priority: int = 0
@@ -71,15 +70,16 @@ class Suggestion:
     def __post_init__(self) -> None:
         """Validate suggestion fields."""
         if not 0.0 <= self.confidence <= 1.0:
-            raise ValueError(f"Confidence must be between 0.0 and 1.0, got {self.confidence}")
+            msg = f"Confidence must be between 0.0 and 1.0, got {self.confidence}"
+            raise ValueError(msg)
         if not self.text:
-            raise ValueError("Suggestion text cannot be empty")
+            msg = "Suggestion text cannot be empty"
+            raise ValueError(msg)
 
 
 @dataclass
 class SuggestionAcceptance:
-    """
-    Tracks suggestion acceptance for learning.
+    """Tracks suggestion acceptance for learning.
 
     Attributes:
         suggestion_text: The suggestion that was shown
@@ -88,19 +88,19 @@ class SuggestionAcceptance:
         was_accepted: Whether user accepted the suggestion
         timestamp: When suggestion was shown
         context: Context when suggestion was shown
+
     """
 
     suggestion_text: str
     suggestion_type: SuggestionType
-    intent_type: Optional[str]
+    intent_type: str | None
     was_accepted: bool
     timestamp: float
     context: dict[str, Any] = field(default_factory=dict)
 
 
 class ProactiveSuggestionGenerator:
-    """
-    Generate intelligent proactive suggestions.
+    """Generate intelligent proactive suggestions.
 
     Time Complexity: O(1) for lookup + O(n log n) for ranking where n = suggestion count
     Space Complexity: O(1) - fixed suggestion registry
@@ -116,14 +116,15 @@ class ProactiveSuggestionGenerator:
         "Set another timer"
         "Cancel timer"
         "Check remaining time"
+
     """
 
     def __init__(self, max_suggestions: int = 3) -> None:
-        """
-        Initialize proactive suggestion generator.
+        """Initialize proactive suggestion generator.
 
         Args:
             max_suggestions: Maximum number of suggestions to return
+
         """
         self.max_suggestions = max_suggestions
 
@@ -156,11 +157,10 @@ class ProactiveSuggestionGenerator:
         self,
         intent: Intent,
         result: ExecutionResult,
-        conversation_state: Optional[ConversationState] = None,
-        user_preferences: Optional[dict[str, Any]] = None,
+        conversation_state: ConversationState | None = None,
+        user_preferences: dict[str, Any] | None = None,
     ) -> list[str]:
-        """
-        Generate proactive suggestions based on context.
+        """Generate proactive suggestions based on context.
 
         Time Complexity: O(n log n) where n = number of candidate suggestions
         Space Complexity: O(n) for candidate list
@@ -173,6 +173,7 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             List of suggestion strings (max self.max_suggestions)
+
         """
         start_time = time.perf_counter()
 
@@ -221,7 +222,7 @@ class ProactiveSuggestionGenerator:
             return suggestion_texts
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Suggestion generation failed",
                 extra={"error": str(e), "intent_type": intent.intent_type},
             )
@@ -234,11 +235,10 @@ class ProactiveSuggestionGenerator:
         suggestion_text: str,
         was_accepted: bool,
         suggestion_type: SuggestionType,
-        intent_type: Optional[str] = None,
-        context: Optional[dict[str, Any]] = None,
+        intent_type: str | None = None,
+        context: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Track whether user accepted a suggestion.
+        """Track whether user accepted a suggestion.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -249,6 +249,7 @@ class ProactiveSuggestionGenerator:
             suggestion_type: Type of suggestion
             intent_type: Intent type suggested
             context: Optional context
+
         """
         acceptance = SuggestionAcceptance(
             suggestion_text=suggestion_text,
@@ -278,23 +279,23 @@ class ProactiveSuggestionGenerator:
         )
 
     def get_acceptance_rate(self, suggestion_text: str) -> float:
-        """
-        Get acceptance rate for a suggestion.
+        """Get acceptance rate for a suggestion.
 
         Args:
             suggestion_text: Suggestion to check
 
         Returns:
             Acceptance rate (0.0-1.0)
+
         """
         return self._preference_scores.get(suggestion_text, 0.5)  # Default 0.5
 
     def get_acceptance_stats(self) -> dict[str, Any]:
-        """
-        Get overall acceptance statistics.
+        """Get overall acceptance statistics.
 
         Returns:
             Dictionary with acceptance statistics
+
         """
         total_shown = sum(len(history) for history in self._acceptance_history.values())
         total_accepted = sum(
@@ -334,7 +335,9 @@ class ProactiveSuggestionGenerator:
         }
 
     def _generate_follow_up_suggestions(
-        self, intent: Intent, result: ExecutionResult
+        self,
+        intent: Intent,
+        result: ExecutionResult,
     ) -> list[Suggestion]:
         """Generate follow-up suggestions based on intent."""
         # Convert intent_type to string if it's an enum
@@ -349,9 +352,8 @@ class ProactiveSuggestionGenerator:
         if result.success:
             # Return success-specific suggestions
             return [s for s in suggestions if s.suggestion_type == SuggestionType.FOLLOW_UP]
-        else:
-            # Return error recovery suggestions
-            return [s for s in suggestions if s.suggestion_type == SuggestionType.ERROR_RECOVERY]
+        # Return error recovery suggestions
+        return [s for s in suggestions if s.suggestion_type == SuggestionType.ERROR_RECOVERY]
 
     def _generate_related_suggestions(self, intent: Intent) -> list[Suggestion]:
         """Generate suggestions for related capabilities."""
@@ -377,19 +379,22 @@ class ProactiveSuggestionGenerator:
                         intent_type=related_intent,
                         confidence=0.8,  # Slightly lower confidence for related
                         priority=base_suggestion.priority - 1,
-                    )
+                    ),
                 )
 
         return suggestions
 
     def _generate_contextual_suggestions(
-        self, intent: Intent, conversation_state: ConversationState
+        self,
+        intent: Intent,
+        conversation_state: ConversationState,
     ) -> list[Suggestion]:
         """Generate suggestions based on conversation context."""
         suggestions = []
 
         # Check recent turns for patterns
-        if len(conversation_state.turns) >= 2:
+        if len(conversation_state.turns) >= 2:  # noqa: PLR2004 - Small integer threshold
+
             # Get last two intents
             recent_intents = [
                 turn.intent.intent_type
@@ -405,7 +410,7 @@ class ProactiveSuggestionGenerator:
                         suggestion_type=SuggestionType.CONTEXTUAL,
                         confidence=0.7,
                         priority=2,
-                    )
+                    ),
                 )
 
         # Check tracked entities for context
@@ -422,13 +427,15 @@ class ProactiveSuggestionGenerator:
                         intent_type="get_directions",
                         confidence=0.6,
                         priority=1,
-                    )
+                    ),
                 )
 
         return suggestions
 
     def _generate_behavioral_suggestions(
-        self, intent: Intent, conversation_state: ConversationState
+        self,
+        intent: Intent,
+        conversation_state: ConversationState,
     ) -> list[Suggestion]:
         """Generate suggestions based on learned behavior patterns."""
         suggestions = []
@@ -445,7 +452,7 @@ class ProactiveSuggestionGenerator:
                         suggestion_type=SuggestionType.BEHAVIORAL,
                         confidence=0.7,
                         priority=1,
-                    )
+                    ),
                 )
 
         # Check time-based patterns
@@ -454,7 +461,9 @@ class ProactiveSuggestionGenerator:
         return suggestions
 
     def _generate_error_recovery_suggestions(
-        self, intent: Intent, result: ExecutionResult
+        self,
+        intent: Intent,
+        result: ExecutionResult,
     ) -> list[Suggestion]:
         """Generate suggestions for error recovery."""
         suggestions = []
@@ -474,7 +483,7 @@ class ProactiveSuggestionGenerator:
                 intent_type=intent_type_str,
                 confidence=0.9,
                 priority=3,
-            )
+            ),
         )
 
         # Suggest simplification
@@ -484,7 +493,7 @@ class ProactiveSuggestionGenerator:
                 suggestion_type=SuggestionType.ERROR_RECOVERY,
                 confidence=0.7,
                 priority=2,
-            )
+            ),
         )
 
         # Suggest alternative
@@ -494,16 +503,18 @@ class ProactiveSuggestionGenerator:
                 suggestion_type=SuggestionType.ALTERNATIVE,
                 confidence=0.6,
                 priority=1,
-            )
+            ),
         )
 
         return suggestions
 
     def _rank_suggestions(
-        self, candidates: list[Suggestion], intent: Intent, user_preferences: dict[str, Any]
+        self,
+        candidates: list[Suggestion],
+        intent: Intent,
+        user_preferences: dict[str, Any],
     ) -> list[Suggestion]:
-        """
-        Rank suggestions by relevance and user preferences.
+        """Rank suggestions by relevance and user preferences.
 
         Time Complexity: O(n log n) for sorting
 
@@ -514,6 +525,7 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             Ranked list of suggestions
+
         """
         # Calculate score for each suggestion
         scored_suggestions = []
@@ -528,10 +540,12 @@ class ProactiveSuggestionGenerator:
         return [s for _, s in scored_suggestions]
 
     def _calculate_suggestion_score(
-        self, suggestion: Suggestion, intent: Intent, user_preferences: dict[str, Any]
+        self,
+        suggestion: Suggestion,
+        intent: Intent,
+        user_preferences: dict[str, Any],
     ) -> float:
-        """
-        Calculate relevance score for suggestion.
+        """Calculate relevance score for suggestion.
 
         Args:
             suggestion: Suggestion to score
@@ -540,6 +554,7 @@ class ProactiveSuggestionGenerator:
 
         Returns:
             Score (higher = more relevant)
+
         """
         score = 0.0
 
@@ -582,7 +597,9 @@ class ProactiveSuggestionGenerator:
     def _get_top_suggestions(self, limit: int) -> list[dict[str, Any]]:
         """Get top suggestions by acceptance rate."""
         sorted_suggestions = sorted(
-            self._preference_scores.items(), key=lambda x: x[1], reverse=True
+            self._preference_scores.items(),
+            key=lambda x: x[1],
+            reverse=True,
         )
 
         return [
@@ -606,23 +623,38 @@ class ProactiveSuggestionGenerator:
         # Weather suggestions
         self._suggestion_registry["query_weather"] = [
             Suggestion(
-                "Check tomorrow's weather", SuggestionType.FOLLOW_UP, "query_weather", priority=3
+                "Check tomorrow's weather",
+                SuggestionType.FOLLOW_UP,
+                "query_weather",
+                priority=3,
             ),
             Suggestion(
-                "Get hourly forecast", SuggestionType.FOLLOW_UP, "query_weather", priority=2
+                "Get hourly forecast",
+                SuggestionType.FOLLOW_UP,
+                "query_weather",
+                priority=2,
             ),
             Suggestion(
-                "Check weather alerts", SuggestionType.FOLLOW_UP, "query_weather", priority=1
+                "Check weather alerts",
+                SuggestionType.FOLLOW_UP,
+                "query_weather",
+                priority=1,
             ),
         ]
 
         # Message suggestions
         self._suggestion_registry["send_message"] = [
             Suggestion(
-                "Send another message", SuggestionType.FOLLOW_UP, "send_message", priority=3
+                "Send another message",
+                SuggestionType.FOLLOW_UP,
+                "send_message",
+                priority=3,
             ),
             Suggestion(
-                "View sent messages", SuggestionType.FOLLOW_UP, "query_messages", priority=2
+                "View sent messages",
+                SuggestionType.FOLLOW_UP,
+                "query_messages",
+                priority=2,
             ),
             Suggestion("Call instead", SuggestionType.ALTERNATIVE, "make_call", priority=1),
         ]
@@ -637,10 +669,16 @@ class ProactiveSuggestionGenerator:
         # Reminder suggestions
         self._suggestion_registry["create_reminder"] = [
             Suggestion(
-                "View all reminders", SuggestionType.FOLLOW_UP, "query_reminders", priority=3
+                "View all reminders",
+                SuggestionType.FOLLOW_UP,
+                "query_reminders",
+                priority=3,
             ),
             Suggestion(
-                "Set another reminder", SuggestionType.FOLLOW_UP, "create_reminder", priority=2
+                "Set another reminder",
+                SuggestionType.FOLLOW_UP,
+                "create_reminder",
+                priority=2,
             ),
             Suggestion("Edit reminder", SuggestionType.FOLLOW_UP, "edit_reminder", priority=1),
         ]
@@ -662,10 +700,16 @@ class ProactiveSuggestionGenerator:
         # Smart home suggestions
         self._suggestion_registry["control_smart_home"] = [
             Suggestion(
-                "Check device status", SuggestionType.FOLLOW_UP, "query_device_status", priority=3
+                "Check device status",
+                SuggestionType.FOLLOW_UP,
+                "query_device_status",
+                priority=3,
             ),
             Suggestion(
-                "Create automation", SuggestionType.FOLLOW_UP, "create_automation", priority=2
+                "Create automation",
+                SuggestionType.FOLLOW_UP,
+                "create_automation",
+                priority=2,
             ),
             Suggestion("View all devices", SuggestionType.FOLLOW_UP, "list_devices", priority=1),
         ]

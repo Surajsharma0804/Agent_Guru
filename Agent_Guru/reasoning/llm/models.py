@@ -1,13 +1,12 @@
-"""
-Data models for LLM infrastructure.
+"""Data models for LLM infrastructure.
 
 Defines request/response structures for local and cloud LLM interactions.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class LLMProvider(str, Enum):
@@ -42,12 +41,16 @@ class LLMRequest:
 
     def __post_init__(self):
         """Validate request parameters."""
-        if not 0.0 <= self.temperature <= 2.0:
-            raise ValueError(f"temperature must be 0.0-2.0, got {self.temperature}")
+        if not 0.0 <= self.temperature <= 2.0:  # noqa: PLR2004 - Threshold
+
+            msg = f"temperature must be 0.0-2.0, got {self.temperature}"
+            raise ValueError(msg)
         if not 0.0 <= self.top_p <= 1.0:
-            raise ValueError(f"top_p must be 0.0-1.0, got {self.top_p}")
+            msg = f"top_p must be 0.0-1.0, got {self.top_p}"
+            raise ValueError(msg)
         if self.max_tokens <= 0:
-            raise ValueError(f"max_tokens must be positive, got {self.max_tokens}")
+            msg = f"max_tokens must be positive, got {self.max_tokens}"
+            raise ValueError(msg)
 
 
 @dataclass
@@ -60,17 +63,20 @@ class LLMResponse:
     tokens_generated: int
     finish_reason: str  # "stop", "length", "error"
     metadata: dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def __post_init__(self):
         """Validate response fields."""
         if self.latency_ms < 0:
-            raise ValueError(f"latency_ms must be non-negative, got {self.latency_ms}")
+            msg = f"latency_ms must be non-negative, got {self.latency_ms}"
+            raise ValueError(msg)
         if self.tokens_generated < 0:
-            raise ValueError(f"tokens_generated must be non-negative, got {self.tokens_generated}")
+            msg = f"tokens_generated must be non-negative, got {self.tokens_generated}"
+            raise ValueError(msg)
         if self.finish_reason not in ["stop", "length", "error"]:
+            msg = f"finish_reason must be 'stop', 'length', or 'error', got {self.finish_reason}"
             raise ValueError(
-                f"finish_reason must be 'stop', 'length', or 'error', got {self.finish_reason}"
+                msg,
             )
 
 
@@ -92,19 +98,28 @@ class LocalLLMConfig:
     def __post_init__(self):
         """Validate configuration."""
         if self.n_gpu_layers < 0:
-            raise ValueError(f"n_gpu_layers must be non-negative, got {self.n_gpu_layers}")
+            msg = f"n_gpu_layers must be non-negative, got {self.n_gpu_layers}"
+            raise ValueError(msg)
         if self.n_ctx <= 0:
-            raise ValueError(f"n_ctx must be positive, got {self.n_ctx}")
+            msg = f"n_ctx must be positive, got {self.n_ctx}"
+            raise ValueError(msg)
         if self.n_threads <= 0:
-            raise ValueError(f"n_threads must be positive, got {self.n_threads}")
-        if not 1024 <= self.port <= 65535:
-            raise ValueError(f"port must be 1024-65535, got {self.port}")
-        if not 0.0 <= self.temperature <= 2.0:
-            raise ValueError(f"temperature must be 0.0-2.0, got {self.temperature}")
+            msg = f"n_threads must be positive, got {self.n_threads}"
+            raise ValueError(msg)
+        if not 1024 <= self.port <= 65535:  # noqa: PLR2004 - Percentage/large threshold
+
+            msg = f"port must be 1024-65535, got {self.port}"
+            raise ValueError(msg)
+        if not 0.0 <= self.temperature <= 2.0:  # noqa: PLR2004 - Threshold
+
+            msg = f"temperature must be 0.0-2.0, got {self.temperature}"
+            raise ValueError(msg)
         if not 0.0 <= self.top_p <= 1.0:
-            raise ValueError(f"top_p must be 0.0-1.0, got {self.top_p}")
+            msg = f"top_p must be 0.0-1.0, got {self.top_p}"
+            raise ValueError(msg)
         if self.max_tokens <= 0:
-            raise ValueError(f"max_tokens must be positive, got {self.max_tokens}")
+            msg = f"max_tokens must be positive, got {self.max_tokens}"
+            raise ValueError(msg)
 
 
 @dataclass
@@ -114,7 +129,7 @@ class ServerHealth:
     is_healthy: bool
     model_loaded: bool
     gpu_available: bool
-    gpu_backend: Optional[GPUBackend]
-    latency_ms: Optional[float]
-    error_message: Optional[str] = None
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    gpu_backend: GPUBackend | None
+    latency_ms: float | None
+    error_message: str | None = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))

@@ -1,5 +1,4 @@
-"""
-External API tools for email, messaging, calendar, maps, news, and stocks.
+"""External API tools for email, messaging, calendar, maps, news, and stocks.
 
 This module provides tools for integrating with external services.
 """
@@ -26,21 +25,21 @@ from Agent_Guru.reasoning.tools.external.messaging import (
 )
 
 __all__ = [
+    # Calendar
+    "CreateCalendarEventTool",
+    "GetCalendarEventsTool",
+    "GetDirectionsTool",
+    # Information
+    "GetNewsTool",
+    "GetStockPriceTool",
+    # Maps
+    "GetWeatherTool",
+    "SearchPlacesTool",
     # Email
     "SendEmailTool",
     # Messaging
     "SendSMSTool",
-    "SendWhatsAppTool",
-    "SendTelegramTool",
     "SendSlackTool",
-    # Calendar
-    "CreateCalendarEventTool",
-    "GetCalendarEventsTool",
-    # Maps
-    "GetWeatherTool",
-    "GetDirectionsTool",
-    "SearchPlacesTool",
-    # Information
-    "GetNewsTool",
-    "GetStockPriceTool",
+    "SendTelegramTool",
+    "SendWhatsAppTool",
 ]

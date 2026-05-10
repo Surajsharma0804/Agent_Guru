@@ -1,5 +1,4 @@
-"""
-Memory Retrieval Layer for retrieval-augmented reasoning.
+"""Memory Retrieval Layer for retrieval-augmented reasoning.
 
 This module provides vector database storage and semantic search capabilities
 for different types of memories (episodic, semantic, preference, task).
@@ -26,7 +25,7 @@ from Agent_Guru.reasoning.memory.storage_pipeline import MemoryStoragePipeline
 from Agent_Guru.reasoning.memory.vector_db import VectorDatabase
 
 __all__ = [
-    "VectorDatabase",
     "EmbeddingGenerator",
     "MemoryStoragePipeline",
+    "VectorDatabase",
 ]

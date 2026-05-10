@@ -1,5 +1,4 @@
-"""
-Sensitive data redaction utilities.
+"""Sensitive data redaction utilities.
 
 Provides a `redact` helper that masks sensitive fields in dictionaries
 before they are written to logs or returned in error responses.
@@ -10,7 +9,7 @@ CWE-200: Sensitive Data Redaction
 from typing import Any
 
 _REDACT_KEYS: frozenset[str] = frozenset(
-    {"password", "api_key", "token", "secret", "credential", "key"}
+    {"password", "api_key", "token", "secret", "credential", "key"},
 )
 
 _REDACTED_VALUE = "***REDACTED***"
@@ -31,8 +30,6 @@ def redact(data: dict[str, Any]) -> dict[str, Any]:
     Example:
         >>> redact({"api_key": "secret123", "name": "test"})
         {'api_key': '***REDACTED***', 'name': 'test'}
+
     """
-    return {
-        k: _REDACTED_VALUE if k.lower() in _REDACT_KEYS else v
-        for k, v in data.items()
-    }
+    return {k: _REDACTED_VALUE if k.lower() in _REDACT_KEYS else v for k, v in data.items()}

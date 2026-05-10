@@ -12,7 +12,7 @@ are made exclusively here.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -20,7 +20,9 @@ from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embed
 from Agent_Guru.security.models import AuthenticationResult
 from Agent_Guru.security.voice_auth import VoiceAuthenticationError, VoiceAuthenticator
 from Agent_Guru.vision.face_features import FaceFeatureExtractor
-from Agent_Guru.vision.models import FaceFeatures
+
+if TYPE_CHECKING:
+    from Agent_Guru.vision.models import FaceFeatures
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +35,8 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     """Cosine similarity in [-1.0, 1.0] (raw, not normalised to [0,1])."""
     norm_a = float(np.linalg.norm(a))
     norm_b = float(np.linalg.norm(b))
-    if norm_a < 1e-10 or norm_b < 1e-10:
+    if norm_a < 1e-10 or norm_b < 1e-10:  # noqa: PLR2004 - Epsilon value
+
         return 0.0
     return float(np.dot(a, b) / (norm_a * norm_b))
 
@@ -51,28 +54,32 @@ class BiometricAuthenticator:
         face_threshold: Minimum cosine similarity for face auth. Default 0.75.
         voice_threshold: Minimum cosine similarity for voice auth. Default 0.85.
         liveness_threshold: Minimum liveness score for face auth. Default 0.5.
+
     """
 
     def __init__(
         self,
-        face_extractor: Optional[FaceFeatureExtractor] = None,
-        voice_authenticator: Optional[VoiceAuthenticator] = None,
+        face_extractor: FaceFeatureExtractor | None = None,
+        voice_authenticator: VoiceAuthenticator | None = None,
         face_threshold: float = 0.75,
         voice_threshold: float = 0.85,
         liveness_threshold: float = 0.5,
     ) -> None:
         if not 0.0 <= face_threshold <= 1.0:
-            raise ValueError("face_threshold must be in [0.0, 1.0]")
+            msg = "face_threshold must be in [0.0, 1.0]"
+            raise ValueError(msg)
         if not 0.0 <= voice_threshold <= 1.0:
-            raise ValueError("voice_threshold must be in [0.0, 1.0]")
+            msg = "voice_threshold must be in [0.0, 1.0]"
+            raise ValueError(msg)
         if not 0.0 <= liveness_threshold <= 1.0:
-            raise ValueError("liveness_threshold must be in [0.0, 1.0]")
+            msg = "liveness_threshold must be in [0.0, 1.0]"
+            raise ValueError(msg)
 
         self.face_extractor = face_extractor or FaceFeatureExtractor(
-            liveness_threshold=liveness_threshold
+            liveness_threshold=liveness_threshold,
         )
         self.voice_authenticator = voice_authenticator or VoiceAuthenticator(
-            similarity_threshold=voice_threshold
+            similarity_threshold=voice_threshold,
         )
         self.face_threshold = face_threshold
         self.voice_threshold = voice_threshold
@@ -94,25 +101,26 @@ class BiometricAuthenticator:
         Raises:
             ValueError: If liveness check fails (anti-spoofing).
             RuntimeError: If face extraction fails.
+
         """
         features: FaceFeatures = self.face_extractor.extract_face_embedding(image_data)
         if not features.is_live:
             logger.warning(
-                "SECURITY: Face enrollment rejected for %s — liveness failed "
-                "(score=%.3f)",
+                "SECURITY: Face enrollment rejected for %s — liveness failed (score=%.3f)",
                 profile_id,
                 features.liveness_score,
             )
-            raise ValueError(
+            msg = (
                 f"Face enrollment rejected: liveness check failed "
                 f"(score={features.liveness_score:.3f})"
+            )
+            raise ValueError(
+                msg,
             )
         self._face_templates[profile_id] = features.embedding
         logger.info("Enrolled face template for %s", profile_id)
 
-    def authenticate_face(
-        self, profile_id: str, image_data: bytes
-    ) -> AuthenticationResult:
+    def authenticate_face(self, profile_id: str, image_data: bytes) -> AuthenticationResult:
         """Authenticate *profile_id* using a face image.
 
         Steps:
@@ -123,6 +131,7 @@ class BiometricAuthenticator:
 
         Raises:
             KeyError: If *profile_id* has no enrolled face template.
+
         """
         if profile_id not in self._face_templates:
             return AuthenticationResult(
@@ -147,9 +156,7 @@ class BiometricAuthenticator:
                 confidence=features.liveness_score,
                 modality="face",
                 user_id=profile_id,
-                failure_reason=(
-                    f"Liveness check failed (score={features.liveness_score:.3f})"
-                ),
+                failure_reason=(f"Liveness check failed (score={features.liveness_score:.3f})"),
             )
 
         template = self._face_templates[profile_id]
@@ -193,10 +200,12 @@ class BiometricAuthenticator:
 
         Raises:
             VoiceAuthenticationError: If enrollment fails.
+
         """
         # Local import to break circular dependency:
         # security -> speech -> security
         from Agent_Guru.speech.engine import SpeechEngine  # noqa: PLC0415
+
         # Reuse a cached engine instance to avoid re-initializing on every call
         if not hasattr(self, "_speech_engine") or self._speech_engine is None:
             self._speech_engine = SpeechEngine()
@@ -205,9 +214,7 @@ class BiometricAuthenticator:
         self.voice_authenticator.enroll_user(profile_id, voice_features)
         logger.info("Enrolled voice template for %s", profile_id)
 
-    def authenticate_voice(
-        self, profile_id: str, audio_data: np.ndarray
-    ) -> AuthenticationResult:
+    def authenticate_voice(self, profile_id: str, audio_data: np.ndarray) -> AuthenticationResult:
         """Authenticate *profile_id* using a voice sample.
 
         Delegates feature extraction to SpeechEngine and authentication to
@@ -215,10 +222,12 @@ class BiometricAuthenticator:
 
         Returns:
             AuthenticationResult with modality="voice".
+
         """
         # Local import to break circular dependency:
         # security -> speech -> security
         from Agent_Guru.speech.engine import SpeechEngine  # noqa: PLC0415
+
         # Reuse a cached engine instance to avoid re-initializing on every call
         if not hasattr(self, "_speech_engine") or self._speech_engine is None:
             self._speech_engine = SpeechEngine()
@@ -226,8 +235,9 @@ class BiometricAuthenticator:
         voice_features = self._speech_engine.extract_voice_features(audio_data)
 
         try:
-            authenticated, matched_id, similarity = self.voice_authenticator.authenticate(
-                voice_features, user_id=profile_id
+            authenticated, _matched_id, similarity = self.voice_authenticator.authenticate(
+                voice_features,
+                user_id=profile_id,
             )
         except VoiceAuthenticationError as exc:
             return AuthenticationResult(
@@ -241,13 +251,9 @@ class BiometricAuthenticator:
         # Liveness rejection is already handled inside VoiceAuthenticator.authenticate()
         # (returns False, None, 0.0 when is_live is False).
         if not authenticated and not voice_features.is_live:
-            failure_reason = (
-                f"Liveness check failed (score={voice_features.liveness_score:.3f})"
-            )
+            failure_reason = f"Liveness check failed (score={voice_features.liveness_score:.3f})"
         elif not authenticated:
-            failure_reason = (
-                f"Similarity {similarity:.3f} below threshold {self.voice_threshold}"
-            )
+            failure_reason = f"Similarity {similarity:.3f} below threshold {self.voice_threshold}"
         else:
             failure_reason = None
 
@@ -270,8 +276,8 @@ class BiometricAuthenticator:
     def authenticate_multi_factor(
         self,
         profile_id: str,
-        face_image: Optional[bytes] = None,
-        voice_audio: Optional[np.ndarray] = None,
+        face_image: bytes | None = None,
+        voice_audio: np.ndarray | None = None,
     ) -> AuthenticationResult:
         """Authenticate using multiple biometric modalities.
 
@@ -292,9 +298,11 @@ class BiometricAuthenticator:
 
         Raises:
             ValueError: If no modality is provided.
+
         """
         if face_image is None and voice_audio is None:
-            raise ValueError("At least one modality (face_image or voice_audio) must be provided")
+            msg = "At least one modality (face_image or voice_audio) must be provided"
+            raise ValueError(msg)
 
         results: list[AuthenticationResult] = []
         weights: list[float] = []
@@ -349,7 +357,7 @@ class BiometricAuthenticator:
 
         # Weighted average confidence
         fused_confidence = sum(
-            r.confidence * w for r, w in zip(results, norm_weights)
+            r.confidence * w for r, w in zip(results, norm_weights, strict=False)
         )
         # Clamp to [0, 1] for safety
         fused_confidence = float(max(0.0, min(1.0, fused_confidence)))

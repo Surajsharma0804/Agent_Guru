@@ -1,5 +1,4 @@
-"""
-Reasoning Pipeline with Knowledge Synthesis Integration.
+"""Reasoning Pipeline with Knowledge Synthesis Integration.
 
 This module implements the main reasoning pipeline that integrates Knowledge Query
 Detection and Knowledge Synthesis. It routes knowledge queries directly to the
@@ -43,9 +42,9 @@ Version: 1.0.0
 
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.knowledge.query_detector import KnowledgeQueryDetector
 from Agent_Guru.reasoning.knowledge.synthesizer import KnowledgeSynthesizer
@@ -85,15 +84,16 @@ class PipelineMetrics:
         knowledge_confidence: Confidence score for knowledge answer
         error: Error message if pipeline failed
         timestamp: Timestamp of pipeline execution
+
     """
 
     total_latency_ms: float = 0.0
     stage_latencies: dict[str, float] = field(default_factory=dict)
     knowledge_query_detected: bool = False
-    knowledge_query_type: Optional[str] = None
-    knowledge_confidence: Optional[float] = None
-    error: Optional[str] = None
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    knowledge_query_type: str | None = None
+    knowledge_confidence: float | None = None
+    error: str | None = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def add_stage_latency(self, stage: PipelineStage, latency_ms: float) -> None:
         """Add latency for a pipeline stage.
@@ -101,6 +101,7 @@ class PipelineMetrics:
         Args:
             stage: Pipeline stage
             latency_ms: Latency in milliseconds
+
         """
         self.stage_latencies[stage.value] = latency_ms
 
@@ -109,6 +110,7 @@ class PipelineMetrics:
 
         Returns:
             Dictionary representation of metrics
+
         """
         return {
             "total_latency_ms": self.total_latency_ms,
@@ -131,11 +133,12 @@ class PipelineResult:
         knowledge_answer: KnowledgeAnswer if knowledge query was detected
         metrics: Pipeline execution metrics
         success: Whether pipeline succeeded
+
     """
 
     response: str
     confidence: float
-    knowledge_answer: Optional[KnowledgeAnswer] = None
+    knowledge_answer: KnowledgeAnswer | None = None
     metrics: PipelineMetrics = field(default_factory=PipelineMetrics)
     success: bool = True
 
@@ -171,13 +174,14 @@ class ReasoningPipeline:
         >>> result = pipeline.process("when did I last call John?", user_id="user_123")
         >>> print(result.response)
         >>> print(f"Latency: {result.metrics.total_latency_ms:.1f}ms")
+
     """
 
     def __init__(
         self,
         memory_retriever: MemoryRetriever,
-        knowledge_synthesizer: Optional[KnowledgeSynthesizer] = None,
-        knowledge_detector: Optional[KnowledgeQueryDetector] = None,
+        knowledge_synthesizer: KnowledgeSynthesizer | None = None,
+        knowledge_detector: KnowledgeQueryDetector | None = None,
         enable_knowledge_synthesis: bool = True,
         metrics_enabled: bool = True,
     ) -> None:
@@ -192,9 +196,11 @@ class ReasoningPipeline:
 
         Raises:
             ValueError: If memory_retriever is None
+
         """
         if memory_retriever is None:
-            raise ValueError("memory_retriever cannot be None")
+            msg = "memory_retriever cannot be None"
+            raise ValueError(msg)
 
         self.memory_retriever = memory_retriever
         self.enable_knowledge_synthesis = enable_knowledge_synthesis
@@ -231,6 +237,7 @@ class ReasoningPipeline:
             >>> pipeline = ReasoningPipeline(memory_retriever)
             >>> result = pipeline.process("when did I last call John?", "user_123")
             >>> print(result.response)
+
         """
         start_time = time.perf_counter()
         metrics = PipelineMetrics()
@@ -270,7 +277,8 @@ class ReasoningPipeline:
                     # Stage 4: Knowledge Synthesis
                     stage_start = time.perf_counter()
                     knowledge_answer = self.knowledge_synthesizer.synthesize_answer(
-                        knowledge_query, user_id
+                        knowledge_query,
+                        user_id,
                     )
                     metrics.add_stage_latency(
                         PipelineStage.KNOWLEDGE_SYNTHESIS,
@@ -323,7 +331,7 @@ class ReasoningPipeline:
             metrics.total_latency_ms = (time.perf_counter() - start_time) * 1000
 
             return PipelineResult(
-                response=f"I encountered an error processing your request: {str(e)}",
+                response=f"I encountered an error processing your request: {e!s}",
                 confidence=0.0,
                 metrics=metrics,
                 success=False,
@@ -343,17 +351,17 @@ class ReasoningPipeline:
 
         Raises:
             ValueError: If input is empty or invalid
+
         """
         if not user_input or not user_input.strip():
-            raise ValueError("Input cannot be empty")
+            msg = "Input cannot be empty"
+            raise ValueError(msg)
 
         # Basic normalization
         normalized = user_input.strip()
 
         # Remove extra whitespace
-        normalized = " ".join(normalized.split())
-
-        return normalized
+        return " ".join(normalized.split())
 
     def _generate_response_from_knowledge_answer(self, knowledge_answer: KnowledgeAnswer) -> str:
         """Generate response text from KnowledgeAnswer.
@@ -366,6 +374,7 @@ class ReasoningPipeline:
 
         Returns:
             Response text
+
         """
         # For now, just return the summary
         # Future: Add rich formatting, suggestions, etc.
@@ -381,6 +390,7 @@ class ReasoningPipeline:
 
         Returns:
             Fallback response text
+
         """
         return (
             "I understand you're asking about something, but I'm still learning "
@@ -400,6 +410,7 @@ class ReasoningPipeline:
 
         Note:
             This is a placeholder for future metrics aggregation.
+
         """
         return {
             "knowledge_queries_processed": 0,

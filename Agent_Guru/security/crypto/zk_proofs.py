@@ -18,7 +18,7 @@ import hashlib
 import json
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from Agent_Guru.security.crypto.errors import ReplayAttackError, ZKProofError
@@ -57,7 +57,7 @@ class ZKProofSystem:
     The private key is never included in the proof.
     """
 
-    def __init__(self, identity_manager: Any) -> None:
+    def __init__(self, identity_manager: Any) -> None:  # noqa: ANN401
         self._identity_manager = identity_manager
         # Track seen proof nonces to prevent replay
         self._seen_nonces: set[bytes] = set()
@@ -75,14 +75,15 @@ class ZKProofSystem:
 
         Raises:
             ZKProofError: If proof generation fails.
+
         """
         try:
             profile = self._identity_manager.get_identity(claim.profile_id)
         except Exception as exc:
-            raise ZKProofError("Proof generation failed: identity error") from exc
-
+            msg = "Proof generation failed: identity error"
+            raise ZKProofError(msg) from exc
         try:
-            timestamp = datetime.now(tz=timezone.utc)
+            timestamp = datetime.now(tz=UTC)
             nonce = os.urandom(16)
 
             # Build commitment: hash(claim_type || claim_value || profile_id || timestamp || nonce)
@@ -118,11 +119,10 @@ class ZKProofSystem:
                 nonce=nonce,
             )
 
-        except ZKProofError as e:
+        except ZKProofError as exc:
             raise
-        except Exception as exc:
-            raise ZKProofError(f"Proof generation failed: type={type(exc).__name__}") from exc
-
+            msg = f"Proof generation failed: type={type(exc).__name__}"
+            raise ZKProofError(msg) from exc
     def verify_proof(self, proof: ZKProof, expected_claim_type: str) -> bool:
         """Verify zero-knowledge proof.
 
@@ -138,6 +138,7 @@ class ZKProofSystem:
         Raises:
             ZKProofError: If verification fails unexpectedly.
             ReplayAttackError: If timestamp indicates replay.
+
         """
         # Check claim type
         if proof.public_inputs.get("claim_type") != expected_claim_type:
@@ -145,11 +146,13 @@ class ZKProofSystem:
 
         # Check replay via timestamp
         if self._check_replay(proof):
-            raise ReplayAttackError("Proof timestamp indicates replay attack")
+            msg = "Proof timestamp indicates replay attack"
+            raise ReplayAttackError(msg)
 
         # Check nonce uniqueness
         if proof.nonce in self._seen_nonces:
-            raise ReplayAttackError("Proof nonce already seen (replay attack)")
+            msg = "Proof nonce already seen (replay attack)"
+            raise ReplayAttackError(msg)
 
         try:
             # Reconstruct commitment hash
@@ -174,31 +177,29 @@ class ZKProofSystem:
             try:
                 public_key_obj.verify(proof.proof_data, expected_hash)
                 valid = True
-            except Exception as e:
+            except Exception:
                 valid = False
-
             if valid:
                 # Record nonce to prevent replay
                 self._seen_nonces.add(proof.nonce)
 
             return valid
 
-        except (ReplayAttackError, ZKProofError) as e:
+        except (ReplayAttackError, ZKProofError) as exc:
             raise
-        except Exception as exc:
-            raise ZKProofError(f"Verification failed: type={type(exc).__name__}") from exc
-
+            msg = f"Verification failed: type={type(exc).__name__}"
+            raise ZKProofError(msg) from exc
     def _check_replay(self, proof: ZKProof) -> bool:
         """Check if proof timestamp indicates replay attack.
 
         Returns True if the proof is too old (potential replay).
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         # Ensure proof timestamp is timezone-aware
         proof_ts = proof.timestamp
         if proof_ts.tzinfo is None:
-            proof_ts = proof_ts.replace(tzinfo=timezone.utc)
+            proof_ts = proof_ts.replace(tzinfo=UTC)
 
         age = (now - proof_ts).total_seconds()
         return age > _REPLAY_WINDOW_SECONDS

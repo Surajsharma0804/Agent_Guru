@@ -1,19 +1,18 @@
-"""
-Permission manager for skill permissions with user consent.
+"""Permission manager for skill permissions with user consent.
 
 Manages permission requests, grants, revocations, and trust levels for skills.
 """
 
 import logging
+
 _logger = logging.getLogger(__name__)
 
-import asyncio
-import json
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Optional
+import asyncio  # noqa: E402
+import json  # noqa: E402
+from datetime import UTC, datetime  # noqa: E402
+from pathlib import Path  # noqa: E402
 
-from Agent_Guru.reasoning.models.skill import (
+from Agent_Guru.reasoning.models.skill import (  # noqa: E402
     Permission,
     TrustLevel,
 )
@@ -28,7 +27,7 @@ class PermissionRequest:
         permission: Permission,
         reason: str,
         timestamp: datetime,
-    ):
+    ) -> None:
         """Initialize permission request.
 
         Args:
@@ -36,6 +35,7 @@ class PermissionRequest:
             permission: Permission being requested
             reason: Reason for permission request
             timestamp: Request timestamp
+
         """
         self.skill_id = skill_id
         self.permission = permission
@@ -57,11 +57,12 @@ class PermissionManager:
         Permission.SYSTEM_CONTROL: "Control system settings (volume, brightness, etc.)",
     }
 
-    def __init__(self, storage_path: Optional[Path] = None):
+    def __init__(self, storage_path: Path | None = None) -> None:
         """Initialize permission manager.
 
         Args:
             storage_path: Path to persist permission data
+
         """
         self.storage_path = storage_path
         self._permissions: dict[str, set[Permission]] = {}  # skill_id -> permissions
@@ -93,6 +94,7 @@ class PermissionManager:
 
         Returns:
             True if permission granted, False otherwise
+
         """
         async with self._lock:
             # Check if already granted
@@ -105,9 +107,7 @@ class PermissionManager:
             # Auto-grant for trusted skills
             if trust_level == TrustLevel.TRUSTED and auto_grant:
                 await self.grant_permission(skill_id, permission)
-                self._log_permission_event(
-                    skill_id, permission, "auto_granted", reason
-                )
+                self._log_permission_event(skill_id, permission, "auto_granted", reason)
                 return True
 
             # Block for blocked skills
@@ -120,7 +120,7 @@ class PermissionManager:
                 skill_id=skill_id,
                 permission=permission,
                 reason=reason,
-                timestamp=datetime.now(tz=timezone.utc),
+                timestamp=datetime.now(tz=UTC),
             )
 
             # Note: In a real implementation, this would:
@@ -134,18 +134,16 @@ class PermissionManager:
                 await self.grant_permission(skill_id, permission)
                 self._log_permission_event(skill_id, permission, "granted", reason)
                 return True
-            else:
-                self._log_permission_event(skill_id, permission, "denied", reason)
-                return False
+            self._log_permission_event(skill_id, permission, "denied", reason)
+            return False
 
-    async def grant_permission(
-        self, skill_id: str, permission: Permission
-    ) -> None:
+    async def grant_permission(self, skill_id: str, permission: Permission) -> None:
         """Grant a permission to a skill.
 
         Args:
             skill_id: Skill ID
             permission: Permission to grant
+
         """
         async with self._lock:
             if skill_id not in self._permissions:
@@ -157,21 +155,18 @@ class PermissionManager:
             # Persist changes
             await self._persist()
 
-    async def revoke_permission(
-        self, skill_id: str, permission: Permission
-    ) -> None:
+    async def revoke_permission(self, skill_id: str, permission: Permission) -> None:
         """Revoke a permission from a skill.
 
         Args:
             skill_id: Skill ID
             permission: Permission to revoke
+
         """
         async with self._lock:
             if skill_id in self._permissions:
                 self._permissions[skill_id].discard(permission)
-                self._log_permission_event(
-                    skill_id, permission, "revoked", "Manual revocation"
-                )
+                self._log_permission_event(skill_id, permission, "revoked", "Manual revocation")
 
                 # Persist changes
                 await self._persist()
@@ -185,11 +180,9 @@ class PermissionManager:
 
         Returns:
             True if permission is granted
+
         """
-        return (
-            skill_id in self._permissions
-            and permission in self._permissions[skill_id]
-        )
+        return skill_id in self._permissions and permission in self._permissions[skill_id]
 
     def get_granted_permissions(self, skill_id: str) -> list[Permission]:
         """Get all granted permissions for a skill.
@@ -199,17 +192,17 @@ class PermissionManager:
 
         Returns:
             List of granted permissions
+
         """
         return list(self._permissions.get(skill_id, set()))
 
-    async def set_trust_level(
-        self, skill_id: str, trust_level: TrustLevel
-    ) -> None:
+    async def set_trust_level(self, skill_id: str, trust_level: TrustLevel) -> None:
         """Set trust level for a skill.
 
         Args:
             skill_id: Skill ID
             trust_level: Trust level to set
+
         """
         async with self._lock:
             old_level = self._trust_levels.get(skill_id, TrustLevel.RESTRICTED)
@@ -218,9 +211,8 @@ class PermissionManager:
             self._log_trust_event(skill_id, old_level, trust_level)
 
             # If setting to BLOCKED, revoke all permissions
-            if trust_level == TrustLevel.BLOCKED:
-                if skill_id in self._permissions:
-                    self._permissions[skill_id].clear()
+            if trust_level == TrustLevel.BLOCKED and skill_id in self._permissions:
+                self._permissions[skill_id].clear()
 
             # Persist changes
             await self._persist()
@@ -233,6 +225,7 @@ class PermissionManager:
 
         Returns:
             Trust level (default: RESTRICTED)
+
         """
         return self._trust_levels.get(skill_id, TrustLevel.RESTRICTED)
 
@@ -244,14 +237,11 @@ class PermissionManager:
 
         Returns:
             Description string
-        """
-        return self.PERMISSION_DESCRIPTIONS.get(
-            permission, "Unknown permission"
-        )
 
-    def get_permission_history(
-        self, skill_id: Optional[str] = None, limit: int = 100
-    ) -> list[dict]:
+        """
+        return self.PERMISSION_DESCRIPTIONS.get(permission, "Unknown permission")
+
+    def get_permission_history(self, skill_id: str | None = None, limit: int = 100) -> list[dict]:
         """Get permission history (audit trail).
 
         Args:
@@ -260,6 +250,7 @@ class PermissionManager:
 
         Returns:
             List of permission events
+
         """
         history = self._permission_history
 
@@ -282,9 +273,10 @@ class PermissionManager:
             permission: Permission
             action: Action taken (granted, denied, revoked, etc.)
             reason: Reason for action
+
         """
         event = {
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "skill_id": skill_id,
             "permission": permission.value,
             "action": action,
@@ -293,21 +285,21 @@ class PermissionManager:
         self._permission_history.append(event)
 
         # Keep only last 10000 events
-        if len(self._permission_history) > 10000:
+        if len(self._permission_history) > 10000:  # noqa: PLR2004 - Percentage/large threshold
+
             self._permission_history = self._permission_history[-10000:]
 
-    def _log_trust_event(
-        self, skill_id: str, old_level: TrustLevel, new_level: TrustLevel
-    ) -> None:
+    def _log_trust_event(self, skill_id: str, old_level: TrustLevel, new_level: TrustLevel) -> None:
         """Log a trust level change event.
 
         Args:
             skill_id: Skill ID
             old_level: Old trust level
             new_level: New trust level
+
         """
         event = {
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "skill_id": skill_id,
             "event_type": "trust_level_change",
             "old_level": old_level.value,
@@ -322,18 +314,16 @@ class PermissionManager:
 
         data = {
             "permissions": {
-                skill_id: [p.value for p in perms]
-                for skill_id, perms in self._permissions.items()
+                skill_id: [p.value for p in perms] for skill_id, perms in self._permissions.items()
             },
             "trust_levels": {
-                skill_id: level.value
-                for skill_id, level in self._trust_levels.items()
+                skill_id: level.value for skill_id, level in self._trust_levels.items()
             },
             "history": self._permission_history[-1000:],  # Keep last 1000 events
         }
 
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.storage_path, "w", encoding="utf-8") as f:
+        with open(self.storage_path, "w", encoding="utf-8") as f:  # noqa: ASYNC230
             json.dump(data, f, indent=2)
 
     def _load_from_storage(self) -> None:
@@ -342,7 +332,7 @@ class PermissionManager:
             return
 
         try:
-            with open(self.storage_path, encoding="utf-8") as f:
+            with open(self.storage_path, encoding="utf-8") as f:  # noqa: PTH123
                 data = json.load(f)
 
             # Load permissions
@@ -369,7 +359,7 @@ class PermissionManager:
 
 
 # Global permission manager instance
-_global_manager: Optional[PermissionManager] = None
+_global_manager: PermissionManager | None = None
 
 
 def get_permission_manager() -> PermissionManager:
@@ -377,6 +367,7 @@ def get_permission_manager() -> PermissionManager:
 
     Returns:
         Global PermissionManager instance
+
     """
     global _global_manager
     if _global_manager is None:

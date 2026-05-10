@@ -1,5 +1,4 @@
-"""
-File operation tools for reading, writing, deleting, moving, and copying files.
+"""File operation tools for reading, writing, deleting, moving, and copying files.
 
 Implements safe file operations with validation and error handling.
 """
@@ -52,7 +51,7 @@ MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 class FileReadTool(Tool):
     """Tool for reading files."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute file reading.
 
         Args:
@@ -61,6 +60,7 @@ class FileReadTool(Tool):
 
         Returns:
             Execution result with file contents
+
         """
         file_path = kwargs["file_path"]
         encoding = kwargs.get("encoding", "utf-8")
@@ -104,18 +104,15 @@ class FileReadTool(Tool):
                 },
             }
 
-        except UnicodeDecodeError:
+        except UnicodeDecodeError as e:
             return {
                 "success": False,
                 "error": f"Failed to decode file with encoding {encoding}",
             }
-        except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to read file: {str(e)}",
+                "error": f"Failed to read file: {e!s}",
             }
-
-
 @tool(
     tool_id="file.write",
     name="Write File",
@@ -160,7 +157,7 @@ class FileReadTool(Tool):
 class FileWriteTool(Tool):
     """Tool for writing files."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute file writing.
 
         Args:
@@ -171,6 +168,7 @@ class FileWriteTool(Tool):
 
         Returns:
             Execution result
+
         """
         file_path = kwargs["file_path"]
         content = kwargs["content"]
@@ -185,9 +183,7 @@ class FileWriteTool(Tool):
 
             # Write file
             if append:
-                await asyncio.to_thread(
-                    lambda: path.open("a", encoding=encoding).write(content)
-                )
+                await asyncio.to_thread(lambda: path.open("a", encoding=encoding).write(content))
                 mode = "appended to"
             else:
                 await asyncio.to_thread(path.write_text, content, encoding=encoding)
@@ -209,10 +205,8 @@ class FileWriteTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to write file: {str(e)}",
+                "error": f"Failed to write file: {e!s}",
             }
-
-
 @tool(
     tool_id="file.delete",
     name="Delete File",
@@ -223,7 +217,7 @@ class FileWriteTool(Tool):
             type=ToolParameterType.STRING,
             description="Path to the file to delete",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.DANGEROUS,
     estimated_latency_ms=50,
@@ -237,7 +231,7 @@ class FileWriteTool(Tool):
 class FileDeleteTool(Tool):
     """Tool for deleting files."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute file deletion.
 
         Args:
@@ -245,6 +239,7 @@ class FileDeleteTool(Tool):
 
         Returns:
             Execution result
+
         """
         file_path = kwargs["file_path"]
 
@@ -279,10 +274,8 @@ class FileDeleteTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to delete file: {str(e)}",
+                "error": f"Failed to delete file: {e!s}",
             }
-
-
 @tool(
     tool_id="file.move",
     name="Move File",
@@ -313,7 +306,7 @@ class FileDeleteTool(Tool):
 class FileMoveTool(Tool):
     """Tool for moving/renaming files."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute file moving.
 
         Args:
@@ -322,6 +315,7 @@ class FileMoveTool(Tool):
 
         Returns:
             Execution result
+
         """
         source_path = kwargs["source_path"]
         destination_path = kwargs["destination_path"]
@@ -362,10 +356,8 @@ class FileMoveTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to move file: {str(e)}",
+                "error": f"Failed to move file: {e!s}",
             }
-
-
 @tool(
     tool_id="file.copy",
     name="Copy File",
@@ -396,7 +388,7 @@ class FileMoveTool(Tool):
 class FileCopyTool(Tool):
     """Tool for copying files."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute file copying.
 
         Args:
@@ -405,6 +397,7 @@ class FileCopyTool(Tool):
 
         Returns:
             Execution result
+
         """
         source_path = kwargs["source_path"]
         destination_path = kwargs["destination_path"]
@@ -448,5 +441,5 @@ class FileCopyTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to copy file: {str(e)}",
+                "error": f"Failed to copy file: {e!s}",
             }

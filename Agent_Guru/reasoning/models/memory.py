@@ -1,5 +1,4 @@
-"""
-Memory data models for retrieval-augmented reasoning.
+"""Memory data models for retrieval-augmented reasoning.
 
 This module implements comprehensive memory models for storing and retrieving
 different types of memories (episodic, semantic, preference, task) to enhance
@@ -21,9 +20,9 @@ Date: 2024
 Version: 1.0.0
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -69,20 +68,27 @@ class Memory(BaseModel):
         ... )
         >>> print(memory.memory_id)
         UUID('...')
+
     """
 
     memory_id: UUID = Field(default_factory=uuid4, description="Unique identifier for this memory")
     memory_type: MemoryType = Field(
-        ..., description="Type of memory (episodic, semantic, preference, task)"
+        ...,
+        description="Type of memory (episodic, semantic, preference, task)",
     )
     content: str = Field(
-        ..., min_length=1, max_length=10000, description="Human-readable text content of the memory"
+        ...,
+        min_length=1,
+        max_length=10000,
+        description="Human-readable text content of the memory",
     )
-    embedding: Optional[list[float]] = Field(
-        default=None, description="Vector embedding for semantic search (768-dim)"
+    embedding: list[float] | None = Field(
+        default=None,
+        description="Vector embedding for semantic search (768-dim)",
     )
     metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional structured data specific to memory type"
+        default_factory=dict,
+        description="Additional structured data specific to memory type",
     )
     relevance_score: float = Field(
         default=1.0,
@@ -91,7 +97,8 @@ class Memory(BaseModel):
         description="Current relevance score (0.0-1.0, decays over time)",
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc), description="When this memory was created (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When this memory was created (UTC)",
     )
     user_id: str = Field(..., min_length=1, max_length=255, description="User who owns this memory")
 
@@ -100,19 +107,24 @@ class Memory(BaseModel):
     def validate_content_not_empty(cls, v: str) -> str:
         """Validate that content is not just whitespace."""
         if not v.strip():
-            raise ValueError("Content cannot be empty or whitespace only")
+            msg = "Content cannot be empty or whitespace only"
+            raise ValueError(msg)
         return v.strip()
 
     @field_validator("embedding")
     @classmethod
-    def validate_embedding_dimension(cls, v: Optional[list[float]]) -> Optional[list[float]]:
+    def validate_embedding_dimension(cls, v: list[float] | None) -> list[float] | None:
         """Validate embedding dimension is 768 (sentence-transformers default)."""
         if v is not None:
-            if len(v) != 768:
-                raise ValueError(f"Embedding must be 768-dimensional, got {len(v)}")
+            if len(v) != 768:  # noqa: PLR2004 - Percentage/large threshold
+
+                msg = f"Embedding must be 768-dimensional, got {len(v)}"
+                raise ValueError(msg)
             # Validate all values are finite
-            if not all(isinstance(x, (int, float)) and -1e10 < x < 1e10 for x in v):
-                raise ValueError("Embedding values must be finite numbers")
+            if not all(isinstance(x, (int, float)) and -1e10 < x < 1e10 for x in v):  # noqa: PLR2004 - Epsilon value
+
+                msg = "Embedding values must be finite numbers"
+                raise ValueError(msg)
         return v
 
     @field_validator("user_id")
@@ -120,7 +132,8 @@ class Memory(BaseModel):
     def validate_user_id_format(cls, v: str) -> str:
         """Validate user_id format."""
         if not v.strip():
-            raise ValueError("user_id cannot be empty or whitespace only")
+            msg = "user_id cannot be empty or whitespace only"
+            raise ValueError(msg)
         return v.strip()
 
     class Config:
@@ -155,10 +168,12 @@ class EpisodicMemory(Memory):
         ...     context={"location": "kitchen", "time_of_day": "evening"},
         ...     user_id="user_123"
         ... )
+
     """
 
     memory_type: MemoryType = Field(
-        default=MemoryType.EPISODIC, description="Memory type (always EPISODIC for this class)"
+        default=MemoryType.EPISODIC,
+        description="Memory type (always EPISODIC for this class)",
     )
     action_taken: str = Field(
         ...,
@@ -174,7 +189,8 @@ class EpisodicMemory(Memory):
     )
     success: bool = Field(..., description="Whether the action succeeded")
     context: dict[str, Any] = Field(
-        default_factory=dict, description="Additional context about the situation"
+        default_factory=dict,
+        description="Additional context about the situation",
     )
 
     @field_validator("action_taken", "result")
@@ -182,14 +198,16 @@ class EpisodicMemory(Memory):
     def validate_not_empty(cls, v: str) -> str:
         """Validate that fields are not just whitespace."""
         if not v.strip():
-            raise ValueError("Field cannot be empty or whitespace only")
+            msg = "Field cannot be empty or whitespace only"
+            raise ValueError(msg)
         return v.strip()
 
     @model_validator(mode="after")
     def validate_memory_type(self) -> "EpisodicMemory":
         """Ensure memory_type is EPISODIC."""
         if self.memory_type != MemoryType.EPISODIC:
-            raise ValueError("EpisodicMemory must have memory_type=EPISODIC")
+            msg = "EpisodicMemory must have memory_type=EPISODIC"
+            raise ValueError(msg)
         return self
 
 
@@ -213,13 +231,18 @@ class SemanticMemory(Memory):
         ...     confidence=1.0,
         ...     user_id="user_123"
         ... )
+
     """
 
     memory_type: MemoryType = Field(
-        default=MemoryType.SEMANTIC, description="Memory type (always SEMANTIC for this class)"
+        default=MemoryType.SEMANTIC,
+        description="Memory type (always SEMANTIC for this class)",
     )
     fact: str = Field(
-        ..., min_length=1, max_length=2000, description="The factual statement or knowledge"
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="The factual statement or knowledge",
     )
     source: str = Field(
         ...,
@@ -228,7 +251,10 @@ class SemanticMemory(Memory):
         description="Where this fact came from (user, web, inference)",
     )
     confidence: float = Field(
-        ..., ge=0.0, le=1.0, description="Confidence in the accuracy of this fact (0.0-1.0)"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Confidence in the accuracy of this fact (0.0-1.0)",
     )
 
     @field_validator("fact", "source")
@@ -236,14 +262,16 @@ class SemanticMemory(Memory):
     def validate_not_empty(cls, v: str) -> str:
         """Validate that fields are not just whitespace."""
         if not v.strip():
-            raise ValueError("Field cannot be empty or whitespace only")
+            msg = "Field cannot be empty or whitespace only"
+            raise ValueError(msg)
         return v.strip()
 
     @model_validator(mode="after")
     def validate_memory_type(self) -> "SemanticMemory":
         """Ensure memory_type is SEMANTIC."""
         if self.memory_type != MemoryType.SEMANTIC:
-            raise ValueError("SemanticMemory must have memory_type=SEMANTIC")
+            msg = "SemanticMemory must have memory_type=SEMANTIC"
+            raise ValueError(msg)
         return self
 
 
@@ -266,16 +294,24 @@ class PreferenceMemory(Memory):
         ...     learned_from="explicit",
         ...     user_id="user_123"
         ... )
+
     """
 
     memory_type: MemoryType = Field(
-        default=MemoryType.PREFERENCE, description="Memory type (always PREFERENCE for this class)"
+        default=MemoryType.PREFERENCE,
+        description="Memory type (always PREFERENCE for this class)",
     )
     preference_key: str = Field(
-        ..., min_length=1, max_length=255, description="Key identifying the preference"
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Key identifying the preference",
     )
     preference_value: str = Field(
-        ..., min_length=1, max_length=1000, description="Value of the preference"
+        ...,
+        min_length=1,
+        max_length=1000,
+        description="Value of the preference",
     )
     learned_from: str = Field(
         ...,
@@ -289,7 +325,8 @@ class PreferenceMemory(Memory):
     def validate_not_empty(cls, v: str) -> str:
         """Validate that fields are not just whitespace."""
         if not v.strip():
-            raise ValueError("Field cannot be empty or whitespace only")
+            msg = "Field cannot be empty or whitespace only"
+            raise ValueError(msg)
         return v.strip()
 
     @field_validator("learned_from")
@@ -298,14 +335,16 @@ class PreferenceMemory(Memory):
         """Validate learned_from is one of the expected values."""
         valid_values = {"explicit", "inferred", "observed", "default"}
         if v.strip().lower() not in valid_values:
-            raise ValueError(f"learned_from must be one of {valid_values}, got '{v}'")
+            msg = f"learned_from must be one of {valid_values}, got '{v}'"
+            raise ValueError(msg)
         return v.strip().lower()
 
     @model_validator(mode="after")
     def validate_memory_type(self) -> "PreferenceMemory":
         """Ensure memory_type is PREFERENCE."""
         if self.memory_type != MemoryType.PREFERENCE:
-            raise ValueError("PreferenceMemory must have memory_type=PREFERENCE")
+            msg = "PreferenceMemory must have memory_type=PREFERENCE"
+            raise ValueError(msg)
         return self
 
 
@@ -331,16 +370,24 @@ class TaskMemory(Memory):
         ...     lessons_learned=["User prefers Italian restaurants", "Needs 1 hour prep time"],
         ...     user_id="user_123"
         ... )
+
     """
 
     memory_type: MemoryType = Field(
-        default=MemoryType.TASK, description="Memory type (always TASK for this class)"
+        default=MemoryType.TASK,
+        description="Memory type (always TASK for this class)",
     )
     task_id: str = Field(
-        ..., min_length=1, max_length=255, description="Unique identifier for the task"
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Unique identifier for the task",
     )
     task_description: str = Field(
-        ..., min_length=1, max_length=2000, description="Human-readable description of the task"
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="Human-readable description of the task",
     )
     outcome: str = Field(
         ...,
@@ -349,7 +396,8 @@ class TaskMemory(Memory):
         description="Final outcome of the task (success, failure, partial)",
     )
     lessons_learned: list[str] = Field(
-        default_factory=list, description="Key insights and lessons from this task"
+        default_factory=list,
+        description="Key insights and lessons from this task",
     )
 
     @field_validator("task_id", "task_description", "outcome")
@@ -357,7 +405,8 @@ class TaskMemory(Memory):
     def validate_not_empty(cls, v: str) -> str:
         """Validate that fields are not just whitespace."""
         if not v.strip():
-            raise ValueError("Field cannot be empty or whitespace only")
+            msg = "Field cannot be empty or whitespace only"
+            raise ValueError(msg)
         return v.strip()
 
     @field_validator("outcome")
@@ -366,7 +415,8 @@ class TaskMemory(Memory):
         """Validate outcome is one of the expected values."""
         valid_values = {"success", "failure", "partial", "cancelled", "timeout"}
         if v.strip().lower() not in valid_values:
-            raise ValueError(f"outcome must be one of {valid_values}, got '{v}'")
+            msg = f"outcome must be one of {valid_values}, got '{v}'"
+            raise ValueError(msg)
         return v.strip().lower()
 
     @field_validator("lessons_learned")
@@ -376,7 +426,8 @@ class TaskMemory(Memory):
         if v:
             cleaned = [lesson.strip() for lesson in v if lesson.strip()]
             if len(cleaned) != len(v):
-                raise ValueError("Lessons cannot be empty or whitespace only")
+                msg = "Lessons cannot be empty or whitespace only"
+                raise ValueError(msg)
             return cleaned
         return v
 
@@ -384,5 +435,6 @@ class TaskMemory(Memory):
     def validate_memory_type(self) -> "TaskMemory":
         """Ensure memory_type is TASK."""
         if self.memory_type != MemoryType.TASK:
-            raise ValueError("TaskMemory must have memory_type=TASK")
+            msg = "TaskMemory must have memory_type=TASK"
+            raise ValueError(msg)
         return self

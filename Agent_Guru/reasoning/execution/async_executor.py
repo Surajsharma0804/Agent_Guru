@@ -1,5 +1,4 @@
-"""
-Asynchronous execution engine with Celery for long-running operations.
+"""Asynchronous execution engine with Celery for long-running operations.
 
 Performance Requirements:
 - Time Complexity: O(1) for task submission
@@ -23,7 +22,7 @@ Version: 1.0.0
 import asyncio
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -58,6 +57,7 @@ class AsyncExecutionResult:
         started_at: When execution started
         completed_at: When execution completed
         cancellable: Whether task can be cancelled
+
     """
 
     task_id: str
@@ -119,13 +119,14 @@ class ProgressTask(Task):
         Args:
             progress: Progress percentage (0-100)
             message: Optional progress message
+
         """
         self.update_state(
             state="PROGRESS",
             meta={
                 "progress": progress,
                 "message": message,
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
 
@@ -150,6 +151,7 @@ def execute_action_task(
 
     Raises:
         Exception: Any exception from tool execution
+
     """
     start_time = time.perf_counter()
 
@@ -210,6 +212,7 @@ class AsyncExecutor:
         >>> # Later, check status
         >>> status = executor.get_task_status(result.task_id)
         >>> print(f"Progress: {status.progress}%")
+
     """
 
     def __init__(self) -> None:
@@ -234,6 +237,7 @@ class AsyncExecutor:
 
         Returns:
             AsyncExecutionResult with task ID and initial status
+
         """
         # Convert action to dictionary
         action_dict = {
@@ -252,7 +256,7 @@ class AsyncExecutor:
             task_id=task.id,
             status=TaskStatus.PENDING,
             action_id=action.action_id,
-            started_at=datetime.now(tz=timezone.utc),
+            started_at=datetime.now(tz=UTC),
         )
 
     def get_task_status(self, task_id: str) -> AsyncExecutionResult:
@@ -266,6 +270,7 @@ class AsyncExecutor:
 
         Returns:
             AsyncExecutionResult with current status and progress
+
         """
         result = AsyncResult(task_id, app=self.celery_app)
 
@@ -313,7 +318,9 @@ class AsyncExecutor:
             error=error,
             execution_time=execution_time,
             action_id=action_id,
-            completed_at=datetime.now(tz=timezone.utc) if status in [TaskStatus.SUCCESS, TaskStatus.FAILURE] else None,
+            completed_at=datetime.now(tz=UTC)
+            if status in [TaskStatus.SUCCESS, TaskStatus.FAILURE]
+            else None,
         )
 
     def cancel_task(self, task_id: str) -> bool:
@@ -324,6 +331,7 @@ class AsyncExecutor:
 
         Returns:
             True if cancellation requested, False otherwise
+
         """
         result = AsyncResult(task_id, app=self.celery_app)
 
@@ -350,6 +358,7 @@ class AsyncExecutor:
 
         Raises:
             TimeoutError: If timeout exceeded
+
         """
         start_time = time.perf_counter()
 
@@ -364,7 +373,8 @@ class AsyncExecutor:
             if timeout is not None:
                 elapsed = time.perf_counter() - start_time
                 if elapsed >= timeout:
-                    raise TimeoutError(f"Task {task_id} did not complete within {timeout}s")
+                    msg = f"Task {task_id} did not complete within {timeout}s"
+                    raise TimeoutError(msg)
 
             # Wait before next poll
             await asyncio.sleep(poll_interval)
@@ -374,6 +384,7 @@ class AsyncExecutor:
 
         Returns:
             List of task IDs
+
         """
         # Note: This requires Celery events to be enabled
         # For production, use Celery Flower or custom task tracking
@@ -391,6 +402,7 @@ class AsyncExecutionController:
         >>> result = controller.execute_async(action, "module", "function")
         >>> # Check status later
         >>> status = controller.get_status(result.task_id)
+
     """
 
     def __init__(self) -> None:
@@ -412,6 +424,7 @@ class AsyncExecutionController:
 
         Returns:
             AsyncExecutionResult with task ID
+
         """
         return self.async_executor.execute_async(action, tool_module, tool_function_name)
 
@@ -423,6 +436,7 @@ class AsyncExecutionController:
 
         Returns:
             AsyncExecutionResult with current status
+
         """
         return self.async_executor.get_task_status(task_id)
 
@@ -434,6 +448,7 @@ class AsyncExecutionController:
 
         Returns:
             True if cancellation requested
+
         """
         return self.async_executor.cancel_task(task_id)
 
@@ -453,5 +468,6 @@ class AsyncExecutionController:
 
         Raises:
             TimeoutError: If timeout exceeded
+
         """
         return await self.async_executor.wait_for_task(task_id, timeout)

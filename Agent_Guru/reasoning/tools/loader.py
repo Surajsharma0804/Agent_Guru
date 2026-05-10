@@ -1,5 +1,4 @@
-"""
-Tool Loader - Automatically load and register all available tools
+"""Tool Loader - Automatically load and register all available tools.
 
 This module discovers and registers all tools from the tools package.
 """
@@ -9,7 +8,7 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
-from Agent_Guru.reasoning.tools.external import (
+from Agent_Guru.reasoning.tools.external import (  # noqa: E402
     CreateCalendarEventTool,
     GetCalendarEventsTool,
     GetDirectionsTool,
@@ -23,7 +22,7 @@ from Agent_Guru.reasoning.tools.external import (
     SendTelegramTool,
     SendWhatsAppTool,
 )
-from Agent_Guru.reasoning.tools.knowledge import (
+from Agent_Guru.reasoning.tools.knowledge import (  # noqa: E402
     CalculateTool,
     ConvertUnitsTool,
     DefineWordTool,
@@ -34,10 +33,10 @@ from Agent_Guru.reasoning.tools.knowledge import (
     TranslateTool,
     WebSearchTool,
 )
-from Agent_Guru.reasoning.tools.registry import ToolRegistry, get_registry
+from Agent_Guru.reasoning.tools.registry import ToolRegistry, get_registry  # noqa: E402
 
 # Import all tool modules
-from Agent_Guru.reasoning.tools.system import (
+from Agent_Guru.reasoning.tools.system import (  # noqa: E402
     CloseAppTool,
     FileCopyTool,
     FileDeleteTool,
@@ -63,6 +62,7 @@ async def load_all_tools(registry: ToolRegistry | None = None) -> int:
 
     Returns:
         Number of tools registered
+
     """
     if registry is None:
         registry = get_registry()
@@ -129,15 +129,16 @@ def load_all_tools_sync() -> int:
 
     Returns:
         Number of tools registered
+
     """
     try:
         asyncio.get_running_loop()
         # Already in a running event loop — use a thread to avoid deadlock
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(asyncio.run, load_all_tools())
             return future.result()
     except RuntimeError:
         # No running loop — safe to call asyncio.run() directly
         return asyncio.run(load_all_tools())
-

@@ -1,5 +1,4 @@
-"""
-Intent Detection Caching System
+"""Intent Detection Caching System.
 
 Implements LRU cache with TTL for intent detection results to reduce latency.
 Caches identical inputs with context-aware invalidation.
@@ -17,8 +16,8 @@ import hashlib
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from Agent_Guru.reasoning.models.intent import Intent
 
@@ -34,6 +33,7 @@ class CachedIntent:
         last_accessed: When entry was last accessed
         access_count: Number of times accessed
         context_hash: Hash of context for invalidation
+
     """
 
     intent: Intent
@@ -45,7 +45,7 @@ class CachedIntent:
 
     def update_access(self) -> None:
         """Update access statistics."""
-        self.last_accessed = datetime.now(tz=timezone.utc)
+        self.last_accessed = datetime.now(tz=UTC)
         self.access_count += 1
 
 
@@ -61,6 +61,7 @@ class IntentCacheStats:
         ttl_expirations: Number of TTL-based expirations
         evictions: Number of LRU evictions
         last_reset: When stats were last reset
+
     """
 
     total_requests: int = 0
@@ -69,7 +70,7 @@ class IntentCacheStats:
     context_invalidations: int = 0
     ttl_expirations: int = 0
     evictions: int = 0
-    last_reset: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    last_reset: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def record_hit(self) -> None:
         """Record cache hit."""
@@ -98,6 +99,7 @@ class IntentCacheStats:
 
         Returns:
             Hit rate as percentage (0.0-100.0)
+
         """
         if self.total_requests == 0:
             return 0.0
@@ -108,6 +110,7 @@ class IntentCacheStats:
 
         Returns:
             Dictionary with all statistics
+
         """
         return {
             "total_requests": self.total_requests,
@@ -136,13 +139,14 @@ class IntentDetectionCache:
         >>> cached_intent = cache.get("set timer for 5 minutes", context)
         >>> if cached_intent:
         ...     print(f"Cache hit! Intent: {cached_intent.intent_type}")
+
     """
 
     def __init__(
         self,
         max_size: int = 10000,
         ttl_seconds: float = 300.0,  # 5 minutes
-    ):
+    ) -> None:
         """Initialize intent detection cache.
 
         Args:
@@ -151,11 +155,14 @@ class IntentDetectionCache:
 
         Raises:
             ValueError: If max_size <= 0 or ttl_seconds <= 0
+
         """
         if max_size <= 0:
-            raise ValueError(f"max_size must be positive, got {max_size}")
+            msg = f"max_size must be positive, got {max_size}"
+            raise ValueError(msg)
         if ttl_seconds <= 0:
-            raise ValueError(f"ttl_seconds must be positive, got {ttl_seconds}")
+            msg = f"ttl_seconds must be positive, got {ttl_seconds}"
+            raise ValueError(msg)
 
         self.max_size = max_size
         self.ttl_seconds = ttl_seconds
@@ -163,7 +170,7 @@ class IntentDetectionCache:
         self._cache: OrderedDict[str, CachedIntent] = OrderedDict()
         self.stats = IntentCacheStats()
 
-    def _generate_cache_key(self, text: str, context: Optional[dict[str, Any]] = None) -> str:
+    def _generate_cache_key(self, text: str, context: dict[str, Any] | None = None) -> str:
         """Generate cache key from input text and context.
 
         Uses SHA256 hash of text + context for consistent keys.
@@ -176,6 +183,7 @@ class IntentDetectionCache:
             Cache key string (SHA256 hash)
 
         Time Complexity: O(n) where n = text length + context size
+
         """
         # Normalize text (lowercase, strip whitespace)
         normalized_text = text.lower().strip()
@@ -195,7 +203,7 @@ class IntentDetectionCache:
 
         return hashlib.sha256(key_string.encode()).hexdigest()
 
-    def _generate_context_hash(self, context: Optional[dict[str, Any]] = None) -> str:
+    def _generate_context_hash(self, context: dict[str, Any] | None = None) -> str:
         """Generate hash of context for invalidation tracking.
 
         Args:
@@ -205,6 +213,7 @@ class IntentDetectionCache:
             Context hash string
 
         Time Complexity: O(n) where n = context size
+
         """
         if not context:
             return ""
@@ -229,8 +238,9 @@ class IntentDetectionCache:
             True if expired, False otherwise
 
         Time Complexity: O(1)
+
         """
-        age = datetime.now(tz=timezone.utc) - entry.created_at
+        age = datetime.now(tz=UTC) - entry.created_at
         return age > self.ttl_delta
 
     def _evict_lru(self) -> None:
@@ -254,9 +264,7 @@ class IntentDetectionCache:
             del self._cache[key]
             self.stats.record_ttl_expiration()
 
-    def get(
-        self, text: str, context: Optional[dict[str, Any]] = None
-    ) -> Optional[Intent]:
+    def get(self, text: str, context: dict[str, Any] | None = None) -> Intent | None:
         """Get cached intent for input text and context.
 
         Args:
@@ -267,8 +275,9 @@ class IntentDetectionCache:
             Cached Intent if found and valid, None otherwise
 
         Time Complexity: O(1) average case
+
         """
-        start_time = time.perf_counter()
+        time.perf_counter()
 
         cache_key = self._generate_cache_key(text, context)
 
@@ -300,7 +309,7 @@ class IntentDetectionCache:
     def set(
         self,
         text: str,
-        context: Optional[dict[str, Any]],
+        context: dict[str, Any] | None,
         intent: Intent,
     ) -> None:
         """Set cached intent for input text and context.
@@ -311,6 +320,7 @@ class IntentDetectionCache:
             intent: Intent to cache
 
         Time Complexity: O(1) amortized
+
         """
         cache_key = self._generate_cache_key(text, context)
         context_hash = self._generate_context_hash(context)
@@ -326,8 +336,8 @@ class IntentDetectionCache:
         entry = CachedIntent(
             intent=intent,
             cache_key=cache_key,
-            created_at=datetime.now(tz=timezone.utc),
-            last_accessed=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
+            last_accessed=datetime.now(tz=UTC),
             access_count=0,
             context_hash=context_hash,
         )
@@ -347,6 +357,7 @@ class IntentDetectionCache:
             Number of entries invalidated
 
         Time Complexity: O(n) where n = cache size
+
         """
         context_hash = self._generate_context_hash(context)
 
@@ -385,6 +396,7 @@ class IntentDetectionCache:
             Number of cached entries
 
         Time Complexity: O(1)
+
         """
         return len(self._cache)
 
@@ -393,6 +405,7 @@ class IntentDetectionCache:
 
         Returns:
             Dictionary with cache statistics
+
         """
         stats = self.stats.get_stats()
         stats["current_size"] = self.get_size()
@@ -418,6 +431,7 @@ class IntentDetectionCache:
             List of entry statistics
 
         Time Complexity: O(n log n) where n = cache size
+
         """
         sorted_entries = sorted(
             self._cache.values(),

@@ -1,5 +1,4 @@
-"""
-Persistent goal and trigger data models.
+"""Persistent goal and trigger data models.
 
 This module defines data structures for persistent goals that can be triggered
 automatically based on time, location, events, or conditions.
@@ -13,9 +12,9 @@ Author: Kiro AI
 Date: 2024
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -39,69 +38,75 @@ class GoalStatus(str, Enum):
 
 
 class TimeBasedTrigger(BaseModel):
-    """
-    Time-based trigger configuration.
+    """Time-based trigger configuration.
 
     Attributes:
         time_of_day: Hour and minute (HH:MM format)
         day_of_week: Day of week (0-6, Monday=0) or None for every day
         day_of_month: Day of month (1-31) or None
         recurrence: Recurrence pattern (daily, weekly, monthly)
+
     """
 
     time_of_day: str = Field(..., pattern=r"^\d{2}:\d{2}$", description="Time in HH:MM format")
-    day_of_week: Optional[int] = Field(
-        default=None, ge=0, le=6, description="Day of week (0-6, Monday=0)"
+    day_of_week: int | None = Field(
+        default=None,
+        ge=0,
+        le=6,
+        description="Day of week (0-6, Monday=0)",
     )
-    day_of_month: Optional[int] = Field(
-        default=None, ge=1, le=31, description="Day of month (1-31)"
-    )
+    day_of_month: int | None = Field(default=None, ge=1, le=31, description="Day of month (1-31)")
     recurrence: str = Field(
-        default="daily", pattern=r"^(daily|weekly|monthly|once)$", description="Recurrence pattern"
+        default="daily",
+        pattern=r"^(daily|weekly|monthly|once)$",
+        description="Recurrence pattern",
     )
 
 
 class LocationBasedTrigger(BaseModel):
-    """
-    Location-based trigger configuration.
+    """Location-based trigger configuration.
 
     Attributes:
         latitude: Latitude coordinate
         longitude: Longitude coordinate
         radius: Radius in meters
         trigger_on: When to trigger (enter, exit, dwell)
+
     """
 
     latitude: float = Field(..., ge=-90.0, le=90.0, description="Latitude")
     longitude: float = Field(..., ge=-180.0, le=180.0, description="Longitude")
     radius: float = Field(..., gt=0.0, description="Radius in meters")
     trigger_on: str = Field(
-        default="enter", pattern=r"^(enter|exit|dwell)$", description="Trigger condition"
+        default="enter",
+        pattern=r"^(enter|exit|dwell)$",
+        description="Trigger condition",
     )
 
 
 class EventBasedTrigger(BaseModel):
-    """
-    Event-based trigger configuration.
+    """Event-based trigger configuration.
 
     Attributes:
         event_type: Type of event to listen for
         event_filter: Filter criteria for event
+
     """
 
     event_type: str = Field(..., description="Type of event")
     event_filter: dict[str, Any] = Field(
-        default_factory=dict, description="Filter criteria for event"
+        default_factory=dict,
+        description="Filter criteria for event",
     )
 
 
 class ConditionalTrigger(BaseModel):
-    """
-    Conditional trigger configuration.
+    """Conditional trigger configuration.
 
     Attributes:
         condition_expression: Boolean expression to evaluate
         check_interval: How often to check condition (seconds)
+
     """
 
     condition_expression: str = Field(..., description="Boolean expression")
@@ -109,8 +114,7 @@ class ConditionalTrigger(BaseModel):
 
 
 class PersistentGoal(BaseModel):
-    """
-    Persistent goal with automatic triggering.
+    """Persistent goal with automatic triggering.
 
     Attributes:
         goal_id: Unique goal identifier
@@ -127,6 +131,7 @@ class PersistentGoal(BaseModel):
         notify_before_execution: Whether to notify user before executing
         notification_sent: Whether notification was sent
         metadata: Additional goal data
+
     """
 
     goal_id: str = Field(..., description="Unique goal identifier")
@@ -136,9 +141,12 @@ class PersistentGoal(BaseModel):
     trigger_condition: dict[str, Any] = Field(..., description="Trigger configuration")
     action_plan: dict[str, Any] = Field(..., description="Action to execute")
     status: GoalStatus = Field(default=GoalStatus.ACTIVE, description="Goal status")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Creation time")
-    last_evaluated: Optional[datetime] = Field(default=None, description="Last evaluation time")
-    last_triggered: Optional[datetime] = Field(default=None, description="Last trigger time")
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="Creation time",
+    )
+    last_evaluated: datetime | None = Field(default=None, description="Last evaluation time")
+    last_triggered: datetime | None = Field(default=None, description="Last trigger time")
     trigger_count: int = Field(default=0, ge=0, description="Trigger count")
     notify_before_execution: bool = Field(default=True, description="Notify before executing")
     notification_sent: bool = Field(default=False, description="Notification sent")
@@ -146,7 +154,7 @@ class PersistentGoal(BaseModel):
 
     @field_validator("trigger_condition")
     @classmethod
-    def validate_trigger_condition(cls, v: dict, info) -> dict:
+    def validate_trigger_condition(cls, v: dict, info) -> dict:  # noqa: ANN001
         """Validate trigger condition matches trigger type."""
         if "trigger_type" not in info.data:
             return v
@@ -170,14 +178,14 @@ class PersistentGoal(BaseModel):
         return self.status == GoalStatus.ACTIVE
 
     def can_trigger(self, min_interval_seconds: int = 3600) -> bool:
-        """
-        Check if goal can be triggered.
+        """Check if goal can be triggered.
 
         Args:
             min_interval_seconds: Minimum interval between triggers
 
         Returns:
             True if goal can be triggered
+
         """
         if not self.is_active():
             return False
@@ -186,23 +194,22 @@ class PersistentGoal(BaseModel):
             return True
 
         # Check minimum interval
-        elapsed = (datetime.now(tz=timezone.utc) - self.last_triggered).total_seconds()
+        elapsed = (datetime.now(tz=UTC) - self.last_triggered).total_seconds()
         return elapsed >= min_interval_seconds
 
     def mark_triggered(self) -> None:
         """Mark goal as triggered."""
-        self.last_triggered = datetime.now(tz=timezone.utc)
+        self.last_triggered = datetime.now(tz=UTC)
         self.trigger_count += 1
         self.notification_sent = False
 
     def mark_evaluated(self) -> None:
         """Mark goal as evaluated."""
-        self.last_evaluated = datetime.now(tz=timezone.utc)
+        self.last_evaluated = datetime.now(tz=UTC)
 
 
 class GoalExecutionResult(BaseModel):
-    """
-    Result of goal execution.
+    """Result of goal execution.
 
     Attributes:
         goal_id: Goal identifier
@@ -211,11 +218,15 @@ class GoalExecutionResult(BaseModel):
         error: Error message if failed
         execution_time: Execution duration in seconds
         timestamp: When execution occurred
+
     """
 
     goal_id: str = Field(..., description="Goal identifier")
     success: bool = Field(..., description="Execution success")
-    result_data: Optional[dict[str, Any]] = Field(default=None, description="Result data")
-    error: Optional[str] = Field(default=None, description="Error message")
+    result_data: dict[str, Any] | None = Field(default=None, description="Result data")
+    error: str | None = Field(default=None, description="Error message")
     execution_time: float = Field(..., ge=0.0, description="Execution time in seconds")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Execution time")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="Execution time",
+    )

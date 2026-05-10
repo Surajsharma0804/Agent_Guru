@@ -1,5 +1,4 @@
-"""
-Rich Content Generator
+"""Rich Content Generator.
 
 Generates structured data for UI cards, images, buttons, and interactive elements.
 Adapts content format based on client capabilities.
@@ -18,7 +17,7 @@ Design:
 """
 
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.config.logging import get_logger
 from Agent_Guru.reasoning.models.intent import Intent
@@ -61,8 +60,7 @@ class ContentType(str, Enum):
 
 
 class RichContentGenerator:
-    """
-    Generates rich content for visual interfaces.
+    """Generates rich content for visual interfaces.
 
     Time Complexity: O(1) - constant time generation
     Space Complexity: O(1) - bounded content size
@@ -76,6 +74,7 @@ class RichContentGenerator:
         >>> content = generator.generate(result, intent, capabilities)
         >>> print(content["type"])
         "card"
+
     """
 
     # Intent to content type mapping
@@ -122,10 +121,9 @@ class RichContentGenerator:
         self,
         result: ExecutionResult,
         intent: Intent,
-        client_capabilities: Optional[set[ClientCapability]] = None,
-    ) -> Optional[dict[str, Any]]:
-        """
-        Generate rich content based on execution result and intent.
+        client_capabilities: set[ClientCapability] | None = None,
+    ) -> dict[str, Any] | None:
+        """Generate rich content based on execution result and intent.
 
         Time Complexity: O(1) - constant time
         Space Complexity: O(1) - bounded content size
@@ -137,6 +135,7 @@ class RichContentGenerator:
 
         Returns:
             Rich content dictionary or None if not applicable
+
         """
         # Default to all capabilities if not specified
         if client_capabilities is None:
@@ -193,14 +192,14 @@ class RichContentGenerator:
         return content
 
     def _supports_rich_content(self, capabilities: set[ClientCapability]) -> bool:
-        """
-        Check if client supports any rich content.
+        """Check if client supports any rich content.
 
         Args:
             capabilities: Client capabilities
 
         Returns:
             True if client supports rich content
+
         """
         rich_capabilities = {
             ClientCapability.RICH_TEXT,
@@ -216,15 +215,15 @@ class RichContentGenerator:
         }
         return bool(capabilities & rich_capabilities)
 
-    def _get_content_type(self, intent_type: str) -> Optional[ContentType]:
-        """
-        Get content type for intent.
+    def _get_content_type(self, intent_type: str) -> ContentType | None:
+        """Get content type for intent.
 
         Args:
             intent_type: Intent type (can be string or IntentType enum)
 
         Returns:
             Content type or None
+
         """
         # Convert enum to string if needed
         if hasattr(intent_type, "value"):
@@ -232,10 +231,11 @@ class RichContentGenerator:
         return self.INTENT_CONTENT_MAP.get(intent_type)
 
     def _supports_content_type(
-        self, content_type: ContentType, capabilities: set[ClientCapability]
+        self,
+        content_type: ContentType,
+        capabilities: set[ClientCapability],
     ) -> bool:
-        """
-        Check if client supports content type.
+        """Check if client supports content type.
 
         Args:
             content_type: Content type
@@ -243,6 +243,7 @@ class RichContentGenerator:
 
         Returns:
             True if supported
+
         """
         # Map content types to required capabilities
         requirements = {
@@ -264,10 +265,12 @@ class RichContentGenerator:
         return bool(required & capabilities)
 
     def _generate_content(
-        self, content_type: ContentType, result: ExecutionResult, intent: Intent
+        self,
+        content_type: ContentType,
+        result: ExecutionResult,
+        intent: Intent,
     ) -> dict[str, Any]:
-        """
-        Generate content based on type.
+        """Generate content based on type.
 
         Args:
             content_type: Content type
@@ -276,6 +279,7 @@ class RichContentGenerator:
 
         Returns:
             Content dictionary
+
         """
         # Dispatch to specific generator
         generators = {
@@ -297,8 +301,7 @@ class RichContentGenerator:
         return generator(result, intent)
 
     def _generate_card(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:
-        """
-        Generate card content.
+        """Generate card content.
 
         Args:
             result: Execution result
@@ -306,6 +309,7 @@ class RichContentGenerator:
 
         Returns:
             Card content
+
         """
         # Extract data from result
         data = result.result_data or {}
@@ -336,7 +340,7 @@ class RichContentGenerator:
                 ],
             }
 
-        elif intent_type == "query_weather":
+        if intent_type == "query_weather":
             location = (
                 intent.get_entity("location", "your location")
                 if hasattr(intent, "get_entity")
@@ -358,7 +362,7 @@ class RichContentGenerator:
                 ],
             }
 
-        elif intent_type == "send_message":
+        if intent_type == "send_message":
             recipient = (
                 intent.get_entity("recipient", "contact")
                 if hasattr(intent, "get_entity")
@@ -387,8 +391,7 @@ class RichContentGenerator:
         }
 
     def _generate_list(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:
-        """
-        Generate list content.
+        """Generate list content.
 
         Args:
             result: Execution result
@@ -396,6 +399,7 @@ class RichContentGenerator:
 
         Returns:
             List content
+
         """
         data = result.result_data or {}
 
@@ -414,26 +418,26 @@ class RichContentGenerator:
                         "subtitle": item.get("subtitle", ""),
                         "icon": item.get("icon"),
                         "action": item.get("action"),
-                    }
+                    },
                 )
             else:
                 formatted_items.append(
                     {
                         "title": str(item),
                         "subtitle": "",
-                    }
+                    },
                 )
 
         return {
             "type": "list",
             "title": data.get("title", "Results"),
             "items": formatted_items,
-            "footer": f"{len(items)} items" if len(items) > 10 else None,
+            "footer": f"{len(items)} items" if len(items) > 10 else None,  # noqa: PLR2004 - Threshold
+
         }
 
     def _generate_carousel(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:
-        """
-        Generate carousel content.
+        """Generate carousel content.
 
         Args:
             result: Execution result
@@ -441,6 +445,7 @@ class RichContentGenerator:
 
         Returns:
             Carousel content
+
         """
         data = result.result_data or {}
         items = data.get("items", [])
@@ -455,7 +460,7 @@ class RichContentGenerator:
                         "body": item.get("body", ""),
                         "image": item.get("image"),
                         "buttons": item.get("buttons", []),
-                    }
+                    },
                 )
 
         return {
@@ -464,8 +469,7 @@ class RichContentGenerator:
         }
 
     def _generate_image(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:
-        """
-        Generate image content.
+        """Generate image content.
 
         Args:
             result: Execution result
@@ -473,6 +477,7 @@ class RichContentGenerator:
 
         Returns:
             Image content
+
         """
         data = result.result_data or {}
 
@@ -485,8 +490,7 @@ class RichContentGenerator:
         }
 
     def _generate_gallery(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:
-        """
-        Generate gallery content.
+        """Generate gallery content.
 
         Args:
             result: Execution result
@@ -494,6 +498,7 @@ class RichContentGenerator:
 
         Returns:
             Gallery content
+
         """
         data = result.result_data or {}
         images = data.get("images", [])
@@ -511,8 +516,7 @@ class RichContentGenerator:
         }
 
     def _generate_button_group(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:
-        """
-        Generate button group content.
+        """Generate button group content.
 
         Args:
             result: Execution result
@@ -520,6 +524,7 @@ class RichContentGenerator:
 
         Returns:
             Button group content
+
         """
         data = result.result_data or {}
         buttons = data.get("buttons", [])
@@ -537,8 +542,7 @@ class RichContentGenerator:
         }
 
     def _generate_quick_reply(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:
-        """
-        Generate quick reply content.
+        """Generate quick reply content.
 
         Args:
             result: Execution result
@@ -546,6 +550,7 @@ class RichContentGenerator:
 
         Returns:
             Quick reply content
+
         """
         data = result.result_data or {}
         replies = data.get("quick_replies", [])
@@ -562,8 +567,7 @@ class RichContentGenerator:
         }
 
     def _generate_media_player(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:
-        """
-        Generate media player content.
+        """Generate media player content.
 
         Args:
             result: Execution result
@@ -571,6 +575,7 @@ class RichContentGenerator:
 
         Returns:
             Media player content
+
         """
         data = result.result_data or {}
 
@@ -587,8 +592,7 @@ class RichContentGenerator:
         }
 
     def _generate_form(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:
-        """
-        Generate form content.
+        """Generate form content.
 
         Args:
             result: Execution result
@@ -596,6 +600,7 @@ class RichContentGenerator:
 
         Returns:
             Form content
+
         """
         data = result.result_data or {}
         fields = data.get("fields", [])
@@ -619,8 +624,7 @@ class RichContentGenerator:
         }
 
     def _generate_map(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:
-        """
-        Generate map content.
+        """Generate map content.
 
         Args:
             result: Execution result
@@ -628,6 +632,7 @@ class RichContentGenerator:
 
         Returns:
             Map content
+
         """
         data = result.result_data or {}
 
@@ -644,8 +649,7 @@ class RichContentGenerator:
         }
 
     def _generate_chart(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:
-        """
-        Generate chart content.
+        """Generate chart content.
 
         Args:
             result: Execution result
@@ -653,6 +657,7 @@ class RichContentGenerator:
 
         Returns:
             Chart content
+
         """
         data = result.result_data or {}
 
@@ -667,8 +672,7 @@ class RichContentGenerator:
         }
 
     def _generate_table(self, result: ExecutionResult, intent: Intent) -> dict[str, Any]:
-        """
-        Generate table content.
+        """Generate table content.
 
         Args:
             result: Execution result
@@ -676,6 +680,7 @@ class RichContentGenerator:
 
         Returns:
             Table content
+
         """
         data = result.result_data or {}
 

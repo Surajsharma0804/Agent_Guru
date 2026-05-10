@@ -7,10 +7,10 @@ from Agent_Guru.reasoning.tools.examples.timer_tool import CancelTimerTool, SetT
 from Agent_Guru.reasoning.tools.examples.weather_tool import WeatherTool
 
 __all__ = [
-    "SetTimerTool",
+    "CalendarTool",
     "CancelTimerTool",
-    "WeatherTool",
     "MessagingTool",
     "MusicTool",
-    "CalendarTool",
+    "SetTimerTool",
+    "WeatherTool",
 ]

@@ -1,11 +1,10 @@
-"""
-Redis caching layer for conversation state.
+"""Redis caching layer for conversation state.
 
 Performance: O(1) cache operations, <10ms latency
 """
 
 import json
-from typing import Optional
+from typing import Any
 
 try:
     import redis.asyncio as redis
@@ -18,15 +17,16 @@ from Agent_Guru.reasoning.models.conversation import ConversationState
 class RedisCache:
     """Redis cache for hot conversation data."""
 
-    def __init__(self, url: str = None, ttl: int = 3600):
+    def __init__(self, url: str | None = None, ttl: int = 3600) -> None:
         self.url = url
         self.ttl = ttl
-        self._client: Optional[redis.Redis] = None
+        self._client: redis.Redis | None = None
 
     async def initialize(self) -> None:
         """Initialize Redis connection."""
         if redis is None:
-            raise RuntimeError("redis not installed. Install with: pip install redis")
+            msg = "redis not installed. Install with: pip install redis"
+            raise RuntimeError(msg)
         self._client = await redis.from_url(self.url, decode_responses=True)
 
     async def close(self) -> None:
@@ -34,7 +34,7 @@ class RedisCache:
         if self._client:
             await self._client.close()
 
-    async def get(self, conversation_id: str) -> Optional[ConversationState]:
+    async def get(self, conversation_id: str) -> ConversationState | None:
         """Get conversation from cache."""
         if not self._client:
             return None
@@ -43,7 +43,7 @@ class RedisCache:
             if data:
                 return ConversationState(**json.loads(data))
             return None
-        except Exception as e:
+        except Exception:
             return None
 
     async def set(self, state: ConversationState) -> bool:
@@ -52,10 +52,12 @@ class RedisCache:
             return False
         try:
             await self._client.setex(
-                f"conv:{state.conversation_id}", self.ttl, state.model_dump_json()
+                f"conv:{state.conversation_id}",
+                self.ttl,
+                state.model_dump_json(),
             )
             return True
-        except Exception as e:
+        except Exception:
             return False
 
     async def delete(self, conversation_id: str) -> bool:
@@ -65,5 +67,5 @@ class RedisCache:
         try:
             await self._client.delete(f"conv:{conversation_id}")
             return True
-        except Exception as e:
+        except Exception:
             return False

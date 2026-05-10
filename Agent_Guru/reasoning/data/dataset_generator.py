@@ -11,11 +11,12 @@ import yaml
 class DatasetGenerator:
     """Generate and augment training dataset for intent detection."""
 
-    def __init__(self, intents_file: str = "Agent_Guru/reasoning/data/intents.yaml"):
+    def __init__(self, intents_file: str = "Agent_Guru/reasoning/data/intents.yaml") -> None:
         """Initialize dataset generator.
 
         Args:
             intents_file: Path to intents YAML file
+
         """
         self.intents_file = Path(intents_file)
         self.intents_data = self._load_intents()
@@ -34,7 +35,7 @@ class DatasetGenerator:
 
     def _load_intents(self) -> dict[Any, Any]:
         """Load intents from YAML file."""
-        with open(self.intents_file, encoding='utf-8') as f:
+        with open(self.intents_file, encoding="utf-8") as f:  # noqa: PTH123
             data: dict[Any, Any] = yaml.safe_load(f)
             return data
 
@@ -46,6 +47,7 @@ class DatasetGenerator:
 
         Returns:
             List of augmented utterances
+
         """
         variations = [utterance]
 
@@ -53,12 +55,7 @@ class DatasetGenerator:
         for original, replacements in self.paraphrase_patterns.items():
             if original in utterance.lower():
                 for replacement in replacements:
-                    new_utterance = re.sub(
-                        original,
-                        replacement,
-                        utterance,
-                        flags=re.IGNORECASE
-                    )
+                    new_utterance = re.sub(original, replacement, utterance, flags=re.IGNORECASE)
                     variations.append(new_utterance)
 
         # Add noise words
@@ -89,7 +86,7 @@ class DatasetGenerator:
         train_split: float = 0.8,
         val_split: float = 0.1,
         test_split: float = 0.1,
-        random_seed: int = 42
+        random_seed: int = 42,
     ) -> tuple[list[tuple[str, str]], list[tuple[str, str]], list[tuple[str, str]]]:
         """Generate augmented dataset with train/val/test splits.
 
@@ -102,14 +99,15 @@ class DatasetGenerator:
 
         Returns:
             Tuple of (train_data, val_data, test_data)
+
         """
         random.seed(random_seed)
 
         all_examples = []
 
         # Generate examples for each intent
-        for intent_name, intent_data in self.intents_data['intents'].items():
-            examples = intent_data.get('examples', [])
+        for intent_name, intent_data in self.intents_data["intents"].items():
+            examples = intent_data.get("examples", [])
 
             for example in examples:
                 # Add original example
@@ -120,7 +118,7 @@ class DatasetGenerator:
                 # Sample augmentation_factor examples
                 sampled = random.sample(
                     augmented[1:],  # Exclude original
-                    min(augmentation_factor, len(augmented) - 1)
+                    min(augmentation_factor, len(augmented) - 1),
                 )
                 for aug_example in sampled:
                     all_examples.append((aug_example, intent_name))
@@ -144,8 +142,8 @@ class DatasetGenerator:
         train_data: list[tuple[str, str]],
         val_data: list[tuple[str, str]],
         test_data: list[tuple[str, str]],
-        output_dir: str = "Agent_Guru/reasoning/data"
-    ):
+        output_dir: str = "Agent_Guru/reasoning/data",
+    ) -> None:
         """Save dataset splits to files.
 
         Args:
@@ -153,48 +151,36 @@ class DatasetGenerator:
             val_data: Validation examples
             test_data: Test examples
             output_dir: Output directory
+
         """
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
         # Save train set
-        with open(output_path / "train.txt", 'w', encoding='utf-8') as f:
-            for utterance, intent in train_data:
-                f.write(f"{intent}\t{utterance}\n")
+        with open(output_path / "train.txt", "w", encoding="utf-8") as f:  # noqa: PTH123
+            f.writelines(f"{intent}\t{utterance}\n" for utterance, intent in train_data)
 
         # Save validation set
-        with open(output_path / "val.txt", 'w', encoding='utf-8') as f:
-            for utterance, intent in val_data:
-                f.write(f"{intent}\t{utterance}\n")
+        with open(output_path / "val.txt", "w", encoding="utf-8") as f:  # noqa: PTH123
+            f.writelines(f"{intent}\t{utterance}\n" for utterance, intent in val_data)
 
         # Save test set
-        with open(output_path / "test.txt", 'w', encoding='utf-8') as f:
-            for utterance, intent in test_data:
-                f.write(f"{intent}\t{utterance}\n")
+        with open(output_path / "test.txt", "w", encoding="utf-8") as f:  # noqa: PTH123
+            f.writelines(f"{intent}\t{utterance}\n" for utterance, intent in test_data)
 
         # Save statistics
         stats = {
-            'train_size': len(train_data),
-            'val_size': len(val_data),
-            'test_size': len(test_data),
-            'total_size': len(train_data) + len(val_data) + len(test_data),
-            'num_intents': len(self.intents_data['intents']),
+            "train_size": len(train_data),
+            "val_size": len(val_data),
+            "test_size": len(test_data),
+            "total_size": len(train_data) + len(val_data) + len(test_data),
+            "num_intents": len(self.intents_data["intents"]),
         }
 
-        with open(output_path / "dataset_stats.yaml", 'w', encoding='utf-8') as f:
+        with open(output_path / "dataset_stats.yaml", "w", encoding="utf-8") as f:  # noqa: PTH123
             yaml.dump(stats, f, default_flow_style=False)
 
-        print(f"Dataset saved to {output_dir}")
-        print(f"Train: {stats['train_size']} examples")
-        print(f"Val: {stats['val_size']} examples")
-        print(f"Test: {stats['test_size']} examples")
-        print(f"Total: {stats['total_size']} examples")
-        print(f"Intents: {stats['num_intents']}")
-
-    def get_intent_distribution(
-        self,
-        data: list[tuple[str, str]]
-    ) -> dict[str, int]:
+    def get_intent_distribution(self, data: list[tuple[str, str]]) -> dict[str, int]:
         """Get distribution of intents in dataset.
 
         Args:
@@ -202,6 +188,7 @@ class DatasetGenerator:
 
         Returns:
             Dictionary mapping intent to count
+
         """
         distribution: dict[str, int] = {}
         for _, intent in data:
@@ -209,7 +196,7 @@ class DatasetGenerator:
         return distribution
 
 
-def main():
+def main() -> None:
     """Generate and save the dataset."""
     generator = DatasetGenerator()
 
@@ -219,17 +206,16 @@ def main():
         train_split=0.8,
         val_split=0.1,
         test_split=0.1,
-        random_seed=42
+        random_seed=42,
     )
 
     # Save dataset
     generator.save_dataset(train_data, val_data, test_data)
 
     # Print intent distribution
-    print("\nIntent distribution in training set:")
     train_dist = generator.get_intent_distribution(train_data)
-    for intent, count in sorted(train_dist.items(), key=lambda x: x[1], reverse=True)[:10]:
-        print(f"  {intent}: {count}")
+    for _intent, _count in sorted(train_dist.items(), key=lambda x: x[1], reverse=True)[:10]:
+        pass
 
 
 if __name__ == "__main__":

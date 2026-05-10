@@ -1,6 +1,4 @@
-"""
-Messaging tool for sending messages.
-"""
+"""Messaging tool for sending messages."""
 
 from typing import Any
 
@@ -39,7 +37,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class MessagingTool(Tool):
     """Tool for sending messages."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute message sending.
 
         Args:
@@ -48,6 +46,7 @@ class MessagingTool(Tool):
 
         Returns:
             Execution result
+
         """
         recipient = kwargs["recipient"]
         message = kwargs["message"]
@@ -66,7 +65,8 @@ class MessagingTool(Tool):
                 "error": "Message cannot be empty",
             }
 
-        if len(message) > 1000:
+        if len(message) > 1000:  # noqa: PLR2004 - Percentage/large threshold
+
             return {
                 "success": False,
                 "error": "Message exceeds maximum length of 1000 characters",

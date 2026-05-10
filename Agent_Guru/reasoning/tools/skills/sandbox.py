@@ -1,5 +1,4 @@
-"""
-Sandboxing for third-party skills.
+"""Sandboxing for third-party skills.
 
 Provides isolated execution environment with resource limits and security controls.
 """
@@ -10,7 +9,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -39,17 +38,20 @@ class SandboxConfig:
 class SkillSandbox:
     """Sandbox for executing third-party skills."""
 
-    def __init__(self, config: SandboxConfig):
+    def __init__(self, config: SandboxConfig) -> None:
         """Initialize skill sandbox.
 
         Args:
             config: Sandbox configuration
+
         """
         self.config = config
-        self.process: Optional[asyncio.subprocess.Process] = None
+        self.process: asyncio.subprocess.Process | None = None
 
     async def execute(
-        self, command: list[str], env: Optional[dict[str, str]] = None
+        self,
+        command: list[str],
+        env: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Execute a command in the sandbox.
 
@@ -63,14 +65,16 @@ class SkillSandbox:
         Raises:
             TimeoutError: If execution exceeds time limit
             RuntimeError: If execution fails
+
         """
         if self.config.use_docker:
             return await self._execute_docker(command, env)
-        else:
-            return await self._execute_process(command, env)
+        return await self._execute_process(command, env)
 
     async def _execute_process(
-        self, command: list[str], env: Optional[dict[str, str]] = None
+        self,
+        command: list[str],
+        env: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Execute command in isolated process.
 
@@ -80,6 +84,7 @@ class SkillSandbox:
 
         Returns:
             Execution result
+
         """
         # Prepare environment
         exec_env = os.environ.copy()
@@ -88,9 +93,7 @@ class SkillSandbox:
 
         # Add resource limit environment variables
         exec_env["SKILL_MAX_MEMORY_MB"] = str(self.config.resource_limits.max_memory_mb)
-        exec_env["SKILL_MAX_CPU_PERCENT"] = str(
-            self.config.resource_limits.max_cpu_percent
-        )
+        exec_env["SKILL_MAX_CPU_PERCENT"] = str(self.config.resource_limits.max_cpu_percent)
 
         # Create temporary directory
         temp_dir = self.config.temp_dir
@@ -122,19 +125,24 @@ class SkillSandbox:
                     "stderr": stderr.decode("utf-8", errors="replace"),
                 }
 
-            except asyncio.TimeoutError as e:
+            except TimeoutError as e:
                 # Kill process on timeout
                 process.kill()
                 await process.wait()
-                raise TimeoutError(
+                msg = (
                     f"Execution exceeded {self.config.resource_limits.max_execution_time_s}s limit"
+                )
+                raise TimeoutError(
+                    msg,
                 ) from e
 
         finally:
             self.process = None
 
     async def _execute_docker(
-        self, command: list[str], env: Optional[dict[str, str]] = None
+        self,
+        command: list[str],
+        env: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Execute command in Docker container.
 
@@ -144,6 +152,7 @@ class SkillSandbox:
 
         Returns:
             Execution result
+
         """
         # Build Docker run command
         docker_cmd = [
@@ -201,18 +210,22 @@ class SkillSandbox:
                     "stderr": stderr.decode("utf-8", errors="replace"),
                 }
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Kill container on timeout
                 if process.pid:
-                    subprocess.run(
-                        ["docker", "kill", str(process.pid)],
+                    subprocess.run(  # noqa: S603
+                        ["docker", "kill", str(process.pid)],  # noqa: S607
+                        check=False,
                         capture_output=True,
                     )
                 process.kill()
                 await process.wait()
-                raise TimeoutError(
+                msg = (
                     f"Execution exceeded {self.config.resource_limits.max_execution_time_s}s limit"
                 )
+                raise TimeoutError(
+                    msg,
+                ) from None
 
         finally:
             self.process = None
@@ -235,7 +248,7 @@ class SkillSandbox:
 class SandboxManager:
     """Manager for skill sandboxes."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize sandbox manager."""
         self.sandboxes: dict[str, SkillSandbox] = {}
         self.temp_base_dir = Path(tempfile.gettempdir()) / "agent_guru_skills"
@@ -244,8 +257,8 @@ class SandboxManager:
     def create_sandbox(
         self,
         skill_id: str,
-        resource_limits: Optional[ResourceLimits] = None,
-        allowed_endpoints: Optional[list[str]] = None,
+        resource_limits: ResourceLimits | None = None,
+        allowed_endpoints: list[str] | None = None,
         use_docker: bool = False,
     ) -> SkillSandbox:
         """Create a sandbox for a skill.
@@ -258,6 +271,7 @@ class SandboxManager:
 
         Returns:
             Created sandbox
+
         """
         # Create temporary directory for skill
         temp_dir = self.temp_base_dir / skill_id
@@ -279,7 +293,7 @@ class SandboxManager:
 
         return sandbox
 
-    def get_sandbox(self, skill_id: str) -> Optional[SkillSandbox]:
+    def get_sandbox(self, skill_id: str) -> SkillSandbox | None:
         """Get sandbox for a skill.
 
         Args:
@@ -287,6 +301,7 @@ class SandboxManager:
 
         Returns:
             Sandbox or None if not found
+
         """
         return self.sandboxes.get(skill_id)
 
@@ -295,6 +310,7 @@ class SandboxManager:
 
         Args:
             skill_id: Skill ID
+
         """
         sandbox = self.sandboxes.get(skill_id)
         if sandbox:
@@ -316,5 +332,6 @@ def get_sandbox_manager() -> SandboxManager:
 
     Returns:
         Global SandboxManager instance
+
     """
     return _global_manager

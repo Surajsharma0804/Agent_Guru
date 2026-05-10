@@ -1,5 +1,4 @@
-"""
-Conversation Context Injector
+"""Conversation Context Injector.
 
 This module implements context injection for LLM prompts, integrating with
 the Conversation State Manager to provide rich context for reasoning.
@@ -19,7 +18,7 @@ Date: 2024
 """
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.llm.prompt_templates import PromptContext
 from Agent_Guru.reasoning.models.conversation import ConversationState
@@ -28,8 +27,7 @@ from Agent_Guru.reasoning.state.conversation_manager import ConversationStateMan
 
 @dataclass
 class ContextExtractionConfig:
-    """
-    Configuration for context extraction.
+    """Configuration for context extraction.
 
     Attributes:
         max_turns: Maximum number of conversation turns to extract
@@ -39,6 +37,7 @@ class ContextExtractionConfig:
         max_memories: Maximum number of memories to include
         max_tokens: Maximum token count for context (approximate)
         include_world_state: Whether to include world state summary
+
     """
 
     max_turns: int = 5
@@ -52,22 +51,28 @@ class ContextExtractionConfig:
     def __post_init__(self):
         """Validate configuration."""
         if self.max_turns < 1:
-            raise ValueError(f"max_turns must be >= 1, got {self.max_turns}")
+            msg = f"max_turns must be >= 1, got {self.max_turns}"
+            raise ValueError(msg)
         if self.max_entities < 0:
-            raise ValueError(f"max_entities must be >= 0, got {self.max_entities}")
+            msg = f"max_entities must be >= 0, got {self.max_entities}"
+            raise ValueError(msg)
         if self.max_preferences < 0:
-            raise ValueError(f"max_preferences must be >= 0, got {self.max_preferences}")
+            msg = f"max_preferences must be >= 0, got {self.max_preferences}"
+            raise ValueError(msg)
         if self.max_actions < 0:
-            raise ValueError(f"max_actions must be >= 0, got {self.max_actions}")
+            msg = f"max_actions must be >= 0, got {self.max_actions}"
+            raise ValueError(msg)
         if self.max_memories < 0:
-            raise ValueError(f"max_memories must be >= 0, got {self.max_memories}")
-        if self.max_tokens < 100:
-            raise ValueError(f"max_tokens must be >= 100, got {self.max_tokens}")
+            msg = f"max_memories must be >= 0, got {self.max_memories}"
+            raise ValueError(msg)
+        if self.max_tokens < 100:  # noqa: PLR2004 - Percentage/large threshold
+
+            msg = f"max_tokens must be >= 100, got {self.max_tokens}"
+            raise ValueError(msg)
 
 
 class ContextInjector:
-    """
-    Injects conversation context into LLM prompts.
+    """Injects conversation context into LLM prompts.
 
     Integrates with ConversationStateManager to extract:
     - Recent conversation turns (last 5 by default)
@@ -88,14 +93,14 @@ class ContextInjector:
     def __init__(
         self,
         conversation_manager: ConversationStateManager,
-        config: Optional[ContextExtractionConfig] = None,
-    ):
-        """
-        Initialize context injector.
+        config: ContextExtractionConfig | None = None,
+    ) -> None:
+        """Initialize context injector.
 
         Args:
             conversation_manager: Conversation state manager instance
             config: Optional configuration for context extraction
+
         """
         self.conversation_manager = conversation_manager
         self.config = config or ContextExtractionConfig()
@@ -103,11 +108,10 @@ class ContextInjector:
     async def extract_context(
         self,
         conversation_id: str,
-        retrieved_memories: Optional[list[dict[str, Any]]] = None,
-        world_state_summary: Optional[str] = None,
+        retrieved_memories: list[dict[str, Any]] | None = None,
+        world_state_summary: str | None = None,
     ) -> PromptContext:
-        """
-        Extract conversation context for prompt injection.
+        """Extract conversation context for prompt injection.
 
         Time Complexity: O(n) where n is number of turns
         Space Complexity: O(n) for extracted context
@@ -124,6 +128,7 @@ class ContextInjector:
             >>> injector = ContextInjector(conversation_manager)
             >>> context = await injector.extract_context("conv_123")
             >>> print(context.format_for_prompt())
+
         """
         # Get conversation state
         state = await self.conversation_manager.get_state(conversation_id)
@@ -163,11 +168,10 @@ class ContextInjector:
     async def inject_context(
         self,
         conversation_id: str,
-        retrieved_memories: Optional[list[dict[str, Any]]] = None,
-        world_state_summary: Optional[str] = None,
+        retrieved_memories: list[dict[str, Any]] | None = None,
+        world_state_summary: str | None = None,
     ) -> PromptContext:
-        """
-        Inject conversation context into prompt.
+        """Inject conversation context into prompt.
 
         This is an alias for extract_context for backward compatibility.
 
@@ -178,18 +182,19 @@ class ContextInjector:
 
         Returns:
             PromptContext with extracted conversation context
+
         """
         return await self.extract_context(conversation_id, retrieved_memories, world_state_summary)
 
     async def _extract_recent_turns(self, state: ConversationState) -> list[str]:
-        """
-        Extract recent conversation turns.
+        """Extract recent conversation turns.
 
         Args:
             state: Conversation state
 
         Returns:
             List of formatted conversation turns (most recent last)
+
         """
         # Get last N turns
         recent_turns = state.turns[-self.config.max_turns :]
@@ -207,14 +212,14 @@ class ContextInjector:
         return formatted_turns
 
     async def _extract_tracked_entities(self, state: ConversationState) -> dict[str, Any]:
-        """
-        Extract tracked entities from conversation.
+        """Extract tracked entities from conversation.
 
         Args:
             state: Conversation state
 
         Returns:
             Dictionary of entity_type -> value pairs
+
         """
         # Get all tracked entities
         entities = state.entities
@@ -236,14 +241,14 @@ class ContextInjector:
         return entity_dict
 
     async def _extract_user_preferences(self, state: ConversationState) -> dict[str, Any]:
-        """
-        Extract user preferences from conversation state.
+        """Extract user preferences from conversation state.
 
         Args:
             state: Conversation state
 
         Returns:
             Dictionary of preference_key -> preference_value pairs
+
         """
         # Get user preferences from state
         preferences = state.user_preferences
@@ -259,14 +264,14 @@ class ContextInjector:
         return dict(list(preferences.items())[: self.config.max_preferences])
 
     async def _extract_past_actions(self, state: ConversationState) -> list[str]:
-        """
-        Extract past actions from conversation turns.
+        """Extract past actions from conversation turns.
 
         Args:
             state: Conversation state
 
         Returns:
             List of formatted past actions
+
         """
         # Extract actions from recent turns
         actions = []
@@ -279,40 +284,39 @@ class ContextInjector:
 
         return actions
 
-    def _format_action(self, action: Any) -> str:
-        """
-        Format action for display.
+    def _format_action(self, action: Any) -> str:  # noqa: ANN401
+        """Format action for display.
 
         Args:
             action: Action object
 
         Returns:
             Formatted action string
+
         """
         # Handle different action formats
         if hasattr(action, "tool_id") and hasattr(action, "parameters"):
             # Format as "tool_id(param1=value1, param2=value2)"
             params = ", ".join(f"{k}={v}" for k, v in action.parameters.items())
             return f"{action.tool_id}({params})"
-        elif isinstance(action, dict):
+        if isinstance(action, dict):
             # Format dictionary action
             tool_id = action.get("tool_id", "unknown")
             params = action.get("parameters", {})
             params_str = ", ".join(f"{k}={v}" for k, v in params.items())
             return f"{tool_id}({params_str})"
-        else:
-            # Fallback to string representation
-            return str(action)
+        # Fallback to string representation
+        return str(action)
 
     def _needs_compression(self, context: PromptContext) -> bool:
-        """
-        Check if context needs compression.
+        """Check if context needs compression.
 
         Args:
             context: Prompt context
 
         Returns:
             True if context exceeds token limit
+
         """
         # Format context and estimate token count
         formatted = context.format_for_prompt()
@@ -323,8 +327,7 @@ class ContextInjector:
         return estimated_tokens > self.config.max_tokens
 
     def _compress_context(self, context: PromptContext) -> PromptContext:
-        """
-        Compress context to fit within token limits.
+        """Compress context to fit within token limits.
 
         Compression strategy:
         1. Reduce turns to last 2
@@ -339,6 +342,7 @@ class ContextInjector:
 
         Returns:
             Compressed context
+
         """
         # Start with aggressive compression
         compressed = PromptContext(
@@ -380,11 +384,10 @@ class ContextInjector:
         conversation_id: str,
         step_number: int,
         previous_step_results: list[dict[str, Any]],
-        retrieved_memories: Optional[list[dict[str, Any]]] = None,
-        world_state_summary: Optional[str] = None,
+        retrieved_memories: list[dict[str, Any]] | None = None,
+        world_state_summary: str | None = None,
     ) -> PromptContext:
-        """
-        Extract context for multi-step reasoning.
+        """Extract context for multi-step reasoning.
 
         Includes results from previous steps in the context.
 
@@ -397,10 +400,13 @@ class ContextInjector:
 
         Returns:
             PromptContext with multi-step context
+
         """
         # Get base context
         context = await self.extract_context(
-            conversation_id, retrieved_memories, world_state_summary
+            conversation_id,
+            retrieved_memories,
+            world_state_summary,
         )
 
         # Add previous step results to past actions
@@ -411,15 +417,18 @@ class ContextInjector:
         return context
 
     async def update_context_with_feedback(
-        self, conversation_id: str, feedback: str, feedback_type: str = "correction"
+        self,
+        conversation_id: str,
+        feedback: str,
+        feedback_type: str = "correction",
     ) -> None:
-        """
-        Update conversation context with user feedback.
+        """Update conversation context with user feedback.
 
         Args:
             conversation_id: Unique conversation identifier
             feedback: User feedback text
             feedback_type: Type of feedback (correction, confirmation, clarification)
+
         """
         # Get conversation state
         state = await self.conversation_manager.get_state(conversation_id)
@@ -436,8 +445,7 @@ class ContextInjector:
             await self.conversation_manager.set_state(conversation_id, state)
 
     def estimate_token_count(self, context: PromptContext) -> int:
-        """
-        Estimate token count for context.
+        """Estimate token count for context.
 
         Uses rough approximation of 4 characters per token.
 
@@ -446,15 +454,17 @@ class ContextInjector:
 
         Returns:
             Estimated token count
+
         """
         formatted = context.format_for_prompt()
         return len(formatted) // 4
 
     def get_compression_stats(
-        self, original: PromptContext, compressed: PromptContext
+        self,
+        original: PromptContext,
+        compressed: PromptContext,
     ) -> dict[str, Any]:
-        """
-        Get compression statistics.
+        """Get compression statistics.
 
         Args:
             original: Original context
@@ -462,6 +472,7 @@ class ContextInjector:
 
         Returns:
             Dictionary with compression statistics
+
         """
         original_tokens = self.estimate_token_count(original)
         compressed_tokens = self.estimate_token_count(compressed)

@@ -1,5 +1,4 @@
-"""
-Prompt Caching System
+"""Prompt Caching System.
 
 Implements LRU cache for prompt templates to reduce token usage by 80%.
 Caches common prompt patterns and reuses them across requests.
@@ -11,8 +10,8 @@ Token Reduction Target: 80% for cached prompts
 import hashlib
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 
 @dataclass
@@ -29,7 +28,7 @@ class CachedPrompt:
 
     def update_access(self) -> None:
         """Update access statistics."""
-        self.last_accessed = datetime.now(tz=timezone.utc)
+        self.last_accessed = datetime.now(tz=UTC)
         self.access_count += 1
 
 
@@ -42,7 +41,7 @@ class CacheStats:
     cache_misses: int = 0
     total_tokens_saved: int = 0
     evictions: int = 0
-    last_reset: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    last_reset: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def record_hit(self, tokens_saved: int) -> None:
         """Record cache hit."""
@@ -90,8 +89,7 @@ class CacheStats:
 
 
 class PromptCache:
-    """
-    LRU cache for prompt templates.
+    """LRU cache for prompt templates.
 
     Caches prompt templates with automatic eviction of least recently used entries.
     Tracks cache hits/misses and token savings.
@@ -100,13 +98,14 @@ class PromptCache:
         >>> cache = PromptCache(max_size=1000)
         >>> cache.set("intent_type", "context", "prompt template")
         >>> prompt = cache.get("intent_type", "context")
+
     """
 
     def __init__(
         self,
         max_size: int = 1000,
-        ttl_seconds: Optional[float] = 300.0,  # 5 minutes default
-    ):
+        ttl_seconds: float | None = 300.0,  # 5 minutes default
+    ) -> None:
         """Initialize prompt cache.
 
         Args:
@@ -115,9 +114,11 @@ class PromptCache:
 
         Raises:
             ValueError: If max_size <= 0
+
         """
         if max_size <= 0:
-            raise ValueError(f"max_size must be positive, got {max_size}")
+            msg = f"max_size must be positive, got {max_size}"
+            raise ValueError(msg)
 
         self.max_size = max_size
         self.ttl_seconds = ttl_seconds
@@ -125,8 +126,7 @@ class PromptCache:
         self.stats = CacheStats()
 
     def _generate_cache_key(self, intent_type: str, context: str) -> str:
-        """
-        Generate cache key from intent type and context.
+        """Generate cache key from intent type and context.
 
         Uses SHA256 hash of intent_type + context for consistent keys.
 
@@ -136,6 +136,7 @@ class PromptCache:
 
         Returns:
             Cache key string
+
         """
         key_string = f"{intent_type}:{context}"
         return hashlib.sha256(key_string.encode()).hexdigest()
@@ -145,7 +146,7 @@ class PromptCache:
         if self.ttl_seconds is None:
             return False
 
-        age = (datetime.now(tz=timezone.utc) - entry.created_at).total_seconds()
+        age = (datetime.now(tz=UTC) - entry.created_at).total_seconds()
         return age > self.ttl_seconds
 
     def _evict_lru(self) -> None:
@@ -166,9 +167,8 @@ class PromptCache:
             del self._cache[key]
             self.stats.record_eviction()
 
-    def get(self, intent_type: str, context: str = "") -> Optional[str]:
-        """
-        Get cached prompt.
+    def get(self, intent_type: str, context: str = "") -> str | None:
+        """Get cached prompt.
 
         Args:
             intent_type: Intent type
@@ -176,6 +176,7 @@ class PromptCache:
 
         Returns:
             Cached prompt or None if not found
+
         """
         cache_key = self._generate_cache_key(intent_type, context)
 
@@ -209,11 +210,10 @@ class PromptCache:
         intent_type: str,
         context: str,
         prompt: str,
-        token_count: Optional[int] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        token_count: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Set cached prompt.
+        """Set cached prompt.
 
         Args:
             intent_type: Intent type
@@ -221,6 +221,7 @@ class PromptCache:
             prompt: Prompt template to cache
             token_count: Optional token count for statistics
             metadata: Optional metadata
+
         """
         cache_key = self._generate_cache_key(intent_type, context)
 
@@ -240,8 +241,8 @@ class PromptCache:
         entry = CachedPrompt(
             prompt=prompt,
             cache_key=cache_key,
-            created_at=datetime.now(tz=timezone.utc),
-            last_accessed=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
+            last_accessed=datetime.now(tz=UTC),
             access_count=0,
             token_count=token_count,
             metadata=metadata or {},
@@ -250,8 +251,7 @@ class PromptCache:
         self._cache[cache_key] = entry
 
     def invalidate(self, intent_type: str, context: str = "") -> bool:
-        """
-        Invalidate cached prompt.
+        """Invalidate cached prompt.
 
         Args:
             intent_type: Intent type
@@ -259,6 +259,7 @@ class PromptCache:
 
         Returns:
             True if entry was removed, False if not found
+
         """
         cache_key = self._generate_cache_key(intent_type, context)
 
@@ -289,14 +290,14 @@ class PromptCache:
         self.stats = CacheStats()
 
     def get_most_accessed(self, limit: int = 10) -> list[dict[str, Any]]:
-        """
-        Get most accessed cache entries.
+        """Get most accessed cache entries.
 
         Args:
             limit: Maximum number of entries to return
 
         Returns:
             List of entry statistics
+
         """
         sorted_entries = sorted(
             self._cache.values(),

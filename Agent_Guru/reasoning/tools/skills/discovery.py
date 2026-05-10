@@ -1,11 +1,9 @@
-"""
-Skill discovery for finding and listing available skills.
+"""Skill discovery for finding and listing available skills.
 
 Provides functionality to discover skills in the plugins directory.
 """
 
 from pathlib import Path
-from typing import Optional
 
 from Agent_Guru.reasoning.tools.skills.manifest import (
     SkillManifest,
@@ -16,11 +14,12 @@ from Agent_Guru.reasoning.tools.skills.manifest import (
 class SkillDiscovery:
     """Discovery service for finding available skills."""
 
-    def __init__(self, plugins_dir: Path):
+    def __init__(self, plugins_dir: Path) -> None:
         """Initialize skill discovery.
 
         Args:
             plugins_dir: Directory containing skill plugins
+
         """
         self.plugins_dir = Path(plugins_dir)
 
@@ -29,6 +28,7 @@ class SkillDiscovery:
 
         Returns:
             List of paths to skill directories
+
         """
         if not self.plugins_dir.exists():
             return []
@@ -44,7 +44,7 @@ class SkillDiscovery:
 
         return skill_dirs
 
-    def get_skill_manifest(self, skill_dir: Path) -> Optional[SkillManifest]:
+    def get_skill_manifest(self, skill_dir: Path) -> SkillManifest | None:
         """Get manifest for a skill directory.
 
         Args:
@@ -52,6 +52,7 @@ class SkillDiscovery:
 
         Returns:
             Skill manifest or None if not found/invalid
+
         """
         manifest_path = skill_dir / "skill.yaml"
         if not manifest_path.exists():
@@ -61,7 +62,7 @@ class SkillDiscovery:
 
         try:
             return SkillManifestParser.parse_yaml(manifest_path)
-        except Exception as e:
+        except Exception:
             return None
 
     def list_available_skills(self) -> list[SkillManifest]:
@@ -69,6 +70,7 @@ class SkillDiscovery:
 
         Returns:
             List of skill manifests
+
         """
         skill_dirs = self.discover_skills()
         manifests = []
@@ -80,7 +82,7 @@ class SkillDiscovery:
 
         return manifests
 
-    def find_skill_by_id(self, skill_id: str) -> Optional[Path]:
+    def find_skill_by_id(self, skill_id: str) -> Path | None:
         """Find skill directory by skill ID.
 
         Args:
@@ -88,6 +90,7 @@ class SkillDiscovery:
 
         Returns:
             Path to skill directory or None if not found
+
         """
         skill_dirs = self.discover_skills()
 

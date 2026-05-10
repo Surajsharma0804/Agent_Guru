@@ -1,5 +1,4 @@
-"""
-Conversation Strategy Engine for Agent_Guru.
+"""Conversation Strategy Engine for Agent_Guru.
 
 This module handles conversation strategies including:
 - Clarification rules and templates
@@ -35,16 +34,16 @@ from Agent_Guru.reasoning.conversation.tone import (
 )
 
 __all__ = [
+    "ClarificationGenerator",
     "ClarificationRules",
     "ClarificationTemplate",
-    "ClarificationGenerator",
-    "ConfirmationRules",
     "ConfirmationGenerator",
     "ConfirmationParser",
-    "ToneAdapter",
-    "PersonalityDimension",
-    "ErrorResponseStrategy",
-    "ErrorClassifier",
-    "ProactiveSuggestionGenerator",
+    "ConfirmationRules",
     "ConversationStrategyEngine",
+    "ErrorClassifier",
+    "ErrorResponseStrategy",
+    "PersonalityDimension",
+    "ProactiveSuggestionGenerator",
+    "ToneAdapter",
 ]

@@ -1,5 +1,4 @@
-"""
-Intent Detection Engine - Hybrid Approach with Fast-Path Router
+"""Intent Detection Engine - Hybrid Approach with Fast-Path Router.
 
 This module provides the main Intent Detection Engine that integrates all intent
 detection components into a unified pipeline with intelligent routing.
@@ -59,25 +58,25 @@ from typing import Any
 
 _logger = logging.getLogger(__name__)
 
-from Agent_Guru.reasoning.intent.fast_router import FastIntentRouter, PatternMatch
-from Agent_Guru.reasoning.intent.intent_cache import IntentDetectionCache
-from Agent_Guru.reasoning.intent.llm_fallback import (
+from Agent_Guru.reasoning.intent.fast_router import FastIntentRouter, PatternMatch  # noqa: E402
+from Agent_Guru.reasoning.intent.intent_cache import IntentDetectionCache  # noqa: E402
+from Agent_Guru.reasoning.intent.llm_fallback import (  # noqa: E402
     LLMClassificationResult,
     LLMFallbackClassifier,
     LLMFallbackConfig,
 )
-from Agent_Guru.reasoning.intent.ner_extractor import (
+from Agent_Guru.reasoning.intent.ner_extractor import (  # noqa: E402
     NERConfig,
     NEREntityExtractor,
 )
-from Agent_Guru.reasoning.intent.neural_classifier import (
+from Agent_Guru.reasoning.intent.neural_classifier import (  # noqa: E402
     ClassificationResult,
     ClassifierConfig,
     NeuralIntentClassifier,
 )
-from Agent_Guru.reasoning.learning.feedback_store import FeedbackStore
-from Agent_Guru.reasoning.learning.online_learner import OnlineLearner
-from Agent_Guru.reasoning.models.intent import Entity, Intent, IntentType
+from Agent_Guru.reasoning.learning.feedback_store import FeedbackStore  # noqa: E402
+from Agent_Guru.reasoning.learning.online_learner import OnlineLearner  # noqa: E402
+from Agent_Guru.reasoning.models.intent import Entity, Intent, IntentType  # noqa: E402
 
 
 @dataclass
@@ -94,6 +93,7 @@ class IntentEngineConfig:
         enable_llm_fallback: Whether to use LLM fallback
         enable_online_learning: Whether to enable online learning
         feedback_db_path: Path to feedback database
+
     """
 
     patterns_file: str = "Agent_Guru/reasoning/data/intent_patterns.yaml"
@@ -119,6 +119,7 @@ class DetectionResult:
         neural_attempted: Whether neural classifier was attempted
         llm_attempted: Whether LLM fallback was attempted
         confidence: Final confidence score
+
     """
 
     intent: Intent
@@ -148,6 +149,7 @@ class IntentDetectionEngine:
         1. Fast-Path Router (80% coverage, <50ms)
         2. Neural Classifier (15% coverage, <50ms with GPU)
         3. LLM Fallback (5% coverage, <300ms)
+
     """
 
     def __init__(self, config: IntentEngineConfig | None = None) -> None:
@@ -155,6 +157,7 @@ class IntentDetectionEngine:
 
         Args:
             config: Engine configuration (uses defaults if None)
+
         """
         self.config = config or IntentEngineConfig()
 
@@ -184,6 +187,7 @@ class IntentDetectionEngine:
 
         Raises:
             RuntimeError: If initialization fails
+
         """
         if self._initialized:
             return
@@ -201,8 +205,10 @@ class IntentDetectionEngine:
                     len(self.fast_router._patterns),
                 )
             else:
-                _logger.warning("Patterns file not found: %s â€” Fast-Path Router disabled",
-                                self.config.patterns_file)
+                _logger.warning(
+                    "Patterns file not found: %s â€” Fast-Path Router disabled",
+                    self.config.patterns_file,
+                )
                 self.fast_router = None
 
         # Initialize Neural Classifier
@@ -233,17 +239,25 @@ class IntentDetectionEngine:
                 import os
 
                 # Try cloud APIs first (MUCH faster: 200-500ms vs Ollama 15-30s)
-                # Priority: DeepSeek (cheapest, fastest) > Gemini (smart) > OpenAI (expensive)
 
                 # Check which APIs are available â€” only use a key if it's
                 # non-empty and not a placeholder value
                 def _valid_key(k: str | None) -> bool:
-                    return bool(k and k.strip() and "your-" not in k.lower() and len(k) > 8)
+                    return bool(k and k.strip() and "your-" not in k.lower() and len(k) > 8)  # noqa: PLR2004 - Threshold
 
-                deepseek_key = os.environ.get("DEEPSEEK_API_KEY") if _valid_key(os.environ.get("DEEPSEEK_API_KEY")) else None
+
+                deepseek_key = (
+                    os.environ.get("DEEPSEEK_API_KEY")
+                    if _valid_key(os.environ.get("DEEPSEEK_API_KEY"))
+                    else None
+                )
                 gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
                 gemini_key = gemini_key if _valid_key(gemini_key) else None
-                openai_key = os.environ.get("OPENAI_API_KEY") if _valid_key(os.environ.get("OPENAI_API_KEY")) else None
+                openai_key = (
+                    os.environ.get("OPENAI_API_KEY")
+                    if _valid_key(os.environ.get("OPENAI_API_KEY"))
+                    else None
+                )
 
                 # Use DeepSeek as primary (fastest and cheapest)
                 if deepseek_key:
@@ -282,7 +296,7 @@ class IntentDetectionEngine:
                         _logger.info(
                             "LLM Fallback: Ollama (GEMINI_API_KEY set but Gemini provider "
                             "not supported in this classifier â€” using Ollama). "
-                            "Set DEEPSEEK_API_KEY for fast cloud intent classification."
+                            "Set DEEPSEEK_API_KEY for fast cloud intent classification.",
                         )
                     else:
                         _logger.warning(
@@ -333,9 +347,11 @@ class IntentDetectionEngine:
 
         Raises:
             RuntimeError: If engine not initialized
+
         """
         if not self._initialized:
-            raise RuntimeError("Engine not initialized. Call initialize() first.")
+            msg = "Engine not initialized. Call initialize() first."
+            raise RuntimeError(msg)
 
         start_time = time.perf_counter()
 
@@ -365,7 +381,8 @@ class IntentDetectionEngine:
             fast_path_attempted = True
             match = self.fast_router.match(text)
 
-            if match and match.confidence >= 0.95:
+            if match and match.confidence >= 0.95:  # noqa: PLR2004 - Threshold value
+
                 # Fast-path success!
                 intent = self._create_intent_from_fast_path(match, text)
                 latency_ms = (time.perf_counter() - start_time) * 1000
@@ -389,11 +406,14 @@ class IntentDetectionEngine:
         if self.neural_classifier:
             neural_attempted = True
             neural_result = await asyncio.get_running_loop().run_in_executor(
-                None, self.neural_classifier.classify, text
+                None,
+                self.neural_classifier.classify,
+                text,
             )
 
             # Check if confidence is high enough
-            if neural_result.confidence >= 0.8:
+            if neural_result.confidence >= 0.8:  # noqa: PLR2004 - Threshold value
+
                 # Neural classifier success!
                 # Extract entities using NER
                 entities = {}
@@ -450,7 +470,6 @@ class IntentDetectionEngine:
             confidence=0.0,
             requires_reasoning=False,
             original_input=text,
-            # resolved_input=text,
             detection_method="rule",  # Use 'rule' as fallback method
         )
 
@@ -482,15 +501,19 @@ class IntentDetectionEngine:
 
         Returns:
             Detection result with intent and metadata
+
         """
         # Run async method in event loop
         try:
             asyncio.get_running_loop()
             # Already inside a running loop â€” cannot call run_until_complete.
             # Callers inside async code should use detect_intent_async() directly.
-            raise RuntimeError(
+            msg = (
                 "detect_intent() called from inside a running event loop. "
                 "Use 'await detect_intent_async()' instead."
+            )
+            raise RuntimeError(
+                msg,
             )
         except RuntimeError as exc:
             if "running event loop" in str(exc):
@@ -539,11 +562,10 @@ class IntentDetectionEngine:
 
         Returns:
             Intent object
+
         """
         # Normalise pattern intent string â†’ valid IntentType value
-        intent_type_str = self._PATTERN_INTENT_MAP.get(
-            match.intent_type, match.intent_type
-        )
+        intent_type_str = self._PATTERN_INTENT_MAP.get(match.intent_type, match.intent_type)
 
         # If the (possibly mapped) string is still not a valid enum value,
         # fall back to "unknown" so we never raise a ValidationError.
@@ -576,6 +598,7 @@ class IntentDetectionEngine:
 
         Returns:
             Intent object
+
         """
         # Determine if reasoning is required based on intent type
         requires_reasoning = self._requires_reasoning(result.intent_type)
@@ -598,7 +621,6 @@ class IntentDetectionEngine:
             confidence=result.confidence,
             requires_reasoning=requires_reasoning,
             original_input=text,
-            # resolved_input=text,
             detection_method="neural",
             alternative_intents=alternative_intents,
         )
@@ -612,6 +634,7 @@ class IntentDetectionEngine:
 
         Returns:
             Intent object
+
         """
         # Determine if reasoning is required
         requires_reasoning = self._requires_reasoning(result.intent_type)
@@ -622,7 +645,6 @@ class IntentDetectionEngine:
             confidence=result.confidence,
             requires_reasoning=requires_reasoning,
             original_input=text,
-            # resolved_input=text,
             detection_method="llm",  # LLM fallback uses llm method
         )
 
@@ -634,6 +656,7 @@ class IntentDetectionEngine:
 
         Returns:
             True if reasoning required, False otherwise
+
         """
         # Simple intents that don't require reasoning
         simple_intents = {
@@ -668,11 +691,13 @@ class IntentDetectionEngine:
             predicted_intent: Intent predicted by engine
             correct_intent: Correct intent (from user feedback)
             user_id: Optional user ID
+
         """
         if self.feedback_store and user_id:
-            from Agent_Guru.reasoning.models.feedback import FeedbackType, IntentFeedback
             import uuid
-            from datetime import datetime, timezone
+
+            from Agent_Guru.reasoning.models.feedback import FeedbackType, IntentFeedback
+
             feedback = IntentFeedback(
                 feedback_id=str(uuid.uuid4()),
                 user_id=user_id,
@@ -685,9 +710,10 @@ class IntentDetectionEngine:
                 model_version="v1.0",
             )
             import asyncio
+
             try:
                 loop = asyncio.get_running_loop()
-                _task = loop.create_task(self.feedback_store.store_feedback(feedback))
+                _task = loop.create_task(self.feedback_store.store_feedback(feedback))  # noqa: RUF006
             except RuntimeError:
                 asyncio.run(self.feedback_store.store_feedback(feedback))
 
@@ -699,9 +725,10 @@ class IntentDetectionEngine:
         """
         if self.online_learner:
             import asyncio
+
             try:
                 loop = asyncio.get_running_loop()
-                _task = loop.create_task(self.online_learner.should_retrain())
+                _task = loop.create_task(self.online_learner.should_retrain())  # noqa: RUF006
             except RuntimeError:
                 asyncio.run(self.online_learner.should_retrain())
 
@@ -711,6 +738,7 @@ class IntentDetectionEngine:
         Args:
             method: Detection method used
             latency_ms: Detection latency
+
         """
         self.total_detections += 1
         self.total_latency_ms += latency_ms
@@ -727,6 +755,7 @@ class IntentDetectionEngine:
 
         Returns:
             Dictionary with metrics
+
         """
         if self.total_detections == 0:
             return {
@@ -765,6 +794,7 @@ class IntentDetectionEngine:
 
         Returns:
             Dictionary with routing statistics
+
         """
         if self.total_detections == 0:
             return {
@@ -805,6 +835,7 @@ class IntentDetectionEngine:
 
         Returns:
             Number of entries invalidated
+
         """
         return self.intent_cache.invalidate_by_context(context)
 

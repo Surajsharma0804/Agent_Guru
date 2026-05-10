@@ -1,11 +1,10 @@
-"""
-World State data models for context-aware reasoning.
+"""World State data models for context-aware reasoning.
 
 Performance: O(1) state queries, <20ms latency
 """
 
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -24,7 +23,8 @@ class DeviceStatus(BaseModel):
     def validate_network_type(cls, v: str) -> str:
         valid = ["wifi", "cellular", "ethernet", "offline"]
         if v not in valid:
-            raise ValueError(f"network_type must be one of {valid}")
+            msg = f"network_type must be one of {valid}"
+            raise ValueError(msg)
         return v
 
 
@@ -33,7 +33,10 @@ class SystemResources(BaseModel):
 
     cpu_usage: float = Field(ge=0.0, le=100.0, description="CPU usage percentage")
     memory_usage: float = Field(
-        default=0.0, ge=0.0, le=100.0, description="Memory usage percentage"
+        default=0.0,
+        ge=0.0,
+        le=100.0,
+        description="Memory usage percentage",
     )
     disk_space_available: int = Field(default=0, ge=0, description="Available disk space in MB")
 
@@ -55,15 +58,16 @@ class CalendarEvent(BaseModel):
     title: str
     start_time: datetime
     end_time: datetime
-    location: Optional[str] = None
+    location: str | None = None
     attendees: list[str] = Field(default_factory=list)
     is_recurring: bool = Field(default=False)
 
     @field_validator("end_time")
     @classmethod
-    def validate_end_time(cls, v: datetime, info) -> datetime:
+    def validate_end_time(cls, v: datetime, info) -> datetime:  # noqa: ANN001
         if "start_time" in info.data and v < info.data["start_time"]:
-            raise ValueError("end_time must be after start_time")
+            msg = "end_time must be after start_time"
+            raise ValueError(msg)
         return v
 
 
@@ -74,8 +78,8 @@ class Contact(BaseModel):
     name: str
     phone_numbers: list[str] = Field(default_factory=list)
     email_addresses: list[str] = Field(default_factory=list)
-    relationship: Optional[str] = None
-    last_contacted: Optional[datetime] = None
+    relationship: str | None = None
+    last_contacted: datetime | None = None
 
 
 class LocationState(BaseModel):
@@ -84,9 +88,9 @@ class LocationState(BaseModel):
     latitude: float = Field(ge=-90.0, le=90.0)
     longitude: float = Field(ge=-180.0, le=180.0)
     accuracy: float = Field(ge=0.0, description="Accuracy in meters")
-    place_name: Optional[str] = None
-    place_type: Optional[str] = None  # home, work, restaurant, etc.
-    arrival_time: Optional[datetime] = None
+    place_name: str | None = None
+    place_type: str | None = None  # home, work, restaurant, etc.
+    arrival_time: datetime | None = None
 
 
 class Activity(BaseModel):
@@ -99,8 +103,7 @@ class Activity(BaseModel):
 
 
 class WorldState(BaseModel):
-    """
-    Complete world state for context-aware reasoning.
+    """Complete world state for context-aware reasoning.
 
     Time Complexity: O(1) for all queries
     Space Complexity: O(n) where n is number of tracked items
@@ -110,8 +113,10 @@ class WorldState(BaseModel):
     device_status: DeviceStatus = Field(default_factory=lambda: DeviceStatus(battery_level=100.0))
     system_resources: SystemResources = Field(
         default_factory=lambda: SystemResources(
-            cpu_usage=0.0, memory_usage=0.0, disk_space_available=0
-        )
+            cpu_usage=0.0,
+            memory_usage=0.0,
+            disk_space_available=0,
+        ),
     )
 
     # Applications
@@ -123,15 +128,15 @@ class WorldState(BaseModel):
     contacts: dict[str, Contact] = Field(default_factory=dict)
 
     # Location and activity
-    location_context: Optional[LocationState] = None
-    activity_context: Optional[str] = None  # working, commuting, relaxing, etc.
+    location_context: LocationState | None = None
+    activity_context: str | None = None  # working, commuting, relaxing, etc.
 
     # Tasks
     active_tasks: list[str] = Field(default_factory=list)
     recent_activities: list[Activity] = Field(default_factory=list, max_length=100)
 
     # Metadata
-    last_updated: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     def get_active_app_count(self) -> int:
@@ -144,14 +149,14 @@ class WorldState(BaseModel):
 
     def get_upcoming_events(self, hours: int = 24) -> list[CalendarEvent]:
         """Get events in next N hours."""
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         from datetime import timedelta
 
         cutoff = now + timedelta(hours=hours)
 
         return [event for event in self.calendar_events if now <= event.start_time <= cutoff]
 
-    def get_contact_by_name(self, name: str) -> Optional[Contact]:
+    def get_contact_by_name(self, name: str) -> Contact | None:
         """Find contact by name (case-insensitive)."""
         name_lower = name.lower()
         for contact in self.contacts.values():

@@ -1,5 +1,4 @@
-"""
-Information tools for news and stock prices.
+"""Information tools for news and stock prices.
 
 Provides access to news APIs and financial data.
 """
@@ -54,7 +53,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class GetNewsTool(Tool):
     """Tool for getting news articles."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute news retrieval.
 
         Args:
@@ -64,6 +63,7 @@ class GetNewsTool(Tool):
 
         Returns:
             Execution result with news articles
+
         """
         query = kwargs.get("query", "")
         category = kwargs.get("category", "general").lower()
@@ -86,7 +86,8 @@ class GetNewsTool(Tool):
             }
 
         # Validate max_results
-        if max_results <= 0 or max_results > 100:
+        if max_results <= 0 or max_results > 100:  # noqa: PLR2004 - Percentage/large threshold
+
             return {
                 "success": False,
                 "error": "max_results must be between 1 and 100",
@@ -110,7 +111,7 @@ class GetNewsTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to get news: {str(e)}",
+                "error": f"Failed to get news: {e!s}",
             }
 
 
@@ -124,7 +125,7 @@ class GetNewsTool(Tool):
             type=ToolParameterType.STRING,
             description="Stock ticker symbol (e.g., AAPL, GOOGL)",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=1000,
@@ -138,7 +139,7 @@ class GetNewsTool(Tool):
 class GetStockPriceTool(Tool):
     """Tool for getting stock prices."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute stock price retrieval.
 
         Args:
@@ -146,6 +147,7 @@ class GetStockPriceTool(Tool):
 
         Returns:
             Execution result with stock data
+
         """
         symbol = kwargs["symbol"].upper()
 
@@ -183,5 +185,5 @@ class GetStockPriceTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to get stock price: {str(e)}",
+                "error": f"Failed to get stock price: {e!s}",
             }

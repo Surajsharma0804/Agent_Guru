@@ -1,5 +1,4 @@
-"""
-Template-Based Response Generator
+"""Template-Based Response Generator.
 
 Provides fast (<100ms), deterministic response generation using templates
 for common success/error scenarios.
@@ -20,7 +19,7 @@ Design:
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.config.logging import get_logger
 from Agent_Guru.reasoning.config.metrics import get_metrics_collector
@@ -46,8 +45,7 @@ class TemplateType(str, Enum):
 
 @dataclass
 class ResponseTemplate:
-    """
-    Response template with variable placeholders.
+    """Response template with variable placeholders.
 
     Attributes:
         template_id: Unique template identifier
@@ -56,6 +54,7 @@ class ResponseTemplate:
         voice_template: Template string for voice responses (more concise)
         variables: List of required variable names
         suggestions: Optional follow-up suggestions
+
     """
 
     template_id: str
@@ -63,12 +62,11 @@ class ResponseTemplate:
     text_template: str
     voice_template: str
     variables: list[str]
-    suggestions: Optional[list[str]] = None
+    suggestions: list[str] | None = None
 
 
 class TemplateGenerator:
-    """
-    Fast template-based response generator.
+    """Fast template-based response generator.
 
     Time Complexity: O(1) for template lookup, O(n) for formatting
     Space Complexity: O(1) - fixed template registry
@@ -81,6 +79,7 @@ class TemplateGenerator:
         >>> response = generator.generate(result, intent, ResponseModality.VOICE)
         >>> print(response.text)
         "Timer set for 5 minutes"
+
     """
 
     def __init__(self) -> None:
@@ -96,11 +95,10 @@ class TemplateGenerator:
         result: ExecutionResult,
         intent: Intent,
         modality: ResponseModality,
-        context: Optional[dict[str, Any]] = None,
-        user_preferences: Optional[dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
+        user_preferences: dict[str, Any] | None = None,
     ) -> Response:
-        """
-        Generate response from execution result using templates.
+        """Generate response from execution result using templates.
 
         Time Complexity: O(1) lookup + O(n) formatting where n = template length
         Space Complexity: O(n) for response string
@@ -117,6 +115,7 @@ class TemplateGenerator:
 
         Raises:
             ValueError: If required variables are missing
+
         """
         start_time = time.perf_counter()
 
@@ -126,7 +125,10 @@ class TemplateGenerator:
                 # Try to create Error object from error string
                 error = self._create_error_from_result(result)
                 return self._error_response_generator.generate_error_response(
-                    error, modality, intent, context
+                    error,
+                    modality,
+                    intent,
+                    context,
                 )
 
             # Select template based on result and intent
@@ -146,7 +148,11 @@ class TemplateGenerator:
 
             # Generate suggestions
             suggestions = self._generate_suggestions(
-                template, intent, result, context, user_preferences
+                template,
+                intent,
+                result,
+                context,
+                user_preferences,
             )
 
             # Create response
@@ -181,7 +187,7 @@ class TemplateGenerator:
 
         except Exception as e:
             metrics.increment_errors("template_generation")
-            logger.error(
+            logger.exception(
                 "Template generation failed",
                 extra={
                     "error": str(e),
@@ -192,8 +198,7 @@ class TemplateGenerator:
             raise
 
     def _select_template(self, result: ExecutionResult, intent: Intent) -> ResponseTemplate:
-        """
-        Select appropriate template based on result and intent.
+        """Select appropriate template based on result and intent.
 
         Time Complexity: O(1) - dictionary lookup
 
@@ -203,6 +208,7 @@ class TemplateGenerator:
 
         Returns:
             Selected response template
+
         """
         # Try intent-specific template first
         intent_type_str = (
@@ -217,38 +223,39 @@ class TemplateGenerator:
         # Fall back to generic template
         if result.success:
             return self._templates["generic_success"]
+        # Error is now a string, try to extract type from message
+        error_msg = result.error if result.error else "unknown"
+        if "timeout" in error_msg.lower():
+            error_template_key = "error_timeout"
+        elif "permission" in error_msg.lower():
+            error_template_key = "error_permission_denied"
+        elif "network" in error_msg.lower():
+            error_template_key = "error_network_error"
+        elif "invalid" in error_msg.lower():
+            error_template_key = "error_invalid_input"
+        elif "unavailable" in error_msg.lower():
+            error_template_key = "error_tool_unavailable"
         else:
-            # Error is now a string, try to extract type from message
-            error_msg = result.error if result.error else "unknown"
-            if "timeout" in error_msg.lower():
-                error_template_key = "error_timeout"
-            elif "permission" in error_msg.lower():
-                error_template_key = "error_permission_denied"
-            elif "network" in error_msg.lower():
-                error_template_key = "error_network_error"
-            elif "invalid" in error_msg.lower():
-                error_template_key = "error_invalid_input"
-            elif "unavailable" in error_msg.lower():
-                error_template_key = "error_tool_unavailable"
-            else:
-                error_template_key = "generic_error"
+            error_template_key = "generic_error"
 
-            if error_template_key in self._templates:
-                return self._templates[error_template_key]
+        if error_template_key in self._templates:
+            return self._templates[error_template_key]
 
         # Final fallback — always return a valid template
-        return self._templates.get("generic_success" if result.success else "generic_error",
-                                   list(self._templates.values())[0])
+        return self._templates.get(
+            "generic_success" if result.success else "generic_error",
+            next(iter(self._templates.values())),
+        )
 
     def _create_error_from_result(self, result: ExecutionResult) -> Error:
-        """
-        Create Error object from ExecutionResult.
+        """Create Error object from ExecutionResult.
 
         Args:
             result: Execution result with error
 
         Returns:
             Error object
+
         """
         error_msg = result.error if result.error else "Unknown error"
 
@@ -268,14 +275,19 @@ class TemplateGenerator:
             error_type = ErrorType.NO_TOOL_FOUND
 
         return Error(
-            error_code="ERR_EXEC", error_type=error_type, message=error_msg, recoverable=True
+            error_code="ERR_EXEC",
+            error_type=error_type,
+            message=error_msg,
+            recoverable=True,
         )
 
     def _extract_variables(
-        self, result: ExecutionResult, intent: Intent, context: dict[str, Any]
+        self,
+        result: ExecutionResult,
+        intent: Intent,
+        context: dict[str, Any],
     ) -> dict[str, Any]:
-        """
-        Extract variables for template substitution.
+        """Extract variables for template substitution.
 
         Time Complexity: O(1) - fixed number of extractions
 
@@ -286,6 +298,7 @@ class TemplateGenerator:
 
         Returns:
             Dictionary of variables for substitution
+
         """
         variables = {}
 
@@ -320,8 +333,7 @@ class TemplateGenerator:
         return variables
 
     def _validate_variables(self, template: ResponseTemplate, variables: dict[str, Any]) -> None:
-        """
-        Validate that all required variables are present.
+        """Validate that all required variables are present.
 
         Time Complexity: O(n) where n = number of required variables
 
@@ -331,6 +343,7 @@ class TemplateGenerator:
 
         Raises:
             ValueError: If required variables are missing
+
         """
         missing = [var for var in template.variables if var not in variables]
         if missing:
@@ -340,10 +353,12 @@ class TemplateGenerator:
             )
 
     def _format_template(
-        self, template: ResponseTemplate, modality: ResponseModality, variables: dict[str, Any]
+        self,
+        template: ResponseTemplate,
+        modality: ResponseModality,
+        variables: dict[str, Any],
     ) -> str:
-        """
-        Format template with variables.
+        """Format template with variables.
 
         Time Complexity: O(n) where n = template length
 
@@ -354,6 +369,7 @@ class TemplateGenerator:
 
         Returns:
             Formatted response text
+
         """
         # Select template based on modality
         if modality == ResponseModality.VOICE:
@@ -364,9 +380,9 @@ class TemplateGenerator:
         # Format with variables (safe substitution - missing vars become empty)
         try:
             return template_str.format(**variables)
-        except KeyError as e:
+        except KeyError:
             # Fallback: use safe_substitute-like behavior
-            logger.warning("Variable %s not found in template, using empty string", e)
+            logger.exception("Variable %s not found in template, using empty string")
             # Replace missing variables with empty strings
             safe_vars = dict(variables.items())
             for var in template.variables:
@@ -375,8 +391,7 @@ class TemplateGenerator:
             return template_str.format(**safe_vars)
 
     def _personalize_response(self, text: str, user_preferences: dict[str, Any]) -> str:
-        """
-        Personalize response based on user preferences.
+        """Personalize response based on user preferences.
 
         Time Complexity: O(n) where n = text length
 
@@ -386,6 +401,7 @@ class TemplateGenerator:
 
         Returns:
             Personalized response text
+
         """
         # Apply verbosity preference
         verbosity = user_preferences.get("verbosity", "normal")
@@ -446,11 +462,10 @@ class TemplateGenerator:
         template: ResponseTemplate,
         intent: Intent,
         result: ExecutionResult,
-        conversation_state: Optional[Any] = None,
-        user_preferences: Optional[dict[str, Any]] = None,
+        conversation_state: Any | None = None,  # noqa: ANN401
+        user_preferences: dict[str, Any] | None = None,
     ) -> list[str]:
-        """
-        Generate follow-up suggestions using proactive suggestion generator.
+        """Generate follow-up suggestions using proactive suggestion generator.
 
         Time Complexity: O(1) - fixed number of suggestions
 
@@ -463,11 +478,15 @@ class TemplateGenerator:
 
         Returns:
             List of suggestion strings
+
         """
         # Use proactive suggestion generator if available
         if hasattr(self, "_proactive_generator") and self._proactive_generator is not None:
             return self._proactive_generator.generate_suggestions(
-                intent, result, conversation_state, user_preferences
+                intent,
+                result,
+                conversation_state,
+                user_preferences,
             )
 
         # Fallback to template-based suggestions
@@ -484,7 +503,7 @@ class TemplateGenerator:
         # Limit to 3 suggestions
         return suggestions[:3]
 
-    def _get_intent_suggestions(self, intent_type: Any) -> list[str]:
+    def _get_intent_suggestions(self, intent_type: Any) -> list[str]:  # noqa: ANN401
         """Get suggestions for specific intent type."""
         # Normalize to string value
         intent_type_str = intent_type.value if hasattr(intent_type, "value") else str(intent_type)
@@ -501,8 +520,7 @@ class TemplateGenerator:
         return suggestions_map.get(intent_type_str, [])
 
     def _load_default_templates(self) -> None:
-        """
-        Load default response templates.
+        """Load default response templates.
 
         Time Complexity: O(1) - fixed number of templates
         """
@@ -693,42 +711,42 @@ class TemplateGenerator:
         )
 
     def add_template(self, template: ResponseTemplate) -> None:
-        """
-        Add custom template to registry.
+        """Add custom template to registry.
 
         Args:
             template: Response template to add
+
         """
         self._templates[template.template_id] = template
         logger.info("Added custom template: %s", template.template_id)
 
-    def get_template(self, template_id: str) -> Optional[ResponseTemplate]:
-        """
-        Get template by ID.
+    def get_template(self, template_id: str) -> ResponseTemplate | None:
+        """Get template by ID.
 
         Args:
             template_id: Template identifier
 
         Returns:
             Response template or None if not found
+
         """
         return self._templates.get(template_id)
 
     def list_templates(self) -> list[str]:
-        """
-        List all available template IDs.
+        """List all available template IDs.
 
         Returns:
             List of template IDs
+
         """
         return list(self._templates.keys())
 
-    def set_proactive_generator(self, generator: Any) -> None:
-        """
-        Set proactive suggestion generator.
+    def set_proactive_generator(self, generator: Any) -> None:  # noqa: ANN401
+        """Set proactive suggestion generator.
 
         Args:
             generator: ProactiveSuggestionGenerator instance
+
         """
         self._proactive_generator = generator
         logger.info("Proactive suggestion generator set")

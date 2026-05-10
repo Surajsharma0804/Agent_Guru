@@ -1,5 +1,4 @@
-"""
-Access Controller - RBAC and ABAC access control decisions.
+"""Access Controller - RBAC and ABAC access control decisions.
 
 Combines role-based and attribute-based access control with
 conflict resolution and caching.
@@ -15,10 +14,9 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from Agent_Guru.policy.cache_manager import CacheManager
-from Agent_Guru.policy.conflict_resolver import ConflictResolver
 from Agent_Guru.policy.models import (
     AccessDecision,
     ConflictStrategy,
@@ -28,8 +26,11 @@ from Agent_Guru.policy.models import (
     Resource,
     Role,
 )
-from Agent_Guru.policy.policy_storage import PolicyStorage
 from Agent_Guru.policy.rule_evaluator import RuleEvaluationError, RuleEvaluator
+
+if TYPE_CHECKING:
+    from Agent_Guru.policy.conflict_resolver import ConflictResolver
+    from Agent_Guru.policy.policy_storage import PolicyStorage
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class AccessController:
         storage: PolicyStorage,
         evaluator: RuleEvaluator,
         resolver: ConflictResolver,
-        cache: Optional[CacheManager] = None,
+        cache: CacheManager | None = None,
     ) -> None:
         """Initialise the access controller.
 
@@ -57,6 +58,7 @@ class AccessController:
             evaluator: Rule evaluator.
             resolver: Conflict resolver.
             cache: Optional cache manager.
+
         """
         self.storage = storage
         self.evaluator = evaluator
@@ -72,8 +74,8 @@ class AccessController:
         principal: Principal,
         resource: Resource,
         action: str,
-        context: Optional[dict[str, Any]] = None,
-        strategy: Optional[ConflictStrategy] = None,
+        context: dict[str, Any] | None = None,
+        strategy: ConflictStrategy | None = None,
     ) -> AccessDecision:
         """Check if access should be granted.
 
@@ -90,6 +92,7 @@ class AccessController:
             AccessDecision with ALLOW or DENY.
 
         Validates: Requirements 3.4, 4.1–4.4
+
         """
         start = time.monotonic()
 
@@ -103,8 +106,12 @@ class AccessController:
         # Check cache
         if self.cache:
             cache_key = CacheManager.compute_cache_key(
-                principal.id, resource.id, action, context or {},
-                principal.attributes, resource.attributes,
+                principal.id,
+                resource.id,
+                action,
+                context or {},
+                principal.attributes,
+                resource.attributes,
             )
             cached = self.cache.get(cache_key)
             if cached is not None:
@@ -124,10 +131,12 @@ class AccessController:
         for policy in policies:
             try:
                 conditions_met = self.evaluator.evaluate(
-                    policy.conditions, eval_context, memo_cache
+                    policy.conditions,
+                    eval_context,
+                    memo_cache,
                 )
             except RuleEvaluationError as exc:
-                logger.warning("Rule evaluation error for policy '%s': %s", policy.id, exc)
+                logger.exception("Rule evaluation error for policy '%s': %s", policy.id, exc)
                 conditions_met = False  # Fail-safe: treat as not matching
 
             evaluated.append(
@@ -136,7 +145,7 @@ class AccessController:
                     effect=policy.effect,
                     priority=policy.priority,
                     conditions_met=conditions_met,
-                )
+                ),
             )
 
         # Resolve conflicts
@@ -146,7 +155,7 @@ class AccessController:
         decision = AccessDecision(
             effect=decision_obj.effect,
             reason=f"Resolved via {decision_obj.resolution_strategy} "
-                   f"(winner: {decision_obj.winning_policy_id or 'none'})",
+            f"(winner: {decision_obj.winning_policy_id or 'none'})",
             applicable_policies=[p.policy_id for p in evaluated if p.conditions_met],
             evaluation_time_ms=elapsed_ms,
         )
@@ -183,9 +192,7 @@ class AccessController:
 
         return permissions
 
-    def _collect_permissions(
-        self, role: Role, permissions: set[str], depth: int
-    ) -> None:
+    def _collect_permissions(self, role: Role, permissions: set[str], depth: int) -> None:
         """Recursively collect permissions from a role and its ancestors."""
         if depth > MAX_ROLE_DEPTH:
             logger.warning("Role hierarchy depth exceeded for role '%s'", role.id)

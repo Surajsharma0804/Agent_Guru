@@ -1,8 +1,7 @@
-"""
-Module: agent_guru.reasoning.models.verification
+"""Module: agent_guru.reasoning.models.verification
 Purpose: Data models for reasoning verification and validation
 Author: Agent Guru Team
-Date: 2026-02-22
+Date: 2026-02-22.
 
 Performance Requirements:
 - Time Complexity: O(1) for model creation and validation
@@ -15,9 +14,8 @@ Design Decisions:
 - Immutable models for thread safety
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -30,6 +28,7 @@ class IssueType(str, Enum):
         TOOL_COMPATIBILITY: Issues with tool availability or parameters
         LOGICAL_CONSISTENCY: Issues with conflicting or impossible actions
         INTENT_ALIGNMENT: Issues with plan not matching user intent
+
     """
 
     PLAN_CORRECTNESS = "plan_correctness"
@@ -45,6 +44,7 @@ class IssueSeverity(str, Enum):
         CRITICAL: Must be fixed before execution (blocks execution)
         WARNING: Should be reviewed but can proceed
         INFO: Informational only, no action required
+
     """
 
     CRITICAL = "critical"
@@ -60,6 +60,7 @@ class VerificationAction(str, Enum):
         CLARIFY: Ask user for clarification
         REPLAN: Regenerate plan with feedback
         ABORT: Cannot proceed, abort execution
+
     """
 
     PROCEED = "proceed"
@@ -85,18 +86,25 @@ class VerificationIssue(BaseModel):
         ...     description="Tool 'send_email' requires parameter 'recipient' which is missing",
         ...     affected_step=2
         ... )
+
     """
 
     issue_type: IssueType = Field(..., description="Type of verification issue")
     severity: IssueSeverity = Field(..., description="Severity level of the issue")
     description: str = Field(
-        ..., min_length=1, max_length=500, description="Human-readable issue description"
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Human-readable issue description",
     )
-    affected_step: Optional[int] = Field(
-        None, ge=0, description="Step index affected by this issue (None for plan-level)"
+    affected_step: int | None = Field(
+        None,
+        ge=0,
+        description="Step index affected by this issue (None for plan-level)",
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc), description="When the issue was detected"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the issue was detected",
     )
 
     @field_validator("description")
@@ -104,9 +112,12 @@ class VerificationIssue(BaseModel):
     def validate_description(cls, v: str) -> str:
         """Validate description is not empty and has reasonable length."""
         if not v or not v.strip():
-            raise ValueError("Description cannot be empty")
-        if len(v.strip()) < 10:
-            raise ValueError("Description must be at least 10 characters")
+            msg = "Description cannot be empty"
+            raise ValueError(msg)
+        if len(v.strip()) < 10:  # noqa: PLR2004 - Threshold
+
+            msg = "Description must be at least 10 characters"
+            raise ValueError(msg)
         return v.strip()
 
     class Config:
@@ -119,7 +130,7 @@ class VerificationIssue(BaseModel):
                 "description": "Tool 'send_email' requires parameter 'recipient' which is missing",
                 "affected_step": 2,
                 "timestamp": "2026-02-22T10:30:00Z",
-            }
+            },
         }
 
 
@@ -142,21 +153,29 @@ class VerificationResult(BaseModel):
         ...     recommendation=VerificationAction.REPLAN,
         ...     verification_time_ms=150.5
         ... )
+
     """
 
     is_valid: bool = Field(..., description="Whether plan passed all critical checks")
     confidence: float = Field(
-        ..., ge=0.0, le=1.0, description="Confidence in verification result (0.0-1.0)"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Confidence in verification result (0.0-1.0)",
     )
     issues: list[VerificationIssue] = Field(
-        default_factory=list, description="List of issues found"
+        default_factory=list,
+        description="List of issues found",
     )
     recommendation: VerificationAction = Field(..., description="Recommended action")
     verification_time_ms: float = Field(
-        ..., ge=0.0, description="Verification time in milliseconds"
+        ...,
+        ge=0.0,
+        description="Verification time in milliseconds",
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc), description="When verification was performed"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When verification was performed",
     )
 
     @field_validator("confidence")
@@ -164,7 +183,8 @@ class VerificationResult(BaseModel):
     def validate_confidence(cls, v: float) -> float:
         """Validate confidence is between 0.0 and 1.0."""
         if not 0.0 <= v <= 1.0:
-            raise ValueError(f"Confidence must be between 0.0 and 1.0, got {v}")
+            msg = f"Confidence must be between 0.0 and 1.0, got {v}"
+            raise ValueError(msg)
         return v
 
     @field_validator("verification_time_ms")
@@ -172,17 +192,22 @@ class VerificationResult(BaseModel):
     def validate_verification_time(cls, v: float) -> float:
         """Validate verification time is non-negative and reasonable."""
         if v < 0:
-            raise ValueError(f"Verification time cannot be negative, got {v}")
-        if v > 5000:  # 5 seconds is too long
-            raise ValueError(f"Verification time exceeds maximum (5000ms), got {v}")
+            msg = f"Verification time cannot be negative, got {v}"
+            raise ValueError(msg)
+        if v > 5000:  # 5 seconds is too long  # noqa: PLR2004 (Percentage/large threshold)
+
+            msg = f"Verification time exceeds maximum (5000ms), got {v}"
+            raise ValueError(msg)
         return v
 
     @field_validator("issues")
     @classmethod
     def validate_issues(cls, v: list[VerificationIssue]) -> list[VerificationIssue]:
         """Validate issues list is reasonable size."""
-        if len(v) > 50:  # Sanity check
-            raise ValueError(f"Too many issues ({len(v)}), maximum is 50")
+        if len(v) > 50:  # Sanity check  # noqa: PLR2004 (Threshold)
+
+            msg = f"Too many issues ({len(v)}), maximum is 50"
+            raise ValueError(msg)
         return v
 
     def has_critical_issues(self) -> bool:
@@ -190,6 +215,7 @@ class VerificationResult(BaseModel):
 
         Returns:
             True if any issue has CRITICAL severity
+
         """
         return any(issue.severity == IssueSeverity.CRITICAL for issue in self.issues)
 
@@ -198,6 +224,7 @@ class VerificationResult(BaseModel):
 
         Returns:
             True if any issue has WARNING severity
+
         """
         return any(issue.severity == IssueSeverity.WARNING for issue in self.issues)
 
@@ -206,6 +233,7 @@ class VerificationResult(BaseModel):
 
         Returns:
             List of critical issues
+
         """
         return [issue for issue in self.issues if issue.severity == IssueSeverity.CRITICAL]
 
@@ -214,6 +242,7 @@ class VerificationResult(BaseModel):
 
         Returns:
             List of warning issues
+
         """
         return [issue for issue in self.issues if issue.severity == IssueSeverity.WARNING]
 
@@ -225,6 +254,7 @@ class VerificationResult(BaseModel):
 
         Returns:
             List of issues matching the type
+
         """
         return [issue for issue in self.issues if issue.issue_type == issue_type]
 
@@ -236,6 +266,7 @@ class VerificationResult(BaseModel):
 
         Returns:
             List of issues affecting the step
+
         """
         return [issue for issue in self.issues if issue.affected_step == step_index]
 
@@ -253,10 +284,10 @@ class VerificationResult(BaseModel):
                         "description": "Tool 'send_email' requires parameter 'recipient' which is missing",
                         "affected_step": 2,
                         "timestamp": "2026-02-22T10:30:00Z",
-                    }
+                    },
                 ],
                 "recommendation": "replan",
                 "verification_time_ms": 150.5,
                 "timestamp": "2026-02-22T10:30:00Z",
-            }
+            },
         }

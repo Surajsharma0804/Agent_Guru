@@ -1,5 +1,4 @@
-"""
-Automatic recovery mechanisms for error handling.
+"""Automatic recovery mechanisms for error handling.
 
 Provides intelligent recovery strategies:
 - Retry logic with exponential backoff
@@ -11,9 +10,9 @@ Provides intelligent recovery strategies:
 import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -52,11 +51,12 @@ class CircuitBreakerConfig:
 class RetryHandler:
     """Handler for retry logic with exponential backoff."""
 
-    def __init__(self, config: Optional[RetryConfig] = None):
+    def __init__(self, config: RetryConfig | None = None) -> None:
         """Initialize retry handler.
 
         Args:
             config: Retry configuration
+
         """
         self.config = config or RetryConfig()
         self._retry_counts: dict[str, int] = {}
@@ -65,10 +65,10 @@ class RetryHandler:
     async def execute_with_retry(
         self,
         func: Callable,
-        *args: Any,
+        *args: Any,  # noqa: ANN401
         operation_id: str = "default",
-        **kwargs: Any,
-    ) -> Any:
+        **kwargs: Any,  # noqa: ANN401
+    ) -> Any:  # noqa: ANN401
         """Execute function with retry logic.
 
         Args:
@@ -82,6 +82,7 @@ class RetryHandler:
 
         Raises:
             Exception: If all retries exhausted
+
         """
         last_exception = None
         retry_count = 0
@@ -96,9 +97,7 @@ class RetryHandler:
 
                 # Success - reset retry count
                 self._retry_counts[operation_id] = 0
-                self._success_counts[operation_id] = (
-                    self._success_counts.get(operation_id, 0) + 1
-                )
+                self._success_counts[operation_id] = self._success_counts.get(operation_id, 0) + 1
 
                 logger.info(
                     "retry_success",
@@ -116,7 +115,7 @@ class RetryHandler:
 
                 # Check if should retry
                 if not self._should_retry(e, retry_count):
-                    logger.error(
+                    logger.exception(
                         "retry_exhausted",
                         operation_id=operation_id,
                         retry_count=retry_count,
@@ -127,7 +126,7 @@ class RetryHandler:
                 # Calculate delay with exponential backoff
                 delay = self._calculate_delay(retry_count)
 
-                logger.warning(
+                logger.exception(
                     "retry_attempt",
                     operation_id=operation_id,
                     retry_count=retry_count,
@@ -147,7 +146,8 @@ class RetryHandler:
         )
         if last_exception:
             raise last_exception
-        raise RuntimeError("All retries failed with unknown error")
+        msg = "All retries failed with unknown error"
+        raise RuntimeError(msg)
 
     def _should_retry(self, exception: Exception, retry_count: int) -> bool:
         """Check if should retry after exception.
@@ -158,6 +158,7 @@ class RetryHandler:
 
         Returns:
             True if should retry
+
         """
         # Don't retry if max retries reached
         if retry_count > self.config.max_retries:
@@ -194,19 +195,19 @@ class RetryHandler:
 
         Returns:
             Delay in seconds
+
         """
         # Exponential backoff
         delay = min(
-            self.config.initial_delay
-            * (self.config.exponential_base ** (retry_count - 1)),
+            self.config.initial_delay * (self.config.exponential_base ** (retry_count - 1)),
             self.config.max_delay,
         )
 
         # Add jitter to prevent thundering herd
         if self.config.jitter:
-            import random
+            import secrets
 
-            delay = delay * (0.5 + random.random() * 0.5)
+            delay = delay * (0.5 + secrets.SystemRandom().random() * 0.5)
 
         return delay
 
@@ -218,6 +219,7 @@ class RetryHandler:
 
         Returns:
             Statistics dictionary
+
         """
         return {
             "retry_count": self._retry_counts.get(operation_id, 0),
@@ -231,13 +233,14 @@ class CircuitBreaker:
     def __init__(
         self,
         service_name: str,
-        config: Optional[CircuitBreakerConfig] = None,
-    ):
+        config: CircuitBreakerConfig | None = None,
+    ) -> None:
         """Initialize circuit breaker.
 
         Args:
             service_name: Name of service
             config: Circuit breaker configuration
+
         """
         self.service_name = service_name
         self.config = config or CircuitBreakerConfig()
@@ -245,15 +248,15 @@ class CircuitBreaker:
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._success_count = 0
-        self._last_failure_time: Optional[datetime] = None
-        self._last_state_change: datetime = datetime.now(tz=timezone.utc)
+        self._last_failure_time: datetime | None = None
+        self._last_state_change: datetime = datetime.now(tz=UTC)
 
     async def execute(
         self,
         func: Callable,
-        *args: Any,
-        **kwargs: Any,
-    ) -> Any:
+        *args: Any,  # noqa: ANN401
+        **kwargs: Any,  # noqa: ANN401
+    ) -> Any:  # noqa: ANN401
         """Execute function through circuit breaker.
 
         Args:
@@ -266,13 +269,14 @@ class CircuitBreaker:
 
         Raises:
             Exception: If circuit is open or function fails
+
         """
         # Check circuit state
         if self._state == CircuitState.OPEN:
             # Check if should try half-open
             if self._should_attempt_reset():
                 self._state = CircuitState.HALF_OPEN
-                self._last_state_change = datetime.now(tz=timezone.utc)
+                self._last_state_change = datetime.now(tz=UTC)
                 logger.info(
                     "circuit_half_open",
                     service=self.service_name,
@@ -283,7 +287,8 @@ class CircuitBreaker:
                     "circuit_open_rejected",
                     service=self.service_name,
                 )
-                raise Exception(f"Circuit breaker open for {self.service_name}")
+                msg = f"Circuit breaker open for {self.service_name}"
+                raise Exception(msg)
 
         try:
             # Execute function
@@ -296,7 +301,7 @@ class CircuitBreaker:
             self._on_success()
             return result
 
-        except Exception as e:
+        except Exception:
             # Failure
             self._on_failure()
             raise
@@ -311,7 +316,7 @@ class CircuitBreaker:
             if self._success_count >= self.config.success_threshold:
                 self._state = CircuitState.CLOSED
                 self._success_count = 0
-                self._last_state_change = datetime.now(tz=timezone.utc)
+                self._last_state_change = datetime.now(tz=UTC)
                 logger.info(
                     "circuit_closed",
                     service=self.service_name,
@@ -321,13 +326,13 @@ class CircuitBreaker:
         """Handle failed execution."""
         self._failure_count += 1
         self._success_count = 0
-        self._last_failure_time = datetime.now(tz=timezone.utc)
+        self._last_failure_time = datetime.now(tz=UTC)
 
         # Check if should open circuit
         if self._state == CircuitState.CLOSED:
             if self._failure_count >= self.config.failure_threshold:
                 self._state = CircuitState.OPEN
-                self._last_state_change = datetime.now(tz=timezone.utc)
+                self._last_state_change = datetime.now(tz=UTC)
                 logger.warning(
                     "circuit_opened",
                     service=self.service_name,
@@ -337,7 +342,7 @@ class CircuitBreaker:
         elif self._state == CircuitState.HALF_OPEN:
             # Failed during half-open, reopen circuit
             self._state = CircuitState.OPEN
-            self._last_state_change = datetime.now(tz=timezone.utc)
+            self._last_state_change = datetime.now(tz=UTC)
             logger.warning(
                 "circuit_reopened",
                 service=self.service_name,
@@ -348,11 +353,12 @@ class CircuitBreaker:
 
         Returns:
             True if should attempt reset
+
         """
         if self._last_failure_time is None:
             return True
 
-        elapsed = (datetime.now(tz=timezone.utc) - self._last_failure_time).total_seconds()
+        elapsed = (datetime.now(tz=UTC) - self._last_failure_time).total_seconds()
         return elapsed >= self.config.timeout
 
     def get_state(self) -> CircuitState:
@@ -360,6 +366,7 @@ class CircuitBreaker:
 
         Returns:
             Circuit state
+
         """
         return self._state
 
@@ -368,6 +375,7 @@ class CircuitBreaker:
 
         Returns:
             Statistics dictionary
+
         """
         return {
             "service": self.service_name,
@@ -375,9 +383,7 @@ class CircuitBreaker:
             "failure_count": self._failure_count,
             "success_count": self._success_count,
             "last_failure_time": (
-                self._last_failure_time.isoformat()
-                if self._last_failure_time
-                else None
+                self._last_failure_time.isoformat() if self._last_failure_time else None
             ),
             "last_state_change": self._last_state_change.isoformat(),
         }
@@ -386,20 +392,19 @@ class CircuitBreaker:
 class FailoverManager:
     """Manager for automatic failover between backends."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize failover manager."""
         self._backends: dict[str, list[str]] = {}
         self._current_backend: dict[str, int] = {}
         self._backend_health: dict[str, dict[str, bool]] = {}
 
-    def register_backends(
-        self, service_type: str, backends: list[str]
-    ) -> None:
+    def register_backends(self, service_type: str, backends: list[str]) -> None:
         """Register backends for a service type.
 
         Args:
             service_type: Type of service (e.g., "llm", "database")
             backends: List of backend identifiers
+
         """
         self._backends[service_type] = backends
         self._current_backend[service_type] = 0
@@ -409,9 +414,9 @@ class FailoverManager:
         self,
         service_type: str,
         func: Callable[[str], Any],
-        *args: Any,
-        **kwargs: Any,
-    ) -> Any:
+        *args: Any,  # noqa: ANN401
+        **kwargs: Any,  # noqa: ANN401
+    ) -> Any:  # noqa: ANN401
         """Execute function with automatic failover.
 
         Args:
@@ -425,10 +430,12 @@ class FailoverManager:
 
         Raises:
             Exception: If all backends fail
+
         """
         backends = self._backends.get(service_type, [])
         if not backends:
-            raise ValueError(f"No backends registered for {service_type}")
+            msg = f"No backends registered for {service_type}"
+            raise ValueError(msg)
 
         last_exception = None
         attempts = 0
@@ -472,7 +479,7 @@ class FailoverManager:
                 # Mark backend as unhealthy
                 self._backend_health[service_type][backend] = False
 
-                logger.warning(
+                logger.exception(
                     "failover_backend_failed",
                     service_type=service_type,
                     backend=backend,
@@ -488,9 +495,10 @@ class FailoverManager:
         )
         if last_exception:
             raise last_exception
-        raise RuntimeError(f"All backends failed for {service_type}")
+        msg = f"All backends failed for {service_type}"
+        raise RuntimeError(msg)
 
-    def get_current_backend(self, service_type: str) -> Optional[str]:
+    def get_current_backend(self, service_type: str) -> str | None:
         """Get current backend for a service type.
 
         Args:
@@ -498,6 +506,7 @@ class FailoverManager:
 
         Returns:
             Current backend identifier or None
+
         """
         backends = self._backends.get(service_type, [])
         if not backends:
@@ -511,14 +520,15 @@ class FailoverManager:
 
         Returns:
             Health status dictionary
+
         """
         return dict(self._backend_health)
 
 
 # Global instances
-_global_retry_handler: Optional[RetryHandler] = None
+_global_retry_handler: RetryHandler | None = None
 _global_circuit_breakers: dict[str, CircuitBreaker] = {}
-_global_failover_manager: Optional[FailoverManager] = None
+_global_failover_manager: FailoverManager | None = None
 
 
 def get_retry_handler() -> RetryHandler:
@@ -526,6 +536,7 @@ def get_retry_handler() -> RetryHandler:
 
     Returns:
         Global RetryHandler instance
+
     """
     global _global_retry_handler
     if _global_retry_handler is None:
@@ -541,6 +552,7 @@ def get_circuit_breaker(service_name: str) -> CircuitBreaker:
 
     Returns:
         CircuitBreaker instance
+
     """
     global _global_circuit_breakers
     if service_name not in _global_circuit_breakers:
@@ -553,6 +565,7 @@ def get_failover_manager() -> FailoverManager:
 
     Returns:
         Global FailoverManager instance
+
     """
     global _global_failover_manager
     if _global_failover_manager is None:

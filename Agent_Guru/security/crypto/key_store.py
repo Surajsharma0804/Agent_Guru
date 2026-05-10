@@ -8,9 +8,10 @@ Storage backend: SQLite (in-memory or file-based).
 
 from __future__ import annotations
 
+import contextlib
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -34,6 +35,7 @@ class KeyStore:
     Args:
         storage_path: Path to SQLite database, or ":memory:" for in-memory.
         master_password: Password used to derive the encryption key.
+
     """
 
     def __init__(self, storage_path: str = ":memory:", master_password: str = "") -> None:  # nosec B107
@@ -59,6 +61,7 @@ class KeyStore:
 
         Raises:
             KeyStorageError: If encryption or storage fails.
+
         """
         try:
             nonce = os.urandom(_NONCE_SIZE)
@@ -71,10 +74,11 @@ class KeyStore:
                     INSERT OR REPLACE INTO keys (key_id, encrypted_key, nonce, created_at)
                     VALUES (?, ?, ?, ?)
                     """,
-                    (key_id, encrypted, nonce, datetime.now(tz=timezone.utc).isoformat()),
+                    (key_id, encrypted, nonce, datetime.now(tz=UTC).isoformat()),
                 )
         except Exception as exc:
-            raise KeyStorageError(f"Failed to store key: type={type(exc).__name__}") from exc
+            msg = f"Failed to store key: type={type(exc).__name__}"
+            raise KeyStorageError(msg) from exc
 
     def retrieve_key(self, key_id: str) -> bytes:
         """Retrieve and decrypt key.
@@ -90,6 +94,7 @@ class KeyStore:
         Raises:
             KeyNotFoundError: If key doesn't exist.
             KeyStorageError: If decryption fails.
+
         """
         row = self._conn.execute(
             "SELECT encrypted_key, nonce FROM keys WHERE key_id = ?",
@@ -97,14 +102,19 @@ class KeyStore:
         ).fetchone()
 
         if row is None:
-            raise KeyNotFoundError("Key not found")
+            msg = "Key not found"
+            raise KeyNotFoundError(msg)
 
         try:
             aesgcm = AESGCM(self._encryption_key)
-            decrypted = aesgcm.decrypt(bytes(row["nonce"]), bytes(row["encrypted_key"]), key_id.encode())
-            return decrypted
+            return aesgcm.decrypt(
+                bytes(row["nonce"]),
+                bytes(row["encrypted_key"]),
+                key_id.encode(),
+            )
         except Exception as exc:
-            raise KeyStorageError(f"Failed to decrypt key: type={type(exc).__name__}") from exc
+            msg = f"Failed to decrypt key: type={type(exc).__name__}"
+            raise KeyStorageError(msg) from exc
 
     def delete_key(self, key_id: str) -> None:
         """Securely delete key.
@@ -114,21 +124,19 @@ class KeyStore:
 
         Raises:
             KeyNotFoundError: If key doesn't exist.
+
         """
-        cursor = self._conn.execute(
-            "SELECT COUNT(*) FROM keys WHERE key_id = ?", (key_id,)
-        )
+        cursor = self._conn.execute("SELECT COUNT(*) FROM keys WHERE key_id = ?", (key_id,))
         if cursor.fetchone()[0] == 0:
-            raise KeyNotFoundError("Key not found")
+            msg = "Key not found"
+            raise KeyNotFoundError(msg)
 
         with self._conn:
             self._conn.execute("DELETE FROM keys WHERE key_id = ?", (key_id,))
 
     def key_exists(self, key_id: str) -> bool:
         """Check if a key exists."""
-        row = self._conn.execute(
-            "SELECT COUNT(*) FROM keys WHERE key_id = ?", (key_id,)
-        ).fetchone()
+        row = self._conn.execute("SELECT COUNT(*) FROM keys WHERE key_id = ?", (key_id,)).fetchone()
         return row[0] > 0
 
     def close(self) -> None:
@@ -137,10 +145,8 @@ class KeyStore:
 
     def __del__(self) -> None:
         """Ensure connection is closed when object is garbage-collected."""
-        try:
+        with contextlib.suppress(Exception):
             self._conn.close()
-        except Exception:
-            pass
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -157,7 +163,7 @@ class KeyStore:
                     created_at TEXT NOT NULL,
                     deprecated_at TEXT
                 )
-                """
+                """,
             )
             self._conn.execute(
                 """
@@ -165,14 +171,12 @@ class KeyStore:
                     key TEXT PRIMARY KEY,
                     value BLOB NOT NULL
                 )
-                """
+                """,
             )
 
     def _get_or_create_salt(self) -> bytes:
         """Get existing salt or create a new one."""
-        row = self._conn.execute(
-            "SELECT value FROM metadata WHERE key = 'kdf_salt'"
-        ).fetchone()
+        row = self._conn.execute("SELECT value FROM metadata WHERE key = 'kdf_salt'").fetchone()
 
         if row is not None:
             return bytes(row["value"])
@@ -196,6 +200,7 @@ class KeyStore:
 
         Returns:
             32-byte encryption key.
+
         """
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),

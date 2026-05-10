@@ -1,5 +1,4 @@
-"""
-Ollama LLM Server Integration
+"""Ollama LLM Server Integration.
 
 Manages Ollama server integration for local inference.
 Provides health checks, model selection, and inference endpoints.
@@ -19,7 +18,7 @@ Requirements: 4.2, 4.5
 import asyncio
 import time
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -61,8 +60,7 @@ OLLAMA_MODELS = {
 
 
 class OllamaServer:
-    """
-    Ollama LLM server integration with intelligent model routing.
+    """Ollama LLM server integration with intelligent model routing.
 
     Time Complexity: O(1) for health checks, O(n) for inference (n = tokens)
     Space Complexity: O(1) - models managed by Ollama
@@ -74,6 +72,7 @@ class OllamaServer:
         >>> print(f"Server healthy: {health.is_healthy}")
         >>> request = LLMRequest(prompt="Hello, world!")
         >>> response = await server.generate(request, model="gemma3:4b")
+
     """
 
     def __init__(
@@ -81,13 +80,14 @@ class OllamaServer:
         host: str = "127.0.0.1",
         port: int = 11434,
         default_model: str = "gemma3:4b",
-    ):
+    ) -> None:
         """Initialize Ollama server client.
 
         Args:
             host: Ollama server host
             port: Ollama server port
             default_model: Default model to use for inference
+
         """
         self.host = host
         self.port = port
@@ -111,6 +111,7 @@ class OllamaServer:
         Raises:
             RuntimeError: If server is not available
             TimeoutError: If check exceeds timeout
+
         """
         start_time = time.time()
 
@@ -125,10 +126,13 @@ class OllamaServer:
                 missing_models = [m for m in required_models if m not in self._available_models]
 
                 if missing_models:
-                    raise RuntimeError(
+                    msg = (
                         f"Required models not found: {missing_models}. "
                         f"Run: ollama pull gemma3:4b\n"
                         f"Available models: {self._available_models}"
+                    )
+                    raise RuntimeError(
+                        msg,
                     )
 
                 self._is_running = True
@@ -136,7 +140,8 @@ class OllamaServer:
 
             await asyncio.sleep(0.5)
 
-        raise TimeoutError(f"Ollama server not available within {timeout}s")
+        msg = f"Ollama server not available within {timeout}s"
+        raise TimeoutError(msg)
 
     async def _list_models(self) -> list[str]:
         """List available models from Ollama.
@@ -146,6 +151,7 @@ class OllamaServer:
 
         Raises:
             RuntimeError: If listing fails
+
         """
         import asyncio
         import concurrent.futures
@@ -155,18 +161,20 @@ class OllamaServer:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 response = await loop.run_in_executor(
                     pool,
-                    lambda: requests.get(f"{self._base_url}/api/tags", timeout=2.0),
+                    lambda: requests.get(f"{self._base_url}/api/tags", timeout=2.0),  # noqa: ASYNC210
                 )
 
-            if response.status_code == 200:
+            if response.status_code == 200:  # noqa: PLR2004 - Percentage/large threshold
+
                 data = response.json()
                 models = data.get("models", [])
                 return [model.get("name", "") for model in models]
-            else:
-                raise RuntimeError(f"Failed to list models: {response.status_code}")
+            msg = f"Failed to list models: {response.status_code}"
+            raise RuntimeError(msg)
 
         except requests.RequestException as e:
-            raise RuntimeError(f"Error listing models: {str(e)}") from e
+            msg = f"Error listing models: {e!s}"
+            raise RuntimeError(msg) from e
 
     async def health_check(self) -> ServerHealth:
         """Check Ollama server health and availability.
@@ -178,6 +186,7 @@ class OllamaServer:
             Server health status
 
         Requirements: 4.2
+
         """
         import asyncio
         import concurrent.futures
@@ -190,12 +199,13 @@ class OllamaServer:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 response = await loop.run_in_executor(
                     pool,
-                    lambda: requests.get(f"{self._base_url}/api/tags", timeout=1.0),
+                    lambda: requests.get(f"{self._base_url}/api/tags", timeout=1.0),  # noqa: ASYNC210
                 )
 
             latency_ms = (time.time() - start_time) * 1000
 
-            if response.status_code == 200:
+            if response.status_code == 200:  # noqa: PLR2004 - Percentage/large threshold
+
                 return ServerHealth(
                     is_healthy=True,
                     model_loaded=len(self._available_models) > 0,
@@ -203,15 +213,14 @@ class OllamaServer:
                     gpu_backend=GPUBackend.CUDA,
                     latency_ms=latency_ms,
                 )
-            else:
-                return ServerHealth(
-                    is_healthy=False,
-                    model_loaded=False,
-                    gpu_available=False,
-                    gpu_backend=None,
-                    latency_ms=latency_ms,
-                    error_message=f"Health check failed: {response.status_code}",
-                )
+            return ServerHealth(
+                is_healthy=False,
+                model_loaded=False,
+                gpu_available=False,
+                gpu_backend=None,
+                latency_ms=latency_ms,
+                error_message=f"Health check failed: {response.status_code}",
+            )
 
         except requests.RequestException as e:
             return ServerHealth(
@@ -220,13 +229,13 @@ class OllamaServer:
                 gpu_available=False,
                 gpu_backend=None,
                 latency_ms=None,
-                error_message=f"Ollama not available: {str(e)}",
+                error_message=f"Ollama not available: {e!s}",
             )
 
     async def generate(
         self,
         request: LLMRequest,
-        model: Optional[str] = None,
+        model: str | None = None,
     ) -> LLMResponse:
         """Generate text using Ollama model.
 
@@ -244,17 +253,20 @@ class OllamaServer:
             RuntimeError: If server not running or generation fails
 
         Requirements: 4.2, 10.1
+
         """
         if not self._is_running:
-            raise RuntimeError("Server not running. Call start() first.")
+            msg = "Server not running. Call start() first."
+            raise RuntimeError(msg)
 
         # Use default model if not specified
         model_name = model or self.default_model
 
         # Verify model is available
         if model_name not in self._available_models:
+            msg = f"Model not available: {model_name}. Available: {self._available_models}"
             raise RuntimeError(
-                f"Model not available: {model_name}. " f"Available: {self._available_models}"
+                msg,
             )
 
         start_time = time.time()
@@ -286,7 +298,7 @@ class OllamaServer:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 response = await loop.run_in_executor(
                     pool,
-                    lambda: requests.post(
+                    lambda: requests.post(  # noqa: ASYNC210
                         f"{self._base_url}/api/generate",
                         json=payload,
                         timeout=15.0,
@@ -295,7 +307,8 @@ class OllamaServer:
 
             latency_ms = (time.time() - start_time) * 1000
 
-            if response.status_code == 200:
+            if response.status_code == 200:  # noqa: PLR2004 - Percentage/large threshold
+
                 data = response.json()
 
                 # Extract response text
@@ -325,11 +338,12 @@ class OllamaServer:
                         "eval_count": data.get("eval_count", 0),
                     },
                 )
-            else:
-                raise RuntimeError(f"Generation failed: {response.status_code} - {response.text}")
+            msg = f"Generation failed: {response.status_code} - {response.text}"
+            raise RuntimeError(msg)
 
         except requests.RequestException as e:
-            raise RuntimeError(f"Generation error: {str(e)}") from e
+            msg = f"Generation error: {e!s}"
+            raise RuntimeError(msg) from e
 
     def select_model_for_task(self, complexity: str) -> str:
         """Select optimal model based on task complexity.
@@ -345,8 +359,10 @@ class OllamaServer:
             'gemma3:4b'
             >>> server.select_model_for_task("complex")
             'gemma3:4b'
+
         """
         import os
+
         return os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
 
     async def measure_latency(
@@ -364,6 +380,7 @@ class OllamaServer:
             Dictionary with latency statistics (mean, p50, p95, p99)
 
         Requirements: 10.1
+
         """
         latencies = []
 
@@ -378,7 +395,7 @@ class OllamaServer:
             try:
                 response = await self.generate(request, model=model)
                 latencies.append(response.latency_ms)
-            except Exception as e:
+            except Exception:
                 continue
 
         if not latencies:
@@ -416,7 +433,7 @@ class OllamaServer:
         """Get list of available models."""
         return self._available_models.copy()
 
-    def get_model_config(self, model: str) -> Optional[OllamaModelConfig]:
+    def get_model_config(self, model: str) -> OllamaModelConfig | None:
         """Get configuration for a model.
 
         Args:
@@ -424,5 +441,6 @@ class OllamaServer:
 
         Returns:
             Model configuration or None if not found
+
         """
         return OLLAMA_MODELS.get(model)

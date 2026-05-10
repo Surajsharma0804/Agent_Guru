@@ -1,5 +1,4 @@
-"""
-Tool registry for managing and discovering tools.
+"""Tool registry for managing and discovering tools.
 
 This module provides a centralized registry for all tools with automatic discovery
 and capability-based matching.
@@ -9,7 +8,7 @@ import asyncio
 import time
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.tools.base import Tool, ToolMetadata, ToolSensitivity
 
@@ -37,10 +36,12 @@ class ToolRegistry:
 
         Raises:
             ValueError: If tool_id already registered
+
         """
         async with self._lock:
             if metadata.tool_id in self._tools:
-                raise ValueError(f"Tool '{metadata.tool_id}' already registered")
+                msg = f"Tool '{metadata.tool_id}' already registered"
+                raise ValueError(msg)
 
             # Set metadata on tool
             tool._metadata = metadata
@@ -60,6 +61,7 @@ class ToolRegistry:
 
         Args:
             tool_id: Tool ID to unregister
+
         """
         async with self._lock:
             if tool_id not in self._tools:
@@ -78,7 +80,7 @@ class ToolRegistry:
             del self._tools[tool_id]
             del self._metadata[tool_id]
 
-    def get_tool(self, tool_id: str) -> Optional[Tool]:
+    def get_tool(self, tool_id: str) -> Tool | None:
         """Get a tool by ID.
 
         Args:
@@ -86,10 +88,11 @@ class ToolRegistry:
 
         Returns:
             Tool instance or None if not found
+
         """
         return self._tools.get(tool_id)
 
-    def get_metadata(self, tool_id: str) -> Optional[ToolMetadata]:
+    def get_metadata(self, tool_id: str) -> ToolMetadata | None:
         """Get tool metadata by ID.
 
         Args:
@@ -97,6 +100,7 @@ class ToolRegistry:
 
         Returns:
             Tool metadata or None if not found
+
         """
         return self._metadata.get(tool_id)
 
@@ -105,6 +109,7 @@ class ToolRegistry:
 
         Returns:
             List of tool metadata for all registered tools
+
         """
         return list(self._metadata.values())
 
@@ -116,6 +121,7 @@ class ToolRegistry:
 
         Returns:
             List of tool metadata matching the capability
+
         """
         tool_ids = self._capability_index.get(capability, set())
         return [self._metadata[tool_id] for tool_id in tool_ids if tool_id in self._metadata]
@@ -128,6 +134,7 @@ class ToolRegistry:
 
         Returns:
             List of tool metadata matching any capability, sorted by match count
+
         """
         # Count matches per tool
         match_counts: dict[str, int] = {}
@@ -142,7 +149,10 @@ class ToolRegistry:
         return [self._metadata[tool_id] for tool_id in sorted_tool_ids if tool_id in self._metadata]
 
     async def execute(
-        self, tool_id: str, timeout_ms: Optional[int] = None, **kwargs: Any
+        self,
+        tool_id: str,
+        timeout_ms: int | None = None,
+        **kwargs: Any,  # noqa: ANN401
     ) -> dict[str, Any]:
         """Execute a tool with given parameters.
 
@@ -157,10 +167,12 @@ class ToolRegistry:
         Raises:
             ValueError: If tool not found or parameters invalid
             asyncio.TimeoutError: If execution exceeds timeout
+
         """
         tool = self.get_tool(tool_id)
         if tool is None:
-            raise ValueError(f"Tool '{tool_id}' not found")
+            msg = f"Tool '{tool_id}' not found"
+            raise ValueError(msg)
 
         # Validate parameters
         tool.validate_parameters(**kwargs)
@@ -169,9 +181,7 @@ class ToolRegistry:
         start_time = time.perf_counter()
         try:
             if timeout_ms is not None:
-                result = await asyncio.wait_for(
-                    tool.execute(**kwargs), timeout=timeout_ms / 1000.0
-                )
+                result = await asyncio.wait_for(tool.execute(**kwargs), timeout=timeout_ms / 1000.0)
             else:
                 result = await tool.execute(**kwargs)
 
@@ -179,22 +189,19 @@ class ToolRegistry:
             result["execution_time_ms"] = execution_time_ms
             return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError as e:
             execution_time_ms = int((time.perf_counter() - start_time) * 1000)
             return {
                 "success": False,
                 "error": f"Tool execution timed out after {timeout_ms}ms",
                 "execution_time_ms": execution_time_ms,
             }
-        except Exception as e:
             execution_time_ms = int((time.perf_counter() - start_time) * 1000)
             return {
                 "success": False,
-                "error": f"Tool execution failed: {str(e)}",
+                "error": f"Tool execution failed: {e!s}",
                 "execution_time_ms": execution_time_ms,
             }
-
-
 # Global registry instance
 _global_registry = ToolRegistry()
 
@@ -204,6 +211,7 @@ def get_registry() -> ToolRegistry:
 
     Returns:
         Global ToolRegistry instance
+
     """
     return _global_registry
 
@@ -212,11 +220,11 @@ def tool(
     tool_id: str,
     name: str,
     description: str,
-    parameters: Optional[list[Any]] = None,
+    parameters: list[Any] | None = None,
     sensitivity: ToolSensitivity = ToolSensitivity.SAFE,
     estimated_latency_ms: int = 1000,
-    capabilities: Optional[list[str]] = None,
-    examples: Optional[list[str]] = None,
+    capabilities: list[str] | None = None,
+    examples: list[str] | None = None,
 ) -> Callable[[type[Tool]], type[Tool]]:
     """Decorator for automatic tool registration.
 
@@ -252,6 +260,7 @@ def tool(
             async def execute(self, **kwargs):
                 # Implementation
                 pass
+
     """
 
     def decorator(cls: type[Tool]) -> type[Tool]:
@@ -274,7 +283,7 @@ def tool(
         original_init = cls.__init__
 
         @wraps(original_init)
-        def new_init(self: Tool, *args: Any, **kwargs: Any) -> None:
+        def new_init(self: Tool, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
             original_init(self, *args, **kwargs)
             # Store metadata on instance
             self._metadata = metadata

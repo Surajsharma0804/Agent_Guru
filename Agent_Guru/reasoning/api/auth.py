@@ -1,5 +1,4 @@
-"""
-API authentication and authorization.
+"""API authentication and authorization.
 
 This module implements JWT-based authentication with RBAC and API key management.
 
@@ -33,9 +32,8 @@ import hashlib
 import os
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Optional
 
 import jwt
 from fastapi import HTTPException, Security, status
@@ -141,6 +139,7 @@ class TokenData(BaseModel):
         role: User role for RBAC
         exp: Expiration timestamp
         iat: Issued at timestamp
+
     """
 
     user_id: str
@@ -162,6 +161,7 @@ class APIKey(BaseModel):
         expires_at: Optional expiration timestamp
         last_used: Last usage timestamp
         is_active: Whether key is active
+
     """
 
     key_id: str
@@ -170,8 +170,8 @@ class APIKey(BaseModel):
     role: Role
     name: str
     created_at: datetime
-    expires_at: Optional[datetime] = None
-    last_used: Optional[datetime] = None
+    expires_at: datetime | None = None
+    last_used: datetime | None = None
     is_active: bool = True
 
 
@@ -203,7 +203,7 @@ class APIKeyManager:
         user_id: str,
         role: Role,
         name: str,
-        expires_in_days: Optional[int] = None,
+        expires_in_days: int | None = None,
     ) -> tuple[str, APIKey]:
         """Generate new API key.
 
@@ -228,6 +228,7 @@ class APIKeyManager:
             ... )
             >>> print(f"Key: {raw_key}")
             >>> print(f"Key ID: {api_key.key_id}")
+
         """
         # Generate secure random key
         raw_key = secrets.token_urlsafe(32)
@@ -241,7 +242,7 @@ class APIKeyManager:
         # Calculate expiration
         expires_at = None
         if expires_in_days:
-            expires_at = datetime.now(tz=timezone.utc) + timedelta(days=expires_in_days)
+            expires_at = datetime.now(tz=UTC) + timedelta(days=expires_in_days)
 
         # Create API key object
         api_key = APIKey(
@@ -250,7 +251,7 @@ class APIKeyManager:
             user_id=user_id,
             role=role,
             name=name,
-            created_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
             expires_at=expires_at,
             is_active=True,
         )
@@ -261,7 +262,7 @@ class APIKeyManager:
 
         return raw_key, api_key
 
-    def validate_key(self, raw_key: str) -> Optional[APIKey]:
+    def validate_key(self, raw_key: str) -> APIKey | None:
         """Validate API key and return key data.
 
         Time Complexity: O(1)
@@ -276,6 +277,7 @@ class APIKeyManager:
             >>> api_key = manager.validate_key(raw_key)
             >>> if api_key:
             ...     print(f"Valid key for user: {api_key.user_id}")
+
         """
         # Hash key
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
@@ -294,11 +296,11 @@ class APIKeyManager:
             return None
 
         # Check expiration
-        if api_key.expires_at and datetime.now(tz=timezone.utc) > api_key.expires_at:
+        if api_key.expires_at and datetime.now(tz=UTC) > api_key.expires_at:
             return None
 
         # Update last used
-        api_key.last_used = datetime.now(tz=timezone.utc)
+        api_key.last_used = datetime.now(tz=UTC)
 
         return api_key
 
@@ -315,6 +317,7 @@ class APIKeyManager:
 
         Example:
             >>> manager.revoke_key("key_abc123")
+
         """
         api_key = self._keys.get(key_id)
         if not api_key:
@@ -333,14 +336,11 @@ class APIKeyManager:
 
         Returns:
             List of API keys
-        """
-        return [
-            key
-            for key in self._keys.values()
-            if key.user_id == user_id
-        ]
 
-    def get_key(self, key_id: str) -> Optional[APIKey]:
+        """
+        return [key for key in self._keys.values() if key.user_id == user_id]
+
+    def get_key(self, key_id: str) -> APIKey | None:
         """Get API key by ID.
 
         Time Complexity: O(1)
@@ -350,6 +350,7 @@ class APIKeyManager:
 
         Returns:
             API key if found, None otherwise
+
         """
         return self._keys.get(key_id)
 
@@ -379,6 +380,7 @@ class RateLimiter:
         Args:
             max_requests: Maximum requests per window
             window_seconds: Window size in seconds
+
         """
         self.max_requests = max_requests
         self.window_seconds = window_seconds
@@ -396,6 +398,7 @@ class RateLimiter:
 
         Returns:
             True if within rate limit, False otherwise
+
         """
         now = time.time()
 
@@ -429,6 +432,7 @@ class RateLimiter:
 
         Returns:
             Number of remaining requests
+
         """
         if user_id not in self._requests:
             return self.max_requests
@@ -448,6 +452,7 @@ class RateLimiter:
 
         Args:
             now: Current timestamp
+
         """
         cutoff = now - self.window_seconds
 
@@ -485,6 +490,7 @@ def check_permission(role: Role, permission: Permission) -> bool:
         >>> if check_permission(Role.USER, Permission.PROCESS_REQUEST):
         ...     # User can process requests
         ...     pass
+
     """
     return permission in ROLE_PERMISSIONS.get(role, set())
 
@@ -503,8 +509,10 @@ def require_permission(permission: Permission):
         >>> @require_permission(Permission.MANAGE_USERS)
         >>> async def admin_endpoint(user_id: str = Depends(get_current_user)):
         ...     return {"message": "Admin access granted"}
+
     """
-    def decorator(func):
+
+    def decorator(func):  # noqa: ANN001
         async def wrapper(*args, **kwargs):
             # Get user from kwargs (injected by get_current_user)
             user_data = kwargs.get("user_data")
@@ -524,6 +532,7 @@ def require_permission(permission: Permission):
             return await func(*args, **kwargs)
 
         return wrapper
+
     return decorator
 
 
@@ -542,8 +551,9 @@ def create_access_token(user_id: str, role: Role = Role.USER) -> str:
     Example:
         >>> token = create_access_token("user_123", Role.ADMIN)
         >>> print(token)
+
     """
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     exp = now + timedelta(hours=JWT_EXPIRATION_HOURS)
 
     payload = {
@@ -553,8 +563,7 @@ def create_access_token(user_id: str, role: Role = Role.USER) -> str:
         "iat": int(now.timestamp()),
     }
 
-    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-    return token
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
 def verify_token(token: str) -> TokenData:
@@ -574,6 +583,7 @@ def verify_token(token: str) -> TokenData:
     Example:
         >>> data = verify_token(token)
         >>> print(data.user_id, data.role)
+
     """
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
@@ -586,17 +596,14 @@ def verify_token(token: str) -> TokenData:
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
-    except jwt.InvalidTokenError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
-
-
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Security(security),
-    api_key: Optional[str] = Security(api_key_header),
+    credentials: HTTPAuthorizationCredentials | None = Security(security),  # noqa: B008
+    api_key: str | None = Security(api_key_header),
 ) -> dict[str, any]:
     """Get current user from JWT token or API key.
 
@@ -616,6 +623,7 @@ async def get_current_user(
         >>> @app.get("/protected")
         >>> async def protected_route(user_data: Dict = Depends(get_current_user)):
         >>>     return {"user_id": user_data["user_id"], "role": user_data["role"]}
+
     """
     user_id: str
     role: Role
@@ -676,6 +684,7 @@ def get_rate_limiter() -> RateLimiter:
 
     Returns:
         Rate limiter instance
+
     """
     return _rate_limiter
 
@@ -685,5 +694,6 @@ def get_api_key_manager() -> APIKeyManager:
 
     Returns:
         API key manager instance
+
     """
     return _api_key_manager

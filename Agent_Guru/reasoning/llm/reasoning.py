@@ -1,5 +1,4 @@
-"""
-LLM Reasoning Core
+"""LLM Reasoning Core.
 
 Implements reasoning plan generation with:
 - ReasoningPlan and ReasoningStep data structures
@@ -15,8 +14,8 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.prompts import ConversationContext, ReasoningPrompts
@@ -37,20 +36,25 @@ class ReasoningStep:
     def __post_init__(self):
         """Validate step fields."""
         if self.step_id < 1:
-            raise ValueError(f"step_id must be >= 1, got {self.step_id}")
+            msg = f"step_id must be >= 1, got {self.step_id}"
+            raise ValueError(msg)
         if not self.description:
-            raise ValueError("description cannot be empty")
+            msg = "description cannot be empty"
+            raise ValueError(msg)
         if not self.tool_id:
-            raise ValueError("tool_id cannot be empty")
+            msg = "tool_id cannot be empty"
+            raise ValueError(msg)
         if self.estimated_duration_seconds <= 0:
+            msg = f"estimated_duration_seconds must be positive, got {self.estimated_duration_seconds}"
             raise ValueError(
-                f"estimated_duration_seconds must be positive, got {self.estimated_duration_seconds}"
+                msg,
             )
         # Validate depends_on references
         for dep_id in self.depends_on:
             if dep_id >= self.step_id:
+                msg = f"Step {self.step_id} cannot depend on step {dep_id} (must be earlier step)"
                 raise ValueError(
-                    f"Step {self.step_id} cannot depend on step {dep_id} (must be earlier step)"
+                    msg,
                 )
 
 
@@ -64,20 +68,26 @@ class ReasoningPlan:
     confidence: float
     requires_confirmation: bool = False
     estimated_duration_seconds: float = 0.0
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def __post_init__(self):
         """Validate plan fields."""
         if not self.goal:
-            raise ValueError("goal cannot be empty")
+            msg = "goal cannot be empty"
+            raise ValueError(msg)
         if not self.steps:
-            raise ValueError("steps cannot be empty")
-        if len(self.steps) > 5:
-            raise ValueError(f"Maximum 5 steps allowed, got {len(self.steps)}")
+            msg = "steps cannot be empty"
+            raise ValueError(msg)
+        if len(self.steps) > 5:  # noqa: PLR2004 - Small integer threshold
+
+            msg = f"Maximum 5 steps allowed, got {len(self.steps)}"
+            raise ValueError(msg)
         if not 0.0 <= self.confidence <= 1.0:
-            raise ValueError(f"confidence must be 0.0-1.0, got {self.confidence}")
+            msg = f"confidence must be 0.0-1.0, got {self.confidence}"
+            raise ValueError(msg)
         if not self.reasoning:
-            raise ValueError("reasoning cannot be empty")
+            msg = "reasoning cannot be empty"
+            raise ValueError(msg)
 
         # Calculate total estimated duration if not provided
         if self.estimated_duration_seconds == 0.0:
@@ -91,8 +101,7 @@ class ReasoningPlan:
 
 
 class ReasoningPlanGenerator:
-    """
-    Generates reasoning plans using LLM.
+    """Generates reasoning plans using LLM.
 
     Supports:
     - Single-step and multi-step plan generation
@@ -106,12 +115,12 @@ class ReasoningPlanGenerator:
     MAX_RETRIES = 3
     TIMEOUT_SECONDS = 5.0
 
-    def __init__(self, llm_provider: Any):
-        """
-        Initialize reasoning plan generator.
+    def __init__(self, llm_provider: Any) -> None:  # noqa: ANN401
+        """Initialize reasoning plan generator.
 
         Args:
             llm_provider: LLM provider instance (OpenAI, Anthropic, etc.)
+
         """
         self.llm_provider = llm_provider
 
@@ -121,10 +130,9 @@ class ReasoningPlanGenerator:
         intent_type: str,
         entities: dict[str, Any],
         available_tools: list[str],
-        context: Optional[ConversationContext] = None,
+        context: ConversationContext | None = None,
     ) -> ReasoningPlan:
-        """
-        Generate reasoning plan for user request.
+        """Generate reasoning plan for user request.
 
         Args:
             user_input: User's request
@@ -139,6 +147,7 @@ class ReasoningPlanGenerator:
         Raises:
             ValueError: If plan generation fails after max retries
             asyncio.TimeoutError: If generation exceeds timeout
+
         """
         # Determine if single-step or multi-step
         is_multi_step = self._is_multi_step_task(intent_type, entities)
@@ -179,27 +188,28 @@ class ReasoningPlanGenerator:
 
                 # Enforce step limit
                 if len(plan.steps) > self.MAX_STEPS:
+                    msg = f"Plan has {len(plan.steps)} steps, maximum is {self.MAX_STEPS}"
                     raise ValueError(
-                        f"Plan has {len(plan.steps)} steps, maximum is {self.MAX_STEPS}"
+                        msg,
                     )
 
                 return plan
 
             except asyncio.CancelledError as e:
                 # Outer wait_for cancelled the inner coroutine — treat as timeout
-                raise asyncio.TimeoutError(
-                    f"LLM plan generation timed out after {self.TIMEOUT_SECONDS}s"
+                msg = f"LLM plan generation timed out after {self.TIMEOUT_SECONDS}s"
+                raise TimeoutError(
+                    msg,
                 ) from e
-
-            except (ValueError, json.JSONDecodeError) as e:
                 if attempt == self.MAX_RETRIES - 1:
+                    msg = f"Failed to generate valid plan after {self.MAX_RETRIES} attempts: {e}"
                     raise ValueError(
-                        f"Failed to generate valid plan after {self.MAX_RETRIES} attempts: {e}"
-                    )
+                        msg,
+                    ) from e
                 # Retry with more explicit instructions
                 continue
-
-        raise ValueError("Failed to generate plan")
+        msg = "Failed to generate plan"
+        raise ValueError(msg)
 
     async def stream_plan(
         self,
@@ -207,10 +217,9 @@ class ReasoningPlanGenerator:
         intent_type: str,
         entities: dict[str, Any],
         available_tools: list[str],
-        context: Optional[ConversationContext] = None,
+        context: ConversationContext | None = None,
     ) -> AsyncIterator[ReasoningStep]:
-        """
-        Stream reasoning plan generation step-by-step.
+        """Stream reasoning plan generation step-by-step.
 
         Args:
             user_input: User's request
@@ -221,6 +230,7 @@ class ReasoningPlanGenerator:
 
         Yields:
             ReasoningStep objects as they are generated
+
         """
         # For now, generate full plan and yield steps
         # TODO: Implement true streaming with LLM streaming API
@@ -231,8 +241,7 @@ class ReasoningPlanGenerator:
             await asyncio.sleep(0.1)  # Simulate streaming delay
 
     async def _call_llm(self, prompt: str) -> LLMResponse:
-        """
-        Call LLM provider with prompt.
+        """Call LLM provider with prompt.
 
         The caller (generate_plan) wraps this in asyncio.wait_for, so we do NOT
         add a second wait_for here — nested wait_for calls cause CancelledError
@@ -243,6 +252,7 @@ class ReasoningPlanGenerator:
 
         Returns:
             LLM response
+
         """
         request = LLMRequest(
             prompt=prompt,
@@ -252,12 +262,10 @@ class ReasoningPlanGenerator:
             stop_sequences=["```"],
         )
 
-        response = await self.llm_provider.generate(request)
-        return response  # type: ignore[no-any-return]
+        return await self.llm_provider.generate(request)
 
     def _parse_response(self, response_text: str) -> ReasoningPlan:
-        """
-        Parse LLM response into ReasoningPlan.
+        """Parse LLM response into ReasoningPlan.
 
         Args:
             response_text: Raw LLM response
@@ -268,6 +276,7 @@ class ReasoningPlanGenerator:
         Raises:
             ValueError: If response is invalid
             json.JSONDecodeError: If response is not valid JSON
+
         """
         # Extract JSON from response (may be wrapped in markdown)
         json_text = self._extract_json(response_text)
@@ -277,13 +286,17 @@ class ReasoningPlanGenerator:
 
         # Validate required fields
         if "goal" not in data:
-            raise ValueError("Missing required field: goal")
+            msg = "Missing required field: goal"
+            raise ValueError(msg)
         if "steps" not in data:
-            raise ValueError("Missing required field: steps")
+            msg = "Missing required field: steps"
+            raise ValueError(msg)
         if "reasoning" not in data:
-            raise ValueError("Missing required field: reasoning")
+            msg = "Missing required field: reasoning"
+            raise ValueError(msg)
         if "confidence" not in data:
-            raise ValueError("Missing required field: confidence")
+            msg = "Missing required field: confidence"
+            raise ValueError(msg)
 
         # Parse steps
         steps = []
@@ -300,24 +313,22 @@ class ReasoningPlanGenerator:
             steps.append(step)
 
         # Create plan
-        plan = ReasoningPlan(
+        return ReasoningPlan(
             goal=data["goal"],
             steps=steps,
             reasoning=data["reasoning"],
             confidence=data["confidence"],
         )
 
-        return plan
-
     def _extract_json(self, text: str) -> str:
-        """
-        Extract JSON from text (may be wrapped in markdown code blocks).
+        """Extract JSON from text (may be wrapped in markdown code blocks).
 
         Args:
             text: Text containing JSON
 
         Returns:
             Extracted JSON string
+
         """
         # Remove markdown code blocks if present
         text = text.strip()
@@ -327,14 +338,12 @@ class ReasoningPlanGenerator:
         elif text.startswith("```"):
             text = text[3:]  # Remove ```
 
-        if text.endswith("```"):
-            text = text[:-3]  # Remove trailing ```
+        text = text.removesuffix("```")  # Remove trailing ```
 
         return text.strip()
 
     def _is_multi_step_task(self, intent_type: str, entities: dict[str, Any]) -> bool:
-        """
-        Determine if task requires multiple steps.
+        """Determine if task requires multiple steps.
 
         Args:
             intent_type: Intent type
@@ -342,6 +351,7 @@ class ReasoningPlanGenerator:
 
         Returns:
             True if multi-step task
+
         """
         # Simple heuristic: multi_step_task intent or multiple entities
         if intent_type == "multi_step_task":
@@ -353,8 +363,7 @@ class ReasoningPlanGenerator:
 
 
 class ReasoningPlanValidator:
-    """
-    Validates reasoning plans before execution.
+    """Validates reasoning plans before execution.
 
     Checks:
     - Tool references are valid
@@ -363,26 +372,26 @@ class ReasoningPlanValidator:
     - Duration within timeout limits
     """
 
-    def __init__(self, tool_registry: dict[str, Any], max_duration_seconds: float = 30.0):
-        """
-        Initialize plan validator.
+    def __init__(self, tool_registry: dict[str, Any], max_duration_seconds: float = 30.0) -> None:
+        """Initialize plan validator.
 
         Args:
             tool_registry: Dictionary of available tools {tool_id: tool_spec}
             max_duration_seconds: Maximum allowed plan duration
+
         """
         self.tool_registry = tool_registry
         self.max_duration_seconds = max_duration_seconds
 
-    def validate(self, plan: ReasoningPlan) -> tuple[bool, Optional[str]]:
-        """
-        Validate reasoning plan.
+    def validate(self, plan: ReasoningPlan) -> tuple[bool, str | None]:
+        """Validate reasoning plan.
 
         Args:
             plan: Plan to validate
 
         Returns:
             Tuple of (is_valid, error_message)
+
         """
         # Check duration limit
         if plan.estimated_duration_seconds > self.max_duration_seconds:
@@ -411,14 +420,14 @@ class ReasoningPlanValidator:
         return True, None
 
     def _has_circular_dependencies(self, steps: list[ReasoningStep]) -> bool:
-        """
-        Check if steps have circular dependencies.
+        """Check if steps have circular dependencies.
 
         Args:
             steps: List of reasoning steps
 
         Returns:
             True if circular dependencies exist
+
         """
         # Build dependency graph
         graph: dict[int, list[int]] = {}
@@ -443,9 +452,4 @@ class ReasoningPlanValidator:
             rec_stack.remove(node)
             return False
 
-        for step in steps:
-            if step.step_id not in visited:
-                if has_cycle(step.step_id):
-                    return True
-
-        return False
+        return any(step.step_id not in visited and has_cycle(step.step_id) for step in steps)

@@ -1,6 +1,4 @@
-"""
-Calendar tool for managing calendar events.
-"""
+"""Calendar tool for managing calendar events."""
 
 import time
 from typing import Any
@@ -54,7 +52,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class CalendarTool(Tool):
     """Tool for creating calendar events."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute calendar event creation.
 
         Args:
@@ -65,6 +63,7 @@ class CalendarTool(Tool):
 
         Returns:
             Execution result
+
         """
         title = kwargs["title"]
         start_time = kwargs["start_time"]
@@ -85,7 +84,8 @@ class CalendarTool(Tool):
                 "error": "Duration must be positive",
             }
 
-        if duration_minutes > 1440:  # 24 hours
+        if duration_minutes > 1440:  # 24 hours  # noqa: PLR2004 (Percentage/large threshold)
+
             return {
                 "success": False,
                 "error": "Duration cannot exceed 24 hours",

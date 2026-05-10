@@ -1,5 +1,4 @@
-"""
-Fallback processor for rule-based task generation when LLM is unavailable.
+"""Fallback processor for rule-based task generation when LLM is unavailable.
 
 This module provides a fallback mechanism that uses the Fast Intent Router
 for pattern matching and creates simple Task objects without requiring LLM
@@ -10,8 +9,7 @@ Requirements: 16.5, 16.7
 """
 
 import time
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from Agent_Guru.reasoning.config.metrics import MetricsCollector
 from Agent_Guru.reasoning.intent.fast_router import FastIntentRouter, PatternMatch
@@ -58,8 +56,7 @@ class FallbackMetrics:
 
 
 class FallbackProcessor:
-    """
-    Fallback processor for rule-based task generation.
+    """Fallback processor for rule-based task generation.
 
     This processor uses the Fast Intent Router to detect intents via pattern
     matching and creates simple Task objects without LLM inference. It serves
@@ -72,27 +69,27 @@ class FallbackProcessor:
         router: Fast Intent Router for pattern matching
         metrics: Fallback usage metrics
         metrics_collector: Global metrics collector for observability
+
     """
 
     def __init__(
         self,
-        router: Optional[FastIntentRouter] = None,
-        metrics_collector: Optional[MetricsCollector] = None,
+        router: FastIntentRouter | None = None,
+        metrics_collector: MetricsCollector | None = None,
     ) -> None:
-        """
-        Initialize fallback processor.
+        """Initialize fallback processor.
 
         Args:
             router: Fast Intent Router instance (creates new if None)
             metrics_collector: Global metrics collector for observability
+
         """
         self.router = router or FastIntentRouter()
         self.metrics = FallbackMetrics()
         self.metrics_collector = metrics_collector
 
     def detect_llm_unavailable(self, error: Exception) -> bool:
-        """
-        Detect if error indicates LLM is unavailable.
+        """Detect if error indicates LLM is unavailable.
 
         Checks for common error patterns that indicate LLM service issues:
         - Timeout errors
@@ -107,6 +104,7 @@ class FallbackProcessor:
             True if error indicates LLM unavailability, False otherwise
 
         Time Complexity: O(1) - simple string matching
+
         """
         error_str = str(error).lower()
 
@@ -129,8 +127,7 @@ class FallbackProcessor:
         return any(pattern in error_str for pattern in unavailable_patterns)
 
     def create_task_from_match(self, match: PatternMatch, original_input: str) -> Task:
-        """
-        Create a simple Task object from pattern match.
+        """Create a simple Task object from pattern match.
 
         Converts a Fast Intent Router pattern match into a Task object
         with a single step. This bypasses the full LLM reasoning pipeline
@@ -156,6 +153,7 @@ class FallbackProcessor:
             >>> task = processor.create_task_from_match(match, "set timer 5 minutes")
             >>> assert task.task_type == TaskType.SINGLE_STEP
             >>> assert len(task.steps) == 1
+
         """
         # Determine task type based on intent
         task_type = self._determine_task_type(match.intent_type)
@@ -172,7 +170,7 @@ class FallbackProcessor:
         )
 
         # Create task with single step
-        task = Task(
+        return Task(
             goal=original_input,
             task_type=task_type,
             entities=match.entities,
@@ -182,14 +180,11 @@ class FallbackProcessor:
             estimated_duration=1.0,
             status=TaskStatus.PENDING,
             retry_count=0,
-            created_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
         )
 
-        return task
-
     def _determine_task_type(self, intent_type: str) -> TaskType:
-        """
-        Determine task type from intent type.
+        """Determine task type from intent type.
 
         Args:
             intent_type: Intent type from pattern match
@@ -198,6 +193,7 @@ class FallbackProcessor:
             TaskType enum value
 
         Time Complexity: O(1) - dictionary lookup
+
         """
         # Conversational intents (no action required)
         conversational_intents = {
@@ -220,15 +216,13 @@ class FallbackProcessor:
 
         if intent_type in conversational_intents:
             return TaskType.CONVERSATIONAL
-        elif intent_type in memory_query_intents:
+        if intent_type in memory_query_intents:
             return TaskType.MEMORY_QUERY
-        else:
-            # Default to single-step for action intents
-            return TaskType.SINGLE_STEP
+        # Default to single-step for action intents
+        return TaskType.SINGLE_STEP
 
     def _requires_confirmation(self, intent_type: str) -> bool:
-        """
-        Determine if intent requires user confirmation.
+        """Determine if intent requires user confirmation.
 
         Sensitive actions require confirmation before execution.
 
@@ -239,6 +233,7 @@ class FallbackProcessor:
             True if confirmation required, False otherwise
 
         Time Complexity: O(1) - set membership check
+
         """
         # Sensitive intents requiring confirmation
         sensitive_intents = {
@@ -254,9 +249,8 @@ class FallbackProcessor:
 
         return intent_type in sensitive_intents
 
-    def process_with_fallback(self, input_text: str) -> Optional[Task]:
-        """
-        Process input using rule-based fallback.
+    def process_with_fallback(self, input_text: str) -> Task | None:
+        """Process input using rule-based fallback.
 
         Attempts to match input against patterns and create a Task object.
         Records metrics for fallback usage tracking.
@@ -275,6 +269,7 @@ class FallbackProcessor:
             >>> task = processor.process_with_fallback("set timer for 5 minutes")
             >>> assert task is not None
             >>> assert task.task_type == TaskType.SINGLE_STEP
+
         """
         start_time = time.perf_counter()
 
@@ -316,8 +311,7 @@ class FallbackProcessor:
             raise
 
     def get_metrics(self) -> dict[str, float]:
-        """
-        Get fallback usage metrics.
+        """Get fallback usage metrics.
 
         Returns:
             Dictionary with fallback metrics:
@@ -328,6 +322,7 @@ class FallbackProcessor:
             - average_latency_ms: Average fallback latency
 
         Time Complexity: O(1)
+
         """
         return {
             "total_fallbacks": float(self.metrics.total_fallbacks),

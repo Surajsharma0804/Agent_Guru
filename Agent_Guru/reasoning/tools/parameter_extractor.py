@@ -1,5 +1,4 @@
-"""
-Tool parameter extraction with validation and type conversion.
+"""Tool parameter extraction with validation and type conversion.
 
 This module provides parameter extraction from intent entities with:
 - Required parameter validation
@@ -7,7 +6,7 @@ This module provides parameter extraction from intent entities with:
 - Type conversion and validation
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.error.error_manager import (
     ErrorContext,
@@ -21,9 +20,7 @@ from Agent_Guru.reasoning.tools.base import Tool, ToolParameter, ToolParameterTy
 class ParameterExtractor:
     """Extracts and validates tool parameters from intent entities."""
 
-    def extract_parameters(
-        self, tool: Tool, intent: Intent
-    ) -> dict[str, Any]:
+    def extract_parameters(self, tool: Tool, intent: Intent) -> dict[str, Any]:
         """Extract parameters from intent entities with validation.
 
         Args:
@@ -35,6 +32,7 @@ class ParameterExtractor:
 
         Raises:
             ValueError: If required parameters missing or validation fails (with user-friendly message)
+
         """
         error_manager = get_error_manager()
         metadata = tool.metadata
@@ -51,7 +49,7 @@ class ParameterExtractor:
                         additional_data={
                             "parameter": param.name,
                             "intent_type": intent.intent_type.value,
-                        }
+                        },
                     )
                     error = error_manager.create_error(
                         error_type=ErrorType.INVALID_INPUT,
@@ -60,7 +58,7 @@ class ParameterExtractor:
                     )
                     raise ValueError(error.user_message)
                 # Apply default value for optional parameters
-                if hasattr(param, 'default_value') and param.default_value is not None:
+                if hasattr(param, "default_value") and param.default_value is not None:
                     value = param.default_value
                 else:
                     continue  # Skip optional parameters without defaults
@@ -75,11 +73,11 @@ class ParameterExtractor:
                         "parameter": param.name,
                         "value": str(value),
                         "expected_type": param.type.value,
-                    }
+                    },
                 )
                 error = error_manager.create_error(
                     error_type=ErrorType.INVALID_INPUT,
-                    message=f"Parameter '{param.name}' validation failed: {str(e)}",
+                    message=f"Parameter '{param.name}' validation failed: {e!s}",
                     context=context,
                 )
                 raise ValueError(error.user_message) from e
@@ -88,9 +86,7 @@ class ParameterExtractor:
 
         return parameters
 
-    def _extract_parameter(
-        self, param: ToolParameter, intent: Intent
-    ) -> Optional[Any]:
+    def _extract_parameter(self, param: ToolParameter, intent: Intent) -> Any | None:  # noqa: ANN401
         """Extract single parameter from intent entities.
 
         Args:
@@ -99,6 +95,7 @@ class ParameterExtractor:
 
         Returns:
             Parameter value or None if not found
+
         """
         # Try exact match first
         if param.name in intent.entities:
@@ -112,9 +109,7 @@ class ParameterExtractor:
 
         return None
 
-    def _convert_and_validate(
-        self, value: Any, param: ToolParameter
-    ) -> Any:
+    def _convert_and_validate(self, value: Any, param: ToolParameter) -> Any:  # noqa: ANN401
         """Convert value to correct type and validate.
 
         Args:
@@ -126,6 +121,7 @@ class ParameterExtractor:
 
         Raises:
             ValueError: If conversion or validation fails
+
         """
         # Type conversion
         if param.type == ToolParameterType.STRING:
@@ -142,27 +138,30 @@ class ParameterExtractor:
         elif param.type == ToolParameterType.ARRAY:
             if not isinstance(value, list):
                 value = [value]
-        elif param.type == ToolParameterType.OBJECT:
-            if not isinstance(value, dict):
-                raise ValueError(f"Expected dict, got {type(value)}")
+        elif param.type == ToolParameterType.OBJECT and not isinstance(value, dict):
+            msg = f"Expected dict, got {type(value)}"
+            raise ValueError(msg)
 
         # Validation
-        if hasattr(param, 'min_value') and param.min_value is not None and value < param.min_value:
-            raise ValueError(f"Value {value} below minimum {param.min_value}")
+        if hasattr(param, "min_value") and param.min_value is not None and value < param.min_value:
+            msg = f"Value {value} below minimum {param.min_value}"
+            raise ValueError(msg)
 
-        if hasattr(param, 'max_value') and param.max_value is not None and value > param.max_value:
-            raise ValueError(f"Value {value} above maximum {param.max_value}")
+        if hasattr(param, "max_value") and param.max_value is not None and value > param.max_value:
+            msg = f"Value {value} above maximum {param.max_value}"
+            raise ValueError(msg)
 
-        if hasattr(param, 'allowed_values') and param.allowed_values and value not in param.allowed_values:
-            raise ValueError(
-                f"Value {value} not in allowed values {param.allowed_values}"
-            )
+        if (
+            hasattr(param, "allowed_values")
+            and param.allowed_values
+            and value not in param.allowed_values
+        ):
+            msg = f"Value {value} not in allowed values {param.allowed_values}"
+            raise ValueError(msg)
 
         return value
 
-    def validate_parameters(
-        self, tool: Tool, parameters: dict[str, Any]
-    ) -> list[str]:
+    def validate_parameters(self, tool: Tool, parameters: dict[str, Any]) -> list[str]:
         """Validate extracted parameters.
 
         Args:
@@ -171,6 +170,7 @@ class ParameterExtractor:
 
         Returns:
             List of validation errors (empty if valid)
+
         """
         errors: list[str] = []
         metadata = tool.metadata
@@ -191,6 +191,6 @@ class ParameterExtractor:
             try:
                 self._convert_and_validate(value, param)
             except (ValueError, TypeError) as e:
-                errors.append(f"Parameter '{param.name}': {str(e)}")
+                errors.append(f"Parameter '{param.name}': {e!s}")
 
         return errors

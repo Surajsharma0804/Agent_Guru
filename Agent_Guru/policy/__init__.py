@@ -1,5 +1,4 @@
-"""
-Guru Policy Engine - Governance and access control for AGENT_GURU.
+"""Guru Policy Engine - Governance and access control for AGENT_GURU.
 
 Provides permission management, RBAC/ABAC evaluation, conflict resolution,
 audit logging, and caching for all system operations.
@@ -34,28 +33,28 @@ from Agent_Guru.policy.permissions import PermissionManager
 from Agent_Guru.policy.safety import SafetyPolicyEngine, SafetyRule, SafetyViolation
 
 __all__ = [
-    "PolicyEngine",
-    "PermissionManager",
+    "AccessDecision",
+    "AuditRecord",
+    "CacheStats",
     "ConfirmationHandler",
     "ConfirmationPolicy",
     "ConfirmationRequest",
     "ConfirmationStatus",
-    "SafetyPolicyEngine",
-    "SafetyRule",
-    "SafetyViolation",
-    "Policy",
-    "PolicyEffect",
-    "PolicyDecision",
     "ConflictStrategy",
+    "EvaluatedPolicy",
+    "EvaluationContext",
     "MissingAttributeStrategy",
+    "PermissionManager",
+    "Policy",
+    "PolicyDecision",
+    "PolicyEffect",
+    "PolicyEngine",
     "Principal",
     "Resource",
     "Role",
-    "EvaluationContext",
-    "EvaluatedPolicy",
-    "AccessDecision",
-    "AuditRecord",
-    "CacheStats",
+    "SafetyPolicyEngine",
+    "SafetyRule",
+    "SafetyViolation",
     "TestCase",
     "TestFailure",
     "TestResults",

@@ -4,7 +4,7 @@ import json
 import sqlite3
 import time
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -22,14 +22,15 @@ class Permission:
         granted_by: Who granted the permission (user or system)
         expires_at: Optional expiration timestamp (None = never expires)
         metadata: Additional metadata about the permission
+
     """
 
     user_id: str
     permission_scope: str
     granted_at: float
     granted_by: str
-    expires_at: Optional[float] = None
-    metadata: Optional[dict[str, Any]] = None
+    expires_at: float | None = None
+    metadata: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         """Initialize metadata if None."""
@@ -37,22 +38,22 @@ class Permission:
             self.metadata = {}
 
     def is_expired(self) -> bool:
-        """
-        Check if permission has expired.
+        """Check if permission has expired.
 
         Returns:
             True if expired, False otherwise
+
         """
         if self.expires_at is None:
             return False
         return time.time() > self.expires_at
 
     def to_dict(self) -> dict[str, Any]:
-        """
-        Convert permission to dictionary.
+        """Convert permission to dictionary.
 
         Returns:
             Dictionary representation
+
         """
         return {
             "user_id": self.user_id,
@@ -65,14 +66,14 @@ class Permission:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Permission":
-        """
-        Create permission from dictionary.
+        """Create permission from dictionary.
 
         Args:
             data: Dictionary with permission data
 
         Returns:
             Permission instance
+
         """
         return cls(
             user_id=data["user_id"],
@@ -94,15 +95,15 @@ class PermissionManager:
     Space Complexity: O(m) where m is number of cached permissions
     """
 
-    def __init__(self, db_path: Optional[str] = None) -> None:
-        """
-        Initialize permission manager.
+    def __init__(self, db_path: str | None = None) -> None:
+        """Initialize permission manager.
 
         Args:
             db_path: Path to SQLite database (None for in-memory)
+
         """
         self._db_path = db_path or ":memory:"
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
         self._cache: dict[str, dict[str, Permission]] = {}  # user_id -> {scope -> Permission}
         self._cache_ttl = 300.0  # 5 minutes
         self._cache_timestamps: dict[str, float] = {}
@@ -169,11 +170,10 @@ class PermissionManager:
         user_id: str,
         permission_scope: str,
         granted_by: str = "system",
-        expires_at: Optional[float] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        expires_at: float | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Permission:
-        """
-        Grant permission to user.
+        """Grant permission to user.
 
         Time Complexity: O(1) average case
         Space Complexity: O(1)
@@ -187,6 +187,7 @@ class PermissionManager:
 
         Returns:
             Created Permission object
+
         """
         permission = Permission(
             user_id=user_id,
@@ -199,21 +200,25 @@ class PermissionManager:
 
         # Store in database
         if self._conn is None:
-            raise RuntimeError("Database connection not initialized")
+            msg = "Database connection not initialized"
+            raise RuntimeError(msg)
 
         cursor = self._conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO permissions
             (user_id, permission_scope, granted_at, granted_by, expires_at, metadata)
             VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            permission.user_id,
-            permission.permission_scope,
-            permission.granted_at,
-            permission.granted_by,
-            permission.expires_at,
-            json.dumps(permission.metadata),
-        ))
+        """,
+            (
+                permission.user_id,
+                permission.permission_scope,
+                permission.granted_at,
+                permission.granted_by,
+                permission.expires_at,
+                json.dumps(permission.metadata),
+            ),
+        )
         self._conn.commit()
 
         # Update cache
@@ -246,10 +251,9 @@ class PermissionManager:
         user_id: str,
         permission_scope: str,
         revoked_by: str = "system",
-        reason: Optional[str] = None,
+        reason: str | None = None,
     ) -> bool:
-        """
-        Revoke permission from user.
+        """Revoke permission from user.
 
         Time Complexity: O(1) average case
         Space Complexity: O(1)
@@ -262,26 +266,34 @@ class PermissionManager:
 
         Returns:
             True if permission was revoked, False if not found
+
         """
         # Check if permission exists
         if self._conn is None:
-            raise RuntimeError("Database connection not initialized")
+            msg = "Database connection not initialized"
+            raise RuntimeError(msg)
 
         cursor = self._conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT COUNT(*) FROM permissions
             WHERE user_id = ? AND permission_scope = ?
-        """, (user_id, permission_scope))
+        """,
+            (user_id, permission_scope),
+        )
 
         count = cursor.fetchone()[0]
         if count == 0:
             return False
 
         # Delete from database
-        cursor.execute("""
+        cursor.execute(
+            """
             DELETE FROM permissions
             WHERE user_id = ? AND permission_scope = ?
-        """, (user_id, permission_scope))
+        """,
+            (user_id, permission_scope),
+        )
         self._conn.commit()
 
         # Update cache
@@ -312,8 +324,7 @@ class PermissionManager:
         user_id: str,
         permission_scope: str,
     ) -> bool:
-        """
-        Check if user has permission.
+        """Check if user has permission.
 
         Time Complexity: O(1) for cached, O(log n) for database query
         Space Complexity: O(1)
@@ -324,6 +335,7 @@ class PermissionManager:
 
         Returns:
             True if user has valid permission, False otherwise
+
         """
         # Check cache first
         if self._is_cache_valid(user_id):
@@ -331,10 +343,9 @@ class PermissionManager:
                 permission = self._cache[user_id][permission_scope]
                 if not permission.is_expired():
                     return True
-                else:
-                    # Permission expired, remove it
-                    self.revoke_permission(user_id, permission_scope, "system", "Expired")
-                    return False
+                # Permission expired, remove it
+                self.revoke_permission(user_id, permission_scope, "system", "Expired")
+                return False
 
         # Query database
         permission = self._get_permission_from_db(user_id, permission_scope)
@@ -355,24 +366,28 @@ class PermissionManager:
         return True
 
     def get_user_permissions(self, user_id: str) -> list[Permission]:
-        """
-        Get all permissions for user.
+        """Get all permissions for user.
 
         Args:
             user_id: User identifier
 
         Returns:
             List of Permission objects
+
         """
         if self._conn is None:
-            raise RuntimeError("Database connection not initialized")
+            msg = "Database connection not initialized"
+            raise RuntimeError(msg)
 
         cursor = self._conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT user_id, permission_scope, granted_at, granted_by, expires_at, metadata
             FROM permissions
             WHERE user_id = ?
-        """, (user_id,))
+        """,
+            (user_id,),
+        )
 
         permissions = []
         for row in cursor.fetchall():
@@ -400,8 +415,7 @@ class PermissionManager:
         permission_scope: str,
         reason: str,
     ) -> dict[str, Any]:
-        """
-        Request permission from user (returns request data for confirmation flow).
+        """Request permission from user (returns request data for confirmation flow).
 
         Args:
             user_id: User identifier
@@ -410,6 +424,7 @@ class PermissionManager:
 
         Returns:
             Dictionary with request details
+
         """
         request_id = f"perm_req_{user_id}_{permission_scope}_{int(time.time())}"
 
@@ -444,11 +459,10 @@ class PermissionManager:
 
     def get_audit_log(
         self,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
-        """
-        Get permission audit log.
+        """Get permission audit log.
 
         Args:
             user_id: Filter by user ID (None for all users)
@@ -456,27 +470,35 @@ class PermissionManager:
 
         Returns:
             List of audit log entries
+
         """
         if self._conn is None:
-            raise RuntimeError("Database connection not initialized")
+            msg = "Database connection not initialized"
+            raise RuntimeError(msg)
 
         cursor = self._conn.cursor()
 
         if user_id:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT timestamp, user_id, permission_scope, action, performed_by, reason, metadata
                 FROM permission_audit_log
                 WHERE user_id = ?
                 ORDER BY timestamp DESC
                 LIMIT ?
-            """, (user_id, limit))
+            """,
+                (user_id, limit),
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT timestamp, user_id, permission_scope, action, performed_by, reason, metadata
                 FROM permission_audit_log
                 ORDER BY timestamp DESC
                 LIMIT ?
-            """, (limit,))
+            """,
+                (limit,),
+            )
 
         entries = []
         for row in cursor.fetchall():
@@ -493,12 +515,12 @@ class PermissionManager:
 
         return entries
 
-    def clear_cache(self, user_id: Optional[str] = None) -> None:
-        """
-        Clear permission cache.
+    def clear_cache(self, user_id: str | None = None) -> None:
+        """Clear permission cache.
 
         Args:
             user_id: Clear cache for specific user (None for all users)
+
         """
         if user_id:
             if user_id in self._cache:
@@ -512,14 +534,14 @@ class PermissionManager:
         logger.info("permission_cache_cleared", user_id=user_id)
 
     def _is_cache_valid(self, user_id: str) -> bool:
-        """
-        Check if cache is valid for user.
+        """Check if cache is valid for user.
 
         Args:
             user_id: User identifier
 
         Returns:
             True if cache is valid, False otherwise
+
         """
         if user_id not in self._cache_timestamps:
             return False
@@ -531,9 +553,8 @@ class PermissionManager:
         self,
         user_id: str,
         permission_scope: str,
-    ) -> Optional[Permission]:
-        """
-        Get permission from database.
+    ) -> Permission | None:
+        """Get permission from database.
 
         Args:
             user_id: User identifier
@@ -541,16 +562,21 @@ class PermissionManager:
 
         Returns:
             Permission object or None if not found
+
         """
         if self._conn is None:
-            raise RuntimeError("Database connection not initialized")
+            msg = "Database connection not initialized"
+            raise RuntimeError(msg)
 
         cursor = self._conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT user_id, permission_scope, granted_at, granted_by, expires_at, metadata
             FROM permissions
             WHERE user_id = ? AND permission_scope = ?
-        """, (user_id, permission_scope))
+        """,
+            (user_id, permission_scope),
+        )
 
         row = cursor.fetchone()
         if row is None:
@@ -572,10 +598,9 @@ class PermissionManager:
         action: str,
         performed_by: str,
         reason: str,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Log permission action to audit trail.
+        """Log permission action to audit trail.
 
         Args:
             user_id: User identifier
@@ -584,24 +609,29 @@ class PermissionManager:
             performed_by: Who performed the action
             reason: Reason for action
             metadata: Additional metadata
+
         """
         if self._conn is None:
-            raise RuntimeError("Database connection not initialized")
+            msg = "Database connection not initialized"
+            raise RuntimeError(msg)
 
         cursor = self._conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO permission_audit_log
             (timestamp, user_id, permission_scope, action, performed_by, reason, metadata)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            time.time(),
-            user_id,
-            permission_scope,
-            action,
-            performed_by,
-            reason,
-            json.dumps(metadata) if metadata else None,
-        ))
+        """,
+            (
+                time.time(),
+                user_id,
+                permission_scope,
+                action,
+                performed_by,
+                reason,
+                json.dumps(metadata) if metadata else None,
+            ),
+        )
         self._conn.commit()
 
     def close(self) -> None:

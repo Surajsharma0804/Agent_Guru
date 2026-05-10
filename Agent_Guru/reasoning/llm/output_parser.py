@@ -1,5 +1,4 @@
-"""
-LLM output parser for structured Task generation.
+"""LLM output parser for structured Task generation.
 
 This module implements parsing and validation of LLM JSON outputs into
 validated Task objects. It includes JSON schema validation, retry logic
@@ -14,7 +13,7 @@ Requirements: 16.2, 17.2, 17.3, 17.5
 import json
 import re
 import time
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -37,7 +36,7 @@ logger = get_logger(__name__)
 
 
 # Use centralized error management instead of custom exception
-def create_parsing_error(message: str, raw_output: Optional[str] = None, retry_count: int = 0):
+def create_parsing_error(message: str, raw_output: str | None = None, retry_count: int = 0):
     """Create structured parsing error using ErrorManager.
 
     Args:
@@ -47,13 +46,14 @@ def create_parsing_error(message: str, raw_output: Optional[str] = None, retry_c
 
     Returns:
         StructuredError from ErrorManager
+
     """
     error_manager = get_error_manager()
     context = ErrorContext(
         additional_data={
             "raw_output": raw_output[:500] if raw_output else None,
             "retry_count": retry_count,
-        }
+        },
     )
     return error_manager.create_error(
         error_type=ErrorType.LLM_INVALID_RESPONSE,
@@ -63,8 +63,7 @@ def create_parsing_error(message: str, raw_output: Optional[str] = None, retry_c
 
 
 class TaskOutputParser:
-    """
-    Parser for LLM outputs into structured Task objects.
+    """Parser for LLM outputs into structured Task objects.
 
     Implements JSON schema validation, retry logic, and confidence scoring
     to ensure high-quality Task generation from LLM outputs.
@@ -81,19 +80,18 @@ class TaskOutputParser:
     - Success rate: >95% for well-formed LLM outputs
     """
 
-    def __init__(self, max_retries: int = 3):
-        """
-        Initialize output parser.
+    def __init__(self, max_retries: int = 3) -> None:
+        """Initialize output parser.
 
         Args:
             max_retries: Maximum number of retry attempts (default 3)
+
         """
         self.max_retries = max_retries
         self.logger = get_logger(__name__)
 
     def parse(self, llm_output: str, retry_count: int = 0) -> tuple[Task, float]:
-        """
-        Parse LLM output into validated Task object.
+        """Parse LLM output into validated Task object.
 
         This is the main entry point for parsing LLM outputs. It handles
         JSON extraction, validation, and confidence scoring.
@@ -113,6 +111,7 @@ class TaskOutputParser:
             >>> llm_output = '{"goal": "Set timer", "task_type": "single_step", ...}'
             >>> task, confidence = parser.parse(llm_output)
             >>> print(f"Task: {task.goal}, Confidence: {confidence}")
+
         """
         start_time = time.time()
 
@@ -153,8 +152,8 @@ class TaskOutputParser:
             # Track failure
             PARSING_FAILURE_COUNTER.inc()
 
-            error_msg = f"Failed to parse LLM output: {str(e)}"
-            self.logger.error(
+            error_msg = f"Failed to parse LLM output: {e!s}"
+            self.logger.exception(
                 error_msg,
                 extra={
                     "error_type": type(e).__name__,
@@ -164,12 +163,15 @@ class TaskOutputParser:
             )
 
             # Use centralized error management
-            structured_error = create_parsing_error(error_msg, raw_output=llm_output, retry_count=retry_count)
+            structured_error = create_parsing_error(
+                error_msg,
+                raw_output=llm_output,
+                retry_count=retry_count,
+            )
             raise ValueError(structured_error.user_message) from e
 
-    def parse_with_retry(self, llm_output_generator, initial_prompt: str) -> tuple[Task, float]:
-        """
-        Parse LLM output with automatic retry on failure.
+    def parse_with_retry(self, llm_output_generator, initial_prompt: str) -> tuple[Task, float]:  # noqa: ANN001
+        """Parse LLM output with automatic retry on failure.
 
         If parsing fails, this method will retry up to max_retries times
         with exponential backoff. Each retry generates a new LLM output
@@ -191,8 +193,9 @@ class TaskOutputParser:
             ...     return llm_client.generate(prompt)
             >>> parser = TaskOutputParser(max_retries=3)
             >>> task, confidence = parser.parse_with_retry(generate_output, prompt)
+
         """
-        last_error: Optional[ValueError] = None
+        last_error: ValueError | None = None
 
         for retry_count in range(self.max_retries + 1):
             try:
@@ -217,14 +220,16 @@ class TaskOutputParser:
                 last_error = e
 
                 if retry_count < self.max_retries:
-                    self.logger.warning(
+                    self.logger.exception(
                         "Parsing failed, retrying (%d/%d)",
-                        retry_count + 1, self.max_retries,
+                        retry_count + 1,
+                        self.max_retries,
                         extra={"error": str(e)},
                     )
                 else:
-                    self.logger.error(
-                        "Parsing failed after %d retries", self.max_retries,
+                    self.logger.exception(
+                        "Parsing failed after %d retries",
+                        self.max_retries,
                         extra={"error": str(e)},
                     )
                     raise
@@ -233,8 +238,7 @@ class TaskOutputParser:
         raise last_error or ValueError("Unknown parsing error")
 
     def _extract_json(self, llm_output: str) -> str:
-        """
-        Extract JSON from LLM output.
+        """Extract JSON from LLM output.
 
         Handles various formats:
         - Plain JSON
@@ -249,6 +253,7 @@ class TaskOutputParser:
 
         Raises:
             ValueError: If no valid JSON found
+
         """
         # Remove leading/trailing whitespace
         output = llm_output.strip()
@@ -263,7 +268,8 @@ class TaskOutputParser:
         # Look for outermost { ... }
         start_idx = output.find("{")
         if start_idx == -1:
-            raise ValueError("No JSON object found in output")
+            msg = "No JSON object found in output"
+            raise ValueError(msg)
 
         # Find matching closing brace
         brace_count = 0
@@ -275,11 +281,11 @@ class TaskOutputParser:
                 if brace_count == 0:
                     return output[start_idx : i + 1]
 
-        raise ValueError("No complete JSON object found in output")
+        msg = "No complete JSON object found in output"
+        raise ValueError(msg)
 
     def _calculate_confidence(self, task: Task, task_dict: dict[str, Any]) -> float:
-        """
-        Calculate confidence score based on Task quality.
+        """Calculate confidence score based on Task quality.
 
         Confidence is based on:
         - LLM-provided confidence (if present)
@@ -293,6 +299,7 @@ class TaskOutputParser:
 
         Returns:
             Confidence score (0.0-1.0)
+
         """
         # Start with LLM-provided confidence if present
         base_confidence = task.confidence
@@ -318,8 +325,7 @@ class TaskOutputParser:
         return max(0.0, min(1.0, final_confidence))
 
     def _score_completeness(self, task: Task, task_dict: dict[str, Any]) -> float:
-        """
-        Score based on completeness of fields.
+        """Score based on completeness of fields.
 
         Checks:
         - All required fields present
@@ -329,6 +335,7 @@ class TaskOutputParser:
 
         Returns:
             Completeness score (0.0-1.0)
+
         """
         score = 1.0
 
@@ -342,18 +349,19 @@ class TaskOutputParser:
                 score -= 0.1
 
         # Check if descriptions are meaningful (>10 chars)
-        if len(task.goal) < 10:
+        if len(task.goal) < 10:  # noqa: PLR2004 - Threshold
+
             score -= 0.1
 
         for step in task.steps:
-            if len(step.description) < 10:
+            if len(step.description) < 10:  # noqa: PLR2004 - Threshold
+
                 score -= 0.05
 
         return max(0.0, score)
 
     def _score_consistency(self, task: Task) -> float:
-        """
-        Score based on internal consistency.
+        """Score based on internal consistency.
 
         Checks:
         - Task type matches step count
@@ -363,13 +371,15 @@ class TaskOutputParser:
 
         Returns:
             Consistency score (0.0-1.0)
+
         """
         score = 1.0
 
         # Check task type consistency (already validated, but double-check)
-        if task.task_type == TaskType.SINGLE_STEP and len(task.steps) != 1:
-            score -= 0.3
-        elif task.task_type == TaskType.MULTI_STEP and not 2 <= len(task.steps) <= 5:
+        if (task.task_type == TaskType.SINGLE_STEP and len(task.steps) != 1) or (
+            task.task_type == TaskType.MULTI_STEP and not 2 <= len(task.steps) <= 5  # noqa: PLR2004 - Small integer threshold
+
+        ):
             score -= 0.3
 
         # Check duration consistency
@@ -379,7 +389,8 @@ class TaskOutputParser:
 
         # Check for reasonable durations (0.1s to 60s per step)
         for step in task.steps:
-            if not 0.1 <= step.estimated_duration <= 60.0:
+            if not 0.1 <= step.estimated_duration <= 60.0:  # noqa: PLR2004 - Threshold
+
                 score -= 0.1
 
         # Check dependencies are valid
@@ -391,8 +402,7 @@ class TaskOutputParser:
         return max(0.0, score)
 
     def _score_quality(self, task: Task) -> float:
-        """
-        Score based on description quality.
+        """Score based on description quality.
 
         Checks:
         - Descriptions are clear and specific
@@ -402,6 +412,7 @@ class TaskOutputParser:
 
         Returns:
             Quality score (0.0-1.0)
+
         """
         score = 1.0
 
@@ -419,18 +430,19 @@ class TaskOutputParser:
             score -= 0.1
 
         # Check for reasonable length (not too short, not too long)
-        if len(task.goal) < 5 or len(task.goal) > 200:
+        if len(task.goal) < 5 or len(task.goal) > 200:  # noqa: PLR2004 - Small integer threshold
+
             score -= 0.1
 
         for step in task.steps:
-            if len(step.description) < 5 or len(step.description) > 200:
+            if len(step.description) < 5 or len(step.description) > 200:  # noqa: PLR2004 - Small integer threshold
+
                 score -= 0.05
 
         return max(0.0, score)
 
     def _create_retry_prompt(self, original_prompt: str, error: Exception) -> str:
-        """
-        Create retry prompt with error correction guidance.
+        """Create retry prompt with error correction guidance.
 
         Args:
             original_prompt: Original prompt that failed
@@ -438,10 +450,11 @@ class TaskOutputParser:
 
         Returns:
             Enhanced prompt with error correction
+
         """
         error_msg = str(error)
 
-        retry_guidance = f"""
+        return f"""
 IMPORTANT: The previous response had a parsing error. Please fix the following issue:
 
 Error: {error_msg}
@@ -460,11 +473,8 @@ Original request:
 Please generate a corrected Task object:
 """
 
-        return retry_guidance
-
     def validate_schema(self, task_dict: dict[str, Any]) -> list[str]:
-        """
-        Validate task dictionary against schema.
+        """Validate task dictionary against schema.
 
         Performs detailed schema validation and returns list of issues.
         This is useful for debugging and providing detailed error messages.
@@ -481,6 +491,7 @@ Please generate a corrected Task object:
             >>> errors = parser.validate_schema(task_dict)
             >>> print(errors)
             ['task_type must be one of: single_step, multi_step, conversational, memory_query']
+
         """
         errors = []
 
@@ -503,7 +514,7 @@ Please generate a corrected Task object:
             if task_dict["task_type"] not in valid_types:
                 errors.append(
                     f"task_type must be one of: {', '.join(valid_types)}, "
-                    f"got {task_dict['task_type']}"
+                    f"got {task_dict['task_type']}",
                 )
 
         # Validate steps
@@ -513,26 +524,27 @@ Please generate a corrected Task object:
                 errors.append("steps must be a list")
             elif len(steps) == 0:
                 errors.append("steps must contain at least one step")
-            elif len(steps) > 5:
+            elif len(steps) > 5:  # noqa: PLR2004 - Small integer threshold
+
                 errors.append(f"steps cannot contain more than 5 steps, got {len(steps)}")
             else:
                 # Validate each step
                 for i, step in enumerate(steps):
                     if not isinstance(step, dict):
-                        errors.append(f"Step {i+1} must be a dictionary")
+                        errors.append(f"Step {i + 1} must be a dictionary")
                         continue
 
                     # Check required step fields
                     step_required = ["step_id", "description", "tool_id", "parameters"]
                     for field in step_required:
                         if field not in step:
-                            errors.append(f"Step {i+1} missing required field: {field}")
+                            errors.append(f"Step {i + 1} missing required field: {field}")
 
                     # Validate step_id
                     if "step_id" in step and step["step_id"] != i + 1:
                         errors.append(
-                            f"Step {i+1} has incorrect step_id: {step['step_id']} "
-                            f"(expected {i+1})"
+                            f"Step {i + 1} has incorrect step_id: {step['step_id']} "
+                            f"(expected {i + 1})",
                         )
 
         # Validate confidence
@@ -556,8 +568,7 @@ Please generate a corrected Task object:
 
 # Convenience function for quick parsing
 def parse_task_from_llm(llm_output: str, max_retries: int = 3) -> tuple[Task, float]:
-    """
-    Convenience function to parse Task from LLM output.
+    """Convenience function to parse Task from LLM output.
 
     Args:
         llm_output: Raw LLM output string
@@ -572,6 +583,7 @@ def parse_task_from_llm(llm_output: str, max_retries: int = 3) -> tuple[Task, fl
     Example:
         >>> llm_output = '{"goal": "Set timer", ...}'
         >>> task, confidence = parse_task_from_llm(llm_output)
+
     """
     parser = TaskOutputParser(max_retries=max_retries)
     return parser.parse(llm_output)

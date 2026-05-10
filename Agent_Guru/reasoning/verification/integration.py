@@ -1,8 +1,7 @@
-"""
-Module: agent_guru.reasoning.verification.integration
+"""Module: agent_guru.reasoning.verification.integration
 Purpose: BEST-IN-CLASS Verification Layer Integration for Reasoning Pipeline
 Author: Agent Guru Team
-Date: 2026-02-22
+Date: 2026-02-22.
 
 Performance Requirements:
 - Time Complexity: O(n) where n is number of verification attempts
@@ -59,9 +58,9 @@ import time
 from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -104,6 +103,7 @@ class CircuitBreaker:
         failure_count: Current failure count
         success_count: Current success count (in half-open)
         last_failure_time: Timestamp of last failure
+
     """
 
     failure_threshold: int = 5
@@ -112,7 +112,7 @@ class CircuitBreaker:
     state: CircuitState = CircuitState.CLOSED
     failure_count: int = 0
     success_count: int = 0
-    last_failure_time: Optional[float] = None
+    last_failure_time: float | None = None
 
     def record_success(self) -> None:
         """Record successful verification."""
@@ -153,6 +153,7 @@ class CircuitBreaker:
 
         Returns:
             True if attempt allowed, False if circuit open
+
         """
         if self.state == CircuitState.CLOSED:
             return True
@@ -195,6 +196,7 @@ class VerificationMetrics:
         retry_count: Total number of retries
         avg_confidence: Average confidence score
         recent_latencies: Recent latencies for P95 calculation
+
     """
 
     total_verifications: int = 0
@@ -224,6 +226,7 @@ class VerificationMetrics:
             latency_ms: Verification latency in milliseconds
             confidence: Confidence score
             cache_hit: Whether result was from cache
+
         """
         self.total_verifications += 1
         self.total_latency_ms += latency_ms
@@ -255,6 +258,7 @@ class VerificationMetrics:
 
         Returns:
             P95 latency in milliseconds
+
         """
         if not self.recent_latencies:
             return 0.0
@@ -268,6 +272,7 @@ class VerificationMetrics:
 
         Returns:
             Dictionary of verification stats
+
         """
         if self.total_verifications == 0:
             return {
@@ -323,6 +328,7 @@ class VerificationAuditLog:
         verification_time_ms: Verification latency
         cache_hit: Whether result was from cache
         circuit_breaker_state: Circuit breaker state
+
     """
 
     timestamp: datetime
@@ -344,6 +350,7 @@ class VerificationAuditLog:
 
         Returns:
             Dictionary representation
+
         """
         return {
             "timestamp": self.timestamp.isoformat(),
@@ -386,17 +393,18 @@ class VerificationIntegration:
         >>> if success:
         ...     # Continue to Safety Gate
         ...     pass
+
     """
 
     def __init__(
         self,
         llm_client: LLMClient,
-        tool_registry: Optional[ToolRegistry] = None,
+        tool_registry: ToolRegistry | None = None,
         max_replan_attempts: int = 2,
         enable_caching: bool = True,
         enable_circuit_breaker: bool = True,
         enable_audit_logging: bool = True,
-    ):
+    ) -> None:
         """Initialize verification integration.
 
         Args:
@@ -406,6 +414,7 @@ class VerificationIntegration:
             enable_caching: Enable result caching (default True)
             enable_circuit_breaker: Enable circuit breaker (default True)
             enable_audit_logging: Enable audit logging (default True)
+
         """
         self.verifier = ReasoningVerifier(llm_client, tool_registry)
         self.max_replan_attempts = max_replan_attempts
@@ -438,11 +447,11 @@ class VerificationIntegration:
         self,
         task: Task,
         original_input: str,
-        replan_callback: Optional[Callable[[Task, str], Awaitable[Task]]] = None,
-        clarify_callback: Optional[Callable[[str], Awaitable[str]]] = None,
-        user_id: Optional[str] = None,
-        conversation_id: Optional[str] = None,
-    ) -> tuple[bool, Optional[Task], Optional[str]]:
+        replan_callback: Callable[[Task, str], Awaitable[Task]] | None = None,
+        clarify_callback: Callable[[str], Awaitable[str]] | None = None,
+        user_id: str | None = None,
+        conversation_id: str | None = None,
+    ) -> tuple[bool, Task | None, str | None]:
         """Verify task and handle result with production-ready features.
 
         This is the main entry point for verification integration.
@@ -470,6 +479,7 @@ class VerificationIntegration:
 
         Time Complexity: O(n) where n is number of attempts
         Latency: <200ms overhead + verification time
+
         """
         start_time = time.perf_counter()
         attempt = 0
@@ -496,7 +506,9 @@ class VerificationIntegration:
                     result = cached_result
                     cache_hit = True
                     logger.debug(
-                        "verification_cache_hit", cache_key=cache_key, task_goal=current_task.goal
+                        "verification_cache_hit",
+                        cache_key=cache_key,
+                        task_goal=current_task.goal,
                     )
                 else:
                     # Verify the task
@@ -514,7 +526,10 @@ class VerificationIntegration:
                 # Record metrics
                 verification_time_ms = (time.perf_counter() - start_time) * 1000
                 self.metrics.record_verification(
-                    result.recommendation, verification_time_ms, result.confidence, cache_hit
+                    result.recommendation,
+                    verification_time_ms,
+                    result.confidence,
+                    cache_hit,
                 )
 
                 # Audit logging
@@ -546,7 +561,7 @@ class VerificationIntegration:
                 if result.recommendation == VerificationAction.PROCEED:
                     return True, current_task, None
 
-                elif result.recommendation == VerificationAction.CLARIFY:
+                if result.recommendation == VerificationAction.CLARIFY:
                     if clarify_callback:
                         # Ask user for clarification
                         question = self._generate_clarification_question(result)
@@ -582,7 +597,7 @@ class VerificationIntegration:
                     )
                     return False, None, "Clarification needed but not provided"
 
-                elif result.recommendation == VerificationAction.REPLAN:
+                if result.recommendation == VerificationAction.REPLAN:
                     if replan_callback and attempt < self.max_replan_attempts:
                         # Generate feedback from issues
                         feedback = self._generate_replan_feedback(result)
@@ -599,24 +614,25 @@ class VerificationIntegration:
                         # Exponential backoff before retry
                         await asyncio.sleep(min(2**attempt, 10))
                         continue
-                    else:
-                        # Max attempts reached or no callback
-                        logger.warning(
-                            "verification_max_attempts_reached",
-                            task_goal=current_task.goal,
-                            attempt=attempt,
-                            max_attempts=self.max_replan_attempts,
-                        )
-                        return (
-                            False,
-                            None,
-                            f"Failed to generate valid plan after {attempt} attempts",
-                        )
+                    # Max attempts reached or no callback
+                    logger.warning(
+                        "verification_max_attempts_reached",
+                        task_goal=current_task.goal,
+                        attempt=attempt,
+                        max_attempts=self.max_replan_attempts,
+                    )
+                    return (
+                        False,
+                        None,
+                        f"Failed to generate valid plan after {attempt} attempts",
+                    )
 
-                elif result.recommendation == VerificationAction.ABORT:
+                if result.recommendation == VerificationAction.ABORT:
                     error_msg = self._generate_abort_message(result)
                     logger.warning(
-                        "verification_aborted", task_goal=current_task.goal, error=error_msg
+                        "verification_aborted",
+                        task_goal=current_task.goal,
+                        error=error_msg,
                     )
                     return False, None, error_msg
 
@@ -625,7 +641,7 @@ class VerificationIntegration:
                 if self.enable_circuit_breaker:
                     self.circuit_breaker.record_failure()
 
-                logger.error(
+                logger.exception(
                     "verification_error",
                     task_goal=current_task.goal,
                     attempt=attempt,
@@ -639,8 +655,7 @@ class VerificationIntegration:
                     self.metrics.retry_count += 1
                     await asyncio.sleep(min(2**attempt, 10))
                     continue
-                else:
-                    return False, None, f"Verification failed: {str(e)}"
+                return False, None, f"Verification failed: {e!s}"
 
         # Should not reach here
         logger.error("verification_unexpected_exit", task_goal=current_task.goal, attempt=attempt)
@@ -655,12 +670,13 @@ class VerificationIntegration:
 
         Returns:
             Cache key string
+
         """
         # Use task goal and original input as cache key
         # In production, use more sophisticated hashing
         return f"{task.goal}:{original_input}"
 
-    def _get_cached_result(self, cache_key: str) -> Optional[VerificationResult]:
+    def _get_cached_result(self, cache_key: str) -> VerificationResult | None:
         """Get cached verification result.
 
         Args:
@@ -668,6 +684,7 @@ class VerificationIntegration:
 
         Returns:
             Cached result or None if not found/expired
+
         """
         if not self.enable_caching:
             return None
@@ -678,9 +695,8 @@ class VerificationIntegration:
             # Check if expired
             if time.time() - timestamp < self.cache_ttl_seconds:
                 return result
-            else:
-                # Remove expired entry
-                del self.result_cache[cache_key]
+            # Remove expired entry
+            del self.result_cache[cache_key]
 
         return None
 
@@ -690,6 +706,7 @@ class VerificationIntegration:
         Args:
             cache_key: Cache key
             result: Verification result
+
         """
         if not self.enable_caching:
             return
@@ -697,7 +714,8 @@ class VerificationIntegration:
         self.result_cache[cache_key] = (result, time.time())
 
         # Limit cache size (LRU eviction)
-        if len(self.result_cache) > 1000:
+        if len(self.result_cache) > 1000:  # noqa: PLR2004 - Percentage/large threshold
+
             # Remove oldest entry
             oldest_key = min(self.result_cache.items(), key=lambda x: x[1][1])[0]
             del self.result_cache[oldest_key]
@@ -710,6 +728,7 @@ class VerificationIntegration:
 
         Returns:
             Clarification question for user
+
         """
         if result.issues:
             # Use first issue for clarification
@@ -726,6 +745,7 @@ class VerificationIntegration:
 
         Returns:
             Feedback string for replanning
+
         """
         feedback_parts = []
 
@@ -751,6 +771,7 @@ class VerificationIntegration:
 
         Returns:
             Error message explaining why aborted
+
         """
         if result.has_critical_issues():
             critical = result.get_critical_issues()[0]
@@ -778,6 +799,7 @@ class VerificationIntegration:
             task_id: Task ID
             original_input: Original user input
             cache_hit: Whether result was from cache
+
         """
         audit_entry = VerificationAuditLog(
             timestamp=result.timestamp,
@@ -801,13 +823,13 @@ class VerificationIntegration:
         logger.info("verification_audit", **audit_entry.to_dict())
 
         # In production, persist to database
-        # await self.audit_repository.save(audit_entry)
 
     def get_verification_stats(self) -> dict[str, Any]:
         """Get verification statistics.
 
         Returns:
             Dictionary of verification stats
+
         """
         return self.metrics.get_stats()
 
@@ -816,6 +838,7 @@ class VerificationIntegration:
 
         Returns:
             Health status dictionary
+
         """
         stats = self.get_verification_stats()
 
@@ -824,12 +847,14 @@ class VerificationIntegration:
         issues = []
 
         # Check P95 latency
-        if stats["p95_latency_ms"] > 400:  # 2x target
+        if stats["p95_latency_ms"] > 400:  # 2x target  # noqa: PLR2004 (Percentage/large threshold)
+
             is_healthy = False
             issues.append(f"High P95 latency: {stats['p95_latency_ms']:.1f}ms")
 
         # Check abort rate
-        if stats["abort_rate"] > 0.1:  # >10%
+        if stats["abort_rate"] > 0.1:  # >10%  # noqa: PLR2004 (Threshold value)
+
             is_healthy = False
             issues.append(f"High abort rate: {stats['abort_rate']:.1%}")
 
@@ -856,7 +881,10 @@ class VerificationIntegration:
         logger.info("verification_cache_cleared")
 
     def get_audit_log(
-        self, user_id: Optional[str] = None, conversation_id: Optional[str] = None, limit: int = 100
+        self,
+        user_id: str | None = None,
+        conversation_id: str | None = None,
+        limit: int = 100,
     ) -> list[dict[str, Any]]:
         """Get audit log entries.
 
@@ -867,6 +895,7 @@ class VerificationIntegration:
 
         Returns:
             List of audit log entries
+
         """
         filtered_log = self.audit_log
 

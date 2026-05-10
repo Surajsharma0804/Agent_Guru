@@ -1,5 +1,4 @@
-"""
-Error Response Generator
+"""Error Response Generator.
 
 Generates user-friendly error responses with:
 - Clear, non-technical error messages
@@ -20,7 +19,7 @@ Design:
 """
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.config.logging import get_logger
 from Agent_Guru.reasoning.models.error import Error, ErrorType, FallbackStrategy
@@ -32,8 +31,7 @@ logger = get_logger(__name__)
 
 @dataclass
 class ErrorResponseTemplate:
-    """
-    Template for error responses.
+    """Template for error responses.
 
     Attributes:
         user_message: User-friendly error message (no technical jargon)
@@ -41,6 +39,7 @@ class ErrorResponseTemplate:
         suggested_actions: List of suggested actions for user
         alternatives: List of alternative approaches
         requires_clarification: Whether error needs user clarification
+
     """
 
     user_message: str
@@ -51,8 +50,7 @@ class ErrorResponseTemplate:
 
 
 class ErrorResponseGenerator:
-    """
-    Generate user-friendly error responses.
+    """Generate user-friendly error responses.
 
     Time Complexity: O(1) - dictionary lookup
     Space Complexity: O(1) - fixed error message registry
@@ -72,6 +70,7 @@ class ErrorResponseGenerator:
         ... )
         >>> print(response.text)
         "I don't have permission to do that"
+
     """
 
     def __init__(self) -> None:
@@ -87,11 +86,10 @@ class ErrorResponseGenerator:
         self,
         error: Error,
         modality: ResponseModality,
-        intent: Optional[Intent] = None,
-        context: Optional[dict[str, Any]] = None,
+        intent: Intent | None = None,
+        context: dict[str, Any] | None = None,
     ) -> Response:
-        """
-        Generate user-friendly error response.
+        """Generate user-friendly error response.
 
         Time Complexity: O(1) - dictionary lookup
         Space Complexity: O(1) - fixed response size
@@ -104,6 +102,7 @@ class ErrorResponseGenerator:
 
         Returns:
             Response object with user-friendly error message
+
         """
         # Get error template
         template = self._get_error_template(error.error_type)
@@ -147,8 +146,7 @@ class ErrorResponseGenerator:
         return response
 
     def _get_error_template(self, error_type: ErrorType) -> ErrorResponseTemplate:
-        """
-        Get error template for error type.
+        """Get error template for error type.
 
         Time Complexity: O(1) - dictionary lookup
 
@@ -157,20 +155,21 @@ class ErrorResponseGenerator:
 
         Returns:
             Error response template
+
         """
         return self._error_templates.get(
-            error_type, self._error_templates[ErrorType.SYSTEM_ERROR]  # Default fallback
+            error_type,
+            self._error_templates[ErrorType.SYSTEM_ERROR],  # Default fallback
         )
 
     def _add_context_details(
         self,
         message: str,
         error: Error,
-        intent: Optional[Intent],
-        context: Optional[dict[str, Any]],
+        intent: Intent | None,
+        context: dict[str, Any] | None,
     ) -> str:
-        """
-        Add context-specific details to error message.
+        """Add context-specific details to error message.
 
         Args:
             message: Base error message
@@ -180,6 +179,7 @@ class ErrorResponseGenerator:
 
         Returns:
             Enhanced error message with context
+
         """
         # Add intent-specific context
         if intent and error.error_type == ErrorType.NO_TOOL_FOUND:
@@ -203,11 +203,10 @@ class ErrorResponseGenerator:
         self,
         error: Error,
         template: ErrorResponseTemplate,
-        intent: Optional[Intent],
-        context: Optional[dict[str, Any]],
+        intent: Intent | None,
+        context: dict[str, Any] | None,
     ) -> list[str]:
-        """
-        Generate suggestions for error recovery.
+        """Generate suggestions for error recovery.
 
         Args:
             error: Error object
@@ -217,6 +216,7 @@ class ErrorResponseGenerator:
 
         Returns:
             List of suggested actions
+
         """
         suggestions = []
 
@@ -241,8 +241,7 @@ class ErrorResponseGenerator:
         return suggestions[:3]
 
     def _get_intent_alternatives(self, intent: Intent, error: Error) -> list[str]:
-        """
-        Get alternative suggestions based on intent.
+        """Get alternative suggestions based on intent.
 
         Args:
             intent: User intent
@@ -250,6 +249,7 @@ class ErrorResponseGenerator:
 
         Returns:
             List of alternative suggestions
+
         """
         alternatives = []
         intent_type_str = str(intent.intent_type)
@@ -281,14 +281,14 @@ class ErrorResponseGenerator:
         return alternatives
 
     def _get_fallback_suggestions(self, fallback_strategy: FallbackStrategy) -> list[str]:
-        """
-        Get suggestions based on fallback strategy.
+        """Get suggestions based on fallback strategy.
 
         Args:
             fallback_strategy: Suggested fallback strategy
 
         Returns:
             List of suggestions
+
         """
         fallback_suggestions = {
             FallbackStrategy.RETRY_WITH_BACKOFF: ["Try again in a moment"],
@@ -301,8 +301,7 @@ class ErrorResponseGenerator:
         return fallback_suggestions.get(fallback_strategy, [])
 
     def _load_error_templates(self) -> None:
-        """
-        Load error response templates.
+        """Load error response templates.
 
         Time Complexity: O(1) - fixed number of templates
         """

@@ -1,5 +1,4 @@
-"""
-CommandRegistry - Command Pattern Registry for Agent Guru
+"""CommandRegistry - Command Pattern Registry for Agent Guru.
 
 Manages the registry of voice command patterns, aliases, and variations.
 Provides O(1) lookup by intent type and supports dynamic registration.
@@ -32,6 +31,7 @@ class CommandPattern:
         entities: Entity name → EntityType mapping
         aliases: Alternative phrasings for the same command
         examples: Example utterances for documentation
+
     """
 
     pattern: str
@@ -59,6 +59,7 @@ class CommandRegistry:
         ...     entities={"app": "APP"},
         ...     aliases=["fire up {app}", "run {app}"],
         ... ))
+
     """
 
     def __init__(self) -> None:
@@ -77,16 +78,19 @@ class CommandRegistry:
         Raises:
             FileNotFoundError: If the file does not exist.
             ValueError: If the YAML structure is invalid.
+
         """
         path = Path(path)
         if not path.exists():
-            raise FileNotFoundError(f"Patterns file not found: {path}")
+            msg = f"Patterns file not found: {path}"
+            raise FileNotFoundError(msg)
 
-        with open(path, encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:  # noqa: PTH123
             data = yaml.safe_load(f)
 
         if "patterns" not in data:
-            raise ValueError("YAML must contain a 'patterns' key")
+            msg = "YAML must contain a 'patterns' key"
+            raise ValueError(msg)
 
         for entry in data["patterns"]:
             cmd = CommandPattern(
@@ -101,6 +105,7 @@ class CommandRegistry:
 
         Args:
             command: CommandPattern to register.
+
         """
         self._register_internal(command)
         # Also register each alias as a separate pattern
@@ -128,6 +133,7 @@ class CommandRegistry:
 
         Returns:
             List of CommandPattern objects, empty if none registered.
+
         """
         return self._by_intent.get(intent, [])
 
@@ -148,6 +154,7 @@ class CommandRegistry:
 
         Returns:
             List of dicts compatible with FastIntentRouter.load_patterns().
+
         """
         return [
             {

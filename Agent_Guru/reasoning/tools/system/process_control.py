@@ -1,5 +1,4 @@
-"""
-Process control tools for listing and killing processes.
+"""Process control tools for listing and killing processes.
 
 Platform-specific implementations for Windows, macOS, and Linux.
 """
@@ -35,14 +34,16 @@ class PlatformProcessController:
 
         Returns:
             Result dictionary with process list
+
         """
         system = PlatformProcessController.get_platform()
 
         try:
             if system == "windows":
                 # Windows: use tasklist
-                result = subprocess.run(
-                    ["tasklist", "/FO", "CSV", "/NH"],
+                result = subprocess.run(  # noqa: ASYNC221
+                    ["tasklist", "/FO", "CSV", "/NH"],  # noqa: S607
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -57,18 +58,20 @@ class PlatformProcessController:
                 for line in result.stdout.strip().split("\n"):
                     if line:
                         parts = line.strip('"').split('","')
-                        if len(parts) >= 2:
+                        if len(parts) >= 2:  # noqa: PLR2004 - Small integer threshold
+
                             processes.append(
                                 {
                                     "name": parts[0],
                                     "pid": parts[1],
-                                }
+                                },
                             )
 
-            elif system == "darwin" or system == "linux":
+            elif system in {"darwin", "linux"}:
                 # macOS/Linux: use ps
-                result = subprocess.run(
-                    ["ps", "aux"],
+                result = subprocess.run(  # noqa: ASYNC221
+                    ["ps", "aux"],  # noqa: S607
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -83,7 +86,8 @@ class PlatformProcessController:
                 lines = result.stdout.strip().split("\n")[1:]  # Skip header
                 for line in lines:
                     parts = line.split(None, 10)
-                    if len(parts) >= 11:
+                    if len(parts) >= 11:  # noqa: PLR2004 - Threshold
+
                         processes.append(
                             {
                                 "user": parts[0],
@@ -91,7 +95,7 @@ class PlatformProcessController:
                                 "cpu": parts[2],
                                 "mem": parts[3],
                                 "command": parts[10],
-                            }
+                            },
                         )
 
             else:
@@ -115,7 +119,7 @@ class PlatformProcessController:
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to list processes: {str(e)}",
+                "error": f"Failed to list processes: {e!s}",
             }
 
     @staticmethod
@@ -128,6 +132,7 @@ class PlatformProcessController:
 
         Returns:
             Result dictionary
+
         """
         system = PlatformProcessController.get_platform()
 
@@ -138,8 +143,9 @@ class PlatformProcessController:
                 if force:
                     cmd.append("/F")
 
-                result = subprocess.run(
+                result = subprocess.run(  # noqa: S603
                     cmd,
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -149,11 +155,12 @@ class PlatformProcessController:
                         "error": f"Failed to kill process {pid}: {result.stderr}",
                     }
 
-            elif system == "darwin" or system == "linux":
+            elif system in {"darwin", "linux"}:
                 # macOS/Linux: use kill
                 signal = "-9" if force else "-15"
-                result = subprocess.run(
-                    ["kill", signal, str(pid)],
+                result = subprocess.run(  # noqa: S603
+                    ["kill", signal, str(pid)],  # noqa: S607
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -184,7 +191,7 @@ class PlatformProcessController:
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to kill process: {str(e)}",
+                "error": f"Failed to kill process: {e!s}",
             }
 
 
@@ -205,11 +212,12 @@ class PlatformProcessController:
 class ProcessListTool(Tool):
     """Tool for listing processes."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute process listing.
 
         Returns:
             Execution result with process list
+
         """
         return await PlatformProcessController.list_processes()
 
@@ -245,7 +253,7 @@ class ProcessListTool(Tool):
 class ProcessKillTool(Tool):
     """Tool for killing processes."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute process killing.
 
         Args:
@@ -254,6 +262,7 @@ class ProcessKillTool(Tool):
 
         Returns:
             Execution result
+
         """
         pid = kwargs["pid"]
         force = kwargs.get("force", False)

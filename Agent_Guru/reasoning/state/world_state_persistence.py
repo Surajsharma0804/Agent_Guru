@@ -1,5 +1,4 @@
-"""
-WorldState Persistence and Recovery.
+"""WorldState Persistence and Recovery.
 
 This module provides persistence and recovery for WorldState with versioning.
 
@@ -8,8 +7,8 @@ Performance: <50ms save, <100ms restore
 
 import asyncio
 import json
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import aiosqlite
 import structlog
@@ -32,11 +31,12 @@ class WorldStatePersistence:
 
     CURRENT_VERSION = 1
 
-    def __init__(self, db_path: str = "world_state.db"):
+    def __init__(self, db_path: str = "world_state.db") -> None:
         """Initialize persistence layer.
 
         Args:
             db_path: Path to SQLite database
+
         """
         self._db_path = db_path
         self._lock = asyncio.Lock()
@@ -55,7 +55,7 @@ class WorldStatePersistence:
                     last_updated TIMESTAMP NOT NULL,
                     created_at TIMESTAMP NOT NULL
                 )
-                """
+                """,
             )
             await db.execute(
                 """
@@ -65,7 +65,7 @@ class WorldStatePersistence:
                     state_json TEXT NOT NULL,
                     saved_at TIMESTAMP NOT NULL
                 )
-                """
+                """,
             )
             await db.commit()
 
@@ -83,6 +83,7 @@ class WorldStatePersistence:
         Args:
             engine: WorldState engine to save
             create_backup: Whether to create backup in history
+
         """
         async with self._lock:
             await engine.get_state()
@@ -99,8 +100,8 @@ class WorldStatePersistence:
                     (
                         self.CURRENT_VERSION,
                         state_json,
-                        datetime.now(tz=timezone.utc).isoformat(),
-                        datetime.now(tz=timezone.utc).isoformat(),
+                        datetime.now(tz=UTC).isoformat(),
+                        datetime.now(tz=UTC).isoformat(),
                     ),
                 )
 
@@ -114,7 +115,7 @@ class WorldStatePersistence:
                         (
                             self.CURRENT_VERSION,
                             state_json,
-                            datetime.now(tz=timezone.utc).isoformat(),
+                            datetime.now(tz=UTC).isoformat(),
                         ),
                     )
 
@@ -132,30 +133,30 @@ class WorldStatePersistence:
 
         Returns:
             True if restored successfully, False if no state found
+
         """
-        async with self._lock:
-            async with aiosqlite.connect(self._db_path) as db:
-                async with db.execute(
-                    "SELECT version, state_json FROM world_state WHERE id = 1"
-                ) as cursor:
-                    row = await cursor.fetchone()
+        async with self._lock, aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT version, state_json FROM world_state WHERE id = 1",
+            ) as cursor:
+                row = await cursor.fetchone()
 
-                if not row:
-                    logger.info("no_state_to_restore")
-                    return False
+            if not row:
+                logger.info("no_state_to_restore")
+                return False
 
-                version, state_json = row
+            version, state_json = row
 
-                # Handle version migrations if needed
-                state_dict = json.loads(state_json)
-                if version < self.CURRENT_VERSION:
-                    state_dict = await self._migrate_state(state_dict, version)
+            # Handle version migrations if needed
+            state_dict = json.loads(state_json)
+            if version < self.CURRENT_VERSION:
+                state_dict = await self._migrate_state(state_dict, version)
 
-                # Restore state
-                await engine.restore_state(state_dict)
+            # Restore state
+            await engine.restore_state(state_dict)
 
-                logger.info("state_restored", version=version)
-                return True
+            logger.info("state_restored", version=version)
+            return True
 
     async def _migrate_state(
         self,
@@ -170,6 +171,7 @@ class WorldStatePersistence:
 
         Returns:
             Migrated state dictionary
+
         """
         logger.info("migrating_state", from_version=from_version, to_version=self.CURRENT_VERSION)
 
@@ -178,11 +180,12 @@ class WorldStatePersistence:
 
         return state_dict
 
-    async def get_version(self) -> Optional[int]:
+    async def get_version(self) -> int | None:
         """Get current state version.
 
         Returns:
             Version number or None if no state exists
+
         """
         async with aiosqlite.connect(self._db_path) as db:
             async with db.execute("SELECT version FROM world_state WHERE id = 1") as cursor:
@@ -194,6 +197,7 @@ class WorldStatePersistence:
 
         Returns:
             Number of backups
+
         """
         async with aiosqlite.connect(self._db_path) as db:
             async with db.execute("SELECT COUNT(*) FROM state_history") as cursor:
@@ -213,29 +217,29 @@ class WorldStatePersistence:
 
         Returns:
             True if restored successfully, False if backup not found
+
         """
-        async with self._lock:
-            async with aiosqlite.connect(self._db_path) as db:
-                async with db.execute(
-                    "SELECT version, state_json FROM state_history WHERE id = ?",
-                    (backup_id,),
-                ) as cursor:
-                    row = await cursor.fetchone()
+        async with self._lock, aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT version, state_json FROM state_history WHERE id = ?",
+                (backup_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
 
-                if not row:
-                    logger.warning("backup_not_found", backup_id=backup_id)
-                    return False
+            if not row:
+                logger.warning("backup_not_found", backup_id=backup_id)
+                return False
 
-                version, state_json = row
-                state_dict = json.loads(state_json)
+            version, state_json = row
+            state_dict = json.loads(state_json)
 
-                if version < self.CURRENT_VERSION:
-                    state_dict = await self._migrate_state(state_dict, version)
+            if version < self.CURRENT_VERSION:
+                state_dict = await self._migrate_state(state_dict, version)
 
-                await engine.restore_state(state_dict)
+            await engine.restore_state(state_dict)
 
-                logger.info("state_restored_from_backup", backup_id=backup_id)
-                return True
+            logger.info("state_restored_from_backup", backup_id=backup_id)
+            return True
 
     async def cleanup_old_backups(self, keep_count: int = 10) -> int:
         """Clean up old backups, keeping only recent ones.
@@ -245,12 +249,12 @@ class WorldStatePersistence:
 
         Returns:
             Number of backups deleted
+
         """
-        async with self._lock:
-            async with aiosqlite.connect(self._db_path) as db:
-                # Get count of backups to delete
-                async with db.execute(
-                    """
+        async with self._lock, aiosqlite.connect(self._db_path) as db:
+            # Get count of backups to delete
+            async with db.execute(
+                """
                     SELECT COUNT(*) FROM state_history
                     WHERE id NOT IN (
                         SELECT id FROM state_history
@@ -258,14 +262,14 @@ class WorldStatePersistence:
                         LIMIT ?
                     )
                     """,
-                    (keep_count,),
-                ) as cursor:
-                    row = await cursor.fetchone()
-                    delete_count = row[0] if row else 0
+                (keep_count,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                delete_count = row[0] if row else 0
 
-                # Delete old backups
-                await db.execute(
-                    """
+            # Delete old backups
+            await db.execute(
+                """
                     DELETE FROM state_history
                     WHERE id NOT IN (
                         SELECT id FROM state_history
@@ -273,9 +277,9 @@ class WorldStatePersistence:
                         LIMIT ?
                     )
                     """,
-                    (keep_count,),
-                )
-                await db.commit()
+                (keep_count,),
+            )
+            await db.commit()
 
-                logger.info("old_backups_cleaned", deleted=delete_count, kept=keep_count)
-                return delete_count
+            logger.info("old_backups_cleaned", deleted=delete_count, kept=keep_count)
+            return delete_count

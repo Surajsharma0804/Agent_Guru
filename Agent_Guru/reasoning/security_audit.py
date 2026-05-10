@@ -1,5 +1,4 @@
-"""
-Security Audit Script for Core Reasoning Engine.
+"""Security Audit Script for Core Reasoning Engine.
 
 Documents the security checks to run for production readiness (Task 28.1).
 Implements static analysis checks that can be run programmatically.
@@ -75,23 +74,26 @@ class AuditResult:
 # Secrets / hardcoded credentials
 _SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("api_key_assignment", re.compile(r'(?i)(api_key|apikey)\s*=\s*["\'][A-Za-z0-9_\-]{16,}["\']')),
-    ("secret_assignment", re.compile(r'(?i)(secret|password|passwd|token)\s*=\s*["\'][^"\']{8,}["\']')),
-    ("aws_access_key", re.compile(r'AKIA[0-9A-Z]{16}')),
-    ("private_key_header", re.compile(r'-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----')),
+    (
+        "secret_assignment",
+        re.compile(r'(?i)(secret|password|passwd|token)\s*=\s*["\'][^"\']{8,}["\']'),
+    ),
+    ("aws_access_key", re.compile(r"AKIA[0-9A-Z]{16}")),
+    ("private_key_header", re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----")),
 ]
 
 # Dangerous function calls - match standalone eval/exec, not method calls like model.eval()
 _DANGEROUS_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("eval_call", re.compile(r'(?<!\.)(?<!\w)\beval\s*\(')),
-    ("exec_call", re.compile(r'(?<!\.)(?<!\w)\bexec\s*\(')),
-    ("pickle_loads", re.compile(r'\bpickle\.loads?\s*\(')),
-    ("yaml_load_unsafe", re.compile(r'\byaml\.load\s*\([^,)]+\)')),  # without Loader=
-    ("subprocess_shell_true", re.compile(r'subprocess\.[a-z_]+\s*\([^)]*shell\s*=\s*True')),
-    ("os_system", re.compile(r'\bos\.system\s*\(')),
+    ("eval_call", re.compile(r"(?<!\.)(?<!\w)\beval\s*\(")),
+    ("exec_call", re.compile(r"(?<!\.)(?<!\w)\bexec\s*\(")),
+    ("pickle_loads", re.compile(r"\bpickle\.loads?\s*\(")),
+    ("yaml_load_unsafe", re.compile(r"\byaml\.load\s*\([^,)]+\)")),  # without Loader=
+    ("subprocess_shell_true", re.compile(r"subprocess\.[a-z_]+\s*\([^)]*shell\s*=\s*True")),
+    ("os_system", re.compile(r"\bos\.system\s*\(")),
 ]
 
 # Bare except patterns
-_BARE_EXCEPT_PATTERN = re.compile(r'^\s*except\s*:\s*$', re.MULTILINE)
+_BARE_EXCEPT_PATTERN = re.compile(r"^\s*except\s*:\s*$", re.MULTILINE)
 
 # Input validation markers (presence check)
 _VALIDATION_MARKERS = [
@@ -109,9 +111,7 @@ def _python_source_files(root: Path) -> list[Path]:
     return [
         p
         for p in root.rglob("*.py")
-        if "__pycache__" not in p.parts
-        and ".hypothesis" not in p.parts
-        and "tests" not in p.parts
+        if "__pycache__" not in p.parts and ".hypothesis" not in p.parts and "tests" not in p.parts
     ]
 
 
@@ -170,7 +170,7 @@ def check_no_hardcoded_secrets(root: Path) -> AuditResult:
                             file_path=str(py_file.relative_to(root)),
                             line_number=line_no,
                             recommendation="Use environment variables or OS keychain for secrets.",
-                        )
+                        ),
                     )
 
     return AuditResult(
@@ -210,7 +210,7 @@ def check_no_dangerous_functions(root: Path) -> AuditResult:
                                 "Use ast.literal_eval for safe evaluation. "
                                 "Use subprocess with shell=False."
                             ),
-                        )
+                        ),
                     )
 
     return AuditResult(
@@ -240,7 +240,7 @@ def check_input_validation_present(root: Path) -> AuditResult:
                     description=f"Key module not found: {module_path.name}",
                     file_path=str(module_path),
                     recommendation="Ensure all key modules exist with input validation.",
-                )
+                ),
             )
             continue
 
@@ -255,7 +255,7 @@ def check_input_validation_present(root: Path) -> AuditResult:
                     description=f"No input validation found in {module_path.name}",
                     file_path=str(module_path.relative_to(root)),
                     recommendation="Add Pydantic validators or explicit validation logic.",
-                )
+                ),
             )
 
     return AuditResult(
@@ -286,7 +286,7 @@ def check_no_bare_excepts(root: Path) -> AuditResult:
                     file_path=str(py_file.relative_to(root)),
                     line_number=line_no,
                     recommendation="Use specific exception types: except ValueError as e:",
-                )
+                ),
             )
 
     return AuditResult(
@@ -317,8 +317,14 @@ def check_security_imports_correct(root: Path) -> AuditResult:
                 and node.func.value.id == "yaml"
             ):
                 has_loader = any(
-                    (isinstance(kw.value, ast.Attribute) and kw.value.attr in ("SafeLoader", "FullLoader"))
-                    or (isinstance(kw.value, ast.Name) and kw.value.id in ("SafeLoader", "FullLoader"))
+                    (
+                        isinstance(kw.value, ast.Attribute)
+                        and kw.value.attr in ("SafeLoader", "FullLoader")
+                    )
+                    or (
+                        isinstance(kw.value, ast.Name)
+                        and kw.value.id in ("SafeLoader", "FullLoader")
+                    )
                     for kw in node.keywords
                     if kw.arg == "Loader"
                 )
@@ -331,7 +337,7 @@ def check_security_imports_correct(root: Path) -> AuditResult:
                             file_path=str(py_file.relative_to(root)),
                             line_number=node.lineno,
                             recommendation="Use yaml.safe_load() or yaml.load(data, Loader=yaml.SafeLoader).",
-                        )
+                        ),
                     )
 
     return AuditResult(
@@ -344,8 +350,9 @@ def check_security_imports_correct(root: Path) -> AuditResult:
 def run_bandit(root: Path) -> AuditResult:
     """Run Bandit SAST tool if available."""
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603
             [sys.executable, "-m", "bandit", "-r", str(root), "-f", "json", "-q"],
+            check=False,
             capture_output=True,
             text=True,
             timeout=120,
@@ -372,8 +379,9 @@ def run_safety(root: Path) -> AuditResult:
         if requirements_file.exists():
             cmd += ["-r", str(requirements_file)]
 
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603
             cmd,
+            check=False,
             capture_output=True,
             text=True,
             timeout=60,
@@ -397,49 +405,36 @@ def run_full_audit(root: Path | None = None) -> dict[str, AuditResult]:
     if root is None:
         root = Path(__file__).parent
 
-    checks = {
+    return {
         "no_hardcoded_secrets": check_no_hardcoded_secrets(root),
         "no_dangerous_functions": check_no_dangerous_functions(root),
         "input_validation_present": check_input_validation_present(root),
         "no_bare_excepts": check_no_bare_excepts(root),
         "security_imports_correct": check_security_imports_correct(root),
     }
-    return checks
 
 
 def print_report(results: dict[str, AuditResult]) -> None:
     """Print a human-readable audit report."""
-    print("\n" + "=" * 60)
-    print("SECURITY AUDIT REPORT - Core Reasoning Engine")
-    print("=" * 60)
-
     total_issues = 0
     critical_issues = 0
     high_issues = 0
 
-    for check_name, result in results.items():
-        status = "PASS" if result.passed else "FAIL"
-        print(f"\n[{status}] {check_name}")
+    for result in results.values():
         if result.details:
-            print(f"  Details: {result.details}")
+            pass
         for issue in result.issues:
-            print(f"  [{issue.severity.value}] {issue.description}")
             if issue.file_path:
-                print(f"    File: {issue.file_path}:{issue.line_number}")
+                pass
             if issue.recommendation:
-                print(f"    Fix: {issue.recommendation}")
+                pass
             total_issues += 1
             if issue.severity == Severity.CRITICAL:
                 critical_issues += 1
             elif issue.severity == Severity.HIGH:
                 high_issues += 1
 
-    print("\n" + "=" * 60)
-    print(f"Total issues: {total_issues}")
-    print(f"Critical: {critical_issues}  High: {high_issues}")
-    all_passed = all(r.passed for r in results.values())
-    print(f"Overall: {'PASS' if all_passed else 'FAIL'}")
-    print("=" * 60)
+    all(r.passed for r in results.values())
 
 
 if __name__ == "__main__":
@@ -454,7 +449,5 @@ if __name__ == "__main__":
     print_report(results)
 
     # Exit with non-zero if critical/high issues found
-    has_critical_or_high = any(
-        r.critical_count > 0 or r.high_count > 0 for r in results.values()
-    )
+    has_critical_or_high = any(r.critical_count > 0 or r.high_count > 0 for r in results.values())
     sys.exit(1 if has_critical_or_high else 0)

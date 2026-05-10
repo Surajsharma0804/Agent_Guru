@@ -1,5 +1,4 @@
-"""
-Policy Engine - Main facade orchestrating all policy components.
+"""Policy Engine - Main facade orchestrating all policy components.
 
 Validates: All policy requirements (1-10, 12)
 """
@@ -8,9 +7,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from Agent_Guru.policy.access_controller import AccessController
 from Agent_Guru.policy.audit_logger import AuditLogger
@@ -33,6 +31,9 @@ from Agent_Guru.policy.models import (
 from Agent_Guru.policy.policy_storage import PolicyStorage
 from Agent_Guru.policy.rule_evaluator import RuleEvaluator
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,7 +49,7 @@ class PolicyEngine:
     def __init__(
         self,
         db_path: str = ":memory:",
-        audit_db_path: Optional[str] = None,
+        audit_db_path: str | None = None,
         cache_size: int = 10_000,
         default_ttl: int = 300,
         enable_caching: bool = True,
@@ -62,10 +63,8 @@ class PolicyEngine:
             db_path=audit_db_path or db_path,
             retention_days=retention_days,
         )
-        self.cache: Optional[CacheManager] = (
-            CacheManager(max_size=cache_size, default_ttl=default_ttl)
-            if enable_caching
-            else None
+        self.cache: CacheManager | None = (
+            CacheManager(max_size=cache_size, default_ttl=default_ttl) if enable_caching else None
         )
         self.evaluator = RuleEvaluator(
             enable_memoization=enable_memoization,
@@ -85,8 +84,8 @@ class PolicyEngine:
         principal: Principal,
         resource: Resource,
         action: str,
-        context: Optional[dict[str, Any]] = None,
-        strategy: Optional[ConflictStrategy] = None,
+        context: dict[str, Any] | None = None,
+        strategy: ConflictStrategy | None = None,
         test_mode: bool = False,
         dry_run: bool = False,
     ) -> AccessDecision:
@@ -112,8 +111,8 @@ class PolicyEngine:
                     decision=decision,
                     context=context or {},
                 )
-            except Exception as exc:
-                logger.warning("Audit log write failed: %s", exc)
+            except Exception:
+                logger.exception("Audit log write failed")
 
         # Emit decision event to all registered listeners. Validates: Requirement 10.6
         if self._decision_listeners:
@@ -122,15 +121,15 @@ class PolicyEngine:
                 "resource_id": resource.id,
                 "action": action,
                 "effect": decision.effect.value,
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
                 "applicable_policies": decision.applicable_policies,
                 "evaluation_time_ms": decision.evaluation_time_ms,
             }
             for listener in self._decision_listeners:
                 try:
                     listener(event)
-                except Exception as exc:
-                    logger.warning("Decision listener error: %s", exc)
+                except Exception:
+                    logger.exception("Decision listener error")
 
         return decision
 
@@ -139,57 +138,55 @@ class PolicyEngine:
         principal: Principal,
         resource: Resource,
         action: str,
-        context: Optional[dict[str, Any]] = None,
-        strategy: Optional[ConflictStrategy] = None,
+        context: dict[str, Any] | None = None,
+        strategy: ConflictStrategy | None = None,
         test_mode: bool = False,
     ) -> AccessDecision:
-        """Async version of evaluate_policy. Validates: Requirement 10.2"""
+        """Async version of evaluate_policy. Validates: Requirement 10.2."""
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
-            lambda: self.evaluate_policy(
-                principal, resource, action, context, strategy, test_mode
-            ),
+            lambda: self.evaluate_policy(principal, resource, action, context, strategy, test_mode),
         )
 
     def create_policy(self, policy: Policy) -> str:
-        """Create a new policy. Validates: Requirement 1.1"""
+        """Create a new policy. Validates: Requirement 1.1."""
         policy_id = self.storage.create_policy(policy)
         if self.cache:
             self.cache.invalidate_for_policy(policy_id)
         return policy_id
 
     def update_policy(self, policy: Policy) -> None:
-        """Update an existing policy. Validates: Requirements 1.5, 3.6"""
+        """Update an existing policy. Validates: Requirements 1.5, 3.6."""
         self.storage.update_policy(policy)
         if self.cache:
             self.cache.invalidate_for_policy(policy.id)
 
     def delete_policy(self, policy_id: str) -> None:
-        """Soft-delete a policy. Validates: Requirement 1.1"""
+        """Soft-delete a policy. Validates: Requirement 1.1."""
         self.storage.delete_policy(policy_id)
         if self.cache:
             self.cache.invalidate_for_policy(policy_id)
 
-    def get_policy(self, policy_id: str) -> Optional[Policy]:
+    def get_policy(self, policy_id: str) -> Policy | None:
         """Retrieve a policy by ID."""
         return self.storage.get_policy(policy_id)
 
     def find_policies(
         self,
-        principal: Optional[str] = None,
-        resource: Optional[str] = None,
-        action: Optional[str] = None,
+        principal: str | None = None,
+        resource: str | None = None,
+        action: str | None = None,
     ) -> list[Policy]:
-        """Find policies matching criteria. Validates: Requirement 1.6"""
+        """Find policies matching criteria. Validates: Requirement 1.6."""
         return self.storage.find_policies(principal=principal, resource=resource, action=action)
 
     def create_role(self, role: Role) -> str:
-        """Create a new role. Validates: Requirement 3.1"""
+        """Create a new role. Validates: Requirement 3.1."""
         return self.storage.create_role(role)
 
     def assign_role(self, principal_id: str, role_id: str) -> None:
-        """Assign a role to a principal. Validates: Requirements 3.2, 3.6"""
+        """Assign a role to a principal. Validates: Requirements 3.2, 3.6."""
         self.storage.assign_role(principal_id, role_id)
         if self.cache:
             self.cache.invalidate()
@@ -201,7 +198,7 @@ class PolicyEngine:
             self.cache.invalidate()
 
     def check_rbac(self, principal: Principal, permission: str) -> bool:
-        """Check RBAC permission through role hierarchy. Validates: Requirement 3.4"""
+        """Check RBAC permission through role hierarchy. Validates: Requirement 3.4."""
         return self.controller.check_rbac(principal, permission)
 
     def test_policy(self, policy: Policy, test_cases: list[TestCase]) -> TestResults:
@@ -235,7 +232,7 @@ class PolicyEngine:
                         expected=tc.expected_effect.value,
                         actual=decision.effect.value,
                         reason=decision.reason,
-                    )
+                    ),
                 )
 
         if original:
@@ -247,15 +244,15 @@ class PolicyEngine:
 
     def query_audit_logs(
         self,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        principal_id: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        action: Optional[str] = None,
-        effect: Optional[str] = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        principal_id: str | None = None,
+        resource_id: str | None = None,
+        action: str | None = None,
+        effect: str | None = None,
         limit: int = 1000,
     ) -> list[AuditRecord]:
-        """Query audit logs. Validates: Requirement 6.3"""
+        """Query audit logs. Validates: Requirement 6.3."""
         return self.audit_logger.query_logs(
             start_time=start_time,
             end_time=end_time,
@@ -266,8 +263,8 @@ class PolicyEngine:
             limit=limit,
         )
 
-    def get_cache_stats(self) -> Optional[CacheStats]:
-        """Return cache statistics. Validates: Requirement 7.6"""
+    def get_cache_stats(self) -> CacheStats | None:
+        """Return cache statistics. Validates: Requirement 7.6."""
         return self.cache.get_stats() if self.cache else None
 
     def flush_cache(self) -> int:

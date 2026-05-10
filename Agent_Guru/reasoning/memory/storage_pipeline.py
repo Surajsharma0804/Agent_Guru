@@ -1,5 +1,4 @@
-"""
-Memory Storage Pipeline for automatic memory creation and storage.
+"""Memory Storage Pipeline for automatic memory creation and storage.
 
 This module implements a high-performance pipeline for automatically storing
 different types of memories (episodic, semantic, preference, task) after
@@ -31,8 +30,7 @@ Version: 1.0.0
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import UUID
 
 from Agent_Guru.reasoning.memory.embedding import EmbeddingGenerator
@@ -85,12 +83,13 @@ class MemoryStoragePipeline:
         ...     success=True,
         ...     context={"duration": "5 minutes"}
         ... )
+
     """
 
     def __init__(
         self,
-        vector_db: Optional[VectorDatabase] = None,
-        embedding_generator: Optional[EmbeddingGenerator] = None,
+        vector_db: VectorDatabase | None = None,
+        embedding_generator: EmbeddingGenerator | None = None,
         deduplication_threshold: float = 0.95,
         deduplication_window_hours: int = 24,
         min_content_length: int = 10,
@@ -108,32 +107,43 @@ class MemoryStoragePipeline:
 
         Raises:
             ValueError: If parameters are invalid
+
         """
         if not 0.0 <= deduplication_threshold <= 1.0:
+            msg = f"deduplication_threshold must be 0.0-1.0, got {deduplication_threshold}"
             raise ValueError(
-                f"deduplication_threshold must be 0.0-1.0, got {deduplication_threshold}"
+                msg,
             )
         if deduplication_window_hours < 1:
+            msg = f"deduplication_window_hours must be >= 1, got {deduplication_window_hours}"
             raise ValueError(
-                f"deduplication_window_hours must be >= 1, got {deduplication_window_hours}"
+                msg,
             )
         if min_content_length < 1:
-            raise ValueError(f"min_content_length must be >= 1, got {min_content_length}")
-        if max_memories_per_user < 100:
-            raise ValueError(f"max_memories_per_user must be >= 100, got {max_memories_per_user}")
+            msg = f"min_content_length must be >= 1, got {min_content_length}"
+            raise ValueError(msg)
+        if max_memories_per_user < 100:  # noqa: PLR2004 - Percentage/large threshold
+
+            msg = f"max_memories_per_user must be >= 100, got {max_memories_per_user}"
+            raise ValueError(msg)
 
         # Initialize components
         self.vector_db = vector_db or VectorDatabase(
-            db_path="./memory_db", embedding_dimension=384, in_memory=False
+            db_path="./memory_db",
+            embedding_dimension=384,
+            in_memory=False,
         )
         self.embedding_generator = embedding_generator or EmbeddingGenerator()
 
         # Validate embedding dimension matches
         expected_dim = self.embedding_generator.get_embedding_dimension()
         if expected_dim != self.vector_db.embedding_dimension:
-            raise ValueError(
+            msg = (
                 f"Embedding dimension mismatch: generator={expected_dim}, "
                 f"database={self.vector_db.embedding_dimension}"
+            )
+            raise ValueError(
+                msg,
             )
 
         # Configuration
@@ -149,9 +159,9 @@ class MemoryStoragePipeline:
         self._recent_memory_ids: dict[str, set[UUID]] = {}
 
         logger.info(
-            f"MemoryStoragePipeline initialized with "
-            f"dedup_threshold={deduplication_threshold}, "
-            f"dedup_window={deduplication_window_hours}h"
+            "MemoryStoragePipeline initialized with dedup_threshold=%s, dedup_window=%sh",
+            deduplication_threshold,
+            deduplication_window_hours,
         )
 
     async def store_episodic(
@@ -161,8 +171,8 @@ class MemoryStoragePipeline:
         action_taken: str,
         result: str,
         success: bool,
-        context: Optional[dict] = None,
-    ) -> Optional[UUID]:
+        context: dict | None = None,
+    ) -> UUID | None:
         """Store an episodic memory after task execution.
 
         Time Complexity: O(log n) with deduplication check
@@ -189,6 +199,7 @@ class MemoryStoragePipeline:
             ...     success=True,
             ...     context={"duration": "5 minutes"}
             ... )
+
         """
         # Validate content length
         if len(content.strip()) < self.min_content_length:
@@ -215,7 +226,7 @@ class MemoryStoragePipeline:
         fact: str,
         source: str,
         confidence: float = 1.0,
-    ) -> Optional[UUID]:
+    ) -> UUID | None:
         """Store a semantic memory from user corrections or feedback.
 
         Time Complexity: O(log n) with deduplication check
@@ -240,6 +251,7 @@ class MemoryStoragePipeline:
             ...     source="user_stated",
             ...     confidence=1.0
             ... )
+
         """
         # Validate content length
         if len(content.strip()) < self.min_content_length:
@@ -265,7 +277,7 @@ class MemoryStoragePipeline:
         preference_key: str,
         preference_value: str,
         learned_from: str = "inferred",
-    ) -> Optional[UUID]:
+    ) -> UUID | None:
         """Store a preference memory from behavioral learning.
 
         Time Complexity: O(log n) with deduplication check
@@ -290,6 +302,7 @@ class MemoryStoragePipeline:
             ...     preference_value="morning",
             ...     learned_from="explicit"
             ... )
+
         """
         # Validate content length
         if len(content.strip()) < self.min_content_length:
@@ -315,8 +328,8 @@ class MemoryStoragePipeline:
         task_id: str,
         task_description: str,
         outcome: str,
-        lessons_learned: Optional[list[str]] = None,
-    ) -> Optional[UUID]:
+        lessons_learned: list[str] | None = None,
+    ) -> UUID | None:
         """Store a task memory from multi-step task completion.
 
         Time Complexity: O(log n) with deduplication check
@@ -343,6 +356,7 @@ class MemoryStoragePipeline:
             ...     outcome="success",
             ...     lessons_learned=["User prefers Italian"]
             ... )
+
         """
         # Validate content length
         if len(content.strip()) < self.min_content_length:
@@ -362,7 +376,7 @@ class MemoryStoragePipeline:
         # Store with deduplication
         return await self._store_memory(memory)
 
-    async def _store_memory(self, memory: Memory) -> Optional[UUID]:
+    async def _store_memory(self, memory: Memory) -> UUID | None:
         """Store a memory with deduplication check.
 
         Time Complexity: O(log n) with semantic search
@@ -373,14 +387,17 @@ class MemoryStoragePipeline:
 
         Returns:
             Memory ID if stored, None if deduplicated
+
         """
         async with self._lock:
             # Check if user has too many memories
             memory_count = self.vector_db.count(memory.memory_type)
             if memory_count >= self.max_memories_per_user:
                 logger.warning(
-                    f"User {memory.user_id} has {memory_count} memories, "
-                    f"skipping storage (max={self.max_memories_per_user})"
+                    "User %s has %d memories, skipping storage (max=%d)",
+                    memory.user_id,
+                    memory_count,
+                    self.max_memories_per_user,
                 )
                 return None
 
@@ -392,8 +409,9 @@ class MemoryStoragePipeline:
 
             if is_duplicate:
                 logger.debug(
-                    f"Skipping duplicate memory for user {memory.user_id}: "
-                    f"{memory.content[:50]}..."
+                    "Skipping duplicate memory for user %s: %s...",
+                    memory.user_id,
+                    memory.content[:50],
                 )
                 return None
 
@@ -419,14 +437,16 @@ class MemoryStoragePipeline:
                 self._recent_memory_ids[cache_key].add(memory.memory_id)
 
                 logger.info(
-                    f"Stored {memory.memory_type.value} memory {memory.memory_id} "
-                    f"for user {memory.user_id}"
+                    "Stored %s memory %s for user %s",
+                    memory.memory_type.value,
+                    memory.memory_id,
+                    memory.user_id,
                 )
 
                 return memory.memory_id
 
-            except Exception as e:
-                logger.error("Failed to store memory: %s", e)
+            except Exception:
+                logger.exception("Failed to store memory")
                 return None
 
     async def _is_duplicate(
@@ -451,6 +471,7 @@ class MemoryStoragePipeline:
 
         Returns:
             True if duplicate found, False otherwise
+
         """
         # Search for similar memories
         try:
@@ -475,28 +496,29 @@ class MemoryStoragePipeline:
 
             try:
                 memory_timestamp = datetime.fromisoformat(timestamp_str)
-                age_hours = (datetime.now(tz=timezone.utc) - memory_timestamp).total_seconds() / 3600
+                age_hours = (datetime.now(tz=UTC) - memory_timestamp).total_seconds() / 3600
 
                 # Duplicate if within time window
                 if age_hours <= self.deduplication_window_hours:
                     logger.debug(
-                        f"Found duplicate memory (similarity={similarity:.3f}, "
-                        f"age={age_hours:.1f}h)"
+                        "Found duplicate memory (similarity=%.3f, age=%.1fh)",
+                        similarity,
+                        age_hours,
                     )
                     return True
 
-            except (ValueError, TypeError) as e:
-                logger.warning("Failed to parse timestamp: %s", e)
+            except (ValueError, TypeError):
+                logger.exception("Failed to parse timestamp")
                 return False
 
             return False
 
-        except Exception as e:
-            logger.error("Deduplication check failed: %s", e)
+        except Exception:
+            logger.exception("Deduplication check failed")
             # On error, allow storage (fail open)
             return False
 
-    def get_storage_stats(self, user_id: Optional[str] = None) -> dict[str, int]:
+    def get_storage_stats(self, user_id: str | None = None) -> dict[str, int]:
         """Get storage statistics.
 
         Args:
@@ -509,6 +531,7 @@ class MemoryStoragePipeline:
             >>> pipeline = MemoryStoragePipeline()
             >>> stats = pipeline.get_storage_stats("user_123")
             >>> print(f"Episodic: {stats['episodic']}")
+
         """
         stats = {}
         for memory_type in MemoryType:

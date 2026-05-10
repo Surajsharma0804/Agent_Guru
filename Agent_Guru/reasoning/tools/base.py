@@ -1,12 +1,11 @@
-"""
-Base classes for tools in the Agent_Guru reasoning engine.
+"""Base classes for tools in the Agent_Guru reasoning engine.
 
 This module defines the abstract base class for all tools and related data structures.
 """
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -37,14 +36,15 @@ class ToolParameter(BaseModel):
     type: ToolParameterType = Field(..., description="Parameter type")
     description: str = Field(..., description="Parameter description")
     required: bool = Field(default=True, description="Whether parameter is required")
-    default: Optional[Any] = Field(default=None, description="Default value if not required")
+    default: Any | None = Field(default=None, description="Default value if not required")
 
     @field_validator("default")
     @classmethod
-    def validate_default(cls, v: Any, info: Any) -> Any:
+    def validate_default(cls, v: Any, info: Any) -> Any:  # noqa: ANN401
         """Validate that default is only set for optional parameters."""
         if v is not None and info.data.get("required", True):
-            raise ValueError("Default value can only be set for optional parameters")
+            msg = "Default value can only be set for optional parameters"
+            raise ValueError(msg)
         return v
 
 
@@ -56,13 +56,16 @@ class ToolMetadata(BaseModel):
     description: str = Field(..., description="Tool description")
     parameters: list[ToolParameter] = Field(default_factory=list, description="Tool parameters")
     sensitivity: ToolSensitivity = Field(
-        default=ToolSensitivity.SAFE, description="Tool sensitivity level"
+        default=ToolSensitivity.SAFE,
+        description="Tool sensitivity level",
     )
     estimated_latency_ms: int = Field(
-        default=1000, description="Estimated execution latency in milliseconds"
+        default=1000,
+        description="Estimated execution latency in milliseconds",
     )
     capabilities: list[str] = Field(
-        default_factory=list, description="Tool capabilities for matching"
+        default_factory=list,
+        description="Tool capabilities for matching",
     )
     examples: list[str] = Field(default_factory=list, description="Example usage scenarios")
 
@@ -71,7 +74,8 @@ class ToolMetadata(BaseModel):
     def validate_latency(cls, v: int) -> int:
         """Validate latency is positive."""
         if v <= 0:
-            raise ValueError("Estimated latency must be positive")
+            msg = "Estimated latency must be positive"
+            raise ValueError(msg)
         return v
 
 
@@ -84,17 +88,18 @@ class Tool(ABC):
 
     def __init__(self) -> None:
         """Initialize the tool."""
-        self._metadata: Optional[ToolMetadata] = None
+        self._metadata: ToolMetadata | None = None
 
     @property
     def metadata(self) -> ToolMetadata:
         """Get tool metadata."""
         if self._metadata is None:
-            raise ValueError("Tool metadata not set. Use @tool decorator.")
+            msg = "Tool metadata not set. Use @tool decorator."
+            raise ValueError(msg)
         return self._metadata
 
     @abstractmethod
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute the tool with given parameters.
 
         Args:
@@ -109,9 +114,10 @@ class Tool(ABC):
 
         Raises:
             ValueError: If required parameters are missing or invalid
+
         """
 
-    def validate_parameters(self, **kwargs: Any) -> None:
+    def validate_parameters(self, **kwargs: Any) -> None:  # noqa: ANN401
         """Validate that all required parameters are present and valid.
 
         Args:
@@ -119,39 +125,45 @@ class Tool(ABC):
 
         Raises:
             ValueError: If validation fails
+
         """
         required_params = {p.name for p in self.metadata.parameters if p.required}
         provided_params = set(kwargs.keys())
 
         missing = required_params - provided_params
         if missing:
-            raise ValueError(f"Missing required parameters: {', '.join(missing)}")
+            msg = f"Missing required parameters: {', '.join(missing)}"
+            raise ValueError(msg)
 
         # Validate parameter types
         param_map = {p.name: p for p in self.metadata.parameters}
         for name, value in kwargs.items():
             if name not in param_map:
-                raise ValueError(f"Unknown parameter: {name}")
+                msg = f"Unknown parameter: {name}"
+                raise ValueError(msg)
 
             param = param_map[name]
             if not self._validate_type(value, param.type):
-                raise ValueError(
+                msg = (
                     f"Parameter '{name}' has invalid type. "
                     f"Expected {param.type.value}, got {type(value).__name__}"
                 )
+                raise ValueError(
+                    msg,
+                )
 
-    def _validate_type(self, value: Any, expected_type: ToolParameterType) -> bool:
+    def _validate_type(self, value: Any, expected_type: ToolParameterType) -> bool:  # noqa: ANN401
         """Validate that value matches expected type."""
         if expected_type == ToolParameterType.STRING:
             return isinstance(value, str)
-        elif expected_type == ToolParameterType.INTEGER:
+        if expected_type == ToolParameterType.INTEGER:
             return isinstance(value, int) and not isinstance(value, bool)
-        elif expected_type == ToolParameterType.FLOAT:
+        if expected_type == ToolParameterType.FLOAT:
             return isinstance(value, (int, float)) and not isinstance(value, bool)
-        elif expected_type == ToolParameterType.BOOLEAN:
+        if expected_type == ToolParameterType.BOOLEAN:
             return isinstance(value, bool)
-        elif expected_type == ToolParameterType.ARRAY:
+        if expected_type == ToolParameterType.ARRAY:
             return isinstance(value, list)
-        elif expected_type == ToolParameterType.OBJECT:
+        if expected_type == ToolParameterType.OBJECT:
             return isinstance(value, dict)
         return False

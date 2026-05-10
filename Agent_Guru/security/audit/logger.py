@@ -14,9 +14,9 @@ import json
 import sqlite3
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -36,7 +36,7 @@ _SENSITIVE_KEYS = frozenset(
         "token",
         "api_key",
         "credential",
-    }
+    },
 )
 
 
@@ -62,8 +62,8 @@ class AuditLogEntry:
     entry_id: str
     timestamp: datetime
     event_type: EventType
-    actor_id: Optional[str]
-    target_id: Optional[str]
+    actor_id: str | None
+    target_id: str | None
     outcome: str  # "success", "failure", "denied"
     details: dict[str, Any]
     signature: bytes  # Ed25519 signature of entry content
@@ -74,12 +74,12 @@ class AuditLogEntry:
 class LogQuery:
     """Query parameters for audit logs."""
 
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    event_types: Optional[list[EventType]] = None
-    actor_id: Optional[str] = None
-    target_id: Optional[str] = None
-    outcome: Optional[str] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    event_types: list[EventType] | None = None
+    actor_id: str | None = None
+    target_id: str | None = None
+    outcome: str | None = None
 
 
 class AuditLogger:
@@ -92,12 +92,13 @@ class AuditLogger:
         storage_path: SQLite path or ":memory:".
         signing_key: Optional Ed25519 private key bytes for signing.
                      If None, a new key is generated.
+
     """
 
     def __init__(
         self,
         storage_path: str = ":memory:",
-        signing_key: Optional[bytes] = None,
+        signing_key: bytes | None = None,
     ) -> None:
         self._conn = sqlite3.connect(storage_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
@@ -122,8 +123,8 @@ class AuditLogger:
     def log_event(
         self,
         event_type: EventType,
-        actor_id: Optional[str],
-        target_id: Optional[str],
+        actor_id: str | None,
+        target_id: str | None,
         outcome: str,
         details: dict[str, Any],
     ) -> AuditLogEntry:
@@ -143,15 +144,22 @@ class AuditLogger:
 
         Raises:
             AuditLogError: If logging fails.
+
         """
         try:
             entry_id = str(uuid.uuid4())
-            timestamp = datetime.now(tz=timezone.utc)
+            timestamp = datetime.now(tz=UTC)
             sanitized_details = self._sanitize_details(details)
 
             # Build signable content
             content = self._build_signable_content(
-                entry_id, timestamp, event_type, actor_id, target_id, outcome, sanitized_details
+                entry_id,
+                timestamp,
+                event_type,
+                actor_id,
+                target_id,
+                outcome,
+                sanitized_details,
             )
             signature = self._private_key.sign(content)
 
@@ -170,7 +178,8 @@ class AuditLogger:
             return entry
 
         except Exception as exc:
-            raise AuditLogError(f"Failed to log event: type={type(exc).__name__}") from exc
+            msg = f"Failed to log event: type={type(exc).__name__}"
+            raise AuditLogError(msg) from exc
 
     def query_logs(self, query: LogQuery) -> list[AuditLogEntry]:
         """Query audit logs with filters.
@@ -182,6 +191,7 @@ class AuditLogger:
 
         Returns:
             List of matching log entries.
+
         """
         rows = self._fetch_rows(query)
         entries = []
@@ -202,21 +212,23 @@ class AuditLogger:
 
         Returns:
             Formatted log data.
+
         """
         entries = self.query_logs(query)
 
         if format == "json":
             return self._export_json(entries)
-        elif format == "csv":
+        if format == "csv":
             return self._export_csv(entries)
-        else:
-            raise ValueError(f"Unsupported format: {format}")
+        msg = f"Unsupported format: {format}"
+        raise ValueError(msg)
 
     def verify_log_integrity(self, entry: AuditLogEntry) -> bool:
         """Verify cryptographic signature of log entry.
 
         Returns:
             True if signature is valid.
+
         """
         try:
             content = self._build_signable_content(
@@ -230,7 +242,7 @@ class AuditLogger:
             )
             self._public_key.verify(entry.signature, content)
             return True
-        except Exception as e:
+        except Exception:
             return False
 
     # ------------------------------------------------------------------
@@ -251,7 +263,7 @@ class AuditLogger:
                     details TEXT NOT NULL,
                     signature BLOB NOT NULL
                 )
-                """
+                """,
             )
 
     def _persist_entry(self, entry: AuditLogEntry) -> None:
@@ -327,8 +339,8 @@ class AuditLogger:
         entry_id: str,
         timestamp: datetime,
         event_type: EventType,
-        actor_id: Optional[str],
-        target_id: Optional[str],
+        actor_id: str | None,
+        target_id: str | None,
         outcome: str,
         details: dict[str, Any],
     ) -> bytes:
@@ -370,7 +382,7 @@ class AuditLogger:
                     "details": entry.details,
                     "signature": entry.signature.hex(),
                     "signature_valid": not entry.tampered,
-                }
+                },
             )
         return json.dumps(data, indent=2)
 
@@ -401,6 +413,6 @@ class AuditLogger:
                     "outcome": entry.outcome,
                     "details": json.dumps(entry.details),
                     "signature_valid": not entry.tampered,
-                }
+                },
             )
         return output.getvalue()

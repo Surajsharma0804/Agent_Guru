@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -39,17 +39,17 @@ def make_policy(
         resources=resources or ["*"],
         actions=actions or ["*"],
         conditions=conditions or {},
-        created_at=datetime.now(tz=timezone.utc),
-        updated_at=datetime.now(tz=timezone.utc),
+        created_at=datetime.now(tz=UTC),
+        updated_at=datetime.now(tz=UTC),
         active=active,
     )
 
 
-def make_principal(pid: str = "user1", **attrs: Any) -> Principal:
+def make_principal(pid: str = "user1", **attrs: Any) -> Principal:  # noqa: ANN401
     return Principal(id=pid, attributes=dict(attrs))
 
 
-def make_resource(rid: str = "res1", rtype: str = "file", **attrs: Any) -> Resource:
+def make_resource(rid: str = "res1", rtype: str = "file", **attrs: Any) -> Resource:  # noqa: ANN401
     return Resource(id=rid, type=rtype, attributes=dict(attrs))
 
 
@@ -63,7 +63,7 @@ def make_role(
         id=role_id,
         name=name,
         permissions=permissions or [],
-        created_at=datetime.now(tz=timezone.utc),
+        created_at=datetime.now(tz=UTC),
         parent_role_id=parent_role_id,
     )
 

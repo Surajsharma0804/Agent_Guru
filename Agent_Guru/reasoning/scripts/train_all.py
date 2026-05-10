@@ -1,5 +1,4 @@
-"""
-Master Training Script - Train Intent Classifier + NER Model
+"""Master Training Script - Train Intent Classifier + NER Model.
 
 Runs both training scripts in sequence:
 1. Intent Classifier (DeBERTa-v3-large) - 50 epochs with early stopping
@@ -26,66 +25,41 @@ def run_training_script(script_name: str, description: str) -> bool:
 
     Raises:
         ValueError: If script_name or description is not a non-empty string.
+
     """
     if not isinstance(script_name, str) or not script_name.strip():
-        raise ValueError(f"script_name must be non-empty string, got {script_name!r}")
+        msg = f"script_name must be non-empty string, got {script_name!r}"
+        raise ValueError(msg)
     if not isinstance(description, str) or not description.strip():
-        raise ValueError(f"description must be non-empty string, got {description!r}")
-
-    print(f"\n{'='*80}")
-    print(f"STARTING: {description}")
-    print(f"Script: {script_name}")
-    print(f"{'='*80}\n")
+        msg = f"description must be non-empty string, got {description!r}"
+        raise ValueError(msg)
 
     script_path = Path(__file__).parent / script_name
 
     try:
         # Run the training script
-        subprocess.run(
+        subprocess.run(  # noqa: S603
             [sys.executable, str(script_path)],
             check=True,
             cwd=Path(__file__).parent.parent.parent,  # Run from project root
         )
 
-        print(f"\n{'='*80}")
-        print(f"✓ COMPLETED: {description}")
-        print(f"{'='*80}\n")
         return True
 
-    except subprocess.CalledProcessError as e:
-        print(f"\n{'='*80}")
-        print(f"✗ FAILED: {description}")
-        print(f"Error: {e}")
-        print(f"{'='*80}\n")
+    except subprocess.CalledProcessError:
         return False
-    except KeyboardInterrupt:
-        print(f"\n{'='*80}")
-        print(f"⚠ INTERRUPTED: {description}")
-        print(f"{'='*80}\n")
         return False
-
-
-def main():
+def main() -> None:
     """Run all training scripts in sequence."""
-    print(f"\n{'='*80}")
-    print("AGENT GURU - MASTER TRAINING PIPELINE")
-    print("Training Intent Classifier + NER Model")
-    print(f"{'='*80}\n")
-
     # Check GPU
     import torch
 
     if not torch.cuda.is_available():
-        print("⚠ WARNING: GPU not available!")
-        print("⚠ Training will take MUCH longer on CPU")
         response = input("\nContinue anyway? (yes/no): ")
         if response.lower() != "yes":
-            print("Exiting...")
             return
     else:
-        print(f"✓ GPU available: {torch.cuda.get_device_name(0)}")
-        print(f"✓ CUDA version: {torch.version.cuda}")
-        print(f"✓ GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB\n")
+        pass
 
     # Training sequence
     training_steps = [
@@ -100,27 +74,18 @@ def main():
         results[description] = success
 
         if not success:
-            print(f"\n⚠ Training failed at: {description}")
-            print("Stopping pipeline...")
             break
 
     # Final summary
-    print(f"\n{'='*80}")
-    print("TRAINING PIPELINE SUMMARY")
-    print(f"{'='*80}")
 
-    for description, success in results.items():
-        status = "✓ SUCCESS" if success else "✗ FAILED"
-        print(f"{status}: {description}")
-
-    print(f"{'='*80}\n")
+    for _description, _success in results.items():
+        pass
 
     # Check if all succeeded
     if all(results.values()):
-        print("[SUCCESS] ALL TRAINING COMPLETED SUCCESSFULLY!")
-        print("Models are ready for deployment.\n")
+        pass
     else:
-        print("[WARNING] Some training steps failed. Please review the logs.\n")
+        pass
 
 
 if __name__ == "__main__":

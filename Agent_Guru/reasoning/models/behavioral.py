@@ -1,5 +1,4 @@
-"""
-Behavioral learning data models.
+"""Behavioral learning data models.
 
 This module defines data structures for tracking user behavior patterns,
 command frequency, preferences, and proactive suggestions.
@@ -13,16 +12,15 @@ Author: Kiro AI
 Date: 2024
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 
 class CommandFrequency(BaseModel):
-    """
-    Tracks frequency and success rate of user commands.
+    """Tracks frequency and success rate of user commands.
 
     Attributes:
         command: The command text or intent type
@@ -34,12 +32,16 @@ class CommandFrequency(BaseModel):
         successful_executions: Number of successful executions
         avg_latency: Average execution latency in seconds
         metadata: Additional tracking data
+
     """
 
     command: str = Field(..., description="Command text or intent type")
     user_id: str = Field(..., description="User identifier")
     frequency: int = Field(default=0, ge=0, description="Usage frequency")
-    last_used: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Last usage time")
+    last_used: datetime = Field(
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="Last usage time",
+    )
     success_rate: float = Field(default=1.0, ge=0.0, le=1.0, description="Success rate")
     total_executions: int = Field(default=0, ge=0, description="Total executions")
     successful_executions: int = Field(default=0, ge=0, description="Successful executions")
@@ -48,19 +50,20 @@ class CommandFrequency(BaseModel):
 
     @field_validator("successful_executions")
     @classmethod
-    def validate_successful_executions(cls, v: int, info) -> int:
+    def validate_successful_executions(cls, v: int, info) -> int:  # noqa: ANN001
         """Validate successful executions <= total executions."""
         if "total_executions" in info.data and v > info.data["total_executions"]:
-            raise ValueError("successful_executions cannot exceed total_executions")
+            msg = "successful_executions cannot exceed total_executions"
+            raise ValueError(msg)
         return v
 
     def update_execution(self, success: bool, latency: float) -> None:
-        """
-        Update execution statistics.
+        """Update execution statistics.
 
         Args:
             success: Whether execution was successful
             latency: Execution latency in seconds
+
         """
         self.total_executions += 1
         if success:
@@ -75,7 +78,7 @@ class CommandFrequency(BaseModel):
 
         # Update frequency and last used
         self.frequency += 1
-        self.last_used = datetime.now(tz=timezone.utc)
+        self.last_used = datetime.now(tz=UTC)
 
 
 class PatternType(str, Enum):
@@ -89,8 +92,7 @@ class PatternType(str, Enum):
 
 
 class TimePattern(BaseModel):
-    """
-    Time-based behavioral pattern.
+    """Time-based behavioral pattern.
 
     Attributes:
         pattern_id: Unique pattern identifier
@@ -103,27 +105,32 @@ class TimePattern(BaseModel):
         confidence: Pattern confidence (0.0-1.0)
         last_occurrence: Last time pattern occurred
         metadata: Additional pattern data
+
     """
 
     pattern_id: str = Field(..., description="Unique pattern identifier")
     user_id: str = Field(..., description="User identifier")
     pattern_type: PatternType = Field(..., description="Type of pattern")
     command: str = Field(..., description="Command or action")
-    time_of_day: Optional[int] = Field(default=None, ge=0, le=23, description="Hour of day (0-23)")
-    day_of_week: Optional[int] = Field(
-        default=None, ge=0, le=6, description="Day of week (0-6, Monday=0)"
+    time_of_day: int | None = Field(default=None, ge=0, le=23, description="Hour of day (0-23)")
+    day_of_week: int | None = Field(
+        default=None,
+        ge=0,
+        le=6,
+        description="Day of week (0-6, Monday=0)",
     )
     frequency: int = Field(default=1, ge=1, description="Number of occurrences")
     confidence: float = Field(default=0.5, ge=0.0, le=1.0, description="Pattern confidence")
     last_occurrence: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc), description="Last occurrence time"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="Last occurrence time",
     )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     def update_occurrence(self) -> None:
         """Update pattern with new occurrence."""
         self.frequency += 1
-        self.last_occurrence = datetime.now(tz=timezone.utc)
+        self.last_occurrence = datetime.now(tz=UTC)
 
         # Update confidence based on frequency
         # More occurrences = higher confidence (asymptotic to 1.0)
@@ -131,8 +138,7 @@ class TimePattern(BaseModel):
 
 
 class AppUsage(BaseModel):
-    """
-    Application usage tracking.
+    """Application usage tracking.
 
     Attributes:
         app_id: Application identifier
@@ -144,6 +150,7 @@ class AppUsage(BaseModel):
         last_used: Last time app was used
         usage_patterns: Time-based usage patterns
         metadata: Additional usage data
+
     """
 
     app_id: str = Field(..., description="Application identifier")
@@ -152,21 +159,24 @@ class AppUsage(BaseModel):
     open_count: int = Field(default=0, ge=0, description="Number of opens")
     total_duration: float = Field(default=0.0, ge=0.0, description="Total duration in seconds")
     avg_duration: float = Field(default=0.0, ge=0.0, description="Average duration in seconds")
-    last_used: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Last usage time")
+    last_used: datetime = Field(
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="Last usage time",
+    )
     usage_patterns: list[str] = Field(default_factory=list, description="Time-based usage patterns")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     def update_usage(self, duration: float) -> None:
-        """
-        Update usage statistics.
+        """Update usage statistics.
 
         Args:
             duration: Session duration in seconds
+
         """
         self.open_count += 1
         self.total_duration += duration
         self.avg_duration = self.total_duration / self.open_count
-        self.last_used = datetime.now(tz=timezone.utc)
+        self.last_used = datetime.now(tz=UTC)
 
 
 class PreferenceType(str, Enum):
@@ -180,8 +190,7 @@ class PreferenceType(str, Enum):
 
 
 class UserPreference(BaseModel):
-    """
-    Learned user preference.
+    """Learned user preference.
 
     Attributes:
         preference_id: Unique preference identifier
@@ -194,6 +203,7 @@ class UserPreference(BaseModel):
         sample_count: Number of samples used to learn
         last_updated: Last time preference was updated
         metadata: Additional preference data
+
     """
 
     preference_id: str = Field(..., description="Unique preference identifier")
@@ -204,12 +214,14 @@ class UserPreference(BaseModel):
     confidence: float = Field(default=0.5, ge=0.0, le=1.0, description="Confidence score")
     learned_from: str = Field(..., description="How preference was learned")
     sample_count: int = Field(default=1, ge=1, description="Number of samples")
-    last_updated: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Last update time")
+    last_updated: datetime = Field(
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="Last update time",
+    )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
-    def update_preference(self, new_value: Any, weight: float = 0.2) -> None:
-        """
-        Update preference with new observation.
+    def update_preference(self, new_value: Any, weight: float = 0.2) -> None:  # noqa: ANN401
+        """Update preference with new observation.
 
         Uses exponential moving average for numeric values,
         voting for categorical values.
@@ -217,6 +229,7 @@ class UserPreference(BaseModel):
         Args:
             new_value: New observed value
             weight: Weight for new value (0.0-1.0)
+
         """
         self.sample_count += 1
 
@@ -234,16 +247,16 @@ class UserPreference(BaseModel):
                 self.confidence = min(0.95, self.confidence + 0.05)
 
             # Update value if confidence drops below threshold
-            if self.confidence < 0.5:
+            if self.confidence < 0.5:  # noqa: PLR2004 - Threshold value
+
                 self.preference_value = new_value
                 self.confidence = 0.5
 
-        self.last_updated = datetime.now(tz=timezone.utc)
+        self.last_updated = datetime.now(tz=UTC)
 
 
 class ProactiveSuggestion(BaseModel):
-    """
-    Proactive suggestion based on learned patterns.
+    """Proactive suggestion based on learned patterns.
 
     Attributes:
         suggestion_id: Unique suggestion identifier
@@ -258,6 +271,7 @@ class ProactiveSuggestion(BaseModel):
         expires_at: When suggestion expires
         accepted: Whether user accepted suggestion
         metadata: Additional suggestion data
+
     """
 
     suggestion_id: str = Field(..., description="Unique suggestion identifier")
@@ -268,29 +282,31 @@ class ProactiveSuggestion(BaseModel):
     relevance: float = Field(..., ge=0.0, le=1.0, description="Relevance score")
     based_on: str = Field(..., description="Pattern this is based on")
     context: dict[str, Any] = Field(..., description="Current context")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Creation time")
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="Creation time",
+    )
     expires_at: datetime = Field(..., description="Expiration time")
-    accepted: Optional[bool] = Field(default=None, description="Whether accepted")
+    accepted: bool | None = Field(default=None, description="Whether accepted")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     def is_expired(self) -> bool:
         """Check if suggestion has expired."""
-        return datetime.now(tz=timezone.utc) > self.expires_at
+        return datetime.now(tz=UTC) > self.expires_at
 
     def calculate_score(self) -> float:
-        """
-        Calculate overall suggestion score.
+        """Calculate overall suggestion score.
 
         Returns:
             Combined score (0.0-1.0)
+
         """
         # Weighted combination of confidence and relevance
         return 0.6 * self.confidence + 0.4 * self.relevance
 
 
 class BehavioralStats(BaseModel):
-    """
-    Aggregate behavioral statistics for a user.
+    """Aggregate behavioral statistics for a user.
 
     Attributes:
         user_id: User identifier
@@ -302,18 +318,26 @@ class BehavioralStats(BaseModel):
         suggestion_acceptance_rate: Rate of accepted suggestions
         last_updated: Last time stats were updated
         metadata: Additional statistics
+
     """
 
     user_id: str = Field(..., description="User identifier")
     total_commands: int = Field(default=0, ge=0, description="Total commands")
     unique_commands: int = Field(default=0, ge=0, description="Unique commands")
     most_frequent_commands: list[tuple[str, int]] = Field(
-        default_factory=list, description="Top commands with counts"
+        default_factory=list,
+        description="Top commands with counts",
     )
     detected_patterns: int = Field(default=0, ge=0, description="Number of patterns")
     learned_preferences: int = Field(default=0, ge=0, description="Number of preferences")
     suggestion_acceptance_rate: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="Acceptance rate"
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Acceptance rate",
     )
-    last_updated: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Last update")
+    last_updated: datetime = Field(
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="Last update",
+    )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional stats")

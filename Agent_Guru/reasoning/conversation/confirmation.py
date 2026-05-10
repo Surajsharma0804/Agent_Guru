@@ -1,5 +1,4 @@
-"""
-Confirmation logic for sensitive actions.
+"""Confirmation logic for sensitive actions.
 
 This module implements:
 - Sensitive action category definitions
@@ -13,7 +12,7 @@ Requirements: 19.2
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.models.task import Task
 
@@ -81,10 +80,10 @@ class ConfirmationRules:
 
     @staticmethod
     def requires_confirmation(
-        task: Task, tool_id: Optional[str] = None
-    ) -> tuple[bool, Optional[SensitiveActionCategory]]:
-        """
-        Determine if a task requires confirmation.
+        task: Task,
+        tool_id: str | None = None,
+    ) -> tuple[bool, SensitiveActionCategory | None]:
+        """Determine if a task requires confirmation.
 
         Args:
             task: The task to check
@@ -92,6 +91,7 @@ class ConfirmationRules:
 
         Returns:
             Tuple of (requires_confirmation, category)
+
         """
         # Check task-level flag
         if task.requires_confirmation:
@@ -117,14 +117,14 @@ class ConfirmationRules:
 
     @staticmethod
     def _infer_category_from_task(task: Task) -> SensitiveActionCategory:
-        """
-        Infer sensitivity category from task.
+        """Infer sensitivity category from task.
 
         Args:
             task: The task
 
         Returns:
             Inferred category
+
         """
         # Check steps
         for step in task.steps:
@@ -141,14 +141,14 @@ class ConfirmationRules:
 
     @staticmethod
     def should_batch_confirm(task: Task) -> bool:
-        """
-        Determine if batch confirmation should be used.
+        """Determine if batch confirmation should be used.
 
         Args:
             task: The task
 
         Returns:
             True if batch confirmation should be used
+
         """
         # Use batch confirmation for multi-step tasks with multiple sensitive actions
         if len(task.steps) <= 1:
@@ -159,12 +159,12 @@ class ConfirmationRules:
             1 for step in task.steps if step.tool_id in ConfirmationRules.SENSITIVE_TOOLS
         )
 
-        return sensitive_count >= 2
+        return sensitive_count >= 2  # noqa: PLR2004 - Small integer threshold
+
 
     @staticmethod
     def get_risk_level(category: SensitiveActionCategory, task: Task) -> str:
-        """
-        Determine risk level of the action.
+        """Determine risk level of the action.
 
         Args:
             category: Action category
@@ -172,6 +172,7 @@ class ConfirmationRules:
 
         Returns:
             Risk level: "low", "medium", or "high"
+
         """
         # High risk categories
         if category in [
@@ -235,15 +236,16 @@ class ConfirmationGenerator:
     # Batch confirmation template
     BATCH_TEMPLATE = "I'll perform these actions:\n{actions}\n\nShould I proceed with all of them?"
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize confirmation generator."""
         self.rules = ConfirmationRules()
 
     def generate_confirmation(
-        self, task: Task, tool_id: Optional[str] = None
-    ) -> Optional[ConfirmationRequest]:
-        """
-        Generate a confirmation request if needed.
+        self,
+        task: Task,
+        tool_id: str | None = None,
+    ) -> ConfirmationRequest | None:
+        """Generate a confirmation request if needed.
 
         Args:
             task: The task to confirm
@@ -251,6 +253,7 @@ class ConfirmationGenerator:
 
         Returns:
             ConfirmationRequest if confirmation needed, None otherwise
+
         """
         # Check if confirmation is required
         requires, category = self.rules.requires_confirmation(task, tool_id)
@@ -284,8 +287,7 @@ class ConfirmationGenerator:
         )
 
     def _generate_single_confirmation(self, task: Task, category: SensitiveActionCategory) -> str:
-        """
-        Generate single action confirmation message.
+        """Generate single action confirmation message.
 
         Args:
             task: The task
@@ -293,6 +295,7 @@ class ConfirmationGenerator:
 
         Returns:
             Confirmation message
+
         """
         # Get template for category
         templates = self.TEMPLATES.get(
@@ -314,14 +317,14 @@ class ConfirmationGenerator:
             return f"I'll {task.goal}. Should I proceed?"
 
     def _generate_batch_confirmation(self, task: Task) -> tuple[str, list[str]]:
-        """
-        Generate batch confirmation message.
+        """Generate batch confirmation message.
 
         Args:
             task: The task with multiple steps
 
         Returns:
             Tuple of (message, list of action descriptions)
+
         """
         batch_items = []
 
@@ -337,8 +340,7 @@ class ConfirmationGenerator:
         return message, batch_items
 
     def _extract_parameters(self, task: Task, category: SensitiveActionCategory) -> dict[str, Any]:
-        """
-        Extract parameters for template formatting.
+        """Extract parameters for template formatting.
 
         Args:
             task: The task
@@ -346,6 +348,7 @@ class ConfirmationGenerator:
 
         Returns:
             Dictionary of parameters
+
         """
         params = {}
 
@@ -386,8 +389,7 @@ class ConfirmationGenerator:
         return params
 
     def _extract_details(self, task: Task, category: SensitiveActionCategory) -> dict[str, Any]:
-        """
-        Extract detailed information about the action.
+        """Extract detailed information about the action.
 
         Args:
             task: The task
@@ -395,6 +397,7 @@ class ConfirmationGenerator:
 
         Returns:
             Dictionary of details
+
         """
         return {
             "goal": task.goal,
@@ -443,14 +446,14 @@ class ConfirmationParser:
 
     @staticmethod
     def parse_confirmation(user_response: str) -> ConfirmationResponse:
-        """
-        Parse user's confirmation response.
+        """Parse user's confirmation response.
 
         Args:
             user_response: User's text response
 
         Returns:
             ConfirmationResponse with parsed result
+
         """
         # Normalize response
         normalized = user_response.lower().strip()
@@ -459,14 +462,18 @@ class ConfirmationParser:
         for pattern in ConfirmationParser.POSITIVE_PATTERNS:
             if pattern in normalized:
                 return ConfirmationResponse(
-                    confirmed=True, confidence=0.9, original_text=user_response
+                    confirmed=True,
+                    confidence=0.9,
+                    original_text=user_response,
                 )
 
         # Check for negative confirmation
         for pattern in ConfirmationParser.NEGATIVE_PATTERNS:
             if pattern in normalized:
                 return ConfirmationResponse(
-                    confirmed=False, confidence=0.9, original_text=user_response
+                    confirmed=False,
+                    confidence=0.9,
+                    original_text=user_response,
                 )
 
         # Ambiguous response

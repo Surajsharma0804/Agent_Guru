@@ -17,19 +17,24 @@ installed. Install with: ``pip install structlog opentelemetry-api``
 __version__ = "0.1.0"
 
 
-def __getattr__(name: str):  # noqa: ANN201
+def __getattr__(name: str):
     """Lazy-load ReasoningEngine to avoid crashing on missing optional deps."""
     if name == "ReasoningEngine":
         try:
             from Agent_Guru.reasoning.engine import ReasoningEngine  # noqa: PLC0415
+
             globals()["ReasoningEngine"] = ReasoningEngine
             return ReasoningEngine
         except ImportError as exc:
-            raise ImportError(
+            msg = (
                 f"ReasoningEngine requires optional dependencies: {exc}. "
                 "Install with: pip install structlog opentelemetry-api"
+            )
+            raise ImportError(
+                msg,
             ) from exc
-    raise AttributeError(f"module 'Agent_Guru.reasoning' has no attribute {name!r}")
+    msg = f"module 'Agent_Guru.reasoning' has no attribute {name!r}"
+    raise AttributeError(msg)
 
 
 __all__ = ["ReasoningEngine"]

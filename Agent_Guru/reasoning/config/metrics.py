@@ -1,7 +1,5 @@
 """Prometheus metrics collection for the reasoning engine."""
 
-from typing import Optional
-
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     CollectorRegistry,
@@ -15,12 +13,12 @@ from prometheus_client import (
 class MetricsCollector:
     """Centralized metrics collector for the reasoning engine."""
 
-    def __init__(self, registry: Optional[CollectorRegistry] = None):
-        """
-        Initialize metrics collector.
+    def __init__(self, registry: CollectorRegistry | None = None) -> None:
+        """Initialize metrics collector.
 
         Args:
             registry: Optional custom registry (uses default if None)
+
         """
         self.registry = registry or CollectorRegistry()
 
@@ -175,174 +173,174 @@ class MetricsCollector:
         )
 
     def record_stage_latency(self, stage: str, duration: float) -> None:
-        """
-        Record latency for a pipeline stage.
+        """Record latency for a pipeline stage.
 
         Args:
             stage: Pipeline stage name
             duration: Duration in seconds
+
         """
         if stage in self.latency_histograms:
             self.latency_histograms[stage].observe(duration)
 
     def increment_requests(self, status: str = "success") -> None:
-        """
-        Increment request counter.
+        """Increment request counter.
 
         Args:
             status: Request status (success, error)
+
         """
         self.requests_total.labels(status=status).inc()
 
     def increment_errors(self, error_type: str) -> None:
-        """
-        Increment error counter.
+        """Increment error counter.
 
         Args:
             error_type: Type of error
+
         """
         self.errors_total.labels(error_type=error_type).inc()
 
     def increment_timeouts(self, stage: str) -> None:
-        """
-        Increment timeout counter.
+        """Increment timeout counter.
 
         Args:
             stage: Stage that timed out
+
         """
         self.timeouts_total.labels(stage=stage).inc()
 
     def increment_fallbacks(self, fallback_type: str) -> None:
-        """
-        Increment fallback counter.
+        """Increment fallback counter.
 
         Args:
             fallback_type: Type of fallback activated
+
         """
         self.fallbacks_total.labels(fallback_type=fallback_type).inc()
 
     def record_intent(self, intent_type: str) -> None:
-        """
-        Record detected intent.
+        """Record detected intent.
 
         Args:
             intent_type: Type of intent detected
+
         """
         self.intents_detected.labels(intent_type=intent_type).inc()
 
     def record_action(self, tool_id: str, status: str) -> None:
-        """
-        Record action execution.
+        """Record action execution.
 
         Args:
             tool_id: ID of tool executed
             status: Execution status (success, failure)
+
         """
         self.actions_executed.labels(tool_id=tool_id, status=status).inc()
 
     def record_safety_block(self, reason: str) -> None:
-        """
-        Record safety gate block.
+        """Record safety gate block.
 
         Args:
             reason: Reason for blocking
+
         """
         self.safety_blocks.labels(reason=reason).inc()
 
     def set_active_conversations(self, count: int) -> None:
-        """
-        Set active conversations gauge.
+        """Set active conversations gauge.
 
         Args:
             count: Number of active conversations
+
         """
         self.active_conversations.set(count)
 
     def set_queue_depth(self, queue_type: str, depth: int) -> None:
-        """
-        Set queue depth gauge.
+        """Set queue depth gauge.
 
         Args:
             queue_type: Type of queue (sync, async)
             depth: Queue depth
+
         """
         self.queue_depth.labels(queue_type=queue_type).set(depth)
 
     def set_memory_usage(self, bytes_used: int) -> None:
-        """
-        Set memory usage gauge.
+        """Set memory usage gauge.
 
         Args:
             bytes_used: Memory usage in bytes
+
         """
         self.memory_usage_bytes.set(bytes_used)
 
     def set_cpu_usage(self, percent: float) -> None:
-        """
-        Set CPU usage gauge.
+        """Set CPU usage gauge.
 
         Args:
             percent: CPU usage percentage
+
         """
         self.cpu_usage_percent.set(percent)
 
     def record_llm_tokens(self, backend: str, tokens: int) -> None:
-        """
-        Record LLM token usage.
+        """Record LLM token usage.
 
         Args:
             backend: LLM backend (local, cloud)
             tokens: Number of tokens used
+
         """
         self.llm_tokens_used.labels(backend=backend).inc(tokens)
 
     def record_cache_hit(self, cache_type: str) -> None:
-        """
-        Record cache hit.
+        """Record cache hit.
 
         Args:
             cache_type: Type of cache
+
         """
         self.cache_hits.labels(cache_type=cache_type).inc()
 
     def record_cache_miss(self, cache_type: str) -> None:
-        """
-        Record cache miss.
+        """Record cache miss.
 
         Args:
             cache_type: Type of cache
+
         """
         self.cache_misses.labels(cache_type=cache_type).inc()
 
     def generate_metrics(self) -> bytes:
-        """
-        Generate metrics in Prometheus format.
+        """Generate metrics in Prometheus format.
 
         Returns:
             Metrics data in Prometheus text format
+
         """
         return generate_latest(self.registry)
 
     def get_content_type(self) -> str:
-        """
-        Get content type for metrics endpoint.
+        """Get content type for metrics endpoint.
 
         Returns:
             Content type string
+
         """
         return CONTENT_TYPE_LATEST
 
 
 # Global metrics collector instance
-_metrics_collector: Optional[MetricsCollector] = None
+_metrics_collector: MetricsCollector | None = None
 
 
 def get_metrics_collector() -> MetricsCollector:
-    """
-    Get the global metrics collector instance.
+    """Get the global metrics collector instance.
 
     Returns:
         MetricsCollector instance
+
     """
     global _metrics_collector
     if _metrics_collector is None:

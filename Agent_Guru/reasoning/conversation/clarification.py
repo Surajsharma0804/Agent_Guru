@@ -1,5 +1,4 @@
-"""
-Clarification rules and templates for conversation strategy.
+"""Clarification rules and templates for conversation strategy.
 
 This module implements:
 - Rules for when to ask clarifications
@@ -12,7 +11,7 @@ Requirements: 19.1, 19.6
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.models.intent import Intent
 from Agent_Guru.reasoning.models.task import Task
@@ -60,10 +59,11 @@ class ClarificationRules:
 
     @staticmethod
     def should_clarify(
-        intent: Optional[Intent], task: Optional[Task], confidence: float
-    ) -> tuple[bool, Optional[ClarificationTrigger]]:
-        """
-        Determine if clarification is needed.
+        intent: Intent | None,
+        task: Task | None,
+        confidence: float,
+    ) -> tuple[bool, ClarificationTrigger | None]:
+        """Determine if clarification is needed.
 
         Args:
             intent: Detected intent (may be None)
@@ -72,6 +72,7 @@ class ClarificationRules:
 
         Returns:
             Tuple of (should_clarify, trigger_reason)
+
         """
         # Low confidence
         if confidence < ClarificationRules.CONFIDENCE_THRESHOLD:
@@ -90,17 +91,18 @@ class ClarificationRules:
             return True, ClarificationTrigger.LOW_CONFIDENCE
 
         # Task requires confirmation (might need clarification first)
-        if task and task.requires_confirmation and confidence < 0.85:
+        if task and task.requires_confirmation and confidence < 0.85:  # noqa: PLR2004 - Threshold value
+
             return True, ClarificationTrigger.INCOMPLETE_REQUEST
 
         return False, None
 
     @staticmethod
     def should_offer_options(
-        trigger: ClarificationTrigger, alternative_intents: list[tuple[str, float]]
+        trigger: ClarificationTrigger,
+        alternative_intents: list[tuple[str, float]],
     ) -> bool:
-        """
-        Determine if we should offer multiple choice options.
+        """Determine if we should offer multiple choice options.
 
         Args:
             trigger: The clarification trigger
@@ -108,14 +110,17 @@ class ClarificationRules:
 
         Returns:
             True if options should be offered
+
         """
         # Offer options for ambiguous intents with clear alternatives
         if trigger == ClarificationTrigger.AMBIGUOUS_INTENT:
-            return len(alternative_intents) >= 2
+            return len(alternative_intents) >= 2  # noqa: PLR2004 - Small integer threshold
+
 
         # Offer options for low confidence with alternatives
         if trigger == ClarificationTrigger.LOW_CONFIDENCE:
-            return len(alternative_intents) >= 2 and alternative_intents[0][1] > 0.5
+            return len(alternative_intents) >= 2 and alternative_intents[0][1] > 0.5  # noqa: PLR2004 - Small integer threshold
+
 
         return False
 
@@ -160,8 +165,7 @@ class ClarificationTemplate:
 
     @staticmethod
     def get_template(trigger: ClarificationTrigger, has_options: bool) -> str:
-        """
-        Get appropriate template for the trigger.
+        """Get appropriate template for the trigger.
 
         Args:
             trigger: The clarification trigger
@@ -169,36 +173,35 @@ class ClarificationTemplate:
 
         Returns:
             Template string
+
         """
         if trigger == ClarificationTrigger.LOW_CONFIDENCE:
             return ClarificationTemplate.LOW_CONFIDENCE_TEMPLATES[0]
-        elif trigger == ClarificationTrigger.MISSING_ENTITIES:
+        if trigger == ClarificationTrigger.MISSING_ENTITIES:
             return ClarificationTemplate.MISSING_ENTITIES_TEMPLATES[0]
-        elif trigger == ClarificationTrigger.AMBIGUOUS_INTENT and has_options:
+        if trigger == ClarificationTrigger.AMBIGUOUS_INTENT and has_options:
             return ClarificationTemplate.AMBIGUOUS_INTENT_TEMPLATES[0]
-        elif trigger == ClarificationTrigger.INCOMPLETE_REQUEST:
+        if trigger == ClarificationTrigger.INCOMPLETE_REQUEST:
             return ClarificationTemplate.INCOMPLETE_REQUEST_TEMPLATES[0]
-        else:
-            return ClarificationTemplate.OPEN_ENDED_TEMPLATES[0]
+        return ClarificationTemplate.OPEN_ENDED_TEMPLATES[0]
 
 
 class ClarificationGenerator:
     """Generates clarification requests."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize clarification generator."""
         self.rules = ClarificationRules()
         self.templates = ClarificationTemplate()
 
     def generate_clarification(
         self,
-        intent: Optional[Intent],
-        task: Optional[Task],
+        intent: Intent | None,
+        task: Task | None,
         confidence: float,
-        alternative_intents: Optional[list[tuple[str, float]]] = None,
-    ) -> Optional[ClarificationRequest]:
-        """
-        Generate a clarification request if needed.
+        alternative_intents: list[tuple[str, float]] | None = None,
+    ) -> ClarificationRequest | None:
+        """Generate a clarification request if needed.
 
         Args:
             intent: Detected intent
@@ -208,6 +211,7 @@ class ClarificationGenerator:
 
         Returns:
             ClarificationRequest if clarification needed, None otherwise
+
         """
         # Check if clarification is needed
         should_clarify, trigger = self.rules.should_clarify(intent, task, confidence)
@@ -243,10 +247,11 @@ class ClarificationGenerator:
         )
 
     def _generate_options(
-        self, alternatives: list[tuple[str, float]], original_intent: Optional[Intent]
+        self,
+        alternatives: list[tuple[str, float]],
+        original_intent: Intent | None,
     ) -> list[ClarificationOption]:
-        """
-        Generate clarification options from alternatives.
+        """Generate clarification options from alternatives.
 
         Args:
             alternatives: List of (intent_type, confidence) tuples
@@ -254,6 +259,7 @@ class ClarificationGenerator:
 
         Returns:
             List of clarification options
+
         """
         options = []
 
@@ -271,7 +277,7 @@ class ClarificationGenerator:
                     intent_type=intent_type,
                     entities=entities,
                     confidence=conf,
-                )
+                ),
             )
 
         return options
@@ -279,12 +285,11 @@ class ClarificationGenerator:
     def _generate_question(
         self,
         trigger: ClarificationTrigger,
-        intent: Optional[Intent],
-        task: Optional[Task],
+        intent: Intent | None,
+        task: Task | None,
         options: list[ClarificationOption],
     ) -> str:
-        """
-        Generate the clarification question.
+        """Generate the clarification question.
 
         Args:
             trigger: Clarification trigger
@@ -294,17 +299,21 @@ class ClarificationGenerator:
 
         Returns:
             Clarification question string
+
         """
         # Get base template
         template = self.templates.get_template(trigger, len(options) > 0)
 
         # Fill in template based on trigger
         if trigger == ClarificationTrigger.AMBIGUOUS_INTENT and options:
-            if len(options) == 2:
+            if len(options) == 2:  # noqa: PLR2004 - Small integer threshold
+
                 return template.format(
-                    option1=options[0].description, option2=options[1].description
+                    option1=options[0].description,
+                    option2=options[1].description,
                 )
-            elif len(options) >= 3:
+            if len(options) >= 3:  # noqa: PLR2004 - Small integer threshold
+
                 return template.format(
                     option1=options[0].description,
                     option2=options[1].description,
@@ -332,21 +341,20 @@ class ClarificationGenerator:
         return template
 
     def _intent_to_description(self, intent_type: str) -> str:
-        """
-        Convert intent type to human-readable description.
+        """Convert intent type to human-readable description.
 
         Args:
             intent_type: Intent type string
 
         Returns:
             Human-readable description
+
         """
         # Simple conversion: replace underscores with spaces
         return intent_type.replace("_", " ")
 
-    def _identify_missing_entities(self, intent: Optional[Intent], task: Optional[Task]) -> str:
-        """
-        Identify what entities are missing.
+    def _identify_missing_entities(self, intent: Intent | None, task: Task | None) -> str:
+        """Identify what entities are missing.
 
         Args:
             intent: Detected intent
@@ -354,22 +362,22 @@ class ClarificationGenerator:
 
         Returns:
             Description of missing entities
+
         """
         # Common missing entities by intent type
         if intent and intent.intent_type == "set_timer":
             return "the duration"
-        elif intent and intent.intent_type == "send_message":
+        if intent and intent.intent_type == "send_message":
             return "who to send it to"
-        elif intent and intent.intent_type == "play_music":
+        if intent and intent.intent_type == "play_music":
             return "what to play"
-        elif intent and intent.intent_type == "query_weather":
+        if intent and intent.intent_type == "query_weather":
             return "the location"
 
         return "more details"
 
-    def _identify_missing_info(self, intent: Optional[Intent], task: Optional[Task]) -> str:
-        """
-        Identify what information is missing.
+    def _identify_missing_info(self, intent: Intent | None, task: Task | None) -> str:
+        """Identify what information is missing.
 
         Args:
             intent: Detected intent
@@ -377,6 +385,7 @@ class ClarificationGenerator:
 
         Returns:
             Description of missing information
+
         """
         if task and task.requires_confirmation:
             return "confirmation to proceed"

@@ -1,5 +1,4 @@
-"""
-LLM-Based Response Generator
+"""LLM-Based Response Generator.
 
 Generates natural language responses using LLM with:
 - Prompt templates for response generation
@@ -24,7 +23,7 @@ import asyncio
 import json
 import time
 from collections.abc import AsyncIterator
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.config.logging import get_logger
 from Agent_Guru.reasoning.config.metrics import get_metrics_collector
@@ -45,8 +44,7 @@ metrics = get_metrics_collector()
 
 
 class LLMResponseGenerator:
-    """
-    LLM-based response generator with streaming and fallback.
+    """LLM-based response generator with streaming and fallback.
 
     Time Complexity: O(n) where n = LLM generation time
     Space Complexity: O(1) - streaming responses
@@ -59,6 +57,7 @@ class LLMResponseGenerator:
         >>> response = await generator.generate(result, intent, ResponseModality.VOICE)
         >>> print(response.text)
         "I've set a timer for 5 minutes"
+
     """
 
     # System prompt for response generation
@@ -113,8 +112,7 @@ Response:"""
         fallback_on_error: bool = True,
         timeout_seconds: float = 2.0,
     ) -> None:
-        """
-        Initialize LLM response generator.
+        """Initialize LLM response generator.
 
         Args:
             llm_router: Hybrid LLM router for generation
@@ -122,6 +120,7 @@ Response:"""
             enable_streaming: Enable streaming responses
             fallback_on_error: Fallback to templates on LLM error
             timeout_seconds: Timeout for LLM generation
+
         """
         self.llm_router = llm_router
         self.template_generator = template_generator
@@ -146,12 +145,11 @@ Response:"""
         result: ExecutionResult,
         intent: Intent,
         modality: ResponseModality,
-        conversation_state: Optional[ConversationState] = None,
-        user_preferences: Optional[dict[str, Any]] = None,
-        client_capabilities: Optional[set] = None,
+        conversation_state: ConversationState | None = None,
+        user_preferences: dict[str, Any] | None = None,
+        client_capabilities: set | None = None,
     ) -> Response:
-        """
-        Generate response using LLM with fallback to templates.
+        """Generate response using LLM with fallback to templates.
 
         Time Complexity: O(n) where n = LLM generation time
         Space Complexity: O(1) - streaming responses
@@ -169,19 +167,26 @@ Response:"""
 
         Raises:
             RuntimeError: If both LLM and template generation fail
+
         """
         start_time = time.perf_counter()
 
         try:
             # Try LLM generation first
             response = await self._generate_with_llm(
-                result, intent, modality, conversation_state, user_preferences
+                result,
+                intent,
+                modality,
+                conversation_state,
+                user_preferences,
             )
 
             # Add rich content if client supports it
             if client_capabilities:
                 rich_content = self.rich_content_generator.generate(
-                    result, intent, client_capabilities
+                    result,
+                    intent,
+                    client_capabilities,
                 )
                 if rich_content:
                     response.rich_content = rich_content
@@ -213,7 +218,7 @@ Response:"""
 
         except Exception as llm_error:
             # Log LLM failure
-            logger.warning(
+            logger.exception(
                 "LLM response generation failed, falling back to templates",
                 extra={
                     "error": str(llm_error),
@@ -241,7 +246,9 @@ Response:"""
                     # Add rich content if client supports it
                     if client_capabilities:
                         rich_content = self.rich_content_generator.generate(
-                            result, intent, client_capabilities
+                            result,
+                            intent,
+                            client_capabilities,
                         )
                         if rich_content:
                             response.rich_content = rich_content
@@ -265,7 +272,7 @@ Response:"""
 
                 except Exception as template_error:
                     # Both LLM and template failed
-                    logger.error(
+                    logger.exception(
                         "Both LLM and template generation failed",
                         extra={
                             "llm_error": str(llm_error),
@@ -274,9 +281,12 @@ Response:"""
                         },
                     )
                     metrics.increment_errors("response_generation_total_failure")
-                    raise RuntimeError(
+                    msg = (
                         f"Response generation failed: LLM error: {llm_error}, "
                         f"Template error: {template_error}"
+                    )
+                    raise RuntimeError(
+                        msg,
                     ) from template_error
             else:
                 # No fallback, raise original error
@@ -287,11 +297,10 @@ Response:"""
         result: ExecutionResult,
         intent: Intent,
         modality: ResponseModality,
-        conversation_state: Optional[ConversationState] = None,
-        user_preferences: Optional[dict[str, Any]] = None,
+        conversation_state: ConversationState | None = None,
+        user_preferences: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:
-        """
-        Generate response with streaming for perceived responsiveness.
+        """Generate response with streaming for perceived responsiveness.
 
         Yields response text chunks as they are generated.
 
@@ -307,11 +316,16 @@ Response:"""
 
         Raises:
             RuntimeError: If generation fails
+
         """
         if not self.enable_streaming:
             # Streaming disabled, generate full response
             response = await self.generate(
-                result, intent, modality, conversation_state, user_preferences
+                result,
+                intent,
+                modality,
+                conversation_state,
+                user_preferences,
             )
             yield response.text
             return
@@ -319,7 +333,11 @@ Response:"""
         try:
             # Create prompt
             prompt = self._create_response_prompt(
-                result, intent, modality, conversation_state, user_preferences
+                result,
+                intent,
+                modality,
+                conversation_state,
+                user_preferences,
             )
 
             # Create LLM request
@@ -333,7 +351,8 @@ Response:"""
             # Generate with streaming (simulated for now)
             # In production, this would use actual LLM streaming API
             response = await asyncio.wait_for(
-                self.llm_router.generate(llm_request), timeout=self.timeout_seconds
+                self.llm_router.generate(llm_request),
+                timeout=self.timeout_seconds,
             )
 
             # Yield response text in chunks
@@ -344,7 +363,7 @@ Response:"""
                 await asyncio.sleep(0.01)  # Simulate streaming delay
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Streaming response generation failed",
                 extra={"error": str(e), "intent_type": intent.intent_type},
             )
@@ -366,11 +385,10 @@ Response:"""
         result: ExecutionResult,
         intent: Intent,
         modality: ResponseModality,
-        conversation_state: Optional[ConversationState] = None,
-        user_preferences: Optional[dict[str, Any]] = None,
+        conversation_state: ConversationState | None = None,
+        user_preferences: dict[str, Any] | None = None,
     ) -> Response:
-        """
-        Generate response using LLM.
+        """Generate response using LLM.
 
         Args:
             result: Execution result
@@ -384,10 +402,15 @@ Response:"""
 
         Raises:
             RuntimeError: If LLM generation fails
+
         """
         # Create prompt
         prompt = self._create_response_prompt(
-            result, intent, modality, conversation_state, user_preferences
+            result,
+            intent,
+            modality,
+            conversation_state,
+            user_preferences,
         )
 
         # Create LLM request
@@ -401,16 +424,18 @@ Response:"""
         # Generate with timeout
         try:
             llm_response: LLMResponse = await asyncio.wait_for(
-                self.llm_router.generate(llm_request), timeout=self.timeout_seconds
+                self.llm_router.generate(llm_request),
+                timeout=self.timeout_seconds,
             )
-        except asyncio.TimeoutError as e:
-            raise RuntimeError(f"LLM generation timed out after {self.timeout_seconds}s") from e
+        except TimeoutError as e:
+            msg = f"LLM generation timed out after {self.timeout_seconds}s"
+            raise RuntimeError(msg) from e
 
         # Parse response text
         response_text = llm_response.text.strip()
 
         # Create Response object
-        response = Response(
+        return Response(
             text=response_text,
             modality=modality,
             metadata={
@@ -419,22 +444,22 @@ Response:"""
                 "llm_latency_ms": llm_response.latency_ms,
             },
             suggestions=self._generate_suggestions(
-                intent, result, conversation_state, user_preferences
+                intent,
+                result,
+                conversation_state,
+                user_preferences,
             ),
         )
-
-        return response
 
     def _create_response_prompt(
         self,
         result: ExecutionResult,
         intent: Intent,
         modality: ResponseModality,
-        conversation_state: Optional[ConversationState] = None,
-        user_preferences: Optional[dict[str, Any]] = None,
+        conversation_state: ConversationState | None = None,
+        user_preferences: dict[str, Any] | None = None,
     ) -> str:
-        """
-        Create prompt for response generation.
+        """Create prompt for response generation.
 
         Args:
             result: Execution result
@@ -445,6 +470,7 @@ Response:"""
 
         Returns:
             Formatted prompt string
+
         """
         # Extract conversation context
         context = self._extract_conversation_context(conversation_state)
@@ -457,7 +483,7 @@ Response:"""
             )
         else:
             modality_instructions = (
-                "Text output: Can be slightly more detailed. " "Use clear formatting if helpful."
+                "Text output: Can be slightly more detailed. Use clear formatting if helpful."
             )
 
         # Format entities
@@ -470,7 +496,7 @@ Response:"""
         result_data_str = json.dumps(result.result_data, indent=2) if result.result_data else "None"
 
         # Create prompt
-        prompt = self.RESPONSE_TEMPLATE.format(
+        return self.RESPONSE_TEMPLATE.format(
             user_input=intent.original_input if hasattr(intent, "original_input") else "N/A",
             intent_type=intent.intent_type,
             entities=entities_str,
@@ -483,19 +509,18 @@ Response:"""
             modality_instructions=modality_instructions,
         )
 
-        return prompt
-
     def _extract_conversation_context(
-        self, conversation_state: Optional[ConversationState]
-    ) -> Optional[ConversationContext]:
-        """
-        Extract conversation context from state.
+        self,
+        conversation_state: ConversationState | None,
+    ) -> ConversationContext | None:
+        """Extract conversation context from state.
 
         Args:
             conversation_state: Conversation state
 
         Returns:
             ConversationContext or None
+
         """
         if not conversation_state:
             return None
@@ -531,17 +556,15 @@ Response:"""
             past_actions=past_actions,
         )
 
-    def _extract_context_dict(
-        self, conversation_state: Optional[ConversationState]
-    ) -> dict[str, Any]:
-        """
-        Extract context as dictionary for template generator.
+    def _extract_context_dict(self, conversation_state: ConversationState | None) -> dict[str, Any]:
+        """Extract context as dictionary for template generator.
 
         Args:
             conversation_state: Conversation state
 
         Returns:
             Context dictionary
+
         """
         if not conversation_state:
             return {}
@@ -558,11 +581,10 @@ Response:"""
         self,
         intent: Intent,
         result: ExecutionResult,
-        conversation_state: Optional[Any] = None,
-        user_preferences: Optional[dict[str, Any]] = None,
+        conversation_state: Any | None = None,  # noqa: ANN401
+        user_preferences: dict[str, Any] | None = None,
     ) -> list[str]:
-        """
-        Generate follow-up suggestions using proactive suggestion generator.
+        """Generate follow-up suggestions using proactive suggestion generator.
 
         Args:
             intent: User intent
@@ -572,22 +594,26 @@ Response:"""
 
         Returns:
             List of suggestion strings
+
         """
         # Use proactive suggestion generator if available
         if self._proactive_generator:
             return self._proactive_generator.generate_suggestions(
-                intent, result, conversation_state, user_preferences
+                intent,
+                result,
+                conversation_state,
+                user_preferences,
             )
 
         # Fallback to template generator's suggestion logic
         return self.template_generator._get_intent_suggestions(intent.intent_type)
 
-    def set_proactive_generator(self, generator: Any) -> None:
-        """
-        Set proactive suggestion generator.
+    def set_proactive_generator(self, generator: Any) -> None:  # noqa: ANN401
+        """Set proactive suggestion generator.
 
         Args:
             generator: ProactiveSuggestionGenerator instance
+
         """
         self._proactive_generator = generator
         logger.info("Proactive suggestion generator set for LLM generator")

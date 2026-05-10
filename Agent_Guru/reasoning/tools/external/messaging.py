@@ -1,5 +1,4 @@
-"""
-Messaging tools for SMS, WhatsApp, Telegram, and Slack.
+"""Messaging tools for SMS, WhatsApp, Telegram, and Slack.
 
 Supports multiple messaging platforms with API key management and rate limiting.
 """
@@ -45,7 +44,7 @@ from Agent_Guru.reasoning.tools.registry import tool
 class SendSMSTool(Tool):
     """Tool for sending SMS messages."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute SMS sending.
 
         Args:
@@ -54,6 +53,7 @@ class SendSMSTool(Tool):
 
         Returns:
             Execution result
+
         """
         phone_number = kwargs["phone_number"]
         message = kwargs["message"]
@@ -73,7 +73,8 @@ class SendSMSTool(Tool):
             }
 
         # Check message length (SMS limit is typically 160 characters)
-        if len(message) > 1600:
+        if len(message) > 1600:  # noqa: PLR2004 - Percentage/large threshold
+
             return {
                 "success": False,
                 "error": "Message too long (max 1600 characters)",
@@ -95,7 +96,7 @@ class SendSMSTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to send SMS: {str(e)}",
+                "error": f"Failed to send SMS: {e!s}",
             }
 
 
@@ -129,7 +130,7 @@ class SendSMSTool(Tool):
 class SendWhatsAppTool(Tool):
     """Tool for sending WhatsApp messages."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute WhatsApp sending.
 
         Args:
@@ -138,6 +139,7 @@ class SendWhatsAppTool(Tool):
 
         Returns:
             Execution result
+
         """
         phone_number = kwargs["phone_number"]
         message = kwargs["message"]
@@ -172,7 +174,7 @@ class SendWhatsAppTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to send WhatsApp: {str(e)}",
+                "error": f"Failed to send WhatsApp: {e!s}",
             }
 
 
@@ -206,7 +208,7 @@ class SendWhatsAppTool(Tool):
 class SendTelegramTool(Tool):
     """Tool for sending Telegram messages."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute Telegram sending.
 
         Args:
@@ -215,6 +217,7 @@ class SendTelegramTool(Tool):
 
         Returns:
             Execution result
+
         """
         chat_id = kwargs["chat_id"]
         message = kwargs["message"]
@@ -249,7 +252,7 @@ class SendTelegramTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to send Telegram: {str(e)}",
+                "error": f"Failed to send Telegram: {e!s}",
             }
 
 
@@ -283,7 +286,7 @@ class SendTelegramTool(Tool):
 class SendSlackTool(Tool):
     """Tool for sending Slack messages."""
 
-    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
         """Execute Slack sending.
 
         Args:
@@ -292,6 +295,7 @@ class SendSlackTool(Tool):
 
         Returns:
             Execution result
+
         """
         channel = kwargs["channel"]
         message = kwargs["message"]
@@ -326,5 +330,5 @@ class SendSlackTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to send Slack message: {str(e)}",
+                "error": f"Failed to send Slack message: {e!s}",
             }
