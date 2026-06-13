@@ -1,5 +1,4 @@
-"""
-Agent Guru Platform Controllers
+"""Agent Guru Platform Controllers.
 
 Specialized controllers for different types of system operations.
 """
@@ -13,9 +12,9 @@ from Agent_Guru.platform.controllers.media_control import (
 )
 
 __all__ = [
+    "MediaCommandError",
+    "MediaControlError",
     "MediaController",
     "MediaState",
-    "MediaControlError",
     "UnsupportedMediaOperationError",
-    "MediaCommandError",
 ]

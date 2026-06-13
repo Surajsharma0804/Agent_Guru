@@ -1,11 +1,9 @@
-"""
-WorldState Integration with Reasoning Components.
+"""WorldState Integration with Reasoning Components.
 
 This module provides integration between WorldState and reasoning components.
 
 Performance: <10ms context generation
 """
-
 
 import structlog
 
@@ -21,7 +19,7 @@ class WorldStateContextGenerator:
     Space Complexity: O(1)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize context generator."""
         logger.info("world_state_context_generator_initialized")
 
@@ -35,6 +33,7 @@ class WorldStateContextGenerator:
 
         Returns:
             Context summary string for LLM injection
+
         """
         context_parts = []
 
@@ -42,7 +41,7 @@ class WorldStateContextGenerator:
         battery_status = "charging" if state.device_status.charging else "not charging"
         context_parts.append(
             f"Device: {state.device_status.battery_level:.0f}% battery ({battery_status}), "
-            f"{state.device_status.network_type} network"
+            f"{state.device_status.network_type} network",
         )
 
         # System resources
@@ -57,9 +56,8 @@ class WorldStateContextGenerator:
             context_parts.append(f"Active apps: {app_count}")
 
         # Location
-        if state.location_context:
-            if state.location_context.place_name:
-                context_parts.append(f"Location: {state.location_context.place_name}")
+        if state.location_context and state.location_context.place_name:
+            context_parts.append(f"Location: {state.location_context.place_name}")
 
         # Calendar
         upcoming = state.get_upcoming_events(hours=2)
@@ -82,8 +80,9 @@ class WorldStateContextGenerator:
 
         Returns:
             Dictionary of constraint checks
+
         """
-        constraints = {
+        return {
             "battery_low": state.is_battery_low(threshold=20.0),
             "battery_critical": state.is_battery_low(threshold=10.0),
             "network_available": state.device_status.network_type != "offline",
@@ -92,8 +91,6 @@ class WorldStateContextGenerator:
             "high_memory": state.system_resources.memory_usage > 80,
             "has_upcoming_events": len(state.get_upcoming_events(hours=1)) > 0,
         }
-
-        return constraints
 
     def get_app_availability(self, state: WorldState, app_id: str) -> bool:
         """Check if app is available/active.
@@ -106,6 +103,7 @@ class WorldStateContextGenerator:
 
         Returns:
             True if app is active
+
         """
         return app_id in state.active_apps
 
@@ -126,14 +124,15 @@ class WorldStateContextGenerator:
 
         Returns:
             List of conflicting event IDs
+
         """
         from datetime import datetime
 
         try:
             start = datetime.fromisoformat(proposed_start)
             end = datetime.fromisoformat(proposed_end)
-        except ValueError as e:
-            logger.warning("invalid_datetime_format: %s", e)
+        except ValueError:
+            logger.exception("invalid_datetime_format")
             return []
 
         conflicts = []
@@ -154,6 +153,7 @@ class WorldStateContextGenerator:
 
         Returns:
             True if brief responses recommended
+
         """
         # Use brief responses when:
         # - Battery is low
@@ -175,6 +175,7 @@ class WorldStateContextGenerator:
 
         Returns:
             Dictionary of location constraints
+
         """
         if not state.location_context:
             return {"has_location": False}
@@ -197,6 +198,7 @@ class WorldStateContextGenerator:
 
         Returns:
             Dictionary with context summary
+
         """
         return {
             "llm_context": self.generate_llm_context(state),

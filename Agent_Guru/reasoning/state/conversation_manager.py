@@ -1,5 +1,4 @@
-"""
-Conversation State Manager.
+"""Conversation State Manager.
 
 This module implements thread-safe conversation state management with LRU caching
 and automatic eviction.
@@ -9,7 +8,7 @@ import asyncio
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.models.conversation import (
     ConversationState,
@@ -28,8 +27,7 @@ class ConversationCacheEntry:
 
 
 class ConversationStateManager:
-    """
-    Thread-safe conversation state manager with LRU caching.
+    """Thread-safe conversation state manager with LRU caching.
 
     Features:
     - LRU cache for active conversations (max 10,000)
@@ -45,18 +43,20 @@ class ConversationStateManager:
         self,
         max_conversations: int = 10000,
         inactivity_timeout: float = 3600.0,  # 1 hour
-    ):
-        """
-        Initialize conversation state manager.
+    ) -> None:
+        """Initialize conversation state manager.
 
         Args:
             max_conversations: Maximum number of conversations to cache
             inactivity_timeout: Timeout in seconds for inactive conversations
+
         """
         if max_conversations <= 0:
-            raise ValueError("max_conversations must be positive")
+            msg = "max_conversations must be positive"
+            raise ValueError(msg)
         if inactivity_timeout <= 0:
-            raise ValueError("inactivity_timeout must be positive")
+            msg = "inactivity_timeout must be positive"
+            raise ValueError(msg)
 
         self.max_conversations = max_conversations
         self.inactivity_timeout = inactivity_timeout
@@ -65,9 +65,8 @@ class ConversationStateManager:
         self._cache: OrderedDict[str, ConversationCacheEntry] = OrderedDict()
         self._global_lock = asyncio.Lock()
 
-    async def get_state(self, conversation_id: str) -> Optional[ConversationState]:
-        """
-        Get conversation state by ID.
+    async def get_state(self, conversation_id: str) -> ConversationState | None:
+        """Get conversation state by ID.
 
         Time Complexity: O(1) average
         Space Complexity: O(1)
@@ -77,6 +76,7 @@ class ConversationStateManager:
 
         Returns:
             ConversationState if found, None otherwise
+
         """
         async with self._global_lock:
             entry = self._cache.get(conversation_id)
@@ -96,8 +96,7 @@ class ConversationStateManager:
             return entry.state
 
     async def set_state(self, conversation_id: str, state: ConversationState) -> None:
-        """
-        Set conversation state.
+        """Set conversation state.
 
         Time Complexity: O(1) average
         Space Complexity: O(1)
@@ -105,6 +104,7 @@ class ConversationStateManager:
         Args:
             conversation_id: Unique conversation identifier
             state: Conversation state to store
+
         """
         async with self._global_lock:
             # Evict oldest if at capacity
@@ -123,14 +123,14 @@ class ConversationStateManager:
                 self._cache[conversation_id] = entry
 
     async def delete_state(self, conversation_id: str) -> bool:
-        """
-        Delete conversation state.
+        """Delete conversation state.
 
         Args:
             conversation_id: Unique conversation identifier
 
         Returns:
             True if deleted, False if not found
+
         """
         async with self._global_lock:
             if conversation_id in self._cache:
@@ -139,12 +139,12 @@ class ConversationStateManager:
             return False
 
     async def add_turn(self, conversation_id: str, turn: ConversationTurn) -> None:
-        """
-        Add a turn to conversation history.
+        """Add a turn to conversation history.
 
         Args:
             conversation_id: Unique conversation identifier
             turn: Conversation turn to add
+
         """
         state = await self.get_state(conversation_id)
 
@@ -163,10 +163,11 @@ class ConversationStateManager:
         await self.set_state(conversation_id, state)
 
     async def get_recent_turns(
-        self, conversation_id: str, max_turns: int = 20
+        self,
+        conversation_id: str,
+        max_turns: int = 20,
     ) -> list[ConversationTurn]:
-        """
-        Get recent conversation turns.
+        """Get recent conversation turns.
 
         Args:
             conversation_id: Unique conversation identifier
@@ -174,6 +175,7 @@ class ConversationStateManager:
 
         Returns:
             List of recent turns (most recent last)
+
         """
         state = await self.get_state(conversation_id)
 
@@ -183,12 +185,12 @@ class ConversationStateManager:
         return state.turns[-max_turns:]
 
     async def track_entity(self, conversation_id: str, entity: TrackedEntity) -> None:
-        """
-        Track an entity in conversation.
+        """Track an entity in conversation.
 
         Args:
             conversation_id: Unique conversation identifier
             entity: Entity to track
+
         """
         state = await self.get_state(conversation_id)
 
@@ -200,14 +202,14 @@ class ConversationStateManager:
         await self.set_state(conversation_id, state)
 
     async def get_tracked_entities(self, conversation_id: str) -> dict[str, TrackedEntity]:
-        """
-        Get all tracked entities.
+        """Get all tracked entities.
 
         Args:
             conversation_id: Unique conversation identifier
 
         Returns:
             Dictionary of tracked entities
+
         """
         state = await self.get_state(conversation_id)
 
@@ -217,11 +219,11 @@ class ConversationStateManager:
         return state.entities
 
     async def evict_expired(self) -> int:
-        """
-        Evict expired conversations.
+        """Evict expired conversations.
 
         Returns:
             Number of conversations evicted
+
         """
         async with self._global_lock:
             current_time = time.time()
@@ -237,11 +239,11 @@ class ConversationStateManager:
             return len(expired)
 
     async def get_active_count(self) -> int:
-        """
-        Get number of active conversations.
+        """Get number of active conversations.
 
         Returns:
             Number of active conversations
+
         """
         async with self._global_lock:
             return len(self._cache)
@@ -252,8 +254,7 @@ class ConversationStateManager:
             self._cache.clear()
 
     async def prune_turns(self, conversation_id: str, max_turns: int = 20) -> int:
-        """
-        Prune old turns from conversation history.
+        """Prune old turns from conversation history.
 
         Args:
             conversation_id: Unique conversation identifier
@@ -261,6 +262,7 @@ class ConversationStateManager:
 
         Returns:
             Number of turns pruned
+
         """
         state = await self.get_state(conversation_id)
 
@@ -274,9 +276,8 @@ class ConversationStateManager:
 
         return pruned_count
 
-    async def generate_summary(self, conversation_id: str, llm_generate_fn) -> Optional[str]:
-        """
-        Generate conversation summary using LLM.
+    async def generate_summary(self, conversation_id: str, llm_generate_fn) -> str | None:
+        """Generate conversation summary using LLM.
 
         Args:
             conversation_id: Unique conversation identifier
@@ -284,6 +285,7 @@ class ConversationStateManager:
 
         Returns:
             Generated summary or None if conversation not found
+
         """
         state = await self.get_state(conversation_id)
 
@@ -300,10 +302,12 @@ class ConversationStateManager:
         return summary
 
     async def compress_context(
-        self, conversation_id: str, max_turns: int = 20, llm_generate_fn=None
+        self,
+        conversation_id: str,
+        max_turns: int = 20,
+        llm_generate_fn=None,
     ) -> bool:
-        """
-        Compress conversation context to fit within token limits.
+        """Compress conversation context to fit within token limits.
 
         Strategy:
         1. If turns <= max_turns, no compression needed
@@ -316,6 +320,7 @@ class ConversationStateManager:
 
         Returns:
             True if compression was performed, False otherwise
+
         """
         state = await self.get_state(conversation_id)
 
@@ -343,13 +348,13 @@ class ConversationStateManager:
         turn_number: int,
         entities: dict[str, Any],
     ) -> None:
-        """
-        Extract and track entities from a conversation turn.
+        """Extract and track entities from a conversation turn.
 
         Args:
             conversation_id: Unique conversation identifier
             turn_number: Current turn number
             entities: Dictionary of entity_type -> value pairs
+
         """
         state = await self.get_state(conversation_id)
 
@@ -366,10 +371,9 @@ class ConversationStateManager:
         self,
         conversation_id: str,
         reference: str,
-        entity_type: Optional[str] = None,
-    ) -> Optional[TrackedEntity]:
-        """
-        Resolve coreference to most recent entity.
+        entity_type: str | None = None,
+    ) -> TrackedEntity | None:
+        """Resolve coreference to most recent entity.
 
         Args:
             conversation_id: Unique conversation identifier
@@ -378,6 +382,7 @@ class ConversationStateManager:
 
         Returns:
             Most recently mentioned entity or None
+
         """
         state = await self.get_state(conversation_id)
 
@@ -402,8 +407,7 @@ class ConversationStateManager:
         current_turn: int,
         max_turns_without_mention: int = 10,
     ) -> int:
-        """
-        Expire entities not mentioned in last N turns.
+        """Expire entities not mentioned in last N turns.
 
         Args:
             conversation_id: Unique conversation identifier
@@ -412,6 +416,7 @@ class ConversationStateManager:
 
         Returns:
             Number of entities expired
+
         """
         state = await self.get_state(conversation_id)
 
@@ -438,9 +443,8 @@ class ConversationStateManager:
         self,
         conversation_id: str,
         entity_type: str,
-    ) -> Optional[TrackedEntity]:
-        """
-        Get most recently mentioned entity of given type.
+    ) -> TrackedEntity | None:
+        """Get most recently mentioned entity of given type.
 
         Args:
             conversation_id: Unique conversation identifier
@@ -448,6 +452,7 @@ class ConversationStateManager:
 
         Returns:
             Most recent entity of that type or None
+
         """
         state = await self.get_state(conversation_id)
 
@@ -460,9 +465,8 @@ class ConversationStateManager:
         self,
         conversation_id: str,
         pronoun: str,
-    ) -> Optional[TrackedEntity]:
-        """
-        Resolve pronoun to most recent entity.
+    ) -> TrackedEntity | None:
+        """Resolve pronoun to most recent entity.
 
         Pronoun mapping:
         - he/him/his -> person (male)
@@ -476,13 +480,14 @@ class ConversationStateManager:
 
         Returns:
             Most recently mentioned entity or None
+
         """
         pronoun_lower = pronoun.lower()
 
         # Map pronouns to entity types
         if pronoun_lower in ["he", "him", "his", "she", "her", "hers", "they", "them", "their"]:
             return await self.resolve_coreference(conversation_id, pronoun, "person")
-        elif pronoun_lower in ["it", "its"]:
+        if pronoun_lower in ["it", "its"]:
             # Resolve to most recent non-person entity
             state = await self.get_state(conversation_id)
             if state is None:
@@ -501,9 +506,8 @@ class ConversationStateManager:
         self,
         conversation_id: str,
         current_input: str,
-    ) -> Optional[dict[str, Any]]:
-        """
-        Resolve implicit reference from context.
+    ) -> dict[str, Any] | None:
+        """Resolve implicit reference from context.
 
         Examples:
         - "what about tomorrow?" after "weather today" -> {"intent": "weather", "time": "tomorrow"}
@@ -515,6 +519,7 @@ class ConversationStateManager:
 
         Returns:
             Dictionary with resolved context or None
+
         """
         state = await self.get_state(conversation_id)
 
@@ -547,9 +552,8 @@ class ConversationStateManager:
         self,
         conversation_id: str,
         current_input: str,
-    ) -> Optional[str]:
-        """
-        Complete incomplete request using context.
+    ) -> str | None:
+        """Complete incomplete request using context.
 
         Examples:
         - "tomorrow" after "weather today" -> "weather tomorrow"
@@ -561,6 +565,7 @@ class ConversationStateManager:
 
         Returns:
             Completed request or None
+
         """
         state = await self.get_state(conversation_id)
 
@@ -602,9 +607,8 @@ class ConversationStateManager:
         self,
         conversation_id: str,
         reference: str,
-    ) -> Optional[list[TrackedEntity]]:
-        """
-        Detect ambiguous references that need clarification.
+    ) -> list[TrackedEntity] | None:
+        """Detect ambiguous references that need clarification.
 
         Args:
             conversation_id: Unique conversation identifier
@@ -612,6 +616,7 @@ class ConversationStateManager:
 
         Returns:
             List of possible entities if ambiguous, None otherwise
+
         """
         state = await self.get_state(conversation_id)
 
@@ -639,8 +644,7 @@ class ConversationStateManager:
         user_id: str,
         limit: int = 10,
     ) -> list[ConversationState]:
-        """
-        List conversations for a user.
+        """List conversations for a user.
 
         Args:
             user_id: User identifier
@@ -648,13 +652,12 @@ class ConversationStateManager:
 
         Returns:
             List of conversation states for the user
+
         """
         async with self._global_lock:
             # Filter conversations by user_id
             user_conversations = [
-                entry.state
-                for entry in self._cache.values()
-                if entry.state.user_id == user_id
+                entry.state for entry in self._cache.values() if entry.state.user_id == user_id
             ]
 
             # Sort by most recently updated
@@ -668,7 +671,7 @@ class ConversationStateManager:
 
 
 # Global instance
-_manager: Optional[ConversationStateManager] = None
+_manager: ConversationStateManager | None = None
 
 
 def get_conversation_manager() -> ConversationStateManager:
@@ -676,6 +679,7 @@ def get_conversation_manager() -> ConversationStateManager:
 
     Returns:
         Conversation manager
+
     """
     global _manager
     if _manager is None:

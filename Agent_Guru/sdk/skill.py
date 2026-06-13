@@ -1,15 +1,13 @@
-"""
-Base Skill class and decorators for skill development.
+"""Base Skill class and decorators for skill development.
 
 Provides the foundation for creating Agent Guru skills with
 capability decorators and parameter validation.
 """
 
 import inspect
-from abc import ABC
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, Optional, get_type_hints
+from typing import Any, get_type_hints
 
 
 class SkillMetadata:
@@ -20,20 +18,21 @@ class SkillMetadata:
         capability: str,
         description: str,
         parameters: list[dict[str, Any]],
-    ):
+    ) -> None:
         """Initialize skill metadata.
 
         Args:
             capability: Capability identifier
             description: Capability description
             parameters: List of parameter definitions
+
         """
         self.capability = capability
         self.description = description
         self.parameters = parameters
 
 
-class Skill(ABC):
+class Skill:
     """Base class for Agent Guru skills.
 
     All skills must inherit from this class and use the @skill_capability
@@ -44,9 +43,10 @@ class Skill(ABC):
             @skill_capability("my_capability")
             async def my_method(self, param1: str, param2: int) -> dict:
                 return {"result": "success"}
+
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize skill."""
         self._capabilities: dict[str, SkillMetadata] = {}
         self._discover_capabilities()
@@ -67,10 +67,11 @@ class Skill(ABC):
 
         Returns:
             List of capability identifiers
+
         """
         return list(self._capabilities.keys())
 
-    def get_capability_metadata(self, capability: str) -> Optional[SkillMetadata]:
+    def get_capability_metadata(self, capability: str) -> SkillMetadata | None:
         """Get metadata for a capability.
 
         Args:
@@ -78,12 +79,11 @@ class Skill(ABC):
 
         Returns:
             Capability metadata or None if not found
+
         """
         return self._capabilities.get(capability)
 
-    async def execute_capability(
-        self, capability: str, **kwargs: Any
-    ) -> Any:
+    async def execute_capability(self, capability: str, **kwargs: Any) -> Any:
         """Execute a capability with given parameters.
 
         Args:
@@ -95,10 +95,12 @@ class Skill(ABC):
 
         Raises:
             ValueError: If capability not found
+
         """
         metadata = self.get_capability_metadata(capability)
         if metadata is None:
-            raise ValueError(f"Capability '{capability}' not found")
+            msg = f"Capability '{capability}' not found"
+            raise ValueError(msg)
 
         # Find method
         for name in dir(self):
@@ -110,15 +112,13 @@ class Skill(ABC):
                 # Execute method
                 if inspect.iscoroutinefunction(attr):
                     return await attr(**kwargs)
-                else:
-                    return attr(**kwargs)
+                return attr(**kwargs)
 
-        raise ValueError(f"Capability '{capability}' not found")
+        msg = f"Capability '{capability}' not found"
+        raise ValueError(msg)
 
 
-def skill_capability(
-    capability: str, description: Optional[str] = None
-) -> Callable:
+def skill_capability(capability: str, description: str | None = None) -> Callable:
     """Decorator to mark a method as a skill capability.
 
     Args:
@@ -132,6 +132,7 @@ def skill_capability(
         @skill_capability("weather_query", "Get weather for a location")
         async def get_weather(self, location: str) -> dict:
             return {"temperature": 72}
+
     """
 
     def decorator(func: Callable) -> Callable:
@@ -153,10 +154,8 @@ def skill_capability(
                     "name": param_name,
                     "type": _type_to_string(param_type),
                     "required": param_required,
-                    "default": (
-                        None if param_required else param.default
-                    ),
-                }
+                    "default": (None if param_required else param.default),
+                },
             )
 
         # Create metadata
@@ -173,8 +172,7 @@ def skill_capability(
         async def wrapper(*args, **kwargs):
             if inspect.iscoroutinefunction(func):
                 return await func(*args, **kwargs)
-            else:
-                return func(*args, **kwargs)
+            return func(*args, **kwargs)
 
         wrapper._skill_capability = metadata  # type: ignore[attr-defined]
         return wrapper
@@ -203,6 +201,7 @@ def skill_parameter(
 
     Returns:
         Parameter definition dictionary
+
     """
     return {
         "name": name,
@@ -221,18 +220,18 @@ def _type_to_string(type_hint: Any) -> str:
 
     Returns:
         String representation
+
     """
-    if type_hint == str:
+    if type_hint is str:
         return "string"
-    elif type_hint == int:
+    if type_hint is int:
         return "integer"
-    elif type_hint == float:
+    if type_hint is float:
         return "float"
-    elif type_hint == bool:
+    if type_hint is bool:
         return "boolean"
-    elif type_hint == list or str(type_hint).startswith("typing.List"):
+    if type_hint is list or str(type_hint).startswith("typing.List"):
         return "array"
-    elif type_hint == dict or str(type_hint).startswith("typing.Dict"):
+    if type_hint is dict or str(type_hint).startswith("typing.Dict"):
         return "object"
-    else:
-        return "string"  # Default to string
+    return "string"  # Default to string

@@ -1,5 +1,4 @@
-"""
-Execution Evaluator with feedback loop for Core Reasoning Engine.
+"""Execution Evaluator with feedback loop for Core Reasoning Engine.
 
 Performance Requirements:
 - Time Complexity: O(1) per evaluation
@@ -27,7 +26,7 @@ from collections import defaultdict, deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -73,6 +72,7 @@ class ValidationIssue:
         message: Human-readable description
         severity: Severity level (error, warning, info)
         details: Additional details about the issue
+
     """
 
     issue_type: ValidationResult
@@ -98,6 +98,7 @@ class EvaluationResult:
         should_abandon: Whether task should be abandoned
         abandonment_reason: Reason for abandonment
         timestamp: When evaluation was performed
+
     """
 
     is_valid: bool
@@ -110,7 +111,7 @@ class EvaluationResult:
     plan_adjustment: dict[str, Any] | None = None
     should_abandon: bool = False
     abandonment_reason: str | None = None
-    timestamp: datetime = dataclass_field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = dataclass_field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class ResultValidator:
@@ -125,6 +126,7 @@ class ResultValidator:
         >>> schema = {"timer_id": str, "duration": int}
         >>> validation = validator.validate(result, schema)
         >>> print(f"Valid: {validation.is_valid}")
+
     """
 
     def __init__(self) -> None:
@@ -149,6 +151,7 @@ class ResultValidator:
 
         Returns:
             EvaluationResult with validation results
+
         """
         issues: list[ValidationIssue] = []
 
@@ -160,7 +163,7 @@ class ResultValidator:
                     field="result_data",
                     message="Result data is None",
                     severity="error",
-                )
+                ),
             )
             return EvaluationResult(
                 is_valid=False,
@@ -232,6 +235,7 @@ class ResultValidator:
 
         Returns:
             List of validation issues
+
         """
         issues: list[ValidationIssue] = []
 
@@ -243,7 +247,7 @@ class ResultValidator:
                     field="result_data",
                     message=f"Expected dict, got {type(result_data).__name__}",
                     severity="error",
-                )
+                ),
             )
             return issues
 
@@ -256,7 +260,7 @@ class ResultValidator:
                         field=field_name,
                         message=f"Missing required field: {field_name}",
                         severity="error",
-                    )
+                    ),
                 )
                 continue
 
@@ -273,7 +277,7 @@ class ResultValidator:
                             "expected_type": expected_type.__name__,
                             "actual_type": type(value).__name__,
                         },
-                    )
+                    ),
                 )
 
         return issues
@@ -291,6 +295,7 @@ class ResultValidator:
 
         Returns:
             List of validation issues
+
         """
         issues: list[ValidationIssue] = []
 
@@ -310,17 +315,17 @@ class ResultValidator:
                             field=field_name,
                             message=f"Business rule validation failed for {field_name}",
                             severity="error",
-                        )
+                        ),
                     )
             except Exception as e:
                 issues.append(
                     ValidationIssue(
                         issue_type=ValidationResult.INVALID,
                         field=field_name,
-                        message=f"Business rule validation error: {str(e)}",
+                        message=f"Business rule validation error: {e!s}",
                         severity="error",
                         details={"exception": str(e)},
-                    )
+                    ),
                 )
 
         return issues
@@ -333,6 +338,7 @@ class ResultValidator:
 
         Returns:
             List of validation issues
+
         """
         issues: list[ValidationIssue] = []
 
@@ -352,7 +358,7 @@ class ResultValidator:
                                 field=field_name,
                                 message=f"{field_name} should be non-negative, got {value}",
                                 severity="warning",
-                            )
+                            ),
                         )
 
                 # Check for unreasonably large values
@@ -363,7 +369,7 @@ class ResultValidator:
                             field=field_name,
                             message=f"{field_name} has unreasonably large value: {value}",
                             severity="warning",
-                        )
+                        ),
                     )
 
             # Check for empty strings
@@ -374,7 +380,7 @@ class ResultValidator:
                         field=field_name,
                         message=f"{field_name} is empty string",
                         severity="warning",
-                    )
+                    ),
                 )
 
         return issues
@@ -392,6 +398,7 @@ class ResultValidator:
 
         Returns:
             List of validation issues
+
         """
         issues: list[ValidationIssue] = []
 
@@ -407,7 +414,7 @@ class ResultValidator:
                         field="result_data",
                         message="Result data is empty",
                         severity="warning",
-                    )
+                    ),
                 )
             return issues
 
@@ -426,6 +433,7 @@ class ResultValidator:
         Args:
             rule_name: Name of the rule
             rule_func: Validation function (returns True if valid)
+
         """
         self._validation_rules[rule_name] = rule_func
 
@@ -434,6 +442,7 @@ class ResultValidator:
 
         Args:
             rule_name: Name of the rule to remove
+
         """
         if rule_name in self._validation_rules:
             del self._validation_rules[rule_name]
@@ -450,6 +459,7 @@ class ExecutionEvaluator:
         >>> result = ExecutionResult(success=False, error="Network timeout")
         >>> evaluation = evaluator.evaluate(result, retry_count=0)
         >>> print(f"Should retry: {evaluation.retry_decision == RetryDecision.RETRY}")
+
     """
 
     def __init__(
@@ -465,11 +475,14 @@ class ExecutionEvaluator:
 
         Raises:
             ValueError: If parameters are invalid
+
         """
         if max_retries < 0:
-            raise ValueError(f"Invalid max_retries: {max_retries}")
+            msg = f"Invalid max_retries: {max_retries}"
+            raise ValueError(msg)
         if base_retry_delay <= 0:
-            raise ValueError(f"Invalid base_retry_delay: {base_retry_delay}")
+            msg = f"Invalid base_retry_delay: {base_retry_delay}"
+            raise ValueError(msg)
 
         self.max_retries = max_retries
         self.base_retry_delay = base_retry_delay
@@ -498,6 +511,7 @@ class ExecutionEvaluator:
 
         Returns:
             EvaluationResult with decisions
+
         """
         # Check if execution was successful
         if hasattr(execution_result, "success") and execution_result.success:
@@ -513,25 +527,24 @@ class ExecutionEvaluator:
                 # Missing data - may need clarification
                 validation.clarification_needed = True
                 validation.clarification_question = self._generate_clarification_question(
-                    validation.issues
+                    validation.issues,
                 )
                 validation.retry_decision = RetryDecision.CLARIFY
             elif validation.validation_result == ValidationResult.AMBIGUOUS:
                 # Ambiguous result - need clarification
                 validation.clarification_needed = True
                 validation.clarification_question = self._generate_clarification_question(
-                    validation.issues
+                    validation.issues,
                 )
                 validation.retry_decision = RetryDecision.CLARIFY
+            # Invalid or unexpected - may need retry or adjustment
+            elif retry_count < self.max_retries:
+                validation.retry_decision = RetryDecision.RETRY
+                validation.retry_delay = self._calculate_retry_delay(retry_count)
             else:
-                # Invalid or unexpected - may need retry or adjustment
-                if retry_count < self.max_retries:
-                    validation.retry_decision = RetryDecision.RETRY
-                    validation.retry_delay = self._calculate_retry_delay(retry_count)
-                else:
-                    validation.should_abandon = True
-                    validation.abandonment_reason = "Max retries exceeded with invalid results"
-                    validation.retry_decision = RetryDecision.ABANDON
+                validation.should_abandon = True
+                validation.abandonment_reason = "Max retries exceeded with invalid results"
+                validation.retry_decision = RetryDecision.ABANDON
 
             return validation
 
@@ -571,6 +584,7 @@ class ExecutionEvaluator:
 
         Returns:
             ErrorType classification
+
         """
         if error is None:
             return ErrorType.UNRECOVERABLE
@@ -643,6 +657,7 @@ class ExecutionEvaluator:
 
         Returns:
             RetryDecision
+
         """
         # Check max retries
         if retry_count >= self.max_retries:
@@ -675,6 +690,7 @@ class ExecutionEvaluator:
 
         Returns:
             Delay in seconds (1s, 2s, 4s for retries 0, 1, 2)
+
         """
         # Exponential backoff: base_delay * 2^retry_count
         return float(self.base_retry_delay * (2**retry_count))
@@ -694,6 +710,7 @@ class ExecutionEvaluator:
 
         Returns:
             Tuple of (should_abandon, reason)
+
         """
         # Max retries exceeded
         if retry_count >= self.max_retries:
@@ -725,6 +742,7 @@ class ExecutionEvaluator:
 
         Returns:
             Clarification question
+
         """
         if not issues:
             return "Could you provide more information?"
@@ -738,12 +756,11 @@ class ExecutionEvaluator:
 
         if first_issue.issue_type == ValidationResult.INCOMPLETE:
             return f"The result is missing {first_issue.field}. Could you provide this information?"
-        elif first_issue.issue_type == ValidationResult.AMBIGUOUS:
+        if first_issue.issue_type == ValidationResult.AMBIGUOUS:
             return f"The {first_issue.field} value is ambiguous. Could you clarify what you mean?"
-        elif first_issue.issue_type == ValidationResult.UNEXPECTED:
+        if first_issue.issue_type == ValidationResult.UNEXPECTED:
             return f"The {first_issue.field} has an unexpected format. Could you verify the input?"
-        else:
-            return f"There's an issue with {first_issue.field}. Could you check and try again?"
+        return f"There's an issue with {first_issue.field}. Could you check and try again?"
 
     def track_retry_result(self, error_type: str, success: bool) -> None:
         """Track retry result for pattern analysis.
@@ -751,6 +768,7 @@ class ExecutionEvaluator:
         Args:
             error_type: Type of error that was retried
             success: Whether retry was successful
+
         """
         # defaultdict(deque(maxlen=100)) auto-creates and auto-evicts — no manual management needed
         self._retry_stats[error_type].append(success)
@@ -763,6 +781,7 @@ class ExecutionEvaluator:
 
         Returns:
             Dictionary with retry statistics
+
         """
         if error_type not in self._retry_stats or not self._retry_stats[error_type]:
             return {
@@ -785,6 +804,7 @@ class ExecutionEvaluator:
 
         Args:
             error_type: Error type to clear (clears all if None)
+
         """
         if error_type is None:
             self._retry_stats.clear()

@@ -1,5 +1,4 @@
-"""
-iOS Platform Integration
+"""iOS Platform Integration.
 
 Provides iOS-specific operations using pyobjus and iOS frameworks.
 
@@ -22,14 +21,16 @@ Author: Agent Guru Team
 import logging
 import sys
 from dataclasses import dataclass
+from datetime import UTC
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class IOSPermission(Enum):
     """iOS permission types."""
+
     MICROPHONE = "microphone"
     CAMERA = "camera"
     PHOTOS = "photos"
@@ -43,6 +44,7 @@ class IOSPermission(Enum):
 @dataclass
 class BatteryInfo:
     """iOS battery information."""
+
     level: float  # 0.0-1.0
     state: str  # "charging", "unplugged", "full"
     low_power_mode: bool
@@ -51,14 +53,14 @@ class BatteryInfo:
 @dataclass
 class ShortcutResult:
     """Result from Shortcuts execution."""
+
     success: bool
-    output: Optional[Any] = None
-    error: Optional[str] = None
+    output: Any | None = None
+    error: str | None = None
 
 
 class IOSIntegration:
-    """
-    iOS platform integration using pyobjus and iOS frameworks.
+    """iOS platform integration using pyobjus and iOS frameworks.
 
     Time Complexity: O(1) for most operations
     Space Complexity: O(1) for state management
@@ -77,13 +79,14 @@ class IOSIntegration:
         True
         >>> integration.request_permission(IOSPermission.MICROPHONE)
         True
+
     """
 
     def __init__(self) -> None:
         """Initialize iOS integration."""
         self._check_platform()
         self._pyobjus_available = self._check_pyobjus()
-        self._background_task_id: Optional[int] = None
+        self._background_task_id: int | None = None
 
         if self._pyobjus_available:
             self._initialize_frameworks()
@@ -93,18 +96,14 @@ class IOSIntegration:
     def _check_platform(self) -> None:
         """Verify running on iOS platform."""
         if sys.platform != "ios":
-            logger.warning(
-                f"iOS integration initialized on non-iOS platform: {sys.platform}"
-            )
+            logger.warning("iOS integration initialized on non-iOS platform: %s", sys.platform)
 
     def _check_pyobjus(self) -> bool:
         """Check if pyobjus is available."""
         try:
             return True
-        except ImportError as e:
-            logger.warning(
-                "pyobjus not available - iOS integration will use fallback mode"
-            )
+        except ImportError:
+            logger.exception("pyobjus not available - iOS integration will use fallback mode")
             return False
 
     def _initialize_frameworks(self) -> None:
@@ -120,17 +119,16 @@ class IOSIntegration:
             self.NSURL = autoclass("NSURL")
             self.UIDevice = autoclass("UIDevice")
             self.UNUserNotificationCenter = autoclass("UNUserNotificationCenter")
-            self.AVAudioSession = autoclass("AVAudioSession")  # noqa: N806
+            self.AVAudioSession = autoclass("AVAudioSession")
             self.UIBackgroundTaskIdentifier = autoclass("UIBackgroundTaskIdentifier")
 
             logger.info("iOS frameworks initialized successfully")
-        except Exception as e:
-            logger.error("Failed to initialize iOS frameworks: %s", e)
+        except Exception:
+            logger.exception("Failed to initialize iOS frameworks")
             self._pyobjus_available = False
 
     def launch_app_by_url_scheme(self, url_scheme: str) -> bool:
-        """
-        Launch iOS app by URL scheme.
+        """Launch iOS app by URL scheme.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -148,12 +146,15 @@ class IOSIntegration:
         Example:
             >>> integration.launch_app_by_url_scheme("whatsapp://send?text=Hello")
             True
+
         """
         if not url_scheme:
-            raise ValueError("URL scheme cannot be empty")
+            msg = "URL scheme cannot be empty"
+            raise ValueError(msg)
 
         if not self._pyobjus_available:
-            raise RuntimeError("pyobjus not available - cannot launch apps")
+            msg = "pyobjus not available - cannot launch apps"
+            raise RuntimeError(msg)
 
         try:
             # Create NSURL from string
@@ -172,26 +173,21 @@ class IOSIntegration:
                 return False
 
             # Open URL
-            app.openURL_options_completionHandler_(
-                url,
-                {},
-                None
-            )
+            app.openURL_options_completionHandler_(url, {}, None)
 
             logger.info("Launched app with URL scheme: %s", url_scheme)
             return True
 
-        except Exception as e:
-            logger.error("Failed to launch app: %s", e)
+        except Exception:
+            logger.exception("Failed to launch app")
             return False
 
     def execute_shortcut(
         self,
         shortcut_name: str,
-        input_data: Optional[dict[str, Any]] = None
+        input_data: dict[str, Any] | None = None,
     ) -> ShortcutResult:
-        """
-        Execute iOS Shortcut.
+        """Execute iOS Shortcut.
 
         Time Complexity: O(1) for invocation (shortcut execution time varies)
         Space Complexity: O(1)
@@ -207,18 +203,13 @@ class IOSIntegration:
             >>> result = integration.execute_shortcut("Morning Routine")
             >>> print(result.success)
             True
+
         """
         if not shortcut_name:
-            return ShortcutResult(
-                success=False,
-                error="Shortcut name cannot be empty"
-            )
+            return ShortcutResult(success=False, error="Shortcut name cannot be empty")
 
         if not self._pyobjus_available:
-            return ShortcutResult(
-                success=False,
-                error="pyobjus not available"
-            )
+            return ShortcutResult(success=False, error="pyobjus not available")
 
         try:
             # Use x-callback-url scheme for Shortcuts
@@ -226,9 +217,7 @@ class IOSIntegration:
 
             if input_data:
                 # Add input data as URL parameters
-                params = "&".join(
-                    f"{k}={v}" for k, v in input_data.items()
-                )
+                params = "&".join(f"{k}={v}" for k, v in input_data.items())
                 url_scheme += f"&input={params}"
 
             success = self.launch_app_by_url_scheme(url_scheme)
@@ -236,19 +225,17 @@ class IOSIntegration:
             if success:
                 logger.info("Executed shortcut: %s", shortcut_name)
                 return ShortcutResult(success=True)
-            else:
-                return ShortcutResult(
-                    success=False,
-                    error=f"Failed to execute shortcut: {shortcut_name}"
-                )
+            return ShortcutResult(
+                success=False,
+                error=f"Failed to execute shortcut: {shortcut_name}",
+            )
 
         except Exception as e:
-            logger.error("Shortcut execution failed: %s", e)
+            logger.exception("Shortcut execution failed")
             return ShortcutResult(success=False, error=str(e))
 
     def get_battery_info(self) -> BatteryInfo:
-        """
-        Get iOS battery information.
+        """Get iOS battery information.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -260,14 +247,11 @@ class IOSIntegration:
             >>> info = integration.get_battery_info()
             >>> print(f"Battery: {info.level * 100}%")
             Battery: 85%
+
         """
         if not self._pyobjus_available:
             # Return default values if pyobjus not available
-            return BatteryInfo(
-                level=1.0,
-                state="unknown",
-                low_power_mode=False
-            )
+            return BatteryInfo(level=1.0, state="unknown", low_power_mode=False)
 
         try:
             device = self.UIDevice.currentDevice()
@@ -280,35 +264,23 @@ class IOSIntegration:
 
             # Get battery state
             state_code = device.batteryState()
-            state_map = {
-                0: "unknown",
-                1: "unplugged",
-                2: "charging",
-                3: "full"
-            }
+            state_map = {0: "unknown", 1: "unplugged", 2: "charging", 3: "full"}
             state = state_map.get(state_code, "unknown")
 
             # Check low power mode
+            from pyobjus import autoclass
+
             process_info = autoclass("NSProcessInfo").processInfo()
             low_power_mode = process_info.isLowPowerModeEnabled()
 
-            return BatteryInfo(
-                level=level,
-                state=state,
-                low_power_mode=low_power_mode
-            )
+            return BatteryInfo(level=level, state=state, low_power_mode=low_power_mode)
 
-        except Exception as e:
-            logger.error("Failed to get battery info: %s", e)
-            return BatteryInfo(
-                level=1.0,
-                state="unknown",
-                low_power_mode=False
-            )
+        except Exception:
+            logger.exception("Failed to get battery info")
+            return BatteryInfo(level=1.0, state="unknown", low_power_mode=False)
 
     def request_permission(self, permission: IOSPermission) -> bool:
-        """
-        Request iOS permission.
+        """Request iOS permission.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -325,6 +297,7 @@ class IOSIntegration:
         Example:
             >>> integration.request_permission(IOSPermission.MICROPHONE)
             True
+
         """
         if not self._pyobjus_available:
             logger.warning("pyobjus not available - cannot request permissions")
@@ -333,25 +306,24 @@ class IOSIntegration:
         try:
             if permission == IOSPermission.MICROPHONE:
                 return self._request_microphone_permission()
-            elif permission == IOSPermission.CAMERA:
+            if permission == IOSPermission.CAMERA:
                 return self._request_camera_permission()
-            elif permission == IOSPermission.NOTIFICATIONS:
+            if permission == IOSPermission.NOTIFICATIONS:
                 return self._request_notification_permission()
-            elif permission == IOSPermission.LOCATION:
+            if permission == IOSPermission.LOCATION:
                 return self._request_location_permission()
-            else:
-                logger.warning("Permission type not implemented: %s", permission)
-                return False
+            logger.warning("Permission type not implemented: %s", permission)
+            return False
 
-        except Exception as e:
-            logger.error("Permission request failed: %s", e)
+        except Exception:
+            logger.exception("Permission request failed")
             return False
 
     def _request_microphone_permission(self) -> bool:
         """Request microphone permission."""
         from pyobjus import autoclass
 
-        AVAudioSession = autoclass("AVAudioSession")  # noqa: N806
+        AVAudioSession = autoclass("AVAudioSession")
         session = AVAudioSession.sharedInstance()
 
         # Request permission (blocks until user responds)
@@ -364,12 +336,12 @@ class IOSIntegration:
         """Request camera permission."""
         from pyobjus import autoclass
 
-        AVCaptureDevice = autoclass("AVCaptureDevice")  # noqa: N806
+        AVCaptureDevice = autoclass("AVCaptureDevice")
 
         # Request permission
         AVCaptureDevice.requestAccessForMediaType_completionHandler_(
             "vide",  # AVMediaTypeVideo
-            None
+            None,
         )
 
         # Check if granted
@@ -383,7 +355,7 @@ class IOSIntegration:
         # Request authorization
         center.requestAuthorizationWithOptions_completionHandler_(
             7,  # UNAuthorizationOptionAlert | Sound | Badge
-            None
+            None,
         )
 
         return True  # Assume granted (async operation)
@@ -392,7 +364,7 @@ class IOSIntegration:
         """Request location permission."""
         from pyobjus import autoclass
 
-        CLLocationManager = autoclass("CLLocationManager")  # noqa: N806
+        CLLocationManager = autoclass("CLLocationManager")
         manager = CLLocationManager.alloc().init()
 
         # Request when-in-use authorization
@@ -401,8 +373,7 @@ class IOSIntegration:
         return True  # Assume granted (async operation)
 
     def start_background_audio(self) -> None:
-        """
-        Start background audio mode for always-on operation.
+        """Start background audio mode for always-on operation.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -412,6 +383,7 @@ class IOSIntegration:
 
         Example:
             >>> integration.start_background_audio()
+
         """
         if not self._pyobjus_available:
             logger.warning("pyobjus not available - cannot start background audio")
@@ -421,26 +393,18 @@ class IOSIntegration:
             session = self.AVAudioSession.sharedInstance()
 
             # Set category to playback (allows background audio)
-            session.setCategory_error_(
-                "AVAudioSessionCategoryPlayback",
-                None
-            )
+            session.setCategory_error_("AVAudioSessionCategoryPlayback", None)
 
             # Activate session
             session.setActive_error_(True, None)
 
             logger.info("Background audio mode started")
 
-        except Exception as e:
-            logger.error("Failed to start background audio: %s", e)
+        except Exception:
+            logger.exception("Failed to start background audio")
 
-    def schedule_background_task(
-        self,
-        task_id: str,
-        interval_seconds: int
-    ) -> None:
-        """
-        Schedule iOS background task.
+    def schedule_background_task(self, task_id: str, interval_seconds: int) -> None:
+        """Schedule iOS background task.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -454,6 +418,7 @@ class IOSIntegration:
 
         Example:
             >>> integration.schedule_background_task("wake_word_check", 300)
+
         """
         if not self._pyobjus_available:
             logger.warning("pyobjus not available - cannot schedule background task")
@@ -462,16 +427,17 @@ class IOSIntegration:
         try:
             from pyobjus import autoclass
 
-            BGTaskScheduler = autoclass("BGTaskScheduler")  # noqa: N806
+            BGTaskScheduler = autoclass("BGTaskScheduler")
             scheduler = BGTaskScheduler.sharedScheduler()
 
             # Create task request
-            BGAppRefreshTaskRequest = autoclass("BGAppRefreshTaskRequest")  # noqa: N806
+            BGAppRefreshTaskRequest = autoclass("BGAppRefreshTaskRequest")
             request = BGAppRefreshTaskRequest.alloc().initWithIdentifier_(task_id)
 
             # Set earliest begin date
-            from datetime import datetime, timedelta, timezone
-            earliest_date = datetime.now(tz=timezone.utc) + timedelta(seconds=interval_seconds)
+            from datetime import datetime, timedelta
+
+            earliest_date = datetime.now(tz=UTC) + timedelta(seconds=interval_seconds)
             request.setEarliestBeginDate_(earliest_date)
 
             # Submit request
@@ -479,12 +445,11 @@ class IOSIntegration:
 
             logger.info("Scheduled background task: %s", task_id)
 
-        except Exception as e:
-            logger.error("Failed to schedule background task: %s", e)
+        except Exception:
+            logger.exception("Failed to schedule background task")
 
     def create_notification(self, title: str, message: str) -> None:
-        """
-        Create iOS notification using UserNotifications.
+        """Create iOS notification using UserNotifications.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -495,6 +460,7 @@ class IOSIntegration:
 
         Example:
             >>> integration.create_notification("Agent Guru", "Wake word detected")
+
         """
         if not self._pyobjus_available:
             logger.warning("pyobjus not available - cannot create notification")
@@ -507,27 +473,27 @@ class IOSIntegration:
             center = self.UNUserNotificationCenter.currentNotificationCenter()
 
             # Create notification content
-            UNMutableNotificationContent = autoclass("UNMutableNotificationContent")  # noqa: N806
+            UNMutableNotificationContent = autoclass("UNMutableNotificationContent")
             content = UNMutableNotificationContent.alloc().init()
             content.setTitle_(title)
             content.setBody_(message)
             content.setSound_(autoclass("UNNotificationSound").defaultSound())
 
             # Create trigger (deliver immediately)
-            UNTimeIntervalNotificationTrigger = autoclass(  # noqa: N806
-                "UNTimeIntervalNotificationTrigger"
+            UNTimeIntervalNotificationTrigger = autoclass(
+                "UNTimeIntervalNotificationTrigger",
             )
             trigger = UNTimeIntervalNotificationTrigger.triggerWithTimeInterval_repeats_(
                 1,  # 1 second
-                False
+                False,
             )
 
             # Create request
-            UNNotificationRequest = autoclass("UNNotificationRequest")  # noqa: N806
+            UNNotificationRequest = autoclass("UNNotificationRequest")
             request = UNNotificationRequest.requestWithIdentifier_content_trigger_(
                 "agent_guru_notification",
                 content,
-                trigger
+                trigger,
             )
 
             # Add notification
@@ -535,12 +501,11 @@ class IOSIntegration:
 
             logger.info("Created notification: %s", title)
 
-        except Exception as e:
-            logger.error("Failed to create notification: %s", e)
+        except Exception:
+            logger.exception("Failed to create notification")
 
     def begin_background_task(self, task_name: str) -> int:
-        """
-        Begin background task to prevent suspension.
+        """Begin background task to prevent suspension.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -555,6 +520,7 @@ class IOSIntegration:
             >>> task_id = integration.begin_background_task("processing")
             >>> # Do work...
             >>> integration.end_background_task(task_id)
+
         """
         if not self._pyobjus_available:
             return -1
@@ -565,19 +531,18 @@ class IOSIntegration:
             # Begin background task
             task_id = app.beginBackgroundTaskWithName_expirationHandler_(
                 task_name,
-                None  # Expiration handler
+                None,  # Expiration handler
             )
 
             logger.info("Started background task: %s (ID: %s)", task_name, task_id)
             return int(task_id)
 
-        except Exception as e:
-            logger.error("Failed to begin background task: %s", e)
+        except Exception:
+            logger.exception("Failed to begin background task")
             return -1
 
     def end_background_task(self, task_id: int) -> None:
-        """
-        End background task.
+        """End background task.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -587,6 +552,7 @@ class IOSIntegration:
 
         Example:
             >>> integration.end_background_task(task_id)
+
         """
         if not self._pyobjus_available or task_id < 0:
             return
@@ -597,5 +563,5 @@ class IOSIntegration:
 
             logger.info("Ended background task: %s", task_id)
 
-        except Exception as e:
-            logger.error("Failed to end background task: %s", e)
+        except Exception:
+            logger.exception("Failed to end background task")

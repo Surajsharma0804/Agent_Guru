@@ -1,5 +1,4 @@
-"""
-WebSocket API for real-time updates.
+"""WebSocket API for real-time updates.
 
 This module implements WebSocket endpoints for streaming responses and
 real-time progress updates for long-running tasks.
@@ -32,8 +31,7 @@ Version: 1.0.0
 import asyncio
 import json
 import time
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import WebSocket, WebSocketDisconnect
@@ -50,6 +48,7 @@ class WebSocketMessage(BaseModel):
         data: Message data
         timestamp: Message timestamp
         request_id: Optional request ID for correlation
+
     """
 
     type: str = Field(
@@ -62,10 +61,10 @@ class WebSocketMessage(BaseModel):
         description="Message data",
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
+        default_factory=lambda: datetime.now(tz=UTC),
         description="Message timestamp",
     )
-    request_id: Optional[str] = Field(
+    request_id: str | None = Field(
         default=None,
         description="Request ID for correlation",
     )
@@ -95,11 +94,12 @@ class ConnectionManager:
 
         Args:
             heartbeat_interval: Heartbeat interval in seconds
+
         """
         self.active_connections: dict[str, set[WebSocket]] = {}  # user_id -> {websockets}
         self.connection_metadata: dict[WebSocket, dict] = {}  # websocket -> metadata
         self.heartbeat_interval = heartbeat_interval
-        self._heartbeat_task: Optional[asyncio.Task] = None
+        self._heartbeat_task: asyncio.Task | None = None
 
         logger.info(
             "connection_manager_initialized",
@@ -110,7 +110,7 @@ class ConnectionManager:
         self,
         websocket: WebSocket,
         user_id: str,
-        conversation_id: Optional[str] = None,
+        conversation_id: str | None = None,
     ) -> None:
         """Accept and register a new WebSocket connection.
 
@@ -120,6 +120,7 @@ class ConnectionManager:
             websocket: WebSocket connection
             user_id: User identifier
             conversation_id: Optional conversation ID
+
         """
         await websocket.accept()
 
@@ -166,6 +167,7 @@ class ConnectionManager:
 
         Args:
             websocket: WebSocket connection
+
         """
         # Get metadata
         metadata = self.connection_metadata.get(websocket, {})
@@ -199,11 +201,12 @@ class ConnectionManager:
         Args:
             websocket: WebSocket connection
             message: Message to send
+
         """
         try:
             await websocket.send_json(message.model_dump(mode="json"))
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "send_message_failed",
                 error=str(e),
                 exc_info=True,
@@ -222,6 +225,7 @@ class ConnectionManager:
         Args:
             user_id: User identifier
             message: Message to send
+
         """
         if user_id not in self.active_connections:
             return
@@ -232,13 +236,12 @@ class ConnectionManager:
             try:
                 await websocket.send_json(message.model_dump(mode="json"))
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "send_to_user_failed",
                     user_id=user_id,
                     error=str(e),
                 )
                 disconnected.append(websocket)
-
         # Clean up disconnected connections
         for websocket in disconnected:
             await self.disconnect(websocket)
@@ -250,6 +253,7 @@ class ConnectionManager:
 
         Args:
             message: Message to broadcast
+
         """
         disconnected = []
 
@@ -258,13 +262,12 @@ class ConnectionManager:
                 try:
                     await websocket.send_json(message.model_dump(mode="json"))
                 except Exception as e:
-                    logger.error(
+                    logger.exception(
                         "broadcast_failed",
                         user_id=user_id,
                         error=str(e),
                     )
                     disconnected.append(websocket)
-
         # Clean up disconnected connections
         for websocket in disconnected:
             await self.disconnect(websocket)
@@ -283,6 +286,7 @@ class ConnectionManager:
             request_id: Request ID
             progress: Progress percentage (0.0-1.0)
             message: Optional progress message
+
         """
         await self.send_to_user(
             user_id,
@@ -308,6 +312,7 @@ class ConnectionManager:
             user_id: User identifier
             request_id: Request ID
             response: Response data
+
         """
         await self.send_to_user(
             user_id,
@@ -330,6 +335,7 @@ class ConnectionManager:
             user_id: User identifier
             request_id: Request ID
             error: Error message
+
         """
         await self.send_to_user(
             user_id,
@@ -361,17 +367,18 @@ class ConnectionManager:
 
                     # Send ping
                     try:
-                        await websocket.send_json({
-                            "type": "ping",
-                            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "ping",
+                                "timestamp": datetime.now(tz=UTC).isoformat(),
+                            },
+                        )
                     except Exception as e:
-                        logger.error(
+                        logger.exception(
                             "heartbeat_ping_failed",
                             error=str(e),
                         )
                         stale_connections.append(websocket)
-
                 # Clean up stale connections
                 for websocket in stale_connections:
                     logger.warning(
@@ -381,13 +388,13 @@ class ConnectionManager:
                     await self.disconnect(websocket)
 
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "heartbeat_loop_error",
                     error=str(e),
                     exc_info=True,
                 )
 
-    def get_connection_count(self, user_id: Optional[str] = None) -> int:
+    def get_connection_count(self, user_id: str | None = None) -> int:
         """Get connection count.
 
         Args:
@@ -395,6 +402,7 @@ class ConnectionManager:
 
         Returns:
             Number of active connections
+
         """
         if user_id:
             return len(self.active_connections.get(user_id, set()))
@@ -402,7 +410,7 @@ class ConnectionManager:
 
 
 # Global connection manager
-_connection_manager: Optional[ConnectionManager] = None
+_connection_manager: ConnectionManager | None = None
 
 
 def get_connection_manager() -> ConnectionManager:
@@ -410,6 +418,7 @@ def get_connection_manager() -> ConnectionManager:
 
     Returns:
         Connection manager
+
     """
     global _connection_manager
     if _connection_manager is None:
@@ -420,7 +429,7 @@ def get_connection_manager() -> ConnectionManager:
 async def websocket_endpoint(
     websocket: WebSocket,
     user_id: str,
-    conversation_id: Optional[str] = None,
+    conversation_id: str | None = None,
 ) -> None:
     """WebSocket endpoint handler.
 
@@ -453,6 +462,7 @@ async def websocket_endpoint(
             request_id: 'req_123',
         }));
         ```
+
     """
     manager = get_connection_manager()
 
@@ -478,7 +488,7 @@ async def websocket_endpoint(
                     # Heartbeat response - already updated above
                     continue
 
-                elif message_type == "request":
+                if message_type == "request":
                     # Process request (handled by application logic)
                     logger.info(
                         "websocket_request_received",
@@ -500,9 +510,7 @@ async def websocket_endpoint(
                     user_id=user_id,
                 )
                 break
-
-            except json.JSONDecodeError as e:
-                logger.error(
+                logger.exception(
                     "invalid_json_received",
                     user_id=user_id,
                     error=str(e),
@@ -512,9 +520,7 @@ async def websocket_endpoint(
                     message_dict.get("request_id", "unknown"),
                     "Invalid JSON format",
                 )
-
-            except Exception as e:
-                logger.error(
+                logger.exception(
                     "websocket_message_error",
                     user_id=user_id,
                     error=str(e),
@@ -523,17 +529,15 @@ async def websocket_endpoint(
                 await manager.send_error(
                     user_id,
                     message_dict.get("request_id", "unknown"),
-                    f"Error processing message: {str(e)}",
+                    f"Error processing message: {e!s}",
                 )
-
     except Exception as e:
-        logger.error(
+        logger.exception(
             "websocket_connection_error",
             user_id=user_id,
             error=str(e),
             exc_info=True,
         )
-
     finally:
         # Disconnect
         await manager.disconnect(websocket)

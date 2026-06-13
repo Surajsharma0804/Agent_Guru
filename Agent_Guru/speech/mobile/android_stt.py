@@ -9,12 +9,11 @@ On actual Android devices, this will use the real Android Speech Recognition API
 
 import asyncio
 import logging
-from typing import Optional
 
 import numpy as np
 
-from ..exceptions import GuruSpeechError
-from ..models import TranscriptionResult, TranscriptionSegment
+from Agent_Guru.speech.exceptions import GuruSpeechError
+from Agent_Guru.speech.models import TranscriptionResult, TranscriptionSegment
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +42,15 @@ class AndroidSpeechRecognizer:
         self,
         prefer_offline: bool = True,
         language: str = "en-US",
-        max_results: int = 5
-    ):
+        max_results: int = 5,
+    ) -> None:
         """Initialize Android speech recognizer.
 
         Args:
             prefer_offline: Prefer on-device recognition when available
             language: Language code (e.g., "en-US", "es-ES")
             max_results: Maximum number of recognition results
+
         """
         self.prefer_offline = prefer_offline
         self.language = language
@@ -65,8 +65,7 @@ class AndroidSpeechRecognizer:
             self._initialize_android_components()
         else:
             logger.warning(
-                "Running on non-Android platform. "
-                "Using stub implementation for testing."
+                "Running on non-Android platform. Using stub implementation for testing.",
             )
 
     def _detect_android_platform(self) -> bool:
@@ -74,9 +73,11 @@ class AndroidSpeechRecognizer:
 
         Returns:
             True if running on Android, False otherwise
+
         """
         try:
-            import jnius  # type: ignore[import-not-found]/
+            import jnius  # type: ignore[import-not-found]  # noqa: F401
+
             return True
         except ImportError:
             return False
@@ -91,13 +92,14 @@ class AndroidSpeechRecognizer:
             from jnius import autoclass
 
             # Load Android classes
-            self.SpeechRecognizer = autoclass('android.speech.SpeechRecognizer')
-            self.RecognizerIntent = autoclass('android.speech.RecognizerIntent')
-            self.Bundle = autoclass('android.os.Bundle')
+            self.SpeechRecognizer = autoclass("android.speech.SpeechRecognizer")
+            self.RecognizerIntent = autoclass("android.speech.RecognizerIntent")
+            self.Bundle = autoclass("android.os.Bundle")
 
             logger.info("Android Speech Recognition API loaded successfully")
         except Exception as e:
-            raise AndroidSTTError(f"Failed to load Android components: {e}") from e
+            msg = f"Failed to load Android components: {e}"
+            raise AndroidSTTError(msg) from e
 
     async def initialize(self) -> None:
         """Initialize Android speech recognizer.
@@ -106,6 +108,7 @@ class AndroidSpeechRecognizer:
 
         Raises:
             AndroidSTTError: If initialization fails
+
         """
         if self.is_initialized:
             return
@@ -125,15 +128,17 @@ class AndroidSpeechRecognizer:
 
             # Check if recognition is available
             if not self.SpeechRecognizer.isRecognitionAvailable(context):
-                raise AndroidSTTError("Speech recognition not available on this device")
+                msg = "Speech recognition not available on this device"
+                raise AndroidSTTError(msg)
 
             self.is_initialized = True
             logger.info("Android speech recognizer initialized successfully")
 
         except Exception as e:
-            raise AndroidSTTError(f"Failed to initialize Android STT: {e}") from e
+            msg = f"Failed to initialize Android STT: {e}"
+            raise AndroidSTTError(msg) from e
 
-    def _get_android_context(self):
+    def _get_android_context(self) -> None:
         """Get Android application context.
 
         This would be provided by the Android app when running on device.
@@ -141,17 +146,15 @@ class AndroidSpeechRecognizer:
 
         Returns:
             Android Context object or None
+
         """
         # In a real Android app, this would be:
-        # from jnius import autoclass
-        # PythonActivity = autoclass('org.kivy.android.PythonActivity')
-        # return PythonActivity.mActivity
 
     async def recognize(
         self,
         audio_data: bytes,
         sample_rate: int = 16000,
-        language: Optional[str] = None
+        language: str | None = None,
     ) -> TranscriptionResult:
         """Recognize speech from audio data.
 
@@ -168,6 +171,7 @@ class AndroidSpeechRecognizer:
 
         Raises:
             AndroidSTTError: If recognition fails
+
         """
         if not self.is_initialized:
             await self.initialize()
@@ -185,14 +189,13 @@ class AndroidSpeechRecognizer:
             # audio data input we'd need a custom implementation
 
             # Start recognition
-            result = await self._perform_recognition(intent, audio_data)
-
-            return result
+            return await self._perform_recognition(intent, audio_data)
 
         except Exception as e:
-            raise AndroidSTTError(f"Recognition failed: {e}") from e
+            msg = f"Recognition failed: {e}"
+            raise AndroidSTTError(msg) from e
 
-    def _create_recognition_intent(self, language: Optional[str] = None):
+    def _create_recognition_intent(self, language: str | None = None):
         """Create Android RecognizerIntent with appropriate settings.
 
         Args:
@@ -200,13 +203,14 @@ class AndroidSpeechRecognizer:
 
         Returns:
             RecognizerIntent configured for recognition
+
         """
         intent = self.RecognizerIntent()
 
         # Set recognition action
         intent.putExtra(
             self.RecognizerIntent.ACTION_RECOGNIZE_SPEECH,
-            self.RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+            self.RecognizerIntent.ACTION_RECOGNIZE_SPEECH,
         )
 
         # Set language
@@ -216,19 +220,13 @@ class AndroidSpeechRecognizer:
 
         # Set offline preference
         if self.prefer_offline:
-            intent.putExtra(
-                self.RecognizerIntent.EXTRA_PREFER_OFFLINE,
-                True
-            )
+            intent.putExtra(self.RecognizerIntent.EXTRA_PREFER_OFFLINE, True)
 
         # Set max results
         intent.putExtra(self.RecognizerIntent.EXTRA_MAX_RESULTS, self.max_results)
 
         # Request confidence scores
-        intent.putExtra(
-            self.RecognizerIntent.EXTRA_CONFIDENCE_SCORES,
-            True
-        )
+        intent.putExtra(self.RecognizerIntent.EXTRA_CONFIDENCE_SCORES, True)
 
         return intent
 
@@ -241,6 +239,7 @@ class AndroidSpeechRecognizer:
 
         Returns:
             TranscriptionResult with transcribed text
+
         """
         # This would involve setting up a RecognitionListener and
         # processing the results asynchronously
@@ -253,15 +252,14 @@ class AndroidSpeechRecognizer:
         # 4. Parse results and confidence scores
         # 5. Return TranscriptionResult
 
-        raise NotImplementedError(
-            "Full Android recognition requires running on Android device"
-        )
+        msg = "Full Android recognition requires running on Android device"
+        raise NotImplementedError(msg)
 
     def _stub_recognize(
         self,
         audio_data: bytes,
         sample_rate: int,
-        language: Optional[str]
+        language: str | None,
     ) -> TranscriptionResult:
         """Stub implementation for testing on non-Android platforms.
 
@@ -272,6 +270,7 @@ class AndroidSpeechRecognizer:
 
         Returns:
             Mock TranscriptionResult for testing
+
         """
         # Calculate duration from audio data
         audio_array = np.frombuffer(audio_data, dtype=np.int16)
@@ -289,17 +288,17 @@ class AndroidSpeechRecognizer:
                     text=mock_text,
                     start_time=0.0,
                     end_time=duration,
-                    confidence=0.95
-                )
+                    confidence=0.95,
+                ),
             ],
-            duration=duration
+            duration=duration,
         )
 
     async def recognize_streaming(
         self,
         audio_stream,
         sample_rate: int = 16000,
-        language: Optional[str] = None
+        language: str | None = None,
     ):
         """Recognize speech from streaming audio.
 
@@ -315,6 +314,7 @@ class AndroidSpeechRecognizer:
 
         Raises:
             AndroidSTTError: If recognition fails
+
         """
         if not self.is_initialized:
             await self.initialize()
@@ -327,9 +327,8 @@ class AndroidSpeechRecognizer:
             return
 
         # Real implementation would use continuous recognition
-        raise NotImplementedError(
-            "Streaming recognition requires running on Android device"
-        )
+        msg = "Streaming recognition requires running on Android device"
+        raise NotImplementedError(msg)
 
     async def check_availability(self) -> dict:
         """Check Android STT availability and capabilities.
@@ -339,13 +338,14 @@ class AndroidSpeechRecognizer:
             - available: Whether STT is available
             - on_device: Whether on-device recognition is available
             - languages: List of supported languages
+
         """
         if not self._is_android:
             return {
                 "available": False,
                 "on_device": False,
                 "languages": [],
-                "platform": "non-android (stub)"
+                "platform": "non-android (stub)",
             }
 
         try:
@@ -361,17 +361,12 @@ class AndroidSpeechRecognizer:
                 "available": available,
                 "on_device": on_device,
                 "languages": [self.language],  # Would query available languages
-                "platform": "android"
+                "platform": "android",
             }
 
         except Exception as e:
-            logger.error("Failed to check availability: %s", e)
-            return {
-                "available": False,
-                "on_device": False,
-                "languages": [],
-                "error": str(e)
-            }
+            logger.exception("Failed to check availability")
+            return {"available": False, "on_device": False, "languages": [], "error": str(e)}
 
     async def cleanup(self) -> None:
         """Clean up Android STT resources.
@@ -382,8 +377,8 @@ class AndroidSpeechRecognizer:
             try:
                 self.recognizer.destroy()
                 logger.info("Android speech recognizer destroyed")
-            except Exception as e:
-                logger.error("Error during cleanup: %s", e)
+            except Exception:
+                logger.exception("Error during cleanup")
 
         self.recognizer = None
         self.is_initialized = False

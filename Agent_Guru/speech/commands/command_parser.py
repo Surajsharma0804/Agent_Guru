@@ -1,5 +1,4 @@
-"""
-Command parser for voice command recognition and interpretation.
+"""Command parser for voice command recognition and interpretation.
 
 Supports:
 - Intent extraction
@@ -12,14 +11,15 @@ Supports:
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
-from ..models import CommandResult
+from Agent_Guru.speech.models import CommandResult
 
 
 @dataclass
 class CommandPattern:
     """Command pattern definition."""
+
     patterns: list[str]
     action_id: str
     description: str
@@ -29,8 +29,7 @@ class CommandPattern:
 
 
 class CommandParser:
-    """
-    Parse and interpret voice commands.
+    """Parse and interpret voice commands.
 
     Features:
     - Intent extraction from transcribed text
@@ -49,7 +48,7 @@ class CommandParser:
     - Mouse/keyboard: click, scroll, press
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize command parser with default command registry."""
         self._commands: dict[str, CommandPattern] = {}
         self._register_default_commands()
@@ -59,12 +58,11 @@ class CommandParser:
         patterns: list[str],
         action_id: str,
         description: str = "",
-        parameters: Optional[list[str]] = None,
+        parameters: list[str] | None = None,
         requires_confirmation: bool = False,
-        language: str = "en"
+        language: str = "en",
     ) -> None:
-        """
-        Register a new command pattern.
+        """Register a new command pattern.
 
         Args:
             patterns: List of text patterns that trigger this command
@@ -73,6 +71,7 @@ class CommandParser:
             parameters: List of parameter names to extract
             requires_confirmation: Whether command needs user confirmation
             language: Language code for language-specific matching
+
         """
         command = CommandPattern(
             patterns=patterns,
@@ -80,7 +79,7 @@ class CommandParser:
             description=description,
             parameters=parameters or [],
             requires_confirmation=requires_confirmation,
-            language=language
+            language=language,
         )
         self._commands[action_id] = command
 
@@ -88,10 +87,9 @@ class CommandParser:
         self,
         text: str,
         language: str = "en",
-        context: Optional[dict[str, Any]] = None
+        context: dict[str, Any] | None = None,
     ) -> CommandResult:
-        """
-        Interpret text as a command.
+        """Interpret text as a command.
 
         Args:
             text: Transcribed text to interpret
@@ -100,6 +98,7 @@ class CommandParser:
 
         Returns:
             CommandResult with action_id, parameters, and confidence
+
         """
         text = text.strip().lower()
 
@@ -109,7 +108,7 @@ class CommandParser:
                 action_id=None,
                 parameters={},
                 confidence=0.0,
-                raw_text=text
+                raw_text=text,
             )
 
         # Check for command chaining
@@ -142,7 +141,7 @@ class CommandParser:
                     action_id="GENERIC_COMMAND",
                     parameters=entities,
                     confidence=0.5,
-                    raw_text=text
+                    raw_text=text,
                 )
 
             return CommandResult(
@@ -150,7 +149,7 @@ class CommandParser:
                 action_id=None,
                 parameters={},
                 confidence=0.0,
-                raw_text=text
+                raw_text=text,
             )
 
         return CommandResult(
@@ -158,15 +157,15 @@ class CommandParser:
             action_id=best_match,
             parameters=best_parameters,
             confidence=best_confidence,
-            raw_text=text
+            raw_text=text,
         )
 
     def get_registered_commands(self) -> list[dict[str, Any]]:
-        """
-        Get list of all registered commands.
+        """Get list of all registered commands.
 
         Returns:
             List of command definitions
+
         """
         return [
             {
@@ -175,119 +174,105 @@ class CommandParser:
                 "description": cmd.description,
                 "parameters": cmd.parameters,
                 "requires_confirmation": cmd.requires_confirmation,
-                "language": cmd.language
+                "language": cmd.language,
             }
             for action_id, cmd in self._commands.items()
         ]
 
     def _register_default_commands(self) -> None:
         """Register default system control commands."""
-
         # System control commands
         self.register_command(
             patterns=[
                 r"open (?P<app_name>[\w\s]+)",
                 r"launch (?P<app_name>[\w\s]+)",
-                r"start (?P<app_name>[\w\s]+)"
+                r"start (?P<app_name>[\w\s]+)",
             ],
             action_id="OPEN_APP",
             description="Open an application",
-            parameters=["app_name"]
+            parameters=["app_name"],
         )
 
         self.register_command(
             patterns=[
                 r"close (?P<app_name>[\w\s]+)",
                 r"quit (?P<app_name>[\w\s]+)",
-                r"exit (?P<app_name>[\w\s]+)"
+                r"exit (?P<app_name>[\w\s]+)",
             ],
             action_id="CLOSE_APP",
             description="Close an application",
-            parameters=["app_name"]
+            parameters=["app_name"],
         )
 
         self.register_command(
-            patterns=[
-                r"minimize (?P<app_name>[\w\s]+)?",
-                r"minimize window"
-            ],
+            patterns=[r"minimize (?P<app_name>[\w\s]+)?", r"minimize window"],
             action_id="MINIMIZE_WINDOW",
             description="Minimize window",
-            parameters=["app_name"]
+            parameters=["app_name"],
         )
 
         self.register_command(
-            patterns=[
-                r"maximize (?P<app_name>[\w\s]+)?",
-                r"maximize window"
-            ],
+            patterns=[r"maximize (?P<app_name>[\w\s]+)?", r"maximize window"],
             action_id="MAXIMIZE_WINDOW",
             description="Maximize window",
-            parameters=["app_name"]
+            parameters=["app_name"],
         )
 
         # Text operations
         self.register_command(
-            patterns=[
-                r"type (?P<text>.+)",
-                r"write (?P<text>.+)",
-                r"enter (?P<text>.+)"
-            ],
+            patterns=[r"type (?P<text>.+)", r"write (?P<text>.+)", r"enter (?P<text>.+)"],
             action_id="TYPE_TEXT",
             description="Type text",
-            parameters=["text"]
+            parameters=["text"],
         )
 
         self.register_command(
             patterns=[
                 r"send message (?P<message>.+) to (?P<recipient>[\w\s]+)",
-                r"message (?P<recipient>[\w\s]+) (?P<message>.+)"
+                r"message (?P<recipient>[\w\s]+) (?P<message>.+)",
             ],
             action_id="SEND_MESSAGE",
             description="Send a message",
-            parameters=["message", "recipient"]
+            parameters=["message", "recipient"],
         )
 
         self.register_command(
             patterns=[
                 r"read (?P<item>email|message|notification)s?",
-                r"check (?P<item>email|message|notification)s?"
+                r"check (?P<item>email|message|notification)s?",
             ],
             action_id="READ_ITEM",
             description="Read emails/messages",
-            parameters=["item"]
+            parameters=["item"],
         )
 
         # File operations
         self.register_command(
-            patterns=[
-                r"create file (?P<filename>[\w\s\.]+)",
-                r"new file (?P<filename>[\w\s\.]+)"
-            ],
+            patterns=[r"create file (?P<filename>[\w\s\.]+)", r"new file (?P<filename>[\w\s\.]+)"],
             action_id="CREATE_FILE",
             description="Create a new file",
-            parameters=["filename"]
+            parameters=["filename"],
         )
 
         self.register_command(
             patterns=[
                 r"delete file (?P<filename>[\w\s\.]+)",
-                r"remove file (?P<filename>[\w\s\.]+)"
+                r"remove file (?P<filename>[\w\s\.]+)",
             ],
             action_id="DELETE_FILE",
             description="Delete a file",
             parameters=["filename"],
-            requires_confirmation=True
+            requires_confirmation=True,
         )
 
         self.register_command(
             patterns=[
                 r"move (?P<source>[\w\s\.]+) to (?P<destination>[\w\s\.]+)",
-                r"rename (?P<source>[\w\s\.]+) to (?P<destination>[\w\s\.]+)"
+                r"rename (?P<source>[\w\s\.]+) to (?P<destination>[\w\s\.]+)",
             ],
             action_id="MOVE_FILE",
             description="Move or rename a file",
-            parameters=["source", "destination"]
+            parameters=["source", "destination"],
         )
 
         self.register_command(
@@ -295,11 +280,11 @@ class CommandParser:
                 r"search for (?P<query>.+) in (?P<location>[\w\s]+)",
                 r"find (?P<query>.+) in (?P<location>[\w\s]+)",
                 r"search for (?P<query>.+)",
-                r"find (?P<query>.+)"
+                r"find (?P<query>.+)",
             ],
             action_id="SEARCH_FILES",
             description="Search for files",
-            parameters=["query", "location"]
+            parameters=["query", "location"],
         )
 
         # Settings commands
@@ -307,128 +292,106 @@ class CommandParser:
             patterns=[
                 r"set volume to (?P<level>\d+) percent",
                 r"volume (?P<level>\d+) percent",
-                r"set volume (?P<level>\d+)"
+                r"set volume (?P<level>\d+)",
             ],
             action_id="SET_VOLUME",
             description="Set system volume",
-            parameters=["level"]
+            parameters=["level"],
         )
 
         self.register_command(
-            patterns=[
-                r"increase volume",
-                r"volume up",
-                r"louder"
-            ],
+            patterns=[r"increase volume", r"volume up", r"louder"],
             action_id="VOLUME_UP",
-            description="Increase volume"
+            description="Increase volume",
         )
 
         self.register_command(
-            patterns=[
-                r"decrease volume",
-                r"volume down",
-                r"quieter"
-            ],
+            patterns=[r"decrease volume", r"volume down", r"quieter"],
             action_id="VOLUME_DOWN",
-            description="Decrease volume"
+            description="Decrease volume",
         )
 
         self.register_command(
-            patterns=[
-                r"mute",
-                r"silence"
-            ],
+            patterns=[r"mute", r"silence"],
             action_id="MUTE",
-            description="Mute audio"
+            description="Mute audio",
         )
 
         self.register_command(
             patterns=[
                 r"set brightness to (?P<level>\d+) percent",
-                r"brightness (?P<level>\d+) percent"
+                r"brightness (?P<level>\d+) percent",
             ],
             action_id="SET_BRIGHTNESS",
             description="Set screen brightness",
-            parameters=["level"]
+            parameters=["level"],
         )
 
         self.register_command(
             patterns=[
                 r"turn (?P<state>on|off) wifi",
                 r"(?P<state>enable|disable) wifi",
-                r"wifi (?P<state>on|off)"
+                r"wifi (?P<state>on|off)",
             ],
             action_id="TOGGLE_WIFI",
             description="Toggle WiFi",
-            parameters=["state"]
+            parameters=["state"],
         )
 
         self.register_command(
             patterns=[
                 r"turn (?P<state>on|off) bluetooth",
                 r"(?P<state>enable|disable) bluetooth",
-                r"bluetooth (?P<state>on|off)"
+                r"bluetooth (?P<state>on|off)",
             ],
             action_id="TOGGLE_BLUETOOTH",
             description="Toggle Bluetooth",
-            parameters=["state"]
+            parameters=["state"],
         )
 
         # Mouse/keyboard commands
         self.register_command(
-            patterns=[
-                r"click",
-                r"left click"
-            ],
+            patterns=[r"click", r"left click"],
             action_id="CLICK",
-            description="Perform mouse click"
+            description="Perform mouse click",
         )
 
         self.register_command(
-            patterns=[
-                r"right click"
-            ],
+            patterns=[r"right click"],
             action_id="RIGHT_CLICK",
-            description="Perform right click"
+            description="Perform right click",
         )
 
         self.register_command(
-            patterns=[
-                r"double click"
-            ],
+            patterns=[r"double click"],
             action_id="DOUBLE_CLICK",
-            description="Perform double click"
+            description="Perform double click",
         )
 
         self.register_command(
             patterns=[
                 r"scroll (?P<direction>up|down)",
-                r"scroll (?P<direction>up|down) (?P<amount>\d+)"
+                r"scroll (?P<direction>up|down) (?P<amount>\d+)",
             ],
             action_id="SCROLL",
             description="Scroll page",
-            parameters=["direction", "amount"]
+            parameters=["direction", "amount"],
         )
 
         self.register_command(
-            patterns=[
-                r"press (?P<key>[\w\s]+)",
-                r"hit (?P<key>[\w\s]+)"
-            ],
+            patterns=[r"press (?P<key>[\w\s]+)", r"hit (?P<key>[\w\s]+)"],
             action_id="PRESS_KEY",
             description="Press keyboard key",
-            parameters=["key"]
+            parameters=["key"],
         )
 
     def _match_pattern(
         self,
         text: str,
         pattern: str,
-        param_names: list[str]
+        param_names: list[str],
     ) -> tuple[float, dict[str, Any]]:
-        """
-        Match text against a pattern and extract parameters.
+        """Match text against a pattern and extract parameters.
 
         Args:
             text: Text to match
@@ -437,6 +400,7 @@ class CommandParser:
 
         Returns:
             Tuple of (confidence, parameters)
+
         """
         try:
             match = re.search(pattern, text, re.IGNORECASE)
@@ -475,33 +439,33 @@ class CommandParser:
             return 0.0, {}
 
     def _extract_entities(self, text: str) -> dict[str, Any]:
-        """
-        Extract entities from text (dates, numbers, names).
+        """Extract entities from text (dates, numbers, names).
 
         Args:
             text: Text to extract entities from
 
         Returns:
             Dictionary of extracted entities
+
         """
         entities = {}
 
         # Extract numbers
-        numbers = re.findall(r'\b\d+\b', text)
+        numbers = re.findall(r"\b\d+\b", text)
         if numbers:
             entities["numbers"] = [int(n) for n in numbers]
 
         # Extract percentages
-        percentages = re.findall(r'(\d+)\s*percent', text, re.IGNORECASE)
+        percentages = re.findall(r"(\d+)\s*percent", text, re.IGNORECASE)
         if percentages:
             entities["percentages"] = [int(p) for p in percentages]
 
         # Extract dates (simple patterns)
         date_patterns = [
-            r'\b\d{1,2}/\d{1,2}/\d{2,4}\b',  # MM/DD/YYYY
-            r'\b\d{4}-\d{2}-\d{2}\b',  # YYYY-MM-DD
-            r'\b(today|tomorrow|yesterday)\b',
-            r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b'
+            r"\b\d{1,2}/\d{1,2}/\d{2,4}\b",  # MM/DD/YYYY
+            r"\b\d{4}-\d{2}-\d{2}\b",  # YYYY-MM-DD
+            r"\b(today|tomorrow|yesterday)\b",
+            r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
         ]
 
         dates = []
@@ -513,7 +477,7 @@ class CommandParser:
             entities["dates"] = dates
 
         # Extract potential names (capitalized words)
-        names = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text)
+        names = re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", text)
         if names:
             entities["names"] = names
 
@@ -523,10 +487,9 @@ class CommandParser:
         self,
         text: str,
         language: str,
-        context: Optional[dict[str, Any]]
+        context: dict[str, Any] | None,
     ) -> CommandResult:
-        """
-        Parse chained commands (e.g., "open browser and search for weather").
+        """Parse chained commands (e.g., "open browser and search for weather").
 
         Args:
             text: Text containing chained commands
@@ -535,6 +498,7 @@ class CommandParser:
 
         Returns:
             CommandResult with chained commands
+
         """
         # Split by "and" or "then"
         separators = [" and ", " then "]
@@ -557,11 +521,13 @@ class CommandParser:
 
             result = self.interpret(part, language, context)
             if result.is_command:
-                sub_commands.append({
-                    "action_id": result.action_id,
-                    "parameters": result.parameters,
-                    "confidence": result.confidence
-                })
+                sub_commands.append(
+                    {
+                        "action_id": result.action_id,
+                        "parameters": result.parameters,
+                        "confidence": result.confidence,
+                    },
+                )
                 total_confidence += result.confidence
 
         if not sub_commands:
@@ -570,7 +536,7 @@ class CommandParser:
                 action_id=None,
                 parameters={},
                 confidence=0.0,
-                raw_text=text
+                raw_text=text,
             )
 
         # Average confidence
@@ -581,5 +547,5 @@ class CommandParser:
             action_id="CHAINED_COMMAND",
             parameters={"sub_commands": sub_commands},
             confidence=avg_confidence,
-            raw_text=text
+            raw_text=text,
         )

@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.monitoring
-Purpose: Real-time resource monitoring with alerting and throttling
+"""Module: agent_guru.platform.monitoring
+Purpose: Real-time resource monitoring with alerting and throttling.
 
 This module provides comprehensive system resource monitoring including:
 - CPU usage (per-core and aggregate)
@@ -42,18 +41,18 @@ from .self_improvement_integration import (
 )
 
 __all__ = [
+    "AlertSeverity",
+    "DiskUsage",
+    "GPUUsage",
+    "MetricType",
+    "NetworkIO",
+    "ProcessResourceUsage",
+    "ResourceAlert",
+    "ResourceLimits",
     "ResourceMonitor",
     "ResourceMonitorConfig",
     "ResourceSnapshot",
-    "ResourceLimits",
-    "ResourceAlert",
     "ResourceType",
-    "AlertSeverity",
-    "ProcessResourceUsage",
-    "DiskUsage",
-    "NetworkIO",
-    "GPUUsage",
     "SelfImprovementIntegration",
     "SelfImprovementMetric",
-    "MetricType",
 ]

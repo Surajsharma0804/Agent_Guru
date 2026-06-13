@@ -1,5 +1,4 @@
-"""
-Memory System Integration - Interface for persistent storage integration.
+"""Memory System Integration - Interface for persistent storage integration.
 
 This module provides integration hooks for the memory system to enable
 persistent storage and historical pattern retrieval.
@@ -15,15 +14,15 @@ Version: 1.0.0
 """
 
 import logging
+
 _logger = logging.getLogger(__name__)
 
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime  # noqa: E402
+from typing import Any  # noqa: E402
 
 
 class MemoryIntegration:
-    """
-    Memory system integration for self-improvement engine.
+    """Memory system integration for self-improvement engine.
 
     This class provides hooks for integrating with the memory system
     to enable persistent storage and historical pattern retrieval.
@@ -46,29 +45,25 @@ class MemoryIntegration:
         ...     task_type="analysis",
         ...     limit=10
         ... )
+
     """
 
-    def __init__(
-        self,
-        self_improvement_engine: Any,
-        memory_system: Optional[Any] = None
-    ):
-        """
-        Initialize memory integration.
+    def __init__(self, self_improvement_engine: Any, memory_system: Any | None = None) -> None:
+        """Initialize memory integration.
 
         Args:
             self_improvement_engine: SelfImprovementEngine instance
             memory_system: Optional memory system instance (placeholder)
 
         Time Complexity: O(1)
+
         """
         self.engine = self_improvement_engine
         self.memory_system = memory_system
-        self.last_sync_time: Optional[datetime] = None
+        self.last_sync_time: datetime | None = None
 
     def sync_learning_data(self) -> dict[str, Any]:
-        """
-        Synchronize learning data to memory system.
+        """Synchronize learning data to memory system.
 
         Exports learning data from self-improvement engine to memory system
         for long-term persistent storage.
@@ -80,13 +75,14 @@ class MemoryIntegration:
         Performance Target: <100ms for typical sync
 
         Validates: Requirement 17.2
+
         """
         if not self.memory_system:
             # No memory system connected - return empty stats
             return {
                 "synced": False,
                 "reason": "No memory system connected",
-                "timestamp": datetime.now(tz=timezone.utc).isoformat()
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             }
 
         try:
@@ -96,28 +92,23 @@ class MemoryIntegration:
             # Sync to memory system (placeholder)
             # In real implementation, this would call memory_system.store()
 
-            self.last_sync_time = datetime.now(tz=timezone.utc)
+            self.last_sync_time = datetime.now(tz=UTC)
 
             return {
                 "synced": True,
                 "metrics_synced": len(metrics),
-                "timestamp": self.last_sync_time.isoformat()
+                "timestamp": self.last_sync_time.isoformat(),
             }
 
         except Exception as e:
-            return {
-                "synced": False,
-                "error": str(e),
-                "timestamp": datetime.now(tz=timezone.utc).isoformat()
-            }
+            return {"synced": False, "error": str(e), "timestamp": datetime.now(tz=UTC).isoformat()}
 
     def get_historical_patterns(
         self,
-        task_type: Optional[str] = None,
-        limit: int = 100
+        task_type: str | None = None,
+        limit: int = 100,
     ) -> list[dict[str, Any]]:
-        """
-        Retrieve historical patterns from memory system.
+        """Retrieve historical patterns from memory system.
 
         Queries memory system for historical failure patterns and
         successful strategies.
@@ -133,6 +124,7 @@ class MemoryIntegration:
         Performance Target: <50ms
 
         Validates: Requirement 17.3
+
         """
         if not self.memory_system:
             # No memory system - return patterns from engine
@@ -148,13 +140,8 @@ class MemoryIntegration:
             _logger.warning("Warning: Historical pattern retrieval failed: %s", e)
             return []
 
-    def _get_patterns_from_engine(
-        self,
-        task_type: Optional[str],
-        limit: int
-    ) -> list[dict[str, Any]]:
-        """
-        Get patterns from self-improvement engine.
+    def _get_patterns_from_engine(self, task_type: str | None, limit: int) -> list[dict[str, Any]]:
+        """Get patterns from self-improvement engine.
 
         Fallback method when memory system is not available.
 
@@ -164,19 +151,15 @@ class MemoryIntegration:
 
         Returns:
             List of patterns from engine
+
         """
         try:
             # Get patterns from failure analyzer
-            patterns = self.engine.failure_analyzer.get_failure_patterns(
-                limit=limit
-            )
+            patterns = self.engine.failure_analyzer.get_failure_patterns(limit=limit)
 
             # Filter by task type if specified
             if task_type:
-                patterns = [
-                    p for p in patterns
-                    if p.get("task_type") == task_type
-                ]
+                patterns = [p for p in patterns if p.get("task_type") == task_type]
 
             return patterns[:limit]
 
@@ -185,29 +168,29 @@ class MemoryIntegration:
             return []
 
     def get_sync_status(self) -> dict[str, Any]:
-        """
-        Get synchronization status.
+        """Get synchronization status.
 
         Returns:
             Sync status information
 
         Time Complexity: O(1)
+
         """
         return {
             "memory_system_connected": self.memory_system is not None,
             "last_sync_time": self.last_sync_time.isoformat() if self.last_sync_time else None,
-            "engine_metrics": self.engine.get_improvement_metrics()
+            "engine_metrics": self.engine.get_improvement_metrics(),
         }
 
 
 # Integration helper functions
 
+
 def create_memory_integration(
     self_improvement_engine: Any,
-    memory_system: Optional[Any] = None
+    memory_system: Any | None = None,
 ) -> MemoryIntegration:
-    """
-    Create memory integration for self-improvement engine.
+    """Create memory integration for self-improvement engine.
 
     This is a convenience function that initializes the memory integration
     with proper configuration.
@@ -228,8 +211,9 @@ def create_memory_integration(
         >>> # Sync data
         >>> stats = memory_integration.sync_learning_data()
         >>> print(f"Synced: {stats['synced']}")
+
     """
     return MemoryIntegration(
         self_improvement_engine=self_improvement_engine,
-        memory_system=memory_system
+        memory_system=memory_system,
     )

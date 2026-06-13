@@ -12,13 +12,13 @@ Both are free, no API key needed, privacy-respecting.
 
 Install: pip install duckduckgo-search
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import re
 import urllib.parse
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ _CURRENT_EVENT_KEYWORDS = re.compile(
     r"chancellor|king|queen|ceo|leader|winner|champion|score|"
     r"price|stock|weather|news|headline|just happened|"
     r"2024|2025|2026)\b",
-    re.I,
+    re.IGNORECASE,
 )
 
 
@@ -38,7 +38,7 @@ def needs_web_search(query: str) -> bool:
     return bool(_CURRENT_EVENT_KEYWORDS.search(query))
 
 
-async def search_web(query: str, max_chars: int = 500) -> Optional[str]:
+async def search_web(query: str, max_chars: int = 500) -> str | None:
     """Search the web and return a short answer snippet.
 
     Tries duckduckgo-search (ddgs) first for real results, falls back to
@@ -50,6 +50,7 @@ async def search_web(query: str, max_chars: int = 500) -> Optional[str]:
 
     Returns:
         A short text snippet, or None if search failed.
+
     """
     # Try ddgs first — real search results, much better quality
     result = await _search_ddgs(query, max_chars)
@@ -60,12 +61,12 @@ async def search_web(query: str, max_chars: int = 500) -> Optional[str]:
     return await _search_ddg_instant(query, max_chars)
 
 
-async def _search_ddgs(query: str, max_chars: int) -> Optional[str]:
+async def _search_ddgs(query: str, max_chars: int) -> str | None:
     """Search using duckduckgo-search library (real results, no API key)."""
     try:
         from duckduckgo_search import DDGS  # type: ignore[import]
 
-        def _sync_search() -> Optional[str]:
+        def _sync_search() -> str | None:
             with DDGS() as ddgs:
                 results = list(ddgs.text(query, max_results=3))
             if not results:
@@ -84,33 +85,34 @@ async def _search_ddgs(query: str, max_chars: int) -> Optional[str]:
             loop.run_in_executor(None, _sync_search),
             timeout=5.0,
         )
-    except ImportError:
+    except ImportError as exc:
         logger.debug("duckduckgo-search not installed — run: pip install duckduckgo-search")
         return None
-    except asyncio.TimeoutError:
         logger.debug("ddgs search timed out")
         return None
-    except Exception as exc:
         logger.debug("ddgs search failed: %s", exc)
         return None
 
 
-async def _search_ddg_instant(query: str, max_chars: int) -> Optional[str]:
+async def _search_ddg_instant(query: str, max_chars: int) -> str | None:
     """Fallback: DuckDuckGo instant answer API (shallow but always works)."""
     try:
         import aiohttp
+
         encoded = urllib.parse.quote_plus(query)
         url = f"https://api.duckduckgo.com/?q={encoded}&format=json&no_html=1&skip_disambig=1"
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(
                 url,
                 timeout=aiohttp.ClientTimeout(total=4),
                 headers={"User-Agent": "AgentGuru/1.0"},
-            ) as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json(content_type=None)
+            ) as resp,
+        ):
+            if resp.status != 200:
+                return None
+            data = await resp.json(content_type=None)
 
         abstract = (data.get("AbstractText") or "").strip()
         if abstract:
@@ -127,9 +129,8 @@ async def _search_ddg_instant(query: str, max_chars: int) -> Optional[str]:
                 return text[:max_chars]
 
         return None
-    except asyncio.TimeoutError:
+    except TimeoutError as exc:
         logger.debug("DDG instant answer timed out")
         return None
-    except Exception as exc:
         logger.debug("DDG instant answer failed: %s", exc)
         return None

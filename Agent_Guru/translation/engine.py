@@ -1,10 +1,10 @@
 """Real-Time Multilingual Translation Engine."""
+
 from __future__ import annotations
 
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 from Agent_Guru.translation.subtitles import SubtitleEntry, SubtitleGenerator
 
@@ -15,7 +15,8 @@ LOW_CONFIDENCE_THRESHOLD = 0.7
 LANGUAGE_DETECTION_THRESHOLD = 0.85
 
 try:
-    import seamless_communication  # type: ignore[import]
+    import seamless_communication  # type: ignore[import]  # noqa: F401
+
     _SEAMLESS_AVAILABLE = True
 except ImportError:
     _SEAMLESS_AVAILABLE = False
@@ -31,6 +32,7 @@ DOMAIN_TERMS: dict[str, dict[str, str]] = {
 @dataclass
 class TranslationResult:
     """Result of a translation operation."""
+
     source_text: str
     translated_text: str
     source_language: str
@@ -47,7 +49,7 @@ class TranslationEngine:
     def __init__(self) -> None:
         self._subtitle_gen = SubtitleGenerator()
         self._session_corrections: dict[str, str] = {}
-        self._domain: Optional[str] = None
+        self._domain: str | None = None
 
     def set_domain(self, domain: str) -> None:
         """Set domain for terminology adaptation."""
@@ -66,7 +68,7 @@ class TranslationEngine:
         self,
         text: str,
         target_language: str,
-        source_language: Optional[str] = None,
+        source_language: str | None = None,
     ) -> TranslationResult:
         """Translate text with ≤300ms latency target."""
         start = time.perf_counter()

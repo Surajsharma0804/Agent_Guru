@@ -1,5 +1,4 @@
-"""
-Conversation state persistence with SQLite.
+"""Conversation state persistence with SQLite.
 
 This module implements async SQLite persistence for conversation state
 with WAL mode for concurrent access.
@@ -7,7 +6,6 @@ with WAL mode for concurrent access.
 
 import asyncio
 from pathlib import Path
-from typing import Optional
 
 import aiosqlite
 
@@ -15,8 +13,7 @@ from Agent_Guru.reasoning.models.conversation import ConversationState
 
 
 class ConversationPersistence:
-    """
-    SQLite persistence for conversation state.
+    """SQLite persistence for conversation state.
 
     Features:
     - WAL mode for concurrent access
@@ -25,13 +22,13 @@ class ConversationPersistence:
     - Automatic schema creation
     """
 
-    def __init__(self, db_path: str = "conversations.db", pool_size: int = 5):
-        """
-        Initialize persistence layer.
+    def __init__(self, db_path: str = "conversations.db", pool_size: int = 5) -> None:
+        """Initialize persistence layer.
 
         Args:
             db_path: Path to SQLite database file
             pool_size: Maximum number of connections in pool
+
         """
         self.db_path = db_path
         self.pool_size = pool_size
@@ -63,21 +60,21 @@ class ConversationPersistence:
                     created_at TIMESTAMP NOT NULL,
                     updated_at TIMESTAMP NOT NULL
                 )
-            """
+            """,
             )
 
             await db.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_user_id
                 ON conversations(user_id)
-            """
+            """,
             )
 
             await db.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_updated_at
                 ON conversations(updated_at)
-            """
+            """,
             )
 
             await db.commit()
@@ -103,11 +100,11 @@ class ConversationPersistence:
                 await conn.close()
 
     async def save(self, state: ConversationState) -> None:
-        """
-        Save conversation state.
+        """Save conversation state.
 
         Args:
             state: Conversation state to save
+
         """
         if not self._initialized:
             await self.initialize()
@@ -135,15 +132,15 @@ class ConversationPersistence:
         finally:
             await self._return_connection(conn)
 
-    async def load(self, conversation_id: str) -> Optional[ConversationState]:
-        """
-        Load conversation state.
+    async def load(self, conversation_id: str) -> ConversationState | None:
+        """Load conversation state.
 
         Args:
             conversation_id: Unique conversation identifier
 
         Returns:
             ConversationState if found, None otherwise
+
         """
         if not self._initialized:
             await self.initialize()
@@ -165,14 +162,14 @@ class ConversationPersistence:
             await self._return_connection(conn)
 
     async def delete(self, conversation_id: str) -> bool:
-        """
-        Delete conversation state.
+        """Delete conversation state.
 
         Args:
             conversation_id: Unique conversation identifier
 
         Returns:
             True if deleted, False if not found
+
         """
         if not self._initialized:
             await self.initialize()
@@ -189,8 +186,7 @@ class ConversationPersistence:
             await self._return_connection(conn)
 
     async def list_by_user(self, user_id: str, limit: int = 100) -> list[str]:
-        """
-        List conversation IDs for a user.
+        """List conversation IDs for a user.
 
         Args:
             user_id: User identifier
@@ -198,6 +194,7 @@ class ConversationPersistence:
 
         Returns:
             List of conversation IDs
+
         """
         if not self._initialized:
             await self.initialize()

@@ -1,11 +1,8 @@
-"""
-Unified LLM Client
+"""Unified LLM Client.
 
 Provides a unified interface for local and cloud LLM providers.
 Handles routing, fallback, and error recovery.
 """
-
-from typing import Optional
 
 from Agent_Guru.reasoning.llm.local_server import LocalLLMServer
 from Agent_Guru.reasoning.llm.models import (
@@ -16,8 +13,7 @@ from Agent_Guru.reasoning.llm.models import (
 
 
 class LLMClient:
-    """
-    Unified client for local and cloud LLM providers.
+    """Unified client for local and cloud LLM providers.
 
     Provides a single interface for inference with automatic fallback.
 
@@ -26,24 +22,28 @@ class LLMClient:
         >>> request = LLMRequest(prompt="Hello, world!")
         >>> response = await client.generate(request)
         >>> print(response.text)
+
     """
 
     def __init__(
         self,
-        local_server: Optional[LocalLLMServer] = None,
+        local_server: LocalLLMServer | None = None,
         prefer_local: bool = True,
-    ):
+    ) -> None:
         """Initialize LLM client.
 
         Args:
             local_server: Local llama.cpp server instance
             prefer_local: Whether to prefer local over cloud
+
         """
         self.local_server = local_server
         self.prefer_local = prefer_local
 
     async def generate(
-        self, request: LLMRequest, provider: Optional[LLMProvider] = None
+        self,
+        request: LLMRequest,
+        provider: LLMProvider | None = None,
     ) -> LLMResponse:
         """Generate text using specified or preferred provider.
 
@@ -56,6 +56,7 @@ class LLMClient:
 
         Raises:
             RuntimeError: If all providers fail
+
         """
         # Use specified provider if given
         if provider == LLMProvider.LOCAL:
@@ -65,15 +66,17 @@ class LLMClient:
         if self.prefer_local and self.local_server:
             try:
                 return await self._generate_local(request)
-            except Exception as e:
+            except Exception:
                 # Fallback to cloud would go here
                 raise
 
-        raise RuntimeError("No LLM provider available")
+        msg = "No LLM provider available"
+        raise RuntimeError(msg)
 
     async def _generate_local(self, request: LLMRequest) -> LLMResponse:
         """Generate using local server."""
         if not self.local_server:
-            raise RuntimeError("Local server not configured")
+            msg = "Local server not configured"
+            raise RuntimeError(msg)
 
         return await self.local_server.generate(request)

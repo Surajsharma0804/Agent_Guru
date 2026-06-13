@@ -1,5 +1,4 @@
-"""
-Memory monitoring and management for Agent_Guru reasoning engine.
+"""Memory monitoring and management for Agent_Guru reasoning engine.
 
 This module provides memory usage tracking, limit enforcement, and leak detection
 to ensure the reasoning engine operates within resource constraints.
@@ -22,8 +21,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import psutil
 
@@ -63,12 +61,11 @@ class ComponentMemoryStats:
         self.avg_mb = ((self.avg_mb * (self.samples - 1)) + memory_mb) / self.samples
 
         # Add to history
-        self.history.append((datetime.now(tz=timezone.utc), memory_mb))
+        self.history.append((datetime.now(tz=UTC), memory_mb))
 
 
 class MemoryMonitor:
-    """
-    Monitor and manage memory usage for the reasoning engine.
+    """Monitor and manage memory usage for the reasoning engine.
 
     Features:
     - Per-component memory tracking
@@ -85,6 +82,7 @@ class MemoryMonitor:
         >>> monitor.track_component("intent_detection", 150.5)
         >>> stats = monitor.get_stats()
         >>> monitor.stop()
+
     """
 
     def __init__(
@@ -92,16 +90,16 @@ class MemoryMonitor:
         max_memory_mb: float = 4096.0,  # 4GB default
         check_interval: float = 5.0,  # Check every 5 seconds
         gc_threshold_percent: float = 0.8,  # Trigger GC at 80%
-        leak_detection_enabled: bool = True
-    ):
-        """
-        Initialize memory monitor.
+        leak_detection_enabled: bool = True,
+    ) -> None:
+        """Initialize memory monitor.
 
         Args:
             max_memory_mb: Maximum memory allowed in MB
             check_interval: Interval between memory checks in seconds
             gc_threshold_percent: Memory usage percent to trigger GC
             leak_detection_enabled: Enable memory leak detection
+
         """
         self.max_memory_mb = max_memory_mb
         self.check_interval = check_interval
@@ -119,7 +117,7 @@ class MemoryMonitor:
         self.memory_history: deque = deque(maxlen=1000)
 
         # Monitoring thread
-        self._monitor_thread: Optional[threading.Thread] = None
+        self._monitor_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
 
         # GC tuning
@@ -134,7 +132,7 @@ class MemoryMonitor:
 
         logger.info(
             f"MemoryMonitor initialized: max={max_memory_mb}MB, "
-            f"interval={check_interval}s, gc_threshold={gc_threshold_percent}"
+            f"interval={check_interval}s, gc_threshold={gc_threshold_percent}",
         )
 
     def _configure_gc(self) -> None:
@@ -154,7 +152,7 @@ class MemoryMonitor:
         self._monitor_thread = threading.Thread(
             target=self._monitor_loop,
             daemon=True,
-            name="MemoryMonitor"
+            name="MemoryMonitor",
         )
         self._monitor_thread.start()
         logger.info("Memory monitor started")
@@ -176,7 +174,7 @@ class MemoryMonitor:
                 self._detect_leaks()
                 time.sleep(self.check_interval)
             except Exception as e:
-                logger.error("Error in memory monitor loop: %s", e, exc_info=True)
+                logger.exception("Error in memory monitor loop: %s", e)
 
     def _check_memory(self) -> None:
         """Check current memory usage and enforce limits."""
@@ -190,11 +188,11 @@ class MemoryMonitor:
 
             # Create snapshot
             snapshot = MemorySnapshot(
-                timestamp=datetime.now(tz=timezone.utc),
+                timestamp=datetime.now(tz=UTC),
                 total_mb=rss_mb,
                 rss_mb=rss_mb,
                 vms_mb=vms_mb,
-                percent=mem_percent
+                percent=mem_percent,
             )
 
             # Add to history
@@ -202,21 +200,20 @@ class MemoryMonitor:
 
             # Check if over limit
             if rss_mb > self.max_memory_mb:
-                logger.error(
-                    "Memory limit exceeded: %.1fMB > %.1fMB", rss_mb, self.max_memory_mb
-                )
+                logger.error("Memory limit exceeded: %.1fMB > %.1fMB", rss_mb, self.max_memory_mb)
                 self._trigger_emergency_gc()
 
             # Check if approaching limit
             elif rss_mb > (self.max_memory_mb * self.gc_threshold_percent):
                 logger.warning(
                     "Memory usage high: %.1fMB (%.1f%% of limit)",
-                    rss_mb, mem_percent,
+                    rss_mb,
+                    mem_percent,
                 )
                 self._trigger_gc()
 
         except Exception as e:
-            logger.error("Error checking memory: %s", e, exc_info=True)
+            logger.exception("Error checking memory: %s", e)
 
     def _trigger_gc(self) -> None:
         """Trigger garbage collection."""
@@ -233,7 +230,9 @@ class MemoryMonitor:
 
         logger.info(
             "GC triggered: collected %d objects in %.1fms (total GC count: %d)",
-            collected, duration * 1000, self._gc_count,
+            collected,
+            duration * 1000,
+            self._gc_count,
         )
 
     def _trigger_emergency_gc(self) -> None:
@@ -269,7 +268,7 @@ class MemoryMonitor:
             if growth_rate > 0.1 and growth_mb > 100:  # 10% growth and >100MB
                 warning = (
                     f"Potential memory leak detected: "
-                    f"growth={growth_mb:.1f}MB ({growth_rate*100:.1f}%) "
+                    f"growth={growth_mb:.1f}MB ({growth_rate * 100:.1f}%) "
                     f"over last {len(recent)} checks"
                 )
 
@@ -281,69 +280,69 @@ class MemoryMonitor:
                     self._trigger_gc()
 
         except Exception as e:
-            logger.error("Error detecting leaks: %s", e, exc_info=True)
+            logger.exception("Error detecting leaks: %s", e)
 
     def track_component(self, component_name: str, memory_mb: float) -> None:
-        """
-        Track memory usage for a specific component.
+        """Track memory usage for a specific component.
 
         Args:
             component_name: Name of the component
             memory_mb: Memory usage in MB
+
         """
         with self._stats_lock:
             if component_name not in self.component_stats:
                 self.component_stats[component_name] = ComponentMemoryStats(
-                    component_name=component_name
+                    component_name=component_name,
                 )
 
             self.component_stats[component_name].update(memory_mb)
 
     def get_stats(self) -> dict[str, ComponentMemoryStats]:
-        """
-        Get memory statistics for all components.
+        """Get memory statistics for all components.
 
         Returns:
             Dictionary mapping component names to their stats
+
         """
         with self._stats_lock:
             return dict(self.component_stats)
 
     def get_current_usage(self) -> float:
-        """
-        Get current total memory usage in MB.
+        """Get current total memory usage in MB.
 
         Returns:
             Current memory usage in MB
+
         """
         mem_info = self.process.memory_info()
         return mem_info.rss / (1024 * 1024)
 
     def get_usage_percent(self) -> float:
-        """
-        Get current memory usage as percentage of limit.
+        """Get current memory usage as percentage of limit.
 
         Returns:
             Memory usage percentage (0-100)
+
         """
         current_mb = self.get_current_usage()
         return (current_mb / self.max_memory_mb) * 100
 
     def is_over_limit(self) -> bool:
-        """
-        Check if memory usage exceeds limit.
+        """Check if memory usage exceeds limit.
 
         Returns:
             True if over limit, False otherwise
+
         """
         return self.get_current_usage() > self.max_memory_mb
 
     def get_leak_warnings(self) -> list[str]:
-        """
-        Get list of memory leak warnings.
+        """Get list of memory leak warnings.
 
         Returns:
             List of leak warning messages
+
         """
         return list(self._leak_warnings)
 
@@ -352,11 +351,11 @@ class MemoryMonitor:
         self._leak_warnings.clear()
 
     def get_summary(self) -> dict:
-        """
-        Get summary of memory usage.
+        """Get summary of memory usage.
 
         Returns:
             Dictionary with memory usage summary
+
         """
         current_mb = self.get_current_usage()
         percent = self.get_usage_percent()
@@ -368,7 +367,7 @@ class MemoryMonitor:
                     "current_mb": stats.current_mb,
                     "peak_mb": stats.peak_mb,
                     "avg_mb": stats.avg_mb,
-                    "samples": stats.samples
+                    "samples": stats.samples,
                 }
 
         return {
@@ -379,20 +378,20 @@ class MemoryMonitor:
             "gc_count": self._gc_count,
             "leak_warnings": len(self._leak_warnings),
             "components": component_summary,
-            "history_size": len(self.memory_history)
+            "history_size": len(self.memory_history),
         }
 
 
 # Global memory monitor instance
-_global_monitor: Optional[MemoryMonitor] = None
+_global_monitor: MemoryMonitor | None = None
 
 
 def get_memory_monitor() -> MemoryMonitor:
-    """
-    Get global memory monitor instance.
+    """Get global memory monitor instance.
 
     Returns:
         Global MemoryMonitor instance
+
     """
     global _global_monitor
     if _global_monitor is None:
@@ -402,11 +401,11 @@ def get_memory_monitor() -> MemoryMonitor:
 
 
 def track_memory(component_name: str) -> None:
-    """
-    Track memory usage for a component (convenience function).
+    """Track memory usage for a component (convenience function).
 
     Args:
         component_name: Name of the component to track
+
     """
     monitor = get_memory_monitor()
     current_mb = monitor.get_current_usage()

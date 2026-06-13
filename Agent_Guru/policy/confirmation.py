@@ -1,5 +1,4 @@
-"""
-Confirmation Handler - Request and track user confirmations for sensitive operations.
+"""Confirmation Handler - Request and track user confirmations for sensitive operations.
 
 Manages confirmation policies: which operations require user confirmation,
 tracks pending confirmations, and records confirmation outcomes.
@@ -11,11 +10,13 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ class ConfirmationRequest:
         expires_at: When the request expires.
         resolved_at: When the request was resolved (approved/denied).
         resolution_reason: Optional reason for the resolution.
+
     """
 
     id: str
@@ -57,8 +59,8 @@ class ConfirmationRequest:
     status: ConfirmationStatus
     created_at: datetime
     expires_at: datetime
-    resolved_at: Optional[datetime] = None
-    resolution_reason: Optional[str] = None
+    resolved_at: datetime | None = None
+    resolution_reason: str | None = None
 
 
 @dataclass
@@ -74,6 +76,7 @@ class ConfirmationPolicy:
         description_template: Template for the confirmation prompt.
         timeout_seconds: How long to wait for confirmation (default 60s).
         active: Whether this policy is active.
+
     """
 
     id: str
@@ -104,13 +107,14 @@ class ConfirmationHandler:
     def __init__(
         self,
         default_timeout_seconds: int = 60,
-        on_request: Optional[Callable[[ConfirmationRequest], None]] = None,
+        on_request: Callable[[ConfirmationRequest], None] | None = None,
     ) -> None:
         """Initialise the confirmation handler.
 
         Args:
             default_timeout_seconds: Default timeout for confirmation requests.
             on_request: Optional callback invoked when a new confirmation is needed.
+
         """
         self.default_timeout_seconds = default_timeout_seconds
         self._on_request = on_request
@@ -133,22 +137,17 @@ class ConfirmationHandler:
     # Confirmation flow
     # ------------------------------------------------------------------
 
-    def requires_confirmation(
-        self, principal_id: str, resource_id: str, action: str
-    ) -> bool:
+    def requires_confirmation(self, principal_id: str, resource_id: str, action: str) -> bool:
         """Return True if the operation requires user confirmation."""
-        return any(
-            p.matches(principal_id, resource_id, action)
-            for p in self._policies.values()
-        )
+        return any(p.matches(principal_id, resource_id, action) for p in self._policies.values())
 
     def request_confirmation(
         self,
         principal_id: str,
         resource_id: str,
         action: str,
-        context: Optional[dict[str, Any]] = None,
-        description: Optional[str] = None,
+        context: dict[str, Any] | None = None,
+        description: str | None = None,
     ) -> ConfirmationRequest:
         """Create a new confirmation request.
 
@@ -161,11 +160,11 @@ class ConfirmationHandler:
 
         Returns:
             The created ConfirmationRequest (status=PENDING).
+
         """
         # Find matching policy for timeout / description template
         matching = next(
-            (p for p in self._policies.values()
-             if p.matches(principal_id, resource_id, action)),
+            (p for p in self._policies.values() if p.matches(principal_id, resource_id, action)),
             None,
         )
         timeout = matching.timeout_seconds if matching else self.default_timeout_seconds
@@ -180,7 +179,7 @@ class ConfirmationHandler:
             )
         description = description or f"Confirm: {action} on {resource_id}"
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         req = ConfirmationRequest(
             id=str(uuid.uuid4()),
             principal_id=principal_id,
@@ -197,12 +196,12 @@ class ConfirmationHandler:
         if self._on_request:
             try:
                 self._on_request(req)
-            except Exception as exc:
-                logger.warning("on_request callback error: %s", exc)
+            except Exception:
+                logger.exception("on_request callback error")
 
         return req
 
-    def approve(self, request_id: str, reason: Optional[str] = None) -> bool:
+    def approve(self, request_id: str, reason: str | None = None) -> bool:
         """Approve a pending confirmation request.
 
         Args:
@@ -211,10 +210,11 @@ class ConfirmationHandler:
 
         Returns:
             True if approved, False if not found or already resolved.
+
         """
         return self._resolve(request_id, ConfirmationStatus.APPROVED, reason)
 
-    def deny(self, request_id: str, reason: Optional[str] = None) -> bool:
+    def deny(self, request_id: str, reason: str | None = None) -> bool:
         """Deny a pending confirmation request.
 
         Args:
@@ -223,6 +223,7 @@ class ConfirmationHandler:
 
         Returns:
             True if denied, False if not found or already resolved.
+
         """
         return self._resolve(request_id, ConfirmationStatus.DENIED, reason)
 
@@ -230,7 +231,7 @@ class ConfirmationHandler:
         """Cancel a pending confirmation request."""
         return self._resolve(request_id, ConfirmationStatus.CANCELLED, None)
 
-    def get_status(self, request_id: str) -> Optional[ConfirmationStatus]:
+    def get_status(self, request_id: str) -> ConfirmationStatus | None:
         """Return the current status of a confirmation request.
 
         Automatically marks expired requests.
@@ -238,18 +239,19 @@ class ConfirmationHandler:
         req = self._pending.get(request_id)
         if req is None:
             return None
-        if req.status == ConfirmationStatus.PENDING and datetime.now(tz=timezone.utc) > req.expires_at:
+        if req.status == ConfirmationStatus.PENDING and datetime.now(tz=UTC) > req.expires_at:
             req.status = ConfirmationStatus.EXPIRED
-            req.resolved_at = datetime.now(tz=timezone.utc)
+            req.resolved_at = datetime.now(tz=UTC)
         return req.status
 
-    def get_pending(self, principal_id: Optional[str] = None) -> list[ConfirmationRequest]:
+    def get_pending(self, principal_id: str | None = None) -> list[ConfirmationRequest]:
         """Return all pending (non-expired) confirmation requests.
 
         Args:
             principal_id: Filter by principal (None = all principals).
+
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         result = []
         for req in self._pending.values():
             if req.status == ConfirmationStatus.PENDING:
@@ -269,12 +271,12 @@ class ConfirmationHandler:
         self,
         request_id: str,
         status: ConfirmationStatus,
-        reason: Optional[str],
+        reason: str | None,
     ) -> bool:
         req = self._pending.get(request_id)
         if req is None or req.status != ConfirmationStatus.PENDING:
             return False
         req.status = status
-        req.resolved_at = datetime.now(tz=timezone.utc)
+        req.resolved_at = datetime.now(tz=UTC)
         req.resolution_reason = reason
         return True

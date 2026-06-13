@@ -1,5 +1,4 @@
-"""
-Shared data models for the Agent Guru Vision System.
+"""Shared data models for the Agent Guru Vision System.
 
 These models are used by all vision modules (scene understanding, depth,
 OCR, gesture, pose, screen analysis, VQA, tracking, activity recognition).
@@ -13,11 +12,13 @@ Import from: Agent_Guru.vision.vision_models
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Literal
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Literal
 
-import numpy as np
 from pydantic import BaseModel, Field, field_validator
+
+if TYPE_CHECKING:
+    import numpy as np
 
 # ---------------------------------------------------------------------------
 # Primitive geometry
@@ -33,6 +34,7 @@ class BoundingBox:
         y: Top edge in pixels.
         width: Box width in pixels.
         height: Box height in pixels.
+
     """
 
     x: float
@@ -57,6 +59,7 @@ class VisionEvent:
         confidence: Detection/classification confidence in [0.0, 1.0].
         bounding_box: Optional spatial location of the subject.
         metadata: Arbitrary extra data attached by the producing module.
+
     """
 
     event_type: str
@@ -69,7 +72,7 @@ class VisionEvent:
     @staticmethod
     def now_timestamp() -> float:
         """Return current UTC time as a Unix timestamp."""
-        return datetime.now(timezone.utc).timestamp()
+        return datetime.now(UTC).timestamp()
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +90,7 @@ class DetectedObject:
         bounding_box: Location in the frame.
         tracking_id: Stable ID assigned by the object tracker, or None.
         depth_range: (near, far) normalised depth values in [0.0, 1.0], or None.
+
     """
 
     class_label: str
@@ -105,6 +109,7 @@ class SceneResult:
         confidence: Scene classification confidence in [0.0, 1.0].
         objects: All detected objects in the frame.
         spatial_relations: Pairwise relations as (obj_a, relation, obj_b).
+
     """
 
     scene_label: str
@@ -127,6 +132,7 @@ class DepthMap:
               0.0 = nearest, 1.0 = farthest.
         confidence: Overall map confidence in [0.0, 1.0].
         is_null: True when the frame is too dark/featureless for estimation.
+
     """
 
     data: np.ndarray
@@ -148,6 +154,7 @@ class OCRResult:
         words: Per-word details: [{text, bounding_box, confidence}].
         language: Detected or hinted language code (e.g. "en").
         reading_order_preserved: True when words are in reading order.
+
     """
 
     text: str
@@ -165,6 +172,7 @@ class DocumentAnalysis:
         regions: Detected layout regions with type and bounding box.
         tables: Extracted tables as [table][row][col] string grids.
         form_fields: Extracted form fields as {label: value}.
+
     """
 
     ocr: OCRResult
@@ -186,6 +194,7 @@ class HandLandmarks:
         keypoints: List of 21 (x, y, z) tuples in normalised image coords.
         confidence: Landmark detection confidence in [0.0, 1.0].
         hand_side: "left" or "right".
+
     """
 
     keypoints: list[tuple[float, float, float]]
@@ -202,6 +211,7 @@ class GestureResult:
         confidence: Classification confidence in [0.0, 1.0].
         hand_landmarks: Underlying hand keypoints.
         is_held: True when the same gesture has been held for ≥500 ms.
+
     """
 
     gesture_name: str
@@ -224,6 +234,7 @@ class PoseKeypoint:
         x: Horizontal position in pixels.
         y: Vertical position in pixels.
         confidence: Visibility/confidence in [0.0, 1.0]; 0.0 = occluded.
+
     """
 
     name: str
@@ -240,6 +251,7 @@ class PoseResult:
         keypoints: Exactly 17 COCO keypoints.
         person_id: Index of the detected person in the frame.
         posture_label: Rule-based posture classification, or None.
+
     """
 
     keypoints: list[PoseKeypoint]
@@ -262,6 +274,7 @@ class UIElement:
         text: OCR-extracted text label, or None.
         is_interactive: True when the element accepts user input.
         layer_priority: Z-order priority; higher = more foreground.
+
     """
 
     element_type: str
@@ -280,6 +293,7 @@ class ScreenAnalysis:
         primary_content_region: Largest non-chrome area, or None.
         modal_detected: True when a modal dialog is visible.
         layout_json: Structured JSON consumed by the Computer Use Agent.
+
     """
 
     elements: list[UIElement]
@@ -303,6 +317,7 @@ class VQAResult:
         confidence: Answer confidence in [0.0, 1.0].
         grounded_in_ocr: True when the answer references OCR output.
         not_visible: True when the answer cannot be determined from the image.
+
     """
 
     question: str
@@ -328,6 +343,7 @@ class TrackingUpdate:
         frames_since_seen: Consecutive frames the object has been absent.
         is_new: True on the first frame this ID appears.
         is_lost: True when the ID is being released.
+
     """
 
     tracking_id: int
@@ -352,6 +368,7 @@ class ActivityResult:
         confidence: Classification confidence in [0.0, 1.0].
         previous_label: Previous activity label, or None on first result.
         changed: True when activity_label differs from previous_label.
+
     """
 
     activity_label: str
@@ -376,6 +393,7 @@ class VisionConfig(BaseModel):
         enabled_modules: List of module names that are active.
         gpu_enabled: Whether to use CUDA execution provider.
         vram_budget_gb: Maximum GPU VRAM to use across all loaded models.
+
     """
 
     detection_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
@@ -387,14 +405,16 @@ class VisionConfig(BaseModel):
     @classmethod
     def _validate_threshold(cls, v: float) -> float:
         if not 0.0 <= v <= 1.0:
-            raise ValueError(f"detection_threshold must be in [0.0, 1.0], got {v}")
+            msg = f"detection_threshold must be in [0.0, 1.0], got {v}"
+            raise ValueError(msg)
         return v
 
     @field_validator("vram_budget_gb")
     @classmethod
     def _validate_vram(cls, v: float) -> float:
         if v <= 0.0:
-            raise ValueError(f"vram_budget_gb must be positive, got {v}")
+            msg = f"vram_budget_gb must be positive, got {v}"
+            raise ValueError(msg)
         return v
 
     model_config = {"frozen": False}

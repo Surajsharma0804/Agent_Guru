@@ -1,5 +1,4 @@
-"""
-Knowledge Query data models for personal knowledge reasoning.
+"""Knowledge Query data models for personal knowledge reasoning.
 
 This module implements comprehensive knowledge query models for querying and
 synthesizing personal knowledge from memories, world state, and behavioral patterns.
@@ -22,9 +21,9 @@ Date: 2024
 Version: 1.0.0
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -64,6 +63,7 @@ class TimeRange(BaseModel):
         >>> time_range = TimeRange.last_month()
         >>> print(time_range.description)
         'last month'
+
     """
 
     start: datetime = Field(..., description="Start of time range (inclusive)")
@@ -82,15 +82,17 @@ class TimeRange(BaseModel):
     def validate_description_not_empty(cls, v: str) -> str:
         """Validate that description is not just whitespace."""
         if not v.strip():
-            raise ValueError("Description cannot be empty or whitespace only")
+            msg = "Description cannot be empty or whitespace only"
+            raise ValueError(msg)
         return v.strip()
 
     @model_validator(mode="after")
     def validate_time_range(self) -> "TimeRange":
         """Validate that start is before or equal to end."""
         if self.start > self.end:
+            msg = f"Start time {self.start} must be before or equal to end time {self.end}"
             raise ValueError(
-                f"Start time {self.start} must be before or equal to end time {self.end}"
+                msg,
             )
         return self
 
@@ -105,8 +107,9 @@ class TimeRange(BaseModel):
             >>> time_range = TimeRange.last_week()
             >>> print(time_range.description)
             'last week'
+
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         start = now - timedelta(days=7)
         return cls(start=start, end=now, description="last week")
 
@@ -121,8 +124,9 @@ class TimeRange(BaseModel):
             >>> time_range = TimeRange.last_month()
             >>> print(time_range.description)
             'last month'
+
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         start = now - timedelta(days=30)
         return cls(start=start, end=now, description="last month")
 
@@ -137,8 +141,9 @@ class TimeRange(BaseModel):
             >>> time_range = TimeRange.last_year()
             >>> print(time_range.description)
             'last year'
+
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         start = now - timedelta(days=365)
         return cls(start=start, end=now, description="last year")
 
@@ -159,10 +164,12 @@ class TimeRange(BaseModel):
             >>> time_range = TimeRange.last_n_days(14)
             >>> print(time_range.description)
             'last 14 days'
+
         """
         if n <= 0:
-            raise ValueError(f"Number of days must be positive, got {n}")
-        now = datetime.now(tz=timezone.utc)
+            msg = f"Number of days must be positive, got {n}"
+            raise ValueError(msg)
+        now = datetime.now(tz=UTC)
         start = now - timedelta(days=n)
         return cls(start=start, end=now, description=f"last {n} days")
 
@@ -177,8 +184,9 @@ class TimeRange(BaseModel):
             >>> time_range = TimeRange.today()
             >>> print(time_range.description)
             'today'
+
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         return cls(start=start, end=now, description="today")
 
@@ -193,8 +201,9 @@ class TimeRange(BaseModel):
             >>> time_range = TimeRange.yesterday()
             >>> print(time_range.description)
             'yesterday'
+
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         end = now.replace(hour=0, minute=0, second=0, microsecond=0)
         start = end - timedelta(days=1)
         return cls(start=start, end=end, description="yesterday")
@@ -221,44 +230,57 @@ class KnowledgeQuery(BaseModel):
         ...     entities={"person": "John", "action": "call"},
         ...     confidence=0.95
         ... )
+
     """
 
     query_text: str = Field(
-        ..., min_length=1, max_length=1000, description="Original query text from user"
+        ...,
+        min_length=1,
+        max_length=1000,
+        description="Original query text from user",
     )
     query_type: KnowledgeQueryType = Field(
-        ..., description="Type of query (temporal, aggregation, pattern, factual)"
+        ...,
+        description="Type of query (temporal, aggregation, pattern, factual)",
     )
-    time_range: Optional[TimeRange] = Field(
-        default=None, description="Optional time range for temporal queries"
+    time_range: TimeRange | None = Field(
+        default=None,
+        description="Optional time range for temporal queries",
     )
     entities: dict[str, Any] = Field(
-        default_factory=dict, description="Extracted entities relevant to the query"
+        default_factory=dict,
+        description="Extracted entities relevant to the query",
     )
     confidence: float = Field(
-        ..., ge=0.0, le=1.0, description="Confidence in query detection (0.0-1.0)"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Confidence in query detection (0.0-1.0)",
     )
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "query_text": "when did I last call John?",
-            "query_type": "temporal",
-            "time_range": {
-                "start": "2024-01-01T00:00:00",
-                "end": "2024-01-31T23:59:59",
-                "description": "last month",
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "query_text": "when did I last call John?",
+                "query_type": "temporal",
+                "time_range": {
+                    "start": "2024-01-01T00:00:00",
+                    "end": "2024-01-31T23:59:59",
+                    "description": "last month",
+                },
+                "entities": {"person": "John", "action": "call"},
+                "confidence": 0.95,
             },
-            "entities": {"person": "John", "action": "call"},
-            "confidence": 0.95,
-        }
-    })
+        },
+    )
 
     @field_validator("query_text")
     @classmethod
     def validate_query_text_not_empty(cls, v: str) -> str:
         """Validate that query_text is not just whitespace."""
         if not v.strip():
-            raise ValueError("Query text cannot be empty or whitespace only")
+            msg = "Query text cannot be empty or whitespace only"
+            raise ValueError(msg)
         return v.strip()
 
     @model_validator(mode="after")
@@ -291,6 +313,7 @@ class Pattern(BaseModel):
         ...     confidence=0.92,
         ...     examples=["2024-01-15 09:00", "2024-01-16 09:05", "2024-01-17 08:58"]
         ... )
+
     """
 
     pattern_type: str = Field(
@@ -300,27 +323,39 @@ class Pattern(BaseModel):
         description="Type of pattern (daily, weekly, monthly, situational)",
     )
     description: str = Field(
-        ..., min_length=1, max_length=2000, description="Human-readable description of the pattern"
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="Human-readable description of the pattern",
     )
     frequency: float = Field(
-        ..., ge=0.0, le=1.0, description="How often this pattern occurs (0.0-1.0, 1.0=always)"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="How often this pattern occurs (0.0-1.0, 1.0=always)",
     )
     confidence: float = Field(
-        ..., ge=0.0, le=1.0, description="Confidence in pattern detection (0.0-1.0)"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Confidence in pattern detection (0.0-1.0)",
     )
     examples: list[str] = Field(
-        default_factory=list, description="Example instances of this pattern"
+        default_factory=list,
+        description="Example instances of this pattern",
     )
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "pattern_type": "daily",
-            "description": "User checks email every morning at 9am",
-            "frequency": 0.95,
-            "confidence": 0.92,
-            "examples": ["2024-01-15 09:00", "2024-01-16 09:05", "2024-01-17 08:58"],
-        }
-    })
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "pattern_type": "daily",
+                "description": "User checks email every morning at 9am",
+                "frequency": 0.95,
+                "confidence": 0.92,
+                "examples": ["2024-01-15 09:00", "2024-01-16 09:05", "2024-01-17 08:58"],
+            },
+        },
+    )
 
     @field_validator("pattern_type")
     @classmethod
@@ -328,7 +363,8 @@ class Pattern(BaseModel):
         """Validate pattern_type is one of the expected values."""
         valid_types = {"daily", "weekly", "monthly", "situational", "temporal", "contextual"}
         if v.strip().lower() not in valid_types:
-            raise ValueError(f"pattern_type must be one of {valid_types}, got '{v}'")
+            msg = f"pattern_type must be one of {valid_types}, got '{v}'"
+            raise ValueError(msg)
         return v.strip().lower()
 
     @field_validator("description")
@@ -336,7 +372,8 @@ class Pattern(BaseModel):
     def validate_description_not_empty(cls, v: str) -> str:
         """Validate that description is not just whitespace."""
         if not v.strip():
-            raise ValueError("Description cannot be empty or whitespace only")
+            msg = "Description cannot be empty or whitespace only"
+            raise ValueError(msg)
         return v.strip()
 
     @field_validator("examples")
@@ -346,7 +383,8 @@ class Pattern(BaseModel):
         if v:
             cleaned = [example.strip() for example in v if example.strip()]
             if len(cleaned) != len(v):
-                raise ValueError("Examples cannot be empty or whitespace only")
+                msg = "Examples cannot be empty or whitespace only"
+                raise ValueError(msg)
             return cleaned
         return v
 
@@ -374,50 +412,61 @@ class KnowledgeAnswer(BaseModel):
         ...     statistics={"total_calls": 15, "avg_duration": 300},
         ...     visualization_data={"type": "timeline", "data": [...]}
         ... )
+
     """
 
     summary: str = Field(
-        ..., min_length=1, max_length=5000, description="Natural language summary of the answer"
+        ...,
+        min_length=1,
+        max_length=5000,
+        description="Natural language summary of the answer",
     )
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence in the answer (0.0-1.0)")
     supporting_memories: list[str] = Field(
-        default_factory=list, description="Memory IDs that support this answer"
+        default_factory=list,
+        description="Memory IDs that support this answer",
     )
     patterns: list[Pattern] = Field(
-        default_factory=list, description="Detected patterns relevant to the query"
+        default_factory=list,
+        description="Detected patterns relevant to the query",
     )
     statistics: dict[str, Any] = Field(
-        default_factory=dict, description="Statistical data relevant to the query"
+        default_factory=dict,
+        description="Statistical data relevant to the query",
     )
-    visualization_data: Optional[dict[str, Any]] = Field(
-        default=None, description="Optional data for visualizations"
+    visualization_data: dict[str, Any] | None = Field(
+        default=None,
+        description="Optional data for visualizations",
     )
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "summary": "You last called John 3 days ago on January 15th at 2:30pm",
-            "confidence": 0.98,
-            "supporting_memories": ["mem_123", "mem_456"],
-            "patterns": [
-                {
-                    "pattern_type": "weekly",
-                    "description": "You typically call John on Mondays",
-                    "frequency": 0.85,
-                    "confidence": 0.90,
-                    "examples": ["2024-01-08", "2024-01-15", "2024-01-22"],
-                }
-            ],
-            "statistics": {"total_calls": 15, "avg_duration": 300, "last_call_days_ago": 3},
-            "visualization_data": {"type": "timeline", "data": []},
-        }
-    })
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "summary": "You last called John 3 days ago on January 15th at 2:30pm",
+                "confidence": 0.98,
+                "supporting_memories": ["mem_123", "mem_456"],
+                "patterns": [
+                    {
+                        "pattern_type": "weekly",
+                        "description": "You typically call John on Mondays",
+                        "frequency": 0.85,
+                        "confidence": 0.90,
+                        "examples": ["2024-01-08", "2024-01-15", "2024-01-22"],
+                    },
+                ],
+                "statistics": {"total_calls": 15, "avg_duration": 300, "last_call_days_ago": 3},
+                "visualization_data": {"type": "timeline", "data": []},
+            },
+        },
+    )
 
     @field_validator("summary")
     @classmethod
     def validate_summary_not_empty(cls, v: str) -> str:
         """Validate that summary is not just whitespace."""
         if not v.strip():
-            raise ValueError("Summary cannot be empty or whitespace only")
+            msg = "Summary cannot be empty or whitespace only"
+            raise ValueError(msg)
         return v.strip()
 
     @field_validator("supporting_memories")
@@ -427,7 +476,8 @@ class KnowledgeAnswer(BaseModel):
         if v:
             cleaned = [mem_id.strip() for mem_id in v if mem_id.strip()]
             if len(cleaned) != len(v):
-                raise ValueError("Memory IDs cannot be empty or whitespace only")
+                msg = "Memory IDs cannot be empty or whitespace only"
+                raise ValueError(msg)
             return cleaned
         return v
 
@@ -436,5 +486,6 @@ class KnowledgeAnswer(BaseModel):
     def validate_patterns_limit(cls, v: list[Pattern]) -> list[Pattern]:
         """Validate that patterns list is not too large."""
         if len(v) > 10:
-            raise ValueError(f"Too many patterns ({len(v)}), maximum is 10")
+            msg = f"Too many patterns ({len(v)}), maximum is 10"
+            raise ValueError(msg)
         return v

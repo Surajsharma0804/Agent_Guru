@@ -1,12 +1,11 @@
-"""
-Skill registry for managing installed skills.
+"""Skill registry for managing installed skills.
 
 Provides registration, discovery, and management of skills.
 """
 
 import asyncio
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 from Agent_Guru.reasoning.models.skill import (
     InstalledSkill,
@@ -22,19 +21,18 @@ from Agent_Guru.reasoning.tools.skills.manifest import (
 class SkillRegistry:
     """Registry for managing installed skills."""
 
-    def __init__(self, storage_path: Optional[Path] = None):
+    def __init__(self, storage_path: Path | None = None) -> None:
         """Initialize skill registry.
 
         Args:
             storage_path: Path to persist registry data
+
         """
         self.storage_path = storage_path
         self.skills: dict[str, InstalledSkill] = {}
         self._lock = asyncio.Lock()
 
-    async def register_skill(
-        self, manifest: SkillManifest
-    ) -> InstalledSkill:
+    async def register_skill(self, manifest: SkillManifest) -> InstalledSkill:
         """Register a new skill.
 
         Args:
@@ -45,16 +43,19 @@ class SkillRegistry:
 
         Raises:
             ValueError: If validation fails or skill already registered
+
         """
         async with self._lock:
             # Validate manifest
             errors = SkillManifestValidator.validate(manifest)
             if errors:
-                raise ValueError(f"Manifest validation failed: {', '.join(errors)}")
+                msg = f"Manifest validation failed: {', '.join(errors)}"
+                raise ValueError(msg)
 
             # Check if already registered
             if manifest.skill_id in self.skills:
-                raise ValueError(f"Skill '{manifest.skill_id}' already registered")
+                msg = f"Skill '{manifest.skill_id}' already registered"
+                raise ValueError(msg)
 
             # Convert to model
             manifest_model = SkillManifestModel(
@@ -70,7 +71,10 @@ class SkillRegistry:
             )
 
             # Create installed skill
-            installed = InstalledSkill(last_used=datetime.now(tz=timezone.utc), manifest=manifest_model)
+            installed = InstalledSkill(
+                last_used=datetime.now(tz=UTC),
+                manifest=manifest_model,
+            )
             self.skills[manifest.skill_id] = installed
 
             # Persist if storage path set
@@ -84,6 +88,7 @@ class SkillRegistry:
 
         Args:
             skill_id: Skill ID to unregister
+
         """
         async with self._lock:
             if skill_id in self.skills:
@@ -93,7 +98,7 @@ class SkillRegistry:
                 if self.storage_path:
                     await self._persist()
 
-    def get_skill(self, skill_id: str) -> Optional[InstalledSkill]:
+    def get_skill(self, skill_id: str) -> InstalledSkill | None:
         """Get an installed skill.
 
         Args:
@@ -101,12 +106,11 @@ class SkillRegistry:
 
         Returns:
             Installed skill or None if not found
+
         """
         return self.skills.get(skill_id)
 
-    def list_skills(
-        self, status: Optional[SkillStatus] = None
-    ) -> list[InstalledSkill]:
+    def list_skills(self, status: SkillStatus | None = None) -> list[InstalledSkill]:
         """List installed skills.
 
         Args:
@@ -114,6 +118,7 @@ class SkillRegistry:
 
         Returns:
             List of installed skills
+
         """
         skills = list(self.skills.values())
         if status:
@@ -128,27 +133,27 @@ class SkillRegistry:
 
         Returns:
             List of matching skills
+
         """
         return [
             skill
             for skill in self.skills.values()
-            if capability in skill.manifest.capabilities
-            and skill.status == SkillStatus.ACTIVE
+            if capability in skill.manifest.capabilities and skill.status == SkillStatus.ACTIVE
         ]
 
-    async def update_skill(
-        self, skill_id: str, status: Optional[SkillStatus] = None
-    ) -> None:
+    async def update_skill(self, skill_id: str, status: SkillStatus | None = None) -> None:
         """Update skill properties.
 
         Args:
             skill_id: Skill ID
             status: New status (optional)
+
         """
         async with self._lock:
             skill = self.skills.get(skill_id)
             if not skill:
-                raise ValueError(f"Skill '{skill_id}' not found")
+                msg = f"Skill '{skill_id}' not found"
+                raise ValueError(msg)
 
             if status:
                 skill.status = status
@@ -165,6 +170,7 @@ class SkillRegistry:
 
         Returns:
             List of validation errors (empty if valid)
+
         """
         return SkillManifestValidator.validate(manifest)
 
@@ -178,7 +184,7 @@ class SkillRegistry:
 
 
 # Global registry instance
-_global_registry: Optional[SkillRegistry] = None
+_global_registry: SkillRegistry | None = None
 
 
 def get_skill_registry() -> SkillRegistry:
@@ -186,6 +192,7 @@ def get_skill_registry() -> SkillRegistry:
 
     Returns:
         Global SkillRegistry instance
+
     """
     global _global_registry
     if _global_registry is None:

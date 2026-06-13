@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.platform.integration.memory_client
+"""Module: Agent_Guru.platform.integration.memory_client
 Purpose: Memory System integration client for operation metadata storage.
 
 Performance Requirements:
@@ -20,12 +19,12 @@ Date: 2026-03-16
 
 import asyncio
 import logging
-import random
+import secrets
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 import aiohttp
@@ -38,8 +37,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class OperationMetadata:
-    """
-    Metadata for a platform operation to store in memory.
+    """Metadata for a platform operation to store in memory.
 
     Attributes:
         operation_id: Unique identifier for the operation
@@ -50,22 +48,25 @@ class OperationMetadata:
         tags: Searchable tags for filtering
         duration_ms: Operation duration in milliseconds
         success: Whether the operation succeeded
+
     """
 
     operation_id: str
     operation_type: str
     timestamp: datetime
     parameters: dict[str, Any] = field(default_factory=dict)
-    result_summary: Optional[str] = None
+    result_summary: str | None = None
     tags: list[str] = field(default_factory=list)
     duration_ms: float = 0.0
     success: bool = True
 
     def __post_init__(self) -> None:
         if not self.operation_id:
-            raise ValueError("operation_id cannot be empty")
+            msg = "operation_id cannot be empty"
+            raise ValueError(msg)
         if not self.operation_type:
-            raise ValueError("operation_type cannot be empty")
+            msg = "operation_type cannot be empty"
+            raise ValueError(msg)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to JSON-safe dictionary."""
@@ -83,8 +84,7 @@ class OperationMetadata:
 
 @dataclass
 class MemoryQueryResult:
-    """
-    Result of a memory query.
+    """Result of a memory query.
 
     Attributes:
         query_id: Unique query identifier for tracing
@@ -93,6 +93,7 @@ class MemoryQueryResult:
         query_time_ms: Server-side query execution time
         has_more: True if more pages are available
         next_cursor: Pagination cursor for next page
+
     """
 
     query_id: UUID = field(default_factory=uuid4)
@@ -100,14 +101,14 @@ class MemoryQueryResult:
     total_count: int = 0
     query_time_ms: float = 0.0
     has_more: bool = False
-    next_cursor: Optional[str] = None
+    next_cursor: str | None = None
 
 
 class CircuitState(Enum):
     """Circuit breaker state machine."""
 
-    CLOSED = "closed"      # Normal operation
-    OPEN = "open"          # Failing fast, not sending requests
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Failing fast, not sending requests
     HALF_OPEN = "half_open"  # Testing if service recovered
 
 
@@ -115,8 +116,7 @@ class CircuitState(Enum):
 
 
 class CircuitBreaker:
-    """
-    Circuit breaker for Memory System calls.
+    """Circuit breaker for Memory System calls.
 
     States:
         CLOSED  → normal, requests pass through
@@ -134,11 +134,14 @@ class CircuitBreaker:
         success_threshold: int = 2,
     ) -> None:
         if failure_threshold <= 0:
-            raise ValueError("failure_threshold must be positive")
+            msg = "failure_threshold must be positive"
+            raise ValueError(msg)
         if recovery_timeout <= 0:
-            raise ValueError("recovery_timeout must be positive")
+            msg = "recovery_timeout must be positive"
+            raise ValueError(msg)
         if success_threshold <= 0:
-            raise ValueError("success_threshold must be positive")
+            msg = "success_threshold must be positive"
+            raise ValueError(msg)
 
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
@@ -147,7 +150,7 @@ class CircuitBreaker:
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._success_count = 0
-        self._opened_at: Optional[float] = None
+        self._opened_at: float | None = None
 
     @property
     def state(self) -> CircuitState:
@@ -190,9 +193,7 @@ class CircuitBreaker:
             if self._state != CircuitState.OPEN:
                 self._state = CircuitState.OPEN
                 self._opened_at = time.monotonic()
-                logger.error(
-                    f"Circuit breaker OPENED after {self._failure_count} failures"
-                )
+                logger.error("Circuit breaker OPENED after %s failures", self._failure_count)
 
     def get_stats(self) -> dict[str, Any]:
         """Return circuit breaker statistics."""
@@ -207,8 +208,7 @@ class CircuitBreaker:
 
 
 class MemorySystemClient:
-    """
-    Production-grade async client for Memory System integration.
+    """Production-grade async client for Memory System integration.
 
     Features:
     - Circuit breaker (5 failures → open, 60s recovery, 2 successes to close)
@@ -226,6 +226,7 @@ class MemorySystemClient:
         >>> async with MemorySystemClient(base_url="http://memory:8081") as client:
         ...     await client.store_operation(metadata)
         ...     results = await client.query_operations(operation_type="file")
+
     """
 
     def __init__(
@@ -241,37 +242,43 @@ class MemorySystemClient:
         connection_limit: int = 100,
         connection_limit_per_host: int = 10,
     ) -> None:
-        """
-        Initialize Memory System client.
+        """Initialize Memory System client.
 
         Args:
-            base_url: Memory System service base URL
-            timeout: Total request timeout in seconds
-            per_attempt_timeout: Per-attempt timeout (prevents single slow request blocking all retries)
-            max_retries: Maximum retry attempts (0 = no retries)
-            base_retry_delay: Initial retry delay in seconds (doubles each attempt)
-            max_retry_delay: Maximum retry delay cap in seconds
-            circuit_failure_threshold: Consecutive failures before circuit opens
-            circuit_recovery_timeout: Seconds before circuit attempts recovery
-            connection_limit: Total connection pool s
-ize
-            connection_limit_per_host: Per-host connection pool size
+                    base_url: Memory System service base URL
+                    timeout: Total request timeout in seconds
+                    per_attempt_timeout: Per-attempt timeout (prevents single slow request blocking all retries)
+                    max_retries: Maximum retry attempts (0 = no retries)
+                    base_retry_delay: Initial retry delay in seconds (doubles each attempt)
+                    max_retry_delay: Maximum retry delay cap in seconds
+                    circuit_failure_threshold: Consecutive failures before circuit opens
+                    circuit_recovery_timeout: Seconds before circuit attempts recovery
+                    connection_limit: Total connection pool s
+        ize
+                    connection_limit_per_host: Per-host connection pool size
 
         Raises:
-            ValueError: If any parameter is invalid
+                    ValueError: If any parameter is invalid
+
         """
         if not base_url:
-            raise ValueError("base_url cannot be empty")
+            msg = "base_url cannot be empty"
+            raise ValueError(msg)
         if timeout <= 0:
-            raise ValueError(f"timeout must be positive, got {timeout}")
+            msg = f"timeout must be positive, got {timeout}"
+            raise ValueError(msg)
         if per_attempt_timeout <= 0:
-            raise ValueError(f"per_attempt_timeout must be positive, got {per_attempt_timeout}")
+            msg = f"per_attempt_timeout must be positive, got {per_attempt_timeout}"
+            raise ValueError(msg)
         if max_retries < 0:
-            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+            msg = f"max_retries must be non-negative, got {max_retries}"
+            raise ValueError(msg)
         if base_retry_delay <= 0:
-            raise ValueError(f"base_retry_delay must be positive, got {base_retry_delay}")
+            msg = f"base_retry_delay must be positive, got {base_retry_delay}"
+            raise ValueError(msg)
         if connection_limit <= 0:
-            raise ValueError(f"connection_limit must be positive, got {connection_limit}")
+            msg = f"connection_limit must be positive, got {connection_limit}"
+            raise ValueError(msg)
 
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
@@ -282,8 +289,8 @@ ize
         self._connection_limit = connection_limit
         self._connection_limit_per_host = connection_limit_per_host
 
-        self._session: Optional[aiohttp.ClientSession] = None
-        self._connector: Optional[aiohttp.TCPConnector] = None
+        self._session: aiohttp.ClientSession | None = None
+        self._connector: aiohttp.TCPConnector | None = None
         self._circuit = CircuitBreaker(
             failure_threshold=circuit_failure_threshold,
             recovery_timeout=circuit_recovery_timeout,
@@ -296,17 +303,18 @@ ize
         self._circuit_rejected_count = 0
 
     async def connect(self) -> None:
-        """
-        Establish connection pool to Memory System.
+        """Establish connection pool to Memory System.
 
         Creates a shared TCPConnector with connection pooling for
         efficient reuse across requests.
 
         Raises:
             RuntimeError: If already connected
+
         """
         if self._session is not None:
-            raise RuntimeError("Client already connected. Call disconnect() first.")
+            msg = "Client already connected. Call disconnect() first."
+            raise RuntimeError(msg)
 
         self._connector = aiohttp.TCPConnector(
             limit=self._connection_limit,
@@ -325,12 +333,11 @@ ize
         )
         logger.info(
             f"Connected to Memory System at {self.base_url} "
-            f"(pool: {self._connection_limit} total, {self._connection_limit_per_host}/host)"
+            f"(pool: {self._connection_limit} total, {self._connection_limit_per_host}/host)",
         )
 
     async def disconnect(self) -> None:
-        """
-        Close connection pool and release all resources.
+        """Close connection pool and release all resources.
 
         Safe to call multiple times.
         """
@@ -345,8 +352,7 @@ ize
     # ─── Store Operations ─────────────────────────────────────────────────
 
     async def store_operation(self, metadata: OperationMetadata) -> bool:
-        """
-        Store a single operation metadata record.
+        """Store a single operation metadata record.
 
         Uses circuit breaker + exponential backoff with jitter.
 
@@ -360,14 +366,12 @@ ize
 
         Raises:
             RuntimeError: If not connected
+
         """
         return await self._store_batch([metadata])
 
-    async def store_operations_bulk(
-        self, metadata_list: list[OperationMetadata]
-    ) -> int:
-        """
-        Bulk store multiple operation records in a single request.
+    async def store_operations_bulk(self, metadata_list: list[OperationMetadata]) -> int:
+        """Bulk store multiple operation records in a single request.
 
         More efficient than individual store_operation calls for
         high-throughput scenarios.
@@ -383,9 +387,11 @@ ize
         Raises:
             RuntimeError: If not connected
             ValueError: If metadata_list is empty
+
         """
         if not metadata_list:
-            raise ValueError("metadata_list cannot be empty")
+            msg = "metadata_list cannot be empty"
+            raise ValueError(msg)
 
         # Chunk into batches of 100 to avoid oversized payloads
         chunk_size = 100
@@ -402,72 +408,56 @@ ize
 
         if not self._circuit.allow_request():
             self._circuit_rejected_count += 1
-            logger.warning(
-                f"Circuit breaker OPEN — rejecting store of {len(batch)} records"
-            )
+            logger.warning("Circuit breaker OPEN — rejecting store of %s records", len(batch))
             return False
 
         url = f"{self.base_url}/api/v1/memory/operations"
         payload: dict[str, Any] = (
-            {"operations": [m.to_dict() for m in batch]}
-            if len(batch) > 1
-            else batch[0].to_dict()
+            {"operations": [m.to_dict() for m in batch]} if len(batch) > 1 else batch[0].to_dict()
         )
         method = "POST"
 
         for attempt in range(self.max_retries + 1):
             try:
                 async with self._session.request(  # type: ignore[union-attr]
-                    method, url, json=payload
+                    method,
+                    url,
+                    json=payload,
                 ) as resp:
                     if resp.status in (200, 201):
                         self._circuit.record_success()
                         self._stored_count += len(batch)
-                        logger.debug(
-                            f"Stored {len(batch)} operation(s) "
-                            f"[attempt {attempt + 1}]"
-                        )
+                        logger.debug("Stored %s operation(s) [attempt %s]", len(batch), attempt + 1)
                         return True
 
                     if resp.status == 429:
                         # Rate limited — always retry with backoff
                         retry_after = float(resp.headers.get("Retry-After", 1.0))
-                        logger.warning(
-                            f"Memory System rate limited, retrying in {retry_after}s"
-                        )
+                        logger.warning("Memory System rate limited, retrying in %ss", retry_after)
                         await asyncio.sleep(retry_after)
                         continue
 
                     if resp.status >= 500:
                         # Server error — retryable
                         body = await resp.text()
-                        logger.warning(
-                            f"Memory System server error {resp.status}: {body[:200]}"
-                        )
+                        logger.warning("Memory System server error %s: %s", resp.status, body[:200])
                         self._circuit.record_failure()
                     else:
                         # 4xx client error — not retryable
                         body = await resp.text()
-                        logger.error(
-                            f"Memory System client error {resp.status}: {body[:200]}"
-                        )
+                        logger.error("Memory System client error %s: %s", resp.status, body[:200])
                         return False
 
-            except asyncio.TimeoutError as e:
-                logger.warning(
-                    f"Memory System timeout on attempt {attempt + 1}/{self.max_retries + 1}"
+            except TimeoutError:
+                logger.exception(
+                    f"Memory System timeout on attempt {attempt + 1}/{self.max_retries + 1}",
                 )
                 self._circuit.record_failure()
-            except aiohttp.ClientConnectionError as e:
-                logger.warning(
-                    f"Memory System connection error attempt {attempt + 1}: {e}"
-                )
+                logger.exception("Memory System connection error attempt %s", attempt + 1)
                 self._circuit.record_failure()
-            except Exception as e:
-                logger.error("Unexpected error storing to Memory System: %s", e)
+                logger.exception("Unexpected error storing to Memory System")
                 self._circuit.record_failure()
                 return False
-
             if attempt < self.max_retries:
                 delay = self._backoff_delay(attempt)
                 self._retry_count += 1
@@ -475,18 +465,14 @@ ize
                 await asyncio.sleep(delay)
 
         logger.error(
-            f"Failed to store {len(batch)} record(s) after "
-            f"{self.max_retries + 1} attempts"
+            f"Failed to store {len(batch)} record(s) after {self.max_retries + 1} attempts",
         )
         return False
 
     # ─── Historical Data ──────────────────────────────────────────────────
 
-    async def store_historical_data(
-        self, data_type: str, data: dict[str, Any]
-    ) -> bool:
-        """
-        Store arbitrary historical data (metrics, snapshots, etc.).
+    async def store_historical_data(self, data_type: str, data: dict[str, Any]) -> bool:
+        """Store arbitrary historical data (metrics, snapshots, etc.).
 
         Args:
             data_type: Category label for the data
@@ -498,9 +484,11 @@ ize
         Raises:
             RuntimeError: If not connected
             ValueError: If data_type is empty
+
         """
         if not data_type:
-            raise ValueError("data_type cannot be empty")
+            msg = "data_type cannot be empty"
+            raise ValueError(msg)
         self._require_connected()
 
         if not self._circuit.allow_request():
@@ -509,7 +497,7 @@ ize
 
         payload = {
             "data_type": data_type,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "data": data,
         }
         url = f"{self.base_url}/api/v1/memory/historical"
@@ -525,13 +513,11 @@ ize
                         self._circuit.record_failure()
                     else:
                         return False
-            except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as e:
-                logger.warning("Historical store attempt %d failed: %s", attempt + 1, e)
+            except (TimeoutError, aiohttp.ClientConnectionError):
+                logger.exception("Historical store attempt %d failed", attempt + 1)
                 self._circuit.record_failure()
-            except Exception as e:
-                logger.error("Unexpected error storing historical data: %s", e)
+                logger.exception("Unexpected error storing historical data")
                 return False
-
             if attempt < self.max_retries:
                 await asyncio.sleep(self._backoff_delay(attempt))
 
@@ -541,16 +527,15 @@ ize
 
     async def query_operations(
         self,
-        operation_type: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        tags: Optional[list[str]] = None,
-        success_only: Optional[bool] = None,
+        operation_type: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        tags: list[str] | None = None,
+        success_only: bool | None = None,
         limit: int = 100,
-        cursor: Optional[str] = None,
+        cursor: str | None = None,
     ) -> MemoryQueryResult:
-        """
-        Query stored operations with filtering and pagination.
+        """Query stored operations with filtering and pagination.
 
         Time Complexity: O(1) per call (server handles filtering)
 
@@ -569,9 +554,11 @@ ize
         Raises:
             RuntimeError: If not connected
             ValueError: If limit is out of range
+
         """
         if not 1 <= limit <= 1000:
-            raise ValueError(f"limit must be 1–1000, got {limit}")
+            msg = f"limit must be 1–1000, got {limit}"
+            raise ValueError(msg)
         self._require_connected()
 
         if not self._circuit.allow_request():
@@ -611,30 +598,26 @@ ize
                         next_cursor=body.get("next_cursor"),
                     )
 
-                logger.warning(
-                    f"Memory query returned {resp.status} in {query_time_ms:.1f}ms"
-                )
+                logger.warning("Memory query returned %s in %.1fms", resp.status, query_time_ms)
                 self._circuit.record_failure()
                 return MemoryQueryResult(query_time_ms=query_time_ms)
 
-        except asyncio.TimeoutError as e:
-            logger.warning("Memory query timed out: %s", e)
+        except TimeoutError:
+            logger.exception("Memory query timed out")
             self._circuit.record_failure()
             return MemoryQueryResult()
-        except Exception as e:
-            logger.error("Memory query failed: %s", e)
+            logger.exception("Memory query failed")
             self._circuit.record_failure()
             return MemoryQueryResult()
 
     async def query_all_pages(
         self,
-        operation_type: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        operation_type: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
         max_records: int = 10_000,
     ) -> list[dict[str, Any]]:
-        """
-        Fetch all pages of query results up to max_records.
+        """Fetch all pages of query results up to max_records.
 
         Args:
             operation_type: Filter by operation category
@@ -644,9 +627,10 @@ ize
 
         Returns:
             All matching records across pages
+
         """
         all_entries: list[dict[str, Any]] = []
-        cursor: Optional[str] = None
+        cursor: str | None = None
 
         while len(all_entries) < max_records:
             remaining = max_records - len(all_entries)
@@ -670,11 +654,11 @@ ize
     # ─── Health Check ─────────────────────────────────────────────────────
 
     async def health_check(self) -> bool:
-        """
-        Ping Memory System health endpoint.
+        """Ping Memory System health endpoint.
 
         Returns:
             True if service is healthy
+
         """
         if self._session is None:
             return False
@@ -684,18 +668,19 @@ ize
                 timeout=aiohttp.ClientTimeout(total=5.0),
             ) as resp:
                 return resp.status == 200
+
         except Exception:
             return False
 
     # ─── Observability ────────────────────────────────────────────────────
 
     def get_statistics(self) -> dict[str, Any]:
-        """
-        Return client statistics for monitoring.
+        """Return client statistics for monitoring.
 
         Returns:
             Dict with stored_count, query_count, retry_count,
             circuit_rejected_count, and circuit breaker state.
+
         """
         return {
             "stored_count": self._stored_count,
@@ -711,13 +696,15 @@ ize
     def _require_connected(self) -> None:
         """Raise RuntimeError if not connected."""
         if self._session is None:
-            raise RuntimeError(
+            msg = (
                 "MemorySystemClient not connected. Call connect() or use as async context manager."
+            )
+            raise RuntimeError(
+                msg,
             )
 
     def _backoff_delay(self, attempt: int) -> float:
-        """
-        Compute exponential backoff delay with ±20% jitter.
+        """Compute exponential backoff delay with ±20% jitter.
 
         Time Complexity: O(1)
 
@@ -726,10 +713,11 @@ ize
 
         Returns:
             Delay in seconds, capped at max_retry_delay
+
         """
-        base = self.base_retry_delay * (2 ** attempt)
+        base = self.base_retry_delay * (2**attempt)
         capped = min(base, self.max_retry_delay)
-        jitter = capped * 0.2 * (random.random() * 2 - 1)  # ±20%
+        jitter = capped * 0.2 * (secrets.SystemRandom().random() * 2 - 1)  # ±20%
         return max(0.0, capped + jitter)
 
     # ─── Context Manager ──────────────────────────────────────────────────

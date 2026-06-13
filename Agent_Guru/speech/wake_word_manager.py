@@ -23,27 +23,33 @@ Architecture:
 Author: Agent Guru Team
 Date: 2026-03-20
 """
+
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
-from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from Agent_Guru.platform.platform_detector import PlatformDetector
+
 from .audio.wake_word import WakeWordConfig, WakeWordDetector
 from .models import PersonalityType, WakeWordDetection
-from Agent_Guru.platform.platform_detector import PlatformDetector
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Platform detection
 # ---------------------------------------------------------------------------
+
 
 def _detect_platform() -> str:
     """Thin wrapper — delegates to canonical PlatformDetector."""
@@ -54,15 +60,18 @@ def _detect_platform() -> str:
 # Power mode
 # ---------------------------------------------------------------------------
 
+
 class PowerMode(Enum):
     """Operating power mode for the wake word manager."""
-    SLEEP = "sleep"   # Low-power idle — minimal CPU, waiting for wake word
+
+    SLEEP = "sleep"  # Low-power idle — minimal CPU, waiting for wake word
     ACTIVE = "active"  # Full processing — command listening after wake word
 
 
 # ---------------------------------------------------------------------------
 # Manager configuration
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class WakeWordManagerConfig:
@@ -79,22 +88,22 @@ class WakeWordManagerConfig:
         on_detection_callback: Optional async callback invoked on detection.
         max_detection_latency_ms: Target maximum detection latency in ms.
             Used for performance assertions in tests.
+
     """
 
     wake_word_config: WakeWordConfig = field(default_factory=WakeWordConfig)
     platform: str = ""
-    sleep_poll_interval: float = 0.05   # 50 ms — low-power idle
+    sleep_poll_interval: float = 0.05  # 50 ms — low-power idle
     active_poll_interval: float = 0.01  # 10 ms — active listening
     audio_capture_duration: float = 0.5  # 500 ms of audio per capture
-    on_detection_callback: Optional[
-        Callable[[WakeWordDetection], Coroutine[Any, Any, None]]
-    ] = None
+    on_detection_callback: Callable[[WakeWordDetection], Coroutine[Any, Any, None]] | None = None
     max_detection_latency_ms: float = 200.0
 
 
 # ---------------------------------------------------------------------------
 # Platform-specific audio capture helpers
 # ---------------------------------------------------------------------------
+
 
 class _AudioCapture:
     """Thin wrapper around platform-specific audio capture.
@@ -131,6 +140,7 @@ class _AudioCapture:
 
         Returns:
             Float32 array of shape ``(n_samples,)`` normalised to [-1, 1].
+
         """
         if self._platform in ("windows", "macos", "linux"):
             return self._capture_desktop()
@@ -153,8 +163,8 @@ class _AudioCapture:
             if self._pyaudio_instance is not None:
                 self._pyaudio_instance.terminate()
                 self._pyaudio_instance = None
-        except Exception as exc:  # pragma: no cover
-            logger.warning("Error closing audio stream: %s", exc)
+        except Exception:  # pragma: no cover
+            logger.exception("Error closing audio stream")
 
     # ------------------------------------------------------------------
     # Desktop (PyAudio primary, sounddevice fallback)
@@ -164,6 +174,7 @@ class _AudioCapture:
         """Open desktop audio stream (PyAudio → sounddevice fallback)."""
         try:
             import pyaudio  # type: ignore[import]
+
             pa = pyaudio.PyAudio()
             self._pyaudio_instance = pa
             self._stream = pa.open(
@@ -222,6 +233,7 @@ class _AudioCapture:
         """Open sounddevice stream (fallback)."""
         try:
             import sounddevice as sd  # type: ignore[import]
+
             self._stream = sd.InputStream(
                 samplerate=self._sample_rate,
                 channels=1,
@@ -230,8 +242,8 @@ class _AudioCapture:
             )
             self._stream.start()
             logger.debug("Desktop audio opened via sounddevice")
-        except Exception as exc:
-            logger.warning("sounddevice unavailable: %s — using silence", exc)
+        except Exception:
+            logger.exception("sounddevice unavailable: %s — using silence")
             self._stream = None
 
     def _capture_sounddevice(self) -> np.ndarray:
@@ -242,8 +254,8 @@ class _AudioCapture:
         try:
             data, _ = self._stream.read(n_samples)
             return data[:, 0].astype(np.float32)
-        except Exception as exc:
-            logger.warning("sounddevice read error: %s", exc)
+        except Exception:
+            logger.exception("sounddevice read error")
             return np.zeros(n_samples, dtype=np.float32)
 
     # ------------------------------------------------------------------
@@ -254,6 +266,7 @@ class _AudioCapture:
         """Open Android AudioRecord stream via Kivy/pyjnius."""
         try:
             from jnius import autoclass  # type: ignore[import]
+
             AudioRecord = autoclass("android.media.AudioRecord")
             AudioFormat = autoclass("android.media.AudioFormat")
             MediaRecorder = autoclass("android.media.MediaRecorder$AudioSource")
@@ -272,8 +285,8 @@ class _AudioCapture:
             )
             self._stream.startRecording()
             logger.debug("Android AudioRecord opened")
-        except Exception as exc:
-            logger.warning("Android AudioRecord unavailable: %s — using silence", exc)
+        except Exception:
+            logger.exception("Android AudioRecord unavailable: %s — using silence")
             self._stream = None
 
     def _capture_android(self) -> np.ndarray:
@@ -286,8 +299,8 @@ class _AudioCapture:
             self._stream.read(buffer, len(buffer))
             audio = np.frombuffer(bytes(buffer), dtype=np.int16).astype(np.float32)
             return audio / 32768.0
-        except Exception as exc:
-            logger.warning("Android capture error: %s", exc)
+        except Exception:
+            logger.exception("Android capture error")
             return np.zeros(n_samples, dtype=np.float32)
 
     # ------------------------------------------------------------------
@@ -298,6 +311,7 @@ class _AudioCapture:
         """Open iOS AVAudioEngine stream via pyobjc."""
         try:
             import AVFoundation  # type: ignore[import]
+
             engine = AVFoundation.AVAudioEngine.alloc().init()
             input_node = engine.inputNode()
             format_ = input_node.outputFormatForBus_(0)
@@ -305,8 +319,8 @@ class _AudioCapture:
             engine.prepare()
             engine.startAndReturnError_(None)
             logger.debug("iOS AVAudioEngine opened")
-        except Exception as exc:
-            logger.warning("iOS AVAudioEngine unavailable: %s — using silence", exc)
+        except Exception:
+            logger.exception("iOS AVAudioEngine unavailable: %s — using silence")
             self._stream = None
 
     def _capture_ios(self) -> np.ndarray:
@@ -317,22 +331,27 @@ class _AudioCapture:
         # AVAudioEngine tap-based capture — simplified synchronous read
         try:
             import AVFoundation  # type: ignore[import]
+
             AVFoundation.AVAudioPCMBuffer.alloc().initWithPCMFormat_frameCapacity_(
-                self._stream["format"], n_samples
+                self._stream["format"],
+                n_samples,
             )
             self._stream["input_node"].installTapOnBus_bufferSize_format_block_(
-                0, n_samples, self._stream["format"],
-                lambda b, t: np.frombuffer(b.floatChannelData()[0], dtype=np.float32)
+                0,
+                n_samples,
+                self._stream["format"],
+                lambda b, t: np.frombuffer(b.floatChannelData()[0], dtype=np.float32),
             )
             return np.zeros(n_samples, dtype=np.float32)  # placeholder
-        except Exception as exc:
-            logger.warning("iOS capture error: %s", exc)
+        except Exception:
+            logger.exception("iOS capture error")
             return np.zeros(n_samples, dtype=np.float32)
 
 
 # ---------------------------------------------------------------------------
 # WakeWordManager
 # ---------------------------------------------------------------------------
+
 
 class WakeWordManager:
     """Multi-platform wake word manager with continuous detection.
@@ -368,6 +387,7 @@ class WakeWordManager:
         Args:
             config: Manager configuration.  Defaults to
                 :class:`WakeWordManagerConfig` with auto-detected platform.
+
         """
         self._config = config or WakeWordManagerConfig()
         if not self._config.platform:
@@ -381,9 +401,7 @@ class WakeWordManager:
         self._last_detection: WakeWordDetection | None = None
         self._initialized: bool = False
 
-        logger.info(
-            "WakeWordManager created — platform=%s", self._config.platform
-        )
+        logger.info("WakeWordManager created — platform=%s", self._config.platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -396,6 +414,7 @@ class WakeWordManager:
 
         Raises:
             RuntimeError: If already initialized.
+
         """
         if self._initialized:
             logger.warning("WakeWordManager already initialized")
@@ -426,9 +445,11 @@ class WakeWordManager:
 
         Raises:
             RuntimeError: If :meth:`initialize` has not been called.
+
         """
         if not self._initialized:
-            raise RuntimeError("Call initialize() before start_listening()")
+            msg = "Call initialize() before start_listening()"
+            raise RuntimeError(msg)
         if self._is_listening:
             logger.warning("Already listening")
             return
@@ -443,10 +464,8 @@ class WakeWordManager:
         self._is_listening = False
         if self._listen_task is not None:
             self._listen_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._listen_task
-            except asyncio.CancelledError:
-                pass
             self._listen_task = None
 
         if self._audio_capture is not None:
@@ -480,13 +499,16 @@ class WakeWordManager:
 
         Raises:
             RuntimeError: If :meth:`initialize` has not been called.
+
         """
         if not self._initialized or self._detector is None:
-            raise RuntimeError("Call initialize() before detect()")
+            msg = "Call initialize() before detect()"
+            raise RuntimeError(msg)
 
         if audio is None:
             if self._audio_capture is None:
-                raise RuntimeError("Audio capture not available")
+                msg = "Audio capture not available"
+                raise RuntimeError(msg)
             audio = self._audio_capture.capture()
 
         t_start = time.perf_counter()
@@ -525,6 +547,7 @@ class WakeWordManager:
         Returns:
             Raw float32 bytes of the captured audio, or ``b""`` if the
             audio capture device is not available.
+
         """
         if self._audio_capture is None:
             return b""
@@ -569,6 +592,7 @@ class WakeWordManager:
         Args:
             phrase: Phrase to detect (case-insensitive).
             personality: Personality to activate on detection.
+
         """
         self._config.wake_word_config.wake_words[phrase.strip().lower()] = personality
         if self._detector is not None:
@@ -590,9 +614,11 @@ class WakeWordManager:
 
         Raises:
             ValueError: If *sensitivity* is outside [0.0, 1.0].
+
         """
         if not 0.0 <= sensitivity <= 1.0:
-            raise ValueError(f"Sensitivity must be in [0.0, 1.0], got {sensitivity}")
+            msg = f"Sensitivity must be in [0.0, 1.0], got {sensitivity}"
+            raise ValueError(msg)
         self._config.wake_word_config.sensitivity = sensitivity
         if self._detector is not None:
             self._detector.set_sensitivity(sensitivity)
@@ -622,9 +648,7 @@ class WakeWordManager:
                     # event loop directly blocks ALL async tasks. Offload to a
                     # thread so only this coroutine is suspended, not the loop.
                     loop = asyncio.get_running_loop()
-                    audio = await loop.run_in_executor(
-                        None, self._audio_capture.capture
-                    )
+                    audio = await loop.run_in_executor(None, self._audio_capture.capture)
                     detection = await self.detect(audio)
 
                     if detection is not None:
@@ -632,17 +656,16 @@ class WakeWordManager:
                         if self._config.on_detection_callback is not None:
                             try:
                                 await self._config.on_detection_callback(detection)
-                            except Exception as exc:
-                                logger.error("Detection callback error: %s", exc)
+                            except Exception:
+                                logger.exception("Detection callback error")
                         # Return to sleep after callback
                         self._power_mode = PowerMode.SLEEP
 
                 await asyncio.sleep(poll_interval)
 
-            except asyncio.CancelledError as e:
+            except asyncio.CancelledError:
                 break
-            except Exception as exc:
-                logger.error("Listen loop error: %s", exc)
+                logger.exception("Listen loop error")
                 await asyncio.sleep(0.1)
 
     @staticmethod
@@ -657,12 +680,10 @@ class WakeWordManager:
 
         Returns:
             Detection with corrected personality.
+
         """
         phrase = detection.wake_word.lower().strip()
-        if "maya" in phrase:
-            personality = PersonalityType.MAYA
-        else:
-            personality = PersonalityType.GURU
+        personality = PersonalityType.MAYA if "maya" in phrase else PersonalityType.GURU
 
         # Return a new instance only if personality changed
         if detection.personality == personality:

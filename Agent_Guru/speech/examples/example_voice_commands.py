@@ -1,5 +1,4 @@
-"""
-Example: Voice-Driven System Control Commands
+"""Example: Voice-Driven System Control Commands.
 
 Demonstrates parsing voice commands and routing them to the system.
 """
@@ -11,10 +10,10 @@ from Agent_Guru.speech.commands.command_parser import CommandParser
 from Agent_Guru.speech.goal_manager_client import GoalManagerClient
 
 
-async def main():
+async def main() -> None:
     parser = CommandParser()
-    orch_client = AgentOrchestrationClient()   # No system = graceful stub
-    gm_client = GoalManagerClient()            # No manager = graceful stub
+    orch_client = AgentOrchestrationClient()  # No system = graceful stub
+    gm_client = GoalManagerClient()  # No manager = graceful stub
 
     voice_inputs = [
         "open browser",
@@ -25,24 +24,21 @@ async def main():
     ]
 
     for text in voice_inputs:
-        print(f"\nInput: '{text}'")
         command = parser.interpret(text)
 
         if command.is_command:
-            print(f"  Action: {command.action_id}")
-            print(f"  Parameters: {command.parameters}")
-            print(f"  Confidence: {command.confidence:.2f}")
-
             # Route to orchestration
-            route_result = await orch_client.route_command(command)
-            print(f"  Routed: {route_result.success}")
+            await orch_client.route_command(command)
 
             # Create goal for task-like commands
-            if command.action_id in ("GENERIC_COMMAND",) or "task" in text.lower() or "remind" in text.lower():
-                task_result = await gm_client.create_task(text)
-                print(f"  Task created: {task_result.success} — {task_result.confirmation_text}")
+            if (
+                command.action_id in ("GENERIC_COMMAND",)
+                or "task" in text.lower()
+                or "remind" in text.lower()
+            ):
+                await gm_client.create_task(text)
         else:
-            print("  Not recognized as a command")
+            pass
 
 
 if __name__ == "__main__":

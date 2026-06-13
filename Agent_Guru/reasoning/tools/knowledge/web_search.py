@@ -1,5 +1,4 @@
-"""
-Web search tool for searching the internet.
+"""Web search tool for searching the internet.
 
 Supports multiple search engines: Google, Bing, DuckDuckGo.
 """
@@ -64,6 +63,7 @@ class WebSearchTool(Tool):
 
         Returns:
             Execution result with search results
+
         """
         query = kwargs["query"]
         engine = kwargs.get("engine", "google").lower()
@@ -119,5 +119,5 @@ class WebSearchTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to perform web search: {str(e)}",
+                "error": f"Failed to perform web search: {e!s}",
             }

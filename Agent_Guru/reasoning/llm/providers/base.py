@@ -1,5 +1,4 @@
-"""
-Base LLM Provider Interface
+"""Base LLM Provider Interface.
 
 Defines the common interface and utilities for all LLM providers.
 Includes circuit breaker, rate limiting, and retry logic.
@@ -8,9 +7,9 @@ Includes circuit breaker, rate limiting, and retry logic.
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 
@@ -39,22 +38,31 @@ class ProviderConfig:
     def __post_init__(self):
         """Validate configuration."""
         if not self.api_key:
-            raise ValueError("api_key is required")
+            msg = "api_key is required"
+            raise ValueError(msg)
         if self.max_retries < 0:
-            raise ValueError(f"max_retries must be non-negative, got {self.max_retries}")
+            msg = f"max_retries must be non-negative, got {self.max_retries}"
+            raise ValueError(msg)
         if self.timeout_seconds <= 0:
-            raise ValueError(f"timeout_seconds must be positive, got {self.timeout_seconds}")
+            msg = f"timeout_seconds must be positive, got {self.timeout_seconds}"
+            raise ValueError(msg)
         if self.rate_limit_rpm <= 0:
-            raise ValueError(f"rate_limit_rpm must be positive, got {self.rate_limit_rpm}")
+            msg = f"rate_limit_rpm must be positive, got {self.rate_limit_rpm}"
+            raise ValueError(msg)
         if self.rate_limit_tpm <= 0:
-            raise ValueError(f"rate_limit_tpm must be positive, got {self.rate_limit_tpm}")
+            msg = f"rate_limit_tpm must be positive, got {self.rate_limit_tpm}"
+            raise ValueError(msg)
         if self.circuit_breaker_threshold <= 0:
-            raise ValueError(
+            msg = (
                 f"circuit_breaker_threshold must be positive, got {self.circuit_breaker_threshold}"
             )
-        if self.circuit_breaker_timeout <= 0:
             raise ValueError(
-                f"circuit_breaker_timeout must be positive, got {self.circuit_breaker_timeout}"
+                msg,
+            )
+        if self.circuit_breaker_timeout <= 0:
+            msg = f"circuit_breaker_timeout must be positive, got {self.circuit_breaker_timeout}"
+            raise ValueError(
+                msg,
             )
 
 
@@ -64,11 +72,11 @@ class RateLimitState:
 
     requests_this_minute: int = 0
     tokens_this_minute: int = 0
-    minute_start: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    minute_start: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def reset_if_needed(self) -> None:
         """Reset counters if minute has passed."""
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         if now - self.minute_start >= timedelta(minutes=1):
             self.requests_this_minute = 0
             self.tokens_this_minute = 0
@@ -95,20 +103,20 @@ class CircuitBreakerState:
 
     state: CircuitState = CircuitState.CLOSED
     failure_count: int = 0
-    last_failure_time: Optional[datetime] = None
-    last_success_time: Optional[datetime] = None
+    last_failure_time: datetime | None = None
+    last_success_time: datetime | None = None
 
     def record_success(self) -> None:
         """Record successful request."""
         self.failure_count = 0
-        self.last_success_time = datetime.now(tz=timezone.utc)
+        self.last_success_time = datetime.now(tz=UTC)
         if self.state == CircuitState.HALF_OPEN:
             self.state = CircuitState.CLOSED
 
     def record_failure(self, config: ProviderConfig) -> None:
         """Record failed request."""
         self.failure_count += 1
-        self.last_failure_time = datetime.now(tz=timezone.utc)
+        self.last_failure_time = datetime.now(tz=UTC)
 
         if self.failure_count >= config.circuit_breaker_threshold:
             self.state = CircuitState.OPEN
@@ -121,7 +129,7 @@ class CircuitBreakerState:
         if self.state == CircuitState.OPEN:
             # Check if timeout has passed
             if self.last_failure_time:
-                elapsed = (datetime.now(tz=timezone.utc) - self.last_failure_time).total_seconds()
+                elapsed = (datetime.now(tz=UTC) - self.last_failure_time).total_seconds()
                 if elapsed >= config.circuit_breaker_timeout:
                     self.state = CircuitState.HALF_OPEN
                     return True
@@ -132,8 +140,7 @@ class CircuitBreakerState:
 
 
 class BaseLLMProvider(ABC):
-    """
-    Base class for LLM providers.
+    """Base class for LLM providers.
 
     Provides common functionality:
     - Rate limiting
@@ -145,11 +152,12 @@ class BaseLLMProvider(ABC):
     - _generate_impl: Actual API call to provider
     """
 
-    def __init__(self, config: ProviderConfig):
+    def __init__(self, config: ProviderConfig) -> None:
         """Initialize provider.
 
         Args:
             config: Provider configuration
+
         """
         self.config = config
         self.rate_limit_state = RateLimitState()
@@ -157,8 +165,7 @@ class BaseLLMProvider(ABC):
 
     @abstractmethod
     async def _generate_impl(self, request: LLMRequest) -> LLMResponse:
-        """
-        Implement actual API call to provider.
+        """Implement actual API call to provider.
 
         Args:
             request: LLM request
@@ -168,6 +175,7 @@ class BaseLLMProvider(ABC):
 
         Raises:
             Exception: On API errors
+
         """
 
     @abstractmethod
@@ -175,8 +183,7 @@ class BaseLLMProvider(ABC):
         """Get provider type enum value."""
 
     async def generate(self, request: LLMRequest) -> LLMResponse:
-        """
-        Generate text with rate limiting, circuit breaker, and retries.
+        """Generate text with rate limiting, circuit breaker, and retries.
 
         Args:
             request: LLM request
@@ -188,12 +195,16 @@ class BaseLLMProvider(ABC):
             RuntimeError: If circuit breaker is open
             TimeoutError: If request times out
             Exception: On API errors after retries
+
         """
         # Check circuit breaker
         if not self.circuit_breaker.can_attempt(self.config):
-            raise RuntimeError(
+            msg = (
                 f"Circuit breaker is OPEN for {self.get_provider_type()}. "
                 f"Last failure: {self.circuit_breaker.last_failure_time}"
+            )
+            raise RuntimeError(
+                msg,
             )
 
         # Estimate tokens for rate limiting
@@ -202,13 +213,15 @@ class BaseLLMProvider(ABC):
         # Check rate limits
         if not self.rate_limit_state.can_make_request(self.config, estimated_tokens):
             # Wait until next minute
-            wait_time = 60 - (datetime.now(tz=timezone.utc) - self.rate_limit_state.minute_start).total_seconds()
+            wait_time = (
+                60 - (datetime.now(tz=UTC) - self.rate_limit_state.minute_start).total_seconds()
+            )
             if wait_time > 0:
                 await asyncio.sleep(wait_time)
             self.rate_limit_state.reset_if_needed()
 
         # Retry logic with exponential backoff
-        last_exception: Optional[Exception] = None
+        last_exception: Exception | None = None
         for attempt in range(self.config.max_retries):
             try:
                 # Make request — do NOT wrap in asyncio.wait_for here.
@@ -226,27 +239,22 @@ class BaseLLMProvider(ABC):
 
                 return response
 
-            except asyncio.TimeoutError as e:
+            except TimeoutError as e:
                 last_exception = e
                 self.circuit_breaker.record_failure(self.config)
                 if attempt < self.config.max_retries - 1:
                     # Exponential backoff: 1s, 2s, 4s
                     await asyncio.sleep(2**attempt)
                 continue
-
-            except asyncio.CancelledError as e:
                 # Propagate cancellation immediately — do not retry.
                 # This happens when an outer asyncio.wait_for fires.
                 raise
-
-            except Exception as e:
                 last_exception = e
                 self.circuit_breaker.record_failure(self.config)
                 if attempt < self.config.max_retries - 1:
                     # Exponential backoff
                     await asyncio.sleep(2**attempt)
                 continue
-
         # All retries failed
         raise last_exception or RuntimeError("All retries failed")
 
@@ -255,6 +263,7 @@ class BaseLLMProvider(ABC):
 
         Returns:
             Health status dictionary
+
         """
         return {
             "provider": self.get_provider_type().value,

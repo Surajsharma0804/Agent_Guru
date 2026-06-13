@@ -1,5 +1,4 @@
-"""
-Agent Guru - Vision Module
+"""Agent Guru - Vision Module.
 
 Provides face detection and 512-dimensional embedding extraction.
 
@@ -28,6 +27,7 @@ Example:
     ...     features = extractor.extract_face_embedding(f.read())
     >>> print(features.embedding.shape)  # (512,)
     >>> # Pass features to BiometricAuthenticator for identity verification
+
 """
 
 from Agent_Guru.vision.exceptions import (
@@ -44,17 +44,17 @@ __version__ = "0.2.0"
 __status__ = "IMPLEMENTED"
 
 __all__ = [
+    "BoundingBox",
+    "ExtractionTimeoutError",
+    "FaceDetection",
+    # Exceptions
+    "FaceExtractionError",
     # Main extractor
     "FaceFeatureExtractor",
     # Data models
     "FaceFeatures",
-    "FaceDetection",
-    "FaceQuality",
-    "BoundingBox",
-    # Exceptions
-    "FaceExtractionError",
     "FaceNotFoundError",
-    "LivenessFailedError",
+    "FaceQuality",
     "InvalidImageError",
-    "ExtractionTimeoutError",
+    "LivenessFailedError",
 ]

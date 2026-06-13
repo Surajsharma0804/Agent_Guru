@@ -1,5 +1,4 @@
-"""
-Configuration management module for GuruVision facial recognition system.
+"""Configuration management module for GuruVision facial recognition system.
 
 Provides centralized configuration loading, validation, and runtime management.
 Supports YAML and JSON configuration files with sensible defaults for all parameters.
@@ -13,7 +12,6 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +69,7 @@ class GuruVisionConfig:
 
         config = GuruVisionConfig.from_file("config.yaml")
         warnings = config.validate()
+
     """
 
     # Model paths
@@ -102,14 +101,14 @@ class GuruVisionConfig:
 
     # Camera settings
     camera_index: int = 0
-    video_source: Optional[str] = None
+    video_source: str | None = None
 
     # ---------------------------------------------------------------------------
     # Class methods
     # ---------------------------------------------------------------------------
 
     @classmethod
-    def from_file(cls, path: str) -> "GuruVisionConfig":
+    def from_file(cls, path: str) -> GuruVisionConfig:
         """Load configuration from a YAML or JSON file.
 
         Missing keys fall back to dataclass defaults.  The file extension
@@ -130,10 +129,12 @@ class GuruVisionConfig:
         Example::
 
             config = GuruVisionConfig.from_file("config.yaml")
+
         """
         file_path = Path(path).resolve()
         if not file_path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {path}")
+            msg = f"Configuration file not found: {path}"
+            raise FileNotFoundError(msg)
 
         raw_text = file_path.read_text(encoding="utf-8")
         data: dict = {}
@@ -167,6 +168,7 @@ class GuruVisionConfig:
             warnings = config.validate()
             # config.recognition_threshold is now 0.6
             # warnings contains one entry describing the reset
+
         """
         warnings: list[str] = []
 
@@ -235,10 +237,11 @@ class GuruVisionConfig:
 
             result = yaml.safe_load(text)
             if not isinstance(result, dict):
-                raise ValueError(f"Expected a YAML mapping at the top level in {path!r}")
+                msg = f"Expected a YAML mapping at the top level in {path!r}"
+                raise ValueError(msg)
             return result
-        except ImportError as e:
-            logger.warning("PyYAML not installed; attempting to parse %r as JSON", path)
+        except ImportError:
+            logger.exception("PyYAML not installed; attempting to parse %r as JSON")
             return cls._parse_json(text, path)
 
     @classmethod
@@ -247,13 +250,15 @@ class GuruVisionConfig:
         try:
             result = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise ValueError(f"Failed to parse {path!r} as JSON: {exc}") from exc
+            msg = f"Failed to parse {path!r} as JSON: {exc}"
+            raise ValueError(msg) from exc
         if not isinstance(result, dict):
-            raise ValueError(f"Expected a JSON object at the top level in {path!r}")
+            msg = f"Expected a JSON object at the top level in {path!r}"
+            raise ValueError(msg)
         return result
 
     @classmethod
-    def _from_dict(cls, data: dict) -> "GuruVisionConfig":
+    def _from_dict(cls, data: dict) -> GuruVisionConfig:
         """Build a :class:`GuruVisionConfig` from a plain dict.
 
         Unknown keys are silently ignored; missing keys use dataclass defaults.

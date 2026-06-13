@@ -1,5 +1,4 @@
-"""
-Safe subprocess wrapper for Agent Guru.
+"""Safe subprocess wrapper for Agent Guru.
 
 This module provides a hardened subprocess execution interface that
 unconditionally disables shell interpretation, preventing OS command
@@ -21,7 +20,10 @@ Requirements: 2.7
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def run_cmd(
@@ -58,15 +60,19 @@ def run_cmd(
 
         result = run_cmd(["git", "status", "--short"], cwd=Path("/repo"))
         print(result.stdout)
+
     """
     if isinstance(args, str):
-        raise TypeError(
+        msg = (
             "run_cmd() requires a list of strings, not a bare string. "
             "Passing a string would enable shell interpretation — use "
             "args=['cmd', 'arg1', 'arg2'] instead."
         )
+        raise TypeError(
+            msg,
+        )
 
-    return subprocess.run(
+    return subprocess.run(  # noqa: S603
         args,
         shell=False,  # unconditional — never allow shell interpretation
         cwd=cwd,
@@ -99,10 +105,14 @@ def validate_arg(value: str, allowlist: set[str] | None = None) -> str:
 
         action = validate_arg(user_action, allowlist={"start", "stop", "restart"})
         run_cmd(["systemctl", action, "myservice"])
+
     """
     if allowlist is not None and value not in allowlist:
-        raise ValueError(
+        msg = (
             f"Argument {value!r} is not in the permitted allowlist. "
             f"Allowed values: {sorted(allowlist)}"
+        )
+        raise ValueError(
+            msg,
         )
     return value

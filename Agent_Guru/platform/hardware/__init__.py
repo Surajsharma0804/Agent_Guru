@@ -1,5 +1,4 @@
-"""
-Hardware monitoring package for Agent Guru.
+"""Hardware monitoring package for Agent Guru.
 
 Provides cross-platform hardware monitoring with mobile-specific extensions.
 """
@@ -27,23 +26,23 @@ from Agent_Guru.platform.hardware.monitor import (
 )
 
 __all__ = [
+    "AccelerometerData",
+    "BatteryInfo",
+    "CPUInfo",
+    "CellularInfo",
+    "DeviceInfo",
+    "DiskInfo",
+    "GPUInfo",
+    "GyroscopeData",
     # Desktop hardware monitoring
     "HardwareMonitor",
-    "CPUInfo",
+    "LocationInfo",
     "MemoryInfo",
-    "DiskInfo",
-    "NetworkInterface",
-    "NetworkInterfaceStatus",
-    "GPUInfo",
-    "BatteryInfo",
+    "MobileBatteryInfo",
     # Mobile hardware monitoring
     "MobileHardwareMonitor",
-    "MobileBatteryInfo",
-    "CellularInfo",
-    "LocationInfo",
-    "AccelerometerData",
-    "GyroscopeData",
-    "DeviceInfo",
-    "ThermalState",
+    "NetworkInterface",
+    "NetworkInterfaceStatus",
     "NetworkType",
+    "ThermalState",
 ]

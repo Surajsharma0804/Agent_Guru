@@ -1,5 +1,4 @@
-"""
-Database initialization and connection management for Agent Orchestration System.
+"""Database initialization and connection management for Agent Orchestration System.
 
 Provides SQLite database setup with schema initialization and connection pooling.
 
@@ -35,13 +34,15 @@ class Database:
         >>> async with db.connection() as conn:
         ...     cursor = await conn.execute("SELECT * FROM agents")
         ...     agents = await cursor.fetchall()
+
     """
 
-    def __init__(self, db_path: str = "agent_orchestration.db"):
+    def __init__(self, db_path: str = "agent_orchestration.db") -> None:
         """Initialize database manager.
 
         Args:
             db_path: Path to SQLite database file
+
         """
         self.db_path = db_path
         self._initialized = False
@@ -60,7 +61,7 @@ class Database:
 
         # Load schema from SQL file
         schema_path = Path(__file__).parent / "schema.sql"
-        with open(schema_path) as f:
+        with open(schema_path) as f:  # noqa: ASYNC230
             schema_sql = f.read()
 
         # Execute schema
@@ -81,6 +82,7 @@ class Database:
             >>> async with db.connection() as conn:
             ...     await conn.execute("INSERT INTO agents ...")
             ...     await conn.commit()
+
         """
         if not self._initialized:
             await self.initialize()
@@ -103,6 +105,7 @@ class Database:
             >>> with db.sync_connection() as conn:
             ...     conn.execute("INSERT INTO agents ...")
             ...     conn.commit()
+
         """
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row  # Enable dict-like access
@@ -123,6 +126,7 @@ class Database:
             ...     "INSERT INTO agents (id, status) VALUES (?, ?)",
             ...     ("agent-1", "active")
             ... )
+
         """
         async with self.connection() as conn:
             await conn.execute(query, params)
@@ -143,6 +147,7 @@ class Database:
             ...     "SELECT * FROM agents WHERE id = ?",
             ...     ("agent-1",)
             ... )
+
         """
         async with self.connection() as conn:
             cursor = await conn.execute(query, params)
@@ -164,6 +169,7 @@ class Database:
             ...     "SELECT * FROM agents WHERE status = ?",
             ...     ("active",)
             ... )
+
         """
         async with self.connection() as conn:
             cursor = await conn.execute(query, params)
@@ -196,6 +202,7 @@ def get_database(db_path: str = "agent_orchestration.db") -> Database:
     Example:
         >>> db = get_database()
         >>> await db.initialize()
+
     """
     global _db_instance
     if _db_instance is None:

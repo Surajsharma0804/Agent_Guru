@@ -1,5 +1,4 @@
-"""
-Goal Executor - Coordinates goal execution with Agent Orchestration.
+"""Goal Executor - Coordinates goal execution with Agent Orchestration.
 
 This module handles the execution of goals by converting them into tasks for
 Agent Orchestration, tracking execution progress, committing to GitHub, and
@@ -26,7 +25,7 @@ Date: 2024
 Version: 1.0.0
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from git import Repo
@@ -41,8 +40,7 @@ logger = get_logger(__name__)
 
 
 class GoalExecutor:
-    """
-    Coordinates goal execution with Agent Orchestration.
+    """Coordinates goal execution with Agent Orchestration.
 
     Creates tasks, tracks execution, commits to GitHub, and reports metrics.
 
@@ -64,6 +62,7 @@ class GoalExecutor:
         ...     self_improvement_engine=engine
         ... )
         >>> await executor.execute_goal(goal_id)
+
     """
 
     def __init__(
@@ -71,10 +70,9 @@ class GoalExecutor:
         agent_orchestration: Any,  # Type: 'AgentOrchestration'
         storage: GoalStorage,
         git_repo_path: str,
-        self_improvement_engine: Any  # Type: 'SelfImprovementEngine'
+        self_improvement_engine: Any,  # Type: 'SelfImprovementEngine'
     ) -> None:
-        """
-        Initialize Goal Executor with dependencies.
+        """Initialize Goal Executor with dependencies.
 
         Args:
             agent_orchestration: Agent Orchestration system for task execution
@@ -84,6 +82,7 @@ class GoalExecutor:
 
         Raises:
             ExecutionError: If git_repo_path is invalid or not a Git repository
+
         """
         self.agent_orchestration = agent_orchestration
         self.storage = storage
@@ -93,12 +92,12 @@ class GoalExecutor:
         try:
             self.git_repo = Repo(git_repo_path)
         except Exception as e:
-            logger.warning(
+            logger.exception(
                 "git_repo_initialization_failed",
                 operation="init",
                 git_repo_path=git_repo_path,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             # Gracefully degrade — GitHub commits will be skipped
             self.git_repo = None
@@ -107,8 +106,7 @@ class GoalExecutor:
         self.active_executions: dict[str, str] = {}
 
     async def execute_goal(self, goal_id: str) -> None:
-        """
-        Execute goal by processing sub-goals sequentially.
+        """Execute goal by processing sub-goals sequentially.
 
         This method implements the main execution logic:
         1. Mark goal as IN_PROGRESS with timestamp
@@ -129,6 +127,7 @@ class GoalExecutor:
 
         Example:
             >>> await executor.execute_goal("goal-uuid-123")
+
         """
         # Retrieve goal from storage
         goal = await self.storage.get_goal(goal_id)
@@ -137,13 +136,14 @@ class GoalExecutor:
                 "goal_execution_failed",
                 goal_id=goal_id,
                 operation="execute",
-                error="Goal not found"
+                error="Goal not found",
             )
-            raise ExecutionError(f"Goal {goal_id} not found")
+            msg = f"Goal {goal_id} not found"
+            raise ExecutionError(msg)
 
         # Mark as IN_PROGRESS with timestamp
         goal.status = GoalStatus.IN_PROGRESS
-        goal.started_at = datetime.now(tz=timezone.utc)
+        goal.started_at = datetime.now(tz=UTC)
         await self.storage.update_goal(goal)
 
         # If no sub-goals and agent_orchestration is set, execute as leaf task
@@ -175,22 +175,21 @@ class GoalExecutor:
                 # Propagate failure to parent
                 goal.status = GoalStatus.FAILED
                 goal.error_message = f"Sub-goal {sub_goal_id} failed: {sub_goal.error_message}"
-                goal.completed_at = datetime.now(tz=timezone.utc)
+                goal.completed_at = datetime.now(tz=UTC)
                 await self.storage.update_goal(goal)
                 return
 
         # All sub-goals completed successfully
         goal.status = GoalStatus.COMPLETE
         goal.progress = 1.0
-        goal.completed_at = datetime.now(tz=timezone.utc)
+        goal.completed_at = datetime.now(tz=UTC)
         await self.storage.update_goal(goal)
 
         # Report completion to Self-Improvement Engine
         await self._report_completion(goal)
 
     async def _execute_sub_goal(self, sub_goal: Goal) -> None:
-        """
-        Execute a single leaf sub-goal as a task.
+        """Execute a single leaf sub-goal as a task.
 
         This method implements the execution logic for individual leaf sub-goals:
         1. Mark sub-goal as IN_PROGRESS with timestamp
@@ -212,10 +211,11 @@ class GoalExecutor:
 
         Example:
             >>> await executor._execute_sub_goal(leaf_goal)
+
         """
         # Mark sub-goal as IN_PROGRESS with timestamp
         sub_goal.status = GoalStatus.IN_PROGRESS
-        sub_goal.started_at = datetime.now(tz=timezone.utc)
+        sub_goal.started_at = datetime.now(tz=UTC)
         await self.storage.update_goal(sub_goal)
 
         try:
@@ -223,7 +223,7 @@ class GoalExecutor:
             if self.agent_orchestration is None:
                 sub_goal.status = GoalStatus.COMPLETE
                 sub_goal.progress = 1.0
-                sub_goal.completed_at = datetime.now(tz=timezone.utc)
+                sub_goal.completed_at = datetime.now(tz=UTC)
                 await self.storage.update_goal(sub_goal)
                 return
 
@@ -232,7 +232,7 @@ class GoalExecutor:
                 name=f"Goal: {sub_goal.description}",
                 description=sub_goal.description,
                 task_type="goal_execution",
-                metadata={"goal_id": sub_goal.id}
+                metadata={"goal_id": sub_goal.id},
             )
 
             # Track task_id in active_executions
@@ -246,7 +246,7 @@ class GoalExecutor:
                 # Mark sub-goal as COMPLETE
                 sub_goal.status = GoalStatus.COMPLETE
                 sub_goal.progress = 1.0
-                sub_goal.completed_at = datetime.now(tz=timezone.utc)
+                sub_goal.completed_at = datetime.now(tz=UTC)
                 await self.storage.update_goal(sub_goal)
 
                 # Commit to GitHub (will be implemented in task 10.4)
@@ -257,25 +257,25 @@ class GoalExecutor:
                     "task_execution_failed",
                     goal_id=sub_goal.id,
                     operation="execute_sub_goal",
-                    error=result.error_message
+                    error=result.error_message,
                 )
                 sub_goal.status = GoalStatus.FAILED
                 sub_goal.error_message = result.error_message
-                sub_goal.completed_at = datetime.now(tz=timezone.utc)
+                sub_goal.completed_at = datetime.now(tz=UTC)
                 await self.storage.update_goal(sub_goal)
 
         except Exception as e:
             # Handle any unexpected errors during execution
-            logger.error(
+            logger.exception(
                 "subgoal_execution_exception",
                 goal_id=sub_goal.id,
                 operation="execute_sub_goal",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             sub_goal.status = GoalStatus.FAILED
             sub_goal.error_message = str(e)
-            sub_goal.completed_at = datetime.now(tz=timezone.utc)
+            sub_goal.completed_at = datetime.now(tz=UTC)
             await self.storage.update_goal(sub_goal)
 
         finally:
@@ -284,8 +284,7 @@ class GoalExecutor:
                 del self.active_executions[sub_goal.id]
 
     async def _report_completion(self, goal: Goal) -> None:
-        """
-        Report goal completion to Self-Improvement Engine.
+        """Report goal completion to Self-Improvement Engine.
 
         Reports metrics about goal execution to the Self-Improvement Engine for
         tracking and learning. Includes task_id, task_type, strategy, success status,
@@ -307,6 +306,7 @@ class GoalExecutor:
         Note:
             This method handles errors gracefully - if Self-Improvement Engine
             operations fail, the error is logged but the goal is not marked as failed.
+
         """
         try:
             if self.self_improvement_engine is None:
@@ -332,23 +332,22 @@ class GoalExecutor:
                 strategy_used="goal_manager",
                 success=success,
                 execution_time_ms=execution_time_ms,
-                error_details=error_details
+                error_details=error_details,
             )
 
         except Exception as e:
             # Log error but don't fail goal (graceful degradation)
-            logger.error(
+            logger.exception(
                 "self_improvement_reporting_failed",
                 goal_id=goal.id,
                 operation="report_completion",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             # Note: Goal execution continues successfully despite reporting failure
 
     async def _commit_to_github(self, goal: Goal) -> None:
-        """
-        Commit goal completion to GitHub.
+        """Commit goal completion to GitHub.
 
         Creates a commit with the goal description and ID, then pushes to remote origin.
         Errors are logged but do not fail the goal execution (graceful degradation).
@@ -366,6 +365,7 @@ class GoalExecutor:
             This method handles errors gracefully - if GitHub operations fail,
             the error is logged but the goal is not marked as failed. This ensures
             that GitHub connectivity issues don't prevent goal completion.
+
         """
         try:
             if self.git_repo is None:
@@ -379,23 +379,22 @@ class GoalExecutor:
             self.git_repo.index.commit(commit_message)
 
             # Push to remote origin
-            origin = self.git_repo.remote(name='origin')
+            origin = self.git_repo.remote(name="origin")
             origin.push()
 
         except Exception as e:
             # Log error but don't fail goal (graceful degradation)
-            logger.error(
+            logger.exception(
                 "github_commit_failed",
                 goal_id=goal.id,
                 operation="commit_to_github",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             # Note: Goal execution continues successfully despite GitHub failure
 
     async def stop_execution(self, goal_id: str) -> None:
-        """
-        Stop execution of a goal.
+        """Stop execution of a goal.
 
         This method stops the execution of an in-progress goal by canceling its
         associated task in Agent Orchestration and removing it from active tracking.
@@ -415,6 +414,7 @@ class GoalExecutor:
         Note:
             This method is idempotent - calling it multiple times or on a
             non-executing goal has no adverse effects.
+
         """
         # Check if goal_id in active_executions
         if goal_id in self.active_executions:
@@ -426,13 +426,13 @@ class GoalExecutor:
                 await self.agent_orchestration.cancel_task(task_id)
             except Exception as e:
                 # Log error but continue with cleanup
-                logger.error(
+                logger.exception(
                     "task_cancellation_failed",
                     goal_id=goal_id,
                     task_id=task_id,
                     operation="stop_execution",
                     error=str(e),
-                    error_type=type(e).__name__
+                    error_type=type(e).__name__,
                 )
             # (already logged above via logger.error)
 
@@ -440,8 +440,7 @@ class GoalExecutor:
             del self.active_executions[goal_id]
 
     async def resume_goal(self, goal_id: str) -> None:
-        """
-        Resume execution of an interrupted goal.
+        """Resume execution of an interrupted goal.
 
         This method resumes execution of a goal that was interrupted (e.g., due to
         system restart). It finds the last completed sub-goal and continues execution
@@ -473,6 +472,7 @@ class GoalExecutor:
         Note:
             This method is idempotent - if the goal is already complete or has no
             remaining sub-goals to execute, it does nothing.
+
         """
         # Retrieve goal from storage
         goal = await self.storage.get_goal(goal_id)
@@ -481,9 +481,10 @@ class GoalExecutor:
                 "goal_resume_failed",
                 goal_id=goal_id,
                 operation="resume",
-                error="Goal not found"
+                error="Goal not found",
             )
-            raise ExecutionError(f"Goal {goal_id} not found")
+            msg = f"Goal {goal_id} not found"
+            raise ExecutionError(msg)
 
         # Find last completed sub-goal index
         last_completed_idx = -1
@@ -523,7 +524,7 @@ class GoalExecutor:
                 # Propagate failure to parent
                 goal.status = GoalStatus.FAILED
                 goal.error_message = f"Sub-goal {sub_goal_id} failed: {sub_goal.error_message}"
-                goal.completed_at = datetime.now(tz=timezone.utc)
+                goal.completed_at = datetime.now(tz=UTC)
                 await self.storage.update_goal(goal)
                 return
 
@@ -540,10 +541,8 @@ class GoalExecutor:
         if all_complete:
             goal.status = GoalStatus.COMPLETE
             goal.progress = 1.0
-            goal.completed_at = datetime.now(tz=timezone.utc)
+            goal.completed_at = datetime.now(tz=UTC)
             await self.storage.update_goal(goal)
 
             # Report completion to Self-Improvement Engine
             await self._report_completion(goal)
-
-

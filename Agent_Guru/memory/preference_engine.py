@@ -13,9 +13,8 @@ from __future__ import annotations
 import logging
 import math
 from collections import defaultdict
-from datetime import datetime, timezone
-from typing import Any
-from uuid import UUID
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from Agent_Guru.memory.models import (
     EvidenceType,
@@ -27,6 +26,9 @@ from Agent_Guru.memory.models import (
     SignalType,
 )
 
+if TYPE_CHECKING:
+    from uuid import UUID
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,7 +38,7 @@ def _sigmoid(x: float) -> float:
 
 def _temporal_decay(timestamp: datetime, decay_lambda: float) -> float:
     """Exponential decay weight for evidence age."""
-    age_seconds = (datetime.now(tz=timezone.utc) - timestamp).total_seconds()
+    age_seconds = (datetime.now(tz=UTC) - timestamp).total_seconds()
     return math.exp(-decay_lambda * max(0.0, age_seconds))
 
 
@@ -77,7 +79,7 @@ class PreferenceLearningEngine:
             self._preferences[signal.user_id].append(pref)
         else:
             pref.evidence.append(evidence)
-            pref.updated_at = datetime.now(tz=timezone.utc)
+            pref.updated_at = datetime.now(tz=UTC)
 
         # Recalculate confidence
         pref.confidence = self._calculate_confidence(pref)
@@ -122,8 +124,7 @@ class PreferenceLearningEngine:
         if not pref.evidence:
             return 0.5
         weighted_sum = sum(
-            ev.weight * _temporal_decay(ev.timestamp, self.decay_lambda)
-            for ev in pref.evidence
+            ev.weight * _temporal_decay(ev.timestamp, self.decay_lambda) for ev in pref.evidence
         )
         n = len(pref.evidence)
         return min(1.0, max(0.0, _sigmoid(weighted_sum / n)))
@@ -136,7 +137,8 @@ class PreferenceLearningEngine:
         """Return the highest-confidence matching preference."""
         candidates = self._preferences.get(query.user_id, [])
         matches = [
-            p for p in candidates
+            p
+            for p in candidates
             if (query.preference_type is None or p.preference_type == query.preference_type)
             and p.confidence >= query.min_confidence
             and self._context_matches(p.context, query.context)
@@ -157,12 +159,14 @@ class PreferenceLearningEngine:
     # ------------------------------------------------------------------
 
     def detect_preference_shift(
-        self, user_id: UUID, preference_type: PreferenceType, window: int = 5
+        self,
+        user_id: UUID,
+        preference_type: PreferenceType,
+        window: int = 5,
     ) -> dict[str, Any]:
         """Detect consistent directional changes in recent evidence weights."""
         prefs = [
-            p for p in self._preferences.get(user_id, [])
-            if p.preference_type == preference_type
+            p for p in self._preferences.get(user_id, []) if p.preference_type == preference_type
         ]
         if not prefs:
             return {"shift_detected": False, "direction": None}
@@ -190,7 +194,10 @@ class PreferenceLearningEngine:
     # ------------------------------------------------------------------
 
     def learn_implicit_preferences(
-        self, user_id: UUID, behavior_log: list[dict[str, Any]], frequency_threshold: int = 3
+        self,
+        user_id: UUID,
+        behavior_log: list[dict[str, Any]],
+        frequency_threshold: int = 3,
     ) -> list[Preference]:
         """Extract implicit preferences from repeated behaviors."""
         # Count behavior patterns
@@ -233,6 +240,6 @@ class PreferenceLearningEngine:
                 if pref.id == preference_id:
                     delta = 0.05 if outcome else -0.05
                     pref.confidence = min(1.0, max(0.0, pref.confidence + delta))
-                    pref.updated_at = datetime.now(tz=timezone.utc)
+                    pref.updated_at = datetime.now(tz=UTC)
                     return pref
         return None

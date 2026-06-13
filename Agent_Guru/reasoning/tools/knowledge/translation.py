@@ -1,5 +1,4 @@
-"""
-Translation tool for translating text between languages.
+"""Translation tool for translating text between languages.
 
 Supports 50+ languages using translation APIs.
 """
@@ -115,6 +114,7 @@ class TranslateTool(Tool):
 
         Returns:
             Execution result with translation
+
         """
         text = kwargs["text"]
         target_language = kwargs["target_language"].lower()
@@ -136,10 +136,7 @@ class TranslateTool(Tool):
             }
 
         # Validate source language
-        if (
-            source_language not in SUPPORTED_LANGUAGES
-            and source_language != "auto"
-        ):
+        if source_language not in SUPPORTED_LANGUAGES and source_language != "auto":
             return {
                 "success": False,
                 "error": f"Unsupported source language: {source_language}. "
@@ -165,5 +162,5 @@ class TranslateTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to translate text: {str(e)}",
+                "error": f"Failed to translate text: {e!s}",
             }

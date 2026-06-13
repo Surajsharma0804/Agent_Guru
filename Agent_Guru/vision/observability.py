@@ -1,5 +1,4 @@
-"""
-Observability module for the Agent Guru Vision System.
+"""Observability module for the Agent Guru Vision System.
 
 Provides:
 - Structured logging via structlog for every VisionEvent.
@@ -16,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from typing import Any, Self
 
 import structlog
 
@@ -27,7 +26,12 @@ logger: structlog.BoundLogger = structlog.get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 try:
-    from prometheus_client import REGISTRY, Counter, Gauge, Histogram  # type: ignore[import]
+    from prometheus_client import (  # type: ignore[import]  # noqa: F401
+        REGISTRY,
+        Counter,
+        Gauge,
+        Histogram,
+    )
 
     _PROM_AVAILABLE = True
 
@@ -70,11 +74,13 @@ except ImportError:
 
     class _NoOpCounter:
         def inc(self, *a: Any, **kw: Any) -> None: ...
-        def labels(self, *a: Any, **kw: Any) -> "_NoOpCounter": return self
+        def labels(self, *a: Any, **kw: Any) -> _NoOpCounter:
+            return self
 
     class _NoOpHistogram:
         def observe(self, *a: Any, **kw: Any) -> None: ...
-        def labels(self, *a: Any, **kw: Any) -> "_NoOpHistogram": return self
+        def labels(self, *a: Any, **kw: Any) -> _NoOpHistogram:
+            return self
 
     class _NoOpGauge:
         def set(self, *a: Any, **kw: Any) -> None: ...
@@ -99,7 +105,7 @@ MODULE_LATENCY_TARGETS: dict[str, float] = {
     "ocr": 0.200,
     "handwriting": 0.500,
     "gesture": 1.0 / 20,  # 20 FPS → 50ms
-    "pose": 1.0 / 15,     # 15 FPS → 67ms
+    "pose": 1.0 / 15,  # 15 FPS → 67ms
     "screen": 0.300,
     "vqa": 2.000,
     "tracker": 0.010,
@@ -146,6 +152,7 @@ class VisionObservability:
 
         Args:
             level: One of DEBUG, INFO, WARNING, ERROR, CRITICAL.
+
         """
         numeric = getattr(logging, level.upper(), logging.INFO)
         self._log_level = numeric
@@ -165,6 +172,7 @@ class VisionObservability:
 
         Args:
             event: A VisionEvent instance.
+
         """
         events_emitted_total.labels(
             event_type=event.event_type,
@@ -184,6 +192,7 @@ class VisionObservability:
         Args:
             module: Module name (e.g. "scene", "depth").
             latency_seconds: Measured latency in seconds.
+
         """
         inference_latency_seconds.labels(module=module).observe(latency_seconds)
 
@@ -204,6 +213,7 @@ class VisionObservability:
         Args:
             module: Module name where the exception occurred.
             exc: The exception instance.
+
         """
         module_error_total.labels(module=module).inc()
         logger.exception(
@@ -217,6 +227,7 @@ class VisionObservability:
 
         Args:
             bytes_used: Current GPU memory usage in bytes.
+
         """
         gpu_memory_bytes_used.set(bytes_used)
 
@@ -225,6 +236,7 @@ class VisionObservability:
 
         Args:
             count: Number of currently active modules.
+
         """
         active_modules_count.set(count)
 
@@ -235,20 +247,20 @@ class VisionObservability:
     class _ModuleTimer:
         """Context manager that records module latency on exit."""
 
-        def __init__(self, obs: "VisionObservability", module: str) -> None:
+        def __init__(self, obs: VisionObservability, module: str) -> None:
             self._obs = obs
             self._module = module
             self._start: float = 0.0
 
-        def __enter__(self) -> "_ModuleTimer":
+        def __enter__(self) -> Self:
             self._start = time.perf_counter()
             return self
 
-        def __exit__(self, *args: Any) -> None:
+        def __exit__(self, *args: object) -> None:
             elapsed = time.perf_counter() - self._start
             self._obs.record_latency(self._module, elapsed)
 
-    def time_module(self, module: str) -> "_ModuleTimer":
+    def time_module(self, module: str) -> _ModuleTimer:
         """Return a context manager that times a module's execution.
 
         Args:
@@ -256,6 +268,7 @@ class VisionObservability:
 
         Returns:
             Context manager that records latency on exit.
+
         """
         return self._ModuleTimer(self, module)
 

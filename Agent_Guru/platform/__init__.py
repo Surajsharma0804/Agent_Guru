@@ -1,5 +1,4 @@
-"""
-Platform Integration System for Agent Guru.
+"""Platform Integration System for Agent Guru.
 
 This package provides comprehensive cross-platform OS control, hardware abstraction,
 and permission management for the AGENT_GURU AI operating system.

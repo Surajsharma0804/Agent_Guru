@@ -11,6 +11,7 @@ memory so they survive across sessions (if the app is running).
 This is intentionally simple — no external calendar integration needed.
 Just asyncio tasks that sleep and then speak.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -18,7 +19,10 @@ import logging
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Reminder:
     """A single reminder."""
+
     reminder_id: str
     message: str
     fire_at: float  # Unix timestamp
@@ -42,7 +47,7 @@ class ReminderManager:
         await mgr.set_reminder("call John", at_time="3pm")
     """
 
-    def __init__(self, speak_callback: Optional[Callable[[str], Any]] = None) -> None:
+    def __init__(self, speak_callback: Callable[[str], Any] | None = None) -> None:
         self._reminders: dict[str, Reminder] = {}
         self._tasks: dict[str, asyncio.Task] = {}  # type: ignore[type-arg]
         self._speak = speak_callback
@@ -55,9 +60,9 @@ class ReminderManager:
     async def set_reminder(
         self,
         message: str,
-        minutes: Optional[float] = None,
-        seconds: Optional[float] = None,
-        at_time: Optional[str] = None,
+        minutes: float | None = None,
+        seconds: float | None = None,
+        at_time: str | None = None,
     ) -> str:
         """Set a reminder.
 
@@ -69,6 +74,7 @@ class ReminderManager:
 
         Returns:
             Confirmation message for TTS.
+
         """
         self._counter += 1
         rid = f"reminder_{self._counter}"
@@ -138,13 +144,13 @@ class ReminderManager:
                     result = self._speak(reminder.message)
                     if asyncio.iscoroutine(result):
                         await result
-                except Exception as exc:
-                    logger.warning("Reminder TTS failed: %s", exc)
+                except Exception:
+                    logger.exception("Reminder TTS failed")
         except asyncio.CancelledError:
             logger.debug("Reminder cancelled: %s", reminder.reminder_id)
 
     @staticmethod
-    def _parse_time_to_delay(time_str: str) -> Optional[float]:
+    def _parse_time_to_delay(time_str: str) -> float | None:
         """Parse a time string like '3pm', '15:30', '3:30 pm' to seconds from now."""
         import datetime
 
@@ -188,7 +194,7 @@ class ReminderManager:
         return None
 
 
-def parse_reminder_from_transcript(transcript: str) -> Optional[dict]:
+def parse_reminder_from_transcript(transcript: str) -> dict | None:
     """Extract reminder parameters from a voice transcript.
 
     Handles many natural speech variations:
@@ -203,21 +209,23 @@ def parse_reminder_from_transcript(transcript: str) -> Optional[dict]:
 
     Returns:
         Dict with keys: message, minutes/seconds/at_time, or None if no match.
+
     """
     t = transcript.strip()
 
     # Normalize natural time expressions FIRST before pattern matching
-    t = re.sub(r"\bhalf\s+an?\s+hour\b", "30 minutes", t, flags=re.I)
-    t = re.sub(r"\ban?\s+hour\b", "60 minutes", t, flags=re.I)
-    t = re.sub(r"\ba\s+minute\b", "1 minute", t, flags=re.I)
-    t = re.sub(r"\ba\s+second\b", "1 second", t, flags=re.I)
-    t = re.sub(r"\ba\s+few\s+minutes\b", "3 minutes", t, flags=re.I)
-    t = re.sub(r"\ba\s+couple\s+(?:of\s+)?minutes\b", "2 minutes", t, flags=re.I)
+    t = re.sub(r"\bhalf\s+an?\s+hour\b", "30 minutes", t, flags=re.IGNORECASE)
+    t = re.sub(r"\ban?\s+hour\b", "60 minutes", t, flags=re.IGNORECASE)
+    t = re.sub(r"\ba\s+minute\b", "1 minute", t, flags=re.IGNORECASE)
+    t = re.sub(r"\ba\s+second\b", "1 second", t, flags=re.IGNORECASE)
+    t = re.sub(r"\ba\s+few\s+minutes\b", "3 minutes", t, flags=re.IGNORECASE)
+    t = re.sub(r"\ba\s+couple\s+(?:of\s+)?minutes\b", "2 minutes", t, flags=re.IGNORECASE)
 
     # Pattern 1: "remind me in X minutes to Y" or just "remind me in X minutes"
     m = re.search(
         r"remind\s+me\s+in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?(?:\s+(?:to\s+)?(.+))?",
-        t, re.I,
+        t,
+        re.IGNORECASE,
     )
     if m:
         amount = float(m.group(1))
@@ -229,23 +237,37 @@ def parse_reminder_from_transcript(transcript: str) -> Optional[dict]:
     # Pattern 2: "remind me to Y in X minutes" (reversed order)
     m = re.search(
         r"remind\s+me\s+(?:to\s+)?(.+?)\s+in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?",
-        t, re.I,
+        t,
+        re.IGNORECASE,
     )
     if m:
-        message, amount, unit = m.group(1).strip().rstrip(".,!?"), float(m.group(2)), m.group(3).lower()
+        message, amount, unit = (
+            m.group(1).strip().rstrip(".,!?"),
+            float(m.group(2)),
+            m.group(3).lower(),
+        )
         return {"message": message, "seconds" if "sec" in unit else "minutes": amount}
 
     # Pattern 3: "in X minutes remind me to Y" (time first)
     m = re.search(
         r"in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?\s+remind\s+me\s+(?:to\s+)?(.+)",
-        t, re.I,
+        t,
+        re.IGNORECASE,
     )
     if m:
-        amount, unit, message = float(m.group(1)), m.group(2).lower(), m.group(3).strip().rstrip(".,!?")
+        amount, unit, message = (
+            float(m.group(1)),
+            m.group(2).lower(),
+            m.group(3).strip().rstrip(".,!?"),
+        )
         return {"message": message, "seconds" if "sec" in unit else "minutes": amount}
 
     # Pattern 4: "set a timer for X minutes"
-    m = re.search(r"(?:set\s+a?\s*)?timer\s+(?:for\s+)?(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?", t, re.I)
+    m = re.search(
+        r"(?:set\s+a?\s*)?timer\s+(?:for\s+)?(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?",
+        t,
+        re.IGNORECASE,
+    )
     if m:
         amount, unit = float(m.group(1)), m.group(2).lower()
         if "sec" in unit:
@@ -255,7 +277,8 @@ def parse_reminder_from_transcript(transcript: str) -> Optional[dict]:
     # Pattern 5: "remind me at 3pm to Y"
     m = re.search(
         r"remind\s+me\s+at\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(?:to\s+)?(.+)",
-        t, re.I,
+        t,
+        re.IGNORECASE,
     )
     if m:
         at_time, message = m.group(1).strip(), m.group(2).strip().rstrip(".,!?")
@@ -264,10 +287,15 @@ def parse_reminder_from_transcript(transcript: str) -> Optional[dict]:
     # Pattern 6: "don't let me forget to Y in X minutes"
     m = re.search(
         r"(?:don.t\s+let\s+me\s+forget|don.t\s+forget)\s+(?:to\s+)?(.+?)\s+in\s+(\d+(?:\.\d+)?)\s*(minute|min|second|sec)s?",
-        t, re.I,
+        t,
+        re.IGNORECASE,
     )
     if m:
-        message, amount, unit = m.group(1).strip().rstrip(".,!?"), float(m.group(2)), m.group(3).lower()
+        message, amount, unit = (
+            m.group(1).strip().rstrip(".,!?"),
+            float(m.group(2)),
+            m.group(3).lower(),
+        )
         return {"message": message, "seconds" if "sec" in unit else "minutes": amount}
 
     return None

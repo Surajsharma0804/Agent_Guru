@@ -69,9 +69,11 @@ def verify_embedding(
         >>> c = np.array([0.0, 1.0, 0.0])
         >>> verify_embedding(a, c, BIOMETRIC_THRESHOLD)
         False
+
     """
     if not 0.0 <= threshold <= 1.0:
-        raise ValueError(f"threshold must be in [0.0, 1.0], got {threshold!r}")
+        msg = f"threshold must be in [0.0, 1.0], got {threshold!r}"
+        raise ValueError(msg)
 
     norm_q = float(np.linalg.norm(query))
     norm_s = float(np.linalg.norm(stored))

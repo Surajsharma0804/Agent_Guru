@@ -1,5 +1,4 @@
-"""
-Agent Splitter - Splits agents with divergent specializations.
+"""Agent Splitter - Splits agents with divergent specializations.
 
 This module implements agent splitting functionality to optimize the agent
 population by dividing agents that have developed distinct sub-specializations
@@ -22,7 +21,7 @@ Version: 1.0.0
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -33,8 +32,7 @@ if TYPE_CHECKING:
 
 
 class AgentSplitter:
-    """
-    Splits agents with divergent specializations.
+    """Splits agents with divergent specializations.
 
     Analyzes agent specializations to detect when an agent has developed
     expertise in multiple distinct domains. When divergence exceeds threshold,
@@ -52,6 +50,7 @@ class AgentSplitter:
         ...     print(f"Split into {len(new_agents)} agents")
 
     Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5
+
     """
 
     def __init__(
@@ -60,9 +59,8 @@ class AgentSplitter:
         lifecycle_manager: "AgentLifecycleManager",
         divergence_threshold: float = 0.7,
         min_task_count: int = 20,
-    ):
-        """
-        Initialize agent splitter.
+    ) -> None:
+        """Initialize agent splitter.
 
         Args:
             storage: Agent storage backend
@@ -77,15 +75,17 @@ class AgentSplitter:
         Time Complexity: O(1)
 
         Validates: Requirements 4.1, 4.5
+
         """
         if not 0.0 <= divergence_threshold <= 1.0:
+            msg = f"divergence_threshold must be in range [0.0, 1.0], got {divergence_threshold}"
             raise ValueError(
-                f"divergence_threshold must be in range [0.0, 1.0], "
-                f"got {divergence_threshold}"
+                msg,
             )
 
         if min_task_count < 1:
-            raise ValueError(f"min_task_count must be >= 1, got {min_task_count}")
+            msg = f"min_task_count must be >= 1, got {min_task_count}"
+            raise ValueError(msg)
 
         self.storage = storage
         self.lifecycle_manager = lifecycle_manager
@@ -93,8 +93,7 @@ class AgentSplitter:
         self.min_task_count = min_task_count
 
     async def detect_split_candidates(self) -> list[tuple[str, float]]:
-        """
-        Detect agents with divergent specializations.
+        """Detect agents with divergent specializations.
 
         Analyzes all active agents to find those with specializations in
         multiple distinct domains. Returns agents that exceed divergence
@@ -114,6 +113,7 @@ class AgentSplitter:
             ...     print(f"Agent {agent_id}: divergence {divergence:.2f}")
 
         Validates: Requirements 4.1, 4.5
+
         """
         agents = await self.storage.get_active_agents()
         candidates = []
@@ -135,8 +135,7 @@ class AgentSplitter:
         return candidates
 
     async def split_agent(self, agent_id: str) -> list["Agent"]:
-        """
-        Split agent into multiple focused agents.
+        """Split agent into multiple focused agents.
 
         Creates new agents with non-overlapping specialization sets by
         clustering task types into distinct domains. Each new agent receives
@@ -163,17 +162,22 @@ class AgentSplitter:
             ...     print(f"Agent {agent.id}: {agent.specializations}")
 
         Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5
+
         """
         agent = await self.storage.get_agent(agent_id)
 
         if not agent:
-            raise ValueError(f"Agent not found: {agent_id}")
+            msg = f"Agent not found: {agent_id}"
+            raise ValueError(msg)
 
         # Check minimum task count
         if agent.total_tasks < self.min_task_count:
-            raise ValueError(
+            msg = (
                 f"Agent {agent_id} has insufficient task count "
                 f"({agent.total_tasks} < {self.min_task_count})"
+            )
+            raise ValueError(
+                msg,
             )
 
         # Get performance history
@@ -183,16 +187,13 @@ class AgentSplitter:
         clusters = self._partition_specializations(agent.specializations)
 
         if len(clusters) < 2:
+            msg = f"Agent {agent_id} cannot be split: only {len(clusters)} cluster(s) found"
             raise ValueError(
-                f"Agent {agent_id} cannot be split: "
-                f"only {len(clusters)} cluster(s) found"
+                msg,
             )
 
         # Partition performance history by clusters
-        history_partitions = self._partition_history(
-            agent.performance_history,
-            clusters
-        )
+        history_partitions = self._partition_history(agent.performance_history, clusters)
 
         # Create new agents for each cluster
         from .agent_lifecycle import Agent, AgentStatus
@@ -219,15 +220,15 @@ class AgentSplitter:
                 capabilities=cluster_capabilities,
                 specializations=cluster_specs.copy(),
                 performance_history=cluster_history,
-                created_at=datetime.now(tz=timezone.utc),
-                last_active=datetime.now(tz=timezone.utc),
+                created_at=datetime.now(tz=UTC),
+                last_active=datetime.now(tz=UTC),
                 total_tasks=cluster_total,
                 successful_tasks=cluster_successful,
                 metadata={
                     "split_from": agent_id,
                     "split_reason": "divergent_specializations",
                     "split_cluster": i,
-                    "split_timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                    "split_timestamp": datetime.now(tz=UTC).isoformat(),
                 },
             )
 
@@ -248,8 +249,7 @@ class AgentSplitter:
                 "new_agents": [a.id for a in new_agents],
                 "divergence_score": self._calculate_divergence(agent.specializations),
                 "clusters": {
-                    str(i): list(cluster_types)
-                    for i, cluster_types in enumerate(clusters.keys())
+                    str(i): list(cluster_types) for i, cluster_types in enumerate(clusters.keys())
                 },
             },
         )
@@ -257,8 +257,7 @@ class AgentSplitter:
         return new_agents
 
     def _calculate_divergence(self, specializations: dict[str, float]) -> float:
-        """
-        Calculate divergence score for specializations.
+        """Calculate divergence score for specializations.
 
         Measures how distinct the specializations are by analyzing pairwise
         dissimilarity between task types. High divergence indicates the agent
@@ -285,6 +284,7 @@ class AgentSplitter:
             >>> print(f"Divergence: {divergence:.2f}")
 
         Validates: Requirement 4.1
+
         """
         if len(specializations) < 2:
             return 0.0
@@ -316,8 +316,21 @@ class AgentSplitter:
 
     # Domain synonym groups: terms in the same group are semantically similar
     _DOMAIN_GROUPS: tuple = (
-        {"coding", "coder", "coders", "code", "programming", "programmer", "development", "developer",
-         "software", "engineering", "engineer", "implementation", "implement"},
+        {
+            "coding",
+            "coder",
+            "coders",
+            "code",
+            "programming",
+            "programmer",
+            "development",
+            "developer",
+            "software",
+            "engineering",
+            "engineer",
+            "implementation",
+            "implement",
+        },
         {"testing", "tester", "qa", "quality", "validation", "verification", "test"},
         {"design", "designer", "architecture", "architect", "planning", "modeling", "blueprint"},
         {"data", "analytics", "analysis", "statistics", "ml", "machine_learning", "ai"},
@@ -330,8 +343,7 @@ class AgentSplitter:
     )
 
     def _task_type_dissimilarity(self, type1: str, type2: str) -> float:
-        """
-        Calculate dissimilarity between two task types.
+        """Calculate dissimilarity between two task types.
 
         Uses domain synonym groups for semantic similarity, falling back to
         bigram-based string similarity for unknown terms.
@@ -344,6 +356,7 @@ class AgentSplitter:
             Dissimilarity score in range [0.0, 1.0]
 
         Time Complexity: O(G) where G is number of domain groups
+
         """
         t1 = type1.lower().strip()
         t2 = type2.lower().strip()
@@ -353,7 +366,7 @@ class AgentSplitter:
 
         # Check if one is a prefix/stem of the other (e.g. "coding" / "coder")
         shorter, longer = (t1, t2) if len(t1) <= len(t2) else (t2, t1)
-        if len(shorter) >= 3 and longer.startswith(shorter[:min(len(shorter), 4)]):
+        if len(shorter) >= 3 and longer.startswith(shorter[: min(len(shorter), 4)]):
             return 0.2  # Morphologically related
 
         # Check if both terms belong to the same domain group
@@ -363,7 +376,7 @@ class AgentSplitter:
 
         # Bigram-based similarity (better than character sets)
         def bigrams(s: str) -> set:
-            return {s[i:i+2] for i in range(len(s) - 1)} if len(s) > 1 else {s}
+            return {s[i : i + 2] for i in range(len(s) - 1)} if len(s) > 1 else {s}
 
         bg1 = bigrams(t1)
         bg2 = bigrams(t2)
@@ -377,10 +390,10 @@ class AgentSplitter:
         return 1.0 - similarity
 
     def _partition_specializations(
-        self, specializations: dict[str, float]
+        self,
+        specializations: dict[str, float],
     ) -> dict[tuple[str, ...], dict[str, float]]:
-        """
-        Partition specializations into clusters.
+        """Partition specializations into clusters.
 
         Groups task types into distinct clusters based on similarity.
         Each cluster represents a focused domain of expertise.
@@ -395,6 +408,7 @@ class AgentSplitter:
         Space Complexity: O(k) for clusters
 
         Validates: Requirement 4.3
+
         """
         if len(specializations) < 2:
             return {tuple(specializations.keys()): specializations}
@@ -431,7 +445,11 @@ class AgentSplitter:
                     continue
 
                 # Check similarity with cluster members
-                avg_similarity = float(np.mean([similarity_matrix[member_idx][j] for member_idx in clusters[cluster_id]]))
+                avg_similarity = float(
+                    np.mean(
+                        [similarity_matrix[member_idx][j] for member_idx in clusters[cluster_id]],
+                    ),
+                )
 
                 if avg_similarity > 0.5:  # Similarity threshold
                     clusters[cluster_id].append(j)
@@ -443,10 +461,7 @@ class AgentSplitter:
         result = {}
         for cluster_indices in clusters.values():
             cluster_types = tuple(task_types[i] for i in cluster_indices)
-            cluster_specs = {
-                task_types[i]: specializations[task_types[i]]
-                for i in cluster_indices
-            }
+            cluster_specs = {task_types[i]: specializations[task_types[i]] for i in cluster_indices}
             result[cluster_types] = cluster_specs
 
         return result
@@ -456,8 +471,7 @@ class AgentSplitter:
         history: list["PerformanceRecord"],
         clusters: dict[tuple[str, ...], dict[str, float]],
     ) -> dict[tuple[str, ...], list["PerformanceRecord"]]:
-        """
-        Partition performance history by task type clusters.
+        """Partition performance history by task type clusters.
 
         Assigns each performance record to the cluster containing its task type.
 
@@ -477,14 +491,15 @@ class AgentSplitter:
             >>> partitions = splitter._partition_history(history, clusters)
 
         Validates: Requirement 4.2
+
         """
-        partitions: dict[tuple[str, ...], list["PerformanceRecord"]] = {
-            cluster_types: [] for cluster_types in clusters.keys()
+        partitions: dict[tuple[str, ...], list[PerformanceRecord]] = {
+            cluster_types: [] for cluster_types in clusters
         }
 
         for record in history:
             # Find which cluster this task type belongs to
-            for cluster_types in clusters.keys():
+            for cluster_types in clusters:
                 if record.task_type in cluster_types:
                     partitions[cluster_types].append(record)
                     break

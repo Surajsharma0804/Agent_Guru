@@ -1,5 +1,4 @@
-"""
-Visual Question Answering Engine for the Agent Guru Vision System.
+"""Visual Question Answering Engine for the Agent Guru Vision System.
 
 Routes VQA requests to:
 - Desktop: LLaVA-1.6 / InternVL2 quantized (4-bit GGUF) via llama.cpp
@@ -18,23 +17,39 @@ from __future__ import annotations
 
 import base64
 import os
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
 import structlog
 
 from Agent_Guru.vision.vision_models import VisionEvent, VQAResult
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import numpy as np
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
 _NOT_VISIBLE_PHRASE = "I cannot determine that from the image"
 
 # Keywords that indicate the question is about text in the image
-_TEXT_QUESTION_KEYWORDS = frozenset([
-    "text", "read", "written", "says", "write", "label", "sign",
-    "caption", "word", "letter", "number", "digit", "printed",
-])
+_TEXT_QUESTION_KEYWORDS = frozenset(
+    [
+        "text",
+        "read",
+        "written",
+        "says",
+        "write",
+        "label",
+        "sign",
+        "caption",
+        "word",
+        "letter",
+        "number",
+        "digit",
+        "printed",
+    ],
+)
 
 _SYSTEM_PROMPT = (
     "You are a precise visual question answering assistant. "
@@ -55,6 +70,7 @@ def _encode_image_base64(image: np.ndarray) -> str:
     """Encode a numpy RGB image as a base64 JPEG string."""
     try:
         import cv2  # type: ignore[import]
+
         _, buf = cv2.imencode(".jpg", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
         return base64.b64encode(buf.tobytes()).decode("utf-8")
     except ImportError:
@@ -71,6 +87,7 @@ class VQAEngine:
         _infer_fn: Optional callable for testing; replaces all VLM inference.
             Signature: ``(image: np.ndarray, prompt: str) -> str``
             Returns the raw answer string.
+
     """
 
     def __init__(
@@ -145,7 +162,10 @@ class VQAEngine:
                 {
                     "role": "user",
                     "content": [
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"},
+                        },
                         {"type": "text", "text": prompt},
                     ],
                 },
@@ -153,7 +173,7 @@ class VQAEngine:
             response = llm.create_chat_completion(messages=messages, max_tokens=256)
             return response["choices"][0]["message"]["content"].strip()
         except Exception as exc:
-            logger.warning("VQAEngine: local LLM failed", error=str(exc))
+            logger.exception("VQAEngine: local LLM failed", error=str(exc))
             return _NOT_VISIBLE_PHRASE
 
     def _call_cloud_vlm(self, image: np.ndarray, prompt: str) -> str:
@@ -162,11 +182,10 @@ class VQAEngine:
 
         if self._cloud_provider == "openai":
             return self._call_openai(img_b64, prompt)
-        elif self._cloud_provider == "gemini":
+        if self._cloud_provider == "gemini":
             return self._call_gemini(image, prompt)
-        else:
-            logger.warning("VQAEngine: unknown cloud provider", provider=self._cloud_provider)
-            return _NOT_VISIBLE_PHRASE
+        logger.warning("VQAEngine: unknown cloud provider", provider=self._cloud_provider)
+        return _NOT_VISIBLE_PHRASE
 
     def _call_openai(self, img_b64: str, prompt: str) -> str:
         """Call OpenAI GPT-4V."""
@@ -193,7 +212,7 @@ class VQAEngine:
             )
             return response.choices[0].message.content.strip()
         except Exception as exc:
-            logger.warning("VQAEngine: OpenAI call failed", error=str(exc))
+            logger.exception("VQAEngine: OpenAI call failed", error=str(exc))
             return _NOT_VISIBLE_PHRASE
 
     def _call_gemini(self, image: np.ndarray, prompt: str) -> str:
@@ -207,7 +226,7 @@ class VQAEngine:
             response = model.generate_content([_SYSTEM_PROMPT + "\n\n" + prompt, pil_img])
             return response.text.strip()
         except Exception as exc:
-            logger.warning("VQAEngine: Gemini call failed", error=str(exc))
+            logger.exception("VQAEngine: Gemini call failed", error=str(exc))
             return _NOT_VISIBLE_PHRASE
 
     # ------------------------------------------------------------------
@@ -223,6 +242,7 @@ class VQAEngine:
 
         Returns:
             VQAResult with answer, confidence, and metadata flags.
+
         """
         grounded_in_ocr = False
         ocr_text: str | None = None

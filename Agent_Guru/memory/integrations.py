@@ -11,12 +11,9 @@ Properties validated:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any
-from uuid import UUID
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
-from Agent_Guru.memory.experience_repository import ExperienceRepository
-from Agent_Guru.memory.knowledge_graph import KnowledgeGraph
 from Agent_Guru.memory.models import (
     CausalLink,
     Entity,
@@ -25,7 +22,13 @@ from Agent_Guru.memory.models import (
     Preference,
     TimeRange,
 )
-from Agent_Guru.memory.preference_engine import PreferenceLearningEngine
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from Agent_Guru.memory.experience_repository import ExperienceRepository
+    from Agent_Guru.memory.knowledge_graph import KnowledgeGraph
+    from Agent_Guru.memory.preference_engine import PreferenceLearningEngine
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +124,7 @@ class GoalManagerIntegration:
 
         # Get all entities from knowledge graph
         from Agent_Guru.memory.models import SemanticQuery
+
         kg_result = await self._kg.query_semantic(SemanticQuery(max_depth=2))
         knowledge = kg_result.entities
 
@@ -143,7 +147,7 @@ class GoalManagerIntegration:
 
     def store_goal_outcome(self, goal_id: UUID, outcome: dict[str, Any]) -> None:
         """Store the outcome of a completed goal."""
-        self._goal_outcomes[goal_id] = {**outcome, "stored_at": datetime.now(tz=timezone.utc).isoformat()}
+        self._goal_outcomes[goal_id] = {**outcome, "stored_at": datetime.now(tz=UTC).isoformat()}
         logger.debug("Stored goal outcome for %s", goal_id)
 
     def identify_knowledge_gaps(self, goal_task_type: str) -> list[str]:
@@ -176,10 +180,7 @@ class SelfImprovementIntegration:
         """Aggregate success rates and failure patterns across task types."""
         all_exps = list(self._experiences._experiences.values())
         if time_range:
-            all_exps = [
-                e for e in all_exps
-                if time_range.start <= e.start_time <= time_range.end
-            ]
+            all_exps = [e for e in all_exps if time_range.start <= e.start_time <= time_range.end]
 
         # Group by task type
         by_type: dict[str, list[Experience]] = {}
@@ -212,12 +213,10 @@ class SelfImprovementIntegration:
             if rate < avg
         ]
 
-    def store_improvement_outcome(
-        self, improvement_id: UUID, outcome: dict[str, Any]
-    ) -> None:
+    def store_improvement_outcome(self, improvement_id: UUID, outcome: dict[str, Any]) -> None:
         self._improvement_outcomes[improvement_id] = {
             **outcome,
-            "stored_at": datetime.now(tz=timezone.utc).isoformat(),
+            "stored_at": datetime.now(tz=UTC).isoformat(),
         }
 
 
@@ -235,7 +234,9 @@ class ModelRouterIntegration:
         self._model_performance: dict[str, list[dict[str, Any]]] = {}
 
     def provide_task_classification_context(
-        self, task_type: str, max_similar: int = 5
+        self,
+        task_type: str,
+        max_similar: int = 5,
     ) -> ClassificationContext:
         """Return similar past tasks and model performance history."""
         reference = Experience(task_type=task_type)
@@ -261,12 +262,14 @@ class ModelRouterIntegration:
             task_characteristics={"task_type": task_type, "sample_count": len(similar)},
         )
 
-    def store_model_performance(
-        self, task_id: UUID, model: str, performance: float
-    ) -> None:
+    def store_model_performance(self, task_id: UUID, model: str, performance: float) -> None:
         """Record how well a model performed on a task."""
         if model not in self._model_performance:
             self._model_performance[model] = []
         self._model_performance[model].append(
-            {"task_id": str(task_id), "performance": performance, "timestamp": datetime.now(tz=timezone.utc).isoformat()}
+            {
+                "task_id": str(task_id),
+                "performance": performance,
+                "timestamp": datetime.now(tz=UTC).isoformat(),
+            },
         )

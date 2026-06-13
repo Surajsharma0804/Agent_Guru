@@ -1,6 +1,4 @@
-"""
-Weather tool for querying weather information.
-"""
+"""Weather tool for querying weather information."""
 
 from typing import Any
 
@@ -49,6 +47,7 @@ class WeatherTool(Tool):
 
         Returns:
             Execution result with weather data
+
         """
         location = kwargs["location"]
         units = kwargs.get("units", "celsius")

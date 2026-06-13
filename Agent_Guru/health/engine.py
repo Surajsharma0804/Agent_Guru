@@ -16,8 +16,8 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "BiometricSnapshot",
     "BehavioralInsight",
+    "BiometricSnapshot",
     "HealthAlert",
     "HealthEngine",
     "MedicationLog",
@@ -276,7 +276,7 @@ class HealthEngine:
                         description="Sleep duration has declined over the past week.",
                         days_observed=len(sleep_values),
                         severity="moderate",
-                    )
+                    ),
                 )
 
         # Activity decline
@@ -293,7 +293,7 @@ class HealthEngine:
                         description="Daily step count has significantly decreased.",
                         days_observed=len(step_values),
                         severity="low",
-                    )
+                    ),
                 )
 
         # Elevated resting HR
@@ -305,7 +305,7 @@ class HealthEngine:
                     description="Average resting heart rate elevated over past week.",
                     days_observed=len(hr_values),
                     severity="moderate",
-                )
+                ),
             )
 
         return insights
@@ -333,7 +333,9 @@ class HealthEngine:
 
     def get_adherence_rate(self, medication_name: str) -> float:
         """Calculate medication adherence rate (0.0-1.0)."""
-        logs = [entry for entry in self._medication_logs if entry.medication_name == medication_name]
+        logs = [
+            entry for entry in self._medication_logs if entry.medication_name == medication_name
+        ]
         if not logs:
             return 0.0
         taken = sum(1 for entry in logs if entry.taken)
@@ -350,7 +352,7 @@ class HealthEngine:
             "details": details,
             "timestamp": time.time(),
             "hash": hashlib.sha256(
-                json.dumps({"action": action, "ts": time.time()}).encode()
+                json.dumps({"action": action, "ts": time.time()}).encode(),
             ).hexdigest()[:16],
         }
         self._audit_log.append(entry)

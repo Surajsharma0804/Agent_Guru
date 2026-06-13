@@ -1,5 +1,4 @@
-"""
-Latency monitoring and alerting system.
+"""Latency monitoring and alerting system.
 
 Provides real-time monitoring and alerting for latency violations:
 - P50/P95/P99 percentile tracking
@@ -8,12 +7,13 @@ Provides real-time monitoring and alerting for latency violations:
 - Automatic alerting on threshold violations
 """
 
+import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.latency.tracker import (
     LATENCY_BUDGETS,
@@ -21,6 +21,8 @@ from Agent_Guru.reasoning.latency.tracker import (
     LatencyTracker,
     PipelineStage,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AlertSeverity(str, Enum):
@@ -59,14 +61,15 @@ class LatencyMonitor:
         self,
         tracker: LatencyTracker,
         degraded_manager: DegradedModeManager,
-        alert_callback: Optional[Callable[[Alert], None]] = None,
-    ):
+        alert_callback: Callable[[Alert], None] | None = None,
+    ) -> None:
         """Initialize latency monitor.
 
         Args:
             tracker: Latency tracker instance
             degraded_manager: Degraded mode manager instance
             alert_callback: Optional callback for alerts
+
         """
         self.tracker = tracker
         self.degraded_manager = degraded_manager
@@ -79,6 +82,7 @@ class LatencyMonitor:
 
         Returns:
             List of alerts for violations
+
         """
         alerts = []
 
@@ -97,7 +101,7 @@ class LatencyMonitor:
                     severity=AlertSeverity.CRITICAL,
                     stage=stage,
                     message=f"P95 latency {stats.p95:.1f}ms exceeds 2x target {target * 2:.1f}ms",
-                    timestamp=datetime.now(tz=timezone.utc),
+                    timestamp=datetime.now(tz=UTC),
                     metrics={
                         "p95": stats.p95,
                         "target": target,
@@ -115,6 +119,7 @@ class LatencyMonitor:
 
         Returns:
             List of alerts for high timeout rates
+
         """
         alerts = []
 
@@ -130,7 +135,7 @@ class LatencyMonitor:
                     severity=AlertSeverity.WARNING,
                     stage=stage,
                     message=f"Timeout rate {stats.timeout_rate * 100:.1f}% exceeds 5% threshold",
-                    timestamp=datetime.now(tz=timezone.utc),
+                    timestamp=datetime.now(tz=UTC),
                     metrics={
                         "timeout_rate": stats.timeout_rate,
                         "timeout_count": stats.timeout_count,
@@ -148,6 +153,7 @@ class LatencyMonitor:
 
         Returns:
             List of alerts for high degraded mode frequency
+
         """
         alerts = []
 
@@ -163,7 +169,7 @@ class LatencyMonitor:
                     severity=AlertSeverity.WARNING,
                     stage=stage,
                     message=f"Degraded mode rate {stats.degraded_rate * 100:.1f}% exceeds 10% threshold",
-                    timestamp=datetime.now(tz=timezone.utc),
+                    timestamp=datetime.now(tz=UTC),
                     metrics={
                         "degraded_rate": stats.degraded_rate,
                         "degraded_count": stats.degraded_count,
@@ -181,6 +187,7 @@ class LatencyMonitor:
 
         Returns:
             List of all alerts
+
         """
         alerts = []
         alerts.extend(self.check_latency_budgets())
@@ -195,9 +202,10 @@ class LatencyMonitor:
 
         Returns:
             Summary dictionary
+
         """
         summary: dict[str, Any] = {
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "stages": {},
             "alerts": len(self._alerts),
             "degraded_stages": self.degraded_manager.get_degraded_stages(),
@@ -246,6 +254,7 @@ class LatencyMonitor:
 
         Args:
             alert: Alert to fire
+
         """
         self._alerts.append(alert)
 
@@ -269,6 +278,7 @@ class LatencyMonitor:
 
         Returns:
             List of recent alerts
+
         """
         return self._alerts[-limit:]
 
@@ -278,13 +288,13 @@ class LatencyMonitor:
 
 
 # Global monitor instance
-_global_monitor: Optional[LatencyMonitor] = None
+_global_monitor: LatencyMonitor | None = None
 
 
 def get_latency_monitor(
-    tracker: Optional[LatencyTracker] = None,
-    degraded_manager: Optional[DegradedModeManager] = None,
-    alert_callback: Optional[Callable[[Alert], None]] = None,
+    tracker: LatencyTracker | None = None,
+    degraded_manager: DegradedModeManager | None = None,
+    alert_callback: Callable[[Alert], None] | None = None,
 ) -> LatencyMonitor:
     """Get the global latency monitor instance.
 
@@ -295,6 +305,7 @@ def get_latency_monitor(
 
     Returns:
         Global LatencyMonitor instance
+
     """
     global _global_monitor
 

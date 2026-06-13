@@ -1,5 +1,4 @@
-"""
-FastAPI application for the reasoning engine.
+"""FastAPI application for the reasoning engine.
 
 This module implements the REST API with comprehensive endpoints for
 processing requests, managing conversations, and tracking async tasks.
@@ -30,8 +29,8 @@ Version: 1.0.0
 """
 
 import time
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
+from typing import Annotated
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, status
@@ -80,14 +79,14 @@ processing_duration = Histogram(
 )
 
 # Global app instance
-_app: Optional[FastAPI] = None
+_app: FastAPI | None = None
 
 
 def create_app(
     title: str = "Agent Guru Reasoning Engine API",
     version: str = "1.0.0",
-    reasoning_engine: Optional[ReasoningEngine] = None,
-    conversation_manager: Optional[ConversationStateManager] = None,
+    reasoning_engine: ReasoningEngine | None = None,
+    conversation_manager: ConversationStateManager | None = None,
 ) -> FastAPI:
     """Create FastAPI application.
 
@@ -103,6 +102,7 @@ def create_app(
     Example:
         >>> app = create_app()
         >>> # Run with: uvicorn app:app --host 0.0.0.0 --port 8000
+
     """
     app = FastAPI(
         title=title,
@@ -135,6 +135,7 @@ def create_app(
 
         Returns:
             Health status
+
         """
         return {"status": "healthy", "version": version}
 
@@ -145,6 +146,7 @@ def create_app(
 
         Returns:
             Prometheus metrics in text format
+
         """
         return Response(
             content=generate_latest(),
@@ -154,7 +156,6 @@ def create_app(
     # Process endpoint
     @app.post(
         "/v1/process",
-        response_model=ProcessResponse,
         responses={
             200: {"description": "Request processed successfully"},
             400: {"model": ErrorResponse, "description": "Invalid request"},
@@ -166,7 +167,7 @@ def create_app(
     )
     async def process_request(
         request: ProcessRequest,
-        user_id: str = Depends(get_current_user),
+        user_id: Annotated[str, Depends(get_current_user)],
     ) -> ProcessResponse:
         """Process user input through the reasoning pipeline.
 
@@ -198,6 +199,7 @@ def create_app(
             )
             print(response.json())
             ```
+
         """
         start_time = time.perf_counter()
 
@@ -214,7 +216,7 @@ def create_app(
                 content=request.text,
                 source=InputSource(request.source),
                 user_id=request.user_id,
-                timestamp=datetime.now(tz=timezone.utc),
+                timestamp=datetime.now(tz=UTC),
                 metadata=request.metadata,
             )
 
@@ -261,32 +263,28 @@ def create_app(
 
         except HTTPException as e:
             raise
-        except Exception as e:
             # Track error
             request_counter.labels(
                 endpoint="/v1/process",
                 method="POST",
                 status="error",
             ).inc()
-
             # Log error
-            logger.error(
+            logger.exception(
                 "api_request_failed",
                 endpoint="/v1/process",
                 user_id=user_id,
                 error=str(e),
                 exc_info=True,
             )
-
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Processing failed: {str(e)}",
+                detail=f"Processing failed: {e!s}",
             ) from e
 
     # Conversations endpoint
     @app.get(
         "/v1/conversations/{conversation_id}",
-        response_model=ConversationResponse,
         responses={
             200: {"description": "Conversation retrieved successfully"},
             401: {"model": ErrorResponse, "description": "Unauthorized"},
@@ -296,7 +294,7 @@ def create_app(
     )
     async def get_conversation(
         conversation_id: str,
-        user_id: str = Depends(get_current_user),
+        user_id: Annotated[str, Depends(get_current_user)],
     ) -> ConversationResponse:
         """Get conversation state.
 
@@ -309,6 +307,7 @@ def create_app(
 
         Raises:
             HTTPException: If conversation not found
+
         """
         try:
             # Get conversation state
@@ -355,8 +354,7 @@ def create_app(
 
         except HTTPException as e:
             raise
-        except Exception as e:
-            logger.error(
+            logger.exception(
                 "get_conversation_failed",
                 conversation_id=conversation_id,
                 user_id=user_id,
@@ -365,13 +363,12 @@ def create_app(
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to retrieve conversation: {str(e)}",
+                detail=f"Failed to retrieve conversation: {e!s}",
             ) from e
 
     # List conversations endpoint
     @app.get(
         "/v1/conversations",
-        response_model=list[ConversationResponse],
         responses={
             200: {"description": "Conversations retrieved successfully"},
             401: {"model": ErrorResponse, "description": "Unauthorized"},
@@ -379,7 +376,7 @@ def create_app(
         tags=["Conversations"],
     )
     async def list_conversations(
-        user_id: str = Depends(get_current_user),
+        user_id: Annotated[str, Depends(get_current_user)],
         limit: int = 10,
     ) -> list[ConversationResponse]:
         """List user's conversations.
@@ -390,6 +387,7 @@ def create_app(
 
         Returns:
             List of conversations
+
         """
         try:
             # Get all conversations for user
@@ -413,7 +411,7 @@ def create_app(
             ]
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "list_conversations_failed",
                 user_id=user_id,
                 error=str(e),
@@ -421,13 +419,12 @@ def create_app(
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to list conversations: {str(e)}",
+                detail=f"Failed to list conversations: {e!s}",
             ) from e
 
     # Tasks endpoint
     @app.get(
         "/v1/tasks/{task_id}",
-        response_model=TaskStatusResponse,
         responses={
             200: {"description": "Task status retrieved successfully"},
             401: {"model": ErrorResponse, "description": "Unauthorized"},
@@ -437,7 +434,7 @@ def create_app(
     )
     async def get_task_status(
         task_id: str,
-        user_id: str = Depends(get_current_user),
+        user_id: Annotated[str, Depends(get_current_user)],
     ) -> TaskStatusResponse:
         """Get async task status.
 
@@ -450,6 +447,7 @@ def create_app(
 
         Raises:
             HTTPException: If task not found
+
         """
         try:
             # Get task info
@@ -481,8 +479,7 @@ def create_app(
 
         except HTTPException as e:
             raise
-        except Exception as e:
-            logger.error(
+            logger.exception(
                 "get_task_status_failed",
                 task_id=task_id,
                 user_id=user_id,
@@ -491,7 +488,7 @@ def create_app(
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to retrieve task status: {str(e)}",
+                detail=f"Failed to retrieve task status: {e!s}",
             ) from e
 
     # Statistics endpoint
@@ -504,7 +501,7 @@ def create_app(
         tags=["Monitoring"],
     )
     async def get_statistics(
-        user_id: str = Depends(get_current_user),
+        user_id: Annotated[str, Depends(get_current_user)],
     ) -> dict:
         """Get engine statistics.
 
@@ -513,12 +510,12 @@ def create_app(
 
         Returns:
             Engine statistics
+
         """
         try:
-            stats = app.state.reasoning_engine.get_statistics()
-            return stats
+            return app.state.reasoning_engine.get_statistics()
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "get_statistics_failed",
                 user_id=user_id,
                 error=str(e),
@@ -526,7 +523,7 @@ def create_app(
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to retrieve statistics: {str(e)}",
+                detail=f"Failed to retrieve statistics: {e!s}",
             ) from e
 
     # WebSocket endpoint
@@ -534,7 +531,7 @@ def create_app(
     async def websocket_route(
         websocket: WebSocket,
         user_id: str,
-        conversation_id: Optional[str] = None,
+        conversation_id: str | None = None,
     ) -> None:
         """WebSocket endpoint for real-time updates.
 
@@ -590,6 +587,7 @@ def create_app(
                 }
             };
             ```
+
         """
         await websocket_endpoint(websocket, user_id, conversation_id)
 
@@ -601,6 +599,7 @@ def get_app() -> FastAPI:
 
     Returns:
         FastAPI application
+
     """
     global _app
     if _app is None:

@@ -16,13 +16,15 @@ from __future__ import annotations
 
 import logging
 import platform
-from typing import Optional
-
-import numpy as np
+from typing import TYPE_CHECKING
 
 from Agent_Guru.security.biometric_auth import BiometricAuthenticator
-from Agent_Guru.security.models import AuthenticationResult
 from Agent_Guru.security.security_system import GuruSecuritySystem, SecurityConfig
+
+if TYPE_CHECKING:
+    import numpy as np
+
+    from Agent_Guru.security.models import AuthenticationResult
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,7 @@ class AuthManager:
     Performance:
         - Authentication latency: <3s (95th percentile)
         - False accept rate: <0.1%
+
     """
 
     def __init__(
@@ -53,14 +56,14 @@ class AuthManager:
         face_threshold: float = 0.75,
         voice_threshold: float = 0.85,
         liveness_threshold: float = 0.5,
-        security_config: Optional[SecurityConfig] = None,
+        security_config: SecurityConfig | None = None,
     ) -> None:
         self._face_threshold = face_threshold
         self._voice_threshold = voice_threshold
         self._liveness_threshold = liveness_threshold
         self._security_config = security_config or SecurityConfig()
-        self._biometric: Optional[BiometricAuthenticator] = None
-        self._security: Optional[GuruSecuritySystem] = None
+        self._biometric: BiometricAuthenticator | None = None
+        self._security: GuruSecuritySystem | None = None
         self._initialized = False
 
     def initialize(self) -> None:
@@ -82,8 +85,8 @@ class AuthManager:
     def enroll(
         self,
         user_id: str,
-        face_image: Optional[bytes] = None,
-        voice_audio: Optional[np.ndarray] = None,
+        face_image: bytes | None = None,
+        voice_audio: np.ndarray | None = None,
     ) -> None:
         """Enroll a user's biometric templates.
 
@@ -95,10 +98,12 @@ class AuthManager:
         Raises:
             ValueError: If no modality provided or liveness check fails.
             RuntimeError: If not initialized.
+
         """
         self._ensure_initialized()
         if face_image is None and voice_audio is None:
-            raise ValueError("At least one biometric modality must be provided for enrollment")
+            msg = "At least one biometric modality must be provided for enrollment"
+            raise ValueError(msg)
 
         if face_image is not None:
             self._biometric.enroll_face(user_id, face_image)  # type: ignore[union-attr]
@@ -115,8 +120,8 @@ class AuthManager:
     def authenticate(
         self,
         user_id: str,
-        face_image: Optional[bytes] = None,
-        voice_audio: Optional[np.ndarray] = None,
+        face_image: bytes | None = None,
+        voice_audio: np.ndarray | None = None,
     ) -> AuthenticationResult:
         """Authenticate a user using available biometric modalities.
 
@@ -134,11 +139,13 @@ class AuthManager:
         Raises:
             ValueError: If no modality provided.
             RuntimeError: If not initialized.
+
         """
         self._ensure_initialized()
 
         if face_image is None and voice_audio is None:
-            raise ValueError("At least one biometric modality must be provided")
+            msg = "At least one biometric modality must be provided"
+            raise ValueError(msg)
 
         # Multi-factor when both modalities available
         if face_image is not None and voice_audio is not None:
@@ -184,4 +191,5 @@ class AuthManager:
 
     def _ensure_initialized(self) -> None:
         if not self._initialized:
-            raise RuntimeError("AuthManager not initialized. Call initialize() first.")
+            msg = "AuthManager not initialized. Call initialize() first."
+            raise RuntimeError(msg)

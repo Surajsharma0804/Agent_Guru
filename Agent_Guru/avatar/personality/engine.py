@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.avatar.personality.engine
+"""Module: Agent_Guru.avatar.personality.engine
 Purpose: Apply personality traits to avatar emotion expression and behavior.
 
 Requirements: Req 3 (Dual Personality Engine)
@@ -11,7 +10,7 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -29,24 +28,32 @@ logger = logging.getLogger("guruvision.avatar.personality")
 _DEFAULT_PROFILES: dict[str, dict[str, Any]] = {
     "guru": {
         "name": "guru",
-        "friendliness": 0.7, "formality": 0.8, "expressiveness": 0.6,
-        "responsiveness": 0.75, "humor": 0.4, "empathy": 0.65,
+        "friendliness": 0.7,
+        "formality": 0.8,
+        "expressiveness": 0.6,
+        "responsiveness": 0.75,
+        "humor": 0.4,
+        "empathy": 0.65,
         "behavior_rules": [
-            {"trigger": "user_emotion:sadness",   "response": "neutral",  "intensity": 0.6},
-            {"trigger": "user_emotion:joy",       "response": "joy",      "intensity": 0.7},
-            {"trigger": "user_emotion:happy",     "response": "joy",      "intensity": 0.7},
-            {"trigger": "greeting",               "response": "joy",      "intensity": 0.6},
+            {"trigger": "user_emotion:sadness", "response": "neutral", "intensity": 0.6},
+            {"trigger": "user_emotion:joy", "response": "joy", "intensity": 0.7},
+            {"trigger": "user_emotion:happy", "response": "joy", "intensity": 0.7},
+            {"trigger": "greeting", "response": "joy", "intensity": 0.6},
         ],
     },
     "maya": {
         "name": "maya",
-        "friendliness": 0.95, "formality": 0.3, "expressiveness": 0.9,
-        "responsiveness": 0.9, "humor": 0.75, "empathy": 0.95,
+        "friendliness": 0.95,
+        "formality": 0.3,
+        "expressiveness": 0.9,
+        "responsiveness": 0.9,
+        "humor": 0.75,
+        "empathy": 0.95,
         "behavior_rules": [
-            {"trigger": "user_emotion:sadness",   "response": "sadness",  "intensity": 0.7},
-            {"trigger": "user_emotion:joy",       "response": "joy",      "intensity": 0.95},
-            {"trigger": "user_emotion:happy",     "response": "joy",      "intensity": 0.95},
-            {"trigger": "greeting",               "response": "joy",      "intensity": 0.9},
+            {"trigger": "user_emotion:sadness", "response": "sadness", "intensity": 0.7},
+            {"trigger": "user_emotion:joy", "response": "joy", "intensity": 0.95},
+            {"trigger": "user_emotion:happy", "response": "joy", "intensity": 0.95},
+            {"trigger": "greeting", "response": "joy", "intensity": 0.9},
         ],
     },
 }
@@ -59,9 +66,10 @@ class PersonalityEngine:
         profile_path: Optional path to a JSON personality config file.
             When None, the built-in default for the requested personality
             is used.
+
     """
 
-    def __init__(self, profile_path: Optional[str] = None) -> None:
+    def __init__(self, profile_path: str | None = None) -> None:
         self._profile_path = profile_path
         self._profiles: dict[str, PersonalityProfile] = {}
         self._behavior_rules: dict[str, list[dict[str, Any]]] = {}
@@ -85,11 +93,17 @@ class PersonalityEngine:
         Raises:
             FileNotFoundError: If the file does not exist.
             ValueError: If required traits are missing or out of range.
+
         """
         from Agent_Guru.utils.path_utils import safe_path as _safe_path
-        resolved = _safe_path(Path(profile_path).resolve().parent, Path(profile_path).resolve().name)
+
+        resolved = _safe_path(
+            Path(profile_path).resolve().parent,
+            Path(profile_path).resolve().name,
+        )
         if not resolved.exists():
-            raise FileNotFoundError(f"Personality profile not found: {profile_path}")
+            msg = f"Personality profile not found: {profile_path}"
+            raise FileNotFoundError(msg)
 
         with resolved.open() as fh:
             data = json.load(fh)
@@ -113,7 +127,9 @@ class PersonalityEngine:
     # ------------------------------------------------------------------
 
     def modulate_emotion(
-        self, emotion: EmotionState, personality: PersonalityProfile
+        self,
+        emotion: EmotionState,
+        personality: PersonalityProfile,
     ) -> EmotionState:
         """Apply personality traits to emotion intensity.
 
@@ -126,6 +142,7 @@ class PersonalityEngine:
 
         Returns:
             Modulated :class:`EmotionState` with adjusted confidence.
+
         """
         intensity = emotion.confidence
         # Expressiveness scales intensity
@@ -141,7 +158,9 @@ class PersonalityEngine:
         )
 
     def generate_response_emotion(
-        self, user_emotion: EmotionState, personality: PersonalityProfile
+        self,
+        user_emotion: EmotionState,
+        personality: PersonalityProfile,
     ) -> EmotionState:
         """Generate an avatar emotional response to the user's emotion.
 
@@ -154,6 +173,7 @@ class PersonalityEngine:
 
         Returns:
             Avatar response :class:`EmotionState`.
+
         """
         rules = self._behavior_rules.get(personality.name, [])
         trigger_key = f"user_emotion:{user_emotion.emotion}"
@@ -165,7 +185,9 @@ class PersonalityEngine:
                 # Scale by responsiveness
                 intensity = base_intensity * personality.responsiveness
                 return EmotionState(
-                    emotion=response_emotion if response_emotion in EMOTION_CATEGORIES else "neutral",
+                    emotion=response_emotion
+                    if response_emotion in EMOTION_CATEGORIES
+                    else "neutral",
                     confidence=float(np.clip(intensity, 0.0, 1.0)),
                     timestamp=time.time(),
                 )
@@ -174,7 +196,9 @@ class PersonalityEngine:
         if user_emotion.emotion in ("joy", "happy", "amusement", "excitement", "triumph"):
             return EmotionState(
                 emotion="joy",
-                confidence=float(np.clip(user_emotion.confidence * personality.friendliness, 0.0, 1.0)),
+                confidence=float(
+                    np.clip(user_emotion.confidence * personality.friendliness, 0.0, 1.0),
+                ),
                 timestamp=time.time(),
             )
         return EmotionState(emotion="neutral", confidence=0.8, timestamp=time.time())
@@ -187,6 +211,7 @@ class PersonalityEngine:
 
         Returns:
             Updated :class:`AvatarState` with behavior-adjusted emotion.
+
         """
         modulated = self.modulate_emotion(state.emotion, state.personality)
         return AvatarState(
@@ -208,10 +233,14 @@ class PersonalityEngine:
                 self._profiles[name] = profile
                 self._behavior_rules[name] = data.get("behavior_rules", [])
             except ValueError as exc:
-                logger.error("Failed to load default profile '%s': %s", name, exc)
+                logger.exception("Failed to load default profile '%s': %s", name, exc)
 
     def _load_from_file(self, profile_path: str) -> None:
         try:
             self.load_profile(profile_path)
         except (FileNotFoundError, ValueError, json.JSONDecodeError) as exc:
-            logger.warning("Could not load profile from '%s': %s — using defaults", profile_path, exc)
+            logger.exception(
+                "Could not load profile from '%s': %s — using defaults",
+                profile_path,
+                exc,
+            )

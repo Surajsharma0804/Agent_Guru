@@ -1,5 +1,4 @@
-"""
-Vector database for semantic memory search using ChromaDB.
+"""Vector database for semantic memory search using ChromaDB.
 
 This module provides persistent vector storage with semantic search capabilities
 using ChromaDB. Memories are organized into collections by type (episodic,
@@ -25,7 +24,7 @@ Version: 1.0.0
 
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 import chromadb
@@ -70,6 +69,7 @@ class VectorDatabase:
         ...     user_id="user_123",
         ...     top_k=5
         ... )
+
     """
 
     # Collection names for each memory type
@@ -81,8 +81,11 @@ class VectorDatabase:
     }
 
     def __init__(
-        self, db_path: str = "./memory_db", embedding_dimension: int = 384, in_memory: bool = False
-    ):
+        self,
+        db_path: str = "./memory_db",
+        embedding_dimension: int = 384,
+        in_memory: bool = False,
+    ) -> None:
         """Initialize vector database.
 
         Args:
@@ -92,6 +95,7 @@ class VectorDatabase:
 
         Raises:
             RuntimeError: If database initialization fails
+
         """
         self.db_path = Path(db_path)
         self.embedding_dimension = embedding_dimension
@@ -108,7 +112,7 @@ class VectorDatabase:
             if in_memory:
                 # Use in-memory client for testing (no file locking issues)
                 self.client = chromadb.Client(
-                    settings=Settings(anonymized_telemetry=False, allow_reset=True)
+                    settings=Settings(anonymized_telemetry=False, allow_reset=True),
                 )
                 logger.info("ChromaDB in-memory client initialized successfully")
             else:
@@ -119,8 +123,9 @@ class VectorDatabase:
                 )
                 logger.info("ChromaDB persistent client initialized successfully")
         except Exception as e:
-            logger.error("Failed to initialize ChromaDB client: %s", e)
-            raise RuntimeError(f"Database initialization failed: {e}") from e
+            logger.exception("Failed to initialize ChromaDB client")
+            msg = f"Database initialization failed: {e}"
+            raise RuntimeError(msg) from e
 
         # Initialize collections for each memory type
         self.collections: dict[MemoryType, Any] = {}
@@ -134,6 +139,7 @@ class VectorDatabase:
 
         Raises:
             RuntimeError: If collection initialization fails
+
         """
         for memory_type, collection_name in self.COLLECTION_NAMES.items():
             try:
@@ -154,8 +160,9 @@ class VectorDatabase:
                 logger.info("Initialized collection '%s' with %d memories", collection_name, count)
 
             except Exception as e:
-                logger.error("Failed to initialize collection '%s': %s", collection_name, e)
-                raise RuntimeError(f"Collection initialization failed: {e}") from e
+                logger.exception("Failed to initialize collection '%s': %s", collection_name, e)
+                msg = f"Collection initialization failed: {e}"
+                raise RuntimeError(msg) from e
 
     def store(
         self,
@@ -193,22 +200,25 @@ class VectorDatabase:
             ...     embedding=[0.1, 0.2, ...],
             ...     metadata={"user_id": "user_123"}
             ... )
+
         """
         # Validate embedding dimension
         if len(embedding) != self.embedding_dimension:
+            msg = f"Embedding must be {self.embedding_dimension}-dimensional, got {len(embedding)}"
             raise ValueError(
-                f"Embedding must be {self.embedding_dimension}-dimensional, "
-                f"got {len(embedding)}"
+                msg,
             )
 
         # Validate user_id in metadata
         if "user_id" not in metadata:
-            raise ValueError("metadata must include 'user_id'")
+            msg = "metadata must include 'user_id'"
+            raise ValueError(msg)
 
         # Get collection for this memory type
         collection = self.collections.get(memory_type)
         if collection is None:
-            raise ValueError(f"Invalid memory type: {memory_type}")
+            msg = f"Invalid memory type: {memory_type}"
+            raise ValueError(msg)
 
         # Convert UUID to string for ChromaDB
         memory_id_str = str(memory_id)
@@ -227,8 +237,9 @@ class VectorDatabase:
             return memory_id_str
 
         except Exception as e:
-            logger.error("Failed to store memory: %s", e)
-            raise RuntimeError(f"Memory storage failed: {e}") from e
+            logger.exception("Failed to store memory")
+            msg = f"Memory storage failed: {e}"
+            raise RuntimeError(msg) from e
 
     def search(
         self,
@@ -268,18 +279,23 @@ class VectorDatabase:
             ... )
             >>> for memory_id, content, similarity, metadata in results:
             ...     print(f"{content}: {similarity:.3f}")
+
         """
         # Validate embedding dimension
         if len(query_embedding) != self.embedding_dimension:
-            raise ValueError(
+            msg = (
                 f"Query embedding must be {self.embedding_dimension}-dimensional, "
                 f"got {len(query_embedding)}"
+            )
+            raise ValueError(
+                msg,
             )
 
         # Get collection for this memory type
         collection = self.collections.get(memory_type)
         if collection is None:
-            raise ValueError(f"Invalid memory type: {memory_type}")
+            msg = f"Invalid memory type: {memory_type}"
+            raise ValueError(msg)
 
         try:
             # Search with user_id filter for privacy
@@ -310,18 +326,23 @@ class VectorDatabase:
 
             logger.debug(
                 "Found %d memories for user %s in %s collection",
-                len(formatted_results), user_id, memory_type.value,
+                len(formatted_results),
+                user_id,
+                memory_type.value,
             )
 
             return formatted_results
 
         except Exception as e:
-            logger.error("Failed to search memories: %s", e)
-            raise RuntimeError(f"Memory search failed: {e}") from e
+            logger.exception("Failed to search memories")
+            msg = f"Memory search failed: {e}"
+            raise RuntimeError(msg) from e
 
     def get(
-        self, memory_type: MemoryType, memory_id: UUID
-    ) -> Optional[tuple[str, list[float], dict[str, Any]]]:
+        self,
+        memory_type: MemoryType,
+        memory_id: UUID,
+    ) -> tuple[str, list[float], dict[str, Any]] | None:
         """Retrieve a specific memory by ID.
 
         Time Complexity: O(1) for direct lookup
@@ -345,18 +366,21 @@ class VectorDatabase:
             ... )
             >>> if result:
             ...     content, embedding, metadata = result
+
         """
         # Get collection for this memory type
         collection = self.collections.get(memory_type)
         if collection is None:
-            raise ValueError(f"Invalid memory type: {memory_type}")
+            msg = f"Invalid memory type: {memory_type}"
+            raise ValueError(msg)
 
         memory_id_str = str(memory_id)
 
         try:
             # Get memory by ID
             results = collection.get(
-                ids=[memory_id_str], include=["documents", "embeddings", "metadatas"]
+                ids=[memory_id_str],
+                include=["documents", "embeddings", "metadatas"],
             )
 
             # Check if memory exists
@@ -370,11 +394,15 @@ class VectorDatabase:
             return (content, embedding, metadata)
 
         except Exception as e:
-            logger.error("Failed to retrieve memory: %s", e)
-            raise RuntimeError(f"Memory retrieval failed: {e}") from e
+            logger.exception("Failed to retrieve memory")
+            msg = f"Memory retrieval failed: {e}"
+            raise RuntimeError(msg) from e
 
     def update_metadata(
-        self, memory_type: MemoryType, memory_id: UUID, metadata: dict[str, Any]
+        self,
+        memory_type: MemoryType,
+        memory_id: UUID,
+        metadata: dict[str, Any],
     ) -> None:
         """Update metadata for a memory (e.g., relevance score).
 
@@ -396,11 +424,13 @@ class VectorDatabase:
             ...     memory_id=UUID("..."),
             ...     metadata={"relevance_score": 0.9, "user_id": "user_123"}
             ... )
+
         """
         # Get collection for this memory type
         collection = self.collections.get(memory_type)
         if collection is None:
-            raise ValueError(f"Invalid memory type: {memory_type}")
+            msg = f"Invalid memory type: {memory_type}"
+            raise ValueError(msg)
 
         memory_id_str = str(memory_id)
 
@@ -411,8 +441,9 @@ class VectorDatabase:
             logger.debug("Updated metadata for memory %s", memory_id_str)
 
         except Exception as e:
-            logger.error("Failed to update metadata: %s", e)
-            raise RuntimeError(f"Metadata update failed: {e}") from e
+            logger.exception("Failed to update metadata")
+            msg = f"Metadata update failed: {e}"
+            raise RuntimeError(msg) from e
 
     def delete(self, memory_type: MemoryType, memory_id: UUID) -> None:
         """Delete a memory from the database.
@@ -433,11 +464,13 @@ class VectorDatabase:
             ...     memory_type=MemoryType.EPISODIC,
             ...     memory_id=UUID("...")
             ... )
+
         """
         # Get collection for this memory type
         collection = self.collections.get(memory_type)
         if collection is None:
-            raise ValueError(f"Invalid memory type: {memory_type}")
+            msg = f"Invalid memory type: {memory_type}"
+            raise ValueError(msg)
 
         memory_id_str = str(memory_id)
 
@@ -448,8 +481,9 @@ class VectorDatabase:
             logger.debug("Deleted memory %s", memory_id_str)
 
         except Exception as e:
-            logger.error("Failed to delete memory: %s", e)
-            raise RuntimeError(f"Memory deletion failed: {e}") from e
+            logger.exception("Failed to delete memory")
+            msg = f"Memory deletion failed: {e}"
+            raise RuntimeError(msg) from e
 
     def count(self, memory_type: MemoryType) -> int:
         """Get the number of memories in a collection.
@@ -467,14 +501,16 @@ class VectorDatabase:
             >>> db = VectorDatabase()
             >>> count = db.count(MemoryType.EPISODIC)
             >>> print(f"Episodic memories: {count}")
+
         """
         collection = self.collections.get(memory_type)
         if collection is None:
-            raise ValueError(f"Invalid memory type: {memory_type}")
+            msg = f"Invalid memory type: {memory_type}"
+            raise ValueError(msg)
 
         return collection.count()
 
-    def reset(self, memory_type: Optional[MemoryType] = None) -> None:
+    def reset(self, memory_type: MemoryType | None = None) -> None:
         """Reset database (delete all memories).
 
         WARNING: This is destructive and cannot be undone!
@@ -488,6 +524,7 @@ class VectorDatabase:
             >>> db.reset(MemoryType.EPISODIC)
             >>> # Reset all collections
             >>> db.reset()
+
         """
         if memory_type is None:
             # Reset all collections
@@ -497,7 +534,7 @@ class VectorDatabase:
                     self.client.delete_collection(name=collection_name)
                     logger.info("Deleted collection '%s'", collection_name)
                 except Exception as e:
-                    logger.warning("Failed to delete collection '%s': %s", collection_name, e)
+                    logger.exception("Failed to delete collection '%s': %s", collection_name, e)
 
             # Reinitialize collections
             self._initialize_collections()
@@ -520,5 +557,6 @@ class VectorDatabase:
                 )
                 self.collections[memory_type] = collection
             except Exception as e:
-                logger.error("Failed to reset collection '%s': %s", collection_name, e)
-                raise RuntimeError(f"Collection reset failed: {e}") from e
+                logger.exception("Failed to reset collection '%s': %s", collection_name, e)
+                msg = f"Collection reset failed: {e}"
+                raise RuntimeError(msg) from e

@@ -1,10 +1,11 @@
 """Multi-Modal Input Fusion Engine."""
+
 from __future__ import annotations
 
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,8 @@ LOW_CONFIDENCE_THRESHOLD = 0.4
 @dataclass
 class ModalityInput:
     """Input from a single modality."""
-    modality: str          # "speech", "gesture", "touch", "gaze"
+
+    modality: str  # "speech", "gesture", "touch", "gaze"
     intent: str
     confidence: float
     timestamp_ms: float
@@ -25,6 +27,7 @@ class ModalityInput:
 @dataclass
 class FusedIntent:
     """Result of fusing multiple modality inputs."""
+
     intent: str
     confidence: float
     modalities_used: list[str]
@@ -34,6 +37,7 @@ class FusedIntent:
 
 class ClarificationRequired(Exception):
     """Raised when all modality confidences are below threshold."""
+
     def __init__(self, inputs: list[ModalityInput]) -> None:
         self.inputs = inputs
         super().__init__("All modality confidences below threshold; clarification required")
@@ -52,7 +56,8 @@ class FusionEngine:
         Raises ClarificationRequired if all confidences < 0.4.
         """
         if not inputs:
-            raise ValueError("No inputs provided")
+            msg = "No inputs provided"
+            raise ValueError(msg)
 
         now_ms = time.time() * 1000
         # Filter to window
@@ -86,7 +91,7 @@ class FusionEngine:
         self._log_fusion(fused, windowed)
         return fused
 
-    def resolve_deictic(self, reference: str, context: dict[str, Any]) -> Optional[str]:
+    def resolve_deictic(self, reference: str, context: dict[str, Any]) -> str | None:
         """Resolve deictic references like 'this'/'that' using context."""
         # Stub: in production uses CLIP embeddings
         if reference in ("this", "that", "it"):
@@ -96,5 +101,7 @@ class FusionEngine:
     def _log_fusion(self, fused: FusedIntent, inputs: list[ModalityInput]) -> None:
         logger.debug(
             "Fused intent=%s confidence=%.2f modalities=%s",
-            fused.intent, fused.confidence, fused.modalities_used,
+            fused.intent,
+            fused.confidence,
+            fused.modalities_used,
         )

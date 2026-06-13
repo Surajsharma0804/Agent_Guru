@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.platform.permissions.model_manager
-Purpose: Permission model manager with YAML configuration and hot reload
+"""Module: Agent_Guru.platform.permissions.model_manager
+Purpose: Permission model manager with YAML configuration and hot reload.
 
 This module implements fine-grained permission control with:
 - YAML-based configuration loading
@@ -24,11 +23,11 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, time, timezone
+from datetime import UTC, datetime, time
 from enum import Enum
 from pathlib import Path
 from threading import RLock
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -40,6 +39,7 @@ logger = logging.getLogger(__name__)
 
 class FileOperation(Enum):
     """File system operation types."""
+
     READ = "read"
     WRITE = "write"
     DELETE = "delete"
@@ -48,6 +48,7 @@ class FileOperation(Enum):
 
 class HttpMethod(Enum):
     """HTTP method types."""
+
     GET = "GET"
     POST = "POST"
     PUT = "PUT"
@@ -59,6 +60,7 @@ class HttpMethod(Enum):
 
 class OperationType(Enum):
     """Operation types for quota tracking."""
+
     FILE_OPERATION = "file_operation"
     COMMAND_EXECUTION = "command_execution"
     NETWORK_REQUEST = "network_request"
@@ -66,18 +68,18 @@ class OperationType(Enum):
 
 @dataclass
 class TimeRestriction:
-    """
-    DEPRECATED: Use EnhancedTimeRestriction from time_checker module instead.
+    """DEPRECATED: Use EnhancedTimeRestriction from time_checker module instead.
 
     This class is kept for backward compatibility only.
     """
+
     days: list[str]  # ["monday", "tuesday", ...]
     hours: str  # "09:00-18:00"
 
-    def is_allowed(self, dt: Optional[datetime] = None) -> bool:
+    def is_allowed(self, dt: datetime | None = None) -> bool:
         """Check if current time is within allowed window."""
         if dt is None:
-            dt = datetime.now(tz=timezone.utc)
+            dt = datetime.now(tz=UTC)
 
         # Check day of week
         day_name = dt.strftime("%A").lower()
@@ -96,15 +98,12 @@ class TimeRestriction:
 @dataclass
 class PathPermission:
     """File system path permission with enhanced time restrictions."""
+
     path: str
     permissions: list[str]
     time_restrictions: list[EnhancedTimeRestriction] = field(default_factory=list)
 
-    def is_allowed(
-        self,
-        operation: FileOperation,
-        dt: Optional[datetime] = None
-    ) -> bool:
+    def is_allowed(self, operation: FileOperation, dt: datetime | None = None) -> bool:
         """Check if operation is allowed at given time."""
         # Check operation permission
         if operation.value not in self.permissions:
@@ -120,6 +119,7 @@ class PathPermission:
 @dataclass
 class QuotaConfig:
     """Operation quota configuration."""
+
     per_hour: int
     per_day: int
 
@@ -127,6 +127,7 @@ class QuotaConfig:
 @dataclass
 class QuotaStatus:
     """Current quota status."""
+
     operation_type: OperationType
     current_hour: int
     current_day: int
@@ -148,16 +149,18 @@ class QuotaStatus:
 @dataclass
 class OperationContext:
     """Context for permission evaluation."""
+
     user_id: str
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
+    ip_address: str | None = None
+    user_agent: str | None = None
     additional_data: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class PermissionModel:
     """Complete permission model configuration."""
+
     version: str
     environment: str
     file_system: dict[str, Any]
@@ -181,8 +184,7 @@ class ConfigurationError(Exception):
 
 
 class PermissionModelManager:
-    """
-    Permission model manager with dynamic policy evaluation.
+    """Permission model manager with dynamic policy evaluation.
 
     Features:
     - YAML-based configuration
@@ -204,11 +206,11 @@ class PermissionModelManager:
         ...     context
         ... )
         >>> print(f"Read allowed: {allowed}")
+
     """
 
-    def __init__(self, config_path: Path):
-        """
-        Initialize permission model manager.
+    def __init__(self, config_path: Path) -> None:
+        """Initialize permission model manager.
 
         Args:
             config_path: Path to YAML configuration file
@@ -216,31 +218,37 @@ class PermissionModelManager:
         Raises:
             ConfigurationError: If configuration is invalid
             FileNotFoundError: If configuration file not found
+
         """
         self.config_path = config_path
         self._lock = RLock()  # Thread-safe configuration updates
-        self._config_hash: Optional[str] = None
+        self._config_hash: str | None = None
         self._lockdown_mode = False
-        self._lockdown_activated_at: Optional[datetime] = None
-        self._lockdown_reason: Optional[str] = None
-        self._lockdown_activated_by: Optional[str] = None
+        self._lockdown_activated_at: datetime | None = None
+        self._lockdown_reason: str | None = None
+        self._lockdown_activated_by: str | None = None
 
         # Quota tracking (in-memory, reset hourly/daily)
         self._quota_counters: dict[str, dict[OperationType, dict[str, int]]] = {}
-        self._last_hour_reset = datetime.now(tz=timezone.utc).replace(minute=0, second=0, microsecond=0)
-        self._last_day_reset = datetime.now(tz=timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        self._last_hour_reset = datetime.now(tz=UTC).replace(minute=0, second=0, microsecond=0)
+        self._last_day_reset = datetime.now(tz=UTC).replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
 
         # Load initial configuration
         self.model: PermissionModel = self.load_model()
 
         logger.info(
-            f"PermissionModelManager initialized with config: {config_path}, "
-            f"environment: {self.model.environment}"
+            "PermissionModelManager initialized with config: %s, environment: %s",
+            config_path,
+            self.model.environment,
         )
 
     def load_model(self) -> PermissionModel:
-        """
-        Load permission model from YAML configuration.
+        """Load permission model from YAML configuration.
 
         Returns:
             Loaded and validated permission model
@@ -248,6 +256,7 @@ class PermissionModelManager:
         Raises:
             ConfigurationError: If configuration is invalid
             FileNotFoundError: If configuration file not found
+
         """
         with self._lock:
             try:
@@ -262,7 +271,7 @@ class PermissionModelManager:
                 # Skip reload if configuration unchanged
                 if self._config_hash == new_hash:
                     logger.debug("Configuration unchanged, skipping reload")
-                    return self.model if hasattr(self, 'model') else self._parse_config(config_data)
+                    return self.model if hasattr(self, "model") else self._parse_config(config_data)
 
                 self._config_hash = new_hash
 
@@ -274,75 +283,85 @@ class PermissionModelManager:
                 return model
 
             except FileNotFoundError as e:
-                logger.error("Configuration file not found: %s", self.config_path)
+                logger.exception("Configuration file not found: %s", self.config_path)
                 raise
-            except yaml.YAMLError as e:
-                logger.error("YAML parsing error: %s", e)
-                raise ConfigurationError(f"Invalid YAML configuration: {e}") from e
-            except Exception as e:
-                logger.error("Configuration loading error: %s", e)
-                raise ConfigurationError(f"Failed to load configuration: {e}") from e
+                logger.exception("YAML parsing error")
+                msg = f"Invalid YAML configuration: {e}"
+                raise ConfigurationError(msg) from e
+                logger.exception("Configuration loading error")
+                msg = f"Failed to load configuration: {e}"
+                raise ConfigurationError(msg) from e
 
     def _validate_config(self, config: dict[str, Any]) -> None:
-        """
-        Validate configuration structure and values.
+        """Validate configuration structure and values.
 
         Args:
             config: Configuration dictionary
 
         Raises:
             ConfigurationError: If configuration is invalid
+
         """
         # Required top-level keys
         required_keys = ["version", "environment", "file_system", "commands", "network", "quotas"]
         for key in required_keys:
             if key not in config:
-                raise ConfigurationError(f"Missing required key: {key}")
+                msg = f"Missing required key: {key}"
+                raise ConfigurationError(msg)
 
         # Validate version format
         if not isinstance(config["version"], str):
-            raise ConfigurationError("Version must be a string")
+            msg = "Version must be a string"
+            raise ConfigurationError(msg)
 
         # Validate environment
         valid_environments = ["development", "staging", "production"]
         if config["environment"] not in valid_environments:
-            raise ConfigurationError(
+            msg = (
                 f"Invalid environment: {config['environment']}. "
                 f"Must be one of: {valid_environments}"
+            )
+            raise ConfigurationError(
+                msg,
             )
 
         # Validate file_system section
         fs = config["file_system"]
         if "allowed_paths" not in fs:
-            raise ConfigurationError("file_system.allowed_paths is required")
+            msg = "file_system.allowed_paths is required"
+            raise ConfigurationError(msg)
 
         # Validate commands section
         cmd = config["commands"]
         if "allowed_patterns" not in cmd or "blocked_patterns" not in cmd:
-            raise ConfigurationError("commands must have allowed_patterns and blocked_patterns")
+            msg = "commands must have allowed_patterns and blocked_patterns"
+            raise ConfigurationError(msg)
 
         # Validate network section
         net = config["network"]
         if "allowed_domains" not in net or "allowed_methods" not in net:
-            raise ConfigurationError("network must have allowed_domains and allowed_methods")
+            msg = "network must have allowed_domains and allowed_methods"
+            raise ConfigurationError(msg)
 
         # Validate quotas section
         quotas = config["quotas"]
         for quota_type in ["file_operations", "command_executions", "network_requests"]:
             if quota_type not in quotas:
-                raise ConfigurationError(f"quotas.{quota_type} is required")
+                msg = f"quotas.{quota_type} is required"
+                raise ConfigurationError(msg)
             if "per_hour" not in quotas[quota_type] or "per_day" not in quotas[quota_type]:
-                raise ConfigurationError(f"quotas.{quota_type} must have per_hour and per_day")
+                msg = f"quotas.{quota_type} must have per_hour and per_day"
+                raise ConfigurationError(msg)
 
     def _parse_config(self, config: dict[str, Any]) -> PermissionModel:
-        """
-        Parse configuration into PermissionModel.
+        """Parse configuration into PermissionModel.
 
         Args:
             config: Configuration dictionary
 
         Returns:
             Parsed permission model
+
         """
         # Parse file system permissions
         allowed_paths = []
@@ -353,22 +372,22 @@ class PermissionModelManager:
                     # Use enhanced TimeRestriction from time_checker
                     time_restrictions.append(EnhancedTimeRestriction.from_dict(tr))
 
-            allowed_paths.append(PathPermission(
-                path=path_config["path"],
-                permissions=path_config["permissions"],
-                time_restrictions=time_restrictions
-            ))
+            allowed_paths.append(
+                PathPermission(
+                    path=path_config["path"],
+                    permissions=path_config["permissions"],
+                    time_restrictions=time_restrictions,
+                ),
+            )
 
         blocked_extensions = set(config["file_system"].get("blocked_extensions", []))
 
         # Parse command patterns
         allowed_command_patterns = [
-            re.compile(pattern)
-            for pattern in config["commands"]["allowed_patterns"]
+            re.compile(pattern) for pattern in config["commands"]["allowed_patterns"]
         ]
         blocked_command_patterns = [
-            re.compile(pattern)
-            for pattern in config["commands"]["blocked_patterns"]
+            re.compile(pattern) for pattern in config["commands"]["blocked_patterns"]
         ]
 
         # Parse network permissions
@@ -379,16 +398,16 @@ class PermissionModelManager:
         quotas = {
             OperationType.FILE_OPERATION: QuotaConfig(
                 per_hour=config["quotas"]["file_operations"]["per_hour"],
-                per_day=config["quotas"]["file_operations"]["per_day"]
+                per_day=config["quotas"]["file_operations"]["per_day"],
             ),
             OperationType.COMMAND_EXECUTION: QuotaConfig(
                 per_hour=config["quotas"]["command_executions"]["per_hour"],
-                per_day=config["quotas"]["command_executions"]["per_day"]
+                per_day=config["quotas"]["command_executions"]["per_day"],
             ),
             OperationType.NETWORK_REQUEST: QuotaConfig(
                 per_hour=config["quotas"]["network_requests"]["per_hour"],
-                per_day=config["quotas"]["network_requests"]["per_day"]
-            )
+                per_day=config["quotas"]["network_requests"]["per_day"],
+            ),
         }
 
         # Create permission model
@@ -406,7 +425,7 @@ class PermissionModelManager:
             allowed_command_patterns=allowed_command_patterns,
             blocked_command_patterns=blocked_command_patterns,
             allowed_domains=allowed_domains,
-            allowed_methods=allowed_methods
+            allowed_methods=allowed_methods,
         )
 
         # Update lockdown mode state
@@ -415,37 +434,37 @@ class PermissionModelManager:
         return model
 
     def reload(self) -> None:
-        """
-        Reload configuration without restart (hot reload).
+        """Reload configuration without restart (hot reload).
 
         This method is thread-safe and can be called while the system is running.
         Configuration changes take effect immediately after reload.
 
         Raises:
             ConfigurationError: If new configuration is invalid
+
         """
         with self._lock:
             logger.info("Reloading permission model configuration...")
-            old_environment = self.model.environment if hasattr(self, 'model') else None
+            old_environment = self.model.environment if hasattr(self, "model") else None
 
             try:
                 self.model = self.load_model()
                 logger.info(
-                    f"Configuration reloaded successfully. "
-                    f"Environment: {old_environment} -> {self.model.environment}"
+                    "Configuration reloaded successfully. Environment: %s -> %s",
+                    old_environment,
+                    self.model.environment,
                 )
-            except Exception as e:
-                logger.error("Configuration reload failed: %s", e)
+            except Exception:
+                logger.exception("Configuration reload failed")
                 raise
 
     def is_path_allowed(
         self,
         path: Path,
         operation: FileOperation,
-        context: OperationContext
+        context: OperationContext,
     ) -> bool:
-        """
-        Check if file path operation is allowed.
+        """Check if file path operation is allowed.
 
         Time Complexity: O(n) where n is number of allowed paths
         Space Complexity: O(1)
@@ -457,6 +476,7 @@ class PermissionModelManager:
 
         Returns:
             True if operation is allowed, False otherwise
+
         """
         with self._lock:
             # Check lockdown mode
@@ -466,8 +486,10 @@ class PermissionModelManager:
 
                 if operation_name not in allowed_ops and "file_operations" not in allowed_ops:
                     logger.warning(
-                        f"Path operation denied (lockdown mode): {path} ({operation.value}), "
-                        f"allowed operations: {allowed_ops}"
+                        "Path operation denied (lockdown mode): %s (%s), allowed operations: %s",
+                        path,
+                        operation.value,
+                        allowed_ops,
                     )
                     return False
 
@@ -492,13 +514,8 @@ class PermissionModelManager:
             logger.warning("Path operation denied: %s (%s)", path, operation.value)
             return False
 
-    def is_command_allowed(
-        self,
-        command: str,
-        context: OperationContext
-    ) -> bool:
-        """
-        Check if command matches allowed patterns.
+    def is_command_allowed(self, command: str, context: OperationContext) -> bool:
+        """Check if command matches allowed patterns.
 
         Time Complexity: O(m + n) where m is allowed patterns, n is blocked patterns
         Space Complexity: O(1)
@@ -509,6 +526,7 @@ class PermissionModelManager:
 
         Returns:
             True if command is allowed, False otherwise
+
         """
         with self._lock:
             # Check lockdown mode
@@ -516,8 +534,9 @@ class PermissionModelManager:
                 allowed_ops = self.model.lockdown_mode.get("allowed_operations", [])
                 if "execute_command" not in allowed_ops and "commands" not in allowed_ops:
                     logger.warning(
-                        f"Command denied (lockdown mode): {command}, "
-                        f"allowed operations: {allowed_ops}"
+                        "Command denied (lockdown mode): %s, allowed operations: %s",
+                        command,
+                        allowed_ops,
                     )
                     return False
 
@@ -536,14 +555,8 @@ class PermissionModelManager:
             logger.warning("Command denied (no matching pattern): %s", command)
             return False
 
-    def is_network_allowed(
-        self,
-        url: str,
-        method: HttpMethod,
-        context: OperationContext
-    ) -> bool:
-        """
-        Check if network endpoint is allowed.
+    def is_network_allowed(self, url: str, method: HttpMethod, context: OperationContext) -> bool:
+        """Check if network endpoint is allowed.
 
         Time Complexity: O(1) average (hash table lookup)
         Space Complexity: O(1)
@@ -555,6 +568,7 @@ class PermissionModelManager:
 
         Returns:
             True if network request is allowed, False otherwise
+
         """
         with self._lock:
             # Check lockdown mode
@@ -562,8 +576,9 @@ class PermissionModelManager:
                 allowed_ops = self.model.lockdown_mode.get("allowed_operations", [])
                 if "network_request" not in allowed_ops and "network" not in allowed_ops:
                     logger.warning(
-                        f"Network request denied (lockdown mode): {url}, "
-                        f"allowed operations: {allowed_ops}"
+                        "Network request denied (lockdown mode): %s, allowed operations: %s",
+                        url,
+                        allowed_ops,
                     )
                     return False
 
@@ -574,6 +589,7 @@ class PermissionModelManager:
 
             # Extract domain from URL
             from urllib.parse import urlparse
+
             parsed = urlparse(url)
             domain = parsed.netloc
 
@@ -592,13 +608,8 @@ class PermissionModelManager:
             logger.warning("Network request denied: %s (%s)", url, method.value)
             return False
 
-    def check_quota(
-        self,
-        operation_type: OperationType,
-        context: OperationContext
-    ) -> QuotaStatus:
-        """
-        Check if operation quota is available.
+    def check_quota(self, operation_type: OperationType, context: OperationContext) -> QuotaStatus:
+        """Check if operation quota is available.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -609,6 +620,7 @@ class PermissionModelManager:
 
         Returns:
             Quota status with availability and remaining counts
+
         """
         with self._lock:
             # Reset counters if needed
@@ -620,7 +632,7 @@ class PermissionModelManager:
                 self._quota_counters[user_id] = {
                     OperationType.FILE_OPERATION: {"hour": 0, "day": 0},
                     OperationType.COMMAND_EXECUTION: {"hour": 0, "day": 0},
-                    OperationType.NETWORK_REQUEST: {"hour": 0, "day": 0}
+                    OperationType.NETWORK_REQUEST: {"hour": 0, "day": 0},
                 }
 
             user_counters = self._quota_counters[user_id][operation_type]
@@ -642,21 +654,24 @@ class PermissionModelManager:
                 current_day=user_counters["day"],
                 limit_hour=quota_config.per_hour,
                 limit_day=quota_config.per_day,
-                available=available
+                available=available,
             )
 
             if not available:
                 logger.warning(
-                    f"Quota exceeded for {operation_type.value}: "
-                    f"hour={status.current_hour}/{status.limit_hour}, "
-                    f"day={status.current_day}/{status.limit_day}"
+                    "Quota exceeded for %s: hour=%d/%d, day=%d/%d",
+                    operation_type.value,
+                    status.current_hour,
+                    status.limit_hour,
+                    status.current_day,
+                    status.limit_day,
                 )
 
             return status
 
     def _reset_quotas_if_needed(self) -> None:
         """Reset quota counters if hour or day has changed."""
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         current_hour = now.replace(minute=0, second=0, microsecond=0)
         current_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -676,9 +691,12 @@ class PermissionModelManager:
             self._last_day_reset = current_day
             logger.debug("Daily quota counters reset")
 
-    def enter_lockdown_mode(self, reason: str = "Emergency lockdown", activated_by: str = "system") -> None:
-        """
-        Enter emergency lockdown mode (disable all non-critical operations).
+    def enter_lockdown_mode(
+        self,
+        reason: str = "Emergency lockdown",
+        activated_by: str = "system",
+    ) -> None:
+        """Enter emergency lockdown mode (disable all non-critical operations).
 
         In lockdown mode, only operations in the allowed_operations list are permitted.
         This is useful for emergency situations or security incidents.
@@ -686,22 +704,26 @@ class PermissionModelManager:
         Args:
             reason: Reason for activating lockdown mode
             activated_by: User or system that activated lockdown
+
         """
         with self._lock:
             if not self._lockdown_mode:
                 self._lockdown_mode = True
-                self._lockdown_activated_at = datetime.now(tz=timezone.utc)
+                self._lockdown_activated_at = datetime.now(tz=UTC)
                 self._lockdown_reason = reason
                 self._lockdown_activated_by = activated_by
 
                 logger.critical(
-                    f"LOCKDOWN MODE ACTIVATED - Only critical operations allowed. "
-                    f"Reason: {reason}, Activated by: {activated_by}"
+                    "LOCKDOWN MODE ACTIVATED - Only critical operations allowed. "
+                    "Reason: %s, Activated by: %s",
+                    reason,
+                    activated_by,
                 )
 
                 # Log to security audit
                 try:
                     from Agent_Guru.platform.security.auditor import SecurityAuditor
+
                     auditor = SecurityAuditor()
                     auditor.log_security_event(
                         event_type="lockdown_activated",
@@ -710,37 +732,43 @@ class PermissionModelManager:
                             "reason": reason,
                             "activated_by": activated_by,
                             "timestamp": self._lockdown_activated_at.isoformat(),
-                            "allowed_operations": self.model.lockdown_mode.get("allowed_operations", [])
-                        }
+                            "allowed_operations": self.model.lockdown_mode.get(
+                                "allowed_operations",
+                                [],
+                            ),
+                        },
                     )
-                except Exception as e:
-                    logger.error("Failed to log lockdown activation to security audit: %s", e)
+                except Exception:
+                    logger.exception("Failed to log lockdown activation to security audit")
             else:
                 logger.warning("Lockdown mode already active")
 
     def exit_lockdown_mode(self, exited_by: str = "system") -> None:
-        """
-        Exit lockdown mode and restore normal operations.
+        """Exit lockdown mode and restore normal operations.
 
         Args:
             exited_by: User or system that deactivated lockdown
+
         """
         with self._lock:
             if self._lockdown_mode:
                 duration = None
                 if self._lockdown_activated_at:
-                    duration = (datetime.now(tz=timezone.utc) - self._lockdown_activated_at).total_seconds()
+                    duration = (datetime.now(tz=UTC) - self._lockdown_activated_at).total_seconds()
 
                 self._lockdown_mode = False
 
                 logger.warning(
-                    f"Lockdown mode deactivated - Normal operations restored. "
-                    f"Exited by: {exited_by}, Duration: {duration:.2f}s"
+                    "Lockdown mode deactivated - Normal operations restored. "
+                    "Exited by: %s, Duration: %.2fs",
+                    exited_by,
+                    duration if duration is not None else 0.0,
                 )
 
                 # Log to security audit
                 try:
                     from Agent_Guru.platform.security.auditor import SecurityAuditor
+
                     auditor = SecurityAuditor()
                     auditor.log_security_event(
                         event_type="lockdown_deactivated",
@@ -748,13 +776,14 @@ class PermissionModelManager:
                         details={
                             "exited_by": exited_by,
                             "duration_seconds": duration,
-                            "activated_at": self._lockdown_activated_at.isoformat() if self._lockdown_activated_at else None,
-                            "reason": self._lockdown_reason
-                        }
+                            "activated_at": self._lockdown_activated_at.isoformat()
+                            if self._lockdown_activated_at
+                            else None,
+                            "reason": self._lockdown_reason,
+                        },
                     )
-                except Exception as e:
-                    logger.error("Failed to log lockdown deactivation to security audit: %s", e)
-
+                except Exception:
+                    logger.exception("Failed to log lockdown deactivation to security audit")
                 # Clear lockdown tracking
                 self._lockdown_activated_at = None
                 self._lockdown_reason = None
@@ -763,11 +792,11 @@ class PermissionModelManager:
                 logger.warning("Lockdown mode not active")
 
     def get_lockdown_status(self) -> dict[str, Any]:
-        """
-        Get current lockdown mode status with details.
+        """Get current lockdown mode status with details.
 
         Returns:
             Dictionary with lockdown status information
+
         """
         with self._lock:
             if not self._lockdown_mode:
@@ -777,20 +806,22 @@ class PermissionModelManager:
                     "duration_seconds": None,
                     "reason": None,
                     "activated_by": None,
-                    "allowed_operations": []
+                    "allowed_operations": [],
                 }
 
             duration = None
             if self._lockdown_activated_at:
-                duration = (datetime.now(tz=timezone.utc) - self._lockdown_activated_at).total_seconds()
+                duration = (datetime.now(tz=UTC) - self._lockdown_activated_at).total_seconds()
 
             return {
                 "active": True,
-                "activated_at": self._lockdown_activated_at.isoformat() if self._lockdown_activated_at else None,
+                "activated_at": self._lockdown_activated_at.isoformat()
+                if self._lockdown_activated_at
+                else None,
                 "duration_seconds": duration,
                 "reason": self._lockdown_reason,
                 "activated_by": self._lockdown_activated_by,
-                "allowed_operations": self.model.lockdown_mode.get("allowed_operations", [])
+                "allowed_operations": self.model.lockdown_mode.get("allowed_operations", []),
             }
 
     @property

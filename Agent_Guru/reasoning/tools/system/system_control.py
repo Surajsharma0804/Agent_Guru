@@ -1,5 +1,4 @@
-"""
-System control tools for volume, brightness, WiFi, and Bluetooth.
+"""System control tools for volume, brightness, WiFi, and Bluetooth.
 
 Platform-specific implementations for Windows, macOS, and Linux.
 """
@@ -38,6 +37,7 @@ class PlatformSystemController:
 
         Returns:
             Result dictionary
+
         """
         system = PlatformSystemController.get_platform()
 
@@ -48,24 +48,27 @@ class PlatformSystemController:
                     f"for ($i = 0; $i -lt 50; $i++) {{ $obj.SendKeys([char]174) }}; "
                     f"for ($i = 0; $i -lt {level * 2}; $i++) {{ $obj.SendKeys([char]175) }}"
                 )
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["powershell", "-Command", ps_script],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
                     return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
             elif system == "darwin":
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["osascript", "-e", f"set volume output volume {level}"],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
                     return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
             elif system == "linux":
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["amixer", "set", "Master", f"{level}%"],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -82,7 +85,7 @@ class PlatformSystemController:
             return {"success": True, "result": result_data}
 
         except Exception as e:
-            return {"success": False, "error": f"Failed to set volume: {str(e)}"}
+            return {"success": False, "error": f"Failed to set volume: {e!s}"}
 
     @staticmethod
     async def set_brightness(level: int) -> dict[str, Any]:
@@ -93,6 +96,7 @@ class PlatformSystemController:
 
         Returns:
             Result dictionary
+
         """
         system = PlatformSystemController.get_platform()
 
@@ -102,35 +106,42 @@ class PlatformSystemController:
                     "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods)"
                     f".WmiSetBrightness(1,{level})"
                 )
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["powershell", "-Command", ps_script],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
                     return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
             elif system == "darwin":
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["brightness", str(level / 100.0)],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
                     return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
             elif system == "linux":
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["brightnessctl", "set", f"{level}%"],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    result = subprocess.run(  # nosec B603 B607
+                    result = subprocess.run(  # nosec B603 B607  # noqa: S603
                         ["xbacklight", "-set", str(level)],
+                        check=False,
                         capture_output=True,
                         text=True,
                     )
                     if result.returncode != 0:
-                        return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
+                        return {
+                            "success": False,
+                            "error": f"Failed to set brightness: {result.stderr}",
+                        }
             else:
                 return {"success": False, "error": "Unsupported platform"}
 
@@ -142,7 +153,7 @@ class PlatformSystemController:
             return {"success": True, "result": result_data}
 
         except Exception as e:
-            return {"success": False, "error": f"Failed to set brightness: {str(e)}"}
+            return {"success": False, "error": f"Failed to set brightness: {e!s}"}
 
     @staticmethod
     async def toggle_wifi(enable: bool) -> dict[str, Any]:
@@ -153,6 +164,7 @@ class PlatformSystemController:
 
         Returns:
             Result dictionary
+
         """
         system = PlatformSystemController.get_platform()
         action = "enable" if enable else "disable"
@@ -160,8 +172,9 @@ class PlatformSystemController:
         try:
             if system == "windows":
                 state = "enable" if enable else "disable"
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["netsh", "interface", "set", "interface", "Wi-Fi", state],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -169,8 +182,9 @@ class PlatformSystemController:
                     return {"success": False, "error": f"Failed to {action} WiFi: {result.stderr}"}
             elif system == "darwin":
                 state = "on" if enable else "off"
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["networksetup", "-setairportpower", "en0", state],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -178,8 +192,9 @@ class PlatformSystemController:
                     return {"success": False, "error": f"Failed to {action} WiFi: {result.stderr}"}
             elif system == "linux":
                 state = "on" if enable else "off"
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["nmcli", "radio", "wifi", state],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -196,7 +211,7 @@ class PlatformSystemController:
             return {"success": True, "result": result_data}
 
         except Exception as e:
-            return {"success": False, "error": f"Failed to {action} WiFi: {str(e)}"}
+            return {"success": False, "error": f"Failed to {action} WiFi: {e!s}"}
 
     @staticmethod
     async def toggle_bluetooth(enable: bool) -> dict[str, Any]:
@@ -207,6 +222,7 @@ class PlatformSystemController:
 
         Returns:
             Result dictionary
+
         """
         system = PlatformSystemController.get_platform()
         action = "enable" if enable else "disable"
@@ -221,31 +237,43 @@ class PlatformSystemController:
                     "$bluetooth = $radios | Where-Object { $_.Kind -eq 'Bluetooth' }; "
                     f"$bluetooth.SetStateAsync({state}).GetAwaiter().GetResult() | Out-Null"
                 )
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["powershell", "-Command", ps_script],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {"success": False, "error": f"Failed to {action} Bluetooth: {result.stderr}"}
+                    return {
+                        "success": False,
+                        "error": f"Failed to {action} Bluetooth: {result.stderr}",
+                    }
             elif system == "darwin":
                 state = "1" if enable else "0"
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["blueutil", "--power", state],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {"success": False, "error": f"Failed to {action} Bluetooth: {result.stderr}"}
+                    return {
+                        "success": False,
+                        "error": f"Failed to {action} Bluetooth: {result.stderr}",
+                    }
             elif system == "linux":
                 state = "unblock" if enable else "block"
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["rfkill", state, "bluetooth"],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    return {"success": False, "error": f"Failed to {action} Bluetooth: {result.stderr}"}
+                    return {
+                        "success": False,
+                        "error": f"Failed to {action} Bluetooth: {result.stderr}",
+                    }
             else:
                 return {"success": False, "error": "Unsupported platform"}
 
@@ -257,7 +285,7 @@ class PlatformSystemController:
             return {"success": True, "result": result_data}
 
         except Exception as e:
-            return {"success": False, "error": f"Failed to {action} Bluetooth: {str(e)}"}
+            return {"success": False, "error": f"Failed to {action} Bluetooth: {e!s}"}
 
 
 @tool(
@@ -270,7 +298,7 @@ class PlatformSystemController:
             type=ToolParameterType.INTEGER,
             description="Volume level (0-100)",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=200,
@@ -293,6 +321,7 @@ class SetVolumeTool(Tool):
 
         Returns:
             Execution result
+
         """
         level = kwargs["level"]
         if not 0 <= level <= 100:
@@ -310,7 +339,7 @@ class SetVolumeTool(Tool):
             type=ToolParameterType.INTEGER,
             description="Brightness level (0-100)",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=200,
@@ -333,6 +362,7 @@ class SetBrightnessTool(Tool):
 
         Returns:
             Execution result
+
         """
         level = kwargs["level"]
         if not 0 <= level <= 100:
@@ -350,7 +380,7 @@ class SetBrightnessTool(Tool):
             type=ToolParameterType.BOOLEAN,
             description="True to enable, False to disable",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SENSITIVE,
     estimated_latency_ms=500,
@@ -373,6 +403,7 @@ class ToggleWifiTool(Tool):
 
         Returns:
             Execution result
+
         """
         enable = kwargs["enable"]
         return await PlatformSystemController.toggle_wifi(enable)
@@ -388,7 +419,7 @@ class ToggleWifiTool(Tool):
             type=ToolParameterType.BOOLEAN,
             description="True to enable, False to disable",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SENSITIVE,
     estimated_latency_ms=500,
@@ -411,6 +442,7 @@ class ToggleBluetoothTool(Tool):
 
         Returns:
             Execution result
+
         """
         enable = kwargs["enable"]
         return await PlatformSystemController.toggle_bluetooth(enable)

@@ -1,5 +1,4 @@
-"""
-Agent Orchestration System - Core innovation of Agent_Guru.
+"""Agent Orchestration System - Core innovation of Agent_Guru.
 
 This module provides the complete agent orchestration system including:
 - Dynamic agent creation and lifecycle management
@@ -39,18 +38,18 @@ from Agent_Guru.agents import (
 __all__ = [
     # Core models
     "Agent",
+    "AgentLifecycleManager",
+    "AgentOrchestrator",
     "AgentStatus",
-    "Task",
-    "TaskType",
-    "PerformanceRecord",
     "EvolutionEvent",
     # Full orchestration system
     "OrchestrationSystem",
-    "TaskResult",
-    "AgentOrchestrator",
-    "TaskStatus",
-    "TaskDecomposer",
-    "TaskAssigner",
-    "AgentLifecycleManager",
+    "PerformanceRecord",
     "PerformanceTracker",
+    "Task",
+    "TaskAssigner",
+    "TaskDecomposer",
+    "TaskResult",
+    "TaskStatus",
+    "TaskType",
 ]

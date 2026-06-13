@@ -1,5 +1,4 @@
-"""
-Monitoring and alerting for self-improvement engine.
+"""Monitoring and alerting for self-improvement engine.
 
 Tracks improvement metrics and triggers alerts when thresholds are not met.
 """
@@ -8,13 +7,14 @@ import logging
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class AlertLevel(Enum):
     """Alert severity levels."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -24,6 +24,7 @@ class AlertLevel(Enum):
 @dataclass
 class Alert:
     """Alert notification."""
+
     level: AlertLevel
     title: str
     message: str
@@ -42,8 +43,7 @@ class Alert:
 
 
 class ImprovementMonitor:
-    """
-    Monitors improvement metrics and triggers alerts.
+    """Monitors improvement metrics and triggers alerts.
 
     Tracks learning progress and alerts when improvement targets are not met.
     """
@@ -51,28 +51,28 @@ class ImprovementMonitor:
     def __init__(
         self,
         storage_path: str,
-        config: Optional[Any] = None,
-        alert_callback: Optional[Callable[[Alert], None]] = None
-    ):
-        """
-        Initialize improvement monitor.
+        config: Any | None = None,
+        alert_callback: Callable[[Alert], None] | None = None,
+    ) -> None:
+        """Initialize improvement monitor.
 
         Args:
             storage_path: Path to SQLite database
             config: Optional deployment configuration
             alert_callback: Optional callback function for alerts
+
         """
         self.storage_path = storage_path
         self.config = config
         self.alert_callback = alert_callback or self._default_alert_handler
         self.logger = logging.getLogger(__name__)
 
-    def check_improvement(self) -> Optional[Alert]:
-        """
-        Check if improvement targets are being met.
+    def check_improvement(self) -> Alert | None:
+        """Check if improvement targets are being met.
 
         Returns:
             Alert if improvement is insufficient, None otherwise
+
         """
         try:
             with sqlite3.connect(self.storage_path) as conn:
@@ -110,9 +110,9 @@ class ImprovementMonitor:
                         "baseline_success_rate": baseline,
                         "final_success_rate": final,
                         "task_count": task_count,
-                        "report_timestamp": timestamp
+                        "report_timestamp": timestamp,
                     },
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
                 self.alert_callback(alert)
@@ -120,16 +120,16 @@ class ImprovementMonitor:
 
             return None
 
-        except Exception as e:
-            self.logger.error("Error checking improvement: %s", e)
+        except Exception:
+            self.logger.exception("Error checking improvement")
             return None
 
-    def check_performance_degradation(self) -> Optional[Alert]:
-        """
-        Check for performance degradation.
+    def check_performance_degradation(self) -> Alert | None:
+        """Check for performance degradation.
 
         Returns:
             Alert if degradation detected, None otherwise
+
         """
         try:
             with sqlite3.connect(self.storage_path) as conn:
@@ -180,9 +180,9 @@ class ImprovementMonitor:
                         "degradation": degradation,
                         "threshold": max_degradation,
                         "recent_success_rate": recent_rate,
-                        "previous_success_rate": previous_rate
+                        "previous_success_rate": previous_rate,
                     },
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
                 self.alert_callback(alert)
@@ -190,16 +190,16 @@ class ImprovementMonitor:
 
             return None
 
-        except Exception as e:
-            self.logger.error("Error checking degradation: %s", e)
+        except Exception:
+            self.logger.exception("Error checking degradation")
             return None
 
-    def check_failure_rate(self) -> Optional[Alert]:
-        """
-        Check if failure rate is too high.
+    def check_failure_rate(self) -> Alert | None:
+        """Check if failure rate is too high.
 
         Returns:
             Alert if failure rate is high, None otherwise
+
         """
         try:
             with sqlite3.connect(self.storage_path) as conn:
@@ -232,9 +232,9 @@ class ImprovementMonitor:
                     details={
                         "failure_rate": failure_rate,
                         "threshold": max_failure_rate,
-                        "success_rate": 100 - failure_rate
+                        "success_rate": 100 - failure_rate,
                     },
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
                 self.alert_callback(alert)
@@ -242,16 +242,16 @@ class ImprovementMonitor:
 
             return None
 
-        except Exception as e:
-            self.logger.error("Error checking failure rate: %s", e)
+        except Exception:
+            self.logger.exception("Error checking failure rate")
             return None
 
     def check_all(self) -> list[Alert]:
-        """
-        Run all monitoring checks.
+        """Run all monitoring checks.
 
         Returns:
             List of alerts (empty if all checks pass)
+
         """
         alerts = []
 
@@ -273,11 +273,11 @@ class ImprovementMonitor:
         return alerts
 
     def get_dashboard_metrics(self) -> dict[str, Any]:
-        """
-        Get metrics for monitoring dashboard.
+        """Get metrics for monitoring dashboard.
 
         Returns:
             Dictionary with dashboard metrics
+
         """
         try:
             with sqlite3.connect(self.storage_path) as conn:
@@ -334,11 +334,7 @@ class ImprovementMonitor:
                     LIMIT 5
                 """)
                 top_strategies = [
-                    {
-                        "strategy": row[0],
-                        "success_rate": row[1],
-                        "executions": row[2]
-                    }
+                    {"strategy": row[0], "success_rate": row[1], "executions": row[2]}
                     for row in cursor.fetchall()
                 ]
 
@@ -346,27 +342,18 @@ class ImprovementMonitor:
                 "overall": {
                     "total_tasks": total_tasks,
                     "success_rate": success_rate,
-                    "avg_execution_time_ms": avg_time
+                    "avg_execution_time_ms": avg_time,
                 },
-                "recent": {
-                    "success_rate": recent_success,
-                    "avg_execution_time_ms": recent_time
-                },
-                "improvement": {
-                    "latest": latest_improvement,
-                    "timestamp": improvement_timestamp
-                },
+                "recent": {"success_rate": recent_success, "avg_execution_time_ms": recent_time},
+                "improvement": {"latest": latest_improvement, "timestamp": improvement_timestamp},
                 "failures": failure_breakdown,
                 "top_strategies": top_strategies,
-                "timestamp": datetime.now(tz=timezone.utc).isoformat()
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             }
 
         except Exception as e:
-            self.logger.error("Error getting dashboard metrics: %s", e)
-            return {
-                "error": str(e),
-                "timestamp": datetime.now(tz=timezone.utc).isoformat()
-            }
+            self.logger.exception("Error getting dashboard metrics")
+            return {"error": str(e), "timestamp": datetime.now(tz=UTC).isoformat()}
 
     def _default_alert_handler(self, alert: Alert) -> None:
         """Default alert handler that logs alerts."""
@@ -377,7 +364,4 @@ class ImprovementMonitor:
             AlertLevel.CRITICAL: logging.CRITICAL,
         }[alert.level]
 
-        self.logger.log(
-            log_level,
-            f"{alert.title}: {alert.message} | Details: {alert.details}"
-        )
+        self.logger.log(log_level, f"{alert.title}: {alert.message} | Details: {alert.details}")

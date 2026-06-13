@@ -1,5 +1,4 @@
-"""
-Rule Evaluator - Evaluates policy rule expressions against evaluation contexts.
+"""Rule Evaluator - Evaluates policy rule expressions against evaluation contexts.
 
 Supports boolean logic (AND, OR, NOT) and comparison operators.
 Includes optional memoization for performance within a single evaluation context.
@@ -17,7 +16,7 @@ import hashlib
 import json
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.policy.models import EvaluationContext, MissingAttributeStrategy
 
@@ -84,6 +83,7 @@ class RuleEvaluator:
         Args:
             enable_memoization: Whether to memoize results within a context.
             missing_attribute_strategy: How to handle missing attributes.
+
         """
         self.enable_memoization = enable_memoization
         self.missing_attribute_strategy = missing_attribute_strategy
@@ -96,7 +96,7 @@ class RuleEvaluator:
         self,
         rule: dict[str, Any],
         context: EvaluationContext,
-        memo_cache: Optional[dict[str, bool]] = None,
+        memo_cache: dict[str, bool] | None = None,
     ) -> bool:
         """Evaluate a rule against a context.
 
@@ -110,11 +110,12 @@ class RuleEvaluator:
 
         Raises:
             RuleEvaluationError: If the rule is malformed or evaluation fails.
+
         """
         if not rule:
             return True  # Empty rule always matches
 
-        cache_key: Optional[str] = None
+        cache_key: str | None = None
         if self.enable_memoization and memo_cache is not None:
             cache_key = self._rule_cache_key(rule)
             if cache_key in memo_cache:
@@ -122,13 +123,11 @@ class RuleEvaluator:
 
         try:
             result = self._evaluate_node(rule, context)
-        except RuleEvaluationError as e:
+        except RuleEvaluationError as exc:
             raise
-        except Exception as exc:
             msg = f"Rule evaluation error: {exc}"
-            logger.error(msg, exc_info=True)
+            logger.exception(msg)
             raise RuleEvaluationError(msg) from exc
-
         if cache_key is not None and memo_cache is not None:
             memo_cache[cache_key] = result
 
@@ -142,6 +141,7 @@ class RuleEvaluator:
 
         Returns:
             List of error messages (empty if valid).
+
         """
         errors: list[str] = []
         self._validate_node(rule, errors, path="rule")
@@ -157,41 +157,47 @@ class RuleEvaluator:
 
         if operator in BOOLEAN_OPERATORS:
             return self._evaluate_boolean(operator, node, context)
-        elif operator in {op.upper() for op in COMPARISON_OPERATORS}:
+        if operator in {op.upper() for op in COMPARISON_OPERATORS}:
             return self._evaluate_comparison(operator.lower(), node, context)
-        elif "attribute" in node:
+        if "attribute" in node:
             # Leaf node with implicit operator
             op = node.get("operator", "exists").lower()
             return self._evaluate_comparison(op, node, context)
-        else:
-            raise RuleEvaluationError(
-                f"Unknown operator '{operator}' in rule node: {node}"
-            )
+        msg = f"Unknown operator '{operator}' in rule node: {node}"
+        raise RuleEvaluationError(msg)
 
     def _evaluate_boolean(
-        self, operator: str, node: dict[str, Any], context: EvaluationContext
+        self,
+        operator: str,
+        node: dict[str, Any],
+        context: EvaluationContext,
     ) -> bool:
         """Evaluate a boolean (AND/OR/NOT) node."""
         conditions = node.get("conditions", [])
 
         if operator == "AND":
             return all(self._evaluate_node(c, context) for c in conditions)
-        elif operator == "OR":
+        if operator == "OR":
             return any(self._evaluate_node(c, context) for c in conditions)
-        elif operator == "NOT":
+        if operator == "NOT":
             if not conditions:
-                raise RuleEvaluationError("NOT operator requires exactly one condition")
+                msg = "NOT operator requires exactly one condition"
+                raise RuleEvaluationError(msg)
             return not self._evaluate_node(conditions[0], context)
-        else:
-            raise RuleEvaluationError(f"Unknown boolean operator: {operator}")
+        msg = f"Unknown boolean operator: {operator}"
+        raise RuleEvaluationError(msg)
 
     def _evaluate_comparison(
-        self, operator: str, node: dict[str, Any], context: EvaluationContext
+        self,
+        operator: str,
+        node: dict[str, Any],
+        context: EvaluationContext,
     ) -> bool:
         """Evaluate a comparison leaf node."""
         attribute_path = node.get("attribute")
         if not attribute_path:
-            raise RuleEvaluationError(f"Comparison node missing 'attribute': {node}")
+            msg = f"Comparison node missing 'attribute': {node}"
+            raise RuleEvaluationError(msg)
 
         # Resolve attribute value
         attr_value = context.get_attribute(attribute_path)
@@ -212,60 +218,59 @@ class RuleEvaluator:
         try:
             return self._compare(operator, attr_value, expected)
         except Exception as exc:
-            raise RuleEvaluationError(
+            msg = (
                 f"Comparison failed for attribute '{attribute_path}' "
                 f"with operator '{operator}': {exc}"
+            )
+            raise RuleEvaluationError(
+                msg,
             ) from exc
 
     def _compare(self, operator: str, actual: Any, expected: Any) -> bool:
         """Apply a comparison operator."""
         if operator == "equals":
             return actual == expected
-        elif operator == "not_equals":
+        if operator == "not_equals":
             return actual != expected
-        elif operator == "greater_than":
+        if operator == "greater_than":
             return actual > expected
-        elif operator == "less_than":
+        if operator == "less_than":
             return actual < expected
-        elif operator == "greater_or_equal":
+        if operator == "greater_or_equal":
             return actual >= expected
-        elif operator == "less_or_equal":
+        if operator == "less_or_equal":
             return actual <= expected
-        elif operator == "in":
+        if operator == "in":
             return actual in (expected or [])
-        elif operator == "not_in":
+        if operator == "not_in":
             return actual not in (expected or [])
-        elif operator == "contains":
+        if operator == "contains":
             return expected in actual
-        elif operator == "not_contains":
+        if operator == "not_contains":
             return expected not in actual
-        elif operator == "starts_with":
+        if operator == "starts_with":
             return str(actual).startswith(str(expected))
-        elif operator == "ends_with":
+        if operator == "ends_with":
             return str(actual).endswith(str(expected))
-        elif operator == "matches":
+        if operator == "matches":
             return bool(re.match(str(expected), str(actual)))
-        else:
-            raise RuleEvaluationError(f"Unknown comparison operator: {operator}")
+        msg = f"Unknown comparison operator: {operator}"
+        raise RuleEvaluationError(msg)
 
     def _handle_missing_attribute(self, attribute_path: str) -> bool:
         """Handle a missing attribute according to the configured strategy."""
         if self.missing_attribute_strategy == MissingAttributeStrategy.ALLOW:
             return True
-        elif self.missing_attribute_strategy == MissingAttributeStrategy.ERROR:
-            raise RuleEvaluationError(
-                f"Required attribute '{attribute_path}' is missing"
-            )
-        else:  # DENY (default)
-            return False
+        if self.missing_attribute_strategy == MissingAttributeStrategy.ERROR:
+            msg = f"Required attribute '{attribute_path}' is missing"
+            raise RuleEvaluationError(msg)
+        return False
 
     # ------------------------------------------------------------------
     # Validation
     # ------------------------------------------------------------------
 
-    def _validate_node(
-        self, node: Any, errors: list[str], path: str
-    ) -> None:
+    def _validate_node(self, node: Any, errors: list[str], path: str) -> None:
         """Recursively validate a rule node."""
         if not isinstance(node, dict):
             errors.append(f"{path}: expected dict, got {type(node).__name__}")

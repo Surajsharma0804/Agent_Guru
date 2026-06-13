@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.goal_manager.dependency_resolver
-Purpose: Manages goal dependencies and execution readiness with cycle detection
+"""Module: agent_guru.goal_manager.dependency_resolver
+Purpose: Manages goal dependencies and execution readiness with cycle detection.
 
 This module implements dependency management for the Goal Manager system,
 ensuring goals execute in the correct order and detecting circular dependencies.
@@ -29,15 +28,13 @@ Date: 2024-01-15
 Version: 1.0.0
 """
 
-
 from .exceptions import CircularDependencyError
 from .goal_storage import GoalStorage
 from .models import Goal, GoalStatus
 
 
 class DependencyResolver:
-    """
-    Manages goal dependencies and execution readiness.
+    """Manages goal dependencies and execution readiness.
 
     Detects cycles using depth-first search and determines when goals
     are ready for execution based on dependency satisfaction.
@@ -56,20 +53,20 @@ class DependencyResolver:
         >>> resolver.validate_dependencies(goal_b)  # OK
         >>> goal_a.dependency_ids = [goal_b.id]
         >>> resolver.validate_dependencies(goal_a)  # Raises ValidationError
+
     """
 
-    def __init__(self, storage: GoalStorage):
-        """
-        Initialize with storage.
+    def __init__(self, storage: GoalStorage) -> None:
+        """Initialize with storage.
 
         Args:
             storage: GoalStorage instance for querying goals
+
         """
         self.storage = storage
 
     async def validate_dependencies(self, goal: Goal) -> None:
-        """
-        Validate goal dependencies don't form cycles.
+        """Validate goal dependencies don't form cycles.
 
         Uses depth-first search to detect circular dependencies.
         A cycle exists if we encounter a goal that's already in the
@@ -84,19 +81,18 @@ class DependencyResolver:
 
         Raises:
             ValidationError: If circular dependencies detected
+
         """
         # Pass the goal's current dependency_ids as an override so that
         # the DFS uses the *new* deps for the starting node rather than
         # whatever is currently persisted in storage.
         override: dict = {goal.id: goal.dependency_ids}
         if await self._has_cycle(goal, override):
-            raise CircularDependencyError(
-                f"Circular dependency detected for goal {goal.id}"
-            )
+            msg = f"Circular dependency detected for goal {goal.id}"
+            raise CircularDependencyError(msg)
 
     async def _has_cycle(self, goal: Goal, override: dict) -> bool:
-        """
-        Check if goal has circular dependencies using DFS.
+        """Check if goal has circular dependencies using DFS.
 
         Performs depth-first search starting from the goal,
         tracking visited nodes and the current recursion stack.
@@ -111,6 +107,7 @@ class DependencyResolver:
 
         Returns:
             True if cycle detected, False otherwise
+
         """
         visited: set[str] = set()
         rec_stack: set[str] = set()
@@ -124,8 +121,7 @@ class DependencyResolver:
         rec_stack: set[str],
         override: dict,
     ) -> bool:
-        """
-        DFS utility for cycle detection.
+        """DFS utility for cycle detection.
 
         Recursive helper that performs depth-first search with
         recursion stack tracking. A cycle exists if we encounter
@@ -150,6 +146,7 @@ class DependencyResolver:
 
         Returns:
             True if cycle detected, False otherwise
+
         """
         # Mark as visited and add to recursion stack
         visited.add(goal_id)
@@ -181,8 +178,7 @@ class DependencyResolver:
         return False
 
     async def is_ready(self, goal: Goal) -> bool:
-        """
-        Check if goal is ready for execution.
+        """Check if goal is ready for execution.
 
         A goal is ready if all its dependencies are complete.
         Goals with no dependencies are always ready.
@@ -195,6 +191,7 @@ class DependencyResolver:
 
         Returns:
             True if ready for execution, False otherwise
+
         """
         # No dependencies means ready
         if not goal.dependency_ids:
@@ -209,20 +206,19 @@ class DependencyResolver:
         return True
 
     async def check_dependencies(self, goal: Goal) -> bool:
-        """
-        Alias for is_ready — check if all dependencies are satisfied.
+        """Alias for is_ready — check if all dependencies are satisfied.
 
         Args:
             goal: Goal to check
 
         Returns:
             True if all dependencies are complete, False otherwise
+
         """
         return await self.is_ready(goal)
 
     async def mark_blocked(self, goal_id: str) -> None:
-        """
-        Mark goal as blocked due to failed dependency.
+        """Mark goal as blocked due to failed dependency.
 
         Recursively propagates blocking to all dependent goals.
         This ensures that if a goal fails, all goals depending on it
@@ -233,6 +229,7 @@ class DependencyResolver:
 
         Args:
             goal_id: Goal to mark as blocked
+
         """
         # Get goal
         goal = await self.storage.get_goal(goal_id)

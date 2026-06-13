@@ -1,5 +1,4 @@
-"""
-Agent Lifecycle Manager for Agent Orchestration System.
+"""Agent Lifecycle Manager for Agent Orchestration System.
 
 Manages agent creation, retirement, and lifecycle transitions with strict
 enforcement of constraints:
@@ -27,8 +26,8 @@ Version: 1.0.0
 Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 5.1, 5.2, 5.3, 5.4, 5.5
 """
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, ClassVar
 from uuid import uuid4
 
 from Agent_Guru.agent_orchestration.models import Agent, AgentStatus
@@ -36,8 +35,7 @@ from Agent_Guru.agent_orchestration.storage import AgentStorage
 
 
 class AgentLifecycleManager:
-    """
-    Manages agent creation, retirement, and lifecycle transitions.
+    """Manages agent creation, retirement, and lifecycle transitions.
 
     Enforces critical constraints:
     - No pre-defined role names (researcher, coder, planner, etc.)
@@ -66,36 +64,39 @@ class AgentLifecycleManager:
         >>> print(f"Created agent: {agent.id}")
 
     Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 5.1, 5.2, 5.3, 5.4, 5.5
+
     """
 
     # Forbidden role names that violate the dynamic agent principle
     # These represent static roles, not task-specific capabilities
-    FORBIDDEN_ROLE_NAMES = {
-        "researcher",
-        "coder",
-        "planner",
-        "writer",
-        "analyst",
-        "reviewer",
-        "tester",
-        "designer",
-        "architect",
-        "developer",
-        "engineer",
-        "programmer",
-        "debugger",
-        "optimizer",
-        "documenter",
-    }
+    FORBIDDEN_ROLE_NAMES: ClassVar[frozenset[str]] = frozenset(
+        {
+            "researcher",
+            "coder",
+            "planner",
+            "writer",
+            "analyst",
+            "reviewer",
+            "tester",
+            "designer",
+            "architect",
+            "developer",
+            "engineer",
+            "programmer",
+            "debugger",
+            "optimizer",
+            "documenter",
+        },
+    )
 
-    def __init__(self, storage: AgentStorage):
-        """
-        Initialize agent lifecycle manager.
+    def __init__(self, storage: AgentStorage) -> None:
+        """Initialize agent lifecycle manager.
 
         Args:
             storage: Storage backend for agent persistence
 
         Time Complexity: O(1)
+
         """
         self.storage = storage
 
@@ -104,8 +105,7 @@ class AgentLifecycleManager:
         task_requirements: dict[str, Any],
         initial_capabilities: dict[str, float],
     ) -> Agent:
-        """
-        Create new agent based on task requirements.
+        """Create new agent based on task requirements.
 
         Creates a new agent with unique identifier and initial capabilities.
         Validates that capabilities do not contain forbidden role names.
@@ -131,6 +131,7 @@ class AgentLifecycleManager:
             ... )
 
         Validates: Requirements 1.1, 1.2, 1.3, 1.4
+
         """
         # Validate no forbidden role names (Requirement 1.3)
         self._validate_no_forbidden_names(initial_capabilities)
@@ -142,8 +143,8 @@ class AgentLifecycleManager:
             capabilities=initial_capabilities,
             specializations={},  # Empty initially, built through experience
             performance_history=[],
-            created_at=datetime.now(tz=timezone.utc),
-            last_active=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
+            last_active=datetime.now(tz=UTC),
             total_tasks=0,
             successful_tasks=0,
             metadata={
@@ -177,8 +178,7 @@ class AgentLifecycleManager:
         agent_id: str,
         reason: str,
     ) -> None:
-        """
-        Retire agent due to underperformance or redundancy.
+        """Retire agent due to underperformance or redundancy.
 
         Transitions agent through RETIRING -> RETIRED states.
         Records retirement event with final performance metrics.
@@ -198,6 +198,7 @@ class AgentLifecycleManager:
             ... )
 
         Validates: Requirements 5.1, 5.2, 5.3, 5.4
+
         """
         # Get agent
         agent = await self.storage.get_agent(agent_id)
@@ -233,8 +234,7 @@ class AgentLifecycleManager:
         # It remains in storage for analysis and learning
 
     async def get_active_agents(self) -> list[Agent]:
-        """
-        Get all active agents.
+        """Get all active agents.
 
         Returns:
             List of agents with ACTIVE status
@@ -247,6 +247,7 @@ class AgentLifecycleManager:
             >>> print(f"Active agents: {len(agents)}")
 
         Validates: Requirements 1.1, 1.2
+
         """
         return await self.storage.get_active_agents()
 
@@ -257,8 +258,7 @@ class AgentLifecycleManager:
         reason: str,
         details: dict[str, Any],
     ) -> None:
-        """
-        Record evolution event for GitHub sync and analysis.
+        """Record evolution event for GitHub sync and analysis.
 
         Evolution events track all significant changes in agent population:
         - creation: New agent created
@@ -275,6 +275,7 @@ class AgentLifecycleManager:
         Time Complexity: O(1)
 
         Validates: Requirements 1.4, 3.5, 4.4, 5.3
+
         """
         event = {
             "id": str(uuid4()),
@@ -282,7 +283,7 @@ class AgentLifecycleManager:
             "agent_ids": agent_ids,
             "reason": reason,
             "details": details,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
 
         await self.storage.store_evolution_event(event)
@@ -291,8 +292,7 @@ class AgentLifecycleManager:
         self,
         capabilities: dict[str, float],
     ) -> None:
-        """
-        Validate that capabilities do not contain forbidden role names.
+        """Validate that capabilities do not contain forbidden role names.
 
         Forbidden names represent static roles (researcher, coder, planner)
         which violate the dynamic agent principle. Agents should have
@@ -319,13 +319,17 @@ class AgentLifecycleManager:
             ... })
 
         Validates: Requirement 1.3
+
         """
-        for capability_name in capabilities.keys():
+        for capability_name in capabilities:
             # Check if capability name is a forbidden role
             if capability_name.lower() in self.FORBIDDEN_ROLE_NAMES:
-                raise ValueError(
+                msg = (
                     f"Forbidden role name '{capability_name}' in capabilities. "
                     f"Use task-specific capability names instead. "
                     f"For example, instead of 'researcher', use 'data_analysis', "
                     f"'literature_review', or 'hypothesis_testing'."
+                )
+                raise ValueError(
+                    msg,
                 )

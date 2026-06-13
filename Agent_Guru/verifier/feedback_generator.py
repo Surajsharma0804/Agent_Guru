@@ -36,6 +36,7 @@ class SelfCorrectionFeedbackGenerator:
 
         Returns:
             SelfCorrectionFeedback with issues and actionable suggestions
+
         """
         issues: list[str] = []
         suggestions: list[str] = []
@@ -79,7 +80,8 @@ class SelfCorrectionFeedbackGenerator:
         )
 
     def _hallucination_feedback(
-        self, result: HallucinationDetectionResult
+        self,
+        result: HallucinationDetectionResult,
     ) -> tuple[list[str], list[str], str]:
         issues: list[str] = []
         suggestions: list[str] = []
@@ -88,29 +90,31 @@ class SelfCorrectionFeedbackGenerator:
             if h_type == HallucinationType.FACTUAL_INCONSISTENCY:
                 issues.append("Factual inconsistency detected in response")
                 suggestions.append(
-                    "Verify all factual claims against reliable sources before responding"
+                    "Verify all factual claims against reliable sources before responding",
                 )
             elif h_type == HallucinationType.CROSS_REFERENCE_FAILURE:
                 issues.append("Response contradicts provided context")
                 suggestions.append(
-                    "Re-read the provided context and ensure your response is consistent with it"
+                    "Re-read the provided context and ensure your response is consistent with it",
                 )
             elif h_type == HallucinationType.LOW_CONFIDENCE_SIGNAL:
                 issues.append("Response contains excessive uncertainty language")
                 suggestions.append(
-                    "If uncertain, explicitly state your uncertainty rather than guessing"
+                    "If uncertain, explicitly state your uncertainty rather than guessing",
                 )
             elif h_type == HallucinationType.PATTERN_MATCH:
                 issues.append("Response contains patterns associated with fabricated information")
                 suggestions.append(
-                    "Avoid citing specific statistics, dates, or studies unless you are certain they are accurate"
+                    "Avoid citing specific statistics, dates, or studies unless you are certain they are accurate",
                 )
 
         severity = "high" if len(result.hallucination_types) >= 2 else "medium"
+
         return issues, suggestions, severity
 
     def _validation_feedback(
-        self, result: OutputValidationResult
+        self,
+        result: OutputValidationResult,
     ) -> tuple[list[str], list[str], str]:
         issues: list[str] = []
         suggestions: list[str] = []
@@ -121,34 +125,27 @@ class SelfCorrectionFeedbackGenerator:
                 suggestions.append(f"Add the required field '{violation.field}' to your output")
             elif violation.failure_type == ValidationFailureType.TYPE_MISMATCH:
                 issues.append(
-                    f"Type mismatch at '{violation.field}': expected {violation.expected}, got {violation.actual}"
+                    f"Type mismatch at '{violation.field}': expected {violation.expected}, got {violation.actual}",
                 )
-                suggestions.append(
-                    f"Change '{violation.field}' to type {violation.expected}"
-                )
+                suggestions.append(f"Change '{violation.field}' to type {violation.expected}")
             elif violation.failure_type == ValidationFailureType.FORMAT_ERROR:
                 issues.append(f"Format error: {violation.message}")
                 suggestions.append("Ensure your output is valid " + result.format_detected)
             elif violation.failure_type == ValidationFailureType.CONSTRAINT_VIOLATION:
                 issues.append(f"Constraint violation at '{violation.field}': {violation.message}")
-                suggestions.append(
-                    f"Adjust '{violation.field}' to satisfy: {violation.expected}"
-                )
+                suggestions.append(f"Adjust '{violation.field}' to satisfy: {violation.expected}")
 
         severity = "high" if len(result.violations) > 3 else "medium"
+
         return issues, suggestions, severity
 
-    def _tool_feedback(
-        self, result: ToolOutputCheckResult
-    ) -> tuple[list[str], list[str], str]:
+    def _tool_feedback(self, result: ToolOutputCheckResult) -> tuple[list[str], list[str], str]:
         issues: list[str] = []
         suggestions: list[str] = []
 
         if result.error_indicators:
             issues.append(f"Tool output contains error indicators: {result.error_indicators[:3]}")
-            suggestions.append(
-                "Check tool execution logs and retry with corrected parameters"
-            )
+            suggestions.append("Check tool execution logs and retry with corrected parameters")
 
         if not result.schema_valid:
             issues.append("Tool output does not match expected schema")
@@ -157,18 +154,14 @@ class SelfCorrectionFeedbackGenerator:
         if not result.semantically_consistent:
             issues.append("Tool output is semantically inconsistent with input parameters")
             suggestions.append(
-                "Review input parameters and ensure they are compatible with the tool's requirements"
+                "Review input parameters and ensure they are compatible with the tool's requirements",
             )
 
         severity = "high" if result.error_indicators else "medium"
         return issues, suggestions, severity
 
-    def _loop_feedback(
-        self, result: LoopDetectionResult
-    ) -> tuple[list[str], list[str], str]:
-        issues = [
-            f"Infinite loop detected: state repeated {result.repetition_count} times"
-        ]
+    def _loop_feedback(self, result: LoopDetectionResult) -> tuple[list[str], list[str], str]:
+        issues = [f"Infinite loop detected: state repeated {result.repetition_count} times"]
         suggestions = [
             "Break the loop by introducing a different approach or termination condition",
             "Consider whether the goal has already been achieved",

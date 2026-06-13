@@ -1,5 +1,4 @@
-"""
-Task Assigner - Assigns tasks to optimal agents based on specialization.
+"""Task Assigner - Assigns tasks to optimal agents based on specialization.
 
 Implements specialization-based assignment with workload balancing.
 When no suitable agent exists, a new one is created on-demand.
@@ -14,15 +13,14 @@ Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
-
-from .agent_lifecycle import Agent, AgentLifecycleManager
-from .task_decomposer import Task
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .agent_lifecycle import Agent, AgentLifecycleManager
     from .agent_storage import AgentStorage
     from .specialization_tracker import SpecializationTracker
+    from .task_decomposer import Task
 
 
 class TaskAssigner:
@@ -44,12 +42,13 @@ class TaskAssigner:
         >>> agent_id = await assigner.assign_task(task)
 
     Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5
+
     """
 
     def __init__(
         self,
-        storage: "AgentStorage",
-        specialization_tracker: "SpecializationTracker",
+        storage: AgentStorage,
+        specialization_tracker: SpecializationTracker,
         lifecycle_manager: AgentLifecycleManager,
         max_workload_per_agent: int = 5,
     ) -> None:
@@ -65,9 +64,11 @@ class TaskAssigner:
             ValueError: If max_workload_per_agent < 1.
 
         Validates: Requirements 7.3, 7.5
+
         """
         if max_workload_per_agent < 1:
-            raise ValueError("max_workload_per_agent must be >= 1")
+            msg = "max_workload_per_agent must be >= 1"
+            raise ValueError(msg)
 
         self.storage = storage
         self.specialization_tracker = specialization_tracker
@@ -80,7 +81,7 @@ class TaskAssigner:
     # Public API
     # ------------------------------------------------------------------
 
-    async def assign_task(self, task: Task, exclude_agent_id: Optional[str] = None) -> str:
+    async def assign_task(self, task: Task, exclude_agent_id: str | None = None) -> str:
         """Assign a task to the best available agent.
 
         Args:
@@ -94,6 +95,7 @@ class TaskAssigner:
         Performance Target: <50ms for 1000 agents
 
         Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5
+
         """
         agents = await self.storage.get_active_agents()
 
@@ -106,7 +108,7 @@ class TaskAssigner:
         scored.sort(key=lambda x: x[1], reverse=True)
 
         # Pick highest-scoring agent with capacity
-        selected_id: Optional[str] = None
+        selected_id: str | None = None
         for agent_id, _score in scored:
             if self._has_capacity(agent_id):
                 selected_id = agent_id
@@ -127,7 +129,7 @@ class TaskAssigner:
         await self.storage.record_task_assignment(
             task_id=task.id,
             agent_id=selected_id,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )
 
         return selected_id
@@ -140,6 +142,7 @@ class TaskAssigner:
 
         Time Complexity: O(1)
         Validates: Requirement 7.3
+
         """
         if agent_id in self._workloads:
             self._workloads[agent_id] = max(0, self._workloads[agent_id] - 1)
@@ -152,6 +155,7 @@ class TaskAssigner:
 
         Returns:
             Number of active tasks assigned to the agent.
+
         """
         return self._workloads.get(agent_id, 0)
 
@@ -173,6 +177,7 @@ class TaskAssigner:
 
         Time Complexity: O(1)
         Validates: Requirements 7.1, 7.2, 7.3
+
         """
         spec_score = agent.specializations.get(task.task_type, 0.0)
 
@@ -192,5 +197,6 @@ class TaskAssigner:
 
         Time Complexity: O(1)
         Validates: Requirement 7.3
+
         """
         return self._workloads.get(agent_id, 0) < self.max_workload

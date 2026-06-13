@@ -1,8 +1,7 @@
-"""
-Module: agent_guru.platform.network.connection_pool
+"""Module: agent_guru.platform.network.connection_pool
 Purpose: Advanced connection pooling with per-host limits and idle cleanup
 Author: Agent Guru Team
-Date: 2026-02-26
+Date: 2026-02-26.
 
 Performance Requirements:
 - Time Complexity: O(1) for connection acquisition
@@ -18,10 +17,10 @@ Design Decisions:
 """
 
 import asyncio
+import contextlib
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 import aiohttp
 
@@ -40,6 +39,7 @@ class ConnectionPoolConfig:
         cleanup_interval: Cleanup interval in seconds (30s recommended)
         ttl_dns_cache: DNS cache TTL in seconds (300s recommended)
         enable_cleanup_closed: Whether to enable automatic cleanup of closed connections
+
     """
 
     max_connections_per_host: int = 100
@@ -63,6 +63,7 @@ class ConnectionStats:
         closed_connections: Number of connections closed
         last_activity: Last activity timestamp
         reuse_rate: Connection reuse rate (0.0-1.0)
+
     """
 
     host: str
@@ -79,6 +80,7 @@ class ConnectionStats:
 
         Returns:
             Reuse rate as percentage (0.0-1.0)
+
         """
         if self.total_connections == 0:
             return 0.0
@@ -98,6 +100,7 @@ class PoolStatistics:
         total_closed: Total connections closed
         average_reuse_rate: Average reuse rate across all hosts
         per_host_stats: Per-host connection statistics
+
     """
 
     total_hosts: int
@@ -129,6 +132,7 @@ class ConnectionPoolManager:
         >>> connector = pool_manager.create_connector(ssl_context)
         >>> # Use connector with aiohttp.ClientSession
         >>> session = aiohttp.ClientSession(connector=connector)
+
     """
 
     def __init__(self, config: ConnectionPoolConfig) -> None:
@@ -136,10 +140,11 @@ class ConnectionPoolManager:
 
         Args:
             config: Connection pool configuration
+
         """
         self.config = config
-        self._connector: Optional[aiohttp.TCPConnector] = None
-        self._cleanup_task: Optional[asyncio.Task] = None
+        self._connector: aiohttp.TCPConnector | None = None
+        self._cleanup_task: asyncio.Task | None = None
         self._is_running = False
 
         # Per-host statistics
@@ -153,13 +158,10 @@ class ConnectionPoolManager:
                 "max_total": config.max_connections_total,
                 "idle_timeout": config.idle_timeout,
                 "cleanup_interval": config.cleanup_interval,
-            }
+            },
         )
 
-    def create_connector(
-        self,
-        ssl_context: Optional[object] = None
-    ) -> aiohttp.TCPConnector:
+    def create_connector(self, ssl_context: object | None = None) -> aiohttp.TCPConnector:
         """Create TCP connector with connection pooling.
 
         Args:
@@ -172,6 +174,7 @@ class ConnectionPoolManager:
             >>> import ssl
             >>> ssl_context = ssl.create_default_context()
             >>> connector = pool_manager.create_connector(ssl_context)
+
         """
         self._connector = aiohttp.TCPConnector(
             limit=self.config.max_connections_total,
@@ -193,6 +196,7 @@ class ConnectionPoolManager:
 
         Example:
             >>> await pool_manager.start_cleanup()
+
         """
         if self._is_running:
             logger.warning("Cleanup task already running")
@@ -207,6 +211,7 @@ class ConnectionPoolManager:
 
         Example:
             >>> await pool_manager.stop_cleanup()
+
         """
         if not self._is_running:
             return
@@ -214,10 +219,8 @@ class ConnectionPoolManager:
         self._is_running = False
         if self._cleanup_task is not None:
             self._cleanup_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._cleanup_task
-            except asyncio.CancelledError as e:
-                pass
             self._cleanup_task = None
 
         logger.info("Connection cleanup task stopped")
@@ -235,13 +238,7 @@ class ConnectionPoolManager:
                 await self._cleanup_idle_connections()
             except asyncio.CancelledError as e:
                 break
-            except Exception as e:
-                logger.error(
-                    "Error in cleanup loop",
-                    extra={"error": str(e)},
-                    exc_info=True
-                )
-
+                logger.exception("Error in cleanup loop", extra={"error": str(e)}, exc_info=True)
         logger.info("Cleanup loop stopped")
 
     async def _cleanup_idle_connections(self) -> None:
@@ -265,7 +262,7 @@ class ConnectionPoolManager:
         after_stats = self._get_connector_stats()
 
         cleanup_time = time.perf_counter() - start_time
-        closed_count = before_stats.get('total', 0) - after_stats.get('total', 0)
+        closed_count = before_stats.get("total", 0) - after_stats.get("total", 0)
 
         if closed_count > 0:
             logger.info(
@@ -273,8 +270,8 @@ class ConnectionPoolManager:
                 extra={
                     "closed_count": closed_count,
                     "cleanup_time": cleanup_time,
-                    "remaining_connections": after_stats.get('total', 0),
-                }
+                    "remaining_connections": after_stats.get("total", 0),
+                },
             )
 
     def _get_connector_stats(self) -> dict[str, int]:
@@ -282,6 +279,7 @@ class ConnectionPoolManager:
 
         Returns:
             Dictionary with connection counts
+
         """
         if self._connector is None:
             return {}
@@ -290,11 +288,10 @@ class ConnectionPoolManager:
         # Note: This uses private API, may need adjustment for different aiohttp versions
         try:
             # Get connection counts from connector
-            stats = {
-                'total': len(self._connector._conns),  # Total connections
-                'acquired': len(self._connector._acquired),  # Active connections
+            return {
+                "total": len(self._connector._conns),  # Total connections
+                "acquired": len(self._connector._acquired),  # Active connections
             }
-            return stats
         except AttributeError:
             # Fallback if internal API changes
             return {}
@@ -304,7 +301,7 @@ class ConnectionPoolManager:
         host: str,
         is_new: bool = False,
         is_reused: bool = False,
-        is_closed: bool = False
+        is_closed: bool = False,
     ) -> None:
         """Record connection activity for statistics.
 
@@ -319,6 +316,7 @@ class ConnectionPoolManager:
             ...     "api.example.com",
             ...     is_new=True
             ... )
+
         """
         async with self._stats_lock:
             if host not in self._host_stats:
@@ -338,7 +336,7 @@ class ConnectionPoolManager:
                 stats.closed_connections += 1
                 stats.active_connections = max(0, stats.active_connections - 1)
 
-    async def get_host_stats(self, host: str) -> Optional[ConnectionStats]:
+    async def get_host_stats(self, host: str) -> ConnectionStats | None:
         """Get connection statistics for specific host.
 
         Args:
@@ -351,6 +349,7 @@ class ConnectionPoolManager:
             >>> stats = await pool_manager.get_host_stats("api.example.com")
             >>> if stats:
             ...     print(f"Reuse rate: {stats.reuse_rate:.2%}")
+
         """
         async with self._stats_lock:
             return self._host_stats.get(host)
@@ -365,6 +364,7 @@ class ConnectionPoolManager:
             >>> stats = await pool_manager.get_all_stats()
             >>> print(f"Total hosts: {stats.total_hosts}")
             >>> print(f"Average reuse rate: {stats.average_reuse_rate:.2%}")
+
         """
         async with self._stats_lock:
             total_active = sum(s.active_connections for s in self._host_stats.values())
@@ -374,7 +374,9 @@ class ConnectionPoolManager:
             total_closed = sum(s.closed_connections for s in self._host_stats.values())
 
             # Calculate average reuse rate
-            reuse_rates = [s.reuse_rate for s in self._host_stats.values() if s.total_connections > 0]
+            reuse_rates = [
+                s.reuse_rate for s in self._host_stats.values() if s.total_connections > 0
+            ]
             avg_reuse_rate = sum(reuse_rates) / len(reuse_rates) if reuse_rates else 0.0
 
             return PoolStatistics(
@@ -393,6 +395,7 @@ class ConnectionPoolManager:
 
         Example:
             >>> await pool_manager.reset_stats()
+
         """
         async with self._stats_lock:
             self._host_stats.clear()
@@ -404,6 +407,7 @@ class ConnectionPoolManager:
 
         Example:
             >>> await pool_manager.close()
+
         """
         await self.stop_cleanup()
 

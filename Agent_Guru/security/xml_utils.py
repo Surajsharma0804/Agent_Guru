@@ -1,5 +1,4 @@
-"""
-Safe XML parsing utilities for Agent Guru.
+"""Safe XML parsing utilities for Agent Guru.
 
 This module prevents XML External Entity (XXE) injection (CWE-611) by
 using ``defusedxml`` when available, and falling back to a hardened
@@ -22,18 +21,18 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import IO, Union
+from typing import IO
 
 # Attempt to import defusedxml; fall back to stdlib with manual hardening.
 try:
-    import defusedxml.ElementTree as _defused_ET  # type: ignore[import-untyped]
+    import defusedxml.ElementTree as _defused_ET  # type: ignore[import-untyped]  # noqa: F401
 
     _DEFUSEDXML_AVAILABLE = True
 except ImportError:  # pragma: no cover — defusedxml is optional
     _DEFUSEDXML_AVAILABLE = False
 
 
-def safe_xml_parse(source: Union[str, Path, IO[bytes], IO[str]]) -> ET.Element:
+def safe_xml_parse(source: str | Path | IO[bytes] | IO[str]) -> ET.Element:
     """Parse an XML document safely, with external entities disabled.
 
     Uses ``defusedxml.ElementTree.parse()`` when the library is installed.
@@ -61,6 +60,7 @@ def safe_xml_parse(source: Union[str, Path, IO[bytes], IO[str]]) -> ET.Element:
 
         root = safe_xml_parse("<config><key>value</key></config>")
         print(root.find("key").text)
+
     """
     if _DEFUSEDXML_AVAILABLE:
         return _parse_with_defusedxml(source)
@@ -72,7 +72,7 @@ def safe_xml_parse(source: Union[str, Path, IO[bytes], IO[str]]) -> ET.Element:
 # ---------------------------------------------------------------------------
 
 
-def _parse_with_defusedxml(source: Union[str, Path, IO[bytes], IO[str]]) -> ET.Element:
+def _parse_with_defusedxml(source: str | Path | IO[bytes] | IO[str]) -> ET.Element:
     """Parse using defusedxml (preferred path)."""
     try:
         if isinstance(source, str):
@@ -94,11 +94,12 @@ def _parse_with_defusedxml(source: Union[str, Path, IO[bytes], IO[str]]) -> ET.E
         # defusedxml raises its own exception hierarchy; re-raise as ValueError
         # so callers have a single exception type to handle for XXE attempts.
         if "entity" in str(exc).lower() or "dtd" in str(exc).lower() or "xxe" in str(exc).lower():
-            raise ValueError(f"Unsafe XML content detected: {exc}") from exc
+            msg = f"Unsafe XML content detected: {exc}"
+            raise ValueError(msg) from exc
         raise
 
 
-def _parse_with_stdlib(source: Union[str, Path, IO[bytes], IO[str]]) -> ET.Element:
+def _parse_with_stdlib(source: str | Path | IO[bytes] | IO[str]) -> ET.Element:
     """Parse using stdlib ET with a hardened parser that rejects external entities."""
 
     class _SafeParser(ET.XMLParser):
@@ -110,9 +111,12 @@ def _parse_with_stdlib(source: Union[str, Path, IO[bytes], IO[str]]) -> ET.Eleme
             self.parser.UseForeignDTD(False)  # type: ignore[attr-defined]
 
         def handle_entityref(self, name: str) -> None:  # type: ignore[override]
-            raise ValueError(
+            msg = (
                 f"External entity reference &{name}; detected — "
                 "XML external entity injection (XXE) is not permitted."
+            )
+            raise ValueError(
+                msg,
             )
 
         def handle_charref(self, name: str) -> None:  # type: ignore[override]
@@ -122,8 +126,7 @@ def _parse_with_stdlib(source: Union[str, Path, IO[bytes], IO[str]]) -> ET.Eleme
     parser = _SafeParser()
 
     if isinstance(source, str):
-        root = ET.fromstring(source, parser=parser)  # nosec B314
-        return root
+        return ET.fromstring(source, parser=parser)  # nosec B314
     if isinstance(source, Path):
         tree = ET.parse(str(source), parser=parser)  # nosec B314
         return tree.getroot()

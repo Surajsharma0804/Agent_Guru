@@ -2,12 +2,12 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
 class AudioConfig:
     """Audio input/output configuration."""
+
     sample_rate: int = 16000
     channels: int = 1
     chunk_size: int = 1024
@@ -18,6 +18,7 @@ class AudioConfig:
 @dataclass
 class AudioProcessingConfig:
     """Audio processing configuration."""
+
     enable_noise_reduction: bool = True
     enable_vad: bool = True
     enable_echo_cancellation: bool = True
@@ -29,9 +30,10 @@ class AudioProcessingConfig:
 @dataclass
 class WakeWordConfig:
     """Wake word detection configuration."""
+
     wake_words: list[str] = field(default_factory=lambda: ["Hey Guru", "Hey Maya"])
     sensitivity: float = 0.5  # 0.0-1.0
-    model_path: Optional[str] = None
+    model_path: str | None = None
     detection_timeout_ms: int = 200
 
 
@@ -49,9 +51,10 @@ class STTConfig:
 @dataclass
 class TTSConfigSettings:
     """Text-to-speech configuration."""
+
     engine: str = "pyttsx3"  # pyttsx3, coqui, google, azure, aws
-    male_voice_id: Optional[str] = None
-    female_voice_id: Optional[str] = None
+    male_voice_id: str | None = None
+    female_voice_id: str | None = None
     sample_rate: int = 22050
     enable_emotion: bool = True
     enable_ssml: bool = False
@@ -60,7 +63,8 @@ class TTSConfigSettings:
 @dataclass
 class EmotionConfig:
     """Emotion detection configuration."""
-    model_path: Optional[str] = None
+
+    model_path: str | None = None
     confidence_threshold: float = 0.5
     enable_streaming: bool = True
 
@@ -68,7 +72,8 @@ class EmotionConfig:
 @dataclass
 class VoiceBiometricConfig:
     """Voice biometric configuration."""
-    model_path: Optional[str] = None
+
+    model_path: str | None = None
     enrollment_samples: int = 5
     verification_threshold: float = 0.7
     enable_liveness_detection: bool = True
@@ -77,6 +82,7 @@ class VoiceBiometricConfig:
 @dataclass
 class VoiceCloningConfig:
     """Voice cloning configuration."""
+
     target_similarity: float = 0.85
     training_epochs: int = 100
     use_gpu: bool = True
@@ -86,6 +92,7 @@ class VoiceCloningConfig:
 @dataclass
 class NoiseCancellationConfig:
     """Advanced noise cancellation configuration."""
+
     reduction_level: str = "medium"  # light, medium, aggressive
     target_snr_db: float = 20.0
     enable_adaptive: bool = True
@@ -94,6 +101,7 @@ class NoiseCancellationConfig:
 @dataclass
 class StreamingConfig:
     """Streaming audio configuration."""
+
     chunk_duration_ms: int = 200
     max_latency_ms: int = 500
     codec: str = "pcm"  # pcm, opus, aac
@@ -103,6 +111,7 @@ class StreamingConfig:
 @dataclass
 class CommandConfig:
     """Command parsing configuration."""
+
     enable_custom_commands: bool = True
     enable_command_chaining: bool = True
     confidence_threshold: float = 0.6
@@ -111,6 +120,7 @@ class CommandConfig:
 @dataclass
 class ContextConfig:
     """Conversation context configuration."""
+
     max_turns: int = 10
     enable_reference_resolution: bool = True
     enable_topic_detection: bool = True
@@ -119,9 +129,10 @@ class ContextConfig:
 @dataclass
 class LanguageConfig:
     """Multi-language configuration."""
-    supported_languages: list[str] = field(default_factory=lambda: [
-        "en", "es", "fr", "de", "zh", "ja", "hi", "pa"
-    ])
+
+    supported_languages: list[str] = field(
+        default_factory=lambda: ["en", "es", "fr", "de", "zh", "ja", "hi", "pa"],
+    )
     auto_detect: bool = True
     default_language: str = "en"
 
@@ -129,6 +140,7 @@ class LanguageConfig:
 @dataclass
 class ModelRouterConfig:
     """Model router configuration."""
+
     prefer_local: bool = False
     prefer_cloud: bool = False
     enable_fallback: bool = True
@@ -138,6 +150,7 @@ class ModelRouterConfig:
 @dataclass
 class BackgroundServiceConfig:
     """Background service configuration."""
+
     enable_auto_start: bool = True
     sleep_mode_timeout_seconds: int = 3
     max_cpu_percent_sleep: float = 5.0
@@ -149,6 +162,7 @@ class BackgroundServiceConfig:
 @dataclass
 class BatteryConfig:
     """Battery optimization configuration."""
+
     optimization_level: str = "balanced"  # aggressive, balanced, performance
     low_battery_threshold: float = 0.2
     critical_battery_threshold: float = 0.05
@@ -158,6 +172,7 @@ class BatteryConfig:
 @dataclass
 class SpeechEngineConfig:
     """Main speech engine configuration."""
+
     # Component configurations
     audio: AudioConfig = field(default_factory=AudioConfig)
     audio_processing: AudioProcessingConfig = field(default_factory=AudioProcessingConfig)
@@ -184,13 +199,11 @@ class SpeechEngineConfig:
     @classmethod
     def for_guru_personality(cls) -> "SpeechEngineConfig":
         """Create configuration optimized for Guru (male) personality."""
-        config = cls()
+        return cls()
         # Guru-specific settings can be added here
-        return config
 
     @classmethod
     def for_maya_personality(cls) -> "SpeechEngineConfig":
         """Create configuration optimized for Maya (female) personality."""
-        config = cls()
+        return cls()
         # Maya-specific settings can be added here
-        return config

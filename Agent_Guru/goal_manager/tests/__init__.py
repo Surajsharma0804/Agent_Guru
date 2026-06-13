@@ -1,5 +1,4 @@
-"""
-Tests for Goal Manager.
+"""Tests for Goal Manager.
 
 This package contains comprehensive tests for the Goal Manager system:
 - Unit tests: Specific examples and edge cases

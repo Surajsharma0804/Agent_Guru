@@ -1,5 +1,4 @@
-"""
-Summarization tools for text, articles, and documents.
+"""Summarization tools for text, articles, and documents.
 
 Uses LLM for intelligent summarization.
 """
@@ -55,6 +54,7 @@ class SummarizeTextTool(Tool):
 
         Returns:
             Execution result with summary
+
         """
         text = kwargs["text"]
         max_length = kwargs.get("max_length", 100)
@@ -79,10 +79,7 @@ class SummarizeTextTool(Tool):
             words = text.split()
             word_count = len(words)
 
-            if word_count <= max_length:
-                summary = text
-            else:
-                summary = " ".join(words[:max_length]) + "..."
+            summary = text if word_count <= max_length else " ".join(words[:max_length]) + "..."
 
             return {
                 "success": True,
@@ -99,7 +96,7 @@ class SummarizeTextTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to summarize text: {str(e)}",
+                "error": f"Failed to summarize text: {e!s}",
             }
 
 
@@ -143,6 +140,7 @@ class SummarizeArticleTool(Tool):
 
         Returns:
             Execution result with summary
+
         """
         url = kwargs["url"]
         max_length = kwargs.get("max_length", 150)
@@ -180,7 +178,7 @@ class SummarizeArticleTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to summarize article: {str(e)}",
+                "error": f"Failed to summarize article: {e!s}",
             }
 
 
@@ -224,6 +222,7 @@ class SummarizeDocumentTool(Tool):
 
         Returns:
             Execution result with summary
+
         """
         file_path = kwargs["file_path"]
         max_length = kwargs.get("max_length", 200)
@@ -261,5 +260,5 @@ class SummarizeDocumentTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to summarize document: {str(e)}",
+                "error": f"Failed to summarize document: {e!s}",
             }

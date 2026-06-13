@@ -1,5 +1,4 @@
-"""
-Platform Integration - Permission Management
+"""Platform Integration - Permission Management.
 
 This module provides cross-platform permission management and validation.
 """
@@ -68,58 +67,57 @@ from Agent_Guru.platform.permissions.time_checker import (
 )
 
 __all__ = [
-    # Permission Manager
-    "PermissionManager",
-    "PermissionLevel",
-    "PlatformPermissionError",
-    "UserInfo",
-    # Path Checker
-    "PathPermissionChecker",
-    "PermissionType",
-    "PathValidationResult",
-    "PathValidationError",
-    "validate_path_safe",
-    "is_absolute_path",
-    "get_path_extension",
-    "is_hidden_path",
-    # Model Manager
-    "PermissionModelManager",
-    "FileOperation",
-    "HttpMethod",
-    "OperationType",
-    "OperationContext",
-    "QuotaStatus",
-    "ConfigurationError",
-    # Quota Manager
-    "QuotaManager",
-    "QuotaConfig",
-    "UserQuotaCounters",
-    "QuotaExceededException",
+    "CommandCategory",
     # Command Checker
     "CommandPermissionChecker",
-    "CommandValidationResult",
-    "CommandCategory",
-    "DangerLevel",
     "CommandValidationError",
-    "is_dangerous_command",
-    "sanitize_command_args",
-    "parse_command_safely",
-    # Network Checker
-    "NetworkPermissionChecker",
-    "NetworkValidationResult",
-    "NetworkValidationError",
-    "Protocol",
-    "is_valid_url",
-    "extract_domain",
-    "is_https_url",
-    "sanitize_url_simple",
+    "CommandValidationResult",
+    "ConfigurationError",
+    "DangerLevel",
     # Time Checker
     "DayOfWeek",
-    "TimeWindow",
-    "TimeRestriction",
+    "FileOperation",
+    "HttpMethod",
+    # Network Checker
+    "NetworkPermissionChecker",
+    "NetworkValidationError",
+    "NetworkValidationResult",
+    "OperationContext",
+    "OperationType",
+    # Path Checker
+    "PathPermissionChecker",
+    "PathValidationError",
+    "PathValidationResult",
+    "PermissionLevel",
+    # Permission Manager
+    "PermissionManager",
+    # Model Manager
+    "PermissionModelManager",
+    "PermissionType",
+    "PlatformPermissionError",
+    "Protocol",
+    "QuotaConfig",
+    "QuotaExceededException",
+    # Quota Manager
+    "QuotaManager",
+    "QuotaStatus",
     "TimeChecker",
+    "TimeRestriction",
+    "TimeWindow",
+    "UserInfo",
+    "UserQuotaCounters",
     "business_hours",
-    "weekends",
+    "extract_domain",
+    "get_path_extension",
+    "is_absolute_path",
+    "is_dangerous_command",
+    "is_hidden_path",
+    "is_https_url",
+    "is_valid_url",
     "night_hours",
+    "parse_command_safely",
+    "sanitize_command_args",
+    "sanitize_url_simple",
+    "validate_path_safe",
+    "weekends",
 ]
-

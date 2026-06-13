@@ -2,4 +2,4 @@
 
 from Agent_Guru.security.audit.logger import AuditLogEntry, AuditLogger, EventType, LogQuery
 
-__all__ = ["AuditLogger", "AuditLogEntry", "EventType", "LogQuery"]
+__all__ = ["AuditLogEntry", "AuditLogger", "EventType", "LogQuery"]

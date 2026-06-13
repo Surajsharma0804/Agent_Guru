@@ -1,5 +1,4 @@
-"""
-Component Coordinator - Coordinates speech, LLM, platform, policy, and memory.
+"""Component Coordinator - Coordinates speech, LLM, platform, policy, and memory.
 
 Manages component lifecycle, routes tasks to the right component,
 and handles error recovery with fallback strategies.
@@ -16,10 +15,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +46,14 @@ class ComponentInfo:
         capabilities: Set of capability strings this component handles.
         error_count: Cumulative error count since last reset.
         handler: Async callable that processes a task payload.
+
     """
 
     name: str
     status: ComponentStatus
     capabilities: list[str]
     error_count: int = 0
-    handler: Optional[Callable[[str, Any], Coroutine[Any, Any, Any]]] = field(
-        default=None, repr=False
-    )
+    handler: Callable[[str, Any], Coroutine[Any, Any, Any]] | None = field(default=None, repr=False)
 
 
 @dataclass
@@ -65,12 +65,13 @@ class CoordinationResult:
         success: Whether the call succeeded.
         output: Return value from the component handler.
         error: Error message on failure.
+
     """
 
     component: str
     success: bool
-    output: Optional[Any] = None
-    error: Optional[str] = None
+    output: Any | None = None
+    error: str | None = None
 
 
 class ComponentCoordinator:
@@ -91,6 +92,7 @@ class ComponentCoordinator:
         >>> result = await coordinator.dispatch("stt", payload="hello")
 
     Validates: Requirements 3, 4
+
     """
 
     def __init__(self, max_retries: int = 2) -> None:
@@ -101,9 +103,11 @@ class ComponentCoordinator:
 
         Raises:
             ValueError: If max_retries < 0.
+
         """
         if max_retries < 0:
-            raise ValueError("max_retries must be >= 0")
+            msg = "max_retries must be >= 0"
+            raise ValueError(msg)
 
         self.max_retries = max_retries
         self._components: dict[str, ComponentInfo] = {}
@@ -129,9 +133,11 @@ class ComponentCoordinator:
 
         Raises:
             ValueError: If a component with the same name is already registered.
+
         """
         if name in self._components:
-            raise ValueError(f"Component '{name}' is already registered")
+            msg = f"Component '{name}' is already registered"
+            raise ValueError(msg)
 
         info = ComponentInfo(
             name=name,
@@ -154,9 +160,11 @@ class ComponentCoordinator:
 
         Raises:
             KeyError: If the component is not registered.
+
         """
         if name not in self._components:
-            raise KeyError(f"Component '{name}' is not registered")
+            msg = f"Component '{name}' is not registered"
+            raise KeyError(msg)
 
         info = self._components.pop(name)
         for cap in info.capabilities:
@@ -183,6 +191,7 @@ class ComponentCoordinator:
 
         Time Complexity: O(1) lookup + O(retries) on failure
         Validates: Requirements 3.1, 4.1
+
         """
         component_name = self._capability_index.get(capability)
         if component_name is None:
@@ -200,12 +209,13 @@ class ComponentCoordinator:
                 error=f"Component '{component_name}' is in ERROR state",
             )
 
-        last_error: Optional[str] = None
+        last_error: str | None = None
         for attempt in range(self.max_retries + 1):
             try:
                 info.status = ComponentStatus.BUSY
                 if not (info.handler is not None):
-                    raise AssertionError("info.handler is not None assertion failed")
+                    msg = "info.handler is not None assertion failed"
+                    raise AssertionError(msg)
                 output = await info.handler(capability, payload)
                 info.status = ComponentStatus.READY
                 return CoordinationResult(
@@ -213,10 +223,10 @@ class ComponentCoordinator:
                     success=True,
                     output=output,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 last_error = str(exc)
                 info.error_count += 1
-                logger.warning(
+                logger.exception(
                     "Component '%s' failed on attempt %d/%d: %s",
                     component_name,
                     attempt + 1,
@@ -246,9 +256,11 @@ class ComponentCoordinator:
 
         Raises:
             KeyError: If the component is not registered.
+
         """
         if name not in self._components:
-            raise KeyError(f"Component '{name}' is not registered")
+            msg = f"Component '{name}' is not registered"
+            raise KeyError(msg)
         self._components[name].status = status
 
     def reset_errors(self, name: str) -> None:
@@ -259,9 +271,11 @@ class ComponentCoordinator:
 
         Raises:
             KeyError: If the component is not registered.
+
         """
         if name not in self._components:
-            raise KeyError(f"Component '{name}' is not registered")
+            msg = f"Component '{name}' is not registered"
+            raise KeyError(msg)
         info = self._components[name]
         info.error_count = 0
         info.status = ComponentStatus.READY
@@ -270,7 +284,7 @@ class ComponentCoordinator:
     # Introspection
     # ------------------------------------------------------------------
 
-    def get_component(self, name: str) -> Optional[ComponentInfo]:
+    def get_component(self, name: str) -> ComponentInfo | None:
         """Return component info by name.
 
         Args:
@@ -278,6 +292,7 @@ class ComponentCoordinator:
 
         Returns:
             ComponentInfo or None if not registered.
+
         """
         return self._components.get(name)
 
@@ -286,6 +301,7 @@ class ComponentCoordinator:
 
         Returns:
             List of ComponentInfo objects.
+
         """
         return list(self._components.values())
 
@@ -294,9 +310,8 @@ class ComponentCoordinator:
 
         Returns:
             List of component names that are ready.
+
         """
         return [
-            name
-            for name, info in self._components.items()
-            if info.status == ComponentStatus.READY
+            name for name, info in self._components.items() if info.status == ComponentStatus.READY
         ]

@@ -1,5 +1,4 @@
-"""
-Platform Lifecycle Handler - Handles OS lifecycle events across all platforms.
+"""Platform Lifecycle Handler - Handles OS lifecycle events across all platforms.
 
 Translates platform-specific lifecycle events (Android, iOS, Desktop) into
 coordinated component responses (sleep/wake/stop).
@@ -17,7 +16,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Coroutine
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +106,7 @@ class PlatformLifecycleHandler:
         >>> await handler.handle_event("onPause")
 
     Validates: Requirement 12.4
+
     """
 
     def __init__(self, platform: Platform = Platform.UNKNOWN) -> None:
@@ -114,6 +114,7 @@ class PlatformLifecycleHandler:
 
         Args:
             platform: The platform this handler is running on.
+
         """
         self.platform = platform
         self._handlers: list[LifecycleHandler] = []
@@ -128,6 +129,7 @@ class PlatformLifecycleHandler:
 
         Args:
             handler: Async callable(LifecycleEvent) invoked on each event.
+
         """
         self._handlers.append(handler)
 
@@ -139,6 +141,7 @@ class PlatformLifecycleHandler:
 
         Raises:
             ValueError: If handler is not registered.
+
         """
         self._handlers.remove(handler)
 
@@ -146,7 +149,7 @@ class PlatformLifecycleHandler:
     # Event handling
     # ------------------------------------------------------------------
 
-    async def handle_event(self, raw_event: str) -> Optional[LifecycleEvent]:
+    async def handle_event(self, raw_event: str) -> LifecycleEvent | None:
         """Handle a raw platform lifecycle event string.
 
         Normalises the event and dispatches to all registered handlers.
@@ -159,6 +162,7 @@ class PlatformLifecycleHandler:
 
         Time Complexity: O(h) where h is number of handlers
         Validates: Requirement 12.4
+
         """
         event = self._normalise_event(raw_event)
         if event is None:
@@ -171,14 +175,12 @@ class PlatformLifecycleHandler:
         for handler in self._handlers:
             try:
                 await handler(event)
-            except Exception as exc:  # noqa: BLE001
-                logger.error(
-                    "Lifecycle handler failed for event '%s': %s", event.value, exc
-                )
+            except Exception as exc:
+                logger.exception("Lifecycle handler failed for event '%s': %s", event.value, exc)
 
         return event
 
-    def _normalise_event(self, raw_event: str) -> Optional[LifecycleEvent]:
+    def _normalise_event(self, raw_event: str) -> LifecycleEvent | None:
         """Map a raw event string to a normalised LifecycleEvent.
 
         Checks the platform-specific map first, then falls back to
@@ -191,6 +193,7 @@ class PlatformLifecycleHandler:
             Normalised LifecycleEvent or None if not found.
 
         Time Complexity: O(1) — dict lookup
+
         """
         # Try platform-specific map first
         if self.platform in _ALL_EVENT_MAPS:

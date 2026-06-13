@@ -1,5 +1,4 @@
-"""
-Application control tools for opening, closing, and switching applications.
+"""Application control tools for opening, closing, and switching applications.
 
 Platform-specific implementations for Windows, macOS, and Linux.
 """
@@ -9,7 +8,6 @@ import platform
 import subprocess
 from typing import Any
 
-from Agent_Guru.platform.subprocess_utils import run_cmd
 from Agent_Guru.reasoning.tools.base import (
     Tool,
     ToolParameter,
@@ -39,23 +37,27 @@ class PlatformAppController:
 
         Returns:
             Result dictionary with success status
+
         """
         system = PlatformAppController.get_platform()
 
         try:
             if system == "windows":
+                # Lazy import: keeps reasoning/ free of module-level platform/ dependency
+                from Agent_Guru.platform.subprocess_utils import run_cmd  # layer-exempt: lazy import avoids module-level reasoning→platform dependency
+
                 # Windows: use cmd /c start to launch via App Paths registry
                 run_cmd(["cmd", "/c", "start", "", app_name], check=False)  # nosec B603 B607
             elif system == "darwin":
                 # macOS: use open command
-                subprocess.Popen(["open", "-a", app_name])  # nosec B603 B607
+                subprocess.Popen(["open", "-a", app_name])  # nosec B603 B607  # noqa: S603
             elif system == "linux":
                 # Linux: try common methods
                 try:
-                    subprocess.Popen([app_name])  # nosec B603 B607
+                    subprocess.Popen([app_name])  # nosec B603 B607  # noqa: S603
                 except FileNotFoundError:
                     # Try with xdg-open
-                    subprocess.Popen(["xdg-open", app_name])  # nosec B603 B607
+                    subprocess.Popen(["xdg-open", app_name])  # nosec B603 B607  # noqa: S603
             else:
                 return {
                     "success": False,
@@ -76,7 +78,7 @@ class PlatformAppController:
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to open {app_name}: {str(e)}",  # nosec B200
+                "error": f"Failed to open {app_name}: {e!s}",  # nosec B200
             }
 
     @staticmethod
@@ -88,14 +90,16 @@ class PlatformAppController:
 
         Returns:
             Result dictionary with success status
+
         """
         system = PlatformAppController.get_platform()
 
         try:
             if system == "windows":
                 # Windows: use taskkill
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["taskkill", "/F", "/IM", f"{app_name}.exe"],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -106,8 +110,9 @@ class PlatformAppController:
                     }
             elif system == "darwin":
                 # macOS: use osascript to quit application
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["osascript", "-e", f'quit app "{app_name}"'],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -118,10 +123,13 @@ class PlatformAppController:
                     }
             elif system == "linux":
                 # Linux: use pkill
-                result = subprocess.run(  # nosec B603 B607
-                    ["pkill", "-f", app_name], capture_output=True, text=True
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                    ["pkill", "-f", app_name],
+                    check=False,
+                    capture_output=True,
+                    text=True,
                 )
-                if result.returncode != 0 and result.returncode != 1:
+                if result.returncode not in {0, 1}:
                     # returncode 1 means no process found, which is acceptable
                     return {
                         "success": False,
@@ -147,7 +155,7 @@ class PlatformAppController:
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to close {app_name}: {str(e)}",  # nosec B200
+                "error": f"Failed to close {app_name}: {e!s}",  # nosec B200
             }
 
     @staticmethod
@@ -159,6 +167,7 @@ class PlatformAppController:
 
         Returns:
             Result dictionary with success status
+
         """
         system = PlatformAppController.get_platform()
 
@@ -172,8 +181,9 @@ class PlatformAppController:
                     $wshell.AppActivate($app.Id)
                 }}
                 """
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["powershell", "-Command", ps_script],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -184,8 +194,9 @@ class PlatformAppController:
                     }
             elif system == "darwin":
                 # macOS: use osascript to activate application
-                result = subprocess.run(  # nosec B603 B607
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["osascript", "-e", f'tell application "{app_name}" to activate'],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -196,8 +207,11 @@ class PlatformAppController:
                     }
             elif system == "linux":
                 # Linux: use wmctrl if available
-                result = subprocess.run(  # nosec B603 B607
-                    ["wmctrl", "-a", app_name], capture_output=True, text=True
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                    ["wmctrl", "-a", app_name],
+                    check=False,
+                    capture_output=True,
+                    text=True,
                 )
                 if result.returncode != 0:
                     return {
@@ -222,7 +236,7 @@ class PlatformAppController:
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to switch to {app_name}: {str(e)}",  # nosec B200
+                "error": f"Failed to switch to {app_name}: {e!s}",  # nosec B200
             }
 
 
@@ -236,7 +250,7 @@ class PlatformAppController:
             type=ToolParameterType.STRING,
             description="Application name or path to open",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=500,
@@ -259,6 +273,7 @@ class OpenAppTool(Tool):
 
         Returns:
             Execution result
+
         """
         app_name = kwargs["app_name"]
 
@@ -281,7 +296,7 @@ class OpenAppTool(Tool):
             type=ToolParameterType.STRING,
             description="Application name or process name to close",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SENSITIVE,
     estimated_latency_ms=500,
@@ -304,6 +319,7 @@ class CloseAppTool(Tool):
 
         Returns:
             Execution result
+
         """
         app_name = kwargs["app_name"]
 
@@ -326,7 +342,7 @@ class CloseAppTool(Tool):
             type=ToolParameterType.STRING,
             description="Application name to switch to",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=300,
@@ -349,6 +365,7 @@ class SwitchAppTool(Tool):
 
         Returns:
             Execution result
+
         """
         app_name = kwargs["app_name"]
 

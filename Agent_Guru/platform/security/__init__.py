@@ -1,5 +1,4 @@
-"""
-Security module for Agent Guru Platform Integration.
+"""Security module for Agent Guru Platform Integration.
 
 This module provides security and audit functionality including:
 - Audit logging with immutable storage
@@ -19,11 +18,11 @@ from Agent_Guru.platform.security.auditor import (
 )
 
 __all__ = [
-    "SecurityAuditor",
-    "AuditLogEntry",
-    "SecurityAlert",
-    "ViolationType",
     "AlertSeverity",
+    "AuditLogEntry",
     "OperationType",
     "ResultStatus",
+    "SecurityAlert",
+    "SecurityAuditor",
+    "ViolationType",
 ]

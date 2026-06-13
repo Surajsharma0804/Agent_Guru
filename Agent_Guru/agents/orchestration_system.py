@@ -1,5 +1,4 @@
-"""
-Orchestration System - Main API wiring all components together.
+"""Orchestration System - Main API wiring all components together.
 
 Validates: Requirements 6.1, 7.1, 8.1, 8.2, 8.3, 8.4, 15.1
 """
@@ -8,8 +7,8 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from .delegation_manager import DelegationManager
 from .loop_detector import LoopDetector
@@ -30,15 +29,14 @@ class TaskResult:
     task_id: str
     success: bool
     output: Any
-    agent_id: Optional[str]
+    agent_id: str | None
     sub_results: list["TaskResult"] = field(default_factory=list)
-    error: Optional[str] = None
-    completed_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    error: str | None = None
+    completed_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class OrchestrationSystem:
-    """
-    Main orchestration API — wires all components together.
+    """Main orchestration API — wires all components together.
 
     Receives tasks from the Goal Manager, decomposes them, assigns agents,
     executes in dependency order (with parallelism for independent sub-tasks),
@@ -53,6 +51,7 @@ class OrchestrationSystem:
         >>> print(result.success)
 
     Validates: Requirements 6.1, 7.1, 8.1, 8.2, 8.3, 8.4, 15.1
+
     """
 
     def __init__(
@@ -61,9 +60,9 @@ class OrchestrationSystem:
         decomposer: TaskDecomposer,
         assigner: TaskAssigner,
         tracker: PerformanceTracker,
-        delegation_manager: Optional[DelegationManager] = None,
-        loop_detector: Optional[LoopDetector] = None,
-        executor: Optional[Any] = None,
+        delegation_manager: DelegationManager | None = None,
+        loop_detector: LoopDetector | None = None,
+        executor: Any | None = None,
     ) -> None:
         self.storage = storage
         self.decomposer = decomposer
@@ -76,8 +75,7 @@ class OrchestrationSystem:
         self._executor = executor or self._default_executor
 
     async def receive_task(self, task: Task) -> TaskResult:
-        """
-        Receive a task from the Goal Manager and orchestrate execution.
+        """Receive a task from the Goal Manager and orchestrate execution.
 
         Flow:
         1. Decompose task if complex
@@ -98,8 +96,7 @@ class OrchestrationSystem:
         return self._aggregate_results(task, results)
 
     async def _execute_with_dependencies(self, tasks: list[Task]) -> list[TaskResult]:
-        """
-        Execute tasks in dependency order, running independent tasks in parallel.
+        """Execute tasks in dependency order, running independent tasks in parallel.
 
         Validates: Requirement 8.2 (dependency order), 8.3 (parallel execution)
         """
@@ -109,10 +106,7 @@ class OrchestrationSystem:
         remaining = list(tasks)
         while remaining:
             # Find tasks whose dependencies are all satisfied
-            ready = [
-                t for t in remaining
-                if all(dep in completed for dep in t.dependencies)
-            ]
+            ready = [t for t in remaining if all(dep in completed for dep in t.dependencies)]
 
             if not ready:
                 # Circular dependency or unresolvable — execute remaining sequentially
@@ -130,11 +124,13 @@ class OrchestrationSystem:
                 return_exceptions=True,
             )
 
-            for task, result in zip(ready, parallel_results):
+            for task, result in zip(ready, parallel_results, strict=False):
                 if isinstance(result, BaseException):
                     logger.error(
                         "Task %s failed with %s: %s",
-                        task.id, type(result).__name__, result,
+                        task.id,
+                        type(result).__name__,
+                        result,
                     )
                     completed[task.id] = TaskResult(
                         task_id=task.id,
@@ -165,8 +161,8 @@ class OrchestrationSystem:
         t0 = time.perf_counter()
         try:
             success, output = await self._executor(agent_id, task)
-        except Exception as exc:
-            logger.error("Task %s execution failed: %s", task.id, exc)
+        except Exception:
+            logger.exception("Task %s execution failed", task.id)
             success, output = False, None
         elapsed_ms = (time.perf_counter() - t0) * 1000
 
@@ -190,8 +186,7 @@ class OrchestrationSystem:
         )
 
     def _aggregate_results(self, parent_task: Task, sub_results: list[TaskResult]) -> TaskResult:
-        """
-        Aggregate sub-task results into a parent result.
+        """Aggregate sub-task results into a parent result.
 
         Validates: Requirement 8.4
         """

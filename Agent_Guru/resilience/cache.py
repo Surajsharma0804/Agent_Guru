@@ -1,4 +1,5 @@
 """Offline cache with SQLite FTS5 and queued action sync."""
+
 from __future__ import annotations
 
 import json
@@ -6,7 +7,7 @@ import logging
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CachedCommand:
     """A precomputed command response."""
+
     command: str
     response: str
     timestamp: float = field(default_factory=time.time)
@@ -22,14 +24,14 @@ class CachedCommand:
         return {"command": self.command, "response": self.response, "timestamp": self.timestamp}
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "CachedCommand":
+    def from_dict(cls, d: dict[str, Any]) -> CachedCommand:
         return cls(command=d["command"], response=d["response"], timestamp=d.get("timestamp", 0.0))
 
     def serialize(self) -> str:
         return json.dumps(self.to_dict())
 
     @classmethod
-    def deserialize(cls, data: str) -> "CachedCommand":
+    def deserialize(cls, data: str) -> CachedCommand:
         return cls.from_dict(json.loads(data))
 
 
@@ -38,7 +40,10 @@ class OfflineCache:
 
     def __init__(self, db_path: str = ":memory:") -> None:
         self.db_path = db_path
-        self._conn: sqlite3.Connection = sqlite3.connect(db_path, check_same_thread=False)  # persistent; closed in close()
+        self._conn: sqlite3.Connection = sqlite3.connect(
+            db_path,
+            check_same_thread=False,
+        )  # persistent; closed in close()
         self._setup_schema()
         self._queued_actions: list[dict[str, Any]] = []
 
@@ -69,7 +74,7 @@ class OfflineCache:
                     (cmd.command, cmd.response, cmd.timestamp),
                 )
 
-    def lookup(self, query: str) -> Optional[CachedCommand]:
+    def lookup(self, query: str) -> CachedCommand | None:
         """Fuzzy lookup using FTS5."""
         try:
             with self._conn:
@@ -102,7 +107,7 @@ class OfflineCache:
     def serialize(self) -> str:
         with self._conn:
             rows = self._conn.execute(
-                "SELECT command, response, timestamp FROM commands"
+                "SELECT command, response, timestamp FROM commands",
             ).fetchall()
         data = [{"command": r[0], "response": r[1], "timestamp": r[2]} for r in rows]
         return json.dumps({"commands": data, "queued": self._queued_actions})

@@ -1,5 +1,4 @@
-"""
-Local LLM Server using llama.cpp
+"""Local LLM Server using llama.cpp.
 
 Manages llama.cpp server process with GPU acceleration for local inference.
 Provides health checks, model loading, and inference endpoints.
@@ -17,7 +16,6 @@ import asyncio
 import subprocess
 import time
 from pathlib import Path
-from typing import Optional
 
 import requests
 
@@ -32,8 +30,7 @@ from Agent_Guru.reasoning.llm.models import (
 
 
 class LocalLLMServer:
-    """
-    Local LLM server using llama.cpp with GPU acceleration.
+    """Local LLM server using llama.cpp with GPU acceleration.
 
     Time Complexity: O(1) for health checks, O(n) for inference (n = tokens)
     Space Complexity: O(model_size) for model loading
@@ -48,9 +45,10 @@ class LocalLLMServer:
         >>> await server.start()
         >>> health = await server.health_check()
         >>> print(f"Server healthy: {health.is_healthy}")
+
     """
 
-    def __init__(self, config: LocalLLMConfig):
+    def __init__(self, config: LocalLLMConfig) -> None:
         """Initialize local LLM server.
 
         Args:
@@ -58,16 +56,18 @@ class LocalLLMServer:
 
         Raises:
             ValueError: If configuration is invalid
+
         """
         self.config = config
-        self.process: Optional[subprocess.Popen] = None
+        self.process: subprocess.Popen | None = None
         self._is_running = False
         self._model_loaded = False
         self._base_url = f"http://{config.host}:{config.port}"
 
         # Validate model file exists
         if not Path(config.model_path).exists():
-            raise FileNotFoundError(f"Model file not found: {config.model_path}")
+            msg = f"Model file not found: {config.model_path}"
+            raise FileNotFoundError(msg)
 
     async def start(self, timeout: float = 60.0) -> None:
         """Start llama.cpp server process.
@@ -81,6 +81,7 @@ class LocalLLMServer:
         Raises:
             RuntimeError: If server fails to start
             TimeoutError: If startup exceeds timeout
+
         """
         if self._is_running:
             return
@@ -89,7 +90,7 @@ class LocalLLMServer:
         cmd = self._build_server_command()
 
         # Start server process
-        self.process = subprocess.Popen(
+        self.process = subprocess.Popen(  # noqa: S603
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -110,13 +111,15 @@ class LocalLLMServer:
         # Timeout - kill process
         if self.process:
             self.process.kill()
-        raise TimeoutError(f"Server failed to start within {timeout}s")
+        msg = f"Server failed to start within {timeout}s"
+        raise TimeoutError(msg)
 
     def _build_server_command(self) -> list:
         """Build llama.cpp server command with GPU acceleration.
 
         Returns:
             Command list for subprocess
+
         """
         # Detect llama.cpp server binary
         server_binary = self._detect_server_binary()
@@ -136,9 +139,7 @@ class LocalLLMServer:
         ]
 
         # Add GPU acceleration flags
-        if self.config.gpu_backend == GPUBackend.CUDA:
-            cmd.extend(["-ngl", str(self.config.n_gpu_layers)])
-        elif self.config.gpu_backend == GPUBackend.METAL:
+        if self.config.gpu_backend in (GPUBackend.CUDA, GPUBackend.METAL):
             cmd.extend(["-ngl", str(self.config.n_gpu_layers)])
 
         return cmd
@@ -151,6 +152,7 @@ class LocalLLMServer:
 
         Raises:
             FileNotFoundError: If binary not found
+
         """
         # Common binary names
         binary_names = ["llama-server", "server", "llama.cpp-server"]
@@ -174,17 +176,21 @@ class LocalLLMServer:
                 if full_path.exists():
                     return str(full_path)
 
-        raise FileNotFoundError(
+        msg = (
             "llama.cpp server binary not found. "
             "Please install llama.cpp and ensure server binary is in PATH."
+        )
+        raise FileNotFoundError(
+            msg,
         )
 
     @staticmethod
     def _is_command_available(command: str) -> bool:
         """Check if command is available in PATH."""
         try:
-            subprocess.run(
+            subprocess.run(  # noqa: S603
                 [command, "--version"],
+                check=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 timeout=1,
@@ -203,6 +209,7 @@ class LocalLLMServer:
             Server health status
 
         Requirements: 4.2
+
         """
         import asyncio
         import concurrent.futures
@@ -226,7 +233,7 @@ class LocalLLMServer:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 response = await loop.run_in_executor(
                     pool,
-                    lambda: requests.get(f"{self._base_url}/health", timeout=1.0),
+                    lambda: requests.get(f"{self._base_url}/health", timeout=1.0),  # noqa: ASYNC210
                 )
 
             latency_ms = (time.time() - start_time) * 1000
@@ -240,15 +247,14 @@ class LocalLLMServer:
                     gpu_backend=self.config.gpu_backend if data.get("gpu", False) else None,
                     latency_ms=latency_ms,
                 )
-            else:
-                return ServerHealth(
-                    is_healthy=False,
-                    model_loaded=False,
-                    gpu_available=False,
-                    gpu_backend=None,
-                    latency_ms=latency_ms,
-                    error_message=f"Health check failed: {response.status_code}",
-                )
+            return ServerHealth(
+                is_healthy=False,
+                model_loaded=False,
+                gpu_available=False,
+                gpu_backend=None,
+                latency_ms=latency_ms,
+                error_message=f"Health check failed: {response.status_code}",
+            )
 
         except requests.RequestException as e:
             return ServerHealth(
@@ -257,7 +263,7 @@ class LocalLLMServer:
                 gpu_available=False,
                 gpu_backend=None,
                 latency_ms=None,
-                error_message=f"Health check error: {str(e)}",
+                error_message=f"Health check error: {e!s}",
             )
 
     async def generate(self, request: LLMRequest) -> LLMResponse:
@@ -276,9 +282,11 @@ class LocalLLMServer:
             RuntimeError: If server not running or generation fails
 
         Requirements: 4.2, 10.1
+
         """
         if not self._is_running:
-            raise RuntimeError("Server not running. Call start() first.")
+            msg = "Server not running. Call start() first."
+            raise RuntimeError(msg)
 
         start_time = time.time()
 
@@ -301,7 +309,7 @@ class LocalLLMServer:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 response = await loop.run_in_executor(
                     pool,
-                    lambda: requests.post(
+                    lambda: requests.post(  # noqa: ASYNC210
                         f"{self._base_url}/completion",
                         json=payload,
                         timeout=10.0,
@@ -323,11 +331,12 @@ class LocalLLMServer:
                         "gpu_backend": self.config.gpu_backend.value,
                     },
                 )
-            else:
-                raise RuntimeError(f"Generation failed: {response.status_code} - {response.text}")
+            msg = f"Generation failed: {response.status_code} - {response.text}"
+            raise RuntimeError(msg)
 
         except requests.RequestException as e:
-            raise RuntimeError(f"Generation error: {str(e)}") from e
+            msg = f"Generation error: {e!s}"
+            raise RuntimeError(msg) from e
 
     async def stop(self) -> None:
         """Stop llama.cpp server process.

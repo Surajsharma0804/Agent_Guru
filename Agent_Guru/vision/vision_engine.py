@@ -1,5 +1,4 @@
-"""
-Vision Engine Coordinator for the Agent Guru Vision System.
+"""Vision Engine Coordinator for the Agent Guru Vision System.
 
 Top-level coordinator that initialises all vision modules, manages lifecycle,
 and exposes the public API for the rest of Agent Guru.
@@ -19,9 +18,8 @@ Requirements: 12.8, 13.7, 13.8
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
 import structlog
 
 from Agent_Guru.vision.activity import ActivityRecognizer
@@ -41,6 +39,9 @@ from Agent_Guru.vision.tracker import ObjectTracker
 from Agent_Guru.vision.vision_models import ScreenAnalysis, VisionConfig, VQAResult
 from Agent_Guru.vision.vqa import VQAEngine
 
+if TYPE_CHECKING:
+    import numpy as np
+
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
 _INIT_TIMEOUT_SECONDS: float = 10.0
@@ -55,6 +56,7 @@ class VisionEngine:
     Args:
         config: VisionConfig controlling which modules are active and their settings.
         platform: "desktop" or "mobile" — affects VQA routing.
+
     """
 
     def __init__(
@@ -106,6 +108,7 @@ class VisionEngine:
 
         Raises:
             asyncio.TimeoutError: If initialisation exceeds 10 seconds.
+
         """
         if self._started:
             return
@@ -125,7 +128,9 @@ class VisionEngine:
 
     async def _init_modules(self) -> None:
         """Initialise all vision modules in dependency order."""
-        enabled = set(self._config.enabled_modules) if self._config.enabled_modules is not None else None
+        enabled = (
+            set(self._config.enabled_modules) if self._config.enabled_modules is not None else None
+        )
 
         def _is_enabled(name: str) -> bool:
             return enabled is None or name in enabled
@@ -133,10 +138,12 @@ class VisionEngine:
         # Scene understanding
         if _is_enabled("scene"):
             self._scene_classifier = SceneClassifier(
-                model_manager=self._model_manager, config=self._config
+                model_manager=self._model_manager,
+                config=self._config,
             )
             self._object_detector = ObjectDetector(
-                model_manager=self._model_manager, config=self._config
+                model_manager=self._model_manager,
+                config=self._config,
             )
             self._spatial_reasoner = SpatialReasoner()
             self._dispatcher.register_module("scene", self._handle_scene)
@@ -144,7 +151,8 @@ class VisionEngine:
         # Depth estimation
         if _is_enabled("depth"):
             self._depth_estimator = DepthEstimator(
-                model_manager=self._model_manager, config=self._config
+                model_manager=self._model_manager,
+                config=self._config,
             )
             self._dispatcher.register_module("depth", self._handle_depth)
 
@@ -156,7 +164,8 @@ class VisionEngine:
         # Handwriting
         if _is_enabled("handwriting"):
             self._handwriting_recognizer = HandwritingRecognizer(
-                model_manager=self._model_manager, config=self._config
+                model_manager=self._model_manager,
+                config=self._config,
             )
             self._dispatcher.register_module("handwriting", self._handle_handwriting)
 
@@ -215,7 +224,12 @@ class VisionEngine:
                 relations = self._spatial_reasoner.compute_relations(objects, depth_map)
             else:
                 relations = []
-        return {"objects": objects, "scene_label": label, "confidence": conf, "relations": relations}
+        return {
+            "objects": objects,
+            "scene_label": label,
+            "confidence": conf,
+            "relations": relations,
+        }
 
     async def _handle_depth(self, frame: np.ndarray, frame_seq: int) -> Any:
         if self._depth_estimator is None:
@@ -266,11 +280,11 @@ class VisionEngine:
 
         Returns:
             Dict mapping module name → result.
+
         """
         self._frame_seq += 1
         self._obs.record_frame()
-        results = await self._dispatcher.dispatch(frame, self._frame_seq)
-        return results
+        return await self._dispatcher.dispatch(frame, self._frame_seq)
 
     async def analyze_screenshot(self, screenshot: np.ndarray) -> ScreenAnalysis:
         """Analyze a UI screenshot synchronously.
@@ -283,9 +297,11 @@ class VisionEngine:
 
         Raises:
             RuntimeError: If the screen module is not enabled.
+
         """
         if self._screen_analyzer is None:
-            raise RuntimeError("Screen analyzer module is not enabled")
+            msg = "Screen analyzer module is not enabled"
+            raise RuntimeError(msg)
         with self._obs.time_module("screen"):
             return await self._screen_analyzer.analyze(screenshot)
 
@@ -301,9 +317,11 @@ class VisionEngine:
 
         Raises:
             RuntimeError: If the VQA module is not enabled.
+
         """
         if self._vqa_engine is None:
-            raise RuntimeError("VQA module is not enabled")
+            msg = "VQA module is not enabled"
+            raise RuntimeError(msg)
         with self._obs.time_module("vqa"):
             return await self._vqa_engine.answer(image, question)
 
@@ -312,6 +330,7 @@ class VisionEngine:
 
         Returns:
             Sorted list of active module names.
+
         """
         return self._dispatcher.get_active_modules()
 
@@ -320,5 +339,6 @@ class VisionEngine:
 
         Returns:
             The shared VisionEventBus instance.
+
         """
         return self._event_bus

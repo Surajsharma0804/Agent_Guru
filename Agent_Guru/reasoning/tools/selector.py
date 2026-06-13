@@ -1,5 +1,4 @@
-"""
-Tool selection engine with three-tier strategy.
+"""Tool selection engine with three-tier strategy.
 
 This module implements intelligent tool selection using:
 - Tier 1: Direct intent→tool mapping (<10ms)
@@ -9,7 +8,7 @@ This module implements intelligent tool selection using:
 
 import time
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.models.intent import Intent
 from Agent_Guru.reasoning.tools.base import Tool, ToolMetadata
@@ -26,6 +25,7 @@ class SelectedTool:
         confidence: Selection confidence (0.0-1.0)
         tier: Selection tier used (1, 2, or 3)
         selection_time_ms: Time taken for selection
+
     """
 
     tool: Tool
@@ -57,6 +57,7 @@ class ToolSelector:
 
         Args:
             registry: Tool registry instance
+
         """
         self.registry = registry
         self._tier1_hits = 0
@@ -68,9 +69,10 @@ class ToolSelector:
         from Agent_Guru.reasoning.tools.skills.skill_tool_adapter import (
             get_skill_tool_registry,
         )
+
         self._skill_tool_registry = get_skill_tool_registry()
 
-    async def select_tool(self, intent: Intent) -> Optional[SelectedTool]:
+    async def select_tool(self, intent: Intent) -> SelectedTool | None:
         """Select best tool for given intent using three-tier strategy.
 
         Args:
@@ -78,6 +80,7 @@ class ToolSelector:
 
         Returns:
             SelectedTool if found, None otherwise
+
         """
         start_time = time.perf_counter()
         self._total_selections += 1
@@ -125,8 +128,10 @@ class ToolSelector:
         return None
 
     async def select_tool_by_id(
-        self, tool_id: str, parameters: Optional[dict[str, Any]] = None
-    ) -> Optional[SelectedTool]:
+        self,
+        tool_id: str,
+        parameters: dict[str, Any] | None = None,
+    ) -> SelectedTool | None:
         """Select tool by ID directly (FAST PATH for LLM-generated plans).
 
         Time Complexity: O(1) - direct lookup
@@ -138,6 +143,7 @@ class ToolSelector:
 
         Returns:
             SelectedTool if found, None otherwise
+
         """
         start_time = time.perf_counter()
 
@@ -165,7 +171,7 @@ class ToolSelector:
             selection_time_ms=elapsed_ms,
         )
 
-    async def _tier1_direct_mapping(self, intent: Intent) -> Optional[tuple[Tool, dict[str, Any]]]:
+    async def _tier1_direct_mapping(self, intent: Intent) -> tuple[Tool, dict[str, Any]] | None:
         """Tier 1: Direct intent→tool mapping.
 
         Time Complexity: O(1) - hash table lookup
@@ -176,9 +182,14 @@ class ToolSelector:
 
         Returns:
             (tool, parameters) if mapping found, None otherwise
+
         """
         # Check if intent type has direct mapping (use .value to get string from enum)
-        intent_type_str = intent.intent_type.value if hasattr(intent.intent_type, 'value') else str(intent.intent_type)
+        intent_type_str = (
+            intent.intent_type.value
+            if hasattr(intent.intent_type, "value")
+            else str(intent.intent_type)
+        )
         if intent_type_str not in DIRECT_MAPPINGS:
             return None
 
@@ -198,8 +209,9 @@ class ToolSelector:
         return (tool, parameters)
 
     async def _tier2_capability_matching(
-        self, intent: Intent
-    ) -> Optional[tuple[Tool, dict[str, Any], float]]:
+        self,
+        intent: Intent,
+    ) -> tuple[Tool, dict[str, Any], float] | None:
         """Tier 2: Capability-based matching with intelligent ranking.
 
         Uses Tool Intelligence Engine for intelligent ranking based on:
@@ -216,6 +228,7 @@ class ToolSelector:
 
         Returns:
             (tool, parameters, confidence) if match found, None otherwise
+
         """
         # Get all core tools
         all_tools = self.registry.list_tools()
@@ -297,8 +310,9 @@ class ToolSelector:
         return (best_tool, parameters, best_score)
 
     async def _tier3_llm_assisted(
-        self, intent: Intent
-    ) -> Optional[tuple[Tool, dict[str, Any], float]]:
+        self,
+        intent: Intent,
+    ) -> tuple[Tool, dict[str, Any], float] | None:
         """Tier 3: LLM-assisted selection for ambiguous cases.
 
         Time Complexity: O(1) - single LLM call
@@ -309,6 +323,7 @@ class ToolSelector:
 
         Returns:
             (tool, parameters, confidence) if selection made, None otherwise
+
         """
         # TODO: Implement LLM-assisted selection in future task
         # For now, return None (will be implemented with LLM integration)
@@ -328,6 +343,7 @@ class ToolSelector:
 
         Returns:
             Match score (0.0-1.0)
+
         """
         score = 0.0
 
@@ -380,6 +396,7 @@ class ToolSelector:
 
         Returns:
             Dictionary of parameter name → value (extracted from Entity.value)
+
         """
         parameters: dict[str, Any] = {}
         metadata = tool.metadata
@@ -412,6 +429,7 @@ class ToolSelector:
 
         Returns:
             True if all required parameters present, False otherwise
+
         """
         metadata = tool.metadata
         required_params = {p.name for p in metadata.parameters if p.required}
@@ -424,7 +442,7 @@ class ToolSelector:
         tool_id: str,
         success: bool,
         latency_ms: float,
-        failure_pattern: Optional[Any] = None,
+        failure_pattern: Any | None = None,
     ) -> None:
         """Record tool execution result for learning.
 
@@ -436,6 +454,7 @@ class ToolSelector:
             success: Whether execution succeeded
             latency_ms: Execution latency in milliseconds
             failure_pattern: Failure pattern if execution failed (optional)
+
         """
         # Get or create intelligence engine
         if not hasattr(self, "_intelligence_engine"):
@@ -455,8 +474,8 @@ class ToolSelector:
         self,
         tool_id: str,
         user_id: str,
-        rating: Optional[float] = None,
-        positive: Optional[bool] = None,
+        rating: float | None = None,
+        positive: bool | None = None,
     ) -> None:
         """Record user feedback for a tool.
 
@@ -465,6 +484,7 @@ class ToolSelector:
             user_id: User identifier
             rating: User rating (0.0-5.0) if provided
             positive: Positive/negative feedback if provided
+
         """
         # Get or create intelligence engine
         if not hasattr(self, "_intelligence_engine"):
@@ -485,6 +505,7 @@ class ToolSelector:
 
         Returns:
             Dictionary with selection statistics
+
         """
         if self._total_selections == 0:
             return {

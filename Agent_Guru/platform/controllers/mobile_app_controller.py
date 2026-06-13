@@ -22,11 +22,11 @@ Performance Characteristics:
 Author: Agent Guru Team
 Date: 2026-03-20
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Optional
 
 from Agent_Guru.platform.platform_detector import PlatformDetector
 from Agent_Guru.platform.utils import fuzzy_match as _fuzzy_match
@@ -141,7 +141,7 @@ _IOS_URL_SCHEMES: dict[str, str] = {
 }
 
 
-def _resolve_android_package(app_name: str) -> Optional[str]:
+def _resolve_android_package(app_name: str) -> str | None:
     """Resolve an app name to an Android package name via fuzzy matching.
 
     Args:
@@ -149,6 +149,7 @@ def _resolve_android_package(app_name: str) -> Optional[str]:
 
     Returns:
         Package name string, or ``None`` if no match found.
+
     """
     for key, package in _ANDROID_PACKAGES.items():
         if _fuzzy_match(app_name, key):
@@ -156,7 +157,7 @@ def _resolve_android_package(app_name: str) -> Optional[str]:
     return None
 
 
-def _resolve_ios_scheme(app_name: str) -> Optional[str]:
+def _resolve_ios_scheme(app_name: str) -> str | None:
     """Resolve an app name to an iOS URL scheme via fuzzy matching.
 
     Args:
@@ -164,6 +165,7 @@ def _resolve_ios_scheme(app_name: str) -> Optional[str]:
 
     Returns:
         URL scheme string (e.g. ``"whatsapp://"``), or ``None`` if no match.
+
     """
     for key, scheme in _IOS_URL_SCHEMES.items():
         if _fuzzy_match(app_name, key):
@@ -174,6 +176,7 @@ def _resolve_ios_scheme(app_name: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # MobileApplicationController
 # ---------------------------------------------------------------------------
+
 
 class MobileApplicationController:
     """Async controller for mobile application lifecycle management.
@@ -204,7 +207,7 @@ class MobileApplicationController:
         ``False`` with guidance.
     """
 
-    def __init__(self, platform_override: Optional[str] = None) -> None:
+    def __init__(self, platform_override: str | None = None) -> None:
         """Create the controller.
 
         Args:
@@ -214,19 +217,21 @@ class MobileApplicationController:
         Raises:
             RuntimeError: If the detected platform is a desktop platform
                 (``"windows"``, ``"macos"``, ``"linux"``, or ``"unknown"``).
+
         """
         self._platform: str = platform_override or _detect_platform()
         self._initialized: bool = False
 
         if _is_desktop(self._platform):
-            raise RuntimeError(
+            msg = (
                 f"MobileApplicationController is not supported on desktop "
                 f"platform '{self._platform}'. Use DesktopApplicationController instead."
             )
+            raise RuntimeError(
+                msg,
+            )
 
-        logger.info(
-            "MobileApplicationController created — platform=%s", self._platform
-        )
+        logger.info("MobileApplicationController created — platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -242,9 +247,7 @@ class MobileApplicationController:
             return
 
         self._initialized = True
-        logger.info(
-            "MobileApplicationController initialized — platform=%s", self._platform
-        )
+        logger.info("MobileApplicationController initialized — platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -266,6 +269,7 @@ class MobileApplicationController:
 
         Returns:
             ``True`` if the launch command succeeded, ``False`` otherwise.
+
         """
         if not app_name or not app_name.strip():
             logger.warning("open_app called with empty app_name")
@@ -275,10 +279,10 @@ class MobileApplicationController:
         try:
             if self._platform == "android":
                 return await self._open_android(app_name)
-            else:  # ios
-                return await self._open_ios(app_name)
-        except Exception as exc:
-            logger.error("open_app(%r) failed: %s", app_name, exc)
+            # ios
+            return await self._open_ios(app_name)
+        except Exception:
+            logger.exception("open_app(%r) failed: %s")
             return False
 
     async def close_app(self, app_name: str) -> bool:
@@ -289,6 +293,7 @@ class MobileApplicationController:
 
         Returns:
             ``True`` if the stop command succeeded, ``False`` otherwise.
+
         """
         if not app_name or not app_name.strip():
             logger.warning("close_app called with empty app_name")
@@ -298,10 +303,10 @@ class MobileApplicationController:
         try:
             if self._platform == "android":
                 return await self._close_android(app_name)
-            else:  # ios
-                return await self._close_ios(app_name)
-        except Exception as exc:
-            logger.error("close_app(%r) failed: %s", app_name, exc)
+            # ios
+            return await self._close_ios(app_name)
+        except Exception:
+            logger.exception("close_app(%r) failed: %s")
             return False
 
     # ------------------------------------------------------------------
@@ -339,9 +344,7 @@ class MobileApplicationController:
 
         package = _resolve_android_package(app_name)
         if package is None:
-            logger.warning(
-                "open_app: no Android package mapping found for %r", app_name
-            )
+            logger.warning("open_app: no Android package mapping found for %r", app_name)
             return False
 
         activity = _ANDROID_ACTIVITIES.get(package)
@@ -349,7 +352,11 @@ class MobileApplicationController:
             # Preferred: explicit component start
             try:
                 proc = await asyncio.create_subprocess_exec(
-                    "adb", "shell", "am", "start", "-n",
+                    "adb",
+                    "shell",
+                    "am",
+                    "start",
+                    "-n",
                     f"{package}/{activity}",
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.DEVNULL,
@@ -364,7 +371,12 @@ class MobileApplicationController:
         # Fallback: monkey launch (works without knowing the activity)
         try:
             proc = await asyncio.create_subprocess_exec(
-                "adb", "shell", "monkey", "-p", package, "1",
+                "adb",
+                "shell",
+                "monkey",
+                "-p",
+                package,
+                "1",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -395,14 +407,16 @@ class MobileApplicationController:
 
         package = _resolve_android_package(app_name)
         if package is None:
-            logger.warning(
-                "close_app: no Android package mapping found for %r", app_name
-            )
+            logger.warning("close_app: no Android package mapping found for %r", app_name)
             return False
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "adb", "shell", "am", "force-stop", package,
+                "adb",
+                "shell",
+                "am",
+                "force-stop",
+                package,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -413,7 +427,8 @@ class MobileApplicationController:
             else:
                 logger.warning(
                     "adb force-stop returned non-zero for %r (package=%s)",
-                    app_name, package,
+                    app_name,
+                    package,
                 )
             return success
         except Exception as exc:
@@ -441,14 +456,16 @@ class MobileApplicationController:
 
         scheme = _resolve_ios_scheme(app_name)
         if scheme is None:
-            logger.warning(
-                "open_app: no iOS URL scheme mapping found for %r", app_name
-            )
+            logger.warning("open_app: no iOS URL scheme mapping found for %r", app_name)
             return False
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "xcrun", "simctl", "openurl", "booted", scheme,
+                "xcrun",
+                "simctl",
+                "openurl",
+                "booted",
+                scheme,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -459,7 +476,8 @@ class MobileApplicationController:
             else:
                 logger.warning(
                     "xcrun simctl openurl returned non-zero for %r (scheme=%s)",
-                    app_name, scheme,
+                    app_name,
+                    scheme,
                 )
             return success
         except Exception as exc:
@@ -485,14 +503,16 @@ class MobileApplicationController:
         # Map app name to bundle ID for terminate command
         bundle_id = _resolve_ios_bundle_id(app_name)
         if bundle_id is None:
-            logger.warning(
-                "close_app: no iOS bundle ID mapping found for %r", app_name
-            )
+            logger.warning("close_app: no iOS bundle ID mapping found for %r", app_name)
             return False
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "xcrun", "simctl", "terminate", "booted", bundle_id,
+                "xcrun",
+                "simctl",
+                "terminate",
+                "booted",
+                bundle_id,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
@@ -501,12 +521,14 @@ class MobileApplicationController:
             if success:
                 logger.info(
                     "Terminated %r via xcrun simctl terminate (bundle=%s)",
-                    app_name, bundle_id,
+                    app_name,
+                    bundle_id,
                 )
             else:
                 logger.warning(
                     "xcrun simctl terminate returned non-zero for %r (bundle=%s)",
-                    app_name, bundle_id,
+                    app_name,
+                    bundle_id,
                 )
             return success
         except Exception as exc:
@@ -517,8 +539,8 @@ class MobileApplicationController:
     # Availability checks (cached)
     # ------------------------------------------------------------------
 
-    _adb_cache: Optional[bool] = None
-    _xcrun_cache: Optional[bool] = None
+    _adb_cache: bool | None = None
+    _xcrun_cache: bool | None = None
 
     async def _adb_available(self) -> bool:
         """Return True if adb is installed and reachable (cached)."""
@@ -527,13 +549,14 @@ class MobileApplicationController:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "adb", "version",
+                "adb",
+                "version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
-        except Exception as e:
+        except Exception:
             result = False
 
         MobileApplicationController._adb_cache = result
@@ -546,13 +569,14 @@ class MobileApplicationController:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "xcrun", "--version",
+                "xcrun",
+                "--version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             result = proc.returncode == 0
-        except Exception as e:
+        except Exception:
             result = False
 
         MobileApplicationController._xcrun_cache = result
@@ -592,7 +616,7 @@ _IOS_BUNDLE_IDS: dict[str, str] = {
 }
 
 
-def _resolve_ios_bundle_id(app_name: str) -> Optional[str]:
+def _resolve_ios_bundle_id(app_name: str) -> str | None:
     """Resolve an app name to an iOS bundle ID via fuzzy matching.
 
     Args:
@@ -600,6 +624,7 @@ def _resolve_ios_bundle_id(app_name: str) -> Optional[str]:
 
     Returns:
         Bundle ID string, or ``None`` if no match found.
+
     """
     for key, bundle_id in _IOS_BUNDLE_IDS.items():
         if _fuzzy_match(app_name, key):

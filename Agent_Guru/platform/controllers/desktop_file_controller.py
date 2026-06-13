@@ -23,6 +23,7 @@ Performance Characteristics:
 Author: Agent Guru Team
 Date: 2026-03-20
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -30,7 +31,6 @@ import logging
 import os
 import shutil
 from pathlib import Path
-from typing import Optional
 
 from Agent_Guru.platform.platform_detector import PlatformDetector
 
@@ -100,15 +100,16 @@ def _resolve_path(raw: str) -> Path:
 
     Returns:
         Absolute :class:`pathlib.Path`.
+
     """
     # Strip null bytes — they cause ValueError on Windows path resolution
     cleaned = raw.replace("\x00", "")
-    expanded = os.path.expandvars(os.path.expanduser(cleaned))
+    expanded = os.path.expandvars(os.path.expanduser(cleaned))  # noqa: PTH111
     return Path(expanded).resolve()
 
 
 def _is_blocked(path: Path, plat: str, raw: str = "") -> bool:
-    """Return True if *path* is a blocked system path for *plat*.
+    r"""Return True if *path* is a blocked system path for *plat*.
 
     Also blocks the root directory itself (``/`` or ``C:\\``).
     Uses *raw* (the original unexpanded path string) as a fallback for
@@ -122,6 +123,7 @@ def _is_blocked(path: Path, plat: str, raw: str = "") -> bool:
 
     Returns:
         ``True`` if the path is blocked, ``False`` otherwise.
+
     """
     path_str = str(path)
 
@@ -189,7 +191,7 @@ class DesktopFileController:
     They never raise exceptions for normal operational failures.
     """
 
-    def __init__(self, platform_override: Optional[str] = None) -> None:
+    def __init__(self, platform_override: str | None = None) -> None:
         """Create the controller.
 
         Args:
@@ -198,14 +200,18 @@ class DesktopFileController:
 
         Raises:
             RuntimeError: If the detected platform is ``"android"`` or ``"ios"``.
+
         """
         self._platform: str = platform_override or _detect_platform()
         self._initialized: bool = False
 
         if _is_mobile(self._platform):
-            raise RuntimeError(
+            msg = (
                 f"DesktopFileController is not supported on mobile "
                 f"platform '{self._platform}'. Use MobileFileController instead."
+            )
+            raise RuntimeError(
+                msg,
             )
 
         logger.info("DesktopFileController created — platform=%s", self._platform)
@@ -246,6 +252,7 @@ class DesktopFileController:
 
         Returns:
             ``True`` on success, ``False`` on failure or blocked path.
+
         """
         resolved = _resolve_path(path)
         if _is_blocked(resolved, self._platform, raw=path):
@@ -256,8 +263,8 @@ class DesktopFileController:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._blocking_create_file, resolved, content)
             return True
-        except Exception as exc:
-            logger.error("create_file(%s) failed: %s", resolved, exc)
+        except Exception:
+            logger.exception("create_file(%s) failed: %s")
             return False
 
     async def delete_file(self, path: str) -> bool:
@@ -268,6 +275,7 @@ class DesktopFileController:
 
         Returns:
             ``True`` on success, ``False`` on failure or blocked path.
+
         """
         resolved = _resolve_path(path)
         if _is_blocked(resolved, self._platform, raw=path):
@@ -278,8 +286,8 @@ class DesktopFileController:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._blocking_delete_file, resolved)
             return True
-        except Exception as exc:
-            logger.error("delete_file(%s) failed: %s", resolved, exc)
+        except Exception:
+            logger.exception("delete_file(%s) failed: %s")
             return False
 
     async def move_file(self, src: str, dst: str) -> bool:
@@ -291,22 +299,25 @@ class DesktopFileController:
 
         Returns:
             ``True`` on success, ``False`` on failure or blocked path.
+
         """
         resolved_src = _resolve_path(src)
         resolved_dst = _resolve_path(dst)
 
-        if _is_blocked(resolved_src, self._platform, raw=src) or _is_blocked(resolved_dst, self._platform, raw=dst):
+        if _is_blocked(resolved_src, self._platform, raw=src) or _is_blocked(
+            resolved_dst,
+            self._platform,
+            raw=dst,
+        ):
             return False
 
         logger.info("move_file: %s → %s", resolved_src, resolved_dst)
         try:
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
-                None, self._blocking_move_file, resolved_src, resolved_dst
-            )
+            await loop.run_in_executor(None, self._blocking_move_file, resolved_src, resolved_dst)
             return True
-        except Exception as exc:
-            logger.error("move_file(%s → %s) failed: %s", resolved_src, resolved_dst, exc)
+        except Exception:
+            logger.exception("move_file(%s → %s) failed", resolved_src, resolved_dst)
             return False
 
     async def copy_file(self, src: str, dst: str) -> bool:
@@ -318,22 +329,25 @@ class DesktopFileController:
 
         Returns:
             ``True`` on success, ``False`` on failure or blocked path.
+
         """
         resolved_src = _resolve_path(src)
         resolved_dst = _resolve_path(dst)
 
-        if _is_blocked(resolved_src, self._platform, raw=src) or _is_blocked(resolved_dst, self._platform, raw=dst):
+        if _is_blocked(resolved_src, self._platform, raw=src) or _is_blocked(
+            resolved_dst,
+            self._platform,
+            raw=dst,
+        ):
             return False
 
         logger.info("copy_file: %s → %s", resolved_src, resolved_dst)
         try:
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
-                None, self._blocking_copy_file, resolved_src, resolved_dst
-            )
+            await loop.run_in_executor(None, self._blocking_copy_file, resolved_src, resolved_dst)
             return True
-        except Exception as exc:
-            logger.error("copy_file(%s → %s) failed: %s", resolved_src, resolved_dst, exc)
+        except Exception:
+            logger.exception("copy_file(%s → %s) failed", resolved_src, resolved_dst)
             return False
 
     async def rename_file(self, path: str, new_name: str) -> bool:
@@ -345,6 +359,7 @@ class DesktopFileController:
 
         Returns:
             ``True`` on success, ``False`` on failure or blocked path.
+
         """
         resolved = _resolve_path(path)
         if _is_blocked(resolved, self._platform, raw=path):
@@ -357,12 +372,10 @@ class DesktopFileController:
         logger.info("rename_file: %s → %s", resolved, new_path)
         try:
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
-                None, self._blocking_rename_file, resolved, new_path
-            )
+            await loop.run_in_executor(None, self._blocking_rename_file, resolved, new_path)
             return True
-        except Exception as exc:
-            logger.error("rename_file(%s → %s) failed: %s", resolved, new_path, exc)
+        except Exception:
+            logger.exception("rename_file(%s → %s) failed", resolved, new_path)
             return False
 
     # ------------------------------------------------------------------
@@ -377,6 +390,7 @@ class DesktopFileController:
 
         Returns:
             ``True`` on success, ``False`` on failure or blocked path.
+
         """
         resolved = _resolve_path(path)
         if _is_blocked(resolved, self._platform, raw=path):
@@ -387,8 +401,8 @@ class DesktopFileController:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._blocking_create_directory, resolved)
             return True
-        except Exception as exc:
-            logger.error("create_directory(%s) failed: %s", resolved, exc)
+        except Exception:
+            logger.exception("create_directory(%s) failed", resolved)
             return False
 
     async def delete_directory(self, path: str, recursive: bool = False) -> bool:
@@ -401,6 +415,7 @@ class DesktopFileController:
 
         Returns:
             ``True`` on success, ``False`` on failure or blocked path.
+
         """
         resolved = _resolve_path(path)
         if _is_blocked(resolved, self._platform, raw=path):
@@ -409,12 +424,10 @@ class DesktopFileController:
         logger.info("delete_directory: %s (recursive=%s)", resolved, recursive)
         try:
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
-                None, self._blocking_delete_directory, resolved, recursive
-            )
+            await loop.run_in_executor(None, self._blocking_delete_directory, resolved, recursive)
             return True
-        except Exception as exc:
-            logger.error("delete_directory(%s) failed: %s", resolved, exc)
+        except Exception:
+            logger.exception("delete_directory(%s) failed: %s")
             return False
 
     async def list_directory(self, path: str) -> list[str]:
@@ -426,6 +439,7 @@ class DesktopFileController:
         Returns:
             List of filenames (not full paths) in the directory.
             Returns an empty list on error or blocked path.
+
         """
         resolved = _resolve_path(path)
         if _is_blocked(resolved, self._platform, raw=path):
@@ -435,8 +449,8 @@ class DesktopFileController:
         try:
             loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, self._blocking_list_directory, resolved)
-        except Exception as exc:
-            logger.error("list_directory(%s) failed: %s", resolved, exc)
+        except Exception:
+            logger.exception("list_directory(%s) failed: %s")
             return []
 
     # ------------------------------------------------------------------

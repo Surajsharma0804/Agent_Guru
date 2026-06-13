@@ -1,5 +1,4 @@
-"""
-Latency Controller for Reasoning Pipeline.
+"""Latency Controller for Reasoning Pipeline.
 
 This module implements the main latency controller that orchestrates stage timing,
 budget enforcement, timeout handling, and metrics tracking for the reasoning pipeline.
@@ -25,8 +24,8 @@ import time
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 
@@ -56,6 +55,7 @@ class StageTimer:
         max_budget_ms: Maximum latency budget in milliseconds
         metrics: Stage metrics object
         warned: Whether warning has been issued
+
     """
 
     stage: PipelineStage
@@ -70,6 +70,7 @@ class StageTimer:
 
         Returns:
             Elapsed time in milliseconds
+
         """
         return (time.perf_counter() - self.start_time) * 1000
 
@@ -78,6 +79,7 @@ class StageTimer:
 
         Returns:
             Remaining budget in milliseconds (negative if exceeded)
+
         """
         return self.budget_ms - self.elapsed_ms()
 
@@ -86,6 +88,7 @@ class StageTimer:
 
         Returns:
             True if over budget
+
         """
         return self.elapsed_ms() > self.budget_ms
 
@@ -94,6 +97,7 @@ class StageTimer:
 
         Returns:
             True if over maximum budget
+
         """
         return self.elapsed_ms() > self.max_budget_ms
 
@@ -102,6 +106,7 @@ class StageTimer:
 
         Returns:
             Budget utilization (0.0-1.0+)
+
         """
         return self.elapsed_ms() / self.budget_ms if self.budget_ms > 0 else 0.0
 
@@ -139,6 +144,7 @@ class LatencyController:
         >>> # Or use context manager
         >>> with controller.stage_context(PipelineStage.INPUT_NORMALIZATION):
         ...     # ... do work ...
+
     """
 
     # Warning threshold (80% of budget)
@@ -146,9 +152,9 @@ class LatencyController:
 
     def __init__(
         self,
-        tracker: Optional[LatencyTracker] = None,
-        enforcer: Optional[LatencyEnforcer] = None,
-        degraded_manager: Optional[DegradedModeManager] = None,
+        tracker: LatencyTracker | None = None,
+        enforcer: LatencyEnforcer | None = None,
+        degraded_manager: DegradedModeManager | None = None,
         enable_warnings: bool = True,
         enable_hard_timeouts: bool = True,
     ) -> None:
@@ -160,6 +166,7 @@ class LatencyController:
             degraded_manager: Optional DegradedModeManager instance (uses global if None)
             enable_warnings: Whether to enable timeout warnings
             enable_hard_timeouts: Whether to enable hard timeouts
+
         """
         self.tracker = tracker or get_latency_tracker()
         self.enforcer = enforcer or get_latency_enforcer()
@@ -184,6 +191,7 @@ class LatencyController:
         Example:
             >>> controller = LatencyController()
             >>> timer = controller.start_stage(PipelineStage.INPUT_NORMALIZATION)
+
         """
         # Get budget for stage
         budget = LATENCY_BUDGETS.get(stage, {})
@@ -207,7 +215,7 @@ class LatencyController:
             stage=stage.value,
             budget_ms=target_ms,
             max_budget_ms=max_ms,
-            timestamp=datetime.now(tz=timezone.utc).isoformat(),
+            timestamp=datetime.now(tz=UTC).isoformat(),
         )
 
         return timer
@@ -230,6 +238,7 @@ class LatencyController:
             >>> if controller.check_timeout(timer):
             ...     # Handle timeout
             ...     break
+
         """
         elapsed_ms = timer.elapsed_ms()
 
@@ -246,7 +255,7 @@ class LatencyController:
                 elapsed_ms=elapsed_ms,
                 budget_ms=timer.budget_ms,
                 utilization=timer.budget_utilization(),
-                timestamp=datetime.now(tz=timezone.utc).isoformat(),
+                timestamp=datetime.now(tz=UTC).isoformat(),
             )
 
         # Check for hard timeout (maximum budget)
@@ -256,7 +265,7 @@ class LatencyController:
                 stage=timer.stage.value,
                 elapsed_ms=elapsed_ms,
                 max_budget_ms=timer.max_budget_ms,
-                timestamp=datetime.now(tz=timezone.utc).isoformat(),
+                timestamp=datetime.now(tz=UTC).isoformat(),
             )
             return True
 
@@ -265,7 +274,7 @@ class LatencyController:
     def end_stage(
         self,
         timer: StageTimer,
-        error: Optional[str] = None,
+        error: str | None = None,
     ) -> StageMetrics:
         """End timing for a pipeline stage.
 
@@ -284,6 +293,7 @@ class LatencyController:
         Example:
             >>> metrics = controller.end_stage(timer)
             >>> print(f"Duration: {metrics.duration_ms:.1f}ms")
+
         """
         # Check if timed out
         timed_out = timer.is_over_max_budget()
@@ -310,7 +320,7 @@ class LatencyController:
                 duration_ms=metrics.duration_ms,
                 budget_ms=timer.budget_ms,
                 utilization=timer.budget_utilization(),
-                timestamp=datetime.now(tz=timezone.utc).isoformat(),
+                timestamp=datetime.now(tz=UTC).isoformat(),
             )
         else:
             logger.warning(
@@ -320,7 +330,7 @@ class LatencyController:
                 budget_ms=timer.budget_ms,
                 exceeded_by_ms=budget_check["exceeded_by_ms"],
                 exceeded_by_percent=budget_check["exceeded_by_percent"],
-                timestamp=datetime.now(tz=timezone.utc).isoformat(),
+                timestamp=datetime.now(tz=UTC).isoformat(),
             )
 
         # Check if should activate degraded mode
@@ -331,15 +341,13 @@ class LatencyController:
                 stage=timer.stage.value,
                 duration_ms=metrics.duration_ms,
                 max_budget_ms=timer.max_budget_ms,
-                timestamp=datetime.now(tz=timezone.utc).isoformat(),
+                timestamp=datetime.now(tz=UTC).isoformat(),
             )
 
         return metrics
 
     @contextmanager
-    def stage_context(
-        self, stage: PipelineStage
-    ) -> Generator[StageTimer, None, None]:
+    def stage_context(self, stage: PipelineStage) -> Generator[StageTimer, None, None]:
         """Context manager for stage timing.
 
         This provides a convenient way to time a stage using a with statement.
@@ -356,6 +364,7 @@ class LatencyController:
             ...     # ... do work ...
             ...     if controller.check_timeout(timer):
             ...         break
+
         """
         timer = self.start_stage(stage)
         error = None
@@ -368,7 +377,7 @@ class LatencyController:
         finally:
             self.end_stage(timer, error=error)
 
-    def get_stage_statistics(self, stage: PipelineStage) -> Optional[Any]:
+    def get_stage_statistics(self, stage: PipelineStage) -> Any | None:
         """Get statistics for a stage.
 
         Args:
@@ -376,6 +385,7 @@ class LatencyController:
 
         Returns:
             Stage statistics or None if no data
+
         """
         return self.tracker.get_statistics(stage)
 
@@ -384,6 +394,7 @@ class LatencyController:
 
         Returns:
             Dictionary of stage statistics
+
         """
         return self.tracker.get_all_statistics()
 
@@ -395,6 +406,7 @@ class LatencyController:
 
         Returns:
             True if degraded
+
         """
         return self.degraded_manager.is_degraded(stage)
 
@@ -403,14 +415,16 @@ class LatencyController:
 
         Returns:
             List of degraded stages
+
         """
         return self.degraded_manager.get_degraded_stages()
 
-    def reset_degraded_mode(self, stage: Optional[PipelineStage] = None) -> None:
+    def reset_degraded_mode(self, stage: PipelineStage | None = None) -> None:
         """Reset degraded mode for a stage or all stages.
 
         Args:
             stage: Optional stage to reset (resets all if None)
+
         """
         if stage is None:
             # Reset all stages
@@ -421,7 +435,7 @@ class LatencyController:
 
 
 # Global instance
-_global_controller: Optional[LatencyController] = None
+_global_controller: LatencyController | None = None
 
 
 def get_latency_controller() -> LatencyController:
@@ -429,6 +443,7 @@ def get_latency_controller() -> LatencyController:
 
     Returns:
         Global LatencyController instance
+
     """
     global _global_controller
     if _global_controller is None:

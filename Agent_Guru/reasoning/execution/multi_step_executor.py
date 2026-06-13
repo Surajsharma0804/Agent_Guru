@@ -1,5 +1,4 @@
-"""
-Multi-step plan executor for Core Reasoning Engine.
+"""Multi-step plan executor for Core Reasoning Engine.
 
 Performance Requirements:
 - Time Complexity: O(n) where n is number of steps
@@ -25,7 +24,7 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from Agent_Guru.reasoning.execution.executor import SyncExecutor
@@ -47,6 +46,7 @@ class StepResult:
         error: Error information if failed
         execution_time: Time taken to execute (seconds)
         timestamp: When step completed
+
     """
 
     step_number: int
@@ -55,7 +55,7 @@ class StepResult:
     result_data: Any | None = None
     error: dict[str, Any] | None = None
     execution_time: float = 0.0
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -84,6 +84,7 @@ class MultiStepResult:
         failed_at_step: Step number where failure occurred (None if success)
         error: Error information if plan failed
         timestamp: When plan execution completed
+
     """
 
     plan_id: str
@@ -94,7 +95,7 @@ class MultiStepResult:
     total_execution_time: float = 0.0
     failed_at_step: int | None = None
     error: dict[str, Any] | None = None
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -122,6 +123,7 @@ class PlanStep:
         parameter_bindings: Parameter bindings from previous steps
         output_binding: Variable name to store result (optional)
         timeout: Step-specific timeout in seconds (optional)
+
     """
 
     step_number: int
@@ -146,6 +148,7 @@ class MultiStepExecutor:
         ... ]
         >>> result = executor.execute_plan("plan_123", steps)
         >>> print(f"Success: {result.success}, Steps: {result.completed_steps}/{result.total_steps}")
+
     """
 
     def __init__(
@@ -165,15 +168,20 @@ class MultiStepExecutor:
 
         Raises:
             ValueError: If parameters are invalid
+
         """
         if max_steps <= 0:
-            raise ValueError(f"Invalid max_steps: {max_steps}")
+            msg = f"Invalid max_steps: {max_steps}"
+            raise ValueError(msg)
         if default_step_timeout <= 0:
-            raise ValueError(f"Invalid default_step_timeout: {default_step_timeout}")
+            msg = f"Invalid default_step_timeout: {default_step_timeout}"
+            raise ValueError(msg)
         if total_timeout <= 0:
-            raise ValueError(f"Invalid total_timeout: {total_timeout}")
+            msg = f"Invalid total_timeout: {total_timeout}"
+            raise ValueError(msg)
         if max_retries < 0:
-            raise ValueError(f"Invalid max_retries: {max_retries}")
+            msg = f"Invalid max_retries: {max_retries}"
+            raise ValueError(msg)
 
         self.max_steps = max_steps
         self.default_step_timeout = default_step_timeout
@@ -209,6 +217,7 @@ class MultiStepExecutor:
 
         Raises:
             Never raises - all errors captured in MultiStepResult
+
         """
         # Check cancellation before starting
         if self._cancelled:
@@ -317,6 +326,7 @@ class MultiStepExecutor:
 
         Returns:
             StepResult with execution result
+
         """
         start_time = time.perf_counter()
 
@@ -405,6 +415,7 @@ class MultiStepExecutor:
 
         Returns:
             Parameters with bound values
+
         """
         bound_params = parameters.copy()
 
@@ -422,6 +433,7 @@ class MultiStepExecutor:
 
         Returns:
             Error dict if invalid, None if valid
+
         """
         # Check step count
         if len(steps) == 0:
@@ -494,6 +506,7 @@ class MultiStepExecutor:
 
         Returns:
             MultiStepResult for timeout
+
         """
         return MultiStepResult(
             plan_id=plan_id,
@@ -531,6 +544,7 @@ class MultiStepExecutor:
 
         Returns:
             MultiStepResult for cancellation
+
         """
         return MultiStepResult(
             plan_id=plan_id,
@@ -571,6 +585,7 @@ class MultiStepExecutor:
 
         Returns:
             True if cancellation has been requested, False otherwise
+
         """
         return self._cancelled
 
@@ -579,6 +594,7 @@ class MultiStepExecutor:
 
         Returns:
             Dictionary of context variables
+
         """
         return self._execution_context.copy()
 

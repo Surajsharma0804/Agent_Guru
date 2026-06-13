@@ -1,7 +1,6 @@
 """Integration between speech engine and security system."""
 
 import logging
-from typing import Optional
 
 import numpy as np
 
@@ -12,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class SpeechSecurityIntegration:
-    """
-    Integration layer between speech engine and security system.
+    """Integration layer between speech engine and security system.
 
     Provides seamless voice biometric authentication using the speech engine.
     """
@@ -21,26 +19,21 @@ class SpeechSecurityIntegration:
     def __init__(
         self,
         speech_engine: SpeechEngine,
-        voice_authenticator: Optional[VoiceAuthenticator] = None
-    ):
-        """
-        Initialize speech-security integration.
+        voice_authenticator: VoiceAuthenticator | None = None,
+    ) -> None:
+        """Initialize speech-security integration.
 
         Args:
             speech_engine: Speech engine instance
             voice_authenticator: Voice authenticator (creates new if None)
+
         """
         self.speech_engine = speech_engine
         self.voice_authenticator = voice_authenticator or VoiceAuthenticator()
         self.logger = logging.getLogger(__name__)
 
-    def enroll_user_from_audio(
-        self,
-        user_id: str,
-        audio: np.ndarray
-    ) -> VoiceProfile:
-        """
-        Enroll user using audio sample.
+    def enroll_user_from_audio(self, user_id: str, audio: np.ndarray) -> VoiceProfile:
+        """Enroll user using audio sample.
 
         Args:
             user_id: Unique user identifier
@@ -51,6 +44,7 @@ class SpeechSecurityIntegration:
 
         Raises:
             VoiceAuthenticationError: If enrollment fails
+
         """
         self.logger.info("Enrolling user %s from audio", user_id)
 
@@ -60,20 +54,16 @@ class SpeechSecurityIntegration:
         # Enroll with voice authenticator
         profile = self.voice_authenticator.enroll_user(user_id, voice_features)
 
-        self.logger.info(
-            f"Successfully enrolled {user_id} "
-            f"(quality: {profile.quality_score:.2f})"
-        )
+        self.logger.info("Successfully enrolled %s (quality: %.2f)", user_id, profile.quality_score)
 
         return profile
 
     def authenticate_from_audio(
         self,
         audio: np.ndarray,
-        user_id: Optional[str] = None
-    ) -> tuple[bool, Optional[str], float]:
-        """
-        Authenticate user from audio sample.
+        user_id: str | None = None,
+    ) -> tuple[bool, str | None, float]:
+        """Authenticate user from audio sample.
 
         Args:
             audio: Audio data for authentication
@@ -84,6 +74,7 @@ class SpeechSecurityIntegration:
 
         Raises:
             VoiceAuthenticationError: If authentication fails
+
         """
         mode = "verification" if user_id else "identification"
         self.logger.info("Authenticating user from audio (%s mode)", mode)
@@ -94,24 +85,19 @@ class SpeechSecurityIntegration:
         # Authenticate with voice authenticator
         authenticated, matched_user, similarity = self.voice_authenticator.authenticate(
             voice_features,
-            user_id
+            user_id,
         )
 
         self.logger.info(
             f"Authentication result: "
             f"{'SUCCESS' if authenticated else 'FAILED'} "
-            f"(user: {matched_user}, similarity: {similarity:.3f})"
+            f"(user: {matched_user}, similarity: {similarity:.3f})",
         )
 
         return authenticated, matched_user, similarity
 
-    def update_profile_from_audio(
-        self,
-        user_id: str,
-        audio: np.ndarray
-    ) -> VoiceProfile:
-        """
-        Update user profile with new audio sample.
+    def update_profile_from_audio(self, user_id: str, audio: np.ndarray) -> VoiceProfile:
+        """Update user profile with new audio sample.
 
         Args:
             user_id: User identifier
@@ -122,6 +108,7 @@ class SpeechSecurityIntegration:
 
         Raises:
             VoiceAuthenticationError: If update fails
+
         """
         self.logger.info("Updating profile for %s from audio", user_id)
 
@@ -133,41 +120,41 @@ class SpeechSecurityIntegration:
 
         self.logger.info(
             f"Successfully updated {user_id} "
-            f"(samples: {profile.sample_count}, quality: {profile.quality_score:.2f})"
+            f"(samples: {profile.sample_count}, quality: {profile.quality_score:.2f})",
         )
 
         return profile
 
     def delete_user(self, user_id: str) -> None:
-        """
-        Delete user's voice profile.
+        """Delete user's voice profile.
 
         Args:
             user_id: User identifier
 
         Raises:
             VoiceAuthenticationError: If user not found
+
         """
         self.voice_authenticator.delete_profile(user_id)
         self.logger.info("Deleted user %s", user_id)
 
-    def get_user_profile(self, user_id: str) -> Optional[VoiceProfile]:
-        """
-        Get user's voice profile.
+    def get_user_profile(self, user_id: str) -> VoiceProfile | None:
+        """Get user's voice profile.
 
         Args:
             user_id: User identifier
 
         Returns:
             VoiceProfile or None if not found
+
         """
         return self.voice_authenticator.get_profile(user_id)
 
     def list_enrolled_users(self) -> list[str]:
-        """
-        List all enrolled users.
+        """List all enrolled users.
 
         Returns:
             List of user IDs
+
         """
         return self.voice_authenticator.list_users()

@@ -1,5 +1,4 @@
-"""
-Behavioral Learning Engine - Main coordinator.
+"""Behavioral Learning Engine - Main coordinator.
 
 This module coordinates all behavioral learning components with privacy controls,
 opt-in management, and data retention policies.
@@ -15,7 +14,7 @@ Date: 2024
 
 import asyncio
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from Agent_Guru.reasoning.learning.app_tracker import AppTracker
@@ -27,8 +26,7 @@ from Agent_Guru.reasoning.models.behavioral import BehavioralStats, ProactiveSug
 
 
 class BehavioralEngine:
-    """
-    Main behavioral learning engine with privacy controls.
+    """Main behavioral learning engine with privacy controls.
 
     Coordinates:
     - Command frequency tracking
@@ -53,19 +51,20 @@ class BehavioralEngine:
         >>> await engine.enable_learning("user123")
         >>> await engine.track_command("user123", "set_timer", success=True)
         >>> suggestions = await engine.get_suggestions("user123")
+
     """
 
     def __init__(
         self,
         db_path: str = "behavioral.db",
         default_retention_days: int = 90,
-    ):
-        """
-        Initialize behavioral engine.
+    ) -> None:
+        """Initialize behavioral engine.
 
         Args:
             db_path: Path to SQLite database (local storage)
             default_retention_days: Default data retention period
+
         """
         self.db_path = Path(db_path)
         self.default_retention_days = default_retention_days
@@ -115,7 +114,7 @@ class BehavioralEngine:
                         created_at TEXT NOT NULL,
                         updated_at TEXT NOT NULL
                     )
-                """
+                """,
                 )
 
                 # Data retention log
@@ -128,7 +127,7 @@ class BehavioralEngine:
                         records_affected INTEGER NOT NULL,
                         timestamp TEXT NOT NULL
                     )
-                """
+                """,
                 )
 
                 conn.commit()
@@ -136,12 +135,12 @@ class BehavioralEngine:
                 conn.close()
 
     async def enable_learning(self, user_id: str, retention_days: int | None = None) -> None:
-        """
-        Enable behavioral learning for a user (opt-in).
+        """Enable behavioral learning for a user (opt-in).
 
         Args:
             user_id: User identifier
             retention_days: Custom retention period (default: 90 days)
+
         """
         if not self._initialized:
             await self.initialize()
@@ -153,7 +152,7 @@ class BehavioralEngine:
             conn = sqlite3.connect(str(self.db_path))
             try:
                 cursor = conn.cursor()
-                now = datetime.now(tz=timezone.utc).isoformat()
+                now = datetime.now(tz=UTC).isoformat()
 
                 cursor.execute(
                     """
@@ -169,11 +168,11 @@ class BehavioralEngine:
                 conn.close()
 
     async def disable_learning(self, user_id: str) -> None:
-        """
-        Disable behavioral learning for a user (opt-out).
+        """Disable behavioral learning for a user (opt-out).
 
         Args:
             user_id: User identifier
+
         """
         if not self._initialized:
             await self.initialize()
@@ -189,21 +188,21 @@ class BehavioralEngine:
                     SET learning_enabled = 0, updated_at = ?
                     WHERE user_id = ?
                 """,
-                    (datetime.now(tz=timezone.utc).isoformat(), user_id),
+                    (datetime.now(tz=UTC).isoformat(), user_id),
                 )
                 conn.commit()
             finally:
                 conn.close()
 
     async def is_learning_enabled(self, user_id: str) -> bool:
-        """
-        Check if learning is enabled for a user.
+        """Check if learning is enabled for a user.
 
         Args:
             user_id: User identifier
 
         Returns:
             True if learning is enabled
+
         """
         if not self._initialized:
             await self.initialize()
@@ -232,8 +231,7 @@ class BehavioralEngine:
         latency: float = 0.0,
         metadata: dict | None = None,
     ) -> None:
-        """
-        Track command execution (if learning enabled).
+        """Track command execution (if learning enabled).
 
         Args:
             user_id: User identifier
@@ -241,6 +239,7 @@ class BehavioralEngine:
             success: Whether execution was successful
             latency: Execution latency in seconds
             metadata: Additional tracking data
+
         """
         if not await self.is_learning_enabled(user_id):
             return
@@ -252,16 +251,20 @@ class BehavioralEngine:
         await self.pattern_detector.record_command(user_id, command)
 
     async def track_app_usage(
-        self, user_id: str, app_id: str, app_name: str, duration: float | None = None
+        self,
+        user_id: str,
+        app_id: str,
+        app_name: str,
+        duration: float | None = None,
     ) -> None:
-        """
-        Track app usage (if learning enabled).
+        """Track app usage (if learning enabled).
 
         Args:
             user_id: User identifier
             app_id: Application identifier
             app_name: Application name
             duration: Usage duration in seconds (None for open event)
+
         """
         if not await self.is_learning_enabled(user_id):
             return
@@ -274,29 +277,37 @@ class BehavioralEngine:
             await self.app_tracker.track_app_close(user_id, app_id, duration)
 
     async def learn_preference(
-        self, user_id: str, preference_type, preference_key: str, preference_value
+        self,
+        user_id: str,
+        preference_type,
+        preference_key: str,
+        preference_value,
     ) -> None:
-        """
-        Learn user preference (if learning enabled).
+        """Learn user preference (if learning enabled).
 
         Args:
             user_id: User identifier
             preference_type: Type of preference
             preference_key: Preference key
             preference_value: Preference value
+
         """
         if not await self.is_learning_enabled(user_id):
             return
 
         await self.preference_learner.learn_preference(
-            user_id, preference_type, preference_key, preference_value
+            user_id,
+            preference_type,
+            preference_key,
+            preference_value,
         )
 
     async def get_suggestions(
-        self, user_id: str, context: dict | None = None
+        self,
+        user_id: str,
+        context: dict | None = None,
     ) -> list[ProactiveSuggestion]:
-        """
-        Get proactive suggestions (if learning enabled).
+        """Get proactive suggestions (if learning enabled).
 
         Args:
             user_id: User identifier
@@ -304,6 +315,7 @@ class BehavioralEngine:
 
         Returns:
             List of suggestions
+
         """
         if not await self.is_learning_enabled(user_id):
             return []
@@ -311,12 +323,12 @@ class BehavioralEngine:
         return await self.suggestion_generator.generate_suggestions(user_id, context)
 
     async def detect_patterns(self, user_id: str, lookback_days: int = 30) -> None:
-        """
-        Detect behavioral patterns (if learning enabled).
+        """Detect behavioral patterns (if learning enabled).
 
         Args:
             user_id: User identifier
             lookback_days: Number of days to analyze
+
         """
         if not await self.is_learning_enabled(user_id):
             return
@@ -324,14 +336,14 @@ class BehavioralEngine:
         await self.pattern_detector.detect_patterns(user_id, lookback_days)
 
     async def get_behavioral_stats(self, user_id: str) -> BehavioralStats:
-        """
-        Get behavioral statistics for a user.
+        """Get behavioral statistics for a user.
 
         Args:
             user_id: User identifier
 
         Returns:
             Behavioral statistics
+
         """
         if not await self.is_learning_enabled(user_id):
             return BehavioralStats(user_id=user_id)
@@ -358,7 +370,7 @@ class BehavioralEngine:
             detected_patterns=len(patterns),
             learned_preferences=len(preferences),
             suggestion_acceptance_rate=suggestion_stats["acceptance_rate"],
-            last_updated=datetime.now(tz=timezone.utc),
+            last_updated=datetime.now(tz=UTC),
             metadata={
                 "avg_success_rate": command_analysis["avg_success_rate"],
                 "avg_latency": command_analysis["avg_latency"],
@@ -366,14 +378,14 @@ class BehavioralEngine:
         )
 
     async def delete_user_data(self, user_id: str) -> dict:
-        """
-        Delete all learning data for a user.
+        """Delete all learning data for a user.
 
         Args:
             user_id: User identifier
 
         Returns:
             Dictionary with deletion counts
+
         """
         if not self._initialized:
             await self.initialize()
@@ -398,7 +410,7 @@ class BehavioralEngine:
                     # Use parameterized query with table name validation
                     if table not in tables:  # Validate table name
                         continue
-                    query = f"SELECT COUNT(*) FROM {table} WHERE user_id = ?"  # nosec B608
+                    query = f"SELECT COUNT(*) FROM {table} WHERE user_id = ?"  # nosec B608  # noqa: S608 - SQL parameterization reviewed
                     cursor.execute(query, (user_id,))
                     counts[table] = cursor.fetchone()[0]
 
@@ -407,7 +419,7 @@ class BehavioralEngine:
                     # Use parameterized query with table name validation
                     if table not in tables:  # Validate table name
                         continue
-                    query = f"DELETE FROM {table} WHERE user_id = ?"  # nosec B608
+                    query = f"DELETE FROM {table} WHERE user_id = ?"  # nosec B608  # noqa: S608 - SQL parameterization reviewed
                     cursor.execute(query, (user_id,))
 
                 # Log deletion
@@ -418,10 +430,10 @@ class BehavioralEngine:
                     ) VALUES (?, ?, 'delete_all', ?, ?)
                 """,
                     (
-                        f"del_{user_id}_{datetime.now(tz=timezone.utc).timestamp()}",
+                        f"del_{user_id}_{datetime.now(tz=UTC).timestamp()}",
                         user_id,
                         sum(counts.values()),
-                        datetime.now(tz=timezone.utc).isoformat(),
+                        datetime.now(tz=UTC).isoformat(),
                     ),
                 )
 
@@ -431,8 +443,7 @@ class BehavioralEngine:
                 conn.close()
 
     async def apply_retention_policy(self, user_id: str) -> int:
-        """
-        Apply data retention policy for a user.
+        """Apply data retention policy for a user.
 
         Deletes data older than retention period.
 
@@ -441,6 +452,7 @@ class BehavioralEngine:
 
         Returns:
             Number of records deleted
+
         """
         if not self._initialized:
             await self.initialize()
@@ -462,7 +474,7 @@ class BehavioralEngine:
                 retention_days = row[0] if row else self.default_retention_days
 
                 # Calculate cutoff date
-                cutoff = datetime.now(tz=timezone.utc) - timedelta(days=retention_days)
+                cutoff = datetime.now(tz=UTC) - timedelta(days=retention_days)
                 cutoff_str = cutoff.isoformat()
 
                 # Delete old records
@@ -497,10 +509,10 @@ class BehavioralEngine:
                         ) VALUES (?, ?, 'retention_policy', ?, ?)
                     """,
                         (
-                            f"ret_{user_id}_{datetime.now(tz=timezone.utc).timestamp()}",
+                            f"ret_{user_id}_{datetime.now(tz=UTC).timestamp()}",
                             user_id,
                             total_deleted,
-                            datetime.now(tz=timezone.utc).isoformat(),
+                            datetime.now(tz=UTC).isoformat(),
                         ),
                     )
 
@@ -510,14 +522,14 @@ class BehavioralEngine:
                 conn.close()
 
     async def export_user_data(self, user_id: str) -> dict:
-        """
-        Export all learning data for a user (for transparency).
+        """Export all learning data for a user (for transparency).
 
         Args:
             user_id: User identifier
 
         Returns:
             Dictionary with all user data
+
         """
         if not self._initialized:
             await self.initialize()
@@ -530,7 +542,7 @@ class BehavioralEngine:
 
         return {
             "user_id": user_id,
-            "exported_at": datetime.now(tz=timezone.utc).isoformat(),
+            "exported_at": datetime.now(tz=UTC).isoformat(),
             "commands": [
                 {
                     "command": c.command,

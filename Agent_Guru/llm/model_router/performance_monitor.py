@@ -1,9 +1,9 @@
-"""
-Module: Agent_Guru.llm.model_router.performance_monitor
+"""Module: Agent_Guru.llm.model_router.performance_monitor
 Purpose: Tracks model performance metrics for learning and analysis.
 
 Uses bounded deques for memory-safe rolling window calculations.
 """
+
 from __future__ import annotations
 
 import threading
@@ -20,7 +20,7 @@ from Agent_Guru.llm.model_router.models import (
 logger = structlog.get_logger("model_router.performance_monitor")
 
 _WINDOW_SIZE = 100  # Rolling window for success rate
-_EMA_DECAY = 0.9    # Exponential moving average decay for latency
+_EMA_DECAY = 0.9  # Exponential moving average decay for latency
 
 
 class PerformanceMonitor:
@@ -30,6 +30,7 @@ class PerformanceMonitor:
 
     Args:
         window_size: Number of recent records to keep per model+task_type pair.
+
     """
 
     def __init__(self, window_size: int = _WINDOW_SIZE) -> None:
@@ -45,6 +46,7 @@ class PerformanceMonitor:
 
         Args:
             record: Performance record to store.
+
         """
         key = (record.model_id, record.task_type.value)
         quality = record.quality_score if record.quality_score is not None else 0.5
@@ -58,15 +60,15 @@ class PerformanceMonitor:
 
             # Update EMA latency
             old_ema = self._ema_latency[key]
-            self._ema_latency[key] = (
-                _EMA_DECAY * old_ema + (1 - _EMA_DECAY) * record.latency_ms
-            )
+            self._ema_latency[key] = _EMA_DECAY * old_ema + (1 - _EMA_DECAY) * record.latency_ms
 
-        logger.debug("performance_recorded",
-                     model_id=record.model_id,
-                     task_type=record.task_type.value,
-                     success=record.success,
-                     latency_ms=record.latency_ms)
+        logger.debug(
+            "performance_recorded",
+            model_id=record.model_id,
+            task_type=record.task_type.value,
+            success=record.success,
+            latency_ms=record.latency_ms,
+        )
 
     def get_metrics(self, model_id: str, task_type: TaskType) -> PerformanceMetrics:
         """Get aggregated performance metrics for a model+task_type pair.
@@ -77,6 +79,7 @@ class PerformanceMonitor:
 
         Returns:
             PerformanceMetrics with aggregated statistics.
+
         """
         key = (model_id, task_type.value)
 
@@ -106,8 +109,12 @@ class PerformanceMonitor:
             sample_size=len(records),
         )
 
-    def detect_degradation(self, model_id: str, task_type: TaskType,
-                           threshold: float = 0.7) -> bool:
+    def detect_degradation(
+        self,
+        model_id: str,
+        task_type: TaskType,
+        threshold: float = 0.7,
+    ) -> bool:
         """Detect if a model's performance has degraded below threshold.
 
         Args:
@@ -117,14 +124,14 @@ class PerformanceMonitor:
 
         Returns:
             True if performance has degraded.
+
         """
         metrics = self.get_metrics(model_id, task_type)
         if metrics.sample_size < 5:
             return False  # Not enough data
         return metrics.success_rate < threshold
 
-    def compare_models(self, model_ids: list[str],
-                       task_type: TaskType) -> list[PerformanceMetrics]:
+    def compare_models(self, model_ids: list[str], task_type: TaskType) -> list[PerformanceMetrics]:
         """Compare performance metrics across multiple models.
 
         Args:
@@ -133,6 +140,7 @@ class PerformanceMonitor:
 
         Returns:
             List of PerformanceMetrics sorted by success_rate descending.
+
         """
         metrics = [self.get_metrics(mid, task_type) for mid in model_ids]
         return sorted(metrics, key=lambda m: m.success_rate, reverse=True)

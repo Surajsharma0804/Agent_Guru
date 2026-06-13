@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -33,7 +33,10 @@ class VerificationResultStorage:
     """
 
     def __init__(self, db_path: str = ":memory:") -> None:
-        self._conn: sqlite3.Connection = sqlite3.connect(db_path, check_same_thread=False)  # persistent; closed in close()
+        self._conn: sqlite3.Connection = sqlite3.connect(
+            db_path,
+            check_same_thread=False,
+        )  # persistent; closed in close()
         self._init_db()
 
     def _init_db(self) -> None:
@@ -53,16 +56,14 @@ class VerificationResultStorage:
                     context_type TEXT NOT NULL DEFAULT '',
                     metadata TEXT NOT NULL DEFAULT '{}'
                 )
-                """
+                """,
+            )
+            self._conn.execute("CREATE INDEX IF NOT EXISTS idx_status ON verification_log(status)")
+            self._conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_timestamp ON verification_log(timestamp)",
             )
             self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_status ON verification_log(status)"
-            )
-            self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_timestamp ON verification_log(timestamp)"
-            )
-            self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_context_type ON verification_log(context_type)"
+                "CREATE INDEX IF NOT EXISTS idx_context_type ON verification_log(context_type)",
             )
 
     def store(
@@ -165,7 +166,7 @@ class VerificationResultStorage:
             row = self._conn.execute(
                 "SELECT COUNT(*), SUM(hallucination_detected), "
                 "SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) "
-                "FROM verification_log"
+                "FROM verification_log",
             ).fetchone()
 
         total = row[0] or 0
@@ -185,7 +186,7 @@ class VerificationResultStorage:
         """Get latency at given percentile (e.g., 95th)."""
         with self._conn:
             rows = self._conn.execute(
-                "SELECT latency_ms FROM verification_log ORDER BY latency_ms"
+                "SELECT latency_ms FROM verification_log ORDER BY latency_ms",
             ).fetchall()
         if not rows:
             return 0.0
@@ -204,9 +205,7 @@ class VerificationResultStorage:
                 ).fetchone()
         else:
             with self._conn:
-                row = self._conn.execute(
-                    "SELECT COUNT(*) FROM verification_log"
-                ).fetchone()
+                row = self._conn.execute("SELECT COUNT(*) FROM verification_log").fetchone()
         return row[0] if row else 0
 
     def close(self) -> None:

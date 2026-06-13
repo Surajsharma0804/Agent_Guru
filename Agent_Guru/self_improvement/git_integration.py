@@ -1,8 +1,7 @@
-"""
-Module: agent_guru.self_improvement.git_integration
+"""Module: agent_guru.self_improvement.git_integration
 Purpose: Automated Git integration for learning data versioning
 Author: Agent Guru Self-Improvement Team
-Date: 2024
+Date: 2024.
 
 Performance Requirements:
 - Time Complexity: O(1) for queue operations, O(n) for batch commits
@@ -22,16 +21,17 @@ import json
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 try:
     import git
     from git import GitCommandError, InvalidGitRepositoryError, Repo
+
     GIT_AVAILABLE = True
-except ImportError as e:
+except ImportError:
     GIT_AVAILABLE = False
     git = None
     Repo = None
@@ -44,13 +44,15 @@ logger = logging.getLogger(__name__)
 
 class AuthMethod(Enum):
     """Git authentication methods."""
+
     SSH = "ssh"
-    TOKEN = "token"  # nosec B105
+    TOKEN = "token"  # nosec B105  # noqa: S105 - Not a real secret
     NONE = "none"
 
 
 class FailureType(Enum):
     """Task execution failure types."""
+
     REASONING_ERROR = "reasoning_error"
     TIMEOUT = "timeout"
     RESOURCE_ERROR = "resource_error"
@@ -62,18 +64,18 @@ class FailureType(Enum):
 @dataclass
 class CommitData:
     """Data for a Git commit."""
+
     commit_id: str
     timestamp: datetime
     message: str
     files: list[str]
     data: dict[str, Any]
     retry_count: int = 0
-    last_retry: Optional[datetime] = None
+    last_retry: datetime | None = None
 
 
 class GitIntegration:
-    """
-    Automated Git integration for learning data versioning.
+    """Automated Git integration for learning data versioning.
 
     Features:
     - Automated commits after each task execution
@@ -90,21 +92,21 @@ class GitIntegration:
         >>> git_integration = GitIntegration("/path/to/repo")
         >>> git_integration.commit_execution_data(execution)
         >>> git_integration.commit_improvement_report(report)
+
     """
 
     def __init__(
         self,
         repo_path: str,
         auth_method: AuthMethod = AuthMethod.SSH,
-        auth_token: Optional[str] = None,
+        auth_token: str | None = None,
         max_retries: int = 5,
         initial_backoff: float = 1.0,
         max_backoff: float = 60.0,
-        queue_path: Optional[str] = None,
-        auto_push: bool = True
-    ):
-        """
-        Initialize Git integration.
+        queue_path: str | None = None,
+        auto_push: bool = True,
+    ) -> None:
+        """Initialize Git integration.
 
         Args:
             repo_path: Path to Git repository
@@ -119,13 +121,14 @@ class GitIntegration:
         Raises:
             ValueError: If GitPython not installed
             InvalidGitRepositoryError: If repo_path is not a Git repository
+
         """
         if not GIT_AVAILABLE:
-            raise ValueError(
-                "GitPython not installed. Install with: pip install gitpython"
-            )
+            msg = "GitPython not installed. Install with: pip install gitpython"
+            raise ValueError(msg)
 
         from Agent_Guru.utils.path_utils import safe_path as _safe_path
+
         _repo_path = Path(repo_path).resolve()
         # Validate repo_path is a real directory (not a traversal attempt)
         # by ensuring it resolves to itself (no .. tricks)
@@ -141,13 +144,15 @@ class GitIntegration:
         try:
             self.repo = Repo(self.repo_path)
         except InvalidGitRepositoryError as e:
+            msg = f"Path {repo_path} is not a valid Git repository"
             raise InvalidGitRepositoryError(
-                f"Path {repo_path} is not a valid Git repository"
+                msg,
             ) from e
 
         # Initialize offline queue
         if queue_path:
             from Agent_Guru.utils.path_utils import safe_path as _safe_path
+
             self.queue_path = _safe_path(Path(queue_path).parent.resolve(), Path(queue_path).name)
         else:
             self.queue_path = self.repo_path / ".git" / "commit_queue"
@@ -159,16 +164,11 @@ class GitIntegration:
 
         logger.info(
             f"GitIntegration initialized: repo={repo_path}, "
-            f"auth={auth_method.value}, pending={len(self._pending_commits)}"
+            f"auth={auth_method.value}, pending={len(self._pending_commits)}",
         )
 
-    def commit_execution_data(
-        self,
-        execution: Any,
-        push: bool = True
-    ) -> bool:
-        """
-        Commit task execution data to Git.
+    def commit_execution_data(self, execution: Any, push: bool = True) -> bool:
+        """Commit task execution data to Git.
 
         Creates a commit with performance data after each task execution.
 
@@ -178,6 +178,7 @@ class GitIntegration:
 
         Returns:
             True if commit successful, False otherwise
+
         """
         # Generate commit message
         message = self._generate_execution_commit_message(execution)
@@ -196,22 +197,17 @@ class GitIntegration:
         # Create commit data
         commit_data = CommitData(
             commit_id=f"exec_{execution.task_id}_{int(time.time())}",
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
             message=message,
             files=["learning_data/executions.json"],
-            data=data
+            data=data,
         )
 
         # Try to commit
         return self._commit_and_push(commit_data, push)
 
-    def commit_improvement_report(
-        self,
-        report: dict[str, Any],
-        push: bool = True
-    ) -> bool:
-        """
-        Commit improvement report to Git.
+    def commit_improvement_report(self, report: dict[str, Any], push: bool = True) -> bool:
+        """Commit improvement report to Git.
 
         Creates a commit with comprehensive improvement analysis after every 100 tasks.
 
@@ -221,6 +217,7 @@ class GitIntegration:
 
         Returns:
             True if commit successful, False otherwise
+
         """
         # Generate commit message
         message = self._generate_report_commit_message(report)
@@ -228,22 +225,17 @@ class GitIntegration:
         # Create commit data
         commit_data = CommitData(
             commit_id=f"report_{int(time.time())}",
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
             message=message,
             files=["learning_data/improvement_reports.json", "README.md"],
-            data=report
+            data=report,
         )
 
         # Try to commit
         return self._commit_and_push(commit_data, push)
 
-    def _commit_and_push(
-        self,
-        commit_data: CommitData,
-        push: bool = True
-    ) -> bool:
-        """
-        Commit and optionally push to remote.
+    def _commit_and_push(self, commit_data: CommitData, push: bool = True) -> bool:
+        """Commit and optionally push to remote.
 
         Args:
             commit_data: Commit data to process
@@ -251,6 +243,7 @@ class GitIntegration:
 
         Returns:
             True if successful, False otherwise
+
         """
         try:
             # Write data to files
@@ -270,24 +263,21 @@ class GitIntegration:
 
             return True
 
-        except Exception as e:
-            logger.error("Commit failed: %s", e)
+        except Exception:
+            logger.exception("Commit failed")
             # Add to queue for retry
             self._queue_commit(commit_data)
             return False
 
-    def _push_with_retry(
-        self,
-        commit_data: CommitData
-    ) -> bool:
-        """
-        Push to remote with exponential backoff retry.
+    def _push_with_retry(self, commit_data: CommitData) -> bool:
+        """Push to remote with exponential backoff retry.
 
         Args:
             commit_data: Commit data for tracking retries
 
         Returns:
             True if push successful, False otherwise
+
         """
         retry_count = commit_data.retry_count
 
@@ -297,7 +287,7 @@ class GitIntegration:
                 self._configure_auth()
 
                 # Push to remote
-                origin = self.repo.remote(name='origin')
+                origin = self.repo.remote(name="origin")
                 origin.push()
 
                 logger.info("Push successful")
@@ -306,22 +296,19 @@ class GitIntegration:
             except GitCommandError as e:
                 retry_count += 1
                 commit_data.retry_count = retry_count
-                commit_data.last_retry = datetime.now(tz=timezone.utc)
+                commit_data.last_retry = datetime.now(tz=UTC)
 
                 if retry_count >= self.max_retries:
-                    logger.error("Push failed after %d retries: %s", self.max_retries, e)
+                    logger.exception("Push failed after %d retries", self.max_retries)
                     self._queue_commit(commit_data)
                     return False
 
                 # Calculate backoff delay
-                backoff = min(
-                    self.initial_backoff * (2 ** (retry_count - 1)),
-                    self.max_backoff
-                )
+                backoff = min(self.initial_backoff * (2 ** (retry_count - 1)), self.max_backoff)
 
-                logger.warning(
+                logger.exception(
                     f"Push failed (attempt {retry_count}/{self.max_retries}), "
-                    f"retrying in {backoff:.1f}s: {e}"
+                    f"retrying in {backoff:.1f}s: {e}",
                 )
 
                 time.sleep(backoff)
@@ -334,27 +321,24 @@ class GitIntegration:
             # Configure token authentication
             with self.repo.config_writer() as config:
                 config.set_value(
-                    'credential',
-                    'helper',
-                    f'!f() {{ echo "username=token"; echo "password={self.auth_token}"; }}; f'
+                    "credential",
+                    "helper",
+                    f'!f() {{ echo "username=token"; echo "password={self.auth_token}"; }}; f',
                 )
         elif self.auth_method == AuthMethod.SSH:
             # SSH uses default SSH keys, no configuration needed
             pass
         # NONE method doesn't configure authentication
 
-    def _generate_execution_commit_message(
-        self,
-        execution: Any
-    ) -> str:
-        """
-        Generate meaningful commit message for task execution.
+    def _generate_execution_commit_message(self, execution: Any) -> str:
+        """Generate meaningful commit message for task execution.
 
         Args:
             execution: TaskExecution object
 
         Returns:
             Descriptive commit message
+
         """
         if execution.success:
             return (
@@ -362,26 +346,20 @@ class GitIntegration:
                 f"({execution.execution_time_ms:.0f}ms) "
                 f"using {execution.strategy_id}"
             )
-        else:
-            failure_type = execution.failure_type.value if execution.failure_type else "unknown"
-            return (
-                f"❌ Task {execution.task_type} failed "
-                f"({failure_type}) "
-                f"using {execution.strategy_id}"
-            )
+        failure_type = execution.failure_type.value if execution.failure_type else "unknown"
+        return (
+            f"❌ Task {execution.task_type} failed ({failure_type}) using {execution.strategy_id}"
+        )
 
-    def _generate_report_commit_message(
-        self,
-        report: dict[str, Any]
-    ) -> str:
-        """
-        Generate meaningful commit message for improvement report.
+    def _generate_report_commit_message(self, report: dict[str, Any]) -> str:
+        """Generate meaningful commit message for improvement report.
 
         Args:
             report: Improvement report dictionary
 
         Returns:
             Descriptive commit message
+
         """
         improvement = report.get("relative_improvement", 0) * 100
         tasks_completed = report.get("total_tasks", 0)
@@ -391,21 +369,17 @@ class GitIntegration:
                 f"📈 Improvement Report: +{improvement:.1f}% after {tasks_completed} tasks "
                 f"(Target: +15% ✅)"
             )
-        else:
-            return (
-                f"📊 Improvement Report: +{improvement:.1f}% after {tasks_completed} tasks "
-                f"(Target: +15% ⚠️)"
-            )
+        return (
+            f"📊 Improvement Report: +{improvement:.1f}% after {tasks_completed} tasks "
+            f"(Target: +15% ⚠️)"
+        )
 
-    def _write_learning_data(
-        self,
-        commit_data: CommitData
-    ) -> None:
-        """
-        Write learning data to files.
+    def _write_learning_data(self, commit_data: CommitData) -> None:
+        """Write learning data to files.
 
         Args:
             commit_data: Commit data with files and data
+
         """
         from Agent_Guru.utils.path_utils import safe_path
 
@@ -420,7 +394,7 @@ class GitIntegration:
             if full_path.exists() and full_path.suffix == ".json":
                 # Append to JSON array
                 try:
-                    with open(full_path, encoding='utf-8') as f:
+                    with open(full_path, encoding="utf-8") as f:
                         existing_data = json.load(f)
                     if not isinstance(existing_data, list):
                         existing_data = [existing_data]
@@ -429,29 +403,26 @@ class GitIntegration:
 
                 existing_data.append(commit_data.data)
 
-                with open(full_path, 'w', encoding='utf-8') as f:
+                with open(full_path, "w", encoding="utf-8") as f:
                     json.dump(existing_data, f, indent=2)
             else:
                 # Write new file - always create as list for consistency
-                with open(full_path, 'w', encoding='utf-8') as f:
+                with open(full_path, "w", encoding="utf-8") as f:
                     json.dump([commit_data.data], f, indent=2)
 
-    def _queue_commit(
-        self,
-        commit_data: CommitData
-    ) -> None:
-        """
-        Queue commit for later retry.
+    def _queue_commit(self, commit_data: CommitData) -> None:
+        """Queue commit for later retry.
 
         Args:
             commit_data: Commit data to queue
+
         """
         self._pending_commits.append(commit_data)
         self._save_queue()
 
         logger.info(
             f"Queued commit for retry: {commit_data.commit_id} "
-            f"(queue size: {len(self._pending_commits)})"
+            f"(queue size: {len(self._pending_commits)})",
         )
 
     def _save_queue(self) -> None:
@@ -467,12 +438,12 @@ class GitIntegration:
                 "files": c.files,
                 "data": c.data,
                 "retry_count": c.retry_count,
-                "last_retry": c.last_retry.isoformat() if c.last_retry else None
+                "last_retry": c.last_retry.isoformat() if c.last_retry else None,
             }
             for c in self._pending_commits
         ]
 
-        with open(queue_file, 'w', encoding='utf-8') as f:
+        with open(queue_file, "w", encoding="utf-8") as f:
             json.dump(queue_data, f, indent=2)
 
     def _load_queue(self) -> None:
@@ -483,7 +454,7 @@ class GitIntegration:
             return
 
         try:
-            with open(queue_file, encoding='utf-8') as f:
+            with open(queue_file, encoding="utf-8") as f:
                 queue_data = json.load(f)
 
             self._pending_commits = [
@@ -494,25 +465,25 @@ class GitIntegration:
                     files=c["files"],
                     data=c["data"],
                     retry_count=c["retry_count"],
-                    last_retry=datetime.fromisoformat(c["last_retry"]) if c["last_retry"] else None
+                    last_retry=datetime.fromisoformat(c["last_retry"]) if c["last_retry"] else None,
                 )
                 for c in queue_data
             ]
 
             logger.info("Loaded %s pending commits from queue", len(self._pending_commits))
 
-        except Exception as e:
-            logger.error("Failed to load queue: %s", e)
+        except Exception:
+            logger.exception("Failed to load queue")
             self._pending_commits = []
 
     def process_queue(self) -> int:
-        """
-        Process pending commits in queue.
+        """Process pending commits in queue.
 
         Attempts to push all queued commits with retry logic.
 
         Returns:
             Number of commits successfully processed
+
         """
         if not self._pending_commits:
             return 0
@@ -532,19 +503,16 @@ class GitIntegration:
         self._pending_commits = failed
         self._save_queue()
 
-        logger.info(
-            f"Processed {processed} commits, "
-            f"{len(failed)} remain in queue"
-        )
+        logger.info("Processed %s commits, %s remain in queue", processed, len(failed))
 
         return processed
 
     def get_queue_size(self) -> int:
-        """
-        Get number of pending commits in queue.
+        """Get number of pending commits in queue.
 
         Returns:
             Number of pending commits
+
         """
         return len(self._pending_commits)
 
@@ -555,14 +523,14 @@ class GitIntegration:
         logger.info("Cleared commit queue")
 
     def is_online(self) -> bool:
-        """
-        Check if Git remote is accessible.
+        """Check if Git remote is accessible.
 
         Returns:
             True if remote is accessible, False otherwise
+
         """
         try:
-            origin = self.repo.remote(name='origin')
+            origin = self.repo.remote(name="origin")
             origin.fetch(dry_run=True)
             return True
         except Exception:

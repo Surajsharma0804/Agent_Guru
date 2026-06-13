@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.platform.controllers.system_settings
-Purpose: Cross-platform system settings control (volume, brightness, network, display)
+"""Module: Agent_Guru.platform.controllers.system_settings
+Purpose: Cross-platform system settings control (volume, brightness, network, display).
 
 Performance Requirements:
 - Time Complexity: O(1) per setting operation
@@ -24,7 +23,6 @@ import platform
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +34,9 @@ class VolumeInfo:
     Attributes:
         level: Volume level 0-100
         is_muted: Whether audio is muted
+
     """
+
     level: int  # 0-100
     is_muted: bool
 
@@ -47,7 +47,9 @@ class BrightnessInfo:
 
     Attributes:
         level: Brightness level 0-100
+
     """
+
     level: int  # 0-100
 
 
@@ -59,7 +61,9 @@ class NetworkInfo:
         wifi_enabled: Whether WiFi is enabled
         bluetooth_enabled: Whether Bluetooth is enabled
         airplane_mode: Whether airplane mode is enabled
+
     """
+
     wifi_enabled: bool
     bluetooth_enabled: bool
     airplane_mode: bool
@@ -74,11 +78,13 @@ class DisplayInfo:
         height: Screen height in pixels
         orientation: Screen orientation (0, 90, 180, 270 degrees)
         refresh_rate: Refresh rate in Hz
+
     """
+
     width: int
     height: int
     orientation: int  # 0, 90, 180, 270
-    refresh_rate: Optional[int] = None
+    refresh_rate: int | None = None
 
 
 class SystemSettingsError(Exception):
@@ -153,24 +159,25 @@ class SystemSettingsBackend(ABC):
         """Set display orientation (0, 90, 180, 270 degrees)."""
 
 
-
 class WindowsSettingsBackend(SystemSettingsBackend):
     """Windows-specific system settings implementation using Windows APIs."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize Windows settings backend."""
         try:
             from pycaw.pycaw import AudioUtilities
+
             self._audio_available = True
             self._AudioUtilities = AudioUtilities
-        except ImportError as e:
-            logger.warning("pycaw not available, audio control disabled")
+        except ImportError:
+            logger.exception("pycaw not available, audio control disabled")
             self._audio_available = False
 
     def get_volume(self) -> VolumeInfo:
         """Get current volume settings using Windows Core Audio API."""
         if not self._audio_available:
-            raise UnsupportedOperationError("Audio control not available (install pycaw)")
+            msg = "Audio control not available (install pycaw)"
+            raise UnsupportedOperationError(msg)
 
         try:
             devices = self._AudioUtilities.GetSpeakers()
@@ -179,16 +186,19 @@ class WindowsSettingsBackend(SystemSettingsBackend):
             is_muted = bool(volume.GetMute())
             return VolumeInfo(level=level, is_muted=is_muted)
         except Exception as e:
-            logger.error("Failed to get volume: %s", e)
-            raise SystemSettingsError(f"Failed to get volume: {e}") from e
+            logger.exception("Failed to get volume")
+            msg = f"Failed to get volume: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_volume(self, level: int) -> None:
         """Set volume level using Windows Core Audio API."""
         if not 0 <= level <= 100:
-            raise InvalidSettingValueError(f"Volume must be 0-100, got {level}")
+            msg = f"Volume must be 0-100, got {level}"
+            raise InvalidSettingValueError(msg)
 
         if not self._audio_available:
-            raise UnsupportedOperationError("Audio control not available (install pycaw)")
+            msg = "Audio control not available (install pycaw)"
+            raise UnsupportedOperationError(msg)
 
         try:
             devices = self._AudioUtilities.GetSpeakers()
@@ -196,13 +206,15 @@ class WindowsSettingsBackend(SystemSettingsBackend):
             volume.SetMasterVolumeLevelScalar(level / 100.0, None)
             logger.info("Set volume to %s%", level)
         except Exception as e:
-            logger.error("Failed to set volume: %s", e)
-            raise SystemSettingsError(f"Failed to set volume: {e}") from e
+            logger.exception("Failed to set volume")
+            msg = f"Failed to set volume: {e}"
+            raise SystemSettingsError(msg) from e
 
     def mute_volume(self) -> None:
         """Mute audio using Windows Core Audio API."""
         if not self._audio_available:
-            raise UnsupportedOperationError("Audio control not available (install pycaw)")
+            msg = "Audio control not available (install pycaw)"
+            raise UnsupportedOperationError(msg)
 
         try:
             devices = self._AudioUtilities.GetSpeakers()
@@ -210,13 +222,15 @@ class WindowsSettingsBackend(SystemSettingsBackend):
             volume.SetMute(1, None)
             logger.info("Muted audio")
         except Exception as e:
-            logger.error("Failed to mute: %s", e)
-            raise SystemSettingsError(f"Failed to mute: {e}") from e
+            logger.exception("Failed to mute")
+            msg = f"Failed to mute: {e}"
+            raise SystemSettingsError(msg) from e
 
     def unmute_volume(self) -> None:
         """Unmute audio using Windows Core Audio API."""
         if not self._audio_available:
-            raise UnsupportedOperationError("Audio control not available (install pycaw)")
+            msg = "Audio control not available (install pycaw)"
+            raise UnsupportedOperationError(msg)
 
         try:
             devices = self._AudioUtilities.GetSpeakers()
@@ -224,44 +238,52 @@ class WindowsSettingsBackend(SystemSettingsBackend):
             volume.SetMute(0, None)
             logger.info("Unmuted audio")
         except Exception as e:
-            logger.error("Failed to unmute: %s", e)
-            raise SystemSettingsError(f"Failed to unmute: {e}") from e
+            logger.exception("Failed to unmute")
+            msg = f"Failed to unmute: {e}"
+            raise SystemSettingsError(msg) from e
 
     def get_brightness(self) -> BrightnessInfo:
         """Get current brightness using WMI."""
         try:
             import wmi
-            c = wmi.WMI(namespace='wmi')
+
+            c = wmi.WMI(namespace="wmi")
             brightness_methods = c.WmiMonitorBrightness()
             if brightness_methods:
                 level = brightness_methods[0].CurrentBrightness
                 return BrightnessInfo(level=level)
-            raise SystemSettingsError("No brightness control available")
+            msg = "No brightness control available"
+            raise SystemSettingsError(msg)
         except ImportError as e:
-            raise UnsupportedOperationError("Brightness control requires WMI (install wmi)") from e
-        except Exception as e:
-            logger.error("Failed to get brightness: %s", e)
-            raise SystemSettingsError(f"Failed to get brightness: {e}") from e
+            msg = "Brightness control requires WMI (install wmi)"
+            raise UnsupportedOperationError(msg) from e
+            logger.exception("Failed to get brightness")
+            msg = f"Failed to get brightness: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_brightness(self, level: int) -> None:
         """Set brightness using WMI."""
         if not 0 <= level <= 100:
-            raise InvalidSettingValueError(f"Brightness must be 0-100, got {level}")
+            msg = f"Brightness must be 0-100, got {level}"
+            raise InvalidSettingValueError(msg)
 
         try:
             import wmi
-            c = wmi.WMI(namespace='wmi')
+
+            c = wmi.WMI(namespace="wmi")
             brightness_methods = c.WmiMonitorBrightnessMethods()
             if brightness_methods:
                 brightness_methods[0].WmiSetBrightness(level, 0)
                 logger.info("Set brightness to %s%", level)
             else:
-                raise SystemSettingsError("No brightness control available")
+                msg = "No brightness control available"
+                raise SystemSettingsError(msg)
         except ImportError as e:
-            raise UnsupportedOperationError("Brightness control requires WMI (install wmi)") from e
-        except Exception as e:
-            logger.error("Failed to set brightness: %s", e)
-            raise SystemSettingsError(f"Failed to set brightness: {e}") from e
+            msg = "Brightness control requires WMI (install wmi)"
+            raise UnsupportedOperationError(msg) from e
+            logger.exception("Failed to set brightness")
+            msg = f"Failed to set brightness: {e}"
+            raise SystemSettingsError(msg) from e
 
     def get_network_settings(self) -> NetworkInfo:
         """Get network settings using netsh."""
@@ -271,7 +293,7 @@ class WindowsSettingsBackend(SystemSettingsBackend):
                 ["netsh", "interface", "show", "interface"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             wifi_enabled = "Wi-Fi" in result.stdout and "Connected" in result.stdout
 
@@ -284,38 +306,43 @@ class WindowsSettingsBackend(SystemSettingsBackend):
             return NetworkInfo(
                 wifi_enabled=wifi_enabled,
                 bluetooth_enabled=bluetooth_enabled,
-                airplane_mode=airplane_mode
+                airplane_mode=airplane_mode,
             )
         except Exception as e:
-            logger.error("Failed to get network settings: %s", e)
-            raise SystemSettingsError(f"Failed to get network settings: {e}") from e
+            logger.exception("Failed to get network settings")
+            msg = f"Failed to get network settings: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_wifi(self, enabled: bool) -> None:
         """Enable or disable WiFi using netsh."""
         try:
             action = "enable" if enabled else "disable"
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["netsh", "interface", "set", "interface", "Wi-Fi", action],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("WiFi %sd", action)
         except subprocess.CalledProcessError as e:
-            logger.error("Failed to %s WiFi: %s", action, e)
-            raise SystemSettingsError(f"Failed to {action} WiFi: {e}") from e
+            logger.exception("Failed to %s WiFi: %s")
+            msg = f"Failed to {action} WiFi: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_bluetooth(self, enabled: bool) -> None:
         """Enable or disable Bluetooth (requires admin)."""
-        raise UnsupportedOperationError("Bluetooth control requires Windows API implementation")
+        msg = "Bluetooth control requires Windows API implementation"
+        raise UnsupportedOperationError(msg)
 
     def set_airplane_mode(self, enabled: bool) -> None:
         """Enable or disable airplane mode (requires admin)."""
-        raise UnsupportedOperationError("Airplane mode control requires Windows API implementation")
+        msg = "Airplane mode control requires Windows API implementation"
+        raise UnsupportedOperationError(msg)
 
     def get_display_settings(self) -> DisplayInfo:
         """Get display settings using Windows API."""
         try:
             import win32api
+
             device = win32api.EnumDisplayDevices()
             settings = win32api.EnumDisplaySettings(device.DeviceName, -1)
 
@@ -323,18 +350,20 @@ class WindowsSettingsBackend(SystemSettingsBackend):
                 width=settings.PelsWidth,
                 height=settings.PelsHeight,
                 orientation=settings.DisplayOrientation * 90,
-                refresh_rate=settings.DisplayFrequency
+                refresh_rate=settings.DisplayFrequency,
             )
         except ImportError as e:
-            raise UnsupportedOperationError("Display control requires pywin32") from e
-        except Exception as e:
-            logger.error("Failed to get display settings: %s", e)
-            raise SystemSettingsError(f"Failed to get display settings: {e}") from e
+            msg = "Display control requires pywin32"
+            raise UnsupportedOperationError(msg) from e
+            logger.exception("Failed to get display settings")
+            msg = f"Failed to get display settings: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_display_resolution(self, width: int, height: int) -> None:
         """Set display resolution using Windows API."""
         if width <= 0 or height <= 0:
-            raise InvalidSettingValueError(f"Invalid resolution: {width}x{height}")
+            msg = f"Invalid resolution: {width}x{height}"
+            raise InvalidSettingValueError(msg)
 
         try:
             import win32api
@@ -348,17 +377,22 @@ class WindowsSettingsBackend(SystemSettingsBackend):
             if result == 0:
                 logger.info("Set resolution to %sx%s", width, height)
             else:
-                raise SystemSettingsError(f"Failed to set resolution (error code: {result})")
+                msg = f"Failed to set resolution (error code: {result})"
+                raise SystemSettingsError(msg)
         except ImportError as e:
-            raise UnsupportedOperationError("Display control requires pywin32") from e
-        except Exception as e:
-            logger.error("Failed to set resolution: %s", e)
-            raise SystemSettingsError(f"Failed to set resolution: {e}") from e
+            msg = "Display control requires pywin32"
+            raise UnsupportedOperationError(msg) from e
+            logger.exception("Failed to set resolution")
+            msg = f"Failed to set resolution: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_display_orientation(self, orientation: int) -> None:
         """Set display orientation using Windows API."""
         if orientation not in [0, 90, 180, 270]:
-            raise InvalidSettingValueError(f"Orientation must be 0, 90, 180, or 270, got {orientation}")
+            msg = f"Orientation must be 0, 90, 180, or 270, got {orientation}"
+            raise InvalidSettingValueError(
+                msg,
+            )
 
         try:
             import win32api
@@ -371,12 +405,14 @@ class WindowsSettingsBackend(SystemSettingsBackend):
             if result == 0:
                 logger.info("Set orientation to %s degrees", orientation)
             else:
-                raise SystemSettingsError(f"Failed to set orientation (error code: {result})")
+                msg = f"Failed to set orientation (error code: {result})"
+                raise SystemSettingsError(msg)
         except ImportError as e:
-            raise UnsupportedOperationError("Display control requires pywin32") from e
-        except Exception as e:
-            logger.error("Failed to set orientation: %s", e)
-            raise SystemSettingsError(f"Failed to set orientation: {e}") from e
+            msg = "Display control requires pywin32"
+            raise UnsupportedOperationError(msg) from e
+            logger.exception("Failed to set orientation")
+            msg = f"Failed to set orientation: {e}"
+            raise SystemSettingsError(msg) from e
 
 
 class MacOSSettingsBackend(SystemSettingsBackend):
@@ -389,7 +425,7 @@ class MacOSSettingsBackend(SystemSettingsBackend):
                 ["osascript", "-e", "output volume of (get volume settings)"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             level = int(result.stdout.strip())
 
@@ -397,30 +433,33 @@ class MacOSSettingsBackend(SystemSettingsBackend):
                 ["osascript", "-e", "output muted of (get volume settings)"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             is_muted = result_mute.stdout.strip() == "true"
 
             return VolumeInfo(level=level, is_muted=is_muted)
         except Exception as e:
-            logger.error("Failed to get volume: %s", e)
-            raise SystemSettingsError(f"Failed to get volume: {e}") from e
+            logger.exception("Failed to get volume")
+            msg = f"Failed to get volume: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_volume(self, level: int) -> None:
         """Set volume using AppleScript."""
         if not 0 <= level <= 100:
-            raise InvalidSettingValueError(f"Volume must be 0-100, got {level}")
+            msg = f"Volume must be 0-100, got {level}"
+            raise InvalidSettingValueError(msg)
 
         try:
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["osascript", "-e", f"set volume output volume {level}"],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("Set volume to %s%", level)
         except subprocess.CalledProcessError as e:
-            logger.error("Failed to set volume: %s", e)
-            raise SystemSettingsError(f"Failed to set volume: {e}") from e
+            logger.exception("Failed to set volume")
+            msg = f"Failed to set volume: {e}"
+            raise SystemSettingsError(msg) from e
 
     def mute_volume(self) -> None:
         """Mute audio using AppleScript."""
@@ -428,12 +467,13 @@ class MacOSSettingsBackend(SystemSettingsBackend):
             subprocess.run(  # nosec B603 B607
                 ["osascript", "-e", "set volume output muted true"],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("Muted audio")
         except subprocess.CalledProcessError as e:
-            logger.error("Failed to mute: %s", e)
-            raise SystemSettingsError(f"Failed to mute: {e}") from e
+            logger.exception("Failed to mute")
+            msg = f"Failed to mute: {e}"
+            raise SystemSettingsError(msg) from e
 
     def unmute_volume(self) -> None:
         """Unmute audio using AppleScript."""
@@ -441,12 +481,13 @@ class MacOSSettingsBackend(SystemSettingsBackend):
             subprocess.run(  # nosec B603 B607
                 ["osascript", "-e", "set volume output muted false"],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("Unmuted audio")
         except subprocess.CalledProcessError as e:
-            logger.error("Failed to unmute: %s", e)
-            raise SystemSettingsError(f"Failed to unmute: {e}") from e
+            logger.exception("Failed to unmute")
+            msg = f"Failed to unmute: {e}"
+            raise SystemSettingsError(msg) from e
 
     def get_brightness(self) -> BrightnessInfo:
         """Get current brightness using brightness command."""
@@ -455,39 +496,47 @@ class MacOSSettingsBackend(SystemSettingsBackend):
                 ["brightness", "-l"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             # Parse output: "display 0: brightness 0.75"
-            for line in result.stdout.split('\n'):
-                if 'brightness' in line:
+            for line in result.stdout.split("\n"):
+                if "brightness" in line:
                     brightness_float = float(line.split()[-1])
                     level = int(brightness_float * 100)
                     return BrightnessInfo(level=level)
-            raise SystemSettingsError("Could not parse brightness")
+            msg = "Could not parse brightness"
+            raise SystemSettingsError(msg)
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Brightness control requires 'brightness' utility (brew install brightness)") from e
-        except Exception as e:
-            logger.error("Failed to get brightness: %s", e)
-            raise SystemSettingsError(f"Failed to get brightness: {e}") from e
+            msg = "Brightness control requires 'brightness' utility (brew install brightness)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to get brightness")
+            msg = f"Failed to get brightness: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_brightness(self, level: int) -> None:
         """Set brightness using brightness command."""
         if not 0 <= level <= 100:
-            raise InvalidSettingValueError(f"Brightness must be 0-100, got {level}")
+            msg = f"Brightness must be 0-100, got {level}"
+            raise InvalidSettingValueError(msg)
 
         try:
             brightness_float = level / 100.0
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["brightness", str(brightness_float)],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("Set brightness to %s%", level)
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Brightness control requires 'brightness' utility (brew install brightness)") from e
-        except subprocess.CalledProcessError as e:
-            logger.error("Failed to set brightness: %s", e)
-            raise SystemSettingsError(f"Failed to set brightness: {e}") from e
+            msg = "Brightness control requires 'brightness' utility (brew install brightness)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to set brightness")
+            msg = f"Failed to set brightness: {e}"
+            raise SystemSettingsError(msg) from e
 
     def get_network_settings(self) -> NetworkInfo:
         """Get network settings using networksetup."""
@@ -497,15 +546,21 @@ class MacOSSettingsBackend(SystemSettingsBackend):
                 ["networksetup", "-getairportpower", "en0"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             wifi_enabled = "On" in result.stdout
 
             # Check Bluetooth status
             result_bt = subprocess.run(  # nosec B603 B607
-                ["defaults", "read", "/Library/Preferences/com.apple.Bluetooth", "ControllerPowerState"],
+                [
+                    "defaults",
+                    "read",
+                    "/Library/Preferences/com.apple.Bluetooth",
+                    "ControllerPowerState",
+                ],
+                check=False,
                 capture_output=True,
-                text=True
+                text=True,
             )
             bluetooth_enabled = result_bt.returncode == 0 and "1" in result_bt.stdout
 
@@ -515,45 +570,51 @@ class MacOSSettingsBackend(SystemSettingsBackend):
             return NetworkInfo(
                 wifi_enabled=wifi_enabled,
                 bluetooth_enabled=bluetooth_enabled,
-                airplane_mode=airplane_mode
+                airplane_mode=airplane_mode,
             )
         except Exception as e:
-            logger.error("Failed to get network settings: %s", e)
-            raise SystemSettingsError(f"Failed to get network settings: {e}") from e
+            logger.exception("Failed to get network settings")
+            msg = f"Failed to get network settings: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_wifi(self, enabled: bool) -> None:
         """Enable or disable WiFi using networksetup."""
         try:
             action = "on" if enabled else "off"
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["networksetup", "-setairportpower", "en0", action],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("WiFi %s", action)
         except subprocess.CalledProcessError as e:
-            logger.error("Failed to set WiFi: %s", e)
-            raise SystemSettingsError(f"Failed to set WiFi: {e}") from e
+            logger.exception("Failed to set WiFi")
+            msg = f"Failed to set WiFi: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_bluetooth(self, enabled: bool) -> None:
         """Enable or disable Bluetooth using blueutil."""
         try:
             action = "1" if enabled else "0"
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["blueutil", "--power", action],
                 capture_output=True,
-                check=True
+                check=True,
             )
-            logger.info("Bluetooth %s", 'enabled' if enabled else 'disabled')
+            logger.info("Bluetooth %s", "enabled" if enabled else "disabled")
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Bluetooth control requires 'blueutil' (brew install blueutil)") from e
-        except subprocess.CalledProcessError as e:
-            logger.error("Failed to set Bluetooth: %s", e)
-            raise SystemSettingsError(f"Failed to set Bluetooth: {e}") from e
+            msg = "Bluetooth control requires 'blueutil' (brew install blueutil)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to set Bluetooth")
+            msg = f"Failed to set Bluetooth: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_airplane_mode(self, enabled: bool) -> None:
         """Enable or disable airplane mode (not directly supported on macOS)."""
-        raise UnsupportedOperationError("Airplane mode not directly supported on macOS")
+        msg = "Airplane mode not directly supported on macOS"
+        raise UnsupportedOperationError(msg)
 
     def get_display_settings(self) -> DisplayInfo:
         """Get display settings using system_profiler."""
@@ -562,13 +623,13 @@ class MacOSSettingsBackend(SystemSettingsBackend):
                 ["system_profiler", "SPDisplaysDataType"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
             # Parse resolution from output
             width, height = 1920, 1080  # Default
-            for line in result.stdout.split('\n'):
-                if 'Resolution:' in line:
+            for line in result.stdout.split("\n"):
+                if "Resolution:" in line:
                     parts = line.split()
                     if len(parts) >= 4:
                         width = int(parts[1])
@@ -579,36 +640,45 @@ class MacOSSettingsBackend(SystemSettingsBackend):
                 width=width,
                 height=height,
                 orientation=0,  # macOS doesn't expose orientation easily
-                refresh_rate=None
+                refresh_rate=None,
             )
         except Exception as e:
-            logger.error("Failed to get display settings: %s", e)
-            raise SystemSettingsError(f"Failed to get display settings: {e}") from e
+            logger.exception("Failed to get display settings")
+            msg = f"Failed to get display settings: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_display_resolution(self, width: int, height: int) -> None:
         """Set display resolution using displayplacer."""
         if width <= 0 or height <= 0:
-            raise InvalidSettingValueError(f"Invalid resolution: {width}x{height}")
+            msg = f"Invalid resolution: {width}x{height}"
+            raise InvalidSettingValueError(msg)
 
         try:
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["displayplacer", f"res:{width}x{height}"],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("Set resolution to %sx%s", width, height)
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Display control requires 'displayplacer' (brew install displayplacer)") from e
-        except subprocess.CalledProcessError as e:
-            logger.error("Failed to set resolution: %s", e)
-            raise SystemSettingsError(f"Failed to set resolution: {e}") from e
+            msg = "Display control requires 'displayplacer' (brew install displayplacer)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to set resolution")
+            msg = f"Failed to set resolution: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_display_orientation(self, orientation: int) -> None:
         """Set display orientation (limited support on macOS)."""
         if orientation not in [0, 90, 180, 270]:
-            raise InvalidSettingValueError(f"Orientation must be 0, 90, 180, or 270, got {orientation}")
+            msg = f"Orientation must be 0, 90, 180, or 270, got {orientation}"
+            raise InvalidSettingValueError(
+                msg,
+            )
 
-        raise UnsupportedOperationError("Display orientation control not supported on macOS")
+        msg = "Display orientation control not supported on macOS"
+        raise UnsupportedOperationError(msg)
 
 
 class LinuxSettingsBackend(SystemSettingsBackend):
@@ -621,41 +691,49 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 ["amixer", "get", "Master"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
             # Parse output: "[75%] [on]"
-            for line in result.stdout.split('\n'):
-                if '[' in line and '%' in line:
-                    level_str = line.split('[')[1].split('%')[0]
+            for line in result.stdout.split("\n"):
+                if "[" in line and "%" in line:
+                    level_str = line.split("[")[1].split("%")[0]
                     level = int(level_str)
-                    is_muted = '[off]' in line
+                    is_muted = "[off]" in line
                     return VolumeInfo(level=level, is_muted=is_muted)
 
-            raise SystemSettingsError("Could not parse volume")
+            msg = "Could not parse volume"
+            raise SystemSettingsError(msg)
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Volume control requires 'amixer' (install alsa-utils)") from e
-        except Exception as e:
-            logger.error("Failed to get volume: %s", e)
-            raise SystemSettingsError(f"Failed to get volume: {e}") from e
+            msg = "Volume control requires 'amixer' (install alsa-utils)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to get volume")
+            msg = f"Failed to get volume: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_volume(self, level: int) -> None:
         """Set volume using amixer."""
         if not 0 <= level <= 100:
-            raise InvalidSettingValueError(f"Volume must be 0-100, got {level}")
+            msg = f"Volume must be 0-100, got {level}"
+            raise InvalidSettingValueError(msg)
 
         try:
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["amixer", "set", "Master", f"{level}%"],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("Set volume to %s%", level)
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Volume control requires 'amixer' (install alsa-utils)") from e
-        except subprocess.CalledProcessError as e:
-            logger.error("Failed to set volume: %s", e)
-            raise SystemSettingsError(f"Failed to set volume: {e}") from e
+            msg = "Volume control requires 'amixer' (install alsa-utils)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to set volume")
+            msg = f"Failed to set volume: {e}"
+            raise SystemSettingsError(msg) from e
 
     def mute_volume(self) -> None:
         """Mute audio using amixer."""
@@ -663,14 +741,17 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             subprocess.run(  # nosec B603 B607
                 ["amixer", "set", "Master", "mute"],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("Muted audio")
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Volume control requires 'amixer' (install alsa-utils)") from e
-        except subprocess.CalledProcessError as e:
-            logger.error("Failed to mute: %s", e)
-            raise SystemSettingsError(f"Failed to mute: {e}") from e
+            msg = "Volume control requires 'amixer' (install alsa-utils)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to mute")
+            msg = f"Failed to mute: {e}"
+            raise SystemSettingsError(msg) from e
 
     def unmute_volume(self) -> None:
         """Unmute audio using amixer."""
@@ -678,14 +759,17 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             subprocess.run(  # nosec B603 B607
                 ["amixer", "set", "Master", "unmute"],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("Unmuted audio")
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Volume control requires 'amixer' (install alsa-utils)") from e
-        except subprocess.CalledProcessError as e:
-            logger.error("Failed to unmute: %s", e)
-            raise SystemSettingsError(f"Failed to unmute: {e}") from e
+            msg = "Volume control requires 'amixer' (install alsa-utils)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to unmute")
+            msg = f"Failed to unmute: {e}"
+            raise SystemSettingsError(msg) from e
 
     def get_brightness(self) -> BrightnessInfo:
         """Get current brightness using xbacklight."""
@@ -694,33 +778,40 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 ["xbacklight", "-get"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             level = int(float(result.stdout.strip()))
             return BrightnessInfo(level=level)
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Brightness control requires 'xbacklight' (install xbacklight)") from e
-        except Exception as e:
-            logger.error("Failed to get brightness: %s", e)
-            raise SystemSettingsError(f"Failed to get brightness: {e}") from e
+            msg = "Brightness control requires 'xbacklight' (install xbacklight)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to get brightness")
+            msg = f"Failed to get brightness: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_brightness(self, level: int) -> None:
         """Set brightness using xbacklight."""
         if not 0 <= level <= 100:
-            raise InvalidSettingValueError(f"Brightness must be 0-100, got {level}")
+            msg = f"Brightness must be 0-100, got {level}"
+            raise InvalidSettingValueError(msg)
 
         try:
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["xbacklight", "-set", str(level)],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("Set brightness to %s%", level)
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Brightness control requires 'xbacklight' (install xbacklight)") from e
-        except subprocess.CalledProcessError as e:
-            logger.error("Failed to set brightness: %s", e)
-            raise SystemSettingsError(f"Failed to set brightness: {e}") from e
+            msg = "Brightness control requires 'xbacklight' (install xbacklight)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to set brightness")
+            msg = f"Failed to set brightness: {e}"
+            raise SystemSettingsError(msg) from e
 
     def get_network_settings(self) -> NetworkInfo:
         """Get network settings using nmcli."""
@@ -730,15 +821,16 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 ["nmcli", "radio", "wifi"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             wifi_enabled = "enabled" in result.stdout
 
             # Check Bluetooth status
             result_bt = subprocess.run(  # nosec B603 B607
                 ["nmcli", "radio", "bluetooth"],
+                check=False,
                 capture_output=True,
-                text=True
+                text=True,
             )
             bluetooth_enabled = result_bt.returncode == 0 and "enabled" in result_bt.stdout
 
@@ -748,61 +840,73 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             return NetworkInfo(
                 wifi_enabled=wifi_enabled,
                 bluetooth_enabled=bluetooth_enabled,
-                airplane_mode=airplane_mode
+                airplane_mode=airplane_mode,
             )
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Network control requires 'nmcli' (install NetworkManager)") from e
-        except Exception as e:
-            logger.error("Failed to get network settings: %s", e)
-            raise SystemSettingsError(f"Failed to get network settings: {e}") from e
+            msg = "Network control requires 'nmcli' (install NetworkManager)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to get network settings")
+            msg = f"Failed to get network settings: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_wifi(self, enabled: bool) -> None:
         """Enable or disable WiFi using nmcli."""
         try:
             action = "on" if enabled else "off"
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["nmcli", "radio", "wifi", action],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("WiFi %s", action)
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Network control requires 'nmcli' (install NetworkManager)") from e
-        except subprocess.CalledProcessError as e:
-            logger.error("Failed to set WiFi: %s", e)
-            raise SystemSettingsError(f"Failed to set WiFi: {e}") from e
+            msg = "Network control requires 'nmcli' (install NetworkManager)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to set WiFi")
+            msg = f"Failed to set WiFi: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_bluetooth(self, enabled: bool) -> None:
         """Enable or disable Bluetooth using rfkill."""
         try:
             action = "unblock" if enabled else "block"
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["rfkill", action, "bluetooth"],
                 capture_output=True,
-                check=True
+                check=True,
             )
-            logger.info("Bluetooth %s", 'enabled' if enabled else 'disabled')
+            logger.info("Bluetooth %s", "enabled" if enabled else "disabled")
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Bluetooth control requires 'rfkill' (install rfkill)") from e
-        except subprocess.CalledProcessError as e:
-            logger.error("Failed to set Bluetooth: %s", e)
-            raise SystemSettingsError(f"Failed to set Bluetooth: {e}") from e
+            msg = "Bluetooth control requires 'rfkill' (install rfkill)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to set Bluetooth")
+            msg = f"Failed to set Bluetooth: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_airplane_mode(self, enabled: bool) -> None:
         """Enable or disable airplane mode (all radios)."""
         try:
             action = "block" if enabled else "unblock"
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["rfkill", action, "all"],
                 capture_output=True,
-                check=True
+                check=True,
             )
-            logger.info("Airplane mode %s", 'enabled' if enabled else 'disabled')
+            logger.info("Airplane mode %s", "enabled" if enabled else "disabled")
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Airplane mode control requires 'rfkill' (install rfkill)") from e
-        except subprocess.CalledProcessError as e:
-            logger.error("Failed to set airplane mode: %s", e)
-            raise SystemSettingsError(f"Failed to set airplane mode: {e}") from e
+            msg = "Airplane mode control requires 'rfkill' (install rfkill)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to set airplane mode")
+            msg = f"Failed to set airplane mode: {e}"
+            raise SystemSettingsError(msg) from e
 
     def get_display_settings(self) -> DisplayInfo:
         """Get display settings using xrandr."""
@@ -811,18 +915,18 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 ["xrandr"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
             # Parse current resolution: "1920x1080"
             width, height = 1920, 1080  # Default
-            for line in result.stdout.split('\n'):
-                if '*' in line:  # Current resolution marked with *
+            for line in result.stdout.split("\n"):
+                if "*" in line:  # Current resolution marked with *
                     parts = line.split()
                     if parts:
                         resolution = parts[0]
-                        if 'x' in resolution:
-                            w, h = resolution.split('x')
+                        if "x" in resolution:
+                            w, h = resolution.split("x")
                             width, height = int(w), int(h)
                     break
 
@@ -830,18 +934,22 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 width=width,
                 height=height,
                 orientation=0,  # Would need xrandr --query to get rotation
-                refresh_rate=None
+                refresh_rate=None,
             )
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Display control requires 'xrandr' (install x11-xserver-utils)") from e
-        except Exception as e:
-            logger.error("Failed to get display settings: %s", e)
-            raise SystemSettingsError(f"Failed to get display settings: {e}") from e
+            msg = "Display control requires 'xrandr' (install x11-xserver-utils)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to get display settings")
+            msg = f"Failed to get display settings: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_display_resolution(self, width: int, height: int) -> None:
         """Set display resolution using xrandr."""
         if width <= 0 or height <= 0:
-            raise InvalidSettingValueError(f"Invalid resolution: {width}x{height}")
+            msg = f"Invalid resolution: {width}x{height}"
+            raise InvalidSettingValueError(msg)
 
         try:
             # Get primary display
@@ -849,36 +957,43 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 ["xrandr", "--query"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
             # Find primary display name
             display_name = None
-            for line in result.stdout.split('\n'):
-                if ' connected primary' in line or ' connected' in line:
+            for line in result.stdout.split("\n"):
+                if " connected primary" in line or " connected" in line:
                     display_name = line.split()[0]
                     break
 
             if not display_name:
-                raise SystemSettingsError("Could not find display")
+                msg = "Could not find display"
+                raise SystemSettingsError(msg)
 
             # Set resolution
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["xrandr", "--output", display_name, "--mode", f"{width}x{height}"],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("Set resolution to %sx%s", width, height)
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Display control requires 'xrandr' (install x11-xserver-utils)") from e
-        except subprocess.CalledProcessError as e:
-            logger.error("Failed to set resolution: %s", e)
-            raise SystemSettingsError(f"Failed to set resolution: {e}") from e
+            msg = "Display control requires 'xrandr' (install x11-xserver-utils)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to set resolution")
+            msg = f"Failed to set resolution: {e}"
+            raise SystemSettingsError(msg) from e
 
     def set_display_orientation(self, orientation: int) -> None:
         """Set display orientation using xrandr."""
         if orientation not in [0, 90, 180, 270]:
-            raise InvalidSettingValueError(f"Orientation must be 0, 90, 180, or 270, got {orientation}")
+            msg = f"Orientation must be 0, 90, 180, or 270, got {orientation}"
+            raise InvalidSettingValueError(
+                msg,
+            )
 
         try:
             # Map degrees to xrandr rotation names
@@ -890,36 +1005,38 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 ["xrandr", "--query"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
             display_name = None
-            for line in result.stdout.split('\n'):
-                if ' connected primary' in line or ' connected' in line:
+            for line in result.stdout.split("\n"):
+                if " connected primary" in line or " connected" in line:
                     display_name = line.split()[0]
                     break
 
             if not display_name:
-                raise SystemSettingsError("Could not find display")
+                msg = "Could not find display"
+                raise SystemSettingsError(msg)
 
             # Set rotation
-            subprocess.run(  # nosec B603 B607
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["xrandr", "--output", display_name, "--rotate", rotation],
                 capture_output=True,
-                check=True
+                check=True,
             )
             logger.info("Set orientation to %s degrees", orientation)
         except FileNotFoundError as e:
-            raise UnsupportedOperationError("Display control requires 'xrandr' (install x11-xserver-utils)") from e
-        except subprocess.CalledProcessError as e:
-            logger.error("Failed to set orientation: %s", e)
-            raise SystemSettingsError(f"Failed to set orientation: {e}") from e
-
+            msg = "Display control requires 'xrandr' (install x11-xserver-utils)"
+            raise UnsupportedOperationError(
+                msg,
+            ) from e
+            logger.exception("Failed to set orientation")
+            msg = f"Failed to set orientation: {e}"
+            raise SystemSettingsError(msg) from e
 
 
 class SystemSettingsController:
-    """
-    Cross-platform system settings controller.
+    """Cross-platform system settings controller.
 
     Provides unified interface for controlling system settings across
     Windows, macOS, and Linux platforms.
@@ -932,9 +1049,10 @@ class SystemSettingsController:
         >>> controller.set_volume(75)
         >>> volume = controller.get_volume()
         >>> print(f"Volume: {volume.level}%")
+
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize system settings controller with platform-specific backend."""
         system = platform.system()
 
@@ -945,15 +1063,15 @@ class SystemSettingsController:
         elif system == "Linux":
             self._backend = LinuxSettingsBackend()
         else:
-            raise UnsupportedOperationError(f"Unsupported platform: {system}")
+            msg = f"Unsupported platform: {system}"
+            raise UnsupportedOperationError(msg)
 
         logger.info("Initialized SystemSettingsController for %s", system)
 
     # Volume control methods
 
     def get_volume(self) -> VolumeInfo:
-        """
-        Get current volume settings.
+        """Get current volume settings.
 
         Returns:
             VolumeInfo with level (0-100) and mute status
@@ -961,12 +1079,12 @@ class SystemSettingsController:
         Raises:
             SystemSettingsError: If operation fails
             UnsupportedOperationError: If not supported on platform
+
         """
         return self._backend.get_volume()
 
     def set_volume(self, level: int) -> None:
-        """
-        Set volume level.
+        """Set volume level.
 
         Args:
             level: Volume level 0-100
@@ -974,32 +1092,32 @@ class SystemSettingsController:
         Raises:
             InvalidSettingValueError: If level not in 0-100 range
             SystemSettingsError: If operation fails
+
         """
         self._backend.set_volume(level)
 
     def mute(self) -> None:
-        """
-        Mute audio.
+        """Mute audio.
 
         Raises:
             SystemSettingsError: If operation fails
+
         """
         self._backend.mute_volume()
 
     def unmute(self) -> None:
-        """
-        Unmute audio.
+        """Unmute audio.
 
         Raises:
             SystemSettingsError: If operation fails
+
         """
         self._backend.unmute_volume()
 
     # Brightness control methods
 
     def get_brightness(self) -> BrightnessInfo:
-        """
-        Get current brightness settings.
+        """Get current brightness settings.
 
         Returns:
             BrightnessInfo with level (0-100)
@@ -1007,12 +1125,12 @@ class SystemSettingsController:
         Raises:
             SystemSettingsError: If operation fails
             UnsupportedOperationError: If not supported on platform
+
         """
         return self._backend.get_brightness()
 
     def set_brightness(self, level: int) -> None:
-        """
-        Set brightness level.
+        """Set brightness level.
 
         Args:
             level: Brightness level 0-100
@@ -1020,100 +1138,100 @@ class SystemSettingsController:
         Raises:
             InvalidSettingValueError: If level not in 0-100 range
             SystemSettingsError: If operation fails
+
         """
         self._backend.set_brightness(level)
 
     # Network control methods
 
     def get_network_settings(self) -> NetworkInfo:
-        """
-        Get current network settings.
+        """Get current network settings.
 
         Returns:
             NetworkInfo with WiFi, Bluetooth, and airplane mode status
 
         Raises:
             SystemSettingsError: If operation fails
+
         """
         return self._backend.get_network_settings()
 
     def enable_wifi(self) -> None:
-        """
-        Enable WiFi.
+        """Enable WiFi.
 
         Raises:
             SystemSettingsError: If operation fails
             SettingsPermissionError: If insufficient permissions
+
         """
         self._backend.set_wifi(True)
 
     def disable_wifi(self) -> None:
-        """
-        Disable WiFi.
+        """Disable WiFi.
 
         Raises:
             SystemSettingsError: If operation fails
             SettingsPermissionError: If insufficient permissions
+
         """
         self._backend.set_wifi(False)
 
     def enable_bluetooth(self) -> None:
-        """
-        Enable Bluetooth.
+        """Enable Bluetooth.
 
         Raises:
             SystemSettingsError: If operation fails
             UnsupportedOperationError: If not supported on platform
+
         """
         self._backend.set_bluetooth(True)
 
     def disable_bluetooth(self) -> None:
-        """
-        Disable Bluetooth.
+        """Disable Bluetooth.
 
         Raises:
             SystemSettingsError: If operation fails
             UnsupportedOperationError: If not supported on platform
+
         """
         self._backend.set_bluetooth(False)
 
     def enable_airplane_mode(self) -> None:
-        """
-        Enable airplane mode (disable all radios).
+        """Enable airplane mode (disable all radios).
 
         Raises:
             SystemSettingsError: If operation fails
             UnsupportedOperationError: If not supported on platform
+
         """
         self._backend.set_airplane_mode(True)
 
     def disable_airplane_mode(self) -> None:
-        """
-        Disable airplane mode (enable all radios).
+        """Disable airplane mode (enable all radios).
 
         Raises:
             SystemSettingsError: If operation fails
             UnsupportedOperationError: If not supported on platform
+
         """
         self._backend.set_airplane_mode(False)
 
     # Display control methods
 
     def get_display_settings(self) -> DisplayInfo:
-        """
-        Get current display settings.
+        """Get current display settings.
 
         Returns:
             DisplayInfo with resolution, orientation, and refresh rate
 
         Raises:
             SystemSettingsError: If operation fails
+
         """
         return self._backend.get_display_settings()
 
     def set_resolution(self, width: int, height: int) -> None:
-        """
-        Set display resolution.
+        """Set display resolution.
 
         Args:
             width: Screen width in pixels
@@ -1122,12 +1240,12 @@ class SystemSettingsController:
         Raises:
             InvalidSettingValueError: If resolution is invalid
             SystemSettingsError: If operation fails
+
         """
         self._backend.set_display_resolution(width, height)
 
     def set_orientation(self, orientation: int) -> None:
-        """
-        Set display orientation.
+        """Set display orientation.
 
         Args:
             orientation: Orientation in degrees (0, 90, 180, 270)
@@ -1136,62 +1254,63 @@ class SystemSettingsController:
             InvalidSettingValueError: If orientation is invalid
             SystemSettingsError: If operation fails
             UnsupportedOperationError: If not supported on platform
+
         """
         self._backend.set_display_orientation(orientation)
 
     # Convenience methods
 
     def increase_volume(self, amount: int = 10) -> None:
-        """
-        Increase volume by specified amount.
+        """Increase volume by specified amount.
 
         Args:
             amount: Amount to increase (default: 10)
 
         Raises:
             SystemSettingsError: If operation fails
+
         """
         current = self.get_volume()
         new_level = min(100, current.level + amount)
         self.set_volume(new_level)
 
     def decrease_volume(self, amount: int = 10) -> None:
-        """
-        Decrease volume by specified amount.
+        """Decrease volume by specified amount.
 
         Args:
             amount: Amount to decrease (default: 10)
 
         Raises:
             SystemSettingsError: If operation fails
+
         """
         current = self.get_volume()
         new_level = max(0, current.level - amount)
         self.set_volume(new_level)
 
     def increase_brightness(self, amount: int = 10) -> None:
-        """
-        Increase brightness by specified amount.
+        """Increase brightness by specified amount.
 
         Args:
             amount: Amount to increase (default: 10)
 
         Raises:
             SystemSettingsError: If operation fails
+
         """
         current = self.get_brightness()
         new_level = min(100, current.level + amount)
         self.set_brightness(new_level)
 
     def decrease_brightness(self, amount: int = 10) -> None:
-        """
-        Decrease brightness by specified amount.
+        """Decrease brightness by specified amount.
 
         Args:
             amount: Amount to decrease (default: 10)
 
         Raises:
             SystemSettingsError: If operation fails
+
         """
         current = self.get_brightness()
         new_level = max(0, current.level - amount)

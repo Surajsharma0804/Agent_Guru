@@ -1,5 +1,4 @@
-"""
-Example: Goal Manager Integration Usage
+"""Example: Goal Manager Integration Usage.
 
 This example demonstrates how to use the GoalManagerClient to notify
 the Goal Manager about task completions and operation results.
@@ -9,7 +8,7 @@ Date: 2026-02-26
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from Agent_Guru.platform.integration import (
     GoalManagerClient,
@@ -19,9 +18,8 @@ from Agent_Guru.platform.integration import (
 )
 
 
-async def example_task_completion_notification():
+async def example_task_completion_notification() -> None:
     """Example: Send task completion notification to Goal Manager."""
-
     # Create Goal Manager client
     client = GoalManagerClient(
         base_url="http://localhost:8080",
@@ -39,10 +37,10 @@ async def example_task_completion_notification():
                 operation_id="op-1",
                 operation_type="file_write",
                 status=OperationStatus.SUCCESS,
-                start_time=datetime.now(tz=timezone.utc),
-                end_time=datetime.now(tz=timezone.utc),
+                start_time=datetime.now(tz=UTC),
+                end_time=datetime.now(tz=UTC),
                 execution_time=0.5,
-                parameters={"path": "/tmp/user_profile.json"},  # nosec B108
+                parameters={"path": "/tmp/user_profile.json"},  # nosec B108  # noqa: S108 - Not a real secret
                 result_data={"bytes_written": 1024},
                 resource_usage={"cpu_percent": 2.5, "memory_mb": 5.0},
             ),
@@ -50,8 +48,8 @@ async def example_task_completion_notification():
                 operation_id="op-2",
                 operation_type="command_execution",
                 status=OperationStatus.SUCCESS,
-                start_time=datetime.now(tz=timezone.utc),
-                end_time=datetime.now(tz=timezone.utc),
+                start_time=datetime.now(tz=UTC),
+                end_time=datetime.now(tz=UTC),
                 execution_time=1.2,
                 parameters={"command": "chmod 644 /tmp/user_profile.json"},
                 result_data={"exit_code": 0},
@@ -72,22 +70,18 @@ async def example_task_completion_notification():
         )
 
         # Send notification
-        status = await client.notify_task_completion(notification)
-
-        print(f"Notification status: {status}")
+        await client.notify_task_completion(notification)
 
         # Get client statistics
-        stats = client.get_statistics()
-        print(f"Client statistics: {stats}")
+        client.get_statistics()
 
     finally:
         # Disconnect from Goal Manager
         await client.disconnect()
 
 
-async def example_operation_result_reporting():
+async def example_operation_result_reporting() -> None:
     """Example: Report individual operation result to Goal Manager."""
-
     # Use async context manager for automatic connection/disconnection
     async with GoalManagerClient(base_url="http://localhost:8080") as client:
         # Create operation result
@@ -95,8 +89,8 @@ async def example_operation_result_reporting():
             operation_id="op-3",
             operation_type="network_request",
             status=OperationStatus.SUCCESS,
-            start_time=datetime.now(tz=timezone.utc),
-            end_time=datetime.now(tz=timezone.utc),
+            start_time=datetime.now(tz=UTC),
+            end_time=datetime.now(tz=UTC),
             execution_time=0.8,
             parameters={
                 "method": "POST",
@@ -110,14 +104,11 @@ async def example_operation_result_reporting():
         )
 
         # Report operation result
-        status = await client.report_operation_result(operation)
-
-        print(f"Operation report status: {status}")
+        await client.report_operation_result(operation)
 
 
-async def example_error_handling():
+async def example_error_handling() -> None:
     """Example: Handle errors and retries."""
-
     client = GoalManagerClient(
         base_url="http://localhost:8080",
         max_retries=3,
@@ -137,12 +128,12 @@ async def example_error_handling():
                     operation_id="op-4",
                     operation_type="file_delete",
                     status=OperationStatus.FAILURE,
-                    start_time=datetime.now(tz=timezone.utc),
-                    end_time=datetime.now(tz=timezone.utc),
+                    start_time=datetime.now(tz=UTC),
+                    end_time=datetime.now(tz=UTC),
                     execution_time=0.1,
                     parameters={"path": "/protected/file.txt"},
                     error_message="Permission denied: Cannot delete protected file",
-                )
+                ),
             ],
             overall_status=OperationStatus.FAILURE,
         )
@@ -151,20 +142,17 @@ async def example_error_handling():
         status = await client.notify_task_completion(notification)
 
         if status.value == "failed":
-            print("Failed to send notification after retries")
-
             # Check if circuit breaker opened
             stats = client.get_statistics()
             if stats["circuit_open"]:
-                print("Circuit breaker is open - Goal Manager may be unavailable")
+                pass
 
     finally:
         await client.disconnect()
 
 
-async def example_batch_notifications():
+async def example_batch_notifications() -> None:
     """Example: Send multiple notifications efficiently."""
-
     async with GoalManagerClient(base_url="http://localhost:8080") as client:
         # Create multiple notifications
         notifications = []
@@ -178,55 +166,33 @@ async def example_batch_notifications():
                         operation_id=f"op-{i}",
                         operation_type="file_write",
                         status=OperationStatus.SUCCESS,
-                        start_time=datetime.now(tz=timezone.utc),
-                        end_time=datetime.now(tz=timezone.utc),
+                        start_time=datetime.now(tz=UTC),
+                        end_time=datetime.now(tz=UTC),
                         execution_time=0.3,
-                    )
+                    ),
                 ],
             )
             notifications.append(notification)
 
         # Send notifications concurrently
-        tasks = [
-            client.notify_task_completion(notif)
-            for notif in notifications
-        ]
+        tasks = [client.notify_task_completion(notif) for notif in notifications]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Check results
-        successful = sum(1 for r in results if r.value == "sent")
-        failed = sum(1 for r in results if r.value == "failed")
-
-        print(f"Sent: {successful}, Failed: {failed}")
+        sum(1 for r in results if r.value == "sent")
+        sum(1 for r in results if r.value == "failed")
 
 
-async def main():
+async def main() -> None:
     """Run all examples."""
-
-    print("=" * 60)
-    print("Goal Manager Integration Examples")
-    print("=" * 60)
-
-    print("\n1. Task Completion Notification")
-    print("-" * 60)
     await example_task_completion_notification()
 
-    print("\n2. Operation Result Reporting")
-    print("-" * 60)
     await example_operation_result_reporting()
 
-    print("\n3. Error Handling")
-    print("-" * 60)
     await example_error_handling()
 
-    print("\n4. Batch Notifications")
-    print("-" * 60)
     await example_batch_notifications()
-
-    print("\n" + "=" * 60)
-    print("Examples completed!")
-    print("=" * 60)
 
 
 if __name__ == "__main__":

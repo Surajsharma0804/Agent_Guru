@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.avatar.state_manager
+"""Module: Agent_Guru.avatar.state_manager
 Purpose: Thread-safe central state management for the Avatar system.
 
 Requirements: Req 5 (Avatar State Management)
@@ -58,6 +57,7 @@ class StateManager:
 
         Returns:
             True on success, False if validation fails.
+
         """
         try:
             # Validate by constructing — raises on bad values
@@ -69,8 +69,8 @@ class StateManager:
                 arousal=getattr(emotion, "arousal", 0.0),
                 action_units=getattr(emotion, "action_units", {}),
             )
-        except (ValueError, Exception) as exc:
-            logger.error("update_emotion rejected: %s", exc)
+        except (ValueError, Exception):
+            logger.exception("update_emotion rejected")
             return False
 
         with self._lock:
@@ -82,17 +82,16 @@ class StateManager:
 
         Returns:
             True on success, False if validation fails.
+
         """
         try:
             ratio = lip_sync.mouth_open_ratio
-        except AttributeError as e:
-            logger.error("update_lip_sync rejected: missing mouth_open_ratio: %s", e)
+        except AttributeError:
+            logger.exception("update_lip_sync rejected: missing mouth_open_ratio")
             return False
 
         if not 0.0 <= ratio <= 1.0:
-            logger.error(
-                "update_lip_sync rejected: mouth_open_ratio %s out of [0,1]", ratio
-            )
+            logger.error("update_lip_sync rejected: mouth_open_ratio %s out of [0,1]", ratio)
             return False
 
         with self._lock:
@@ -104,6 +103,7 @@ class StateManager:
 
         Returns:
             True on success, False if validation fails.
+
         """
         try:
             _ = PersonalityProfile(
@@ -115,8 +115,8 @@ class StateManager:
                 humor=personality.humor,
                 empathy=personality.empathy,
             )
-        except ValueError as exc:
-            logger.error("update_personality rejected: %s", exc)
+        except ValueError:
+            logger.exception("update_personality rejected")
             return False
 
         with self._lock:
@@ -128,6 +128,7 @@ class StateManager:
 
         Returns:
             True always (switching type is always valid).
+
         """
         with self._lock:
             self._state.personality_type = personality_type
@@ -148,11 +149,12 @@ class StateManager:
 
         Returns:
             True on success, False if validation fails.
+
         """
         try:
             new_state = AvatarState.from_dict(data)
-        except (ValueError, KeyError, TypeError) as exc:
-            logger.error("deserialize failed: %s", exc)
+        except (ValueError, KeyError, TypeError):
+            logger.exception("deserialize failed")
             return False
 
         with self._lock:

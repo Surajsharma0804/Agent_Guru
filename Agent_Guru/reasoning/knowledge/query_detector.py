@@ -1,5 +1,4 @@
-"""
-Knowledge Query Detector for identifying and classifying knowledge queries.
+"""Knowledge Query Detector for identifying and classifying knowledge queries.
 
 This module implements fast pattern-based detection of knowledge queries with
 LLM fallback for ambiguous cases. Achieves <50ms latency for pattern matching
@@ -24,7 +23,7 @@ Version: 1.0.0
 """
 
 import re
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.models.knowledge import (
     KnowledgeQuery,
@@ -50,6 +49,7 @@ class KnowledgeQueryDetector:
         KnowledgeQueryType.TEMPORAL
         >>> print(query.entities)
         {'person': 'John', 'action': 'call'}
+
     """
 
     # Pattern definitions for fast detection
@@ -135,11 +135,12 @@ class KnowledgeQueryDetector:
         "talk",
     }
 
-    def __init__(self, llm_fallback: Optional[Any] = None):
+    def __init__(self, llm_fallback: Any | None = None) -> None:
         """Initialize the knowledge query detector.
 
         Args:
             llm_fallback: Optional LLM client for ambiguous query classification
+
         """
         self.llm_fallback = llm_fallback
         self._compile_patterns()
@@ -156,8 +157,10 @@ class KnowledgeQueryDetector:
         self.factual_regex = [re.compile(p, re.IGNORECASE) for p in self.FACTUAL_PATTERNS]
 
     def detect_knowledge_query(
-        self, query_text: str, use_llm_fallback: bool = True
-    ) -> Optional[KnowledgeQuery]:
+        self,
+        query_text: str,
+        use_llm_fallback: bool = True,
+    ) -> KnowledgeQuery | None:
         """Detect if input is a knowledge query and classify it.
 
         Time Complexity: O(n) where n is query length
@@ -176,6 +179,7 @@ class KnowledgeQueryDetector:
             >>> query = detector.detect_knowledge_query("when did I last call John?")
             >>> print(query.query_type)
             KnowledgeQueryType.TEMPORAL
+
         """
         if not query_text or not query_text.strip():
             return None
@@ -212,7 +216,7 @@ class KnowledgeQueryDetector:
             confidence=confidence,
         )
 
-    def classify_query_type(self, query_text: str) -> Optional[KnowledgeQueryType]:
+    def classify_query_type(self, query_text: str) -> KnowledgeQueryType | None:
         """Classify query type using pattern matching.
 
         Time Complexity: O(n*p) where n is query length, p is number of patterns
@@ -230,6 +234,7 @@ class KnowledgeQueryDetector:
             >>> query_type = detector.classify_query_type("when did I last call John?")
             >>> print(query_type)
             KnowledgeQueryType.TEMPORAL
+
         """
         query_lower = query_text.lower()
 
@@ -255,7 +260,7 @@ class KnowledgeQueryDetector:
 
         return None
 
-    def extract_time_range(self, query_text: str) -> Optional[TimeRange]:
+    def extract_time_range(self, query_text: str) -> TimeRange | None:
         """Extract time range from natural language query.
 
         Time Complexity: O(n) where n is query length
@@ -273,6 +278,7 @@ class KnowledgeQueryDetector:
             >>> time_range = detector.extract_time_range("what did I do last week?")
             >>> print(time_range.description)
             'last week'
+
         """
         query_lower = query_text.lower()
 
@@ -308,6 +314,7 @@ class KnowledgeQueryDetector:
             >>> entities = detector._extract_entities("when did I call John?")
             >>> print(entities)
             {'person': 'John', 'action': 'call'}
+
         """
         entities: dict[str, Any] = {}
 
@@ -355,6 +362,7 @@ class KnowledgeQueryDetector:
             ... )
             >>> print(confidence >= 0.8)
             True
+
         """
         query_lower = query_text.lower()
         match_count = 0
@@ -393,7 +401,7 @@ class KnowledgeQueryDetector:
 
         return round(base_confidence, 2)
 
-    def _classify_with_llm(self, query_text: str) -> Optional[KnowledgeQueryType]:
+    def _classify_with_llm(self, query_text: str) -> KnowledgeQueryType | None:
         """Classify query using LLM fallback for ambiguous cases.
 
         Time Complexity: O(1) - LLM call
@@ -409,6 +417,7 @@ class KnowledgeQueryDetector:
         Note:
             This is a placeholder for LLM integration.
             Full implementation will be added when LLM backend is available.
+
         """
         # TODO: Implement LLM fallback when LLM backend is available
         # For now, return None to indicate no classification

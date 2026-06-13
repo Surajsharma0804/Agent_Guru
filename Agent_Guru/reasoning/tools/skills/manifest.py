@@ -1,11 +1,10 @@
-"""
-Skill manifest schema and validation.
+"""Skill manifest schema and validation.
 
 Defines the structure and validation rules for skill manifests.
 """
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
@@ -19,26 +18,16 @@ class SkillManifest(BaseModel):
     version: str = Field(..., description="Skill version (semver)")
     author: str = Field(..., description="Skill author")
     description: str = Field(..., description="Skill description")
-    permissions: list[str] = Field(
-        default_factory=list, description="Required permissions"
-    )
-    tools: list[dict[str, Any]] = Field(
-        default_factory=list, description="Tool definitions"
-    )
+    permissions: list[str] = Field(default_factory=list, description="Required permissions")
+    tools: list[dict[str, Any]] = Field(default_factory=list, description="Tool definitions")
     entry_point: str = Field(..., description="Entry point module path")
     runtime: str = Field(default="python", description="Runtime environment")
-    dependencies: list[str] = Field(
-        default_factory=list, description="Required dependencies"
-    )
-    min_agent_version: Optional[str] = Field(
-        None, description="Minimum Agent_Guru version"
-    )
-    max_agent_version: Optional[str] = Field(
-        None, description="Maximum Agent_Guru version"
-    )
-    homepage: Optional[str] = Field(None, description="Skill homepage URL")
-    repository: Optional[str] = Field(None, description="Source repository URL")
-    license: Optional[str] = Field(None, description="License identifier")
+    dependencies: list[str] = Field(default_factory=list, description="Required dependencies")
+    min_agent_version: str | None = Field(None, description="Minimum Agent_Guru version")
+    max_agent_version: str | None = Field(None, description="Maximum Agent_Guru version")
+    homepage: str | None = Field(None, description="Skill homepage URL")
+    repository: str | None = Field(None, description="Source repository URL")
+    license: str | None = Field(None, description="License identifier")
     tags: list[str] = Field(default_factory=list, description="Skill tags")
 
     @field_validator("skill_id")
@@ -46,9 +35,11 @@ class SkillManifest(BaseModel):
     def validate_skill_id(cls, v: str) -> str:
         """Validate skill ID format."""
         if not v or not v.strip():
-            raise ValueError("Skill ID cannot be empty")
+            msg = "Skill ID cannot be empty"
+            raise ValueError(msg)
         if not v.replace("_", "").replace("-", "").isalnum():
-            raise ValueError("Skill ID must be alphanumeric with _ or -")
+            msg = "Skill ID must be alphanumeric with _ or -"
+            raise ValueError(msg)
         return v
 
     @field_validator("version")
@@ -57,9 +48,11 @@ class SkillManifest(BaseModel):
         """Validate version format (semver)."""
         parts = v.split(".")
         if len(parts) != 3:
-            raise ValueError("Version must be in semver format (x.y.z)")
+            msg = "Version must be in semver format (x.y.z)"
+            raise ValueError(msg)
         if not all(part.isdigit() for part in parts):
-            raise ValueError("Version parts must be numeric")
+            msg = "Version parts must be numeric"
+            raise ValueError(msg)
         return v
 
     @field_validator("runtime")
@@ -68,7 +61,8 @@ class SkillManifest(BaseModel):
         """Validate runtime."""
         valid_runtimes = ["python", "nodejs", "docker"]
         if v not in valid_runtimes:
-            raise ValueError(f"Runtime must be one of: {', '.join(valid_runtimes)}")
+            msg = f"Runtime must be one of: {', '.join(valid_runtimes)}"
+            raise ValueError(msg)
         return v
 
 
@@ -87,20 +81,23 @@ class SkillManifestParser:
 
         Raises:
             ValueError: If parsing fails
+
         """
         try:
             with open(file_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
             if not data:
-                raise ValueError("Manifest file is empty")
+                msg = "Manifest file is empty"
+                raise ValueError(msg)
 
             return SkillManifest(**data)
 
         except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML format: {str(e)}") from e
-        except Exception as e:
-            raise ValueError(f"Failed to parse manifest: {str(e)}") from e
+            msg = f"Invalid YAML format: {e!s}"
+            raise ValueError(msg) from e
+            msg = f"Failed to parse manifest: {e!s}"
+            raise ValueError(msg) from e
 
     @staticmethod
     def parse_dict(data: dict[str, Any]) -> SkillManifest:
@@ -114,11 +111,13 @@ class SkillManifestParser:
 
         Raises:
             ValueError: If parsing fails
+
         """
         try:
             return SkillManifest(**data)
         except Exception as e:
-            raise ValueError(f"Failed to parse manifest: {str(e)}") from e
+            msg = f"Failed to parse manifest: {e!s}"
+            raise ValueError(msg) from e
 
 
 class SkillManifestValidator:
@@ -133,6 +132,7 @@ class SkillManifestValidator:
 
         Returns:
             List of validation errors (empty if valid)
+
         """
         errors = []
 
@@ -176,7 +176,7 @@ class SkillManifestValidator:
             if permission not in valid_permissions:
                 errors.append(
                     f"Invalid permission '{permission}'. "
-                    f"Must be one of: {', '.join(valid_permissions)}"
+                    f"Must be one of: {', '.join(valid_permissions)}",
                 )
 
         return errors
@@ -190,6 +190,7 @@ class SkillManifestValidator:
 
         Returns:
             List of validation errors (empty if valid)
+
         """
         try:
             manifest = SkillManifestParser.parse_yaml(file_path)

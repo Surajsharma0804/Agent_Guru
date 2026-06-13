@@ -46,10 +46,7 @@ class EnergyMonitor:
     def get_energy_report(self, period: str = "daily") -> EnergyReport:
         """Aggregate energy data for the given period."""
         now = time.time()
-        if period == "daily":
-            cutoff = now - 86400
-        else:
-            cutoff = now - 604800
+        cutoff = now - 86400 if period == "daily" else now - 604800
 
         relevant = [r for r in self._readings if r.timestamp >= cutoff]
         by_device: dict[str, float] = {}

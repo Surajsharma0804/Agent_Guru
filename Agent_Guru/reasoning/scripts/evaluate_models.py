@@ -1,5 +1,4 @@
-"""
-RUTHLESS Model Evaluation and Benchmarking Suite
+"""RUTHLESS Model Evaluation and Benchmarking Suite.
 
 ZERO COMPROMISE - COMPREHENSIVE EVALUATION
 
@@ -30,7 +29,6 @@ import json
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import psutil
@@ -40,21 +38,22 @@ import torch
 torch.manual_seed(42)  # nosec
 torch.cuda.manual_seed_all(42)  # nosec
 
-import yaml
-from sklearn.metrics import (  # type: ignore[import-untyped]
+import yaml  # noqa: E402
+from sklearn.metrics import (  # type: ignore[import-untyped]  # noqa: E402
     accuracy_score,
     confusion_matrix,
     precision_recall_fscore_support,
 )
-from tqdm import tqdm  # type: ignore[import-untyped]
-from transformers import DebertaV2ForSequenceClassification, DebertaV2Tokenizer
+from tqdm import tqdm  # type: ignore[import-untyped]  # noqa: E402
+from transformers import DebertaV2ForSequenceClassification, DebertaV2Tokenizer  # noqa: E402
 
-from Agent_Guru.training.seed_utils import set_deterministic_seeds
+from Agent_Guru.training.seed_utils import set_deterministic_seeds  # noqa: E402
 
 # Optional visualization dependencies
 try:
     import matplotlib.pyplot as plt
     import seaborn as sns  # type: ignore[import-untyped]
+
     _VIZ_AVAILABLE = True
 except ImportError:
     _VIZ_AVAILABLE = False
@@ -64,6 +63,7 @@ except ImportError:
 # Optional GPU monitoring
 try:
     import GPUtil  # type: ignore[import-not-found]
+
     _GPUTIL_AVAILABLE = True
 except ImportError:
     _GPUTIL_AVAILABLE = False
@@ -97,7 +97,7 @@ class EvaluationResults:
     throughput: float  # requests/second
 
     # Resource usage
-    gpu_memory_mb: Optional[float]
+    gpu_memory_mb: float | None
     cpu_percent: float
     ram_mb: float
 
@@ -110,29 +110,33 @@ class EvaluationResults:
 class IntentClassifierEvaluator:
     """Evaluator for intent classification model."""
 
-    def __init__(self, model_path: str):
+    def __init__(self, model_path: str) -> None:
         """Initialize evaluator.
 
         Args:
             model_path: Path to trained model directory
+
         """
         # Resolve and validate path to prevent traversal attacks
         resolved = Path(model_path).resolve()
         base = Path("Agent_Guru/reasoning/models").resolve()
         if not str(resolved).startswith(str(base)):
-            raise ValueError(f"model_path outside allowed directory: {model_path}")
+            msg = f"model_path outside allowed directory: {model_path}"
+            raise ValueError(msg)
         self.model_path = resolved
 
         # Load model — must use DeBERTa-v3 (same architecture as training)
-        print(f"Loading intent classifier from {model_path}...")
         self.model = DebertaV2ForSequenceClassification.from_pretrained(model_path)  # nosec B615
         self.tokenizer = DebertaV2Tokenizer.from_pretrained(model_path)  # nosec B615
 
         # Load intent mappings — path already validated via self.model_path
         mappings_path = (self.model_path / "intent_mappings.json").resolve()
-        if not str(mappings_path).startswith(str(base := Path("Agent_Guru/reasoning/models").resolve())):
-            raise ValueError(f"intent_mappings.json path outside allowed directory")
-        with open(mappings_path, encoding='utf-8') as f:  # nosec B101
+        if not str(mappings_path).startswith(
+            str(base := Path("Agent_Guru/reasoning/models").resolve()),
+        ):
+            msg = "intent_mappings.json path outside allowed directory"
+            raise ValueError(msg)
+        with open(mappings_path, encoding="utf-8") as f:  # nosec B101
             mappings = json.load(f)
         self.intent_to_id = mappings["intent_to_id"]
         self.id_to_intent = {int(k): v for k, v in mappings["id_to_intent"].items()}
@@ -142,9 +146,6 @@ class IntentClassifierEvaluator:
         self.model.to(self.device)
         self.model.eval()  # nosec
 
-        print(f"✓ Model loaded on {self.device}")
-        print(f"✓ Number of intents: {len(self.id_to_intent)}")
-
     def predict(self, text: str) -> tuple[str, float]:
         """Predict intent for text.
 
@@ -153,10 +154,15 @@ class IntentClassifierEvaluator:
 
         Returns:
             Tuple of (predicted_intent, confidence)
+
         """
         with torch.no_grad():  # nosec - gradient calculation disabled for inference
             inputs = self.tokenizer(
-                text, return_tensors="pt", max_length=256, truncation=True, padding=True
+                text,
+                return_tensors="pt",
+                max_length=256,
+                truncation=True,
+                padding=True,
             )
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             outputs = self.model(**inputs)
@@ -168,7 +174,10 @@ class IntentClassifierEvaluator:
         return self.id_to_intent[pred_id], confidence
 
     def evaluate(
-        self, test_data_path: str, num_warmup: int = 10, visualize: bool = True
+        self,
+        test_data_path: str,
+        num_warmup: int = 10,
+        visualize: bool = True,
     ) -> EvaluationResults:
         """Comprehensive evaluation on test set.
 
@@ -179,11 +188,8 @@ class IntentClassifierEvaluator:
 
         Returns:
             Evaluation results
-        """
-        print(f"\n{'='*80}")
-        print("Intent Classifier Evaluation")
-        print(f"{'='*80}\n")
 
+        """
         # Ensure reproducibility before evaluation
         set_deterministic_seeds(42)
 
@@ -191,21 +197,18 @@ class IntentClassifierEvaluator:
         resolved_test = Path(test_data_path).resolve()
         test_base = Path("Agent_Guru/reasoning/data").resolve()
         if not str(resolved_test).startswith(str(test_base)):
-            raise ValueError(f"test_data_path outside allowed directory: {test_data_path}")
+            msg = f"test_data_path outside allowed directory: {test_data_path}"
+            raise ValueError(msg)
 
         # Load test data
-        with open(resolved_test, encoding='utf-8') as f:  # nosec B101
+        with open(resolved_test, encoding="utf-8") as f:  # nosec B101
             test_data = yaml.safe_load(f)
 
-        print(f"Test set size: {len(test_data)}")
-
         # Warmup
-        print(f"\nWarming up ({num_warmup} iterations)...")
         for _ in range(num_warmup):
             self.predict("test warmup")
 
         # Evaluation
-        print("\nEvaluating...")
         true_labels = []
         pred_labels = []
         confidences = []
@@ -232,8 +235,11 @@ class IntentClassifierEvaluator:
 
         # Compute metrics
         accuracy = accuracy_score(true_labels, pred_labels)
-        precision, recall, f1, support = precision_recall_fscore_support(
-            true_labels, pred_labels, average="weighted", zero_division=0
+        precision, recall, f1, _support = precision_recall_fscore_support(
+            true_labels,
+            pred_labels,
+            average="weighted",
+            zero_division=0,
         )
 
         # Per-class metrics
@@ -243,7 +249,11 @@ class IntentClassifierEvaluator:
             per_class_f1,
             per_class_support,
         ) = precision_recall_fscore_support(
-            true_labels, pred_labels, average=None, zero_division=0, labels=sorted(set(true_labels))
+            true_labels,
+            pred_labels,
+            average=None,
+            zero_division=0,
+            labels=sorted(set(true_labels)),
         )
 
         per_class_metrics = {}
@@ -319,57 +329,27 @@ class IntentClassifierEvaluator:
             if _VIZ_AVAILABLE:
                 self._create_visualizations(results, cm, sorted(set(true_labels)), latencies)
             else:
-                print("⚠ Skipping visualizations — install matplotlib and seaborn: pip install matplotlib seaborn")
+                pass
 
         # Save results
         output_path = self.model_path / "evaluation_results.json"
-        with open(output_path, "w", encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(asdict(results), f, indent=2)
-        print(f"\n✓ Results saved to: {output_path}")
 
         return results
 
-    def _print_results(self, results: EvaluationResults):
+    def _print_results(self, results: EvaluationResults) -> None:
         """Print evaluation results."""
-        print(f"\n{'='*80}")
-        print("EVALUATION RESULTS")
-        print(f"{'='*80}\n")
-
-        print("Overall Metrics:")
-        print(
-            f"  Accuracy:  {results.accuracy:.4f} {'✓ EXCELLENT' if results.accuracy > 0.99 else '✓ GOOD' if results.accuracy > 0.95 else '⚠ NEEDS IMPROVEMENT'}"
-        )
-        print(f"  Precision: {results.precision:.4f}")
-        print(f"  Recall:    {results.recall:.4f}")
-        print(f"  F1 Score:  {results.f1:.4f}")
-
-        print("\nLatency Metrics:")
-        print(f"  Mean:      {results.mean_latency:.2f}ms")
-        print(f"  P50:       {results.p50_latency:.2f}ms")
-        print(
-            f"  P95:       {results.p95_latency:.2f}ms {'✓ EXCELLENT' if results.p95_latency < 50 else '✓ GOOD' if results.p95_latency < 100 else '⚠ SLOW'}"
-        )
-        print(f"  P99:       {results.p99_latency:.2f}ms")
-        print(f"  Max:       {results.max_latency:.2f}ms")
-
-        print("\nThroughput:")
-        print(f"  {results.throughput:.2f} requests/second")
-
-        print("\nResource Usage:")
-        print(f"  CPU:       {results.cpu_percent:.1f}%")
-        print(f"  RAM:       {results.ram_mb:.1f}MB")
         if results.gpu_memory_mb:
-            print(f"  GPU Memory: {results.gpu_memory_mb:.1f}MB")
-
-        print("\nModel Info:")
-        print(f"  Parameters: {results.num_parameters:,}")
-        print(f"  Size:       {results.model_size_mb:.1f}MB")
-
-        print(f"\n{'='*80}\n")
+            pass
 
     def _create_visualizations(
-        self, results: EvaluationResults, cm: np.ndarray, labels: list[str], latencies: np.ndarray
-    ):
+        self,
+        results: EvaluationResults,
+        cm: np.ndarray,
+        labels: list[str],
+        latencies: np.ndarray,
+    ) -> None:
         """Create visualization plots."""
         output_dir = self.model_path / "visualizations"
         output_dir.mkdir(exist_ok=True)
@@ -439,52 +419,26 @@ class IntentClassifierEvaluator:
         plt.savefig(output_dir / "per_intent_f1.png", dpi=300)
         plt.close()
 
-        print(f"✓ Visualizations saved to: {output_dir}")
-
 
 def compare_with_baseline(
     model_results: EvaluationResults,
     baseline_accuracy: float = 0.85,
     baseline_latency: float = 200.0,
-):
+) -> None:
     """Compare model with baseline (rule-based) system.
 
     Args:
         model_results: Model evaluation results
         baseline_accuracy: Baseline accuracy
         baseline_latency: Baseline P95 latency (ms)
+
     """
-    print(f"\n{'='*80}")
-    print("COMPARISON WITH BASELINE (Rule-Based System)")
-    print(f"{'='*80}\n")
-
-    accuracy_improvement = (model_results.accuracy - baseline_accuracy) / baseline_accuracy * 100
-    latency_improvement = (baseline_latency - model_results.p95_latency) / baseline_latency * 100
-
-    print("Accuracy:")
-    print(f"  Baseline:  {baseline_accuracy:.4f}")
-    print(f"  Model:     {model_results.accuracy:.4f}")
-    print(
-        f"  Improvement: {accuracy_improvement:+.2f}% {'✓ BETTER' if accuracy_improvement > 0 else '⚠ WORSE'}"
-    )
-
-    print("\nLatency (P95):")
-    print(f"  Baseline:  {baseline_latency:.2f}ms")
-    print(f"  Model:     {model_results.p95_latency:.2f}ms")
-    print(
-        f"  Improvement: {latency_improvement:+.2f}% {'✓ FASTER' if latency_improvement > 0 else '⚠ SLOWER'}"
-    )
-
-    print(f"\n{'='*80}\n")
+    (model_results.accuracy - baseline_accuracy) / baseline_accuracy * 100
+    (baseline_latency - model_results.p95_latency) / baseline_latency * 100
 
 
-def main():
+def main() -> None:
     """Main evaluation function."""
-    print(f"\n{'='*80}")
-    print("RUTHLESS MODEL EVALUATION SUITE")
-    print("ZERO COMPROMISE - COMPREHENSIVE ANALYSIS")
-    print(f"{'='*80}\n")
-
     # Set deterministic seeds for reproducibility (Req 2.24)
     set_deterministic_seeds(42)
 
@@ -494,8 +448,6 @@ def main():
 
     # Check if model exists
     if not Path(intent_model_path).exists():
-        print(f"⚠ Model not found at: {intent_model_path}")
-        print("Please train the model first using train_intent_classifier.py")
         return
 
     # Evaluate intent classifier
@@ -506,27 +458,16 @@ def main():
     compare_with_baseline(results)
 
     # Final summary
-    print(f"\n{'='*80}")
-    print("EVALUATION COMPLETE")
-    print(f"{'='*80}\n")
 
-    if results.accuracy > 0.99 and results.p95_latency < 50:
-        print("✓ EXCELLENT: Model exceeds all targets!")
-        print("  - Accuracy >99% ✓")
-        print("  - P95 Latency <50ms ✓")
-        print("\nThis is a WORLD-CLASS intent classifier!")
-    elif results.accuracy > 0.95 and results.p95_latency < 100:
-        print("✓ GOOD: Model meets requirements")
-        print("  - Accuracy >95% ✓")
-        print("  - P95 Latency <100ms ✓")
+    if (results.accuracy > 0.99 and results.p95_latency < 50) or (
+        results.accuracy > 0.95 and results.p95_latency < 100
+    ):
+        pass
     else:
-        print("⚠ NEEDS IMPROVEMENT:")
         if results.accuracy <= 0.95:
-            print(f"  - Accuracy {results.accuracy:.4f} (target: >0.95)")
+            pass
         if results.p95_latency >= 100:
-            print(f"  - P95 Latency {results.p95_latency:.2f}ms (target: <100ms)")
-
-    print(f"\n{'='*80}\n")
+            pass
 
 
 if __name__ == "__main__":

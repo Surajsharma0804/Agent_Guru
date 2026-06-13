@@ -1,5 +1,4 @@
-"""
-Android platform integration for AGENT_GURU.
+"""Android platform integration for AGENT_GURU.
 
 This package provides comprehensive Android platform control including:
 - Intent system for app launching
@@ -15,6 +14,7 @@ Example:
     >>> integration = AndroidIntegration()
     >>> integration.launch_app_by_package("com.whatsapp")
     True
+
 """
 
 from .integration import (
@@ -36,19 +36,19 @@ from .service import (
 )
 
 __all__ = [
+    # Service
+    "AndroidForegroundService",
     # Integration
     "AndroidIntegration",
     "AndroidIntegrationError",
-    "PermissionDeniedError",
+    "AndroidServiceError",
     "AppNotFoundError",
-    "PermissionStatus",
     "BatteryInfo",
     "NotificationConfig",
-    # Service
-    "AndroidForegroundService",
-    "AndroidServiceError",
-    "ServiceState",
+    "PermissionDeniedError",
+    "PermissionStatus",
     "ServiceConfig",
+    "ServiceState",
     "create_foreground_service",
     "start_background_service",
 ]

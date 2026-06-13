@@ -1,5 +1,4 @@
-"""
-Gesture Recognizer for the Agent Guru Vision System.
+"""Gesture Recognizer for the Agent Guru Vision System.
 
 Provides:
 - GestureRecognizer: Detects hand landmarks and classifies gestures.
@@ -18,21 +17,33 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from collections.abc import Callable
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
-import numpy as np
 import structlog
 
 from Agent_Guru.vision.vision_models import GestureResult, HandLandmarks
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import numpy as np
+
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
-SUPPORTED_GESTURES: frozenset[str] = frozenset([
-    "open_palm", "closed_fist", "thumbs_up", "thumbs_down",
-    "pointing_index", "peace_sign", "ok_sign",
-    "swipe_left", "swipe_right", "stop",
-])
+SUPPORTED_GESTURES: frozenset[str] = frozenset(
+    [
+        "open_palm",
+        "closed_fist",
+        "thumbs_up",
+        "thumbs_down",
+        "pointing_index",
+        "peace_sign",
+        "ok_sign",
+        "swipe_left",
+        "swipe_right",
+        "stop",
+    ],
+)
 
 _LANDMARK_CONFIDENCE_THRESHOLD: float = 0.5
 _GESTURE_CONFIDENCE_THRESHOLD: float = 0.8
@@ -48,6 +59,7 @@ class GestureRecognizer:
         _process_fn: Optional callable for testing; replaces MediaPipe inference.
             Signature: ``(frame: np.ndarray) -> list[dict]``
             Each dict: ``{hand_side, keypoints, landmark_confidence, gesture_name, gesture_confidence}``
+
     """
 
     def __init__(
@@ -73,6 +85,7 @@ class GestureRecognizer:
 
         try:
             import mediapipe as mp  # type: ignore[import]
+
             mp_hands = mp.solutions.hands
             with mp_hands.Hands(
                 static_image_mode=True,
@@ -80,6 +93,7 @@ class GestureRecognizer:
                 min_detection_confidence=_LANDMARK_CONFIDENCE_THRESHOLD,
             ) as hands:
                 rgb = frame if frame.shape[2] == 3 else frame[:, :, :3]
+
                 results = hands.process(rgb)
                 if not results.multi_hand_landmarks:
                     return []
@@ -92,26 +106,25 @@ class GestureRecognizer:
                     )
                     landmark_conf = float(handedness.score)
                     keypoints = [
-                        (float(lm.x), float(lm.y), float(lm.z))
-                        for lm in hand_landmarks.landmark
+                        (float(lm.x), float(lm.y), float(lm.z)) for lm in hand_landmarks.landmark
                     ]
                     gesture_name, gesture_conf = self._classify_gesture(keypoints)
-                    output.append({
-                        "hand_side": hand_side,
-                        "keypoints": keypoints,
-                        "landmark_confidence": landmark_conf,
-                        "gesture_name": gesture_name,
-                        "gesture_confidence": gesture_conf,
-                    })
+                    output.append(
+                        {
+                            "hand_side": hand_side,
+                            "keypoints": keypoints,
+                            "landmark_confidence": landmark_conf,
+                            "gesture_name": gesture_name,
+                            "gesture_confidence": gesture_conf,
+                        },
+                    )
                 return output
-        except ImportError as e:
-            logger.warning("GestureRecognizer: MediaPipe not available: %s", e)
+        except ImportError:
+            logger.exception("GestureRecognizer: MediaPipe not available")
             return []
 
     @staticmethod
-    def _classify_gesture(
-        keypoints: list[tuple[float, float, float]]
-    ) -> tuple[str, float]:
+    def _classify_gesture(keypoints: list[tuple[float, float, float]]) -> tuple[str, float]:
         """Heuristic gesture classification from 21 MediaPipe keypoints.
 
         Returns (gesture_name, confidence).
@@ -121,20 +134,20 @@ class GestureRecognizer:
 
         # Landmark indices (MediaPipe convention)
         WRIST = 0
-        THUMB_TIP, THUMB_MCP = 4, 2  # noqa: N806
-        INDEX_TIP, INDEX_MCP = 8, 5  # noqa: N806
-        MIDDLE_TIP, MIDDLE_MCP = 12, 9  # noqa: N806
-        RING_TIP, RING_MCP = 16, 13  # noqa: N806
-        PINKY_TIP, PINKY_MCP = 20, 17  # noqa: N806
+        THUMB_TIP, THUMB_MCP = 4, 2
+        INDEX_TIP, INDEX_MCP = 8, 5
+        MIDDLE_TIP, MIDDLE_MCP = 12, 9
+        RING_TIP, RING_MCP = 16, 13
+        PINKY_TIP, PINKY_MCP = 20, 17
 
         def tip_above_mcp(tip: int, mcp: int) -> bool:
             return keypoints[tip][1] < keypoints[mcp][1]  # y decreases upward
 
         fingers_extended = [
-            tip_above_mcp(INDEX_TIP, INDEX_MCP),  # noqa: N806
-            tip_above_mcp(MIDDLE_TIP, MIDDLE_MCP),  # noqa: N806
-            tip_above_mcp(RING_TIP, RING_MCP),  # noqa: N806
-            tip_above_mcp(PINKY_TIP, PINKY_MCP),  # noqa: N806
+            tip_above_mcp(INDEX_TIP, INDEX_MCP),
+            tip_above_mcp(MIDDLE_TIP, MIDDLE_MCP),
+            tip_above_mcp(RING_TIP, RING_MCP),
+            tip_above_mcp(PINKY_TIP, PINKY_MCP),
         ]
         n_extended = sum(fingers_extended)
         thumb_up = keypoints[THUMB_TIP][1] < keypoints[THUMB_MCP][1]
@@ -158,9 +171,7 @@ class GestureRecognizer:
         # Default to open_palm for ambiguous cases
         return "open_palm", 0.6
 
-    def _update_history(
-        self, hand_side: str, gesture_name: str, timestamp_ms: float
-    ) -> None:
+    def _update_history(self, hand_side: str, gesture_name: str, timestamp_ms: float) -> None:
         self._history[hand_side].append((gesture_name, timestamp_ms))
 
     def _check_held(self, hand_side: str, gesture_name: str) -> bool:
@@ -192,6 +203,7 @@ class GestureRecognizer:
 
         Returns:
             List of GestureResult (0–2 entries, one per hand).
+
         """
         raw_hands = self._run_inference(frame)
         results: list[GestureResult] = []
@@ -222,12 +234,14 @@ class GestureRecognizer:
                 confidence=landmark_conf,
                 hand_side=hand_side,
             )
-            results.append(GestureResult(
-                gesture_name=gesture_name,
-                confidence=gesture_conf,
-                hand_landmarks=landmarks,
-                is_held=is_held,
-            ))
+            results.append(
+                GestureResult(
+                    gesture_name=gesture_name,
+                    confidence=gesture_conf,
+                    hand_landmarks=landmarks,
+                    is_held=is_held,
+                ),
+            )
 
         logger.debug(
             "GestureRecognizer: frame processed",
@@ -248,6 +262,7 @@ class GestureRecognizer:
 
         Returns:
             GestureResult with is_held=True, or None if no held gesture.
+
         """
         if not gesture_history:
             return None

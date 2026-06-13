@@ -1,5 +1,4 @@
-"""
-HTTP Health Check Endpoint for Platform Integration.
+"""HTTP Health Check Endpoint for Platform Integration.
 
 This module provides HTTP endpoint wrappers for the health check system,
 enabling monitoring tools like Kubernetes, Prometheus, and load balancers
@@ -32,15 +31,18 @@ Version: 1.0.0
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 try:
     from fastapi import FastAPI, Response, status
     from fastapi.responses import JSONResponse
+
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
+
+import contextlib
 
 from Agent_Guru.platform.error_handling.health_check import (
     HealthStatus,
@@ -54,8 +56,8 @@ logger = logging.getLogger(__name__)
 
 def create_health_app(
     title: str = "Platform Integration Health",
-    version: str = "1.0.0"
-) -> Optional[Any]:
+    version: str = "1.0.0",
+) -> Any | None:
     """Create FastAPI application with health check endpoints.
 
     Args:
@@ -64,17 +66,13 @@ def create_health_app(
 
     Returns:
         FastAPI application or None if FastAPI not available
+
     """
     if not FASTAPI_AVAILABLE:
         logger.warning("FastAPI not available, health endpoints disabled")
         return None
 
-    app = FastAPI(
-        title=title,
-        version=version,
-        docs_url="/health/docs",
-        redoc_url="/health/redoc"
-    )
+    app = FastAPI(title=title, version=version, docs_url="/health/docs", redoc_url="/health/redoc")
 
     # Get global health manager
     health_manager = get_health_manager()
@@ -107,15 +105,10 @@ def create_health_app(
 
         # Return 503 if system is not healthy
         status_code = (
-            status.HTTP_200_OK
-            if system_health.is_healthy
-            else status.HTTP_503_SERVICE_UNAVAILABLE
+            status.HTTP_200_OK if system_health.is_healthy else status.HTTP_503_SERVICE_UNAVAILABLE
         )
 
-        return JSONResponse(
-            status_code=status_code,
-            content=system_health.to_dict()
-        )
+        return JSONResponse(status_code=status_code, content=system_health.to_dict())
 
     @app.get("/health/ready", tags=["health"])
     async def readiness_check() -> Response:
@@ -126,22 +119,16 @@ def create_health_app(
         - 503: System is not ready
 
         This endpoint checks if all critical components are healthy.
+
         """
         system_health = await health_manager.check_health(use_cache=True)
 
         # System is ready if healthy or degraded (but not unhealthy)
         is_ready = not system_health.is_unhealthy
 
-        status_code = (
-            status.HTTP_200_OK
-            if is_ready
-            else status.HTTP_503_SERVICE_UNAVAILABLE
-        )
+        status_code = status.HTTP_200_OK if is_ready else status.HTTP_503_SERVICE_UNAVAILABLE
 
-        return Response(
-            status_code=status_code,
-            content=f"Ready: {is_ready}"
-        )
+        return Response(status_code=status_code, content=f"Ready: {is_ready}")
 
     @app.get("/health/live", tags=["health"])
     async def liveness_check() -> Response:
@@ -153,12 +140,10 @@ def create_health_app(
 
         This endpoint performs a minimal check to verify the process
         is responsive. It does not check component health.
+
         """
         # Simple liveness check - just verify we can respond
-        return Response(
-            status_code=status.HTTP_200_OK,
-            content="Alive"
-        )
+        return Response(status_code=status.HTTP_200_OK, content="Alive")
 
     @app.get("/health/components", tags=["health"])
     async def components_health() -> JSONResponse:
@@ -173,17 +158,14 @@ def create_health_app(
         """
         system_health = await health_manager.check_health(use_cache=True)
 
-        components_dict = {
-            comp.name: comp.to_dict()
-            for comp in system_health.components
-        }
+        components_dict = {comp.name: comp.to_dict() for comp in system_health.components}
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
                 "timestamp": system_health.timestamp.isoformat(),
-                "components": components_dict
-            }
+                "components": components_dict,
+            },
         )
 
     @app.get("/health/components/{component_name}", tags=["health"])
@@ -196,6 +178,7 @@ def create_health_app(
         Returns:
         - 200: Component health status
         - 404: Component not found
+
         """
         # Ensure we have fresh health data
         await health_manager.check_health(use_cache=True)
@@ -207,14 +190,11 @@ def create_health_app(
                 status_code=status.HTTP_404_NOT_FOUND,
                 content={
                     "error": f"Component not found: {component_name}",
-                    "available_components": health_manager.get_registered_components()
-                }
+                    "available_components": health_manager.get_registered_components(),
+                },
             )
 
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content=component.to_dict()
-        )
+        return JSONResponse(status_code=status.HTTP_200_OK, content=component.to_dict())
 
     @app.get("/health/metrics", tags=["health"])
     async def health_metrics() -> JSONResponse:
@@ -235,7 +215,7 @@ def create_health_app(
             HealthStatus.UNHEALTHY: 0,
             HealthStatus.DEGRADED: 1,
             HealthStatus.HEALTHY: 2,
-            HealthStatus.UNKNOWN: -1
+            HealthStatus.UNKNOWN: -1,
         }
 
         overall_status_value = status_value_map[system_health.status]
@@ -250,17 +230,12 @@ def create_health_app(
         # Per-component metrics
         for comp in system_health.components:
             comp_status = status_value_map.get(comp.status, -1)
+            metrics.append(f'platform_component_health{{component="{comp.name}"}} {comp_status}')
             metrics.append(
-                f'platform_component_health{{component="{comp.name}"}} {comp_status}'
-            )
-            metrics.append(
-                f'platform_component_response_time_ms{{component="{comp.name}"}} {comp.response_time_ms}'
+                f'platform_component_response_time_ms{{component="{comp.name}"}} {comp.response_time_ms}',
             )
 
-        return Response(
-            content="\n".join(metrics) + "\n",
-            media_type="text/plain"
-        )
+        return Response(content="\n".join(metrics) + "\n", media_type="text/plain")
 
     logger.info("Health check endpoints registered")
 
@@ -275,19 +250,16 @@ def create_simple_health_handler() -> dict[str, Any]:
 
     Returns:
         Dictionary with health check functions
+
     """
     health_manager = get_health_manager()
 
     # Register built-in checks
-    try:
+    with contextlib.suppress(ValueError):
         health_manager.register_check("system_resources", check_system_resources)
-    except ValueError:
-        pass
 
-    try:
+    with contextlib.suppress(ValueError):
         health_manager.register_check("platform_integration", check_platform_integration)
-    except ValueError:
-        pass
 
     async def get_health() -> dict[str, Any]:
         """Get overall health status."""
@@ -297,23 +269,13 @@ def create_simple_health_handler() -> dict[str, Any]:
     async def get_readiness() -> dict[str, Any]:
         """Get readiness status."""
         system_health = await health_manager.check_health(use_cache=True)
-        return {
-            "ready": not system_health.is_unhealthy,
-            "status": system_health.status.value
-        }
+        return {"ready": not system_health.is_unhealthy, "status": system_health.status.value}
 
     async def get_liveness() -> dict[str, Any]:
         """Get liveness status."""
-        return {
-            "alive": True,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat()
-        }
+        return {"alive": True, "timestamp": datetime.now(tz=UTC).isoformat()}
 
-    return {
-        "health": get_health,
-        "ready": get_readiness,
-        "live": get_liveness
-    }
+    return {"health": get_health, "ready": get_readiness, "live": get_liveness}
 
 
 # Example usage
@@ -333,10 +295,10 @@ if __name__ == "__main__":
             logger.info("  - GET /health/components - Component details")
             logger.info("  - GET /health/metrics - Prometheus metrics")
 
-            uvicorn.run(app, host="0.0.0.0", port=8080)  # nosec B104
+            uvicorn.run(app, host="0.0.0.0", port=8080)  # nosec B104  # noqa: S104 - Not a real secret
 
         except ImportError as e:
-            logger.error("uvicorn not installed, cannot run server: %s", e)
+            logger.exception("uvicorn not installed, cannot run server")
             logger.info("Install with: pip install uvicorn: %s", e)
     else:
         logger.error("FastAPI not available, cannot create health app")

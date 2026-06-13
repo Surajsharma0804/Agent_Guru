@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.platform.integration.graceful_shutdown
+"""Module: Agent_Guru.platform.integration.graceful_shutdown
 Purpose: Graceful shutdown with signal handling, in-flight tracking, and state persistence.
 
 Performance Requirements:
@@ -27,9 +26,9 @@ import signal
 import time
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -42,19 +41,18 @@ class ShutdownPhase(Enum):
 
     RUNNING = "running"
     SHUTTING_DOWN = "shutting_down"  # Waiting for in-flight ops
-    CLEANUP = "cleanup"              # Running cleanup handlers
+    CLEANUP = "cleanup"  # Running cleanup handlers
     COMPLETE = "complete"
 
 
 @dataclass
 class ShutdownState:
-    """
-    State snapshot persisted to disk during shutdown.
+    """State snapshot persisted to disk during shutdown.
 
     Useful for post-mortem analysis and restart recovery.
     """
 
-    shutdown_time: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    shutdown_time: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     reason: str = "normal"
     in_flight_at_shutdown: int = 0
     cleanup_handlers_run: int = 0
@@ -88,8 +86,7 @@ class _CleanupEntry:
 
 
 class GracefulShutdownManager:
-    """
-    Manages graceful shutdown of the platform integration system.
+    """Manages graceful shutdown of the platform integration system.
 
     Lifecycle:
         RUNNING → SHUTTING_DOWN (waiting for in-flight ops)
@@ -113,16 +110,16 @@ class GracefulShutdownManager:
         ...     await do_work()
         >>>
         >>> await manager.shutdown(reason="user_request")
+
     """
 
     def __init__(
         self,
         timeout: float = 30.0,
-        state_file: Optional[str] = None,
+        state_file: str | None = None,
         default_handler_timeout: float = 10.0,
     ) -> None:
-        """
-        Initialize shutdown manager.
+        """Initialize shutdown manager.
 
         Args:
             timeout: Maximum seconds to wait for in-flight operations
@@ -131,12 +128,15 @@ class GracefulShutdownManager:
 
         Raises:
             ValueError: If timeout or default_handler_timeout <= 0
+
         """
         if timeout <= 0:
-            raise ValueError(f"timeout must be positive, got {timeout}")
+            msg = f"timeout must be positive, got {timeout}"
+            raise ValueError(msg)
         if default_handler_timeout <= 0:
+            msg = f"default_handler_timeout must be positive, got {default_handler_timeout}"
             raise ValueError(
-                f"default_handler_timeout must be positive, got {default_handler_timeout}"
+                msg,
             )
 
         self.timeout = timeout
@@ -146,9 +146,9 @@ class GracefulShutdownManager:
         self._phase = ShutdownPhase.RUNNING
         self._cleanup_entries: list[_CleanupEntry] = []
         self._in_flight: int = 0
-        self._lock: Optional[asyncio.Lock] = None  # Lazy init
-        self._shutdown_event: Optional[asyncio.Event] = None  # Lazy init
-        self._shutdown_start: Optional[float] = None
+        self._lock: asyncio.Lock | None = None  # Lazy init
+        self._shutdown_event: asyncio.Event | None = None  # Lazy init
+        self._shutdown_start: float | None = None
 
     # ─── Lazy Async Primitives ────────────────────────────────────────────
 
@@ -170,10 +170,9 @@ class GracefulShutdownManager:
         self,
         handler: Callable[[], Coroutine],
         name: str = "",
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ) -> None:
-        """
-        Register an async cleanup coroutine.
+        """Register an async cleanup coroutine.
 
         Handlers are called in LIFO order during shutdown (last registered
         runs first), which mirrors typical dependency teardown order.
@@ -185,9 +184,11 @@ class GracefulShutdownManager:
 
         Raises:
             ValueError: If handler is not callable
+
         """
         if not callable(handler):
-            raise ValueError("handler must be callable")
+            msg = "handler must be callable"
+            raise ValueError(msg)
 
         resolved_name = name or getattr(handler, "__name__", None) or repr(handler)
         entry = _CleanupEntry(
@@ -196,11 +197,14 @@ class GracefulShutdownManager:
             timeout=timeout if timeout is not None else self.default_handler_timeout,
         )
         self._cleanup_entries.append(entry)
-        logger.debug("Registered cleanup handler: '%s' (timeout=%.1fs)", resolved_name, entry.timeout)
+        logger.debug(
+            "Registered cleanup handler: '%s' (timeout=%.1fs)",
+            resolved_name,
+            entry.timeout,
+        )
 
     def register_signals(self) -> None:
-        """
-        Register SIGTERM and SIGINT handlers.
+        """Register SIGTERM and SIGINT handlers.
 
         On Windows, add_signal_handler is not supported — logs a warning
         and falls back to signal.signal() for SIGINT only.
@@ -216,23 +220,23 @@ class GracefulShutdownManager:
                 lambda: asyncio.create_task(self.shutdown(reason="SIGINT")),
             )
             logger.info("Registered SIGTERM and SIGINT handlers via asyncio event loop")
-        except (NotImplementedError, RuntimeError) as e:
+        except (NotImplementedError, RuntimeError):
             # Windows: add_signal_handler not supported
-            logger.warning(
+            logger.exception(
                 "asyncio signal handlers not supported on this platform. "
-                "SIGTERM will not trigger graceful shutdown."
+                "SIGTERM will not trigger graceful shutdown.",
             )
 
     # ─── In-Flight Tracking ───────────────────────────────────────────────
 
     def track_operation(self) -> "OperationTracker":
-        """
-        Return a context manager that tracks an in-flight operation.
+        """Return a context manager that tracks an in-flight operation.
 
         Supports both sync (`with`) and async (`async with`) usage.
 
         Returns:
             OperationTracker context manager
+
         """
         return OperationTracker(self)
 
@@ -266,16 +270,14 @@ class GracefulShutdownManager:
     # ─── Shutdown ─────────────────────────────────────────────────────────
 
     async def wait_for_shutdown(self) -> None:
-        """
-        Suspend until shutdown() is called.
+        """Suspend until shutdown() is called.
 
         Useful for main loop: `await manager.wait_for_shutdown()`
         """
         await self._get_shutdown_event().wait()
 
     async def shutdown(self, reason: str = "normal") -> None:
-        """
-        Execute graceful shutdown sequence.
+        """Execute graceful shutdown sequence.
 
         Steps:
         1. Transition to SHUTTING_DOWN, signal waiting coroutines
@@ -289,6 +291,7 @@ class GracefulShutdownManager:
 
         Args:
             reason: Human-readable shutdown reason (logged and persisted)
+
         """
         if self._phase != ShutdownPhase.RUNNING:
             logger.debug("Shutdown already in progress (phase=%s), ignoring", self._phase.value)
@@ -306,7 +309,9 @@ class GracefulShutdownManager:
         # ── Phase 1: Wait for in-flight operations ────────────────────────
         if self._in_flight > 0:
             logger.info(
-                f"Waiting up to {self.timeout}s for {self._in_flight} in-flight operations..."
+                "Waiting up to %ss for %d in-flight operations...",
+                self.timeout,
+                self._in_flight,
             )
             deadline = time.monotonic() + self.timeout
             while self._in_flight > 0 and time.monotonic() < deadline:
@@ -314,8 +319,9 @@ class GracefulShutdownManager:
 
             if self._in_flight > 0:
                 logger.warning(
-                    f"Shutdown timeout reached with {self._in_flight} operations still in-flight. "
-                    "Proceeding with cleanup."
+                    "Shutdown timeout reached with %d operations still in-flight. "
+                    "Proceeding with cleanup.",
+                    self._in_flight,
                 )
 
         # ── Phase 2: Run cleanup handlers (LIFO) ─────────────────────────
@@ -328,15 +334,13 @@ class GracefulShutdownManager:
                 await asyncio.wait_for(entry.handler(), timeout=entry.timeout)
                 handlers_run += 1
                 logger.debug("Cleanup handler completed: '%s'", entry.name)
-            except asyncio.TimeoutError as e:
+            except TimeoutError as e:
                 msg = f"Cleanup handler '{entry.name}' timed out after {entry.timeout}s"
-                logger.error(msg)
+                logger.exception(msg)
                 state.cleanup_errors.append(msg)
-            except Exception as e:
                 msg = f"Cleanup handler '{entry.name}' raised {type(e).__name__}: {e}"
-                logger.error(msg)
+                logger.exception(msg)
                 state.cleanup_errors.append(msg)
-
         state.cleanup_handlers_run = handlers_run
         state.duration_seconds = time.monotonic() - self._shutdown_start
 
@@ -346,28 +350,28 @@ class GracefulShutdownManager:
 
         self._phase = ShutdownPhase.COMPLETE
         logger.info(
-            f"Graceful shutdown complete in {state.duration_seconds:.2f}s "
-            f"({handlers_run}/{len(self._cleanup_entries)} handlers, "
-            f"{len(state.cleanup_errors)} errors)"
+            "Graceful shutdown complete in %.2fs (%d/%d handlers, %d errors)",
+            state.duration_seconds,
+            handlers_run,
+            len(self._cleanup_entries),
+            len(state.cleanup_errors),
         )
 
     async def _persist_state(self, state: ShutdownState) -> None:
         """Write shutdown state to JSON file."""
         try:
-            with open(self.state_file, "w", encoding="utf-8") as f:  # type: ignore[arg-type]
+            with open(self.state_file, "w", encoding="utf-8") as f:  # type: ignore[arg-type]  # noqa: ASYNC230
                 json.dump(state.to_dict(), f, indent=2)
             logger.debug("Shutdown state persisted to '%s'", self.state_file)
         except OSError as e:
-            logger.error("Failed to persist shutdown state to '%s': %s", self.state_file, e)
+            logger.exception("Failed to persist shutdown state to '%s': %s", self.state_file, e)
 
     # ─── Observability ────────────────────────────────────────────────────
 
     def get_status(self) -> dict[str, Any]:
         """Return current manager status for health checks."""
         elapsed = (
-            time.monotonic() - self._shutdown_start
-            if self._shutdown_start is not None
-            else 0.0
+            time.monotonic() - self._shutdown_start if self._shutdown_start is not None else 0.0
         )
         return {
             "phase": self._phase.value,
@@ -382,8 +386,7 @@ class GracefulShutdownManager:
 
 
 class OperationTracker:
-    """
-    Context manager that tracks an in-flight operation.
+    """Context manager that tracks an in-flight operation.
 
     Increments the manager's in-flight counter on entry and decrements
     on exit, ensuring the counter is always accurate even on exceptions.

@@ -1,5 +1,4 @@
-"""
-NER Entity Extractor - GPU Accelerated
+"""NER Entity Extractor - GPU Accelerated.
 
 This module provides GPU-accelerated named entity recognition (NER) using a fine-tuned
 spaCy transformer model for optimal entity extraction performance.
@@ -28,13 +27,16 @@ Date: 2026-02-19
 Version: 1.0.0
 """
 
+import logging
 import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.models.intent import Entity, EntityType
+
+_logger = logging.getLogger(__name__)
 
 # Try to import spaCy with GPU support
 try:
@@ -59,6 +61,7 @@ class NERConfig:
         max_entities: Maximum entities to extract per input (50)
         enable_normalization: Whether to normalize entity values
         warmup_iterations: Number of warmup iterations on startup (5)
+
     """
 
     model_path: str = "Agent_Guru/reasoning/models/ner_model"
@@ -78,6 +81,7 @@ class ExtractionResult:
         extraction_time_ms: Extraction time in milliseconds
         used_gpu: Whether GPU was used for extraction
         entity_count: Number of entities extracted
+
     """
 
     entities: list[Entity]
@@ -101,9 +105,10 @@ class NEREntityExtractor:
     Note:
         Uses spaCy transformer model fine-tuned on voice assistant data
         Achieves >90% F1 score on entity extraction
+
     """
 
-    def __init__(self, config: Optional[NERConfig] = None) -> None:
+    def __init__(self, config: NERConfig | None = None) -> None:
         """Initialize NER entity extractor.
 
         Args:
@@ -111,12 +116,14 @@ class NEREntityExtractor:
 
         Raises:
             RuntimeError: If spaCy is not available
+
         """
         if not SPACY_AVAILABLE:
-            raise RuntimeError("spaCy not available. Install with: pip install spacy[cuda]")
+            msg = "spaCy not available. Install with: pip install spacy[cuda]"
+            raise RuntimeError(msg)
 
         self.config = config or NERConfig()
-        self.nlp: Optional[spacy.Language] = None
+        self.nlp: spacy.Language | None = None
         self._gpu_active: bool = False
 
         # Metrics
@@ -135,12 +142,16 @@ class NEREntityExtractor:
         Raises:
             FileNotFoundError: If model not found
             RuntimeError: If GPU requested but not available
+
         """
         model_path = Path(self.config.model_path)
         if not model_path.exists():
-            raise FileNotFoundError(
+            msg = (
                 f"spaCy model not found at: {model_path}. "
                 "Please train the model first using train_ner_model.py"
+            )
+            raise FileNotFoundError(
+                msg,
             )
 
         # Load model
@@ -159,7 +170,7 @@ class NEREntityExtractor:
                 self._gpu_active = False
 
         _logger.info("NER model loaded: %s", model_path)
-        _logger.info("Entity types: %d", len(self.nlp.get_pipe('ner').labels))
+        _logger.info("Entity types: %d", len(self.nlp.get_pipe("ner").labels))
 
         # Warm up model
         self._warmup()
@@ -200,9 +211,11 @@ class NEREntityExtractor:
 
         Raises:
             RuntimeError: If model not loaded
+
         """
         if self.nlp is None:
-            raise RuntimeError("Model not loaded. Call load_model() first.")
+            msg = "Model not loaded. Call load_model() first."
+            raise RuntimeError(msg)
 
         start_time = time.perf_counter()
 
@@ -257,6 +270,7 @@ class NEREntityExtractor:
 
         Returns:
             Extraction result with entities
+
         """
         result = self._extract_sync(text)
         self._update_metrics(result)
@@ -271,6 +285,7 @@ class NEREntityExtractor:
 
         Returns:
             Entity object
+
         """
         # Map spaCy label to EntityType
         entity_type = self._map_entity_type(ent.label_)
@@ -296,6 +311,7 @@ class NEREntityExtractor:
 
         Returns:
             EntityType string
+
         """
         # Mapping from spaCy labels to our EntityType
         mapping = {
@@ -327,6 +343,7 @@ class NEREntityExtractor:
 
         Returns:
             Entity with normalized value
+
         """
         if entity.entity_type == EntityType.DURATION.value:
             entity.normalized_value = self._normalize_duration(entity.raw_text)
@@ -339,7 +356,7 @@ class NEREntityExtractor:
 
         return entity
 
-    def _normalize_duration(self, text: str) -> Optional[int]:
+    def _normalize_duration(self, text: str) -> int | None:
         """Normalize duration to seconds.
 
         Args:
@@ -347,6 +364,7 @@ class NEREntityExtractor:
 
         Returns:
             Duration in seconds or None
+
         """
         text = text.lower()
 
@@ -358,7 +376,7 @@ class NEREntityExtractor:
 
         return None
 
-    def _normalize_time(self, text: str) -> Optional[str]:
+    def _normalize_time(self, text: str) -> str | None:
         """Normalize time to HH:MM format.
 
         Args:
@@ -366,6 +384,7 @@ class NEREntityExtractor:
 
         Returns:
             Time in HH:MM format or None
+
         """
         text = text.lower()
 
@@ -376,7 +395,7 @@ class NEREntityExtractor:
 
         return None
 
-    def _normalize_number(self, text: str) -> Optional[float]:
+    def _normalize_number(self, text: str) -> float | None:
         """Normalize number text to float.
 
         Args:
@@ -384,6 +403,7 @@ class NEREntityExtractor:
 
         Returns:
             Number as float or None
+
         """
         # Word to number mapping
         word_to_num = {
@@ -441,6 +461,7 @@ class NEREntityExtractor:
 
         Returns:
             List of non-overlapping entities
+
         """
         if not entities:
             return entities
@@ -474,13 +495,13 @@ class NEREntityExtractor:
             if start >= last_end:
                 result.append(entity)
                 last_end = end
-            else:
-                # Overlap detected - keep higher priority entity
-                if result and priority.get(entity.entity_type, 10) < priority.get(
-                    result[-1].entity_type, 10
-                ):
-                    result[-1] = entity
-                    last_end = end
+            # Overlap detected - keep higher priority entity
+            elif result and priority.get(entity.entity_type, 10) < priority.get(
+                result[-1].entity_type,
+                10,
+            ):
+                result[-1] = entity
+                last_end = end
 
         return result
 
@@ -489,6 +510,7 @@ class NEREntityExtractor:
 
         Returns:
             List of (pattern, multiplier) tuples
+
         """
         return [
             (re.compile(r"(\d+(?:\.\d+)?)\s*(?:second|sec|s)s?"), 1),
@@ -502,9 +524,10 @@ class NEREntityExtractor:
 
         Returns:
             List of (pattern, formatter) tuples
+
         """
 
-        def format_12h(match):
+        def format_12h(match) -> str:
             hour = int(match.group(1))
             minute = int(match.group(2)) if match.group(2) else 0
             am_pm = match.group(3).lower()
@@ -514,15 +537,15 @@ class NEREntityExtractor:
                 hour = 0
             return f"{hour:02d}:{minute:02d}"
 
-        def format_24h(match):
+        def format_24h(match) -> str:
             hour = int(match.group(1))
             minute = int(match.group(2))
             return f"{hour:02d}:{minute:02d}"
 
         return [
-            (re.compile(r"(\d{1,2}):(\d{2})\s*(am|pm)", re.I), format_12h),
+            (re.compile(r"(\d{1,2}):(\d{2})\s*(am|pm)", re.IGNORECASE), format_12h),
             (
-                re.compile(r"(\d{1,2})\s*(am|pm)", re.I),
+                re.compile(r"(\d{1,2})\s*(am|pm)", re.IGNORECASE),
                 lambda m: format_12h(
                     type(
                         "obj",
@@ -532,9 +555,9 @@ class NEREntityExtractor:
                             if s == 1
                             else "0"
                             if s == 2
-                            else m.group(2)
+                            else m.group(2),
                         },
-                    )()
+                    )(),
                 ),
             ),
             (re.compile(r"(\d{1,2}):(\d{2})"), format_24h),
@@ -545,6 +568,7 @@ class NEREntityExtractor:
 
         Args:
             result: Extraction result
+
         """
         self.total_extractions += 1
         self.total_latency_ms += result.extraction_time_ms
@@ -558,6 +582,7 @@ class NEREntityExtractor:
 
         Returns:
             Dictionary with metrics
+
         """
         if self.total_extractions == 0:
             return {

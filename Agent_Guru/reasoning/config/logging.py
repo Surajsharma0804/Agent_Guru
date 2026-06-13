@@ -3,7 +3,7 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from structlog.types import EventDict, Processor
@@ -28,18 +28,18 @@ def add_trace_context(logger: Any, method_name: str, event_dict: EventDict) -> E
 
 def configure_logging(
     log_level: str = "INFO",
-    log_file: Optional[Path] = None,
+    log_file: Path | None = None,
     json_format: bool = True,
     max_file_size: int = 100 * 1024 * 1024,  # 100MB
 ) -> None:
-    """
-    Configure structured logging with structlog.
+    """Configure structured logging with structlog.
 
     Args:
         log_level: Logging level (DEBUG, INFO, WARN, ERROR)
         log_file: Optional path to log file for rotation
         json_format: Whether to use JSON formatting (True for production)
         max_file_size: Maximum log file size before rotation (default 100MB)
+
     """
     # Convert string level to logging constant
     numeric_level = getattr(logging, log_level.upper(), logging.INFO)
@@ -66,16 +66,20 @@ def configure_logging(
 
     if json_format:
         # JSON format for production
-        processors.extend([
-            structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer(),
-        ])
+        processors.extend(
+            [
+                structlog.processors.format_exc_info,
+                structlog.processors.JSONRenderer(),
+            ],
+        )
     else:
         # Console format for development
-        processors.extend([
-            structlog.processors.ExceptionPrettyPrinter(),
-            structlog.dev.ConsoleRenderer(colors=True),
-        ])
+        processors.extend(
+            [
+                structlog.processors.ExceptionPrettyPrinter(),
+                structlog.dev.ConsoleRenderer(colors=True),
+            ],
+        )
 
     # Configure structlog
     structlog.configure(
@@ -101,35 +105,35 @@ def configure_logging(
 
 
 def get_logger(name: str) -> Any:
-    """
-    Get a structured logger instance.
+    """Get a structured logger instance.
 
     Args:
         name: Logger name (typically __name__)
 
     Returns:
         Configured structlog logger
+
     """
     return structlog.get_logger(name)
 
 
 def bind_context(**kwargs: Any) -> None:
-    """
-    Bind context variables that will be included in all subsequent log entries.
+    """Bind context variables that will be included in all subsequent log entries.
 
     Args:
         **kwargs: Context key-value pairs (user_id, conversation_id, turn_id, etc.)
+
     """
     structlog.contextvars.clear_contextvars()
     structlog.contextvars.bind_contextvars(**kwargs)
 
 
 def unbind_context(*keys: str) -> None:
-    """
-    Remove specific context variables.
+    """Remove specific context variables.
 
     Args:
         *keys: Context keys to remove
+
     """
     structlog.contextvars.unbind_contextvars(*keys)
 

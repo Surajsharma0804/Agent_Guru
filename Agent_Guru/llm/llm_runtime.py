@@ -1,5 +1,4 @@
-"""
-Unified LLM Runtime Interface.
+"""Unified LLM Runtime Interface.
 
 The main entry point for all LLM operations across providers.
 Orchestrates context management, token counting, error handling,
@@ -18,10 +17,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
-from datetime import datetime, timezone
-from typing import Optional, Union
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
+from Agent_Guru.llm.context_manager import CONTEXT_LIMITS as _CONTEXT_LIMITS
 from Agent_Guru.llm.context_manager import ContextManager
 from Agent_Guru.llm.error_handler import ErrorHandler
 from Agent_Guru.llm.models import (
@@ -35,23 +34,25 @@ from Agent_Guru.llm.models import (
     StreamChunk,
 )
 from Agent_Guru.llm.performance_monitor import PerformanceMonitor
-from Agent_Guru.llm.providers.base import ProviderAdapter
 from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
 from Agent_Guru.llm.token_counter import TokenCounter
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from Agent_Guru.llm.providers.base import ProviderAdapter
 
 logger = logging.getLogger(__name__)
 
 # BUG-031: _CONTEXT_LIMITS was duplicated here AND in context_manager.py.
 # Canonical definition lives in context_manager.py; imported here to remove duplication.
-from Agent_Guru.llm.context_manager import CONTEXT_LIMITS as _CONTEXT_LIMITS
 
 # Pricing per 1K tokens for cost estimation (local Ollama models are free)
 _PRICING: dict[str, float] = {}
 
 
 class LLMRuntime:
-    """
-    Unified interface for all LLM operations.
+    """Unified interface for all LLM operations.
 
     Provides a single API for Ollama models with streaming, function calling,
     context management, and performance monitoring built in.
@@ -68,6 +69,7 @@ class LLMRuntime:
         ...     )
         ... )
         >>> print(response.content)
+
     """
 
     def __init__(
@@ -89,7 +91,7 @@ class LLMRuntime:
         }
 
     @classmethod
-    def from_config(cls, config: RuntimeConfig) -> "LLMRuntime":
+    def from_config(cls, config: RuntimeConfig) -> LLMRuntime:
         """Convenience factory that wires all components together."""
         token_counter = TokenCounter()
         return cls(
@@ -118,8 +120,7 @@ class LLMRuntime:
     # ------------------------------------------------------------------
 
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
-        """
-        Execute a non-streaming completion request.
+        """Execute a non-streaming completion request.
 
         Injects session context, validates token budget, executes with
         retry logic, updates context, and records metrics.
@@ -133,30 +134,33 @@ class LLMRuntime:
         Raises:
             ContextWindowExceededError: If request exceeds context limit.
             CircuitBreakerOpenError: If provider circuit is open.
+
         """
         # BUG-003: use timezone-aware UTC timestamp to avoid DST/NTP corruption
-        start_time = datetime.now(tz=timezone.utc)
+        start_time = datetime.now(tz=UTC)
         provider = self._get_provider(request.model)
         adapter = self.adapters[provider]
 
         # Inject session context
         if request.session_id:
             request.messages = self.context_manager.inject_context(
-                request.session_id, request.messages
+                request.session_id,
+                request.messages,
             )
 
         # Validate token budget
-        estimated_tokens = self.token_counter.count_messages(
-            request.messages, request.model
-        )
+        estimated_tokens = self.token_counter.count_messages(request.messages, request.model)
         if request.max_tokens:
             estimated_tokens += request.max_tokens
 
         context_limit = self._get_context_limit(request.model)
         if estimated_tokens > context_limit:
-            raise ContextWindowExceededError(
+            msg = (
                 f"Estimated {estimated_tokens} tokens exceeds context limit "
                 f"{context_limit} for model '{request.model}'."
+            )
+            raise ContextWindowExceededError(
+                msg,
             )
 
         # Resolve per-request timeout.
@@ -181,7 +185,7 @@ class LLMRuntime:
 
         # Record metrics
         # BUG-003: compute latency from two UTC-aware datetimes
-        latency_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
+        latency_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
         response.latency_ms = latency_ms
 
         await self.performance_monitor.record_request(
@@ -195,11 +199,8 @@ class LLMRuntime:
 
         return response
 
-    async def stream(
-        self, request: CompletionRequest
-    ) -> AsyncIterator[StreamChunk]:
-        """
-        Execute a streaming completion request.
+    async def stream(self, request: CompletionRequest) -> AsyncIterator[StreamChunk]:
+        """Execute a streaming completion request.
 
         Yields StreamChunk objects incrementally. Updates context and
         records metrics after the stream completes.
@@ -212,31 +213,34 @@ class LLMRuntime:
 
         Raises:
             ContextWindowExceededError: If request exceeds context limit.
+
         """
         # BUG-003: use timezone-aware UTC timestamp
-        start_time = datetime.now(tz=timezone.utc)
+        start_time = datetime.now(tz=UTC)
         provider = self._get_provider(request.model)
         adapter = self.adapters[provider]
 
         # Inject session context
         if request.session_id:
             request.messages = self.context_manager.inject_context(
-                request.session_id, request.messages
+                request.session_id,
+                request.messages,
             )
 
         # Validate token budget
-        estimated_tokens = self.token_counter.count_messages(
-            request.messages, request.model
-        )
+        estimated_tokens = self.token_counter.count_messages(request.messages, request.model)
         context_limit = self._get_context_limit(request.model)
         if estimated_tokens > context_limit:
-            raise ContextWindowExceededError(
+            msg = (
                 f"Estimated {estimated_tokens} tokens exceeds context limit "
                 f"{context_limit} for model '{request.model}'."
             )
+            raise ContextWindowExceededError(
+                msg,
+            )
 
         full_content = ""
-        error_msg: Optional[str] = None
+        error_msg: str | None = None
 
         try:
             async for chunk in adapter.stream(request):
@@ -244,7 +248,7 @@ class LLMRuntime:
                 yield chunk
         except Exception as exc:
             error_msg = str(exc)
-            latency_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
             await self.performance_monitor.record_request(
                 model=request.model,
                 provider=provider,
@@ -265,7 +269,7 @@ class LLMRuntime:
             )
 
         # Record metrics
-        latency_ms = (datetime.now(tz=timezone.utc) - start_time).total_seconds() * 1000
+        latency_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
         tokens = self.token_counter.count_text(full_content, request.model)
 
         await self.performance_monitor.record_request(
@@ -277,11 +281,8 @@ class LLMRuntime:
             success=True,
         )
 
-    async def embed(
-        self, text: Union[str, list[str]], model: str
-    ) -> list[list[float]]:
-        """
-        Generate embeddings for text.
+    async def embed(self, text: str | list[str], model: str) -> list[list[float]]:
+        """Generate embeddings for text.
 
         Args:
             text: Single string or list of strings.
@@ -289,6 +290,7 @@ class LLMRuntime:
 
         Returns:
             List of embedding vectors.
+
         """
         provider = self._get_provider(model)
         adapter = self.adapters[provider]
@@ -310,19 +312,28 @@ class LLMRuntime:
         ProviderNotSupportedError to give a clear error message.
         """
         if model.startswith(("gpt-", "text-embedding", "o1-", "o3-")):
-            raise ProviderNotSupportedError(
+            msg = (
                 f"Model '{model}' is an OpenAI cloud model and is not supported. "
                 "Use a local Ollama model instead."
             )
-        if model.startswith("claude-"):
             raise ProviderNotSupportedError(
+                msg,
+            )
+        if model.startswith("claude-"):
+            msg = (
                 f"Model '{model}' is an Anthropic cloud model and is not supported. "
                 "Use a local Ollama model instead."
             )
-        if model.startswith("gemini-"):
             raise ProviderNotSupportedError(
+                msg,
+            )
+        if model.startswith("gemini-"):
+            msg = (
                 f"Model '{model}' is a Google cloud model and is not supported. "
                 "Use a local Ollama model instead."
+            )
+            raise ProviderNotSupportedError(
+                msg,
             )
         return ModelProvider.OLLAMA
 

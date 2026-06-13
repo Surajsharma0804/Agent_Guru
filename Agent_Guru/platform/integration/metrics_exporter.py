@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.platform.integration.metrics_exporter
+"""Module: Agent_Guru.platform.integration.metrics_exporter
 Purpose: Prometheus-compatible metrics export for platform integration monitoring.
 
 Performance Requirements:
@@ -23,7 +22,7 @@ import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +30,8 @@ logger = logging.getLogger(__name__)
 _LabelKey = tuple[tuple[str, str], ...]
 
 
-def _make_label_key(labels: Optional[dict[str, str]]) -> _LabelKey:
-    """
-    Convert a label dict to a hashable, sorted tuple key.
+def _make_label_key(labels: dict[str, str] | None) -> _LabelKey:
+    """Convert a label dict to a hashable, sorted tuple key.
 
     Time Complexity: O(k log k) where k = number of labels
     No eval(), no security risk.
@@ -43,6 +41,7 @@ def _make_label_key(labels: Optional[dict[str, str]]) -> _LabelKey:
 
     Returns:
         Sorted tuple of (name, value) pairs
+
     """
     if not labels:
         return ()
@@ -67,15 +66,12 @@ class MetricSample:
     timestamp: float = field(default_factory=time.time)
 
     def to_prometheus_line(self) -> str:
-        """
-        Format as Prometheus text exposition line.
+        """Format as Prometheus text exposition line.
 
         Example: my_metric{op="read",status="ok"} 42.0
         """
         if self.labels:
-            label_str = ",".join(
-                f'{k}="{v}"' for k, v in sorted(self.labels.items())
-            )
+            label_str = ",".join(f'{k}="{v}"' for k, v in sorted(self.labels.items()))
             return f"{self.name}{{{label_str}}} {self.value}"
         return f"{self.name} {self.value}"
 
@@ -84,8 +80,7 @@ class MetricSample:
 
 
 class Counter:
-    """
-    Monotonically increasing counter metric.
+    """Monotonically increasing counter metric.
 
     Thread-safe via atomic float addition (GIL-protected in CPython).
     For multi-process safety, use prometheus_client library instead.
@@ -98,10 +93,11 @@ class Counter:
         self,
         name: str,
         description: str,
-        labels: Optional[list[str]] = None,
+        labels: list[str] | None = None,
     ) -> None:
         if not name:
-            raise ValueError("Counter name cannot be empty")
+            msg = "Counter name cannot be empty"
+            raise ValueError(msg)
         self.name = name
         self.description = description
         self.label_names: list[str] = labels or []
@@ -110,10 +106,9 @@ class Counter:
     def inc(
         self,
         amount: float = 1.0,
-        labels: Optional[dict[str, str]] = None,
+        labels: dict[str, str] | None = None,
     ) -> None:
-        """
-        Increment counter by amount.
+        """Increment counter by amount.
 
         Args:
             amount: Increment value (must be >= 0)
@@ -121,12 +116,14 @@ class Counter:
 
         Raises:
             ValueError: If amount is negative
+
         """
         if amount < 0:
-            raise ValueError(f"Counter increment must be >= 0, got {amount}")
+            msg = f"Counter increment must be >= 0, got {amount}"
+            raise ValueError(msg)
         self._values[_make_label_key(labels)] += amount
 
-    def get(self, labels: Optional[dict[str, str]] = None) -> float:
+    def get(self, labels: dict[str, str] | None = None) -> float:
         """Get current counter value for given labels."""
         return self._values[_make_label_key(labels)]
 
@@ -150,8 +147,7 @@ class Counter:
 
 
 class Gauge:
-    """
-    Gauge metric that can increase or decrease.
+    """Gauge metric that can increase or decrease.
 
     Suitable for: active connections, queue depth, memory usage, etc.
 
@@ -162,28 +158,29 @@ class Gauge:
         self,
         name: str,
         description: str,
-        labels: Optional[list[str]] = None,
+        labels: list[str] | None = None,
     ) -> None:
         if not name:
-            raise ValueError("Gauge name cannot be empty")
+            msg = "Gauge name cannot be empty"
+            raise ValueError(msg)
         self.name = name
         self.description = description
         self.label_names: list[str] = labels or []
         self._values: dict[_LabelKey, float] = defaultdict(float)
 
-    def set(self, value: float, labels: Optional[dict[str, str]] = None) -> None:
+    def set(self, value: float, labels: dict[str, str] | None = None) -> None:
         """Set gauge to an absolute value."""
         self._values[_make_label_key(labels)] = value
 
-    def inc(self, amount: float = 1.0, labels: Optional[dict[str, str]] = None) -> None:
+    def inc(self, amount: float = 1.0, labels: dict[str, str] | None = None) -> None:
         """Increment gauge."""
         self._values[_make_label_key(labels)] += amount
 
-    def dec(self, amount: float = 1.0, labels: Optional[dict[str, str]] = None) -> None:
+    def dec(self, amount: float = 1.0, labels: dict[str, str] | None = None) -> None:
         """Decrement gauge."""
         self._values[_make_label_key(labels)] -= amount
 
-    def get(self, labels: Optional[dict[str, str]] = None) -> float:
+    def get(self, labels: dict[str, str] | None = None) -> float:
         """Get current gauge value."""
         return self._values[_make_label_key(labels)]
 
@@ -207,8 +204,7 @@ class Gauge:
 
 
 class Histogram:
-    """
-    Histogram metric for latency and size distributions.
+    """Histogram metric for latency and size distributions.
 
     Uses pre-bucketed counters with bisect for O(log b) observe()
     instead of O(n*b) scan. Suitable for high-frequency measurements.
@@ -218,19 +214,32 @@ class Histogram:
     """
 
     DEFAULT_BUCKETS = (
-        0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
-        1.0, 2.5, 5.0, 10.0, 30.0, 60.0,
+        0.001,
+        0.005,
+        0.01,
+        0.025,
+        0.05,
+        0.1,
+        0.25,
+        0.5,
+        1.0,
+        2.5,
+        5.0,
+        10.0,
+        30.0,
+        60.0,
     )
 
     def __init__(
         self,
         name: str,
         description: str,
-        buckets: Optional[list[float]] = None,
-        labels: Optional[list[str]] = None,
+        buckets: list[float] | None = None,
+        labels: list[str] | None = None,
     ) -> None:
         if not name:
-            raise ValueError("Histogram name cannot be empty")
+            msg = "Histogram name cannot be empty"
+            raise ValueError(msg)
         raw_buckets = sorted(set(buckets or self.DEFAULT_BUCKETS))
         # Always include +Inf bucket
         if raw_buckets[-1] != float("inf"):
@@ -251,17 +260,15 @@ class Histogram:
         if key not in self._bucket_counts:
             self._bucket_counts[key] = [0] * len(self.buckets)
 
-    def observe(
-        self, value: float, labels: Optional[dict[str, str]] = None
-    ) -> None:
-        """
-        Record an observation.
+    def observe(self, value: float, labels: dict[str, str] | None = None) -> None:
+        """Record an observation.
 
         Uses bisect to find the correct bucket in O(log b) time.
 
         Args:
             value: Observed value (e.g., latency in seconds)
             labels: Label values for this observation
+
         """
         key = _make_label_key(labels)
         self._ensure_label(key)
@@ -284,8 +291,7 @@ class Histogram:
         self._counts.clear()
 
     def collect(self) -> list[MetricSample]:
-        """
-        Collect histogram samples in Prometheus format.
+        """Collect histogram samples in Prometheus format.
 
         Returns _bucket, _count, and _sum samples for each label combo.
         """
@@ -297,22 +303,28 @@ class Histogram:
 
             for i, bound in enumerate(self.buckets):
                 bucket_labels = {**labels, "le": ("+Inf" if bound == float("inf") else str(bound))}
-                samples.append(MetricSample(
-                    name=f"{self.name}_bucket",
-                    value=float(counts[i]),
-                    labels=bucket_labels,
-                ))
+                samples.append(
+                    MetricSample(
+                        name=f"{self.name}_bucket",
+                        value=float(counts[i]),
+                        labels=bucket_labels,
+                    ),
+                )
 
-            samples.append(MetricSample(
-                name=f"{self.name}_count",
-                value=float(self._counts[key]),
-                labels=labels,
-            ))
-            samples.append(MetricSample(
-                name=f"{self.name}_sum",
-                value=self._sums[key],
-                labels=labels,
-            ))
+            samples.append(
+                MetricSample(
+                    name=f"{self.name}_count",
+                    value=float(self._counts[key]),
+                    labels=labels,
+                ),
+            )
+            samples.append(
+                MetricSample(
+                    name=f"{self.name}_sum",
+                    value=self._sums[key],
+                    labels=labels,
+                ),
+            )
 
         return samples
 
@@ -321,8 +333,7 @@ class Histogram:
 
 
 class MetricsRegistry:
-    """
-    Central registry for all platform metrics with Prometheus text export.
+    """Central registry for all platform metrics with Prometheus text export.
 
     Features:
     - Type-safe metric registration (counter/gauge/histogram)
@@ -336,6 +347,7 @@ class MetricsRegistry:
         >>> ops = registry.counter("platform_ops_total", "Total ops", labels=["op"])
         >>> ops.inc(labels={"op": "file_read"})
         >>> print(registry.generate_text())
+
     """
 
     def __init__(self) -> None:
@@ -380,10 +392,9 @@ class MetricsRegistry:
         self,
         name: str,
         description: str,
-        labels: Optional[list[str]] = None,
+        labels: list[str] | None = None,
     ) -> Counter:
-        """
-        Register (or retrieve existing) counter metric.
+        """Register (or retrieve existing) counter metric.
 
         Args:
             name: Metric name (snake_case)
@@ -395,13 +406,13 @@ class MetricsRegistry:
 
         Raises:
             TypeError: If name already registered as different type
+
         """
         if name in self._metrics:
             existing = self._metrics[name]
             if not isinstance(existing, Counter):
-                raise TypeError(
-                    f"Metric '{name}' already registered as {type(existing).__name__}"
-                )
+                msg = f"Metric '{name}' already registered as {type(existing).__name__}"
+                raise TypeError(msg)
             return existing
         metric = Counter(name, description, labels)
         self._metrics[name] = metric
@@ -411,15 +422,14 @@ class MetricsRegistry:
         self,
         name: str,
         description: str,
-        labels: Optional[list[str]] = None,
+        labels: list[str] | None = None,
     ) -> Gauge:
         """Register (or retrieve existing) gauge metric."""
         if name in self._metrics:
             existing = self._metrics[name]
             if not isinstance(existing, Gauge):
-                raise TypeError(
-                    f"Metric '{name}' already registered as {type(existing).__name__}"
-                )
+                msg = f"Metric '{name}' already registered as {type(existing).__name__}"
+                raise TypeError(msg)
             return existing
         metric = Gauge(name, description, labels)
         self._metrics[name] = metric
@@ -429,27 +439,26 @@ class MetricsRegistry:
         self,
         name: str,
         description: str,
-        buckets: Optional[list[float]] = None,
-        labels: Optional[list[str]] = None,
+        buckets: list[float] | None = None,
+        labels: list[str] | None = None,
     ) -> Histogram:
         """Register (or retrieve existing) histogram metric."""
         if name in self._metrics:
             existing = self._metrics[name]
             if not isinstance(existing, Histogram):
-                raise TypeError(
-                    f"Metric '{name}' already registered as {type(existing).__name__}"
-                )
+                msg = f"Metric '{name}' already registered as {type(existing).__name__}"
+                raise TypeError(msg)
             return existing
         metric = Histogram(name, description, buckets, labels)
         self._metrics[name] = metric
         return metric
 
     def generate_text(self) -> str:
-        """
-        Generate Prometheus text format 0.0.4 output.
+        """Generate Prometheus text format 0.0.4 output.
 
         Returns:
             Complete metrics page as string, ending with newline
+
         """
         lines: list[str] = []
         for metric in self._metrics.values():
@@ -465,8 +474,7 @@ class MetricsRegistry:
         return list(self._metrics.keys())
 
     def reset_all(self) -> None:
-        """
-        Reset all metric values.
+        """Reset all metric values.
 
         For test isolation only — do not call in production.
         """
@@ -475,14 +483,14 @@ class MetricsRegistry:
                 metric.reset()
 
     def unregister(self, name: str) -> bool:
-        """
-        Remove a metric from the registry.
+        """Remove a metric from the registry.
 
         Args:
             name: Metric name to remove
 
         Returns:
             True if found and removed
+
         """
         if name in self._metrics:
             del self._metrics[name]
@@ -492,17 +500,17 @@ class MetricsRegistry:
 
 # ─── Global Registry ─────────────────────────────────────────────────────────
 
-_default_registry: Optional[MetricsRegistry] = None
+_default_registry: MetricsRegistry | None = None
 
 
 def get_default_registry() -> MetricsRegistry:
-    """
-    Get the process-wide default metrics registry.
+    """Get the process-wide default metrics registry.
 
     Lazily initialized on first call. Thread-safe in CPython due to GIL.
 
     Returns:
         Singleton MetricsRegistry instance
+
     """
     global _default_registry
     if _default_registry is None:
@@ -511,8 +519,7 @@ def get_default_registry() -> MetricsRegistry:
 
 
 def reset_default_registry() -> None:
-    """
-    Replace the default registry with a fresh instance.
+    """Replace the default registry with a fresh instance.
 
     For test isolation only.
     """

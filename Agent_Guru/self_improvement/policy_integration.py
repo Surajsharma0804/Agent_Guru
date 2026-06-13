@@ -1,5 +1,4 @@
-"""
-Policy Engine Integration - Interface for policy constraint enforcement.
+"""Policy Engine Integration - Interface for policy constraint enforcement.
 
 This module provides integration hooks for the policy engine to ensure
 self-improvement respects governance constraints.
@@ -15,22 +14,23 @@ Version: 1.0.0
 """
 
 import logging
+
 _logger = logging.getLogger(__name__)
 
-from enum import Enum
-from typing import Any, Optional
+from enum import Enum  # noqa: E402
+from typing import Any  # noqa: E402
 
 
 class PolicyDecision(Enum):
     """Policy decision outcomes."""
+
     ALLOW = "allow"
     DENY = "deny"
     REQUIRE_APPROVAL = "require_approval"
 
 
 class PolicyIntegration:
-    """
-    Policy engine integration for self-improvement engine.
+    """Policy engine integration for self-improvement engine.
 
     This class provides hooks for integrating with the policy engine
     to ensure self-improvement respects governance constraints.
@@ -53,16 +53,16 @@ class PolicyIntegration:
         >>>
         >>> if decision == PolicyDecision.ALLOW:
         ...     print("Strategy allowed")
+
     """
 
     def __init__(
         self,
         self_improvement_engine: Any,
-        policy_engine: Optional[Any] = None,
-        enforce_policies: bool = True
-    ):
-        """
-        Initialize policy integration.
+        policy_engine: Any | None = None,
+        enforce_policies: bool = True,
+    ) -> None:
+        """Initialize policy integration.
 
         Args:
             self_improvement_engine: SelfImprovementEngine instance
@@ -70,6 +70,7 @@ class PolicyIntegration:
             enforce_policies: Whether to enforce policies (default: True)
 
         Time Complexity: O(1)
+
         """
         self.engine = self_improvement_engine
         self.policy_engine = policy_engine
@@ -79,17 +80,16 @@ class PolicyIntegration:
         self.default_policies = {
             "allow_strategy_changes": True,
             "allow_prompt_evolution": True,
-            "require_approval_for_critical": False
+            "require_approval_for_critical": False,
         }
 
     def check_strategy_policy(
         self,
         strategy_id: str,
         task_type: str,
-        context: Optional[dict[str, Any]] = None
+        context: dict[str, Any] | None = None,
     ) -> PolicyDecision:
-        """
-        Check if strategy selection is allowed by policy.
+        """Check if strategy selection is allowed by policy.
 
         Queries policy engine to determine if a strategy can be used
         for a given task type.
@@ -106,6 +106,7 @@ class PolicyIntegration:
         Performance Target: <5ms
 
         Validates: Requirement 18.2
+
         """
         if not self.enforce_policies:
             return PolicyDecision.ALLOW
@@ -114,8 +115,7 @@ class PolicyIntegration:
             # No policy engine - use default policies
             if self.default_policies["allow_strategy_changes"]:
                 return PolicyDecision.ALLOW
-            else:
-                return PolicyDecision.DENY
+            return PolicyDecision.DENY
 
         try:
             # Query policy engine (placeholder)
@@ -134,10 +134,9 @@ class PolicyIntegration:
         prompt_type: str,
         current_content: str,
         proposed_content: str,
-        context: Optional[dict[str, Any]] = None
+        context: dict[str, Any] | None = None,
     ) -> PolicyDecision:
-        """
-        Check if prompt evolution is allowed by policy.
+        """Check if prompt evolution is allowed by policy.
 
         Validates that prompt changes comply with governance constraints
         before allowing evolution.
@@ -155,6 +154,7 @@ class PolicyIntegration:
         Performance Target: <10ms
 
         Validates: Requirement 18.3
+
         """
         if not self.enforce_policies:
             return PolicyDecision.ALLOW
@@ -163,8 +163,7 @@ class PolicyIntegration:
             # No policy engine - use default policies
             if self.default_policies["allow_prompt_evolution"]:
                 return PolicyDecision.ALLOW
-            else:
-                return PolicyDecision.DENY
+            return PolicyDecision.DENY
 
         try:
             # Query policy engine (placeholder)
@@ -181,10 +180,9 @@ class PolicyIntegration:
     def get_allowed_strategies(
         self,
         task_type: str,
-        context: Optional[dict[str, Any]] = None
+        context: dict[str, Any] | None = None,
     ) -> list[str]:
-        """
-        Get list of strategies allowed by policy for task type.
+        """Get list of strategies allowed by policy for task type.
 
         Args:
             task_type: Task type
@@ -197,6 +195,7 @@ class PolicyIntegration:
         Performance Target: <20ms
 
         Validates: Requirement 18.2
+
         """
         if not self.enforce_policies:
             # Return all strategies if policies not enforced
@@ -217,11 +216,11 @@ class PolicyIntegration:
             return []
 
     def _get_all_strategies(self) -> list[str]:
-        """
-        Get all registered strategies from engine.
+        """Get all registered strategies from engine.
 
         Returns:
             List of all strategy IDs
+
         """
         try:
             # Get all strategies from strategy optimizer
@@ -231,48 +230,44 @@ class PolicyIntegration:
             _logger.warning("Warning: Get all strategies failed: %s", e)
             return []
 
-    def set_policy(
-        self,
-        policy_name: str,
-        policy_value: bool
-    ) -> None:
-        """
-        Set a default policy value.
+    def set_policy(self, policy_name: str, policy_value: bool) -> None:
+        """Set a default policy value.
 
         Args:
             policy_name: Name of policy to set
             policy_value: Policy value (True/False)
 
         Time Complexity: O(1)
+
         """
         if policy_name in self.default_policies:
             self.default_policies[policy_name] = policy_value
 
     def get_policy_status(self) -> dict[str, Any]:
-        """
-        Get policy enforcement status.
+        """Get policy enforcement status.
 
         Returns:
             Policy status information
 
         Time Complexity: O(1)
+
         """
         return {
             "policy_engine_connected": self.policy_engine is not None,
             "enforce_policies": self.enforce_policies,
-            "default_policies": self.default_policies.copy()
+            "default_policies": self.default_policies.copy(),
         }
 
 
 # Integration helper functions
 
+
 def create_policy_integration(
     self_improvement_engine: Any,
-    policy_engine: Optional[Any] = None,
-    enforce_policies: bool = True
+    policy_engine: Any | None = None,
+    enforce_policies: bool = True,
 ) -> PolicyIntegration:
-    """
-    Create policy integration for self-improvement engine.
+    """Create policy integration for self-improvement engine.
 
     This is a convenience function that initializes the policy integration
     with proper configuration.
@@ -297,9 +292,10 @@ def create_policy_integration(
         ...     task_type="analysis"
         ... )
         >>> print(f"Decision: {decision}")
+
     """
     return PolicyIntegration(
         self_improvement_engine=self_improvement_engine,
         policy_engine=policy_engine,
-        enforce_policies=enforce_policies
+        enforce_policies=enforce_policies,
     )

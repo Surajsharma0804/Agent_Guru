@@ -1,5 +1,4 @@
-"""
-Command frequency tracking system.
+"""Command frequency tracking system.
 
 This module tracks user command frequency, success rates, and execution patterns
 to enable learning and optimization of the reasoning engine.
@@ -16,16 +15,14 @@ Date: 2024
 import asyncio
 import json
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 from Agent_Guru.reasoning.models.behavioral import CommandFrequency
 
 
 class CommandTracker:
-    """
-    Tracks command frequency and success rates per user.
+    """Tracks command frequency and success rates per user.
 
     Time Complexity: O(1) for tracking, O(n log n) for analysis
     Space Complexity: O(n) where n is unique commands
@@ -35,14 +32,15 @@ class CommandTracker:
         >>> await tracker.initialize()
         >>> await tracker.track_command("user123", "set_timer", success=True, latency=0.5)
         >>> freq = await tracker.get_command_frequency("user123", "set_timer")
+
     """
 
-    def __init__(self, db_path: str = "behavioral.db"):
-        """
-        Initialize command tracker.
+    def __init__(self, db_path: str = "behavioral.db") -> None:
+        """Initialize command tracker.
 
         Args:
             db_path: Path to SQLite database
+
         """
         self.db_path = Path(db_path)
         self._lock = asyncio.Lock()
@@ -79,7 +77,7 @@ class CommandTracker:
                         updated_at TEXT NOT NULL,
                         PRIMARY KEY (user_id, command)
                     )
-                """
+                """,
                 )
 
                 # Create indexes
@@ -87,19 +85,19 @@ class CommandTracker:
                     """
                     CREATE INDEX IF NOT EXISTS idx_command_user_id
                     ON command_frequency(user_id)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_command_frequency
                     ON command_frequency(user_id, frequency DESC)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_command_last_used
                     ON command_frequency(user_id, last_used DESC)
-                """
+                """,
                 )
 
                 conn.commit()
@@ -114,10 +112,9 @@ class CommandTracker:
         command: str,
         success: bool = True,
         latency: float = 0.0,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> CommandFrequency:
-        """
-        Track command execution.
+        """Track command execution.
 
         Time Complexity: O(1)
 
@@ -130,6 +127,7 @@ class CommandTracker:
 
         Returns:
             Updated command frequency
+
         """
         if not self._initialized:
             await self.initialize()
@@ -175,7 +173,7 @@ class CommandTracker:
                             freq.successful_executions,
                             freq.avg_latency,
                             json.dumps(freq.metadata),
-                            datetime.now(tz=timezone.utc).isoformat(),
+                            datetime.now(tz=UTC).isoformat(),
                             user_id,
                             command,
                         ),
@@ -186,7 +184,7 @@ class CommandTracker:
                         command=command,
                         user_id=user_id,
                         frequency=1,
-                        last_used=datetime.now(tz=timezone.utc),
+                        last_used=datetime.now(tz=UTC),
                         success_rate=1.0 if success else 0.0,
                         total_executions=1,
                         successful_executions=1 if success else 0,
@@ -194,7 +192,7 @@ class CommandTracker:
                         metadata=metadata or {},
                     )
 
-                    now = datetime.now(tz=timezone.utc).isoformat()
+                    now = datetime.now(tz=UTC).isoformat()
                     cursor.execute(
                         """
                         INSERT INTO command_frequency (
@@ -223,9 +221,8 @@ class CommandTracker:
             finally:
                 conn.close()
 
-    async def get_command_frequency(self, user_id: str, command: str) -> Optional[CommandFrequency]:
-        """
-        Get frequency data for a specific command.
+    async def get_command_frequency(self, user_id: str, command: str) -> CommandFrequency | None:
+        """Get frequency data for a specific command.
 
         Time Complexity: O(1) with index
 
@@ -235,6 +232,7 @@ class CommandTracker:
 
         Returns:
             Command frequency or None
+
         """
         if not self._initialized:
             await self.initialize()
@@ -256,10 +254,12 @@ class CommandTracker:
                 conn.close()
 
     async def get_most_frequent_commands(
-        self, user_id: str, limit: int = 10, min_frequency: int = 1
+        self,
+        user_id: str,
+        limit: int = 10,
+        min_frequency: int = 1,
     ) -> list[CommandFrequency]:
-        """
-        Get most frequent commands for a user.
+        """Get most frequent commands for a user.
 
         Time Complexity: O(n log n) for sorting
 
@@ -270,6 +270,7 @@ class CommandTracker:
 
         Returns:
             List of command frequencies sorted by frequency
+
         """
         if not self._initialized:
             await self.initialize()
@@ -293,10 +294,12 @@ class CommandTracker:
                 conn.close()
 
     async def get_recent_commands(
-        self, user_id: str, since: Optional[datetime] = None, limit: int = 100
+        self,
+        user_id: str,
+        since: datetime | None = None,
+        limit: int = 100,
     ) -> list[CommandFrequency]:
-        """
-        Get recently used commands.
+        """Get recently used commands.
 
         Time Complexity: O(n log n) for sorting
 
@@ -307,12 +310,13 @@ class CommandTracker:
 
         Returns:
             List of command frequencies sorted by last used
+
         """
         if not self._initialized:
             await self.initialize()
 
         if since is None:
-            since = datetime.now(tz=timezone.utc) - timedelta(days=7)
+            since = datetime.now(tz=UTC) - timedelta(days=7)
 
         async with self._lock:
             conn = sqlite3.connect(str(self.db_path))
@@ -333,8 +337,7 @@ class CommandTracker:
                 conn.close()
 
     async def analyze_frequency(self, user_id: str) -> dict:
-        """
-        Analyze command frequency patterns.
+        """Analyze command frequency patterns.
 
         Time Complexity: O(n) where n is number of commands
 
@@ -343,6 +346,7 @@ class CommandTracker:
 
         Returns:
             Analysis dictionary with statistics
+
         """
         if not self._initialized:
             await self.initialize()
@@ -406,8 +410,7 @@ class CommandTracker:
                 conn.close()
 
     async def get_command_count(self, user_id: str) -> int:
-        """
-        Get total number of unique commands for a user.
+        """Get total number of unique commands for a user.
 
         Time Complexity: O(1) with index
 
@@ -416,6 +419,7 @@ class CommandTracker:
 
         Returns:
             Number of unique commands
+
         """
         if not self._initialized:
             await self.initialize()

@@ -1,5 +1,4 @@
-"""
-Time-based pattern detection system.
+"""Time-based pattern detection system.
 
 This module detects behavioral patterns based on time-of-day, day-of-week,
 and other temporal factors to enable proactive suggestions.
@@ -18,16 +17,14 @@ import json
 import sqlite3
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 from Agent_Guru.reasoning.models.behavioral import PatternType, TimePattern
 
 
 class PatternDetector:
-    """
-    Detects time-based behavioral patterns.
+    """Detects time-based behavioral patterns.
 
     Analyzes command history to identify:
     - Time-of-day patterns (morning routine, evening routine)
@@ -42,6 +39,7 @@ class PatternDetector:
         >>> await detector.initialize()
         >>> await detector.detect_patterns("user123")
         >>> patterns = await detector.get_patterns("user123")
+
     """
 
     def __init__(
@@ -49,14 +47,14 @@ class PatternDetector:
         db_path: str = "behavioral.db",
         min_occurrences: int = 3,
         time_window_hours: int = 2,
-    ):
-        """
-        Initialize pattern detector.
+    ) -> None:
+        """Initialize pattern detector.
 
         Args:
             db_path: Path to SQLite database
             min_occurrences: Minimum occurrences to consider a pattern
             time_window_hours: Time window for grouping (hours)
+
         """
         self.db_path = Path(db_path)
         self.min_occurrences = min_occurrences
@@ -95,7 +93,7 @@ class PatternDetector:
                         created_at TEXT NOT NULL,
                         updated_at TEXT NOT NULL
                     )
-                """
+                """,
                 )
 
                 # Command history table (for pattern detection)
@@ -110,7 +108,7 @@ class PatternDetector:
                         day_of_week INTEGER NOT NULL,
                         metadata TEXT NOT NULL DEFAULT '{}'
                     )
-                """
+                """,
                 )
 
                 # Create indexes
@@ -118,25 +116,25 @@ class PatternDetector:
                     """
                     CREATE INDEX IF NOT EXISTS idx_patterns_user_id
                     ON time_patterns(user_id)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_patterns_confidence
                     ON time_patterns(user_id, confidence DESC)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_history_user_id
                     ON command_history(user_id)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_history_timestamp
                     ON command_history(user_id, timestamp DESC)
-                """
+                """,
                 )
 
                 conn.commit()
@@ -146,10 +144,12 @@ class PatternDetector:
             self._initialized = True
 
     async def record_command(
-        self, user_id: str, command: str, timestamp: Optional[datetime] = None
+        self,
+        user_id: str,
+        command: str,
+        timestamp: datetime | None = None,
     ) -> None:
-        """
-        Record command execution for pattern detection.
+        """Record command execution for pattern detection.
 
         Time Complexity: O(1)
 
@@ -157,12 +157,13 @@ class PatternDetector:
             user_id: User identifier
             command: Command executed
             timestamp: Execution time (default: now)
+
         """
         if not self._initialized:
             await self.initialize()
 
         if timestamp is None:
-            timestamp = datetime.now(tz=timezone.utc)
+            timestamp = datetime.now(tz=UTC)
 
         async with self._lock:
             conn = sqlite3.connect(str(self.db_path))
@@ -190,8 +191,7 @@ class PatternDetector:
                 conn.close()
 
     async def detect_patterns(self, user_id: str, lookback_days: int = 30) -> list[TimePattern]:
-        """
-        Detect time-based patterns from command history.
+        """Detect time-based patterns from command history.
 
         Time Complexity: O(n) where n is history size
 
@@ -201,11 +201,12 @@ class PatternDetector:
 
         Returns:
             List of detected patterns
+
         """
         if not self._initialized:
             await self.initialize()
 
-        since = datetime.now(tz=timezone.utc) - timedelta(days=lookback_days)
+        since = datetime.now(tz=UTC) - timedelta(days=lookback_days)
 
         async with self._lock:
             conn = sqlite3.connect(str(self.db_path))
@@ -245,8 +246,7 @@ class PatternDetector:
                 conn.close()
 
     def _detect_time_of_day_patterns(self, user_id: str, history: list[tuple]) -> list[TimePattern]:
-        """
-        Detect time-of-day patterns.
+        """Detect time-of-day patterns.
 
         Groups commands by hour windows and identifies recurring patterns.
 
@@ -256,6 +256,7 @@ class PatternDetector:
 
         Returns:
             List of time-of-day patterns
+
         """
         # Group by command and hour window
         command_hours: dict[str, dict[int, list[datetime]]] = defaultdict(lambda: defaultdict(list))
@@ -286,7 +287,7 @@ class PatternDetector:
                         confidence=confidence,
                         last_occurrence=max(timestamps),
                         metadata={
-                            "hour_window": f"{hour_window:02d}:00-{hour_window+self.time_window_hours:02d}:00",
+                            "hour_window": f"{hour_window:02d}:00-{hour_window + self.time_window_hours:02d}:00",
                             "timestamps": [t.isoformat() for t in timestamps[-5:]],
                         },
                     )
@@ -295,8 +296,7 @@ class PatternDetector:
         return patterns
 
     def _detect_day_of_week_patterns(self, user_id: str, history: list[tuple]) -> list[TimePattern]:
-        """
-        Detect day-of-week patterns.
+        """Detect day-of-week patterns.
 
         Identifies commands that occur on specific days of the week.
 
@@ -306,6 +306,7 @@ class PatternDetector:
 
         Returns:
             List of day-of-week patterns
+
         """
         # Group by command and day of week
         command_days: dict[str, dict[int, list[datetime]]] = defaultdict(lambda: defaultdict(list))
@@ -354,11 +355,11 @@ class PatternDetector:
         return patterns
 
     async def _store_pattern(self, pattern: TimePattern) -> None:
-        """
-        Store or update pattern in database.
+        """Store or update pattern in database.
 
         Args:
             pattern: Pattern to store
+
         """
         conn = sqlite3.connect(str(self.db_path))
         try:
@@ -398,13 +399,13 @@ class PatternDetector:
                         pattern.confidence,
                         pattern.last_occurrence.isoformat(),
                         json.dumps(pattern.metadata),
-                        datetime.now(tz=timezone.utc).isoformat(),
+                        datetime.now(tz=UTC).isoformat(),
                         existing[0],
                     ),
                 )
             else:
                 # Insert new pattern
-                now = datetime.now(tz=timezone.utc).isoformat()
+                now = datetime.now(tz=UTC).isoformat()
                 cursor.execute(
                     """
                     INSERT INTO time_patterns (
@@ -436,11 +437,10 @@ class PatternDetector:
     async def get_patterns(
         self,
         user_id: str,
-        pattern_type: Optional[PatternType] = None,
+        pattern_type: PatternType | None = None,
         min_confidence: float = 0.5,
     ) -> list[TimePattern]:
-        """
-        Get detected patterns for a user.
+        """Get detected patterns for a user.
 
         Time Complexity: O(n) where n is number of patterns
 
@@ -451,6 +451,7 @@ class PatternDetector:
 
         Returns:
             List of patterns
+
         """
         if not self._initialized:
             await self.initialize()
@@ -485,10 +486,13 @@ class PatternDetector:
                 conn.close()
 
     async def get_patterns_for_time(
-        self, user_id: str, hour: int, day: int, min_confidence: float = 0.6
+        self,
+        user_id: str,
+        hour: int,
+        day: int,
+        min_confidence: float = 0.6,
     ) -> list[TimePattern]:
-        """
-        Get patterns matching current time.
+        """Get patterns matching current time.
 
         Args:
             user_id: User identifier
@@ -498,6 +502,7 @@ class PatternDetector:
 
         Returns:
             List of matching patterns
+
         """
         if not self._initialized:
             await self.initialize()

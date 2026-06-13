@@ -1,5 +1,4 @@
-"""
-Reasoning Prompt Templates
+"""Reasoning Prompt Templates.
 
 Provides prompt templates for LLM reasoning with:
 - System prompts for Agent_Guru reasoning engine
@@ -12,7 +11,7 @@ Performance Target: <50ms prompt formatting overhead
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -63,8 +62,7 @@ class ConversationContext:
 
 
 class ReasoningPrompts:
-    """
-    Reasoning prompt templates for Agent_Guru.
+    """Reasoning prompt templates for Agent_Guru.
 
     Provides system prompts, reasoning templates, and few-shot examples.
     """
@@ -154,7 +152,7 @@ Consider the order of operations and any dependencies between steps."""
                         "parameters": {"duration_seconds": 300, "label": "Timer"},
                         "estimated_duration_seconds": 1.0,
                         "requires_confirmation": False,
-                    }
+                    },
                 ],
                 "reasoning": "Simple timer creation with specified duration",
                 "confidence": 0.98,
@@ -178,7 +176,7 @@ Consider the order of operations and any dependencies between steps."""
                         },
                         "estimated_duration_seconds": 2.0,
                         "requires_confirmation": True,
-                    }
+                    },
                 ],
                 "reasoning": "Messaging is sensitive, requires confirmation",
                 "confidence": 0.95,
@@ -220,10 +218,9 @@ Consider the order of operations and any dependencies between steps."""
         intent_type: str,
         entities: dict[str, Any],
         available_tools: list[str],
-        context: Optional[ConversationContext] = None,
+        context: ConversationContext | None = None,
     ) -> str:
-        """
-        Format single-step reasoning prompt.
+        """Format single-step reasoning prompt.
 
         Args:
             user_input: User's request
@@ -234,6 +231,7 @@ Consider the order of operations and any dependencies between steps."""
 
         Returns:
             Formatted prompt string
+
         """
         context_str = context.format_for_prompt() if context else "No context available."
 
@@ -251,10 +249,9 @@ Consider the order of operations and any dependencies between steps."""
         intent_type: str,
         entities: dict[str, Any],
         available_tools: list[str],
-        context: Optional[ConversationContext] = None,
+        context: ConversationContext | None = None,
     ) -> str:
-        """
-        Format multi-step reasoning prompt.
+        """Format multi-step reasoning prompt.
 
         Args:
             user_input: User's request
@@ -265,6 +262,7 @@ Consider the order of operations and any dependencies between steps."""
 
         Returns:
             Formatted prompt string
+
         """
         context_str = context.format_for_prompt() if context else "No context available."
 
@@ -278,8 +276,7 @@ Consider the order of operations and any dependencies between steps."""
 
     @staticmethod
     def get_few_shot_examples(intent_type: str, count: int = 2) -> str:
-        """
-        Get few-shot examples for prompt.
+        """Get few-shot examples for prompt.
 
         Args:
             intent_type: Intent type to get examples for
@@ -287,6 +284,7 @@ Consider the order of operations and any dependencies between steps."""
 
         Returns:
             Formatted few-shot examples
+
         """
         examples = []
 
@@ -294,24 +292,24 @@ Consider the order of operations and any dependencies between steps."""
         if intent_type in ReasoningPrompts.FEW_SHOT_EXAMPLES:
             example = ReasoningPrompts.FEW_SHOT_EXAMPLES[intent_type]
             examples.append(
-                f"Example:\nInput: {example['user_input']}\nIntent: {example['intent_type']}\nPlan: {example['plan']}"
+                f"Example:\nInput: {example['user_input']}\nIntent: {example['intent_type']}\nPlan: {example['plan']}",
             )
 
         # Add general examples
         for key, example in list(ReasoningPrompts.FEW_SHOT_EXAMPLES.items())[:count]:
             if key != intent_type:
                 examples.append(
-                    f"Example:\nInput: {example['user_input']}\nIntent: {example['intent_type']}\nPlan: {example['plan']}"
+                    f"Example:\nInput: {example['user_input']}\nIntent: {example['intent_type']}\nPlan: {example['plan']}",
                 )
 
         return "\n\n".join(examples[:count])
 
     @staticmethod
     def compress_context(
-        context: ConversationContext, max_length: int = 500
+        context: ConversationContext,
+        max_length: int = 500,
     ) -> ConversationContext:
-        """
-        Compress conversation context to fit within token limits.
+        """Compress conversation context to fit within token limits.
 
         Args:
             context: Original context
@@ -319,12 +317,13 @@ Consider the order of operations and any dependencies between steps."""
 
         Returns:
             Compressed context
+
         """
         # Start with aggressive compression
         compressed = ConversationContext(
             recent_turns=context.recent_turns[-2:],  # Keep only last 2 turns
             tracked_entities=dict(
-                list(context.tracked_entities.items())[:3]
+                list(context.tracked_entities.items())[:3],
             ),  # Keep only 3 entities
             user_preferences=context.user_preferences,
             past_actions=[],  # Remove past actions first

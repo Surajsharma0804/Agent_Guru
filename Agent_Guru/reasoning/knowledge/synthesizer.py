@@ -1,5 +1,4 @@
-"""
-Knowledge Synthesizer for personal knowledge reasoning.
+"""Knowledge Synthesizer for personal knowledge reasoning.
 
 This module implements the Knowledge Synthesis Engine that retrieves, analyzes,
 and synthesizes answers to knowledge queries. It combines data from Memory Retrieval,
@@ -49,10 +48,10 @@ import logging
 import re
 import time
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from Agent_Guru.reasoning.memory_retriever import MemoryRetriever
 from Agent_Guru.reasoning.models.knowledge import (
@@ -74,7 +73,6 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
     openai: Any = None  # type: ignore[assignment]
-
 try:
     import anthropic
 
@@ -92,6 +90,7 @@ class LLMSynthesisResponse(BaseModel):
         confidence: Confidence score (0.0-1.0)
         reasoning: Brief explanation of synthesis
         key_insights: List of key insights from data
+
     """
 
     summary: str = Field(..., description="Natural language answer summary")
@@ -134,6 +133,7 @@ def redact_pii(text: str) -> str:
     Example:
         >>> redact_pii("Contact me at john@example.com or 555-123-4567")
         'Contact me at [EMAIL] or [PHONE]'
+
     """
     redacted = text
 
@@ -143,9 +143,7 @@ def redact_pii(text: str) -> str:
     redacted = PII_PATTERNS["ssn"].sub("[SSN]", redacted)
     redacted = PII_PATTERNS["credit_card"].sub("[CREDIT_CARD]", redacted)
     redacted = PII_PATTERNS["ip_address"].sub("[IP]", redacted)
-    redacted = PII_PATTERNS["url"].sub("[URL]", redacted)
-
-    return redacted
+    return PII_PATTERNS["url"].sub("[URL]", redacted)
 
 
 class KnowledgeSynthesizer:
@@ -182,6 +180,7 @@ class KnowledgeSynthesizer:
         ... )
         >>> answer = synthesizer.synthesize_answer(query, user_id="user_123")
         >>> print(answer.summary)
+
     """
 
     def __init__(
@@ -192,7 +191,7 @@ class KnowledgeSynthesizer:
         confidence_threshold: float = 0.6,
         llm_provider: str = "openai",
         llm_model: str = "gpt-4-turbo-preview",
-        llm_api_key: Optional[str] = None,
+        llm_api_key: str | None = None,
         llm_timeout_ms: float = 1000.0,
         llm_max_retries: int = 3,
         use_llm_synthesis: bool = True,
@@ -213,13 +212,17 @@ class KnowledgeSynthesizer:
 
         Raises:
             ValueError: If parameters are out of valid range
+
         """
         if max_memories < 1:
-            raise ValueError(f"max_memories must be >= 1, got {max_memories}")
+            msg = f"max_memories must be >= 1, got {max_memories}"
+            raise ValueError(msg)
         if not 0.0 <= pattern_min_frequency <= 1.0:
-            raise ValueError(f"pattern_min_frequency must be 0.0-1.0, got {pattern_min_frequency}")
+            msg = f"pattern_min_frequency must be 0.0-1.0, got {pattern_min_frequency}"
+            raise ValueError(msg)
         if not 0.0 <= confidence_threshold <= 1.0:
-            raise ValueError(f"confidence_threshold must be 0.0-1.0, got {confidence_threshold}")
+            msg = f"confidence_threshold must be 0.0-1.0, got {confidence_threshold}"
+            raise ValueError(msg)
 
         self.memory_retriever = memory_retriever
         self.max_memories = max_memories
@@ -235,7 +238,7 @@ class KnowledgeSynthesizer:
         self.use_llm_synthesis = use_llm_synthesis
 
         # Initialize LLM client if enabled
-        self.llm_client: Optional[Any] = None
+        self.llm_client: Any | None = None
         if self.use_llm_synthesis:
             self._initialize_llm_client()
 
@@ -265,6 +268,7 @@ class KnowledgeSynthesizer:
             >>> synthesizer = KnowledgeSynthesizer(memory_retriever)
             >>> answer = synthesizer.synthesize_answer(query, "user_123")
             >>> print(f"Confidence: {answer.confidence:.2f}")
+
         """
         start_time = time.perf_counter()
 
@@ -276,7 +280,7 @@ class KnowledgeSynthesizer:
                 "query_text": query.query_text,
                 "query_type": query.query_type.value,
                 "query_confidence": query.confidence,
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
 
@@ -323,7 +327,7 @@ class KnowledgeSynthesizer:
                 "memories_used": len(answer.supporting_memories),
                 "patterns_detected": len(answer.patterns),
                 "latency_ms": round(elapsed_ms, 2),
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
 
@@ -369,13 +373,15 @@ class KnowledgeSynthesizer:
             >>> synthesizer = KnowledgeSynthesizer(memory_retriever)
             >>> memories = synthesizer.retrieve_relevant_data(query, "user_123")
             >>> print(f"Retrieved {len(memories)} memories")
+
         """
         # PRIVACY: Validate user_id
         if not user_id or not user_id.strip():
-            raise ValueError("user_id cannot be empty")
+            msg = "user_id cannot be empty"
+            raise ValueError(msg)
 
         # Determine memory types based on query type
-        memory_types: Optional[list[MemoryType]] = None
+        memory_types: list[MemoryType] | None = None
         if query.query_type == KnowledgeQueryType.FACTUAL:
             # Factual queries prefer semantic memories (facts)
             memory_types = [MemoryType.SEMANTIC, MemoryType.PREFERENCE]
@@ -405,7 +411,7 @@ class KnowledgeSynthesizer:
                         "requested_user_id": user_id,
                         "memory_user_id": memory.user_id,
                         "memory_id": str(memory.memory_id),
-                        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                        "timestamp": datetime.now(tz=UTC).isoformat(),
                     },
                 )
 
@@ -441,6 +447,7 @@ class KnowledgeSynthesizer:
             >>> patterns = synthesizer.detect_patterns(memories, query)
             >>> for pattern in patterns:
             ...     print(f"{pattern.pattern_type}: {pattern.description}")
+
         """
         if not memories:
             return []
@@ -484,6 +491,7 @@ class KnowledgeSynthesizer:
             >>> synthesizer = KnowledgeSynthesizer(memory_retriever)
             >>> stats = synthesizer.aggregate_statistics(memories, query)
             >>> print(f"Total count: {stats.get('total_count', 0)}")
+
         """
         if not memories:
             return {"total_count": 0}
@@ -561,6 +569,7 @@ class KnowledgeSynthesizer:
             >>> synthesizer = KnowledgeSynthesizer(memory_retriever)
             >>> answer = synthesizer.generate_answer(query, memories, patterns, stats)
             >>> print(answer.summary)
+
         """
         # Try LLM synthesis if enabled
         if self.use_llm_synthesis and self.llm_client is not None:
@@ -581,25 +590,27 @@ class KnowledgeSynthesizer:
                 else:
                     # If no event loop is running, use asyncio.run
                     return asyncio.run(
-                        self.synthesize_answer_with_llm(query, memories, patterns, statistics)
+                        self.synthesize_answer_with_llm(query, memories, patterns, statistics),
                     )
-            except Exception as e:
+            except Exception:
                 # Fall back to template-based generation on any error
                 pass
-
         # Template-based generation (fallback or default)
         # Route to specialized handler based on query type
         if query.query_type == KnowledgeQueryType.TEMPORAL:
             return self.handle_temporal_query(query, memories, statistics)
-        elif query.query_type == KnowledgeQueryType.AGGREGATION:
+        if query.query_type == KnowledgeQueryType.AGGREGATION:
             return self.handle_aggregation_query(query, memories, statistics)
-        elif query.query_type == KnowledgeQueryType.PATTERN:
+        if query.query_type == KnowledgeQueryType.PATTERN:
             return self.handle_pattern_query(query, memories, patterns, statistics)
-        else:  # FACTUAL
-            return self.handle_factual_query(query, memories, statistics)
+        # FACTUAL
+        return self.handle_factual_query(query, memories, statistics)
 
     def handle_temporal_query(
-        self, query: KnowledgeQuery, memories: list[Memory], statistics: dict[str, Any]
+        self,
+        query: KnowledgeQuery,
+        memories: list[Memory],
+        statistics: dict[str, Any],
     ) -> KnowledgeAnswer:
         """Handle temporal queries (when, how long ago, last time).
 
@@ -621,6 +632,7 @@ class KnowledgeSynthesizer:
         Example:
             >>> answer = synthesizer.handle_temporal_query(query, memories, stats)
             >>> print(f"Last occurrence: {answer.summary}")
+
         """
         # Sort memories by timestamp (most recent first)
         sorted_memories = sorted(memories, key=lambda m: m.timestamp, reverse=True)
@@ -647,7 +659,10 @@ class KnowledgeSynthesizer:
         )
 
     def handle_aggregation_query(
-        self, query: KnowledgeQuery, memories: list[Memory], statistics: dict[str, Any]
+        self,
+        query: KnowledgeQuery,
+        memories: list[Memory],
+        statistics: dict[str, Any],
     ) -> KnowledgeAnswer:
         """Handle aggregation queries (who most, what most, how many).
 
@@ -669,6 +684,7 @@ class KnowledgeSynthesizer:
         Example:
             >>> answer = synthesizer.handle_aggregation_query(query, memories, stats)
             >>> print(f"Most frequent: {answer.summary}")
+
         """
         # Generate aggregation summary
         summary = self._generate_aggregation_summary(query, memories, statistics)
@@ -719,6 +735,7 @@ class KnowledgeSynthesizer:
         Example:
             >>> answer = synthesizer.handle_pattern_query(query, memories, patterns, stats)
             >>> print(f"Pattern: {answer.summary}")
+
         """
         # Generate pattern summary
         summary = self._generate_pattern_summary(query, patterns, statistics)
@@ -752,7 +769,10 @@ class KnowledgeSynthesizer:
         )
 
     def handle_factual_query(
-        self, query: KnowledgeQuery, memories: list[Memory], statistics: dict[str, Any]
+        self,
+        query: KnowledgeQuery,
+        memories: list[Memory],
+        statistics: dict[str, Any],
     ) -> KnowledgeAnswer:
         """Handle factual queries (what is, who is, where is).
 
@@ -774,6 +794,7 @@ class KnowledgeSynthesizer:
         Example:
             >>> answer = synthesizer.handle_factual_query(query, memories, stats)
             >>> print(f"Fact: {answer.summary}")
+
         """
         # Generate factual summary
         summary = self._generate_factual_summary(query, memories, statistics)
@@ -796,7 +817,7 @@ class KnowledgeSynthesizer:
             statistics=statistics,
         )
 
-    def _detect_daily_pattern(self, memories: list[Memory]) -> Optional[Pattern]:
+    def _detect_daily_pattern(self, memories: list[Memory]) -> Pattern | None:
         """Detect daily patterns (same time of day).
 
         Args:
@@ -804,6 +825,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Pattern if detected, None otherwise
+
         """
         if len(memories) < 3:  # Need at least 3 occurrences
             return None
@@ -842,7 +864,7 @@ class KnowledgeSynthesizer:
             examples=examples,
         )
 
-    def _detect_weekly_pattern(self, memories: list[Memory]) -> Optional[Pattern]:
+    def _detect_weekly_pattern(self, memories: list[Memory]) -> Pattern | None:
         """Detect weekly patterns (same day of week).
 
         Args:
@@ -850,6 +872,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Pattern if detected, None otherwise
+
         """
         if len(memories) < 3:  # Need at least 3 occurrences
             return None
@@ -885,7 +908,7 @@ class KnowledgeSynthesizer:
             examples=examples,
         )
 
-    def _detect_monthly_pattern(self, memories: list[Memory]) -> Optional[Pattern]:
+    def _detect_monthly_pattern(self, memories: list[Memory]) -> Pattern | None:
         """Detect monthly patterns (same day of month).
 
         Args:
@@ -893,6 +916,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Pattern if detected, None otherwise
+
         """
         if len(memories) < 3:  # Need at least 3 occurrences
             return None
@@ -936,7 +960,9 @@ class KnowledgeSynthesizer:
         )
 
     def _compute_aggregation_stats(
-        self, memories: list[Memory], query: KnowledgeQuery
+        self,
+        memories: list[Memory],
+        query: KnowledgeQuery,
     ) -> dict[str, Any]:
         """Compute aggregation statistics for aggregation queries.
 
@@ -946,6 +972,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Dictionary of aggregation statistics
+
         """
         stats: dict[str, Any] = {}
 
@@ -991,6 +1018,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Confidence score (0.0-1.0)
+
         """
         # Start with query confidence
         confidence = query.confidence
@@ -1012,7 +1040,10 @@ class KnowledgeSynthesizer:
         return round(confidence, 2)
 
     def _calculate_temporal_confidence(
-        self, query: KnowledgeQuery, memories: list[Memory], statistics: dict[str, Any]
+        self,
+        query: KnowledgeQuery,
+        memories: list[Memory],
+        statistics: dict[str, Any],
     ) -> float:
         """Calculate confidence for temporal queries.
 
@@ -1029,6 +1060,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Confidence score (0.0-1.0)
+
         """
         if not memories:
             return 0.1  # Very low confidence with no data
@@ -1038,7 +1070,7 @@ class KnowledgeSynthesizer:
 
         # Factor 1: Recency boost (more recent = higher confidence)
         most_recent = max(memories, key=lambda m: m.timestamp)
-        days_ago = (datetime.now(tz=timezone.utc) - most_recent.timestamp).days
+        days_ago = (datetime.now(tz=UTC) - most_recent.timestamp).days
         if days_ago == 0:
             recency_boost = 0.15  # Today
         elif days_ago <= 7:
@@ -1071,7 +1103,10 @@ class KnowledgeSynthesizer:
         return round(confidence, 2)
 
     def _calculate_aggregation_confidence(
-        self, query: KnowledgeQuery, memories: list[Memory], statistics: dict[str, Any]
+        self,
+        query: KnowledgeQuery,
+        memories: list[Memory],
+        statistics: dict[str, Any],
     ) -> float:
         """Calculate confidence for aggregation queries.
 
@@ -1088,6 +1123,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Confidence score (0.0-1.0)
+
         """
         if not memories:
             return 0.1  # Very low confidence with no data
@@ -1150,6 +1186,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Confidence score (0.0-1.0)
+
         """
         if not patterns:
             return 0.2  # Low confidence with no patterns
@@ -1184,7 +1221,10 @@ class KnowledgeSynthesizer:
         return round(confidence, 2)
 
     def _calculate_factual_confidence(
-        self, query: KnowledgeQuery, memories: list[Memory], statistics: dict[str, Any]
+        self,
+        query: KnowledgeQuery,
+        memories: list[Memory],
+        statistics: dict[str, Any],
     ) -> float:
         """Calculate confidence for factual queries.
 
@@ -1201,6 +1241,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Confidence score (0.0-1.0)
+
         """
         if not memories:
             return 0.1  # Very low confidence with no data
@@ -1236,7 +1277,10 @@ class KnowledgeSynthesizer:
         return round(confidence, 2)
 
     def _generate_temporal_summary(
-        self, query: KnowledgeQuery, memories: list[Memory], statistics: dict[str, Any]
+        self,
+        query: KnowledgeQuery,
+        memories: list[Memory],
+        statistics: dict[str, Any],
     ) -> str:
         """Generate summary for temporal queries.
 
@@ -1247,13 +1291,14 @@ class KnowledgeSynthesizer:
 
         Returns:
             Natural language summary
+
         """
         if not memories:
             return "I don't have any information about that in my memory."
 
         # Get most recent memory
         most_recent = max(memories, key=lambda m: m.timestamp)
-        days_ago = (datetime.now(tz=timezone.utc) - most_recent.timestamp).days
+        days_ago = (datetime.now(tz=UTC) - most_recent.timestamp).days
 
         # Format time reference
         if days_ago == 0:
@@ -1293,7 +1338,10 @@ class KnowledgeSynthesizer:
         return summary
 
     def _generate_aggregation_summary(
-        self, query: KnowledgeQuery, memories: list[Memory], statistics: dict[str, Any]
+        self,
+        query: KnowledgeQuery,
+        memories: list[Memory],
+        statistics: dict[str, Any],
     ) -> str:
         """Generate summary for aggregation queries.
 
@@ -1304,6 +1352,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Natural language summary
+
         """
         if not memories:
             return "I don't have enough data to answer that question."
@@ -1328,7 +1377,10 @@ class KnowledgeSynthesizer:
         return f"You've done {action} {total_count} times"
 
     def _generate_pattern_summary(
-        self, query: KnowledgeQuery, patterns: list[Pattern], statistics: dict[str, Any]
+        self,
+        query: KnowledgeQuery,
+        patterns: list[Pattern],
+        statistics: dict[str, Any],
     ) -> str:
         """Generate summary for pattern queries.
 
@@ -1339,6 +1391,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Natural language summary
+
         """
         if not patterns:
             return "I haven't detected any clear patterns for that behavior yet."
@@ -1360,7 +1413,10 @@ class KnowledgeSynthesizer:
         return summary
 
     def _generate_factual_summary(
-        self, query: KnowledgeQuery, memories: list[Memory], statistics: dict[str, Any]
+        self,
+        query: KnowledgeQuery,
+        memories: list[Memory],
+        statistics: dict[str, Any],
     ) -> str:
         """Generate summary for factual queries.
 
@@ -1371,6 +1427,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Natural language summary
+
         """
         if not memories:
             return "I don't have that information in my memory."
@@ -1392,20 +1449,24 @@ class KnowledgeSynthesizer:
 
         Raises:
             RuntimeError: If LLM client not available
+
         """
         if self.llm_provider == "openai":
             if not OPENAI_AVAILABLE:
-                raise RuntimeError("OpenAI client not available. Install with: pip install openai")
+                msg = "OpenAI client not available. Install with: pip install openai"
+                raise RuntimeError(msg)
             self.llm_client = openai.OpenAI(api_key=self.llm_api_key)
         elif self.llm_provider == "anthropic":
             if not ANTHROPIC_AVAILABLE:
+                msg = "Anthropic client not available. Install with: pip install anthropic"
                 raise RuntimeError(
-                    "Anthropic client not available. Install with: pip install anthropic"
+                    msg,
                 )
             self.llm_client = anthropic.Anthropic(api_key=self.llm_api_key)
         else:
+            msg = f"Unsupported LLM provider: {self.llm_provider}. Supported: openai, anthropic"
             raise ValueError(
-                f"Unsupported LLM provider: {self.llm_provider}. Supported: openai, anthropic"
+                msg,
             )
 
     async def synthesize_answer_with_llm(
@@ -1439,6 +1500,7 @@ class KnowledgeSynthesizer:
             ...     query, memories, patterns, stats
             ... )
             >>> print(answer.summary)
+
         """
         # Build synthesis prompt
         prompt = self._build_synthesis_prompt(query, memories, patterns, statistics)
@@ -1457,30 +1519,29 @@ class KnowledgeSynthesizer:
 
                 # Create KnowledgeAnswer from LLM response
                 return self._create_answer_from_llm_response(
-                    parsed_response, query, memories, patterns, statistics
+                    parsed_response,
+                    query,
+                    memories,
+                    patterns,
+                    statistics,
                 )
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 if attempt == self.llm_max_retries - 1:
                     # Final attempt failed, fall back to template-based generation
                     return self.generate_answer(query, memories, patterns, statistics)
                 # Exponential backoff
                 await asyncio.sleep(0.1 * (2**attempt))
-
-            except (ValidationError, json.JSONDecodeError, KeyError):
                 if attempt == self.llm_max_retries - 1:
                     # Final attempt failed, fall back to template-based generation
                     return self.generate_answer(query, memories, patterns, statistics)
                 # Exponential backoff
                 await asyncio.sleep(0.1 * (2**attempt))
-
-            except Exception as e:
                 if attempt == self.llm_max_retries - 1:
                     # Final attempt failed, fall back to template-based generation
                     return self.generate_answer(query, memories, patterns, statistics)
                 # Exponential backoff
                 await asyncio.sleep(0.1 * (2**attempt))
-
         # Should never reach here, but fall back to template-based generation
         return self.generate_answer(query, memories, patterns, statistics)
 
@@ -1501,6 +1562,7 @@ class KnowledgeSynthesizer:
 
         Returns:
             Formatted prompt string
+
         """
         # System prompt
         system_prompt = """You are an expert knowledge synthesizer for a personal AI assistant.
@@ -1587,13 +1649,14 @@ Generate a natural language answer that directly addresses the query."""
 
         Raises:
             RuntimeError: If LLM call fails
+
         """
         if self.llm_provider == "openai":
             return await self._call_openai_synthesis(prompt)
-        elif self.llm_provider == "anthropic":
+        if self.llm_provider == "anthropic":
             return await self._call_anthropic_synthesis(prompt)
-        else:
-            raise ValueError(f"Unsupported LLM provider: {self.llm_provider}")
+        msg = f"Unsupported LLM provider: {self.llm_provider}"
+        raise ValueError(msg)
 
     async def _call_openai_synthesis(self, prompt: str) -> str:
         """Call OpenAI API for synthesis.
@@ -1603,6 +1666,7 @@ Generate a natural language answer that directly addresses the query."""
 
         Returns:
             LLM response text
+
         """
         loop = asyncio.get_running_loop()
         response = await loop.run_in_executor(
@@ -1615,7 +1679,11 @@ Generate a natural language answer that directly addresses the query."""
                 response_format={"type": "json_object"},
             ),
         )
-        return str(response.choices[0].message.content) if response and response.choices else ""[0].message.content
+        return (
+            str(response.choices[0].message.content)
+            if response and response.choices
+            else ""[0].message.content
+        )
 
     async def _call_anthropic_synthesis(self, prompt: str) -> str:
         """Call Anthropic API for synthesis.
@@ -1625,6 +1693,7 @@ Generate a natural language answer that directly addresses the query."""
 
         Returns:
             LLM response text
+
         """
         loop = asyncio.get_running_loop()
         response = await loop.run_in_executor(
@@ -1650,6 +1719,7 @@ Generate a natural language answer that directly addresses the query."""
         Raises:
             ValidationError: If response doesn't match schema
             json.JSONDecodeError: If response is not valid JSON
+
         """
         # Parse JSON
         response_data = json.loads(response_text)
@@ -1676,6 +1746,7 @@ Generate a natural language answer that directly addresses the query."""
 
         Returns:
             KnowledgeAnswer with LLM-generated summary
+
         """
         # Extract supporting memory IDs (top 5 most relevant)
         supporting_memories = [str(m.memory_id) for m in memories[:5]]

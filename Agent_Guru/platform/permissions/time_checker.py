@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.platform.permissions.time_checker
-Purpose: Enhanced time-based permission validation with timezone support
+"""Module: Agent_Guru.platform.permissions.time_checker
+Purpose: Enhanced time-based permission validation with timezone support.
 
 This module implements comprehensive time-based access control:
 - Time window validation (start-end hours)
@@ -21,15 +20,15 @@ Version: 1.0.0
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta, timezone
 from enum import Enum
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 class DayOfWeek(Enum):
     """Day of week enumeration."""
+
     MONDAY = 0
     TUESDAY = 1
     WEDNESDAY = 2
@@ -40,8 +39,7 @@ class DayOfWeek(Enum):
 
     @classmethod
     def from_string(cls, day_str: str) -> "DayOfWeek":
-        """
-        Convert day name string to DayOfWeek enum.
+        """Convert day name string to DayOfWeek enum.
 
         Args:
             day_str: Day name (case-insensitive)
@@ -51,6 +49,7 @@ class DayOfWeek(Enum):
 
         Raises:
             ValueError: If day name is invalid
+
         """
         day_map = {
             "monday": cls.MONDAY,
@@ -71,30 +70,27 @@ class DayOfWeek(Enum):
 
         normalized = day_str.lower().strip()
         if normalized not in day_map:
-            raise ValueError(
-                f"Invalid day name: {day_str}. "
-                f"Valid values: {list(day_map.keys())}"
-            )
+            msg = f"Invalid day name: {day_str}. Valid values: {list(day_map.keys())}"
+            raise ValueError(msg)
 
         return day_map[normalized]
 
 
 @dataclass
 class TimeWindow:
-    """
-    Time window with start and end times.
+    """Time window with start and end times.
 
     Supports:
     - Same-day windows: 09:00-17:00
     - Cross-midnight windows: 22:00-02:00
     - Full-day windows: 00:00-23:59
     """
+
     start_time: time
     end_time: time
 
     def contains(self, check_time: time) -> bool:
-        """
-        Check if time falls within window.
+        """Check if time falls within window.
 
         Time Complexity: O(1)
 
@@ -103,19 +99,18 @@ class TimeWindow:
 
         Returns:
             True if time is within window
+
         """
         # Handle cross-midnight windows (e.g., 22:00-02:00)
         if self.start_time > self.end_time:
             # Time is after start OR before end
             return check_time >= self.start_time or check_time <= self.end_time
-        else:
-            # Normal same-day window
-            return self.start_time <= check_time <= self.end_time
+        # Normal same-day window
+        return self.start_time <= check_time <= self.end_time
 
     @classmethod
     def from_string(cls, time_range: str) -> "TimeWindow":
-        """
-        Parse time range string into TimeWindow.
+        """Parse time range string into TimeWindow.
 
         Supported formats:
         - "09:00-17:00" (HH:MM-HH:MM)
@@ -130,6 +125,7 @@ class TimeWindow:
 
         Raises:
             ValueError: If format is invalid
+
         """
         try:
             start_str, end_str = time_range.split("-")
@@ -137,23 +133,25 @@ class TimeWindow:
             end_str = end_str.strip()
 
             # Pad single-digit hours with leading zero for fromisoformat
-            if ':' in start_str:
-                parts = start_str.split(':')
+            if ":" in start_str:
+                parts = start_str.split(":")
                 if len(parts[0]) == 1:
-                    start_str = '0' + start_str
+                    start_str = "0" + start_str
 
-            if ':' in end_str:
-                parts = end_str.split(':')
+            if ":" in end_str:
+                parts = end_str.split(":")
                 if len(parts[0]) == 1:
-                    end_str = '0' + end_str
+                    end_str = "0" + end_str
 
             start_time = time.fromisoformat(start_str)
             end_time = time.fromisoformat(end_str)
             return cls(start_time=start_time, end_time=end_time)
         except Exception as e:
+            msg = (
+                f"Invalid time range format: {time_range}. Expected format: HH:MM-HH:MM. Error: {e}"
+            )
             raise ValueError(
-                f"Invalid time range format: {time_range}. "
-                f"Expected format: HH:MM-HH:MM. Error: {e}"
+                msg,
             ) from e
 
     def __str__(self) -> str:
@@ -163,8 +161,7 @@ class TimeWindow:
 
 @dataclass
 class TimeRestriction:
-    """
-    Time-based access restriction with timezone support.
+    """Time-based access restriction with timezone support.
 
     Features:
     - Multiple day-of-week support
@@ -180,14 +177,15 @@ class TimeRestriction:
         ...     timezone_name="America/New_York"
         ... )
         >>> allowed = restriction.is_allowed(datetime.now())
+
     """
+
     days: list[DayOfWeek]
     time_windows: list[TimeWindow]
-    timezone_name: Optional[str] = None  # None = local timezone
+    timezone_name: str | None = None  # None = local timezone
 
-    def is_allowed(self, dt: Optional[datetime] = None) -> bool:
-        """
-        Check if datetime is within allowed time restrictions.
+    def is_allowed(self, dt: datetime | None = None) -> bool:
+        """Check if datetime is within allowed time restrictions.
 
         Time Complexity: O(d + w) where d=days, w=windows
         Space Complexity: O(1)
@@ -197,27 +195,28 @@ class TimeRestriction:
 
         Returns:
             True if time is allowed, False otherwise
+
         """
         if dt is None:
-            dt = datetime.now(tz=timezone.utc)
+            dt = datetime.now(tz=UTC)
 
         # Convert to target timezone if specified
         if self.timezone_name:
             try:
                 target_tz = self._get_timezone(self.timezone_name)
                 dt = dt.astimezone(target_tz)
-            except Exception as e:
-                logger.warning(
-                    f"Failed to convert to timezone {self.timezone_name}: {e}. "
-                    f"Using local timezone."
+            except Exception:
+                logger.exception(
+                    "Failed to convert to timezone %s. Using local timezone.",
+                    self.timezone_name,
                 )
-
         # Check day of week
         current_day = DayOfWeek(dt.weekday())
         if current_day not in self.days:
             logger.debug(
-                f"Time restriction: Day not allowed. "
-                f"Current: {current_day.name}, Allowed: {[d.name for d in self.days]}"
+                "Time restriction: Day not allowed. Current: %s, Allowed: %s",
+                current_day.name,
+                [d.name for d in self.days],
             )
             return False
 
@@ -226,23 +225,23 @@ class TimeRestriction:
         for window in self.time_windows:
             if window.contains(current_time):
                 logger.debug(
-                    f"Time restriction: Allowed. "
-                    f"Day: {current_day.name}, Time: {current_time.strftime('%H:%M')}, "
-                    f"Window: {window}"
+                    "Time restriction: Allowed. Day: %s, Time: %s, Window: %s",
+                    current_day.name,
+                    current_time.strftime("%H:%M"),
+                    window,
                 )
                 return True
 
         logger.debug(
-            f"Time restriction: Time not in any window. "
-            f"Current: {current_time.strftime('%H:%M')}, "
-            f"Windows: {[str(w) for w in self.time_windows]}"
+            "Time restriction: Time not in any window. Current: %s, Windows: %s",
+            current_time.strftime("%H:%M"),
+            [str(w) for w in self.time_windows],
         )
         return False
 
     @staticmethod
     def _get_timezone(tz_name: str) -> timezone:
-        """
-        Get timezone object from name.
+        """Get timezone object from name.
 
         Args:
             tz_name: Timezone name (e.g., "America/New_York", "UTC", "UTC+05:30")
@@ -252,23 +251,24 @@ class TimeRestriction:
 
         Raises:
             ValueError: If timezone name is invalid
+
         """
         # Handle UTC special case
         if tz_name.upper() == "UTC":
-            return timezone.utc
+            return UTC
 
         # Handle UTC offset format (e.g., "UTC+05:30", "UTC-08:00")
         if tz_name.upper().startswith("UTC"):
             offset_str = tz_name[3:]  # Remove "UTC" prefix
             if not offset_str:
-                return timezone.utc
+                return UTC
 
             # Parse offset
-            sign = 1 if offset_str[0] == '+' else -1
+            sign = 1 if offset_str[0] == "+" else -1
             offset_str = offset_str[1:]  # Remove sign
 
-            if ':' in offset_str:
-                hours, minutes = map(int, offset_str.split(':'))
+            if ":" in offset_str:
+                hours, minutes = map(int, offset_str.split(":"))
             else:
                 hours = int(offset_str)
                 minutes = 0
@@ -279,21 +279,22 @@ class TimeRestriction:
         # For named timezones, try to use zoneinfo (Python 3.9+)
         try:
             from zoneinfo import ZoneInfo
+
             return ZoneInfo(tz_name)
         except ImportError as e:
             # Fallback for Python < 3.9
-            logger.warning(
-                f"zoneinfo not available. Using UTC offset for {tz_name}. "
-                f"Install tzdata package for full timezone support."
+            logger.exception(
+                "zoneinfo not available. Using UTC offset for %s. "
+                "Install tzdata package for full timezone support.",
+                tz_name,
             )
-            return timezone.utc
-        except Exception as e:
-            raise ValueError(f"Invalid timezone name: {tz_name}. Error: {e}") from e
+            return UTC
+            msg = f"Invalid timezone name: {tz_name}. Error: {e}"
+            raise ValueError(msg) from e
 
     @classmethod
     def from_dict(cls, config: dict) -> "TimeRestriction":
-        """
-        Create TimeRestriction from configuration dictionary.
+        """Create TimeRestriction from configuration dictionary.
 
         Args:
             config: Configuration dict with keys:
@@ -306,6 +307,7 @@ class TimeRestriction:
 
         Raises:
             ValueError: If configuration is invalid
+
         """
         # Parse days
         days = [DayOfWeek.from_string(day) for day in config["days"]]
@@ -319,24 +321,17 @@ class TimeRestriction:
             # Multiple time ranges
             time_windows = [TimeWindow.from_string(h) for h in hours]
         else:
-            raise ValueError(
-                f"Invalid hours format: {hours}. "
-                f"Expected string or list of strings."
-            )
+            msg = f"Invalid hours format: {hours}. Expected string or list of strings."
+            raise ValueError(msg)
 
         # Get timezone (optional)
         timezone_name = config.get("timezone")
 
-        return cls(
-            days=days,
-            time_windows=time_windows,
-            timezone_name=timezone_name
-        )
+        return cls(days=days, time_windows=time_windows, timezone_name=timezone_name)
 
 
 class TimeChecker:
-    """
-    Time-based permission checker with multiple restriction support.
+    """Time-based permission checker with multiple restriction support.
 
     Features:
     - Multiple time restrictions (OR logic)
@@ -357,23 +352,23 @@ class TimeChecker:
         ...     })
         ... ])
         >>> allowed = checker.is_allowed()
+
     """
 
-    def __init__(self, restrictions: list[TimeRestriction]):
-        """
-        Initialize time checker.
+    def __init__(self, restrictions: list[TimeRestriction]) -> None:
+        """Initialize time checker.
 
         Args:
             restrictions: List of time restrictions (OR logic)
+
         """
         self.restrictions = restrictions
 
         if not restrictions:
             logger.warning("TimeChecker initialized with no restrictions (always allowed)")
 
-    def is_allowed(self, dt: Optional[datetime] = None) -> bool:
-        """
-        Check if datetime is allowed by any restriction.
+    def is_allowed(self, dt: datetime | None = None) -> bool:
+        """Check if datetime is allowed by any restriction.
 
         Time Complexity: O(n * (d + w)) where n=restrictions, d=days, w=windows
         Space Complexity: O(1)
@@ -383,47 +378,42 @@ class TimeChecker:
 
         Returns:
             True if allowed by any restriction, False otherwise
+
         """
         # No restrictions = always allowed
         if not self.restrictions:
             return True
 
         # Check each restriction (OR logic)
-        for restriction in self.restrictions:
-            if restriction.is_allowed(dt):
-                return True
-
-        return False
+        return any(restriction.is_allowed(dt) for restriction in self.restrictions)
 
     @classmethod
     def from_config_list(cls, config_list: list[dict]) -> "TimeChecker":
-        """
-        Create TimeChecker from list of configuration dictionaries.
+        """Create TimeChecker from list of configuration dictionaries.
 
         Args:
             config_list: List of time restriction configs
 
         Returns:
             TimeChecker instance
+
         """
-        restrictions = [
-            TimeRestriction.from_dict(config)
-            for config in config_list
-        ]
+        restrictions = [TimeRestriction.from_dict(config) for config in config_list]
         return cls(restrictions)
 
 
 # Convenience functions for common time restrictions
 
+
 def business_hours(timezone_name: str = "UTC") -> TimeRestriction:
-    """
-    Create business hours restriction (Mon-Fri, 9am-5pm).
+    """Create business hours restriction (Mon-Fri, 9am-5pm).
 
     Args:
         timezone_name: Timezone name
 
     Returns:
         TimeRestriction for business hours
+
     """
     return TimeRestriction(
         days=[
@@ -431,42 +421,42 @@ def business_hours(timezone_name: str = "UTC") -> TimeRestriction:
             DayOfWeek.TUESDAY,
             DayOfWeek.WEDNESDAY,
             DayOfWeek.THURSDAY,
-            DayOfWeek.FRIDAY
+            DayOfWeek.FRIDAY,
         ],
         time_windows=[TimeWindow.from_string("09:00-17:00")],
-        timezone_name=timezone_name
+        timezone_name=timezone_name,
     )
 
 
 def weekends(timezone_name: str = "UTC") -> TimeRestriction:
-    """
-    Create weekend restriction (Sat-Sun, all day).
+    """Create weekend restriction (Sat-Sun, all day).
 
     Args:
         timezone_name: Timezone name
 
     Returns:
         TimeRestriction for weekends
+
     """
     return TimeRestriction(
         days=[DayOfWeek.SATURDAY, DayOfWeek.SUNDAY],
         time_windows=[TimeWindow.from_string("00:00-23:59")],
-        timezone_name=timezone_name
+        timezone_name=timezone_name,
     )
 
 
 def night_hours(timezone_name: str = "UTC") -> TimeRestriction:
-    """
-    Create night hours restriction (every day, 10pm-6am).
+    """Create night hours restriction (every day, 10pm-6am).
 
     Args:
         timezone_name: Timezone name
 
     Returns:
         TimeRestriction for night hours
+
     """
     return TimeRestriction(
         days=list(DayOfWeek),  # All days
         time_windows=[TimeWindow.from_string("22:00-06:00")],
-        timezone_name=timezone_name
+        timezone_name=timezone_name,
     )

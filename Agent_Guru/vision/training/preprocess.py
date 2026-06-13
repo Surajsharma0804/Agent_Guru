@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.vision.training.preprocess
+"""Module: Agent_Guru.vision.training.preprocess
 Purpose: Dataset preprocessing for ArcFace training.
 
 Validates dataset structure, checks minimum image counts per identity,
@@ -23,7 +22,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
@@ -34,13 +32,14 @@ MIN_IMAGES_PER_IDENTITY: int = 50
 
 # Supported image extensions.
 _IMAGE_EXTENSIONS: frozenset[str] = frozenset(
-    {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"}
+    {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"},
 )
 
 
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class IdentityStats:
@@ -52,6 +51,7 @@ class IdentityStats:
         processed: Images successfully aligned and saved.
         skipped_no_face: Images skipped because no face was detected.
         skipped_error: Images skipped due to read/processing errors.
+
     """
 
     name: str
@@ -74,6 +74,7 @@ class PreprocessingReport:
         total_skipped_error: Images skipped due to errors.
         per_identity: Per-identity breakdown.
         warnings: Non-fatal warnings accumulated during preprocessing.
+
     """
 
     total_identities: int = 0
@@ -90,6 +91,7 @@ class PreprocessingReport:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def validate_dataset_structure(dataset_dir: str) -> tuple[bool, list[str]]:
     """Check that dataset_dir follows the expected layout.
 
@@ -102,6 +104,7 @@ def validate_dataset_structure(dataset_dir: str) -> tuple[bool, list[str]]:
         (is_valid, errors) — is_valid is True when at least one identity
         sub-directory containing at least one image file is found.
         errors is a list of human-readable problem descriptions.
+
     """
     errors: list[str] = []
     root = Path(dataset_dir)
@@ -123,9 +126,7 @@ def validate_dataset_structure(dataset_dir: str) -> tuple[bool, list[str]]:
     for identity_dir in identity_dirs:
         images = _list_images(identity_dir)
         if not images:
-            errors.append(
-                f"Identity '{identity_dir.name}' has no supported image files"
-            )
+            errors.append(f"Identity '{identity_dir.name}' has no supported image files")
         else:
             valid_identities += 1
 
@@ -147,6 +148,7 @@ def check_minimum_images(dataset_dir: str) -> dict[str, int]:
 
     Returns:
         Dict mapping identity name to the number of image files found.
+
     """
     root = Path(dataset_dir)
     counts: dict[str, int] = {}
@@ -170,8 +172,8 @@ def check_minimum_images(dataset_dir: str) -> dict[str, int]:
 def preprocess_dataset(
     dataset_dir: str,
     output_dir: str,
-    detector: Optional[object] = None,
-    aligner: Optional[object] = None,
+    detector: object | None = None,
+    aligner: object | None = None,
 ) -> PreprocessingReport:
     """Detect, align, and save faces from a raw dataset.
 
@@ -192,6 +194,7 @@ def preprocess_dataset(
 
     Returns:
         PreprocessingReport with full statistics.
+
     """
     report = PreprocessingReport()
     root = Path(dataset_dir)
@@ -221,9 +224,9 @@ def preprocess_dataset(
 
             try:
                 detections = _detector.detect(frame)
-            except Exception as exc:
+            except Exception:
                 stats.skipped_error += 1
-                logger.warning("Detection failed for %s: %s", img_path, exc)
+                logger.exception("Detection failed for %s: %s")
                 continue
 
             if not detections:
@@ -236,9 +239,9 @@ def preprocess_dataset(
 
             try:
                 aligned = _aligner.align(frame, detection)
-            except Exception as exc:
+            except Exception:
                 stats.skipped_error += 1
-                logger.warning("Alignment failed for %s: %s", img_path, exc)
+                logger.exception("Alignment failed for %s: %s")
                 continue
 
             out_path = out_identity_dir / img_path.name
@@ -278,18 +281,19 @@ def preprocess_dataset(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _list_images(directory: Path) -> list[Path]:
     """Return sorted list of image files in directory (non-recursive)."""
     return sorted(
-        p for p in directory.iterdir()
-        if p.is_file() and p.suffix.lower() in _IMAGE_EXTENSIONS
+        p for p in directory.iterdir() if p.is_file() and p.suffix.lower() in _IMAGE_EXTENSIONS
     )
 
 
-def _load_image(path: Path) -> Optional[np.ndarray]:
+def _load_image(path: Path) -> np.ndarray | None:
     """Load an image as a BGR uint8 numpy array."""
     try:
         import cv2  # type: ignore[import]
+
         img = cv2.imread(str(path))
         if img is None:
             return None
@@ -299,12 +303,13 @@ def _load_image(path: Path) -> Optional[np.ndarray]:
 
     # Fallback: try PIL
     try:
-        import numpy as np  # noqa: F811
+        import numpy as np
         from PIL import Image  # type: ignore[import]
+
         pil_img = Image.open(path).convert("RGB")
         rgb = np.array(pil_img, dtype=np.uint8)
         return rgb[:, :, ::-1]  # RGB → BGR
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -312,22 +317,25 @@ def _save_image(image: np.ndarray, path: Path) -> bool:
     """Save a BGR uint8 numpy array to disk."""
     try:
         import cv2  # type: ignore[import]
+
         return cv2.imwrite(str(path), image)
     except ImportError:
         pass
 
     try:
         from PIL import Image  # type: ignore[import]
+
         rgb = image[:, :, ::-1]  # BGR → RGB
         Image.fromarray(rgb).save(str(path))
         return True
-    except Exception as exc:
-        logger.error("Failed to save image to %s: %s", path, exc)
+    except Exception:
+        logger.exception("Failed to save image to %s: %s")
         return False
 
 
 def _select_largest(detections: list[object]) -> object:
     """Return the detection with the largest bounding-box area."""
+
     def _area(det: object) -> int:
         bbox = det.bbox if hasattr(det, "bbox") else det  # type: ignore[union-attr]
         _, _, w, h = bbox
@@ -340,15 +348,16 @@ def _select_largest(detections: list[object]) -> object:
 # Stubs for test / no-model mode
 # ---------------------------------------------------------------------------
 
+
 class _StubDetector:
     """Returns an empty detection list — simulates no-face scenario."""
 
-    def detect(self, frame: np.ndarray) -> list[object]:  # noqa: ARG002
+    def detect(self, frame: np.ndarray) -> list[object]:
         return []
 
 
 class _StubAligner:
     """Returns a blank 112x112 uint8 image."""
 
-    def align(self, frame: np.ndarray, detection: object) -> np.ndarray:  # noqa: ARG002
+    def align(self, frame: np.ndarray, detection: object) -> np.ndarray:
         return np.zeros((112, 112, 3), dtype=np.uint8)

@@ -1,6 +1,4 @@
-"""
-Custom exceptions for the Guru Deployment System.
-"""
+"""Custom exceptions for the Guru Deployment System."""
 
 
 class DeploymentError(Exception):

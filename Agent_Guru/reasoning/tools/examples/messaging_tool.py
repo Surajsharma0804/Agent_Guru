@@ -1,6 +1,4 @@
-"""
-Messaging tool for sending messages.
-"""
+"""Messaging tool for sending messages."""
 
 from typing import Any
 
@@ -48,6 +46,7 @@ class MessagingTool(Tool):
 
         Returns:
             Execution result
+
         """
         recipient = kwargs["recipient"]
         message = kwargs["message"]

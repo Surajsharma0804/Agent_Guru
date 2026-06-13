@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.platform.integration
-Purpose: Component integration clients for Platform Integration System
+"""Module: Agent_Guru.platform.integration
+Purpose: Component integration clients for Platform Integration System.
 
 This module provides client interfaces for integrating with other Agent_Guru
 components including Goal Manager, Memory System, Verifier System, and
@@ -59,43 +58,43 @@ from Agent_Guru.platform.integration.verifier_client import (
 )
 
 __all__ = [
+    "Counter",
+    "ErrorStatistics",
+    "Gauge",
     # Goal Manager
     "GoalManagerClient",
-    "TaskCompletionNotification",
-    "OperationResult",
-    "NotificationStatus",
+    # Graceful Shutdown
+    "GracefulShutdownManager",
+    "Histogram",
+    "ImprovementSuggestion",
+    "MemoryQueryResult",
     # Memory System
     "MemorySystemClient",
+    # Metrics
+    "MetricsRegistry",
+    "NotificationStatus",
     "OperationMetadata",
-    "MemoryQueryResult",
-    # Verifier
-    "VerifierClient",
-    "ValidationRequest",
-    "ValidationResult",
-    "ValidationStatus",
+    "OperationResult",
+    "OperationTracker",
+    "PerformanceMetrics",
     # Self-Improvement
     "SelfImprovementClient",
-    "PerformanceMetrics",
-    "ErrorStatistics",
-    "ImprovementSuggestion",
+    "ServiceEndpoint",
     # Service Discovery
     "ServiceRegistry",
-    "ServiceEndpoint",
     "ServiceStatus",
-    # Tracing
-    "Tracer",
+    "ShutdownPhase",
+    "ShutdownState",
     "Span",
     "SpanContext",
     "SpanManager",
-    # Metrics
-    "MetricsRegistry",
-    "Counter",
-    "Gauge",
-    "Histogram",
+    "TaskCompletionNotification",
+    # Tracing
+    "Tracer",
+    "ValidationRequest",
+    "ValidationResult",
+    "ValidationStatus",
+    # Verifier
+    "VerifierClient",
     "get_default_registry",
-    # Graceful Shutdown
-    "GracefulShutdownManager",
-    "ShutdownPhase",
-    "ShutdownState",
-    "OperationTracker",
 ]

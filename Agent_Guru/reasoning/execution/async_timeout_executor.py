@@ -1,5 +1,4 @@
-"""
-Async execution engine with timeout and cancellation support.
+"""Async execution engine with timeout and cancellation support.
 
 Performance Requirements:
 - Time Complexity: O(1) per action execution
@@ -19,10 +18,11 @@ Version: 1.0.0
 """
 
 import asyncio
+import contextlib
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -44,6 +44,7 @@ class AsyncExecutionResult:
         timed_out: Whether execution timed out
         partial_result: Partial result if available on timeout
         timestamp: When execution completed
+
     """
 
     success: bool
@@ -55,7 +56,7 @@ class AsyncExecutionResult:
     cancelled: bool = False
     timed_out: bool = False
     partial_result: Any | None = None
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -86,6 +87,7 @@ class AsyncTimeoutExecutor:
         >>> print(f"Success: {result.success}, Time: {result.execution_time}s")
         >>> # Cancel in-flight task
         >>> await executor.cancel_task(result.task_id)
+
     """
 
     def __init__(
@@ -101,9 +103,11 @@ class AsyncTimeoutExecutor:
 
         Raises:
             ValueError: If parameters are invalid
+
         """
         if default_timeout <= 0:
-            raise ValueError(f"Invalid default_timeout: {default_timeout}")
+            msg = f"Invalid default_timeout: {default_timeout}"
+            raise ValueError(msg)
 
         self.default_timeout = default_timeout
         self.enable_partial_results = enable_partial_results
@@ -135,6 +139,7 @@ class AsyncTimeoutExecutor:
 
         Raises:
             Never raises - all errors captured in AsyncExecutionResult
+
         """
         timeout = timeout or self.default_timeout
         task_id = str(uuid4())
@@ -143,7 +148,7 @@ class AsyncTimeoutExecutor:
         try:
             # Create task for execution
             task = asyncio.create_task(
-                self._execute_with_partial_tracking(tool_function, action.parameters, task_id)
+                self._execute_with_partial_tracking(tool_function, action.parameters, task_id),
             )
 
             # Track task for cancellation
@@ -163,18 +168,13 @@ class AsyncTimeoutExecutor:
                     task_id=task_id,
                 )
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Timeout - cancel task and return partial result
                 task.cancel()
-
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await task
-                except asyncio.CancelledError:
-                    pass
-
                 execution_time = time.perf_counter() - start_time
                 partial_result = self._partial_results.pop(task_id, None)
-
                 return AsyncExecutionResult(
                     success=False,
                     error={
@@ -189,12 +189,9 @@ class AsyncTimeoutExecutor:
                     timed_out=True,
                     partial_result=partial_result if self.enable_partial_results else None,
                 )
-
-            except asyncio.CancelledError:
                 # Cancelled by user
                 execution_time = time.perf_counter() - start_time
                 partial_result = self._partial_results.pop(task_id, None)
-
                 return AsyncExecutionResult(
                     success=False,
                     error={
@@ -209,7 +206,6 @@ class AsyncTimeoutExecutor:
                     cancelled=True,
                     partial_result=partial_result if self.enable_partial_results else None,
                 )
-
         except Exception as e:
             # Unexpected error
             execution_time = time.perf_counter() - start_time
@@ -225,7 +221,6 @@ class AsyncTimeoutExecutor:
                 action_id=action.action_id,
                 task_id=task_id,
             )
-
         finally:
             # Cleanup
             self._in_flight_tasks.pop(task_id, None)
@@ -249,10 +244,10 @@ class AsyncTimeoutExecutor:
 
         Raises:
             Exception: Any exception from tool_function
+
         """
         # Execute tool function
-        result = await tool_function(parameters)
-        return result
+        return await tool_function(parameters)
 
     def store_partial_result(self, task_id: str, partial_result: Any) -> None:
         """Store partial result for task (called by tool functions).
@@ -260,6 +255,7 @@ class AsyncTimeoutExecutor:
         Args:
             task_id: Task identifier
             partial_result: Partial result to store
+
         """
         self._partial_results[task_id] = partial_result
 
@@ -271,6 +267,7 @@ class AsyncTimeoutExecutor:
 
         Returns:
             True if task was cancelled, False if not found
+
         """
         task = self._in_flight_tasks.get(task_id)
         if task is None:
@@ -280,10 +277,8 @@ class AsyncTimeoutExecutor:
         task.cancel()
 
         # Wait for cancellation to complete
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
         return True
 
@@ -292,6 +287,7 @@ class AsyncTimeoutExecutor:
 
         Returns:
             Number of tasks cancelled
+
         """
         task_ids = list(self._in_flight_tasks.keys())
 
@@ -305,6 +301,7 @@ class AsyncTimeoutExecutor:
 
         Returns:
             List of task IDs
+
         """
         return list(self._in_flight_tasks.keys())
 
@@ -327,6 +324,7 @@ class AsyncTimeoutExecutor:
 
         Returns:
             AsyncExecutionResult with success/failure information
+
         """
         retries = 0
 
@@ -363,6 +361,7 @@ class AsyncExecutionController:
         >>> result = await controller.execute_async(action, async_tool_function)
         >>> # Cancel if needed
         >>> await controller.cancel_task(result.task_id)
+
     """
 
     def __init__(
@@ -375,6 +374,7 @@ class AsyncExecutionController:
         Args:
             default_timeout: Default timeout in seconds
             enable_partial_results: Whether to return partial results on timeout
+
         """
         self.executor = AsyncTimeoutExecutor(
             default_timeout=default_timeout,
@@ -396,6 +396,7 @@ class AsyncExecutionController:
 
         Returns:
             AsyncExecutionResult with success/failure information
+
         """
         return await self.executor.execute_async(action, tool_function, timeout)
 
@@ -416,6 +417,7 @@ class AsyncExecutionController:
 
         Returns:
             AsyncExecutionResult with success/failure information
+
         """
         return await self.executor.execute_with_retry(action, tool_function, timeout, max_retries)
 
@@ -427,6 +429,7 @@ class AsyncExecutionController:
 
         Returns:
             True if task was cancelled, False if not found
+
         """
         return await self.executor.cancel_task(task_id)
 
@@ -435,6 +438,7 @@ class AsyncExecutionController:
 
         Returns:
             Number of tasks cancelled
+
         """
         return await self.executor.cancel_all_tasks()
 
@@ -443,6 +447,7 @@ class AsyncExecutionController:
 
         Returns:
             List of task IDs
+
         """
         return self.executor.get_in_flight_tasks()
 
@@ -452,5 +457,6 @@ class AsyncExecutionController:
         Args:
             task_id: Task identifier
             partial_result: Partial result to store
+
         """
         self.executor.store_partial_result(task_id, partial_result)

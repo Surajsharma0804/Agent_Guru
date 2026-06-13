@@ -1,5 +1,4 @@
-"""
-Fast Intent Router - Ultra-low latency intent detection (<50ms P95)
+"""Fast Intent Router - Ultra-low latency intent detection (<50ms P95).
 
 Handles 80% of user commands through pattern matching, bypassing neural models.
 Competitive advantage: 4-6x faster than Alexa/Siri/Google for common commands.
@@ -24,10 +23,10 @@ import logging
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -56,6 +55,7 @@ class PatternMatch:
         quality: Quality of the match
         pattern: Matched pattern string
         latency_ms: Time taken for matching in milliseconds
+
     """
 
     intent_type: str
@@ -68,7 +68,8 @@ class PatternMatch:
     def __post_init__(self) -> None:
         """Validate match data."""
         if not 0.0 <= self.confidence <= 1.0:
-            raise ValueError(f"Confidence must be 0.0-1.0, got {self.confidence}")
+            msg = f"Confidence must be 0.0-1.0, got {self.confidence}"
+            raise ValueError(msg)
 
 
 @dataclass
@@ -80,11 +81,12 @@ class TrieNode:
         is_end: Whether this node marks end of a pattern
         intent_type: Intent type if this is an end node
         entity_positions: Positions of entities in the pattern
+
     """
 
     children: dict[str, "TrieNode"] = field(default_factory=dict)
     is_end: bool = False
-    intent_type: Optional[str] = None
+    intent_type: str | None = None
     entity_positions: dict[int, str] = field(default_factory=dict)
 
 
@@ -106,6 +108,7 @@ class FastIntentRouter:
         >>> print(match.intent_type)  # "set_timer"
         >>> print(match.entities)  # {"duration": Entity(...)}
         >>> print(match.latency_ms)  # <50ms
+
     """
 
     def __init__(self, cache_size: int = 10000, cache_ttl_seconds: int = 300) -> None:
@@ -116,6 +119,7 @@ class FastIntentRouter:
             cache_ttl_seconds: Time-to-live for cache entries in seconds
 
         Time Complexity: O(1)
+
         """
         self._trie_root = TrieNode()
         self._patterns: list[dict[str, Any]] = []
@@ -145,16 +149,19 @@ class FastIntentRouter:
 
         Time Complexity: O(m) where m = total pattern characters
         Space Complexity: O(m)
+
         """
         patterns_path = Path(patterns_file)
         if not patterns_path.exists():
-            raise FileNotFoundError(f"Patterns file not found: {patterns_file}")
+            msg = f"Patterns file not found: {patterns_file}"
+            raise FileNotFoundError(msg)
 
         with open(patterns_path) as f:
             data = yaml.safe_load(f)
 
         if not data or "patterns" not in data:
-            raise ValueError("Invalid patterns file: missing 'patterns' key")
+            msg = "Invalid patterns file: missing 'patterns' key"
+            raise ValueError(msg)
 
         self._patterns = data["patterns"]
         self._entity_patterns = data.get("entity_patterns", {})
@@ -212,10 +219,15 @@ class FastIntentRouter:
                     compiled.append((regex, pattern_data))
                 except re.error as e:
                     # Log error but continue with other patterns
-                    _logger.warning("Warning: Invalid regex for %s: %s - %s", entity_type, pattern, e)
+                    _logger.warning(
+                        "Warning: Invalid regex for %s: %s - %s",
+                        entity_type,
+                        pattern,
+                        e,
+                    )
             self._compiled_entity_regex[entity_type] = compiled
 
-    def match(self, input_text: str) -> Optional[PatternMatch]:
+    def match(self, input_text: str) -> PatternMatch | None:
         """Match input against patterns and extract entities.
 
         Args:
@@ -227,6 +239,7 @@ class FastIntentRouter:
         Time Complexity: O(n) where n = input length
         Space Complexity: O(1) (reuses preallocated structures)
         Latency Target: <50ms P95
+
         """
         start_time = time.perf_counter()
 
@@ -280,7 +293,7 @@ class FastIntentRouter:
 
         return pattern_match
 
-    def _traverse_trie(self, words: list[str]) -> Optional[tuple[str, dict[int, str]]]:
+    def _traverse_trie(self, words: list[str]) -> tuple[str, dict[int, str]] | None:
         """Traverse trie to find matching pattern.
 
         Args:
@@ -294,6 +307,7 @@ class FastIntentRouter:
         Note: Entities can span multiple words. When we hit an entity placeholder,
         we use greedy matching to consume words until we find the next pattern word
         or reach the end of input.
+
         """
         current = self._trie_root
         word_index = 0
@@ -346,7 +360,9 @@ class FastIntentRouter:
         return None
 
     def _extract_entities(
-        self, words: list[str], entity_positions: dict[int, str]
+        self,
+        words: list[str],
+        entity_positions: dict[int, str],
     ) -> dict[str, Entity]:
         """Extract entity values from input using compiled regex.
 
@@ -362,6 +378,7 @@ class FastIntentRouter:
         Note: This method needs to determine entity boundaries. For now, we use
         a simple heuristic: extract from entity position to end of input, then
         use regex patterns to find the actual entity value within that span.
+
         """
         entities: dict[str, Entity] = {}
 
@@ -406,6 +423,7 @@ class FastIntentRouter:
 
         Returns:
             Corresponding EntityType enum value
+
         """
         # Map common entity names to types
         type_mapping = {
@@ -422,7 +440,7 @@ class FastIntentRouter:
 
         return type_mapping.get(entity_name.lower(), EntityType.UNKNOWN)
 
-    def _parse_entity_value(self, value: str, entity_type: EntityType) -> Optional[Any]:
+    def _parse_entity_value(self, value: str, entity_type: EntityType) -> Any | None:
         """Parse entity value using type-specific regex patterns.
 
         Args:
@@ -433,6 +451,7 @@ class FastIntentRouter:
             Parsed value or None if parsing fails
 
         Time Complexity: O(p) where p = number of patterns for entity type
+
         """
         entity_type_str = entity_type.value.upper()
 
@@ -458,6 +477,7 @@ class FastIntentRouter:
 
         Returns:
             Formatted entity value
+
         """
         groups = match.groups()
 
@@ -471,19 +491,19 @@ class FastIntentRouter:
                     "seconds": seconds,
                     "total_seconds": minutes * 60 + seconds,
                 }
-            else:
-                # Single value with unit
-                value = int(groups[0])
-                unit = pattern_data["unit"]
-                return {"value": value, "unit": unit}
+            # Single value with unit
+            value = int(groups[0])
+            unit = pattern_data["unit"]
+            return {"value": value, "unit": unit}
 
         # Handle time formatting
         if "format" in pattern_data:
             if pattern_data["format"] == "12hour":
                 hour, minute = int(groups[0]), int(groups[1])
                 period = groups[2].upper() if len(groups) > 2 and groups[2] else "AM"
+
                 return {"hour": hour, "minute": minute, "period": period, "format": "12hour"}
-            elif pattern_data["format"] == "24hour":
+            if pattern_data["format"] == "24hour":
                 hour, minute = int(groups[0]), int(groups[1])
                 return {"hour": hour, "minute": minute, "format": "24hour"}
 
@@ -499,6 +519,7 @@ class FastIntentRouter:
 
         Returns:
             Confidence score (0.0-1.0)
+
         """
         # Base confidence for pattern match
         base_confidence = 0.95
@@ -513,7 +534,7 @@ class FastIntentRouter:
 
         return base_confidence
 
-    def _check_cache(self, input_text: str) -> Optional[PatternMatch]:
+    def _check_cache(self, input_text: str) -> PatternMatch | None:
         """Check cache for previous match result.
 
         Args:
@@ -523,6 +544,7 @@ class FastIntentRouter:
             Cached PatternMatch if found and not expired, None otherwise
 
         Time Complexity: O(1)
+
         """
         if input_text not in self._cache:
             return None
@@ -530,7 +552,7 @@ class FastIntentRouter:
         match, timestamp = self._cache[input_text]
 
         # Check if cache entry expired
-        if datetime.now(tz=timezone.utc) - timestamp > self._cache_ttl:
+        if datetime.now(tz=UTC) - timestamp > self._cache_ttl:
             del self._cache[input_text]
             return None
 
@@ -544,6 +566,7 @@ class FastIntentRouter:
             match: Match result to cache
 
         Time Complexity: O(1) amortized (LRU eviction)
+
         """
         # Evict oldest entry if cache full (simple FIFO, could use LRU)
         if len(self._cache) >= self._cache_size:
@@ -551,13 +574,14 @@ class FastIntentRouter:
             oldest_key = next(iter(self._cache))
             del self._cache[oldest_key]
 
-        self._cache[input_text] = (match, datetime.now(tz=timezone.utc))
+        self._cache[input_text] = (match, datetime.now(tz=UTC))
 
     def _update_metrics(self, latency_ms: float) -> None:
         """Update performance metrics.
 
         Args:
             latency_ms: Latency of this match operation
+
         """
         self._total_matches += 1
         self._total_latency_ms += latency_ms
@@ -573,6 +597,7 @@ class FastIntentRouter:
             - cache_hit_rate: Percentage of cache hits
             - average_latency_ms: Average latency per match
             - p95_latency_ms: 95th percentile latency (estimated)
+
         """
         cache_hit_rate = (
             self._cache_hits / (self._cache_hits + self._cache_misses)

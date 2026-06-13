@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.avatar.emotion.recognizer
+"""Module: Agent_Guru.avatar.emotion.recognizer
 Purpose: Production-grade emotion recognition with full 27-emotion support.
 
 Architecture:
@@ -22,7 +21,6 @@ from __future__ import annotations
 import logging
 import time
 from collections import deque
-from typing import Optional
 
 import numpy as np
 
@@ -43,12 +41,13 @@ logger = logging.getLogger("guruvision.avatar.emotion")
 # Valence/arousal → 27-emotion nearest-neighbour lookup
 # ---------------------------------------------------------------------------
 
+
 def _va_to_emotion(valence: float, arousal: float) -> str:
     """Map a valence/arousal point to the nearest 27-emotion category."""
     best_emotion = "neutral"
     best_dist = float("inf")
     for emotion, (v, a) in EMOTION_VALENCE_AROUSAL.items():
-        if emotion not in EMOTION_CATEGORIES_27 + ["neutral"]:
+        if emotion not in [*EMOTION_CATEGORIES_27, "neutral"]:
             continue
         dist = (valence - v) ** 2 + (arousal - a) ** 2
         if dist < best_dist:
@@ -61,14 +60,15 @@ def _va_to_emotion(valence: float, arousal: float) -> str:
 # Kalman filter for 1-D signal smoothing
 # ---------------------------------------------------------------------------
 
+
 class _KalmanFilter1D:
     """Minimal 1-D Kalman filter for smoothing confidence scores."""
 
     def __init__(self, process_noise: float = 0.01, measurement_noise: float = 0.1) -> None:
         self._q = process_noise
         self._r = measurement_noise
-        self._x = 0.5   # state estimate
-        self._p = 1.0   # error covariance
+        self._x = 0.5  # state estimate
+        self._p = 1.0  # error covariance
 
     def update(self, measurement: float) -> float:
         # Predict
@@ -76,13 +76,14 @@ class _KalmanFilter1D:
         # Update
         k = self._p / (self._p + self._r)
         self._x += k * (measurement - self._x)
-        self._p *= (1.0 - k)
+        self._p *= 1.0 - k
         return float(np.clip(self._x, 0.0, 1.0))
 
 
 # ---------------------------------------------------------------------------
 # Main recognizer
 # ---------------------------------------------------------------------------
+
 
 class EmotionRecognizer:
     """Production emotion recognizer supporting 27 human emotions.
@@ -100,6 +101,7 @@ class EmotionRecognizer:
         smoothing_window: EMA window size for temporal smoothing.
         use_gpu: Whether to attempt GPU acceleration.
         map_to_27: Whether to map 7-emotion output to 27-emotion taxonomy.
+
     """
 
     def __init__(
@@ -134,8 +136,9 @@ class EmotionRecognizer:
         if self._cv2_available:
             try:
                 import cv2  # type: ignore[import]
+
                 self._cascade = cv2.CascadeClassifier(
-                    cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+                    cv2.data.haarcascades + "haarcascade_frontalface_default.xml",
                 )
             except Exception as exc:
                 logger.debug("CascadeClassifier init failed: %s", exc)
@@ -145,7 +148,10 @@ class EmotionRecognizer:
 
         logger.info(
             "EmotionRecognizer initialized: model=%s gpu=%s deepface=%s fer=%s",
-            model, self._device, self._deepface_available, self._fer_available,
+            model,
+            self._device,
+            self._deepface_available,
+            self._fer_available,
         )
 
     # ------------------------------------------------------------------
@@ -164,6 +170,7 @@ class EmotionRecognizer:
         Returns:
             :class:`EmotionState` with 27-emotion category, confidence,
             valence, arousal, and FACS action units.
+
         """
         if frame is None or frame.size == 0:
             return EmotionState.neutral()
@@ -193,6 +200,7 @@ class EmotionRecognizer:
 
         Returns:
             Smoothed :class:`EmotionState`.
+
         """
         current = self.detect_emotion(frame)
         self._history.append(current)
@@ -206,9 +214,11 @@ class EmotionRecognizer:
 
         Raises:
             ValueError: If threshold is out of range.
+
         """
         if not 0.0 <= threshold <= 1.0:
-            raise ValueError(f"Threshold {threshold} out of [0.0, 1.0]")
+            msg = f"Threshold {threshold} out of [0.0, 1.0]"
+            raise ValueError(msg)
         self._confidence_threshold = threshold
 
     def get_emotion_scores(self, frame: np.ndarray) -> dict[str, float]:
@@ -219,13 +229,18 @@ class EmotionRecognizer:
 
         Returns:
             Dict mapping emotion name → confidence score [0.0, 1.0].
+
         """
         if not self._deepface_available:
             return dict.fromkeys(EMOTION_CATEGORIES, 0.0)
         try:
             from deepface import DeepFace  # type: ignore[import]
+
             results = DeepFace.analyze(
-                frame, actions=["emotion"], enforce_detection=False, silent=True
+                frame,
+                actions=["emotion"],
+                enforce_detection=False,
+                silent=True,
             )
             if isinstance(results, list):
                 results = self._select_primary_face(results)
@@ -240,7 +255,7 @@ class EmotionRecognizer:
     # Backend implementations
     # ------------------------------------------------------------------
 
-    def _detect_deepface(self, frame: np.ndarray) -> Optional[EmotionState]:
+    def _detect_deepface(self, frame: np.ndarray) -> EmotionState | None:
         """Run DeepFace emotion analysis."""
         try:
             from deepface import DeepFace  # type: ignore[import]
@@ -258,8 +273,7 @@ class EmotionRecognizer:
 
             dominant: str = results.get("dominant_emotion", "neutral").lower()
             scores: dict[str, float] = {
-                k.lower(): v / 100.0
-                for k, v in results.get("emotion", {}).items()
+                k.lower(): v / 100.0 for k, v in results.get("emotion", {}).items()
             }
             confidence = scores.get(dominant, 0.0)
 
@@ -268,11 +282,11 @@ class EmotionRecognizer:
 
             return self._build_state(dominant, confidence, scores)
 
-        except Exception as exc:
-            logger.warning("DeepFace detection failed: %s", exc)
+        except Exception:
+            logger.exception("DeepFace detection failed")
             return None
 
-    def _detect_fer(self, frame: np.ndarray) -> Optional[EmotionState]:
+    def _detect_fer(self, frame: np.ndarray) -> EmotionState | None:
         """Run FER library emotion analysis."""
         try:
             from fer import FER  # type: ignore[import]
@@ -309,7 +323,10 @@ class EmotionRecognizer:
 
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             faces = self._cascade.detectMultiScale(
-                gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
+                gray,
+                scaleFactor=1.1,
+                minNeighbors=5,
+                minSize=(30, 30),
             )
             if len(faces) == 0:
                 return EmotionState.neutral()
@@ -359,9 +376,7 @@ class EmotionRecognizer:
             action_units=aus,
         )
 
-    def _estimate_va_from_scores(
-        self, scores: dict[str, float]
-    ) -> tuple[float, float]:
+    def _estimate_va_from_scores(self, scores: dict[str, float]) -> tuple[float, float]:
         """Estimate valence/arousal from a weighted sum of emotion scores."""
         total_weight = sum(scores.values()) + 1e-9
         valence = 0.0
@@ -384,14 +399,12 @@ class EmotionRecognizer:
         for emotion in EMOTION_CATEGORIES:
             target = current.confidence if current.emotion == emotion else 0.0
             self._ema_scores[emotion] = (
-                self._ema_alpha * target
-                + (1.0 - self._ema_alpha) * self._ema_scores[emotion]
+                self._ema_alpha * target + (1.0 - self._ema_alpha) * self._ema_scores[emotion]
             )
 
         # Apply Kalman filter to each score
         smoothed_scores = {
-            e: self._kalman[e].update(self._ema_scores[e])
-            for e in EMOTION_CATEGORIES
+            e: self._kalman[e].update(self._ema_scores[e]) for e in EMOTION_CATEGORIES
         }
 
         # Select dominant emotion
@@ -422,10 +435,7 @@ class EmotionRecognizer:
         """Select the primary face (largest bounding box area)."""
         return max(
             results,
-            key=lambda r: (
-                r.get("region", {}).get("w", 0)
-                * r.get("region", {}).get("h", 0)
-            ),
+            key=lambda r: (r.get("region", {}).get("w", 0) * r.get("region", {}).get("h", 0)),
         )
 
     # ------------------------------------------------------------------
@@ -436,6 +446,7 @@ class EmotionRecognizer:
     def _check_deepface() -> bool:
         try:
             import deepface  # noqa: F401
+
             return True
         except ImportError as e:
             logger.debug("DeepFace not available: %s", e)
@@ -445,6 +456,7 @@ class EmotionRecognizer:
     def _check_fer() -> bool:
         try:
             import fer  # noqa: F401
+
             return True
         except ImportError as e:
             logger.debug("FER not available: %s", e)
@@ -454,6 +466,7 @@ class EmotionRecognizer:
     def _check_cv2() -> bool:
         try:
             import cv2  # noqa: F401
+
             return True
         except ImportError:
             return False
@@ -463,6 +476,7 @@ class EmotionRecognizer:
             return "cpu"
         try:
             import torch
+
             if torch.cuda.is_available():
                 logger.info("GPU acceleration enabled: %s", torch.cuda.get_device_name(0))
                 return "cuda"

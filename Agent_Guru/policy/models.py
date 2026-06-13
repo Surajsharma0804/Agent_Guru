@@ -1,5 +1,4 @@
-"""
-Data models for the Guru Policy Engine.
+"""Data models for the Guru Policy Engine.
 
 Defines all core data structures: Policy, Role, Principal, Resource,
 AccessDecision, EvaluationContext, and supporting types.
@@ -12,9 +11,11 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -58,6 +59,7 @@ class Principal:
     Attributes:
         id: Unique identifier for the principal.
         attributes: Arbitrary key-value attributes (department, clearance_level, etc.).
+
     """
 
     id: str
@@ -72,6 +74,7 @@ class Resource:
         id: Unique identifier for the resource.
         type: Resource type (file, application, network, etc.).
         attributes: Arbitrary key-value attributes (classification, owner, etc.).
+
     """
 
     id: str
@@ -97,6 +100,7 @@ class Policy:
         created_at: Creation timestamp.
         updated_at: Last update timestamp.
         active: Whether the policy is active.
+
     """
 
     id: str
@@ -145,13 +149,14 @@ class Role:
         parent_role_id: Optional parent role for hierarchy.
         permissions: List of permission strings granted by this role.
         created_at: Creation timestamp.
+
     """
 
     id: str
     name: str
     permissions: list[str]
     created_at: datetime
-    parent_role_id: Optional[str] = None
+    parent_role_id: str | None = None
 
 
 @dataclass
@@ -163,6 +168,7 @@ class EvaluationContext:
         resource: The target resource.
         action: The requested action.
         environment: Environmental attributes (time, location, system state).
+
     """
 
     principal: Principal
@@ -183,6 +189,7 @@ class EvaluationContext:
 
         Returns:
             Attribute value or None if not found.
+
         """
         parts = path.split(".", 1)
         if len(parts) < 2:
@@ -193,13 +200,13 @@ class EvaluationContext:
             if key == "id":
                 return self.principal.id
             return self.principal.attributes.get(key)
-        elif namespace == "resource":
+        if namespace == "resource":
             if key == "id":
                 return self.resource.id
             if key == "type":
                 return self.resource.type
             return self.resource.attributes.get(key)
-        elif namespace == "environment":
+        if namespace == "environment":
             return self.environment.get(key)
         return None
 
@@ -227,6 +234,7 @@ class AccessDecision:
         reason: Human-readable explanation.
         applicable_policies: IDs of policies that contributed to the decision.
         evaluation_time_ms: Time taken to evaluate in milliseconds.
+
     """
 
     effect: PolicyEffect
@@ -244,6 +252,7 @@ class EvaluatedPolicy:
         effect: The policy's effect.
         priority: The policy's priority.
         conditions_met: Whether the policy's conditions were satisfied.
+
     """
 
     policy_id: str
@@ -261,6 +270,7 @@ class PolicyDecision:
         winning_policy_id: ID of the policy that determined the outcome.
         conflicting_policies: IDs of all conflicting policies.
         resolution_strategy: Strategy used to resolve the conflict.
+
     """
 
     effect: PolicyEffect
@@ -285,6 +295,7 @@ class AuditRecord:
         context_hash: SHA256 of the evaluation context.
         evaluation_time_ms: Evaluation duration.
         decision_reason: Human-readable reason.
+
     """
 
     id: str
@@ -310,6 +321,7 @@ class CacheStats:
         evictions: Number of LRU evictions.
         size: Current number of entries.
         hit_rate: Fraction of requests served from cache.
+
     """
 
     hits: int
@@ -335,6 +347,7 @@ class TestCase:
         action: Test action.
         context: Additional context attributes.
         expected_effect: Expected policy effect.
+
     """
 
     name: str
@@ -354,6 +367,7 @@ class TestFailure:
         expected: Expected effect string.
         actual: Actual effect string.
         reason: Reason for the decision.
+
     """
 
     test_case: TestCase
@@ -370,6 +384,7 @@ class TestResults:
         passed: Number of passing test cases.
         failed: Number of failing test cases.
         failures: Details of each failure.
+
     """
 
     passed: int

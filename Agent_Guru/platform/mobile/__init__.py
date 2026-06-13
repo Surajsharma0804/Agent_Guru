@@ -1,5 +1,4 @@
-"""
-Mobile platform integration package.
+"""Mobile platform integration package.
 
 This package provides mobile-specific functionality including:
 - Background service management for always-on operation
@@ -18,10 +17,10 @@ from Agent_Guru.platform.mobile.background_service import (
 )
 
 __all__ = [
+    "BatteryUsageStats",
+    "BatteryUsageTracker",
     "MobileBackgroundService",
     "ServiceConfig",
     "ServiceState",
     "ThermalState",
-    "BatteryUsageStats",
-    "BatteryUsageTracker",
 ]

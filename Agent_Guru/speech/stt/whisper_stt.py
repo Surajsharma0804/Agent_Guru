@@ -2,18 +2,16 @@
 
 import time
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 from faster_whisper import WhisperModel
 
-from ..exceptions import GuruSpeechError
-from ..models import TranscriptionResult, TranscriptionSegment
+from Agent_Guru.speech.exceptions import GuruSpeechError
+from Agent_Guru.speech.models import TranscriptionResult, TranscriptionSegment
 
 
 class WhisperTranscriber:
-    """
-    Speech-to-text transcriber using OpenAI Whisper (faster-whisper).
+    """Speech-to-text transcriber using OpenAI Whisper (faster-whisper).
 
     Supports:
     - Multi-language transcription (8+ languages)
@@ -26,13 +24,12 @@ class WhisperTranscriber:
     def __init__(
         self,
         model_size: str = "base",
-        model_path: Optional[str] = None,
+        model_path: str | None = None,
         compute_type: str = "float32",
         beam_size: int = 5,
-        device: str = "cpu"
-    ):
-        """
-        Initialize Whisper transcriber.
+        device: str = "cpu",
+    ) -> None:
+        """Initialize Whisper transcriber.
 
         Args:
             model_size: Whisper model size ("tiny", "base", "small", "medium", "large")
@@ -40,13 +37,14 @@ class WhisperTranscriber:
             compute_type: Compute type for inference ("float32", "float16", "int8")
             beam_size: Beam size for decoding
             device: Device to run on ("cpu", "cuda")
+
         """
         self.model_size = model_size
         self.model_path = model_path
         self.compute_type = compute_type
         self.beam_size = beam_size
         self.device = device
-        self._model: Optional[WhisperModel] = None
+        self._model: WhisperModel | None = None
 
     def _load_model(self) -> WhisperModel:
         """Load Whisper model (lazy loading, synchronous).
@@ -73,7 +71,8 @@ class WhisperTranscriber:
                         compute_type=self.compute_type,
                     )
             except Exception as e:
-                raise GuruSpeechError(f"Failed to load Whisper model: {e}") from e
+                msg = f"Failed to load Whisper model: {e}"
+                raise GuruSpeechError(msg) from e
         return self._model
 
     async def load_model_async(self) -> None:
@@ -86,6 +85,7 @@ class WhisperTranscriber:
         if self._model is not None:
             return
         import asyncio
+
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, self._load_model)
 
@@ -93,10 +93,9 @@ class WhisperTranscriber:
         self,
         audio_data: np.ndarray,
         sample_rate: int,
-        language: Optional[str] = None
+        language: str | None = None,
     ) -> TranscriptionResult:
-        """
-        Transcribe audio to text.
+        """Transcribe audio to text.
 
         Args:
             audio_data: Audio as numpy array (float32, shape: (samples,))
@@ -105,9 +104,11 @@ class WhisperTranscriber:
 
         Returns:
             TranscriptionResult with text, language, confidence
+
         """
         if audio_data.size == 0:
-            raise GuruSpeechError("Empty audio data provided")
+            msg = "Empty audio data provided"
+            raise GuruSpeechError(msg)
 
         # Ensure audio is float32
         if audio_data.dtype != np.float32:
@@ -137,7 +138,9 @@ class WhisperTranscriber:
                     "YouTube, LeetCode, VS Code, GitHub, WhatsApp, "
                     "rupees, crore, lakh, Mumbai, Delhi, Bangalore, "
                     "Suraj, Priya, Rahul, Sharma, Kumar, Singh, Patel"
-                ) if language in (None, "en", "hi") else None,
+                )
+                if language in (None, "en", "hi")
+                else None,
             )
 
             # Convert generator to list
@@ -154,8 +157,8 @@ class WhisperTranscriber:
                         start_time=seg.start,
                         end_time=seg.end,
                         speaker_id=None,  # Diarization handled separately
-                        confidence=seg.avg_logprob if hasattr(seg, 'avg_logprob') else 1.0
-                    )
+                        confidence=seg.avg_logprob if hasattr(seg, "avg_logprob") else 1.0,
+                    ),
                 )
 
             # Calculate duration
@@ -165,7 +168,8 @@ class WhisperTranscriber:
             # Calculate average confidence
             avg_confidence = (
                 sum(seg.confidence for seg in transcription_segments) / len(transcription_segments)
-                if transcription_segments else 0.0
+                if transcription_segments
+                else 0.0
             )
 
             # Verify real-time factor <0.5
@@ -176,7 +180,7 @@ class WhisperTranscriber:
                 language=info.language,
                 confidence=avg_confidence,
                 segments=transcription_segments,
-                duration=audio_duration
+                duration=audio_duration,
             )
             # Expose Whisper's language detection probability so the orchestrator
             # can apply a confidence threshold and avoid wrong-language responses.
@@ -185,15 +189,11 @@ class WhisperTranscriber:
             return result
 
         except Exception as e:
-            raise GuruSpeechError(f"Transcription failed: {e}") from e
+            msg = f"Transcription failed: {e}"
+            raise GuruSpeechError(msg) from e
 
-    def transcribe_file(
-        self,
-        file_path: str,
-        language: Optional[str] = None
-    ) -> TranscriptionResult:
-        """
-        Transcribe audio file.
+    def transcribe_file(self, file_path: str, language: str | None = None) -> TranscriptionResult:
+        """Transcribe audio file.
 
         Args:
             file_path: Path to audio file (WAV, MP3, FLAC, etc.)
@@ -201,10 +201,12 @@ class WhisperTranscriber:
 
         Returns:
             TranscriptionResult with text, language, confidence
+
         """
         path = Path(file_path)
         if not path.exists():
-            raise GuruSpeechError(f"Audio file not found: {file_path}")
+            msg = f"Audio file not found: {file_path}"
+            raise GuruSpeechError(msg)
 
         model = self._load_model()
 
@@ -217,7 +219,7 @@ class WhisperTranscriber:
                 language=language,
                 beam_size=self.beam_size,
                 word_timestamps=True,
-                vad_filter=True
+                vad_filter=True,
             )
 
             # Convert generator to list
@@ -234,8 +236,8 @@ class WhisperTranscriber:
                         start_time=seg.start,
                         end_time=seg.end,
                         speaker_id=None,
-                        confidence=seg.avg_logprob if hasattr(seg, 'avg_logprob') else 1.0
-                    )
+                        confidence=seg.avg_logprob if hasattr(seg, "avg_logprob") else 1.0,
+                    ),
                 )
 
             # Calculate duration
@@ -244,7 +246,7 @@ class WhisperTranscriber:
             # Get audio duration from segments or info
             if transcription_segments:
                 audio_duration = transcription_segments[-1].end_time
-            elif hasattr(info, 'duration'):
+            elif hasattr(info, "duration"):
                 audio_duration = info.duration
             else:
                 # Fallback: estimate from processing time
@@ -253,7 +255,8 @@ class WhisperTranscriber:
             # Calculate average confidence
             avg_confidence = (
                 sum(seg.confidence for seg in transcription_segments) / len(transcription_segments)
-                if transcription_segments else 0.0
+                if transcription_segments
+                else 0.0
             )
 
             return TranscriptionResult(
@@ -261,21 +264,21 @@ class WhisperTranscriber:
                 language=info.language,
                 confidence=avg_confidence,
                 segments=transcription_segments,
-                duration=audio_duration
+                duration=audio_duration,
             )
 
         except Exception as e:
-            raise GuruSpeechError(f"File transcription failed: {e}") from e
+            msg = f"File transcription failed: {e}"
+            raise GuruSpeechError(msg) from e
 
     def transcribe_with_diarization(
         self,
         audio_data: np.ndarray,
         sample_rate: int,
-        language: Optional[str] = None,
-        num_speakers: Optional[int] = None
+        language: str | None = None,
+        num_speakers: int | None = None,
     ) -> TranscriptionResult:
-        """
-        Transcribe audio with speaker diarization.
+        """Transcribe audio with speaker diarization.
 
         Args:
             audio_data: Audio as numpy array
@@ -285,12 +288,11 @@ class WhisperTranscriber:
 
         Returns:
             TranscriptionResult with speaker labels in segments
+
         """
         # First, get basic transcription
-        result = self.transcribe(audio_data, sample_rate, language)
+        return self.transcribe(audio_data, sample_rate, language)
 
         # TODO: Implement speaker diarization using pyannote.audio or similar
         # For now, return basic transcription
         # This would require additional dependencies and model loading
-
-        return result

@@ -5,17 +5,21 @@ to learn and replicate a user's voice characteristics for personalized
 text-to-speech synthesis.
 """
 
+import contextlib
 import logging
 import time
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import librosa
 import numpy as np
 
 from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embedding
+from Agent_Guru.speech.exceptions import GuruSpeechError
+from Agent_Guru.speech.models import VoiceModel
 
-from ..exceptions import GuruSpeechError
-from ..models import VoiceModel
+if TYPE_CHECKING:
+    from Agent_Guru.speech.models import PersonalityType
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +31,7 @@ class VoiceCloningError(GuruSpeechError):
 @dataclass
 class VoiceProfile:
     """Voice profile for cloning."""
+
     voice_id: str
     features: np.ndarray
     sample_count: int
@@ -38,8 +43,7 @@ class VoiceProfile:
 
 
 class VoiceCloner:
-    """
-    Voice cloning and personalization system.
+    """Voice cloning and personalization system.
 
     Implements voice enrollment, incremental learning, and personalized
     voice synthesis with target similarity >0.85.
@@ -52,12 +56,12 @@ class VoiceCloner:
     - Voice profile management
     """
 
-    def __init__(self, model_path: str | None = None):
-        """
-        Initialize voice cloner.
+    def __init__(self, model_path: str | None = None) -> None:
+        """Initialize voice cloner.
 
         Args:
             model_path: Path to voice cloning model (optional)
+
         """
         self.model_path = model_path
         self._voice_profiles: dict[str, VoiceProfile] = {}
@@ -79,10 +83,9 @@ class VoiceCloner:
         audio_samples: list[np.ndarray],
         voice_id: str,
         sample_rate: int = 16000,
-        metadata: dict | None = None
+        metadata: dict | None = None,
     ) -> VoiceModel:
-        """
-        Enroll a new voice from audio samples.
+        """Enroll a new voice from audio samples.
 
         Requires 5+ minutes of audio for quality voice cloning.
 
@@ -97,23 +100,28 @@ class VoiceCloner:
 
         Raises:
             VoiceCloningError: If enrollment fails or insufficient audio
+
         """
         try:
             if not audio_samples:
-                raise VoiceCloningError("No audio samples provided for enrollment")
+                msg = "No audio samples provided for enrollment"
+                raise VoiceCloningError(msg)
 
             # Calculate total duration
             total_duration = sum(len(audio) / sample_rate for audio in audio_samples)
 
             if total_duration < self.min_enrollment_duration:
-                raise VoiceCloningError(
+                msg = (
                     f"Insufficient audio for enrollment: {total_duration:.1f}s "
                     f"(minimum: {self.min_enrollment_duration:.1f}s)"
+                )
+                raise VoiceCloningError(
+                    msg,
                 )
 
             logger.info(
                 f"Enrolling voice '{voice_id}' with {len(audio_samples)} samples "
-                f"({total_duration:.1f}s total)"
+                f"({total_duration:.1f}s total)",
             )
 
             # Extract features from all samples
@@ -143,9 +151,12 @@ class VoiceCloner:
             avg_quality = float(np.mean(quality_scores))
 
             if avg_quality < self.min_quality_score:
-                raise VoiceCloningError(
+                msg = (
                     f"Audio quality too low: {avg_quality:.2f} "
                     f"(minimum: {self.min_quality_score:.2f})"
+                )
+                raise VoiceCloningError(
+                    msg,
                 )
 
             # Aggregate features (mean and std)
@@ -165,7 +176,7 @@ class VoiceCloner:
                 quality_score=avg_quality,
                 created_at=time.time(),
                 updated_at=time.time(),
-                metadata=metadata or {}
+                metadata=metadata or {},
             )
 
             # Store profile
@@ -178,17 +189,17 @@ class VoiceCloner:
                 voice_characteristics={
                     "quality_score": avg_quality,
                     "sample_count": float(len(audio_samples)),
-                    "feature_dim": float(len(voice_features))
+                    "feature_dim": float(len(voice_features)),
                 },
                 training_duration_seconds=total_duration,
                 similarity_score=avg_quality,
                 created_at=time.time(),
-                updated_at=time.time()
+                updated_at=time.time(),
             )
 
             logger.info(
                 f"Voice '{voice_id}' enrolled successfully "
-                f"(quality: {avg_quality:.2f}, samples: {len(audio_samples)})"
+                f"(quality: {avg_quality:.2f}, samples: {len(audio_samples)})",
             )
 
             return voice_model
@@ -196,16 +207,16 @@ class VoiceCloner:
         except Exception as e:
             if isinstance(e, VoiceCloningError):
                 raise
-            raise VoiceCloningError(f"Voice enrollment failed: {e}") from e
+            msg = f"Voice enrollment failed: {e}"
+            raise VoiceCloningError(msg) from e
 
     def update_voice_model(
         self,
         voice_id: str,
         new_audio_samples: list[np.ndarray],
-        sample_rate: int = 16000
+        sample_rate: int = 16000,
     ) -> VoiceModel:
-        """
-        Update existing voice model with new samples (incremental learning).
+        """Update existing voice model with new samples (incremental learning).
 
         Args:
             voice_id: ID of voice to update
@@ -217,16 +228,16 @@ class VoiceCloner:
 
         Raises:
             VoiceCloningError: If voice not found or update fails
+
         """
         try:
             if voice_id not in self._voice_profiles:
-                raise VoiceCloningError(f"Voice '{voice_id}' not found")
+                msg = f"Voice '{voice_id}' not found"
+                raise VoiceCloningError(msg)
 
             profile = self._voice_profiles[voice_id]
 
-            logger.info(
-                f"Updating voice '{voice_id}' with {len(new_audio_samples)} new samples"
-            )
+            logger.info("Updating voice '%s' with %s new samples", voice_id, len(new_audio_samples))
 
             # Extract features from new samples
             new_features = []
@@ -261,17 +272,11 @@ class VoiceCloner:
             new_combined = np.concatenate([new_mean, new_std])
 
             # Weighted update
-            updated_features = (
-                old_weight * profile.features +
-                new_weight * new_combined
-            )
+            updated_features = old_weight * profile.features + new_weight * new_combined
 
             # Update quality score
             new_quality = float(np.mean(quality_scores))
-            updated_quality = (
-                old_weight * profile.quality_score +
-                new_weight * new_quality
-            )
+            updated_quality = old_weight * profile.quality_score + new_weight * new_quality
 
             # Update profile
             profile.features = updated_features
@@ -287,17 +292,17 @@ class VoiceCloner:
                 voice_characteristics={
                     "quality_score": updated_quality,
                     "sample_count": float(profile.sample_count),
-                    "feature_dim": float(len(updated_features))
+                    "feature_dim": float(len(updated_features)),
                 },
                 training_duration_seconds=profile.total_duration,
                 similarity_score=updated_quality,
                 created_at=profile.created_at,
-                updated_at=time.time()
+                updated_at=time.time(),
             )
 
             logger.info(
                 f"Voice '{voice_id}' updated successfully "
-                f"(quality: {updated_quality:.2f}, total samples: {profile.sample_count})"
+                f"(quality: {updated_quality:.2f}, total samples: {profile.sample_count})",
             )
 
             return voice_model
@@ -305,7 +310,8 @@ class VoiceCloner:
         except Exception as e:
             if isinstance(e, VoiceCloningError):
                 raise
-            raise VoiceCloningError(f"Voice model update failed: {e}") from e
+            msg = f"Voice model update failed: {e}"
+            raise VoiceCloningError(msg) from e
 
     def synthesize_with_cloned_voice(
         self,
@@ -335,10 +341,12 @@ class VoiceCloner:
 
         Raises:
             VoiceCloningError: If synthesis fails.
+
         """
         try:
             if voice_id not in self._voice_profiles:
-                raise VoiceCloningError(f"Voice '{voice_id}' not found")
+                msg = f"Voice '{voice_id}' not found"
+                raise VoiceCloningError(msg)
 
             from Agent_Guru.speech.models import EmotionType, PersonalityType
             from Agent_Guru.speech.tts.tts_engine import CoquiTTSEngine
@@ -350,10 +358,8 @@ class VoiceCloner:
             # Map emotion string to EmotionType
             emotion_enum: EmotionType | None = None
             if emotion:
-                try:
+                with contextlib.suppress(ValueError):
                     emotion_enum = EmotionType(emotion.lower())
-                except ValueError:
-                    pass
 
             engine = CoquiTTSEngine()
             audio, _sr = engine.synthesize_to_array(
@@ -370,19 +376,18 @@ class VoiceCloner:
             )
             return audio
 
-        except VoiceCloningError:
+        except VoiceCloningError as exc:
             raise
-        except Exception as exc:
-            raise VoiceCloningError(f"Voice synthesis failed: {exc}") from exc
+            msg = f"Voice synthesis failed: {exc}"
+            raise VoiceCloningError(msg) from exc
 
     def compute_similarity(
         self,
         audio1: np.ndarray,
         audio2: np.ndarray,
-        sample_rate: int = 16000
+        sample_rate: int = 16000,
     ) -> float:
-        """
-        Compute similarity between two voice samples.
+        """Compute similarity between two voice samples.
 
         Target similarity >0.85 for successful voice cloning.
 
@@ -393,6 +398,7 @@ class VoiceCloner:
 
         Returns:
             Similarity score between 0.0 and 1.0
+
         """
         try:
             # Extract features from both samples
@@ -414,8 +420,8 @@ class VoiceCloner:
 
             return float(np.clip(similarity, 0.0, 1.0))
 
-        except Exception as e:
-            logger.error("Similarity computation failed: %s", e)
+        except Exception:
+            logger.exception("Similarity computation failed")
             return 0.0
 
     def is_voice_match(
@@ -438,24 +444,25 @@ class VoiceCloner:
 
         Returns:
             ``True`` if the voice embeddings are similar enough, ``False`` otherwise.
+
         """
         try:
             features1 = self._extract_voice_features(audio1, sample_rate)
             features2 = self._extract_voice_features(audio2, sample_rate)
             return verify_embedding(features1, features2, threshold)
-        except Exception as e:
-            logger.error("Voice match check failed: %s", e)
+        except Exception:
+            logger.exception("Voice match check failed")
             return False
 
     def get_voice_model(self, voice_id: str) -> VoiceModel | None:
-        """
-        Get voice model by ID.
+        """Get voice model by ID.
 
         Args:
             voice_id: Voice identifier
 
         Returns:
             VoiceModel if found, None otherwise
+
         """
         if voice_id not in self._voice_profiles:
             return None
@@ -468,32 +475,32 @@ class VoiceCloner:
             voice_characteristics={
                 "quality_score": profile.quality_score,
                 "sample_count": float(profile.sample_count),
-                "feature_dim": float(len(profile.features))
+                "feature_dim": float(len(profile.features)),
             },
             training_duration_seconds=profile.total_duration,
             similarity_score=profile.quality_score,
             created_at=profile.created_at,
-            updated_at=profile.updated_at
+            updated_at=profile.updated_at,
         )
 
     def list_voices(self) -> list[str]:
-        """
-        List all enrolled voice IDs.
+        """List all enrolled voice IDs.
 
         Returns:
             List of voice IDs
+
         """
         return list(self._voice_profiles.keys())
 
     def delete_voice(self, voice_id: str) -> bool:
-        """
-        Delete a voice profile.
+        """Delete a voice profile.
 
         Args:
             voice_id: Voice identifier
 
         Returns:
             True if deleted, False if not found
+
         """
         if voice_id in self._voice_profiles:
             del self._voice_profiles[voice_id]
@@ -502,8 +509,7 @@ class VoiceCloner:
         return False
 
     def save_voice_profile(self, voice_id: str, filepath: str) -> None:
-        """
-        Save voice profile to file.
+        """Save voice profile to file.
 
         Args:
             voice_id: Voice identifier
@@ -511,14 +517,17 @@ class VoiceCloner:
 
         Raises:
             VoiceCloningError: If voice not found or save fails
+
         """
         try:
             if voice_id not in self._voice_profiles:
-                raise VoiceCloningError(f"Voice '{voice_id}' not found")
+                msg = f"Voice '{voice_id}' not found"
+                raise VoiceCloningError(msg)
 
             profile = self._voice_profiles[voice_id]
 
             import json as _json
+
             profile_data = {
                 "voice_id": profile.voice_id,
                 "features": profile.features.tolist(),
@@ -528,7 +537,7 @@ class VoiceCloner:
                 "created_at": profile.created_at,
                 "updated_at": profile.updated_at,
             }
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 _json.dump(profile_data, f)
 
             logger.info("Voice profile '%s' saved to %s", voice_id, filepath)
@@ -536,11 +545,11 @@ class VoiceCloner:
         except Exception as e:
             if isinstance(e, VoiceCloningError):
                 raise
-            raise VoiceCloningError(f"Failed to save voice profile: {e}") from e
+            msg = f"Failed to save voice profile: {e}"
+            raise VoiceCloningError(msg) from e
 
     def load_voice_profile(self, filepath: str) -> str:
-        """
-        Load voice profile from file.
+        """Load voice profile from file.
 
         Args:
             filepath: Path to profile file
@@ -550,10 +559,12 @@ class VoiceCloner:
 
         Raises:
             VoiceCloningError: If load fails
+
         """
         try:
             import json as _json
-            with open(filepath, 'r', encoding='utf-8') as f:
+
+            with open(filepath, encoding="utf-8") as f:
                 profile_data = _json.load(f)
 
             profile = VoiceProfile(
@@ -575,15 +586,11 @@ class VoiceCloner:
         except Exception as e:
             if isinstance(e, VoiceCloningError):
                 raise
-            raise VoiceCloningError(f"Failed to load voice profile: {e}") from e
+            msg = f"Failed to load voice profile: {e}"
+            raise VoiceCloningError(msg) from e
 
-    def _extract_voice_features(
-        self,
-        audio: np.ndarray,
-        sample_rate: int
-    ) -> np.ndarray:
-        """
-        Extract voice features for cloning.
+    def _extract_voice_features(self, audio: np.ndarray, sample_rate: int) -> np.ndarray:
+        """Extract voice features for cloning.
 
         Args:
             audio: Audio data
@@ -591,24 +598,22 @@ class VoiceCloner:
 
         Returns:
             Feature vector
+
         """
         # Adjust n_fft for short audio
         audio_length = len(audio)
         n_fft = min(self.n_fft, audio_length)
-        if n_fft < 2:
-            n_fft = 2
-        else:
-            n_fft = 2 ** int(np.log2(n_fft))
+        n_fft = 2 if n_fft < 2 else 2 ** int(np.log2(n_fft))
 
         hop_length = min(self.hop_length, n_fft // 4)
-        if hop_length < 1:
-            hop_length = 1
+        hop_length = max(hop_length, 1)
 
         # Suppress warnings
         import warnings
+
         with warnings.catch_warnings():
-            warnings.filterwarnings('ignore', message='n_fft=.*is too large')
-            warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+            warnings.filterwarnings("ignore", message="n_fft=.*is too large")
+            warnings.filterwarnings("ignore", category=UserWarning, module="librosa")
 
             # Extract MFCC features
             mfcc = librosa.feature.mfcc(
@@ -616,7 +621,7 @@ class VoiceCloner:
                 sr=sample_rate,
                 n_mfcc=self.n_mfcc,
                 n_fft=n_fft,
-                hop_length=hop_length
+                hop_length=hop_length,
             )
 
             # Extract pitch features
@@ -624,7 +629,7 @@ class VoiceCloner:
                 y=audio,
                 sr=sample_rate,
                 n_fft=n_fft,
-                hop_length=hop_length
+                hop_length=hop_length,
             )
 
             # Extract spectral features
@@ -632,14 +637,14 @@ class VoiceCloner:
                 y=audio,
                 sr=sample_rate,
                 n_fft=n_fft,
-                hop_length=hop_length
+                hop_length=hop_length,
             )
 
             spectral_rolloff = librosa.feature.spectral_rolloff(
                 y=audio,
                 sr=sample_rate,
                 n_fft=n_fft,
-                hop_length=hop_length
+                hop_length=hop_length,
             )
 
         # Aggregate features
@@ -666,22 +671,19 @@ class VoiceCloner:
         rolloff_mean = np.mean(spectral_rolloff)
 
         # Combine all features
-        features = np.concatenate([
-            mfcc_mean,
-            mfcc_std,
-            [pitch_mean, pitch_std, centroid_mean, centroid_std, rolloff_mean]
-        ])
+        features = np.concatenate(
+            [
+                mfcc_mean,
+                mfcc_std,
+                [pitch_mean, pitch_std, centroid_mean, centroid_std, rolloff_mean],
+            ],
+        )
 
         result: np.ndarray = features.astype(np.float32)
         return result
 
-    def _compute_audio_quality(
-        self,
-        audio: np.ndarray,
-        sample_rate: int
-    ) -> float:
-        """
-        Compute audio quality score.
+    def _compute_audio_quality(self, audio: np.ndarray, sample_rate: int) -> float:
+        """Compute audio quality score.
 
         Args:
             audio: Audio data
@@ -689,6 +691,7 @@ class VoiceCloner:
 
         Returns:
             Quality score between 0.0 and 1.0
+
         """
         scores = []
 
@@ -703,7 +706,7 @@ class VoiceCloner:
         scores.append(duration_score)
 
         # 2. Energy check
-        rms = np.sqrt(np.mean(audio ** 2))
+        rms = np.sqrt(np.mean(audio**2))
         if rms > 0.05:
             energy_score = 1.0
         elif rms > 0.01:
@@ -714,10 +717,8 @@ class VoiceCloner:
 
         # 3. Clipping check
         max_val = np.max(np.abs(audio))
-        if max_val >= 0.99:
-            clipping_score = 0.5
-        else:
-            clipping_score = 1.0
+        clipping_score = 0.5 if max_val >= 0.99 else 1.0
+
         scores.append(clipping_score)
 
         # 4. Voice activity

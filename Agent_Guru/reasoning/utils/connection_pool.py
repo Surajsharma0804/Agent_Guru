@@ -1,5 +1,4 @@
-"""
-Connection pooling for database and Redis to improve performance.
+"""Connection pooling for database and Redis to improve performance.
 
 Connection pooling reuses existing connections instead of creating new ones
 for each request, reducing overhead by 50-90%.
@@ -24,7 +23,6 @@ Usage:
 import asyncio
 import functools
 import logging
-import platform
 import sqlite3
 from contextlib import asynccontextmanager
 from typing import Any, Optional
@@ -34,14 +32,13 @@ import aiohttp
 logger = logging.getLogger(__name__)
 
 # Global connection pools
-_db_pool: Optional['DatabasePool'] = None
-_redis_pool: Optional[Any] = None
-_http_pool: Optional['HTTPPool'] = None
+_db_pool: Optional["DatabasePool"] = None
+_redis_pool: Any | None = None
+_http_pool: Optional["HTTPPool"] = None
 
 
 class DatabasePool:
-    """
-    Connection pool for SQLite database with async support.
+    """Connection pool for SQLite database with async support.
 
     Features:
     - Reuses connections to avoid overhead
@@ -59,16 +56,16 @@ class DatabasePool:
         database: str,
         min_size: int = 5,
         max_size: int = 20,
-        timeout: float = 30.0
-    ):
-        """
-        Initialize database connection pool.
+        timeout: float = 30.0,
+    ) -> None:
+        """Initialize database connection pool.
 
         Args:
             database: Path to SQLite database file
             min_size: Minimum number of connections to maintain
             max_size: Maximum number of connections allowed
             timeout: Timeout for acquiring connection (seconds)
+
         """
         self.database = database
         self.min_size = min_size
@@ -80,7 +77,7 @@ class DatabasePool:
         self._lock = asyncio.Lock()
         self._initialized = False
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize the connection pool with minimum connections."""
         if self._initialized:
             return
@@ -89,7 +86,12 @@ class DatabasePool:
             if self._initialized:
                 return
 
-            logger.info("Initializing database pool: %s (min=%s, max=%s)", self.database, self.min_size, self.max_size)
+            logger.info(
+                "Initializing database pool: %s (min=%s, max=%s)",
+                self.database,
+                self.min_size,
+                self.max_size,
+            )
 
             # Create minimum connections
             for _ in range(self.min_size):
@@ -118,8 +120,7 @@ class DatabasePool:
 
     @asynccontextmanager
     async def acquire(self):
-        """
-        Acquire a connection from the pool.
+        """Acquire a connection from the pool.
 
         Yields:
             Database connection
@@ -128,6 +129,7 @@ class DatabasePool:
             async with pool.acquire() as conn:
                 cursor = conn.execute("SELECT * FROM table")
                 rows = cursor.fetchall()
+
         """
         if not self._initialized:
             await self.initialize()
@@ -158,7 +160,8 @@ class DatabasePool:
                             break
 
                     if asyncio.get_running_loop().time() - start_time > self.timeout:
-                        raise TimeoutError(f"Could not acquire connection within {self.timeout}s")
+                        msg = f"Could not acquire connection within {self.timeout}s"
+                        raise TimeoutError(msg)
 
             # Mark as in use
             async with self._lock:
@@ -177,7 +180,7 @@ class DatabasePool:
                         # Close excess connections
                         conn.close()
 
-    async def close(self):
+    async def close(self) -> None:
         """Close all connections in the pool."""
         async with self._lock:
             for conn in self._pool:
@@ -194,17 +197,16 @@ class DatabasePool:
     def stats(self) -> dict:
         """Get pool statistics."""
         return {
-            'pool_size': len(self._pool),
-            'in_use': len(self._in_use),
-            'total': len(self._pool) + len(self._in_use),
-            'max_size': self.max_size,
-            'utilization': len(self._in_use) / self.max_size * 100
+            "pool_size": len(self._pool),
+            "in_use": len(self._in_use),
+            "total": len(self._pool) + len(self._in_use),
+            "max_size": self.max_size,
+            "utilization": len(self._in_use) / self.max_size * 100,
         }
 
 
 class RedisPool:
-    """
-    Connection pool for Redis with async support.
+    """Connection pool for Redis with async support.
 
     Features:
     - Reuses connections to avoid overhead
@@ -219,15 +221,14 @@ class RedisPool:
 
     def __init__(
         self,
-        host: str = 'localhost',
+        host: str = "localhost",
         port: int = 6379,
         db: int = 0,
-        password: Optional[str] = None,
+        password: str | None = None,
         min_size: int = 5,
-        max_size: int = 20
-    ):
-        """
-        Initialize Redis connection pool.
+        max_size: int = 20,
+    ) -> None:
+        """Initialize Redis connection pool.
 
         Args:
             host: Redis host
@@ -236,6 +237,7 @@ class RedisPool:
             password: Redis password (optional)
             min_size: Minimum number of connections
             max_size: Maximum number of connections
+
         """
         self.host = host
         self.port = port
@@ -244,10 +246,10 @@ class RedisPool:
         self.min_size = min_size
         self.max_size = max_size
 
-        self._pool: Optional[Any] = None
+        self._pool: Any | None = None
         self._initialized = False
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize the Redis connection pool."""
         if self._initialized:
             return
@@ -255,27 +257,32 @@ class RedisPool:
         try:
             import aioredis
 
-            logger.info("Initializing Redis pool: %s:%s (min=%s, max=%s)", self.host, self.port, self.min_size, self.max_size)
+            logger.info(
+                "Initializing Redis pool: %s:%s (min=%s, max=%s)",
+                self.host,
+                self.port,
+                self.min_size,
+                self.max_size,
+            )
 
             self._pool = await aioredis.create_redis_pool(  # type: ignore[attr-defined]
-                f'redis://{self.host}:{self.port}/{self.db}',
+                f"redis://{self.host}:{self.port}/{self.db}",
                 password=self.password,
                 minsize=self.min_size,
                 maxsize=self.max_size,
-                encoding='utf-8'
+                encoding="utf-8",
             )
 
             self._initialized = True
             logger.info("Redis pool initialized")
 
-        except ImportError as e:
-            logger.warning("aioredis not installed, Redis pooling disabled: %s", e)
+        except ImportError:
+            logger.exception("aioredis not installed, Redis pooling disabled")
             self._pool = None
-        except Exception as e:
-            logger.error("Failed to initialize Redis pool: %s", e)
+            logger.exception("Failed to initialize Redis pool")
             self._pool = None
 
-    async def get(self, key: str) -> Optional[str]:
+    async def get(self, key: str) -> str | None:
         """Get value from Redis."""
         if not self._initialized:
             await self.initialize()
@@ -286,7 +293,7 @@ class RedisPool:
         result = await self._pool.get(key)
         return str(result) if result is not None else None
 
-    async def set(self, key: str, value: str, expire: Optional[int] = None):
+    async def set(self, key: str, value: str, expire: int | None = None) -> None:
         """Set value in Redis with optional expiration."""
         if not self._initialized:
             await self.initialize()
@@ -299,7 +306,7 @@ class RedisPool:
         else:
             await self._pool.set(key, value)
 
-    async def delete(self, key: str):
+    async def delete(self, key: str) -> None:
         """Delete key from Redis."""
         if not self._initialized:
             await self.initialize()
@@ -309,7 +316,7 @@ class RedisPool:
 
         await self._pool.delete(key)
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the Redis connection pool."""
         if self._pool is not None:
             self._pool.close()
@@ -321,10 +328,9 @@ class RedisPool:
 def get_db_pool(
     database: str = "reasoning.db",
     min_size: int = 5,
-    max_size: int = 20
+    max_size: int = 20,
 ) -> DatabasePool:
-    """
-    Get or create the global database connection pool.
+    """Get or create the global database connection pool.
 
     Args:
         database: Path to database file
@@ -333,6 +339,7 @@ def get_db_pool(
 
     Returns:
         DatabasePool instance
+
     """
     global _db_pool
 
@@ -343,15 +350,14 @@ def get_db_pool(
 
 
 async def get_redis_pool(
-    host: str = 'localhost',
+    host: str = "localhost",
     port: int = 6379,
     db: int = 0,
-    password: Optional[str] = None,
+    password: str | None = None,
     min_size: int = 5,
-    max_size: int = 20
+    max_size: int = 20,
 ) -> RedisPool:
-    """
-    Get or create the global Redis connection pool.
+    """Get or create the global Redis connection pool.
 
     Args:
         host: Redis host
@@ -363,6 +369,7 @@ async def get_redis_pool(
 
     Returns:
         RedisPool instance
+
     """
     global _redis_pool
 
@@ -374,8 +381,7 @@ async def get_redis_pool(
 
 
 class HTTPPool:
-    """
-    HTTP connection pool for LLM API calls with connection reuse.
+    """HTTP connection pool for LLM API calls with connection reuse.
 
     Features:
     - Reuses TCP connections to reduce latency
@@ -393,37 +399,37 @@ class HTTPPool:
         max_connections: int = 100,
         max_connections_per_host: int = 20,
         timeout: float = 30.0,
-        keepalive_timeout: float = 60.0
-    ):
-        """
-        Initialize HTTP connection pool.
+        keepalive_timeout: float = 60.0,
+    ) -> None:
+        """Initialize HTTP connection pool.
 
         Args:
             max_connections: Maximum total connections
             max_connections_per_host: Maximum connections per host
             timeout: Request timeout in seconds
             keepalive_timeout: Keep-alive timeout in seconds
+
         """
         self.max_connections = max_connections
         self.max_connections_per_host = max_connections_per_host
         self.timeout = timeout
         self.keepalive_timeout = keepalive_timeout
 
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: aiohttp.ClientSession | None = None
         self._initialized = False
 
         # Statistics
         self._request_count = 0
         self._error_count = 0
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize the HTTP connection pool."""
         if self._initialized:
             return
 
         logger.info(
             f"Initializing HTTP pool: max_conn={self.max_connections}, "
-            f"max_per_host={self.max_connections_per_host}"
+            f"max_per_host={self.max_connections_per_host}",
         )
 
         # Create connector with connection pooling
@@ -432,28 +438,24 @@ class HTTPPool:
             limit_per_host=self.max_connections_per_host,
             ttl_dns_cache=300,  # Cache DNS for 5 minutes
             keepalive_timeout=self.keepalive_timeout,
-            enable_cleanup_closed=True
+            enable_cleanup_closed=True,
         )
 
         # Create timeout configuration
         timeout_config = aiohttp.ClientTimeout(
             total=self.timeout,
             connect=10.0,
-            sock_read=self.timeout
+            sock_read=self.timeout,
         )
 
         # Create session
-        self._session = aiohttp.ClientSession(
-            connector=connector,
-            timeout=timeout_config
-        )
+        self._session = aiohttp.ClientSession(connector=connector, timeout=timeout_config)
 
         self._initialized = True
         logger.info("HTTP pool initialized")
 
     async def get(self, url: str, **kwargs) -> aiohttp.ClientResponse:
-        """
-        Make GET request using pooled connection.
+        """Make GET request using pooled connection.
 
         Args:
             url: URL to request
@@ -461,24 +463,25 @@ class HTTPPool:
 
         Returns:
             Response object
+
         """
         if not self._initialized:
             await self.initialize()
 
         if self._session is None:
-            raise RuntimeError("HTTP session not initialized")
+            msg = "HTTP session not initialized"
+            raise RuntimeError(msg)
 
         try:
             self._request_count += 1
             return await self._session.get(url, **kwargs)
-        except Exception as e:
+        except Exception:
             self._error_count += 1
-            logger.error("HTTP GET error: %s", e)
+            logger.exception("HTTP GET error")
             raise
 
     async def post(self, url: str, **kwargs) -> aiohttp.ClientResponse:
-        """
-        Make POST request using pooled connection.
+        """Make POST request using pooled connection.
 
         Args:
             url: URL to request
@@ -486,24 +489,25 @@ class HTTPPool:
 
         Returns:
             Response object
+
         """
         if not self._initialized:
             await self.initialize()
 
         if self._session is None:
-            raise RuntimeError("HTTP session not initialized")
+            msg = "HTTP session not initialized"
+            raise RuntimeError(msg)
 
         try:
             self._request_count += 1
             return await self._session.post(url, **kwargs)
-        except Exception as e:
+        except Exception:
             self._error_count += 1
-            logger.error("HTTP POST error: %s", e)
+            logger.exception("HTTP POST error")
             raise
 
     async def request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
-        """
-        Make HTTP request using pooled connection.
+        """Make HTTP request using pooled connection.
 
         Args:
             method: HTTP method (GET, POST, etc.)
@@ -512,6 +516,7 @@ class HTTPPool:
 
         Returns:
             Response object
+
         """
         if not self._initialized:
             await self.initialize()
@@ -519,12 +524,12 @@ class HTTPPool:
         try:
             self._request_count += 1
             return await self._session.request(method, url, **kwargs)
-        except Exception as e:
+        except Exception:
             self._error_count += 1
-            logger.error("HTTP %s error: %s", method, e)
+            logger.exception("HTTP %s error: %s")
             raise
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the HTTP connection pool."""
         if self._session is not None:
             await self._session.close()
@@ -538,31 +543,29 @@ class HTTPPool:
         if self._session and self._session.connector:
             connector = self._session.connector
             connector_stats = {
-                'total_connections': len(connector._conns),
-                'acquired_connections': len(connector._acquired),
-                'acquired_per_host': {
-                    str(key): len(conns)
-                    for key, conns in connector._acquired_per_host.items()
-                }
+                "total_connections": len(connector._conns),
+                "acquired_connections": len(connector._acquired),
+                "acquired_per_host": {
+                    str(key): len(conns) for key, conns in connector._acquired_per_host.items()
+                },
             }
 
         return {
-            'request_count': self._request_count,
-            'error_count': self._error_count,
-            'error_rate': self._error_count / self._request_count if self._request_count > 0 else 0,
-            'max_connections': self.max_connections,
-            'max_per_host': self.max_connections_per_host,
-            **connector_stats
+            "request_count": self._request_count,
+            "error_count": self._error_count,
+            "error_rate": self._error_count / self._request_count if self._request_count > 0 else 0,
+            "max_connections": self.max_connections,
+            "max_per_host": self.max_connections_per_host,
+            **connector_stats,
         }
 
 
 def get_http_pool(
     max_connections: int = 100,
     max_connections_per_host: int = 20,
-    timeout: float = 30.0
+    timeout: float = 30.0,
 ) -> HTTPPool:
-    """
-    Get or create the global HTTP connection pool.
+    """Get or create the global HTTP connection pool.
 
     Args:
         max_connections: Maximum total connections
@@ -571,6 +574,7 @@ def get_http_pool(
 
     Returns:
         HTTPPool instance
+
     """
     global _http_pool
 
@@ -580,7 +584,7 @@ def get_http_pool(
     return _http_pool
 
 
-async def close_all_pools():
+async def close_all_pools() -> None:
     """Close all connection pools."""
     global _db_pool, _redis_pool, _http_pool
 
@@ -601,11 +605,8 @@ if __name__ == "__main__":
     # Example usage and benchmarking
     import time
 
-    async def benchmark_db_pool():
+    async def benchmark_db_pool() -> None:
         """Benchmark database pool performance."""
-        print("Database Connection Pool Benchmark")
-        print("=" * 80)
-
         pool = get_db_pool(":memory:")
         await pool.initialize()
 
@@ -620,11 +621,7 @@ if __name__ == "__main__":
             async with pool.acquire() as conn:
                 conn.execute("INSERT INTO test (value) VALUES (?)", (f"value_{i}",))  # nosec B608 — parameterized query, no injection risk
                 conn.commit()
-        pooled_time = time.perf_counter() - start
-
-        print(f"With pooling: {pooled_time*1000:.1f}ms for 100 operations")
-        print(f"Average: {pooled_time/100*1000:.2f}ms per operation")
-        print(f"Pool stats: {pool.stats()}")
+        time.perf_counter() - start
 
         await pool.close()
 

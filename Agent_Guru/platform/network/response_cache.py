@@ -1,8 +1,7 @@
-"""
-Module: agent_guru.platform.network.response_cache
+"""Module: agent_guru.platform.network.response_cache
 Purpose: HTTP response caching with LRU eviction and Cache-Control support
 Author: Agent Guru Team
-Date: 2026-02-26
+Date: 2026-02-26.
 
 Performance Requirements:
 - Time Complexity: O(1) for cache get/set operations
@@ -19,13 +18,13 @@ Design Decisions:
 """
 
 import asyncio
+import contextlib
 import hashlib
 import logging
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime
 from urllib.parse import urlparse
 
 # Configure structured logging
@@ -45,6 +44,7 @@ class CachedResponse:
         cached_at: Timestamp when response was cached
         expires_at: Timestamp when cache entry expires
         size: Size of cached response in bytes
+
     """
 
     body: bytes
@@ -63,6 +63,7 @@ class CachedResponse:
 
         Returns:
             True if expired, False otherwise
+
         """
         return time.time() >= self.expires_at
 
@@ -73,6 +74,7 @@ class CachedResponse:
 
         Returns:
             Seconds until expiration (0 if already expired)
+
         """
         ttl = self.expires_at - time.time()
         return max(0.0, ttl)
@@ -90,6 +92,7 @@ class CacheStatistics:
         total_size: Current cache size in bytes
         entry_count: Number of cached entries
         hit_rate: Cache hit rate (0.0-1.0)
+
     """
 
     hits: int = 0
@@ -107,6 +110,7 @@ class CacheStatistics:
 
         Returns:
             Hit rate as percentage (0.0-1.0)
+
         """
         total = self.hits + self.misses
         if total == 0:
@@ -147,9 +151,10 @@ class ResponseCache:
         ...     print(f"Cache hit! TTL: {cached.time_to_live()}s")
         >>> stats = cache.get_statistics()
         >>> print(f"Hit rate: {stats.hit_rate:.2%}")
+
     """
 
-    def __init__(self, max_size: int = 100 * 1024 * 1024):
+    def __init__(self, max_size: int = 100 * 1024 * 1024) -> None:
         """Initialize response cache.
 
         Args:
@@ -157,9 +162,11 @@ class ResponseCache:
 
         Raises:
             ValueError: If max_size is not positive
+
         """
         if max_size <= 0:
-            raise ValueError(f"max_size must be positive, got {max_size}")
+            msg = f"max_size must be positive, got {max_size}"
+            raise ValueError(msg)
 
         self.max_size = max_size
         self._cache: OrderedDict[str, CachedResponse] = OrderedDict()
@@ -170,14 +177,14 @@ class ResponseCache:
             "ResponseCache initialized",
             extra={
                 "max_size_mb": max_size / (1024 * 1024),
-            }
+            },
         )
 
     def _generate_cache_key(
         self,
         url: str,
         method: str = "GET",
-        headers: Optional[dict[str, str]] = None
+        headers: dict[str, str] | None = None,
     ) -> str:
         """Generate cache key from request parameters.
 
@@ -191,14 +198,15 @@ class ResponseCache:
 
         Returns:
             SHA-256 hash as cache key
+
         """
         # Normalize URL (remove fragment, sort query params)
         parsed = urlparse(url)
         normalized_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
         if parsed.query:
             # Sort query parameters for consistent caching
-            query_parts = sorted(parsed.query.split('&'))
-            normalized_url += '?' + '&'.join(query_parts)
+            query_parts = sorted(parsed.query.split("&"))
+            normalized_url += "?" + "&".join(query_parts)
 
         # Create cache key from method + URL
         key_data = f"{method.upper()}:{normalized_url}"
@@ -207,15 +215,15 @@ class ResponseCache:
         if headers:
             vary_headers = []
             for header, value in sorted(headers.items()):
-                if header.lower() in ('accept', 'accept-encoding', 'accept-language'):
+                if header.lower() in ("accept", "accept-encoding", "accept-language"):
                     vary_headers.append(f"{header}:{value}")
             if vary_headers:
-                key_data += ':' + ':'.join(vary_headers)
+                key_data += ":" + ":".join(vary_headers)
 
         # Generate SHA-256 hash
-        return hashlib.sha256(key_data.encode('utf-8')).hexdigest()
+        return hashlib.sha256(key_data.encode("utf-8")).hexdigest()
 
-    def _parse_cache_control(self, headers: dict[str, str]) -> tuple[bool, Optional[int]]:
+    def _parse_cache_control(self, headers: dict[str, str]) -> tuple[bool, int | None]:
         """Parse Cache-Control header for caching directives.
 
         Time Complexity: O(n) where n is header value length
@@ -226,28 +234,28 @@ class ResponseCache:
 
         Returns:
             Tuple of (is_cacheable, max_age_seconds)
+
         """
-        cache_control = headers.get('Cache-Control', '').lower()
+        cache_control = headers.get("Cache-Control", "").lower()
 
         # Check for no-cache or no-store directives
-        if 'no-cache' in cache_control or 'no-store' in cache_control:
+        if "no-cache" in cache_control or "no-store" in cache_control:
             return False, None
 
         # Extract max-age directive
         max_age = None
-        for directive in cache_control.split(','):
+        for directive in cache_control.split(","):
             directive = directive.strip()
-            if directive.startswith('max-age='):
-                try:
-                    max_age = int(directive.split('=')[1])
-                except (ValueError, IndexError):
-                    pass
+            if directive.startswith("max-age="):
+                with contextlib.suppress(ValueError, IndexError):
+                    max_age = int(directive.split("=")[1])
 
         # Check Expires header if no max-age
-        if max_age is None and 'Expires' in headers:
+        if max_age is None and "Expires" in headers:
             try:
                 from email.utils import parsedate_to_datetime
-                expires = parsedate_to_datetime(headers['Expires'])
+
+                expires = parsedate_to_datetime(headers["Expires"])
                 max_age = int((expires - datetime.now(expires.tzinfo)).total_seconds())
             except (ValueError, TypeError):
                 pass
@@ -262,8 +270,8 @@ class ResponseCache:
         self,
         url: str,
         method: str = "GET",
-        headers: Optional[dict[str, str]] = None
-    ) -> Optional[CachedResponse]:
+        headers: dict[str, str] | None = None,
+    ) -> CachedResponse | None:
         """Get cached response if available and not expired.
 
         Time Complexity: O(1) average case
@@ -276,6 +284,7 @@ class ResponseCache:
 
         Returns:
             Cached response or None if not found/expired
+
         """
         cache_key = self._generate_cache_key(url, method, headers)
 
@@ -289,7 +298,7 @@ class ResponseCache:
                         "url": url,
                         "method": method,
                         "cache_key": cache_key[:16],
-                    }
+                    },
                 )
                 return None
 
@@ -309,7 +318,7 @@ class ResponseCache:
                         "method": method,
                         "cached_at": datetime.fromtimestamp(cached.cached_at).isoformat(),
                         "expires_at": datetime.fromtimestamp(cached.expires_at).isoformat(),
-                    }
+                    },
                 )
                 return None
 
@@ -324,7 +333,7 @@ class ResponseCache:
                     "method": method,
                     "ttl": cached.time_to_live(),
                     "size": cached.size,
-                }
+                },
             )
 
             return cached
@@ -336,7 +345,7 @@ class ResponseCache:
         headers: dict[str, str],
         body: bytes,
         method: str = "GET",
-        ttl: Optional[int] = None
+        ttl: int | None = None,
     ) -> bool:
         """Cache response with TTL.
 
@@ -353,6 +362,7 @@ class ResponseCache:
 
         Returns:
             True if cached, False if not cacheable
+
         """
         # Only cache successful responses
         if not (200 <= status_code < 300):
@@ -361,7 +371,7 @@ class ResponseCache:
                 extra={
                     "url": url,
                     "status_code": status_code,
-                }
+                },
             )
             return False
 
@@ -372,8 +382,8 @@ class ResponseCache:
                 "Response not cacheable (Cache-Control)",
                 extra={
                     "url": url,
-                    "cache_control": headers.get('Cache-Control', ''),
-                }
+                    "cache_control": headers.get("Cache-Control", ""),
+                },
             )
             return False
 
@@ -393,7 +403,7 @@ class ResponseCache:
                     "url": url,
                     "size_mb": entry_size / (1024 * 1024),
                     "max_size_mb": self.max_size / (1024 * 1024),
-                }
+                },
             )
             return False
 
@@ -436,7 +446,7 @@ class ResponseCache:
                     "size": entry_size,
                     "total_size_mb": self._stats.total_size / (1024 * 1024),
                     "entry_count": self._stats.entry_count,
-                }
+                },
             )
 
             return True
@@ -449,11 +459,12 @@ class ResponseCache:
 
         Args:
             required_size: Size needed for new entry
+
         """
         # Evict until we have enough space
         while self._stats.total_size + required_size > self.max_size and self._cache:
             # Remove least recently used (first item)
-            cache_key, cached = self._cache.popitem(last=False)
+            _cache_key, cached = self._cache.popitem(last=False)
             self._stats.total_size -= cached.size
             self._stats.entry_count -= 1
             self._stats.evictions += 1
@@ -464,10 +475,10 @@ class ResponseCache:
                     "url": cached.url,
                     "size": cached.size,
                     "age": time.time() - cached.cached_at,
-                }
+                },
             )
 
-    async def invalidate(self, url_pattern: Optional[str] = None) -> int:
+    async def invalidate(self, url_pattern: str | None = None) -> int:
         """Invalidate cache entries matching URL pattern.
 
         Time Complexity: O(n) where n is number of cache entries
@@ -478,6 +489,7 @@ class ResponseCache:
 
         Returns:
             Number of entries invalidated
+
         """
         async with self._lock:
             if url_pattern is None:
@@ -488,10 +500,7 @@ class ResponseCache:
                 self._stats.entry_count = 0
                 self._stats.invalidations += count
 
-                logger.info(
-                    "Cache invalidated (all)",
-                    extra={"count": count}
-                )
+                logger.info("Cache invalidated (all)", extra={"count": count})
 
                 return count
 
@@ -513,7 +522,7 @@ class ResponseCache:
                 extra={
                     "pattern": url_pattern,
                     "count": len(keys_to_remove),
-                }
+                },
             )
 
             return len(keys_to_remove)
@@ -526,6 +535,7 @@ class ResponseCache:
 
         Returns:
             Number of entries removed
+
         """
         async with self._lock:
             current_time = time.time()
@@ -542,10 +552,7 @@ class ResponseCache:
                 self._stats.entry_count -= 1
 
             if keys_to_remove:
-                logger.debug(
-                    "Expired entries cleaned up",
-                    extra={"count": len(keys_to_remove)}
-                )
+                logger.debug("Expired entries cleaned up", extra={"count": len(keys_to_remove)})
 
             return len(keys_to_remove)
 
@@ -557,6 +564,7 @@ class ResponseCache:
 
         Returns:
             Cache statistics (copy)
+
         """
         return CacheStatistics(
             hits=self._stats.hits,
@@ -583,6 +591,7 @@ class ResponseCache:
 
         Returns:
             Current cache size
+
         """
         return self._stats.total_size
 
@@ -594,6 +603,7 @@ class ResponseCache:
 
         Returns:
             Number of entries
+
         """
         return self._stats.entry_count
 
@@ -605,5 +615,6 @@ class ResponseCache:
 
         Returns:
             Hit rate as percentage (0.0-1.0)
+
         """
         return self._stats.hit_rate

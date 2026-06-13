@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -39,8 +39,8 @@ def make_policy(
         resources=resources or ["*"],
         actions=actions or ["*"],
         conditions=conditions or {},
-        created_at=datetime.now(tz=timezone.utc),
-        updated_at=datetime.now(tz=timezone.utc),
+        created_at=datetime.now(tz=UTC),
+        updated_at=datetime.now(tz=UTC),
         active=active,
     )
 
@@ -63,7 +63,7 @@ def make_role(
         id=role_id,
         name=name,
         permissions=permissions or [],
-        created_at=datetime.now(tz=timezone.utc),
+        created_at=datetime.now(tz=UTC),
         parent_role_id=parent_role_id,
     )
 

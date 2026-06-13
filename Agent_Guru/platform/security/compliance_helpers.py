@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.security.compliance_helpers
-Purpose: Helper methods for compliance reporting
+"""Module: agent_guru.platform.security.compliance_helpers
+Purpose: Helper methods for compliance reporting.
 
 This module contains helper methods for:
 - SIEM-specific export formats
@@ -13,7 +12,7 @@ Version: 1.0.0
 """
 
 import socket
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 import structlog
@@ -29,8 +28,7 @@ def export_to_splunk(
     auth_token: str,
     batch_size: int = 1000,
 ) -> dict[str, Any]:
-    """
-    Export to Splunk HTTP Event Collector (HEC).
+    """Export to Splunk HTTP Event Collector (HEC).
 
     Args:
         entries: Audit log entries to export
@@ -40,6 +38,7 @@ def export_to_splunk(
 
     Returns:
         Export statistics
+
     """
     import requests
 
@@ -87,7 +86,7 @@ def export_to_splunk(
             response.raise_for_status()
             exported_count += len(batch)
         except Exception as e:
-            logger.error("splunk_export_failed", error=str(e), batch_size=len(batch))
+            logger.exception("splunk_export_failed", error=str(e), batch_size=len(batch))
             failed_count += len(batch)
 
     return {

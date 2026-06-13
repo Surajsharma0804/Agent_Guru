@@ -1,5 +1,4 @@
-"""
-Performance Tracker for Self-Improvement Engine.
+"""Performance Tracker for Self-Improvement Engine.
 
 Measures and tracks agent improvement over time with statistical rigor.
 Implements baseline calculation and improvement reporting.
@@ -22,7 +21,7 @@ Date: 2026-02-28
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -63,8 +62,7 @@ class AggregateMetrics:
 
 
 class PerformanceTracker:
-    """
-    Tracks agent performance metrics over time.
+    """Tracks agent performance metrics over time.
 
     Measures improvement by comparing baseline (first 10 tasks) to
     current performance. Provides statistical evidence of improvement.
@@ -86,24 +84,24 @@ class PerformanceTracker:
         ...     task_sequence_number=1
         ... )
         >>> metrics = tracker.get_current_metrics()
+
     """
 
     def __init__(self, pool: "ConnectionPool") -> None:
-        """
-        Initialize performance tracker.
+        """Initialize performance tracker.
 
         Args:
             pool: ConnectionPool for database access
 
         Raises:
             RuntimeError: If metrics table doesn't exist
+
         """
         self.pool = pool
         self._init_database()
 
     def _init_database(self) -> None:
-        """
-        Initialize database schema for metrics.
+        """Initialize database schema for metrics.
 
         Note: DatabaseSchema.create_schema() should be called first.
         This method only verifies the table exists.
@@ -116,12 +114,13 @@ class PerformanceTracker:
                 """
                 SELECT name FROM sqlite_master
                 WHERE type='table' AND name='metrics'
-            """
+            """,
             )
 
             if not cursor.fetchone():
+                msg = "Metrics table not found. Call DatabaseSchema.create_schema() first."
                 raise RuntimeError(
-                    "Metrics table not found. " "Call DatabaseSchema.create_schema() first."
+                    msg,
                 )
 
     def record_task_metrics(
@@ -136,8 +135,7 @@ class PerformanceTracker:
         hallucination_detected: bool,
         task_sequence_number: int,
     ) -> None:
-        """
-        Record metrics for a task execution.
+        """Record metrics for a task execution.
 
         Time Complexity: O(1) - single database insert
 
@@ -154,14 +152,16 @@ class PerformanceTracker:
 
         Raises:
             ValueError: If reasoning_quality not in [0.0, 1.0]
+
         """
         if not 0.0 <= reasoning_quality <= 1.0:
-            raise ValueError(f"Reasoning quality must be in [0.0, 1.0], got {reasoning_quality}")
+            msg = f"Reasoning quality must be in [0.0, 1.0], got {reasoning_quality}"
+            raise ValueError(msg)
 
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
-            now = datetime.now(tz=timezone.utc).isoformat()
+            now = datetime.now(tz=UTC).isoformat()
             metric_id = f"metric_{task_id}_{task_sequence_number}"
 
             cursor.execute(
@@ -193,13 +193,13 @@ class PerformanceTracker:
             conn.commit()
 
     def get_current_metrics(self) -> AggregateMetrics:
-        """
-        Get current aggregate metrics.
+        """Get current aggregate metrics.
 
         Time Complexity: O(n) where n is total tasks
 
         Returns:
             Aggregate metrics for all tasks
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -216,7 +216,7 @@ class PerformanceTracker:
                     MIN(timestamp) as start_time,
                     MAX(timestamp) as end_time
                 FROM metrics
-            """
+            """,
             )
 
             row = cursor.fetchone()
@@ -229,8 +229,8 @@ class PerformanceTracker:
                     tool_selection_rate=0.0,
                     hallucination_rate=0.0,
                     total_tasks=0,
-                    window_start=datetime.now(tz=timezone.utc),
-                    window_end=datetime.now(tz=timezone.utc),
+                    window_start=datetime.now(tz=UTC),
+                    window_end=datetime.now(tz=UTC),
                 )
 
             total, successes, avg_time, avg_reasoning, tool_correct, hallucinations, start, end = (
@@ -248,13 +248,12 @@ class PerformanceTracker:
                 tool_selection_rate=tool_selection_rate,
                 hallucination_rate=hallucination_rate,
                 total_tasks=total,
-                window_start=datetime.fromisoformat(start) if start else datetime.now(tz=timezone.utc),
-                window_end=datetime.fromisoformat(end) if end else datetime.now(tz=timezone.utc),
+                window_start=datetime.fromisoformat(start) if start else datetime.now(tz=UTC),
+                window_end=datetime.fromisoformat(end) if end else datetime.now(tz=UTC),
             )
 
     def get_baseline_metrics(self, baseline_size: int = 10) -> AggregateMetrics | None:
-        """
-        Get baseline metrics from first N tasks.
+        """Get baseline metrics from first N tasks.
 
         Time Complexity: O(n) where n is baseline_size
 
@@ -263,6 +262,7 @@ class PerformanceTracker:
 
         Returns:
             Aggregate metrics for baseline tasks, or None if insufficient data
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -306,13 +306,12 @@ class PerformanceTracker:
                 tool_selection_rate=tool_selection_rate,
                 hallucination_rate=hallucination_rate,
                 total_tasks=total,
-                window_start=datetime.fromisoformat(start) if start else datetime.now(tz=timezone.utc),
-                window_end=datetime.fromisoformat(end) if end else datetime.now(tz=timezone.utc),
+                window_start=datetime.fromisoformat(start) if start else datetime.now(tz=UTC),
+                window_end=datetime.fromisoformat(end) if end else datetime.now(tz=UTC),
             )
 
     def get_recent_metrics(self, window_size: int = 10) -> AggregateMetrics | None:
-        """
-        Get metrics from most recent N tasks.
+        """Get metrics from most recent N tasks.
 
         Time Complexity: O(n) where n is window_size
 
@@ -321,6 +320,7 @@ class PerformanceTracker:
 
         Returns:
             Aggregate metrics for recent tasks, or None if insufficient data
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -364,15 +364,16 @@ class PerformanceTracker:
                 tool_selection_rate=tool_selection_rate,
                 hallucination_rate=hallucination_rate,
                 total_tasks=total,
-                window_start=datetime.fromisoformat(start) if start else datetime.now(tz=timezone.utc),
-                window_end=datetime.fromisoformat(end) if end else datetime.now(tz=timezone.utc),
+                window_start=datetime.fromisoformat(start) if start else datetime.now(tz=UTC),
+                window_end=datetime.fromisoformat(end) if end else datetime.now(tz=UTC),
             )
 
     def calculate_improvement(
-        self, baseline_size: int = 10, recent_size: int = 10
+        self,
+        baseline_size: int = 10,
+        recent_size: int = 10,
     ) -> dict[str, float] | None:
-        """
-        Calculate improvement from baseline to recent performance.
+        """Calculate improvement from baseline to recent performance.
 
         Time Complexity: O(n) where n is baseline_size + recent_size
 
@@ -388,6 +389,7 @@ class PerformanceTracker:
             - tool_selection_improvement: Absolute improvement in tool selection
             - reasoning_quality_improvement: Absolute improvement in reasoning
             - relative_improvement: Relative improvement in success rate (%)
+
         """
         baseline = self.get_baseline_metrics(baseline_size)
         recent = self.get_recent_metrics(recent_size)
@@ -425,13 +427,11 @@ class PerformanceTracker:
             recent_error_rate = 1.0 - recent.success_rate
             error_reduction = baseline_error_rate - recent_error_rate
             relative_improvement = (
-                (error_reduction / baseline_error_rate * 100)
-                if baseline_error_rate > 0
-                else 0.0
+                (error_reduction / baseline_error_rate * 100) if baseline_error_rate > 0 else 0.0
             )
         else:
             # Standard relative improvement calculation
-            relative_improvement = (success_rate_improvement / baseline.success_rate * 100)
+            relative_improvement = success_rate_improvement / baseline.success_rate * 100
 
         return {
             "success_rate_improvement": round(success_rate_improvement, 4),
@@ -445,13 +445,13 @@ class PerformanceTracker:
         }
 
     def get_task_count(self) -> int:
-        """
-        Get total number of tasks recorded.
+        """Get total number of tasks recorded.
 
         Time Complexity: O(1)
 
         Returns:
             Number of tasks
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
@@ -460,10 +460,11 @@ class PerformanceTracker:
             return int(result[0]) if result else 0
 
     def calculate_statistical_significance(
-        self, baseline_size: int = 10, recent_size: int = 10
+        self,
+        baseline_size: int = 10,
+        recent_size: int = 10,
     ) -> dict[str, Any] | None:
-        """
-        Calculate statistical significance of improvement.
+        """Calculate statistical significance of improvement.
 
         Uses t-test to determine if improvement is statistically significant.
 
@@ -479,6 +480,7 @@ class PerformanceTracker:
             - p_value: P-value (< 0.05 indicates significance)
             - is_significant: Whether improvement is statistically significant
             - confidence_interval_95: 95% confidence interval for improvement
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()

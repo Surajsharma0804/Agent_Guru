@@ -1,5 +1,4 @@
-"""
-Feature Flags and A/B Testing Framework - Task 48.
+"""Feature Flags and A/B Testing Framework - Task 48.
 
 Provides feature flag management with gradual rollout and A/B testing
 for safe experimentation without full redeployment.
@@ -22,44 +21,45 @@ import hashlib
 import math
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Data models
 # ---------------------------------------------------------------------------
 
+
 class RolloutStrategy(str, Enum):
     """Feature flag rollout strategy."""
-    DISABLED = "disabled"       # 0% - feature off
-    CANARY = "canary"           # 1% - initial canary
-    EARLY_ADOPTERS = "early"    # 10% - early adopters
-    MAJORITY = "majority"       # 50% - majority rollout
-    FULL = "full"               # 100% - full rollout
-    CUSTOM = "custom"           # Custom percentage
+
+    DISABLED = "disabled"  # 0% - feature off
+    CANARY = "canary"  # 1% - initial canary
+    EARLY_ADOPTERS = "early"  # 10% - early adopters
+    MAJORITY = "majority"  # 50% - majority rollout
+    FULL = "full"  # 100% - full rollout
+    CUSTOM = "custom"  # Custom percentage
 
 
 @dataclass
 class FeatureFlag:
-    """
-    A feature flag with gradual rollout support.
+    """A feature flag with gradual rollout support.
 
     Rollout is deterministic per user_id using consistent hashing,
     ensuring the same user always gets the same variant.
     """
+
     name: str
     description: str
     enabled: bool = False
-    rollout_percentage: float = 0.0   # 0.0 to 100.0
+    rollout_percentage: float = 0.0  # 0.0 to 100.0
     strategy: RolloutStrategy = RolloutStrategy.DISABLED
-    created_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def is_enabled_for(self, user_id: str) -> bool:
-        """
-        Check if flag is enabled for a specific user.
+        """Check if flag is enabled for a specific user.
 
         Uses consistent hashing for deterministic assignment.
         Time Complexity: O(1)
@@ -69,6 +69,7 @@ class FeatureFlag:
 
         Returns:
             True if flag is enabled for this user
+
         """
         if not self.enabled:
             return False
@@ -79,14 +80,14 @@ class FeatureFlag:
 
         # Consistent hash: same user always gets same result
         hash_input = f"{self.name}:{user_id}"
-        hash_value = int(hashlib.md5(hash_input.encode(), usedforsecurity=False).hexdigest(), 16)  # noqa: S324
+        hash_value = int(hashlib.md5(hash_input.encode(), usedforsecurity=False).hexdigest(), 16)
         user_bucket = (hash_value % 10000) / 100.0  # 0.0 to 99.99
         return user_bucket < self.rollout_percentage
 
     def set_rollout(self, percentage: float) -> None:
         """Set rollout percentage and update strategy."""
         self.rollout_percentage = max(0.0, min(100.0, percentage))
-        self.updated_at = datetime.now(tz=timezone.utc)
+        self.updated_at = datetime.now(tz=UTC)
 
         if percentage == 0.0:
             self.strategy = RolloutStrategy.DISABLED
@@ -106,9 +107,9 @@ class FeatureFlag:
 # Feature Flag Manager
 # ---------------------------------------------------------------------------
 
+
 class FeatureFlagManager:
-    """
-    Manages feature flags with gradual rollout.
+    """Manages feature flags with gradual rollout.
 
     Supports:
     - Flag creation and management
@@ -140,13 +141,12 @@ class FeatureFlagManager:
         self._flags[name] = flag
         return flag
 
-    def get_flag(self, name: str) -> Optional[FeatureFlag]:
+    def get_flag(self, name: str) -> FeatureFlag | None:
         """Get a feature flag by name."""
         return self._flags.get(name)
 
     def is_enabled(self, name: str, user_id: str) -> bool:
-        """
-        Check if a feature is enabled for a user.
+        """Check if a feature is enabled for a user.
 
         Time Complexity: O(1)
 
@@ -156,6 +156,7 @@ class FeatureFlagManager:
 
         Returns:
             True if feature is enabled for this user
+
         """
         flag = self._flags.get(name)
         if flag is None:
@@ -163,8 +164,7 @@ class FeatureFlagManager:
         return flag.is_enabled_for(user_id)
 
     def set_rollout(self, name: str, percentage: float) -> bool:
-        """
-        Update rollout percentage for a flag.
+        """Update rollout percentage for a flag.
 
         Args:
             name: Feature flag name
@@ -172,11 +172,11 @@ class FeatureFlagManager:
 
         Returns:
             True if flag was found and updated
+
         """
         flag = self._flags.get(name)
         if flag is None:
             return False
-
 
         flag.enabled = percentage > 0.0
         flag.set_rollout(percentage)
@@ -196,19 +196,18 @@ class FeatureFlagManager:
 
     def get_enabled_flags(self, user_id: str) -> list[str]:
         """Return names of all flags enabled for a user."""
-        return [
-            name for name, flag in self._flags.items()
-            if flag.is_enabled_for(user_id)
-        ]
+        return [name for name, flag in self._flags.items() if flag.is_enabled_for(user_id)]
 
 
 # ---------------------------------------------------------------------------
 # A/B Testing Framework
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ExperimentVariant:
     """A variant in an A/B experiment."""
+
     name: str
     description: str
     traffic_percentage: float  # 0.0 to 100.0
@@ -218,6 +217,7 @@ class ExperimentVariant:
 @dataclass
 class ExperimentMetrics:
     """Metrics collected for an experiment variant."""
+
     variant_name: str
     impressions: int = 0
     conversions: int = 0
@@ -243,19 +243,19 @@ class ExperimentMetrics:
 @dataclass
 class Experiment:
     """An A/B experiment with multiple variants."""
+
     experiment_id: str
     name: str
     description: str
     variants: list[ExperimentVariant]
-    started_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    ended_at: Optional[datetime] = None
+    started_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
+    ended_at: datetime | None = None
     is_active: bool = True
-    winner: Optional[str] = None
+    winner: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def get_variant_for_user(self, user_id: str) -> ExperimentVariant:
-        """
-        Assign a user to a variant using consistent hashing.
+        """Assign a user to a variant using consistent hashing.
 
         Time Complexity: O(k) where k is number of variants
 
@@ -264,9 +264,10 @@ class Experiment:
 
         Returns:
             Assigned variant (deterministic per user)
+
         """
         hash_input = f"{self.experiment_id}:{user_id}"
-        hash_value = int(hashlib.md5(hash_input.encode(), usedforsecurity=False).hexdigest(), 16)  # noqa: S324
+        hash_value = int(hashlib.md5(hash_input.encode(), usedforsecurity=False).hexdigest(), 16)
         bucket = (hash_value % 10000) / 100.0  # 0.0 to 99.99
 
         cumulative = 0.0
@@ -285,8 +286,7 @@ class Experiment:
 
 
 class StatisticalAnalyzer:
-    """
-    Statistical significance testing for A/B experiments.
+    """Statistical significance testing for A/B experiments.
 
     Uses z-test for proportion comparison.
     Significance threshold: p < 0.05 (95% confidence).
@@ -299,8 +299,7 @@ class StatisticalAnalyzer:
         control: ExperimentMetrics,
         treatment: ExperimentMetrics,
     ) -> tuple[bool, float]:
-        """
-        Test if treatment is statistically significantly different from control.
+        """Test if treatment is statistically significantly different from control.
 
         Uses two-proportion z-test.
         Time Complexity: O(1)
@@ -311,6 +310,7 @@ class StatisticalAnalyzer:
 
         Returns:
             Tuple of (is_significant, p_value)
+
         """
         n1 = control.impressions
         n2 = treatment.impressions
@@ -324,7 +324,7 @@ class StatisticalAnalyzer:
         # Pooled proportion
         p_pool = (control.conversions + treatment.conversions) / (n1 + n2)
 
-        if p_pool == 0.0 or p_pool == 1.0:
+        if p_pool in {0.0, 1.0}:
             return False, 1.0
 
         # Standard error
@@ -350,11 +350,11 @@ class StatisticalAnalyzer:
         control: ExperimentMetrics,
         treatment: ExperimentMetrics,
     ) -> float:
-        """
-        Calculate relative improvement of treatment over control.
+        """Calculate relative improvement of treatment over control.
 
         Returns:
             Relative improvement (positive = treatment better)
+
         """
         if control.conversion_rate == 0.0:
             return 0.0
@@ -362,8 +362,7 @@ class StatisticalAnalyzer:
 
 
 class ABTestManager:
-    """
-    Manages A/B experiments with statistical significance testing.
+    """Manages A/B experiments with statistical significance testing.
 
     Supports:
     - Experiment creation with multiple variants
@@ -387,8 +386,7 @@ class ABTestManager:
         control_pct: float = 90.0,
         treatment_pct: float = 10.0,
     ) -> Experiment:
-        """
-        Create a new A/B experiment.
+        """Create a new A/B experiment.
 
         Args:
             name: Experiment name
@@ -398,6 +396,7 @@ class ABTestManager:
 
         Returns:
             Created experiment
+
         """
         experiment = Experiment(
             experiment_id=str(uuid.uuid4()),
@@ -415,9 +414,8 @@ class ABTestManager:
         }
         return experiment
 
-    def get_variant(self, experiment_name: str, user_id: str) -> Optional[str]:
-        """
-        Get the variant assigned to a user for an experiment.
+    def get_variant(self, experiment_name: str, user_id: str) -> str | None:
+        """Get the variant assigned to a user for an experiment.
 
         Time Complexity: O(k) where k is number of variants
 
@@ -427,6 +425,7 @@ class ABTestManager:
 
         Returns:
             Variant name, or None if experiment not found/inactive
+
         """
         experiment = self._experiments.get(experiment_name)
         if experiment is None or not experiment.is_active:
@@ -463,14 +462,14 @@ class ABTestManager:
         return dict(self._metrics.get(experiment_name, {}))
 
     def analyze(self, experiment_name: str) -> dict[str, Any]:
-        """
-        Analyze experiment results for statistical significance.
+        """Analyze experiment results for statistical significance.
 
         Args:
             experiment_name: Name of the experiment
 
         Returns:
             Analysis report with significance, improvement, and recommendation
+
         """
         metrics = self._metrics.get(experiment_name, {})
         control = metrics.get("control")
@@ -484,10 +483,7 @@ class ABTestManager:
 
         recommendation = "continue_testing"
         if is_significant:
-            if improvement > 0:
-                recommendation = "deploy_treatment"
-            else:
-                recommendation = "keep_control"
+            recommendation = "deploy_treatment" if improvement > 0 else "keep_control"
 
         return {
             "experiment_name": experiment_name,
@@ -509,12 +505,12 @@ class ABTestManager:
             "recommendation": recommendation,
         }
 
-    def conclude_experiment(self, experiment_name: str) -> Optional[str]:
-        """
-        Conclude an experiment and select a winner.
+    def conclude_experiment(self, experiment_name: str) -> str | None:
+        """Conclude an experiment and select a winner.
 
         Returns:
             Winner variant name, or None if no significant winner
+
         """
         analysis = self.analyze(experiment_name)
         experiment = self._experiments.get(experiment_name)
@@ -523,7 +519,7 @@ class ABTestManager:
             return None
 
         experiment.is_active = False
-        experiment.ended_at = datetime.now(tz=timezone.utc)
+        experiment.ended_at = datetime.now(tz=UTC)
 
         if analysis["recommendation"] == "deploy_treatment":
             experiment.winner = "treatment"

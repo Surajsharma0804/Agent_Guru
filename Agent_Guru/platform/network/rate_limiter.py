@@ -1,8 +1,7 @@
-"""
-Module: agent_guru.platform.network.rate_limiter
+"""Module: agent_guru.platform.network.rate_limiter
 Purpose: Token bucket rate limiting for network requests
 Author: Agent Guru Team
-Date: 2026-02-26
+Date: 2026-02-26.
 
 Performance Requirements:
 - Time Complexity: O(1) for rate limit checks
@@ -22,8 +21,7 @@ import logging
 import time
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -37,30 +35,35 @@ class RateLimitConfig:
         requests_per_hour: Maximum requests per hour (optional)
         burst_size: Maximum burst size (tokens in bucket)
         queue_size: Maximum queued requests (0 = no queuing)
+
     """
 
     requests_per_minute: int = 60
-    requests_per_hour: Optional[int] = None
-    burst_size: Optional[int] = None
+    requests_per_hour: int | None = None
+    burst_size: int | None = None
     queue_size: int = 100
 
     def __post_init__(self):
         """Validate configuration."""
         if self.requests_per_minute <= 0:
-            raise ValueError("requests_per_minute must be positive")
+            msg = "requests_per_minute must be positive"
+            raise ValueError(msg)
 
         if self.requests_per_hour is not None and self.requests_per_hour <= 0:
-            raise ValueError("requests_per_hour must be positive")
+            msg = "requests_per_hour must be positive"
+            raise ValueError(msg)
 
         if self.burst_size is None:
             # Default burst size is 2x rate per minute
             self.burst_size = self.requests_per_minute * 2
 
         if self.burst_size <= 0:
-            raise ValueError("burst_size must be positive")
+            msg = "burst_size must be positive"
+            raise ValueError(msg)
 
         if self.queue_size < 0:
-            raise ValueError("queue_size must be non-negative")
+            msg = "queue_size must be non-negative"
+            raise ValueError(msg)
 
 
 @dataclass
@@ -73,6 +76,7 @@ class RateLimitStatus:
         limit: Total limit per window
         service: Service name
         is_limited: Whether currently rate limited
+
     """
 
     remaining: int
@@ -85,12 +89,11 @@ class RateLimitStatus:
 class RateLimitExceededError(Exception):
     """Raised when rate limit is exceeded and queuing is disabled."""
 
-    def __init__(self, service: str, retry_after: float):
+    def __init__(self, service: str, retry_after: float) -> None:
         self.service = service
         self.retry_after = retry_after
         super().__init__(
-            f"Rate limit exceeded for service '{service}'. "
-            f"Retry after {retry_after:.1f} seconds."
+            f"Rate limit exceeded for service '{service}'. Retry after {retry_after:.1f} seconds.",
         )
 
 
@@ -113,20 +116,17 @@ class TokenBucket:
         >>> await bucket.acquire()  # Consumes 1 token
         >>> status = bucket.get_status()
         >>> print(f"Remaining: {status.remaining}")
+
     """
 
-    def __init__(
-        self,
-        capacity: int,
-        refill_rate: float,
-        name: str = "default"
-    ):
+    def __init__(self, capacity: int, refill_rate: float, name: str = "default") -> None:
         """Initialize token bucket.
 
         Args:
             capacity: Maximum tokens in bucket (burst size)
             refill_rate: Tokens added per second
             name: Bucket name for logging
+
         """
         self.capacity = capacity
         self.refill_rate = refill_rate
@@ -140,11 +140,12 @@ class TokenBucket:
         self._lock = asyncio.Lock()
 
         logger.debug(
-            f"TokenBucket '{name}' initialized",
+            "TokenBucket '%s' initialized",
+            name,
             extra={
                 "capacity": capacity,
                 "refill_rate": refill_rate,
-            }
+            },
         )
 
     def _refill(self) -> None:
@@ -170,6 +171,7 @@ class TokenBucket:
 
         Returns:
             True if tokens acquired, False if insufficient tokens
+
         """
         async with self._lock:
             self._refill()
@@ -180,7 +182,7 @@ class TokenBucket:
 
             return False
 
-    async def wait_for_token(self, timeout: Optional[float] = None) -> bool:
+    async def wait_for_token(self, timeout: float | None = None) -> bool:
         """Wait until a token is available.
 
         Time Complexity: O(1) per check
@@ -190,6 +192,7 @@ class TokenBucket:
 
         Returns:
             True if token acquired, False if timeout
+
         """
         start_time = time.monotonic()
 
@@ -223,6 +226,7 @@ class TokenBucket:
 
         Returns:
             Number of available tokens
+
         """
         return int(self.tokens)
 
@@ -233,10 +237,11 @@ class TokenBucket:
 
         Returns:
             Datetime when bucket refills to capacity
+
         """
         tokens_needed = self.capacity - self.tokens
         seconds_to_full = tokens_needed / self.refill_rate
-        return datetime.now(tz=timezone.utc) + timedelta(seconds=seconds_to_full)
+        return datetime.now(tz=UTC) + timedelta(seconds=seconds_to_full)
 
 
 class RateLimiter:
@@ -258,14 +263,16 @@ class RateLimiter:
         >>> await limiter.acquire()  # Blocks if rate limited
         >>> status = limiter.get_status()
         >>> print(f"Remaining: {status.remaining}")
+
     """
 
-    def __init__(self, service: str, config: RateLimitConfig):
+    def __init__(self, service: str, config: RateLimitConfig) -> None:
         """Initialize rate limiter.
 
         Args:
             service: Service name (e.g., "api.example.com")
             config: Rate limit configuration
+
         """
         self.service = service
         self.config = config
@@ -274,16 +281,16 @@ class RateLimiter:
         self.minute_bucket = TokenBucket(
             capacity=config.burst_size,
             refill_rate=config.requests_per_minute / 60.0,  # tokens per second
-            name=f"{service}_minute"
+            name=f"{service}_minute",
         )
 
         # Per-hour bucket (optional)
-        self.hour_bucket: Optional[TokenBucket] = None
+        self.hour_bucket: TokenBucket | None = None
         if config.requests_per_hour is not None:
             self.hour_bucket = TokenBucket(
                 capacity=config.requests_per_hour,
                 refill_rate=config.requests_per_hour / 3600.0,  # tokens per second
-                name=f"{service}_hour"
+                name=f"{service}_hour",
             )
 
         # Request queue
@@ -291,16 +298,17 @@ class RateLimiter:
         self._queue_lock = asyncio.Lock()
 
         logger.info(
-            f"RateLimiter initialized for service '{service}'",
+            "RateLimiter initialized for service '%s'",
+            service,
             extra={
                 "requests_per_minute": config.requests_per_minute,
                 "requests_per_hour": config.requests_per_hour,
                 "burst_size": config.burst_size,
                 "queue_size": config.queue_size,
-            }
+            },
         )
 
-    async def acquire(self, timeout: Optional[float] = None) -> None:
+    async def acquire(self, timeout: float | None = None) -> None:
         """Acquire permission to make request.
 
         Time Complexity: O(1) average case
@@ -313,6 +321,7 @@ class RateLimiter:
         Raises:
             RateLimitExceeded: If rate limit exceeded and queuing disabled
             asyncio.TimeoutError: If timeout expires
+
         """
         start_time = time.monotonic()
 
@@ -330,32 +339,29 @@ class RateLimiter:
                 remaining_timeout = max(0, timeout - elapsed)
 
             if not await self.minute_bucket.wait_for_token(remaining_timeout):
-                raise asyncio.TimeoutError(
-                    f"Rate limit timeout for service '{self.service}'"
-                )
+                msg = f"Rate limit timeout for service '{self.service}'"
+                raise TimeoutError(msg)
 
         # Check hour bucket if configured
-        if self.hour_bucket is not None:
-            if not await self.hour_bucket.acquire():
-                # Hour limit exceeded
-                if self.config.queue_size == 0:
-                    retry_after = 3600.0 / self.config.requests_per_hour
-                    raise RateLimitExceeded(self.service, retry_after)
+        if self.hour_bucket is not None and not await self.hour_bucket.acquire():
+            # Hour limit exceeded
+            if self.config.queue_size == 0:
+                retry_after = 3600.0 / self.config.requests_per_hour
+                raise RateLimitExceeded(self.service, retry_after)
 
-                # Wait for token
-                remaining_timeout = timeout
-                if timeout is not None:
-                    elapsed = time.monotonic() - start_time
-                    remaining_timeout = max(0, timeout - elapsed)
+            # Wait for token
+            remaining_timeout = timeout
+            if timeout is not None:
+                elapsed = time.monotonic() - start_time
+                remaining_timeout = max(0, timeout - elapsed)
 
-                if not await self.hour_bucket.wait_for_token(remaining_timeout):
-                    raise asyncio.TimeoutError(
-                        f"Rate limit timeout for service '{self.service}'"
-                    )
+            if not await self.hour_bucket.wait_for_token(remaining_timeout):
+                msg = f"Rate limit timeout for service '{self.service}'"
+                raise TimeoutError(msg)
 
         logger.debug(
             f"Rate limit acquired for service '{self.service}'",
-            extra={"service": self.service}
+            extra={"service": self.service},
         )
 
     def get_status(self) -> RateLimitStatus:
@@ -365,6 +371,7 @@ class RateLimiter:
 
         Returns:
             Rate limit status
+
         """
         remaining = self.minute_bucket.get_remaining()
         reset_time = self.minute_bucket.get_reset_time()
@@ -410,13 +417,15 @@ class RateLimiterManager:
         ... )
         >>> await manager.acquire("api.example.com")
         >>> status = manager.get_status("api.example.com")
+
     """
 
-    def __init__(self, default_config: Optional[RateLimitConfig] = None):
+    def __init__(self, default_config: RateLimitConfig | None = None) -> None:
         """Initialize rate limiter manager.
 
         Args:
             default_config: Default configuration for all services
+
         """
         self.default_config = default_config or RateLimitConfig()
         self.limiters: dict[str, RateLimiter] = {}
@@ -426,14 +435,10 @@ class RateLimiterManager:
             "RateLimiterManager initialized",
             extra={
                 "default_requests_per_minute": self.default_config.requests_per_minute,
-            }
+            },
         )
 
-    def configure_service(
-        self,
-        service: str,
-        config: RateLimitConfig
-    ) -> None:
+    def configure_service(self, service: str, config: RateLimitConfig) -> None:
         """Configure rate limiter for specific service.
 
         Time Complexity: O(1)
@@ -441,6 +446,7 @@ class RateLimiterManager:
         Args:
             service: Service name
             config: Rate limit configuration
+
         """
         self.limiters[service] = RateLimiter(service, config)
         logger.info("Rate limiter configured for service '%s'", service)
@@ -455,17 +461,14 @@ class RateLimiterManager:
 
         Returns:
             Rate limiter for service
+
         """
         if service not in self.limiters:
             self.limiters[service] = RateLimiter(service, self.default_config)
 
         return self.limiters[service]
 
-    async def acquire(
-        self,
-        service: str,
-        timeout: Optional[float] = None
-    ) -> None:
+    async def acquire(self, service: str, timeout: float | None = None) -> None:
         """Acquire permission to make request to service.
 
         Time Complexity: O(1) average case
@@ -477,6 +480,7 @@ class RateLimiterManager:
         Raises:
             RateLimitExceeded: If rate limit exceeded
             asyncio.TimeoutError: If timeout expires
+
         """
         limiter = self._get_limiter(service)
         await limiter.acquire(timeout)
@@ -491,6 +495,7 @@ class RateLimiterManager:
 
         Returns:
             Rate limit status
+
         """
         limiter = self._get_limiter(service)
         return limiter.get_status()
@@ -502,11 +507,9 @@ class RateLimiterManager:
 
         Returns:
             Dictionary mapping service names to rate limit status
+
         """
-        return {
-            service: limiter.get_status()
-            for service, limiter in self.limiters.items()
-        }
+        return {service: limiter.get_status() for service, limiter in self.limiters.items()}
 
     def reset_service(self, service: str) -> None:
         """Reset rate limiter for service (for testing).
@@ -515,6 +518,7 @@ class RateLimiterManager:
 
         Args:
             service: Service name
+
         """
         if service in self.limiters:
             self.limiters[service].reset()

@@ -1,5 +1,4 @@
-"""
-Delegation Manager - Manages agent-to-agent task delegation with loop prevention.
+"""Delegation Manager - Manages agent-to-agent task delegation with loop prevention.
 
 Uses a directed graph (NetworkX) to track delegation chains and detect cycles.
 Self-delegation and depth-limit violations are rejected immediately.
@@ -15,15 +14,15 @@ Validates: Requirements 10.1, 10.2, 10.3, 10.4, 10.5, 11.1, 11.2
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import networkx as nx
 
-from .task_decomposer import Task
-
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from .task_assigner import TaskAssigner
+    from .task_decomposer import Task
 
 
 @dataclass
@@ -34,6 +33,7 @@ class DelegationRequest:
         requesting_agent_id: Agent that wants to delegate.
         subtask: The sub-task to delegate.
         timestamp: When the request was made.
+
     """
 
     requesting_agent_id: str
@@ -63,11 +63,12 @@ class DelegationManager:
         >>> assigned_id = await manager.delegate_task(request)
 
     Validates: Requirements 10.1, 10.2, 10.3, 10.4, 10.5, 11.1, 11.2
+
     """
 
     def __init__(
         self,
-        task_assigner: "TaskAssigner",
+        task_assigner: TaskAssigner,
         max_delegation_depth: int = 3,
     ) -> None:
         """Initialise the delegation manager.
@@ -80,9 +81,11 @@ class DelegationManager:
             ValueError: If max_delegation_depth < 1.
 
         Validates: Requirements 10.3, 10.4
+
         """
         if max_delegation_depth < 1:
-            raise ValueError("max_delegation_depth must be >= 1")
+            msg = "max_delegation_depth must be >= 1"
+            raise ValueError(msg)
 
         self.task_assigner = task_assigner
         self.max_depth = max_delegation_depth
@@ -95,7 +98,7 @@ class DelegationManager:
     # Public API
     # ------------------------------------------------------------------
 
-    async def delegate_task(self, request: DelegationRequest) -> Optional[str]:
+    async def delegate_task(self, request: DelegationRequest) -> str | None:
         """Attempt to delegate a sub-task to another agent.
 
         Rejects delegation if:
@@ -111,6 +114,7 @@ class DelegationManager:
 
         Time Complexity: O(V + E) for cycle check
         Validates: Requirements 10.1, 10.2, 10.3, 11.1, 11.2
+
         """
         task_id = request.subtask.id
         requester = request.requesting_agent_id
@@ -128,7 +132,8 @@ class DelegationManager:
 
         # Assign to best available agent (excluding the requester to prevent self-assignment)
         assigned_id = await self.task_assigner.assign_task(
-            request.subtask, exclude_agent_id=requester
+            request.subtask,
+            exclude_agent_id=requester,
         )
 
         # Rule 3: cycle detection – reject if adding requester→assigned creates cycle
@@ -162,6 +167,7 @@ class DelegationManager:
 
         Time Complexity: O(V + E)
         Validates: Requirements 10.2, 11.2
+
         """
         if from_agent == to_agent:
             return True
@@ -183,6 +189,7 @@ class DelegationManager:
 
         Time Complexity: O(1)
         Validates: Requirement 10.5
+
         """
         return list(self._chains.get(task_id, []))
 
@@ -191,5 +198,6 @@ class DelegationManager:
 
         Returns:
             Copy of the internal directed graph.
+
         """
         return self._graph.copy()

@@ -1,7 +1,7 @@
 """Action and tool data models."""
 
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -17,20 +17,22 @@ class ActionSensitivity(str, Enum):
 class Parameter(BaseModel):
     """Represents a tool parameter definition."""
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "name": "duration",
-            "param_type": "int",
-            "required": True,
-            "description": "Timer duration in seconds",
-            "validation_rules": {"min": 1, "max": 86400},
-        }
-    })
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "duration",
+                "param_type": "int",
+                "required": True,
+                "description": "Timer duration in seconds",
+                "validation_rules": {"min": 1, "max": 86400},
+            },
+        },
+    )
 
     name: str = Field(..., description="Parameter name")
     param_type: str = Field(..., description="Parameter type (str, int, float, bool, etc.)")
     required: bool = Field(default=True, description="Whether parameter is required")
-    default: Optional[Any] = Field(default=None, description="Default value if not required")
+    default: Any | None = Field(default=None, description="Default value if not required")
     description: str = Field(default="", description="Parameter description")
     validation_rules: dict[str, Any] = Field(
         default_factory=dict,
@@ -41,12 +43,10 @@ class Parameter(BaseModel):
     @classmethod
     def validate_param_type(cls, v: str) -> str:
         """Validate parameter type is recognized."""
-        valid_types = {
-            "str", "int", "float", "bool", "list", "dict",
-            "datetime", "duration", "any"
-        }
+        valid_types = {"str", "int", "float", "bool", "list", "dict", "datetime", "duration", "any"}
         if v not in valid_types:
-            raise ValueError(f"Parameter type must be one of {valid_types}, got {v}")
+            msg = f"Parameter type must be one of {valid_types}, got {v}"
+            raise ValueError(msg)
         return v
 
     def __eq__(self, other: object) -> bool:
@@ -63,25 +63,27 @@ class Parameter(BaseModel):
 class Tool(BaseModel):
     """Represents an executable tool."""
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "tool_id": "set_timer",
-            "name": "Set Timer",
-            "description": "Set a countdown timer",
-            "parameters": [
-                {
-                    "name": "duration",
-                    "param_type": "int",
-                    "required": True,
-                    "description": "Duration in seconds",
-                }
-            ],
-            "sensitivity": "safe",
-            "estimated_latency": 0.05,
-            "requires_permission": False,
-            "tags": ["time", "scheduling"],
-        }
-    })
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "tool_id": "set_timer",
+                "name": "Set Timer",
+                "description": "Set a countdown timer",
+                "parameters": [
+                    {
+                        "name": "duration",
+                        "param_type": "int",
+                        "required": True,
+                        "description": "Duration in seconds",
+                    },
+                ],
+                "sensitivity": "safe",
+                "estimated_latency": 0.05,
+                "requires_permission": False,
+                "tags": ["time", "scheduling"],
+            },
+        },
+    )
 
     tool_id: str = Field(..., description="Unique tool identifier")
     name: str = Field(..., description="Human-readable tool name")
@@ -102,7 +104,7 @@ class Tool(BaseModel):
         default=False,
         description="Whether tool requires explicit permission",
     )
-    permission_scope: Optional[str] = Field(
+    permission_scope: str | None = Field(
         default=None,
         description="Permission scope required (e.g., 'messaging', 'smart_home')",
     )
@@ -116,7 +118,8 @@ class Tool(BaseModel):
     def validate_tool_id(cls, v: str) -> str:
         """Validate tool ID format."""
         if not v or not v.replace("_", "").replace("-", "").replace(".", "").isalnum():
-            raise ValueError("Tool ID must be alphanumeric with underscores, hyphens, or dots")
+            msg = "Tool ID must be alphanumeric with underscores, hyphens, or dots"
+            raise ValueError(msg)
         return v
 
     @field_validator("estimated_latency")
@@ -124,36 +127,37 @@ class Tool(BaseModel):
     def validate_latency(cls, v: float) -> float:
         """Validate latency is non-negative."""
         if v < 0:
-            raise ValueError("Estimated latency must be non-negative")
+            msg = "Estimated latency must be non-negative"
+            raise ValueError(msg)
         return v
 
     def get_required_parameters(self) -> list[Parameter]:
-        """
-        Get list of required parameters.
+        """Get list of required parameters.
 
         Returns:
             List of required parameters
+
         """
         return [p for p in self.parameters if p.required]
 
     def get_optional_parameters(self) -> list[Parameter]:
-        """
-        Get list of optional parameters.
+        """Get list of optional parameters.
 
         Returns:
             List of optional parameters
+
         """
         return [p for p in self.parameters if not p.required]
 
     def validate_parameters(self, provided: dict[str, Any]) -> tuple[bool, list[str]]:
-        """
-        Validate provided parameters against tool definition.
+        """Validate provided parameters against tool definition.
 
         Args:
             provided: Dictionary of provided parameter values
 
         Returns:
             Tuple of (is_valid, list_of_errors)
+
         """
         errors = []
 
@@ -190,16 +194,18 @@ class Tool(BaseModel):
 class Action(BaseModel):
     """Represents an action to be executed."""
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "action_id": "action_123",
-            "tool_id": "set_timer",
-            "parameters": {"duration": 300},
-            "is_sensitive": False,
-            "estimated_duration": 0.05,
-            "requires_confirmation": False,
-        }
-    })
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "action_id": "action_123",
+                "tool_id": "set_timer",
+                "parameters": {"duration": 300},
+                "is_sensitive": False,
+                "estimated_duration": 0.05,
+                "requires_confirmation": False,
+            },
+        },
+    )
 
     action_id: str = Field(..., description="Unique action identifier")
     tool_id: str = Field(..., description="ID of tool to execute")
@@ -219,7 +225,7 @@ class Action(BaseModel):
         default=False,
         description="Whether action requires user confirmation",
     )
-    confirmation_message: Optional[str] = Field(
+    confirmation_message: str | None = Field(
         default=None,
         description="Message to show for confirmation",
     )
@@ -229,7 +235,8 @@ class Action(BaseModel):
     def validate_action_id(cls, v: str) -> str:
         """Validate action ID is not empty."""
         if not v:
-            raise ValueError("Action ID cannot be empty")
+            msg = "Action ID cannot be empty"
+            raise ValueError(msg)
         return v
 
     @field_validator("tool_id")
@@ -237,7 +244,8 @@ class Action(BaseModel):
     def validate_tool_id(cls, v: str) -> str:
         """Validate tool ID is not empty."""
         if not v:
-            raise ValueError("Tool ID cannot be empty")
+            msg = "Tool ID cannot be empty"
+            raise ValueError(msg)
         return v
 
     @field_validator("estimated_duration")
@@ -245,7 +253,8 @@ class Action(BaseModel):
     def validate_duration(cls, v: float) -> float:
         """Validate duration is non-negative."""
         if v < 0:
-            raise ValueError("Estimated duration must be non-negative")
+            msg = "Estimated duration must be non-negative"
+            raise ValueError(msg)
         return v
 
     def __eq__(self, other: object) -> bool:

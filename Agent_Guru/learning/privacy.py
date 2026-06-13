@@ -1,4 +1,5 @@
 """Privacy proof and budget tracking for federated learning."""
+
 from __future__ import annotations
 
 import hashlib
@@ -8,6 +9,7 @@ from dataclasses import dataclass
 @dataclass
 class PrivacyBudget:
     """Tracks differential privacy budget consumption."""
+
     epsilon_max: float = 1.0
     delta_max: float = 1e-5
     epsilon_used: float = 0.0
@@ -27,6 +29,7 @@ class PrivacyBudget:
 @dataclass
 class PrivacyProof:
     """Cryptographic proof of differential privacy guarantees."""
+
     epsilon: float
     delta: float
     mechanism: str

@@ -1,5 +1,4 @@
-"""
-Fallback strategies for error recovery.
+"""Fallback strategies for error recovery.
 
 Provides intelligent fallback mechanisms for different error types:
 - LLM fallback: cloud → local → rule-based
@@ -12,7 +11,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.error.error_manager import ErrorType, StructuredError
 
@@ -49,8 +48,8 @@ class FallbackResult:
 
     success: bool
     strategy_used: FallbackStrategy
-    result: Optional[Any] = None
-    error: Optional[str] = None
+    result: Any | None = None
+    error: str | None = None
     fallback_count: int = 0
 
 
@@ -71,6 +70,7 @@ class FallbackHandler(ABC):
 
         Returns:
             Fallback result
+
         """
 
 
@@ -95,6 +95,7 @@ class LLMFallbackHandler(FallbackHandler):
 
         Returns:
             Fallback result
+
         """
         # Get current LLM backend
         current_backend = context.get("llm_backend", "cloud")
@@ -110,7 +111,7 @@ class LLMFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=1,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("Local LLM fallback failed: %s", exc)
 
         if current_backend in ["cloud", "local"]:
@@ -123,7 +124,7 @@ class LLMFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=2,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("Rule-based fallback failed: %s", exc)
 
         # Final fallback: cached response
@@ -151,6 +152,7 @@ class LLMFallbackHandler(FallbackHandler):
 
         Returns:
             LLM result
+
         """
         # Get local LLM backend
         from Agent_Guru.reasoning.error.recovery import get_failover_manager
@@ -159,11 +161,13 @@ class LLMFallbackHandler(FallbackHandler):
         local_backend = failover.get_current_backend("local_llm")
 
         if not local_backend:
-            raise NotImplementedError("Local LLM not configured")
+            msg = "Local LLM not configured"
+            raise NotImplementedError(msg)
 
         # In a real implementation, this would call local LLM
         # For now, raise to continue fallback chain
-        raise NotImplementedError("Local LLM execution not implemented")
+        msg = "Local LLM execution not implemented"
+        raise NotImplementedError(msg)
 
     async def _try_rule_based(self, context: dict[str, Any]) -> Any:
         """Try rule-based processing.
@@ -173,12 +177,14 @@ class LLMFallbackHandler(FallbackHandler):
 
         Returns:
             Rule-based result
+
         """
         # Get input text
         input_text = context.get("input_text", "")
 
         if not input_text:
-            raise NotImplementedError("No input text for rule-based processing")
+            msg = "No input text for rule-based processing"
+            raise NotImplementedError(msg)
 
         # In a real implementation, this would use rule-based intent detection
         # For now, return a simple response
@@ -197,16 +203,19 @@ class LLMFallbackHandler(FallbackHandler):
 
         Returns:
             Cached result
+
         """
         # Get input text
         input_text = context.get("input_text", "")
 
         if not input_text:
-            raise NotImplementedError("No input text for cache lookup")
+            msg = "No input text for cache lookup"
+            raise NotImplementedError(msg)
 
         # In a real implementation, this would check cache
         # For now, raise to indicate no fallback available
-        raise NotImplementedError("No cached response available")
+        msg = "No cached response available"
+        raise NotImplementedError(msg)
 
 
 class ToolFallbackHandler(FallbackHandler):
@@ -230,6 +239,7 @@ class ToolFallbackHandler(FallbackHandler):
 
         Returns:
             Fallback result
+
         """
         # Try alternative tool
         try:
@@ -240,7 +250,7 @@ class ToolFallbackHandler(FallbackHandler):
                 result=result,
                 fallback_count=1,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.warning("Alternative tool fallback failed: %s", exc)
 
         # Try simplified request
@@ -252,7 +262,7 @@ class ToolFallbackHandler(FallbackHandler):
                 result=result,
                 fallback_count=2,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _logger.warning("Simplified request fallback failed: %s", exc)
 
         # Final fallback: notify user
@@ -274,13 +284,15 @@ class ToolFallbackHandler(FallbackHandler):
 
         Returns:
             Tool result
+
         """
         # Get failed tool and find alternatives
         failed_tool = context.get("tool_id")
         alternative_tools = context.get("alternative_tools", [])
 
         if not alternative_tools:
-            raise NotImplementedError("No alternative tools available")
+            msg = "No alternative tools available"
+            raise NotImplementedError(msg)
 
         # Try first alternative
         # In a real implementation, this would execute the alternative tool
@@ -299,6 +311,7 @@ class ToolFallbackHandler(FallbackHandler):
 
         Returns:
             Simplified result
+
         """
         # Simplify the request and retry
         # In a real implementation, this would simplify parameters or steps
@@ -330,6 +343,7 @@ class TimeoutFallbackHandler(FallbackHandler):
 
         Returns:
             Fallback result
+
         """
         # Try partial results
         partial_results = context.get("partial_results")
@@ -351,7 +365,7 @@ class TimeoutFallbackHandler(FallbackHandler):
                     result=result,
                     fallback_count=2,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("Async execution fallback failed: %s", exc)
 
         # Final fallback: simplify
@@ -373,6 +387,7 @@ class TimeoutFallbackHandler(FallbackHandler):
 
         Returns:
             Async execution result
+
         """
         # Queue for async execution
         # In a real implementation, this would queue the task
@@ -387,7 +402,7 @@ class TimeoutFallbackHandler(FallbackHandler):
 class FallbackRegistry:
     """Registry for fallback handlers."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize fallback registry."""
         self._handlers: dict[ErrorType, list[FallbackHandler]] = {}
         self._fallback_metrics: dict[FallbackStrategy, int] = {}
@@ -415,14 +430,13 @@ class FallbackRegistry:
         timeout_handler = TimeoutFallbackHandler()
         self.register(ErrorType.TIMEOUT, timeout_handler)
 
-    def register(
-        self, error_type: ErrorType, handler: FallbackHandler
-    ) -> None:
+    def register(self, error_type: ErrorType, handler: FallbackHandler) -> None:
         """Register a fallback handler for an error type.
 
         Args:
             error_type: Error type
             handler: Fallback handler
+
         """
         if error_type not in self._handlers:
             self._handlers[error_type] = []
@@ -442,6 +456,7 @@ class FallbackRegistry:
 
         Returns:
             Fallback result
+
         """
         # Get handlers for error type
         handlers = self._handlers.get(error.error_type, [])
@@ -462,13 +477,11 @@ class FallbackRegistry:
                 # Track metrics
                 if result.success:
                     strategy = result.strategy_used
-                    self._fallback_metrics[strategy] = (
-                        self._fallback_metrics.get(strategy, 0) + 1
-                    )
+                    self._fallback_metrics[strategy] = self._fallback_metrics.get(strategy, 0) + 1
 
                 return result
 
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("Fallback handler failed: %s", exc)
                 continue
 
@@ -484,12 +497,13 @@ class FallbackRegistry:
 
         Returns:
             Metrics dictionary
+
         """
         return dict(self._fallback_metrics)
 
 
 # Global fallback registry
-_global_registry: Optional[FallbackRegistry] = None
+_global_registry: FallbackRegistry | None = None
 
 
 def get_fallback_registry() -> FallbackRegistry:
@@ -497,6 +511,7 @@ def get_fallback_registry() -> FallbackRegistry:
 
     Returns:
         Global FallbackRegistry instance
+
     """
     global _global_registry
     if _global_registry is None:

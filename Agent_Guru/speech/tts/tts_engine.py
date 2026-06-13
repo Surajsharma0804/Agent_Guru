@@ -31,7 +31,6 @@ import io
 import logging
 import os
 import threading
-import time
 import urllib.request
 import wave
 from pathlib import Path
@@ -57,8 +56,7 @@ _MODEL_URL = (
     "model-files-v1.0/kokoro-v1.0.onnx"
 )
 _VOICES_URL = (
-    "https://github.com/thewh1teagle/kokoro-onnx/releases/download/"
-    "model-files-v1.0/voices-v1.0.bin"
+    "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
 )
 
 # ---------------------------------------------------------------------------
@@ -67,8 +65,8 @@ _VOICES_URL = (
 
 # Kokoro voice IDs per personality
 _VOICE_MAP: dict[PersonalityType, str] = {
-    PersonalityType.GURU: "am_michael",   # Deep American male
-    PersonalityType.MAYA: "af_heart",     # Warm American female
+    PersonalityType.GURU: "am_michael",  # Deep American male
+    PersonalityType.MAYA: "af_heart",  # Warm American female
 }
 
 # Language codes supported by Kokoro
@@ -77,17 +75,17 @@ _LANG_MAP: dict[str, str] = {
     "en": "en-us",
     "en-us": "en-us",
     "en-gb": "en-gb",
-    "hi": "hi",          # Hindi
+    "hi": "hi",  # Hindi
     "fr": "fr-fr",
     "fr-fr": "fr-fr",
-    "ja": "ja",          # Japanese
-    "ko": "ko",          # Korean
-    "zh": "zh",          # Chinese (Mandarin)
-    "es": "es",          # Spanish
+    "ja": "ja",  # Japanese
+    "ko": "ko",  # Korean
+    "zh": "zh",  # Chinese (Mandarin)
+    "es": "es",  # Spanish
     "pt": "pt-br",
     "pt-br": "pt-br",
-    "it": "it",          # Italian
-    "de": "de",          # German
+    "it": "it",  # Italian
+    "de": "de",  # German
 }
 
 # Emotion → speed multiplier (Kokoro supports speed param)
@@ -106,6 +104,7 @@ _EMOTION_SPEED: dict[EmotionType, float] = {
 # TTSError
 # ---------------------------------------------------------------------------
 
+
 class TTSError(GuruSpeechError):
     """TTS-specific error."""
 
@@ -117,6 +116,7 @@ class TTSError(GuruSpeechError):
 # Download helper
 # ---------------------------------------------------------------------------
 
+
 def _download(url: str, dest: Path) -> None:
     """Download *url* to *dest* with a progress bar. Raises on failure."""
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -124,23 +124,23 @@ def _download(url: str, dest: Path) -> None:
 
     def _progress(block: int, block_size: int, total: int) -> None:
         if total > 0:
-            pct = min(100, block * block_size * 100 // total)
-            print(f"\r  Downloading {dest.name}: {pct}%", end="", flush=True)
+            min(100, block * block_size * 100 // total)
 
     try:
         urllib.request.urlretrieve(url, tmp, reporthook=_progress)
-        print()  # newline after progress
         tmp.rename(dest)
         _logger.info("Downloaded %s → %s", url, dest)
     except Exception as exc:
         if tmp.exists():
             tmp.unlink(missing_ok=True)
-        raise TTSError(f"Failed to download {dest.name}: {exc}", exc) from exc
+        msg = f"Failed to download {dest.name}: {exc}"
+        raise TTSError(msg, exc) from exc
 
 
 # ---------------------------------------------------------------------------
 # KokoroTTSEngine  (primary engine)
 # ---------------------------------------------------------------------------
+
 
 class KokoroTTSEngine:
     """Human-quality multilingual TTS using Kokoro ONNX.
@@ -197,10 +197,9 @@ class KokoroTTSEngine:
 
         Raises:
             TTSError: If synthesis fails.
+
         """
-        audio, sr = self.synthesize_to_array(
-            text, personality, emotion, speech_rate, volume, lang
-        )
+        audio, sr = self.synthesize_to_array(text, personality, emotion, speech_rate, volume, lang)
         return _array_to_wav(audio, sr)
 
     def synthesize_to_array(
@@ -227,13 +226,17 @@ class KokoroTTSEngine:
 
         Raises:
             TTSError: If synthesis fails.
+
         """
         if not text or not text.strip():
-            raise TTSError("Text cannot be empty")
+            msg = "Text cannot be empty"
+            raise TTSError(msg)
         if not 0.5 <= speech_rate <= 2.0:
-            raise TTSError(f"speech_rate must be in [0.5, 2.0], got {speech_rate}")
+            msg = f"speech_rate must be in [0.5, 2.0], got {speech_rate}"
+            raise TTSError(msg)
         if not 0.0 <= volume <= 1.0:
-            raise TTSError(f"volume must be in [0.0, 1.0], got {volume}")
+            msg = f"volume must be in [0.0, 1.0], got {volume}"
+            raise TTSError(msg)
 
         personality = _coerce_personality(personality)
         clean = _clean_text(text)
@@ -254,12 +257,14 @@ class KokoroTTSEngine:
             self._ensure_loaded()
             try:
                 samples, sr = self._kokoro.create(  # type: ignore[union-attr]
-                    clean, voice=voice, speed=speed, lang=kokoro_lang
+                    clean,
+                    voice=voice,
+                    speed=speed,
+                    lang=kokoro_lang,
                 )
             except Exception as exc:
-                raise TTSError(f"Kokoro synthesis failed: {exc}", exc) from exc
-
-        # samples is float32 in [-1, 1]
+                msg = f"Kokoro synthesis failed: {exc}"
+                raise TTSError(msg, exc) from exc
         audio = np.asarray(samples, dtype=np.float32)
 
         # Apply volume
@@ -311,20 +316,21 @@ class KokoroTTSEngine:
 
         try:
             from kokoro_onnx import Kokoro  # type: ignore[import]
+
             self._kokoro = Kokoro(str(_MODEL_PATH), str(_VOICES_PATH))
             self._loaded = True
             _logger.info("Kokoro TTS engine loaded (voices: am_michael, af_heart)")
         except ImportError as exc:
-            raise TTSError(
-                "kokoro-onnx not installed. Run: pip install kokoro-onnx", exc
-            ) from exc
-        except Exception as exc:
-            raise TTSError(f"Failed to load Kokoro model: {exc}", exc) from exc
+            msg = "kokoro-onnx not installed. Run: pip install kokoro-onnx"
+            raise TTSError(msg, exc) from exc
+            msg = f"Failed to load Kokoro model: {exc}"
+            raise TTSError(msg, exc) from exc
 
 
 # ---------------------------------------------------------------------------
 # Pyttsx3 fallback engine
 # ---------------------------------------------------------------------------
+
 
 class _Pyttsx3Engine:
     """Lightweight pyttsx3 fallback. Used only when Kokoro is unavailable."""
@@ -382,9 +388,7 @@ class _Pyttsx3Engine:
         import tempfile
 
         voice_id = (
-            self._male_voice_id
-            if personality == PersonalityType.GURU
-            else self._female_voice_id
+            self._male_voice_id if personality == PersonalityType.GURU else self._female_voice_id
         )
 
         with self._lock:
@@ -413,6 +417,7 @@ class _Pyttsx3Engine:
 # Unified engine (used by the rest of the project)
 # ---------------------------------------------------------------------------
 
+
 class CoquiTTSEngine:
     """Unified TTS engine — Kokoro ONNX primary, pyttsx3 fallback.
 
@@ -426,16 +431,16 @@ class CoquiTTSEngine:
     # Keep VOICE_CONFIGS for any code that reads it directly
     VOICE_CONFIGS = {
         PersonalityType.GURU: {"voice": "am_michael", "speed": 1.0, "gender": "male"},
-        PersonalityType.MAYA: {"voice": "af_heart",   "speed": 1.0, "gender": "female"},
+        PersonalityType.MAYA: {"voice": "af_heart", "speed": 1.0, "gender": "female"},
     }
 
     EMOTION_ADJUSTMENTS = {
-        EmotionType.HAPPY:     {"speed_mult": 1.12, "pitch_mult": 1.05},
-        EmotionType.SAD:       {"speed_mult": 0.88, "pitch_mult": 0.95},
-        EmotionType.ANGRY:     {"speed_mult": 1.18, "pitch_mult": 1.10},
-        EmotionType.NEUTRAL:   {"speed_mult": 1.00, "pitch_mult": 1.00},
+        EmotionType.HAPPY: {"speed_mult": 1.12, "pitch_mult": 1.05},
+        EmotionType.SAD: {"speed_mult": 0.88, "pitch_mult": 0.95},
+        EmotionType.ANGRY: {"speed_mult": 1.18, "pitch_mult": 1.10},
+        EmotionType.NEUTRAL: {"speed_mult": 1.00, "pitch_mult": 1.00},
         EmotionType.SURPRISED: {"speed_mult": 1.20, "pitch_mult": 1.15},
-        EmotionType.FEARFUL:   {"speed_mult": 1.08, "pitch_mult": 1.05},
+        EmotionType.FEARFUL: {"speed_mult": 1.08, "pitch_mult": 1.05},
         EmotionType.DISGUSTED: {"speed_mult": 0.92, "pitch_mult": 0.95},
     }
 
@@ -455,7 +460,7 @@ class CoquiTTSEngine:
         personality: PersonalityType | str = PersonalityType.GURU,
         emotion: EmotionType | None = None,
         speech_rate: float = 1.0,
-        pitch: float = 1.0,   # kept for API compat; Kokoro doesn't expose pitch
+        pitch: float = 1.0,  # kept for API compat; Kokoro doesn't expose pitch
         volume: float = 1.0,
         use_ssml: bool = False,
         lang: str = "en-us",
@@ -475,18 +480,23 @@ class CoquiTTSEngine:
 
         Returns:
             WAV audio bytes.
+
         """
         personality = _coerce_personality(personality)
 
         if self._use_kokoro:
             try:
                 return self._kokoro.synthesize(
-                    text, personality, emotion, speech_rate, volume, lang
+                    text,
+                    personality,
+                    emotion,
+                    speech_rate,
+                    volume,
+                    lang,
                 )
             except TTSError as exc:
                 _logger.warning("Kokoro failed, falling back to pyttsx3: %s", exc)
                 self._use_kokoro = False
-
         # pyttsx3 fallback
         if not self._pyttsx3_ready:
             self._pyttsx3_ready = self._pyttsx3.initialize()
@@ -508,12 +518,16 @@ class CoquiTTSEngine:
         if self._use_kokoro:
             try:
                 return self._kokoro.synthesize_to_array(
-                    text, personality, emotion, speech_rate, volume, lang
+                    text,
+                    personality,
+                    emotion,
+                    speech_rate,
+                    volume,
+                    lang,
                 )
             except TTSError as exc:
                 _logger.warning("Kokoro failed, falling back to pyttsx3: %s", exc)
                 self._use_kokoro = False
-
         # pyttsx3 fallback → convert WAV bytes to array
         if not self._pyttsx3_ready:
             self._pyttsx3_ready = self._pyttsx3.initialize()
@@ -541,6 +555,7 @@ TTSEngine = CoquiTTSEngine
 # Audio utilities
 # ---------------------------------------------------------------------------
 
+
 def _clean_text(text: str) -> str:
     """Strip emojis, markdown, and non-speakable characters from *text*."""
     import re
@@ -563,8 +578,7 @@ def _clean_text(text: str) -> str:
     # Replace URLs with "link"
     text = re.sub(r"https?://\S+", "link", text)
     # Normalize whitespace
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _coerce_personality(p: PersonalityType | str) -> PersonalityType:
@@ -576,7 +590,8 @@ def _coerce_personality(p: PersonalityType | str) -> PersonalityType:
         return PersonalityType.GURU
     if s == "maya":
         return PersonalityType.MAYA
-    raise TTSError(f"Invalid personality '{p}'. Must be 'guru' or 'maya'.")
+    msg = f"Invalid personality '{p}'. Must be 'guru' or 'maya'."
+    raise TTSError(msg)
 
 
 def _array_to_wav(audio: np.ndarray, sample_rate: int) -> bytes:

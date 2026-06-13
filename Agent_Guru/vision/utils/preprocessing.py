@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.vision.utils.preprocessing
+"""Module: Agent_Guru.vision.utils.preprocessing
 Purpose: Image preprocessing utilities for the GuruVision pipeline.
 
 Provides low-light enhancement via CLAHE (Contrast Limited Adaptive
@@ -36,6 +35,7 @@ def is_low_light(frame: np.ndarray) -> bool:
 
     Returns:
         True when mean pixel value < LOW_LIGHT_THRESHOLD.
+
     """
     mean_brightness = float(np.mean(frame))
     return mean_brightness < LOW_LIGHT_THRESHOLD
@@ -58,6 +58,7 @@ def enhance_low_light(frame: np.ndarray) -> np.ndarray:
         Enhanced BGR image with the same shape and dtype as the input.
         If the frame is already well-lit (mean >= LOW_LIGHT_THRESHOLD) the
         original array is returned unchanged.
+
     """
     if not is_low_light(frame):
         return frame
@@ -80,14 +81,15 @@ def enhance_low_light(frame: np.ndarray) -> np.ndarray:
         lab_enhanced = cv2.merge([l_enhanced, a_channel, b_channel])
         return cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2BGR)
 
-    except ImportError as e:
-        logger.warning("cv2 not available — falling back to numpy histogram equalisation: %s", e)
+    except ImportError:
+        logger.exception("cv2 not available — falling back to numpy histogram equalisation")
         return _numpy_equalize(frame)
 
 
 # ------------------------------------------------------------------
 # Internal helpers
 # ------------------------------------------------------------------
+
 
 def _numpy_equalize(frame: np.ndarray) -> np.ndarray:
     """Global histogram equalisation on the luminance channel (numpy fallback).
@@ -100,6 +102,7 @@ def _numpy_equalize(frame: np.ndarray) -> np.ndarray:
 
     Returns:
         Equalised BGR uint8 image.
+
     """
     # Approximate YCbCr conversion (BT.601)
     r = frame[:, :, 2].astype(np.float32)
@@ -124,10 +127,9 @@ def _numpy_equalize(frame: np.ndarray) -> np.ndarray:
 
     # Convert back to BGR
     r_out = np.clip(y_eq + 1.402 * (cr - 128.0), 0, 255).astype(np.uint8)
-    g_out = np.clip(
-        y_eq - 0.344136 * (cb - 128.0) - 0.714136 * (cr - 128.0), 0, 255
-    ).astype(np.uint8)
+    g_out = np.clip(y_eq - 0.344136 * (cb - 128.0) - 0.714136 * (cr - 128.0), 0, 255).astype(
+        np.uint8,
+    )
     b_out = np.clip(y_eq + 1.772 * (cb - 128.0), 0, 255).astype(np.uint8)
 
-    result = np.stack([b_out, g_out, r_out], axis=2)
-    return result
+    return np.stack([b_out, g_out, r_out], axis=2)

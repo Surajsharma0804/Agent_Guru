@@ -1,5 +1,4 @@
-"""
-Production-Grade Reasoning Engine.
+"""Production-Grade Reasoning Engine.
 
 This module implements the main ReasoningEngine class that orchestrates all components
 of the reasoning pipeline with comprehensive error handling, distributed tracing,
@@ -34,8 +33,8 @@ Version: 1.0.0
 import asyncio
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from opentelemetry import trace
@@ -89,6 +88,7 @@ def _convert_tool_to_action_model(base_tool: BaseTool) -> ActionTool:
 
     Returns:
         ActionTool Pydantic model for safety gate
+
     """
     # Map ToolSensitivity to ActionSensitivity
     sensitivity_map = {
@@ -120,7 +120,7 @@ def _convert_tool_to_action_model(base_tool: BaseTool) -> ActionTool:
                 required=param.required,
                 default=param.default,
                 description=param.description,
-            )
+            ),
         )
 
     # Create ActionTool model
@@ -129,9 +129,7 @@ def _convert_tool_to_action_model(base_tool: BaseTool) -> ActionTool:
         name=base_tool.metadata.name,
         description=base_tool.metadata.description,
         parameters=parameters,
-        sensitivity=sensitivity_map.get(
-            base_tool.metadata.sensitivity, ActionSensitivity.SAFE
-        ),
+        sensitivity=sensitivity_map.get(base_tool.metadata.sensitivity, ActionSensitivity.SAFE),
         estimated_latency=base_tool.metadata.estimated_latency_ms / 1000.0,  # Convert ms to seconds
         requires_permission=False,  # Default, can be overridden
         permission_scope=None,  # Default, can be overridden
@@ -154,24 +152,26 @@ class ReasoningResult:
         error: Error message if failed
         trace_id: Distributed trace ID
         timestamp: Execution timestamp
+
     """
 
     response: str
     confidence: float
-    intent: Optional[Intent] = None
+    intent: Intent | None = None
     success: bool = True
     fast_path: bool = False
     total_latency_ms: float = 0.0
     stage_latencies: dict[str, float] = field(default_factory=dict)
-    error: Optional[str] = None
-    trace_id: Optional[str] = None
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    error: str | None = None
+    trace_id: str | None = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for logging/storage.
 
         Returns:
             Dictionary representation
+
         """
         return {
             "response": self.response,
@@ -228,20 +228,21 @@ class ReasoningEngine:
         >>> result = await engine.process(raw)
         >>> print(result.response)
         >>> print(f"Latency: {result.total_latency_ms:.1f}ms")
+
     """
 
     def __init__(
         self,
-        input_normalizer: Optional[InputNormalizer] = None,
-        intent_engine: Optional[IntentDetectionEngine] = None,
-        memory_retriever: Optional[MemoryRetriever] = None,
-        knowledge_detector: Optional[KnowledgeQueryDetector] = None,
-        knowledge_synthesizer: Optional[KnowledgeSynthesizer] = None,
-        llm_reasoning: Optional[ReasoningPlanGenerator] = _UNSET,  # type: ignore[assignment]
-        tool_selector: Optional[ToolSelector] = None,
-        safety_gate: Optional[SafetyGate] = None,
-        response_generator: Optional[TemplateGenerator] = None,
-        latency_controller: Optional[LatencyController] = None,
+        input_normalizer: InputNormalizer | None = None,
+        intent_engine: IntentDetectionEngine | None = None,
+        memory_retriever: MemoryRetriever | None = None,
+        knowledge_detector: KnowledgeQueryDetector | None = None,
+        knowledge_synthesizer: KnowledgeSynthesizer | None = None,
+        llm_reasoning: ReasoningPlanGenerator | None = _UNSET,  # type: ignore[assignment]
+        tool_selector: ToolSelector | None = None,
+        safety_gate: SafetyGate | None = None,
+        response_generator: TemplateGenerator | None = None,
+        latency_controller: LatencyController | None = None,
         enable_fast_path: bool = True,
         enable_tracing: bool = True,
     ) -> None:
@@ -262,23 +263,28 @@ class ReasoningEngine:
             latency_controller: Optional LatencyController instance
             enable_fast_path: Whether to enable fast-path optimization
             enable_tracing: Whether to enable distributed tracing
+
         """
         # Initialize components (use defaults if not provided)
         self.input_normalizer = input_normalizer or InputNormalizer()
         self.intent_engine = intent_engine or IntentDetectionEngine()
 
         # Initialize intent engine if needed (synchronous method)
-        if hasattr(self.intent_engine, 'initialize') and not getattr(self.intent_engine, '_initialized', False):
+        if hasattr(self.intent_engine, "initialize") and not getattr(
+            self.intent_engine,
+            "_initialized",
+            False,
+        ):
             self.intent_engine.initialize()
 
         # Load all tools into registry
         from Agent_Guru.reasoning.tools.loader import load_all_tools_sync
+
         try:
             tool_count = load_all_tools_sync()
             logger.info("Loaded %s tools into registry", tool_count)
-        except Exception as e:
-            logger.warning("Failed to load some tools: %s", e)
-
+        except Exception:
+            logger.exception("Failed to load some tools")
         self.memory_retriever = memory_retriever
         self.knowledge_detector = knowledge_detector or KnowledgeQueryDetector()
         self.knowledge_synthesizer = knowledge_synthesizer
@@ -290,7 +296,9 @@ class ReasoningEngine:
         if llm_reasoning is _UNSET:
             llm_provider = self._initialize_llm_provider()
             if llm_provider:
-                self.llm_reasoning: Optional[ReasoningPlanGenerator] = ReasoningPlanGenerator(llm_provider)
+                self.llm_reasoning: ReasoningPlanGenerator | None = ReasoningPlanGenerator(
+                    llm_provider,
+                )
                 logger.info("Custom reasoning model initialized with LLM provider")
             else:
                 self.llm_reasoning = None
@@ -324,7 +332,7 @@ class ReasoningEngine:
             enable_tracing=enable_tracing,
         )
 
-    def _initialize_llm_provider(self) -> Optional[Any]:
+    def _initialize_llm_provider(self) -> Any | None:
         """Initialize LLM provider with fallback chain.
 
         Priority order (first available wins):
@@ -337,6 +345,7 @@ class ReasoningEngine:
 
         Returns:
             LLM provider instance, or None if all providers fail / test mode.
+
         """
         import os
 
@@ -345,8 +354,7 @@ class ReasoningEngine:
         # Set AGENT_GURU_REAL_OLLAMA=1 to override and test with real Ollama. #
         # ------------------------------------------------------------------ #
         in_test = (
-            os.environ.get("AGENT_GURU_TEST_MODE") == "1"
-            or "PYTEST_CURRENT_TEST" in os.environ
+            os.environ.get("AGENT_GURU_TEST_MODE") == "1" or "PYTEST_CURRENT_TEST" in os.environ
         )
         if in_test and os.environ.get("AGENT_GURU_REAL_OLLAMA") != "1":
             logger.debug("Test mode detected â€” LLM provider disabled (no network calls)")
@@ -371,7 +379,6 @@ class ReasoningEngine:
                 return provider
             except Exception as e:
                 logger.debug("Gemini provider not available (module not installed): %s", e)
-
         # ------------------------------------------------------------------ #
         # 2. DeepSeek â€” fast and cost-effective                               #
         # ------------------------------------------------------------------ #
@@ -391,7 +398,6 @@ class ReasoningEngine:
                 return provider
             except Exception as e:
                 logger.debug("DeepSeek provider not available (module not installed): %s", e)
-
         # ------------------------------------------------------------------ #
         # 3. OpenAI â€” reliable, widely supported                              #
         # ------------------------------------------------------------------ #
@@ -411,7 +417,6 @@ class ReasoningEngine:
                 return provider
             except Exception as e:
                 logger.debug("OpenAI provider not available (module not installed): %s", e)
-
         # ------------------------------------------------------------------ #
         # 4. Ollama â€” local fallback (desktop / self-hosted production)       #
         #    OLLAMA_TIMEOUT_SECONDS: 8s default (dev), set 120s for prod.     #
@@ -434,8 +439,8 @@ class ReasoningEngine:
                 timeout=ollama_timeout,
             )
             return provider
-        except Exception as e:
-            logger.error("Ollama provider failed: %s", e)
+        except Exception:
+            logger.exception("Ollama provider failed")
             return None
 
     async def process(self, raw_input: RawInput) -> ReasoningResult:
@@ -457,13 +462,16 @@ class ReasoningEngine:
             >>> engine = ReasoningEngine()
             >>> raw = RawInput(content="hello", source=InputSource.TEXT, user_id="user_123")
             >>> result = await engine.process(raw)
+
         """
         start_time = time.perf_counter()
         self._total_requests += 1
 
         # Create trace span
         with tracer.start_as_current_span("reasoning_pipeline") as span:
-            trace_id = format(span.get_span_context().trace_id, '032x') if self.enable_tracing else None
+            trace_id = (
+                format(span.get_span_context().trace_id, "032x") if self.enable_tracing else None
+            )
 
             # Add trace attributes
             if self.enable_tracing:
@@ -479,16 +487,12 @@ class ReasoningEngine:
 
                 # Stage 3: Fast-path check
                 if self.enable_fast_path and self._is_fast_path_eligible(intent):
-                    result = await self._process_fast_path(
-                        normalized_input, intent, span
-                    )
+                    result = await self._process_fast_path(normalized_input, intent, span)
                     result.fast_path = True
                     self._fast_path_requests += 1
                 else:
                     # Full pipeline
-                    result = await self._process_full_pipeline(
-                        normalized_input, intent, span
-                    )
+                    result = await self._process_full_pipeline(normalized_input, intent, span)
 
                 # Calculate total latency
                 result.total_latency_ms = (time.perf_counter() - start_time) * 1000
@@ -515,21 +519,18 @@ class ReasoningEngine:
 
             except Exception as e:
                 self._failed_requests += 1
-
                 # Log error
-                logger.error(
+                logger.exception(
                     "request_failed",
                     user_id=raw_input.user_id,
                     error=str(e),
                     trace_id=trace_id,
                     exc_info=True,
                 )
-
                 # Set span status
                 if self.enable_tracing:
                     span.set_status(Status(StatusCode.ERROR, str(e)))
                     span.record_exception(e)
-
                 # Return error result
                 return ReasoningResult(
                     response=self._generate_error_response(e),
@@ -541,7 +542,9 @@ class ReasoningEngine:
                 )
 
     async def _normalize_input(
-        self, raw_input: RawInput, span: Optional[trace.Span]
+        self,
+        raw_input: RawInput,
+        span: trace.Span | None,
     ) -> NormalizedInput:
         """Normalize input with latency tracking.
 
@@ -554,6 +557,7 @@ class ReasoningEngine:
 
         Raises:
             ValueError: If input is invalid
+
         """
         with self.latency_controller.stage_context(PipelineStage.INPUT_NORMALIZATION) as timer:
             if self.enable_tracing and span:
@@ -572,7 +576,9 @@ class ReasoningEngine:
             return normalized
 
     async def _detect_intent(
-        self, normalized_input: NormalizedInput, span: Optional[trace.Span]
+        self,
+        normalized_input: NormalizedInput,
+        span: trace.Span | None,
     ) -> Intent:
         """Detect intent with latency tracking.
 
@@ -582,6 +588,7 @@ class ReasoningEngine:
 
         Returns:
             Detected intent
+
         """
         with self.latency_controller.stage_context(PipelineStage.INTENT_DETECTION) as timer:
             if self.enable_tracing and span:
@@ -589,13 +596,13 @@ class ReasoningEngine:
                     detection_result = await self.intent_engine.detect_intent_async(
                         normalized_input.text,
                         context=None,  # Pass None for context (no conversation context yet)
-                        user_id=normalized_input.user_id
+                        user_id=normalized_input.user_id,
                     )
             else:
                 detection_result = await self.intent_engine.detect_intent_async(
                     normalized_input.text,
                     context=None,  # Pass None for context (no conversation context yet)
-                    user_id=normalized_input.user_id
+                    user_id=normalized_input.user_id,
                 )
 
             # Extract the Intent object from DetectionResult
@@ -625,6 +632,7 @@ class ReasoningEngine:
 
         Returns:
             True if eligible for fast-path
+
         """
         # High confidence required
         if intent.confidence < 0.9:
@@ -651,7 +659,7 @@ class ReasoningEngine:
         self,
         normalized_input: NormalizedInput,
         intent: Intent,
-        span: Optional[trace.Span],
+        span: trace.Span | None,
     ) -> ReasoningResult:
         """Process request via fast-path (bypasses full reasoning).
 
@@ -665,6 +673,7 @@ class ReasoningEngine:
 
         Returns:
             Reasoning result
+
         """
         fast_path_start = time.perf_counter()
 
@@ -708,7 +717,9 @@ class ReasoningEngine:
         return result
 
     async def _execute_fast_path(
-        self, normalized_input: NormalizedInput, intent: Intent
+        self,
+        normalized_input: NormalizedInput,
+        intent: Intent,
     ) -> ReasoningResult:
         """Execute fast-path processing.
 
@@ -718,6 +729,7 @@ class ReasoningEngine:
 
         Returns:
             Reasoning result
+
         """
         stage_latencies = {}
 
@@ -740,7 +752,9 @@ class ReasoningEngine:
             # Convert BaseTool to ActionTool for safety gate
             action_tool = _convert_tool_to_action_model(selected_tool.tool)
             safety_decision = self.safety_gate.validate_action(
-                action_tool, selected_tool.parameters, normalized_input.user_id
+                action_tool,
+                selected_tool.parameters,
+                normalized_input.user_id,
             )
             stage_latencies["safety_validation"] = timer.elapsed_ms()
 
@@ -789,7 +803,7 @@ class ReasoningEngine:
         self,
         normalized_input: NormalizedInput,
         intent: Intent,
-        span: Optional[trace.Span],
+        span: trace.Span | None,
     ) -> ReasoningResult:
         """Process request via full pipeline.
 
@@ -803,6 +817,7 @@ class ReasoningEngine:
 
         Returns:
             Reasoning result
+
         """
         slow_path_start = time.perf_counter()
 
@@ -819,7 +834,9 @@ class ReasoningEngine:
         return result
 
     async def _execute_full_pipeline(
-        self, normalized_input: NormalizedInput, intent: Intent
+        self,
+        normalized_input: NormalizedInput,
+        intent: Intent,
     ) -> ReasoningResult:
         """Execute full pipeline processing with LLM reasoning.
 
@@ -838,6 +855,7 @@ class ReasoningEngine:
 
         Returns:
             Reasoning result with full pipeline execution
+
         """
         stage_latencies = {}
 
@@ -856,9 +874,7 @@ class ReasoningEngine:
         is_knowledge_query = False
 
         if memory_task and knowledge_task:
-            memory_context, is_knowledge_query = await asyncio.gather(
-                memory_task, knowledge_task
-            )
+            memory_context, is_knowledge_query = await asyncio.gather(memory_task, knowledge_task)
         elif memory_task:
             memory_context = await memory_task
         elif knowledge_task:
@@ -870,7 +886,7 @@ class ReasoningEngine:
             with self.latency_controller.stage_context(PipelineStage.REASONING) as timer:
                 knowledge_response = await self.knowledge_synthesizer.synthesize(
                     normalized_input.text,
-                    memory_context
+                    memory_context,
                 )
                 stage_latencies["knowledge_synthesis"] = timer.elapsed_ms()
 
@@ -885,17 +901,27 @@ class ReasoningEngine:
 
         # USE CUSTOM REASONING MODEL with LOCAL Ollama (no API keys needed)
         # This uses YOUR reasoning model from the repo with local LLM
-        if self.llm_reasoning and intent.intent_type.value in ["query_time", "query_date", "query_weather", "query_fact", "unknown", "conversation"]:
+        if self.llm_reasoning and intent.intent_type.value in [
+            "query_time",
+            "query_date",
+            "query_weather",
+            "query_fact",
+            "unknown",
+            "conversation",
+        ]:
             try:
-                from datetime import datetime, timezone
+                from datetime import datetime
 
                 with self.latency_controller.stage_context(PipelineStage.REASONING) as timer:
                     # Build context-aware prompt with dynamic personality
-                    current_time = datetime.now(tz=timezone.utc).strftime("%I:%M %p")
-                    current_date = datetime.now(tz=timezone.utc).strftime("%A, %B %d, %Y")
+                    current_time = datetime.now(tz=UTC).strftime("%I:%M %p")
+                    current_date = datetime.now(tz=UTC).strftime("%A, %B %d, %Y")
 
                     # Get personality from metadata (default to Guru)
-                    personality_name = normalized_input.metadata.get("personality", "guru").capitalize()
+                    personality_name = normalized_input.metadata.get(
+                        "personality",
+                        "guru",
+                    ).capitalize()
 
                     system_context = f"""You are {personality_name}, a friendly and helpful AI companion - like talking to a smart friend!
 
@@ -929,7 +955,9 @@ User: "Tell me a joke"
 
 Now respond to the user's message in this friendly, conversational style (NO EMOJIS):"""
 
-                    prompt = f"{system_context}\n\nUser: {normalized_input.text}\n{personality_name}:"
+                    prompt = (
+                        f"{system_context}\n\nUser: {normalized_input.text}\n{personality_name}:"
+                    )
 
                     # Use custom reasoning model's LLM provider (Ollama local)
                     from Agent_Guru.reasoning.llm.models import LLMRequest
@@ -942,7 +970,10 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                         stop_sequences=["\nUser:", "\n\n"],
                     )
 
-                    logger.info("Using custom reasoning model (LOCAL Ollama) for query: %s", normalized_input.text)
+                    logger.info(
+                        "Using custom reasoning model (LOCAL Ollama) for query: %s",
+                        normalized_input.text,
+                    )
 
                     # Call through custom reasoning model's provider with a hard timeout
                     # so tests and offline environments fail fast instead of hanging.
@@ -952,7 +983,11 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                     )
                     stage_latencies["custom_reasoning_local"] = timer.elapsed_ms()
 
-                    logger.info("Ollama response (%.0fms): %s", llm_response.latency_ms, llm_response.text.strip())
+                    logger.info(
+                        "Ollama response (%.0fms): %s",
+                        llm_response.latency_ms,
+                        llm_response.text.strip(),
+                    )
 
                     return ReasoningResult(
                         response=llm_response.text.strip(),
@@ -961,30 +996,18 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                         stage_latencies=stage_latencies,
                     )
 
-            except asyncio.CancelledError as e:
-                # Re-raise CancelledError â€” it must not be swallowed; it signals
+            except asyncio.CancelledError:
+                # Re-raise CancelledError -- it must not be swallowed; it signals
                 # task cancellation and must propagate to the event loop.
                 raise
-            except (Exception, asyncio.TimeoutError) as reasoning_error:
-                logger.error("Custom reasoning (Ollama) failed: %s", reasoning_error, exc_info=True)
-
-                # Provide helpful error message
-                fallback_response = "I'm having trouble connecting to the local AI model. Please make sure Ollama is installed and running with: ollama serve"
-
-                return ReasoningResult(
-                    response=fallback_response,
-                    confidence=0.50,
-                    success=False,
-                    error=str(reasoning_error),
-                    stage_latencies=stage_latencies,
-                )
-
         # Stage 3: LLM reasoning (if needed) - USE CUSTOM REASONING MODEL
         reasoning_plan = None
         if self.llm_reasoning and intent.requires_reasoning:
             with self.latency_controller.stage_context(PipelineStage.REASONING) as timer:
                 # Get available tools
-                available_tools = [tool.tool_id for tool in self.tool_selector.registry.list_tools()]
+                available_tools = [
+                    tool.tool_id for tool in self.tool_selector.registry.list_tools()
+                ]
 
                 # Generate reasoning plan using YOUR CUSTOM REASONING MODEL
                 reasoning_plan = await self.llm_reasoning.generate_plan(
@@ -998,7 +1021,10 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
 
                 # If reasoning plan generated successfully, use it
                 if reasoning_plan and reasoning_plan.steps:
-                    logger.info("Custom reasoning plan generated: %s steps", len(reasoning_plan.steps))
+                    logger.info(
+                        "Custom reasoning plan generated: %s steps",
+                        len(reasoning_plan.steps),
+                    )
 
                     # Execute the reasoning plan
                     response_text = f"{reasoning_plan.reasoning}"
@@ -1015,7 +1041,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
             if reasoning_plan and reasoning_plan.steps:
                 # Use tool from reasoning plan (FAST)
                 selected_tool = await self.tool_selector.select_tool_by_id(
-                    reasoning_plan.steps[0].tool_id
+                    reasoning_plan.steps[0].tool_id,
                 )
             else:
                 # Fallback to intent-based selection
@@ -1037,7 +1063,9 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
             # Convert BaseTool to ActionTool for safety gate
             action_tool = _convert_tool_to_action_model(selected_tool.tool)
             safety_decision = self.safety_gate.validate_action(
-                action_tool, selected_tool.parameters, normalized_input.user_id
+                action_tool,
+                selected_tool.parameters,
+                normalized_input.user_id,
             )
             stage_latencies["safety_validation"] = timer.elapsed_ms()
 
@@ -1098,8 +1126,10 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
         )
 
     async def _retrieve_memory(
-        self, normalized_input: NormalizedInput, intent: Intent
-    ) -> Optional[Any]:
+        self,
+        normalized_input: NormalizedInput,
+        intent: Intent,
+    ) -> Any | None:
         """Retrieve relevant memory context.
 
         Args:
@@ -1108,6 +1138,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
 
         Returns:
             Memory context or None
+
         """
         if not self.memory_retriever:
             return None
@@ -1115,12 +1146,10 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
         with self.latency_controller.stage_context(PipelineStage.MEMORY_RETRIEVAL):
             return await self.memory_retriever.retrieve(
                 normalized_input.text,
-                normalized_input.user_id
+                normalized_input.user_id,
             )
 
-    async def _detect_knowledge_query(
-        self, normalized_input: NormalizedInput
-    ) -> bool:
+    async def _detect_knowledge_query(self, normalized_input: NormalizedInput) -> bool:
         """Detect if input is a knowledge query.
 
         Args:
@@ -1128,15 +1157,14 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
 
         Returns:
             True if knowledge query
+
         """
         if not self.knowledge_detector:
             return False
 
         with self.latency_controller.stage_context(PipelineStage.INTENT_DETECTION):
             # detect_knowledge_query returns Optional[KnowledgeQuery]
-            knowledge_query = self.knowledge_detector.detect_knowledge_query(
-                normalized_input.text
-            )
+            knowledge_query = self.knowledge_detector.detect_knowledge_query(normalized_input.text)
             # Return True if a knowledge query was detected
             return knowledge_query is not None
 
@@ -1148,33 +1176,30 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
 
         Returns:
             Error response text
+
         """
         # Map exception types to user-friendly messages
         if isinstance(error, ValueError):
             return "I'm sorry, I didn't understand that. Could you please rephrase?"
-        elif isinstance(error, TimeoutError):
+        if isinstance(error, TimeoutError):
             return "I'm sorry, that's taking too long. Please try again."
-        else:
-            return "I'm sorry, I encountered an error. Please try again."
+        return "I'm sorry, I encountered an error. Please try again."
 
     def get_statistics(self) -> dict[str, Any]:
         """Get engine statistics.
 
         Returns:
             Dictionary of statistics
+
         """
         # Get cache statistics from cache module
         cache_stats = self._response_cache.get_statistics()
 
         fast_path_rate = (
-            self._fast_path_requests / self._total_requests
-            if self._total_requests > 0
-            else 0.0
+            self._fast_path_requests / self._total_requests if self._total_requests > 0 else 0.0
         )
         error_rate = (
-            self._failed_requests / self._total_requests
-            if self._total_requests > 0
-            else 0.0
+            self._failed_requests / self._total_requests if self._total_requests > 0 else 0.0
         )
 
         # Calculate average latencies
@@ -1185,9 +1210,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
         )
         slow_path_requests = self._total_requests - self._fast_path_requests - self._failed_requests
         avg_slow_path_latency = (
-            self._slow_path_latency_sum / slow_path_requests
-            if slow_path_requests > 0
-            else 0.0
+            self._slow_path_latency_sum / slow_path_requests if slow_path_requests > 0 else 0.0
         )
 
         return {
@@ -1210,7 +1233,7 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
 
 
 # Global instance
-_global_engine: Optional[ReasoningEngine] = None
+_global_engine: ReasoningEngine | None = None
 
 
 def get_reasoning_engine() -> ReasoningEngine:
@@ -1218,6 +1241,7 @@ def get_reasoning_engine() -> ReasoningEngine:
 
     Returns:
         Global ReasoningEngine instance
+
     """
     global _global_engine
     if _global_engine is None:

@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.error_handling.circuit_breaker
-Purpose: Circuit breaker pattern for fault tolerance and graceful degradation
+"""Module: agent_guru.platform.error_handling.circuit_breaker
+Purpose: Circuit breaker pattern for fault tolerance and graceful degradation.
 
 This module implements the Circuit Breaker pattern to prevent cascading failures
 when external services or operations fail repeatedly. The circuit breaker monitors
@@ -52,11 +51,11 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Generic, TypeVar
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class CircuitState(Enum):
@@ -66,7 +65,9 @@ class CircuitState(Enum):
         CLOSED: Normal operation, requests pass through
         OPEN: Circuit is open, requests fail fast
         HALF_OPEN: Testing recovery, limited requests allowed
+
     """
+
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
@@ -89,7 +90,9 @@ class CircuitBreakerConfig:
         success_threshold: Number of successes needed to close from half-open (default: 2)
         timeout: Cooldown period in seconds before trying half-open (default: 60.0)
         expected_exception: Exception type to count as failure (default: Exception)
+
     """
+
     failure_threshold: int = 5
     success_threshold: int = 2
     timeout: float = 60.0
@@ -98,11 +101,12 @@ class CircuitBreakerConfig:
     def __post_init__(self):
         """Validate configuration parameters."""
         if self.failure_threshold <= 0:
-            raise ValueError("failure_threshold must be positive, got %d" % self.failure_threshold)
+            raise ValueError(f"failure_threshold must be positive, got {self.failure_threshold}")
         if self.success_threshold <= 0:
-            raise ValueError("success_threshold must be positive, got %d" % self.success_threshold)
+            raise ValueError(f"success_threshold must be positive, got {self.success_threshold}")
         if self.timeout <= 0:
-            raise ValueError("timeout must be positive, got %s" % self.timeout)
+            msg = f"timeout must be positive, got {self.timeout}"
+            raise ValueError(msg)
 
 
 @dataclass
@@ -118,11 +122,13 @@ class CircuitBreakerStats:
         total_successes: Total number of successes
         total_rejections: Total number of rejected requests (when open)
         state_changes: Number of state transitions
+
     """
+
     state: CircuitState
     failure_count: int = 0
     success_count: int = 0
-    last_failure_time: Optional[float] = None
+    last_failure_time: float | None = None
     total_failures: int = 0
     total_successes: int = 0
     total_rejections: int = 0
@@ -154,6 +160,7 @@ class CircuitBreaker(Generic[T]):
         >>>
         >>> # Or call directly
         >>> result = breaker.call(risky_operation, arg1, arg2)
+
     """
 
     def __init__(
@@ -162,8 +169,8 @@ class CircuitBreaker(Generic[T]):
         success_threshold: int = 2,
         timeout: float = 60.0,
         expected_exception: type = Exception,
-        name: Optional[str] = None
-    ):
+        name: str | None = None,
+    ) -> None:
         """Initialize circuit breaker.
 
         Args:
@@ -175,12 +182,13 @@ class CircuitBreaker(Generic[T]):
 
         Raises:
             ValueError: If any threshold or timeout is invalid
+
         """
         self.config = CircuitBreakerConfig(
             failure_threshold=failure_threshold,
             success_threshold=success_threshold,
             timeout=timeout,
-            expected_exception=expected_exception
+            expected_exception=expected_exception,
         )
         self.name = name or "CircuitBreaker"
 
@@ -188,7 +196,7 @@ class CircuitBreaker(Generic[T]):
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._success_count = 0
-        self._last_failure_time: Optional[float] = None
+        self._last_failure_time: float | None = None
 
         # Statistics
         self._total_failures = 0
@@ -201,7 +209,10 @@ class CircuitBreaker(Generic[T]):
 
         logger.info(
             "%s initialized: failure_threshold=%d, success_threshold=%d, timeout=%.1fs",
-            self.name, failure_threshold, success_threshold, timeout,
+            self.name,
+            failure_threshold,
+            success_threshold,
+            timeout,
         )
 
     @property
@@ -210,6 +221,7 @@ class CircuitBreaker(Generic[T]):
 
         Returns:
             Current circuit state (CLOSED, OPEN, or HALF_OPEN)
+
         """
         with self._lock:
             return self._state
@@ -220,6 +232,7 @@ class CircuitBreaker(Generic[T]):
 
         Returns:
             True if circuit is closed
+
         """
         return self.state == CircuitState.CLOSED
 
@@ -229,6 +242,7 @@ class CircuitBreaker(Generic[T]):
 
         Returns:
             True if circuit is open
+
         """
         return self.state == CircuitState.OPEN
 
@@ -238,6 +252,7 @@ class CircuitBreaker(Generic[T]):
 
         Returns:
             True if circuit is half-open
+
         """
         return self.state == CircuitState.HALF_OPEN
 
@@ -257,20 +272,20 @@ class CircuitBreaker(Generic[T]):
         Raises:
             CircuitBreakerOpenError: If circuit is open
             Exception: Any exception from function execution
+
         """
         # Check if we can proceed
         if not self._allow_request():
             self._record_rejection()
-            raise CircuitBreakerOpenError(
-                f"{self.name} is open, rejecting request"
-            )
+            msg = f"{self.name} is open, rejecting request"
+            raise CircuitBreakerOpenError(msg)
 
         # Execute function
         try:
             result = func(*args, **kwargs)
             self._record_success()
             return result
-        except self.config.expected_exception as e:
+        except self.config.expected_exception:
             self._record_failure()
             raise
 
@@ -279,12 +294,12 @@ class CircuitBreaker(Generic[T]):
 
         Raises:
             CircuitBreakerOpenError: If circuit is open
+
         """
         if not self._allow_request():
             self._record_rejection()
-            raise CircuitBreakerOpenError(
-                f"{self.name} is open, rejecting request"
-            )
+            msg = f"{self.name} is open, rejecting request"
+            raise CircuitBreakerOpenError(msg)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -306,6 +321,7 @@ class CircuitBreaker(Generic[T]):
 
         Returns:
             True if request should proceed, False otherwise
+
         """
         with self._lock:
             if self._state == CircuitState.CLOSED:
@@ -328,6 +344,7 @@ class CircuitBreaker(Generic[T]):
 
         Returns:
             True if enough time has passed to attempt reset
+
         """
         if self._last_failure_time is None:
             return False
@@ -347,7 +364,9 @@ class CircuitBreaker(Generic[T]):
                 self._success_count += 1
                 logger.debug(
                     "%s success in HALF_OPEN: %d/%d",
-                    self.name, self._success_count, self.config.success_threshold,
+                    self.name,
+                    self._success_count,
+                    self.config.success_threshold,
                 )
 
                 if self._success_count >= self.config.success_threshold:
@@ -375,7 +394,9 @@ class CircuitBreaker(Generic[T]):
                 self._failure_count += 1
                 logger.debug(
                     "%s failure in CLOSED: %d/%d",
-                    self.name, self._failure_count, self.config.failure_threshold,
+                    self.name,
+                    self._failure_count,
+                    self.config.failure_threshold,
                 )
 
                 if self._failure_count >= self.config.failure_threshold:
@@ -415,7 +436,9 @@ class CircuitBreaker(Generic[T]):
 
         logger.warning(
             "%s transitioned: %s -> OPEN (cooldown: %.1fs)",
-            self.name, old_state.value, self.config.timeout,
+            self.name,
+            old_state.value,
+            self.config.timeout,
         )
 
     def _transition_to_half_open(self) -> None:
@@ -430,7 +453,8 @@ class CircuitBreaker(Generic[T]):
 
         logger.info(
             "%s transitioned: %s -> HALF_OPEN (testing recovery)",
-            self.name, old_state.value,
+            self.name,
+            old_state.value,
         )
 
     def reset(self) -> None:
@@ -457,6 +481,7 @@ class CircuitBreaker(Generic[T]):
 
         Returns:
             Current circuit breaker statistics
+
         """
         with self._lock:
             return CircuitBreakerStats(
@@ -467,5 +492,5 @@ class CircuitBreaker(Generic[T]):
                 total_failures=self._total_failures,
                 total_successes=self._total_successes,
                 total_rejections=self._total_rejections,
-                state_changes=self._state_changes
+                state_changes=self._state_changes,
             )

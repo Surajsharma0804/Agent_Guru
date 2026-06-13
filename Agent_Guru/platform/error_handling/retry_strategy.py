@@ -1,5 +1,4 @@
-"""
-Retry strategy with exponential backoff and jitter.
+"""Retry strategy with exponential backoff and jitter.
 
 This module implements a production-grade retry strategy for handling transient
 failures in platform operations. It uses exponential backoff with jitter to
@@ -46,15 +45,16 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class RetryDecision(Enum):
     """Retry decision outcomes."""
+
     RETRY = "retry"
     ABORT = "abort"
     SUCCESS = "success"
@@ -69,7 +69,9 @@ class RetryConfig:
         base_delay: Base delay in seconds for exponential backoff (default: 1.0)
         max_delay: Maximum delay in seconds (default: 60.0)
         jitter_factor: Jitter randomization factor (default: 0.2 for ±20%)
+
     """
+
     max_attempts: int = 3
     base_delay: float = 1.0
     max_delay: float = 60.0
@@ -78,17 +80,19 @@ class RetryConfig:
     def __post_init__(self) -> None:
         """Validate configuration parameters."""
         if self.max_attempts < 1:
-            raise ValueError(f"max_attempts must be >= 1, got {self.max_attempts}")
+            msg = f"max_attempts must be >= 1, got {self.max_attempts}"
+            raise ValueError(msg)
         if self.base_delay <= 0:
-            raise ValueError(f"base_delay must be > 0, got {self.base_delay}")
+            msg = f"base_delay must be > 0, got {self.base_delay}"
+            raise ValueError(msg)
         if self.max_delay < self.base_delay:
+            msg = f"max_delay ({self.max_delay}) must be >= base_delay ({self.base_delay})"
             raise ValueError(
-                f"max_delay ({self.max_delay}) must be >= base_delay ({self.base_delay})"
+                msg,
             )
         if not 0 <= self.jitter_factor <= 1:
-            raise ValueError(
-                f"jitter_factor must be in [0, 1], got {self.jitter_factor}"
-            )
+            msg = f"jitter_factor must be in [0, 1], got {self.jitter_factor}"
+            raise ValueError(msg)
 
 
 @dataclass
@@ -101,10 +105,12 @@ class RetryResult:
         error: Error message if failed
         attempts: Number of attempts made
         total_delay: Total delay time in seconds
+
     """
+
     success: bool
-    value: Optional[Any] = None
-    error: Optional[str] = None
+    value: Any | None = None
+    error: str | None = None
     attempts: int = 0
     total_delay: float = 0.0
 
@@ -123,6 +129,7 @@ class RetryStrategy:
         >>> strategy = RetryStrategy(RetryConfig(max_attempts=3))
         >>> result = strategy.execute(lambda: risky_operation())
         >>> print(f"Success: {result.success}, Attempts: {result.attempts}")
+
     """
 
     def __init__(self, config: RetryConfig) -> None:
@@ -133,6 +140,7 @@ class RetryStrategy:
 
         Raises:
             ValueError: If config parameters are invalid
+
         """
         self.config = config
 
@@ -157,9 +165,10 @@ class RetryStrategy:
             >>> strategy = RetryStrategy(RetryConfig(base_delay=1.0))
             >>> delay = strategy.calculate_delay(0)  # First retry
             >>> print(f"Delay: {delay:.2f}s")  # ~1.0s ± 20%
+
         """
         # Exponential backoff: base_delay * (2 ** attempt)
-        exponential_delay = self.config.base_delay * (2 ** attempt)
+        exponential_delay = self.config.base_delay * (2**attempt)
 
         # Cap at max_delay
         capped_delay = min(exponential_delay, self.config.max_delay)
@@ -189,12 +198,11 @@ class RetryStrategy:
             >>> strategy = RetryStrategy(RetryConfig(max_attempts=3))
             >>> decision = strategy.should_retry(0, ConnectionError())
             >>> print(decision)  # RetryDecision.RETRY
+
         """
         # Check if max attempts reached
         if attempt >= self.config.max_attempts:
-            logger.warning(
-                "Max retry attempts (%d) reached", self.config.max_attempts
-            )
+            logger.warning("Max retry attempts (%d) reached", self.config.max_attempts)
             return RetryDecision.ABORT
 
         # Check for non-retryable errors
@@ -205,16 +213,14 @@ class RetryStrategy:
         # Retry for transient errors
         logger.info(
             "Retryable error on attempt %d/%d: %s: %s",
-            attempt + 1, self.config.max_attempts, type(error).__name__, error,
+            attempt + 1,
+            self.config.max_attempts,
+            type(error).__name__,
+            error,
         )
         return RetryDecision.RETRY
 
-    def execute(
-        self,
-        operation: Callable[..., T],
-        *args: Any,
-        **kwargs: Any
-    ) -> RetryResult:
+    def execute(self, operation: Callable[..., T], *args: Any, **kwargs: Any) -> RetryResult:
         """Execute operation with retry logic.
 
         Time Complexity: O(max_attempts) worst case
@@ -230,7 +236,7 @@ class RetryStrategy:
 
         Example:
             >>> def flaky_operation():
-            ...     if random.random() < 0.5:
+            ...     if secrets.SystemRandom().random() < 0.5:
             ...         raise ConnectionError("Transient failure")
             ...     return "success"
             >>>
@@ -238,10 +244,11 @@ class RetryStrategy:
             >>> result = strategy.execute(flaky_operation)
             >>> if result.success:
             ...     print(f"Result: {result.value}")
+
         """
         attempt = 0
         total_delay = 0.0
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         for attempt in range(self.config.max_attempts):
             try:
@@ -252,13 +259,14 @@ class RetryStrategy:
                 # Success
                 logger.info(
                     "Operation succeeded on attempt %d (total delay: %.2fs)",
-                    attempt + 1, total_delay,
+                    attempt + 1,
+                    total_delay,
                 )
                 return RetryResult(
                     success=True,
                     value=value,
                     attempts=attempt + 1,
-                    total_delay=total_delay
+                    total_delay=total_delay,
                 )
 
             except (KeyboardInterrupt, SystemExit) as e:
@@ -268,13 +276,10 @@ class RetryStrategy:
                     success=False,
                     error=f"{type(e).__name__}: {e}",
                     attempts=attempt + 1,
-                    total_delay=total_delay
+                    total_delay=total_delay,
                 )
-
-            except Exception as e:
                 last_error = e
                 logger.debug("Operation failed: %s: %s", type(e).__name__, e)
-
                 # Check if should retry
                 decision = self.should_retry(attempt, e)
                 if decision == RetryDecision.ABORT:
@@ -283,34 +288,34 @@ class RetryStrategy:
                         success=False,
                         error=f"{type(e).__name__}: {e}",
                         attempts=attempt + 1,
-                        total_delay=total_delay
+                        total_delay=total_delay,
                     )
-
                 # Calculate delay and wait (only if not the last attempt)
                 if attempt < self.config.max_attempts - 1:
                     delay = self.calculate_delay(attempt)
                     logger.info("Retrying after %.2fs delay", delay)
                     time.sleep(delay)
                     total_delay += delay
-
         # All retries exhausted
-        error_msg = "%s: %s" % (type(last_error).__name__, last_error) if last_error else "Unknown error"
+        error_msg = f"{type(last_error).__name__}: {last_error}" if last_error else "Unknown error"
         logger.error(
             "Operation failed after %d attempts (total delay: %.2fs): %s",
-            self.config.max_attempts, total_delay, error_msg,
+            self.config.max_attempts,
+            total_delay,
+            error_msg,
         )
         return RetryResult(
             success=False,
             error=error_msg,
             attempts=self.config.max_attempts,
-            total_delay=total_delay
+            total_delay=total_delay,
         )
 
     async def execute_async(
         self,
         operation: Callable[..., T],
         *args: Any,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> RetryResult:
         """Execute async operation with retry logic.
 
@@ -334,12 +339,13 @@ class RetryStrategy:
             >>>
             >>> strategy = RetryStrategy(RetryConfig())
             >>> result = asyncio.run(strategy.execute_async(async_operation))
+
         """
         import asyncio
 
         attempt = 0
         total_delay = 0.0
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         for attempt in range(self.config.max_attempts):
             try:
@@ -350,13 +356,14 @@ class RetryStrategy:
                 # Success
                 logger.info(
                     "Async operation succeeded on attempt %d (total delay: %.2fs)",
-                    attempt + 1, total_delay,
+                    attempt + 1,
+                    total_delay,
                 )
                 return RetryResult(
                     success=True,
                     value=value,
                     attempts=attempt + 1,
-                    total_delay=total_delay
+                    total_delay=total_delay,
                 )
 
             except (KeyboardInterrupt, SystemExit) as e:
@@ -366,13 +373,10 @@ class RetryStrategy:
                     success=False,
                     error=f"{type(e).__name__}: {e}",
                     attempts=attempt + 1,
-                    total_delay=total_delay
+                    total_delay=total_delay,
                 )
-
-            except Exception as e:
                 last_error = e
                 logger.debug("Async operation failed: %s: %s", type(e).__name__, e)
-
                 # Check if should retry
                 decision = self.should_retry(attempt, e)
                 if decision == RetryDecision.ABORT:
@@ -381,25 +385,25 @@ class RetryStrategy:
                         success=False,
                         error=f"{type(e).__name__}: {e}",
                         attempts=attempt + 1,
-                        total_delay=total_delay
+                        total_delay=total_delay,
                     )
-
                 # Calculate delay and wait (only if not the last attempt)
                 if attempt < self.config.max_attempts - 1:
                     delay = self.calculate_delay(attempt)
                     logger.info("Retrying async operation after %.2fs delay", delay)
                     await asyncio.sleep(delay)
                     total_delay += delay
-
         # All retries exhausted
-        error_msg = "%s: %s" % (type(last_error).__name__, last_error) if last_error else "Unknown error"
+        error_msg = f"{type(last_error).__name__}: {last_error}" if last_error else "Unknown error"
         logger.error(
             "Async operation failed after %d attempts (total delay: %.2fs): %s",
-            self.config.max_attempts, total_delay, error_msg,
+            self.config.max_attempts,
+            total_delay,
+            error_msg,
         )
         return RetryResult(
             success=False,
             error=error_msg,
             attempts=self.config.max_attempts,
-            total_delay=total_delay
+            total_delay=total_delay,
         )

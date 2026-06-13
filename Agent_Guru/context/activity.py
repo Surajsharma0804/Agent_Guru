@@ -1,13 +1,21 @@
 """Activity classifier for ambient context."""
+
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 
 class ActivityClassifier:
     """Lightweight activity classifier using sensors, calendar, and time patterns."""
 
-    ACTIVITIES = ["working", "commuting", "exercising", "sleeping", "meeting", "idle"]
+    ACTIVITIES: ClassVar[list[str]] = [
+        "working",
+        "commuting",
+        "exercising",
+        "sleeping",
+        "meeting",
+        "idle",
+    ]
 
     def classify(self, signals: dict[str, Any]) -> tuple[str, float]:
         """Classify current activity. Returns (activity, confidence)."""

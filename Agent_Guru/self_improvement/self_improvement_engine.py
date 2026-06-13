@@ -1,5 +1,4 @@
-"""
-Self-Improvement Engine - Main API for Agent Guru.
+"""Self-Improvement Engine - Main API for Agent Guru.
 
 This is the core interface for all self-improvement operations. It coordinates
 all learning components and provides a unified API for the agent orchestration
@@ -26,36 +25,35 @@ Version: 1.0.0
 
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
-from Agent_Guru.self_improvement.connection_pool import ConnectionPool
-from Agent_Guru.self_improvement.database_schema import DatabaseSchema
-from Agent_Guru.self_improvement.failure_analyzer import (
+from Agent_Guru.self_improvement.connection_pool import ConnectionPool  # noqa: E402
+from Agent_Guru.self_improvement.database_schema import DatabaseSchema  # noqa: E402
+from Agent_Guru.self_improvement.failure_analyzer import (  # noqa: E402
     FailureAnalyzer,
     FailureType,
     TaskExecution,
 )
-from Agent_Guru.self_improvement.meta_learner import (
+from Agent_Guru.self_improvement.meta_learner import (  # noqa: E402
     MetaLearner,
 )
-from Agent_Guru.self_improvement.performance_tracker import (
+from Agent_Guru.self_improvement.performance_tracker import (  # noqa: E402
     PerformanceTracker,
 )
-from Agent_Guru.self_improvement.prompt_evolution import (
+from Agent_Guru.self_improvement.prompt_evolution import (  # noqa: E402
     PromptEvolutionSystem,
 )
-from Agent_Guru.self_improvement.strategy_optimizer import (
+from Agent_Guru.self_improvement.strategy_optimizer import (  # noqa: E402
     Strategy,
     StrategyOptimizer,
 )
 
 
 class SelfImprovementEngine:
-    """
-    Main interface for self-improvement operations.
+    """Main interface for self-improvement operations.
 
     Coordinates all learning components and provides unified API for
     Agent Orchestration to record task executions and retrieve optimized
@@ -92,6 +90,7 @@ class SelfImprovementEngine:
         >>> # Get improvement metrics
         >>> metrics = engine.get_improvement_metrics()
         >>> print(f"Success rate: {metrics['success_rate']:.2%}")
+
     """
 
     def __init__(
@@ -100,10 +99,9 @@ class SelfImprovementEngine:
         improvement_threshold: float = 0.15,
         measurement_window: int = 100,
         enable_git_commits: bool = False,
-        git_repo_path: Optional[str] = None
-    ):
-        """
-        Initialize self-improvement engine.
+        git_repo_path: str | None = None,
+    ) -> None:
+        """Initialize self-improvement engine.
 
         Args:
             storage_path: Path to SQLite database
@@ -117,9 +115,11 @@ class SelfImprovementEngine:
 
         Time Complexity: O(1)
         Space Complexity: O(1)
+
         """
         if enable_git_commits and not git_repo_path:
-            raise ValueError("git_repo_path required when enable_git_commits=True")
+            msg = "git_repo_path required when enable_git_commits=True"
+            raise ValueError(msg)
 
         self.storage_path = storage_path
         self.improvement_threshold = improvement_threshold
@@ -145,19 +145,20 @@ class SelfImprovementEngine:
         if enable_git_commits and git_repo_path:
             # Import only if needed
             from Agent_Guru.self_improvement.git_integration import GitIntegration
+
             self.git_integration = GitIntegration(git_repo_path)
 
         # Task sequence counter
         self._task_sequence = self._get_current_task_sequence()
 
     def _get_current_task_sequence(self) -> int:
-        """
-        Get current task sequence number.
+        """Get current task sequence number.
 
         Returns:
             Current task sequence number
 
         Time Complexity: O(1)
+
         """
         return self.performance_tracker.get_task_count()
 
@@ -168,14 +169,13 @@ class SelfImprovementEngine:
         strategy_used: str,
         success: bool,
         execution_time_ms: float,
-        error_details: Optional[dict] = None,
-        context: Optional[dict] = None,
-        reasoning_quality: Optional[float] = None,
-        tool_selection_correct: Optional[bool] = None,
-        hallucination_detected: Optional[bool] = None
+        error_details: dict | None = None,
+        context: dict | None = None,
+        reasoning_quality: float | None = None,
+        tool_selection_correct: bool | None = None,
+        hallucination_detected: bool | None = None,
     ) -> None:
-        """
-        Record task execution outcome for learning.
+        """Record task execution outcome for learning.
 
         This is the main entry point called by Agent Orchestration after
         each task execution. It triggers all learning components.
@@ -196,6 +196,7 @@ class SelfImprovementEngine:
         Performance Target: <50ms (95th percentile)
 
         Validates: Requirements 1.1, 2.1, 4.1, 6.1
+
         """
         start_time = time.time()
 
@@ -212,12 +213,12 @@ class SelfImprovementEngine:
             task_id=task_id,
             task_type=task_type,
             strategy_id=strategy_used,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
             success=success,
             execution_time_ms=execution_time_ms,
             failure_type=failure_type,
             error_details=error_details,
-            context=context or {}
+            context=context or {},
         )
 
         # Infer quality metrics if not provided
@@ -238,7 +239,7 @@ class SelfImprovementEngine:
             reasoning_quality=reasoning_quality,
             tool_selection_correct=tool_selection_correct,
             hallucination_detected=hallucination_detected,
-            task_sequence_number=self._task_sequence
+            task_sequence_number=self._task_sequence,
         )
 
         # If failed, analyze failure
@@ -247,7 +248,9 @@ class SelfImprovementEngine:
 
         # Update strategy performance
         self.strategy_optimizer.update_strategy_performance(
-            strategy_used, success, execution_time_ms
+            strategy_used,
+            success,
+            execution_time_ms,
         )
 
         # Feed to meta-learner
@@ -266,13 +269,8 @@ class SelfImprovementEngine:
         if elapsed_ms > 50:
             _logger.warning("record_task_execution took %.2fms (target: <50ms)", elapsed_ms)
 
-    def get_optimal_strategy(
-        self,
-        task_type: str,
-        context: Optional[dict] = None
-    ) -> Optional[Strategy]:
-        """
-        Get the optimal strategy for a task type.
+    def get_optimal_strategy(self, task_type: str, context: dict | None = None) -> Strategy | None:
+        """Get the optimal strategy for a task type.
 
         Uses meta-learner to match context patterns and strategy optimizer
         to select highest-performing strategy with exploration.
@@ -288,18 +286,18 @@ class SelfImprovementEngine:
         Performance Target: <10ms (95th percentile)
 
         Validates: Requirements 2.3, 5.4
+
         """
         start_time = time.time()
 
         # Get pattern-based recommendations from meta-learner
-        recommended_strategy_ids = self.meta_learner.recommend_strategies(
-            task_type, context
-        )
+        recommended_strategy_ids = self.meta_learner.recommend_strategies(task_type, context)
 
         # Get performance-based ranking from strategy optimizer
         if recommended_strategy_ids:
             ranked_strategies = self.strategy_optimizer.rank_strategies(
-                task_type, recommended_strategy_ids
+                task_type,
+                recommended_strategy_ids,
             )
         else:
             # No pattern recommendations, use all strategies
@@ -321,10 +319,9 @@ class SelfImprovementEngine:
     def get_evolved_prompt(
         self,
         prompt_type: str,
-        context: Optional[dict[str, Any]] = None
-    ) -> Optional[str]:
-        """
-        Get evolved prompt for LLM Runtime.
+        context: dict[str, Any] | None = None,
+    ) -> str | None:
+        """Get evolved prompt for LLM Runtime.
 
         Returns the current best-performing prompt version for the given type.
 
@@ -339,23 +336,22 @@ class SelfImprovementEngine:
         Performance Target: <5ms
 
         Validates: Requirements 3.4
+
         """
         prompt_version = self.prompt_evolution.get_active_prompt(prompt_type)
 
         if prompt_version:
             return prompt_version.content
-        else:
-            return None
+        return None
 
     def record_llm_response(
         self,
         prompt_id: str,
         response: str,
         was_successful: bool,
-        hallucination_detected: bool
+        hallucination_detected: bool,
     ) -> None:
-        """
-        Record LLM response quality for prompt evolution.
+        """Record LLM response quality for prompt evolution.
 
         Called by LLM Runtime after each LLM invocation to track prompt
         performance and trigger prompt evolution if needed.
@@ -369,10 +365,13 @@ class SelfImprovementEngine:
         Time Complexity: O(1)
 
         Validates: Requirements 3.2, 3.5
+
         """
         # Record prompt outcome
         self.prompt_evolution.record_prompt_outcome(
-            prompt_id, was_successful, hallucination_detected
+            prompt_id,
+            was_successful,
+            hallucination_detected,
         )
 
         # If hallucination detected, record in failure analyzer
@@ -380,8 +379,7 @@ class SelfImprovementEngine:
             self.failure_analyzer.record_hallucination(prompt_id, response)
 
     def get_improvement_metrics(self) -> dict[str, Any]:
-        """
-        Get current improvement metrics.
+        """Get current improvement metrics.
 
         Returns comprehensive metrics including success rate, reasoning
         accuracy, efficiency, and improvement over baseline.
@@ -400,6 +398,7 @@ class SelfImprovementEngine:
         Performance Target: <10ms
 
         Validates: Requirements 4.7, 7.6
+
         """
         # Get current aggregate metrics
         current = self.performance_tracker.get_current_metrics()
@@ -409,7 +408,7 @@ class SelfImprovementEngine:
         if self._task_sequence >= 20:  # Need at least 20 tasks
             improvement = self.performance_tracker.calculate_improvement(
                 baseline_size=10,
-                recent_size=10
+                recent_size=10,
             )
 
         # Build metrics dictionary
@@ -434,10 +433,9 @@ class SelfImprovementEngine:
         task_type: str,
         context: dict[str, Any],
         strategy_id: str = "test_strategy",
-        record_in_tracker: bool = False
+        record_in_tracker: bool = False,
     ) -> str:
-        """
-        Inject a test failure for validation.
+        """Inject a test failure for validation.
 
         Used by testing framework to verify learning effectiveness.
         Test failures are processed identically to real failures but
@@ -456,61 +454,75 @@ class SelfImprovementEngine:
         Time Complexity: O(1)
 
         Validates: Requirements 8.1, 8.2, 8.3
+
         """
         # Generate unique task ID with more precision
-        import random
-        task_id = f"test_{int(time.time() * 1000000)}_{random.randint(1000, 9999)}"
+        import secrets
+
+        task_id = f"test_{int(time.time() * 1000000)}_{secrets.randbelow(9999 - 1000 + 1) + 1000}"
 
         # Create appropriate error details based on failure type
         error_details = {"test": True, "context": context}
 
         if failure_type == FailureType.REASONING_ERROR:
-            error_details.update({
-                "type": "reasoning_error",
-                "reasoning_step": context.get("reasoning_step", "unknown"),
-                "logical_error": context.get("logical_error", "test_error")
-            })
+            error_details.update(
+                {
+                    "type": "reasoning_error",
+                    "reasoning_step": context.get("reasoning_step", "unknown"),
+                    "logical_error": context.get("logical_error", "test_error"),
+                },
+            )
         elif failure_type == FailureType.TOOL_ERROR:
-            error_details.update({
-                "type": "tool_error",
-                "tool_name": context.get("tool_name", "test_tool"),
-                "misuse_pattern": context.get("misuse_pattern", "incorrect_parameters")
-            })
+            error_details.update(
+                {
+                    "type": "tool_error",
+                    "tool_name": context.get("tool_name", "test_tool"),
+                    "misuse_pattern": context.get("misuse_pattern", "incorrect_parameters"),
+                },
+            )
         elif failure_type == FailureType.HALLUCINATION:
-            error_details.update({
-                "type": "hallucination",
-                "hallucination_content": context.get("hallucination_content", "fabricated_data"),
-                "correct_content": context.get("correct_content", "actual_data")
-            })
+            error_details.update(
+                {
+                    "type": "hallucination",
+                    "hallucination_content": context.get(
+                        "hallucination_content",
+                        "fabricated_data",
+                    ),
+                    "correct_content": context.get("correct_content", "actual_data"),
+                },
+            )
         elif failure_type == FailureType.TIMEOUT:
-            error_details.update({
-                "type": "timeout",
-                "timeout_ms": context.get("timeout_ms", 5000),
-                "operation": context.get("operation", "test_operation")
-            })
+            error_details.update(
+                {
+                    "type": "timeout",
+                    "timeout_ms": context.get("timeout_ms", 5000),
+                    "operation": context.get("operation", "test_operation"),
+                },
+            )
         elif failure_type == FailureType.RESOURCE_ERROR:
-            error_details.update({
-                "type": "resource_error",
-                "resource_type": context.get("resource_type", "memory"),
-                "limit_exceeded": context.get("limit_exceeded", True)
-            })
+            error_details.update(
+                {
+                    "type": "resource_error",
+                    "resource_type": context.get("resource_type", "memory"),
+                    "limit_exceeded": context.get("limit_exceeded", True),
+                },
+            )
         else:
-            error_details.update({
-                "type": "unknown",
-                "description": context.get("description", "unknown_error")
-            })
+            error_details.update(
+                {"type": "unknown", "description": context.get("description", "unknown_error")},
+            )
 
         # Create test execution
         test_execution = TaskExecution(
             task_id=task_id,
             task_type=task_type,
             strategy_id=strategy_id,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
             success=False,
             execution_time_ms=context.get("execution_time_ms", 0.0),
             failure_type=failure_type,
             error_details=error_details,
-            context=context
+            context=context,
         )
 
         # Analyze failure
@@ -527,12 +539,14 @@ class SelfImprovementEngine:
                 reasoning_quality=0.0,
                 tool_selection_correct=False,
                 hallucination_detected=(failure_type == FailureType.HALLUCINATION),
-                task_sequence_number=self._task_sequence + 1
+                task_sequence_number=self._task_sequence + 1,
             )
 
             # Update strategy performance
             self.strategy_optimizer.update_strategy_performance(
-                strategy_id, False, test_execution.execution_time_ms
+                strategy_id,
+                False,
+                test_execution.execution_time_ms,
             )
 
             # Increment task sequence
@@ -543,10 +557,9 @@ class SelfImprovementEngine:
     def inject_multiple_failures(
         self,
         failure_configs: list[dict[str, Any]],
-        record_in_tracker: bool = False
+        record_in_tracker: bool = False,
     ) -> list[str]:
-        """
-        Inject multiple test failures in batch.
+        """Inject multiple test failures in batch.
 
         Useful for testing learning convergence with many failures.
 
@@ -564,6 +577,7 @@ class SelfImprovementEngine:
         Time Complexity: O(n) where n is number of failures
 
         Validates: Requirements 8.3, 8.6
+
         """
         task_ids = []
 
@@ -573,15 +587,14 @@ class SelfImprovementEngine:
                 task_type=config["task_type"],
                 context=config.get("context", {}),
                 strategy_id=config.get("strategy_id", "test_strategy"),
-                record_in_tracker=record_in_tracker
+                record_in_tracker=record_in_tracker,
             )
             task_ids.append(task_id)
 
         return task_ids
 
-    def _classify_failure(self, error_details: Optional[dict]) -> FailureType:
-        """
-        Classify failure type from error details.
+    def _classify_failure(self, error_details: dict | None) -> FailureType:
+        """Classify failure type from error details.
 
         Args:
             error_details: Error details dictionary
@@ -590,6 +603,7 @@ class SelfImprovementEngine:
             Classified failure type
 
         Time Complexity: O(1)
+
         """
         if not error_details:
             return FailureType.UNKNOWN
@@ -598,20 +612,18 @@ class SelfImprovementEngine:
 
         if "reasoning" in error_type or "logic" in error_type:
             return FailureType.REASONING_ERROR
-        elif "tool" in error_type or "function" in error_type:
+        if "tool" in error_type or "function" in error_type:
             return FailureType.TOOL_ERROR
-        elif "hallucination" in error_type or "fabrication" in error_type:
+        if "hallucination" in error_type or "fabrication" in error_type:
             return FailureType.HALLUCINATION
-        elif "timeout" in error_type:
+        if "timeout" in error_type:
             return FailureType.TIMEOUT
-        elif "resource" in error_type or "memory" in error_type:
+        if "resource" in error_type or "memory" in error_type:
             return FailureType.RESOURCE_ERROR
-        else:
-            return FailureType.UNKNOWN
+        return FailureType.UNKNOWN
 
     def _generate_improvement_report(self) -> None:
-        """
-        Generate improvement report after measurement window.
+        """Generate improvement report after measurement window.
 
         Calculates improvement metrics, checks against threshold,
         and commits report to Git if enabled.
@@ -623,7 +635,7 @@ class SelfImprovementEngine:
         # Calculate improvement
         improvement = self.performance_tracker.calculate_improvement(
             baseline_size=10,
-            recent_size=10
+            recent_size=10,
         )
 
         if not improvement:
@@ -633,17 +645,18 @@ class SelfImprovementEngine:
         # Calculate statistical significance
         significance = self.performance_tracker.calculate_statistical_significance(
             baseline_size=10,
-            recent_size=10
+            recent_size=10,
         )
 
         # Build report
         report = {
             "measurement_window": self.measurement_window,
             "total_tasks": self._task_sequence,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "improvement": improvement,
             "statistical_significance": significance,
-            "threshold_met": improvement["relative_improvement"] >= (self.improvement_threshold * 100)
+            "threshold_met": improvement["relative_improvement"]
+            >= (self.improvement_threshold * 100),
         }
 
         # Commit report to Git if enabled
@@ -655,8 +668,7 @@ class SelfImprovementEngine:
             self._trigger_improvement_alert(report)
 
     def _trigger_improvement_alert(self, report: dict[str, Any]) -> None:
-        """
-        Trigger alert if improvement targets not met.
+        """Trigger alert if improvement targets not met.
 
         Args:
             report: Improvement report
@@ -664,24 +676,25 @@ class SelfImprovementEngine:
         Time Complexity: O(1)
 
         Validates: Requirements 7.5
+
         """
         _logger.warning(
             "Improvement target not met! Target: %.1f%%, Actual: %.1f%%, Tasks: %d",
             self.improvement_threshold * 100,
-            report['improvement']['relative_improvement'],
-            report['total_tasks'],
+            report["improvement"]["relative_improvement"],
+            report["total_tasks"],
         )
         # Could integrate with monitoring system here
         # For now, just log the alert
 
     def _commit_execution_data(self, execution: TaskExecution) -> None:
-        """
-        Commit execution data to Git.
+        """Commit execution data to Git.
 
         Args:
             execution: Task execution to commit
 
         Time Complexity: O(1)
+
         """
         if not self.git_integration:
             return
@@ -700,20 +713,20 @@ class SelfImprovementEngine:
         try:
             self.git_integration.commit_learning_data(
                 data=commit_data,
-                message=f"Task {execution.task_id}: {'Success' if execution.success else 'Failure'}"
+                message=f"Task {execution.task_id}: {'Success' if execution.success else 'Failure'}",
             )
         except Exception as e:
             _logger.warning("Git commit failed for task %s: %s", execution.task_id, e)
             # Don't fail the task execution if Git commit fails
 
     def _commit_improvement_report(self, report: dict[str, Any]) -> None:
-        """
-        Commit improvement report to Git.
+        """Commit improvement report to Git.
 
         Args:
             report: Improvement report
 
         Time Complexity: O(1)
+
         """
         if not self.git_integration:
             return
@@ -721,28 +734,27 @@ class SelfImprovementEngine:
         try:
             self.git_integration.commit_improvement_report(
                 report=report,
-                message=f"Improvement Report: {report['total_tasks']} tasks completed"
+                message=f"Improvement Report: {report['total_tasks']} tasks completed",
             )
         except Exception as e:
             _logger.warning("Git commit failed for improvement report: %s", e)
 
     def close(self) -> None:
-        """
-        Close all resources.
+        """Close all resources.
 
         Should be called when engine is no longer needed.
 
         Time Complexity: O(1)
         """
         # Close meta-learner first (it has its own connection)
-        if hasattr(self, 'meta_learner') and self.meta_learner:
+        if hasattr(self, "meta_learner") and self.meta_learner:
             try:
                 self.meta_learner.close()
             except Exception as e:
                 _logger.warning("Error closing meta_learner: %s", e)
 
         # Close connection pool
-        if hasattr(self, 'pool') and self.pool:
+        if hasattr(self, "pool") and self.pool:
             try:
                 self.pool.close_all()
             except Exception as e:
@@ -750,6 +762,7 @@ class SelfImprovementEngine:
 
         # Small delay to ensure Windows releases file locks
         import time
+
         time.sleep(0.05)
 
     def detect_contradictory_feedback(
@@ -757,10 +770,9 @@ class SelfImprovementEngine:
         task_type: str,
         strategy_id: str,
         recent_window: int = 20,
-        min_executions: int = 5
+        min_executions: int = 5,
     ):
-        """
-        Detect contradictory feedback for a task type and strategy.
+        """Detect contradictory feedback for a task type and strategy.
 
         Fetches recent execution data and passes to conflict resolver.
 
@@ -774,6 +786,7 @@ class SelfImprovementEngine:
             ConflictDetection result
 
         Validates: Requirements 9.1
+
         """
         # Import here to avoid circular dependency
         from Agent_Guru.self_improvement.conflict_resolution import TaskExecutionData
@@ -782,43 +795,47 @@ class SelfImprovementEngine:
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT task_id, task_type, strategy_id, success, execution_time_ms,
                        timestamp, reasoning_quality, tool_selection_correct, hallucination_detected
                 FROM metrics
                 WHERE task_type = ? AND strategy_id = ?
                 ORDER BY task_sequence_number DESC
                 LIMIT ?
-            """, (task_type, strategy_id, recent_window))
+            """,
+                (task_type, strategy_id, recent_window),
+            )
 
             executions = []
             for row in cursor.fetchall():
-                executions.append(TaskExecutionData(
-                    task_id=row[0],
-                    task_type=row[1],
-                    strategy_id=row[2],
-                    success=bool(row[3]),
-                    execution_time_ms=row[4],
-                    timestamp=datetime.fromisoformat(row[5]),
-                    reasoning_quality=row[6],
-                    tool_selection_correct=bool(row[7]) if row[7] is not None else None,
-                    hallucination_detected=bool(row[8])
-                ))
+                executions.append(
+                    TaskExecutionData(
+                        task_id=row[0],
+                        task_type=row[1],
+                        strategy_id=row[2],
+                        success=bool(row[3]),
+                        execution_time_ms=row[4],
+                        timestamp=datetime.fromisoformat(row[5]),
+                        reasoning_quality=row[6],
+                        tool_selection_correct=bool(row[7]) if row[7] is not None else None,
+                        hallucination_detected=bool(row[8]),
+                    ),
+                )
 
         # Detect conflicts using conflict resolver
         return self.conflict_resolver.detect_contradictory_feedback(
             executions=executions,
-            min_executions=min_executions
+            min_executions=min_executions,
         )
 
     def detect_data_poisoning(
         self,
         task_type: str,
         lookback_window: int = 50,
-        anomaly_threshold: float = 3.0
+        anomaly_threshold: float = 3.0,
     ):
-        """
-        Detect data poisoning for a task type.
+        """Detect data poisoning for a task type.
 
         Fetches recent execution data and passes to conflict resolver.
 
@@ -831,6 +848,7 @@ class SelfImprovementEngine:
             ConflictDetection result
 
         Validates: Requirements 9.3
+
         """
         # Import here to avoid circular dependency
         from Agent_Guru.self_improvement.conflict_resolution import TaskExecutionData
@@ -839,31 +857,36 @@ class SelfImprovementEngine:
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT task_id, task_type, strategy_id, success, execution_time_ms,
                        timestamp, reasoning_quality, tool_selection_correct, hallucination_detected
                 FROM metrics
                 WHERE task_type = ?
                 ORDER BY task_sequence_number DESC
                 LIMIT ?
-            """, (task_type, lookback_window))
+            """,
+                (task_type, lookback_window),
+            )
 
             executions = []
             for row in cursor.fetchall():
-                executions.append(TaskExecutionData(
-                    task_id=row[0],
-                    task_type=row[1],
-                    strategy_id=row[2],
-                    success=bool(row[3]),
-                    execution_time_ms=row[4],
-                    timestamp=datetime.fromisoformat(row[5]),
-                    reasoning_quality=row[6],
-                    tool_selection_correct=bool(row[7]) if row[7] is not None else None,
-                    hallucination_detected=bool(row[8])
-                ))
+                executions.append(
+                    TaskExecutionData(
+                        task_id=row[0],
+                        task_type=row[1],
+                        strategy_id=row[2],
+                        success=bool(row[3]),
+                        execution_time_ms=row[4],
+                        timestamp=datetime.fromisoformat(row[5]),
+                        reasoning_quality=row[6],
+                        tool_selection_correct=bool(row[7]) if row[7] is not None else None,
+                        hallucination_detected=bool(row[8]),
+                    ),
+                )
 
         # Detect poisoning using conflict resolver
         return self.conflict_resolver.detect_data_poisoning(
             executions=executions,
-            anomaly_threshold=anomaly_threshold
+            anomaly_threshold=anomaly_threshold,
         )

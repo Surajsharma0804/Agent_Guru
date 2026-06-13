@@ -1,5 +1,4 @@
-"""
-GPU/Model Manager for the Agent Guru Vision System.
+"""GPU/Model Manager for the Agent Guru Vision System.
 
 Responsibilities:
 - Detect CUDA availability and select the appropriate ONNX Runtime provider.
@@ -14,7 +13,7 @@ both sync and async contexts without requiring an event loop.
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -47,6 +46,7 @@ class ModelManager:
     Args:
         max_models: Maximum number of models to keep in the cache.
         vram_budget_gb: Maximum GPU VRAM budget in gigabytes.
+
     """
 
     def __init__(
@@ -55,9 +55,11 @@ class ModelManager:
         vram_budget_gb: float = 4.0,
     ) -> None:
         if max_models < 1:
-            raise ValueError(f"max_models must be ≥ 1, got {max_models}")
+            msg = f"max_models must be ≥ 1, got {max_models}"
+            raise ValueError(msg)
         if vram_budget_gb <= 0.0:
-            raise ValueError(f"vram_budget_gb must be positive, got {vram_budget_gb}")
+            msg = f"vram_budget_gb must be positive, got {vram_budget_gb}"
+            raise ValueError(msg)
 
         self._max_models = max_models
         self._vram_budget_gb = vram_budget_gb
@@ -83,6 +85,7 @@ class ModelManager:
         Returns:
             "CUDAExecutionProvider" if CUDA is available,
             "CPUExecutionProvider" otherwise.
+
         """
         if not _ORT_AVAILABLE:
             return "CPUExecutionProvider"
@@ -96,6 +99,7 @@ class ModelManager:
 
         Returns:
             "CUDAExecutionProvider" or "CPUExecutionProvider".
+
         """
         return self._provider
 
@@ -119,6 +123,7 @@ class ModelManager:
         Raises:
             RuntimeError: If ONNX Runtime is not installed.
             FileNotFoundError: If the model file does not exist.
+
         """
         # Cache hit — move to end (most recently used)
         if name in self._cache:
@@ -131,16 +136,16 @@ class ModelManager:
             self.evict_lru()
 
         if not _ORT_AVAILABLE:
+            msg = "onnxruntime is not installed. Install it with: pip install onnxruntime-gpu"
             raise RuntimeError(
-                "onnxruntime is not installed. "
-                "Install it with: pip install onnxruntime-gpu"
+                msg,
             )
 
         logger.info("Loading ONNX model", model=name, path=path, provider=self._provider)
         try:
             session = ort.InferenceSession(path, providers=[self._provider])
         except Exception as exc:
-            logger.error("Failed to load model", model=name, path=path, error=str(exc))
+            logger.exception("Failed to load model", model=name, path=path, error=str(exc))
             raise
 
         self._cache[name] = session
@@ -163,7 +168,7 @@ class ModelManager:
         del self._cache[lru_name]
         logger.info("Evicted LRU model", model=lru_name, cache_size=len(self._cache))
 
-    def get_cached_model(self, name: str) -> Optional[Any]:
+    def get_cached_model(self, name: str) -> Any | None:
         """Return a cached model session without loading from disk.
 
         Accessing a model via this method counts as a use and moves it to
@@ -174,6 +179,7 @@ class ModelManager:
 
         Returns:
             The cached ``InferenceSession``, or ``None`` if not cached.
+
         """
         if name not in self._cache:
             return None

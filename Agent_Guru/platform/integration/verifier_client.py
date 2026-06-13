@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.platform.integration.verifier_client
+"""Module: Agent_Guru.platform.integration.verifier_client
 Purpose: Verifier System integration client for output validation.
 
 Performance Requirements:
@@ -11,9 +10,9 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 import aiohttp
@@ -38,9 +37,9 @@ class ValidationRequest:
     operation_id: str = ""
     operation_type: str = ""
     output_data: dict[str, Any] = field(default_factory=dict)
-    expected_schema: Optional[dict[str, Any]] = None
+    expected_schema: dict[str, Any] | None = None
     validation_rules: list[str] = field(default_factory=list)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -64,12 +63,11 @@ class ValidationResult:
     violations: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     validation_time_ms: float = 0.0
-    details: Optional[dict[str, Any]] = None
+    details: dict[str, Any] | None = None
 
 
 class VerifierClient:
-    """
-    Async client for Verifier System integration.
+    """Async client for Verifier System integration.
 
     Provides output validation requests and validation result handling.
 
@@ -79,6 +77,7 @@ class VerifierClient:
         >>> request = ValidationRequest(operation_id="op-1", output_data={...})
         >>> result = await client.validate_output(request)
         >>> await client.disconnect()
+
     """
 
     def __init__(
@@ -88,16 +87,19 @@ class VerifierClient:
         max_retries: int = 3,
     ) -> None:
         if not base_url:
-            raise ValueError("base_url cannot be empty")
+            msg = "base_url cannot be empty"
+            raise ValueError(msg)
         if timeout <= 0:
-            raise ValueError(f"timeout must be positive, got {timeout}")
+            msg = f"timeout must be positive, got {timeout}"
+            raise ValueError(msg)
         if max_retries < 0:
-            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+            msg = f"max_retries must be non-negative, got {max_retries}"
+            raise ValueError(msg)
 
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: aiohttp.ClientSession | None = None
         self._validations_requested = 0
         self._validations_passed = 0
         self._validations_failed = 0
@@ -105,10 +107,9 @@ class VerifierClient:
     async def connect(self) -> None:
         """Establish connection to Verifier System."""
         if self._session is not None:
-            raise RuntimeError("Client already connected")
-        self._session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=self.timeout)
-        )
+            msg = "Client already connected"
+            raise RuntimeError(msg)
+        self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout))
         logger.info("Connected to Verifier System at %s", self.base_url)
 
     async def disconnect(self) -> None:
@@ -118,20 +119,19 @@ class VerifierClient:
             self._session = None
             logger.info("Disconnected from Verifier System")
 
-    async def validate_output(
-        self, request: ValidationRequest
-    ) -> ValidationResult:
-        """
-        Request output validation from Verifier System.
+    async def validate_output(self, request: ValidationRequest) -> ValidationResult:
+        """Request output validation from Verifier System.
 
         Args:
             request: Validation request with output data and rules
 
         Returns:
             Validation result with status and any violations
+
         """
         if self._session is None:
-            raise RuntimeError("Client not connected. Call connect() first.")
+            msg = "Client not connected. Call connect() first."
+            raise RuntimeError(msg)
 
         self._validations_requested += 1
         start = time.monotonic()
@@ -139,15 +139,11 @@ class VerifierClient:
         for attempt in range(self.max_retries):
             try:
                 url = f"{self.base_url}/api/v1/verify/validate"
-                async with self._session.post(
-                    url, json=request.to_dict()
-                ) as resp:
+                async with self._session.post(url, json=request.to_dict()) as resp:
                     elapsed_ms = (time.monotonic() - start) * 1000
                     if resp.status == 200:
                         body = await resp.json()
-                        status = ValidationStatus(
-                            body.get("status", "uncertain")
-                        )
+                        status = ValidationStatus(body.get("status", "uncertain"))
                         result = ValidationResult(
                             request_id=request.request_id,
                             status=status,
@@ -161,15 +157,13 @@ class VerifierClient:
                             self._validations_passed += 1
                         else:
                             self._validations_failed += 1
-                        logger.debug(
-                            f"Validation {request.operation_id}: {status.value}"
-                        )
+                        logger.debug("Validation %s: %s", request.operation_id, status.value)
                         return result
                     logger.warning("Verifier returned %s", resp.status)
-            except Exception as e:
-                logger.warning("Validation attempt %s failed: %s", attempt + 1, e)
+            except Exception:
+                logger.exception("Validation attempt %s failed", attempt + 1)
                 if attempt < self.max_retries - 1:
-                    await asyncio.sleep(0.5 * (2 ** attempt))
+                    await asyncio.sleep(0.5 * (2**attempt))
 
         logger.error("Validation failed for operation: %s", request.operation_id)
         return ValidationResult(
@@ -179,17 +173,15 @@ class VerifierClient:
             violations=["Verifier System unavailable"],
         )
 
-    async def validate_batch(
-        self, requests: list[ValidationRequest]
-    ) -> list[ValidationResult]:
-        """
-        Validate multiple outputs concurrently.
+    async def validate_batch(self, requests: list[ValidationRequest]) -> list[ValidationResult]:
+        """Validate multiple outputs concurrently.
 
         Args:
             requests: List of validation requests
 
         Returns:
             List of validation results in same order
+
         """
         tasks = [self.validate_output(req) for req in requests]
         return list(await asyncio.gather(*tasks, return_exceptions=False))

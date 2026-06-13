@@ -70,7 +70,10 @@ class BargeInHandler:
         await asyncio.sleep(0)
         elapsed_ms = (time.perf_counter() - start) * 1000
         if not (elapsed_ms < BARGE_IN_DETECTION_MS):  # latency target
-            raise AssertionError(f"Barge-in detection latency {elapsed_ms:.1f}ms exceeds target {BARGE_IN_DETECTION_MS}ms")
+            msg = f"Barge-in detection latency {elapsed_ms:.1f}ms exceeds target {BARGE_IN_DETECTION_MS}ms"
+            raise AssertionError(
+                msg,
+            )
         # Simple energy-based detection stub
         return len(audio_chunk) > 0 and any(b > 128 for b in audio_chunk[:10])
 

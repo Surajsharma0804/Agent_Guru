@@ -1,5 +1,4 @@
-"""
-Conversation context manager for maintaining conversation state.
+"""Conversation context manager for maintaining conversation state.
 
 ZERO COMPROMISE - BEST IMPLEMENTATION
 
@@ -15,7 +14,7 @@ This module provides conversation context management including:
 import re
 import time
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.speech.exceptions import GuruSpeechError
 from Agent_Guru.speech.models import (
@@ -31,8 +30,7 @@ class ContextNotFoundError(GuruSpeechError):
 
 
 class ConversationContextManager:
-    """
-    Manage conversation context across multiple turns.
+    """Manage conversation context across multiple turns.
 
     Features:
     - Track last N conversation turns
@@ -45,44 +43,43 @@ class ConversationContextManager:
     Thread-safe for concurrent access.
     """
 
-    def __init__(self, max_history_turns: int = 10):
-        """
-        Initialize conversation context manager.
+    def __init__(self, max_history_turns: int = 10) -> None:
+        """Initialize conversation context manager.
 
         Args:
             max_history_turns: Maximum turns to keep in memory (default: 10)
+
         """
         self.max_history_turns = max_history_turns
         self._contexts: dict[str, ConversationContext] = {}
 
         # Reference resolution patterns
         self._pronoun_patterns = [
-            r'\bit\b',
-            r'\bthat\b',
-            r'\bthis\b',
-            r'\bthose\b',
-            r'\bthese\b',
-            r'\bthe one\b',
-            r'\bthe same\b',
+            r"\bit\b",
+            r"\bthat\b",
+            r"\bthis\b",
+            r"\bthose\b",
+            r"\bthese\b",
+            r"\bthe one\b",
+            r"\bthe same\b",
         ]
 
         # Topic keywords for shift detection
         self._topic_keywords = {
-            'weather': ['weather', 'temperature', 'rain', 'sunny', 'forecast'],
-            'email': ['email', 'message', 'inbox', 'send', 'reply'],
-            'calendar': ['calendar', 'meeting', 'appointment', 'schedule', 'event'],
-            'file': ['file', 'document', 'folder', 'save', 'open'],
-            'system': ['volume', 'brightness', 'wifi', 'bluetooth', 'settings'],
-            'web': ['search', 'browse', 'website', 'google', 'internet'],
+            "weather": ["weather", "temperature", "rain", "sunny", "forecast"],
+            "email": ["email", "message", "inbox", "send", "reply"],
+            "calendar": ["calendar", "meeting", "appointment", "schedule", "event"],
+            "file": ["file", "document", "folder", "save", "open"],
+            "system": ["volume", "brightness", "wifi", "bluetooth", "settings"],
+            "web": ["search", "browse", "website", "google", "internet"],
         }
 
     def create_context(
         self,
         user_id: str,
-        personality: PersonalityType
+        personality: PersonalityType,
     ) -> tuple[str, ConversationContext]:
-        """
-        Create new conversation context.
+        """Create new conversation context.
 
         Args:
             user_id: User identifier
@@ -90,6 +87,7 @@ class ConversationContextManager:
 
         Returns:
             Tuple of (context_id, ConversationContext)
+
         """
         context_id = f"{user_id}_{personality.value}_{uuid.uuid4().hex[:8]}"
 
@@ -99,7 +97,7 @@ class ConversationContextManager:
             current_topic=None,
             user_preferences={},
             created_at=time.time(),
-            updated_at=time.time()
+            updated_at=time.time(),
         )
 
         self._contexts[context_id] = context
@@ -110,10 +108,9 @@ class ConversationContextManager:
         context_id: str,
         speaker: str,
         text: str,
-        emotion: Optional[EmotionType] = None
+        emotion: EmotionType | None = None,
     ) -> ConversationContext:
-        """
-        Add conversation turn to context.
+        """Add conversation turn to context.
 
         Args:
             context_id: Context identifier
@@ -126,24 +123,21 @@ class ConversationContextManager:
 
         Raises:
             ContextNotFoundError: If context_id not found
+
         """
         if context_id not in self._contexts:
-            raise ContextNotFoundError(f"Context not found: {context_id}")
+            msg = f"Context not found: {context_id}"
+            raise ContextNotFoundError(msg)
 
         context = self._contexts[context_id]
 
         # Create turn
-        turn = ConversationTurn(
-            speaker=speaker,
-            text=text,
-            timestamp=time.time(),
-            emotion=emotion
-        )
+        turn = ConversationTurn(speaker=speaker, text=text, timestamp=time.time(), emotion=emotion)
 
         # Add turn and maintain max history
         context.turns.append(turn)
         if len(context.turns) > self.max_history_turns:
-            context.turns = context.turns[-self.max_history_turns:]
+            context.turns = context.turns[-self.max_history_turns :]
 
         # Update topic if needed
         if speaker == "user":
@@ -160,13 +154,8 @@ class ConversationContextManager:
 
         return context
 
-    def resolve_reference(
-        self,
-        context_id: str,
-        reference: str
-    ) -> Optional[str]:
-        """
-        Resolve pronoun or reference to previous context.
+    def resolve_reference(self, context_id: str, reference: str) -> str | None:
+        """Resolve pronoun or reference to previous context.
 
         Examples:
         - "it" -> last mentioned noun/entity
@@ -182,16 +171,17 @@ class ConversationContextManager:
 
         Raises:
             ContextNotFoundError: If context_id not found
+
         """
         if context_id not in self._contexts:
-            raise ContextNotFoundError(f"Context not found: {context_id}")
+            msg = f"Context not found: {context_id}"
+            raise ContextNotFoundError(msg)
 
         context = self._contexts[context_id]
 
         # Check if reference contains pronouns
         has_pronoun = any(
-            re.search(pattern, reference.lower())
-            for pattern in self._pronoun_patterns
+            re.search(pattern, reference.lower()) for pattern in self._pronoun_patterns
         )
 
         if not has_pronoun:
@@ -208,13 +198,8 @@ class ConversationContextManager:
 
         return None
 
-    def detect_topic_shift(
-        self,
-        context_id: str,
-        new_input: str
-    ) -> bool:
-        """
-        Detect if conversation topic has changed.
+    def detect_topic_shift(self, context_id: str, new_input: str) -> bool:
+        """Detect if conversation topic has changed.
 
         Args:
             context_id: Context identifier
@@ -225,9 +210,11 @@ class ConversationContextManager:
 
         Raises:
             ContextNotFoundError: If context_id not found
+
         """
         if context_id not in self._contexts:
-            raise ContextNotFoundError(f"Context not found: {context_id}")
+            msg = f"Context not found: {context_id}"
+            raise ContextNotFoundError(msg)
 
         context = self._contexts[context_id]
 
@@ -241,12 +228,8 @@ class ConversationContextManager:
 
         return new_topic != context.current_topic
 
-    def get_context_summary(
-        self,
-        context_id: str
-    ) -> str:
-        """
-        Generate summary of conversation context.
+    def get_context_summary(self, context_id: str) -> str:
+        """Generate summary of conversation context.
 
         Args:
             context_id: Context identifier
@@ -256,9 +239,11 @@ class ConversationContextManager:
 
         Raises:
             ContextNotFoundError: If context_id not found
+
         """
         if context_id not in self._contexts:
-            raise ContextNotFoundError(f"Context not found: {context_id}")
+            msg = f"Context not found: {context_id}"
+            raise ContextNotFoundError(msg)
 
         context = self._contexts[context_id]
 
@@ -285,23 +270,23 @@ class ConversationContextManager:
         return "\n".join(summary_parts)
 
     def clear_context(self, context_id: str) -> None:
-        """
-        Clear conversation context.
+        """Clear conversation context.
 
         Args:
             context_id: Context identifier
 
         Raises:
             ContextNotFoundError: If context_id not found
+
         """
         if context_id not in self._contexts:
-            raise ContextNotFoundError(f"Context not found: {context_id}")
+            msg = f"Context not found: {context_id}"
+            raise ContextNotFoundError(msg)
 
         del self._contexts[context_id]
 
     def get_context(self, context_id: str) -> ConversationContext:
-        """
-        Get conversation context.
+        """Get conversation context.
 
         Args:
             context_id: Context identifier
@@ -311,18 +296,16 @@ class ConversationContextManager:
 
         Raises:
             ContextNotFoundError: If context_id not found
+
         """
         if context_id not in self._contexts:
-            raise ContextNotFoundError(f"Context not found: {context_id}")
+            msg = f"Context not found: {context_id}"
+            raise ContextNotFoundError(msg)
 
         return self._contexts[context_id]
 
-    def extract_preferences(
-        self,
-        context_id: str
-    ) -> dict[str, Any]:
-        """
-        Extract user preferences from conversation.
+    def extract_preferences(self, context_id: str) -> dict[str, Any]:
+        """Extract user preferences from conversation.
 
         Examples:
         - "I prefer email over calls" -> {"communication": "email"}
@@ -336,22 +319,24 @@ class ConversationContextManager:
 
         Raises:
             ContextNotFoundError: If context_id not found
+
         """
         if context_id not in self._contexts:
-            raise ContextNotFoundError(f"Context not found: {context_id}")
+            msg = f"Context not found: {context_id}"
+            raise ContextNotFoundError(msg)
 
         context = self._contexts[context_id]
         return context.user_preferences.copy()
 
-    def _extract_topic(self, text: str) -> Optional[str]:
-        """
-        Extract topic from text using keyword matching.
+    def _extract_topic(self, text: str) -> str | None:
+        """Extract topic from text using keyword matching.
 
         Args:
             text: Input text
 
         Returns:
             Topic name or None
+
         """
         text_lower = text.lower()
 
@@ -362,8 +347,7 @@ class ConversationContextManager:
         return None
 
     def _extract_entities(self, text: str) -> list[str]:
-        """
-        Extract entities (nouns, proper nouns) from text.
+        """Extract entities (nouns, proper nouns) from text.
 
         Simple implementation using capitalized words and common nouns.
 
@@ -372,6 +356,7 @@ class ConversationContextManager:
 
         Returns:
             List of extracted entities
+
         """
         entities = []
 
@@ -379,12 +364,12 @@ class ConversationContextManager:
         words = text.split()
         for word in words:
             # Remove punctuation
-            clean_word = re.sub(r'[^\w\s]', '', word)
+            clean_word = re.sub(r"[^\w\s]", "", word)
             if clean_word and clean_word[0].isupper() and len(clean_word) > 1:
                 entities.append(clean_word)
 
         # Extract common nouns (simple heuristic)
-        common_nouns = ['file', 'document', 'email', 'message', 'meeting', 'task', 'app', 'browser']
+        common_nouns = ["file", "document", "email", "message", "meeting", "task", "app", "browser"]
         for noun in common_nouns:
             if noun in text.lower():
                 entities.append(noun)
@@ -392,8 +377,7 @@ class ConversationContextManager:
         return entities
 
     def _extract_preferences_from_text(self, text: str) -> dict[str, Any]:
-        """
-        Extract user preferences from text.
+        """Extract user preferences from text.
 
         Looks for patterns like:
         - "I prefer X over Y"
@@ -406,31 +390,28 @@ class ConversationContextManager:
 
         Returns:
             Dictionary of preferences
+
         """
         preferences = {}
         text_lower = text.lower()
 
-        # Pattern: "I prefer X over Y"
-        prefer_match = re.search(r'i prefer (\w+) over (\w+)', text_lower)
+        prefer_match = re.search(r"i prefer (\w+) over (\w+)", text_lower)
         if prefer_match:
             preferred = prefer_match.group(1)
             not_preferred = prefer_match.group(2)
             preferences[f"prefer_{preferred}_over_{not_preferred}"] = True
 
-        # Pattern: "I like X"
-        like_match = re.search(r'i like (\w+(?:\s+\w+)?)', text_lower)
+        like_match = re.search(r"i like (\w+(?:\s+\w+)?)", text_lower)
         if like_match:
             liked = like_match.group(1)
             preferences[f"likes_{liked.replace(' ', '_')}"] = True
 
-        # Pattern: "I don't like X"
         dislike_match = re.search(r"i don't like (\w+(?:\s+\w+)?)", text_lower)
         if dislike_match:
             disliked = dislike_match.group(1)
             preferences[f"dislikes_{disliked.replace(' ', '_')}"] = True
 
-        # Pattern: "I want X"
-        want_match = re.search(r'i want (\w+(?:\s+\w+)?)', text_lower)
+        want_match = re.search(r"i want (\w+(?:\s+\w+)?)", text_lower)
         if want_match:
             wanted = want_match.group(1)
             preferences[f"wants_{wanted.replace(' ', '_')}"] = True

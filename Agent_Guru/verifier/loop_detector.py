@@ -38,6 +38,7 @@ class LoopDetector:
 
         Returns:
             LoopDetectionResult — loop_detected=True if threshold exceeded
+
         """
         state_hash = self._hash_state(state)
 
@@ -71,7 +72,9 @@ class LoopDetector:
         )
 
     def check_sequence(
-        self, states: list[Any], threshold: int | None = None
+        self,
+        states: list[Any],
+        threshold: int | None = None,
     ) -> LoopDetectionResult:
         """Check a sequence of states for loops without storing.
 
@@ -81,6 +84,7 @@ class LoopDetector:
 
         Returns:
             LoopDetectionResult
+
         """
         t = threshold if threshold is not None else self._threshold
         hashes = [self._hash_state(s) for s in states]
@@ -121,7 +125,7 @@ class LoopDetector:
                 serialized = json.dumps(state, sort_keys=True, default=str)
             else:
                 serialized = str(state)
-        except Exception as e:
+        except Exception:
             serialized = repr(state)
 
         return hashlib.sha256(serialized.encode()).hexdigest()

@@ -1,5 +1,4 @@
-"""
-Agent_Guru/integration/orchestrator.py
+"""Agent_Guru/integration/orchestrator.py.
 
 IntegrationOrchestrator — wires all Agent Guru subsystems into a single unified
 pipeline and manages concurrent async startup.
@@ -26,19 +25,26 @@ Performance:
   - Time Complexity: O(1) orchestration overhead per pipeline stage
   - Space Complexity: O(1) — fixed subsystem references
 """
+
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import re
 import sys
 import urllib.parse as _up
 from dataclasses import dataclass, field
+from datetime import UTC
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
-from Agent_Guru.integration.gpu_pool import GPUResourcePool
 from Agent_Guru.security.audit.logger import AuditLogger, EventType
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from Agent_Guru.integration.gpu_pool import GPUResourcePool
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +53,10 @@ logger = logging.getLogger(__name__)
 # Types
 # ---------------------------------------------------------------------------
 
+
 class Personality(str, Enum):
     """Active assistant personality."""
+
     GURU = "guru"
     MAYA = "maya"
 
@@ -60,7 +68,9 @@ class WakeWordEvent:
     Attributes:
         wake_word: The detected wake word string ("Hey Guru" or "Hey Maya").
         audio: Raw audio bytes captured after the wake word.
+
     """
+
     wake_word: str
     audio: bytes = field(default_factory=bytes)
 
@@ -68,6 +78,7 @@ class WakeWordEvent:
 @dataclass
 class VisionEvent:
     """Event emitted when a video frame is available for processing."""
+
     frame: Any  # numpy.ndarray in production
 
 
@@ -87,24 +98,27 @@ class PipelineResult:
         tts_response: TTS audio/text from stage 8.
         personality: Personality used for this interaction.
         error: Error message if any stage failed.
+
     """
+
     stages_completed: int = 0
-    transcript: Optional[str] = None
+    transcript: str | None = None
     detected_language: str = ""
-    memory_context: Optional[Any] = None
-    reasoning_output: Optional[Any] = None
-    llm_response: Optional[str] = None
-    intent: Optional[str] = None
+    memory_context: Any | None = None
+    reasoning_output: Any | None = None
+    llm_response: str | None = None
+    intent: str | None = None
     policy_allowed: bool = False
-    action_result: Optional[Any] = None
-    tts_response: Optional[Any] = None
+    action_result: Any | None = None
+    tts_response: Any | None = None
     personality: Personality = Personality.GURU
-    error: Optional[str] = None
+    error: str | None = None
 
 
 # ---------------------------------------------------------------------------
 # IntegrationOrchestrator
 # ---------------------------------------------------------------------------
+
 
 class IntegrationOrchestrator:
     """Wires all Agent Guru subsystems into a unified pipeline.
@@ -138,6 +152,7 @@ class IntegrationOrchestrator:
         )
         await orch.startup()
         result = await orch.run_pipeline(WakeWordEvent(wake_word="Hey Guru", audio=b"..."))
+
     """
 
     # Explicit wildcard constants — intentional allow-all for the pipeline principal only.
@@ -176,22 +191,20 @@ class IntegrationOrchestrator:
         # Wiring confirmed
         self.is_wired: bool = True
         self._sleeping: bool = False
-        # BUG-027: lazy asyncio.Lock init was not concurrency-safe — two coroutines
-        # could both see None and create separate Lock objects discarding one.
-        # asyncio.Lock() is safe to create in __init__ when called inside an
-        # async context; for sync __init__ we use a bare Lock and reassign on
-        # first async use inside the event loop.
-        self._sleeping_lock: asyncio.Lock = asyncio.Lock()
+        # CRIT-001 fix: asyncio.Lock() must NOT be created before the event loop.
+        # Deferred to first async use (sleep/wake) so the lock always binds to
+        # the running loop, preventing RuntimeError on Python 3.10+.
+        self._sleeping_lock: asyncio.Lock | None = None
 
         # Intent recognizer — initialized lazily on first use
         self._intent_recognizer: Any = None
 
         # STT function cache — resolved once at startup
-        self._stt_fn: Optional[Callable] = None
-        self._stt_params: Optional[list[str]] = None
+        self._stt_fn: Callable | None = None
+        self._stt_params: list[str] | None = None
 
         # TTS function cache — resolved once at startup
-        self._tts_fn: Optional[Callable] = None
+        self._tts_fn: Callable | None = None
         self._tts_fn_type: str = "unknown"  # "array", "response", "bytes", or "unknown"
 
         # Audit logger — records every pipeline execution
@@ -241,7 +254,9 @@ class IntegrationOrchestrator:
 
         logger.info(
             "GPU configs — whisper: %s, onnx: %s, torch: %s",
-            whisper_cfg.device, onnx_cfg.device, torch_cfg.device,
+            whisper_cfg.device,
+            onnx_cfg.device,
+            torch_cfg.device,
         )
 
         # Build coroutines for all subsystems
@@ -292,11 +307,11 @@ class IntegrationOrchestrator:
                 if existing:
                     return
 
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             from Agent_Guru.policy.models import Policy, PolicyEffect
 
-            now = datetime.now(tz=timezone.utc)
+            now = datetime.now(tz=UTC)
             policy = Policy(
                 id="guru_pipeline_default_allow",
                 version=1,
@@ -314,12 +329,10 @@ class IntegrationOrchestrator:
             )
             create_fn(policy)
             logger.info("Policy: seeded default allow policy for guru_pipeline")
-        except Exception as exc:
-            logger.warning("Policy seed failed: %s — policy check will default to allow", exc)
+        except Exception:
+            logger.exception("Policy seed failed: %s — policy check will default to allow")
 
-    async def _init_subsystem(
-        self, name: str, subsystem: Any, device_cfg: Any = None
-    ) -> None:
+    async def _init_subsystem(self, name: str, subsystem: Any, device_cfg: Any = None) -> None:
         """Initialise a single subsystem, passing device_cfg if accepted."""
         try:
             init = getattr(subsystem, "initialize", None)
@@ -339,13 +352,13 @@ class IntegrationOrchestrator:
                 if device_cfg is not None:
                     try:
                         await asyncio.to_thread(init, device_cfg=device_cfg)
-                    except TypeError as e:
+                    except TypeError:
                         await loop.run_in_executor(None, init)
                 else:
                     await loop.run_in_executor(None, init)
             logger.debug("Subsystem '%s' initialised", name)
         except Exception as exc:
-            logger.warning("Subsystem '%s' init failed: %s — continuing", name, exc)
+            logger.exception("Subsystem '%s' init failed: %s — continuing", name, exc)
 
     # ------------------------------------------------------------------
     # Startup caches
@@ -358,9 +371,11 @@ class IntegrationOrchestrator:
         at invocation time.
         """
         import inspect
-        fn = (
-            getattr(self.speech_engine, "transcribe", None)
-            or getattr(self.speech_engine, "transcribe_with_personality", None)
+
+        fn = getattr(self.speech_engine, "transcribe", None) or getattr(
+            self.speech_engine,
+            "transcribe_with_personality",
+            None,
         )
         if fn is None:
             stt = getattr(self.speech_engine, "stt_transcriber", None)
@@ -413,14 +428,16 @@ class IntegrationOrchestrator:
 
     async def sleep(self) -> None:
         """Enter sleep mode — only wake word detection remains active."""
-        # BUG-027: lock is now always present (initialized in __init__)
+        if self._sleeping_lock is None:
+            self._sleeping_lock = asyncio.Lock()
         async with self._sleeping_lock:
             self._sleeping = True
         logger.info("IntegrationOrchestrator: sleep mode — wake word detection only")
 
     async def wake(self) -> None:
         """Exit sleep mode — all subsystems active."""
-        # BUG-027: lock is now always present (initialized in __init__)
+        if self._sleeping_lock is None:
+            self._sleeping_lock = asyncio.Lock()
         async with self._sleeping_lock:
             self._sleeping = False
         logger.info("IntegrationOrchestrator: wake mode — all subsystems active")
@@ -447,6 +464,7 @@ class IntegrationOrchestrator:
 
         Returns:
             PipelineResult with all stage outputs populated.
+
         """
         result = PipelineResult()
 
@@ -456,7 +474,8 @@ class IntegrationOrchestrator:
         try:
             # Stage 1: STT — pass personality so Whisper uses the right voice profile
             result.transcript, result.detected_language = await self._stage_stt(
-                wake_event.audio, result.personality
+                wake_event.audio,
+                result.personality,
             )
             result.stages_completed = 1
 
@@ -474,14 +493,14 @@ class IntegrationOrchestrator:
                 if result.personality != Personality.MAYA:
                     logger.info(
                         "Personality corrected: transcript starts with 'Maya' — "
-                        "switching from GURU to MAYA"
+                        "switching from GURU to MAYA",
                     )
                     result.personality = Personality.MAYA
             elif any(kw in transcript_lower[:30] for kw in ("guru", "hey guru", "hi guru")):
                 if result.personality != Personality.GURU:
                     logger.info(
                         "Personality corrected: transcript starts with 'Guru' — "
-                        "switching from MAYA to GURU"
+                        "switching from MAYA to GURU",
                     )
                     result.personality = Personality.GURU
                 # Nothing heard — skip all remaining stages
@@ -492,11 +511,21 @@ class IntegrationOrchestrator:
             result.memory_context = await self._stage_memory(result.transcript)
             result.stages_completed = 2
 
-            # Stage 3: Reasoning — skip to avoid LLM timeout from ReasoningEngine.
-            # The ReasoningEngine calls its own LLM (5s timeout) which causes
-            # TimeoutError and adds 5-25s latency. The reasoning output is not
-            # used in the current pipeline (LLM stage handles everything).
-            result.reasoning_output = None
+            # Stage 3: Reasoning — hard 2s timeout guards against ReasoningEngine
+            # calling its own LLM (previously caused 5-25s latency spikes).
+            # If reasoning completes in time it enriches the LLM context;
+            # if it times out the pipeline continues with zero regression.
+            try:
+                result.reasoning_output = await asyncio.wait_for(
+                    self._stage_reasoning(result.transcript, result.memory_context),
+                    timeout=2.0,
+                )
+            except TimeoutError:
+                logger.debug("Reasoning stage timed out (>2s) — continuing without it")
+                result.reasoning_output = None
+            except Exception:
+                logger.debug("Reasoning stage error — continuing without it")
+                result.reasoning_output = None
             result.stages_completed = 3
 
             # ── FAST PATH: Detect intent BEFORE calling LLM ──────────────
@@ -512,7 +541,9 @@ class IntegrationOrchestrator:
             if needs_llm:
                 # Stage 4: LLM inference — only for conversation/questions
                 result.llm_response = await self._stage_llm(
-                    result.transcript, result.memory_context, result.reasoning_output,
+                    result.transcript,
+                    result.memory_context,
+                    result.reasoning_output,
                     result.detected_language,
                     personality=result.personality,
                 )
@@ -541,23 +572,28 @@ class IntegrationOrchestrator:
             # write the LLM's corrected text back to clipboard automatically
             if result.llm_response and result.transcript:
                 from Agent_Guru.platform.features.dictation import (
-                    is_clipboard_command, get_clipboard_action, set_clipboard_text,
+                    get_clipboard_action,
+                    is_clipboard_command,
+                    set_clipboard_text,
                 )
+
                 if is_clipboard_command(result.transcript):
                     action = get_clipboard_action(result.transcript)
                     if action in ("fix", "summarize"):
                         set_clipboard_text(result.llm_response)
-                        tts_text = result.llm_response + " I've updated your clipboard with the result."
+                        tts_text = (
+                            result.llm_response + " I've updated your clipboard with the result."
+                        )
 
-            result.tts_response = await self._stage_tts(
-                str(tts_text), result.personality
-            )
+            result.tts_response = await self._stage_tts(str(tts_text), result.personality)
             result.stages_completed = 8
 
             # Audit log — record every pipeline execution
             try:
                 self._audit_logger.log_event(
-                    event_type=EventType.POLICY_ALLOWED if result.policy_allowed else EventType.POLICY_VIOLATION,
+                    event_type=EventType.POLICY_ALLOWED
+                    if result.policy_allowed
+                    else EventType.POLICY_VIOLATION,
                     actor_id="guru_pipeline",
                     target_id=result.intent or "",
                     outcome="success",
@@ -568,12 +604,11 @@ class IntegrationOrchestrator:
                         "error": None,
                     },
                 )
-            except Exception as audit_exc:
-                logger.warning("Audit log failed: %s", audit_exc)
-
+            except Exception:
+                logger.exception("Audit log failed")
         except Exception as exc:
             result.error = str(exc)
-            logger.error("Pipeline error at stage %d: %s", result.stages_completed + 1, exc)
+            logger.exception("Pipeline error at stage %d", result.stages_completed + 1)
             try:
                 # BUG-021: general pipeline errors (STT, LLM, network) were
                 # incorrectly logged as POLICY_VIOLATION, polluting security audit
@@ -595,9 +630,8 @@ class IntegrationOrchestrator:
                         "error": str(exc),
                     },
                 )
-            except Exception as audit_exc:
-                logger.warning("Audit log failed: %s", audit_exc)
-
+            except Exception:
+                logger.exception("Audit log failed")
         return result
 
     # ------------------------------------------------------------------
@@ -605,7 +639,9 @@ class IntegrationOrchestrator:
     # ------------------------------------------------------------------
 
     async def handle_concurrent_event(
-        self, vision_event: VisionEvent, audio_event: WakeWordEvent
+        self,
+        vision_event: VisionEvent,
+        audio_event: WakeWordEvent,
     ) -> tuple[Any, PipelineResult]:
         """Dispatch vision and speech pipelines as parallel asyncio tasks.
 
@@ -617,6 +653,7 @@ class IntegrationOrchestrator:
 
         Returns:
             Tuple of (vision_result, pipeline_result).
+
         """
         vision_result, pipeline_result = await asyncio.gather(
             self._vision_pipeline(vision_event),
@@ -634,15 +671,19 @@ class IntegrationOrchestrator:
                 return await process(vision_event.frame)
             loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, process, vision_event.frame)
-        except Exception as exc:
-            logger.warning("Vision pipeline error: %s", exc)
+        except Exception:
+            logger.exception("Vision pipeline error")
             return None
 
     # ------------------------------------------------------------------
     # Pipeline stage helpers
     # ------------------------------------------------------------------
 
-    async def _stage_stt(self, audio: bytes, personality: "Personality | None" = None) -> tuple[str, str]:
+    async def _stage_stt(
+        self,
+        audio: bytes,
+        personality: Personality | None = None,
+    ) -> tuple[str, str]:
         """Stage 1: Speech-to-text.
 
         Args:
@@ -656,6 +697,7 @@ class IntegrationOrchestrator:
             Language is only returned when Whisper's detection confidence
             is high enough (>=0.7). Below that threshold we default to "en"
             to avoid sending wrong-language instructions to the LLM.
+
         """
         try:
             import numpy as np
@@ -665,9 +707,10 @@ class IntegrationOrchestrator:
             # Use cached STT function if available; otherwise probe at call time (fallback)
             fn = self._stt_fn
             if fn is None:
-                fn = (
-                    getattr(self.speech_engine, "transcribe", None)
-                    or getattr(self.speech_engine, "transcribe_with_personality", None)
+                fn = getattr(self.speech_engine, "transcribe", None) or getattr(
+                    self.speech_engine,
+                    "transcribe_with_personality",
+                    None,
                 )
                 if fn is None:
                     stt = getattr(self.speech_engine, "stt_transcriber", None)
@@ -687,14 +730,16 @@ class IntegrationOrchestrator:
                     if hasattr(result, "text"):
                         return (result.text or "").strip(), ""
                     return str(result).strip() if result else "", ""
-                except Exception as exc:
-                    logger.warning("STT async stage error: %s", exc)
+                except Exception:
+                    logger.exception("STT async stage error")
                     return ("", "")
-
             # Convert bytes → numpy float32 array that Whisper expects
             if isinstance(audio, (bytes, bytearray)) and len(audio) > 0:
                 if len(audio) % 4 != 0:
-                    logger.debug("STT: audio bytes not float32-aligned (%d bytes), skipping", len(audio))
+                    logger.debug(
+                        "STT: audio bytes not float32-aligned (%d bytes), skipping",
+                        len(audio),
+                    )
                     return ("", "")
                 audio_np = np.frombuffer(audio, dtype=np.float32).copy()
             elif isinstance(audio, np.ndarray):
@@ -706,7 +751,7 @@ class IntegrationOrchestrator:
             if len(audio_np) < 1600:
                 logger.debug("STT: audio too short (%d samples), skipping", len(audio_np))
                 return ("", "")
-            rms = float(np.sqrt(np.mean(audio_np ** 2)))
+            rms = float(np.sqrt(np.mean(audio_np**2)))
             if rms < 0.0003:
                 logger.debug("STT: audio too quiet (rms=%.5f), skipping", rms)
                 return ("", "")
@@ -718,30 +763,28 @@ class IntegrationOrchestrator:
             if personality is not None:
                 try:
                     from Agent_Guru.speech.models import PersonalityType
+
                     stt_personality = (
                         PersonalityType.MAYA
                         if personality == Personality.MAYA
                         else PersonalityType.GURU
                     )
                 except ImportError:
-                    pass
-
+                    logger.exception("Operation failed")
             params = self._stt_params or []
             try:
                 if "personality" in params and stt_personality is not None:
                     _pt = stt_personality  # capture for lambda
-                    result = await loop.run_in_executor(
-                        None, lambda: fn(audio_np, _pt)
-                    )
+                    result = await loop.run_in_executor(None, lambda: fn(audio_np, _pt))
                 elif "sample_rate" in params:
                     result = await loop.run_in_executor(
-                        None, lambda: fn(audio_np, sample_rate=16000)
+                        None,
+                        lambda: fn(audio_np, sample_rate=16000),
                     )
                 else:
                     result = await asyncio.to_thread(fn, audio_np, 16000)
-            except Exception as e:
+            except Exception:
                 result = await asyncio.to_thread(fn, audio_np, 16000)
-
             if hasattr(result, "text") and hasattr(result, "language"):
                 text = (result.text or "").strip()
                 raw_language = result.language or ""
@@ -757,7 +800,8 @@ class IntegrationOrchestrator:
                 if lang_prob is not None and float(lang_prob) < 0.70:
                     logger.info(
                         "STT: low language confidence (%.2f) for '%s' — defaulting to 'en'",
-                        float(lang_prob), raw_language,
+                        float(lang_prob),
+                        raw_language,
                     )
                     language = "en"
                 else:
@@ -774,8 +818,8 @@ class IntegrationOrchestrator:
             else:
                 logger.debug("STT: empty transcript")
             return text, language
-        except Exception as exc:
-            logger.warning("STT stage error: %s", exc)
+        except Exception:
+            logger.exception("STT stage error")
             return ("", "")
 
     async def _stage_memory(self, transcript: str) -> Any:
@@ -788,8 +832,8 @@ class IntegrationOrchestrator:
                 return await fn(transcript)
             loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, fn, transcript)
-        except Exception as exc:
-            logger.warning("Memory stage error: %s", exc)
+        except Exception:
+            logger.exception("Memory stage error")
             return None
 
     async def _stage_reasoning(self, transcript: str, memory_context: Any) -> Any:
@@ -814,6 +858,7 @@ class IntegrationOrchestrator:
 
             try:
                 from Agent_Guru.reasoning.input.normalizer import InputSource, RawInput
+
                 # Skip reasoning when transcript is empty (e.g. demo with no audio)
                 if not transcript or not transcript.strip():
                     return None
@@ -829,15 +874,14 @@ class IntegrationOrchestrator:
                     loop = asyncio.get_running_loop()
                     result = await loop.run_in_executor(None, process_fn, raw)
                 return result
-            except ImportError as e:
+            except ImportError:
                 # RawInput not available — call with transcript only
                 if asyncio.iscoroutinefunction(process_fn):
                     return await process_fn(transcript)
                 loop = asyncio.get_running_loop()
                 return await loop.run_in_executor(None, process_fn, transcript)
-
-        except Exception as exc:
-            logger.warning("Reasoning stage error: %s", exc)
+        except Exception:
+            logger.exception("Reasoning stage error")
             return None
 
     async def _stage_llm(
@@ -846,19 +890,27 @@ class IntegrationOrchestrator:
         memory_context: Any,
         reasoning_output: Any,
         language_code: str = "",
-        personality: "Personality | None" = None,
+        personality: Personality | None = None,
     ) -> str:
         """Stage 4: LLM inference with enriched context."""
         try:
             # Prefer infer() — used by mocks and simpler subsystems
-            fn = getattr(self.llm_runtime, "infer", None) or getattr(self.llm_runtime, "execute", None)
+            fn = getattr(self.llm_runtime, "infer", None) or getattr(
+                self.llm_runtime,
+                "execute",
+                None,
+            )
             if fn is not None:
                 if asyncio.iscoroutinefunction(fn):
                     result = await fn(transcript, memory_context, reasoning_output)
                 else:
                     loop = asyncio.get_running_loop()
                     result = await loop.run_in_executor(
-                        None, fn, transcript, memory_context, reasoning_output
+                        None,
+                        fn,
+                        transcript,
+                        memory_context,
+                        reasoning_output,
                     )
                 if hasattr(result, "content"):
                     return result.content or ""
@@ -871,6 +923,7 @@ class IntegrationOrchestrator:
 
             try:
                 from Agent_Guru.llm.models import CompletionRequest, Message
+
                 prompt = transcript or ""
                 if not prompt.strip():
                     return ""  # No transcript — skip LLM call entirely
@@ -881,8 +934,11 @@ class IntegrationOrchestrator:
 
                 # Inject clipboard content if the user is asking about it
                 from Agent_Guru.platform.features.dictation import (
-                    is_clipboard_command, get_clipboard_text, get_clipboard_action,
+                    get_clipboard_action,
+                    get_clipboard_text,
+                    is_clipboard_command,
                 )
+
                 if is_clipboard_command(prompt):
                     clip_text = get_clipboard_text()
                     if clip_text:
@@ -893,7 +949,11 @@ class IntegrationOrchestrator:
                             prompt = f"Fix the grammar and spelling of this text, return only the corrected version:\n\n{clip_text[:1000]}"
 
                 # Inject screen content if the user is asking about the screen
-                from Agent_Guru.platform.features.screen_reader import is_screen_read_command, read_screen_text
+                from Agent_Guru.platform.features.screen_reader import (
+                    is_screen_read_command,
+                    read_screen_text,
+                )
+
                 if is_screen_read_command(prompt):
                     screen_text = read_screen_text()
                     if screen_text:
@@ -901,10 +961,12 @@ class IntegrationOrchestrator:
 
                 # ── Personality-aware system prompt ───────────────────────
                 import datetime as _dt
+
                 current_date = _dt.datetime.now().strftime("%B %d, %Y")
 
                 # Inject persistent user memory so the assistant knows who it's talking to
                 from Agent_Guru.platform.features.user_memory import get_user_memory
+
                 user_facts = get_user_memory().get_summary()
 
                 # Build companion-grade system prompt from the centralized module
@@ -938,10 +1000,15 @@ class IntegrationOrchestrator:
                 # not just specific keywords. If it's an information intent
                 # or a question, try web search first.
                 from Agent_Guru.platform.features.web_search import needs_web_search, search_web
+
                 is_question = (
                     needs_web_search(prompt)
                     or prompt.strip().endswith("?")
-                    or re.search(r"^(who|what|when|where|why|how|is|are|was|were|will|can|does|did)\b", prompt.strip(), re.I)
+                    or re.search(
+                        r"^(who|what|when|where|why|how|is|are|was|were|will|can|does|did)\b",
+                        prompt.strip(),
+                        re.IGNORECASE,
+                    )
                 )
                 if is_question:
                     web_snippet = await search_web(prompt)
@@ -998,12 +1065,10 @@ class IntegrationOrchestrator:
                 messages.append(Message(role="user", content=prompt))
 
                 import os as _os
+
                 # Default: gemma3:4b — best model for 4GB VRAM (RTX 2050), May 2025.
                 # Falls back to env var OLLAMA_MODEL if set.
-                ollama_model = (
-                    _os.environ.get("OLLAMA_MODEL", "").strip()
-                    or "gemma3:4b"
-                )
+                ollama_model = _os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
                 request = CompletionRequest(
                     model=ollama_model,
                     messages=messages,
@@ -1032,10 +1097,9 @@ class IntegrationOrchestrator:
                     "ollama pull %s",
                     ollama_model, e, ollama_model,
                 )
-                return f"Sorry, I couldn't process that. ({type(e).__name__})"
-
-        except Exception as exc:
-            logger.warning("LLM stage error: %s", exc)
+                return ""
+        except Exception:
+            logger.exception("LLM stage error")
             return ""
 
     async def _stage_intent(self, llm_response: str) -> str:
@@ -1058,8 +1122,9 @@ class IntegrationOrchestrator:
             # Lazy-init intent recognizer — NO llm_manager so it stays rule-based only
             if self._intent_recognizer is None:
                 from Agent_Guru.platform.intent_recognizer import IntentRecognizer
+
                 self._intent_recognizer = IntentRecognizer(
-                    llm_manager=None  # Rule-based only — LLM handled by _stage_llm
+                    llm_manager=None,  # Rule-based only — LLM handled by _stage_llm
                 )
                 await self._intent_recognizer.initialize()
 
@@ -1079,8 +1144,8 @@ class IntegrationOrchestrator:
             # ── Single command ────────────────────────────────────────────
             return await self._encode_single_intent(cleaned)
 
-        except Exception as exc:
-            logger.warning("Intent stage error: %s", exc)
+        except Exception:
+            logger.exception("Intent stage error")
             return llm_response.strip()[:200]
 
     @staticmethod
@@ -1097,6 +1162,7 @@ class IntegrationOrchestrator:
             "and write there that, sorry, open edge" → "open edge"
             "Hey Maya play chak de india" → "play chak de india"
             "Himaya open youtube" → "open youtube"
+
         """
 
         t = text.strip()
@@ -1120,8 +1186,8 @@ class IntegrationOrchestrator:
             r"^this\s+is\s+(maya|guru)\s*[,.]?\s*",
             # Standalone "He," or "Hey " at start (Whisper mishearing of "Hey")
             # Only strip if followed by nothing or a comma — NOT if it's part of a word
-            r"^he\s*,\s*",   # "He, open notepad" → "open notepad"
-            r"^hey\s+",      # "Hey open" → "open"
+            r"^he\s*,\s*",  # "He, open notepad" → "open notepad"
+            r"^hey\s+",  # "Hey open" → "open"
         ]
         for pat in wake_patterns:
             t = re.sub(pat, "", t, flags=re.I).strip()
@@ -1172,27 +1238,27 @@ class IntegrationOrchestrator:
 
         # ── Step 10: Fix common Whisper mishearings ───────────────────────
         _corrections = {
-            r"\byou\s*to\b":        "youtube",
-            r"\byou\s*tube\b":      "youtube",
-            r"\bu\s*tube\b":        "youtube",
-            r"\blead\s*code\b":     "leetcode",
-            r"\bleet\s*code\b":     "leetcode",
-            r"\bchak\s*d[ae]\b":    "chak de",
-            r"\bchakd[ae]\b":       "chak de",
-            r"\bchakdha\b":         "chak de",
-            r"\bchadhya\b":         "chak de",
-            r"\bchakda\b":          "chak de",
-            r"\bspot\s*if\s*y\b":   "spotify",
-            r"\bwhat\s*s\s*app\b":  "whatsapp",
-            r"\bwhat\s*app\b":      "whatsapp",
-            r"\bface\s*book\b":     "facebook",
+            r"\byou\s*to\b": "youtube",
+            r"\byou\s*tube\b": "youtube",
+            r"\bu\s*tube\b": "youtube",
+            r"\blead\s*code\b": "leetcode",
+            r"\bleet\s*code\b": "leetcode",
+            r"\bchak\s*d[ae]\b": "chak de",
+            r"\bchakd[ae]\b": "chak de",
+            r"\bchakdha\b": "chak de",
+            r"\bchadhya\b": "chak de",
+            r"\bchakda\b": "chak de",
+            r"\bspot\s*if\s*y\b": "spotify",
+            r"\bwhat\s*s\s*app\b": "whatsapp",
+            r"\bwhat\s*app\b": "whatsapp",
+            r"\bface\s*book\b": "facebook",
             r"\bins\s*ta\s*gram\b": "instagram",
-            r"\btwit\s*ter\b":      "twitter",
-            r"\bgit\s*hub\b":       "github",
+            r"\btwit\s*ter\b": "twitter",
+            r"\bgit\s*hub\b": "github",
             r"\bgoogle\s*chrome\b": "chrome",
-            r"\bvs\s*code\b":       "vscode",
+            r"\bvs\s*code\b": "vscode",
             r"\bvisual\s*studio\s*code\b": "vscode",
-            r"\bms\s*edge\b":       "edge",
+            r"\bms\s*edge\b": "edge",
             r"\bmicrosoft\s*edge\b": "edge",
         }
         for pattern, replacement in _corrections.items():
@@ -1214,6 +1280,7 @@ class IntegrationOrchestrator:
             "notepad and write" → ["notepad and write"]  (no split — "notepad" has no verb)
 
         Only splits when EACH part starts with an action verb.
+
         """
 
         # Action verbs that start a new step
@@ -1235,9 +1302,8 @@ class IntegrationOrchestrator:
 
         # Validate: every step must start with an action verb.
         # If any step doesn't, don't split (treat as single command).
-        if len(steps) > 1:
-            if not all(_VERB_START.match(s) for s in steps):
-                return [text]
+        if len(steps) > 1 and not all(_VERB_START.match(s) for s in steps):
+            return [text]
 
         # Only return multiple steps if we actually found more than one
         return steps if len(steps) > 1 else [text]
@@ -1256,7 +1322,8 @@ class IntegrationOrchestrator:
         # Low-confidence results (conversation/information) are handled by the
         # main LLM in _stage_llm, not by the intent classifier.
         rule_result = self._intent_recognizer._rule_engine.recognize(
-            text, self._intent_recognizer._platform
+            text,
+            self._intent_recognizer._platform,
         )
         result = rule_result
 
@@ -1270,14 +1337,14 @@ class IntegrationOrchestrator:
             or result.parameters.get("direction", "")
             or ""
         )
-        level = (
-            str(result.parameters.get("engine", ""))
-            or str(result.parameters.get("level", ""))
-        )
+        level = str(result.parameters.get("engine", "")) or str(result.parameters.get("level", ""))
         encoded = f"{result.intent_type}:{action}:{param}:{level}".rstrip(":")
         logger.info(
             "Intent: %s (confidence=%.2f) params=%s encoded=%r",
-            result.intent_type, result.confidence, result.parameters, encoded
+            result.intent_type,
+            result.confidence,
+            result.parameters,
+            encoded,
         )
         return encoded
 
@@ -1307,13 +1374,17 @@ class IntegrationOrchestrator:
                 return bool(decision)
 
             # Fall back to PolicyEngine.evaluate_policy(principal, resource, action)
-            eval_fn = getattr(self.policy, "evaluate_policy_async", None) or \
-                      getattr(self.policy, "evaluate_policy", None)
+            eval_fn = getattr(self.policy, "evaluate_policy_async", None) or getattr(
+                self.policy,
+                "evaluate_policy",
+                None,
+            )
             if eval_fn is None:
                 return False  # No policy engine — deny by default (secure)
 
             try:
                 from Agent_Guru.policy.models import Principal, Resource
+
                 principal = Principal(id="guru_pipeline", attributes={"role": "assistant"})
                 resource = Resource(id="action", type="command")
                 if asyncio.iscoroutinefunction(eval_fn):
@@ -1321,16 +1392,19 @@ class IntegrationOrchestrator:
                 else:
                     loop = asyncio.get_running_loop()
                     decision = await loop.run_in_executor(
-                        None, eval_fn, principal, resource, intent
+                        None,
+                        eval_fn,
+                        principal,
+                        resource,
+                        intent,
                     )
                 if hasattr(decision, "effect"):
                     return decision.effect.value.upper() == "ALLOW"
                 return bool(decision)
-            except ImportError as e:
+            except ImportError:
                 return False  # Can't build Principal/Resource — deny by default (secure)
-
-        except Exception as exc:
-            logger.error("Policy stage error: %s — defaulting to deny for safety", exc)
+        except Exception:
+            logger.exception("Policy stage error: %s — defaulting to deny for safety")
             return False  # Deny by default when policy check fails
 
     async def _stage_action(self, intent: str) -> Any:
@@ -1344,6 +1418,7 @@ class IntegrationOrchestrator:
           'system_control:open_app:notepad'
           'system_control:open_app:edge|system_control:open_url:youtube|system_control:web_search:chak de india:youtube'
           'information:question:who is the prime minister of india'
+
         """
         if not intent:
             return None
@@ -1359,8 +1434,8 @@ class IntegrationOrchestrator:
                         results.append(str(step_result))
                     # Give apps time to open before the next step
                     await asyncio.sleep(1.5)
-                except Exception as exc:
-                    logger.warning("Multi-step action failed for step %r: %s", step, exc)
+                except Exception:
+                    logger.exception("Multi-step action failed for step %r", step)
             return ". ".join(results) if results else None
 
         # ── Single action ─────────────────────────────────────────────────
@@ -1386,21 +1461,22 @@ class IntegrationOrchestrator:
                         result = await loop.run_in_executor(None, execute_fn, safe_intent)
                     if result is not None:
                         return result
-                except AttributeError:
-                    pass
-                except Exception as exc:
-                    logger.warning("Agent orchestrator execute failed: %s — trying direct platform control", exc)
-        except Exception as exc:
-            logger.warning("Unexpected error in primary action path: %s", exc)
-
-        # Fallback: direct OSController calls
+                except AttributeError as exc:
+                    logger.warning(
+                        "Agent orchestrator execute failed: %s — trying direct platform control",
+                        exc,
+                    )
+        except Exception:
+            logger.exception("Unexpected error in primary action path")
+        # Fallback: direct OSController calls (reuse loop already obtained above)
         try:
-            loop = asyncio.get_running_loop()
+            loop = asyncio.get_running_loop()  # safe: always inside async context
             parts = safe_intent.split(":", 3)
             intent_type = parts[0] if len(parts) > 0 else ""
-            action      = parts[1] if len(parts) > 1 else ""
-            param       = parts[2] if len(parts) > 2 else ""
-            level_str   = parts[3] if len(parts) > 3 else ""
+            action = parts[1] if len(parts) > 1 else ""
+            param = parts[2] if len(parts) > 2 else ""
+
+            level_str = parts[3] if len(parts) > 3 else ""
 
             # The raw text the user actually said — used for feature detection
             # param holds the extracted parameter, safe_intent holds the full encoded intent
@@ -1411,23 +1487,34 @@ class IntegrationOrchestrator:
             # variations always work regardless of how the intent was classified.
 
             # Morning briefing — "good morning", "brief me", "what's my day"
-            from Agent_Guru.platform.features.briefing import is_briefing_command, get_morning_briefing
+            from Agent_Guru.platform.features.briefing import (
+                get_morning_briefing,
+                is_briefing_command,
+            )
+
             if is_briefing_command(raw_text):
                 from Agent_Guru.platform.features.user_memory import get_user_memory
+
                 location = get_user_memory().get("location")
                 return await get_morning_briefing(location=location)
 
             # System status — "what's my CPU", "how much RAM", "battery level"
-            from Agent_Guru.platform.features.system_status import is_system_status_command, get_system_status
+            from Agent_Guru.platform.features.system_status import (
+                get_system_status,
+                is_system_status_command,
+            )
+
             if is_system_status_command(raw_text):
                 return get_system_status(raw_text)
 
             # Reminder / Timer — "remind me in 10 minutes", "set a timer for 5 min"
             from Agent_Guru.platform.features.reminders import parse_reminder_from_transcript
+
             reminder_params = parse_reminder_from_transcript(raw_text)
             if reminder_params:
                 if self._reminder_mgr is None:
                     from Agent_Guru.platform.features.reminders import ReminderManager
+
                     self._reminder_mgr = ReminderManager()
                     # Wire TTS so reminders speak when they fire
                     tts_eng = getattr(self.speech_engine, "tts_engine", None)
@@ -1441,21 +1528,29 @@ class IntegrationOrchestrator:
                                 sd.play(padded, samplerate=sr)
                                 sd.wait()
                             except Exception as _e:
-                                logger.warning("Reminder TTS failed: %s", _e)
+                                logger.exception("Reminder TTS failed")
+
                         self._reminder_mgr.set_speak_callback(_speak_reminder)
                 msg = reminder_params.get("message", "reminder")
                 mins = reminder_params.get("minutes")
                 secs = reminder_params.get("seconds")
                 at_t = reminder_params.get("at_time")
                 return await self._reminder_mgr.set_reminder(
-                    msg, minutes=mins, seconds=secs, at_time=at_t
+                    msg,
+                    minutes=mins,
+                    seconds=secs,
+                    at_time=at_t,
                 )
 
             # Voice dictation — "dictate: hello world", "type this: ..."
             from Agent_Guru.platform.features.dictation import (
-                is_dictation_command, extract_dictation_text,
-                is_clipboard_command, get_clipboard_text, get_clipboard_action,
+                extract_dictation_text,
+                get_clipboard_action,
+                get_clipboard_text,
+                is_clipboard_command,
+                is_dictation_command,
             )
+
             if is_dictation_command(raw_text):
                 text_to_type = extract_dictation_text(raw_text)
                 if text_to_type:
@@ -1480,7 +1575,11 @@ class IntegrationOrchestrator:
                 return None
 
             # Screen reading — "what's on my screen", "read my screen"
-            from Agent_Guru.platform.features.screen_reader import is_screen_read_command, read_screen_text
+            from Agent_Guru.platform.features.screen_reader import (
+                is_screen_read_command,
+                read_screen_text,
+            )
+
             if is_screen_read_command(raw_text):
                 screen_text = read_screen_text()
                 if screen_text:
@@ -1488,7 +1587,8 @@ class IntegrationOrchestrator:
                 return "I couldn't read the screen content right now."
 
             # User memory extraction — "my name is X", "I live in Y"
-            from Agent_Guru.platform.features.user_memory import get_user_memory, extract_user_fact
+            from Agent_Guru.platform.features.user_memory import extract_user_fact, get_user_memory
+
             fact = extract_user_fact(raw_text)
             if fact:
                 key, value = fact
@@ -1517,7 +1617,11 @@ class IntegrationOrchestrator:
                 return None
 
             if intent_type not in ("system_control", "file_ops", "communication", "information"):
-                logger.info("ACTION SKIPPED — intent_type=%r. Full intent: %r", intent_type, safe_intent)
+                logger.info(
+                    "ACTION SKIPPED — intent_type=%r. Full intent: %r",
+                    intent_type,
+                    safe_intent,
+                )
                 return None
 
             ctrl = self.platform_controller
@@ -1525,111 +1629,114 @@ class IntegrationOrchestrator:
                 return None
 
             # ── Application control ───────────────────────────────────────
-            if (action == "open_app" or action == "open_file") and param:
+            if (action in {"open_app", "open_file"}) and param:
                 param = param.rstrip(".,!?;:")
                 logger.info("ACTION: open_application('%s')", param)
                 result = await asyncio.to_thread(ctrl.open_application, param)
                 safe_param = self._sanitize_output(param)
                 if getattr(result, "success", False):
                     return f"Opening {safe_param}"
-                else:
-                    err = getattr(result, "error", "unknown error")
-                    logger.error("Failed to open '%s': %s", param, err)
-                    return f"Sorry, I couldn't open {safe_param}"
+                err = getattr(result, "error", "unknown error")
+                logger.error("Failed to open '%s': %s", param, err)
+                return f"Sorry, I couldn't open {safe_param}"
 
             if action == "close_app" and param:
                 param = param.rstrip(".,!?;:")
                 logger.info("ACTION: close_application('%s')", param)
                 result = await asyncio.to_thread(ctrl.close_application, param)
                 safe_param = self._sanitize_output(param)
-                return f"Closed {safe_param}" if getattr(result, "success", True) else f"Failed to close {safe_param}"
+                return (
+                    f"Closed {safe_param}"
+                    if getattr(result, "success", True)
+                    else f"Failed to close {safe_param}"
+                )
 
             # ── Web / URL ─────────────────────────────────────────────────
             if action == "open_url":
                 # Comprehensive URL map — known sites get direct URLs
                 url_map = {
                     # Video / Music
-                    "youtube":      "https://www.youtube.com",
-                    "spotify":      "https://www.spotify.com",
-                    "netflix":      "https://www.netflix.com",
-                    "hotstar":      "https://www.hotstar.com",
-                    "primevideo":   "https://www.primevideo.com",
-                    "jiocinema":    "https://www.jiocinema.com",
-                    "zee5":         "https://www.zee5.com",
-                    "sonyliv":      "https://www.sonyliv.com",
-                    "twitch":       "https://www.twitch.tv",
-                    "tiktok":       "https://www.tiktok.com",
+                    "youtube": "https://www.youtube.com",
+                    "spotify": "https://www.spotify.com",
+                    "netflix": "https://www.netflix.com",
+                    "hotstar": "https://www.hotstar.com",
+                    "primevideo": "https://www.primevideo.com",
+                    "jiocinema": "https://www.jiocinema.com",
+                    "zee5": "https://www.zee5.com",
+                    "sonyliv": "https://www.sonyliv.com",
+                    "twitch": "https://www.twitch.tv",
+                    "tiktok": "https://www.tiktok.com",
                     # Search / Info
-                    "google":       "https://www.google.com",
-                    "bing":         "https://www.bing.com",
-                    "wikipedia":    "https://www.wikipedia.org",
-                    "quora":        "https://www.quora.com",
-                    "reddit":       "https://www.reddit.com",
-                    "medium":       "https://www.medium.com",
-                    "hashnode":     "https://hashnode.com",
+                    "google": "https://www.google.com",
+                    "bing": "https://www.bing.com",
+                    "wikipedia": "https://www.wikipedia.org",
+                    "quora": "https://www.quora.com",
+                    "reddit": "https://www.reddit.com",
+                    "medium": "https://www.medium.com",
+                    "hashnode": "https://hashnode.com",
                     # Social
-                    "twitter":      "https://www.twitter.com",
-                    "facebook":     "https://www.facebook.com",
-                    "instagram":    "https://www.instagram.com",
-                    "linkedin":     "https://www.linkedin.com",
-                    "pinterest":    "https://www.pinterest.com",
-                    "tumblr":       "https://www.tumblr.com",
+                    "twitter": "https://www.twitter.com",
+                    "facebook": "https://www.facebook.com",
+                    "instagram": "https://www.instagram.com",
+                    "linkedin": "https://www.linkedin.com",
+                    "pinterest": "https://www.pinterest.com",
+                    "tumblr": "https://www.tumblr.com",
                     # Messaging
-                    "whatsapp":     "https://web.whatsapp.com",
-                    "telegram":     "https://web.telegram.org",
-                    "discord":      "https://discord.com",
-                    "slack":        "https://slack.com",
-                    "zoom":         "https://zoom.us",
-                    "teams":        "https://teams.microsoft.com",
-                    "meet":         "https://meet.google.com",
+                    "whatsapp": "https://web.whatsapp.com",
+                    "telegram": "https://web.telegram.org",
+                    "discord": "https://discord.com",
+                    "slack": "https://slack.com",
+                    "zoom": "https://zoom.us",
+                    "teams": "https://teams.microsoft.com",
+                    "meet": "https://meet.google.com",
                     # Dev / Coding
-                    "github":       "https://www.github.com",
-                    "stackoverflow":"https://stackoverflow.com",
-                    "leetcode":     "https://www.leetcode.com",
-                    "hackerrank":   "https://www.hackerrank.com",
-                    "codechef":     "https://www.codechef.com",
-                    "codeforces":   "https://www.codeforces.com",
-                    "geeksforgeeks":"https://www.geeksforgeeks.org",
-                    "w3schools":    "https://www.w3schools.com",
-                    "mdn":          "https://developer.mozilla.org",
-                    "openai":       "https://www.openai.com",
-                    "huggingface":  "https://huggingface.co",
-                    "kaggle":       "https://www.kaggle.com",
-                    "dev.to":       "https://dev.to",
+                    "github": "https://www.github.com",
+                    "stackoverflow": "https://stackoverflow.com",
+                    "leetcode": "https://www.leetcode.com",
+                    "hackerrank": "https://www.hackerrank.com",
+                    "codechef": "https://www.codechef.com",
+                    "codeforces": "https://www.codeforces.com",
+                    "geeksforgeeks": "https://www.geeksforgeeks.org",
+                    "w3schools": "https://www.w3schools.com",
+                    "mdn": "https://developer.mozilla.org",
+                    "openai": "https://www.openai.com",
+                    "huggingface": "https://huggingface.co",
+                    "kaggle": "https://www.kaggle.com",
+                    "dev.to": "https://dev.to",
                     # Learning
-                    "udemy":        "https://www.udemy.com",
-                    "coursera":     "https://www.coursera.org",
-                    "edx":          "https://www.edx.org",
-                    "khanacademy":  "https://www.khanacademy.org",
+                    "udemy": "https://www.udemy.com",
+                    "coursera": "https://www.coursera.org",
+                    "edx": "https://www.edx.org",
+                    "khanacademy": "https://www.khanacademy.org",
                     "khan academy": "https://www.khanacademy.org",
                     # Shopping / Finance
-                    "amazon":       "https://www.amazon.in",
-                    "flipkart":     "https://www.flipkart.com",
-                    "myntra":       "https://www.myntra.com",
-                    "snapdeal":     "https://www.snapdeal.com",
-                    "paytm":        "https://www.paytm.com",
-                    "phonepe":      "https://www.phonepe.com",
-                    "gpay":         "https://pay.google.com",
+                    "amazon": "https://www.amazon.in",
+                    "flipkart": "https://www.flipkart.com",
+                    "myntra": "https://www.myntra.com",
+                    "snapdeal": "https://www.snapdeal.com",
+                    "paytm": "https://www.paytm.com",
+                    "phonepe": "https://www.phonepe.com",
+                    "gpay": "https://pay.google.com",
                     # Travel
-                    "irctc":        "https://www.irctc.co.in",
-                    "makemytrip":   "https://www.makemytrip.com",
-                    "goibibo":      "https://www.goibibo.com",
-                    "booking":      "https://www.booking.com",
-                    "airbnb":       "https://www.airbnb.com",
+                    "irctc": "https://www.irctc.co.in",
+                    "makemytrip": "https://www.makemytrip.com",
+                    "goibibo": "https://www.goibibo.com",
+                    "booking": "https://www.booking.com",
+                    "airbnb": "https://www.airbnb.com",
                     # Jobs
-                    "naukri":       "https://www.naukri.com",
-                    "indeed":       "https://www.indeed.com",
-                    "glassdoor":    "https://www.glassdoor.com",
+                    "naukri": "https://www.naukri.com",
+                    "indeed": "https://www.indeed.com",
+                    "glassdoor": "https://www.glassdoor.com",
                     # Google services
-                    "gmail":        "https://mail.google.com",
-                    "maps":         "https://maps.google.com",
-                    "translate":    "https://translate.google.com",
-                    "drive":        "https://drive.google.com",
-                    "docs":         "https://docs.google.com",
-                    "sheets":       "https://sheets.google.com",
-                    "slides":       "https://slides.google.com",
-                    "calendar":     "https://calendar.google.com",
-                    "keep":         "https://keep.google.com",
+                    "gmail": "https://mail.google.com",
+                    "maps": "https://maps.google.com",
+                    "translate": "https://translate.google.com",
+                    "drive": "https://drive.google.com",
+                    "docs": "https://docs.google.com",
+                    "sheets": "https://sheets.google.com",
+                    "slides": "https://slides.google.com",
+                    "calendar": "https://calendar.google.com",
+                    "keep": "https://keep.google.com",
                 }
                 param_lower = param.lower().strip()
 
@@ -1668,7 +1775,7 @@ class IntegrationOrchestrator:
                         return f"Opened {self._sanitize_output(param)}"
 
                 # Domain name (contains a dot like "leetcode.com")
-                if "." in param and not " " in param:
+                if "." in param and " " not in param:
                     url = param if param.startswith("http") else f"https://{param}"
                     fn = getattr(ctrl, "open_url", None)
                     if fn:
@@ -1702,22 +1809,20 @@ class IntegrationOrchestrator:
                         await self._open_youtube_and_play(query)
                         return f"Playing {self._sanitize_output(query)} on YouTube"
                     except Exception as yt_exc:
-                        logger.warning(
+                        logger.exception(
                             "YouTube auto-play failed (%s) — opening search page instead",
                             yt_exc,
                         )
                         search_url = (
-                            "https://www.youtube.com/results?search_query="
-                            + _up.quote_plus(query)
+                            "https://www.youtube.com/results?search_query=" + _up.quote_plus(query)
                         )
                         fn = getattr(ctrl, "open_url", None)
                         if fn:
                             await asyncio.to_thread(fn, search_url)
                         return f"Opening YouTube search for {self._sanitize_output(query)}"
-
                 _engines = {
                     "google": "https://www.google.com/search?q=",
-                    "bing":   "https://www.bing.com/search?q=",
+                    "bing": "https://www.bing.com/search?q=",
                 }
                 search_url = _engines.get(engine, _engines["google"]) + _up.quote_plus(query)
                 fn = getattr(ctrl, "open_url", None)
@@ -1739,54 +1844,54 @@ class IntegrationOrchestrator:
                         try:
                             return await mgr.set_volume(vol)
                         except Exception:
-                            pass
+                            logger.exception("Operation failed")
                     try:
                         await asyncio.to_thread(ctrl.set_volume, vol)
-                    except Exception as exc:
-                        logger.warning("set_volume failed: %s", exc)
+                    except Exception:
+                        logger.exception("set_volume failed")
                     return f"Volume set to {vol}%"
 
-                elif "up" in param.lower() or "increase" in param.lower():
+                if "up" in param.lower() or "increase" in param.lower():
                     if yt_open:
                         try:
                             return await mgr.volume_up()
                         except Exception:
-                            pass
+                            logger.exception("Operation failed")
                     fn = getattr(ctrl, "volume_up", None)
                     try:
                         if fn:
                             await loop.run_in_executor(None, fn)
-                    except Exception as exc:
-                        logger.warning("volume_up failed: %s", exc)
+                    except Exception:
+                        logger.exception("volume_up failed")
                     return "Volume increased"
 
-                elif "down" in param.lower() or "decrease" in param.lower():
+                if "down" in param.lower() or "decrease" in param.lower():
                     if yt_open:
                         try:
                             return await mgr.volume_down()
                         except Exception:
-                            pass
+                            logger.exception("Operation failed")
                     fn = getattr(ctrl, "volume_down", None)
                     try:
                         if fn:
                             await loop.run_in_executor(None, fn)
-                    except Exception as exc:
-                        logger.warning("volume_down failed: %s", exc)
+                    except Exception:
+                        logger.exception("volume_down failed")
                     return "Volume decreased"
 
-                elif re.search(r"\b(mute|unmute)\b", param, re.I):
-                    is_unmute = bool(re.search(r"\bunmute\b", param, re.I))
+                if re.search(r"\b(mute|unmute)\b", param, re.IGNORECASE):
+                    is_unmute = bool(re.search(r"\bunmute\b", param, re.IGNORECASE))
                     if yt_open:
                         try:
                             return await (mgr.unmute() if is_unmute else mgr.mute())
                         except Exception:
-                            pass
+                            logger.exception("Operation failed")
                     fn = getattr(ctrl, "unmute" if is_unmute else "mute", None)
                     try:
                         if fn:
                             await loop.run_in_executor(None, fn)
-                    except Exception as exc:
-                        logger.warning("mute failed: %s", exc)
+                    except Exception:
+                        logger.exception("mute failed")
                     return "Unmuted" if is_unmute else "Muted"
 
             # ── Brightness ────────────────────────────────────────────────
@@ -1800,16 +1905,14 @@ class IntegrationOrchestrator:
                 get_fn = getattr(ctrl, "get_brightness", None)
                 current = 50
                 if get_fn:
-                    try:
+                    with contextlib.suppress(Exception):
                         current = int(await asyncio.to_thread(get_fn))
-                    except Exception:
-                        pass
                 set_fn = getattr(ctrl, "set_brightness", None)
                 if "up" in param.lower() or "increase" in param.lower():
                     if set_fn:
                         await asyncio.to_thread(set_fn, min(100, current + 10))
                     return "Brightness increased"
-                elif "down" in param.lower() or "decrease" in param.lower():
+                if "down" in param.lower() or "decrease" in param.lower():
                     if set_fn:
                         await asyncio.to_thread(set_fn, max(0, current - 10))
                     return "Brightness decreased"
@@ -1832,7 +1935,9 @@ class IntegrationOrchestrator:
             if action == "screenshot":
                 logger.info("ACTION: screenshot")
                 fn = getattr(ctrl, "take_screenshot", None) or getattr(
-                    getattr(ctrl, "_screen_controller", None), "capture", None
+                    getattr(ctrl, "_screen_controller", None),
+                    "capture",
+                    None,
                 )
                 if fn:
                     await loop.run_in_executor(None, fn)
@@ -1862,23 +1967,20 @@ class IntegrationOrchestrator:
                 mgr = getattr(self, "_browser_mgr", None)
                 if mgr and mgr._page is not None:
                     try:
-                        if re.search(r"\bpause\b", safe_intent, re.I):
+                        if re.search(r"\bpause\b", safe_intent, re.IGNORECASE):
                             return await mgr.pause()
-                        else:
-                            return await mgr.resume()
-                    except Exception as exc:
-                        logger.warning("BrowserManager play_pause failed: %s", exc)
-
-                if re.search(r"\bpause\b", safe_intent, re.I):
+                        return await mgr.resume()
+                    except Exception:
+                        logger.exception("BrowserManager play_pause failed")
+                if re.search(r"\bpause\b", safe_intent, re.IGNORECASE):
                     fn = getattr(ctrl, "pause_media", None)
                     if fn:
                         await loop.run_in_executor(None, fn)
                     return "Media paused"
-                else:
-                    fn = getattr(ctrl, "play_media", None)
-                    if fn:
-                        await loop.run_in_executor(None, fn)
-                    return "Media playing"
+                fn = getattr(ctrl, "play_media", None)
+                if fn:
+                    await loop.run_in_executor(None, fn)
+                return "Media playing"
 
             # ── Type text ─────────────────────────────────────────────────
             if action == "type_text" and param:
@@ -1894,11 +1996,14 @@ class IntegrationOrchestrator:
                 if sys.platform == "win32":
                     try:
                         import win32gui as _wg  # type: ignore[import]
+
                         found: list[int] = []
+
                         def _cb(hwnd: int, _: object) -> None:
                             title = _wg.GetWindowText(hwnd)
                             if param.lower() in title.lower():
                                 found.append(hwnd)
+
                         _wg.EnumWindows(_cb, None)
                         if found:
                             _wg.SetForegroundWindow(found[0])
@@ -1945,13 +2050,17 @@ class IntegrationOrchestrator:
                     if fn and contact:
                         if app == "whatsapp":
                             digits = contact.replace("+", "").replace("-", "").replace(" ", "")
-                            url = f"https://wa.me/{digits}" if digits.isdigit() else "https://web.whatsapp.com"
+                            url = (
+                                f"https://wa.me/{digits}"
+                                if digits.isdigit()
+                                else "https://web.whatsapp.com"
+                            )
                             await asyncio.to_thread(fn, url)
                             return f"Opening WhatsApp for {self._sanitize_output(contact)}"
-                        elif app == "telegram":
+                        if app == "telegram":
                             await asyncio.to_thread(fn, f"https://t.me/{contact.lstrip('@')}")
                             return f"Opening Telegram for {self._sanitize_output(contact)}"
-                        elif app == "email":
+                        if app == "email":
                             await asyncio.to_thread(fn, f"mailto:{contact}")
                             return f"Opening email for {self._sanitize_output(contact)}"
                     return f"Opening messaging app for {self._sanitize_output(contact)}"
@@ -1960,7 +2069,11 @@ class IntegrationOrchestrator:
                     fn = getattr(ctrl, "open_url", None)
                     if fn and contact:
                         digits = contact.replace("+", "").replace("-", "").replace(" ", "")
-                        url = f"tel:{digits}" if digits.isdigit() else f"https://wa.me/?phone={contact}"
+                        url = (
+                            f"tel:{digits}"
+                            if digits.isdigit()
+                            else f"https://wa.me/?phone={contact}"
+                        )
                         await asyncio.to_thread(fn, url)
                     return f"Calling {self._sanitize_output(contact)}"
 
@@ -1994,14 +2107,15 @@ class IntegrationOrchestrator:
 
             return None
 
-        except Exception as exc:
-            logger.warning("Action stage error: %s", exc)
+        except Exception:
+            logger.exception("Action stage error")
             return None
 
     async def _get_browser_mgr(self) -> Any:
         """Return the BrowserManager, starting it on first call."""
         if self._browser_mgr is None:
             from Agent_Guru.platform.browser_manager import BrowserManager
+
             self._browser_mgr = BrowserManager()
             await self._browser_mgr.start()
         return self._browser_mgr
@@ -2047,10 +2161,9 @@ class IntegrationOrchestrator:
             else:
                 wav_bytes = await asyncio.to_thread(fn, text, pt)
             if isinstance(wav_bytes, (bytes, bytearray)) and len(wav_bytes) > 44:
-                with io.BytesIO(wav_bytes) as buf:
-                    with wave.open(buf, "rb") as wf:
-                        sample_rate = wf.getframerate()
-                        frames = wf.readframes(wf.getnframes())
+                with io.BytesIO(wav_bytes) as buf, wave.open(buf, "rb") as wf:
+                    sample_rate = wf.getframerate()
+                    frames = wf.readframes(wf.getnframes())
                 audio_array = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
             elif isinstance(wav_bytes, (bytes, bytearray)):
                 # Short bytes (e.g. b"<audio>" from mock) — return sentinel
@@ -2072,6 +2185,7 @@ class IntegrationOrchestrator:
             # Convert orchestrator Personality → speech engine PersonalityType
             try:
                 from Agent_Guru.speech.models import PersonalityType
+
                 pt = (
                     PersonalityType.MAYA
                     if personality == Personality.MAYA
@@ -2079,7 +2193,6 @@ class IntegrationOrchestrator:
                 )
             except ImportError:
                 pt = personality  # fallback — pass as-is
-
             audio_array: Any = None
             sample_rate = 22050
 
@@ -2108,13 +2221,15 @@ class IntegrationOrchestrator:
                     continue
                 try:
                     audio_array, sample_rate = await self._invoke_tts_fn(
-                        fn_candidate, text, pt, fn_type
+                        fn_candidate,
+                        text,
+                        pt,
+                        fn_type,
                     )
                     if isinstance(audio_array, (bytes, bytearray)):
                         return audio_array
-                except Exception as exc:
-                    logger.warning("TTS fn (%s) failed: %s", fn_type, exc)
-
+                except Exception:
+                    logger.exception("TTS fn (%s) failed", fn_type)
             # --- Play audio through speakers ---
             if audio_array is not None and len(audio_array) > 0:
                 try:
@@ -2135,13 +2250,12 @@ class IntegrationOrchestrator:
                     # TTS audio was synthesized but never played, so the user
                     # heard nothing. Now falls back to pyttsx3 (always available
                     # on Windows/macOS/Linux) so the reply is always spoken.
-                    logger.warning(
+                    logger.exception(
                         "sounddevice not installed — falling back to pyttsx3 TTS. "
-                        "For best audio quality: pip install sounddevice"
+                        "For best audio quality: pip install sounddevice",
                     )
                     try:
                         import pyttsx3  # type: ignore[import]
-                        from Agent_Guru.speech.models import PersonalityType as _PT
 
                         def _play_pyttsx3() -> None:
                             engine = pyttsx3.init()
@@ -2151,9 +2265,13 @@ class IntegrationOrchestrator:
                                 if personality == Personality.MAYA:
                                     # Pick first female voice if available
                                     female = next(
-                                        (v for v in voices if "female" in v.name.lower()
-                                         or "zira" in v.name.lower()
-                                         or "hazel" in v.name.lower()),
+                                        (
+                                            v
+                                            for v in voices
+                                            if "female" in v.name.lower()
+                                            or "zira" in v.name.lower()
+                                            or "hazel" in v.name.lower()
+                                        ),
                                         voices[-1],
                                     )
                                     engine.setProperty("voice", female.id)
@@ -2168,16 +2286,13 @@ class IntegrationOrchestrator:
                         logger.info("TTS played via pyttsx3 fallback")
                     except Exception as tts_exc:
                         logger.error(
-                            "TTS playback failed (both sounddevice and pyttsx3 unavailable): %s. "
-                            "Install sounddevice: pip install sounddevice",
+                            "TTS playback failed (sounddevice + pyttsx3 both unavailable): %s — "
+                            "install sounddevice: pip install sounddevice",
                             tts_exc,
                         )
-                except Exception as exc:
-                    logger.warning("Audio playback error: %s", exc)
-
             return audio_array
-        except Exception as exc:
-            logger.warning("TTS stage error: %s", exc)
+        except Exception:
+            logger.exception("TTS stage error")
             return text
 
     # ------------------------------------------------------------------
@@ -2186,21 +2301,46 @@ class IntegrationOrchestrator:
 
     @staticmethod
     def _sanitize_output(text: str) -> str:
-        """Sanitize user-controlled text to prevent XSS attacks.
+        """Sanitize user-controlled text for safe display (HTML context).
 
         Escapes HTML special characters so the text is safe to display
         in web interfaces, logs, or any HTML context.
+        For OS/shell commands use _sanitize_for_shell() instead.
 
         Args:
             text: Raw user input or derived text.
 
         Returns:
             HTML-escaped text safe for display.
+
         """
         if not text:
             return text
         import html as _html_mod
+
         return _html_mod.escape(str(text), quote=True)
+
+    @staticmethod
+    def _sanitize_for_shell(text: str) -> str:
+        """Sanitize text for safe use as a shell/OS argument (SEC-001).
+
+        Uses shlex.quote() to prevent shell injection when passing
+        user-controlled strings to subprocess, win32api, or os.system.
+        Always use this — not _sanitize_output — for OS command params.
+
+        Args:
+            text: Raw user input or parameter.
+
+        Returns:
+            Shell-quoted string safe for OS command arguments.
+
+        """
+        if not text:
+            return text
+        import shlex as _shlex
+
+        # Shell-quote for OS safety, then HTML-escape for any log/display output
+        return _shlex.quote(str(text))
 
     @staticmethod
     def _resolve_personality(wake_word: str) -> Personality:

@@ -1,5 +1,4 @@
-"""
-STATE-OF-THE-ART NER Training - GLiNER
+"""STATE-OF-THE-ART NER Training - GLiNER.
 
 Based on latest research (2024-2025):
 - GLiNER: Generalist NER model using bidirectional transformer
@@ -29,16 +28,17 @@ from pathlib import Path
 
 import torch
 import yaml
-from Agent_Guru.security.path_utils import safe_path
 from sklearn.metrics import precision_recall_fscore_support  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore[import-untyped]
+
+from Agent_Guru.security.path_utils import safe_path
 
 try:
     from gliner import GLiNER  # type: ignore[import-untyped]
 except ImportError as _gliner_err:
+    msg = "GLiNER is required for NER training. Install with: pip install gliner"
     raise ImportError(
-        "GLiNER is required for NER training. "
-        "Install with: pip install gliner"
+        msg,
     ) from _gliner_err
 
 
@@ -84,6 +84,7 @@ def load_ner_data(data_path: str) -> list[dict]:
 
     Returns:
         List of examples in GLiNER format
+
     """
     with open(data_path) as f:  # nosec - path validated by caller via safe_path
         data = yaml.safe_load(f)
@@ -103,11 +104,11 @@ def load_ner_data(data_path: str) -> list[dict]:
                     "end": entity["end"],
                     "text": entity["text"],
                     "label": entity["type"],
-                }
+                },
             )
 
         training_data.append(
-            {"tokenized_text": text.split(), "ner": ner_entities}  # Simple tokenization
+            {"tokenized_text": text.split(), "ner": ner_entities},  # Simple tokenization
         )
 
     return training_data
@@ -122,6 +123,7 @@ def augment_ner_data(training_data: list[dict], augmentation_factor: int = 2) ->
 
     Returns:
         Augmented training data
+
     """
     augmented_data = list(training_data)
 
@@ -143,6 +145,7 @@ def evaluate_ner(model: GLiNER, test_data: list[dict], entity_types: list[str]) 
 
     Returns:
         Dictionary with precision, recall, F1 scores
+
     """
     all_true = []
     all_pred = []
@@ -166,7 +169,12 @@ def evaluate_ner(model: GLiNER, test_data: list[dict], entity_types: list[str]) 
             token_starts.append(pos)
             pos += len(tok) + 1  # +1 for space
 
-        def _char_to_token(char_start: int, char_end: int) -> tuple[int, int]:
+        def _char_to_token(
+            char_start: int,
+            char_end: int,
+            token_starts: list[int] = token_starts,
+            tokens: list[str] = tokens,
+        ) -> tuple[int, int]:
             """Return (first_token_idx, last_token_idx) for a char span."""
             t_start = -1
             t_end = -1
@@ -209,7 +217,10 @@ def evaluate_ner(model: GLiNER, test_data: list[dict], entity_types: list[str]) 
 
     # Compute metrics
     precision, recall, f1, _ = precision_recall_fscore_support(
-        all_true, all_pred, average="weighted", zero_division=0
+        all_true,
+        all_pred,
+        average="weighted",
+        zero_division=0,
     )
 
     return {
@@ -219,7 +230,7 @@ def evaluate_ner(model: GLiNER, test_data: list[dict], entity_types: list[str]) 
     }
 
 
-def train_ner_model(config: NERTrainingConfig):
+def train_ner_model(config: NERTrainingConfig) -> None:
     """Train GLiNER model (SOTA NER).
 
     Args:
@@ -230,49 +241,26 @@ def train_ner_model(config: NERTrainingConfig):
     - Inference: <100ms per batch with GPU
 
     Training Time: 4-6 hours with GPU
-    """
-    print(f"\n{'='*80}")
-    print("STATE-OF-THE-ART NER Training - GLiNER")
-    print("Generalist NER with Bidirectional Transformer")
-    print(f"{'='*80}\n")
 
+    """
     # Check GPU
     if config.use_gpu:
         if torch.cuda.is_available():
-            print(f"✓ GPU enabled: {torch.cuda.get_device_name(0)}")
-            print(f"✓ CUDA version: {torch.version.cuda}")
-            print(
-                f"✓ GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB\n"
-            )
+            pass
         else:
-            print("⚠ WARNING: GPU not available!")
             response = input("Continue on CPU? (yes/no): ")
             if response.lower() != "yes":
                 return
 
-    print(f"✓ Model: {config.base_model}")
-    print(f"✓ Max epochs: {config.num_epochs}")
-    print(f"✓ Batch size: {config.batch_size}")
-    print(f"✓ Learning rate: {config.learning_rate}")
-    print(f"✓ Data augmentation: {config.use_augmentation}\n")
-
     # Load data
-    print("Loading training data...")
     _data_base = Path(config.data_dir).resolve()
     train_data = load_ner_data(safe_path("train_annotated.yaml", _data_base))  # nosec
     val_data = load_ner_data(safe_path("val_annotated.yaml", _data_base))  # nosec
     test_data = load_ner_data(safe_path("test_annotated.yaml", _data_base))  # nosec
 
-    print("Original dataset sizes:")
-    print(f"  Train: {len(train_data)}")
-    print(f"  Validation: {len(val_data)}")
-    print(f"  Test: {len(test_data)}\n")
-
     # Apply augmentation
     if config.use_augmentation:
-        print("Applying data augmentation...")
         train_data = augment_ner_data(train_data, config.augmentation_factor)
-        print(f"Augmented train size: {len(train_data)}\n")
 
     # Get entity types
     entity_types = set()
@@ -281,30 +269,18 @@ def train_ner_model(config: NERTrainingConfig):
             entity_types.add(ent["label"])
     entity_types = sorted(entity_types)
 
-    print(f"Entity types ({len(entity_types)}): {entity_types}\n")
-
     # Load GLiNER model
-    print("Loading GLiNER model...")
     model = GLiNER.from_pretrained(config.base_model)
 
     if config.use_gpu and torch.cuda.is_available():
         model = model.to("cuda")
 
-    print("✓ Model loaded\n")
-
     # Training with GLiNER's built-in trainer
-    print(f"{'='*80}")
-    print("Starting training with GLiNER trainer...")
-    print(f"{'='*80}\n")
 
     # Calculate total steps
     steps_per_epoch = len(train_data) // config.batch_size
     max_steps = steps_per_epoch * config.num_epochs
     eval_steps = steps_per_epoch  # Evaluate once per epoch
-
-    print(f"Steps per epoch: {steps_per_epoch}")
-    print(f"Total steps: {max_steps}")
-    print(f"Eval frequency: {eval_steps} steps\n")
 
     # Train using GLiNER's train_model method
     trainer = model.train_model(
@@ -333,15 +309,9 @@ def train_ner_model(config: NERTrainingConfig):
     )
 
     # Save best model
-    print(f"\n{'='*80}")
-    print("Saving best model...")
-    print(f"{'='*80}\n")
     trainer.save_model()
 
     # Load best model for final evaluation
-    print(f"\n{'='*80}")
-    print("Loading best model for final evaluation...")
-    print(f"{'='*80}\n")
 
     # GLiNER trainer saves best model to output_dir
     model = GLiNER.from_pretrained(config.output_dir)
@@ -350,16 +320,7 @@ def train_ner_model(config: NERTrainingConfig):
         model = model.to("cuda")
 
     # Test evaluation
-    print("Running test evaluation...")
     test_scores = evaluate_ner(model, test_data, entity_types)
-
-    print(f"\n{'='*80}")
-    print("Test Results:")
-    print(f"{'='*80}")
-    print(f"Test Precision: {test_scores['precision']:.4f}")
-    print(f"Test Recall: {test_scores['recall']:.4f}")
-    print(f"Test F1: {test_scores['f1']:.4f}")
-    print(f"{'='*80}\n")
 
     # Save final model
     _output_base = Path(config.output_dir).resolve()
@@ -381,12 +342,6 @@ def train_ner_model(config: NERTrainingConfig):
 
     with open(final_model_path / "training_config.json", "w") as f:  # nosec - path validated by safe_path
         json.dump(vars(config), f, indent=2)
-
-    print(f"{'='*80}")
-    print(f"✓ Final model saved to: {final_model_path}")
-    print(f"✓ Test F1 score: {test_scores['f1']:.4f}")
-    print("✓ Training complete!")
-    print(f"{'='*80}\n")
 
 
 if __name__ == "__main__":

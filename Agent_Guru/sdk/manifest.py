@@ -1,12 +1,11 @@
-"""
-Manifest generation helpers for skills.
+"""Manifest generation helpers for skills.
 
 Provides utilities to generate skill manifests from Skill classes.
 """
 
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.sdk.skill import Skill
 
@@ -22,10 +21,10 @@ class ManifestGenerator:
         name: str,
         description: str,
         author: str,
-        required_permissions: Optional[list[str]] = None,
+        required_permissions: list[str] | None = None,
         max_latency: int = 5000,
-        dependencies: Optional[list[str]] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        dependencies: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Generate manifest from a Skill class.
 
@@ -43,6 +42,7 @@ class ManifestGenerator:
 
         Returns:
             Manifest dictionary
+
         """
         # Create skill instance to discover capabilities
         skill_instance = skill_class()
@@ -67,7 +67,7 @@ class ManifestGenerator:
             )
 
         # Build manifest
-        manifest = {
+        return {
             "skill_id": skill_id,
             "version": version,
             "name": name,
@@ -81,8 +81,6 @@ class ManifestGenerator:
             "metadata": metadata or {},
         }
 
-        return manifest
-
     @staticmethod
     def save_manifest(manifest: dict[str, Any], output_path: Path) -> None:
         """Save manifest to file.
@@ -90,6 +88,7 @@ class ManifestGenerator:
         Args:
             manifest: Manifest dictionary
             output_path: Output file path
+
         """
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -111,9 +110,8 @@ class ManifestGenerator:
 
         Returns:
             Generated manifest
+
         """
-        manifest = ManifestGenerator.generate_from_skill(
-            skill_class, **kwargs
-        )
+        manifest = ManifestGenerator.generate_from_skill(skill_class, **kwargs)
         ManifestGenerator.save_manifest(manifest, output_path)
         return manifest

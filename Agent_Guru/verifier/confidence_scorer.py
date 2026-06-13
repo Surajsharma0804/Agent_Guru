@@ -59,13 +59,18 @@ class ConfidenceScorer:
 
         Returns:
             ConfidenceScore with aggregated score and recommendation
+
         """
         component_scores: dict[str, float] = {}
         total_weight = 0.0
         weighted_sum = 0.0
 
         if hallucination is not None:
-            score = hallucination.confidence if not hallucination.detected else hallucination.confidence * 0.3
+            score = (
+                hallucination.confidence
+                if not hallucination.detected
+                else hallucination.confidence * 0.3
+            )
             component_scores["hallucination"] = score
             w = _WEIGHTS["hallucination"]
             weighted_sum += score * w
@@ -119,12 +124,11 @@ class ConfidenceScorer:
     def _get_recommendation(self, score: float) -> str:
         if score >= 0.8:
             return "proceed"
-        elif score >= 0.6:
+        if score >= 0.6:
             return "proceed_with_caution"
-        elif score >= 0.4:
+        if score >= 0.4:
             return "request_review"
-        else:
-            return "reject"
+        return "reject"
 
     def needs_additional_verification(self, score: ConfidenceScore) -> bool:
         """Return True if score is below threshold and needs more verification."""

@@ -1,6 +1,4 @@
-"""
-Calendar tool for managing calendar events.
-"""
+"""Calendar tool for managing calendar events."""
 
 import time
 from typing import Any
@@ -65,6 +63,7 @@ class CalendarTool(Tool):
 
         Returns:
             Execution result
+
         """
         title = kwargs["title"]
         start_time = kwargs["start_time"]

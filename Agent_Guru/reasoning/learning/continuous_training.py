@@ -1,5 +1,4 @@
-"""
-Continuous Model Training Pipeline - Task 47.
+"""Continuous Model Training Pipeline - Task 47.
 
 Orchestrates data collection, automated retraining, A/B testing,
 drift detection, and automatic rollback for continuous model improvement.
@@ -24,13 +23,15 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from Agent_Guru.reasoning.learning.online_learner import OnlineLearner
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +40,10 @@ logger = logging.getLogger(__name__)
 # Data models
 # ---------------------------------------------------------------------------
 
+
 class TrainingStatus(str, Enum):
     """Status of a training run."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -51,17 +54,18 @@ class TrainingStatus(str, Enum):
 @dataclass
 class TrainingRun:
     """Represents a single model training run."""
+
     run_id: str
     model_version: str
     started_at: datetime
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     status: TrainingStatus = TrainingStatus.PENDING
     training_examples: int = 0
     baseline_accuracy: float = 0.0
     new_accuracy: float = 0.0
     accuracy_delta: float = 0.0
     was_deployed: bool = False
-    rollback_reason: Optional[str] = None
+    rollback_reason: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -70,7 +74,7 @@ class TrainingRun:
         return self.new_accuracy > self.baseline_accuracy
 
     @property
-    def duration_seconds(self) -> Optional[float]:
+    def duration_seconds(self) -> float | None:
         """Training duration in seconds."""
         if self.completed_at:
             return (self.completed_at - self.started_at).total_seconds()
@@ -80,6 +84,7 @@ class TrainingRun:
 @dataclass
 class DataCollectionConfig:
     """Configuration for data collection pipeline."""
+
     anonymize_pii: bool = True
     min_confidence_for_storage: float = 0.0  # Store all predictions
     max_storage_days: int = 90
@@ -90,20 +95,22 @@ class DataCollectionConfig:
 @dataclass
 class RetrainingConfig:
     """Configuration for automated retraining."""
-    schedule_interval_days: int = 7          # Weekly retraining
-    min_new_examples: int = 100              # Min new examples to trigger
-    ab_test_traffic_pct: float = 0.10        # 10% traffic for A/B test
-    ab_test_duration_hours: int = 24         # 24-hour A/B test
+
+    schedule_interval_days: int = 7  # Weekly retraining
+    min_new_examples: int = 100  # Min new examples to trigger
+    ab_test_traffic_pct: float = 0.10  # 10% traffic for A/B test
+    ab_test_duration_hours: int = 24  # 24-hour A/B test
     min_accuracy_improvement: float = 0.005  # 0.5% improvement required
-    max_accuracy_regression: float = 0.02    # 2% regression triggers rollback
+    max_accuracy_regression: float = 0.02  # 2% regression triggers rollback
 
 
 @dataclass
 class DriftConfig:
     """Configuration for drift detection."""
+
     check_interval_minutes: int = 15
-    drift_threshold: float = 0.05           # 5% accuracy drop = drift
-    alert_threshold: float = 0.03           # 3% drop = alert
+    drift_threshold: float = 0.05  # 5% accuracy drop = drift
+    alert_threshold: float = 0.03  # 3% drop = alert
     min_samples_for_detection: int = 50
 
 
@@ -111,9 +118,9 @@ class DriftConfig:
 # Data Collection Pipeline
 # ---------------------------------------------------------------------------
 
+
 class DataCollectionPipeline:
-    """
-    Collects user interactions with privacy-preserving anonymization.
+    """Collects user interactions with privacy-preserving anonymization.
 
     Stores training data in feedback store with:
     - PII anonymization (user IDs hashed)
@@ -128,7 +135,7 @@ class DataCollectionPipeline:
     def __init__(
         self,
         learner: OnlineLearner,
-        config: Optional[DataCollectionConfig] = None,
+        config: DataCollectionConfig | None = None,
     ) -> None:
         self._learner = learner
         self._config = config or DataCollectionConfig()
@@ -141,12 +148,11 @@ class DataCollectionPipeline:
         predicted_intent: str,
         predicted_entities: dict[str, Any],
         predicted_confidence: float,
-        correct_intent: Optional[str] = None,
-        correct_entities: Optional[dict[str, Any]] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        correct_intent: str | None = None,
+        correct_entities: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
-        """
-        Collect a user interaction for training.
+        """Collect a user interaction for training.
 
         Args:
             user_id: User identifier (will be anonymized)
@@ -160,10 +166,13 @@ class DataCollectionPipeline:
 
         Returns:
             True if stored, False if skipped (duplicate/quality check)
+
         """
         # Anonymize PII
         anon_user_id = self._anonymize_user_id(user_id) if self._config.anonymize_pii else user_id
-        anon_input = self._anonymize_input(original_input) if self._config.anonymize_pii else original_input
+        anon_input = (
+            self._anonymize_input(original_input) if self._config.anonymize_pii else original_input
+        )
 
         # Quality check
         if self._config.quality_check_enabled:
@@ -179,6 +188,7 @@ class DataCollectionPipeline:
 
         # Determine feedback type
         from Agent_Guru.reasoning.learning.feedback_store import FeedbackType
+
         if correct_intent and correct_intent != predicted_intent:
             feedback_type = FeedbackType.CORRECTION
         elif predicted_confidence >= 0.8:
@@ -207,37 +217,33 @@ class DataCollectionPipeline:
     def _anonymize_input(self, text: str) -> str:
         """Remove PII patterns from input text."""
         import re
-        # Remove email addresses
-        text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]', text)
-        # Remove phone numbers
-        text = re.sub(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', '[PHONE]', text)
-        return text
 
-    def _passes_quality_check(
-        self, text: str, intent: str, confidence: float
-    ) -> bool:
+        # Remove email addresses
+        text = re.sub(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "[EMAIL]", text)
+        # Remove phone numbers
+        return re.sub(r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b", "[PHONE]", text)
+
+    def _passes_quality_check(self, text: str, intent: str, confidence: float) -> bool:
         """Check if interaction meets quality standards."""
         if not text or len(text.strip()) < 3:
             return False
         if not intent:
             return False
-        if not 0.0 <= confidence <= 1.0:
-            return False
-        return True
+        return 0.0 <= confidence <= 1.0
 
     def _compute_hash(self, text: str, intent: str) -> str:
         """Compute content hash for deduplication."""
         content = f"{text.lower().strip()}|{intent}"
-        return hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()  # noqa: S324
+        return hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()
 
 
 # ---------------------------------------------------------------------------
 # Retraining Scheduler
 # ---------------------------------------------------------------------------
 
+
 class RetrainingScheduler:
-    """
-    Manages automated weekly model retraining with A/B testing.
+    """Manages automated weekly model retraining with A/B testing.
 
     Schedule:
         1. Check if retraining is needed (weekly + drift check)
@@ -252,21 +258,21 @@ class RetrainingScheduler:
     def __init__(
         self,
         learner: OnlineLearner,
-        config: Optional[RetrainingConfig] = None,
-        train_fn: Optional[Callable] = None,
+        config: RetrainingConfig | None = None,
+        train_fn: Callable | None = None,
     ) -> None:
         self._learner = learner
         self._config = config or RetrainingConfig()
         self._train_fn = train_fn  # Pluggable training function
         self._training_history: list[TrainingRun] = []
-        self._last_check: Optional[datetime] = None
+        self._last_check: datetime | None = None
 
-    async def check_and_retrain(self) -> Optional[TrainingRun]:
-        """
-        Check if retraining is needed and trigger if so.
+    async def check_and_retrain(self) -> TrainingRun | None:
+        """Check if retraining is needed and trigger if so.
 
         Returns:
             TrainingRun if retraining was triggered, None otherwise
+
         """
         should_retrain, reason = await self._learner.should_retrain()
 
@@ -282,7 +288,7 @@ class RetrainingScheduler:
         run = TrainingRun(
             run_id=str(uuid.uuid4()),
             model_version=self._learner.model_version,
-            started_at=datetime.now(tz=timezone.utc),
+            started_at=datetime.now(tz=UTC),
             status=TrainingStatus.RUNNING,
             metadata={"trigger_reason": trigger_reason},
         )
@@ -295,7 +301,7 @@ class RetrainingScheduler:
             if len(training_data) < self._config.min_new_examples:
                 run.status = TrainingStatus.FAILED
                 run.rollback_reason = f"Insufficient training data: {len(training_data)}"
-                run.completed_at = datetime.now(tz=timezone.utc)
+                run.completed_at = datetime.now(tz=UTC)
                 self._training_history.append(run)
                 return run
 
@@ -326,22 +332,25 @@ class RetrainingScheduler:
                 run.was_deployed = True
                 logger.info(
                     "New model deployed: accuracy %.3f -> %.3f (+%.3f)",
-                    run.baseline_accuracy, run.new_accuracy, run.accuracy_delta,
+                    run.baseline_accuracy,
+                    run.new_accuracy,
+                    run.accuracy_delta,
                 )
             else:
                 run.status = TrainingStatus.COMPLETED
                 run.was_deployed = False
                 logger.info(
                     "Training completed but not deployed: improvement %.3f < threshold %.3f",
-                    run.accuracy_delta, self._config.min_accuracy_improvement,
+                    run.accuracy_delta,
+                    self._config.min_accuracy_improvement,
                 )
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             run.status = TrainingStatus.FAILED
             run.rollback_reason = str(exc)
-            logger.error("Training failed: %s", exc)
+            logger.exception("Training failed")
 
-        run.completed_at = datetime.now(tz=timezone.utc)
+        run.completed_at = datetime.now(tz=UTC)
         self._training_history.append(run)
         return run
 
@@ -349,7 +358,7 @@ class RetrainingScheduler:
         """Return all training runs."""
         return list(self._training_history)
 
-    def get_last_successful_run(self) -> Optional[TrainingRun]:
+    def get_last_successful_run(self) -> TrainingRun | None:
         """Return the most recent successful training run."""
         for run in reversed(self._training_history):
             if run.status == TrainingStatus.COMPLETED and run.was_deployed:
@@ -361,9 +370,9 @@ class RetrainingScheduler:
 # Drift Monitor
 # ---------------------------------------------------------------------------
 
+
 class DriftMonitor:
-    """
-    Monitors model accuracy for drift and triggers alerts.
+    """Monitors model accuracy for drift and triggers alerts.
 
     Checks every 15 minutes for:
     - Accuracy drop >5% (triggers retraining)
@@ -375,8 +384,8 @@ class DriftMonitor:
     def __init__(
         self,
         learner: OnlineLearner,
-        config: Optional[DriftConfig] = None,
-        alert_fn: Optional[Callable[[str, float], None]] = None,
+        config: DriftConfig | None = None,
+        alert_fn: Callable[[str, float], None] | None = None,
     ) -> None:
         self._learner = learner
         self._config = config or DriftConfig()
@@ -384,17 +393,17 @@ class DriftMonitor:
         self._drift_history: list[tuple[datetime, float, bool]] = []
 
     async def check(self) -> tuple[bool, float]:
-        """
-        Check for model drift.
+        """Check for model drift.
 
         Returns:
             Tuple of (has_drifted, current_accuracy)
+
         """
         has_drifted, metrics = await self._learner.detect_drift()
         current_accuracy = metrics.accuracy if metrics else 0.0
 
         # Record drift check
-        self._drift_history.append((datetime.now(tz=timezone.utc), current_accuracy, has_drifted))
+        self._drift_history.append((datetime.now(tz=UTC), current_accuracy, has_drifted))
 
         # Trim history to last 1000 checks
         if len(self._drift_history) > 1000:
@@ -436,9 +445,9 @@ class DriftMonitor:
 # Continuous Training Pipeline (orchestrator)
 # ---------------------------------------------------------------------------
 
+
 class ContinuousTrainingPipeline:
-    """
-    Orchestrates the full continuous training lifecycle.
+    """Orchestrates the full continuous training lifecycle.
 
     Components:
         - DataCollectionPipeline: Collect and anonymize interactions
@@ -460,11 +469,11 @@ class ContinuousTrainingPipeline:
         self,
         model_version: str = "v1.0",
         db_path: str = "feedback.db",
-        data_config: Optional[DataCollectionConfig] = None,
-        retrain_config: Optional[RetrainingConfig] = None,
-        drift_config: Optional[DriftConfig] = None,
-        train_fn: Optional[Callable] = None,
-        alert_fn: Optional[Callable[[str, float], None]] = None,
+        data_config: DataCollectionConfig | None = None,
+        retrain_config: RetrainingConfig | None = None,
+        drift_config: DriftConfig | None = None,
+        train_fn: Callable | None = None,
+        alert_fn: Callable[[str, float], None] | None = None,
     ) -> None:
         self._learner = OnlineLearner(
             model_version=model_version,
@@ -490,8 +499,8 @@ class ContinuousTrainingPipeline:
         predicted_intent: str,
         predicted_entities: dict[str, Any],
         predicted_confidence: float,
-        correct_intent: Optional[str] = None,
-        correct_entities: Optional[dict[str, Any]] = None,
+        correct_intent: str | None = None,
+        correct_entities: dict[str, Any] | None = None,
     ) -> bool:
         """Collect a user interaction for training data."""
         if not self._initialized:
@@ -507,11 +516,11 @@ class ContinuousTrainingPipeline:
         )
 
     async def run_scheduled_check(self) -> dict[str, Any]:
-        """
-        Run scheduled drift check and retraining if needed.
+        """Run scheduled drift check and retraining if needed.
 
         Returns:
             Status report with drift and retraining results.
+
         """
         if not self._initialized:
             await self.initialize()
@@ -523,7 +532,7 @@ class ContinuousTrainingPipeline:
         training_run = await self.scheduler.check_and_retrain()
 
         return {
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "has_drifted": has_drifted,
             "current_accuracy": current_accuracy,
             "retraining_triggered": training_run is not None,
@@ -532,7 +541,9 @@ class ContinuousTrainingPipeline:
                 "status": training_run.status.value,
                 "accuracy_delta": training_run.accuracy_delta,
                 "was_deployed": training_run.was_deployed,
-            } if training_run else None,
+            }
+            if training_run
+            else None,
         }
 
     async def get_status(self) -> dict[str, Any]:
@@ -554,9 +565,13 @@ class ContinuousTrainingPipeline:
             "retraining_reason": summary["retraining_reason"],
             "last_training_run": {
                 "run_id": last_run.run_id,
-                "completed_at": last_run.completed_at.isoformat() if last_run.completed_at else None,
+                "completed_at": last_run.completed_at.isoformat()
+                if last_run.completed_at
+                else None,
                 "accuracy_delta": last_run.accuracy_delta,
-            } if last_run else None,
+            }
+            if last_run
+            else None,
             "drift_trending_down": self.drift_monitor.is_trending_down(),
             "accuracy_trend": [(ts.isoformat(), acc) for ts, acc in trend],
         }

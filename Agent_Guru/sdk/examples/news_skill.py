@@ -1,5 +1,4 @@
-"""
-Example news skill for Agent Guru.
+"""Example news skill for Agent Guru.
 
 This skill demonstrates how to create a skill that fetches
 news articles from external sources.
@@ -13,14 +12,12 @@ from Agent_Guru.sdk import Skill, skill_capability
 class NewsSkill(Skill):
     """News aggregation skill."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize news skill."""
         super().__init__()
 
     @skill_capability("get_headlines", "Get top news headlines")
-    async def get_headlines(
-        self, category: str = "general", count: int = 5
-    ) -> dict[str, Any]:
+    async def get_headlines(self, category: str = "general", count: int = 5) -> dict[str, Any]:
         """Get top news headlines.
 
         Args:
@@ -29,6 +26,7 @@ class NewsSkill(Skill):
 
         Returns:
             Headlines dictionary
+
         """
         # In a real implementation, this would call a news API
         # For demo purposes, return mock data
@@ -36,11 +34,11 @@ class NewsSkill(Skill):
         for i in range(min(count, 20)):
             headlines.append(
                 {
-                    "title": f"Sample {category} headline {i+1}",
+                    "title": f"Sample {category} headline {i + 1}",
                     "source": "Example News",
                     "published_at": "2024-01-15T10:00:00Z",
-                    "url": f"https://example.com/article-{i+1}",
-                }
+                    "url": f"https://example.com/article-{i + 1}",
+                },
             )
 
         return {
@@ -50,9 +48,7 @@ class NewsSkill(Skill):
         }
 
     @skill_capability("search_news", "Search for news articles")
-    async def search_news(
-        self, query: str, count: int = 10
-    ) -> dict[str, Any]:
+    async def search_news(self, query: str, count: int = 10) -> dict[str, Any]:
         """Search for news articles by query.
 
         Args:
@@ -61,18 +57,19 @@ class NewsSkill(Skill):
 
         Returns:
             Search results dictionary
+
         """
         # Mock search results
         results = []
         for i in range(min(count, 50)):
             results.append(
                 {
-                    "title": f"Article about {query} - {i+1}",
+                    "title": f"Article about {query} - {i + 1}",
                     "source": "Example News",
                     "published_at": "2024-01-15T10:00:00Z",
-                    "url": f"https://example.com/search-{i+1}",
+                    "url": f"https://example.com/search-{i + 1}",
                     "snippet": f"This article discusses {query} in detail...",
-                }
+                },
             )
 
         return {
@@ -90,6 +87,7 @@ class NewsSkill(Skill):
 
         Returns:
             Sources dictionary
+
         """
         # Mock sources
         sources = [
@@ -149,9 +147,6 @@ if __name__ == "__main__":
                 "newsapi.org",
                 "api.nytimes.com",
                 "api.theguardian.com",
-            ]
+            ],
         },
     )
-
-    print("Manifest generated successfully!")
-    print(f"Capabilities: {manifest['capabilities']}")

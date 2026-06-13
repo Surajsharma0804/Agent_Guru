@@ -287,11 +287,8 @@ class TestInputNormalizationProperties:
             assert not any(word in str(e).lower() for word in [
                 "traceback", "stack"
             ]), "Error message must not contain stack traces"
-        except Exception as e:
             # Other exceptions should provide descriptive messages
             assert len(str(e)) > 0, "Error message must be descriptive"
-
-
 # ============================================================================
 # PROPERTY 20: Responses match input modality
 # Validates: Requirements 8.4
@@ -542,8 +539,6 @@ class TestErrorHandlingProperties:
             assert hasattr(error, 'user_message'), "Error must have user_message"
         except Exception as e:
             pytest.fail(f"Error handling must not throw exceptions: {type(e).__name__}: {e}")
-
-
 # ============================================================================
 # PROPERTY 25: Fallback strategies are applied
 # Validates: Requirements 9.2
@@ -668,11 +663,9 @@ class TestEdgeCases:
                 # Other ValueErrors should not occur for valid Unicode
                 if all(ord(c) < 0x110000 for c in text):  # Valid Unicode range
                     pytest.fail(f"Should handle valid Unicode: {e}")
-        except Exception as e:
             # Should not throw on valid Unicode
             if all(ord(c) < 0x110000 for c in text):  # Valid Unicode range
                 pytest.fail(f"Should handle valid Unicode: {e}")
-
     @given(
         metadata=st.dictionaries(
             keys=st.text(min_size=1, max_size=50),
@@ -709,7 +702,6 @@ class TestEdgeCases:
             assert isinstance(result, NormalizedInput), "Must handle various metadata types"
         except Exception as e:
             pytest.fail(f"Should handle various metadata types: {e}")
-
     @given(
         latency=st.floats(min_value=0.001, max_value=0.01, allow_nan=False, allow_infinity=False)
     )
@@ -769,7 +761,6 @@ class TestEdgeCases:
                 results.append(error)
             except Exception as e:
                 pytest.fail(f"Error handling failed: {e}")
-        
         # Assert all errors were handled
         assert len(results) == error_count, "All errors must be handled"
 

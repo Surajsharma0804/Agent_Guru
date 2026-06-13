@@ -1,5 +1,4 @@
-"""
-Memory Retriever with semantic search for retrieval-augmented reasoning.
+"""Memory Retriever with semantic search for retrieval-augmented reasoning.
 
 This module implements a high-performance memory retrieval system that uses
 semantic search to find relevant memories for LLM reasoning. It supports
@@ -32,8 +31,7 @@ Version: 1.0.0
 import asyncio
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import UUID
 
 import numpy as np
@@ -83,6 +81,7 @@ class MemoryRetriever:
         >>> retriever.store(memory)
         >>> results = retriever.retrieve("timer", user_id="user_123")
         >>> print(f"Found {len(results)} memories")
+
     """
 
     def __init__(
@@ -103,11 +102,14 @@ class MemoryRetriever:
 
         Raises:
             ValueError: If max_results < 1 or relevance_decay_days < 1
+
         """
         if max_results < 1:
-            raise ValueError(f"max_results must be >= 1, got {max_results}")
+            msg = f"max_results must be >= 1, got {max_results}"
+            raise ValueError(msg)
         if relevance_decay_days < 1:
-            raise ValueError(f"relevance_decay_days must be >= 1, got {relevance_decay_days}")
+            msg = f"relevance_decay_days must be >= 1, got {relevance_decay_days}"
+            raise ValueError(msg)
 
         # Initialize embedding model (GPU-accelerated if available)
         self.embedding_model = SentenceTransformer(model_name, device=device)
@@ -115,15 +117,18 @@ class MemoryRetriever:
 
         # Validate embedding dimension matches Memory model expectation (768)
         if self.embedding_dim != 768:
-            raise ValueError(
+            msg = (
                 f"Embedding model must produce 768-dimensional embeddings, "
                 f"got {self.embedding_dim}. Use 'sentence-transformers/all-mpnet-base-v2' "
                 f"or another 768-dim model."
             )
+            raise ValueError(
+                msg,
+            )
 
         # Storage
         self.memories: dict[UUID, Memory] = {}
-        self.embeddings: Optional[np.ndarray] = None
+        self.embeddings: np.ndarray | None = None
         self.memory_ids: list[UUID] = []
 
         # Configuration
@@ -153,9 +158,11 @@ class MemoryRetriever:
             ...     user_id="user_123"
             ... )
             >>> retriever.store(memory)
+
         """
         if memory.memory_id in self.memories:
-            raise ValueError(f"Memory with ID {memory.memory_id} already exists")
+            msg = f"Memory with ID {memory.memory_id} already exists"
+            raise ValueError(msg)
 
         # Generate embedding if not provided
         if memory.embedding is None:
@@ -180,8 +187,8 @@ class MemoryRetriever:
         self,
         query: str,
         user_id: str,
-        memory_types: Optional[list[MemoryType]] = None,
-        top_k: Optional[int] = None,
+        memory_types: list[MemoryType] | None = None,
+        top_k: int | None = None,
     ) -> list[Memory]:
         """Retrieve relevant memories for a query.
 
@@ -208,6 +215,7 @@ class MemoryRetriever:
             ...     memory_types=[MemoryType.EPISODIC]
             ... )
             >>> print(f"Found {len(results)} memories")
+
         """
         start_time = time.perf_counter()
 
@@ -245,7 +253,7 @@ class MemoryRetriever:
         self,
         query: str,
         user_id: str,
-        memory_types: Optional[list[MemoryType]] = None,
+        memory_types: list[MemoryType] | None = None,
         top_k: int = 10,
     ) -> list[Memory]:
         """Perform semantic search using query embeddings.
@@ -269,6 +277,7 @@ class MemoryRetriever:
             ...     user_id="user_123",
             ...     top_k=10
             ... )
+
         """
         # Generate query embedding
         query_embedding = self._generate_embedding(query)
@@ -326,6 +335,7 @@ class MemoryRetriever:
         Example:
             >>> retriever = MemoryRetriever()
             >>> ranked = retriever.rank_memories(candidates, "timer")
+
         """
         if not memories:
             return []
@@ -335,7 +345,7 @@ class MemoryRetriever:
 
         # Compute scores for each memory
         scored_memories: list[tuple[float, Memory]] = []
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         for memory in memories:
             # Semantic similarity (0.6 weight)
@@ -378,12 +388,15 @@ class MemoryRetriever:
         Example:
             >>> retriever = MemoryRetriever()
             >>> retriever.update_relevance(memory_id, 0.8)
+
         """
         if memory_id not in self.memories:
-            raise ValueError(f"Memory with ID {memory_id} not found")
+            msg = f"Memory with ID {memory_id} not found"
+            raise ValueError(msg)
 
         if not 0.0 <= new_score <= 1.0:
-            raise ValueError(f"new_score must be between 0.0 and 1.0, got {new_score}")
+            msg = f"new_score must be between 0.0 and 1.0, got {new_score}"
+            raise ValueError(msg)
 
         # Update memory (create new instance with updated score)
         memory = self.memories[memory_id]
@@ -403,9 +416,12 @@ class MemoryRetriever:
 
         Returns:
             NumPy array of shape (embedding_dim,)
+
         """
         embedding = self.embedding_model.encode(
-            text, convert_to_numpy=True, normalize_embeddings=True
+            text,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
         )
         return embedding.astype(np.float32)
 
@@ -421,13 +437,14 @@ class MemoryRetriever:
 
         Returns:
             Cosine similarity (0.0-1.0)
+
         """
         # Embeddings are already normalized, so dot product = cosine similarity
         similarity = np.dot(embedding1, embedding2)
         # Clamp to [0, 1] range (handle floating point errors)
         return float(max(0.0, min(1.0, similarity)))
 
-    def get_memory_count(self, user_id: Optional[str] = None) -> int:
+    def get_memory_count(self, user_id: str | None = None) -> int:
         """Get count of stored memories.
 
         Args:
@@ -435,16 +452,18 @@ class MemoryRetriever:
 
         Returns:
             Number of memories
+
         """
         if user_id is None:
             return len(self.memories)
         return sum(1 for m in self.memories.values() if m.user_id == user_id)
 
-    def clear(self, user_id: Optional[str] = None) -> None:
+    def clear(self, user_id: str | None = None) -> None:
         """Clear all memories or memories for a specific user.
 
         Args:
             user_id: Optional user ID to filter by
+
         """
         if user_id is None:
             self.memories.clear()
@@ -467,7 +486,7 @@ class MemoryRetriever:
                     [
                         np.array(self.memories[mid].embedding, dtype=np.float32)
                         for mid in self.memory_ids
-                    ]
+                    ],
                 )
             else:
                 self.embeddings = None
@@ -497,12 +516,13 @@ class MemoryRetriever:
             >>> retriever = MemoryRetriever()
             >>> score = retriever.compute_importance_score(memory)
             >>> print(f"Importance: {score:.2f}")
+
         """
         # Relevance score (0.4 weight)
         relevance = memory.relevance_score
 
         # Recency score (0.3 weight)
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         age_days = (now - memory.timestamp).total_seconds() / 86400
         recency = max(0.0, 1.0 - (age_days / self.relevance_decay_days))
 
@@ -529,7 +549,7 @@ class MemoryRetriever:
         self,
         user_id: str,
         importance_threshold: float = 0.3,
-        max_age_days: Optional[int] = None,
+        max_age_days: int | None = None,
         keep_minimum: int = 100,
         protect_high_importance: float = 0.7,
     ) -> int:
@@ -566,18 +586,23 @@ class MemoryRetriever:
             ...     max_age_days=90
             ... )
             >>> print(f"Pruned {pruned} memories")
+
         """
         # Validate parameters
         if not 0.0 <= importance_threshold <= 1.0:
-            raise ValueError(f"importance_threshold must be 0.0-1.0, got {importance_threshold}")
+            msg = f"importance_threshold must be 0.0-1.0, got {importance_threshold}"
+            raise ValueError(msg)
         if not 0.0 <= protect_high_importance <= 1.0:
+            msg = f"protect_high_importance must be 0.0-1.0, got {protect_high_importance}"
             raise ValueError(
-                f"protect_high_importance must be 0.0-1.0, got {protect_high_importance}"
+                msg,
             )
         if keep_minimum < 0:
-            raise ValueError(f"keep_minimum must be >= 0, got {keep_minimum}")
+            msg = f"keep_minimum must be >= 0, got {keep_minimum}"
+            raise ValueError(msg)
         if max_age_days is not None and max_age_days < 1:
-            raise ValueError(f"max_age_days must be >= 1, got {max_age_days}")
+            msg = f"max_age_days must be >= 1, got {max_age_days}"
+            raise ValueError(msg)
 
         # Get user's memories
         user_memories = [
@@ -592,7 +617,7 @@ class MemoryRetriever:
 
         # Compute importance scores
         scored_memories: list[tuple[float, UUID, Memory]] = []
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         for memory_id, memory in user_memories:
             importance = self.compute_importance_score(memory)
@@ -654,7 +679,7 @@ class MemoryRetriever:
                     np.array(self.memories[mid].embedding, dtype=np.float32)
                     for mid in self.memory_ids
                     if mid in self.memories  # Safety check
-                ]
+                ],
             )
         else:
             self.embeddings = None
@@ -681,6 +706,7 @@ class MemoryRetriever:
             >>> retriever = MemoryRetriever()
             >>> deleted = retriever.delete_memory(memory_id, "user_123")
             >>> print(f"Deleted: {deleted}")
+
         """
         # Check if memory exists
         if memory_id not in self.memories:
@@ -701,7 +727,7 @@ class MemoryRetriever:
                 [
                     np.array(self.memories[mid].embedding, dtype=np.float32)
                     for mid in self.memory_ids
-                ]
+                ],
             )
         else:
             self.embeddings = None
@@ -728,6 +754,7 @@ class MemoryRetriever:
             ...     MemoryType.EPISODIC
             ... )
             >>> print(f"Deleted {deleted} episodic memories")
+
         """
         # Find memories to delete
         to_remove = [
@@ -747,7 +774,7 @@ class MemoryRetriever:
                 [
                     np.array(self.memories[mid].embedding, dtype=np.float32)
                     for mid in self.memory_ids
-                ]
+                ],
             )
         else:
             self.embeddings = None

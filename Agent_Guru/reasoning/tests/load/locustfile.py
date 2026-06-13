@@ -1,5 +1,4 @@
-"""
-Locust load test scenarios for the Core Reasoning Engine.
+"""Locust load test scenarios for the Core Reasoning Engine.
 
 Run with:
     locust -f locustfile.py --host=http://localhost:8000
@@ -15,7 +14,7 @@ Sustained load test:
 Requirements: 10.1 - Respond to common commands within 1.5s end-to-end
 """
 
-import random
+import secrets
 import uuid
 
 from locust import HttpUser, between, task
@@ -65,9 +64,9 @@ SYSTEM_COMMANDS = [
 ]
 
 # Ramp-up configuration constants
-SPAWN_RATE_BASELINE = 1       # users/second for baseline test
-SPAWN_RATE_PRODUCTION = 10    # users/second for production load test
-SPAWN_RATE_PEAK = 50          # users/second for peak load test
+SPAWN_RATE_BASELINE = 1  # users/second for baseline test
+SPAWN_RATE_PRODUCTION = 10  # users/second for production load test
+SPAWN_RATE_PEAK = 50  # users/second for peak load test
 
 USER_COUNT_BASELINE = 10
 USER_COUNT_PRODUCTION = 100
@@ -117,31 +116,31 @@ class ReasoningEngineUser(HttpUser):
     @task(3)
     def set_timer(self) -> None:
         """Send a timer command (high-frequency intent)."""
-        command = random.choice(TIMER_COMMANDS)
+        command = secrets.choice(TIMER_COMMANDS)
         self._send_command(command)
 
     @task(3)
     def query_weather(self) -> None:
         """Send a weather query (high-frequency intent)."""
-        command = random.choice(WEATHER_COMMANDS)
+        command = secrets.choice(WEATHER_COMMANDS)
         self._send_command(command)
 
     @task(2)
     def play_music(self) -> None:
         """Send a music control command."""
-        command = random.choice(MUSIC_COMMANDS)
+        command = secrets.choice(MUSIC_COMMANDS)
         self._send_command(command)
 
     @task(2)
     def send_message(self) -> None:
         """Send a messaging command."""
-        command = random.choice(MESSAGING_COMMANDS)
+        command = secrets.choice(MESSAGING_COMMANDS)
         self._send_command(command)
 
     @task(1)
     def system_control(self) -> None:
         """Send a smart-home / system control command (lower frequency)."""
-        command = random.choice(SYSTEM_COMMANDS)
+        command = secrets.choice(SYSTEM_COMMANDS)
         self._send_command(command)
 
     # ------------------------------------------------------------------
@@ -165,7 +164,7 @@ class ReasoningEngineUser(HttpUser):
             if response.elapsed.total_seconds() * 1000 > LATENCY_TARGET_MS:
                 response.failure(
                     f"Latency {response.elapsed.total_seconds() * 1000:.0f}ms "
-                    f"exceeds {LATENCY_TARGET_MS}ms target"
+                    f"exceeds {LATENCY_TARGET_MS}ms target",
                 )
             elif response.status_code >= 500:
                 response.failure(f"Server error: {response.status_code}")

@@ -21,8 +21,8 @@ import uuid
 from dataclasses import dataclass, field
 
 _logger = logging.getLogger(__name__)
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime  # noqa: E402
+from typing import Any  # noqa: E402
 
 _DEFAULT_TRUST = 0.5
 _TRANSITIVE_DECAY = 0.8
@@ -61,12 +61,13 @@ class TrustManager:
     Args:
         storage_path: SQLite path or ":memory:".
         audit_logger: Optional audit logger for recording trust events.
+
     """
 
     def __init__(
         self,
         storage_path: str = ":memory:",
-        audit_logger: Optional[Any] = None,
+        audit_logger: Any | None = None,
     ) -> None:
         self._conn = sqlite3.connect(storage_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
@@ -93,6 +94,7 @@ class TrustManager:
 
         Returns:
             TrustScore with breakdown.
+
         """
         factors: dict[str, float] = {}
 
@@ -110,11 +112,7 @@ class TrustManager:
 
         # Weighted combination
         # auth_history: 50%, biometric: 30%, relationships: 20%
-        score = (
-            0.5 * auth_factor
-            + 0.3 * bio_factor
-            + 0.2 * rel_factor
-        )
+        score = 0.5 * auth_factor + 0.3 * bio_factor + 0.2 * rel_factor
 
         # Clamp to [0.0, 1.0]
         score = max(0.0, min(1.0, score))
@@ -122,7 +120,7 @@ class TrustManager:
         return TrustScore(
             profile_id=profile_id,
             score=score,
-            computed_at=datetime.now(tz=timezone.utc),
+            computed_at=datetime.now(tz=UTC),
             factors=factors,
         )
 
@@ -130,7 +128,7 @@ class TrustManager:
         self,
         profile_id: str,
         success: bool,
-        biometric_score: Optional[float] = None,
+        biometric_score: float | None = None,
     ) -> None:
         """Record an authentication event for trust computation.
 
@@ -138,6 +136,7 @@ class TrustManager:
             profile_id: Identity that authenticated.
             success: Whether authentication succeeded.
             biometric_score: Optional biometric confidence score.
+
         """
         event_type = "auth_success" if success else "auth_failure"
         score_impact = 0.1 if success else -0.1
@@ -152,7 +151,7 @@ class TrustManager:
                 (
                     str(uuid.uuid4()),
                     profile_id,
-                    datetime.now(tz=timezone.utc).isoformat(),
+                    datetime.now(tz=UTC).isoformat(),
                     event_type,
                     score_impact,
                 ),
@@ -169,7 +168,7 @@ class TrustManager:
                     (
                         str(uuid.uuid4()),
                         profile_id,
-                        datetime.now(tz=timezone.utc).isoformat(),
+                        datetime.now(tz=UTC).isoformat(),
                         "biometric_score",
                         biometric_score,
                     ),
@@ -184,7 +183,7 @@ class TrustManager:
         from_id: str,
         to_id: str,
         trust_level: float,
-        metadata: Optional[dict[str, str]] = None,
+        metadata: dict[str, str] | None = None,
     ) -> TrustRelationship:
         """Create trust relationship.
 
@@ -199,12 +198,14 @@ class TrustManager:
 
         Raises:
             ValueError: If trust_level out of range.
+
         """
         if not 0.0 <= trust_level <= 1.0:
-            raise ValueError(f"trust_level must be in [0.0, 1.0], got {trust_level}")
+            msg = f"trust_level must be in [0.0, 1.0], got {trust_level}"
+            raise ValueError(msg)
 
         relationship_id = str(uuid.uuid4())
-        created_at = datetime.now(tz=timezone.utc)
+        created_at = datetime.now(tz=UTC)
         meta = metadata or {}
 
         with self._conn:
@@ -244,7 +245,7 @@ class TrustManager:
                     outcome="success",
                     details={"trust_level": trust_level},
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("Audit log failed for trust relationship creation: %s", exc)
 
         return rel
@@ -255,6 +256,7 @@ class TrustManager:
         Args:
             from_id: Trusting identity.
             to_id: Trusted identity.
+
         """
         with self._conn:
             self._conn.execute(
@@ -273,11 +275,13 @@ class TrustManager:
                     outcome="success",
                     details={},
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _logger.warning("Audit log failed for trust relationship revocation: %s", exc)
 
     def get_relationships(
-        self, profile_id: str, transitive: bool = False
+        self,
+        profile_id: str,
+        transitive: bool = False,
     ) -> list[TrustRelationship]:
         """Get trust relationships for identity.
 
@@ -287,6 +291,7 @@ class TrustManager:
 
         Returns:
             List of trust relationships.
+
         """
         rows = self._conn.execute(
             "SELECT * FROM trust_relationships WHERE from_id = ?",
@@ -324,7 +329,10 @@ class TrustManager:
         return list(all_rels.values())
 
     def compute_transitive_trust(
-        self, from_id: str, to_id: str, max_hops: int = _MAX_HOPS
+        self,
+        from_id: str,
+        to_id: str,
+        max_hops: int = _MAX_HOPS,
     ) -> float:
         """Compute transitive trust with decay.
 
@@ -337,9 +345,9 @@ class TrustManager:
 
         Returns:
             Transitive trust score in [0.0, 1.0].
+
         """
         # BFS with trust decay
-        # State: (current_node, accumulated_trust)
         visited: set[str] = {from_id}
         frontier = [(from_id, 1.0)]
         best_trust = 0.0
@@ -354,7 +362,7 @@ class TrustManager:
                 for row in rows:
                     next_node = row["to_id"]
                     edge_trust = row["trust_level"]
-                    new_trust = current_trust * edge_trust * (_TRANSITIVE_DECAY ** hop)
+                    new_trust = current_trust * edge_trust * (_TRANSITIVE_DECAY**hop)
 
                     if next_node == to_id:
                         best_trust = max(best_trust, new_trust)
@@ -386,7 +394,7 @@ class TrustManager:
                     metadata TEXT NOT NULL DEFAULT '{}',
                     UNIQUE (from_id, to_id)
                 )
-                """
+                """,
             )
             self._conn.execute(
                 """
@@ -397,7 +405,7 @@ class TrustManager:
                     event_type TEXT NOT NULL,
                     score_impact REAL NOT NULL
                 )
-                """
+                """,
             )
 
     def _compute_auth_factor(self, profile_id: str) -> float:

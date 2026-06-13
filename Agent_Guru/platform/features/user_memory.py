@@ -12,13 +12,14 @@ Alexa+ and Gemini both do this — they remember who you are.
 Storage: JSON file in the user's app data directory.
 No cloud, no sync — fully local and private.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class UserMemory:
         summary = mem.get_summary()  # "User's name is Suraj. ..."
     """
 
-    def __init__(self, path: Optional[Path] = None) -> None:
+    def __init__(self, path: Path | None = None) -> None:
         self._path = path or _MEMORY_PATH
         self._facts: dict[str, Any] = {}
         self._load()
@@ -127,8 +128,8 @@ class UserMemory:
             if self._path.exists():
                 self._facts = json.loads(self._path.read_text(encoding="utf-8"))
                 logger.debug("UserMemory: loaded %d facts", len(self._facts))
-        except Exception as exc:
-            logger.warning("UserMemory: failed to load: %s", exc)
+        except Exception:
+            logger.exception("UserMemory: failed to load")
             self._facts = {}
 
     def _save(self) -> None:
@@ -139,12 +140,12 @@ class UserMemory:
                 json.dumps(self._facts, indent=2, ensure_ascii=False),
                 encoding="utf-8",
             )
-        except Exception as exc:
-            logger.warning("UserMemory: failed to save: %s", exc)
+        except Exception:
+            logger.exception("UserMemory: failed to save")
 
 
 # Module-level singleton — shared across the whole app
-_user_memory: Optional[UserMemory] = None
+_user_memory: UserMemory | None = None
 
 
 def get_user_memory() -> UserMemory:
@@ -200,7 +201,7 @@ _FACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 
-def extract_user_fact(transcript: str) -> Optional[tuple[str, str]]:
+def extract_user_fact(transcript: str) -> tuple[str, str] | None:
     """Try to extract a user fact from a transcript.
 
     Covers identity, goals, projects, relationships, hobbies, and preferences.
@@ -221,6 +222,7 @@ def extract_user_fact(transcript: str) -> Optional[tuple[str, str]]:
 
     Returns:
         (key, value) tuple or None if no fact found.
+
     """
     t = transcript.strip()
 

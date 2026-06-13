@@ -51,15 +51,13 @@ class VerifierSystem:
     ) -> None:
         self.config = config or VerificationConfig()
         self._hallucination_detector = HallucinationDetector(
-            confidence_threshold=self.config.hallucination_confidence_threshold
+            confidence_threshold=self.config.hallucination_confidence_threshold,
         )
         self._output_validator = OutputValidator()
         self._tool_checker = ToolOutputChecker()
-        self._loop_detector = LoopDetector(
-            threshold=self.config.loop_detection_threshold
-        )
+        self._loop_detector = LoopDetector(threshold=self.config.loop_detection_threshold)
         self._confidence_scorer = ConfidenceScorer(
-            min_threshold=self.config.min_confidence_threshold
+            min_threshold=self.config.min_confidence_threshold,
         )
         self._strategy_selector = VerificationStrategySelector()
         self._feedback_generator = SelfCorrectionFeedbackGenerator()
@@ -113,6 +111,7 @@ class VerifierSystem:
 
         Returns:
             VerificationResult
+
         """
         # Cache check — skip cache when session_id is provided (loop detector needs to accumulate state)
         use_cache = self.config.enable_caching and session_id is None
@@ -132,7 +131,9 @@ class VerifierSystem:
         try:
             start = time.perf_counter()
             strategy = self._strategy_selector.select_for_llm_response(
-                response, context, task_type=None
+                response,
+                context,
+                task_type=None,
             )
 
             result = await self._run_verification(
@@ -157,8 +158,8 @@ class VerifierSystem:
         # Store and report
         try:
             self._storage.store(result, context_type="llm_response")
-        except Exception as e:
-            logger.warning("Failed to store verification result (non-fatal): %s", e)
+        except Exception:
+            logger.exception("Failed to store verification result (non-fatal)")
         if result.failed:
             self._record_failure(result, "llm_response")
             logger.info(
@@ -200,13 +201,12 @@ class VerifierSystem:
 
         Returns:
             VerificationResult
+
         """
         slot = await self._acquire_priority_slot(priority)
         try:
             start = time.perf_counter()
-            strategy = self._strategy_selector.select_for_task_output(
-                output, expected_schema
-            )
+            strategy = self._strategy_selector.select_for_task_output(output, expected_schema)
 
             # Pass raw output for validation; use string form for hallucination/loop detection
             text = output if isinstance(output, str) else str(output)
@@ -226,8 +226,8 @@ class VerifierSystem:
 
         try:
             self._storage.store(result, context_type="task_output")
-        except Exception as e:
-            logger.warning("Failed to store task output result (non-fatal): %s", e)
+        except Exception:
+            logger.exception("Failed to store task output result (non-fatal)")
         if result.failed:
             self._record_failure(result, "task_output")
             logger.info(
@@ -260,6 +260,7 @@ class VerifierSystem:
 
         Returns:
             VerificationResult — storage should be blocked if result.failed
+
         """
         start = time.perf_counter()
 
@@ -280,8 +281,8 @@ class VerifierSystem:
 
         try:
             self._storage.store(result, context_type="storage")
-        except Exception as e:
-            logger.warning("Failed to store pre-storage result (non-fatal): %s", e)
+        except Exception:
+            logger.exception("Failed to store pre-storage result (non-fatal)")
         return result
 
     def update_config(self, **kwargs: Any) -> None:
@@ -340,9 +341,8 @@ class VerifierSystem:
         if not isinstance(text, str):
             try:
                 text = str(text)
-            except Exception as e:
+            except Exception:
                 text = ""
-
 
         # Build coroutines for parallel execution
         tasks: dict[str, Any] = {}
@@ -383,7 +383,7 @@ class VerifierSystem:
                     asyncio.gather(*task_coros, return_exceptions=True),
                     timeout=timeout_s,
                 )
-                for name, res in zip(task_names, completed):
+                for name, res in zip(task_names, completed, strict=False):
                     if not isinstance(res, Exception):
                         results[name] = res
                     else:
@@ -392,8 +392,8 @@ class VerifierSystem:
                             name,
                             res,
                         )
-            except asyncio.TimeoutError as e:
-                logger.warning(
+            except TimeoutError:
+                logger.exception(
                     "Verification timed out after %.0fms — returning degraded result",
                     self.config.max_latency_ms,
                 )
@@ -470,7 +470,7 @@ class VerifierSystem:
         if confidence_score:
             if confidence_score.score < 0.4:
                 return VerificationStatus.FAILED
-            elif confidence_score.score < self.config.min_confidence_threshold:
+            if confidence_score.score < self.config.min_confidence_threshold:
                 return VerificationStatus.UNCERTAIN
 
         return VerificationStatus.PASSED
@@ -501,12 +501,11 @@ class VerifierSystem:
         if p <= 1:
             # critical or high — no throttling
             return None
-        elif p == 2:
+        if p == 2:
             await self._semaphore_normal.acquire()
             return self._semaphore_normal
-        else:
-            await self._semaphore_low.acquire()
-            return self._semaphore_low
+        await self._semaphore_low.acquire()
+        return self._semaphore_low
 
     def _record_failure(self, result: VerificationResult, context_type: str) -> None:
         """Record failure for Self-Improvement Engine reporting."""
@@ -518,7 +517,7 @@ class VerifierSystem:
                 "confidence": result.confidence,
                 "issues": result.feedback.issues,
                 "timestamp": result.timestamp.isoformat(),
-            }
+            },
         )
         # Keep last 1000 reports — use list slicing to avoid O(n) pop(0)
         if len(self._failure_reports) > 1000:

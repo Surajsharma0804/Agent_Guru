@@ -1,8 +1,7 @@
-"""
-Module: agent_guru.reasoning.verification.verifier
+"""Module: agent_guru.reasoning.verification.verifier
 Purpose: Reasoning plan verification and validation
 Author: Agent Guru Team
-Date: 2026-02-22
+Date: 2026-02-22.
 
 Performance Requirements:
 - Time Complexity: O(n) where n is number of steps
@@ -19,8 +18,8 @@ Design Decisions:
 import asyncio
 import json
 import time
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from Agent_Guru.reasoning.llm.client import LLMClient
 from Agent_Guru.reasoning.llm.models import LLMRequest
@@ -55,20 +54,22 @@ class ReasoningVerifier:
         >>> if result.recommendation == VerificationAction.PROCEED:
         ...     # Execute plan
         ...     pass
+
     """
 
     def __init__(
         self,
         llm_client: LLMClient,
-        tool_registry: Optional[ToolRegistry] = None,
+        tool_registry: ToolRegistry | None = None,
         confidence_threshold: float = 0.75,
-    ):
+    ) -> None:
         """Initialize reasoning verifier.
 
         Args:
             llm_client: LLM client for semantic verification
             tool_registry: Tool registry for tool validation (uses global if None)
             confidence_threshold: Minimum confidence to proceed (default 0.75)
+
         """
         self.llm_client = llm_client
         self.tool_registry = tool_registry or get_registry()
@@ -111,7 +112,10 @@ Respond in JSON format:
 }}"""
 
     async def verify_plan(
-        self, task: Task, original_input: str, context: Optional[dict[str, Any]] = None
+        self,
+        task: Task,
+        original_input: str,
+        context: dict[str, Any] | None = None,
     ) -> VerificationResult:
         """Verify a reasoning plan comprehensively.
 
@@ -127,6 +131,7 @@ Respond in JSON format:
 
         Time Complexity: O(n) where n is number of steps
         Latency: <200ms target
+
         """
         start_time = time.perf_counter()
         issues: list[VerificationIssue] = []
@@ -147,8 +152,8 @@ Respond in JSON format:
                     VerificationIssue(
                         issue_type=IssueType.PLAN_CORRECTNESS,
                         severity=IssueSeverity.WARNING,
-                        description=f"Verification check failed: {str(result)}",
-                    )
+                        description=f"Verification check failed: {result!s}",
+                    ),
                 )
             elif isinstance(result, list):
                 issues.extend(result)
@@ -171,7 +176,7 @@ Respond in JSON format:
             issues=issues,
             recommendation=recommendation,
             verification_time_ms=verification_time_ms,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )
 
     async def _verify_tool_compatibility(self, task: Task) -> list[VerificationIssue]:
@@ -190,6 +195,7 @@ Respond in JSON format:
             List of tool compatibility issues
 
         Time Complexity: O(n) where n is number of steps
+
         """
         issues: list[VerificationIssue] = []
 
@@ -203,7 +209,7 @@ Respond in JSON format:
                         severity=IssueSeverity.CRITICAL,
                         description=f"Tool '{step.tool_id}' does not exist in registry",
                         affected_step=step_idx,
-                    )
+                    ),
                 )
                 continue
 
@@ -219,13 +225,14 @@ Respond in JSON format:
                         severity=IssueSeverity.CRITICAL,
                         description=f"Tool '{step.tool_id}' missing required parameters: {', '.join(missing_params)}",
                         affected_step=step_idx,
-                    )
+                    ),
                 )
 
             # Check parameter types (basic validation)
-            for param_name, _param_value in step.parameters.items():
+            for param_name in step.parameters:
                 param_def = next(
-                    (p for p in tool_metadata.parameters if p.name == param_name), None
+                    (p for p in tool_metadata.parameters if p.name == param_name),
+                    None,
                 )
                 if param_def is None:
                     issues.append(
@@ -234,7 +241,7 @@ Respond in JSON format:
                             severity=IssueSeverity.WARNING,
                             description=f"Tool '{step.tool_id}' has unexpected parameter '{param_name}'",
                             affected_step=step_idx,
-                        )
+                        ),
                     )
 
         return issues
@@ -254,6 +261,7 @@ Respond in JSON format:
             List of logical consistency issues
 
         Time Complexity: O(n²) for dependency checking, O(n) for conflicts
+
         """
         issues: list[VerificationIssue] = []
 
@@ -266,7 +274,7 @@ Respond in JSON format:
                     severity=IssueSeverity.CRITICAL,
                     description=f"Circular dependencies detected: {circular_deps}",
                     affected_step=None,
-                )
+                ),
             )
 
         # Check for conflicting actions
@@ -278,12 +286,12 @@ Respond in JSON format:
                     severity=IssueSeverity.WARNING,
                     description=conflict["description"],
                     affected_step=conflict["step_idx"],
-                )
+                ),
             )
 
         return issues
 
-    def _detect_circular_dependencies(self, steps: list[TaskStep]) -> Optional[str]:
+    def _detect_circular_dependencies(self, steps: list[TaskStep]) -> str | None:
         """Detect circular dependencies in step dependencies.
 
         Uses DFS to detect cycles in dependency graph.
@@ -295,6 +303,7 @@ Respond in JSON format:
             Description of circular dependency or None
 
         Time Complexity: O(n²) worst case
+
         """
         # Build adjacency list using step IDs
         # Map step_id to index for graph traversal
@@ -328,9 +337,8 @@ Respond in JSON format:
             return False
 
         for i in range(len(steps)):
-            if i not in visited:
-                if has_cycle(i):
-                    return "Steps have circular dependencies"
+            if i not in visited and has_cycle(i):
+                return "Steps have circular dependencies"
 
         return None
 
@@ -349,6 +357,7 @@ Respond in JSON format:
             List of conflicts with descriptions
 
         Time Complexity: O(n)
+
         """
         conflicts: list[dict[str, Any]] = []
 
@@ -378,7 +387,7 @@ Respond in JSON format:
                         {
                             "step_idx": idx2,
                             "description": f"Step {idx2} closes {resource} that was just opened in step {idx1}",
-                        }
+                        },
                     )
 
                 # Check for delete/access conflicts
@@ -387,13 +396,15 @@ Respond in JSON format:
                         {
                             "step_idx": idx2,
                             "description": f"Step {idx2} accesses {resource} that was deleted in step {idx1}",
-                        }
+                        },
                     )
 
         return conflicts
 
     async def _verify_plan_correctness_and_alignment(
-        self, task: Task, original_input: str
+        self,
+        task: Task,
+        original_input: str,
     ) -> list[VerificationIssue]:
         """Verify plan correctness and intent alignment using LLM.
 
@@ -412,20 +423,23 @@ Respond in JSON format:
 
         Time Complexity: O(1) - single LLM call
         Latency: ~100-150ms
+
         """
         issues: list[VerificationIssue] = []
 
         # Format steps for prompt
         steps_text = "\n".join(
             [
-                f"{i+1}. {step.description} (tool: {step.tool_id})"
+                f"{i + 1}. {step.description} (tool: {step.tool_id})"
                 for i, step in enumerate(task.steps)
-            ]
+            ],
         )
 
         # Create verification prompt
         prompt = self.verification_prompt_template.format(
-            user_input=original_input, goal=task.goal, steps=steps_text
+            user_input=original_input,
+            goal=task.goal,
+            steps=steps_text,
         )
 
         try:
@@ -459,12 +473,13 @@ Respond in JSON format:
                 issues.append(
                     VerificationIssue(
                         issue_type=issue_type_map.get(
-                            llm_issue["type"], IssueType.PLAN_CORRECTNESS
+                            llm_issue["type"],
+                            IssueType.PLAN_CORRECTNESS,
                         ),
                         severity=severity_map.get(llm_issue["severity"], IssueSeverity.WARNING),
                         description=llm_issue["description"],
                         affected_step=llm_issue.get("affected_step"),
-                    )
+                    ),
                 )
 
         except Exception as e:
@@ -473,8 +488,8 @@ Respond in JSON format:
                 VerificationIssue(
                     issue_type=IssueType.PLAN_CORRECTNESS,
                     severity=IssueSeverity.WARNING,
-                    description=f"LLM verification failed: {str(e)}",
-                )
+                    description=f"LLM verification failed: {e!s}",
+                ),
             )
 
         return issues
@@ -492,22 +507,21 @@ Respond in JSON format:
 
         Raises:
             ValueError: If response cannot be parsed
+
         """
         try:
             # Try to extract JSON from response
             # LLM might wrap JSON in markdown code blocks
             response = llm_response.strip()
-            if response.startswith("```json"):
-                response = response[7:]
-            if response.startswith("```"):
-                response = response[3:]
-            if response.endswith("```"):
-                response = response[:-3]
+            response = response.removeprefix("```json")
+            response = response.removeprefix("```")
+            response = response.removesuffix("```")
             response = response.strip()
 
             return json.loads(response)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Failed to parse LLM verification response: {e}") from e
+            msg = f"Failed to parse LLM verification response: {e}"
+            raise ValueError(msg) from e
 
     def _calculate_confidence(self, issues: list[VerificationIssue], task: Task) -> float:
         """Calculate overall confidence in verification result.
@@ -523,6 +537,7 @@ Respond in JSON format:
 
         Returns:
             Confidence score 0.0-1.0
+
         """
         # Start with high confidence
         confidence = 1.0
@@ -544,7 +559,10 @@ Respond in JSON format:
         return max(0.0, min(1.0, confidence))
 
     def _determine_recommendation(
-        self, is_valid: bool, confidence: float, issues: list[VerificationIssue]
+        self,
+        is_valid: bool,
+        confidence: float,
+        issues: list[VerificationIssue],
     ) -> VerificationAction:
         """Determine recommended action based on verification results.
 
@@ -561,14 +579,14 @@ Respond in JSON format:
 
         Returns:
             Recommended verification action
+
         """
         # Critical issues require replanning
         if not is_valid:
             has_critical = any(issue.severity == IssueSeverity.CRITICAL for issue in issues)
             if has_critical:
                 return VerificationAction.REPLAN
-            else:
-                return VerificationAction.ABORT
+            return VerificationAction.ABORT
 
         # Low confidence requires clarification
         if confidence < self.confidence_threshold:
@@ -586,15 +604,12 @@ Respond in JSON format:
 
         Returns:
             True if valid, False otherwise
+
         """
         # Basic schema validation
         # In production, use jsonschema library
         required_fields = schema.get("required", [])
-        for field in required_fields:
-            if field not in data:
-                return False
-
-        return True
+        return all(field in data for field in required_fields)
 
 
 # Pipeline Integration Example
@@ -615,7 +630,6 @@ Respond in JSON format:
 #     task: Task,
 #     original_input: str,
 #     verifier: ReasoningVerifier,
-#     max_replan_attempts: int = 2
 # ) -> Union[Task, str]:
 #     """Process task with verification.
 #
@@ -628,22 +642,13 @@ Respond in JSON format:
 #     Returns:
 #         Verified task or error message
 #     """
-#     replan_count = 0
-#     current_task = task
 #
 #     while replan_count <= max_replan_attempts:
 #         # Verify the task
-#         result = await verifier.verify_plan(current_task, original_input)
 #
 #         # Log verification decision
 #         logger.info(
 #             "Verification complete",
-#             is_valid=result.is_valid,
-#             confidence=result.confidence,
-#             recommendation=result.recommendation.value,
-#             issues_count=len(result.issues),
-#             verification_time_ms=result.verification_time_ms
-#         )
 #
 #         # Handle recommendation
 #         if result.recommendation == VerificationAction.PROCEED:

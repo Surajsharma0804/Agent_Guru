@@ -1,5 +1,4 @@
-"""
-Task Executor - Executes tasks in dependency order with monitoring.
+"""Task Executor - Executes tasks in dependency order with monitoring.
 
 Handles sequential and parallel task execution, dependency resolution,
 timeout enforcement, and execution status tracking.
@@ -16,9 +15,9 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Coroutine
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from .task_decomposer import Task
 
@@ -45,23 +44,24 @@ class ExecutionResult:
         started_at: When execution began.
         finished_at: When execution ended.
         duration_ms: Total execution time in milliseconds.
+
     """
 
     def __init__(
         self,
         task_id: str,
         status: ExecutionStatus,
-        output: Optional[Any] = None,
-        error: Optional[str] = None,
-        started_at: Optional[datetime] = None,
-        finished_at: Optional[datetime] = None,
+        output: Any | None = None,
+        error: str | None = None,
+        started_at: datetime | None = None,
+        finished_at: datetime | None = None,
     ) -> None:
         self.task_id = task_id
         self.status = status
         self.output = output
         self.error = error
-        self.started_at = started_at or datetime.now(tz=timezone.utc)
-        self.finished_at = finished_at or datetime.now(tz=timezone.utc)
+        self.started_at = started_at or datetime.now(tz=UTC)
+        self.finished_at = finished_at or datetime.now(tz=UTC)
         delta = self.finished_at - self.started_at
         self.duration_ms = int(delta.total_seconds() * 1000)
 
@@ -89,6 +89,7 @@ class TaskExecutor:
         >>> results = await executor.execute(tasks)
 
     Validates: Requirements 2, 7
+
     """
 
     def __init__(
@@ -106,11 +107,14 @@ class TaskExecutor:
 
         Raises:
             ValueError: If default_timeout_seconds < 1 or max_parallel < 1.
+
         """
         if default_timeout_seconds < 1:
-            raise ValueError("default_timeout_seconds must be >= 1")
+            msg = "default_timeout_seconds must be >= 1"
+            raise ValueError(msg)
         if max_parallel < 1:
-            raise ValueError("max_parallel must be >= 1")
+            msg = "max_parallel must be >= 1"
+            raise ValueError(msg)
 
         self.handler = handler
         self.default_timeout = default_timeout_seconds
@@ -138,6 +142,7 @@ class TaskExecutor:
 
         Time Complexity: O(n) for sort + O(n) for execution
         Validates: Requirements 2.6, 7.1, 7.5
+
         """
         if not tasks:
             return []
@@ -155,10 +160,7 @@ class TaskExecutor:
 
         while remaining:
             # Find tasks whose dependencies are all completed
-            ready = [
-                t for t in remaining
-                if all(dep in completed_ids for dep in t.dependencies)
-            ]
+            ready = [t for t in remaining if all(dep in completed_ids for dep in t.dependencies)]
 
             if not ready:
                 # Dependency cycle or unresolvable deps — fail remaining
@@ -190,7 +192,7 @@ class TaskExecutor:
 
         return [self._results[t.id] for t in tasks]
 
-    def get_status(self, task_id: str) -> Optional[ExecutionStatus]:
+    def get_status(self, task_id: str) -> ExecutionStatus | None:
         """Return current execution status for a task.
 
         Args:
@@ -200,10 +202,11 @@ class TaskExecutor:
             ExecutionStatus or None if task is unknown.
 
         Time Complexity: O(1)
+
         """
         return self._statuses.get(task_id)
 
-    def get_result(self, task_id: str) -> Optional[ExecutionResult]:
+    def get_result(self, task_id: str) -> ExecutionResult | None:
         """Return execution result for a completed task.
 
         Args:
@@ -213,6 +216,7 @@ class TaskExecutor:
             ExecutionResult or None if not yet completed.
 
         Time Complexity: O(1)
+
         """
         return self._results.get(task_id)
 
@@ -221,7 +225,9 @@ class TaskExecutor:
     # ------------------------------------------------------------------
 
     async def _run_with_semaphore(
-        self, task: Task, semaphore: asyncio.Semaphore
+        self,
+        task: Task,
+        semaphore: asyncio.Semaphore,
     ) -> ExecutionResult:
         """Run a single task under a semaphore for concurrency control.
 
@@ -231,6 +237,7 @@ class TaskExecutor:
 
         Returns:
             ExecutionResult for the task.
+
         """
         async with semaphore:
             return await self._run_task(task)
@@ -246,8 +253,9 @@ class TaskExecutor:
 
         Time Complexity: O(1) overhead
         Validates: Requirements 7.2, 7.4, 7.5
+
         """
-        started_at = datetime.now(tz=timezone.utc)
+        started_at = datetime.now(tz=UTC)
         self._statuses[task.id] = ExecutionStatus.IN_PROGRESS
         timeout = task.requirements.get("timeout_seconds", self.default_timeout)
 
@@ -256,7 +264,7 @@ class TaskExecutor:
                 self.handler(task),
                 timeout=float(timeout),
             )
-            finished_at = datetime.now(tz=timezone.utc)
+            finished_at = datetime.now(tz=UTC)
             return ExecutionResult(
                 task_id=task.id,
                 status=ExecutionStatus.COMPLETED,
@@ -264,8 +272,8 @@ class TaskExecutor:
                 started_at=started_at,
                 finished_at=finished_at,
             )
-        except asyncio.TimeoutError:
-            finished_at = datetime.now(tz=timezone.utc)
+        except TimeoutError as exc:
+            finished_at = datetime.now(tz=UTC)
             return ExecutionResult(
                 task_id=task.id,
                 status=ExecutionStatus.TIMEOUT,
@@ -273,8 +281,7 @@ class TaskExecutor:
                 started_at=started_at,
                 finished_at=finished_at,
             )
-        except Exception as exc:  # noqa: BLE001
-            finished_at = datetime.now(tz=timezone.utc)
+            finished_at = datetime.now(tz=UTC)
             return ExecutionResult(
                 task_id=task.id,
                 status=ExecutionStatus.FAILED,

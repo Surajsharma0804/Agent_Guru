@@ -1,5 +1,4 @@
-"""
-Information tools for question answering, definitions, calculations, and unit conversions.
+"""Information tools for question answering, definitions, calculations, and unit conversions.
 
 Provides access to knowledge bases and computational tools.
 """
@@ -25,7 +24,7 @@ from Agent_Guru.reasoning.tools.registry import tool
             type=ToolParameterType.STRING,
             description="Question to answer",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=1500,
@@ -47,6 +46,7 @@ class QuestionAnswerTool(Tool):
 
         Returns:
             Execution result with answer
+
         """
         question = kwargs["question"]
 
@@ -77,7 +77,7 @@ class QuestionAnswerTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to answer question: {str(e)}",
+                "error": f"Failed to answer question: {e!s}",
             }
 
 
@@ -91,7 +91,7 @@ class QuestionAnswerTool(Tool):
             type=ToolParameterType.STRING,
             description="Word to define",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=500,
@@ -113,6 +113,7 @@ class DefineWordTool(Tool):
 
         Returns:
             Execution result with definition
+
         """
         word = kwargs["word"]
 
@@ -134,7 +135,7 @@ class DefineWordTool(Tool):
                             "part_of_speech": "noun",
                             "definition": f"Definition of '{word}' would appear here",
                             "example": f"Example usage of '{word}' in a sentence",
-                        }
+                        },
                     ],
                     "pronunciation": f"Pronunciation of '{word}'",
                     "message": f"Definition retrieved for: {word}",
@@ -145,7 +146,7 @@ class DefineWordTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to define word: {str(e)}",
+                "error": f"Failed to define word: {e!s}",
             }
 
 
@@ -159,7 +160,7 @@ class DefineWordTool(Tool):
             type=ToolParameterType.STRING,
             description="Mathematical expression to evaluate",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=100,
@@ -181,6 +182,7 @@ class CalculateTool(Tool):
 
         Returns:
             Execution result with calculation result
+
         """
         expression = kwargs["expression"]
 
@@ -204,7 +206,7 @@ class CalculateTool(Tool):
             import ast as _ast
             import operator as _op
 
-            _SAFE_OPS = {  # noqa: N806
+            _SAFE_OPS = {
                 _ast.Add: _op.add,
                 _ast.Sub: _op.sub,
                 _ast.Mult: _op.mul,
@@ -222,7 +224,8 @@ class CalculateTool(Tool):
                     return _SAFE_OPS[type(node.op)](_safe_eval(node.left), _safe_eval(node.right))
                 if isinstance(node, _ast.UnaryOp) and type(node.op) in _SAFE_OPS:
                     return _SAFE_OPS[type(node.op)](_safe_eval(node.operand))
-                raise ValueError(f"Unsupported expression node: {type(node).__name__}")
+                msg = f"Unsupported expression node: {type(node).__name__}"
+                raise ValueError(msg)
 
             result = _safe_eval(_ast.parse(expression, mode="eval").body)
 
@@ -235,15 +238,14 @@ class CalculateTool(Tool):
                 },
             }
 
-        except ZeroDivisionError:
+        except ZeroDivisionError as e:
             return {
                 "success": False,
                 "error": "Division by zero",
             }
-        except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to calculate: {str(e)}",
+                "error": f"Failed to calculate: {e!s}",
             }
 
 
@@ -334,6 +336,7 @@ class ConvertUnitsTool(Tool):
 
         Returns:
             Execution result with converted value
+
         """
         value = kwargs["value"]
         from_unit = kwargs["from_unit"].lower()
@@ -404,5 +407,5 @@ class ConvertUnitsTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to convert units: {str(e)}",
+                "error": f"Failed to convert units: {e!s}",
             }

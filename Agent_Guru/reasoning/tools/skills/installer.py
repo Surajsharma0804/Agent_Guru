@@ -1,5 +1,4 @@
-"""
-Skill installer for managing skill installation, updates, and uninstallation.
+"""Skill installer for managing skill installation, updates, and uninstallation.
 
 Provides functionality to:
 - Install skills from local files or marketplace
@@ -9,26 +8,26 @@ Provides functionality to:
 """
 
 import logging
+
 _logger = logging.getLogger(__name__)
 
-import json
-import shutil
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Optional
+import json  # noqa: E402
+import shutil  # noqa: E402
+from dataclasses import dataclass  # noqa: E402
+from datetime import UTC, datetime  # noqa: E402
+from pathlib import Path  # noqa: E402
 
-from Agent_Guru.reasoning.models.skill import (
+from Agent_Guru.reasoning.models.skill import (  # noqa: E402
     InstalledSkill,
     SkillStatus,
 )
-from Agent_Guru.reasoning.tools.skills.manifest import (
+from Agent_Guru.reasoning.tools.skills.manifest import (  # noqa: E402
     SkillManifest,
     SkillManifestParser,
     SkillManifestValidator,
 )
-from Agent_Guru.reasoning.tools.skills.permissions import get_permission_manager
-from Agent_Guru.reasoning.tools.skills.registry import get_skill_registry
+from Agent_Guru.reasoning.tools.skills.permissions import get_permission_manager  # noqa: E402
+from Agent_Guru.reasoning.tools.skills.registry import get_skill_registry  # noqa: E402
 
 
 @dataclass
@@ -36,8 +35,8 @@ class InstallResult:
     """Result of skill installation."""
 
     success: bool
-    skill_id: Optional[str] = None
-    error: Optional[str] = None
+    skill_id: str | None = None
+    error: str | None = None
     warnings: list[str] = None
 
     def __post_init__(self):
@@ -59,11 +58,12 @@ class UpdateInfo:
 class SkillInstaller:
     """Manager for skill installation and updates."""
 
-    def __init__(self, skills_dir: Optional[Path] = None):
+    def __init__(self, skills_dir: Path | None = None) -> None:
         """Initialize skill installer.
 
         Args:
             skills_dir: Directory to install skills to
+
         """
         self.skills_dir = skills_dir or Path.home() / ".agent_guru" / "skills"
         self.skills_dir.mkdir(parents=True, exist_ok=True)
@@ -89,6 +89,7 @@ class SkillInstaller:
 
         Returns:
             Installation result
+
         """
         try:
             # Step 1: Load and validate manifest
@@ -146,7 +147,7 @@ class SkillInstaller:
 
             # Step 6: Initialize usage stats
             self._usage_stats[manifest.skill_id] = {
-                "install_date": datetime.now(tz=timezone.utc).isoformat(),
+                "install_date": datetime.now(tz=UTC).isoformat(),
                 "total_executions": 0,
                 "successful_executions": 0,
                 "failed_executions": 0,
@@ -162,12 +163,10 @@ class SkillInstaller:
         except Exception as e:
             return InstallResult(
                 success=False,
-                error=f"Installation failed: {str(e)}",
+                error=f"Installation failed: {e!s}",
             )
 
-    async def uninstall_skill(
-        self, skill_id: str, cleanup_data: bool = True
-    ) -> InstallResult:
+    async def uninstall_skill(self, skill_id: str, cleanup_data: bool = True) -> InstallResult:
         """Uninstall a skill.
 
         Args:
@@ -176,6 +175,7 @@ class SkillInstaller:
 
         Returns:
             Uninstallation result
+
         """
         try:
             # Step 1: Check if skill exists
@@ -190,9 +190,7 @@ class SkillInstaller:
             await self.registry.unregister_skill(skill_id)
 
             # Step 3: Revoke all permissions
-            granted_permissions = self.permission_manager.get_granted_permissions(
-                skill_id
-            )
+            granted_permissions = self.permission_manager.get_granted_permissions(skill_id)
             for permission in granted_permissions:
                 await self.permission_manager.revoke_permission(skill_id, permission)
 
@@ -214,12 +212,10 @@ class SkillInstaller:
         except Exception as e:
             return InstallResult(
                 success=False,
-                error=f"Uninstallation failed: {str(e)}",
+                error=f"Uninstallation failed: {e!s}",
             )
 
-    async def check_for_updates(
-        self, skill_id: Optional[str] = None
-    ) -> list[UpdateInfo]:
+    async def check_for_updates(self, skill_id: str | None = None) -> list[UpdateInfo]:
         """Check for available skill updates.
 
         Args:
@@ -227,6 +223,7 @@ class SkillInstaller:
 
         Returns:
             List of available updates
+
         """
         updates: list[InstalledSkill] = []
 
@@ -246,9 +243,7 @@ class SkillInstaller:
 
         return updates
 
-    async def update_skill(
-        self, skill_id: str, source: Optional[Path] = None
-    ) -> InstallResult:
+    async def update_skill(self, skill_id: str, source: Path | None = None) -> InstallResult:
         """Update an installed skill.
 
         Args:
@@ -257,6 +252,7 @@ class SkillInstaller:
 
         Returns:
             Update result
+
         """
         try:
             # Step 1: Check if skill exists
@@ -315,7 +311,7 @@ class SkillInstaller:
                     skill_id=skill_id,
                 )
 
-            except Exception as e:
+            except Exception:
                 # Rollback on failure
                 if backup_dir.exists():
                     if current_dir.exists():
@@ -323,26 +319,25 @@ class SkillInstaller:
                     shutil.copytree(backup_dir, current_dir)
                     shutil.rmtree(backup_dir)
 
-                raise e
+                raise
 
         except Exception as e:
             return InstallResult(
                 success=False,
-                error=f"Update failed: {str(e)}",
+                error=f"Update failed: {e!s}",
             )
 
-    async def record_execution(
-        self, skill_id: str, success: bool
-    ) -> None:
+    async def record_execution(self, skill_id: str, success: bool) -> None:
         """Record skill execution for usage statistics.
 
         Args:
             skill_id: Skill ID
             success: Whether execution succeeded
+
         """
         if skill_id not in self._usage_stats:
             self._usage_stats[skill_id] = {
-                "install_date": datetime.now(tz=timezone.utc).isoformat(),
+                "install_date": datetime.now(tz=UTC).isoformat(),
                 "total_executions": 0,
                 "successful_executions": 0,
                 "failed_executions": 0,
@@ -351,7 +346,7 @@ class SkillInstaller:
 
         stats = self._usage_stats[skill_id]
         stats["total_executions"] += 1
-        stats["last_used"] = datetime.now(tz=timezone.utc).isoformat()
+        stats["last_used"] = datetime.now(tz=UTC).isoformat()
 
         if success:
             stats["successful_executions"] += 1
@@ -360,7 +355,7 @@ class SkillInstaller:
 
         await self._save_usage_stats()
 
-    def get_usage_stats(self, skill_id: str) -> Optional[dict]:
+    def get_usage_stats(self, skill_id: str) -> dict | None:
         """Get usage statistics for a skill.
 
         Args:
@@ -368,10 +363,11 @@ class SkillInstaller:
 
         Returns:
             Usage statistics or None if not found
+
         """
         return self._usage_stats.get(skill_id)
 
-    async def _load_manifest(self, source: Path) -> Optional[SkillManifest]:
+    async def _load_manifest(self, source: Path) -> SkillManifest | None:
         """Load skill manifest from source.
 
         Args:
@@ -379,19 +375,17 @@ class SkillInstaller:
 
         Returns:
             Parsed manifest or None if failed
+
         """
         try:
             # Find manifest file
-            if source.is_dir():
-                manifest_path = source / "manifest.json"
-            else:
-                manifest_path = source
+            manifest_path = source / "manifest.json" if source.is_dir() else source
 
             if not manifest_path.exists():
                 return None
 
             # Parse manifest
-            with open(manifest_path, encoding="utf-8") as f:
+            with open(manifest_path, encoding="utf-8") as f:  # noqa: ASYNC230
                 json.load(f)
 
             return SkillManifestParser().parse  # type: ignore[attr-defined](manifest_data)
@@ -403,7 +397,7 @@ class SkillInstaller:
     async def _save_usage_stats(self) -> None:
         """Save usage statistics to disk."""
         stats_path = self.skills_dir / "usage_stats.json"
-        with open(stats_path, "w", encoding="utf-8") as f:
+        with open(stats_path, "w", encoding="utf-8") as f:  # noqa: ASYNC230
             json.dump(self._usage_stats, f, indent=2)
 
     def _load_usage_stats(self) -> None:
@@ -421,7 +415,7 @@ class SkillInstaller:
 
 
 # Global installer instance
-_global_installer: Optional[SkillInstaller] = None
+_global_installer: SkillInstaller | None = None
 
 
 def get_skill_installer() -> SkillInstaller:
@@ -429,6 +423,7 @@ def get_skill_installer() -> SkillInstaller:
 
     Returns:
         Global SkillInstaller instance
+
     """
     global _global_installer
     if _global_installer is None:

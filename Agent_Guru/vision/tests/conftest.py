@@ -8,9 +8,8 @@ bus, dispatcher, model manager).
 from __future__ import annotations
 
 import struct
-import threading
 import zlib
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -22,6 +21,9 @@ from Agent_Guru.vision.vision_models import (
     VisionConfig,
     VisionEvent,
 )
+
+if TYPE_CHECKING:
+    import threading
 
 # ---------------------------------------------------------------------------
 # Class-level cache isolation — prevents test order-dependent failures
@@ -72,6 +74,7 @@ def _make_png(width: int = 64, height: int = 64, fill: int = 128) -> bytes:
 
     Returns:
         PNG-encoded bytes.
+
     """
     sig = b"\x89PNG\r\n\x1a\n"
 
@@ -152,6 +155,7 @@ def make_frame(height: int = 480, width: int = 640, brightness: int = 128) -> np
 
     Returns:
         uint8 ndarray of shape (height, width, 3).
+
     """
     return np.full((height, width, 3), brightness, dtype=np.uint8)
 
@@ -213,6 +217,7 @@ def make_vision_event(
 
     Returns:
         A populated VisionEvent.
+
     """
     return VisionEvent(
         event_type=event_type,

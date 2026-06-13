@@ -1,5 +1,4 @@
-"""
-Maps and location tools for weather, directions, and place search.
+"""Maps and location tools for weather, directions, and place search.
 
 Integrates with weather APIs, mapping services, and location databases.
 """
@@ -55,6 +54,7 @@ class GetWeatherTool(Tool):
 
         Returns:
             Execution result with weather data
+
         """
         location = kwargs["location"]
         units = kwargs.get("units", "metric").lower()
@@ -94,7 +94,7 @@ class GetWeatherTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to get weather: {str(e)}",
+                "error": f"Failed to get weather: {e!s}",
             }
 
 
@@ -145,6 +145,7 @@ class GetDirectionsTool(Tool):
 
         Returns:
             Execution result with directions
+
         """
         origin = kwargs["origin"]
         destination = kwargs["destination"]
@@ -195,7 +196,7 @@ class GetDirectionsTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to get directions: {str(e)}",
+                "error": f"Failed to get directions: {e!s}",
             }
 
 
@@ -246,6 +247,7 @@ class SearchPlacesTool(Tool):
 
         Returns:
             Execution result with places
+
         """
         query = kwargs["query"]
         location = kwargs["location"]
@@ -291,5 +293,5 @@ class SearchPlacesTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to search places: {str(e)}",
+                "error": f"Failed to search places: {e!s}",
             }

@@ -1,0 +1,106 @@
+{
+  "Alexa": {
+    "wake_word_p95_ms": 250,
+    "stt_wer_percent": 5.0,
+    "e2e_p95_ms": 5000,
+    "idle_cpu_percent": 15,
+    "idle_ram_mb": 400,
+    "offline_capable": false,
+    "multi_platform": true,
+    "open_api": true,
+    "notes": "Amazon Alexa — cloud-dependent, strong ecosystem integration"
+  },
+  "Siri": {
+    "wake_word_p95_ms": 300,
+    "stt_wer_percent": 6.0,
+    "e2e_p95_ms": 6000,
+    "idle_cpu_percent": 12,
+    "idle_ram_mb": 350,
+    "offline_capable": false,
+    "multi_platform": true,
+    "open_api": false,
+    "notes": "Apple Siri — tightly integrated into Apple ecosystem, closed API"
+  },
+  "Google Assistant": {
+    "wake_word_p95_ms": 220,
+    "stt_wer_percent": 4.0,
+    "e2e_p95_ms": 4500,
+    "idle_cpu_percent": 18,
+    "idle_ram_mb": 450,
+    "offline_capable": false,
+    "multi_platform": true,
+    "open_api": true,
+    "notes": "Google Assistant — best STT accuracy, cloud-dependent"
+  },
+  "ChatGPT Desktop": {
+    "wake_word_p95_ms": null,
+    "stt_wer_percent": 3.0,
+    "e2e_p95_ms": 3500,
+    "idle_cpu_percent": 5,
+    "idle_ram_mb": 300,
+    "offline_capable": false,
+    "multi_platform": true,
+    "open_api": true,
+    "notes": "ChatGPT Desktop — no wake word, cloud-dependent, best LLM quality"
+  },
+  "Claude Desktop": {
+    "wake_word_p95_ms": null,
+    "stt_wer_percent": 3.5,
+    "e2e_p95_ms": 4000,
+    "idle_cpu_percent": 6,
+    "idle_ram_mb": 320,
+    "offline_capable": false,
+    "multi_platform": true,
+    "open_api": true,
+    "notes": "Claude Desktop — no wake word, cloud-dependent, strong reasoning"
+  },
+  "Open Interpreter": {
+    "wake_word_p95_ms": null,
+    "stt_wer_percent": 4.5,
+    "e2e_p95_ms": 5500,
+    "idle_cpu_percent": 10,
+    "idle_ram_mb": 500,
+    "offline_capable": true,
+    "multi_platform": true,
+    "open_api": true,
+    "notes": "Open Interpreter — open source, no wake word, code execution focus"
+  },
+  "OpenVoiceOS": {
+    "wake_word_p95_ms": 280,
+    "stt_wer_percent": 7.0,
+    "e2e_p95_ms": 7000,
+    "idle_cpu_percent": 20,
+    "idle_ram_mb": 600,
+    "offline_capable": true,
+    "multi_platform": true,
+    "open_api": true,
+    "notes": "OpenVoiceOS — fully offline, open source, higher WER than cloud solutions"
+  },
+  "_agent_guru_targets": {
+    "wake_word_p95_ms": 200,
+    "stt_wer_percent": 2.0,
+    "e2e_p95_ms": 2500,
+    "idle_cpu_percent": 15,
+    "idle_ram_mb": 500,
+    "offline_capable": true,
+    "multi_platform": true,
+    "open_api": true
+  },
+  "_metadata": {
+    "version": "2.0",
+    "last_updated": "2026-05-10",
+    "format": "dict keyed by competitor name for O(1) lookup",
+    "sources": [
+      "Published benchmarks from vendor documentation",
+      "Third-party performance studies (2024-2025)",
+      "Agent Guru quality.md targets"
+    ],
+    "notes": [
+      "wake_word_p95_ms: null = no always-on wake word capability",
+      "All latency values are 95th percentile in milliseconds",
+      "WER (Word Error Rate) measured on standard LibriSpeech/MLS test sets",
+      "Idle metrics measured during wake word monitoring state",
+      "Keys prefixed with _ are metadata, not competitor entries"
+    ]
+  }
+}

@@ -1,18 +1,19 @@
-"""
-Module: Agent_Guru.llm.model_router.registry
+"""Module: Agent_Guru.llm.model_router.registry
 Purpose: Model Registry — catalog of available models with capabilities and costs.
 
 Thread-safe in-memory registry with optional SQLite persistence.
 """
+
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import structlog
 
-from Agent_Guru.llm.model_router.models import ModelFilter, ModelMetadata
+if TYPE_CHECKING:
+    from Agent_Guru.llm.model_router.models import ModelFilter, ModelMetadata
 
 logger = structlog.get_logger("model_router.registry")
 
@@ -25,6 +26,7 @@ class ModelRegistry:
 
     Args:
         max_models: Maximum number of models to store (bounded memory).
+
     """
 
     def __init__(self, max_models: int = 1000) -> None:
@@ -40,18 +42,24 @@ class ModelRegistry:
 
         Raises:
             ValueError: If max_models limit would be exceeded.
+
         """
         with self._lock:
-            if (metadata.model_id not in self._models and
-                    len(self._models) >= self._max_models):
-                raise ValueError(
+            if metadata.model_id not in self._models and len(self._models) >= self._max_models:
+                msg = (
                     f"Registry at capacity ({self._max_models} models). "
                     "Remove a model before registering a new one."
                 )
-            metadata.last_updated = datetime.now(timezone.utc)
+                raise ValueError(
+                    msg,
+                )
+            metadata.last_updated = datetime.now(UTC)
             self._models[metadata.model_id] = metadata
-            logger.info("model_registered", model_id=metadata.model_id,
-                        provider=metadata.provider.value)
+            logger.info(
+                "model_registered",
+                model_id=metadata.model_id,
+                provider=metadata.provider.value,
+            )
 
     def update_model(self, model_id: str, **updates: object) -> bool:
         """Update fields on an existing model.
@@ -62,6 +70,7 @@ class ModelRegistry:
 
         Returns:
             True if model was found and updated, False otherwise.
+
         """
         with self._lock:
             model = self._models.get(model_id)
@@ -70,7 +79,7 @@ class ModelRegistry:
             for key, value in updates.items():
                 if hasattr(model, key):
                     setattr(model, key, value)
-            model.last_updated = datetime.now(timezone.utc)
+            model.last_updated = datetime.now(UTC)
             return True
 
     def mark_unavailable(self, model_id: str) -> bool:
@@ -81,6 +90,7 @@ class ModelRegistry:
 
         Returns:
             True if model was found, False otherwise.
+
         """
         return self.update_model(model_id, is_available=False)
 
@@ -88,7 +98,7 @@ class ModelRegistry:
         """Mark a model as available again."""
         return self.update_model(model_id, is_available=True)
 
-    def get_model(self, model_id: str) -> Optional[ModelMetadata]:
+    def get_model(self, model_id: str) -> ModelMetadata | None:
         """Retrieve a model by ID.
 
         Args:
@@ -96,11 +106,12 @@ class ModelRegistry:
 
         Returns:
             ModelMetadata if found, None otherwise.
+
         """
         with self._lock:
             return self._models.get(model_id)
 
-    def query_models(self, filter: Optional[ModelFilter] = None) -> list[ModelMetadata]:
+    def query_models(self, filter: ModelFilter | None = None) -> list[ModelMetadata]:
         """Query models matching the given filter.
 
         Args:
@@ -108,6 +119,7 @@ class ModelRegistry:
 
         Returns:
             List of matching ModelMetadata objects.
+
         """
         with self._lock:
             models = list(self._models.values())
@@ -124,14 +136,17 @@ class ModelRegistry:
             if filter.capabilities is not None:
                 if not filter.capabilities.issubset(model.capabilities):
                     continue
-            if (filter.max_cost_per_input_token is not None and
-                    model.cost_per_input_token > filter.max_cost_per_input_token):
+            if (
+                filter.max_cost_per_input_token is not None
+                and model.cost_per_input_token > filter.max_cost_per_input_token
+            ):
                 continue
-            if (filter.max_cost_per_output_token is not None and
-                    model.cost_per_output_token > filter.max_cost_per_output_token):
+            if (
+                filter.max_cost_per_output_token is not None
+                and model.cost_per_output_token > filter.max_cost_per_output_token
+            ):
                 continue
-            if (filter.min_max_tokens is not None and
-                    model.max_tokens < filter.min_max_tokens):
+            if filter.min_max_tokens is not None and model.max_tokens < filter.min_max_tokens:
                 continue
             results.append(model)
 
@@ -145,6 +160,7 @@ class ModelRegistry:
 
         Returns:
             True if model was found and removed, False otherwise.
+
         """
         with self._lock:
             if model_id in self._models:

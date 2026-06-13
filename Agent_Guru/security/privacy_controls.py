@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.security.privacy_controls
-Purpose: Data privacy controls, rate limiting, and input validation
+"""Module: Agent_Guru.security.privacy_controls
+Purpose: Data privacy controls, rate limiting, and input validation.
 
 Provides:
 - PrivacyController: Local model data privacy, HTTPS enforcement, history deletion
@@ -21,29 +20,40 @@ import logging
 import re
 import threading
 import time
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
 # Sensitive action categories requiring confirmation
 _SENSITIVE_ACTIONS: set[str] = {
-    "delete_file", "format_drive", "send_email", "send_message",
-    "make_payment", "install_software", "uninstall_software",
-    "change_password", "access_camera", "access_microphone",
-    "share_location", "access_contacts",
+    "delete_file",
+    "format_drive",
+    "send_email",
+    "send_message",
+    "make_payment",
+    "install_software",
+    "uninstall_software",
+    "change_password",
+    "access_camera",
+    "access_microphone",
+    "share_location",
+    "access_contacts",
 }
 
 # Injection attack patterns
 _INJECTION_PATTERNS = [
-    re.compile(r"[;|&`$]"),                    # Shell injection
-    re.compile(r"<script", re.IGNORECASE),      # XSS
-    re.compile(r"DROP\s+TABLE", re.IGNORECASE), # SQL injection
+    re.compile(r"[;|&`$]"),  # Shell injection
+    re.compile(r"<script", re.IGNORECASE),  # XSS
+    re.compile(r"DROP\s+TABLE", re.IGNORECASE),  # SQL injection
     re.compile(r"SELECT\s+\*", re.IGNORECASE),  # SQL injection
-    re.compile(r"\.\./"),                        # Path traversal
-    re.compile(r"__import__"),                   # Python injection
-    re.compile(r"eval\s*\("),                    # Code injection
+    re.compile(r"\.\./"),  # Path traversal
+    re.compile(r"__import__"),  # Python injection
+    re.compile(r"eval\s*\("),  # Code injection
 ]
 
 # Maximum input lengths
@@ -53,9 +63,10 @@ _MAX_COMMAND_LEN = 500
 
 class PrivacyMode(str, Enum):
     """Privacy mode for LLM processing."""
-    LOCAL = "local"     # All processing on-device (no data leaves)
-    CLOUD = "cloud"     # Cloud API (data sent to provider)
-    HYBRID = "hybrid"   # Local for sensitive, cloud for complex
+
+    LOCAL = "local"  # All processing on-device (no data leaves)
+    CLOUD = "cloud"  # Cloud API (data sent to provider)
+    HYBRID = "hybrid"  # Local for sensitive, cloud for complex
 
 
 @dataclass
@@ -67,7 +78,9 @@ class PrivacyConfig:
         require_https: Enforce HTTPS for all cloud API calls
         log_conversations: Whether to log conversation history
         data_retention_days: Days to retain conversation data (0 = no retention)
+
     """
+
     mode: PrivacyMode = PrivacyMode.LOCAL
     require_https: bool = True
     log_conversations: bool = False
@@ -75,8 +88,7 @@ class PrivacyConfig:
 
 
 class PrivacyController:
-    """
-    Data privacy controls for Agent Guru.
+    """Data privacy controls for Agent Guru.
 
     Enforces:
     - No audio data transmitted when using local models
@@ -87,6 +99,7 @@ class PrivacyController:
         >>> ctrl = PrivacyController(PrivacyConfig(mode=PrivacyMode.LOCAL))
         >>> ctrl.validate_api_url("https://api.openai.com/v1/chat")  # OK
         >>> ctrl.validate_api_url("http://api.openai.com/v1/chat")   # Raises
+
     """
 
     def __init__(self, config: PrivacyConfig | None = None) -> None:
@@ -106,11 +119,11 @@ class PrivacyController:
 
         Raises:
             ValueError: If URL uses HTTP when HTTPS is required
+
         """
         if self._config.require_https and url.startswith("http://"):
-            raise ValueError(
-                f"HTTPS required for cloud API calls, got HTTP: {url}"
-            )
+            msg = f"HTTPS required for cloud API calls, got HTTP: {url}"
+            raise ValueError(msg)
 
     def can_transmit_audio(self) -> bool:
         """Return True if audio data can be transmitted to cloud.
@@ -124,6 +137,7 @@ class PrivacyController:
 
         Args:
             callback: Called when user requests data deletion
+
         """
         self._deletion_callbacks.append(callback)
 
@@ -136,8 +150,8 @@ class PrivacyController:
         for cb in self._deletion_callbacks:
             try:
                 cb()
-            except Exception as e:
-                logger.error("Data deletion callback error: %s", e)
+            except Exception:
+                logger.exception("Data deletion callback error")
 
     def get_config(self) -> PrivacyConfig:
         """Return current privacy configuration."""
@@ -145,8 +159,7 @@ class PrivacyController:
 
 
 class RateLimiter:
-    """
-    Token bucket rate limiter to prevent abuse.
+    """Token bucket rate limiter to prevent abuse.
 
     Uses token bucket algorithm:
     - Bucket fills at `rate` tokens/second
@@ -161,6 +174,7 @@ class RateLimiter:
         >>> limiter = RateLimiter(rate=10.0, burst=20)
         >>> if limiter.check():
         ...     process_request()
+
     """
 
     def __init__(self, rate: float = 10.0, burst: int = 20) -> None:
@@ -172,11 +186,14 @@ class RateLimiter:
 
         Raises:
             ValueError: If rate or burst is invalid
+
         """
         if rate <= 0:
-            raise ValueError(f"rate must be > 0, got {rate}")
+            msg = f"rate must be > 0, got {rate}"
+            raise ValueError(msg)
         if burst < 1:
-            raise ValueError(f"burst must be >= 1, got {burst}")
+            msg = f"burst must be >= 1, got {burst}"
+            raise ValueError(msg)
 
         self._rate = rate
         self._burst = float(burst)
@@ -192,6 +209,7 @@ class RateLimiter:
 
         Returns:
             True if request is allowed, False if rate limit exceeded
+
         """
         with self._lock:
             now = time.monotonic()
@@ -204,9 +222,8 @@ class RateLimiter:
             if self._tokens >= 1.0:
                 self._tokens -= 1.0
                 return True
-            else:
-                self._rejected_count += 1
-                return False
+            self._rejected_count += 1
+            return False
 
     def reset(self) -> None:
         """Reset the rate limiter to full capacity."""
@@ -232,8 +249,7 @@ class RateLimiter:
 
 
 class InputValidator:
-    """
-    Input validation to prevent injection attacks.
+    """Input validation to prevent injection attacks.
 
     Validates:
     - Length limits (prevent buffer overflow)
@@ -244,6 +260,7 @@ class InputValidator:
         >>> validator = InputValidator()
         >>> validator.validate("open notepad")  # OK
         >>> validator.validate("rm -rf /; echo pwned")  # Raises
+
     """
 
     def __init__(
@@ -265,14 +282,15 @@ class InputValidator:
 
         Raises:
             ValueError: If input contains injection patterns or exceeds limits
+
         """
         if not isinstance(text, str):
-            raise TypeError(f"Expected str, got {type(text)}")
+            msg = f"Expected str, got {type(text)}"
+            raise TypeError(msg)
 
         if len(text) > self._max_voice_len:
-            raise ValueError(
-                f"Voice input too long: {len(text)} > {self._max_voice_len}"
-            )
+            msg = f"Voice input too long: {len(text)} > {self._max_voice_len}"
+            raise ValueError(msg)
 
         self._check_injection(text)
         return text.strip()
@@ -288,14 +306,15 @@ class InputValidator:
 
         Raises:
             ValueError: If command contains injection patterns
+
         """
         if not isinstance(command, str):
-            raise TypeError(f"Expected str, got {type(command)}")
+            msg = f"Expected str, got {type(command)}"
+            raise TypeError(msg)
 
         if len(command) > self._max_command_len:
-            raise ValueError(
-                f"Command too long: {len(command)} > {self._max_command_len}"
-            )
+            msg = f"Command too long: {len(command)} > {self._max_command_len}"
+            raise ValueError(msg)
 
         self._check_injection(command)
         return command.strip()
@@ -308,6 +327,7 @@ class InputValidator:
 
         Returns:
             True if safe, False if potentially malicious
+
         """
         try:
             self.validate_voice_input(text)
@@ -323,17 +343,16 @@ class InputValidator:
 
         Raises:
             ValueError: If injection pattern detected
+
         """
         for pattern in _INJECTION_PATTERNS:
             if pattern.search(text):
-                raise ValueError(
-                    "Potential injection attack detected in input"
-                )
+                msg = "Potential injection attack detected in input"
+                raise ValueError(msg)
 
 
 class SensitiveActionGuard:
-    """
-    User confirmation guard for sensitive actions.
+    """User confirmation guard for sensitive actions.
 
     Requires explicit confirmation before executing sensitive operations
     like file deletion, sending messages, or making payments.
@@ -342,6 +361,7 @@ class SensitiveActionGuard:
         >>> guard = SensitiveActionGuard()
         >>> guard.require_confirmation("delete_file", "/home/user/doc.txt")
         >>> # Raises if not confirmed
+
     """
 
     def __init__(self) -> None:
@@ -354,17 +374,17 @@ class SensitiveActionGuard:
 
         Args:
             action: Action name to check
+
         """
         return action in _SENSITIVE_ACTIONS
 
-    def register_confirmation_handler(
-        self, action: str, handler: Callable
-    ) -> None:
+    def register_confirmation_handler(self, action: str, handler: Callable) -> None:
         """Register a confirmation handler for an action.
 
         Args:
             action: Action name
             handler: Callable that returns True if user confirms
+
         """
         self._confirmation_callbacks[action] = handler
 
@@ -377,8 +397,10 @@ class SensitiveActionGuard:
 
         Returns:
             Confirmation token (use with confirm())
+
         """
         import uuid
+
         token = str(uuid.uuid4())
         with self._lock:
             self._pending_confirmations[token] = {
@@ -397,6 +419,7 @@ class SensitiveActionGuard:
 
         Returns:
             True if confirmation was valid and action can proceed
+
         """
         with self._lock:
             pending = self._pending_confirmations.pop(token, None)
@@ -417,6 +440,7 @@ class SensitiveActionGuard:
 
         Args:
             token: Confirmation token to cancel
+
         """
         with self._lock:
             self._pending_confirmations.pop(token, None)

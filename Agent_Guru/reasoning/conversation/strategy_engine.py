@@ -1,5 +1,4 @@
-"""
-Main Conversation Strategy Engine.
+"""Main Conversation Strategy Engine.
 
 This module integrates all conversation strategy components:
 - Clarification generation
@@ -11,8 +10,8 @@ This module integrates all conversation strategy components:
 This is the main interface for conversation strategy.
 """
 
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import datetime
+from typing import Any
 
 from Agent_Guru.reasoning.conversation.clarification import (
     ClarificationGenerator,
@@ -46,8 +45,7 @@ from Agent_Guru.reasoning.models.task import Task
 
 
 class ConversationStrategyEngine:
-    """
-    Main conversation strategy engine.
+    """Main conversation strategy engine.
 
     Coordinates all conversation strategy components to provide:
     - Intelligent clarification requests
@@ -57,7 +55,7 @@ class ConversationStrategyEngine:
     - Proactive suggestions
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize conversation strategy engine."""
         self.clarification_generator = ClarificationGenerator()
         self.confirmation_generator = ConfirmationGenerator()
@@ -68,11 +66,8 @@ class ConversationStrategyEngine:
 
     # Clarification methods
 
-    def should_clarify(
-        self, intent: Optional[Intent], task: Optional[Task], confidence: float
-    ) -> bool:
-        """
-        Check if clarification is needed.
+    def should_clarify(self, intent: Intent | None, task: Task | None, confidence: float) -> bool:
+        """Check if clarification is needed.
 
         Args:
             intent: Detected intent
@@ -81,21 +76,23 @@ class ConversationStrategyEngine:
 
         Returns:
             True if clarification needed
+
         """
         should_clarify, _ = self.clarification_generator.rules.should_clarify(
-            intent, task, confidence
+            intent,
+            task,
+            confidence,
         )
         return should_clarify
 
     def generate_clarification(
         self,
-        intent: Optional[Intent],
-        task: Optional[Task],
+        intent: Intent | None,
+        task: Task | None,
         confidence: float,
-        alternative_intents: Optional[list[tuple[str, float]]] = None,
-    ) -> Optional[ClarificationRequest]:
-        """
-        Generate clarification request.
+        alternative_intents: list[tuple[str, float]] | None = None,
+    ) -> ClarificationRequest | None:
+        """Generate clarification request.
 
         Args:
             intent: Detected intent
@@ -105,16 +102,19 @@ class ConversationStrategyEngine:
 
         Returns:
             ClarificationRequest or None
+
         """
         return self.clarification_generator.generate_clarification(
-            intent, task, confidence, alternative_intents
+            intent,
+            task,
+            confidence,
+            alternative_intents,
         )
 
     # Confirmation methods
 
-    def requires_confirmation(self, task: Task, tool_id: Optional[str] = None) -> bool:
-        """
-        Check if task requires confirmation.
+    def requires_confirmation(self, task: Task, tool_id: str | None = None) -> bool:
+        """Check if task requires confirmation.
 
         Args:
             task: The task
@@ -122,15 +122,17 @@ class ConversationStrategyEngine:
 
         Returns:
             True if confirmation required
+
         """
         requires, _ = self.confirmation_generator.rules.requires_confirmation(task, tool_id)
         return requires
 
     def generate_confirmation(
-        self, task: Task, tool_id: Optional[str] = None
-    ) -> Optional[ConfirmationRequest]:
-        """
-        Generate confirmation request.
+        self,
+        task: Task,
+        tool_id: str | None = None,
+    ) -> ConfirmationRequest | None:
+        """Generate confirmation request.
 
         Args:
             task: The task
@@ -138,28 +140,30 @@ class ConversationStrategyEngine:
 
         Returns:
             ConfirmationRequest or None
+
         """
         return self.confirmation_generator.generate_confirmation(task, tool_id)
 
     def parse_confirmation(self, user_response: str) -> ConfirmationResponse:
-        """
-        Parse user's confirmation response.
+        """Parse user's confirmation response.
 
         Args:
             user_response: User's text response
 
         Returns:
             ConfirmationResponse
+
         """
         return self.confirmation_parser.parse_confirmation(user_response)
 
     # Tone adaptation methods
 
     def get_tone_profile(
-        self, user_id: str, context: Optional[ContextualFactors] = None
+        self,
+        user_id: str,
+        context: ContextualFactors | None = None,
     ) -> ToneProfile:
-        """
-        Get user's tone profile with contextual adjustments.
+        """Get user's tone profile with contextual adjustments.
 
         Args:
             user_id: User identifier
@@ -167,14 +171,17 @@ class ConversationStrategyEngine:
 
         Returns:
             Tone profile
+
         """
         return self.tone_adapter.get_tone_profile(user_id, context)
 
     def adapt_response_tone(
-        self, response: str, user_id: str, context: Optional[ContextualFactors] = None
+        self,
+        response: str,
+        user_id: str,
+        context: ContextualFactors | None = None,
     ) -> str:
-        """
-        Adapt response to user's tone preferences.
+        """Adapt response to user's tone preferences.
 
         Args:
             response: Original response
@@ -183,15 +190,18 @@ class ConversationStrategyEngine:
 
         Returns:
             Tone-adapted response
+
         """
         tone_profile = self.get_tone_profile(user_id, context)
         return self.tone_adapter.adapt_response(response, tone_profile)
 
     def select_response_template(
-        self, template_type: str, user_id: str, context: Optional[ContextualFactors] = None
+        self,
+        template_type: str,
+        user_id: str,
+        context: ContextualFactors | None = None,
     ) -> str:
-        """
-        Select appropriate response template.
+        """Select appropriate response template.
 
         Args:
             template_type: Type of template ("success" or "error")
@@ -200,6 +210,7 @@ class ConversationStrategyEngine:
 
         Returns:
             Template string
+
         """
         tone_profile = self.get_tone_profile(user_id, context)
         return ResponseTemplateSelector.select_template(template_type, tone_profile)
@@ -207,10 +218,12 @@ class ConversationStrategyEngine:
     # Error response methods
 
     def generate_error_response(
-        self, error: Error, user_id: str, context: Optional[dict[str, Any]] = None
+        self,
+        error: Error,
+        user_id: str,
+        context: dict[str, Any] | None = None,
     ) -> ErrorResponse:
-        """
-        Generate user-friendly error response.
+        """Generate user-friendly error response.
 
         Args:
             error: The error
@@ -219,6 +232,7 @@ class ConversationStrategyEngine:
 
         Returns:
             ErrorResponse
+
         """
         # Generate base error response
         error_response = self.error_strategy.generate_error_response(error, context)
@@ -234,10 +248,12 @@ class ConversationStrategyEngine:
     # Suggestion methods
 
     def generate_follow_up_suggestions(
-        self, task: Task, result: ExecutionResult, conversation_state: ConversationState
+        self,
+        task: Task,
+        result: ExecutionResult,
+        conversation_state: ConversationState,
     ) -> list[Suggestion]:
-        """
-        Generate follow-up suggestions after action.
+        """Generate follow-up suggestions after action.
 
         Args:
             task: Completed task
@@ -246,9 +262,12 @@ class ConversationStrategyEngine:
 
         Returns:
             List of suggestions
+
         """
         suggestions = self.suggestion_generator.generate_follow_up_suggestions(
-            task, result, conversation_state
+            task,
+            result,
+            conversation_state,
         )
         return self.suggestion_generator.rank_suggestions(suggestions)
 
@@ -256,10 +275,9 @@ class ConversationStrategyEngine:
         self,
         user_id: str,
         conversation_state: ConversationState,
-        current_time: Optional[datetime] = None,
+        current_time: datetime | None = None,
     ) -> list[Suggestion]:
-        """
-        Generate proactive suggestions based on patterns.
+        """Generate proactive suggestions based on patterns.
 
         Args:
             user_id: User identifier
@@ -268,17 +286,21 @@ class ConversationStrategyEngine:
 
         Returns:
             List of suggestions
+
         """
         suggestions = self.suggestion_generator.generate_proactive_suggestions(
-            user_id, conversation_state, current_time
+            user_id,
+            conversation_state,
+            current_time,
         )
         return self.suggestion_generator.rank_suggestions(suggestions)
 
     def generate_alternative_suggestions(
-        self, task: Task, error: Optional[Error] = None
+        self,
+        task: Task,
+        error: Error | None = None,
     ) -> list[Suggestion]:
-        """
-        Generate alternative suggestions when action fails.
+        """Generate alternative suggestions when action fails.
 
         Args:
             task: Failed task
@@ -286,6 +308,7 @@ class ConversationStrategyEngine:
 
         Returns:
             List of suggestions
+
         """
         suggestions = self.suggestion_generator.generate_alternative_suggestions(task, error)
         return self.suggestion_generator.rank_suggestions(suggestions)
@@ -293,13 +316,13 @@ class ConversationStrategyEngine:
     # Learning methods
 
     def learn_tone_preference(self, user_id: str, dimension: str, value: float) -> None:
-        """
-        Learn user's tone preference.
+        """Learn user's tone preference.
 
         Args:
             user_id: User identifier
             dimension: Personality dimension
             value: Observed value
+
         """
         from Agent_Guru.reasoning.conversation.tone import PersonalityDimension
 
@@ -307,13 +330,13 @@ class ConversationStrategyEngine:
         self.tone_adapter.learn_preference(user_id, dim_enum, value)
 
     def learn_action_pattern(self, user_id: str, action: str, context: dict[str, Any]) -> None:
-        """
-        Learn user's action pattern for proactive suggestions.
+        """Learn user's action pattern for proactive suggestions.
 
         Args:
             user_id: User identifier
             action: Action performed
             context: Context information
+
         """
         self.suggestion_generator.learn_pattern(user_id, action, context)
 
@@ -321,12 +344,11 @@ class ConversationStrategyEngine:
 
     def create_contextual_factors(
         self,
-        time_of_day: Optional[datetime] = None,
-        battery_level: Optional[float] = None,
+        time_of_day: datetime | None = None,
+        battery_level: float | None = None,
         conversation_length: int = 0,
     ) -> ContextualFactors:
-        """
-        Create contextual factors for tone adaptation.
+        """Create contextual factors for tone adaptation.
 
         Args:
             time_of_day: Current time
@@ -335,6 +357,7 @@ class ConversationStrategyEngine:
 
         Returns:
             ContextualFactors
+
         """
         is_work_hours = False
         if time_of_day:

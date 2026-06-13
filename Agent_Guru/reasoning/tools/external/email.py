@@ -1,5 +1,4 @@
-"""
-Email tool for sending emails via Gmail, Outlook, or IMAP.
+"""Email tool for sending emails via Gmail, Outlook, or IMAP.
 
 Supports multiple email providers with API key management.
 """
@@ -77,6 +76,7 @@ class SendEmailTool(Tool):
 
         Returns:
             Execution result
+
         """
         to = kwargs["to"]
         subject = kwargs["subject"]
@@ -135,5 +135,5 @@ class SendEmailTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to send email: {str(e)}",
+                "error": f"Failed to send email: {e!s}",
             }

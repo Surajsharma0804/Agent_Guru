@@ -2,7 +2,7 @@
 
 import time
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -23,6 +23,7 @@ class SafetyDecision:
         reason: Human-readable reason for decision
         sensitivity: Classified sensitivity level
         validation_time: Time taken for validation in seconds
+
     """
 
     allowed: bool
@@ -44,15 +45,15 @@ class SafetyGate:
 
     def __init__(
         self,
-        classifier: Optional[ActionSensitivityClassifier] = None,
-        permission_manager: Optional[PermissionManager] = None,
+        classifier: ActionSensitivityClassifier | None = None,
+        permission_manager: PermissionManager | None = None,
     ) -> None:
-        """
-        Initialize safety gate.
+        """Initialize safety gate.
 
         Args:
             classifier: Action sensitivity classifier (creates default if None)
             permission_manager: Permission manager (creates default if None)
+
         """
         self._classifier = classifier or ActionSensitivityClassifier()
         self._permission_manager = permission_manager or PermissionManager()
@@ -76,8 +77,7 @@ class SafetyGate:
         parameters: dict[str, Any],
         user_id: str,
     ) -> SafetyDecision:
-        """
-        Validate action before execution.
+        """Validate action before execution.
 
         Time Complexity: O(n) where n is number of classification rules
         Space Complexity: O(1)
@@ -89,6 +89,7 @@ class SafetyGate:
 
         Returns:
             SafetyDecision with validation result
+
         """
         start_time = time.perf_counter()
 
@@ -96,28 +97,27 @@ class SafetyGate:
         sensitivity, reason = self._classifier.classify(tool, parameters)
 
         # Check permissions if tool requires them
-        if tool.requires_permission:
-            if not self.check_permissions(user_id, tool):
-                validation_time = time.perf_counter() - start_time
+        if tool.requires_permission and not self.check_permissions(user_id, tool):
+            validation_time = time.perf_counter() - start_time
 
-                # Log blocked action
-                self._log_blocked_action(user_id, tool.tool_id, "Insufficient permissions")
+            # Log blocked action
+            self._log_blocked_action(user_id, tool.tool_id, "Insufficient permissions")
 
-                logger.warning(
-                    "action_blocked_insufficient_permissions",
-                    user_id=user_id,
-                    tool_id=tool.tool_id,
-                    permission_scope=tool.permission_scope,
-                    validation_time=validation_time,
-                )
+            logger.warning(
+                "action_blocked_insufficient_permissions",
+                user_id=user_id,
+                tool_id=tool.tool_id,
+                permission_scope=tool.permission_scope,
+                validation_time=validation_time,
+            )
 
-                return SafetyDecision(
-                    allowed=False,
-                    requires_confirmation=False,
-                    reason=f"Insufficient permissions: {tool.permission_scope} required",
-                    sensitivity=sensitivity,
-                    validation_time=validation_time,
-                )
+            return SafetyDecision(
+                allowed=False,
+                requires_confirmation=False,
+                reason=f"Insufficient permissions: {tool.permission_scope} required",
+                sensitivity=sensitivity,
+                validation_time=validation_time,
+            )
 
         # Dangerous actions are blocked by default unless user has explicit permission
         if sensitivity == ActionSensitivity.DANGEROUS:
@@ -132,7 +132,9 @@ class SafetyGate:
 
                 # Log blocked action
                 self._log_blocked_action(
-                    user_id, tool.tool_id, "Dangerous action without permission"
+                    user_id,
+                    tool.tool_id,
+                    "Dangerous action without permission",
                 )
 
                 logger.warning(
@@ -179,8 +181,7 @@ class SafetyGate:
         sensitivity: ActionSensitivity,
         tool: Tool,
     ) -> bool:
-        """
-        Determine if action requires user confirmation.
+        """Determine if action requires user confirmation.
 
         Args:
             sensitivity: Classified sensitivity level
@@ -188,20 +189,17 @@ class SafetyGate:
 
         Returns:
             True if confirmation required, False otherwise
+
         """
         # Sensitive and dangerous actions require confirmation
         if sensitivity in (ActionSensitivity.SENSITIVE, ActionSensitivity.DANGEROUS):
             return True
 
         # Check if tool's permission scope is in sensitive categories
-        if tool.permission_scope and tool.permission_scope in self._sensitive_categories:
-            return True
-
-        return False
+        return bool(tool.permission_scope and tool.permission_scope in self._sensitive_categories)
 
     def check_permissions(self, user_id: str, tool: Tool) -> bool:
-        """
-        Check if user has required permissions for tool.
+        """Check if user has required permissions for tool.
 
         Time Complexity: O(1) average case (cached lookup)
         Space Complexity: O(1)
@@ -212,6 +210,7 @@ class SafetyGate:
 
         Returns:
             True if user has required permissions, False otherwise
+
         """
         # If tool doesn't require permissions, allow
         if not tool.requires_permission or not tool.permission_scope:
@@ -225,11 +224,10 @@ class SafetyGate:
         user_id: str,
         permission_scope: str,
         granted_by: str = "system",
-        expires_at: Optional[float] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        expires_at: float | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Grant permission to user.
+        """Grant permission to user.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -240,6 +238,7 @@ class SafetyGate:
             granted_by: Who granted the permission
             expires_at: Optional expiration timestamp (Unix timestamp)
             metadata: Optional metadata dictionary
+
         """
         self._permission_manager.grant_permission(
             user_id=user_id,
@@ -257,8 +256,7 @@ class SafetyGate:
         )
 
     def revoke_permission(self, user_id: str, permission_scope: str) -> bool:
-        """
-        Revoke permission from user.
+        """Revoke permission from user.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -269,6 +267,7 @@ class SafetyGate:
 
         Returns:
             True if permission was revoked, False if user didn't have it
+
         """
         result = self._permission_manager.revoke_permission(user_id, permission_scope)
 
@@ -282,24 +281,24 @@ class SafetyGate:
         return result
 
     def get_user_permissions(self, user_id: str) -> set[str]:
-        """
-        Get all permissions for user.
+        """Get all permissions for user.
 
         Args:
             user_id: User identifier
 
         Returns:
             Set of permission scopes
+
         """
         permissions = self._permission_manager.get_user_permissions(user_id)
         return {perm.permission_scope for perm in permissions}
 
     def add_sensitive_category(self, category: str) -> None:
-        """
-        Add a sensitive action category.
+        """Add a sensitive action category.
 
         Args:
             category: Category name to add
+
         """
         self._sensitive_categories.add(category)
 
@@ -309,14 +308,14 @@ class SafetyGate:
         )
 
     def remove_sensitive_category(self, category: str) -> bool:
-        """
-        Remove a sensitive action category.
+        """Remove a sensitive action category.
 
         Args:
             category: Category name to remove
 
         Returns:
             True if category was removed, False if not found
+
         """
         if category in self._sensitive_categories:
             self._sensitive_categories.remove(category)
@@ -331,11 +330,11 @@ class SafetyGate:
         return False
 
     def get_sensitive_categories(self) -> set[str]:
-        """
-        Get all sensitive action categories.
+        """Get all sensitive action categories.
 
         Returns:
             Set of category names
+
         """
         return self._sensitive_categories.copy()
 
@@ -345,13 +344,13 @@ class SafetyGate:
         tool_id: str,
         reason: str,
     ) -> None:
-        """
-        Log a blocked action for audit.
+        """Log a blocked action for audit.
 
         Args:
             user_id: User identifier
             tool_id: Tool identifier
             reason: Reason for blocking
+
         """
         timestamp = time.time()
         self._blocked_actions.append((timestamp, user_id, tool_id, reason))
@@ -362,11 +361,10 @@ class SafetyGate:
 
     def get_blocked_actions(
         self,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
         limit: int = 100,
     ) -> list[tuple[float, str, str, str]]:
-        """
-        Get blocked actions log.
+        """Get blocked actions log.
 
         Args:
             user_id: Filter by user ID (None for all users)
@@ -374,6 +372,7 @@ class SafetyGate:
 
         Returns:
             List of (timestamp, user_id, tool_id, reason) tuples
+
         """
         if user_id:
             filtered = [entry for entry in self._blocked_actions if entry[1] == user_id]

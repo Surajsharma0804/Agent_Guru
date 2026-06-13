@@ -1,16 +1,15 @@
-"""
-Module: Agent_Guru.llm.model_router.selector
+"""Module: Agent_Guru.llm.model_router.selector
 Purpose: Model Selector — scores and selects optimal models for tasks.
 
 Implements cost-performance scoring with epsilon-greedy exploration.
 """
+
 from __future__ import annotations
 
-import random
+import secrets
 import threading
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 import structlog
 
@@ -37,6 +36,7 @@ _LATENCY_WARNING_MS = 100.0
 @dataclass
 class ModelScore:
     """Scoring breakdown for a candidate model."""
+
     model_id: str
     total_score: float
     cost_score: float
@@ -58,6 +58,7 @@ class ModelSelector:
         w_performance: Weight for performance score.
         w_capability: Weight for capability score.
         prefer_local: Whether to apply a bonus for local (Ollama) models.
+
     """
 
     def __init__(
@@ -77,10 +78,10 @@ class ModelSelector:
         self,
         candidates: list[ModelMetadata],
         analysis: TaskAnalysis,
-        performance_map: Optional[dict[str, PerformanceMetrics]] = None,
-        learning_weights: Optional[dict[str, float]] = None,
+        performance_map: dict[str, PerformanceMetrics] | None = None,
+        learning_weights: dict[str, float] | None = None,
         exploration_rate: float = 0.0,
-    ) -> Optional[SelectionResult]:
+    ) -> SelectionResult | None:
         """Select the best model from candidates for the given task.
 
         Args:
@@ -92,6 +93,7 @@ class ModelSelector:
 
         Returns:
             SelectionResult, or None if no suitable model found.
+
         """
         start = time.monotonic()
 
@@ -99,9 +101,11 @@ class ModelSelector:
         eligible = self._filter_candidates(candidates, analysis)
 
         if not eligible:
-            logger.warning("no_eligible_models",
-                           task_type=analysis.task_type.value,
-                           required_caps=[c.value for c in analysis.required_capabilities])
+            logger.warning(
+                "no_eligible_models",
+                task_type=analysis.task_type.value,
+                required_caps=[c.value for c in analysis.required_capabilities],
+            )
             return None
 
         # Score all eligible models
@@ -115,9 +119,11 @@ class ModelSelector:
 
         elapsed_ms = (time.monotonic() - start) * 1000
         if elapsed_ms > _LATENCY_WARNING_MS:
-            logger.warning("selection_latency_high",
-                           elapsed_ms=elapsed_ms,
-                           task_type=analysis.task_type.value)
+            logger.warning(
+                "selection_latency_high",
+                elapsed_ms=elapsed_ms,
+                task_type=analysis.task_type.value,
+            )
 
         reasoning = (
             f"Selected {selected_score.model_id} "
@@ -127,11 +133,13 @@ class ModelSelector:
             f"total={selected_score.total_score:.3f})"
         )
 
-        logger.info("model_selected",
-                    model_id=selected_score.model_id,
-                    task_type=analysis.task_type.value,
-                    total_score=selected_score.total_score,
-                    reasoning=reasoning)
+        logger.info(
+            "model_selected",
+            model_id=selected_score.model_id,
+            task_type=analysis.task_type.value,
+            total_score=selected_score.total_score,
+            reasoning=reasoning,
+        )
 
         return SelectionResult(
             model_id=selected_score.model_id,
@@ -147,7 +155,9 @@ class ModelSelector:
     # ------------------------------------------------------------------
 
     def _filter_candidates(
-        self, candidates: list[ModelMetadata], analysis: TaskAnalysis
+        self,
+        candidates: list[ModelMetadata],
+        analysis: TaskAnalysis,
     ) -> list[ModelMetadata]:
         """Filter candidates to those meeting hard constraints."""
         eligible = []
@@ -158,8 +168,10 @@ class ModelSelector:
             if not analysis.required_capabilities.issubset(model.capabilities):
                 continue
             # Latency constraint
-            if (analysis.latency_constraint_ms is not None and
-                    model.average_latency_ms > analysis.latency_constraint_ms):
+            if (
+                analysis.latency_constraint_ms is not None
+                and model.average_latency_ms > analysis.latency_constraint_ms
+            ):
                 continue
             # Cost constraint
             if analysis.cost_constraint is not None:
@@ -180,8 +192,8 @@ class ModelSelector:
         self,
         models: list[ModelMetadata],
         analysis: TaskAnalysis,
-        performance_map: Optional[dict[str, PerformanceMetrics]],
-        learning_weights: Optional[dict[str, float]],
+        performance_map: dict[str, PerformanceMetrics] | None,
+        learning_weights: dict[str, float] | None,
     ) -> list[ModelScore]:
         scores = []
         for model in models:
@@ -208,15 +220,17 @@ class ModelSelector:
                 lw = learning_weights.get(model.model_id, 1.0)
                 total *= max(0.01, lw)  # Prevent zero/negative total
 
-            scores.append(ModelScore(
-                model_id=model.model_id,
-                total_score=total,
-                cost_score=cost_score,
-                performance_score=perf_score,
-                capability_score=cap_score,
-                estimated_cost=est_cost,
-                estimated_latency_ms=model.average_latency_ms,
-            ))
+            scores.append(
+                ModelScore(
+                    model_id=model.model_id,
+                    total_score=total,
+                    cost_score=cost_score,
+                    performance_score=perf_score,
+                    capability_score=cap_score,
+                    estimated_cost=est_cost,
+                    estimated_latency_ms=model.average_latency_ms,
+                ),
+            )
         return scores
 
     @staticmethod
@@ -227,7 +241,7 @@ class ModelSelector:
     @staticmethod
     def _performance_score(
         model_id: str,
-        performance_map: Optional[dict[str, PerformanceMetrics]],
+        performance_map: dict[str, PerformanceMetrics] | None,
     ) -> float:
         """Compute performance score from historical metrics."""
         if not performance_map or model_id not in performance_map:
@@ -241,11 +255,7 @@ class ModelSelector:
         normalized_latency = max(1.0, min(m.average_latency_ms, 5000.0))
         latency_score = 1000.0 / normalized_latency  # 0.2 at 5000ms, 1.0 at 1000ms
 
-        return (
-            m.success_rate * 0.6
-            + latency_score * 0.3
-            + m.average_quality * 0.1
-        )
+        return m.success_rate * 0.6 + latency_score * 0.3 + m.average_quality * 0.1
 
     @staticmethod
     def _capability_score(model: ModelMetadata, analysis: TaskAnalysis) -> float:
@@ -260,12 +270,10 @@ class ModelSelector:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _explore_or_exploit(
-        scores: list[ModelScore], exploration_rate: float
-    ) -> ModelScore:
+    def _explore_or_exploit(scores: list[ModelScore], exploration_rate: float) -> ModelScore:
         """Epsilon-greedy: exploit top model or explore top-3."""
-        if len(scores) == 1 or random.random() > exploration_rate:
+        if len(scores) == 1 or secrets.SystemRandom().random() > exploration_rate:
             return scores[0]
         # Explore: pick randomly from top 3
-        top_k = scores[:min(3, len(scores))]
-        return random.choice(top_k)
+        top_k = scores[: min(3, len(scores))]
+        return secrets.choice(top_k)

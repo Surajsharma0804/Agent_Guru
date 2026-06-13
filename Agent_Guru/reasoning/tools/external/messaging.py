@@ -1,5 +1,4 @@
-"""
-Messaging tools for SMS, WhatsApp, Telegram, and Slack.
+"""Messaging tools for SMS, WhatsApp, Telegram, and Slack.
 
 Supports multiple messaging platforms with API key management and rate limiting.
 """
@@ -54,6 +53,7 @@ class SendSMSTool(Tool):
 
         Returns:
             Execution result
+
         """
         phone_number = kwargs["phone_number"]
         message = kwargs["message"]
@@ -95,7 +95,7 @@ class SendSMSTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to send SMS: {str(e)}",
+                "error": f"Failed to send SMS: {e!s}",
             }
 
 
@@ -138,6 +138,7 @@ class SendWhatsAppTool(Tool):
 
         Returns:
             Execution result
+
         """
         phone_number = kwargs["phone_number"]
         message = kwargs["message"]
@@ -172,7 +173,7 @@ class SendWhatsAppTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to send WhatsApp: {str(e)}",
+                "error": f"Failed to send WhatsApp: {e!s}",
             }
 
 
@@ -215,6 +216,7 @@ class SendTelegramTool(Tool):
 
         Returns:
             Execution result
+
         """
         chat_id = kwargs["chat_id"]
         message = kwargs["message"]
@@ -249,7 +251,7 @@ class SendTelegramTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to send Telegram: {str(e)}",
+                "error": f"Failed to send Telegram: {e!s}",
             }
 
 
@@ -292,6 +294,7 @@ class SendSlackTool(Tool):
 
         Returns:
             Execution result
+
         """
         channel = kwargs["channel"]
         message = kwargs["message"]
@@ -326,5 +329,5 @@ class SendSlackTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to send Slack message: {str(e)}",
+                "error": f"Failed to send Slack message: {e!s}",
             }

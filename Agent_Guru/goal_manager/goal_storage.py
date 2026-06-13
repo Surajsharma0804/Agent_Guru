@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.goal_manager.goal_storage
-Purpose: Persistent storage for goals using SQLite with ACID transactions
+"""Module: agent_guru.goal_manager.goal_storage
+Purpose: Persistent storage for goals using SQLite with ACID transactions.
 
 This module implements the storage layer for the Goal Manager system,
 providing immediate persistence and efficient querying capabilities.
@@ -31,12 +30,12 @@ Date: 2024-01-15
 Version: 1.0.0
 """
 
+import contextlib
 import json
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from .exceptions import StorageError
 from .logging_config import get_logger
@@ -47,8 +46,7 @@ logger = get_logger(__name__)
 
 
 class GoalStorage:
-    """
-    Persistent storage for goals using SQLite.
+    """Persistent storage for goals using SQLite.
 
     Provides ACID transactions and immediate persistence with O(1) retrieval
     by ID and O(log n) filtered queries using indexes.
@@ -67,11 +65,11 @@ class GoalStorage:
         >>> await storage.store_goal(goal)
         >>> retrieved = await storage.get_goal(goal.id)
         >>> assert retrieved.id == goal.id
+
     """
 
-    def __init__(self, db_path: str):
-        """
-        Initialize storage with database path.
+    def __init__(self, db_path: str) -> None:
+        """Initialize storage with database path.
 
         Creates database file and schema if they don't exist.
 
@@ -80,6 +78,7 @@ class GoalStorage:
 
         Raises:
             StorageError: If database initialization fails
+
         """
         self.db_path = db_path
         self._lock = threading.RLock()
@@ -91,9 +90,12 @@ class GoalStorage:
             # CWE-22 mitigation: reject any path that escapes the intended
             # parent directory after full resolution (symlinks expanded).
             if not resolved.is_relative_to(intended_parent):
-                raise ValueError(
+                msg = (
                     f"Path traversal detected: '{db_path}' resolves outside "
                     f"its parent directory '{intended_parent}'"
+                )
+                raise ValueError(
+                    msg,
                 )
             db_p.parent.mkdir(parents=True, exist_ok=True)
             # _data_dir is the validated parent; used by export/import helpers.
@@ -101,11 +103,12 @@ class GoalStorage:
             # Use the fully-resolved absolute path — never the raw user input.
             connect_path: str = resolved.as_posix()
         else:
-            self._data_dir = Path(".").resolve()
+            self._data_dir = Path.cwd()
             connect_path = ":memory:"
 
         self._conn: sqlite3.Connection = sqlite3.connect(
-            connect_path, check_same_thread=False
+            connect_path,
+            check_same_thread=False,
         )  # persistent; closed in close() / __del__
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")
@@ -126,10 +129,8 @@ class GoalStorage:
 
     def close(self) -> None:
         """Close the persistent database connection."""
-        try:
+        with contextlib.suppress(sqlite3.Error):
             self._conn.close()
-        except sqlite3.Error:
-            pass
 
     def __del__(self) -> None:
         """Ensure connection is closed on garbage collection."""
@@ -144,18 +145,21 @@ class GoalStorage:
 
         Raises:
             ValueError: If the resolved path escapes the data directory.
+
         """
         resolved = (self._data_dir / user_path).resolve()
         if not resolved.is_relative_to(self._data_dir):
-            raise ValueError(
+            msg = (
                 f"Path traversal detected: '{user_path}' resolves to "
                 f"'{resolved}' which escapes '{self._data_dir}'"
+            )
+            raise ValueError(
+                msg,
             )
         return resolved
 
     async def initialize(self) -> None:
-        """
-        Async initialization (no-op — schema already created in __init__).
+        """Async initialization (no-op — schema already created in __init__).
 
         Provided for API compatibility with tests that call
         ``await storage.initialize()`` before use.
@@ -164,8 +168,7 @@ class GoalStorage:
         # This method exists so callers can await it without error.
 
     async def update_goal_status(self, goal_id: str, status: "GoalStatus") -> None:
-        """
-        Update only the status field of a goal.
+        """Update only the status field of a goal.
 
         Time Complexity: O(1) — single indexed UPDATE
         Space Complexity: O(1)
@@ -176,6 +179,7 @@ class GoalStorage:
 
         Raises:
             StorageError: If update fails or goal not found
+
         """
         from .exceptions import StorageError as _StorageError
 
@@ -190,13 +194,14 @@ class GoalStorage:
                 )
                 if cursor.rowcount == 0:
                     self._close(conn)
-                    raise _StorageError(f"Goal {goal_id} not found")
+                    msg = f"Goal {goal_id} not found"
+                    raise _StorageError(msg)
                 conn.commit()
                 self._close(conn)
         except _StorageError as e:
             raise
-        except Exception as e:
-            raise _StorageError(f"Failed to update goal status: {e}") from e
+            msg = f"Failed to update goal status: {e}"
+            raise _StorageError(msg) from e
 
     def _connect(self) -> sqlite3.Connection:
         """Return the persistent connection."""
@@ -206,9 +211,7 @@ class GoalStorage:
         """No-op: we keep the persistent connection open."""
 
     def _init_schema(self) -> None:
-        """
-        Initialize database schema with tables and indexes.
-        """
+        """Initialize database schema with tables and indexes."""
         try:
             with self._lock:
                 conn = self._connect()
@@ -243,28 +246,32 @@ class GoalStorage:
 
                 # Migrate existing databases: add new columns if missing
                 existing_cols = {row[1] for row in cursor.execute("PRAGMA table_info(goals)")}
-                if 'goal_type' not in existing_cols:
-                    cursor.execute("ALTER TABLE goals ADD COLUMN goal_type TEXT NOT NULL DEFAULT 'task'")
-                if 'deadline' not in existing_cols:
+                if "goal_type" not in existing_cols:
+                    cursor.execute(
+                        "ALTER TABLE goals ADD COLUMN goal_type TEXT NOT NULL DEFAULT 'task'",
+                    )
+                if "deadline" not in existing_cols:
                     cursor.execute("ALTER TABLE goals ADD COLUMN deadline TEXT")
-                if 'retry_count' not in existing_cols:
-                    cursor.execute("ALTER TABLE goals ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0")
+                if "retry_count" not in existing_cols:
+                    cursor.execute(
+                        "ALTER TABLE goals ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0",
+                    )
 
                 conn.commit()
                 self._close(conn)
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "schema_initialization_failed",
                 db_path=self.db_path,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
-            raise StorageError(f"Failed to initialize database schema: {e}") from e
+            msg = f"Failed to initialize database schema: {e}"
+            raise StorageError(msg) from e
 
     async def store_goal(self, goal: Goal) -> None:
-        """
-        Store goal with immediate persistence.
+        """Store goal with immediate persistence.
 
         Uses ACID transaction to ensure goal is persisted before returning.
 
@@ -276,69 +283,71 @@ class GoalStorage:
 
         Raises:
             StorageError: If persistence fails
+
         """
         conn = self._connect()
         cursor = conn.cursor()
 
         try:
             with self._lock:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO goals (
                         id, description, status, priority, goal_type, progress,
                         created_at, started_at, completed_at, deadline, parent_id,
                         sub_goal_ids, dependency_ids, metadata, error_message, retry_count
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    goal.id,
-                    goal.description,
-                    self._get_enum_value(goal.status),
-                    self._get_enum_value(goal.priority),
-                    self._get_enum_value(goal.goal_type) if hasattr(goal, 'goal_type') else 'task',
-                    goal.progress,
-                    goal.created_at.isoformat(),
-                    goal.started_at.isoformat() if goal.started_at else None,
-                    goal.completed_at.isoformat() if goal.completed_at else None,
-                    goal.deadline.isoformat() if goal.deadline else None,
-                    goal.parent_id,
-                    json.dumps(goal.sub_goal_ids),
-                    json.dumps(goal.dependency_ids),
-                    json.dumps(goal.metadata),
-                    goal.error_message,
-                    goal.retry_count if hasattr(goal, 'retry_count') else 0,
-                ))
+                """,
+                    (
+                        goal.id,
+                        goal.description,
+                        self._get_enum_value(goal.status),
+                        self._get_enum_value(goal.priority),
+                        self._get_enum_value(goal.goal_type)
+                        if hasattr(goal, "goal_type")
+                        else "task",
+                        goal.progress,
+                        goal.created_at.isoformat(),
+                        goal.started_at.isoformat() if goal.started_at else None,
+                        goal.completed_at.isoformat() if goal.completed_at else None,
+                        goal.deadline.isoformat() if goal.deadline else None,
+                        goal.parent_id,
+                        json.dumps(goal.sub_goal_ids),
+                        json.dumps(goal.dependency_ids),
+                        json.dumps(goal.metadata),
+                        goal.error_message,
+                        goal.retry_count if hasattr(goal, "retry_count") else 0,
+                    ),
+                )
                 conn.commit()
 
         except sqlite3.IntegrityError as e:
             conn.rollback()
-            logger.error(
+            logger.exception(
                 "goal_store_integrity_error",
                 goal_id=goal.id,
                 operation="store",
                 error=str(e),
-                error_type="IntegrityError"
+                error_type="IntegrityError",
             )
-            raise StorageError(f"Goal with ID {goal.id} already exists: {e}") from e
-
-        except StorageError as e:
+            msg = f"Goal with ID {goal.id} already exists: {e}"
+            raise StorageError(msg) from e
             raise
-
-        except Exception as e:
             conn.rollback()
-            logger.error(
+            logger.exception(
                 "goal_store_failed",
                 goal_id=goal.id,
                 operation="store",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
-            raise StorageError(f"Failed to store goal: {e}") from e
-
+            msg = f"Failed to store goal: {e}"
+            raise StorageError(msg) from e
         finally:
             self._close(conn)
 
     async def update_goal(self, goal: Goal) -> None:
-        """
-        Update goal with immediate persistence.
+        """Update goal with immediate persistence.
 
         Uses ACID transaction to ensure changes are persisted before returning.
 
@@ -350,13 +359,15 @@ class GoalStorage:
 
         Raises:
             StorageError: If persistence fails
+
         """
         conn = self._connect()
         cursor = conn.cursor()
 
         try:
             with self._lock:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE goals SET
                         description = ?,
                         status = ?,
@@ -372,53 +383,51 @@ class GoalStorage:
                         error_message = ?,
                         retry_count = ?
                     WHERE id = ?
-                """, (
-                    goal.description,
-                    self._get_enum_value(goal.status),
-                    self._get_enum_value(goal.priority),
-                    self._get_enum_value(goal.goal_type) if hasattr(goal, 'goal_type') else 'task',
-                    goal.progress,
-                    goal.started_at.isoformat() if goal.started_at else None,
-                    goal.completed_at.isoformat() if goal.completed_at else None,
-                    goal.deadline.isoformat() if goal.deadline else None,
-                    json.dumps(goal.sub_goal_ids),
-                    json.dumps(goal.dependency_ids),
-                    json.dumps(goal.metadata),
-                    goal.error_message,
-                    goal.retry_count if hasattr(goal, 'retry_count') else 0,
-                    goal.id
-                ))
+                """,
+                    (
+                        goal.description,
+                        self._get_enum_value(goal.status),
+                        self._get_enum_value(goal.priority),
+                        self._get_enum_value(goal.goal_type)
+                        if hasattr(goal, "goal_type")
+                        else "task",
+                        goal.progress,
+                        goal.started_at.isoformat() if goal.started_at else None,
+                        goal.completed_at.isoformat() if goal.completed_at else None,
+                        goal.deadline.isoformat() if goal.deadline else None,
+                        json.dumps(goal.sub_goal_ids),
+                        json.dumps(goal.dependency_ids),
+                        json.dumps(goal.metadata),
+                        goal.error_message,
+                        goal.retry_count if hasattr(goal, "retry_count") else 0,
+                        goal.id,
+                    ),
+                )
 
                 if cursor.rowcount == 0:
-                    logger.error(
-                        "goal_update_not_found",
-                        goal_id=goal.id,
-                        operation="update"
-                    )
-                    raise StorageError(f"Goal with ID {goal.id} not found")
+                    logger.error("goal_update_not_found", goal_id=goal.id, operation="update")
+                    msg = f"Goal with ID {goal.id} not found"
+                    raise StorageError(msg)
 
                 conn.commit()
 
         except StorageError as e:
             raise
-
-        except Exception as e:
             conn.rollback()
-            logger.error(
+            logger.exception(
                 "goal_update_failed",
                 goal_id=goal.id,
                 operation="update",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
-            raise StorageError(f"Failed to update goal: {e}") from e
-
+            msg = f"Failed to update goal: {e}"
+            raise StorageError(msg) from e
         finally:
             self._close(conn)
 
-    async def get_goal(self, goal_id: str) -> Optional[Goal]:
-        """
-        Retrieve goal by ID.
+    async def get_goal(self, goal_id: str) -> Goal | None:
+        """Retrieve goal by ID.
 
         Uses primary key index for O(1) lookup.
 
@@ -433,18 +442,22 @@ class GoalStorage:
 
         Raises:
             StorageError: If retrieval fails
+
         """
         try:
             with self._lock:
                 conn = self._connect()
                 cursor = conn.cursor()
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT id, description, status, priority, goal_type, progress,
                            created_at, started_at, completed_at, deadline, parent_id,
                            sub_goal_ids, dependency_ids, metadata, error_message, retry_count
                     FROM goals WHERE id = ?
-                """, (goal_id,))
+                """,
+                    (goal_id,),
+                )
 
                 row = cursor.fetchone()
                 self._close(conn)
@@ -455,22 +468,22 @@ class GoalStorage:
             return self._row_to_goal(row)
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "goal_retrieval_failed",
                 goal_id=goal_id,
                 operation="get",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
-            raise StorageError(f"Failed to retrieve goal: {e}") from e
+            msg = f"Failed to retrieve goal: {e}"
+            raise StorageError(msg) from e
 
     async def query_goals(
         self,
-        status: Optional[GoalStatus] = None,
-        priority: Optional[Priority] = None
+        status: GoalStatus | None = None,
+        priority: Priority | None = None,
     ) -> list[Goal]:
-        """
-        Query goals with optional filters.
+        """Query goals with optional filters.
 
         Uses indexes on status and priority for O(log n) filtered queries.
 
@@ -486,6 +499,7 @@ class GoalStorage:
 
         Raises:
             StorageError: If query fails
+
         """
         try:
             with self._lock:
@@ -516,19 +530,19 @@ class GoalStorage:
             return [self._row_to_goal(row) for row in rows]
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "goal_query_failed",
                 operation="query",
                 status=status.value if status else None,
                 priority=priority.value if priority else None,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
-            raise StorageError(f"Failed to query goals: {e}") from e
+            msg = f"Failed to query goals: {e}"
+            raise StorageError(msg) from e
 
     def _row_to_goal(self, row: tuple) -> Goal:
-        """
-        Convert database row to Goal object.
+        """Convert database row to Goal object.
 
         Time Complexity: O(1) - fixed number of field conversions
         Space Complexity: O(1) - single goal object
@@ -541,9 +555,11 @@ class GoalStorage:
 
         Raises:
             StorageError: If conversion fails
+
         """
         try:
             from .models import GoalType as _GoalType
+
             return Goal(
                 id=row[0],
                 description=row[1],
@@ -564,17 +580,17 @@ class GoalStorage:
             )
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "row_conversion_failed",
                 operation="row_to_goal",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
-            raise StorageError(f"Failed to convert row to goal: {e}") from e
+            msg = f"Failed to convert row to goal: {e}"
+            raise StorageError(msg) from e
 
     async def export_to_json(self, output_path: str) -> None:
-        """
-        Export all goals to JSON file.
+        """Export all goals to JSON file.
 
         Time Complexity: O(n) where n is number of goals
         Space Complexity: O(n) for in-memory goal list
@@ -584,31 +600,28 @@ class GoalStorage:
 
         Raises:
             StorageError: If export fails
+
         """
         try:
             goals = await self.query_goals()
 
             output_file = self._resolve_data_path(output_path)
-            with output_file.open('w', encoding='utf-8') as f:
-                json.dump(
-                    [self._goal_to_dict(g) for g in goals],
-                    f,
-                    indent=2
-                )
+            with output_file.open("w", encoding="utf-8") as f:
+                json.dump([self._goal_to_dict(g) for g in goals], f, indent=2)
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "goal_export_failed",
                 operation="export",
                 output_path=output_path,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
-            raise StorageError(f"Failed to export goals: {e}") from e
+            msg = f"Failed to export goals: {e}"
+            raise StorageError(msg) from e
 
     async def import_from_json(self, input_path: str) -> int:
-        """
-        Import goals from JSON file.
+        """Import goals from JSON file.
 
         Time Complexity: O(n) where n is number of goals
         Space Complexity: O(1) - processes one goal at a time
@@ -621,6 +634,7 @@ class GoalStorage:
 
         Raises:
             StorageError: If import fails
+
         """
         try:
             input_file = self._resolve_data_path(input_path)
@@ -633,25 +647,24 @@ class GoalStorage:
                 try:
                     await self.store_goal(goal)
                     count += 1
-                except StorageError as e:
+                except StorageError:
                     # Skip duplicates
                     pass
-
             return count
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "goal_import_failed",
                 operation="import",
                 input_path=input_path,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
-            raise StorageError(f"Failed to import goals: {e}") from e
+            msg = f"Failed to import goals: {e}"
+            raise StorageError(msg) from e
 
     def _goal_to_dict(self, goal: Goal) -> dict:
-        """
-        Convert Goal to dictionary for JSON serialization.
+        """Convert Goal to dictionary for JSON serialization.
 
         Time Complexity: O(1) - fixed number of field conversions
         Space Complexity: O(1) - single dictionary
@@ -661,13 +674,16 @@ class GoalStorage:
 
         Returns:
             Dictionary representation
+
         """
         return {
             "id": goal.id,
             "description": goal.description,
             "status": self._get_enum_value(goal.status),
             "priority": self._get_enum_value(goal.priority),
-            "goal_type": self._get_enum_value(goal.goal_type) if hasattr(goal, 'goal_type') else 'task',
+            "goal_type": self._get_enum_value(goal.goal_type)
+            if hasattr(goal, "goal_type")
+            else "task",
             "progress": goal.progress,
             "created_at": goal.created_at.isoformat(),
             "started_at": goal.started_at.isoformat() if goal.started_at else None,
@@ -678,13 +694,12 @@ class GoalStorage:
             "dependency_ids": goal.dependency_ids,
             "metadata": goal.metadata,
             "error_message": goal.error_message,
-            "retry_count": goal.retry_count if hasattr(goal, 'retry_count') else 0,
+            "retry_count": goal.retry_count if hasattr(goal, "retry_count") else 0,
         }
 
     @staticmethod
     def _get_enum_value(enum_field):
-        """
-        Extract value from enum field (handles both Enum objects and strings).
+        """Extract value from enum field (handles both Enum objects and strings).
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -694,12 +709,12 @@ class GoalStorage:
 
         Returns:
             String value of the enum
+
         """
-        return enum_field.value if hasattr(enum_field, 'value') else enum_field
+        return enum_field.value if hasattr(enum_field, "value") else enum_field
 
     def _dict_to_goal(self, data: dict) -> Goal:
-        """
-        Convert dictionary to Goal object.
+        """Convert dictionary to Goal object.
 
         Time Complexity: O(1) - fixed number of field conversions
         Space Complexity: O(1) - single goal object
@@ -712,6 +727,7 @@ class GoalStorage:
 
         Raises:
             StorageError: If conversion fails
+
         """
         try:
             return Goal(
@@ -721,20 +737,25 @@ class GoalStorage:
                 priority=Priority(data["priority"]),
                 progress=data["progress"],
                 created_at=datetime.fromisoformat(data["created_at"]),
-                started_at=datetime.fromisoformat(data["started_at"]) if data["started_at"] else None,
-                completed_at=datetime.fromisoformat(data["completed_at"]) if data["completed_at"] else None,
+                started_at=datetime.fromisoformat(data["started_at"])
+                if data["started_at"]
+                else None,
+                completed_at=datetime.fromisoformat(data["completed_at"])
+                if data["completed_at"]
+                else None,
                 parent_id=data["parent_id"],
                 sub_goal_ids=data["sub_goal_ids"],
                 dependency_ids=data["dependency_ids"],
                 metadata=data["metadata"],
-                error_message=data["error_message"]
+                error_message=data["error_message"],
             )
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "dict_conversion_failed",
                 operation="dict_to_goal",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
-            raise StorageError(f"Failed to convert dict to goal: {e}") from e
+            msg = f"Failed to convert dict to goal: {e}"
+            raise StorageError(msg) from e

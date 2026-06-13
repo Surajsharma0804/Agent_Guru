@@ -2,4 +2,4 @@
 
 from Agent_Guru.vision.alignment.aligner import ARCFACE_TEMPLATE, FaceAligner
 
-__all__ = ["FaceAligner", "ARCFACE_TEMPLATE"]
+__all__ = ["ARCFACE_TEMPLATE", "FaceAligner"]

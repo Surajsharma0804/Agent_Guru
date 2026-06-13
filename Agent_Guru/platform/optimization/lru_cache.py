@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.optimization.lru_cache
-Purpose: High-performance LRU cache with TTL for duplicate detection and caching
+"""Module: agent_guru.platform.optimization.lru_cache
+Purpose: High-performance LRU cache with TTL for duplicate detection and caching.
 
 This module implements a production-grade LRU (Least Recently Used) cache with
 TTL (Time-To-Live) expiration for the Platform Integration System. It provides
@@ -66,25 +65,25 @@ References:
 Author: Agent Guru Team
 Date: 2026-02-25
 Version: 1.0.0
+
 """
 
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Generic, TypeVar
 
 import structlog
 
 logger = structlog.get_logger(__name__)
 
 # Type variable for cache values
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
 class CacheStatistics:
-    """
-    Cache statistics for monitoring and optimization.
+    """Cache statistics for monitoring and optimization.
 
     Attributes:
         size: Current number of entries in cache
@@ -97,7 +96,9 @@ class CacheStatistics:
         total_requests: Total get requests
         sets: Number of set operations
         updates: Number of update operations (set on existing key)
+
     """
+
     size: int
     max_size: int
     hits: int
@@ -111,8 +112,7 @@ class CacheStatistics:
 
 
 class LRUCache(Generic[T]):
-    """
-    High-performance LRU cache with TTL expiration.
+    """High-performance LRU cache with TTL expiration.
 
     This cache implements the Least Recently Used (LRU) eviction policy
     combined with Time-To-Live (TTL) expiration for optimal memory usage
@@ -143,6 +143,7 @@ class LRUCache(Generic[T]):
         'value'
         >>> stats = cache.get_statistics()
         >>> print(f"Hit rate: {stats.hit_rate:.2%}")
+
     """
 
     def __init__(
@@ -150,8 +151,7 @@ class LRUCache(Generic[T]):
         max_size: int = 1000,
         ttl_seconds: float = 300.0,
     ) -> None:
-        """
-        Initialize LRU cache with TTL.
+        """Initialize LRU cache with TTL.
 
         Args:
             max_size: Maximum number of entries (default: 1000)
@@ -159,11 +159,14 @@ class LRUCache(Generic[T]):
 
         Raises:
             ValueError: If max_size <= 0 or ttl_seconds <= 0
+
         """
         if max_size <= 0:
-            raise ValueError(f"max_size must be > 0, got {max_size}")
+            msg = f"max_size must be > 0, got {max_size}"
+            raise ValueError(msg)
         if ttl_seconds <= 0:
-            raise ValueError(f"ttl_seconds must be > 0, got {ttl_seconds}")
+            msg = f"ttl_seconds must be > 0, got {ttl_seconds}"
+            raise ValueError(msg)
 
         self.max_size = max_size
         self.ttl_seconds = ttl_seconds
@@ -186,9 +189,8 @@ class LRUCache(Generic[T]):
             ttl_seconds=ttl_seconds,
         )
 
-    def get(self, key: str) -> Optional[T]:
-        """
-        Get value from cache if available and not expired.
+    def get(self, key: str) -> T | None:
+        """Get value from cache if available and not expired.
 
         Time Complexity: O(1) average case
 
@@ -203,11 +205,13 @@ class LRUCache(Generic[T]):
         Example:
             >>> cache = LRUCache[str]()
             >>> value = cache.get("my_key")
+
         """
         # Check if key exists
         if key not in self._cache:
             self._misses += 1
             logger.debug("cache_miss", key=key[:32] if len(key) > 32 else key)
+
             return None
 
         value, timestamp = self._cache[key]
@@ -232,11 +236,11 @@ class LRUCache(Generic[T]):
         # Cache hit
         self._hits += 1
         logger.debug("cache_hit", key=key[:32] if len(key) > 32 else key)
+
         return value
 
     def set(self, key: str, value: T) -> None:
-        """
-        Store value in cache with TTL and LRU eviction.
+        """Store value in cache with TTL and LRU eviction.
 
         Time Complexity: O(1) average case
 
@@ -249,6 +253,7 @@ class LRUCache(Generic[T]):
         Example:
             >>> cache = LRUCache[dict]()
             >>> cache.set("my_key", {"data": "value"})
+
         """
         # If key already exists, update it and move to end
         if key in self._cache:
@@ -256,6 +261,7 @@ class LRUCache(Generic[T]):
             self._cache.move_to_end(key)
             self._updates += 1
             logger.debug("cache_update", key=key[:32] if len(key) > 32 else key)
+
             return
 
         # Evict least recently used entry if cache is full
@@ -275,8 +281,7 @@ class LRUCache(Generic[T]):
         logger.debug("cache_set", key=key[:32] if len(key) > 32 else key)
 
     def remove(self, key: str) -> bool:
-        """
-        Remove specific entry from cache.
+        """Remove specific entry from cache.
 
         Time Complexity: O(1)
 
@@ -289,30 +294,31 @@ class LRUCache(Generic[T]):
         Example:
             >>> cache = LRUCache[str]()
             >>> removed = cache.remove("my_key")
+
         """
         if key in self._cache:
             del self._cache[key]
             logger.debug("cache_remove", key=key[:32] if len(key) > 32 else key)
+
             return True
         return False
 
     def clear(self) -> None:
-        """
-        Clear all cached entries.
+        """Clear all cached entries.
 
         Time Complexity: O(1)
 
         Example:
             >>> cache = LRUCache[str]()
             >>> cache.clear()
+
         """
         count = len(self._cache)
         self._cache.clear()
         logger.info("cache_cleared", entries_removed=count)
 
     def contains(self, key: str) -> bool:
-        """
-        Check if key exists in cache (without updating LRU).
+        """Check if key exists in cache (without updating LRU).
 
         Time Complexity: O(1)
 
@@ -328,12 +334,12 @@ class LRUCache(Generic[T]):
         Example:
             >>> cache = LRUCache[str]()
             >>> exists = cache.contains("my_key")
+
         """
         return key in self._cache
 
     def size(self) -> int:
-        """
-        Get current cache size.
+        """Get current cache size.
 
         Time Complexity: O(1)
 
@@ -343,12 +349,12 @@ class LRUCache(Generic[T]):
         Example:
             >>> cache = LRUCache[str]()
             >>> current_size = cache.size()
+
         """
         return len(self._cache)
 
     def is_full(self) -> bool:
-        """
-        Check if cache is at maximum capacity.
+        """Check if cache is at maximum capacity.
 
         Time Complexity: O(1)
 
@@ -358,12 +364,12 @@ class LRUCache(Generic[T]):
         Example:
             >>> cache = LRUCache[str](max_size=100)
             >>> full = cache.is_full()
+
         """
         return len(self._cache) >= self.max_size
 
     def get_statistics(self) -> CacheStatistics:
-        """
-        Get comprehensive cache statistics.
+        """Get comprehensive cache statistics.
 
         Time Complexity: O(1)
 
@@ -375,6 +381,7 @@ class LRUCache(Generic[T]):
             >>> stats = cache.get_statistics()
             >>> print(f"Hit rate: {stats.hit_rate:.2%}")
             >>> print(f"Size: {stats.size}/{stats.max_size}")
+
         """
         total_requests = self._hits + self._misses
         hit_rate = self._hits / total_requests if total_requests > 0 else 0.0
@@ -393,8 +400,7 @@ class LRUCache(Generic[T]):
         )
 
     def reset_statistics(self) -> None:
-        """
-        Reset all statistics counters to zero.
+        """Reset all statistics counters to zero.
 
         Time Complexity: O(1)
 
@@ -403,6 +409,7 @@ class LRUCache(Generic[T]):
         Example:
             >>> cache = LRUCache[str]()
             >>> cache.reset_statistics()
+
         """
         self._hits = 0
         self._misses = 0
@@ -413,8 +420,7 @@ class LRUCache(Generic[T]):
         logger.info("cache_statistics_reset")
 
     def cleanup_expired(self) -> int:
-        """
-        Remove all expired entries from cache (batch cleanup).
+        """Remove all expired entries from cache (batch cleanup).
 
         This is useful for periodic cleanup to free memory.
         Should be called periodically (e.g., every 60 seconds).
@@ -428,6 +434,7 @@ class LRUCache(Generic[T]):
             >>> cache = LRUCache[str]()
             >>> removed = cache.cleanup_expired()
             >>> print(f"Removed {removed} expired entries")
+
         """
         current_time = time.time()
         expired_keys = [
@@ -445,9 +452,8 @@ class LRUCache(Generic[T]):
 
         return len(expired_keys)
 
-    def get_oldest_entry_age(self) -> Optional[float]:
-        """
-        Get age of oldest entry in cache (seconds).
+    def get_oldest_entry_age(self) -> float | None:
+        """Get age of oldest entry in cache (seconds).
 
         Time Complexity: O(1)
 
@@ -458,6 +464,7 @@ class LRUCache(Generic[T]):
             >>> cache = LRUCache[str]()
             >>> age = cache.get_oldest_entry_age()
             >>> print(f"Oldest entry: {age:.1f} seconds old")
+
         """
         if not self._cache:
             return None
@@ -467,9 +474,8 @@ class LRUCache(Generic[T]):
         _, timestamp = self._cache[oldest_key]
         return time.time() - timestamp
 
-    def get_newest_entry_age(self) -> Optional[float]:
-        """
-        Get age of newest entry in cache (seconds).
+    def get_newest_entry_age(self) -> float | None:
+        """Get age of newest entry in cache (seconds).
 
         Time Complexity: O(1)
 
@@ -480,6 +486,7 @@ class LRUCache(Generic[T]):
             >>> cache = LRUCache[str]()
             >>> age = cache.get_newest_entry_age()
             >>> print(f"Newest entry: {age:.1f} seconds old")
+
         """
         if not self._cache:
             return None
@@ -491,12 +498,11 @@ class LRUCache(Generic[T]):
 
 
 # Global cache instance for singleton pattern
-_global_cache: Optional[LRUCache[Any]] = None
+_global_cache: LRUCache[Any] | None = None
 
 
 def get_global_cache() -> LRUCache[Any]:
-    """
-    Get the global LRU cache instance (singleton pattern).
+    """Get the global LRU cache instance (singleton pattern).
 
     Returns:
         Global LRUCache instance
@@ -504,6 +510,7 @@ def get_global_cache() -> LRUCache[Any]:
     Example:
         >>> cache = get_global_cache()
         >>> cache.set("key", "value")
+
     """
     global _global_cache
     if _global_cache is None:

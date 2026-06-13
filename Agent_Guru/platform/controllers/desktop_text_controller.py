@@ -23,11 +23,11 @@ Performance Characteristics:
 Author: Agent Guru Team
 Date: 2026-03-20
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Optional
 
 from Agent_Guru.platform.platform_detector import PlatformDetector
 
@@ -122,12 +122,11 @@ def _sanitize_text(text: str) -> str:
 
     Returns:
         Sanitized text safe for keyboard simulation.
+
     """
     text = text.replace("\x00", "")
     if len(text) > _MAX_TEXT_LENGTH:
-        logger.warning(
-            "Text truncated from %d to %d characters", len(text), _MAX_TEXT_LENGTH
-        )
+        logger.warning("Text truncated from %d to %d characters", len(text), _MAX_TEXT_LENGTH)
         text = text[:_MAX_TEXT_LENGTH]
     return text
 
@@ -172,7 +171,7 @@ class DesktopTextController:
     They never raise exceptions for normal operational failures.
     """
 
-    def __init__(self, platform_override: Optional[str] = None) -> None:
+    def __init__(self, platform_override: str | None = None) -> None:
         """Create the controller.
 
         Args:
@@ -181,19 +180,21 @@ class DesktopTextController:
 
         Raises:
             RuntimeError: If the detected platform is ``"android"`` or ``"ios"``.
+
         """
         self._platform: str = platform_override or _detect_platform()
         self._initialized: bool = False
 
         if _is_mobile(self._platform):
-            raise RuntimeError(
+            msg = (
                 f"DesktopTextController is not supported on mobile "
                 f"platform '{self._platform}'. Use MobileTextController instead."
             )
+            raise RuntimeError(
+                msg,
+            )
 
-        logger.info(
-            "DesktopTextController created — platform=%s", self._platform
-        )
+        logger.info("DesktopTextController created — platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -209,9 +210,7 @@ class DesktopTextController:
             return
 
         self._initialized = True
-        logger.info(
-            "DesktopTextController initialized — platform=%s", self._platform
-        )
+        logger.info("DesktopTextController initialized — platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -235,6 +234,7 @@ class DesktopTextController:
 
         Returns:
             ``True`` on success, ``False`` on failure.
+
         """
         if not text:
             return True  # empty string is a no-op
@@ -245,7 +245,9 @@ class DesktopTextController:
 
         logger.info(
             "type_text: length=%d interval=%.3f platform=%s",
-            len(text), interval, self._platform,
+            len(text),
+            interval,
+            self._platform,
         )
 
         # Route unicode/emoji through clipboard
@@ -254,12 +256,10 @@ class DesktopTextController:
 
         try:
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
-                None, self._blocking_typewrite, text, interval
-            )
+            await loop.run_in_executor(None, self._blocking_typewrite, text, interval)
             return True
-        except Exception as exc:
-            logger.error("type_text failed: %s", exc)
+        except Exception:
+            logger.exception("type_text failed")
             return False
 
     async def type_special_key(self, key: str) -> bool:
@@ -274,6 +274,7 @@ class DesktopTextController:
 
         Returns:
             ``True`` on success, ``False`` if the key is unknown or press fails.
+
         """
         if not key or not key.strip():
             logger.warning("type_special_key called with empty key")
@@ -288,12 +289,10 @@ class DesktopTextController:
         logger.info("type_special_key: %r → %r", key, pyautogui_key)
         try:
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
-                None, self._blocking_press, pyautogui_key
-            )
+            await loop.run_in_executor(None, self._blocking_press, pyautogui_key)
             return True
-        except Exception as exc:
-            logger.error("type_special_key(%r) failed: %s", key, exc)
+        except Exception:
+            logger.exception("type_special_key(%r) failed: %s")
             return False
 
     async def paste_text(self, text: str) -> bool:
@@ -307,6 +306,7 @@ class DesktopTextController:
 
         Returns:
             ``True`` on success, ``False`` on failure.
+
         """
         if not text:
             return True
@@ -315,17 +315,13 @@ class DesktopTextController:
         if not text:
             return True
 
-        logger.info(
-            "paste_text: length=%d platform=%s", len(text), self._platform
-        )
+        logger.info("paste_text: length=%d platform=%s", len(text), self._platform)
         try:
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
-                None, self._blocking_paste, text
-            )
+            await loop.run_in_executor(None, self._blocking_paste, text)
             return True
-        except Exception as exc:
-            logger.error("paste_text failed: %s", exc)
+        except Exception:
+            logger.exception("paste_text failed")
             return False
 
     async def clear_field(self) -> bool:
@@ -333,14 +329,15 @@ class DesktopTextController:
 
         Returns:
             ``True`` on success, ``False`` on failure.
+
         """
         logger.info("clear_field: platform=%s", self._platform)
         try:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._blocking_clear_field)
             return True
-        except Exception as exc:
-            logger.error("clear_field failed: %s", exc)
+        except Exception:
+            logger.exception("clear_field failed")
             return False
 
     # ------------------------------------------------------------------
@@ -365,20 +362,18 @@ class DesktopTextController:
         """Blocking pyautogui.typewrite call — must run in executor."""
         try:
             import pyautogui  # type: ignore[import]
-        except ImportError as e:
-            logger.warning("pyautogui not available — cannot type text: %s", e)
+        except ImportError:
+            logger.exception("pyautogui not available — cannot type text")
             raise
-
         pyautogui.typewrite(text, interval=interval)
 
     def _blocking_press(self, key: str) -> None:
         """Blocking pyautogui.press call — must run in executor."""
         try:
             import pyautogui  # type: ignore[import]
-        except ImportError as e:
-            logger.warning("pyautogui not available — cannot press key: %s", e)
+        except ImportError:
+            logger.exception("pyautogui not available — cannot press key")
             raise
-
         pyautogui.press(key)
 
     def _blocking_paste(self, text: str) -> None:
@@ -386,10 +381,9 @@ class DesktopTextController:
         self._clipboard_copy(text)
         try:
             import pyautogui  # type: ignore[import]
-        except ImportError as e:
-            logger.warning("pyautogui not available — cannot send paste hotkey: %s", e)
+        except ImportError:
+            logger.exception("pyautogui not available — cannot send paste hotkey")
             raise
-
         if self._platform == "macos":
             pyautogui.hotkey("command", "v")
         else:
@@ -399,10 +393,9 @@ class DesktopTextController:
         """Select-all then delete — blocking."""
         try:
             import pyautogui  # type: ignore[import]
-        except ImportError as e:
-            logger.warning("pyautogui not available — cannot clear field: %s", e)
+        except ImportError:
+            logger.exception("pyautogui not available — cannot clear field")
             raise
-
         if self._platform == "macos":
             pyautogui.hotkey("command", "a")
         else:
@@ -418,13 +411,12 @@ class DesktopTextController:
         # Try pyperclip (cross-platform)
         try:
             import pyperclip  # type: ignore[import]
+
             pyperclip.copy(text)
             return
         except ImportError as e:
             logger.debug("pyperclip not available — trying platform clipboard: %s", e)
-        except Exception as exc:
-            logger.debug("pyperclip.copy failed: %s — trying platform clipboard", exc)
-
+            logger.debug("pyperclip.copy failed: %s — trying platform clipboard", e)
         # Platform-native fallback
         if self._platform == "macos":
             self._clipboard_copy_macos(text)
@@ -435,20 +427,23 @@ class DesktopTextController:
 
     def _clipboard_copy_macos(self, text: str) -> None:
         """Copy to macOS clipboard via pbcopy."""
-        import subprocess  # noqa: PLC0415
+        import subprocess
+
         proc = subprocess.run(
             ["pbcopy"],  # nosec B603 B607
+            check=False,
             input=text.encode("utf-8"),
             timeout=5,
         )
         if proc.returncode != 0:
-            raise RuntimeError("pbcopy failed")
+            msg = "pbcopy failed"
+            raise RuntimeError(msg)
 
     def _clipboard_copy_windows(self, text: str) -> None:
         """Copy to Windows clipboard via ctypes."""
         try:
-            import ctypes  # noqa: PLC0415
-            import ctypes.wintypes  # noqa: PLC0415
+            import ctypes
+            import ctypes.wintypes
 
             CF_UNICODETEXT = 13
             GMEM_MOVEABLE = 0x0002
@@ -467,26 +462,27 @@ class DesktopTextController:
             user32.SetClipboardData(CF_UNICODETEXT, h_mem)
             user32.CloseClipboard()
         except Exception as exc:
-            raise RuntimeError(f"Windows clipboard copy failed: {exc}") from exc
+            msg = f"Windows clipboard copy failed: {exc}"
+            raise RuntimeError(msg) from exc
 
     def _clipboard_copy_linux(self, text: str) -> None:
         """Copy to Linux clipboard via xclip or xdotool."""
-        import subprocess  # noqa: PLC0415
+        import subprocess
 
         for cmd in (["xclip", "-selection", "clipboard"], ["xdotool", "type", "--clearmodifiers"]):
             try:
-                proc = subprocess.run(
+                proc = subprocess.run(  # noqa: S603
                     cmd,  # nosec B603 B607
+                    check=False,
                     input=text.encode("utf-8"),
                     timeout=5,
                     capture_output=True,
                 )
                 if proc.returncode == 0:
                     return
-            except FileNotFoundError as e:
+            except FileNotFoundError as exc:
                 continue
-            except Exception as exc:
                 logger.debug("Clipboard command %r failed: %s", cmd[0], exc)
                 continue
-
-        raise RuntimeError("No clipboard tool available on Linux (install xclip or pyperclip)")
+        msg = "No clipboard tool available on Linux (install xclip or pyperclip)"
+        raise RuntimeError(msg)

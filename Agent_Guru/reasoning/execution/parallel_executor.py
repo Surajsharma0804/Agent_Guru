@@ -1,5 +1,4 @@
-"""
-Parallel execution engine for independent steps in multi-step plans.
+"""Parallel execution engine for independent steps in multi-step plans.
 
 Performance Requirements:
 - Time Complexity: O(n) for dependency analysis, O(1) per parallel batch
@@ -38,6 +37,7 @@ class StepExecution:
         parameters: Parameters for execution
         depends_on: List of step IDs this step depends on
         timeout: Execution timeout in seconds
+
     """
 
     step_id: str
@@ -57,6 +57,7 @@ class ParallelExecutionResult:
         total_time: Total execution time (wall clock)
         parallel_batches: Number of parallel batches executed
         failed_steps: List of step IDs that failed
+
     """
 
     success: bool
@@ -93,6 +94,7 @@ class ParallelExecutor:
         ... ]
         >>> result = await executor.execute_parallel(steps)
         >>> print(f"Success: {result.success}, Batches: {result.parallel_batches}")
+
     """
 
     def __init__(self, max_concurrent: int = 10) -> None:
@@ -100,6 +102,7 @@ class ParallelExecutor:
 
         Args:
             max_concurrent: Maximum number of concurrent executions per batch
+
         """
         self.max_concurrent = max_concurrent
 
@@ -119,6 +122,7 @@ class ParallelExecutor:
 
         Returns:
             ParallelExecutionResult with execution results
+
         """
         import time
 
@@ -169,6 +173,7 @@ class ParallelExecutor:
 
         Returns:
             List of batches, where each batch is a list of independent steps
+
         """
         # Build dependency graph
         step_map = {step.step_id: step for step in steps}
@@ -219,6 +224,7 @@ class ParallelExecutor:
 
         Returns:
             Dictionary mapping step_id to ExecutionResult
+
         """
         # Create tasks for all steps in batch
         tasks = []
@@ -235,7 +241,7 @@ class ParallelExecutor:
             try:
                 results_raw = await asyncio.gather(*tasks, return_exceptions=False)
                 results = list(results_raw)
-            except Exception as e:
+            except Exception:
                 # Cancel remaining tasks
                 for task_obj in tasks:
                     task_obj.cancel()
@@ -252,7 +258,7 @@ class ParallelExecutor:
                                     "error_code": "CANCELLED",
                                     "message": "Task cancelled due to failure in batch",
                                 },
-                            )
+                            ),
                         )
                     except Exception as e:
                         results.append(
@@ -262,7 +268,7 @@ class ParallelExecutor:
                                     "error_code": type(e).__name__,
                                     "message": str(e),
                                 },
-                            )
+                            ),
                         )
         else:
             # Use return_exceptions=True to collect all results
@@ -272,18 +278,20 @@ class ParallelExecutor:
             results: list[ExecutionResult] = []
             for result in results_raw:
                 if isinstance(result, Exception):
-                    results.append(ExecutionResult(
-                        success=False,
-                        error={
-                            "error_code": type(result).__name__,
-                            "message": str(result),
-                        },
-                    ))
+                    results.append(
+                        ExecutionResult(
+                            success=False,
+                            error={
+                                "error_code": type(result).__name__,
+                                "message": str(result),
+                            },
+                        ),
+                    )
                 else:
                     results.append(result)
 
         # Map results to step IDs
-        return dict(zip(step_ids, results))
+        return dict(zip(step_ids, results, strict=False))
 
     async def _execute_step_async(self, step: StepExecution) -> ExecutionResult:
         """Execute a single step asynchronously.
@@ -293,6 +301,7 @@ class ParallelExecutor:
 
         Returns:
             ExecutionResult
+
         """
         import time
 
@@ -314,7 +323,7 @@ class ParallelExecutor:
                 action_id=step.step_id,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError as e:
             execution_time = time.perf_counter() - start_time
             return ExecutionResult(
                 success=False,
@@ -325,8 +334,6 @@ class ParallelExecutor:
                 execution_time=execution_time,
                 action_id=step.step_id,
             )
-
-        except Exception as e:
             execution_time = time.perf_counter() - start_time
             return ExecutionResult(
                 success=False,
@@ -346,6 +353,7 @@ class ParallelExecutor:
 
         Returns:
             List of batches, where each batch contains step IDs that can run in parallel
+
         """
         batches = self._build_execution_batches(steps)
         return [[step.step_id for step in batch] for batch in batches]
@@ -360,6 +368,7 @@ class ParallelExecutionController:
         >>> controller = ParallelExecutionController()
         >>> steps = [...]
         >>> result = await controller.execute(steps)
+
     """
 
     def __init__(self, max_concurrent: int = 10) -> None:
@@ -367,6 +376,7 @@ class ParallelExecutionController:
 
         Args:
             max_concurrent: Maximum concurrent executions per batch
+
         """
         self.executor = ParallelExecutor(max_concurrent=max_concurrent)
 
@@ -383,6 +393,7 @@ class ParallelExecutionController:
 
         Returns:
             ParallelExecutionResult
+
         """
         return await self.executor.execute_parallel(steps, fail_fast)
 
@@ -394,6 +405,7 @@ class ParallelExecutionController:
 
         Returns:
             Dictionary with analysis results
+
         """
         batches = self.executor.detect_independent_steps(steps)
 

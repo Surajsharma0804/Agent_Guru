@@ -24,21 +24,36 @@ from Agent_Guru.verifier.models import (
 # ---------------------------------------------------------------------------
 
 _UNCERTAINTY_PATTERNS = [
-    re.compile(r"\b(I think|I believe|I'm not sure|I'm uncertain|probably|possibly|maybe|perhaps|might be|could be|I guess|I assume)\b", re.IGNORECASE),
-    re.compile(r"\b(as far as I know|to the best of my knowledge|I recall|I remember)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(I think|I believe|I'm not sure|I'm uncertain|probably|possibly|maybe|perhaps|might be|could be|I guess|I assume)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(as far as I know|to the best of my knowledge|I recall|I remember)\b",
+        re.IGNORECASE,
+    ),
 ]
 
 # Fabrication signal patterns
 _FABRICATION_PATTERNS = [
-    re.compile(r"\b(according to .{0,30}study|research shows|studies show|experts say|scientists found)\b", re.IGNORECASE),
-    re.compile(r"\b(in \d{4}|on (January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2})\b", re.IGNORECASE),
+    re.compile(
+        r"\b(according to .{0,30}study|research shows|studies show|experts say|scientists found)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(in \d{4}|on (January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2})\b",
+        re.IGNORECASE,
+    ),
     re.compile(r"\b\d+(\.\d+)?%\b"),  # Specific percentages
     re.compile(r"\$\d[\d,]*(\.\d+)?\b"),  # Specific dollar amounts
 ]
 
 # Contradiction signal patterns
 _CONTRADICTION_PATTERNS = [
-    re.compile(r"\b(however|but|although|despite|on the other hand|in contrast|nevertheless|yet|while)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(however|but|although|despite|on the other hand|in contrast|nevertheless|yet|while)\b",
+        re.IGNORECASE,
+    ),
 ]
 
 
@@ -68,6 +83,7 @@ class HallucinationDetector:
 
         Returns:
             HallucinationDetectionResult with aggregated findings
+
         """
         if not text or not text.strip():
             return HallucinationDetectionResult(
@@ -123,13 +139,13 @@ class HallucinationDetector:
             detected=detected,
             hallucination_types=hallucination_types,
             confidence=avg_score,
-            details="; ".join(details_parts) if details_parts else "No hallucination signals detected",
+            details="; ".join(details_parts)
+            if details_parts
+            else "No hallucination signals detected",
             techniques_used=techniques_used,
         )
 
-    def _check_factual_consistency(
-        self, text: str, expected_facts: list[str]
-    ) -> dict[str, Any]:
+    def _check_factual_consistency(self, text: str, expected_facts: list[str]) -> dict[str, Any]:
         """Check if text contradicts known facts."""
         if not expected_facts:
             return {"flagged": False, "score": 0.9, "detail": ""}
@@ -160,9 +176,7 @@ class HallucinationDetector:
             }
         return {"flagged": False, "score": 0.9, "detail": ""}
 
-    def _check_cross_reference(
-        self, text: str, context: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _check_cross_reference(self, text: str, context: dict[str, Any]) -> dict[str, Any]:
         """Validate claims against provided context."""
         if not context:
             return {"flagged": False, "score": 0.85, "detail": ""}

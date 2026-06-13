@@ -9,23 +9,26 @@ Handles commands like:
 
 Uses psutil which is already in requirements.txt.
 """
+
 from __future__ import annotations
 
 import logging
 import re
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 def is_system_status_command(transcript: str) -> bool:
     """Return True if the user is asking about system status."""
-    return bool(re.search(
-        r"\b(cpu|processor|ram|memory|battery|disk|storage|"
-        r"ip address|network|wifi speed|internet speed|"
-        r"temperature|how hot|gpu|graphics)\b",
-        transcript, re.I,
-    ))
+    return bool(
+        re.search(
+            r"\b(cpu|processor|ram|memory|battery|disk|storage|"
+            r"ip address|network|wifi speed|internet speed|"
+            r"temperature|how hot|gpu|graphics)\b",
+            transcript,
+            re.IGNORECASE,
+        ),
+    )
 
 
 def get_system_status(transcript: str) -> str:
@@ -34,7 +37,6 @@ def get_system_status(transcript: str) -> str:
         import psutil
     except ImportError:
         return "System monitoring requires psutil. Run: pip install psutil"
-
     t = transcript.lower()
 
     # CPU
@@ -46,9 +48,9 @@ def get_system_status(transcript: str) -> str:
     # RAM / Memory
     if re.search(r"\bram|memory\b", t):
         mem = psutil.virtual_memory()
-        total_gb = mem.total / (1024 ** 3)
-        used_gb = mem.used / (1024 ** 3)
-        free_gb = mem.available / (1024 ** 3)
+        total_gb = mem.total / (1024**3)
+        used_gb = mem.used / (1024**3)
+        free_gb = mem.available / (1024**3)
         pct = mem.percent
         return (
             f"RAM usage is {pct:.0f} percent. "
@@ -78,8 +80,8 @@ def get_system_status(transcript: str) -> str:
     # Disk
     if re.search(r"\bdisk|storage|space\b", t):
         disk = psutil.disk_usage("/")
-        free_gb = disk.free / (1024 ** 3)
-        total_gb = disk.total / (1024 ** 3)
+        free_gb = disk.free / (1024**3)
+        total_gb = disk.total / (1024**3)
         used_pct = disk.percent
         return (
             f"Disk usage is {used_pct:.0f} percent. "
@@ -90,26 +92,24 @@ def get_system_status(transcript: str) -> str:
     if re.search(r"\bip address|my ip\b", t):
         try:
             import socket
+
             hostname = socket.gethostname()
             ip = socket.gethostbyname(hostname)
             return f"Your local IP address is {ip}."
         except Exception:
             return "Could not determine IP address."
-
     # GPU temperature
     if re.search(r"\bgpu|graphics\b", t):
         try:
             import torch
+
             if torch.cuda.is_available():
                 name = torch.cuda.get_device_name(0)
-                mem_used = torch.cuda.memory_allocated(0) / (1024 ** 3)
-                mem_total = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
-                return (
-                    f"GPU is {name}. "
-                    f"Using {mem_used:.1f} of {mem_total:.1f} gigabytes VRAM."
-                )
+                mem_used = torch.cuda.memory_allocated(0) / (1024**3)
+                mem_total = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                return f"GPU is {name}. Using {mem_used:.1f} of {mem_total:.1f} gigabytes VRAM."
         except Exception:
-            pass
+            logger.exception("Operation failed")
         return "No GPU information available."
 
     # Generic fallback

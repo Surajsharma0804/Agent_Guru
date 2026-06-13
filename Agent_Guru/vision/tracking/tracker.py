@@ -1,5 +1,4 @@
-"""
-Face tracking module — maintains identity across video frames.
+"""Face tracking module — maintains identity across video frames.
 
 Uses IoU-based greedy matching to associate new detections with existing
 tracks. Tracks are aged out after max_age frames without a match.
@@ -10,7 +9,6 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
@@ -28,14 +26,15 @@ class TrackedFace:
         confidence: Detection confidence of the last matched detection.
         age: Frames since this track was last matched to a detection.
         embedding: Last known face embedding, or None.
+
     """
 
     track_id: int
     bbox: tuple[int, int, int, int]
-    identity: Optional[str] = None
+    identity: str | None = None
     confidence: float = 1.0
     age: int = 0
-    embedding: Optional[np.ndarray] = field(default=None, repr=False)
+    embedding: np.ndarray | None = field(default=None, repr=False)
 
 
 class FaceTracker:
@@ -49,6 +48,7 @@ class FaceTracker:
             being removed.
         algorithm: Matching algorithm — "iou" or "deepsort" (both use IoU
             in this implementation; "deepsort" is a placeholder).
+
     """
 
     _IOU_THRESHOLD: float = 0.3
@@ -67,7 +67,7 @@ class FaceTracker:
     def update(
         self,
         detections: list[object],
-        embeddings: Optional[list[np.ndarray]] = None,
+        embeddings: list[np.ndarray] | None = None,
     ) -> list[TrackedFace]:
         """Update tracks with new detections.
 
@@ -78,6 +78,7 @@ class FaceTracker:
 
         Returns:
             List of all active TrackedFace objects (age <= max_age).
+
         """
         with self._lock:
             # 1. Age all existing tracks
@@ -104,9 +105,7 @@ class FaceTracker:
 
             # 3. Greedy IoU matching
             if track_bboxes:
-                iou_matrix = np.zeros(
-                    (len(track_ids), len(det_bboxes)), dtype=np.float32
-                )
+                iou_matrix = np.zeros((len(track_ids), len(det_bboxes)), dtype=np.float32)
                 for ti, tb in enumerate(track_bboxes):
                     for di, db in enumerate(det_bboxes):
                         iou_matrix[ti, di] = self._compute_iou(tb, db)
@@ -150,6 +149,7 @@ class FaceTracker:
 
         Returns:
             True if the track was found and updated, False otherwise.
+
         """
         with self._lock:
             if track_id not in self._tracks:

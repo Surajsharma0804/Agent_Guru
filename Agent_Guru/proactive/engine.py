@@ -1,17 +1,19 @@
 """Proactive Notifications and Predictive Assistance Engine."""
+
 from __future__ import annotations
 
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from datetime import UTC
+from typing import Any
 
 from Agent_Guru.proactive.suppression import SuppressionManager
 
 logger = logging.getLogger(__name__)
 
 # Token bucket: 3/hour active, 1/hour idle
-_ACTIVE_RATE = 3.0 / 3600.0   # tokens per second
+_ACTIVE_RATE = 3.0 / 3600.0  # tokens per second
 _IDLE_RATE = 1.0 / 3600.0
 _BUCKET_CAPACITY_ACTIVE = 3.0
 _BUCKET_CAPACITY_IDLE = 1.0
@@ -20,6 +22,7 @@ _BUCKET_CAPACITY_IDLE = 1.0
 @dataclass
 class ProactiveSuggestion:
     """A proactive suggestion to deliver to the user."""
+
     suggestion_id: str
     suggestion_type: str
     content: str
@@ -30,9 +33,10 @@ class ProactiveSuggestion:
 @dataclass
 class DeliveryResult:
     """Result of attempting to deliver a proactive suggestion."""
+
     delivered: bool
     suggestion_id: str
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 class _TokenBucket:
@@ -62,8 +66,8 @@ class ProactiveEngine:
 
     def __init__(
         self,
-        quiet_hours: Optional[tuple[int, int]] = None,
-        suppression_manager: Optional[SuppressionManager] = None,
+        quiet_hours: tuple[int, int] | None = None,
+        suppression_manager: SuppressionManager | None = None,
     ) -> None:
         self.quiet_hours = quiet_hours  # (start_hour, end_hour) in 24h
         self.suppression = suppression_manager or SuppressionManager()
@@ -80,8 +84,9 @@ class ProactiveEngine:
     def _in_quiet_hours(self) -> bool:
         if self.quiet_hours is None:
             return False
-        from datetime import datetime, timezone
-        hour = datetime.now(tz=timezone.utc).hour
+        from datetime import datetime
+
+        hour = datetime.now(tz=UTC).hour
         start, end = self.quiet_hours
         if start <= end:
             return start <= hour < end
@@ -91,7 +96,7 @@ class ProactiveEngine:
         bucket = self._active_bucket if self._is_active else self._idle_bucket
         return bucket.consume()
 
-    def evaluate_context(self, context: dict[str, Any]) -> Optional[ProactiveSuggestion]:
+    def evaluate_context(self, context: dict[str, Any]) -> ProactiveSuggestion | None:
         """Evaluate context and return a suggestion if appropriate."""
         suggestion_type = context.get("type", "general")
         content = context.get("content", "")

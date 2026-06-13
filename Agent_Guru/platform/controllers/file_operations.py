@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.controllers.file_operations
-Purpose: Complete file and directory operations controller with audit logging
+"""Module: agent_guru.platform.controllers.file_operations
+Purpose: Complete file and directory operations controller with audit logging.
 
 This module provides comprehensive file operations for the Platform Integration System,
 enabling AGENT_GURU to perform ANY file operation through voice commands.
@@ -56,10 +55,10 @@ import logging
 import os
 import shutil
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 from Agent_Guru.security.path_utils import safe_path
 
@@ -69,6 +68,7 @@ logger = logging.getLogger(__name__)
 
 class FileOperationType(Enum):
     """File operation types for audit logging."""
+
     CREATE = "create"
     READ = "read"
     UPDATE = "update"
@@ -91,12 +91,14 @@ class FileOperationResult:
         message: Human-readable result message
         error: Error message if operation failed
         metadata: Additional operation metadata
+
     """
+
     success: bool
     operation: FileOperationType
     path: str
     message: str
-    error: Optional[str] = None
+    error: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -111,24 +113,28 @@ class AuditLogEntry:
         success: Whether operation succeeded
         user: User who performed operation (if available)
         details: Additional operation details
+
     """
+
     timestamp: str
     operation: str
     path: str
     success: bool
-    user: Optional[str] = None
+    user: str | None = None
     details: dict[str, Any] = field(default_factory=dict)
 
     def to_json(self) -> str:
         """Convert audit entry to JSON string."""
-        return json.dumps({
-            "timestamp": self.timestamp,
-            "operation": self.operation,
-            "path": self.path,
-            "success": self.success,
-            "user": self.user,
-            "details": self.details
-        })
+        return json.dumps(
+            {
+                "timestamp": self.timestamp,
+                "operation": self.operation,
+                "path": self.path,
+                "success": self.success,
+                "user": self.user,
+                "details": self.details,
+            },
+        )
 
 
 class FileOperationsController:
@@ -150,15 +156,16 @@ class FileOperationsController:
         audit_log_path: Path to audit log file
         require_confirmation: Whether to require confirmation for destructive ops
         max_file_size: Maximum file size for in-memory operations (bytes)
+
     """
 
     def __init__(
         self,
-        audit_log_path: Optional[str] = None,
+        audit_log_path: str | None = None,
         require_confirmation: bool = False,
         max_file_size: int = 100 * 1024 * 1024,  # 100MB
-        base_dir: Optional[Path] = None,
-    ):
+        base_dir: Path | None = None,
+    ) -> None:
         """Initialize file operations controller.
 
         Args:
@@ -166,6 +173,7 @@ class FileOperationsController:
             require_confirmation: Whether to require confirmation for destructive ops
             max_file_size: Maximum file size for in-memory operations (bytes)
             base_dir: Base directory for path traversal protection (defaults to cwd)
+
         """
         self.audit_log_path = audit_log_path
         self.require_confirmation = require_confirmation
@@ -183,15 +191,15 @@ class FileOperationsController:
             audit_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             if not audit_path.exists():
                 audit_path.touch(mode=0o600)
-        except Exception as e:
-            logger.error("Failed to initialize audit log: %s", e)
+        except Exception:
+            logger.exception("Failed to initialize audit log")
 
     def _log_operation(
         self,
         operation: FileOperationType,
         path: str,
         success: bool,
-        details: Optional[dict[str, Any]] = None
+        details: dict[str, Any] | None = None,
     ) -> None:
         """Log file operation to audit log.
 
@@ -200,24 +208,25 @@ class FileOperationsController:
             path: Primary file path involved
             success: Whether operation succeeded
             details: Additional operation details
+
         """
         if not self.audit_log_path:
             return
 
         entry = AuditLogEntry(
-            timestamp=datetime.now(tz=timezone.utc).isoformat(),
+            timestamp=datetime.now(tz=UTC).isoformat(),
             operation=operation.value,
             path=path,
             success=success,
             user=os.getenv("USER") or os.getenv("USERNAME"),
-            details=details or {}
+            details=details or {},
         )
 
         try:
             with open(self.audit_log_path, "a", encoding="utf-8") as f:
                 f.write(entry.to_json() + "\n")
-        except Exception as e:
-            logger.error("Failed to write audit log: %s", e)
+        except Exception:
+            logger.exception("Failed to write audit log")
 
     def _validate_path(self, path: str) -> Path:
         """Validate and normalize file path using safe base-directory enforcement.
@@ -231,9 +240,11 @@ class FileOperationsController:
         Raises:
             ValueError: If path is empty
             PermissionError: If path escapes the base directory
+
         """
         if not path:
-            raise ValueError("Path cannot be empty")
+            msg = "Path cannot be empty"
+            raise ValueError(msg)
 
         # Use safe_path to enforce base directory containment (raises PermissionError
         # for any path — including those with '..' or absolute escapes — that resolves
@@ -249,25 +260,29 @@ class FileOperationsController:
 
         Raises:
             PermissionError: If user lacks required permissions
+
         """
-        if operation == 'r' and path.exists() and not os.access(path, os.R_OK):
-            raise PermissionError(f"No read permission for: {path}")
-        elif operation == 'w':
+        if operation == "r" and path.exists() and not os.access(path, os.R_OK):
+            msg = f"No read permission for: {path}"
+            raise PermissionError(msg)
+        if operation == "w":
             # Check parent directory if path doesn't exist yet
             check_path = path.parent if not path.exists() else path
             # Only check if parent exists (will be created if needed)
             if check_path.exists() and not os.access(check_path, os.W_OK):
-                raise PermissionError(f"No write permission for: {check_path}")
-        elif operation == 'x' and path.exists() and not os.access(path, os.X_OK):
-            raise PermissionError(f"No execute permission for: {path}")
+                msg = f"No write permission for: {check_path}"
+                raise PermissionError(msg)
+        elif operation == "x" and path.exists() and not os.access(path, os.X_OK):
+            msg = f"No execute permission for: {path}"
+            raise PermissionError(msg)
 
     # ==================== File Creation Operations ====================
 
     def create_file(
         self,
         path: str,
-        content: Union[str, bytes] = "",
-        overwrite: bool = False
+        content: str | bytes = "",
+        overwrite: bool = False,
     ) -> FileOperationResult:
         """Create a new file with optional content.
 
@@ -286,22 +301,24 @@ class FileOperationsController:
             ValueError: If path is invalid
             PermissionError: If lacking write permissions
             FileExistsError: If file exists and overwrite=False
+
         """
         try:
             file_path = self._validate_path(path)
 
             # Check if file exists
             if file_path.exists() and not overwrite:
-                raise FileExistsError(f"File already exists: {path}")
+                msg = f"File already exists: {path}"
+                raise FileExistsError(msg)
 
             # Check permissions
-            self._check_permissions(file_path, 'w')
+            self._check_permissions(file_path, "w")
 
             # Create parent directories if needed
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Write content
-            mode = 'wb' if isinstance(content, bytes) else 'w'
+            mode = "wb" if isinstance(content, bytes) else "w"
             with open(file_path, mode) as f:
                 f.write(content)
 
@@ -310,7 +327,7 @@ class FileOperationsController:
                 FileOperationType.CREATE,
                 str(file_path),
                 True,
-                {"size": len(content), "overwrite": overwrite}
+                {"size": len(content), "overwrite": overwrite},
             )
 
             return FileOperationResult(
@@ -318,7 +335,7 @@ class FileOperationsController:
                 operation=FileOperationType.CREATE,
                 path=str(file_path),
                 message=f"File created successfully: {path}",
-                metadata={"size": len(content)}
+                metadata={"size": len(content)},
             )
 
         except Exception as e:
@@ -328,7 +345,7 @@ class FileOperationsController:
                 operation=FileOperationType.CREATE,
                 path=path,
                 message=f"Failed to create file: {path}",
-                error=str(e)
+                error=str(e),
             )
 
     # ==================== File Reading Operations ====================
@@ -337,8 +354,8 @@ class FileOperationsController:
         self,
         path: str,
         binary: bool = False,
-        encoding: str = "utf-8"
-    ) -> Union[str, bytes, None]:
+        encoding: str = "utf-8",
+    ) -> str | bytes | None:
         """Read file content.
 
         Time Complexity: O(n) where n is file size
@@ -356,27 +373,29 @@ class FileOperationsController:
             ValueError: If path is invalid
             PermissionError: If lacking read permissions
             FileNotFoundError: If file doesn't exist
+
         """
         try:
             file_path = self._validate_path(path)
 
             # Check if file exists
             if not file_path.exists():
-                raise FileNotFoundError(f"File not found: {path}")
+                msg = f"File not found: {path}"
+                raise FileNotFoundError(msg)
 
             # Check permissions
-            self._check_permissions(file_path, 'r')
+            self._check_permissions(file_path, "r")
 
             # Check file size
             file_size = file_path.stat().st_size
             if file_size > self.max_file_size:
+                msg = f"File too large: {file_size} bytes (max: {self.max_file_size} bytes)"
                 raise ValueError(
-                    f"File too large: {file_size} bytes "
-                    f"(max: {self.max_file_size} bytes)"
+                    msg,
                 )
 
             # Read content
-            mode = 'rb' if binary else 'r'
+            mode = "rb" if binary else "r"
             with open(file_path, mode, encoding=None if binary else encoding) as f:
                 content = f.read()
 
@@ -385,7 +404,7 @@ class FileOperationsController:
                 FileOperationType.READ,
                 str(file_path),
                 True,
-                {"size": file_size, "binary": binary}
+                {"size": file_size, "binary": binary},
             )
 
             return content
@@ -393,9 +412,8 @@ class FileOperationsController:
         except PermissionError as e:
             # Re-raise PermissionError so callers can detect path traversal violations
             raise
-        except Exception as e:
             self._log_operation(FileOperationType.READ, path, False, {"error": str(e)})
-            logger.error("Failed to read file %s: %s", path, e)
+            logger.exception("Failed to read file %s: %s")
             return None
 
     # ==================== File Update Operations ====================
@@ -403,8 +421,8 @@ class FileOperationsController:
     def update_file(
         self,
         path: str,
-        content: Union[str, bytes],
-        append: bool = False
+        content: str | bytes,
+        append: bool = False,
     ) -> FileOperationResult:
         """Update file content.
 
@@ -423,21 +441,29 @@ class FileOperationsController:
             ValueError: If path is invalid
             PermissionError: If lacking write permissions
             FileNotFoundError: If file doesn't exist
+
         """
         try:
             file_path = self._validate_path(path)
 
             # Check if file exists
             if not file_path.exists():
-                raise FileNotFoundError(f"File not found: {path}")
+                msg = f"File not found: {path}"
+                raise FileNotFoundError(msg)
 
             # Check permissions
-            self._check_permissions(file_path, 'w')
+            self._check_permissions(file_path, "w")
 
             # Write content
-            mode = 'ab' if isinstance(content, bytes) and append else \
-                   'wb' if isinstance(content, bytes) else \
-                   'a' if append else 'w'
+            mode = (
+                "ab"
+                if isinstance(content, bytes) and append
+                else "wb"
+                if isinstance(content, bytes)
+                else "a"
+                if append
+                else "w"
+            )
 
             with open(file_path, mode) as f:
                 f.write(content)
@@ -447,7 +473,7 @@ class FileOperationsController:
                 FileOperationType.UPDATE,
                 str(file_path),
                 True,
-                {"size": len(content), "append": append}
+                {"size": len(content), "append": append},
             )
 
             return FileOperationResult(
@@ -455,7 +481,7 @@ class FileOperationsController:
                 operation=FileOperationType.UPDATE,
                 path=str(file_path),
                 message=f"File updated successfully: {path}",
-                metadata={"size": len(content), "append": append}
+                metadata={"size": len(content), "append": append},
             )
 
         except Exception as e:
@@ -465,16 +491,12 @@ class FileOperationsController:
                 operation=FileOperationType.UPDATE,
                 path=path,
                 message=f"Failed to update file: {path}",
-                error=str(e)
+                error=str(e),
             )
 
     # ==================== File Deletion Operations ====================
 
-    def delete_file(
-        self,
-        path: str,
-        confirm: bool = False
-    ) -> FileOperationResult:
+    def delete_file(self, path: str, confirm: bool = False) -> FileOperationResult:
         """Delete a file.
 
         Time Complexity: O(1)
@@ -491,22 +513,23 @@ class FileOperationsController:
             ValueError: If path is invalid or confirmation required but not given
             PermissionError: If lacking write permissions
             FileNotFoundError: If file doesn't exist
+
         """
         try:
             file_path = self._validate_path(path)
 
             # Check if file exists
             if not file_path.exists():
-                raise FileNotFoundError(f"File not found: {path}")
+                msg = f"File not found: {path}"
+                raise FileNotFoundError(msg)
 
             # Require confirmation for destructive operation
             if self.require_confirmation and not confirm:
-                raise ValueError(
-                    f"Confirmation required to delete file: {path}"
-                )
+                msg = f"Confirmation required to delete file: {path}"
+                raise ValueError(msg)
 
             # Check permissions
-            self._check_permissions(file_path, 'w')
+            self._check_permissions(file_path, "w")
 
             # Get file size before deletion
             file_size = file_path.stat().st_size
@@ -515,19 +538,14 @@ class FileOperationsController:
             file_path.unlink()
 
             # Log operation
-            self._log_operation(
-                FileOperationType.DELETE,
-                str(file_path),
-                True,
-                {"size": file_size}
-            )
+            self._log_operation(FileOperationType.DELETE, str(file_path), True, {"size": file_size})
 
             return FileOperationResult(
                 success=True,
                 operation=FileOperationType.DELETE,
                 path=str(file_path),
                 message=f"File deleted successfully: {path}",
-                metadata={"size": file_size}
+                metadata={"size": file_size},
             )
 
         except Exception as e:
@@ -537,7 +555,7 @@ class FileOperationsController:
                 operation=FileOperationType.DELETE,
                 path=path,
                 message=f"Failed to delete file: {path}",
-                error=str(e)
+                error=str(e),
             )
 
     # ==================== File Move/Copy/Rename Operations ====================
@@ -546,7 +564,7 @@ class FileOperationsController:
         self,
         source: str,
         destination: str,
-        overwrite: bool = False
+        overwrite: bool = False,
     ) -> FileOperationResult:
         """Move a file to a new location.
 
@@ -566,6 +584,7 @@ class FileOperationsController:
             PermissionError: If lacking required permissions
             FileNotFoundError: If source file doesn't exist
             FileExistsError: If destination exists and overwrite=False
+
         """
         try:
             source_path = self._validate_path(source)
@@ -573,15 +592,17 @@ class FileOperationsController:
 
             # Check if source exists
             if not source_path.exists():
-                raise FileNotFoundError(f"Source file not found: {source}")
+                msg = f"Source file not found: {source}"
+                raise FileNotFoundError(msg)
 
             # Check if destination exists
             if dest_path.exists() and not overwrite:
-                raise FileExistsError(f"Destination already exists: {destination}")
+                msg = f"Destination already exists: {destination}"
+                raise FileExistsError(msg)
 
             # Check permissions
-            self._check_permissions(source_path, 'w')
-            self._check_permissions(dest_path, 'w')
+            self._check_permissions(source_path, "w")
+            self._check_permissions(dest_path, "w")
 
             # Get file size before move
             file_size = source_path.stat().st_size
@@ -597,7 +618,7 @@ class FileOperationsController:
                 FileOperationType.MOVE,
                 str(source_path),
                 True,
-                {"destination": str(dest_path), "size": file_size}
+                {"destination": str(dest_path), "size": file_size},
             )
 
             return FileOperationResult(
@@ -605,7 +626,7 @@ class FileOperationsController:
                 operation=FileOperationType.MOVE,
                 path=str(source_path),
                 message=f"File moved successfully: {source} -> {destination}",
-                metadata={"destination": str(dest_path), "size": file_size}
+                metadata={"destination": str(dest_path), "size": file_size},
             )
 
         except Exception as e:
@@ -613,21 +634,21 @@ class FileOperationsController:
                 FileOperationType.MOVE,
                 source,
                 False,
-                {"destination": destination, "error": str(e)}
+                {"destination": destination, "error": str(e)},
             )
             return FileOperationResult(
                 success=False,
                 operation=FileOperationType.MOVE,
                 path=source,
                 message=f"Failed to move file: {source} -> {destination}",
-                error=str(e)
+                error=str(e),
             )
 
     def copy_file(
         self,
         source: str,
         destination: str,
-        overwrite: bool = False
+        overwrite: bool = False,
     ) -> FileOperationResult:
         """Copy a file to a new location.
 
@@ -647,6 +668,7 @@ class FileOperationsController:
             PermissionError: If lacking required permissions
             FileNotFoundError: If source file doesn't exist
             FileExistsError: If destination exists and overwrite=False
+
         """
         try:
             source_path = self._validate_path(source)
@@ -654,15 +676,17 @@ class FileOperationsController:
 
             # Check if source exists
             if not source_path.exists():
-                raise FileNotFoundError(f"Source file not found: {source}")
+                msg = f"Source file not found: {source}"
+                raise FileNotFoundError(msg)
 
             # Check if destination exists
             if dest_path.exists() and not overwrite:
-                raise FileExistsError(f"Destination already exists: {destination}")
+                msg = f"Destination already exists: {destination}"
+                raise FileExistsError(msg)
 
             # Check permissions
-            self._check_permissions(source_path, 'r')
-            self._check_permissions(dest_path, 'w')
+            self._check_permissions(source_path, "r")
+            self._check_permissions(dest_path, "w")
 
             # Get file size
             file_size = source_path.stat().st_size
@@ -678,7 +702,7 @@ class FileOperationsController:
                 FileOperationType.COPY,
                 str(source_path),
                 True,
-                {"destination": str(dest_path), "size": file_size}
+                {"destination": str(dest_path), "size": file_size},
             )
 
             return FileOperationResult(
@@ -686,7 +710,7 @@ class FileOperationsController:
                 operation=FileOperationType.COPY,
                 path=str(source_path),
                 message=f"File copied successfully: {source} -> {destination}",
-                metadata={"destination": str(dest_path), "size": file_size}
+                metadata={"destination": str(dest_path), "size": file_size},
             )
 
         except Exception as e:
@@ -694,22 +718,17 @@ class FileOperationsController:
                 FileOperationType.COPY,
                 source,
                 False,
-                {"destination": destination, "error": str(e)}
+                {"destination": destination, "error": str(e)},
             )
             return FileOperationResult(
                 success=False,
                 operation=FileOperationType.COPY,
                 path=source,
                 message=f"Failed to copy file: {source} -> {destination}",
-                error=str(e)
+                error=str(e),
             )
 
-    def rename_file(
-        self,
-        path: str,
-        new_name: str,
-        overwrite: bool = False
-    ) -> FileOperationResult:
+    def rename_file(self, path: str, new_name: str, overwrite: bool = False) -> FileOperationResult:
         """Rename a file.
 
         Time Complexity: O(1)
@@ -728,23 +747,26 @@ class FileOperationsController:
             PermissionError: If lacking required permissions
             FileNotFoundError: If file doesn't exist
             FileExistsError: If new name exists and overwrite=False
+
         """
         try:
             file_path = self._validate_path(path)
 
             # Check if file exists
             if not file_path.exists():
-                raise FileNotFoundError(f"File not found: {path}")
+                msg = f"File not found: {path}"
+                raise FileNotFoundError(msg)
 
             # Create new path in same directory
             new_path = file_path.parent / new_name
 
             # Check if new name exists
             if new_path.exists() and not overwrite:
-                raise FileExistsError(f"File already exists: {new_name}")
+                msg = f"File already exists: {new_name}"
+                raise FileExistsError(msg)
 
             # Check permissions
-            self._check_permissions(file_path, 'w')
+            self._check_permissions(file_path, "w")
 
             # Get file size
             file_size = file_path.stat().st_size
@@ -757,7 +779,7 @@ class FileOperationsController:
                 FileOperationType.RENAME,
                 str(file_path),
                 True,
-                {"new_name": new_name, "size": file_size}
+                {"new_name": new_name, "size": file_size},
             )
 
             return FileOperationResult(
@@ -765,7 +787,7 @@ class FileOperationsController:
                 operation=FileOperationType.RENAME,
                 path=str(file_path),
                 message=f"File renamed successfully: {path} -> {new_name}",
-                metadata={"new_path": str(new_path), "size": file_size}
+                metadata={"new_path": str(new_path), "size": file_size},
             )
 
         except Exception as e:
@@ -773,14 +795,14 @@ class FileOperationsController:
                 FileOperationType.RENAME,
                 path,
                 False,
-                {"new_name": new_name, "error": str(e)}
+                {"new_name": new_name, "error": str(e)},
             )
             return FileOperationResult(
                 success=False,
                 operation=FileOperationType.RENAME,
                 path=path,
                 message=f"Failed to rename file: {path} -> {new_name}",
-                error=str(e)
+                error=str(e),
             )
 
     # ==================== Directory Operations ====================
@@ -789,7 +811,7 @@ class FileOperationsController:
         self,
         path: str,
         parents: bool = True,
-        exist_ok: bool = True
+        exist_ok: bool = True,
     ) -> FileOperationResult:
         """Create a directory.
 
@@ -808,35 +830,32 @@ class FileOperationsController:
             ValueError: If path is invalid
             PermissionError: If lacking write permissions
             FileExistsError: If directory exists and exist_ok=False
+
         """
         try:
             dir_path = self._validate_path(path)
 
             # Check if directory exists
             if dir_path.exists() and not exist_ok:
-                raise FileExistsError(f"Directory already exists: {path}")
+                msg = f"Directory already exists: {path}"
+                raise FileExistsError(msg)
 
             # Check permissions
             if not dir_path.exists():
-                self._check_permissions(dir_path, 'w')
+                self._check_permissions(dir_path, "w")
 
             # Create directory
             dir_path.mkdir(parents=parents, exist_ok=exist_ok)
 
             # Log operation
-            self._log_operation(
-                FileOperationType.MKDIR,
-                str(dir_path),
-                True,
-                {"parents": parents}
-            )
+            self._log_operation(FileOperationType.MKDIR, str(dir_path), True, {"parents": parents})
 
             return FileOperationResult(
                 success=True,
                 operation=FileOperationType.MKDIR,
                 path=str(dir_path),
                 message=f"Directory created successfully: {path}",
-                metadata={"parents": parents}
+                metadata={"parents": parents},
             )
 
         except Exception as e:
@@ -846,14 +865,14 @@ class FileOperationsController:
                 operation=FileOperationType.MKDIR,
                 path=path,
                 message=f"Failed to create directory: {path}",
-                error=str(e)
+                error=str(e),
             )
 
     def delete_directory(
         self,
         path: str,
         recursive: bool = False,
-        confirm: bool = False
+        confirm: bool = False,
     ) -> FileOperationResult:
         """Delete a directory.
 
@@ -873,25 +892,26 @@ class FileOperationsController:
             PermissionError: If lacking write permissions
             FileNotFoundError: If directory doesn't exist
             OSError: If directory not empty and recursive=False
+
         """
         try:
             dir_path = self._validate_path(path)
 
             # Check if directory exists
             if not dir_path.exists():
-                raise FileNotFoundError(f"Directory not found: {path}")
+                msg = f"Directory not found: {path}"
+                raise FileNotFoundError(msg)
 
             # Require confirmation for destructive operation
             if self.require_confirmation and not confirm:
-                raise ValueError(
-                    f"Confirmation required to delete directory: {path}"
-                )
+                msg = f"Confirmation required to delete directory: {path}"
+                raise ValueError(msg)
 
             # Check permissions
-            self._check_permissions(dir_path, 'w')
+            self._check_permissions(dir_path, "w")
 
             # Count files before deletion
-            file_count = sum(1 for _ in dir_path.rglob('*')) if recursive else 0
+            file_count = sum(1 for _ in dir_path.rglob("*")) if recursive else 0
 
             # Delete directory
             if recursive:
@@ -904,7 +924,7 @@ class FileOperationsController:
                 FileOperationType.RMDIR,
                 str(dir_path),
                 True,
-                {"recursive": recursive, "file_count": file_count}
+                {"recursive": recursive, "file_count": file_count},
             )
 
             return FileOperationResult(
@@ -912,7 +932,7 @@ class FileOperationsController:
                 operation=FileOperationType.RMDIR,
                 path=str(dir_path),
                 message=f"Directory deleted successfully: {path}",
-                metadata={"recursive": recursive, "file_count": file_count}
+                metadata={"recursive": recursive, "file_count": file_count},
             )
 
         except Exception as e:
@@ -922,15 +942,15 @@ class FileOperationsController:
                 operation=FileOperationType.RMDIR,
                 path=path,
                 message=f"Failed to delete directory: {path}",
-                error=str(e)
+                error=str(e),
             )
 
     def list_directory(
         self,
         path: str,
         recursive: bool = False,
-        pattern: Optional[str] = None
-    ) -> Optional[list[str]]:
+        pattern: str | None = None,
+    ) -> list[str] | None:
         """List directory contents.
 
         Time Complexity: O(n) where n is number of entries
@@ -948,33 +968,34 @@ class FileOperationsController:
             ValueError: If path is invalid
             PermissionError: If lacking read permissions
             FileNotFoundError: If directory doesn't exist
+
         """
         try:
             dir_path = self._validate_path(path)
 
             # Check if directory exists
             if not dir_path.exists():
-                raise FileNotFoundError(f"Directory not found: {path}")
+                msg = f"Directory not found: {path}"
+                raise FileNotFoundError(msg)
 
             # Check permissions
-            self._check_permissions(dir_path, 'r')
+            self._check_permissions(dir_path, "r")
 
             # List directory
             if recursive:
                 if pattern:
                     entries = [str(p) for p in dir_path.rglob(pattern)]
                 else:
-                    entries = [str(p) for p in dir_path.rglob('*')]
+                    entries = [str(p) for p in dir_path.rglob("*")]
+            elif pattern:
+                entries = [str(p) for p in dir_path.glob(pattern)]
             else:
-                if pattern:
-                    entries = [str(p) for p in dir_path.glob(pattern)]
-                else:
-                    entries = [str(p) for p in dir_path.iterdir()]
+                entries = [str(p) for p in dir_path.iterdir()]
 
             return sorted(entries)
 
-        except Exception as e:
-            logger.error("Failed to list directory %s: %s", path, e)
+        except Exception:
+            logger.exception("Failed to list directory %s: %s")
             return None
 
     # ==================== Utility Operations ====================
@@ -990,11 +1011,12 @@ class FileOperationsController:
 
         Returns:
             True if file exists, False otherwise
+
         """
         try:
             file_path = self._validate_path(path)
             return file_path.exists() and file_path.is_file()
-        except Exception as e:
+        except Exception:
             return False
 
     def directory_exists(self, path: str) -> bool:
@@ -1008,14 +1030,15 @@ class FileOperationsController:
 
         Returns:
             True if directory exists, False otherwise
+
         """
         try:
             dir_path = self._validate_path(path)
             return dir_path.exists() and dir_path.is_dir()
-        except Exception as e:
+        except Exception:
             return False
 
-    def get_file_info(self, path: str) -> Optional[dict[str, Any]]:
+    def get_file_info(self, path: str) -> dict[str, Any] | None:
         """Get file metadata.
 
         Time Complexity: O(1)
@@ -1026,6 +1049,7 @@ class FileOperationsController:
 
         Returns:
             Dictionary with file metadata, None on error
+
         """
         try:
             file_path = self._validate_path(path)
@@ -1045,18 +1069,14 @@ class FileOperationsController:
                 "is_file": file_path.is_file(),
                 "is_directory": file_path.is_dir(),
                 "is_symlink": file_path.is_symlink(),
-                "permissions": oct(stat.st_mode)[-3:]
+                "permissions": oct(stat.st_mode)[-3:],
             }
 
-        except Exception as e:
-            logger.error("Failed to get file info for %s: %s", path, e)
+        except Exception:
+            logger.exception("Failed to get file info for %s: %s")
             return None
 
-    def compute_file_hash(
-        self,
-        path: str,
-        algorithm: str = "sha256"
-    ) -> Optional[str]:
+    def compute_file_hash(self, path: str, algorithm: str = "sha256") -> str | None:
         """Compute file hash.
 
         Time Complexity: O(n) where n is file size
@@ -1071,31 +1091,32 @@ class FileOperationsController:
 
         Raises:
             ValueError: If algorithm is invalid
+
         """
         try:
             file_path = self._validate_path(path)
 
             if not file_path.exists():
-                raise FileNotFoundError(f"File not found: {path}")
+                msg = f"File not found: {path}"
+                raise FileNotFoundError(msg)
 
             # Create hash object
             # MD5 and SHA-1 are cryptographically weak; upgrade to SHA-256 (CWE-327)
-            if algorithm in ("md5", "sha1"):
-                hasher = hashlib.sha256()
-            elif algorithm == "sha256":
+            if algorithm in ("md5", "sha1") or algorithm == "sha256":
                 hasher = hashlib.sha256()
             elif algorithm == "sha512":
                 hasher = hashlib.sha512()
             else:
-                raise ValueError(f"Invalid hash algorithm: {algorithm}")
+                msg = f"Invalid hash algorithm: {algorithm}"
+                raise ValueError(msg)
 
             # Compute hash in chunks (memory efficient)
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 while chunk := f.read(8192):
                     hasher.update(chunk)
 
             return hasher.hexdigest()
 
-        except Exception as e:
-            logger.error("Failed to compute hash for %s: %s", path, e)
+        except Exception:
+            logger.exception("Failed to compute hash for %s: %s")
             return None

@@ -1,5 +1,4 @@
-"""
-Synchronous execution engine for Core Reasoning Engine.
+"""Synchronous execution engine for Core Reasoning Engine.
 
 Performance Requirements:
 - Time Complexity: O(1) per action execution
@@ -17,7 +16,7 @@ Design Decisions:
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from Agent_Guru.reasoning.models.action import Action
@@ -36,6 +35,7 @@ class ExecutionResult:
         retries: Number of retries attempted
         timed_out: Whether execution timed out
         timestamp: When execution completed
+
     """
 
     success: bool
@@ -45,7 +45,7 @@ class ExecutionResult:
     action_id: str = ""
     retries: int = 0
     timed_out: bool = False
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -72,6 +72,7 @@ class SyncExecutor:
         >>> action = Action(action_id="1", tool_id="test", parameters={})
         >>> result = executor.execute(action, tool_function)
         >>> print(f"Success: {result.success}, Time: {result.execution_time}s")
+
     """
 
     def __init__(
@@ -89,13 +90,17 @@ class SyncExecutor:
 
         Raises:
             ValueError: If parameters are invalid
+
         """
         if default_timeout <= 0:
-            raise ValueError(f"Invalid default_timeout: {default_timeout}")
+            msg = f"Invalid default_timeout: {default_timeout}"
+            raise ValueError(msg)
         if max_retries < 0:
-            raise ValueError(f"Invalid max_retries: {max_retries}")
+            msg = f"Invalid max_retries: {max_retries}"
+            raise ValueError(msg)
         if retry_delay < 0:
-            raise ValueError(f"Invalid retry_delay: {retry_delay}")
+            msg = f"Invalid retry_delay: {retry_delay}"
+            raise ValueError(msg)
 
         self.default_timeout = default_timeout
         self.max_retries = max_retries
@@ -127,6 +132,7 @@ class SyncExecutor:
 
         Raises:
             Never raises - all errors captured in ExecutionResult
+
         """
         timeout = timeout or self.default_timeout
         start_time = time.perf_counter()
@@ -155,7 +161,10 @@ class SyncExecutor:
             try:
                 # Execute with timeout
                 result_data = self._execute_with_timeout(
-                    tool_function, action.parameters, timeout, cancellation_token
+                    tool_function,
+                    action.parameters,
+                    timeout,
+                    cancellation_token,
                 )
 
                 # Success - record latency and return
@@ -170,7 +179,7 @@ class SyncExecutor:
                     retries=retries,
                 )
 
-            except TimeoutError:
+            except TimeoutError as e:
                 # Actual timeout - don't retry
                 execution_time = time.perf_counter() - start_time
                 return ExecutionResult(
@@ -186,8 +195,6 @@ class SyncExecutor:
                     retries=retries,
                     timed_out=True,
                 )
-
-            except ValueError as e:
                 # Check if this is a cancellation error (from ErrorManager)
                 if "cancelled" in str(e).lower():
                     execution_time = time.perf_counter() - start_time
@@ -203,7 +210,6 @@ class SyncExecutor:
                         action_id=action.action_id,
                         retries=retries,
                     )
-
                 # Not a cancellation - treat as regular error
                 # Check if error is transient and retryable
                 if retries < self.max_retries and self._is_transient_error(e):
@@ -212,7 +218,6 @@ class SyncExecutor:
                     delay = self.retry_delay * (2 ** (retries - 1))
                     time.sleep(delay)
                     continue
-
                 # Non-transient error or max retries reached
                 execution_time = time.perf_counter() - start_time
                 return ExecutionResult(
@@ -227,8 +232,6 @@ class SyncExecutor:
                     action_id=action.action_id,
                     retries=retries,
                 )
-
-            except Exception as e:
                 # Check if error is transient and retryable
                 if retries < self.max_retries and self._is_transient_error(e):
                     retries += 1
@@ -236,7 +239,6 @@ class SyncExecutor:
                     delay = self.retry_delay * (2 ** (retries - 1))
                     time.sleep(delay)
                     continue
-
                 # Non-transient error or max retries reached
                 execution_time = time.perf_counter() - start_time
                 return ExecutionResult(
@@ -251,7 +253,6 @@ class SyncExecutor:
                     action_id=action.action_id,
                     retries=retries,
                 )
-
         # Should never reach here, but handle gracefully
         execution_time = time.perf_counter() - start_time
         return ExecutionResult(
@@ -288,6 +289,7 @@ class SyncExecutor:
         Raises:
             TimeoutError: If execution exceeds timeout
             Exception: Any exception from tool_function
+
         """
         import concurrent.futures
 
@@ -308,29 +310,28 @@ class SyncExecutor:
                         if check_fn():
                             future.cancel()
                             # Raise cancellation error
-                            raise ValueError("Execution was cancelled")
+                            msg = "Execution was cancelled"
+                            raise ValueError(msg)
 
                         # Try to get result with short timeout
                         try:
-                            result = future.result(timeout=poll_interval)
-                            return result
-                        except concurrent.futures.TimeoutError as e:
+                            return future.result(timeout=poll_interval)
+                        except concurrent.futures.TimeoutError:
                             # Not done yet, continue polling
                             elapsed += poll_interval
                             continue
-
                     # Timeout exceeded
                     future.cancel()
-                    raise TimeoutError(f"Execution exceeded timeout of {timeout}s")
-                else:
-                    # No cancellation token, just wait for result
-                    result = future.result(timeout=timeout)
-                    return result
+                    msg = f"Execution exceeded timeout of {timeout}s"
+                    raise TimeoutError(msg)
+                # No cancellation token, just wait for result
+                return future.result(timeout=timeout)
 
             except concurrent.futures.TimeoutError as e:
                 # Cancel the future
                 future.cancel()
-                raise TimeoutError(f"Execution exceeded timeout of {timeout}s") from e
+                msg = f"Execution exceeded timeout of {timeout}s"
+                raise TimeoutError(msg) from e
 
     def _is_transient_error(self, error: Exception) -> bool:
         """Check if error is transient and retryable.
@@ -340,6 +341,7 @@ class SyncExecutor:
 
         Returns:
             True if error is transient, False otherwise
+
         """
         # Common transient error types
         transient_types = (
@@ -370,6 +372,7 @@ class SyncExecutor:
         Args:
             tool_id: Tool identifier
             latency: Execution time in seconds
+
         """
         if tool_id not in self._latency_stats:
             self._latency_stats[tool_id] = []
@@ -388,6 +391,7 @@ class SyncExecutor:
 
         Returns:
             Dictionary with min, max, avg, p95 latency
+
         """
         if tool_id not in self._latency_stats or not self._latency_stats[tool_id]:
             return {
@@ -415,6 +419,7 @@ class SyncExecutor:
 
         Args:
             tool_id: Tool to clear stats for (clears all if None)
+
         """
         if tool_id is None:
             self._latency_stats.clear()
@@ -435,6 +440,7 @@ class ExecutionController:
         >>> result = controller.execute_sync(action, tool_function)
         >>> # Async execution
         >>> async_result = controller.execute_async(action, "module", "function")
+
     """
 
     def __init__(
@@ -449,6 +455,7 @@ class ExecutionController:
             default_timeout: Default timeout in seconds
             max_retries: Maximum retry attempts
             enable_async: Whether to enable async execution (requires Celery)
+
         """
         self.sync_executor = SyncExecutor(
             default_timeout=default_timeout,
@@ -481,6 +488,7 @@ class ExecutionController:
 
         Returns:
             ExecutionResult with success/failure information
+
         """
         return self.sync_executor.execute(action, tool_function, timeout)
 
@@ -502,11 +510,12 @@ class ExecutionController:
 
         Raises:
             RuntimeError: If async execution not enabled
+
         """
         if self.async_executor is None:
+            msg = "Async execution not enabled. Install Celery and Redis, or set enable_async=False"
             raise RuntimeError(
-                "Async execution not enabled. Install Celery and Redis, "
-                "or set enable_async=False"
+                msg,
             )
 
         return self.async_executor.execute_async(action, tool_module, tool_function_name)
@@ -522,9 +531,11 @@ class ExecutionController:
 
         Raises:
             RuntimeError: If async execution not enabled
+
         """
         if self.async_executor is None:
-            raise RuntimeError("Async execution not enabled")
+            msg = "Async execution not enabled"
+            raise RuntimeError(msg)
 
         return self.async_executor.get_status(task_id)
 
@@ -539,9 +550,11 @@ class ExecutionController:
 
         Raises:
             RuntimeError: If async execution not enabled
+
         """
         if self.async_executor is None:
-            raise RuntimeError("Async execution not enabled")
+            msg = "Async execution not enabled"
+            raise RuntimeError(msg)
 
         return self.async_executor.cancel(task_id)
 
@@ -553,5 +566,6 @@ class ExecutionController:
 
         Returns:
             Dictionary with latency statistics
+
         """
         return self.sync_executor.get_latency_stats(tool_id)

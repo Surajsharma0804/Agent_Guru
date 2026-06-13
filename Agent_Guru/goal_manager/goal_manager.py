@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.goal_manager.goal_manager
-Purpose: Main API for goal lifecycle management
+"""Module: agent_guru.goal_manager.goal_manager
+Purpose: Main API for goal lifecycle management.
 
 This module provides the unified interface for all goal operations,
 coordinating all components of the Goal Manager system.
@@ -34,8 +33,8 @@ Version: 1.0.0
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from Agent_Guru.goal_manager.dependency_resolver import DependencyResolver
 from Agent_Guru.goal_manager.exceptions import (
@@ -57,8 +56,7 @@ logger = get_logger(__name__)
 
 
 class GoalManager:
-    """
-    Main interface for goal lifecycle management.
+    """Main interface for goal lifecycle management.
 
     Coordinates all components and provides unified API for:
     - Creating and managing goals
@@ -106,22 +104,22 @@ class GoalManager:
         executor: GoalExecutor instance for task execution
         dependency_resolver: DependencyResolver instance for dependency management
         session_manager: SessionManager instance for session persistence
+
     """
 
     def __init__(
         self,
-        storage_path: Optional[str] = None,
+        storage_path: str | None = None,
         git_repo_path: str = ".",
         llm_runtime: Any = None,
         agent_orchestration: Any = None,
         memory_system: Any = None,
         self_improvement_engine: Any = None,
-        db_path: Optional[str] = None,  # Alias for storage_path
-        storage: Optional[Any] = None,  # Direct storage injection (for tests)
-        git_repo: Optional[Any] = None,  # Unused, accepted for test compat
-    ):
-        """
-        Initialize Goal Manager with all dependencies.
+        db_path: str | None = None,  # Alias for storage_path
+        storage: Any | None = None,  # Direct storage injection (for tests)
+        git_repo: Any | None = None,  # Unused, accepted for test compat
+    ) -> None:
+        """Initialize Goal Manager with all dependencies.
 
         Supports both ``storage_path`` and ``db_path`` for the database path.
 
@@ -135,6 +133,7 @@ class GoalManager:
             db_path: Alias for storage_path (for test compatibility)
             storage: Direct GoalStorage instance (overrides storage_path/db_path)
             git_repo: Unused, accepted for test compatibility
+
         """
         # Support both storage_path and db_path
         resolved_path = storage_path or db_path or "goals.db"
@@ -159,7 +158,7 @@ class GoalManager:
             agent_orchestration=agent_orchestration,
             storage=self.storage,
             git_repo_path=git_repo_path,
-            self_improvement_engine=self_improvement_engine
+            self_improvement_engine=self_improvement_engine,
         )
 
         # Initialize DependencyResolver with storage
@@ -187,14 +186,13 @@ class GoalManager:
         self,
         description: str,
         priority: Priority = Priority.MEDIUM,
-        dependencies: Optional[list[str]] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        dependencies: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
         goal_type: GoalType = GoalType.TASK,
-        parent_id: Optional[str] = None,
-        deadline: Optional[datetime] = None,
+        parent_id: str | None = None,
+        deadline: datetime | None = None,
     ) -> Goal:
-        """
-        Create a new goal.
+        """Create a new goal.
 
         Creates a goal with unique ID, initial status PENDING, and triggers
         async decomposition. Validates dependencies for cycles before creation.
@@ -215,6 +213,7 @@ class GoalManager:
             ValidationError: If dependencies contain cycles
             StorageError: If persistence fails
             ValueError: If description is empty
+
         """
         # Create goal object with unique ID
         goal = Goal(
@@ -224,7 +223,7 @@ class GoalManager:
             priority=priority,
             goal_type=goal_type,
             progress=0.0,
-            created_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
             started_at=None,
             completed_at=None,
             deadline=deadline,
@@ -232,7 +231,7 @@ class GoalManager:
             sub_goal_ids=[],
             dependency_ids=dependencies or [],
             metadata=metadata or {},
-            error_message=None
+            error_message=None,
         )
 
         # Validate dependencies (check for cycles)
@@ -256,9 +255,8 @@ class GoalManager:
 
         return goal
 
-    async def get_goal(self, goal_id: str) -> Optional[Goal]:
-        """
-        Get goal by ID with complete hierarchy.
+    async def get_goal(self, goal_id: str) -> Goal | None:
+        """Get goal by ID with complete hierarchy.
 
         Args:
             goal_id: Goal identifier
@@ -268,24 +266,26 @@ class GoalManager:
 
         Raises:
             GoalManagerError: If goal_id format is invalid
+
         """
         # Validate UUID format — raise for invalid IDs (security)
         import re
+
         uuid_pattern = re.compile(
-            r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
-            re.IGNORECASE
+            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            re.IGNORECASE,
         )
         if not uuid_pattern.match(goal_id):
-            raise GoalManagerError(f"Invalid goal ID format: {goal_id}")
+            msg = f"Invalid goal ID format: {goal_id}"
+            raise GoalManagerError(msg)
         return await self.storage.get_goal(goal_id)
 
     async def query_goals(
         self,
-        status: Optional[GoalStatus] = None,
-        priority: Optional[Priority] = None
+        status: GoalStatus | None = None,
+        priority: Priority | None = None,
     ) -> list[Goal]:
-        """
-        Query goals with optional filters.
+        """Query goals with optional filters.
 
         Args:
             status: Optional status filter
@@ -297,12 +297,12 @@ class GoalManager:
         Example:
             >>> pending = await manager.query_goals(status=GoalStatus.PENDING)
             >>> high_priority = await manager.query_goals(priority=Priority.HIGH)
+
         """
         return await self.storage.query_goals(status=status, priority=priority)
 
     async def update_priority(self, goal_id: str, priority: Priority) -> None:
-        """
-        Update goal priority.
+        """Update goal priority.
 
         Args:
             goal_id: Goal identifier
@@ -314,12 +314,12 @@ class GoalManager:
 
         Example:
             >>> await manager.update_priority("goal-id-123", Priority.CRITICAL)
+
         """
         await self.priority_manager.update_priority(goal_id, priority)
 
-    async def cancel_goal(self, goal_id: str, reason: Optional[str] = None) -> None:
-        """
-        Cancel goal and all sub-goals.
+    async def cancel_goal(self, goal_id: str, reason: str | None = None) -> None:
+        """Cancel goal and all sub-goals.
 
         Recursively cancels all sub-goals and stops execution if in progress.
 
@@ -330,10 +330,12 @@ class GoalManager:
         Raises:
             ValueError: If goal not found
             StorageError: If persistence fails
+
         """
         goal = await self.storage.get_goal(goal_id)
         if not goal:
-            raise ValueError(f"Goal {goal_id} not found")
+            msg = f"Goal {goal_id} not found"
+            raise ValueError(msg)
 
         # Cancel all sub-goals recursively
         for sub_goal_id in goal.sub_goal_ids:
@@ -350,8 +352,7 @@ class GoalManager:
         await self.storage.update_goal(goal)
 
     async def initialize(self) -> None:
-        """
-        Initialize Goal Manager (alias for start).
+        """Initialize Goal Manager (alias for start).
 
         Loads all goals from storage and recovers in-progress goals.
         """
@@ -365,11 +366,10 @@ class GoalManager:
 
     async def list_goals(
         self,
-        filters: Optional[dict[str, Any]] = None,
-        limit: Optional[int] = None,
+        filters: dict[str, Any] | None = None,
+        limit: int | None = None,
     ) -> list[Goal]:
-        """
-        List goals with optional filters and limit.
+        """List goals with optional filters and limit.
 
         Args:
             filters: Optional dict of field→value filters (e.g. {"priority": Priority.HIGH})
@@ -377,6 +377,7 @@ class GoalManager:
 
         Returns:
             List of matching goals
+
         """
         status = None
         priority = None
@@ -391,14 +392,13 @@ class GoalManager:
     async def update_goal(
         self,
         goal_id: str,
-        description: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
-        dependencies: Optional[list[str]] = None,
-        deadline: Optional[datetime] = None,
-        priority: Optional[Priority] = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        dependencies: list[str] | None = None,
+        deadline: datetime | None = None,
+        priority: Priority | None = None,
     ) -> Goal:
-        """
-        Update goal fields.
+        """Update goal fields.
 
         Args:
             goal_id: Goal identifier
@@ -414,14 +414,17 @@ class GoalManager:
         Raises:
             GoalManagerError: If goal not found
             CircularDependencyError: If dependencies create a cycle
+
         """
         goal = await self.storage.get_goal(goal_id)
         if not goal:
-            raise GoalManagerError(f"Goal {goal_id} not found")
+            msg = f"Goal {goal_id} not found"
+            raise GoalManagerError(msg)
 
         if description is not None:
             if goal.status == GoalStatus.COMPLETE:
-                raise InvalidGoalStateError("Cannot modify COMPLETE goal description")
+                msg = "Cannot modify COMPLETE goal description"
+                raise InvalidGoalStateError(msg)
             goal.description = description
 
         if metadata is not None:
@@ -443,8 +446,7 @@ class GoalManager:
         return goal
 
     async def execute_goal(self, goal_id: str) -> ExecutionResult:
-        """
-        Execute a goal.
+        """Execute a goal.
 
         Checks dependencies are met, then delegates to executor.
 
@@ -457,27 +459,28 @@ class GoalManager:
         Raises:
             InvalidGoalStateError: If dependencies not met or goal already executing
             GoalManagerError: If goal not found
+
         """
         goal = await self.storage.get_goal(goal_id)
         if not goal:
-            raise GoalManagerError(f"Goal {goal_id} not found")
+            msg = f"Goal {goal_id} not found"
+            raise GoalManagerError(msg)
 
         # Check if already completed or cancelled
         if goal.status in (GoalStatus.COMPLETE, GoalStatus.CANCELLED):
-            raise InvalidGoalStateError(
-                f"Cannot execute goal in state {goal.status}"
-            )
+            msg = f"Cannot execute goal in state {goal.status}"
+            raise InvalidGoalStateError(msg)
 
         # Check if already executing (race condition guard)
         if goal.status == GoalStatus.IN_PROGRESS:
-            raise InvalidGoalStateError("Goal is already executing")
+            msg = "Goal is already executing"
+            raise InvalidGoalStateError(msg)
 
         # Check dependencies
         deps_met = await self.dependency_resolver.check_dependencies(goal)
         if not deps_met:
-            raise InvalidGoalStateError(
-                "Goal dependencies are not yet satisfied"
-            )
+            msg = "Goal dependencies are not yet satisfied"
+            raise InvalidGoalStateError(msg)
 
         try:
             await self.executor.execute_goal(goal_id)
@@ -489,8 +492,7 @@ class GoalManager:
             return ExecutionResult(success=False, goal_id=goal_id, error=str(e))
 
     async def add_dependency(self, goal_id: str, dependency_id: str) -> None:
-        """
-        Add a dependency to a goal, checking for cycles.
+        """Add a dependency to a goal, checking for cycles.
 
         Args:
             goal_id: Goal to add dependency to
@@ -499,12 +501,14 @@ class GoalManager:
         Raises:
             CircularDependencyError: If adding this dependency creates a cycle
             GoalManagerError: If either goal not found
+
         """
         goal = await self.storage.get_goal(goal_id)
         if not goal:
-            raise GoalManagerError(f"Goal {goal_id} not found")
+            msg = f"Goal {goal_id} not found"
+            raise GoalManagerError(msg)
 
-        new_deps = list(goal.dependency_ids) + [dependency_id]
+        new_deps = [*list(goal.dependency_ids), dependency_id]
         test_goal = goal.model_copy(update={"dependency_ids": new_deps})
         await self.dependency_resolver.validate_dependencies(test_goal)
 
@@ -512,14 +516,14 @@ class GoalManager:
         await self.storage.update_goal(goal)
 
     async def get_sub_goals(self, goal_id: str) -> list[Goal]:
-        """
-        Get all direct sub-goals of a goal.
+        """Get all direct sub-goals of a goal.
 
         Args:
             goal_id: Parent goal identifier
 
         Returns:
             List of sub-goals
+
         """
         goal = await self.storage.get_goal(goal_id)
         if not goal:
@@ -532,8 +536,7 @@ class GoalManager:
         return sub_goals
 
     async def get_goal_history(self, goal_id: str) -> list[Goal]:
-        """
-        Get execution history for a goal.
+        """Get execution history for a goal.
 
         Returns a list of goal snapshots representing state transitions.
         For now returns the current goal state as a single-item list.
@@ -543,6 +546,7 @@ class GoalManager:
 
         Returns:
             List of goal state snapshots (most recent first)
+
         """
         goal = await self.storage.get_goal(goal_id)
         if not goal:
@@ -550,8 +554,7 @@ class GoalManager:
         return [goal]
 
     async def retry_goal(self, goal_id: str) -> Any:
-        """
-        Retry a failed goal.
+        """Retry a failed goal.
 
         Resets status to PENDING and re-executes.
 
@@ -563,15 +566,16 @@ class GoalManager:
 
         Raises:
             GoalManagerError: If goal not found or not in FAILED state
+
         """
         goal = await self.storage.get_goal(goal_id)
         if not goal:
-            raise GoalManagerError(f"Goal {goal_id} not found")
+            msg = f"Goal {goal_id} not found"
+            raise GoalManagerError(msg)
 
         if goal.status != GoalStatus.FAILED:
-            raise InvalidGoalStateError(
-                f"Can only retry FAILED goals, got {goal.status}"
-            )
+            msg = f"Can only retry FAILED goals, got {goal.status}"
+            raise InvalidGoalStateError(msg)
 
         goal.status = GoalStatus.PENDING
         goal.retry_count += 1
@@ -589,11 +593,10 @@ class GoalManager:
     async def modify_goal(
         self,
         goal_id: str,
-        description: Optional[str] = None,
-        notes: Optional[str] = None
+        description: str | None = None,
+        notes: str | None = None,
     ) -> Goal:
-        """
-        Modify goal description or add notes.
+        """Modify goal description or add notes.
 
         Allows modification of goal description for PENDING goals only.
         Prevents modification of COMPLETE goals (except adding notes via metadata).
@@ -622,19 +625,22 @@ class GoalManager:
             >>> goal = await manager.modify_goal("goal-456", notes="Additional context")
 
         Validates: Requirements 9.3, 9.4, 9.5
+
         """
         # Retrieve goal
         goal = await self.storage.get_goal(goal_id)
         if not goal:
-            raise ValueError(f"Goal {goal_id} not found")
+            msg = f"Goal {goal_id} not found"
+            raise ValueError(msg)
 
         # Handle description modification
         if description is not None:
             # Prevent modification of COMPLETE goals
             if goal.status == GoalStatus.COMPLETE:
+                msg = "Cannot modify description of COMPLETE goal"
                 raise ValidationError(
-                    "Cannot modify description of COMPLETE goal",
-                    {"goal_id": goal_id, "status": goal.status.value}
+                    msg,
+                    {"goal_id": goal_id, "status": goal.status.value},
                 )
 
             old_description = goal.description
@@ -645,7 +651,7 @@ class GoalManager:
                 "goal_description_modified",
                 goal_id=goal_id,
                 old_description=old_description[:50] if old_description else None,
-                new_description=description[:50]
+                new_description=description[:50],
             )
 
         # Handle notes addition (allowed for any status)
@@ -654,15 +660,14 @@ class GoalManager:
                 goal.metadata["notes"] = []
 
             # Add note with timestamp
-            goal.metadata["notes"].append({
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
-                "content": notes
-            })
+            goal.metadata["notes"].append(
+                {"timestamp": datetime.now(tz=UTC).isoformat(), "content": notes},
+            )
 
             logger.info(
                 "goal_notes_added",
                 goal_id=goal_id,
-                notes_count=len(goal.metadata["notes"])
+                notes_count=len(goal.metadata["notes"]),
             )
 
         # Persist changes immediately
@@ -671,8 +676,7 @@ class GoalManager:
         return goal
 
     async def re_decompose_goal(self, goal_id: str) -> None:
-        """
-        Re-decompose goal after description change.
+        """Re-decompose goal after description change.
 
         Clears existing sub-goals and triggers new decomposition.
         Only allowed for PENDING goals.
@@ -697,23 +701,26 @@ class GoalManager:
             >>> await manager.re_decompose_goal("goal-123")
 
         Validates: Requirements 9.4
+
         """
         # Retrieve goal
         goal = await self.storage.get_goal(goal_id)
         if not goal:
-            raise ValueError(f"Goal {goal_id} not found")
+            msg = f"Goal {goal_id} not found"
+            raise ValueError(msg)
 
         # Only allow for PENDING goals
         if goal.status != GoalStatus.PENDING:
+            msg = "Can only re-decompose PENDING goals"
             raise ValidationError(
-                "Can only re-decompose PENDING goals",
-                {"goal_id": goal_id, "status": goal.status.value}
+                msg,
+                {"goal_id": goal_id, "status": goal.status.value},
             )
 
         logger.info(
             "goal_redecomposition_started",
             goal_id=goal_id,
-            old_sub_goals_count=len(goal.sub_goal_ids)
+            old_sub_goals_count=len(goal.sub_goal_ids),
         )
 
         # Clear existing sub-goals
@@ -734,15 +741,10 @@ class GoalManager:
         # Trigger new decomposition
         await self._decompose_goal(goal_id)
 
-        logger.info(
-            "goal_redecomposition_completed",
-            goal_id=goal_id
-        )
-
+        logger.info("goal_redecomposition_completed", goal_id=goal_id)
 
     async def get_summary(self) -> dict[str, Any]:
-        """
-        Get summary of all goals.
+        """Get summary of all goals.
 
         Returns:
             Dictionary with total, completed, in_progress, failed counts
@@ -752,6 +754,7 @@ class GoalManager:
             >>> summary = await manager.get_summary()
             >>> print(f"Progress: {summary['overall_progress']:.1%}")
             >>> print(f"Completed: {summary['completed']}/{summary['total_goals']}")
+
         """
         all_goals = await self.storage.query_goals()
 
@@ -760,41 +763,36 @@ class GoalManager:
         in_progress = sum(1 for g in all_goals if g.status == GoalStatus.IN_PROGRESS)
         failed = sum(1 for g in all_goals if g.status == GoalStatus.FAILED)
 
-        overall_progress = (
-            sum(g.progress for g in all_goals) / total if total > 0 else 0.0
-        )
+        overall_progress = sum(g.progress for g in all_goals) / total if total > 0 else 0.0
 
         return {
             "total_goals": total,
             "completed": completed,
             "in_progress": in_progress,
             "failed": failed,
-            "overall_progress": overall_progress
+            "overall_progress": overall_progress,
         }
 
     async def start(self) -> None:
-        """
-        Start Goal Manager (load goals from storage).
+        """Start Goal Manager (load goals from storage).
 
         Loads all goals from storage and resumes interrupted goals that
         were IN_PROGRESS during shutdown.
 
         Raises:
             StorageError: If loading fails
+
         """
         # Load all goals from storage
         await self.session_manager.load_goals()
 
         # Resume interrupted goals
-        in_progress_goals = await self.storage.query_goals(
-            status=GoalStatus.IN_PROGRESS
-        )
+        in_progress_goals = await self.storage.query_goals(status=GoalStatus.IN_PROGRESS)
         for goal in in_progress_goals:
             await self.executor.resume_goal(goal.id)
 
     async def shutdown(self) -> None:
-        """
-        Shutdown Goal Manager (persist all state).
+        """Shutdown Goal Manager (persist all state).
 
         Ensures all goal state is persisted before termination.
         With immediate persistence strategy, this is a no-op but kept
@@ -803,12 +801,12 @@ class GoalManager:
         Example:
             >>> await manager.shutdown()
             >>> print("Goal Manager shutdown complete")
+
         """
         await self.session_manager.persist_all()
 
     async def _decompose_goal(self, goal_id: str) -> None:
-        """
-        Decompose goal into sub-goals (internal helper).
+        """Decompose goal into sub-goals (internal helper).
 
         Async helper that:
         1. Marks goal as DECOMPOSING
@@ -824,6 +822,7 @@ class GoalManager:
         Note:
             This is an internal method called asynchronously by create_goal.
             Errors are caught and logged, not propagated.
+
         """
         goal = await self.storage.get_goal(goal_id)
         if not goal:

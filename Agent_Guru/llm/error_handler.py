@@ -1,5 +1,4 @@
-"""
-Error Handler with Circuit Breaker for the LLM Runtime.
+"""Error Handler with Circuit Breaker for the LLM Runtime.
 
 Provides:
 - Exponential backoff retry for transient errors
@@ -20,13 +19,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from Agent_Guru.llm.models import CircuitBreakerOpenError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +37,10 @@ T = TypeVar("T")
 class ErrorType(Enum):
     """Classification of LLM provider errors."""
 
-    TRANSIENT = "transient"      # Retry with backoff
-    RATE_LIMIT = "rate_limit"    # Wait then retry
-    PERMANENT = "permanent"      # Do not retry
-    TIMEOUT = "timeout"          # Retry with longer timeout
+    TRANSIENT = "transient"  # Retry with backoff
+    RATE_LIMIT = "rate_limit"  # Wait then retry
+    PERMANENT = "permanent"  # Do not retry
+    TIMEOUT = "timeout"  # Retry with longer timeout
 
 
 @dataclass
@@ -48,13 +49,12 @@ class CircuitBreakerState:
 
     is_open: bool = False
     failure_count: int = 0
-    last_failure: Optional[datetime] = None
-    opened_at: Optional[datetime] = None
+    last_failure: datetime | None = None
+    opened_at: datetime | None = None
 
 
 class ErrorHandler:
-    """
-    Handles LLM provider errors with retry logic and circuit breaker.
+    """Handles LLM provider errors with retry logic and circuit breaker.
 
     Circuit Breaker States:
     - Closed: Normal operation
@@ -67,6 +67,7 @@ class ErrorHandler:
         ...     lambda: adapter.complete(request),
         ...     provider="openai"
         ... )
+
     """
 
     def __init__(
@@ -93,10 +94,9 @@ class ErrorHandler:
     async def execute_with_retry(
         self,
         func: Callable[[], Coroutine[Any, Any, T]],
-        provider: Optional[str] = None,
+        provider: str | None = None,
     ) -> T:
-        """
-        Execute an async callable with retry and circuit breaker logic.
+        """Execute an async callable with retry and circuit breaker logic.
 
         Args:
             func: Async callable (no arguments) to execute.
@@ -108,14 +108,18 @@ class ErrorHandler:
         Raises:
             CircuitBreakerOpenError: If circuit is open for provider.
             Exception: If all retries are exhausted.
+
         """
         if provider and await self._is_circuit_open(provider):
-            raise CircuitBreakerOpenError(
+            msg = (
                 f"Circuit breaker is open for provider '{provider}'. "
                 f"Requests are blocked for {self.circuit_breaker_timeout_s}s."
             )
+            raise CircuitBreakerOpenError(
+                msg,
+            )
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         backoff_ms = self.initial_backoff_ms
 
         # For local Ollama, reduce retries to 1 — if the model times out once
@@ -143,7 +147,7 @@ class ErrorHandler:
                     if error_type != ErrorType.PERMANENT:
                         await self._record_failure(provider)
 
-                logger.warning(
+                logger.exception(
                     "LLM request failed (attempt %d/%d): %s — %s",
                     attempt + 1,
                     effective_max_retries + 1,
@@ -172,7 +176,8 @@ class ErrorHandler:
 
         # Should never reach here
         if not (last_error is not None):
-            raise AssertionError("last_error is not None assertion failed")
+            msg = "last_error is not None assertion failed"
+            raise AssertionError(msg)
         raise last_error
 
     # ------------------------------------------------------------------
@@ -202,8 +207,7 @@ class ErrorHandler:
 
     @staticmethod
     def _extract_rate_limit_wait(error: Exception) -> float:
-        """
-        Extract the wait duration from a rate limit error.
+        """Extract the wait duration from a rate limit error.
 
         Tries to parse a Retry-After value from the error message.
         Falls back to 1.0 second.
@@ -233,14 +237,12 @@ class ErrorHandler:
 
             # Check if the timeout has elapsed (half-open)
             if state.opened_at is not None:
-                elapsed = (datetime.now(tz=timezone.utc) - state.opened_at).total_seconds()
+                elapsed = (datetime.now(tz=UTC) - state.opened_at).total_seconds()
                 if elapsed >= self.circuit_breaker_timeout_s:
                     # Transition to half-open: allow one test request
                     state.is_open = False
                     state.failure_count = 0
-                    logger.info(
-                        "Circuit breaker for '%s' transitioning to half-open.", provider
-                    )
+                    logger.info("Circuit breaker for '%s' transitioning to half-open.", provider)
                     return False
 
             return True
@@ -261,18 +263,18 @@ class ErrorHandler:
 
             state = self._circuit_breakers[provider]
             state.failure_count += 1
-            state.last_failure = datetime.now(tz=timezone.utc)
+            state.last_failure = datetime.now(tz=UTC)
 
             if state.failure_count >= self.circuit_breaker_threshold:
                 if not state.is_open:
                     state.is_open = True
-                    state.opened_at = datetime.now(tz=timezone.utc)
+                    state.opened_at = datetime.now(tz=UTC)
                     logger.warning(
                         "Circuit breaker OPENED for provider '%s' after %d failures.",
                         provider,
                         state.failure_count,
                     )
 
-    def get_circuit_state(self, provider: str) -> Optional[CircuitBreakerState]:
+    def get_circuit_state(self, provider: str) -> CircuitBreakerState | None:
         """Return the current circuit breaker state for a provider."""
         return self._circuit_breakers.get(provider)

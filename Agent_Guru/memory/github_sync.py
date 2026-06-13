@@ -17,7 +17,7 @@ import logging
 import sqlite3
 import time
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -61,9 +61,17 @@ class StubGitHubClient(GitHubClientProtocol):
     def push(self, file_path: str, content: str, commit_message: str) -> str:
         self._call_count += 1
         if self._call_count <= self._fail_times:
-            raise ConnectionError(f"Simulated failure #{self._call_count}")
+            msg = f"Simulated failure #{self._call_count}"
+            raise ConnectionError(msg)
         sha = str(uuid4())[:8]
-        self.pushes.append({"file_path": file_path, "content": content, "commit_message": commit_message, "sha": sha})
+        self.pushes.append(
+            {
+                "file_path": file_path,
+                "content": content,
+                "commit_message": commit_message,
+                "sha": sha,
+            },
+        )
         return sha
 
     def is_available(self) -> bool:
@@ -75,7 +83,10 @@ class PersistentSyncQueue:
 
     def __init__(self, db_path: str = ":memory:") -> None:
         self._db_path = db_path
-        self._conn: sqlite3.Connection = sqlite3.connect(db_path, check_same_thread=False)  # persistent; closed in close()
+        self._conn: sqlite3.Connection = sqlite3.connect(
+            db_path,
+            check_same_thread=False,
+        )  # persistent; closed in close()
         self._init_db()
 
     def _init_db(self) -> None:
@@ -92,7 +103,7 @@ class PersistentSyncQueue:
                     last_error TEXT,
                     created_at TEXT NOT NULL
                 )
-                """
+                """,
             )
 
     def enqueue(self, op: SyncOperation) -> None:
@@ -133,11 +144,17 @@ class PersistentSyncQueue:
                     retry_count=row[5],
                     last_error=row[6],
                     timestamp=datetime.fromisoformat(row[7]),
-                )
+                ),
             )
         return ops
 
-    def update_status(self, operation_id: UUID, status: SyncStatus, error: str | None = None, retry_count: int = 0) -> None:
+    def update_status(
+        self,
+        operation_id: UUID,
+        status: SyncStatus,
+        error: str | None = None,
+        retry_count: int = 0,
+    ) -> None:
         with self._conn:
             self._conn.execute(
                 "UPDATE sync_queue SET status = ?, last_error = ?, retry_count = ? WHERE operation_id = ?",
@@ -147,7 +164,8 @@ class PersistentSyncQueue:
     def count_by_status(self, status: SyncStatus) -> int:
         with self._conn:
             row = self._conn.execute(
-                "SELECT COUNT(*) FROM sync_queue WHERE status = ?", (status.value,)
+                "SELECT COUNT(*) FROM sync_queue WHERE status = ?",
+                (status.value,),
             ).fetchone()
         return row[0] if row else 0
 
@@ -182,8 +200,9 @@ class GitHubSyncEngine:
         """Raise if file_path is not README.md."""
         resolved = safe_path(file_path, BASE_DIR)
         if resolved.name != _README_FILENAME:
+            msg = f"Only '{_README_FILENAME}' is allowed; got '{file_path}'"
             raise ReadmeOnlyViolationError(
-                f"Only '{_README_FILENAME}' is allowed; got '{file_path}'"
+                msg,
             )
 
     # ------------------------------------------------------------------
@@ -212,7 +231,7 @@ class GitHubSyncEngine:
     # ------------------------------------------------------------------
 
     def queue_sync(self, op: SyncOperation) -> UUID:
-        """Enqueue a sync operation. Never blocks. (Property 44 enforced here)"""
+        """Enqueue a sync operation. Never blocks. (Property 44 enforced here)."""
         self.validate_file_path(op.file_path)
         self._queue.enqueue(op)
         logger.debug("Queued sync op %s", op.operation_id)
@@ -246,11 +265,20 @@ class GitHubSyncEngine:
         for attempt, delay in enumerate(delays):
             try:
                 self._client.push(op.file_path, op.content, op.commit_message)
-                self._queue.update_status(op.operation_id, SyncStatus.COMPLETED, retry_count=attempt)
+                self._queue.update_status(
+                    op.operation_id,
+                    SyncStatus.COMPLETED,
+                    retry_count=attempt,
+                )
                 logger.debug("Sync op %s succeeded on attempt %d", op.operation_id, attempt + 1)
                 return True
             except Exception as exc:
-                logger.warning("Sync attempt %d failed for %s: %s", attempt + 1, op.operation_id, exc)
+                logger.exception(
+                    "Sync attempt %d failed for %s: %s",
+                    attempt + 1,
+                    op.operation_id,
+                    exc,
+                )
                 if attempt < len(delays) - 1:
                     time.sleep(delay)
         # All retries exhausted

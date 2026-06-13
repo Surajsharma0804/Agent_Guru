@@ -1,5 +1,4 @@
-"""
-Package Manager for the Guru Deployment System.
+"""Package Manager for the Guru Deployment System.
 
 Handles downloading, installing, updating, and removing Python packages.
 Implements streaming downloads and retry with exponential backoff.
@@ -17,9 +16,8 @@ import sqlite3
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 import structlog
 
@@ -37,14 +35,13 @@ _DEFAULT_TIMEOUT = 30
 
 
 class PackageManager:
-    """
-    Downloads, installs, updates, and removes Python packages.
+    """Downloads, installs, updates, and removes Python packages.
 
     Uses pip subprocess for actual installation. Maintains a SQLite
     registry of installed packages.
     """
 
-    def __init__(self, config: Configuration, db_path: Optional[Path] = None) -> None:
+    def __init__(self, config: Configuration, db_path: Path | None = None) -> None:
         self._config = config
         self._cache_dir = config.cache_dir
         self._cache_dir.mkdir(parents=True, exist_ok=True)
@@ -62,8 +59,7 @@ class PackageManager:
         version: str,
         repo_url: str,
     ) -> Path:
-        """
-        Download a package from a repository with retry + exponential backoff.
+        """Download a package from a repository with retry + exponential backoff.
 
         Returns path to the downloaded file.
         Raises NetworkError after max_retries exhausted.
@@ -74,7 +70,7 @@ class PackageManager:
             return dest
 
         url = f"{repo_url.rstrip('/')}/{package_name}/{version}/{package_name}-{version}.whl"
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
 
         for attempt in range(self._config.max_retries + 1):
             try:
@@ -85,26 +81,37 @@ class PackageManager:
             except Exception as exc:
                 last_exc = exc
                 if attempt < self._config.max_retries:
-                    delay = 2 ** attempt
-                    logger.warning("download_retry", attempt=attempt + 1,
-                                   delay=delay, error=str(exc))
+                    delay = 2**attempt
+                    logger.exception(
+                        "download_retry",
+                        attempt=attempt + 1,
+                        delay=delay,
+                        error=str(exc),
+                    )
                     await asyncio.sleep(delay)
-
-        self._audit(OperationType.DOWNLOAD, package_name, version, "FAILURE",
-                    {"error": str(last_exc)})
-        raise NetworkError(
+        self._audit(
+            OperationType.DOWNLOAD,
+            package_name,
+            version,
+            "FAILURE",
+            {"error": str(last_exc)},
+        )
+        msg = (
             f"Failed to download '{package_name}=={version}' after "
             f"{self._config.max_retries} retries: {last_exc}"
         )
+        raise NetworkError(
+            msg,
+        )
 
     def install_package(self, package_path: Path, target_env: Path) -> None:
-        """
-        Install a package into the target Python environment using pip.
+        """Install a package into the target Python environment using pip.
 
         Raises InstallationError on failure and cleans up partial artifacts.
         """
         if not package_path.exists():
-            raise InstallationError(f"Package file not found: {package_path}")
+            msg = f"Package file not found: {package_path}"
+            raise InstallationError(msg)
 
         python = target_env / "bin" / "python"
         if not python.exists():
@@ -114,54 +121,63 @@ class PackageManager:
 
         start = time.monotonic()
         try:
-            result = subprocess.run(
-                [str(python), "-m", "pip", "install", str(package_path),
-                 "--quiet", "--no-deps"],
+            result = subprocess.run(  # noqa: S603
+                [str(python), "-m", "pip", "install", str(package_path), "--quiet", "--no-deps"],
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=300,
             )
             if result.returncode != 0:
-                raise InstallationError(
-                    f"pip install failed: {result.stderr.strip()}"
-                )
+                msg = f"pip install failed: {result.stderr.strip()}"
+                raise InstallationError(msg)
         except subprocess.TimeoutExpired as exc:
             self._cleanup_partial(package_path)
-            raise InstallationError(f"Installation timed out: {exc}") from exc
-        except InstallationError as e:
+            msg = f"Installation timed out: {exc}"
+            raise InstallationError(msg) from exc
             self._cleanup_partial(package_path)
             raise
-        except Exception as exc:
             self._cleanup_partial(package_path)
-            raise InstallationError(f"Installation error: {exc}") from exc
-
+            msg = f"Installation error: {exc}"
+            raise InstallationError(msg) from exc
         duration = time.monotonic() - start
         pkg_name = package_path.stem.split("-")[0]
         pkg_version = package_path.stem.split("-")[1] if "-" in package_path.stem else "0.0.0"
         self._register_package(pkg_name, pkg_version, target_env, package_path)
-        self._audit(OperationType.INSTALL, pkg_name, pkg_version, "SUCCESS",
-                    {"duration_s": round(duration, 3)})
-        logger.info("package_installed", package=pkg_name, version=pkg_version,
-                    duration_s=round(duration, 3))
+        self._audit(
+            OperationType.INSTALL,
+            pkg_name,
+            pkg_version,
+            "SUCCESS",
+            {"duration_s": round(duration, 3)},
+        )
+        logger.info(
+            "package_installed",
+            package=pkg_name,
+            version=pkg_version,
+            duration_s=round(duration, 3),
+        )
 
     def remove_package(self, package_name: str, target_env: Path) -> None:
-        """
-        Remove a package from the target environment.
+        """Remove a package from the target environment.
 
         Raises PackageNotFoundError if not installed.
         """
         if not self._is_registered(package_name):
-            raise PackageNotFoundError(f"Package '{package_name}' is not installed")
+            msg = f"Package '{package_name}' is not installed"
+            raise PackageNotFoundError(msg)
 
         python = self._resolve_python(target_env)
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603
             [str(python), "-m", "pip", "uninstall", package_name, "-y", "--quiet"],
+            check=False,
             capture_output=True,
             text=True,
             timeout=120,
         )
         if result.returncode != 0:
-            raise InstallationError(f"pip uninstall failed: {result.stderr.strip()}")
+            msg = f"pip uninstall failed: {result.stderr.strip()}"
+            raise InstallationError(msg)
 
         self._unregister_package(package_name)
         self._audit(OperationType.REMOVE, package_name, None, "SUCCESS", {})
@@ -172,7 +188,7 @@ class PackageManager:
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT name, version, install_path, dependencies, metadata, "
-                "install_timestamp, checksum FROM packages"
+                "install_timestamp, checksum FROM packages",
             ).fetchall()
         packages = []
         for row in rows:
@@ -185,13 +201,12 @@ class PackageManager:
                     metadata=json.loads(row[4]) if row[4] else {},
                     install_timestamp=datetime.fromisoformat(row[5]),
                     checksum=row[6] or "",
-                )
+                ),
             )
         return packages
 
     def verify_checksum(self, package_path: Path, expected_hash: str) -> bool:
-        """
-        Verify package integrity using SHA-256.
+        """Verify package integrity using SHA-256.
 
         Streams the file to avoid loading large packages into memory.
         """
@@ -217,13 +232,14 @@ class PackageManager:
         except ImportError:
             # Fallback: use urllib for environments without aiohttp
             import urllib.request
-            urllib.request.urlretrieve(url, str(dest))  # nosec B310
 
+            urllib.request.urlretrieve(url, str(dest))  # nosec B310
         timeout = aiohttp.ClientTimeout(total=self._config.network_timeout)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(url) as resp:
                 if resp.status != 200:
-                    raise NetworkError(f"HTTP {resp.status} for {url}")
+                    msg = f"HTTP {resp.status} for {url}"
+                    raise NetworkError(msg)
                 with self._resolve_cache_path(dest).open("wb") as fh:
                     async for chunk in resp.content.iter_chunked(_CHUNK_SIZE):
                         fh.write(chunk)
@@ -250,7 +266,7 @@ class PackageManager:
                     hasher.update(chunk)
             checksum = hasher.hexdigest()
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with self._connect() as conn:
             conn.execute(
                 """
@@ -268,9 +284,7 @@ class PackageManager:
 
     def _is_registered(self, name: str) -> bool:
         with self._connect() as conn:
-            row = conn.execute(
-                "SELECT 1 FROM packages WHERE name = ?", (name,)
-            ).fetchone()
+            row = conn.execute("SELECT 1 FROM packages WHERE name = ?", (name,)).fetchone()
         return row is not None
 
     def _resolve_cache_path(self, path: Path) -> Path:
@@ -278,13 +292,13 @@ class PackageManager:
 
         Raises:
             ValueError: If the resolved path escapes ``self._cache_dir``.
+
         """
         base = self._cache_dir.resolve()
         resolved = path.resolve()
         if not resolved.is_relative_to(base):
-            raise ValueError(
-                f"Path '{path}' resolves outside the allowed cache directory '{base}'"
-            )
+            msg = f"Path '{path}' resolves outside the allowed cache directory '{base}'"
+            raise ValueError(msg)
         return resolved
 
     def _resolve_python(self, target_env: Path) -> Path:
@@ -304,19 +318,19 @@ class PackageManager:
         self,
         operation: OperationType,
         package_name: str,
-        version: Optional[str],
+        version: str | None,
         result: str,
         details: dict,
     ) -> None:
         self._audit_entries.append(
             AuditLogEntry(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation=operation,
                 result=result,
                 package_name=package_name,
                 version=version,
                 details=details,
-            )
+            ),
         )
 
     def _init_db(self) -> None:
@@ -332,7 +346,7 @@ class PackageManager:
                     install_timestamp TEXT NOT NULL,
                     checksum TEXT NOT NULL DEFAULT ''
                 )
-                """
+                """,
             )
 
     def _connect(self) -> sqlite3.Connection:

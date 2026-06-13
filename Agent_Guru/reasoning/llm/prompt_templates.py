@@ -1,5 +1,4 @@
-"""
-Semantic LLM Interpreter Prompt Templates
+"""Semantic LLM Interpreter Prompt Templates.
 
 This module provides prompt templates for the Semantic LLM Interpreter,
 which is the PRIMARY BRAIN of Agent_Guru. It converts natural language
@@ -20,13 +19,12 @@ Requirements: 16.1, 16.2, 16.3, 16.4
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
 class PromptContext:
-    """
-    Context information for prompt injection.
+    """Context information for prompt injection.
 
     Includes conversation history, tracked entities, user preferences,
     past actions, retrieved memories, and world state.
@@ -44,17 +42,17 @@ class PromptContext:
     retrieved_memories: list[dict[str, Any]] = field(default_factory=list)
 
     # World state summary
-    world_state_summary: Optional[str] = None
+    world_state_summary: str | None = None
 
     def format_for_prompt(self, max_turns: int = 5) -> str:
-        """
-        Format context for prompt injection.
+        """Format context for prompt injection.
 
         Args:
             max_turns: Maximum number of conversation turns to include
 
         Returns:
             Formatted context string
+
         """
         parts = []
 
@@ -104,22 +102,24 @@ class PromptContext:
 
 
 class PromptTemplate:
-    """
-    Prompt template for semantic interpretation.
+    """Prompt template for semantic interpretation.
 
     Includes system prompt, user prompt template, and few-shot examples.
     """
 
     def __init__(
-        self, system_prompt: str, user_prompt_template: str, few_shot_examples: list[dict[str, Any]]
-    ):
-        """
-        Initialize prompt template.
+        self,
+        system_prompt: str,
+        user_prompt_template: str,
+        few_shot_examples: list[dict[str, Any]],
+    ) -> None:
+        """Initialize prompt template.
 
         Args:
             system_prompt: System-level instructions for the LLM
             user_prompt_template: Template for user prompts with placeholders
             few_shot_examples: List of example input/output pairs
+
         """
         self.system_prompt = system_prompt
         self.user_prompt_template = user_prompt_template
@@ -128,13 +128,12 @@ class PromptTemplate:
     def format_user_prompt(
         self,
         user_input: str,
-        context: Optional[PromptContext] = None,
-        available_tools: Optional[list[str]] = None,
+        context: PromptContext | None = None,
+        available_tools: list[str] | None = None,
         include_examples: bool = True,
         max_examples: int = 3,
     ) -> str:
-        """
-        Format user prompt with context and examples.
+        """Format user prompt with context and examples.
 
         Args:
             user_input: User's natural language request
@@ -145,6 +144,7 @@ class PromptTemplate:
 
         Returns:
             Formatted user prompt
+
         """
         # Format context
         context_str = context.format_for_prompt() if context else "No context available."
@@ -156,7 +156,7 @@ class PromptTemplate:
         examples_str = ""
         if include_examples and self.few_shot_examples:
             examples_str = "\n\n".join(
-                [self._format_example(ex) for ex in self.few_shot_examples[:max_examples]]
+                [self._format_example(ex) for ex in self.few_shot_examples[:max_examples]],
             )
             examples_str = f"\n\nExamples:\n\n{examples_str}\n\n"
 
@@ -269,7 +269,7 @@ SEMANTIC_INTERPRETER_EXAMPLES = [
                     "parameters": {"duration_seconds": 300, "label": "Timer"},
                     "estimated_duration": 1.0,
                     "status": "pending",
-                }
+                },
             ],
             "confidence": 0.98,
             "requires_confirmation": False,
@@ -294,7 +294,7 @@ SEMANTIC_INTERPRETER_EXAMPLES = [
                     },
                     "estimated_duration": 2.0,
                     "status": "pending",
-                }
+                },
             ],
             "confidence": 0.95,
             "requires_confirmation": True,
@@ -344,7 +344,7 @@ SEMANTIC_INTERPRETER_EXAMPLES = [
                     "parameters": {"location": "current_location", "time": "now"},
                     "estimated_duration": 1.5,
                     "status": "pending",
-                }
+                },
             ],
             "confidence": 0.92,
             "requires_confirmation": False,
@@ -402,7 +402,7 @@ SEMANTIC_INTERPRETER_EXAMPLES = [
                     "parameters": {"topic": "about_agent", "response_type": "informational"},
                     "estimated_duration": 0.5,
                     "status": "pending",
-                }
+                },
             ],
             "confidence": 0.99,
             "requires_confirmation": False,
@@ -423,7 +423,7 @@ SEMANTIC_INTERPRETER_EXAMPLES = [
                     "parameters": {"query_type": "temporal", "action": "call", "person": "Mom"},
                     "estimated_duration": 1.0,
                     "status": "pending",
-                }
+                },
             ],
             "confidence": 0.94,
             "requires_confirmation": False,
@@ -478,7 +478,7 @@ SEMANTIC_INTERPRETER_EXAMPLES = [
                     },
                     "estimated_duration": 1.0,
                     "status": "pending",
-                }
+                },
             ],
             "confidence": 0.96,
             "requires_confirmation": False,
@@ -504,7 +504,7 @@ SEMANTIC_INTERPRETER_EXAMPLES = [
                     },
                     "estimated_duration": 1.5,
                     "status": "pending",
-                }
+                },
             ],
             "confidence": 0.93,
             "requires_confirmation": False,
@@ -523,13 +523,12 @@ SEMANTIC_INTERPRETER_TEMPLATE = PromptTemplate(
 
 def create_semantic_interpreter_prompt(
     user_input: str,
-    context: Optional[PromptContext] = None,
-    available_tools: Optional[list[str]] = None,
+    context: PromptContext | None = None,
+    available_tools: list[str] | None = None,
     include_examples: bool = True,
     max_examples: int = 3,
 ) -> tuple[str, str]:
-    """
-    Create system and user prompts for semantic interpretation.
+    """Create system and user prompts for semantic interpretation.
 
     This is the main entry point for generating prompts for the
     Semantic LLM Interpreter.
@@ -553,6 +552,7 @@ def create_semantic_interpreter_prompt(
         ...     "What about tomorrow?",
         ...     context=context
         ... )
+
     """
     system_prompt = SEMANTIC_INTERPRETER_TEMPLATE.system_prompt
     user_prompt = SEMANTIC_INTERPRETER_TEMPLATE.format_user_prompt(
@@ -571,11 +571,10 @@ def inject_conversation_context(
     tracked_entities: dict[str, Any],
     user_preferences: dict[str, Any],
     past_actions: list[str],
-    retrieved_memories: Optional[list[dict[str, Any]]] = None,
-    world_state_summary: Optional[str] = None,
+    retrieved_memories: list[dict[str, Any]] | None = None,
+    world_state_summary: str | None = None,
 ) -> PromptContext:
-    """
-    Create PromptContext from conversation components.
+    """Create PromptContext from conversation components.
 
     This helper function assembles all context components into a
     PromptContext object for prompt injection.
@@ -598,6 +597,7 @@ def inject_conversation_context(
         ...     user_preferences={"default_timer_sound": "bell"},
         ...     past_actions=["set_timer(300)"]
         ... )
+
     """
     return PromptContext(
         recent_turns=recent_turns,
@@ -610,10 +610,10 @@ def inject_conversation_context(
 
 
 def compress_context_for_token_limit(
-    context: PromptContext, max_tokens: int = 1000
+    context: PromptContext,
+    max_tokens: int = 1000,
 ) -> PromptContext:
-    """
-    Compress context to fit within token limits.
+    """Compress context to fit within token limits.
 
     Applies aggressive compression strategies to reduce context size
     while preserving the most important information.
@@ -631,6 +631,7 @@ def compress_context_for_token_limit(
         3. Remove past actions
         4. Keep only top 3 memories
         5. Truncate world state summary
+
     """
     max_chars = max_tokens * 4  # Rough approximation
 

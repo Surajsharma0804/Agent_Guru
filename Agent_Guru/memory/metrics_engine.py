@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from Agent_Guru.memory.models import MetricSnapshot, MetricType
 
@@ -35,7 +35,7 @@ class AlertEvent:
     metric_type: MetricType
     current_value: float
     threshold: float
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     message: str = ""
 
 
@@ -90,7 +90,7 @@ class MetricsEngine:
             metric_type=metric_type,
             value=value,
             metadata=metadata or {},
-            timestamp=timestamp or datetime.now(tz=timezone.utc),
+            timestamp=timestamp or datetime.now(tz=UTC),
         )
         bucket = self._store[metric_type]
         bucket.append(snap)
@@ -125,9 +125,7 @@ class MetricsEngine:
     # Trend analysis
     # ------------------------------------------------------------------
 
-    def calculate_trend(
-        self, metric_type: MetricType, window: int = 20
-    ) -> TrendResult | None:
+    def calculate_trend(self, metric_type: MetricType, window: int = 20) -> TrendResult | None:
         """Linear trend over the last `window` snapshots. Returns None if <2 points."""
         snaps = self._store.get(metric_type, [])[-window:]
         n = len(snaps)
@@ -153,9 +151,7 @@ class MetricsEngine:
     # Dashboard
     # ------------------------------------------------------------------
 
-    def generate_dashboard(
-        self, since: datetime | None = None
-    ) -> list[DashboardEntry]:
+    def generate_dashboard(self, since: datetime | None = None) -> list[DashboardEntry]:
         """Summary of all tracked metric types."""
         entries = []
         for metric_type, snaps in self._store.items():
@@ -172,7 +168,7 @@ class MetricsEngine:
                     mean_value=sum(values) / len(values),
                     sample_count=len(values),
                     trend_slope=trend.slope if trend else 0.0,
-                )
+                ),
             )
         return entries
 

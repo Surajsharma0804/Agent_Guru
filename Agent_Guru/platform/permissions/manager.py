@@ -1,5 +1,4 @@
-"""
-Permission Manager - Cross-platform permission validation and management.
+"""Permission Manager - Cross-platform permission validation and management.
 
 This module provides platform-independent permission checking and validation
 for system operations requiring elevated privileges.
@@ -21,11 +20,11 @@ import os
 import platform
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class PermissionLevel(Enum):
     """Permission levels for system operations."""
+
     USER = "user"
     ADMIN = "admin"
     ROOT = "root"
@@ -41,10 +40,12 @@ class UserInfo:
         gid: Group ID (Unix) or None (Windows)
         is_elevated: Whether running with elevated privileges
         permission_level: Current permission level
+
     """
+
     username: str
-    uid: Optional[int]
-    gid: Optional[int]
+    uid: int | None
+    gid: int | None
     is_elevated: bool
     permission_level: PermissionLevel
 
@@ -56,14 +57,15 @@ class PermissionError(Exception):
         message: Error message
         required_level: Required permission level
         current_level: Current permission level
+
     """
 
     def __init__(
         self,
         message: str,
         required_level: PermissionLevel,
-        current_level: PermissionLevel
-    ):
+        current_level: PermissionLevel,
+    ) -> None:
         self.message = message
         self.required_level = required_level
         self.current_level = current_level
@@ -84,12 +86,13 @@ class PermissionManager:
         >>> if manager.is_elevated():
         ...     print("Running with elevated privileges")
         >>> manager.require_elevated()  # Raises if not elevated
+
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize permission manager."""
         self._platform = platform.system()
-        self._user_info: Optional[UserInfo] = None
+        self._user_info: UserInfo | None = None
 
     def is_elevated(self) -> bool:
         """Check if running with elevated privileges.
@@ -103,11 +106,11 @@ class PermissionManager:
             >>> manager = PermissionManager()
             >>> if manager.is_elevated():
             ...     print("Running with admin/root privileges")
+
         """
         if self._platform == "Windows":
             return self._is_windows_admin()
-        else:  # Unix-like (macOS, Linux)
-            return self._is_unix_root()
+        return self._is_unix_root()
 
     def require_elevated(self) -> None:
         """Require elevated privileges, raise error if not elevated.
@@ -124,20 +127,23 @@ class PermissionManager:
             ...     # Perform privileged operation
             ... except PermissionError as e:
             ...     print(f"Permission denied: {e}")
+
         """
         if not self.is_elevated():
             current_level = PermissionLevel.USER
             required_level = (
-                PermissionLevel.ADMIN if self._platform == "Windows"
-                else PermissionLevel.ROOT
+                PermissionLevel.ADMIN if self._platform == "Windows" else PermissionLevel.ROOT
             )
 
-            raise PermissionError(
+            msg = (
                 f"This operation requires {required_level.value} privileges. "
                 f"Current level: {current_level.value}. "
-                f"Please run with elevated privileges.",
+                f"Please run with elevated privileges."
+            )
+            raise PermissionError(
+                msg,
                 required_level=required_level,
-                current_level=current_level
+                current_level=current_level,
             )
 
     def can_access_path(self, path: str, mode: str = "r") -> bool:
@@ -159,16 +165,14 @@ class PermissionManager:
             >>> manager = PermissionManager()
             >>> if manager.can_access_path("/etc/passwd", "r"):
             ...     print("Can read /etc/passwd")
+
         """
         if mode not in ("r", "w", "x"):
-            raise ValueError(f"Invalid mode: {mode}. Must be 'r', 'w', or 'x'")
+            msg = f"Invalid mode: {mode}. Must be 'r', 'w', or 'x'"
+            raise ValueError(msg)
 
         # Map mode to os.access constants
-        mode_map = {
-            "r": os.R_OK,
-            "w": os.W_OK,
-            "x": os.X_OK
-        }
+        mode_map = {"r": os.R_OK, "w": os.W_OK, "x": os.X_OK}
 
         # Check if path exists and is accessible
         return os.path.exists(path) and os.access(path, mode_map[mode])
@@ -186,16 +190,13 @@ class PermissionManager:
             >>> user = manager.get_current_user()
             >>> print(f"Username: {user.username}")
             >>> print(f"Elevated: {user.is_elevated}")
+
         """
         if self._user_info is None:
             self._user_info = self._get_user_info()
         return self._user_info
 
-    def validate_permission(
-        self,
-        required_level: PermissionLevel,
-        operation: str
-    ) -> None:
+    def validate_permission(self, required_level: PermissionLevel, operation: str) -> None:
         """Validate that current user has required permission level.
 
         Time Complexity: O(1)
@@ -216,6 +217,7 @@ class PermissionManager:
             ...     )
             ... except PermissionError as e:
             ...     print(f"Cannot modify settings: {e}")
+
         """
         user = self.get_current_user()
 
@@ -225,12 +227,15 @@ class PermissionManager:
 
         if required_level in (PermissionLevel.ADMIN, PermissionLevel.ROOT):
             if not user.is_elevated:
-                raise PermissionError(
+                msg = (
                     f"Operation '{operation}' requires {required_level.value} "
                     f"privileges. Current level: {user.permission_level.value}. "
-                    f"Please run with elevated privileges.",
+                    f"Please run with elevated privileges."
+                )
+                raise PermissionError(
+                    msg,
                     required_level=required_level,
-                    current_level=user.permission_level
+                    current_level=user.permission_level,
                 )
 
     def _is_windows_admin(self) -> bool:
@@ -240,6 +245,7 @@ class PermissionManager:
 
         Returns:
             True if running as admin, False otherwise
+
         """
         try:
             return ctypes.windll.shell32.IsUserAnAdmin() != 0
@@ -254,6 +260,7 @@ class PermissionManager:
 
         Returns:
             True if running as root (UID 0), False otherwise
+
         """
         try:
             return os.geteuid() == 0
@@ -268,38 +275,32 @@ class PermissionManager:
 
         Returns:
             UserInfo with current user details
+
         """
         is_elevated = self.is_elevated()
 
         if self._platform == "Windows":
             # Windows user info
             username = os.getenv("USERNAME", "unknown")
-            permission_level = (
-                PermissionLevel.ADMIN if is_elevated
-                else PermissionLevel.USER
-            )
+            permission_level = PermissionLevel.ADMIN if is_elevated else PermissionLevel.USER
 
             return UserInfo(
                 username=username,
                 uid=None,
                 gid=None,
                 is_elevated=is_elevated,
-                permission_level=permission_level
+                permission_level=permission_level,
             )
-        else:
-            # Unix-like user info
-            username = os.getenv("USER", "unknown")
-            uid = os.getuid() if hasattr(os, "getuid") else None
-            gid = os.getgid() if hasattr(os, "getgid") else None
-            permission_level = (
-                PermissionLevel.ROOT if is_elevated
-                else PermissionLevel.USER
-            )
+        # Unix-like user info
+        username = os.getenv("USER", "unknown")
+        uid = os.getuid() if hasattr(os, "getuid") else None
+        gid = os.getgid() if hasattr(os, "getgid") else None
+        permission_level = PermissionLevel.ROOT if is_elevated else PermissionLevel.USER
 
-            return UserInfo(
-                username=username,
-                uid=uid,
-                gid=gid,
-                is_elevated=is_elevated,
-                permission_level=permission_level
-            )
+        return UserInfo(
+            username=username,
+            uid=uid,
+            gid=gid,
+            is_elevated=is_elevated,
+            permission_level=permission_level,
+        )

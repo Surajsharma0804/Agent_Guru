@@ -1,5 +1,4 @@
-"""
-Utility functions for Goal Manager.
+"""Utility functions for Goal Manager.
 
 This module provides reusable utility functions for the Goal Manager system,
 including retry logic with exponential backoff for handling transient failures.
@@ -26,16 +25,15 @@ from Agent_Guru.goal_manager.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 async def retry_with_backoff(
     operation: Callable[[], Any],
     max_retries: int = 3,
-    base_delay: float = 1.0
+    base_delay: float = 1.0,
 ) -> Any:
-    """
-    Retry an async operation with exponential backoff.
+    """Retry an async operation with exponential backoff.
 
     This function implements exponential backoff retry logic for handling
     transient failures in external service calls (LLM Runtime, Agent
@@ -77,6 +75,7 @@ async def retry_with_backoff(
         - Attempt 4: After 4.0s delay (base_delay * 2^2)
 
     Validates: Requirements 11.1, 11.4, 11.5
+
     """
     last_exception = None
 
@@ -88,7 +87,9 @@ async def retry_with_backoff(
                     "retry_attempt",
                     attempt=attempt + 1,
                     max_retries=max_retries,
-                    operation=operation.__name__ if hasattr(operation, '__name__') else str(operation)
+                    operation=operation.__name__
+                    if hasattr(operation, "__name__")
+                    else str(operation),
                 )
 
             # Execute operation
@@ -99,7 +100,9 @@ async def retry_with_backoff(
                 logger.info(
                     "retry_succeeded",
                     attempt=attempt + 1,
-                    operation=operation.__name__ if hasattr(operation, '__name__') else str(operation)
+                    operation=operation.__name__
+                    if hasattr(operation, "__name__")
+                    else str(operation),
                 )
 
             return result
@@ -108,34 +111,36 @@ async def retry_with_backoff(
             last_exception = e
 
             # Log the failure
-            logger.warning(
+            logger.exception(
                 "operation_failed",
                 attempt=attempt + 1,
                 max_retries=max_retries,
                 error=str(e),
                 error_type=type(e).__name__,
-                operation=operation.__name__ if hasattr(operation, '__name__') else str(operation)
+                operation=operation.__name__ if hasattr(operation, "__name__") else str(operation),
             )
 
             # If this was the last attempt, raise the exception
             if attempt == max_retries - 1:
-                logger.error(
+                logger.exception(
                     "retry_exhausted",
                     max_retries=max_retries,
                     error=str(e),
                     error_type=type(e).__name__,
-                    operation=operation.__name__ if hasattr(operation, '__name__') else str(operation)
+                    operation=operation.__name__
+                    if hasattr(operation, "__name__")
+                    else str(operation),
                 )
                 raise
 
             # Calculate exponential backoff delay
-            delay = base_delay * (2 ** attempt)
+            delay = base_delay * (2**attempt)
 
             logger.info(
                 "retry_backoff",
                 attempt=attempt + 1,
                 delay_seconds=delay,
-                next_attempt=attempt + 2
+                next_attempt=attempt + 2,
             )
 
             # Wait before next retry
@@ -144,3 +149,4 @@ async def retry_with_backoff(
     # This should never be reached, but included for type safety
     if last_exception:
         raise last_exception
+    return None

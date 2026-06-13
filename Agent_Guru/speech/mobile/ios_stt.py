@@ -9,12 +9,11 @@ On actual iOS devices, this will use the real Apple Speech Framework.
 
 import asyncio
 import logging
-from typing import Optional
 
 import numpy as np
 
-from ..exceptions import GuruSpeechError
-from ..models import TranscriptionResult, TranscriptionSegment
+from Agent_Guru.speech.exceptions import GuruSpeechError
+from Agent_Guru.speech.models import TranscriptionResult, TranscriptionSegment
 
 logger = logging.getLogger(__name__)
 
@@ -44,14 +43,15 @@ class IOSSpeechRecognizer:
         self,
         prefer_on_device: bool = True,
         language: str = "en-US",
-        require_on_device: bool = False
-    ):
+        require_on_device: bool = False,
+    ) -> None:
         """Initialize iOS speech recognizer.
 
         Args:
             prefer_on_device: Prefer on-device recognition when available
             language: Language code (e.g., "en-US", "es-ES")
             require_on_device: Require on-device recognition (fail if unavailable)
+
         """
         self.prefer_on_device = prefer_on_device
         self.language = language
@@ -66,19 +66,18 @@ class IOSSpeechRecognizer:
         if self._is_ios:
             self._initialize_ios_components()
         else:
-            logger.warning(
-                "Running on non-iOS platform. "
-                "Using stub implementation for testing."
-            )
+            logger.warning("Running on non-iOS platform. Using stub implementation for testing.")
 
     def _detect_ios_platform(self) -> bool:
         """Detect if running on iOS platform.
 
         Returns:
             True if running on iOS, False otherwise
+
         """
         try:
-            import pyobjus  # type: ignore[import-not-found]/
+            import pyobjus  # type: ignore[import-not-found]  # noqa: F401
+
             return True
         except ImportError:
             return False
@@ -93,16 +92,17 @@ class IOSSpeechRecognizer:
             from pyobjus import autoclass
 
             # Load iOS Speech Framework classes
-            self.SFSpeechRecognizer = autoclass('SFSpeechRecognizer')
+            self.SFSpeechRecognizer = autoclass("SFSpeechRecognizer")
             self.SFSpeechAudioBufferRecognitionRequest = autoclass(
-                'SFSpeechAudioBufferRecognitionRequest'
+                "SFSpeechAudioBufferRecognitionRequest",
             )
-            self.AVAudioEngine = autoclass('AVAudioEngine')
-            self.AVAudioSession = autoclass('AVAudioSession')
+            self.AVAudioEngine = autoclass("AVAudioEngine")
+            self.AVAudioSession = autoclass("AVAudioSession")
 
             logger.info("Apple Speech Framework loaded successfully")
         except Exception as e:
-            raise IOSSTTError(f"Failed to load iOS components: {e}") from e
+            msg = f"Failed to load iOS components: {e}"
+            raise IOSSTTError(msg) from e
 
     async def initialize(self) -> None:
         """Initialize iOS speech recognizer.
@@ -112,6 +112,7 @@ class IOSSpeechRecognizer:
 
         Raises:
             IOSSTTError: If initialization fails or authorization denied
+
         """
         if self.is_initialized:
             return
@@ -128,24 +129,21 @@ class IOSSpeechRecognizer:
             await self._request_authorization()
 
             if self.authorization_status != "authorized":
-                raise IOSSTTError(
-                    f"Speech recognition not authorized: {self.authorization_status}"
-                )
+                msg = f"Speech recognition not authorized: {self.authorization_status}"
+                raise IOSSTTError(msg)
 
             # Create speech recognizer for specified language
             locale = self._create_locale(self.language)
             self.recognizer = self.SFSpeechRecognizer.alloc().initWithLocale_(locale)
 
             if self.recognizer is None:
-                raise IOSSTTError(
-                    f"Speech recognizer not available for language: {self.language}"
-                )
+                msg = f"Speech recognizer not available for language: {self.language}"
+                raise IOSSTTError(msg)
 
             # Check if on-device recognition is available
             if self.require_on_device and not self.recognizer.supportsOnDeviceRecognition():
-                raise IOSSTTError(
-                    "On-device recognition required but not available"
-                )
+                msg = "On-device recognition required but not available"
+                raise IOSSTTError(msg)
 
             # Set on-device preference
             if self.prefer_on_device:
@@ -156,7 +154,8 @@ class IOSSpeechRecognizer:
             logger.info("iOS speech recognizer initialized successfully")
 
         except Exception as e:
-            raise IOSSTTError(f"Failed to initialize iOS STT: {e}") from e
+            msg = f"Failed to initialize iOS STT: {e}"
+            raise IOSSTTError(msg) from e
 
     async def _request_authorization(self) -> None:
         """Request speech recognition authorization from user.
@@ -165,6 +164,7 @@ class IOSSpeechRecognizer:
 
         Raises:
             IOSSTTError: If authorization request fails
+
         """
         # In a real implementation, this would:
         # 1. Call SFSpeechRecognizer.requestAuthorization()
@@ -174,7 +174,7 @@ class IOSSpeechRecognizer:
         # For stub, assume authorized
         self.authorization_status = "authorized"
 
-    def _create_locale(self, language_code: str):
+    def _create_locale(self, language_code: str) -> None:
         """Create NSLocale for the specified language.
 
         Args:
@@ -182,17 +182,15 @@ class IOSSpeechRecognizer:
 
         Returns:
             NSLocale object
+
         """
         # In a real implementation:
-        # from pyobjus import autoclass
-        # NSLocale = autoclass('NSLocale')
-        # return NSLocale.alloc().initWithLocaleIdentifier_(language_code)
 
     async def recognize(
         self,
         audio_data: bytes,
         sample_rate: int = 16000,
-        language: Optional[str] = None
+        language: str | None = None,
     ) -> TranscriptionResult:
         """Recognize speech from audio data.
 
@@ -209,6 +207,7 @@ class IOSSpeechRecognizer:
 
         Raises:
             IOSSTTError: If recognition fails
+
         """
         if not self.is_initialized:
             await self.initialize()
@@ -222,7 +221,7 @@ class IOSSpeechRecognizer:
             request = self._create_recognition_request()
 
             # Set on-device preference
-            if self.prefer_on_device and hasattr(request, 'requiresOnDeviceRecognition'):
+            if self.prefer_on_device and hasattr(request, "requiresOnDeviceRecognition"):
                 request.requiresOnDeviceRecognition = True
 
             # Add audio data to request
@@ -230,18 +229,18 @@ class IOSSpeechRecognizer:
             # and appending it to the request
 
             # Perform recognition
-            result = await self._perform_recognition(request, audio_data)
-
-            return result
+            return await self._perform_recognition(request, audio_data)
 
         except Exception as e:
-            raise IOSSTTError(f"Recognition failed: {e}") from e
+            msg = f"Recognition failed: {e}"
+            raise IOSSTTError(msg) from e
 
     def _create_recognition_request(self):
         """Create SFSpeechAudioBufferRecognitionRequest.
 
         Returns:
             SFSpeechAudioBufferRecognitionRequest configured for recognition
+
         """
         if not self._is_ios:
             return None
@@ -253,11 +252,7 @@ class IOSSpeechRecognizer:
 
         return request
 
-    async def _perform_recognition(
-        self,
-        request,
-        audio_data: bytes
-    ) -> TranscriptionResult:
+    async def _perform_recognition(self, request, audio_data: bytes) -> TranscriptionResult:
         """Perform speech recognition with the given request.
 
         Args:
@@ -266,6 +261,7 @@ class IOSSpeechRecognizer:
 
         Returns:
             TranscriptionResult with transcribed text
+
         """
         # This would involve:
         # 1. Converting audio_data to AVAudioPCMBuffer
@@ -275,15 +271,14 @@ class IOSSpeechRecognizer:
         # 5. Parsing results and confidence scores
         # 6. Returning TranscriptionResult
 
-        raise NotImplementedError(
-            "Full iOS recognition requires running on iOS device"
-        )
+        msg = "Full iOS recognition requires running on iOS device"
+        raise NotImplementedError(msg)
 
     def _stub_recognize(
         self,
         audio_data: bytes,
         sample_rate: int,
-        language: Optional[str]
+        language: str | None,
     ) -> TranscriptionResult:
         """Stub implementation for testing on non-iOS platforms.
 
@@ -294,6 +289,7 @@ class IOSSpeechRecognizer:
 
         Returns:
             Mock TranscriptionResult for testing
+
         """
         # Calculate duration from audio data
         audio_array = np.frombuffer(audio_data, dtype=np.int16)
@@ -311,17 +307,17 @@ class IOSSpeechRecognizer:
                     text=mock_text,
                     start_time=0.0,
                     end_time=duration,
-                    confidence=0.95
-                )
+                    confidence=0.95,
+                ),
             ],
-            duration=duration
+            duration=duration,
         )
 
     async def recognize_streaming(
         self,
         audio_stream,
         sample_rate: int = 16000,
-        language: Optional[str] = None
+        language: str | None = None,
     ):
         """Recognize speech from streaming audio.
 
@@ -338,6 +334,7 @@ class IOSSpeechRecognizer:
 
         Raises:
             IOSSTTError: If recognition fails
+
         """
         if not self.is_initialized:
             await self.initialize()
@@ -351,9 +348,8 @@ class IOSSpeechRecognizer:
 
         # Real implementation would use continuous recognition
         # with AVAudioEngine and real-time buffer processing
-        raise NotImplementedError(
-            "Streaming recognition requires running on iOS device"
-        )
+        msg = "Streaming recognition requires running on iOS device"
+        raise NotImplementedError(msg)
 
     async def check_availability(self) -> dict:
         """Check iOS STT availability and capabilities.
@@ -364,6 +360,7 @@ class IOSSpeechRecognizer:
             - on_device: Whether on-device recognition is available
             - languages: List of supported languages
             - authorization: Authorization status
+
         """
         if not self._is_ios:
             return {
@@ -371,7 +368,7 @@ class IOSSpeechRecognizer:
                 "on_device": False,
                 "languages": [],
                 "authorization": "not_ios",
-                "platform": "non-ios (stub)"
+                "platform": "non-ios (stub)",
             }
 
         try:
@@ -396,17 +393,17 @@ class IOSSpeechRecognizer:
                 "on_device": on_device,
                 "languages": languages,
                 "authorization": auth_status,
-                "platform": "ios"
+                "platform": "ios",
             }
 
         except Exception as e:
-            logger.error("Failed to check availability: %s", e)
+            logger.exception("Failed to check availability")
             return {
                 "available": False,
                 "on_device": False,
                 "languages": [],
                 "authorization": "error",
-                "error": str(e)
+                "error": str(e),
             }
 
     async def get_supported_languages(self) -> list:
@@ -414,23 +411,19 @@ class IOSSpeechRecognizer:
 
         Returns:
             List of language codes (e.g., ["en-US", "es-ES", "fr-FR"])
+
         """
         if not self._is_ios:
             # Return common languages for stub
-            return [
-                "en-US", "en-GB", "es-ES", "fr-FR",
-                "de-DE", "it-IT", "ja-JP", "zh-CN"
-            ]
+            return ["en-US", "en-GB", "es-ES", "fr-FR", "de-DE", "it-IT", "ja-JP", "zh-CN"]
 
         try:
             # Get supported locales from Speech Framework
             # In real implementation:
-            # supported_locales = self.SFSpeechRecognizer.supportedLocales()
-            # return [locale.localeIdentifier() for locale in supported_locales]
             return ["en-US"]
 
-        except Exception as e:
-            logger.error("Failed to get supported languages: %s", e)
+        except Exception:
+            logger.exception("Failed to get supported languages")
             return []
 
     async def cleanup(self) -> None:
@@ -444,8 +437,8 @@ class IOSSpeechRecognizer:
                 # In Objective-C, this would be handled by ARC
                 self.recognizer = None
                 logger.info("iOS speech recognizer released")
-            except Exception as e:
-                logger.error("Error during cleanup: %s", e)
+            except Exception:
+                logger.exception("Error during cleanup")
 
         self.recognizer = None
         self.is_initialized = False

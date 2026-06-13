@@ -23,11 +23,11 @@ Performance Characteristics:
 Author: Agent Guru Team
 Date: 2026-03-20
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Optional
 
 from Agent_Guru.platform.platform_detector import PlatformDetector
 from Agent_Guru.platform.utils import fuzzy_match as _fuzzy_match
@@ -59,6 +59,7 @@ def _is_mobile(plat: str) -> bool:
 # DesktopApplicationController
 # ---------------------------------------------------------------------------
 
+
 class DesktopApplicationController:
     """Async controller for desktop application lifecycle management.
 
@@ -78,7 +79,7 @@ class DesktopApplicationController:
     They never raise exceptions for normal operational failures.
     """
 
-    def __init__(self, platform_override: Optional[str] = None) -> None:
+    def __init__(self, platform_override: str | None = None) -> None:
         """Create the controller.
 
         Args:
@@ -87,19 +88,21 @@ class DesktopApplicationController:
 
         Raises:
             RuntimeError: If the detected platform is ``"android"`` or ``"ios"``.
+
         """
         self._platform: str = platform_override or _detect_platform()
         self._initialized: bool = False
 
         if _is_mobile(self._platform):
-            raise RuntimeError(
+            msg = (
                 f"DesktopApplicationController is not supported on mobile "
                 f"platform '{self._platform}'. Use MobileApplicationController instead."
             )
+            raise RuntimeError(
+                msg,
+            )
 
-        logger.info(
-            "DesktopApplicationController created — platform=%s", self._platform
-        )
+        logger.info("DesktopApplicationController created — platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -115,9 +118,7 @@ class DesktopApplicationController:
             return
 
         self._initialized = True
-        logger.info(
-            "DesktopApplicationController initialized — platform=%s", self._platform
-        )
+        logger.info("DesktopApplicationController initialized — platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -136,6 +137,7 @@ class DesktopApplicationController:
 
         Returns:
             ``True`` if the launch command succeeded, ``False`` otherwise.
+
         """
         if not app_name or not app_name.strip():
             logger.warning("open_app called with empty app_name")
@@ -145,12 +147,12 @@ class DesktopApplicationController:
         try:
             if self._platform == "windows":
                 return await self._open_windows(app_name)
-            elif self._platform == "macos":
+            if self._platform == "macos":
                 return await self._open_macos(app_name)
-            else:  # linux / unknown
-                return await self._open_linux(app_name)
-        except Exception as exc:
-            logger.error("open_app(%r) failed: %s", app_name, exc)
+            # linux / unknown
+            return await self._open_linux(app_name)
+        except Exception:
+            logger.exception("open_app(%r) failed: %s")
             return False
 
     async def close_app(self, app_name: str) -> bool:
@@ -161,6 +163,7 @@ class DesktopApplicationController:
 
         Returns:
             ``True`` if at least one matching process was terminated.
+
         """
         if not app_name or not app_name.strip():
             logger.warning("close_app called with empty app_name")
@@ -170,12 +173,11 @@ class DesktopApplicationController:
         try:
             if self._platform == "windows":
                 return await self._close_windows(app_name)
-            elif self._platform == "macos":
+            if self._platform == "macos":
                 return await self._close_macos(app_name)
-            else:
-                return await self._close_linux(app_name)
-        except Exception as exc:
-            logger.error("close_app(%r) failed: %s", app_name, exc)
+            return await self._close_linux(app_name)
+        except Exception:
+            logger.exception("close_app(%r) failed: %s")
             return False
 
     async def minimize_app(self, app_name: str) -> bool:
@@ -186,6 +188,7 @@ class DesktopApplicationController:
 
         Returns:
             ``True`` on success, ``False`` otherwise.
+
         """
         if not app_name or not app_name.strip():
             return False
@@ -194,12 +197,11 @@ class DesktopApplicationController:
         try:
             if self._platform == "windows":
                 return await self._minimize_windows(app_name)
-            elif self._platform == "macos":
+            if self._platform == "macos":
                 return await self._minimize_macos(app_name)
-            else:
-                return await self._minimize_linux(app_name)
-        except Exception as exc:
-            logger.error("minimize_app(%r) failed: %s", app_name, exc)
+            return await self._minimize_linux(app_name)
+        except Exception:
+            logger.exception("minimize_app(%r) failed: %s")
             return False
 
     async def maximize_app(self, app_name: str) -> bool:
@@ -210,6 +212,7 @@ class DesktopApplicationController:
 
         Returns:
             ``True`` on success, ``False`` otherwise.
+
         """
         if not app_name or not app_name.strip():
             return False
@@ -218,12 +221,11 @@ class DesktopApplicationController:
         try:
             if self._platform == "windows":
                 return await self._maximize_windows(app_name)
-            elif self._platform == "macos":
+            if self._platform == "macos":
                 return await self._maximize_macos(app_name)
-            else:
-                return await self._maximize_linux(app_name)
-        except Exception as exc:
-            logger.error("maximize_app(%r) failed: %s", app_name, exc)
+            return await self._maximize_linux(app_name)
+        except Exception:
+            logger.exception("maximize_app(%r) failed: %s")
             return False
 
     async def restore_app(self, app_name: str) -> bool:
@@ -234,6 +236,7 @@ class DesktopApplicationController:
 
         Returns:
             ``True`` on success, ``False`` otherwise.
+
         """
         if not app_name or not app_name.strip():
             return False
@@ -242,12 +245,11 @@ class DesktopApplicationController:
         try:
             if self._platform == "windows":
                 return await self._restore_windows(app_name)
-            elif self._platform == "macos":
+            if self._platform == "macos":
                 return await self._restore_macos(app_name)
-            else:
-                return await self._restore_linux(app_name)
-        except Exception as exc:
-            logger.error("restore_app(%r) failed: %s", app_name, exc)
+            return await self._restore_linux(app_name)
+        except Exception:
+            logger.exception("restore_app(%r) failed: %s")
             return False
 
     async def switch_app(self, app_name: str) -> bool:
@@ -258,6 +260,7 @@ class DesktopApplicationController:
 
         Returns:
             ``True`` on success, ``False`` otherwise.
+
         """
         if not app_name or not app_name.strip():
             return False
@@ -266,12 +269,11 @@ class DesktopApplicationController:
         try:
             if self._platform == "windows":
                 return await self._switch_windows(app_name)
-            elif self._platform == "macos":
+            if self._platform == "macos":
                 return await self._switch_macos(app_name)
-            else:
-                return await self._switch_linux(app_name)
-        except Exception as exc:
-            logger.error("switch_app(%r) failed: %s", app_name, exc)
+            return await self._switch_linux(app_name)
+        except Exception:
+            logger.exception("switch_app(%r) failed: %s")
             return False
 
     # ------------------------------------------------------------------
@@ -296,21 +298,22 @@ class DesktopApplicationController:
         """Launch an application on Windows."""
         # Try os.startfile first (handles .exe, registered apps, documents)
         try:
-            import os  # noqa: PLC0415
+            import os
+
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
-                None, os.startfile, app_name
-            )
+            await loop.run_in_executor(None, os.startfile, app_name)
             return True
         except (OSError, FileNotFoundError, RuntimeError) as exc:
             logger.debug("os.startfile failed for %r: %s", app_name, exc)
-        except Exception as exc:
-            logger.warning("Unexpected error in os.startfile for %r: %s", app_name, exc)
-
+            logger.exception("Unexpected error in os.startfile for %r: %s")
         # Fallback: shell start command
         try:
             proc = await asyncio.create_subprocess_exec(
-                "cmd", "/c", "start", "", app_name,
+                "cmd",
+                "/c",
+                "start",
+                "",
+                app_name,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -327,10 +330,12 @@ class DesktopApplicationController:
         if closed:
             return True
 
-        # Fallback: taskkill
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "taskkill", "/F", "/IM", f"{app_name}.exe",
+                "taskkill",
+                "/F",
+                "/IM",
+                f"{app_name}.exe",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -354,11 +359,10 @@ class DesktopApplicationController:
         except ImportError as e:
             logger.debug("win32gui not available — skipping graceful close: %s", e)
             return False
-        except Exception as exc:
-            logger.debug("win32 close failed: %s", exc)
+            logger.debug("win32 close failed: %s", e)
             return False
 
-    def _find_window_win32(self, app_name: str) -> Optional[int]:
+    def _find_window_win32(self, app_name: str) -> int | None:
         """Find a window handle by fuzzy app name match."""
         try:
             import win32gui  # type: ignore[import]
@@ -372,7 +376,7 @@ class DesktopApplicationController:
 
             win32gui.EnumWindows(_enum_cb, None)
             return found[0] if found else None
-        except Exception as e:
+        except Exception:
             return None
 
     async def _minimize_windows(self, app_name: str) -> bool:
@@ -386,12 +390,8 @@ class DesktopApplicationController:
             if hwnd:
                 win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
                 return True
-        except ImportError as e:
-            pass
-        except Exception as exc:
+        except ImportError as exc:
             logger.debug("win32 minimize failed: %s", exc)
-
-        # Fallback: pyautogui
         return await self._pyautogui_window_op(app_name, "minimize")
 
     async def _maximize_windows(self, app_name: str) -> bool:
@@ -404,11 +404,8 @@ class DesktopApplicationController:
             if hwnd:
                 win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
                 return True
-        except ImportError as e:
-            pass
-        except Exception as exc:
+        except ImportError as exc:
             logger.debug("win32 maximize failed: %s", exc)
-
         return await self._pyautogui_window_op(app_name, "maximize")
 
     async def _restore_windows(self, app_name: str) -> bool:
@@ -421,11 +418,8 @@ class DesktopApplicationController:
             if hwnd:
                 win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
                 return True
-        except ImportError as e:
-            pass
-        except Exception as exc:
+        except ImportError as exc:
             logger.debug("win32 restore failed: %s", exc)
-
         return await self._pyautogui_window_op(app_name, "restore")
 
     async def _switch_windows(self, app_name: str) -> bool:
@@ -437,11 +431,8 @@ class DesktopApplicationController:
             if hwnd:
                 win32gui.SetForegroundWindow(hwnd)
                 return True
-        except ImportError as e:
-            pass
-        except Exception as exc:
+        except ImportError as exc:
             logger.debug("win32 switch failed: %s", exc)
-
         return await self._pyautogui_window_op(app_name, "activate")
 
     async def _pyautogui_window_op(self, app_name: str, op: str) -> bool:
@@ -474,7 +465,9 @@ class DesktopApplicationController:
         """Launch an application on macOS using ``open -a``."""
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "open", "-a", app_name,
+                "open",
+                "-a",
+                app_name,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -489,7 +482,9 @@ class DesktopApplicationController:
         script = f'tell application "{app_name}" to quit'
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -501,10 +496,7 @@ class DesktopApplicationController:
 
     async def _minimize_macos(self, app_name: str) -> bool:
         """Minimize a window on macOS via AppleScript."""
-        script = (
-            f'tell application "{app_name}" to set miniaturized of '
-            f'front window to true'
-        )
+        script = f'tell application "{app_name}" to set miniaturized of front window to true'
         return await self._run_osascript(script, app_name, "minimize")
 
     async def _maximize_macos(self, app_name: str) -> bool:
@@ -518,10 +510,7 @@ class DesktopApplicationController:
     async def _restore_macos(self, app_name: str) -> bool:
         """Restore a window on macOS via AppleScript."""
         # Un-miniaturize and un-fullscreen
-        script = (
-            f'tell application "{app_name}" to set miniaturized of '
-            f'front window to false'
-        )
+        script = f'tell application "{app_name}" to set miniaturized of front window to false'
         return await self._run_osascript(script, app_name, "restore")
 
     async def _switch_macos(self, app_name: str) -> bool:
@@ -533,7 +522,9 @@ class DesktopApplicationController:
         """Run an AppleScript and return True on success."""
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -558,15 +549,12 @@ class DesktopApplicationController:
             )
             # Don't wait — detach the process
             return True
-        except FileNotFoundError as e:
-            pass
-        except Exception as exc:
+        except FileNotFoundError as exc:
             logger.debug("Direct exec failed for %r: %s", app_name, exc)
-
-        # Fallback: xdg-open
         try:
             await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "xdg-open", app_name,
+                "xdg-open",
+                app_name,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -581,7 +569,9 @@ class DesktopApplicationController:
         if await self._wmctrl_available():
             try:
                 proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                    "wmctrl", "-c", app_name,
+                    "wmctrl",
+                    "-c",
+                    app_name,
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.DEVNULL,
                 )
@@ -590,11 +580,11 @@ class DesktopApplicationController:
                     return True
             except Exception as exc:
                 logger.debug("wmctrl close failed for %r: %s", app_name, exc)
-
-        # Fallback: pkill
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "pkill", "-f", app_name,
+                "pkill",
+                "-f",
+                app_name,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -612,7 +602,11 @@ class DesktopApplicationController:
         try:
             # wmctrl -r <name> -b add,hidden  (iconify)
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "wmctrl", "-r", app_name, "-b", "add,hidden",
+                "wmctrl",
+                "-r",
+                app_name,
+                "-b",
+                "add,hidden",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -629,7 +623,11 @@ class DesktopApplicationController:
             return False
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "wmctrl", "-r", app_name, "-b", "add,maximized_vert,maximized_horz",
+                "wmctrl",
+                "-r",
+                app_name,
+                "-b",
+                "add,maximized_vert,maximized_horz",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -645,7 +643,10 @@ class DesktopApplicationController:
             return False
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "wmctrl", "-r", app_name, "-b",
+                "wmctrl",
+                "-r",
+                app_name,
+                "-b",
                 "remove,maximized_vert,maximized_horz,hidden",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -662,7 +663,9 @@ class DesktopApplicationController:
             return False
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607
-                "wmctrl", "-a", app_name,
+                "wmctrl",
+                "-a",
+                app_name,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -676,7 +679,7 @@ class DesktopApplicationController:
     # Helpers
     # ------------------------------------------------------------------
 
-    _wmctrl_cache: Optional[bool] = None
+    _wmctrl_cache: bool | None = None
 
     async def _wmctrl_available(self) -> bool:
         """Return True if wmctrl is installed (cached)."""
@@ -685,14 +688,14 @@ class DesktopApplicationController:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "which", "wmctrl",
+                "which",
+                "wmctrl",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
             await asyncio.wait_for(proc.wait(), timeout=2.0)
             result = proc.returncode == 0
-        except Exception as e:
+        except Exception:
             result = False
-
         DesktopApplicationController._wmctrl_cache = result
         return result

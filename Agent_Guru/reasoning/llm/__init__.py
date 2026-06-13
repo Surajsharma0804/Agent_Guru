@@ -1,5 +1,4 @@
-"""
-LLM Infrastructure Module
+"""LLM Infrastructure Module.
 
 This module provides local and cloud LLM integration for Agent_Guru's reasoning engine.
 Supports hybrid deployment with Ollama server and cloud API fallback.
@@ -24,15 +23,15 @@ from Agent_Guru.reasoning.llm.models import (
 from Agent_Guru.reasoning.llm.ollama_server import OLLAMA_MODELS, OllamaModelConfig, OllamaServer
 
 __all__ = [
-    "OllamaServer",
-    "OllamaModelConfig",
     "OLLAMA_MODELS",
-    "LocalLLMServer",
-    "LocalLLMConfig",
+    "GPUBackend",
     "LLMClient",
+    "LLMProvider",
     "LLMRequest",
     "LLMResponse",
-    "LLMProvider",
-    "GPUBackend",
+    "LocalLLMConfig",
+    "LocalLLMServer",
+    "OllamaModelConfig",
+    "OllamaServer",
     "ServerHealth",
 ]

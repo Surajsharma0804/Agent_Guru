@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.platform.hardware.mobile_monitor
-Purpose: Mobile-specific hardware monitoring (Android/iOS)
+"""Module: Agent_Guru.platform.hardware.mobile_monitor
+Purpose: Mobile-specific hardware monitoring (Android/iOS).
 
 Performance Requirements:
 - Time Complexity: O(1) per metric query
@@ -22,11 +21,11 @@ Version: 1.0.0
 import platform
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class ThermalState(Enum):
     """Device thermal state."""
+
     NORMAL = "normal"
     FAIR = "fair"
     SERIOUS = "serious"
@@ -36,6 +35,7 @@ class ThermalState(Enum):
 
 class NetworkType(Enum):
     """Cellular network type."""
+
     UNKNOWN = "unknown"
     GPRS = "gprs"
     EDGE = "edge"
@@ -69,13 +69,15 @@ class MobileBatteryInfo:
         voltage: Battery voltage in millivolts
         health: Battery health status
         technology: Battery technology (e.g., "Li-ion")
+
     """
+
     percent: float
     is_charging: bool
-    temperature: Optional[float]
-    voltage: Optional[int]
-    health: Optional[str]
-    technology: Optional[str]
+    temperature: float | None
+    voltage: int | None
+    health: str | None
+    technology: str | None
 
 
 @dataclass
@@ -87,10 +89,12 @@ class CellularInfo:
         signal_strength: Signal strength (0-4 bars or dBm)
         carrier_name: Carrier/operator name
         is_roaming: Whether device is roaming
+
     """
+
     network_type: NetworkType
     signal_strength: int
-    carrier_name: Optional[str]
+    carrier_name: str | None
     is_roaming: bool
 
 
@@ -104,10 +108,12 @@ class LocationInfo:
         altitude: Altitude in meters
         accuracy: Accuracy in meters
         timestamp: Timestamp of location fix
+
     """
+
     latitude: float
     longitude: float
-    altitude: Optional[float]
+    altitude: float | None
     accuracy: float
     timestamp: float
 
@@ -121,7 +127,9 @@ class AccelerometerData:
         y: Y-axis acceleration in m/s²
         z: Z-axis acceleration in m/s²
         timestamp: Timestamp of reading
+
     """
+
     x: float
     y: float
     z: float
@@ -137,7 +145,9 @@ class GyroscopeData:
         y: Y-axis rotation rate in rad/s
         z: Z-axis rotation rate in rad/s
         timestamp: Timestamp of reading
+
     """
+
     x: float
     y: float
     z: float
@@ -155,7 +165,9 @@ class DeviceInfo:
         screen_width: Screen width in pixels
         screen_height: Screen height in pixels
         screen_dpi: Screen DPI
+
     """
+
     model: str
     manufacturer: str
     os_version: str
@@ -181,13 +193,14 @@ class MobileHardwareMonitor:
         ...     print(f"Battery: {battery.percent}%, Temp: {battery.temperature}°C")
         >>> thermal = monitor.get_thermal_state()
         >>> print(f"Thermal state: {thermal.value}")
+
     """
 
     def __init__(self) -> None:
         """Initialize mobile hardware monitor."""
         self._platform = platform.system()
 
-    def get_battery_info(self) -> Optional[MobileBatteryInfo]:
+    def get_battery_info(self) -> MobileBatteryInfo | None:
         """Get mobile battery information with temperature.
 
         Time Complexity: O(1)
@@ -197,12 +210,13 @@ class MobileHardwareMonitor:
             MobileBatteryInfo or None if unavailable
 
         Note: Requires BATTERY_STATS permission on Android
+
         """
         # Platform-specific implementation required
         # This is a placeholder that returns None
         return None
 
-    def get_battery_temperature(self) -> Optional[float]:
+    def get_battery_temperature(self) -> float | None:
         """Get battery temperature in Celsius.
 
         Time Complexity: O(1)
@@ -210,11 +224,12 @@ class MobileHardwareMonitor:
 
         Returns:
             Temperature in Celsius or None if unavailable
+
         """
         battery_info = self.get_battery_info()
         return battery_info.temperature if battery_info else None
 
-    def get_screen_brightness(self) -> Optional[int]:
+    def get_screen_brightness(self) -> int | None:
         """Get screen brightness level.
 
         Time Complexity: O(1)
@@ -224,6 +239,7 @@ class MobileHardwareMonitor:
             Brightness level (0-255) or None if unavailable
 
         Note: Requires WRITE_SETTINGS permission on Android
+
         """
         # Platform-specific implementation required
         return None
@@ -243,14 +259,17 @@ class MobileHardwareMonitor:
         Raises:
             ValueError: If level is out of range
             PermissionError: If WRITE_SETTINGS permission not granted
+
         """
         if not 0 <= level <= 255:
-            raise ValueError(f"Brightness level must be 0-255, got {level}")
+            msg = f"Brightness level must be 0-255, got {level}"
+            raise ValueError(msg)
 
         # Platform-specific implementation required
-        raise PermissionError("WRITE_SETTINGS permission required")
+        msg = "WRITE_SETTINGS permission required"
+        raise PermissionError(msg)
 
-    def get_cellular_info(self) -> Optional[CellularInfo]:
+    def get_cellular_info(self) -> CellularInfo | None:
         """Get cellular network information.
 
         Time Complexity: O(1)
@@ -260,11 +279,12 @@ class MobileHardwareMonitor:
             CellularInfo or None if unavailable
 
         Note: Requires READ_PHONE_STATE permission on Android
+
         """
         # Platform-specific implementation required
         return None
 
-    def get_location(self) -> Optional[LocationInfo]:
+    def get_location(self) -> LocationInfo | None:
         """Get GPS location.
 
         Time Complexity: O(1)
@@ -277,11 +297,12 @@ class MobileHardwareMonitor:
             PermissionError: If location permission not granted
 
         Note: Requires ACCESS_FINE_LOCATION permission
+
         """
         # Platform-specific implementation required
         return None
 
-    def get_accelerometer_data(self) -> Optional[AccelerometerData]:
+    def get_accelerometer_data(self) -> AccelerometerData | None:
         """Get accelerometer sensor data.
 
         Time Complexity: O(1)
@@ -289,11 +310,12 @@ class MobileHardwareMonitor:
 
         Returns:
             AccelerometerData or None if unavailable
+
         """
         # Platform-specific implementation required
         return None
 
-    def get_gyroscope_data(self) -> Optional[GyroscopeData]:
+    def get_gyroscope_data(self) -> GyroscopeData | None:
         """Get gyroscope sensor data.
 
         Time Complexity: O(1)
@@ -301,6 +323,7 @@ class MobileHardwareMonitor:
 
         Returns:
             GyroscopeData or None if unavailable
+
         """
         # Platform-specific implementation required
         return None
@@ -315,6 +338,7 @@ class MobileHardwareMonitor:
             ThermalState indicating current thermal condition
 
         Note: Used for adaptive behavior (throttle when overheating)
+
         """
         # Platform-specific implementation required
         # Default to UNKNOWN if not implemented
@@ -330,6 +354,7 @@ class MobileHardwareMonitor:
             True if low power mode is active, False otherwise
 
         Note: iOS: Low Power Mode, Android: Battery Saver
+
         """
         # Platform-specific implementation required
         return False
@@ -345,6 +370,7 @@ class MobileHardwareMonitor:
 
         Raises:
             RuntimeError: If device info cannot be retrieved
+
         """
         # Platform-specific implementation required
         # Return placeholder data
@@ -354,7 +380,7 @@ class MobileHardwareMonitor:
             os_version=platform.version(),
             screen_width=0,
             screen_height=0,
-            screen_dpi=0
+            screen_dpi=0,
         )
 
     def should_throttle(self) -> bool:
@@ -370,6 +396,7 @@ class MobileHardwareMonitor:
         - Battery <20%: Throttle
         - Thermal state SERIOUS or CRITICAL: Throttle
         - Low power mode active: Throttle
+
         """
         # Check battery level
         battery = self.get_battery_info()
@@ -382,10 +409,7 @@ class MobileHardwareMonitor:
             return True
 
         # Check low power mode
-        if self.is_low_power_mode():
-            return True
-
-        return False
+        return bool(self.is_low_power_mode())
 
     def get_adaptive_config(self) -> tuple[bool, str]:
         """Get adaptive configuration based on device state.
@@ -401,6 +425,7 @@ class MobileHardwareMonitor:
             >>> should_reduce, reason = monitor.get_adaptive_config()
             >>> if should_reduce:
             ...     print(f"Reducing processing: {reason}")
+
         """
         battery = self.get_battery_info()
         thermal = self.get_thermal_state()

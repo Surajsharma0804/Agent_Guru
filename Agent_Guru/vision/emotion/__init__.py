@@ -6,4 +6,4 @@ from Agent_Guru.vision.emotion.recognizer import (
     EmotionResult,
 )
 
-__all__ = ["EmotionRecognizer", "EmotionResult", "EMOTION_LABELS"]
+__all__ = ["EMOTION_LABELS", "EmotionRecognizer", "EmotionResult"]

@@ -1,5 +1,4 @@
-"""
-World State Engine - Real-time context tracking.
+"""World State Engine - Real-time context tracking.
 
 This module implements the WorldStateEngine for tracking and managing
 real-time system and user context state.
@@ -21,15 +20,15 @@ import asyncio
 import logging
 from collections import deque
 from collections.abc import Callable
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 _logger = logging.getLogger(__name__)
-from uuid import uuid4
+from uuid import uuid4  # noqa: E402
 
-import structlog
+import structlog  # noqa: E402
 
-from Agent_Guru.reasoning.models.world_state import WorldState
+from Agent_Guru.reasoning.models.world_state import WorldState  # noqa: E402
 
 logger = structlog.get_logger(__name__)
 
@@ -44,7 +43,7 @@ class StateChangeEvent:
         field_path: str,
         old_value: Any,
         new_value: Any,
-    ):
+    ) -> None:
         """Initialize state change event.
 
         Args:
@@ -53,6 +52,7 @@ class StateChangeEvent:
             field_path: Dot-separated path to changed field (e.g., "device_status.battery_level")
             old_value: Previous value
             new_value: New value
+
         """
         self.event_id = event_id
         self.timestamp = timestamp
@@ -73,7 +73,7 @@ class WorldStateEngine:
     Space Complexity: O(1) for state + O(n) for n subscribers
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize world state engine."""
         self._state = WorldState()
         self._subscribers: dict[str, Callable[[StateChangeEvent], None]] = {}
@@ -90,6 +90,7 @@ class WorldStateEngine:
 
         Returns:
             Current world state (copy)
+
         """
         async with self._lock:
             # Return a copy to prevent external modifications
@@ -107,6 +108,7 @@ class WorldStateEngine:
             await engine.update_state(
                 device_status=DeviceStatus(battery_level=50, charging=True)
             )
+
         """
         async with self._lock:
             # Track changes for notifications
@@ -130,7 +132,7 @@ class WorldStateEngine:
                     # Create change event
                     event = StateChangeEvent(
                         event_id=str(uuid4()),
-                        timestamp=datetime.now(tz=timezone.utc),
+                        timestamp=datetime.now(tz=UTC),
                         field_path=field_name,
                         old_value=old_value,
                         new_value=new_value,
@@ -157,6 +159,7 @@ class WorldStateEngine:
 
         Args:
             changes: List of state change events
+
         """
         for subscriber_id, callback in self._subscribers.items():
             for change in changes:
@@ -167,7 +170,7 @@ class WorldStateEngine:
                     else:
                         callback(change)
                 except Exception as e:
-                    logger.error(
+                    logger.exception(
                         "subscriber_callback_failed",
                         subscriber_id=subscriber_id,
                         error=str(e),
@@ -177,7 +180,7 @@ class WorldStateEngine:
     def subscribe_to_updates(
         self,
         callback: Callable[[StateChangeEvent], None],
-        subscriber_id: Optional[str] = None,
+        subscriber_id: str | None = None,
     ) -> str:
         """Subscribe to state change notifications.
 
@@ -196,6 +199,7 @@ class WorldStateEngine:
                     _logger.debug("Battery: %s%%", event.new_value)
 
             sub_id = engine.subscribe_to_updates(on_battery_change)
+
         """
         if subscriber_id is None:
             subscriber_id = str(uuid4())
@@ -220,6 +224,7 @@ class WorldStateEngine:
 
         Returns:
             True if unsubscribed, False if not found
+
         """
         if subscriber_id in self._subscribers:
             del self._subscribers[subscriber_id]
@@ -231,7 +236,7 @@ class WorldStateEngine:
             return True
         return False
 
-    async def query_state(self, field_path: str) -> Optional[Any]:
+    async def query_state(self, field_path: str) -> Any | None:
         """Query specific state field.
 
         Time Complexity: O(1)
@@ -244,6 +249,7 @@ class WorldStateEngine:
 
         Example:
             battery = await engine.query_state("device_status.battery_level")
+
         """
         async with self._lock:
             parts = field_path.split(".")
@@ -265,6 +271,7 @@ class WorldStateEngine:
 
         Returns:
             State as dictionary for persistence
+
         """
         async with self._lock:
             return self._state.model_dump()
@@ -276,6 +283,7 @@ class WorldStateEngine:
 
         Args:
             state_dict: State dictionary from persist_state
+
         """
         async with self._lock:
             self._state = WorldState(**state_dict)
@@ -283,7 +291,7 @@ class WorldStateEngine:
 
     def get_change_history(
         self,
-        field_path: Optional[str] = None,
+        field_path: str | None = None,
         limit: int = 100,
     ) -> list[StateChangeEvent]:
         """Get state change history.
@@ -296,6 +304,7 @@ class WorldStateEngine:
 
         Returns:
             List of state change events (most recent first)
+
         """
         history = list(reversed(self._change_history))  # Most recent first
 
@@ -311,5 +320,6 @@ class WorldStateEngine:
 
         Returns:
             Number of subscribers
+
         """
         return len(self._subscribers)

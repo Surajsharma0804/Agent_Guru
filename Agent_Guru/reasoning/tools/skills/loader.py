@@ -1,25 +1,25 @@
-"""
-Skill loader for loading and registering third-party skills.
+"""Skill loader for loading and registering third-party skills.
 
 Handles skill discovery, validation, and registration with the tool registry.
 """
 
 import logging
+
 _logger = logging.getLogger(__name__)
 
-import importlib.util
-import sys
-from pathlib import Path
-from typing import Any
+import importlib.util  # noqa: E402
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Any  # noqa: E402
 
-from Agent_Guru.reasoning.error.error_manager import (
+from Agent_Guru.reasoning.error.error_manager import (  # noqa: E402
     ErrorContext,
     ErrorType,
     get_error_manager,
 )
-from Agent_Guru.reasoning.tools.base import Tool
-from Agent_Guru.reasoning.tools.registry import get_registry
-from Agent_Guru.reasoning.tools.skills.manifest import (
+from Agent_Guru.reasoning.tools.base import Tool  # noqa: E402
+from Agent_Guru.reasoning.tools.registry import get_registry  # noqa: E402
+from Agent_Guru.reasoning.tools.skills.manifest import (  # noqa: E402
     SkillManifest,
     SkillManifestParser,
     SkillManifestValidator,
@@ -29,11 +29,12 @@ from Agent_Guru.reasoning.tools.skills.manifest import (
 class SkillLoader:
     """Loader for third-party skills."""
 
-    def __init__(self, plugins_dir: Path):
+    def __init__(self, plugins_dir: Path) -> None:
         """Initialize skill loader.
 
         Args:
             plugins_dir: Directory containing skill plugins
+
         """
         self.plugins_dir = Path(plugins_dir)
         self.loaded_skills: dict[str, SkillManifest] = {}
@@ -50,6 +51,7 @@ class SkillLoader:
 
         Raises:
             ValueError: If loading fails (with user-friendly message)
+
         """
         error_manager = get_error_manager()
 
@@ -58,9 +60,7 @@ class SkillLoader:
         if not manifest_path.exists():
             manifest_path = skill_dir / "skill.yml"
             if not manifest_path.exists():
-                context = ErrorContext(
-                    additional_data={"skill_dir": str(skill_dir)}
-                )
+                context = ErrorContext(additional_data={"skill_dir": str(skill_dir)})
                 error = error_manager.create_error(
                     error_type=ErrorType.TOOL_UNAVAILABLE,
                     message=f"No manifest file found in {skill_dir}",
@@ -72,12 +72,10 @@ class SkillLoader:
         try:
             manifest = SkillManifestParser.parse_yaml(manifest_path)
         except ValueError as e:
-            context = ErrorContext(
-                additional_data={"manifest_path": str(manifest_path)}
-            )
+            context = ErrorContext(additional_data={"manifest_path": str(manifest_path)})
             error = error_manager.create_error(
                 error_type=ErrorType.MALFORMED_INPUT,
-                message=f"Failed to parse manifest: {str(e)}",
+                message=f"Failed to parse manifest: {e!s}",
                 context=context,
             )
             raise ValueError(error.user_message) from e
@@ -85,15 +83,13 @@ class SkillLoader:
         # Validate manifest
         errors = SkillManifestValidator.validate(manifest)
         if errors:
-            context = ErrorContext(
-                additional_data={"validation_errors": errors}
-            )
+            context = ErrorContext(additional_data={"validation_errors": errors})
             error = error_manager.create_error(
                 error_type=ErrorType.PLAN_VALIDATION_FAILED,
                 message=f"Manifest validation failed: {', '.join(errors)}",
                 context=context,
             )
-            raise ValueError(error.user_message) from e
+            raise ValueError(error.user_message)
 
         # Check if already loaded
         if manifest.skill_id in self.loaded_skills:
@@ -105,7 +101,7 @@ class SkillLoader:
                 message=f"Skill '{manifest.skill_id}' already loaded",
                 context=context,
             )
-            raise ValueError(error.user_message) from e
+            raise ValueError(error.user_message)
 
         # Load skill module
         try:
@@ -113,11 +109,11 @@ class SkillLoader:
         except Exception as e:
             context = ErrorContext(
                 tool_id=manifest.skill_id,
-                additional_data={"entry_point": manifest.entry_point}
+                additional_data={"entry_point": manifest.entry_point},
             )
             error = error_manager.create_error(
                 error_type=ErrorType.TOOL_UNAVAILABLE,
-                message=f"Failed to load skill module: {str(e)}",
+                message=f"Failed to load skill module: {e!s}",
                 context=context,
             )
             raise ValueError(error.user_message) from e
@@ -131,7 +127,7 @@ class SkillLoader:
             )
             error = error_manager.create_error(
                 error_type=ErrorType.TOOL_UNAVAILABLE,
-                message=f"Failed to register tools: {str(e)}",
+                message=f"Failed to register tools: {e!s}",
                 context=context,
             )
             raise ValueError(error.user_message) from e
@@ -153,6 +149,7 @@ class SkillLoader:
 
         Raises:
             ImportError: If module loading fails
+
         """
         # Convert entry point to file path
         module_path = skill_dir / entry_point.replace(".", "/")
@@ -162,12 +159,14 @@ class SkillLoader:
             module_path = module_path.with_suffix(".py")
 
         if not module_path.exists():
-            raise ImportError(f"Module file not found: {module_path}")
+            msg = f"Module file not found: {module_path}"
+            raise ImportError(msg)
 
         # Load module
         spec = importlib.util.spec_from_file_location(entry_point, module_path)
         if spec is None or spec.loader is None:
-            raise ImportError(f"Failed to create module spec for {module_path}")
+            msg = f"Failed to create module spec for {module_path}"
+            raise ImportError(msg)
 
         module = importlib.util.module_from_spec(spec)
         sys.modules[entry_point] = module
@@ -184,6 +183,7 @@ class SkillLoader:
 
         Raises:
             ValueError: If tool registration fails
+
         """
         # Find tool classes in module
         for name in dir(module):
@@ -207,6 +207,7 @@ class SkillLoader:
 
         Returns:
             List of loaded skill manifests
+
         """
         if not self.plugins_dir.exists():
             return []
@@ -230,6 +231,7 @@ class SkillLoader:
 
         Returns:
             List of loaded skill manifests
+
         """
         return list(self.loaded_skills.values())
 
@@ -241,5 +243,6 @@ class SkillLoader:
 
         Returns:
             True if skill is loaded
+
         """
         return skill_id in self.loaded_skills

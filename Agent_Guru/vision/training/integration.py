@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.vision.training.integration
+"""Module: Agent_Guru.vision.training.integration
 Purpose: GuruVision system integration — deployment artifact generation.
 
 Requirements: 11.1, 11.3, 11.5
@@ -10,8 +9,9 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
+from datetime import UTC
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("guruvision.training.integration")
 
@@ -20,9 +20,11 @@ logger = logging.getLogger("guruvision.training.integration")
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class DeploymentArtifacts:
     """Deployment artifacts for GuruVision integration."""
+
     onnx_model_path: str = ""
     config_path: str = ""
     metadata_path: str = ""
@@ -34,6 +36,7 @@ class DeploymentArtifacts:
 @dataclass
 class ModelMetadataFile:
     """Preprocessing metadata for the deployed model."""
+
     image_size: int = 112
     normalization_mean: list[float] = field(default_factory=lambda: [0.5, 0.5, 0.5])
     normalization_std: list[float] = field(default_factory=lambda: [0.5, 0.5, 0.5])
@@ -49,25 +52,25 @@ class ModelMetadataFile:
 # GuruVisionIntegration
 # ---------------------------------------------------------------------------
 
+
 class GuruVisionIntegration:
     """Generate deployment artifacts for GuruVision system integration.
 
     Args:
         output_dir: Directory to write deployment artifacts.
+
     """
 
-    def __init__(
-        self, output_dir: str = "Agent_Guru/vision/data/deployment"
-    ) -> None:
+    def __init__(self, output_dir: str = "Agent_Guru/vision/data/deployment") -> None:
         self.output_dir = output_dir
 
     def generate_deployment_artifacts(
         self,
         onnx_model_path: str,
-        config: Optional[Any] = None,
-        report_path: Optional[str] = None,
+        config: Any | None = None,
+        report_path: str | None = None,
         production_ready: bool = False,
-        metadata: Optional[ModelMetadataFile] = None,
+        metadata: ModelMetadataFile | None = None,
     ) -> DeploymentArtifacts:
         """Generate all deployment artifacts.
 
@@ -80,6 +83,7 @@ class GuruVisionIntegration:
 
         Returns:
             DeploymentArtifacts with paths to all generated files.
+
         """
         artifact_dir = Path(self.output_dir)
         artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -98,6 +102,7 @@ class GuruVisionIntegration:
         onnx_dest = str(artifact_dir / "guru_face_model.onnx")
         if onnx_model_path and Path(onnx_model_path).exists():
             import shutil
+
             shutil.copy2(onnx_model_path, onnx_dest)
         else:
             onnx_dest = onnx_model_path or onnx_dest  # Reference original path
@@ -105,13 +110,18 @@ class GuruVisionIntegration:
         # Write deployment manifest
         manifest_path = str(artifact_dir / "deployment_manifest.json")
         self._write_manifest(
-            onnx_dest, config_path, metadata_path, report_path or "",
-            production_ready, manifest_path,
+            onnx_dest,
+            config_path,
+            metadata_path,
+            report_path or "",
+            production_ready,
+            manifest_path,
         )
 
         logger.info(
             "Deployment artifacts generated in '%s' (production_ready=%s)",
-            artifact_dir, production_ready,
+            artifact_dir,
+            production_ready,
         )
 
         return DeploymentArtifacts(
@@ -131,6 +141,7 @@ class GuruVisionIntegration:
 
         Returns:
             True if compatible.
+
         """
         if not Path(onnx_path).exists():
             logger.error("ONNX model not found: %s", onnx_path)
@@ -138,9 +149,8 @@ class GuruVisionIntegration:
 
         try:
             import onnxruntime as ort  # type: ignore[import]
-            session = ort.InferenceSession(
-                onnx_path, providers=["CPUExecutionProvider"]
-            )
+
+            session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
             inputs = session.get_inputs()
             outputs = session.get_outputs()
 
@@ -154,11 +164,10 @@ class GuruVisionIntegration:
                 [o.name for o in outputs],
             )
             return True
-        except ImportError as e:
-            logger.warning("onnxruntime not available; skipping ONNX validation: %s", e)
+        except ImportError:
+            logger.exception("onnxruntime not available; skipping ONNX validation")
             return True
-        except Exception as exc:
-            logger.error("ONNX compatibility check failed: %s", exc)
+            logger.exception("ONNX compatibility check failed")
             return False
 
     # ------------------------------------------------------------------
@@ -182,14 +191,15 @@ class GuruVisionIntegration:
             json.dump(data, f, indent=2)
 
     @staticmethod
-    def _write_config(config: Optional[Any], path: str) -> None:
+    def _write_config(config: Any | None, path: str) -> None:
         if config is None:
             data: dict[str, Any] = {"note": "No configuration provided"}
         elif hasattr(config, "__dict__"):
             try:
                 from dataclasses import asdict
+
                 data = asdict(config)
-            except Exception as e:
+            except Exception:
                 data = {"config": str(config)}
         else:
             data = {"config": str(config)}
@@ -206,9 +216,10 @@ class GuruVisionIntegration:
         production_ready: bool,
         manifest_path: str,
     ) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         manifest = {
-            "generated_at": datetime.now(tz=timezone.utc).isoformat(),
+            "generated_at": datetime.now(tz=UTC).isoformat(),
             "production_ready": production_ready,
             "artifacts": {
                 "onnx_model": onnx_path,

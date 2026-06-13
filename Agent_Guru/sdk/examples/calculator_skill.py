@@ -1,5 +1,4 @@
-"""
-Example calculator skill for Agent Guru.
+"""Example calculator skill for Agent Guru.
 
 This skill demonstrates a simple computational skill with no
 external dependencies or permissions required.
@@ -8,7 +7,6 @@ external dependencies or permissions required.
 import ast
 import math
 import operator as op
-from typing import Union
 
 from Agent_Guru.sdk import Skill, skill_capability
 
@@ -53,40 +51,49 @@ def _eval_node(node: ast.AST) -> float:
 
     Raises:
         ValueError: For any non-numeric or non-operator node
+
     """
     if isinstance(node, ast.Constant):
         if isinstance(node.value, (int, float)):
             return float(node.value)
-        raise ValueError(f"Unsafe constant type: {type(node.value).__name__}")
+        msg = f"Unsafe constant type: {type(node.value).__name__}"
+        raise ValueError(msg)
     if isinstance(node, ast.Name):
         if node.id in _SAFE_NAMES:
             val = _SAFE_NAMES[node.id]
             if callable(val):
-                raise ValueError(f"Name '{node.id}' is a function, not a value")
+                msg = f"Name '{node.id}' is a function, not a value"
+                raise ValueError(msg)
             return float(val)
-        raise ValueError(f"Name '{node.id}' is not allowed")
+        msg = f"Name '{node.id}' is not allowed"
+        raise ValueError(msg)
     if isinstance(node, ast.BinOp):
         op_type = type(node.op)
         if op_type not in _SAFE_OPS:
-            raise ValueError(f"Operator {op_type.__name__} is not allowed")
+            msg = f"Operator {op_type.__name__} is not allowed"
+            raise ValueError(msg)
         left = _eval_node(node.left)
         right = _eval_node(node.right)
         return _SAFE_OPS[op_type](left, right)
     if isinstance(node, ast.UnaryOp):
         op_type = type(node.op)
         if op_type not in _SAFE_OPS:
-            raise ValueError(f"Unary operator {op_type.__name__} is not allowed")
+            msg = f"Unary operator {op_type.__name__} is not allowed"
+            raise ValueError(msg)
         operand = _eval_node(node.operand)
         return _SAFE_OPS[op_type](operand)
     if isinstance(node, ast.Call):
         if not isinstance(node.func, ast.Name):
-            raise ValueError("Only simple function calls are allowed")
+            msg = "Only simple function calls are allowed"
+            raise ValueError(msg)
         func_name = node.func.id
         if func_name not in _SAFE_NAMES or not callable(_SAFE_NAMES[func_name]):
-            raise ValueError(f"Function '{func_name}' is not allowed")
+            msg = f"Function '{func_name}' is not allowed"
+            raise ValueError(msg)
         args = [_eval_node(arg) for arg in node.args]
         return float(_SAFE_NAMES[func_name](*args))
-    raise ValueError(f"Unsafe expression node: {type(node).__name__}")
+    msg = f"Unsafe expression node: {type(node).__name__}"
+    raise ValueError(msg)
 
 
 def safe_eval_expr(expr: str) -> float:
@@ -100,23 +107,25 @@ def safe_eval_expr(expr: str) -> float:
 
     Raises:
         ValueError: For any non-numeric, non-operator, or unsafe expression
+
     """
     try:
         tree = ast.parse(expr.strip(), mode="eval")
     except SyntaxError as exc:
-        raise ValueError(f"Invalid expression syntax: {exc}") from exc
+        msg = f"Invalid expression syntax: {exc}"
+        raise ValueError(msg) from exc
     return _eval_node(tree.body)
 
 
 class CalculatorSkill(Skill):
     """Mathematical calculation skill."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize calculator skill."""
         super().__init__()
 
     @skill_capability("calculate", "Perform mathematical calculations")
-    async def calculate(self, expression: str) -> dict[str, Union[float, str]]:
+    async def calculate(self, expression: str) -> dict[str, float | str]:
         """Evaluate a mathematical expression.
 
         Args:
@@ -127,6 +136,7 @@ class CalculatorSkill(Skill):
 
         Raises:
             ValueError: For any unsafe or non-mathematical expression
+
         """
         result = safe_eval_expr(expression)
         return {
@@ -137,8 +147,11 @@ class CalculatorSkill(Skill):
 
     @skill_capability("convert_units", "Convert between units")
     async def convert_units(
-        self, value: float, from_unit: str, to_unit: str
-    ) -> dict[str, Union[float, str]]:
+        self,
+        value: float,
+        from_unit: str,
+        to_unit: str,
+    ) -> dict[str, float | str]:
         """Convert a value from one unit to another.
 
         Args:
@@ -148,10 +161,10 @@ class CalculatorSkill(Skill):
 
         Returns:
             Conversion result dictionary
+
         """
         # Conversion factors (to base unit)
         conversions = {
-            # Length (meters)
             "m": 1.0,
             "km": 1000.0,
             "cm": 0.01,
@@ -159,7 +172,6 @@ class CalculatorSkill(Skill):
             "mi": 1609.34,
             "ft": 0.3048,
             "in": 0.0254,
-            # Weight (grams)
             "g": 1.0,
             "kg": 1000.0,
             "mg": 0.001,
@@ -174,16 +186,15 @@ class CalculatorSkill(Skill):
         try:
             # Handle temperature conversions separately
             if from_unit.lower() in ["c", "f", "k"]:
-                result = self._convert_temperature(
-                    value, from_unit.lower(), to_unit.lower()
-                )
+                result = self._convert_temperature(value, from_unit.lower(), to_unit.lower())
             else:
                 # Standard unit conversion
                 from_factor = conversions.get(from_unit.lower())
                 to_factor = conversions.get(to_unit.lower())
 
                 if from_factor is None or to_factor is None:
-                    raise ValueError(f"Unknown unit: {from_unit} or {to_unit}")
+                    msg = f"Unknown unit: {from_unit} or {to_unit}"
+                    raise ValueError(msg)
 
                 # Convert to base unit, then to target unit
                 base_value = value * from_factor
@@ -206,9 +217,7 @@ class CalculatorSkill(Skill):
                 "success": False,
             }
 
-    def _convert_temperature(
-        self, value: float, from_unit: str, to_unit: str
-    ) -> float:
+    def _convert_temperature(self, value: float, from_unit: str, to_unit: str) -> float:
         """Convert temperature between C, F, and K.
 
         Args:
@@ -218,6 +227,7 @@ class CalculatorSkill(Skill):
 
         Returns:
             Converted temperature
+
         """
         # Convert to Celsius first
         if from_unit == "c":
@@ -227,17 +237,18 @@ class CalculatorSkill(Skill):
         elif from_unit == "k":
             celsius = value - 273.15
         else:
-            raise ValueError(f"Unknown temperature unit: {from_unit}")
+            msg = f"Unknown temperature unit: {from_unit}"
+            raise ValueError(msg)
 
         # Convert from Celsius to target
         if to_unit == "c":
             return celsius
-        elif to_unit == "f":
+        if to_unit == "f":
             return celsius * 9 / 5 + 32
-        elif to_unit == "k":
+        if to_unit == "k":
             return celsius + 273.15
-        else:
-            raise ValueError(f"Unknown temperature unit: {to_unit}")
+        msg = f"Unknown temperature unit: {to_unit}"
+        raise ValueError(msg)
 
 
 # Generate manifest when run as script
@@ -258,6 +269,3 @@ if __name__ == "__main__":
         max_latency=1000,
         dependencies=[],  # No external dependencies
     )
-
-    print("Manifest generated successfully!")
-    print(f"Capabilities: {manifest['capabilities']}")

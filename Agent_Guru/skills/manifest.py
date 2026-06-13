@@ -1,15 +1,17 @@
 """Skill manifest dataclasses and validation."""
+
 from __future__ import annotations
 
 import hashlib
 import json
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
 class ResourceLimits:
     """Resource limits for skill execution."""
+
     cpu_percent: float = 10.0
     memory_mb: int = 128
     timeout_ms: int = 5000
@@ -18,6 +20,7 @@ class ResourceLimits:
 @dataclass
 class SkillManifest:
     """Manifest describing a skill's metadata and requirements."""
+
     skill_id: str
     name: str
     version: str
@@ -77,15 +80,17 @@ class SkillManifest:
 @dataclass
 class InstallResult:
     """Result of a skill installation."""
+
     success: bool
     skill_id: str
-    error: Optional[str] = None
-    manifest: Optional[SkillManifest] = None
+    error: str | None = None
+    manifest: SkillManifest | None = None
 
 
 @dataclass
 class ValidationError:
     """Skill manifest validation error."""
+
     field: str
     message: str
 
@@ -93,6 +98,7 @@ class ValidationError:
 @dataclass
 class ResourceUsage:
     """Actual resource usage during skill execution."""
+
     cpu_percent: float = 0.0
     memory_mb: float = 0.0
     wall_time_ms: float = 0.0
@@ -101,8 +107,9 @@ class ResourceUsage:
 @dataclass
 class SkillResult:
     """Result of skill execution."""
+
     success: bool
     skill_id: str
     output: Any = None
-    error: Optional[str] = None
+    error: str | None = None
     resource_usage: ResourceUsage = field(default_factory=ResourceUsage)

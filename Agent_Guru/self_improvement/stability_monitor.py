@@ -1,5 +1,4 @@
-"""
-Stability Monitor for Self-Improvement Engine.
+"""Stability Monitor for Self-Improvement Engine.
 
 Detects and prevents oscillations in strategy selection, prompt evolution,
 and other learning components. Implements dampening mechanisms to smooth
@@ -18,7 +17,7 @@ Date: 2026-02-28
 
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -40,8 +39,7 @@ class StabilityMetrics:
 
 
 class StabilityMonitor:
-    """
-    Monitors system stability and prevents oscillations.
+    """Monitors system stability and prevents oscillations.
 
     Tracks changes in strategy selection, prompt evolution, and other
     learning components to detect and prevent unstable behavior patterns.
@@ -55,6 +53,7 @@ class StabilityMonitor:
         >>> is_stable, metrics = monitor.check_stability("strategy_selection")
         >>> if not is_stable:
         ...     print(f"Oscillation detected: {metrics}")
+
     """
 
     def __init__(
@@ -66,8 +65,7 @@ class StabilityMonitor:
         oscillation_threshold: int = 3,
         dampening_factor: float = 0.7,
     ) -> None:
-        """
-        Initialize stability monitor.
+        """Initialize stability monitor.
 
         Args:
             pool: ConnectionPool for database access
@@ -79,6 +77,7 @@ class StabilityMonitor:
 
         Raises:
             RuntimeError: If stability_metrics table doesn't exist
+
         """
         self.pool = pool
         self.window_size = window_size
@@ -94,8 +93,7 @@ class StabilityMonitor:
         self._init_database()
 
     def _init_database(self) -> None:
-        """
-        Initialize database schema for stability metrics.
+        """Initialize database schema for stability metrics.
 
         Note: DatabaseSchema.create_schema() should be called first.
         This method only verifies the table exists.
@@ -108,13 +106,15 @@ class StabilityMonitor:
                 """
                 SELECT name FROM sqlite_master
                 WHERE type='table' AND name='stability_metrics'
-            """
+            """,
             )
 
             if not cursor.fetchone():
+                msg = (
+                    "Stability_metrics table not found. Call DatabaseSchema.create_schema() first."
+                )
                 raise RuntimeError(
-                    "Stability_metrics table not found. "
-                    "Call DatabaseSchema.create_schema() first."
+                    msg,
                 )
 
     def record_change(
@@ -123,8 +123,7 @@ class StabilityMonitor:
         metric_name: str,
         value: float,
     ) -> None:
-        """
-        Record a change in a tracked metric.
+        """Record a change in a tracked metric.
 
         Time Complexity: O(1) - append to deque
         Space Complexity: O(1) - bounded by window_size
@@ -137,9 +136,10 @@ class StabilityMonitor:
         Example:
             >>> monitor.record_change("strategy_selection", "task_type_1", 0.75)
             >>> monitor.record_change("prompt_evolution", "task_analysis", 0.82)
+
         """
         key = f"{component}:{metric_name}"
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         # Initialize history if needed
         if key not in self._change_history:
@@ -157,8 +157,7 @@ class StabilityMonitor:
         component: str,
         metric_name: str | None = None,
     ) -> tuple[bool, StabilityMetrics | None]:
-        """
-        Check if a component or specific metric is stable.
+        """Check if a component or specific metric is stable.
 
         Time Complexity: O(w) where w is window_size
         Space Complexity: O(1)
@@ -176,6 +175,7 @@ class StabilityMonitor:
             >>> is_stable, metrics = monitor.check_stability("strategy_selection", "task_type_1")
             >>> if not is_stable:
             ...     print(f"Oscillation detected: variance={metrics.variance}")
+
         """
         if metric_name:
             key = f"{component}:{metric_name}"
@@ -186,25 +186,24 @@ class StabilityMonitor:
             is_stable = not metrics.oscillation_detected
 
             return is_stable, metrics
-        else:
-            # Check all metrics for this component
-            all_stable = True
-            worst_metrics = None
-            worst_score = 1.0
+        # Check all metrics for this component
+        all_stable = True
+        worst_metrics = None
+        worst_score = 1.0
 
-            for key in self._change_history:
-                if key.startswith(f"{component}:"):
-                    _, metric = key.split(":", 1)
-                    is_stable, metrics = self.check_stability(component, metric)
+        for key in self._change_history:
+            if key.startswith(f"{component}:"):
+                _, metric = key.split(":", 1)
+                is_stable, metrics = self.check_stability(component, metric)
 
-                    if not is_stable:
-                        all_stable = False
+                if not is_stable:
+                    all_stable = False
 
-                    if metrics and metrics.stability_score < worst_score:
-                        worst_score = metrics.stability_score
-                        worst_metrics = metrics
+                if metrics and metrics.stability_score < worst_score:
+                    worst_score = metrics.stability_score
+                    worst_metrics = metrics
 
-            return all_stable, worst_metrics
+        return all_stable, worst_metrics
 
     def _calculate_stability_metrics(
         self,
@@ -212,8 +211,7 @@ class StabilityMonitor:
         metric_name: str,
         key: str,
     ) -> StabilityMetrics:
-        """
-        Calculate stability metrics for a tracked metric.
+        """Calculate stability metrics for a tracked metric.
 
         Args:
             component: Component name
@@ -222,6 +220,7 @@ class StabilityMonitor:
 
         Returns:
             StabilityMetrics with calculated values
+
         """
         history = self._change_history[key]
         values = [v for _, v in history]
@@ -260,8 +259,7 @@ class StabilityMonitor:
         )
 
     def _detect_oscillation(self, values: list[float]) -> bool:
-        """
-        Detect oscillation pattern in values.
+        """Detect oscillation pattern in values.
 
         Oscillation is detected when values alternate between
         the SAME two or three distinct states repeatedly (e.g., A -> B -> A -> B).
@@ -272,6 +270,7 @@ class StabilityMonitor:
 
         Returns:
             True if oscillation detected, False otherwise
+
         """
         if len(values) < self.oscillation_threshold * 2:
             return False
@@ -309,10 +308,7 @@ class StabilityMonitor:
         # For oscillation, values should appear multiple times (alternating)
         # If each value appears only once, it's a trend, not oscillation
         min_appearances = min(value_counts.values())
-        if min_appearances < 2:
-            return False
-
-        return True
+        return not min_appearances < 2
 
     def apply_dampening(
         self,
@@ -320,8 +316,7 @@ class StabilityMonitor:
         metric_name: str,
         proposed_value: float,
     ) -> float:
-        """
-        Apply dampening to smooth rapid changes.
+        """Apply dampening to smooth rapid changes.
 
         Uses exponential moving average to dampen rapid changes
         and prevent oscillations.
@@ -341,6 +336,7 @@ class StabilityMonitor:
             >>> # Rapid change from 0.5 to 0.9
             >>> dampened = monitor.apply_dampening("strategy_selection", "task_type_1", 0.9)
             >>> # dampened will be closer to 0.5 (e.g., 0.72 with factor 0.7)
+
         """
         key = f"{component}:{metric_name}"
 
@@ -351,13 +347,7 @@ class StabilityMonitor:
         current_value = self._last_values[key]
 
         # Apply exponential moving average
-        # dampened = current * factor + proposed * (1 - factor)
-        dampened_value = (
-            current_value * self.dampening_factor
-            + proposed_value * (1 - self.dampening_factor)
-        )
-
-        return dampened_value
+        return current_value * self.dampening_factor + proposed_value * (1 - self.dampening_factor)
 
     def should_allow_change(
         self,
@@ -365,8 +355,7 @@ class StabilityMonitor:
         metric_name: str,
         proposed_value: float,
     ) -> tuple[bool, str]:
-        """
-        Determine if a proposed change should be allowed.
+        """Determine if a proposed change should be allowed.
 
         Checks stability and applies dampening if needed.
 
@@ -389,6 +378,7 @@ class StabilityMonitor:
             ... )
             >>> if not allow:
             ...     print(f"Change blocked: {reason}")
+
         """
         is_stable, metrics = self.check_stability(component, metric_name)
 
@@ -422,8 +412,7 @@ class StabilityMonitor:
         self,
         component: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Get comprehensive stability report.
+        """Get comprehensive stability report.
 
         Args:
             component: Optional component name (None = all components)
@@ -441,6 +430,7 @@ class StabilityMonitor:
             >>> print(f"Overall stability: {report['overall_stability_score']:.2f}")
             >>> for metric in report['unstable_metrics']:
             ...     print(f"Unstable: {metric.component}:{metric.metric_name}")
+
         """
         metrics_list = []
         unstable_metrics = []
@@ -466,7 +456,7 @@ class StabilityMonitor:
         # Calculate overall stability score
         if metrics_list:
             overall_stability_score = sum(m.stability_score for m in metrics_list) / len(
-                metrics_list
+                metrics_list,
             )
         else:
             overall_stability_score = 1.0
@@ -474,15 +464,9 @@ class StabilityMonitor:
         # Generate recommendations
         recommendations = []
         if unstable_metrics:
-            recommendations.append(
-                "Reduce update frequency for unstable components"
-            )
-            recommendations.append(
-                "Apply dampening to smooth rapid changes"
-            )
-            recommendations.append(
-                "Investigate root cause of oscillations"
-            )
+            recommendations.append("Reduce update frequency for unstable components")
+            recommendations.append("Apply dampening to smooth rapid changes")
+            recommendations.append("Investigate root cause of oscillations")
 
         # Get unique components
         components = list({m.component for m in metrics_list})
@@ -493,7 +477,7 @@ class StabilityMonitor:
             "overall_stability_score": overall_stability_score,
             "unstable_metrics": unstable_metrics,
             "recommendations": recommendations,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
 
     def reset_history(
@@ -501,8 +485,7 @@ class StabilityMonitor:
         component: str | None = None,
         metric_name: str | None = None,
     ) -> None:
-        """
-        Reset change history for a component or metric.
+        """Reset change history for a component or metric.
 
         Args:
             component: Optional component name (None = all components)
@@ -517,6 +500,7 @@ class StabilityMonitor:
             >>>
             >>> # Reset everything
             >>> monitor.reset_history()
+
         """
         if component is None:
             # Reset everything
@@ -544,21 +528,22 @@ class StabilityMonitor:
         value: float,
         timestamp: datetime,
     ) -> None:
-        """
-        Persist change to database.
+        """Persist change to database.
 
         Args:
             component: Component name
             metric_name: Metric name
             value: Value
             timestamp: Timestamp of change
+
         """
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
             # Use timestamp with microseconds and a random suffix for uniqueness
-            import random
-            metric_id = f"{component}_{metric_name}_{timestamp.timestamp()}_{random.randint(0, 999999)}"
+            import secrets
+
+            metric_id = f"{component}_{metric_name}_{timestamp.timestamp()}_{secrets.randbelow(999999 - 0 + 1) + 0}"
 
             cursor.execute(
                 """
@@ -589,8 +574,7 @@ class StabilityMonitor:
         metric_name: str,
         limit: int = 10,
     ) -> list[tuple[datetime, float]]:
-        """
-        Get recent changes for a metric.
+        """Get recent changes for a metric.
 
         Args:
             component: Component name
@@ -604,6 +588,7 @@ class StabilityMonitor:
             >>> changes = monitor.get_recent_changes("strategy_selection", "task_type_1", limit=5)
             >>> for timestamp, value in changes:
             ...     print(f"{timestamp}: {value}")
+
         """
         key = f"{component}:{metric_name}"
 

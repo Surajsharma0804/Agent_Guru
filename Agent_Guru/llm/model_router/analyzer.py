@@ -1,9 +1,9 @@
-"""
-Module: Agent_Guru.llm.model_router.analyzer
+"""Module: Agent_Guru.llm.model_router.analyzer
 Purpose: Task Analyzer — extracts task features and requirements.
 
 Uses keyword pattern matching and heuristics for fast, dependency-free analysis.
 """
+
 from __future__ import annotations
 
 import re
@@ -101,6 +101,7 @@ class TaskAnalyzer:
 
         Returns:
             TaskAnalysis with extracted features.
+
         """
         task_type = self._classify_task_type(spec.content)
         complexity = self._estimate_complexity(spec.content, task_type)
@@ -129,10 +130,7 @@ class TaskAnalyzer:
         scores: dict[TaskType, int] = {}
 
         for task_type, patterns in _TASK_PATTERNS.items():
-            score = sum(
-                1 for p in patterns
-                if re.search(p, content_lower)
-            )
+            score = sum(1 for p in patterns if re.search(p, content_lower))
             if score > 0:
                 scores[task_type] = score
 

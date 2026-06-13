@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.goal_manager.session_manager
-Purpose: Manages goal persistence and restoration across system restarts
+"""Module: agent_guru.goal_manager.session_manager
+Purpose: Manages goal persistence and restoration across system restarts.
 
 This module implements the session management layer for the Goal Manager system,
 handling startup, shutdown, and recovery operations.
@@ -30,7 +29,7 @@ Version: 1.0.0
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .goal_storage import GoalStorage
 from .logging_config import get_logger
@@ -41,8 +40,7 @@ logger = get_logger(__name__)
 
 
 class SessionManager:
-    """
-    Manages goal persistence across sessions.
+    """Manages goal persistence across sessions.
 
     Handles system startup, shutdown, and recovery from corrupted data.
     Uses immediate persistence strategy where all updates are persisted
@@ -62,20 +60,20 @@ class SessionManager:
         >>> await session_manager.load_goals()
         >>> # System operates...
         >>> await session_manager.persist_all()
+
     """
 
-    def __init__(self, storage: GoalStorage):
-        """
-        Initialize session manager with storage dependency.
+    def __init__(self, storage: GoalStorage) -> None:
+        """Initialize session manager with storage dependency.
 
         Args:
             storage: GoalStorage instance for persistence operations
+
         """
         self.storage = storage
 
     async def load_goals(self) -> None:
-        """
-        Load all goals from storage on startup.
+        """Load all goals from storage on startup.
 
         Validates integrity of each goal and attempts recovery for
         corrupted goals. Logs warnings if corruption is detected.
@@ -86,6 +84,7 @@ class SessionManager:
 
         Raises:
             StorageError: If storage operations fail catastrophically
+
         """
         from .exceptions import StorageError
 
@@ -96,17 +95,13 @@ class SessionManager:
         except StorageError as e:
             # If query_goals fails, it means some goals are so corrupted
             # they can't even be deserialized. We need to handle this at the DB level.
-            logger.error(
+            logger.exception(
                 "severe_corruption_detected",
                 operation="load_goals",
                 error=str(e),
-                error_type="StorageError"
+                error_type="StorageError",
             )
-            logger.warning(
-                "severe_corruption_on_load",
-                operation="load_goals",
-                error=str(e)
-            )
+            logger.exception("severe_corruption_on_load", operation="load_goals", error=str(e))
 
             # Try to recover by querying the database directly and handling each row
             all_goals = await self._load_goals_with_corruption_handling()
@@ -123,15 +118,14 @@ class SessionManager:
                 "corrupted_goals_detected",
                 operation="load_goals",
                 count=len(corrupted_goals),
-                goal_ids=corrupted_goals
+                goal_ids=corrupted_goals,
             )
             # Attempt recovery for each corrupted goal
             for goal_id in corrupted_goals:
                 await self._attempt_recovery(goal_id)
 
     async def _load_goals_with_corruption_handling(self) -> list[Goal]:
-        """
-        Load goals with special handling for severely corrupted data.
+        """Load goals with special handling for severely corrupted data.
 
         This method queries the database directly and attempts to deserialize
         each goal individually, skipping or recovering goals that can't be
@@ -139,8 +133,8 @@ class SessionManager:
 
         Returns:
             List of successfully loaded goals (corrupted goals are recovered)
-        """
 
+        """
         goals = []
 
         # Query via the storage lock so we don't race with other writers.
@@ -153,7 +147,7 @@ class SessionManager:
                     "SELECT id, description, status, priority, goal_type, progress,"
                     " created_at, started_at, completed_at, deadline, parent_id,"
                     " sub_goal_ids, dependency_ids, metadata, error_message, retry_count"
-                    " FROM goals"
+                    " FROM goals",
                 )
                 rows = cursor.fetchall()
             finally:
@@ -166,11 +160,11 @@ class SessionManager:
                 goals.append(goal)
             except Exception as deser_exc:
                 # Goal is severely corrupted - try to extract ID and mark as failed
-                logger.error(
+                logger.exception(
                     "goal_deserialization_failed",
                     operation="load_with_corruption_handling",
                     error=str(deser_exc),
-                    error_type=type(deser_exc).__name__
+                    error_type=type(deser_exc).__name__,
                 )
                 try:
                     goal_id = row[0]  # ID is first column
@@ -194,9 +188,11 @@ class SessionManager:
                         except Exception:
                             original_dependency_ids = []
                         try:
-                            original_created_at = datetime.fromisoformat(row[6]) if row[6] else datetime.now(tz=timezone.utc)
+                            original_created_at = (
+                                datetime.fromisoformat(row[6]) if row[6] else datetime.now(tz=UTC)
+                            )
                         except Exception:
-                            original_created_at = datetime.now(tz=timezone.utc)
+                            original_created_at = datetime.now(tz=UTC)
                         try:
                             original_started_at = datetime.fromisoformat(row[7]) if row[7] else None
                         except Exception:
@@ -214,25 +210,24 @@ class SessionManager:
                             metadata=original_metadata,
                             sub_goal_ids=original_sub_goal_ids,
                             dependency_ids=original_dependency_ids,
-                            error_message=f"Data corruption detected: {str(deser_exc)}"
+                            error_message=f"Data corruption detected: {deser_exc!s}",
                         )
                         goals.append(goal)
 
                         # Update the database with the recovered goal
                         await self.storage.update_goal(goal)
-                except Exception as e:
+                except Exception:
                     # Can't even extract ID - skip this goal entirely
-                    logger.error(
+                    logger.exception(
                         "goal_recovery_impossible",
                         operation="load_with_corruption_handling",
-                        error="Cannot extract goal ID from corrupted data"
+                        error="Cannot extract goal ID from corrupted data",
                     )
 
         return goals
 
     def _validate_goal_integrity(self, goal: Goal) -> bool:
-        """
-        Validate goal data integrity.
+        """Validate goal data integrity.
 
         Checks:
         - Required fields (id, description) are present
@@ -247,6 +242,7 @@ class SessionManager:
 
         Returns:
             True if goal is valid, False otherwise
+
         """
         # Check required fields
         if not goal.id or not goal.description:
@@ -254,7 +250,7 @@ class SessionManager:
                 "goal_validation_failed",
                 goal_id=goal.id if goal.id else "unknown",
                 operation="validate",
-                error="Missing required fields"
+                error="Missing required fields",
             )
             return False
 
@@ -264,7 +260,7 @@ class SessionManager:
                 "goal_validation_failed",
                 goal_id=goal.id,
                 operation="validate",
-                error="Invalid timestamp ordering: started_at < created_at"
+                error="Invalid timestamp ordering: started_at < created_at",
             )
             return False
 
@@ -274,7 +270,7 @@ class SessionManager:
                 "goal_validation_failed",
                 goal_id=goal.id,
                 operation="validate",
-                error="Invalid timestamp ordering: completed_at < started_at"
+                error="Invalid timestamp ordering: completed_at < started_at",
             )
             return False
 
@@ -284,15 +280,14 @@ class SessionManager:
                 "goal_validation_failed",
                 goal_id=goal.id,
                 operation="validate",
-                error=f"Invalid progress value: {goal.progress}"
+                error=f"Invalid progress value: {goal.progress}",
             )
             return False
 
         return True
 
     async def _attempt_recovery(self, goal_id: str) -> None:
-        """
-        Attempt to recover corrupted goal.
+        """Attempt to recover corrupted goal.
 
         Recovery strategy: Mark goal as FAILED with error message
         indicating data corruption. This preserves the goal record
@@ -306,6 +301,7 @@ class SessionManager:
 
         Raises:
             StorageError: If storage operations fail
+
         """
         # Retrieve corrupted goal
         goal = await self.storage.get_goal(goal_id)
@@ -314,7 +310,7 @@ class SessionManager:
                 "goal_recovery_skipped",
                 goal_id=goal_id,
                 operation="attempt_recovery",
-                error="Goal not found"
+                error="Goal not found",
             )
             return
 
@@ -323,7 +319,7 @@ class SessionManager:
             "goal_recovered",
             goal_id=goal_id,
             operation="attempt_recovery",
-            action="marked_as_failed"
+            action="marked_as_failed",
         )
         goal.status = GoalStatus.FAILED
         goal.error_message = "Data corruption detected during recovery"
@@ -332,8 +328,7 @@ class SessionManager:
         await self.storage.update_goal(goal)
 
     async def persist_all(self) -> None:
-        """
-        Persist all goal state before shutdown.
+        """Persist all goal state before shutdown.
 
         This is a no-op implementation because the Goal Manager uses
         immediate persistence strategy where all updates are persisted

@@ -1,5 +1,4 @@
-"""
-API request and response models.
+"""API request and response models.
 
 This module defines Pydantic models for API requests and responses with
 comprehensive validation and documentation.
@@ -19,8 +18,8 @@ Date: 2024
 Version: 1.0.0
 """
 
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -34,17 +33,20 @@ class ProcessRequest(BaseModel):
         conversation_id: Optional conversation ID for context
         source: Input source (voice, text, system_event)
         metadata: Additional request metadata
+
     """
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "text": "set a timer for 5 minutes",
-            "user_id": "user_123",
-            "conversation_id": "conv_456",
-            "source": "text",
-            "metadata": {},
-        }
-    })
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "text": "set a timer for 5 minutes",
+                "user_id": "user_123",
+                "conversation_id": "conv_456",
+                "source": "text",
+                "metadata": {},
+            },
+        },
+    )
 
     text: str = Field(
         ...,
@@ -60,7 +62,7 @@ class ProcessRequest(BaseModel):
         max_length=256,
         examples=["user_123"],
     )
-    conversation_id: Optional[str] = Field(
+    conversation_id: str | None = Field(
         default=None,
         description="Optional conversation ID for context",
         max_length=256,
@@ -82,7 +84,8 @@ class ProcessRequest(BaseModel):
     def validate_text(cls, v: str) -> str:
         """Validate text is not empty after stripping."""
         if not v.strip():
-            raise ValueError("Text cannot be empty or whitespace only")
+            msg = "Text cannot be empty or whitespace only"
+            raise ValueError(msg)
         return v.strip()
 
 
@@ -99,24 +102,27 @@ class ProcessResponse(BaseModel):
         stage_latencies: Latency per pipeline stage
         trace_id: Distributed trace ID
         timestamp: Response timestamp
+
     """
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "response": "Timer set for 5 minutes",
-            "confidence": 0.98,
-            "intent_type": "set_timer",
-            "success": True,
-            "fast_path": True,
-            "latency_ms": 234.5,
-            "stage_latencies": {
-                "intent_detection": 50.2,
-                "tool_selection": 12.3,
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "response": "Timer set for 5 minutes",
+                "confidence": 0.98,
+                "intent_type": "set_timer",
+                "success": True,
+                "fast_path": True,
+                "latency_ms": 234.5,
+                "stage_latencies": {
+                    "intent_detection": 50.2,
+                    "tool_selection": 12.3,
+                },
+                "trace_id": "abc123def456",
+                "timestamp": "2024-01-01T12:00:00Z",
             },
-            "trace_id": "abc123def456",
-            "timestamp": "2024-01-01T12:00:00Z",
-        }
-    })
+        },
+    )
 
     response: str = Field(
         ...,
@@ -130,7 +136,7 @@ class ProcessResponse(BaseModel):
         le=1.0,
         examples=[0.98],
     )
-    intent_type: Optional[str] = Field(
+    intent_type: str | None = Field(
         default=None,
         description="Detected intent type",
         examples=["set_timer"],
@@ -156,13 +162,13 @@ class ProcessResponse(BaseModel):
         description="Latency per pipeline stage",
         examples=[{"intent_detection": 50.2, "tool_selection": 12.3}],
     )
-    trace_id: Optional[str] = Field(
+    trace_id: str | None = Field(
         default=None,
         description="Distributed trace ID",
         examples=["abc123def456"],
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
+        default_factory=lambda: datetime.now(tz=UTC),
         description="Response timestamp",
     )
 
@@ -178,19 +184,22 @@ class ConversationResponse(BaseModel):
         entities: Tracked entities
         created_at: Conversation creation timestamp
         updated_at: Last update timestamp
+
     """
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "conversation_id": "conv_456",
-            "user_id": "user_123",
-            "turn_count": 5,
-            "recent_turns": [],
-            "entities": {},
-            "created_at": "2024-01-01T12:00:00Z",
-            "updated_at": "2024-01-01T12:05:00Z",
-        }
-    })
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "conversation_id": "conv_456",
+                "user_id": "user_123",
+                "turn_count": 5,
+                "recent_turns": [],
+                "entities": {},
+                "created_at": "2024-01-01T12:00:00Z",
+                "updated_at": "2024-01-01T12:05:00Z",
+            },
+        },
+    )
 
     conversation_id: str = Field(
         ...,
@@ -237,19 +246,22 @@ class TaskStatusResponse(BaseModel):
         error: Error message if failed
         created_at: Task creation timestamp
         updated_at: Last update timestamp
+
     """
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "task_id": "task_789",
-            "status": "running",
-            "progress": 0.65,
-            "result": None,
-            "error": None,
-            "created_at": "2024-01-01T12:00:00Z",
-            "updated_at": "2024-01-01T12:00:30Z",
-        }
-    })
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "task_id": "task_789",
+                "status": "running",
+                "progress": 0.65,
+                "result": None,
+                "error": None,
+                "created_at": "2024-01-01T12:00:00Z",
+                "updated_at": "2024-01-01T12:00:30Z",
+            },
+        },
+    )
 
     task_id: str = Field(
         ...,
@@ -269,11 +281,11 @@ class TaskStatusResponse(BaseModel):
         le=1.0,
         examples=[0.65],
     )
-    result: Optional[Any] = Field(
+    result: Any | None = Field(
         default=None,
         description="Task result if completed",
     )
-    error: Optional[str] = Field(
+    error: str | None = Field(
         default=None,
         description="Error message if failed",
     )
@@ -296,17 +308,20 @@ class ErrorResponse(BaseModel):
         details: Additional error details
         timestamp: Error timestamp
         trace_id: Distributed trace ID
+
     """
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "error": "Invalid request: text cannot be empty",
-            "error_code": "VALIDATION_ERROR",
-            "details": {"field": "text"},
-            "timestamp": "2024-01-01T12:00:00Z",
-            "trace_id": "abc123def456",
-        }
-    })
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "error": "Invalid request: text cannot be empty",
+                "error_code": "VALIDATION_ERROR",
+                "details": {"field": "text"},
+                "timestamp": "2024-01-01T12:00:00Z",
+                "trace_id": "abc123def456",
+            },
+        },
+    )
 
     error: str = Field(
         ...,
@@ -323,10 +338,10 @@ class ErrorResponse(BaseModel):
         description="Additional error details",
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
+        default_factory=lambda: datetime.now(tz=UTC),
         description="Error timestamp",
     )
-    trace_id: Optional[str] = Field(
+    trace_id: str | None = Field(
         default=None,
         description="Distributed trace ID",
     )

@@ -1,8 +1,8 @@
 """Skill registry for discovery, installation, and conflict resolution."""
+
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from Agent_Guru.skills.manifest import (
     InstallResult,
@@ -12,7 +12,6 @@ from Agent_Guru.skills.manifest import (
 
 logger = logging.getLogger(__name__)
 
-# Priority: user-installed > marketplace-verified > unverified
 _PRIORITY = {"user_installed": 2, "verified": 1, "unverified": 0}
 
 
@@ -85,7 +84,7 @@ class SkillRegistry:
             return True
         return False
 
-    def get(self, skill_id: str) -> Optional[SkillManifest]:
+    def get(self, skill_id: str) -> SkillManifest | None:
         return self._skills.get(skill_id)
 
     def list_skills(self) -> list[SkillManifest]:

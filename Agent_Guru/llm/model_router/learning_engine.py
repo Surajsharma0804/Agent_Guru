@@ -1,14 +1,13 @@
-"""
-Module: Agent_Guru.llm.model_router.learning_engine
+"""Module: Agent_Guru.llm.model_router.learning_engine
 Purpose: Learns from historical performance to improve model selection weights.
 
 Uses exponential moving average (EMA) for stable, bounded weight updates.
 """
+
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import structlog
 
@@ -28,8 +27,8 @@ _MIN_EXPLORATION_RATE = 0.05
 # produce a reward above the neutral weight of 1.0, driving EMA upward.
 _SUCCESS_BONUS = 2.0
 _FAILURE_PENALTY = -0.5
-_LATENCY_PENALTY_SCALE = 0.0001   # per ms
-_COST_PENALTY_SCALE = 10.0        # per dollar
+_LATENCY_PENALTY_SCALE = 0.0001  # per ms
+_COST_PENALTY_SCALE = 10.0  # per dollar
 # Degradation threshold (20% drop triggers weight reduction)
 _DEGRADATION_THRESHOLD = 0.20
 
@@ -45,6 +44,7 @@ class LearningEngine:
         min_samples_for_confidence: Samples needed for full confidence.
         base_exploration_rate: Starting exploration rate.
         min_exploration_rate: Minimum exploration rate floor.
+
     """
 
     def __init__(
@@ -74,6 +74,7 @@ class LearningEngine:
 
         Returns:
             Updated LearningWeights.
+
         """
         key = (record.model_id, record.task_type.value)
 
@@ -93,20 +94,19 @@ class LearningEngine:
 
             # EMA weight update
             weights.weight = (
-                (1 - self._learning_rate) * weights.weight
-                + self._learning_rate * reward
-            )
+                1 - self._learning_rate
+            ) * weights.weight + self._learning_rate * reward
             weights.sample_size += 1
-            weights.confidence = min(
-                1.0, weights.sample_size / self._min_samples
-            )
-            weights.last_updated = datetime.now(timezone.utc)
+            weights.confidence = min(1.0, weights.sample_size / self._min_samples)
+            weights.last_updated = datetime.now(UTC)
 
-        logger.debug("weights_updated",
-                     model_id=record.model_id,
-                     task_type=record.task_type.value,
-                     weight=weights.weight,
-                     confidence=weights.confidence)
+        logger.debug(
+            "weights_updated",
+            model_id=record.model_id,
+            task_type=record.task_type.value,
+            weight=weights.weight,
+            confidence=weights.confidence,
+        )
         return weights
 
     def get_weight(self, model_id: str, task_type: TaskType) -> float:
@@ -124,6 +124,7 @@ class LearningEngine:
 
         Returns:
             Dict mapping model_id → weight.
+
         """
         with self._lock:
             return {
@@ -132,8 +133,11 @@ class LearningEngine:
                 if tt == task_type.value
             }
 
-    def initialize_new_model(self, model_id: str,
-                             similar_model_ids: Optional[list[str]] = None) -> None:
+    def initialize_new_model(
+        self,
+        model_id: str,
+        similar_model_ids: list[str] | None = None,
+    ) -> None:
         """Initialize weights for a new model based on similar models.
 
         If similar models are provided, the new model starts with their
@@ -142,6 +146,7 @@ class LearningEngine:
         Args:
             model_id: New model to initialize.
             similar_model_ids: Optional list of similar model IDs.
+
         """
         with self._lock:
             # Collect all task types seen so far
@@ -170,8 +175,7 @@ class LearningEngine:
                     sample_size=0,
                 )
 
-        logger.info("new_model_initialized", model_id=model_id,
-                    similar_models=similar_model_ids)
+        logger.info("new_model_initialized", model_id=model_id, similar_models=similar_model_ids)
 
     # ------------------------------------------------------------------
     # Exploration
@@ -188,12 +192,10 @@ class LearningEngine:
 
         Returns:
             Exploration rate in [min_exploration_rate, base_exploration_rate].
+
         """
         with self._lock:
-            weights = [
-                w for (_, tt), w in self._weights.items()
-                if tt == task_type.value
-            ]
+            weights = [w for (_, tt), w in self._weights.items() if tt == task_type.value]
 
         if not weights:
             return self._base_exploration
@@ -207,8 +209,12 @@ class LearningEngine:
     # Degradation detection
     # ------------------------------------------------------------------
 
-    def detect_degradation(self, model_id: str, task_type: TaskType,
-                           recent_success_rate: float) -> bool:
+    def detect_degradation(
+        self,
+        model_id: str,
+        task_type: TaskType,
+        recent_success_rate: float,
+    ) -> bool:
         """Detect if a model has degraded significantly.
 
         Compares recent success rate against the stored weight. If the
@@ -222,6 +228,7 @@ class LearningEngine:
 
         Returns:
             True if degradation was detected.
+
         """
         key = (model_id, task_type.value)
         with self._lock:
@@ -235,12 +242,16 @@ class LearningEngine:
 
             if drop > _DEGRADATION_THRESHOLD:
                 # Penalize weight
-                w.weight = (1 - self._learning_rate) * w.weight + self._learning_rate * _FAILURE_PENALTY
-                w.last_updated = datetime.now(timezone.utc)
-                logger.warning("degradation_detected",
-                               model_id=model_id,
-                               task_type=task_type.value,
-                               drop=drop)
+                w.weight = (
+                    1 - self._learning_rate
+                ) * w.weight + self._learning_rate * _FAILURE_PENALTY
+                w.last_updated = datetime.now(UTC)
+                logger.warning(
+                    "degradation_detected",
+                    model_id=model_id,
+                    task_type=task_type.value,
+                    drop=drop,
+                )
                 return True
 
         return False
@@ -251,10 +262,7 @@ class LearningEngine:
 
     def _calculate_reward(self, record: PerformanceRecord) -> float:
         """Calculate reward signal from a performance record."""
-        if record.success:
-            base = _SUCCESS_BONUS
-        else:
-            base = _FAILURE_PENALTY
+        base = _SUCCESS_BONUS if record.success else _FAILURE_PENALTY
 
         latency_penalty = record.latency_ms * _LATENCY_PENALTY_SCALE
         return base - latency_penalty

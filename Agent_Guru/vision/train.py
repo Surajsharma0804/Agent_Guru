@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-train.py — GuruVision ArcFace training entry-point.
+r"""train.py — GuruVision ArcFace training entry-point.
 
 Usage:
     python -m Agent_Guru.vision.train \\
@@ -31,8 +30,8 @@ import sys
 import time
 from pathlib import Path
 
-from Agent_Guru.utils.path_utils import safe_path
 from Agent_Guru.training.seed_utils import set_deterministic_seeds
+from Agent_Guru.utils.path_utils import safe_path
 from Agent_Guru.vision.training.export import export_to_onnx, validate_onnx_equivalence
 from Agent_Guru.vision.training.preprocess import (
     MIN_IMAGES_PER_IDENTITY,
@@ -87,7 +86,8 @@ def _load_config_overrides(config_path: str, config: TrainingConfig) -> Training
     path = safe_path(BASE_DIR, config_path)
     if not path.exists():
         logging.getLogger("guruvision.train").warning(
-            "Config file not found: %s — using defaults", config_path
+            "Config file not found: %s — using defaults",
+            config_path,
         )
         return config
 
@@ -95,10 +95,11 @@ def _load_config_overrides(config_path: str, config: TrainingConfig) -> Training
     if path.suffix.lower() in {".yaml", ".yml"}:
         try:
             import yaml  # type: ignore[import]
+
             data = yaml.safe_load(text) or {}
         except ImportError:
             logging.getLogger("guruvision.train").warning(
-                "PyYAML not installed — cannot load YAML config"
+                "PyYAML not installed — cannot load YAML config",
             )
             return config
     else:
@@ -117,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
     set_deterministic_seeds(42)
 
     log_file = str(safe_path(BASE_DIR, os.path.join(args.output_dir, "training.log")))
-    os.makedirs(args.output_dir, exist_ok=True)
+    os.makedirs(args.output_dir, exist_ok=True)  # noqa: PTH103
     logger = setup_logging(log_level=args.log_level, log_file=log_file)
     logger.info("GuruVision training started")
 
@@ -148,7 +149,9 @@ def main(argv: list[str] | None = None) -> int:
         for name, count in under_minimum.items():
             logger.warning(
                 "Identity '%s' has %d images (< %d minimum)",
-                name, count, MIN_IMAGES_PER_IDENTITY,
+                name,
+                count,
+                MIN_IMAGES_PER_IDENTITY,
             )
 
     report["phases"]["validation"] = {
@@ -181,16 +184,14 @@ def main(argv: list[str] | None = None) -> int:
     try:
         checkpoint_path = train_arcface_model(config)
     except ImportError as exc:
-        logger.error("PyTorch not available: %s", exc)
+        logger.exception("PyTorch not available")
         report["phases"]["training"] = {"success": False, "error": str(exc)}
         _write_report(report, args.output_dir)
         return 1
-    except Exception as exc:
-        logger.error("Training failed: %s", exc, exc_info=True)
+        logger.exception("Training failed: %s", exc)
         report["phases"]["training"] = {"success": False, "error": str(exc)}
         _write_report(report, args.output_dir)
         return 1
-
     report["phases"]["training"] = {
         "success": True,
         "checkpoint_path": checkpoint_path,
@@ -209,10 +210,9 @@ def main(argv: list[str] | None = None) -> int:
         onnx_path = export_to_onnx(checkpoint_path, output_path=onnx_path)
         equivalence_ok = validate_onnx_equivalence(checkpoint_path, onnx_path)
     except ImportError as exc:
-        logger.warning("ONNX export skipped (missing dependency): %s", exc)
+        logger.exception("ONNX export skipped (missing dependency)")
         report["phases"]["onnx_export"] = {"success": False, "error": str(exc)}
-    except Exception as exc:
-        logger.error("ONNX export/validation failed: %s", exc, exc_info=True)
+        logger.exception("ONNX export/validation failed: %s", exc)
         report["phases"]["onnx_export"] = {"success": False, "error": str(exc)}
         _write_report(report, args.output_dir)
         return 1
@@ -239,9 +239,7 @@ def _write_report(report: dict, output_dir: str) -> None:
             json.dump(report, f, indent=2)
         logging.getLogger("guruvision.train").info("Report written to %s", report_path)
     except Exception as exc:
-        logging.getLogger("guruvision.train").error(
-            "Failed to write report: %s", exc
-        )
+        logging.getLogger("guruvision.train").exception("Failed to write report: %s", exc)
 
 
 if __name__ == "__main__":

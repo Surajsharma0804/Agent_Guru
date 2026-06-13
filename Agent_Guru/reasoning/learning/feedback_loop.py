@@ -1,5 +1,4 @@
-"""
-User Feedback Loop - Task 49.
+"""User Feedback Loop - Task 49.
 
 Implements feedback collection (thumbs up/down, detailed forms, implicit signals)
 and feedback analysis (pattern detection, trend tracking, improvement prioritization).
@@ -23,9 +22,9 @@ from __future__ import annotations
 import collections
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -41,7 +40,7 @@ _DEFAULT_MAX_BUFFER: int = 1_000
 
 def _utcnow() -> datetime:
     """Return current UTC time as timezone-aware datetime (Python 3.12+ safe)."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -52,12 +51,12 @@ def _utcnow() -> datetime:
 class FeedbackSignal(str, Enum):
     """Type of user feedback signal."""
 
-    THUMBS_UP = "thumbs_up"           # Explicit positive
-    THUMBS_DOWN = "thumbs_down"       # Explicit negative
-    CORRECTION = "correction"         # User corrected the response
-    RETRY = "retry"                   # User retried (implicit negative)
-    TASK_COMPLETED = "task_completed" # Task completed successfully (implicit positive)
-    TASK_ABANDONED = "task_abandoned" # User abandoned task (implicit negative)
+    THUMBS_UP = "thumbs_up"  # Explicit positive
+    THUMBS_DOWN = "thumbs_down"  # Explicit negative
+    CORRECTION = "correction"  # User corrected the response
+    RETRY = "retry"  # User retried (implicit negative)
+    TASK_COMPLETED = "task_completed"  # Task completed successfully (implicit positive)
+    TASK_ABANDONED = "task_abandoned"  # User abandoned task (implicit negative)
 
 
 @dataclass
@@ -73,20 +72,24 @@ class UserFeedback:
     response: str
     intent: str
     confidence: float
-    correction: Optional[str] = None
-    error_description: Optional[str] = None
+    correction: str | None = None
+    error_description: str | None = None
     context: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate fields after construction."""
         if not self.user_id or not self.user_id.strip():
-            raise ValueError("user_id cannot be empty")
+            msg = "user_id cannot be empty"
+            raise ValueError(msg)
         if not self.session_id or not self.session_id.strip():
-            raise ValueError("session_id cannot be empty")
+            msg = "session_id cannot be empty"
+            raise ValueError(msg)
         if not self.original_input or not self.original_input.strip():
-            raise ValueError("original_input cannot be empty")
+            msg = "original_input cannot be empty"
+            raise ValueError(msg)
         if not (0.0 <= self.confidence <= 1.0):
-            raise ValueError(f"confidence must be in [0, 1], got {self.confidence}")
+            msg = f"confidence must be in [0, 1], got {self.confidence}"
+            raise ValueError(msg)
 
     @property
     def is_positive(self) -> bool:
@@ -156,10 +159,10 @@ class FeedbackTrend:
 class ImprovementItem:
     """A prioritized improvement item."""
 
-    priority: int          # 1 = highest priority
+    priority: int  # 1 = highest priority
     intent: str
     failure_count: int
-    impact_score: float    # Combined priority score in [0, 1]
+    impact_score: float  # Combined priority score in [0, 1]
     description: str
     suggested_action: str
     example_failures: list[str]
@@ -171,8 +174,7 @@ class ImprovementItem:
 
 
 class FeedbackCollector:
-    """
-    Collects explicit and implicit user feedback.
+    """Collects explicit and implicit user feedback.
 
     Supports:
     - Thumbs up/down explicit feedback
@@ -191,7 +193,7 @@ class FeedbackCollector:
         self._store = store
         self._max_buffer = max_buffer
         self._feedback_buffer: collections.deque[UserFeedback] = collections.deque(
-            maxlen=max_buffer
+            maxlen=max_buffer,
         )
 
     async def thumbs_up(
@@ -224,7 +226,7 @@ class FeedbackCollector:
         response: str,
         intent: str,
         confidence: float,
-        error_description: Optional[str] = None,
+        error_description: str | None = None,
         model_version: str = "v1.0",
     ) -> UserFeedback:
         """Record a thumbs down (negative) feedback."""
@@ -253,7 +255,8 @@ class FeedbackCollector:
     ) -> UserFeedback:
         """Record a user correction and persist it to the feedback store for training."""
         if not correct_intent or not correct_intent.strip():
-            raise ValueError("correct_intent cannot be empty")
+            msg = "correct_intent cannot be empty"
+            raise ValueError(msg)
 
         feedback = await self._record(
             user_id=user_id,
@@ -268,18 +271,20 @@ class FeedbackCollector:
         )
 
         # Persist to store for downstream training pipeline
-        await self._store.store_feedback(IntentFeedback(
-            feedback_id=feedback.feedback_id,
-            user_id=user_id,
-            timestamp=feedback.timestamp,
-            original_input=original_input,
-            predicted_intent=intent,
-            predicted_entities={},
-            predicted_confidence=confidence,
-            correct_intent=correct_intent,
-            feedback_type=FeedbackType.CORRECTION,
-            model_version=model_version,
-        ))
+        await self._store.store_feedback(
+            IntentFeedback(
+                feedback_id=feedback.feedback_id,
+                user_id=user_id,
+                timestamp=feedback.timestamp,
+                original_input=original_input,
+                predicted_intent=intent,
+                predicted_entities={},
+                predicted_confidence=confidence,
+                correct_intent=correct_intent,
+                feedback_type=FeedbackType.CORRECTION,
+                model_version=model_version,
+            ),
+        )
         logger.info(
             "correction_stored",
             feedback_id=feedback.feedback_id,
@@ -339,8 +344,8 @@ class FeedbackCollector:
         response: str,
         intent: str,
         confidence: float,
-        correction: Optional[str] = None,
-        error_description: Optional[str] = None,
+        correction: str | None = None,
+        error_description: str | None = None,
         model_version: str = "v1.0",
     ) -> UserFeedback:
         """Create, validate, buffer, and return a UserFeedback entry. O(1)."""
@@ -382,8 +387,7 @@ class FeedbackCollector:
 
 
 class FeedbackAnalyzer:
-    """
-    Analyzes feedback to identify patterns, trends, and failure modes.
+    """Analyzes feedback to identify patterns, trends, and failure modes.
 
     The history is bounded to ``max_history`` items (oldest evicted) to prevent
     unbounded memory growth in long-running services.
@@ -400,7 +404,7 @@ class FeedbackAnalyzer:
 
     def __init__(self, max_history: int = _DEFAULT_MAX_HISTORY) -> None:
         self._feedback_history: collections.deque[UserFeedback] = collections.deque(
-            maxlen=max_history
+            maxlen=max_history,
         )
 
     def add_feedback(self, feedback: UserFeedback) -> None:
@@ -412,11 +416,8 @@ class FeedbackAnalyzer:
         for fb in feedback_list:
             self._feedback_history.append(fb)
 
-    def detect_failure_patterns(
-        self, min_occurrences: int = 3
-    ) -> list[FailurePattern]:
-        """
-        Detect recurring failure patterns from negative feedback.
+    def detect_failure_patterns(self, min_occurrences: int = 3) -> list[FailurePattern]:
+        """Detect recurring failure patterns from negative feedback.
 
         Time Complexity: O(n) where n is history size
 
@@ -425,6 +426,7 @@ class FeedbackAnalyzer:
 
         Returns:
             List of failure patterns sorted by failure count descending
+
         """
         intent_failures: dict[str, list[UserFeedback]] = collections.defaultdict(list)
         for fb in self._feedback_history:
@@ -448,16 +450,18 @@ class FeedbackAnalyzer:
             else:
                 severity = "low"
 
-            patterns.append(FailurePattern(
-                pattern_id=str(uuid.uuid4()),
-                intent=intent,
-                failure_count=failure_count,
-                example_inputs=examples,
-                common_corrections=corrections,
-                first_seen=min(timestamps),
-                last_seen=max(timestamps),
-                severity=severity,
-            ))
+            patterns.append(
+                FailurePattern(
+                    pattern_id=str(uuid.uuid4()),
+                    intent=intent,
+                    failure_count=failure_count,
+                    example_inputs=examples,
+                    common_corrections=corrections,
+                    first_seen=min(timestamps),
+                    last_seen=max(timestamps),
+                    severity=severity,
+                ),
+            )
 
         patterns.sort(key=lambda p: p.failure_count, reverse=True)
         return patterns
@@ -465,10 +469,9 @@ class FeedbackAnalyzer:
     def compute_trend(
         self,
         window_days: int = 7,
-        reference_time: Optional[datetime] = None,
+        reference_time: datetime | None = None,
     ) -> FeedbackTrend:
-        """
-        Compute feedback trend over a time window.
+        """Compute feedback trend over a time window.
 
         Time Complexity: O(n)
 
@@ -478,20 +481,16 @@ class FeedbackAnalyzer:
 
         Returns:
             FeedbackTrend for the specified window
+
         """
         end = reference_time or _utcnow()
         start = end - timedelta(days=window_days)
 
-        window_feedback = [
-            fb for fb in self._feedback_history
-            if start <= fb.timestamp <= end
-        ]
+        window_feedback = [fb for fb in self._feedback_history if start <= fb.timestamp <= end]
 
         positive = sum(1 for fb in window_feedback if fb.is_positive)
         negative = sum(1 for fb in window_feedback if fb.is_negative)
-        corrections = sum(
-            1 for fb in window_feedback if fb.signal == FeedbackSignal.CORRECTION
-        )
+        corrections = sum(1 for fb in window_feedback if fb.signal == FeedbackSignal.CORRECTION)
         retries = sum(1 for fb in window_feedback if fb.signal == FeedbackSignal.RETRY)
 
         intent_failures: collections.Counter[str] = collections.Counter(
@@ -527,8 +526,7 @@ class FeedbackAnalyzer:
 
 
 class ImprovementPrioritizer:
-    """
-    Prioritizes improvements based on feedback analysis.
+    """Prioritizes improvements based on feedback analysis.
 
     Scoring weights:
     - Failure frequency (0.5): how often this intent fails relative to worst
@@ -543,8 +541,7 @@ class ImprovementPrioritizer:
         patterns: list[FailurePattern],
         total_feedback: int,
     ) -> list[ImprovementItem]:
-        """
-        Generate prioritized improvement items from failure patterns.
+        """Generate prioritized improvement items from failure patterns.
 
         Args:
             patterns: Detected failure patterns
@@ -552,6 +549,7 @@ class ImprovementPrioritizer:
 
         Returns:
             Prioritized list of improvements (priority 1 = most important)
+
         """
         if not patterns:
             return []
@@ -597,13 +595,11 @@ class ImprovementPrioritizer:
 
 
 # ---------------------------------------------------------------------------
-# FeedbackLoop (orchestrator)
 # ---------------------------------------------------------------------------
 
 
 class FeedbackLoop:
-    """
-    Orchestrates the complete user feedback loop.
+    """Orchestrates the complete user feedback loop.
 
     Integrates:
     - FeedbackCollector: Collect all feedback types
@@ -657,7 +653,7 @@ class FeedbackLoop:
         response: str,
         intent: str,
         confidence: float,
-        error_description: Optional[str] = None,
+        error_description: str | None = None,
         model_version: str = "v1.0",
     ) -> UserFeedback:
         """Record thumbs down and add to analyzer."""
@@ -747,8 +743,7 @@ class FeedbackLoop:
         min_pattern_occurrences: int = 2,
         top_n: int = 5,
     ) -> dict[str, Any]:
-        """
-        Generate a comprehensive feedback analysis report.
+        """Generate a comprehensive feedback analysis report.
 
         Args:
             window_days: Analysis window in days
@@ -757,11 +752,10 @@ class FeedbackLoop:
 
         Returns:
             Report dict with trends, patterns, and prioritized improvements
+
         """
         trend = self.analyzer.compute_trend(window_days)
-        patterns = self.analyzer.detect_failure_patterns(
-            min_occurrences=min_pattern_occurrences
-        )
+        patterns = self.analyzer.detect_failure_patterns(min_occurrences=min_pattern_occurrences)
         improvements = self._prioritizer.prioritize(patterns, trend.total_feedback)
 
         return {
@@ -776,8 +770,7 @@ class FeedbackLoop:
                 "negative_count": trend.negative_count,
             },
             "top_failing_intents": [
-                {"intent": intent, "failures": count}
-                for intent, count in trend.top_failing_intents
+                {"intent": intent, "failures": count} for intent, count in trend.top_failing_intents
             ],
             "failure_patterns": [
                 {

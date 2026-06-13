@@ -1,12 +1,11 @@
-"""
-Adapter to integrate skills with the tool selection system.
+"""Adapter to integrate skills with the tool selection system.
 
 Wraps skills as Tool instances so they can be selected and executed
 alongside core tools.
 """
 
 import time
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.models.skill import InstalledSkill, SkillStatus
 from Agent_Guru.reasoning.tools.base import (
@@ -24,12 +23,13 @@ from Agent_Guru.reasoning.tools.skills.sandbox_executor import (
 class SkillToolAdapter(Tool):
     """Adapter that wraps a skill as a Tool."""
 
-    def __init__(self, skill: InstalledSkill, entry_point: str):
+    def __init__(self, skill: InstalledSkill, entry_point: str) -> None:
         """Initialize skill tool adapter.
 
         Args:
             skill: Installed skill
             entry_point: Entry point to execute
+
         """
         super().__init__()
         self.skill = skill
@@ -44,6 +44,7 @@ class SkillToolAdapter(Tool):
 
         Returns:
             Tool metadata
+
         """
         # Map skill capabilities to tool capabilities
         capabilities = self.skill.manifest.capabilities
@@ -59,7 +60,7 @@ class SkillToolAdapter(Tool):
                 description="Skill parameters",
                 required=False,
                 default={},
-            )
+            ),
         ]
 
         return ToolMetadata(
@@ -78,6 +79,7 @@ class SkillToolAdapter(Tool):
 
         Returns:
             Tool sensitivity level
+
         """
         from Agent_Guru.reasoning.models.skill import Permission
 
@@ -98,10 +100,9 @@ class SkillToolAdapter(Tool):
 
         if required & dangerous_permissions:
             return ToolSensitivity.DANGEROUS
-        elif required & sensitive_permissions:
+        if required & sensitive_permissions:
             return ToolSensitivity.SENSITIVE
-        else:
-            return ToolSensitivity.SAFE
+        return ToolSensitivity.SAFE
 
     async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute the skill.
@@ -111,6 +112,7 @@ class SkillToolAdapter(Tool):
 
         Returns:
             Execution result dictionary
+
         """
         start_time = time.perf_counter()
 
@@ -147,7 +149,7 @@ class SkillToolAdapter(Tool):
 class SkillToolRegistry:
     """Registry for skill-based tools."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize skill tool registry."""
         self._skill_tools: dict[str, SkillToolAdapter] = {}
 
@@ -156,13 +158,14 @@ class SkillToolRegistry:
 
         Args:
             skill: Skill to register
+
         """
         # Only register active skills
         if skill.status != SkillStatus.ACTIVE:
             return
 
         # Create tool adapter for each entry point
-        for entry_point in skill.manifest.entry_points.keys():
+        for entry_point in skill.manifest.entry_points:
             tool = SkillToolAdapter(skill, entry_point)
             tool_id = tool.metadata.tool_id
             self._skill_tools[tool_id] = tool
@@ -172,18 +175,17 @@ class SkillToolRegistry:
 
         Args:
             skill_id: Skill ID to unregister
+
         """
         # Remove all tools for this skill
         to_remove = [
-            tool_id
-            for tool_id in self._skill_tools.keys()
-            if tool_id.startswith(f"skill.{skill_id}.")
+            tool_id for tool_id in self._skill_tools if tool_id.startswith(f"skill.{skill_id}.")
         ]
 
         for tool_id in to_remove:
             del self._skill_tools[tool_id]
 
-    def get_skill_tool(self, tool_id: str) -> Optional[SkillToolAdapter]:
+    def get_skill_tool(self, tool_id: str) -> SkillToolAdapter | None:
         """Get a skill tool by ID.
 
         Args:
@@ -191,6 +193,7 @@ class SkillToolRegistry:
 
         Returns:
             Skill tool or None if not found
+
         """
         return self._skill_tools.get(tool_id)
 
@@ -199,6 +202,7 @@ class SkillToolRegistry:
 
         Returns:
             List of skill tools
+
         """
         return list(self._skill_tools.values())
 
@@ -210,16 +214,15 @@ class SkillToolRegistry:
 
         Returns:
             List of matching skill tools
+
         """
         return [
-            tool
-            for tool in self._skill_tools.values()
-            if capability in tool.metadata.capabilities
+            tool for tool in self._skill_tools.values() if capability in tool.metadata.capabilities
         ]
 
 
 # Global skill tool registry
-_global_skill_tool_registry: Optional[SkillToolRegistry] = None
+_global_skill_tool_registry: SkillToolRegistry | None = None
 
 
 def get_skill_tool_registry() -> SkillToolRegistry:
@@ -227,6 +230,7 @@ def get_skill_tool_registry() -> SkillToolRegistry:
 
     Returns:
         Global SkillToolRegistry instance
+
     """
     global _global_skill_tool_registry
     if _global_skill_tool_registry is None:

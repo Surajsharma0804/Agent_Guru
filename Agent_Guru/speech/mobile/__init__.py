@@ -12,8 +12,8 @@ from .android_stt import AndroidSpeechRecognizer, AndroidSTTError
 from .ios_stt import IOSSpeechRecognizer, IOSSTTError
 
 __all__ = [
-    'AndroidSpeechRecognizer',
-    'AndroidSTTError',
-    'IOSSpeechRecognizer',
-    'IOSSTTError',
+    "AndroidSTTError",
+    "AndroidSpeechRecognizer",
+    "IOSSTTError",
+    "IOSSpeechRecognizer",
 ]

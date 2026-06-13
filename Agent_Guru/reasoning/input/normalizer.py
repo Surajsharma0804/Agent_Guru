@@ -1,5 +1,4 @@
-"""
-Input Normalizer for Reasoning Engine.
+"""Input Normalizer for Reasoning Engine.
 
 This module implements input normalization for text, voice, and system event inputs.
 It standardizes inputs from different sources into a common format with metadata extraction,
@@ -23,9 +22,9 @@ Version: 1.0.0
 """
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -53,12 +52,16 @@ class RawInput(BaseModel):
         user_id: User identifier
         timestamp: Input timestamp
         metadata: Additional metadata
+
     """
 
     content: Any = Field(..., description="Raw input content")
     source: InputSource = Field(..., description="Input source type")
     user_id: str = Field(..., description="User identifier")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), description="Input timestamp")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="Input timestamp",
+    )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     @field_validator("user_id")
@@ -66,7 +69,8 @@ class RawInput(BaseModel):
     def validate_user_id(cls, v: str) -> str:
         """Validate user ID is not empty."""
         if not v or not v.strip():
-            raise ValueError("User ID cannot be empty")
+            msg = "User ID cannot be empty"
+            raise ValueError(msg)
         return v.strip()
 
 
@@ -80,6 +84,7 @@ class NormalizedInput(BaseModel):
         timestamp: Input timestamp
         metadata: Extracted and preserved metadata
         original_content: Original raw content (for debugging)
+
     """
 
     text: str = Field(..., description="Normalized text content")
@@ -87,14 +92,15 @@ class NormalizedInput(BaseModel):
     user_id: str = Field(..., description="User identifier")
     timestamp: datetime = Field(..., description="Input timestamp")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Extracted metadata")
-    original_content: Optional[str] = Field(default=None, description="Original raw content")
+    original_content: str | None = Field(default=None, description="Original raw content")
 
     @field_validator("text")
     @classmethod
     def validate_text(cls, v: str) -> str:
         """Validate text is not empty."""
         if not v or not v.strip():
-            raise ValueError("Normalized text cannot be empty")
+            msg = "Normalized text cannot be empty"
+            raise ValueError(msg)
         return v
 
     @field_validator("user_id")
@@ -102,7 +108,8 @@ class NormalizedInput(BaseModel):
     def validate_user_id(cls, v: str) -> str:
         """Validate user ID is not empty."""
         if not v or not v.strip():
-            raise ValueError("User ID cannot be empty")
+            msg = "User ID cannot be empty"
+            raise ValueError(msg)
         return v
 
 
@@ -137,6 +144,7 @@ class InputNormalizer:
         >>> normalized = normalizer.normalize(raw)
         >>> print(normalized.text)
         "Set a timer for 5 minutes"
+
     """
 
     # Maximum input length (10KB)
@@ -155,11 +163,12 @@ class InputNormalizer:
 
         Args:
             max_length: Maximum input length in characters
+
         """
         self.max_length = max_length
         self._dangerous_pattern = re.compile(
             "|".join(self.DANGEROUS_PATTERNS),
-            re.IGNORECASE | re.DOTALL
+            re.IGNORECASE | re.DOTALL,
         )
 
     def normalize(self, raw_input: RawInput) -> NormalizedInput:
@@ -184,16 +193,17 @@ class InputNormalizer:
             >>> normalizer = InputNormalizer()
             >>> raw = RawInput(content="hello", source=InputSource.TEXT, user_id="user_123")
             >>> normalized = normalizer.normalize(raw)
+
         """
         # Route to appropriate normalization method based on source
         if raw_input.source == InputSource.TEXT:
             return self._normalize_text(raw_input)
-        elif raw_input.source == InputSource.VOICE:
+        if raw_input.source == InputSource.VOICE:
             return self._normalize_voice(raw_input)
-        elif raw_input.source == InputSource.SYSTEM_EVENT:
+        if raw_input.source == InputSource.SYSTEM_EVENT:
             return self._normalize_system_event(raw_input)
-        else:
-            raise ValueError(f"Unknown input source: {raw_input.source}")
+        msg = f"Unknown input source: {raw_input.source}"
+        raise ValueError(msg)
 
     def _normalize_text(self, raw_input: RawInput) -> NormalizedInput:
         """Normalize text input.
@@ -208,24 +218,26 @@ class InputNormalizer:
 
         Raises:
             ValueError: If text is invalid
+
         """
         # Validate content is string
         if not isinstance(raw_input.content, str):
+            msg = f"Text input content must be string, got {type(raw_input.content).__name__}"
             raise ValueError(
-                f"Text input content must be string, got {type(raw_input.content).__name__}"
+                msg,
             )
 
         # Check length
         if len(raw_input.content) > self.max_length:
-            raise ValueError(
-                f"Input exceeds maximum length of {self.max_length} characters"
-            )
+            msg = f"Input exceeds maximum length of {self.max_length} characters"
+            raise ValueError(msg)
 
         # Validate encoding
         try:
             raw_input.content.encode("utf-8")
         except UnicodeEncodeError as e:
-            raise ValueError(f"Invalid text encoding: {e}") from e
+            msg = f"Invalid text encoding: {e}"
+            raise ValueError(msg) from e
 
         # Sanitize input for security
         sanitized = self._sanitize_input(raw_input.content)
@@ -235,7 +247,8 @@ class InputNormalizer:
 
         # Validate not empty after normalization
         if not normalized_text:
-            raise ValueError("Input is empty after normalization")
+            msg = "Input is empty after normalization"
+            raise ValueError(msg)
 
         # Extract metadata
         metadata = self._extract_text_metadata(raw_input.content, normalized_text)
@@ -263,25 +276,27 @@ class InputNormalizer:
 
         Raises:
             ValueError: If voice input is invalid
+
         """
         # Voice input should already be transcribed to text
         if not isinstance(raw_input.content, str):
+            msg = f"Voice input content must be transcribed string, got {type(raw_input.content).__name__}"
             raise ValueError(
-                f"Voice input content must be transcribed string, got {type(raw_input.content).__name__}"
+                msg,
             )
 
         # Check length
         if len(raw_input.content) > self.max_length:
-            raise ValueError(
-                f"Input exceeds maximum length of {self.max_length} characters"
-            )
+            msg = f"Input exceeds maximum length of {self.max_length} characters"
+            raise ValueError(msg)
 
         # Normalize whitespace (voice transcription may have extra spaces)
         normalized_text = self._normalize_whitespace(raw_input.content)
 
         # Validate not empty
         if not normalized_text:
-            raise ValueError("Voice input is empty after normalization")
+            msg = "Voice input is empty after normalization"
+            raise ValueError(msg)
 
         # Extract metadata
         metadata = self._extract_voice_metadata(raw_input.content, normalized_text)
@@ -309,6 +324,7 @@ class InputNormalizer:
 
         Raises:
             ValueError: If system event is invalid
+
         """
         # System events can be dict or string
         if isinstance(raw_input.content, dict):
@@ -318,13 +334,15 @@ class InputNormalizer:
             # Already text, just normalize
             normalized_text = self._normalize_whitespace(raw_input.content)
         else:
+            msg = f"System event content must be dict or string, got {type(raw_input.content).__name__}"
             raise ValueError(
-                f"System event content must be dict or string, got {type(raw_input.content).__name__}"
+                msg,
             )
 
         # Validate not empty
         if not normalized_text:
-            raise ValueError("System event is empty after normalization")
+            msg = "System event is empty after normalization"
+            raise ValueError(msg)
 
         # Extract metadata
         metadata = self._extract_system_event_metadata(raw_input.content)
@@ -349,6 +367,7 @@ class InputNormalizer:
 
         Returns:
             Text with normalized whitespace
+
         """
         # Strip leading/trailing whitespace
         text = text.strip()
@@ -357,9 +376,7 @@ class InputNormalizer:
         text = " ".join(text.split())
 
         # Remove control characters except newline and tab
-        text = "".join(char for char in text if char.isprintable() or char in "\n\t")
-
-        return text
+        return "".join(char for char in text if char.isprintable() or char in "\n\t")
 
     def _sanitize_input(self, text: str) -> str:
         """Sanitize input for security (prevent XSS, injection).
@@ -371,14 +388,13 @@ class InputNormalizer:
 
         Returns:
             Sanitized text
+
         """
         # Remove dangerous patterns
         sanitized = self._dangerous_pattern.sub("", text)
 
         # HTML entity encoding for special characters
-        sanitized = sanitized.replace("<", "&lt;").replace(">", "&gt;")
-
-        return sanitized
+        return sanitized.replace("<", "&lt;").replace(">", "&gt;")
 
     def _extract_text_metadata(self, original: str, normalized: str) -> dict[str, Any]:
         """Extract metadata from text input.
@@ -389,6 +405,7 @@ class InputNormalizer:
 
         Returns:
             Dictionary of extracted metadata
+
         """
         return {
             "original_length": len(original),
@@ -407,6 +424,7 @@ class InputNormalizer:
 
         Returns:
             Dictionary of extracted metadata
+
         """
         metadata = self._extract_text_metadata(original, normalized)
         metadata["transcribed"] = True
@@ -420,6 +438,7 @@ class InputNormalizer:
 
         Returns:
             Dictionary of extracted metadata
+
         """
         metadata = {"system_generated": True}
 
@@ -440,24 +459,26 @@ class InputNormalizer:
 
         Raises:
             ValueError: If event is empty or has no meaningful content
+
         """
         if not event:
-            raise ValueError("System event dictionary is empty")
+            msg = "System event dictionary is empty"
+            raise ValueError(msg)
 
         event_type = event.get("type", "unknown")
 
         # Handle common event types
         if event_type == "timer_expired":
             return f"Timer expired: {event.get('name', 'unnamed')}"
-        elif event_type == "alarm_triggered":
+        if event_type == "alarm_triggered":
             return f"Alarm triggered: {event.get('name', 'unnamed')}"
-        elif event_type == "reminder":
+        if event_type == "reminder":
             return f"Reminder: {event.get('message', 'no message')}"
-        elif event_type == "notification":
+        if event_type == "notification":
             return f"Notification from {event.get('app', 'unknown')}: {event.get('message', '')}"
-        else:
-            # Generic conversion
-            parts = [f"{key}: {value}" for key, value in event.items() if key != "type"]
-            if not parts and event_type == "unknown":
-                raise ValueError("System event has no meaningful content")
-            return f"{event_type} - {', '.join(parts)}" if parts else event_type
+        # Generic conversion
+        parts = [f"{key}: {value}" for key, value in event.items() if key != "type"]
+        if not parts and event_type == "unknown":
+            msg = "System event has no meaningful content"
+            raise ValueError(msg)
+        return f"{event_type} - {', '.join(parts)}" if parts else event_type

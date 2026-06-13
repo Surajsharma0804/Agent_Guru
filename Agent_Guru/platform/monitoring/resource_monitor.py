@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.monitoring.resource_monitor
-Purpose: Real-time resource monitoring with predictive alerting
+"""Module: agent_guru.platform.monitoring.resource_monitor
+Purpose: Real-time resource monitoring with predictive alerting.
 
 This module implements comprehensive system resource monitoring with:
 - Real-time metrics collection (CPU, memory, disk, network, GPU)
@@ -27,23 +26,23 @@ Date: 2026-02-25
 Version: 1.0.0
 """
 
+import logging
 import threading
 import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Optional
 
 import psutil
 
-import logging
 _logger = logging.getLogger(__name__)
 
 # Optional GPU support
 try:
     import GPUtil
+
     GPU_AVAILABLE = True
 except ImportError:
     GPU_AVAILABLE = False
@@ -51,6 +50,7 @@ except ImportError:
 
 class ResourceType(Enum):
     """Resource types for monitoring."""
+
     CPU = "cpu"
     MEMORY = "memory"
     DISK = "disk"
@@ -60,6 +60,7 @@ class ResourceType(Enum):
 
 class AlertSeverity(Enum):
     """Alert severity levels."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -69,6 +70,7 @@ class AlertSeverity(Enum):
 @dataclass
 class DiskUsage:
     """Disk usage information for a volume."""
+
     path: str
     total: int  # bytes
     used: int  # bytes
@@ -79,6 +81,7 @@ class DiskUsage:
 @dataclass
 class NetworkIO:
     """Network I/O statistics."""
+
     bytes_sent: int
     bytes_recv: int
     packets_sent: int
@@ -92,6 +95,7 @@ class NetworkIO:
 @dataclass
 class GPUUsage:
     """GPU usage information."""
+
     id: int
     name: str
     load: float  # 0-100
@@ -99,12 +103,13 @@ class GPUUsage:
     memory_used: int  # MB
     memory_free: int  # MB
     memory_percent: float  # 0-100
-    temperature: Optional[float]  # Celsius
+    temperature: float | None  # Celsius
 
 
 @dataclass
 class ProcessResourceUsage:
     """Resource usage for a specific process."""
+
     pid: int
     name: str
     cpu_percent: float
@@ -117,6 +122,7 @@ class ProcessResourceUsage:
 @dataclass
 class ResourceSnapshot:
     """Complete resource usage snapshot at a point in time."""
+
     timestamp: datetime
     cpu_percent: float  # Aggregate CPU usage
     cpu_per_core: list[float]  # Per-core CPU usage
@@ -127,7 +133,7 @@ class ResourceSnapshot:
     swap_percent: float  # Swap usage percentage
     disk_usage: dict[str, DiskUsage]  # path -> usage
     network_io: NetworkIO
-    gpu_usage: Optional[list[GPUUsage]]
+    gpu_usage: list[GPUUsage] | None
     process_count: int
     thread_count: int
 
@@ -135,6 +141,7 @@ class ResourceSnapshot:
 @dataclass
 class ResourceLimits:
     """Configurable resource limits for alerting."""
+
     max_cpu_percent: float = 80.0
     max_memory_bytes: int = 2 * 1024 * 1024 * 1024  # 2GB
     max_memory_percent: float = 90.0
@@ -146,6 +153,7 @@ class ResourceLimits:
 @dataclass
 class ResourceAlert:
     """Resource usage alert."""
+
     alert_id: str
     resource_type: ResourceType
     current_value: float
@@ -159,6 +167,7 @@ class ResourceAlert:
 @dataclass
 class ResourceMonitorConfig:
     """Configuration for ResourceMonitor."""
+
     sampling_interval: float = 5.0  # seconds
     history_size: int = 1000  # number of snapshots to keep
     enable_gpu_monitoring: bool = True
@@ -167,8 +176,7 @@ class ResourceMonitorConfig:
 
 
 class ResourceMonitor:
-    """
-    Real-time resource monitoring with predictive alerting.
+    """Real-time resource monitoring with predictive alerting.
 
     Monitors:
     - CPU usage (per-core and aggregate)
@@ -187,33 +195,32 @@ class ResourceMonitor:
         >>> snapshot = monitor.get_current_usage()
         >>> print(f"CPU: {snapshot.cpu_percent}%")
         >>> monitor.stop_monitoring()
+
     """
 
-    def __init__(self, config: Optional[ResourceMonitorConfig] = None):
-        """
-        Initialize resource monitor.
+    def __init__(self, config: ResourceMonitorConfig | None = None) -> None:
+        """Initialize resource monitor.
 
         Args:
             config: Monitor configuration (uses defaults if None)
+
         """
         self.config = config or ResourceMonitorConfig()
 
         # Historical metrics storage (fixed size for O(1) operations)
-        self.metrics_history: deque[ResourceSnapshot] = deque(
-            maxlen=self.config.history_size
-        )
+        self.metrics_history: deque[ResourceSnapshot] = deque(maxlen=self.config.history_size)
 
         # Alert callbacks
         self.alert_callbacks: list[Callable[[ResourceAlert], None]] = []
 
         # Monitoring state
         self._monitoring = False
-        self._monitor_thread: Optional[threading.Thread] = None
+        self._monitor_thread: threading.Thread | None = None
         self._lock = threading.Lock()
 
         # Network I/O baseline for bandwidth calculation
-        self._last_network_io: Optional[NetworkIO] = None
-        self._last_network_time: Optional[float] = None
+        self._last_network_io: NetworkIO | None = None
+        self._last_network_time: float | None = None
 
         # Alert tracking (prevent duplicate alerts)
         self._active_alerts: dict[str, ResourceAlert] = {}
@@ -229,16 +236,16 @@ class ResourceMonitor:
         psutil.cpu_percent(interval=0.01)
 
     def get_current_usage(self) -> ResourceSnapshot:
-        """
-        Get current resource usage snapshot.
+        """Get current resource usage snapshot.
 
         Time Complexity: O(1) - constant time operations
         Space Complexity: O(1) - fixed size snapshot
 
         Returns:
             Current resource usage snapshot
+
         """
-        timestamp = datetime.now(tz=timezone.utc)
+        timestamp = datetime.now(tz=UTC)
 
         # CPU metrics (O(1) - psutil caches values)
         # Use interval=None for non-blocking call (returns cached value)
@@ -259,7 +266,7 @@ class ResourceMonitor:
                     total=usage.total,
                     used=usage.used,
                     free=usage.free,
-                    percent=usage.percent
+                    percent=usage.percent,
                 )
             except (PermissionError, OSError):
                 # Skip inaccessible partitions
@@ -277,7 +284,7 @@ class ResourceMonitor:
                 errin=net_io.errin,
                 errout=net_io.errout,
                 dropin=net_io.dropin,
-                dropout=net_io.dropout
+                dropout=net_io.dropout,
             )
 
         # GPU metrics (O(gpus) - typically 1-2 GPUs)
@@ -294,12 +301,13 @@ class ResourceMonitor:
                         memory_used=gpu.memoryUsed,
                         memory_free=gpu.memoryFree,
                         memory_percent=(gpu.memoryUsed / gpu.memoryTotal * 100)
-                        if gpu.memoryTotal > 0 else 0.0,
-                        temperature=gpu.temperature
+                        if gpu.memoryTotal > 0
+                        else 0.0,
+                        temperature=gpu.temperature,
                     )
                     for gpu in gpus
                 ]
-            except Exception as e:
+            except Exception:
                 # GPU monitoring failed, continue without it
                 gpu_usage = None
 
@@ -309,6 +317,7 @@ class ResourceMonitor:
         # Thread count: use process_count as proxy on Windows (num_threads hangs on
         # protected system processes via psutil C extension on Windows)
         import platform as _platform
+
         thread_count = 0
         if _platform.system() != "Windows":
             try:
@@ -320,12 +329,17 @@ class ResourceMonitor:
                             thread_count += nt
                         except (psutil.AccessDenied, OSError):
                             pass
-                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
+                    except (
+                        psutil.NoSuchProcess,
+                        psutil.AccessDenied,
+                        psutil.ZombieProcess,
+                        OSError,
+                    ):
                         continue
-            except Exception as e:
+            except Exception:
                 thread_count = 0
 
-        snapshot = ResourceSnapshot(
+        return ResourceSnapshot(
             timestamp=timestamp,
             cpu_percent=cpu_percent,
             cpu_per_core=cpu_per_core,
@@ -338,14 +352,11 @@ class ResourceMonitor:
             network_io=network_io,
             gpu_usage=gpu_usage,
             process_count=process_count,
-            thread_count=thread_count
+            thread_count=thread_count,
         )
 
-        return snapshot
-
     def get_process_usage(self, pid: int) -> ProcessResourceUsage:
-        """
-        Get resource usage for specific process.
+        """Get resource usage for specific process.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -359,6 +370,7 @@ class ResourceMonitor:
         Raises:
             psutil.NoSuchProcess: If process doesn't exist
             psutil.AccessDenied: If insufficient permissions
+
         """
         process = psutil.Process(pid)
 
@@ -369,25 +381,25 @@ class ResourceMonitor:
             memory_bytes=process.memory_info().rss,
             memory_percent=process.memory_percent(),
             num_threads=process.num_threads(),
-            status=process.status()
+            status=process.status(),
         )
 
     def set_alert_thresholds(self, limits: ResourceLimits) -> None:
-        """
-        Configure alert thresholds.
+        """Configure alert thresholds.
 
         Args:
             limits: New resource limits
+
         """
         with self._lock:
             self.config.limits = limits
 
-    def start_monitoring(self, interval: Optional[float] = None) -> None:
-        """
-        Start periodic resource monitoring in background thread.
+    def start_monitoring(self, interval: float | None = None) -> None:
+        """Start periodic resource monitoring in background thread.
 
         Args:
             interval: Sampling interval in seconds (uses config if None)
+
         """
         if self._monitoring:
             return
@@ -399,7 +411,7 @@ class ResourceMonitor:
         self._monitor_thread = threading.Thread(
             target=self._monitoring_loop,
             daemon=True,
-            name="ResourceMonitor"
+            name="ResourceMonitor",
         )
         self._monitor_thread.start()
 
@@ -410,31 +422,25 @@ class ResourceMonitor:
             self._monitor_thread.join(timeout=5.0)
             self._monitor_thread = None
 
-    def register_alert_callback(
-        self,
-        callback: Callable[[ResourceAlert], None]
-    ) -> None:
-        """
-        Register callback for resource alerts.
+    def register_alert_callback(self, callback: Callable[[ResourceAlert], None]) -> None:
+        """Register callback for resource alerts.
 
         Args:
             callback: Function to call when alert is triggered
+
         """
         with self._lock:
             self.alert_callbacks.append(callback)
 
-    def unregister_alert_callback(
-        self,
-        callback: Callable[[ResourceAlert], None]
-    ) -> bool:
-        """
-        Unregister alert callback.
+    def unregister_alert_callback(self, callback: Callable[[ResourceAlert], None]) -> bool:
+        """Unregister alert callback.
 
         Args:
             callback: Callback function to remove
 
         Returns:
             True if callback was found and removed, False otherwise
+
         """
         with self._lock:
             try:
@@ -445,13 +451,12 @@ class ResourceMonitor:
 
     def get_alert_history(
         self,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        resource_type: Optional[ResourceType] = None,
-        severity: Optional[AlertSeverity] = None
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        resource_type: ResourceType | None = None,
+        severity: AlertSeverity | None = None,
     ) -> list[ResourceAlert]:
-        """
-        Get alert history with optional filters.
+        """Get alert history with optional filters.
 
         Time Complexity: O(n) where n is history size
         Space Complexity: O(m) where m is matching alerts
@@ -464,6 +469,7 @@ class ResourceMonitor:
 
         Returns:
             List of alerts matching filters
+
         """
         with self._lock:
             alerts = list(self._alert_history)
@@ -484,24 +490,24 @@ class ResourceMonitor:
         return alerts
 
     def get_active_alerts(self) -> list[ResourceAlert]:
-        """
-        Get currently active alerts.
+        """Get currently active alerts.
 
         Returns:
             List of active alerts
+
         """
         with self._lock:
             return list(self._active_alerts.values())
 
     def clear_alert(self, alert_id: str) -> bool:
-        """
-        Clear an active alert.
+        """Clear an active alert.
 
         Args:
             alert_id: ID of alert to clear
 
         Returns:
             True if alert was found and cleared, False otherwise
+
         """
         with self._lock:
             if alert_id in self._active_alerts:
@@ -510,11 +516,11 @@ class ResourceMonitor:
             return False
 
     def clear_all_alerts(self) -> int:
-        """
-        Clear all active alerts.
+        """Clear all active alerts.
 
         Returns:
             Number of alerts cleared
+
         """
         with self._lock:
             count = len(self._active_alerts)
@@ -524,10 +530,9 @@ class ResourceMonitor:
     def get_historical_metrics(
         self,
         start_time: datetime,
-        end_time: datetime
+        end_time: datetime,
     ) -> list[ResourceSnapshot]:
-        """
-        Get historical resource metrics within time range.
+        """Get historical resource metrics within time range.
 
         Time Complexity: O(n) where n is history size
         Space Complexity: O(m) where m is matching snapshots
@@ -538,20 +543,21 @@ class ResourceMonitor:
 
         Returns:
             List of snapshots within time range
+
         """
         with self._lock:
             return [
-                snapshot for snapshot in self.metrics_history
+                snapshot
+                for snapshot in self.metrics_history
                 if start_time <= snapshot.timestamp <= end_time
             ]
 
     def predict_resource_exhaustion(
         self,
         resource_type: ResourceType,
-        horizon: timedelta = timedelta(hours=1)
-    ) -> Optional[datetime]:
-        """
-        Predict when resource will be exhausted based on trends.
+        horizon: timedelta = timedelta(hours=1),
+    ) -> datetime | None:
+        """Predict when resource will be exhausted based on trends.
 
         Uses linear regression on recent history to predict exhaustion time.
 
@@ -561,6 +567,7 @@ class ResourceMonitor:
 
         Returns:
             Estimated time of exhaustion, or None if no exhaustion predicted
+
         """
         with self._lock:
             if len(self.metrics_history) < 10:
@@ -620,21 +627,21 @@ class ResourceMonitor:
             remaining = 100.0 - current_value
 
             if remaining <= 0:
-                return datetime.now(tz=timezone.utc)
+                return datetime.now(tz=UTC)
 
             # Time to exhaustion in samples
             samples_to_exhaustion = remaining / slope
 
             # Convert to time
             time_to_exhaustion = timedelta(
-                seconds=samples_to_exhaustion * self.config.sampling_interval
+                seconds=samples_to_exhaustion * self.config.sampling_interval,
             )
 
             # Check if within horizon
             if time_to_exhaustion > horizon:
                 return None
 
-            return datetime.now(tz=timezone.utc) + time_to_exhaustion
+            return datetime.now(tz=UTC) + time_to_exhaustion
 
     def _monitoring_loop(self) -> None:
         """Background monitoring loop (runs in separate thread)."""
@@ -659,18 +666,18 @@ class ResourceMonitor:
 
                 except Exception as e:
                     # Log error but continue monitoring
-                    _logger.error("Error in monitoring loop: %s", e, exc_info=True)
+                    _logger.exception("Error in monitoring loop: %s", e)
                     time.sleep(self.config.sampling_interval)
         except Exception as e:
             # Fatal error in monitoring loop
-            _logger.critical("Fatal error in monitoring loop: %s", e, exc_info=True)
+            _logger.critical("Fatal error in monitoring loop: %s", e)
 
     def _check_thresholds(self, snapshot: ResourceSnapshot) -> None:
-        """
-        Check resource thresholds and trigger alerts.
+        """Check resource thresholds and trigger alerts.
 
         Args:
             snapshot: Current resource snapshot
+
         """
         limits = self.config.limits
 
@@ -680,12 +687,9 @@ class ResourceMonitor:
                 resource_type=ResourceType.CPU,
                 current_value=snapshot.cpu_percent,
                 threshold_value=limits.max_cpu_percent,
-                severity=self._calculate_severity(
-                    snapshot.cpu_percent,
-                    limits.max_cpu_percent
-                ),
+                severity=self._calculate_severity(snapshot.cpu_percent, limits.max_cpu_percent),
                 message=f"CPU usage at {snapshot.cpu_percent:.1f}%",
-                recommended_action="Consider throttling operations or closing applications"
+                recommended_action="Consider throttling operations or closing applications",
             )
 
         # Check memory
@@ -696,10 +700,10 @@ class ResourceMonitor:
                 threshold_value=limits.max_memory_percent,
                 severity=self._calculate_severity(
                     snapshot.memory_percent,
-                    limits.max_memory_percent
+                    limits.max_memory_percent,
                 ),
                 message=f"Memory usage at {snapshot.memory_percent:.1f}%",
-                recommended_action="Consider freeing memory or closing applications"
+                recommended_action="Consider freeing memory or closing applications",
             )
 
         # Check disk
@@ -712,10 +716,10 @@ class ResourceMonitor:
                     severity=self._calculate_severity(
                         limits.min_disk_free_bytes - usage.free,
                         limits.min_disk_free_bytes,
-                        inverse=True
+                        inverse=True,
                     ),
                     message=f"Low disk space on {path}: {usage.free / (1024**3):.1f} GB free",
-                    recommended_action="Free up disk space or clean temporary files"
+                    recommended_action="Free up disk space or clean temporary files",
                 )
 
         # Check GPU
@@ -728,20 +732,19 @@ class ResourceMonitor:
                         threshold_value=limits.max_gpu_memory_percent,
                         severity=self._calculate_severity(
                             gpu.memory_percent,
-                            limits.max_gpu_memory_percent
+                            limits.max_gpu_memory_percent,
                         ),
                         message=f"GPU {gpu.id} memory at {gpu.memory_percent:.1f}%",
-                        recommended_action="Consider reducing batch size or model size"
+                        recommended_action="Consider reducing batch size or model size",
                     )
 
     def _calculate_severity(
         self,
         current: float,
         threshold: float,
-        inverse: bool = False
+        inverse: bool = False,
     ) -> AlertSeverity:
-        """
-        Calculate alert severity based on how much threshold is exceeded.
+        """Calculate alert severity based on how much threshold is exceeded.
 
         Args:
             current: Current value
@@ -750,20 +753,20 @@ class ResourceMonitor:
 
         Returns:
             Alert severity
+
         """
         if inverse:
-            ratio = threshold / current if current > 0 else float('inf')
+            ratio = threshold / current if current > 0 else float("inf")
         else:
             ratio = current / threshold
 
         if ratio >= 1.5:
             return AlertSeverity.CRITICAL
-        elif ratio >= 1.25:
+        if ratio >= 1.25:
             return AlertSeverity.HIGH
-        elif ratio >= 1.1:
+        if ratio >= 1.1:
             return AlertSeverity.MEDIUM
-        else:
-            return AlertSeverity.LOW
+        return AlertSeverity.LOW
 
     def _trigger_alert(
         self,
@@ -772,10 +775,9 @@ class ResourceMonitor:
         threshold_value: float,
         severity: AlertSeverity,
         message: str,
-        recommended_action: str
+        recommended_action: str,
     ) -> None:
-        """
-        Trigger resource alert and notify callbacks.
+        """Trigger resource alert and notify callbacks.
 
         Args:
             resource_type: Type of resource
@@ -784,6 +786,7 @@ class ResourceMonitor:
             severity: Alert severity
             message: Alert message
             recommended_action: Recommended action to take
+
         """
         # Create alert ID (prevents duplicate alerts)
         alert_id = f"{resource_type.value}_{severity.value}"
@@ -793,7 +796,7 @@ class ResourceMonitor:
             if alert_id in self._active_alerts:
                 # Update existing alert
                 self._active_alerts[alert_id].current_value = current_value
-                self._active_alerts[alert_id].timestamp = datetime.now(tz=timezone.utc)
+                self._active_alerts[alert_id].timestamp = datetime.now(tz=UTC)
                 return
 
             # Create new alert
@@ -803,9 +806,9 @@ class ResourceMonitor:
                 current_value=current_value,
                 threshold_value=threshold_value,
                 severity=severity,
-                timestamp=datetime.now(tz=timezone.utc),
+                timestamp=datetime.now(tz=UTC),
                 message=message,
-                recommended_action=recommended_action
+                recommended_action=recommended_action,
             )
 
             self._active_alerts[alert_id] = alert

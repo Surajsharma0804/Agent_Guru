@@ -1,5 +1,4 @@
-"""
-LLM-based Intent Fallback Classifier
+"""LLM-based Intent Fallback Classifier.
 
 This module provides LLM-based intent classification for cases where the neural
 classifier has low confidence (<0.8). Uses GPT-4 Turbo or Claude 3.5 Sonnet with
@@ -36,7 +35,7 @@ import functools
 import json
 import time
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -47,16 +46,17 @@ try:
     from types import ModuleType
 
     import openai
+
     openai_module: ModuleType | None = openai
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
     openai_module = None
-
 try:
     from types import ModuleType
 
     import anthropic
+
     anthropic_module: ModuleType | None = anthropic
     ANTHROPIC_AVAILABLE = True
 except ImportError:
@@ -78,11 +78,12 @@ class LLMFallbackConfig:
         max_retries: Maximum number of retries (3)
         temperature: Sampling temperature (0.0 for deterministic)
         max_tokens: Maximum tokens in response (512)
+
     """
 
     provider: str = "ollama"  # Default to local Ollama
     model: str = "gemma3:4b"  # Default to Qwen for complex reasoning
-    api_key: Optional[str] = None
+    api_key: str | None = None
     ollama_host: str = "127.0.0.1"
     ollama_port: int = 11434
     timeout_ms: float = 1000.0  # 1 second for local Ollama
@@ -99,6 +100,7 @@ class LLMIntentResponse(BaseModel):
         confidence: Confidence score (0.0-1.0)
         entities: Extracted entities as dict
         reasoning: Brief explanation of classification
+
     """
 
     intent_type: str = Field(..., description="Predicted intent type")
@@ -119,6 +121,7 @@ class LLMClassificationResult:
         inference_time_ms: Inference time in milliseconds
         retries: Number of retries needed
         provider: LLM provider used
+
     """
 
     intent_type: str
@@ -140,6 +143,7 @@ class LLMFallbackClassifier:
         >>> classifier = LLMFallbackClassifier(config)
         >>> result = await classifier.classify_async("remind me to call mom tomorrow")
         >>> print(f"Intent: {result.intent_type}, Confidence: {result.confidence}")
+
     """
 
     # System prompt for intent classification
@@ -197,7 +201,7 @@ Output: {"intent_type": "control_lights", "confidence": 0.98, "entities": {"devi
 
 Classify the following input:"""
 
-    def __init__(self, config: Optional[LLMFallbackConfig] = None) -> None:
+    def __init__(self, config: LLMFallbackConfig | None = None) -> None:
         """Initialize LLM fallback classifier.
 
         Args:
@@ -205,6 +209,7 @@ Classify the following input:"""
 
         Raises:
             RuntimeError: If LLM client not available
+
         """
         self.config = config or LLMFallbackConfig()
 
@@ -213,14 +218,16 @@ Classify the following input:"""
             # Ollama uses requests library (no special client needed)
             pass
         elif self.config.provider == "openai" and not OPENAI_AVAILABLE:
-            raise RuntimeError("OpenAI client not available. Install with: pip install openai")
+            msg = "OpenAI client not available. Install with: pip install openai"
+            raise RuntimeError(msg)
         elif self.config.provider == "anthropic" and not ANTHROPIC_AVAILABLE:
+            msg = "Anthropic client not available. Install with: pip install anthropic"
             raise RuntimeError(
-                "Anthropic client not available. Install with: pip install anthropic"
+                msg,
             )
 
         # Initialize client
-        self.client: Optional[Any] = None
+        self.client: Any | None = None
         self._initialize_client()
 
         # Metrics
@@ -240,13 +247,18 @@ Classify the following input:"""
         elif self.config.provider == "anthropic":
             self.client = anthropic.Anthropic(api_key=self.config.api_key)
         else:
-            raise ValueError(
+            msg = (
                 f"Unsupported provider: {self.config.provider}. "
                 "Supported: ollama, openai, anthropic"
             )
+            raise ValueError(
+                msg,
+            )
 
     async def classify_async(
-        self, text: str, context: Optional[dict[str, Any]] = None
+        self,
+        text: str,
+        context: dict[str, Any] | None = None,
     ) -> LLMClassificationResult:
         """Asynchronous classification with retry logic.
 
@@ -263,6 +275,7 @@ Classify the following input:"""
         Raises:
             TimeoutError: If classification exceeds timeout
             RuntimeError: If all retries fail
+
         """
         start_time = time.perf_counter()
         retries = 0
@@ -291,37 +304,37 @@ Classify the following input:"""
                     provider=self.config.provider,
                 )
 
-            except asyncio.TimeoutError:
+            except TimeoutError as e:
                 retries += 1
                 if attempt == self.config.max_retries - 1:
                     # Final attempt failed, return UNKNOWN
                     inference_time_ms = (time.perf_counter() - start_time) * 1000
                     self._update_metrics(inference_time_ms, retries, success=False)
                     return self._create_unknown_result(text, inference_time_ms, retries)
-
                 # Exponential backoff
                 await asyncio.sleep(0.1 * (2**attempt))
-
-            except Exception as e:
                 retries += 1
                 if attempt == self.config.max_retries - 1:
                     # Final attempt failed, return UNKNOWN
                     inference_time_ms = (time.perf_counter() - start_time) * 1000
                     self._update_metrics(inference_time_ms, retries, success=False)
                     return self._create_unknown_result(
-                        text, inference_time_ms, retries, error=str(e)
+                        text,
+                        inference_time_ms,
+                        retries,
+                        error=str(e),
                     )
-
                 # Exponential backoff
                 await asyncio.sleep(0.1 * (2**attempt))
-
         # Should never reach here
         inference_time_ms = (time.perf_counter() - start_time) * 1000
         self._update_metrics(inference_time_ms, retries, success=False)
         return self._create_unknown_result(text, inference_time_ms, retries)
 
     async def _call_llm_async(
-        self, text: str, context: Optional[dict[str, Any]] = None
+        self,
+        text: str,
+        context: dict[str, Any] | None = None,
     ) -> LLMIntentResponse:
         """Call LLM API asynchronously.
 
@@ -334,6 +347,7 @@ Classify the following input:"""
 
         Raises:
             ValidationError: If response doesn't match schema
+
         """
         # Build user prompt
         user_prompt = f'Input: "{text}"'
@@ -348,7 +362,8 @@ Classify the following input:"""
         elif self.config.provider == "anthropic":
             response = await self._call_anthropic(user_prompt)
         else:
-            raise ValueError(f"Unsupported provider: {self.config.provider}")
+            msg = f"Unsupported provider: {self.config.provider}"
+            raise ValueError(msg)
 
         # Parse and validate response
         return self._parse_response(response)
@@ -361,6 +376,7 @@ Classify the following input:"""
 
         Returns:
             LLM response text
+
         """
         import requests
 
@@ -391,8 +407,8 @@ Classify the following input:"""
             data = response.json()
             result = data.get("response", "")
             return str(result) if result else ""
-        else:
-            raise RuntimeError(f"Ollama API error: {response.status_code} - {response.text}")
+        msg = f"Ollama API error: {response.status_code} - {response.text}"
+        raise RuntimeError(msg)
 
     async def _call_openai(self, user_prompt: str) -> str:
         """Call OpenAI API.
@@ -402,9 +418,11 @@ Classify the following input:"""
 
         Returns:
             LLM response text
+
         """
         if self.client is None:
-            raise RuntimeError("OpenAI client not initialized")
+            msg = "OpenAI client not initialized"
+            raise RuntimeError(msg)
 
         # asyncio.to_thread() propagates contextvars â€” preferred over run_in_executor
         _create = functools.partial(
@@ -430,9 +448,11 @@ Classify the following input:"""
 
         Returns:
             LLM response text
+
         """
         if self.client is None:
-            raise RuntimeError("Anthropic client not initialized")
+            msg = "Anthropic client not initialized"
+            raise RuntimeError(msg)
 
         # asyncio.to_thread() propagates contextvars â€” preferred over run_in_executor
         _create = functools.partial(
@@ -458,28 +478,27 @@ Classify the following input:"""
 
         Raises:
             ValueError: If response cannot be parsed
+
         """
         # Strip markdown code fences if present
         text = response_text.strip()
-        if text.startswith("```json"):
-            text = text[7:]
-        if text.startswith("```"):
-            text = text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
+        text = text.removeprefix("```json")
+        text = text.removeprefix("```")
+        text = text.removesuffix("```")
         text = text.strip()
 
         # Parse JSON â€” raise ValueError on failure so caller can retry
         try:
             response_data = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise ValueError(f"LLM returned invalid JSON: {exc} â€” raw: {text[:200]}") from exc
-
+            msg = f"LLM returned invalid JSON: {exc} â€” raw: {text[:200]}"
+            raise ValueError(msg) from exc
         # Validate with Pydantic
         try:
             return LLMIntentResponse(**response_data)
         except Exception as exc:
-            raise ValueError(f"LLM response failed schema validation: {exc}") from exc
+            msg = f"LLM response failed schema validation: {exc}"
+            raise ValueError(msg) from exc
 
     def _parse_entities(self, entities_dict: dict[str, Any]) -> dict[str, Entity]:
         """Parse entities from LLM response into Entity objects.
@@ -489,6 +508,7 @@ Classify the following input:"""
 
         Returns:
             Dictionary of Entity objects
+
         """
         parsed_entities = {}
 
@@ -517,7 +537,7 @@ Classify the following input:"""
         text: str,
         inference_time_ms: float,
         retries: int,
-        error: Optional[str] = None,
+        error: str | None = None,
     ) -> LLMClassificationResult:
         """Create UNKNOWN result for failed classification.
 
@@ -529,6 +549,7 @@ Classify the following input:"""
 
         Returns:
             UNKNOWN classification result
+
         """
         reasoning = "Classification failed"
         if error:
@@ -551,6 +572,7 @@ Classify the following input:"""
             inference_time_ms: Inference time
             retries: Number of retries
             success: Whether classification succeeded
+
         """
         self.total_inferences += 1
         self.total_latency_ms += inference_time_ms
@@ -566,6 +588,7 @@ Classify the following input:"""
 
         Returns:
             Dictionary with metrics
+
         """
         if self.total_inferences == 0:
             return {

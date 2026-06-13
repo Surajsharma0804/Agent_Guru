@@ -1,5 +1,4 @@
-"""
-Expand Dataset to 3x Size for MAXIMUM Accuracy
+"""Expand Dataset to 3x Size for MAXIMUM Accuracy.
 
 This script generates additional high-quality training examples
 to reach 200+ examples per intent for 98%+ accuracy.
@@ -8,7 +7,7 @@ Author: Agent Guru Team
 Date: 2026
 """
 
-import random
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -163,17 +162,14 @@ EXPANSION_TEMPLATES = {
 }
 
 
-def expand_dataset():
+def expand_dataset() -> None:
     """Expand dataset to 3x size with high-quality examples - OVERWRITES original file."""
-
     # Load existing data
     data_dir = Path("Agent_Guru/reasoning/data")
     train_file = data_dir / "train_annotated.yaml"
 
     with open(train_file) as f:
         train_data = yaml.safe_load(f)
-
-    print(f"Original dataset size: {len(train_data)}")
 
     # Track all utterances to prevent duplication
     seen_utterances = set()
@@ -195,10 +191,6 @@ def expand_dataset():
         current_count = len(examples)
         target_count = current_count * 3  # 3x expansion
 
-        print(f"\nIntent: {intent}")
-        print(f"  Current: {current_count} examples")
-        print(f"  Target: {target_count} examples")
-
         # Get templates for this intent
         templates = EXPANSION_TEMPLATES.get(intent, [])
 
@@ -211,7 +203,7 @@ def expand_dataset():
 
             if not templates:
                 # Use paraphrasing for intents without templates
-                base_example = random.choice(examples)
+                base_example = secrets.choice(examples)
                 utterance = base_example["utterance"]
 
                 # Simple paraphrasing
@@ -225,15 +217,15 @@ def expand_dataset():
                             "utterance": paraphrased,
                             "intent": intent,
                             "entities": base_example["entities"],
-                        }
+                        },
                     )
                     added += 1
             else:
                 # Use templates
-                template = random.choice(templates)
+                template = secrets.choice(templates)
 
                 # Fill template with entities from random example
-                base_example = random.choice(examples)
+                base_example = secrets.choice(examples)
                 utterance = fill_template(template, base_example)
 
                 # Check for duplication
@@ -244,25 +236,13 @@ def expand_dataset():
                             "utterance": utterance,
                             "intent": intent,
                             "entities": base_example["entities"],
-                        }
+                        },
                     )
                     added += 1
-
-        print(f"  Added: {added} unique examples")
-
-    print(f"\n{'='*60}")
-    print(f"Expanded dataset size: {len(expanded_data)}")
-    print(f"Expansion factor: {len(expanded_data) / len(train_data):.2f}x")
-    print(f"Unique utterances: {len(seen_utterances)}")
-    print(f"ZERO DUPLICATION: {len(expanded_data) == len(seen_utterances)}")
-    print(f"{'='*60}\n")
 
     # OVERWRITE original file - NO DUPLICATES
     with open(train_file, "w", encoding="utf-8") as f:
         yaml.dump(expanded_data, f, default_flow_style=False, allow_unicode=True)
-
-    print(f"[OK] Updated original file: {train_file}")
-    print("[OK] NO duplicate files created")
 
     # Update stats
     intent_counts: dict[str, int] = {}
@@ -270,14 +250,12 @@ def expand_dataset():
         intent = item["intent"]
         intent_counts[intent] = intent_counts.get(intent, 0) + 1
 
-    print("\nExamples per intent:")
-    for intent, count in sorted(intent_counts.items()):
-        print(f"  {intent}: {count}")
+    for _intent, _count in sorted(intent_counts.items()):
+        pass
 
 
 def paraphrase_utterance(utterance: str) -> str:
     """Simple paraphrasing using substitutions."""
-
     substitutions = {
         "can you": ["could you", "would you", "please"],
         "I need": ["I want", "I'd like", "give me"],
@@ -291,7 +269,7 @@ def paraphrase_utterance(utterance: str) -> str:
     result = utterance
     for original, replacements in substitutions.items():
         if original in utterance.lower():
-            replacement = random.choice(replacements)
+            replacement = secrets.choice(replacements)
             result = result.replace(original, replacement)
             break
 
@@ -300,7 +278,6 @@ def paraphrase_utterance(utterance: str) -> str:
 
 def fill_template(template: str, example: dict) -> str:
     """Fill template with entities from example."""
-
     utterance = template
 
     # Extract entities

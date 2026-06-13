@@ -1,6 +1,6 @@
 """Shared test fixtures for response generation tests."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -24,7 +24,7 @@ def success_result() -> ExecutionResult:
         execution_time=0.1,
         action_id="test_action",
         tool_id="set_timer",
-        timestamp=datetime.now(tz=timezone.utc),
+        timestamp=datetime.now(tz=UTC),
     )
 
 
@@ -37,7 +37,7 @@ def error_result() -> ExecutionResult:
         execution_time=5.0,
         action_id="test_action",
         tool_id="set_timer",
-        timestamp=datetime.now(tz=timezone.utc),
+        timestamp=datetime.now(tz=UTC),
     )
 
 
@@ -48,8 +48,11 @@ def timer_intent() -> Intent:
         intent_type=IntentType.SET_TIMER,
         entities={
             "duration": Entity(
-                entity_type="duration", value="5 minutes", raw_text="5 minutes", confidence=0.95
-            )
+                entity_type="duration",
+                value="5 minutes",
+                raw_text="5 minutes",
+                confidence=0.95,
+            ),
         },
         confidence=0.95,
         requires_reasoning=False,

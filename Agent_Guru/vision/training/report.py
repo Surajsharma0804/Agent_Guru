@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.vision.training.report
+"""Module: Agent_Guru.vision.training.report
 Purpose: Generate comprehensive performance reports in multiple formats.
 
 Requirements: 10.1-10.9
@@ -10,13 +9,15 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from .evaluation import BenchmarkResult, TargetComparison
-from .failure_analysis import FailureAnalysis
-from .stress_test import StressTestResult
+
+if TYPE_CHECKING:
+    from .failure_analysis import FailureAnalysis
+    from .stress_test import StressTestResult
 
 logger = logging.getLogger("guruvision.training.report")
 
@@ -25,9 +26,11 @@ logger = logging.getLogger("guruvision.training.report")
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ModelMetadata:
     """Model metadata for reporting."""
+
     architecture: str = "resnet50"
     embedding_size: int = 512
     num_parameters: int = 0
@@ -40,6 +43,7 @@ class ModelMetadata:
 @dataclass
 class TrainingSummary:
     """Summary of training run."""
+
     final_loss: float = 0.0
     num_epochs: int = 0
     total_time: float = 0.0
@@ -50,13 +54,14 @@ class TrainingSummary:
 @dataclass
 class Report:
     """Complete pipeline report."""
+
     pipeline_name: str = "guruvision-pipeline"
-    timestamp: str = field(default_factory=lambda: datetime.now(tz=timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(tz=UTC).isoformat())
     model_metadata: ModelMetadata = field(default_factory=ModelMetadata)
     training_summary: TrainingSummary = field(default_factory=TrainingSummary)
     benchmark_results: list[BenchmarkResult] = field(default_factory=list)
     target_comparison: dict[str, TargetComparison] = field(default_factory=dict)
-    failure_analysis: Optional[FailureAnalysis] = None
+    failure_analysis: FailureAnalysis | None = None
     stress_test_results: list[StressTestResult] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
     visualizations: dict[str, Any] = field(default_factory=dict)
@@ -67,11 +72,13 @@ class Report:
 # ReportGenerator
 # ---------------------------------------------------------------------------
 
+
 class ReportGenerator:
     """Generate comprehensive performance reports.
 
     Args:
         output_dir: Directory to write reports.
+
     """
 
     def __init__(self, output_dir: str = "Agent_Guru/vision/data/reports") -> None:
@@ -79,12 +86,12 @@ class ReportGenerator:
 
     def compile_results(
         self,
-        training_result: Optional[Any] = None,
-        benchmark_results: Optional[list[BenchmarkResult]] = None,
-        failure_analysis: Optional[FailureAnalysis] = None,
-        stress_test_results: Optional[list[StressTestResult]] = None,
-        model_metadata: Optional[ModelMetadata] = None,
-        target_comparison: Optional[dict[str, TargetComparison]] = None,
+        training_result: Any | None = None,
+        benchmark_results: list[BenchmarkResult] | None = None,
+        failure_analysis: FailureAnalysis | None = None,
+        stress_test_results: list[StressTestResult] | None = None,
+        model_metadata: ModelMetadata | None = None,
+        target_comparison: dict[str, TargetComparison] | None = None,
         pipeline_name: str = "guruvision-pipeline",
     ) -> Report:
         """Compile all results into a Report.
@@ -100,6 +107,7 @@ class ReportGenerator:
 
         Returns:
             Compiled Report object.
+
         """
         report = Report(pipeline_name=pipeline_name)
 
@@ -120,9 +128,7 @@ class ReportGenerator:
 
         if target_comparison:
             report.target_comparison = target_comparison
-            report.production_ready = all(
-                tc.passed for tc in target_comparison.values()
-            )
+            report.production_ready = all(tc.passed for tc in target_comparison.values())
 
         if failure_analysis is not None:
             report.failure_analysis = failure_analysis
@@ -147,30 +153,31 @@ class ReportGenerator:
 
         Returns:
             List of recommendation strings.
+
         """
         recommendations: list[str] = []
 
         if report.production_ready:
             recommendations.append(
-                "Model meets all performance targets. Ready for production deployment."
+                "Model meets all performance targets. Ready for production deployment.",
             )
         else:
             recommendations.append(
-                "Model does not meet all performance targets. Further improvement required."
+                "Model does not meet all performance targets. Further improvement required.",
             )
             for name, tc in report.target_comparison.items():
                 if not tc.passed:
                     recommendations.append(
                         f"Benchmark '{name}': achieved {tc.achieved:.4f}, "
                         f"target {tc.target:.4f} (gap: {tc.gap:.4f}). "
-                        "Consider additional training or architecture upgrade."
+                        "Consider additional training or architecture upgrade.",
                     )
 
         if report.failure_analysis and report.failure_analysis.top_categories:
             top = report.failure_analysis.top_categories[:3]
             recommendations.append(
                 f"Top failure categories: {', '.join(top)}. "
-                "Apply targeted data augmentation for these conditions."
+                "Apply targeted data augmentation for these conditions.",
             )
 
         if report.stress_test_results:
@@ -182,7 +189,7 @@ class ReportGenerator:
             if worst and worst.degradation > 0.05:
                 recommendations.append(
                     f"Significant degradation under '{worst.condition.type}' "
-                    f"({worst.degradation:.2%}). Consider robustness training."
+                    f"({worst.degradation:.2%}). Consider robustness training.",
                 )
 
         return recommendations
@@ -195,6 +202,7 @@ class ReportGenerator:
 
         Returns:
             Dict mapping figure name to matplotlib Figure.
+
         """
         figures: dict[str, Any] = {}
 
@@ -207,7 +215,11 @@ class ReportGenerator:
                 for result in report.benchmark_results:
                     roc = result.roc_curve
                     if len(roc.fpr) > 0:
-                        ax.plot(roc.fpr, roc.tpr, label=f"{result.benchmark_name} (AUC={result.auc:.3f})")
+                        ax.plot(
+                            roc.fpr,
+                            roc.tpr,
+                            label=f"{result.benchmark_name} (AUC={result.auc:.3f})",
+                        )
                 ax.plot([0, 1], [0, 1], "k--", label="Random")
                 ax.set_xlabel("False Positive Rate")
                 ax.set_ylabel("True Positive Rate")
@@ -243,12 +255,12 @@ class ReportGenerator:
                 figures["failure_distribution"] = fig
                 plt.close(fig)
 
-        except ImportError as e:
-            logger.warning("matplotlib not available; skipping visualizations: %s", e)
+        except ImportError:
+            logger.exception("matplotlib not available; skipping visualizations")
 
         return figures
 
-    def export_json(self, report: Report, output_path: Optional[str] = None) -> str:
+    def export_json(self, report: Report, output_path: str | None = None) -> str:
         """Export report as JSON.
 
         Args:
@@ -257,6 +269,7 @@ class ReportGenerator:
 
         Returns:
             Path to the written JSON file.
+
         """
         if output_path is None:
             output_path = str(Path(self.output_dir) / "report.json")
@@ -270,7 +283,7 @@ class ReportGenerator:
         logger.info("JSON report written to '%s'", output_path)
         return output_path
 
-    def export_html(self, report: Report, output_path: Optional[str] = None) -> str:
+    def export_html(self, report: Report, output_path: str | None = None) -> str:
         """Export report as HTML.
 
         Args:
@@ -279,6 +292,7 @@ class ReportGenerator:
 
         Returns:
             Path to the written HTML file.
+
         """
         if output_path is None:
             output_path = str(Path(self.output_dir) / "report.html")
@@ -292,7 +306,7 @@ class ReportGenerator:
         logger.info("HTML report written to '%s'", output_path)
         return output_path
 
-    def export_pdf(self, report: Report, output_path: Optional[str] = None) -> str:
+    def export_pdf(self, report: Report, output_path: str | None = None) -> str:
         """Export report as PDF using ReportLab if available.
 
         Falls back to HTML if ReportLab is not installed.
@@ -303,6 +317,7 @@ class ReportGenerator:
 
         Returns:
             Path to the written PDF (or HTML fallback) file.
+
         """
         if output_path is None:
             output_path = str(Path(self.output_dir) / "report.pdf")
@@ -319,19 +334,17 @@ class ReportGenerator:
             story = [
                 Paragraph(f"<b>{report.pipeline_name}</b>", styles["Title"]),
                 Paragraph(f"Generated: {report.timestamp}", styles["Normal"]),
-                Paragraph(
-                    f"Production Ready: {report.production_ready}", styles["Normal"]
-                ),
+                Paragraph(f"Production Ready: {report.production_ready}", styles["Normal"]),
             ]
             for rec in report.recommendations:
                 story.append(Paragraph(f"• {rec}", styles["Normal"]))
             doc.build(story)
             logger.info("PDF report written to '%s'", output_path)
-        except ImportError as e:
+        except ImportError:
             # Fallback to HTML
             html_path = output_path.replace(".pdf", ".html")
             self.export_html(report, html_path)
-            logger.warning(
+            logger.exception(
                 "ReportLab not available; PDF fallback written as HTML to '%s'",
                 html_path,
             )
@@ -359,15 +372,17 @@ class ReportGenerator:
 
         benchmarks = []
         for r in report.benchmark_results:
-            benchmarks.append({
-                "benchmark_name": r.benchmark_name,
-                "accuracy": _safe(r.accuracy),
-                "auc": _safe(r.auc),
-                "optimal_threshold": _safe(r.optimal_threshold),
-                "num_pairs": r.num_pairs,
-                "inference_time": _safe(r.inference_time),
-                "far_at_frr": {str(k): _safe(v) for k, v in r.far_at_frr.items()},
-            })
+            benchmarks.append(
+                {
+                    "benchmark_name": r.benchmark_name,
+                    "accuracy": _safe(r.accuracy),
+                    "auc": _safe(r.auc),
+                    "optimal_threshold": _safe(r.optimal_threshold),
+                    "num_pairs": r.num_pairs,
+                    "inference_time": _safe(r.inference_time),
+                    "far_at_frr": {str(k): _safe(v) for k, v in r.far_at_frr.items()},
+                },
+            )
 
         targets = {
             k: {
@@ -381,14 +396,16 @@ class ReportGenerator:
 
         stress = []
         for s in report.stress_test_results:
-            stress.append({
-                "condition": s.condition.type,
-                "description": s.condition.description,
-                "baseline_accuracy": _safe(s.baseline_accuracy),
-                "stressed_accuracy": _safe(s.stressed_accuracy),
-                "degradation": _safe(s.degradation),
-                "num_samples": s.num_samples,
-            })
+            stress.append(
+                {
+                    "condition": s.condition.type,
+                    "description": s.condition.description,
+                    "baseline_accuracy": _safe(s.baseline_accuracy),
+                    "stressed_accuracy": _safe(s.stressed_accuracy),
+                    "degradation": _safe(s.degradation),
+                    "num_samples": s.num_samples,
+                },
+            )
 
         failure = None
         if report.failure_analysis:
@@ -430,6 +447,7 @@ class ReportGenerator:
     @staticmethod
     def _json_default(obj: Any) -> Any:
         import numpy as np
+
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         if isinstance(obj, (np.floating, float)):
@@ -443,9 +461,14 @@ class ReportGenerator:
         """Render a simple HTML report."""
         benchmarks_html = ""
         for r in report.benchmark_results:
-            status = "✅" if report.target_comparison.get(
-                r.benchmark_name.lower().replace("-", "_"), TargetComparison()
-            ).passed else "❌"
+            status = (
+                "✅"
+                if report.target_comparison.get(
+                    r.benchmark_name.lower().replace("-", "_"),
+                    TargetComparison(),
+                ).passed
+                else "❌"
+            )
             benchmarks_html += (
                 f"<tr><td>{r.benchmark_name}</td>"
                 f"<td>{r.accuracy:.4f}</td>"
@@ -470,7 +493,7 @@ class ReportGenerator:
 <body>
 <h1>{report.pipeline_name}</h1>
 <p>Generated: {report.timestamp}</p>
-<p>Production Ready: <strong>{'Yes ✅' if report.production_ready else 'No ❌'}</strong></p>
+<p>Production Ready: <strong>{"Yes ✅" if report.production_ready else "No ❌"}</strong></p>
 
 <h2>Model Metadata</h2>
 <ul>
@@ -494,4 +517,3 @@ class ReportGenerator:
 
 
 # Avoid circular import
-from .evaluation import TargetComparison  # noqa: E402

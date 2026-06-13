@@ -25,15 +25,17 @@ Architecture:
 Author: Agent Guru Team
 Date: 2026-03-20
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
-from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
+
+from Agent_Guru.platform.platform_detector import PlatformDetector
 
 from .exceptions import GuruSpeechError
 from .models import EmotionType, PersonalityType
@@ -43,7 +45,9 @@ from .tts.synthesis_engine import (
     SynthesisResult,
     VoiceProfile,
 )
-from Agent_Guru.platform.platform_detector import PlatformDetector
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +70,11 @@ def _detect_platform() -> str:
 class TTSBackend(Enum):
     """Available TTS backend implementations."""
 
-    KOKORO = "kokoro"            # Kokoro ONNX (primary — human-quality, multilingual)
-    PYTTSX3 = "pyttsx3"          # pyttsx3 (desktop, lightweight fallback)
+    KOKORO = "kokoro"  # Kokoro ONNX (primary — human-quality, multilingual)
+    PYTTSX3 = "pyttsx3"  # pyttsx3 (desktop, lightweight fallback)
     ANDROID_TTS = "android_tts"  # Android TextToSpeech API
-    IOS_TTS = "ios_tts"          # iOS AVSpeechSynthesizer
-    SILENCE = "silence"          # Silence fallback (testing/offline)
+    IOS_TTS = "ios_tts"  # iOS AVSpeechSynthesizer
+    SILENCE = "silence"  # Silence fallback (testing/offline)
 
 
 # ---------------------------------------------------------------------------
@@ -81,7 +85,7 @@ class TTSBackend(Enum):
 class VoiceGender(Enum):
     """Voice gender for personality mapping."""
 
-    MALE = "male"    # Guru: deep, confident
+    MALE = "male"  # Guru: deep, confident
     FEMALE = "female"  # Maya: warm, friendly
 
 
@@ -104,19 +108,18 @@ class TTSManagerConfig:
         use_gpu: Whether to use GPU acceleration for CoquiTTS.
         max_latency_ms: Target maximum synthesis latency in ms (used in tests).
         on_synthesis_complete: Optional async callback invoked after synthesis.
+
     """
 
     platform: str = ""
-    voice_gender: Optional[VoiceGender] = None
+    voice_gender: VoiceGender | None = None
     speech_rate: float = 1.0
     volume: float = 1.0
     sample_rate: int = 22050
     enable_prosody: bool = True
     use_gpu: bool = False
     max_latency_ms: float = 1000.0  # <1 second target
-    on_synthesis_complete: Optional[
-        Callable[[SynthesisResult], Coroutine[Any, Any, None]]
-    ] = None
+    on_synthesis_complete: Callable[[SynthesisResult], Coroutine[Any, Any, None]] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -149,8 +152,8 @@ class _DesktopTTSBackend:
             self._select_voice()
             self._initialized = True
             logger.debug("pyttsx3 backend initialized (gender=%s)", self._gender.value)
-        except Exception as exc:
-            logger.warning("pyttsx3 unavailable: %s", exc)
+        except Exception:
+            logger.exception("pyttsx3 unavailable")
             self._engine = None
 
     def _select_voice(self) -> None:
@@ -181,8 +184,8 @@ class _DesktopTTSBackend:
                     return
             # Fallback: use first available voice
             self._engine.setProperty("voice", voices[0].id)
-        except Exception as exc:
-            logger.warning("pyttsx3 voice selection failed: %s", exc)
+        except Exception:
+            logger.exception("pyttsx3 voice selection failed")
 
     def synthesize(self, text: str) -> bytes:
         """Synthesize text to WAV bytes using pyttsx3.
@@ -194,6 +197,7 @@ class _DesktopTTSBackend:
 
         Returns:
             WAV audio bytes.
+
         """
         if self._engine is None or not self._initialized:
             return self._silence_bytes(text)
@@ -211,8 +215,8 @@ class _DesktopTTSBackend:
             finally:
                 if os.path.exists(tmp_path):
                     os.unlink(tmp_path)
-        except Exception as exc:
-            logger.warning("pyttsx3 synthesis failed: %s — using silence", exc)
+        except Exception:
+            logger.exception("pyttsx3 synthesis failed: %s — using silence")
             return self._silence_bytes(text)
 
     @staticmethod
@@ -270,8 +274,8 @@ class _AndroidTTSBackend:
             self._tts.setSpeechRate(self._speech_rate)
             self._initialized = True
             logger.debug("Android TextToSpeech initialized")
-        except Exception as exc:
-            logger.warning("Android TTS unavailable: %s — using silence", exc)
+        except Exception:
+            logger.exception("Android TTS unavailable: %s — using silence")
             self._tts = None
 
     def synthesize(self, text: str) -> bytes:
@@ -284,6 +288,7 @@ class _AndroidTTSBackend:
 
         Returns:
             WAV audio bytes (silence fallback when API unavailable).
+
         """
         if self._tts is None or not self._initialized:
             return _DesktopTTSBackend._silence_bytes(text)
@@ -301,8 +306,8 @@ class _AndroidTTSBackend:
             finally:
                 if os.path.exists(tmp_path):
                     os.unlink(tmp_path)
-        except Exception as exc:
-            logger.warning("Android TTS synthesis failed: %s", exc)
+        except Exception:
+            logger.exception("Android TTS synthesis failed")
             return _DesktopTTSBackend._silence_bytes(text)
 
     def shutdown(self) -> None:
@@ -310,8 +315,8 @@ class _AndroidTTSBackend:
         if self._tts is not None:
             try:
                 self._tts.shutdown()
-            except Exception as exc:
-                logger.warning("Android TTS shutdown error: %s", exc)
+            except Exception:
+                logger.exception("Android TTS shutdown error")
             self._tts = None
 
 
@@ -342,8 +347,8 @@ class _IOSTTSBackend:
             self._synthesizer = AVFoundation.AVSpeechSynthesizer.alloc().init()
             self._initialized = True
             logger.debug("iOS AVSpeechSynthesizer initialized")
-        except Exception as exc:
-            logger.warning("iOS AVSpeechSynthesizer unavailable: %s — using silence", exc)
+        except Exception:
+            logger.exception("iOS AVSpeechSynthesizer unavailable: %s — using silence")
             self._synthesizer = None
 
     def synthesize(self, text: str) -> bytes:
@@ -356,6 +361,7 @@ class _IOSTTSBackend:
 
         Returns:
             WAV audio bytes (silence fallback when API unavailable).
+
         """
         if self._synthesizer is None or not self._initialized:
             return _DesktopTTSBackend._silence_bytes(text)
@@ -375,8 +381,8 @@ class _IOSTTSBackend:
             self._synthesizer.speakUtterance_(utterance)
             # AVSpeechSynthesizer plays audio directly; return silence placeholder
             return _DesktopTTSBackend._silence_bytes(text)
-        except Exception as exc:
-            logger.warning("iOS TTS synthesis failed: %s", exc)
+        except Exception:
+            logger.exception("iOS TTS synthesis failed")
             return _DesktopTTSBackend._silence_bytes(text)
 
 
@@ -427,6 +433,7 @@ class TTSManager:
         Args:
             config: Manager configuration.  Defaults to
                 :class:`TTSManagerConfig` with auto-detected platform.
+
         """
         self._config = config or TTSManagerConfig()
         if not self._config.platform:
@@ -457,6 +464,7 @@ class TTSManager:
 
         Raises:
             RuntimeError: If already initialized.
+
         """
         if self._initialized:
             logger.warning("TTSManager already initialized")
@@ -499,8 +507,8 @@ class TTSManager:
             self._synthesis_engine = engine
             self._active_backend = TTSBackend.KOKORO
             logger.debug("Desktop Kokoro TTS backend initialized")
-        except Exception as exc:
-            logger.warning("Kokoro TTS init failed: %s — trying pyttsx3", exc)
+        except Exception:
+            logger.exception("Kokoro TTS init failed: %s — trying pyttsx3")
             await self._init_pyttsx3_fallback()
 
     async def _init_pyttsx3_fallback(self) -> None:
@@ -556,7 +564,6 @@ class TTSManager:
         self._initialized = False
         logger.info("TTSManager shut down")
 
-
     # ------------------------------------------------------------------
     # Synthesis API
     # ------------------------------------------------------------------
@@ -591,19 +598,28 @@ class TTSManager:
         Raises:
             RuntimeError: If :meth:`initialize` has not been called.
             GuruSpeechError: If synthesis fails on all backends.
+
         """
         if not self._initialized:
-            raise RuntimeError("Call initialize() before synthesize()")
+            msg = "Call initialize() before synthesize()"
+            raise RuntimeError(msg)
 
         if not text or not text.strip():
-            raise GuruSpeechError("Text cannot be empty", "TTSManager")
+            msg = "Text cannot be empty"
+            raise GuruSpeechError(msg, "TTSManager")
 
         effective_rate = speech_rate if speech_rate is not None else self._config.speech_rate
         effective_volume = volume if volume is not None else self._config.volume
 
         t_start = time.perf_counter()
 
-        result = await self._run_synthesis(text, personality, emotion, effective_rate, effective_volume)
+        result = await self._run_synthesis(
+            text,
+            personality,
+            emotion,
+            effective_rate,
+            effective_volume,
+        )
 
         latency_ms = (time.perf_counter() - t_start) * 1000
         logger.debug(
@@ -616,8 +632,8 @@ class TTSManager:
         if self._config.on_synthesis_complete is not None:
             try:
                 await self._config.on_synthesis_complete(result)
-            except Exception as exc:
-                logger.error("on_synthesis_complete callback error: %s", exc)
+            except Exception:
+                logger.exception("on_synthesis_complete callback error")
 
         return result
 
@@ -640,13 +656,12 @@ class TTSManager:
 
         Returns:
             :class:`~Agent_Guru.speech.tts.synthesis_engine.SynthesisResult`.
+
         """
         voice_profile = self._personality_to_voice_profile(personality)
 
         if self._active_backend == TTSBackend.KOKORO and self._synthesis_engine is not None:
-            return await self._synthesize_coqui(
-                text, voice_profile, emotion, speech_rate, volume
-            )
+            return await self._synthesize_coqui(text, voice_profile, emotion, speech_rate, volume)
 
         if self._active_backend == TTSBackend.PYTTSX3 and self._desktop_backend is not None:
             return await self._synthesize_pyttsx3(text, voice_profile, speech_rate, volume)
@@ -670,16 +685,15 @@ class TTSManager:
     ) -> SynthesisResult:
         """Synthesize using CoquiTTS SynthesisEngine."""
         if not (self._synthesis_engine is not None):
-            raise AssertionError("self._synthesis_engine is not None assertion failed")
+            msg = "self._synthesis_engine is not None assertion failed"
+            raise AssertionError(msg)
         engine = self._synthesis_engine
         engine.set_voice_profile(voice_profile)
         engine.set_speech_rate(speech_rate)
         engine._config.volume = volume
 
         loop = asyncio.get_running_loop()
-        result: SynthesisResult = await loop.run_in_executor(
-            None, lambda: engine.synthesize(text)
-        )
+        result: SynthesisResult = await loop.run_in_executor(None, lambda: engine.synthesize(text))
         return result
 
     async def _synthesize_pyttsx3(
@@ -691,7 +705,8 @@ class TTSManager:
     ) -> SynthesisResult:
         """Synthesize using pyttsx3 fallback backend."""
         if not (self._desktop_backend is not None):
-            raise AssertionError("self._desktop_backend is not None assertion failed")
+            msg = "self._desktop_backend is not None assertion failed"
+            raise AssertionError(msg)
         # Update gender based on voice profile
         self._desktop_backend._gender = self._voice_profile_to_gender(voice_profile)
         self._desktop_backend._speech_rate = speech_rate
@@ -700,7 +715,8 @@ class TTSManager:
         loop = asyncio.get_running_loop()
         t_start = time.perf_counter()
         audio_bytes: bytes = await loop.run_in_executor(
-            None, lambda: self._desktop_backend.synthesize(text)  # type: ignore[union-attr]
+            None,
+            lambda: self._desktop_backend.synthesize(text),  # type: ignore[union-attr]
         )
         latency_ms = (time.perf_counter() - t_start) * 1000
 
@@ -715,11 +731,13 @@ class TTSManager:
     ) -> SynthesisResult:
         """Synthesize using Android TextToSpeech backend."""
         if not (self._android_backend is not None):
-            raise AssertionError("self._android_backend is not None assertion failed")
+            msg = "self._android_backend is not None assertion failed"
+            raise AssertionError(msg)
         loop = asyncio.get_running_loop()
         t_start = time.perf_counter()
         audio_bytes: bytes = await loop.run_in_executor(
-            None, lambda: self._android_backend.synthesize(text)  # type: ignore[union-attr]
+            None,
+            lambda: self._android_backend.synthesize(text),  # type: ignore[union-attr]
         )
         latency_ms = (time.perf_counter() - t_start) * 1000
         return self._build_result(text, audio_bytes, voice_profile, speech_rate, latency_ms)
@@ -733,15 +751,16 @@ class TTSManager:
     ) -> SynthesisResult:
         """Synthesize using iOS AVSpeechSynthesizer backend."""
         if not (self._ios_backend is not None):
-            raise AssertionError("self._ios_backend is not None assertion failed")
+            msg = "self._ios_backend is not None assertion failed"
+            raise AssertionError(msg)
         loop = asyncio.get_running_loop()
         t_start = time.perf_counter()
         audio_bytes: bytes = await loop.run_in_executor(
-            None, lambda: self._ios_backend.synthesize(text)  # type: ignore[union-attr]
+            None,
+            lambda: self._ios_backend.synthesize(text),  # type: ignore[union-attr]
         )
         latency_ms = (time.perf_counter() - t_start) * 1000
         return self._build_result(text, audio_bytes, voice_profile, speech_rate, latency_ms)
-
 
     # ------------------------------------------------------------------
     # Voice configuration helpers
@@ -755,9 +774,11 @@ class TTSManager:
 
         Raises:
             ValueError: If rate is outside [0.5, 2.0].
+
         """
         if not 0.5 <= rate <= 2.0:
-            raise ValueError(f"speech_rate must be in [0.5, 2.0], got {rate}")
+            msg = f"speech_rate must be in [0.5, 2.0], got {rate}"
+            raise ValueError(msg)
         self._config.speech_rate = rate
         if self._synthesis_engine is not None:
             self._synthesis_engine.set_speech_rate(rate)
@@ -771,9 +792,11 @@ class TTSManager:
 
         Raises:
             ValueError: If volume is outside [0.0, 1.0].
+
         """
         if not 0.0 <= volume <= 1.0:
-            raise ValueError(f"volume must be in [0.0, 1.0], got {volume}")
+            msg = f"volume must be in [0.0, 1.0], got {volume}"
+            raise ValueError(msg)
         self._config.volume = volume
         logger.debug("Volume set to %.2f", volume)
 
@@ -785,10 +808,9 @@ class TTSManager:
 
         Returns:
             :class:`VoiceGender` for the personality.
+
         """
-        return (
-            VoiceGender.MALE if personality == PersonalityType.GURU else VoiceGender.FEMALE
-        )
+        return VoiceGender.MALE if personality == PersonalityType.GURU else VoiceGender.FEMALE
 
     # ------------------------------------------------------------------
     # Properties
@@ -827,6 +849,7 @@ class TTSManager:
 
         Returns:
             Corresponding :class:`VoiceProfile`.
+
         """
         return VoiceProfile.GURU if personality == PersonalityType.GURU else VoiceProfile.MAYA
 
@@ -839,6 +862,7 @@ class TTSManager:
 
         Returns:
             Corresponding :class:`VoiceGender`.
+
         """
         return VoiceGender.MALE if profile == VoiceProfile.GURU else VoiceGender.FEMALE
 
@@ -861,6 +885,7 @@ class TTSManager:
 
         Returns:
             :class:`SynthesisResult` instance.
+
         """
         duration = TTSManager._estimate_duration(audio_bytes)
         return SynthesisResult(
@@ -884,6 +909,7 @@ class TTSManager:
 
         Returns:
             Duration in seconds.
+
         """
         if not audio_bytes:
             return 0.0
@@ -895,7 +921,7 @@ class TTSManager:
                 frames = wf.getnframes()
                 rate = wf.getframerate()
                 return frames / float(rate) if rate > 0 else 0.0
-        except Exception as e:
+        except Exception:
             header_size = 44
             data_size = max(0, len(audio_bytes) - header_size)
             return data_size / (22050 * 2)
@@ -915,6 +941,7 @@ class TTSManager:
 
         Returns:
             :class:`SynthesisResult` with silence audio.
+
         """
         audio_bytes = _DesktopTTSBackend._silence_bytes(text)
         return SynthesisResult(

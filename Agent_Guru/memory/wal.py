@@ -13,12 +13,14 @@ import json
 import logging
 import sqlite3
 import time
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +40,7 @@ class WALEntry:
     operation: str = ""
     payload: dict[str, Any] = field(default_factory=dict)
     status: WALEntryStatus = WALEntryStatus.PENDING
-    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     error: str | None = None
 
 
@@ -46,7 +48,10 @@ class WriteAheadLog:
     """SQLite-backed WAL that survives restarts."""
 
     def __init__(self, db_path: str = ":memory:") -> None:
-        self._conn: sqlite3.Connection = sqlite3.connect(db_path, check_same_thread=False)  # persistent; closed in close()
+        self._conn: sqlite3.Connection = sqlite3.connect(
+            db_path,
+            check_same_thread=False,
+        )  # persistent; closed in close()
         self._init_db()
 
     def _init_db(self) -> None:
@@ -61,7 +66,7 @@ class WriteAheadLog:
                     timestamp TEXT NOT NULL,
                     error TEXT
                 )
-                """
+                """,
             )
 
     def append(self, operation: str, payload: dict[str, Any]) -> WALEntry:
@@ -116,7 +121,8 @@ class WriteAheadLog:
     def count_by_status(self, status: WALEntryStatus) -> int:
         with self._conn:
             row = self._conn.execute(
-                "SELECT COUNT(*) FROM wal WHERE status = ?", (status.value,)
+                "SELECT COUNT(*) FROM wal WHERE status = ?",
+                (status.value,),
             ).fetchone()
         return row[0] if row else 0
 
@@ -136,11 +142,12 @@ def retry_with_backoff(
             return fn()
         except Exception as exc:
             last_exc = exc
-            delay = base_delay * (2 ** attempt)
-            logger.warning("Attempt %d failed (%s); retrying in %.2fs", attempt + 1, exc, delay)
+            delay = base_delay * (2**attempt)
+            logger.exception("Attempt %d failed (%s); retrying in %.2fs", attempt + 1, exc, delay)
             if attempt < max_retries - 1:
                 time.sleep(delay)
-    raise RuntimeError(f"All {max_retries} retries failed") from last_exc
+    msg = f"All {max_retries} retries failed"
+    raise RuntimeError(msg) from last_exc
 
 
 class CircuitBreaker:
@@ -165,16 +172,17 @@ class CircuitBreaker:
 
     def call(self, fn: Callable[[], Any]) -> Any:
         if self.is_open:
-            raise RuntimeError("Circuit breaker is OPEN — call rejected")
+            msg = "Circuit breaker is OPEN — call rejected"
+            raise RuntimeError(msg)
         try:
             result = fn()
             self._failure_count = 0  # Reset on success
             return result
-        except Exception as e:
+        except Exception:
             self._failure_count += 1
             if self._failure_count >= self._threshold:
                 self._open_since = time.monotonic()
-                logger.error("Circuit breaker OPENED after %d failures", self._failure_count)
+                logger.exception("Circuit breaker OPENED after %d failures", self._failure_count)
             raise
 
     def reset(self) -> None:

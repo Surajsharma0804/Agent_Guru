@@ -1,5 +1,4 @@
-"""
-Agent_Guru.avatar — Production Avatar and Emotion Engine
+"""Agent_Guru.avatar — Production Avatar and Emotion Engine.
 
 Provides dual AI personalities (Guru and Maya) with:
   - Real-time emotion recognition (27-emotion Cowen & Keltner taxonomy)
@@ -34,13 +33,13 @@ from Agent_Guru.avatar.models import (
 )
 
 __all__ = [
-    "GuruAvatarSystem",
+    "EMOTION_CATEGORIES",
+    "EMOTION_CATEGORIES_27",
     "AvatarState",
     "EmotionState",
+    "GuruAvatarSystem",
     "LipSyncState",
     "PersonalityProfile",
     "PersonalityType",
-    "EMOTION_CATEGORIES",
-    "EMOTION_CATEGORIES_27",
     "normalize_emotion",
 ]

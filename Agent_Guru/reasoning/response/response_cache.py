@@ -1,5 +1,4 @@
-"""
-Response Caching System
+"""Response Caching System.
 
 Implements caching for deterministic responses to reduce latency.
 Caches responses for queries like weather, time, etc. with data freshness tracking.
@@ -17,8 +16,8 @@ import hashlib
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from Agent_Guru.reasoning.models.result import Response
 
@@ -35,6 +34,7 @@ class CachedResponse:
         last_accessed: When entry was last accessed
         access_count: Number of times accessed
         data_freshness: Data freshness timestamp (for invalidation)
+
     """
 
     response: Response
@@ -43,11 +43,11 @@ class CachedResponse:
     created_at: datetime
     last_accessed: datetime
     access_count: int = 0
-    data_freshness: Optional[datetime] = None
+    data_freshness: datetime | None = None
 
     def update_access(self) -> None:
         """Update access statistics."""
-        self.last_accessed = datetime.now(tz=timezone.utc)
+        self.last_accessed = datetime.now(tz=UTC)
         self.access_count += 1
 
 
@@ -63,6 +63,7 @@ class ResponseCacheStats:
         ttl_expirations: Number of TTL-based expirations
         evictions: Number of LRU evictions
         last_reset: When stats were last reset
+
     """
 
     total_requests: int = 0
@@ -71,7 +72,7 @@ class ResponseCacheStats:
     freshness_invalidations: int = 0
     ttl_expirations: int = 0
     evictions: int = 0
-    last_reset: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    last_reset: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def record_hit(self) -> None:
         """Record cache hit."""
@@ -100,6 +101,7 @@ class ResponseCacheStats:
 
         Returns:
             Hit rate as percentage (0.0-100.0)
+
         """
         if self.total_requests == 0:
             return 0.0
@@ -110,6 +112,7 @@ class ResponseCacheStats:
 
         Returns:
             Dictionary with all statistics
+
         """
         return {
             "total_requests": self.total_requests,
@@ -138,6 +141,7 @@ class ResponseCache:
         >>> cached_response = cache.get("what time is it", "query_time")
         >>> if cached_response:
         ...     print(f"Response: {cached_response.text}")
+
     """
 
     # Intent-specific TTLs (in seconds)
@@ -160,7 +164,7 @@ class ResponseCache:
     def __init__(
         self,
         max_size: int = 10000,
-    ):
+    ) -> None:
         """Initialize response cache.
 
         Args:
@@ -168,9 +172,11 @@ class ResponseCache:
 
         Raises:
             ValueError: If max_size <= 0
+
         """
         if max_size <= 0:
-            raise ValueError(f"max_size must be positive, got {max_size}")
+            msg = f"max_size must be positive, got {max_size}"
+            raise ValueError(msg)
 
         self.max_size = max_size
         self._cache: OrderedDict[str, CachedResponse] = OrderedDict()
@@ -190,6 +196,7 @@ class ResponseCache:
             Cache key string (SHA256 hash)
 
         Time Complexity: O(n) where n = query length
+
         """
         # Normalize query (lowercase, strip whitespace)
         normalized_query = query.lower().strip()
@@ -209,6 +216,7 @@ class ResponseCache:
             TTL as timedelta
 
         Time Complexity: O(1)
+
         """
         ttl_seconds = self.INTENT_TTL_MAP.get(intent_type, self.DEFAULT_TTL)
         return timedelta(seconds=ttl_seconds)
@@ -223,12 +231,17 @@ class ResponseCache:
             True if expired, False otherwise
 
         Time Complexity: O(1)
+
         """
         ttl = self._get_ttl(entry.intent_type)
-        age = datetime.now(tz=timezone.utc) - entry.created_at
+        age = datetime.now(tz=UTC) - entry.created_at
         return age > ttl
 
-    def _is_data_stale(self, entry: CachedResponse, freshness_threshold: Optional[datetime] = None) -> bool:
+    def _is_data_stale(
+        self,
+        entry: CachedResponse,
+        freshness_threshold: datetime | None = None,
+    ) -> bool:
         """Check if cached data is stale based on freshness threshold.
 
         Args:
@@ -239,6 +252,7 @@ class ResponseCache:
             True if data is stale, False otherwise
 
         Time Complexity: O(1)
+
         """
         if freshness_threshold is None or entry.data_freshness is None:
             return False
@@ -270,8 +284,8 @@ class ResponseCache:
         self,
         query: str,
         intent_type: str,
-        freshness_threshold: Optional[datetime] = None,
-    ) -> Optional[Response]:
+        freshness_threshold: datetime | None = None,
+    ) -> Response | None:
         """Get cached response for query.
 
         Args:
@@ -283,8 +297,9 @@ class ResponseCache:
             Cached Response if found and valid, None otherwise
 
         Time Complexity: O(1) average case
+
         """
-        start_time = time.perf_counter()
+        time.perf_counter()
 
         cache_key = self._generate_cache_key(query, intent_type)
 
@@ -329,7 +344,7 @@ class ResponseCache:
         query: str,
         intent_type: str,
         response: Response,
-        data_freshness: Optional[datetime] = None,
+        data_freshness: datetime | None = None,
     ) -> None:
         """Set cached response for query.
 
@@ -340,6 +355,7 @@ class ResponseCache:
             data_freshness: Optional data freshness timestamp
 
         Time Complexity: O(1) amortized
+
         """
         cache_key = self._generate_cache_key(query, intent_type)
 
@@ -355,9 +371,9 @@ class ResponseCache:
             response=response,
             cache_key=cache_key,
             intent_type=intent_type,
-            created_at=datetime.now(tz=timezone.utc),
-            last_accessed=datetime.now(tz=timezone.utc),
-            data_freshness=data_freshness or datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
+            last_accessed=datetime.now(tz=UTC),
+            data_freshness=data_freshness or datetime.now(tz=UTC),
         )
 
         self._cache[cache_key] = entry
@@ -372,6 +388,7 @@ class ResponseCache:
             Number of entries invalidated
 
         Time Complexity: O(n) where n = cache size
+
         """
         keys_to_invalidate = [
             key for key, entry in self._cache.items() if entry.intent_type == intent_type
@@ -406,6 +423,7 @@ class ResponseCache:
             Number of cached entries
 
         Time Complexity: O(1)
+
         """
         return len(self._cache)
 
@@ -417,6 +435,7 @@ class ResponseCache:
             hit: Whether this was a cache hit
 
         Time Complexity: O(1)
+
         """
         if intent_type not in self._intent_hit_rates:
             self._intent_hit_rates[intent_type] = (0, 0)
@@ -434,6 +453,7 @@ class ResponseCache:
             Dictionary mapping intent type to hit rate percentage
 
         Time Complexity: O(n) where n = number of intent types
+
         """
         return {
             intent_type: (hits / total * 100) if total > 0 else 0.0
@@ -445,6 +465,7 @@ class ResponseCache:
 
         Returns:
             Dictionary with cache statistics
+
         """
         stats = self.stats.get_stats()
         stats["current_size"] = self.get_size()
@@ -471,6 +492,7 @@ class ResponseCache:
             List of entry statistics
 
         Time Complexity: O(n log n) where n = cache size
+
         """
         sorted_entries = sorted(
             self._cache.values(),

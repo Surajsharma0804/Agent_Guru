@@ -1,8 +1,7 @@
-"""
-Module: Agent_Guru.platform.platform_detector
+"""Module: Agent_Guru.platform.platform_detector
 Purpose: Ultra-fast platform detection for cross-platform OS control
 Author: Agent Guru Team
-Date: 2026-02-23
+Date: 2026-02-23.
 
 Performance Requirements:
 - Time Complexity: O(1) - single platform.system() call
@@ -26,7 +25,6 @@ Supported Platforms:
 import platform
 import sys
 from dataclasses import dataclass
-from typing import Optional
 
 # Security: subprocess calls in this module use only fixed, non-user-controlled
 # arguments (["uname", "-o"]) for platform detection. B603/B607 suppressed.
@@ -42,7 +40,9 @@ class PlatformInfo:
         architecture: System architecture ("x86", "x64", "ARM64", "ARM")
         python_version: Python version string (e.g., "3.11.5")
         python_implementation: Python implementation ("CPython", "PyPy", "Jython")
+
     """
+
     os_name: str
     os_version: str
     architecture: str
@@ -74,9 +74,10 @@ class PlatformDetector:
         >>> if PlatformDetector.is_windows():
         ...     print("Windows-specific code")
         Windows-specific code
+
     """
 
-    _cached_platform_info: Optional[PlatformInfo] = None
+    _cached_platform_info: PlatformInfo | None = None
 
     @staticmethod
     def detect() -> PlatformInfo:
@@ -94,6 +95,7 @@ class PlatformDetector:
         Example:
             >>> info = PlatformDetector.detect()
             >>> assert info.os_name in ["Windows", "macOS", "Linux", "Android", "iOS"]
+
         """
         # Return cached result if available (O(1) fast path)
         if PlatformDetector._cached_platform_info is not None:
@@ -109,28 +111,30 @@ class PlatformDetector:
             os_name = "macOS"
         elif system == "Linux":
             # Check if running on Android (Linux kernel but Android userspace)
-            if _is_android():
-                os_name = "Android"
-            else:
-                os_name = "Linux"
+            os_name = "Android" if _is_android() else "Linux"
         elif system == "Java":
             # Check if running on Android via Jython
             if _is_android():
                 os_name = "Android"
             else:
-                raise UnsupportedPlatformError(
+                msg = (
                     f"Unsupported platform: {system}. "
                     f"Supported platforms: Windows, macOS, Linux, Android, iOS"
                 )
+                raise UnsupportedPlatformError(
+                    msg,
+                )
+        # Check for iOS (not directly detectable via platform.system())
+        elif _is_ios():
+            os_name = "iOS"
         else:
-            # Check for iOS (not directly detectable via platform.system())
-            if _is_ios():
-                os_name = "iOS"
-            else:
-                raise UnsupportedPlatformError(
-                    f"Unsupported platform: {system}. "
-                    f"Supported platforms: Windows, macOS, Linux, Android, iOS"
-                )
+            msg = (
+                f"Unsupported platform: {system}. "
+                f"Supported platforms: Windows, macOS, Linux, Android, iOS"
+            )
+            raise UnsupportedPlatformError(
+                msg,
+            )
 
         # Get OS version
         os_version = platform.release()
@@ -158,7 +162,7 @@ class PlatformDetector:
             os_version=os_version,
             architecture=architecture,
             python_version=python_version,
-            python_implementation=python_implementation
+            python_implementation=python_implementation,
         )
 
         # Cache result for future calls
@@ -178,6 +182,7 @@ class PlatformDetector:
         Example:
             >>> if PlatformDetector.is_windows():
             ...     print("Windows detected")
+
         """
         try:
             return PlatformDetector.detect().os_name == "Windows"
@@ -196,6 +201,7 @@ class PlatformDetector:
         Example:
             >>> if PlatformDetector.is_macos():
             ...     print("macOS detected")
+
         """
         try:
             return PlatformDetector.detect().os_name == "macOS"
@@ -214,6 +220,7 @@ class PlatformDetector:
         Example:
             >>> if PlatformDetector.is_linux():
             ...     print("Linux detected")
+
         """
         try:
             return PlatformDetector.detect().os_name == "Linux"
@@ -232,6 +239,7 @@ class PlatformDetector:
         Example:
             >>> if PlatformDetector.is_android():
             ...     print("Android detected")
+
         """
         try:
             return PlatformDetector.detect().os_name == "Android"
@@ -250,6 +258,7 @@ class PlatformDetector:
         Example:
             >>> if PlatformDetector.is_ios():
             ...     print("iOS detected")
+
         """
         try:
             return PlatformDetector.detect().os_name == "iOS"
@@ -268,6 +277,7 @@ class PlatformDetector:
         Example:
             >>> if PlatformDetector.is_mobile():
             ...     print("Mobile platform detected")
+
         """
         try:
             os_name = PlatformDetector.detect().os_name
@@ -287,6 +297,7 @@ class PlatformDetector:
         Example:
             >>> if PlatformDetector.is_desktop():
             ...     print("Desktop platform detected")
+
         """
         try:
             os_name = PlatformDetector.detect().os_name
@@ -303,8 +314,10 @@ def _is_android() -> bool:
 
     Returns:
         True if running on Android, False otherwise
+
     """
     import os as _os
+
     # Check for Android-specific environment variables
     if "ANDROID_ROOT" in _os.environ or "ANDROID_DATA" in _os.environ:
         return True
@@ -315,6 +328,7 @@ def _is_android() -> bool:
             return True
     except OSError as exc:
         import logging as _logging
+
         _logging.getLogger(__name__).debug("Android build.prop check failed: %s", exc)
 
     # Check sys.platform for Android indicators
@@ -332,17 +346,20 @@ def _is_ios() -> bool:
 
     Returns:
         True if running on iOS, False otherwise
+
     """
     # Check sys.platform for iOS indicators
     if "ios" in sys.platform.lower() or "darwin" in sys.platform.lower():
         # Additional check: iOS has specific characteristics
         try:
             import os
+
             # iOS apps run in a sandboxed environment
             if os.path.exists("/var/mobile"):
                 return True
         except OSError as exc:
             import logging as _logging
+
             _logging.getLogger(__name__).debug("iOS /var/mobile check failed: %s", exc)
 
     return False

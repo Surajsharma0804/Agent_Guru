@@ -1,5 +1,4 @@
-"""
-Loop Detector - Detects infinite loops in agent reasoning and delegation.
+"""Loop Detector - Detects infinite loops in agent reasoning and delegation.
 
 Tracks action patterns and delegation patterns using sliding windows.
 Detects both identical-action loops and alternating-pattern loops.
@@ -38,6 +37,7 @@ class LoopDetector:
         True
 
     Validates: Requirements 11.3, 11.4, 11.5
+
     """
 
     def __init__(
@@ -55,20 +55,28 @@ class LoopDetector:
             ValueError: If parameters are out of valid range.
 
         Validates: Requirements 11.3, 11.4
+
         """
         if pattern_window < 2:
-            raise ValueError("pattern_window must be >= 2")
+            msg = "pattern_window must be >= 2"
+            raise ValueError(msg)
         if repetition_threshold < 2:
-            raise ValueError("repetition_threshold must be >= 2")
+            msg = "repetition_threshold must be >= 2"
+            raise ValueError(msg)
         if repetition_threshold > pattern_window:
-            raise ValueError("repetition_threshold must be <= pattern_window")
+            msg = "repetition_threshold must be <= pattern_window"
+            raise ValueError(msg)
 
         self.pattern_window = pattern_window
         self.repetition_threshold = repetition_threshold
         # agent_id -> recent action deque (bounded by pattern_window)
-        self._action_history: dict[str, deque[str]] = defaultdict(lambda: deque(maxlen=self.pattern_window))
+        self._action_history: dict[str, deque[str]] = defaultdict(
+            lambda: deque(maxlen=self.pattern_window),
+        )
         # task_type -> recent (from, to) delegation pairs
-        self._delegation_history: dict[str, deque[tuple[str, str]]] = defaultdict(lambda: deque(maxlen=self.pattern_window))
+        self._delegation_history: dict[str, deque[tuple[str, str]]] = defaultdict(
+            lambda: deque(maxlen=self.pattern_window),
+        )
 
     # ------------------------------------------------------------------
     # Action loop detection
@@ -85,6 +93,7 @@ class LoopDetector:
 
         Time Complexity: O(1) amortized
         Validates: Requirement 11.3
+
         """
         history = self._action_history[agent_id]
         history.append(action)
@@ -105,12 +114,13 @@ class LoopDetector:
 
         Time Complexity: O(w) where w is pattern_window
         Validates: Requirements 11.3, 11.4
+
         """
         history = self._action_history.get(agent_id)
         if history is None or len(history) < self.repetition_threshold:
             return False
 
-        recent = list(history)[-self.repetition_threshold:]
+        recent = list(history)[-self.repetition_threshold :]
 
         # Pattern 1: all identical
         if len(set(recent)) == 1:
@@ -132,6 +142,7 @@ class LoopDetector:
 
         Time Complexity: O(1)
         Validates: Requirement 11.5
+
         """
         self._action_history.pop(agent_id, None)
 
@@ -154,6 +165,7 @@ class LoopDetector:
 
         Time Complexity: O(1) amortized
         Validates: Requirement 11.3
+
         """
         history = self._delegation_history[task_type]
         history.append((from_agent, to_agent))
@@ -173,18 +185,16 @@ class LoopDetector:
 
         Time Complexity: O(w) where w is pattern_window
         Validates: Requirements 11.3, 11.4
+
         """
         history = self._delegation_history.get(task_type)
         if history is None or len(history) < self.repetition_threshold:
             return False
 
-        recent = list(history)[-self.repetition_threshold:]
+        recent = list(history)[-self.repetition_threshold :]
 
         # All recent delegations are the same pair
-        if len(set(recent)) == 1:
-            return True
-
-        return False
+        return len(set(recent)) == 1
 
     def clear_delegation_history(self, task_type: str) -> None:
         """Clear delegation history for a task type.
@@ -194,5 +204,6 @@ class LoopDetector:
 
         Time Complexity: O(1)
         Validates: Requirement 11.5
+
         """
         self._delegation_history.pop(task_type, None)

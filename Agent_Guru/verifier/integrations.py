@@ -9,6 +9,7 @@ Requirements: 8.1-8.5, 9.1-9.5, 10.1-10.5, 11.1-11.5
 from __future__ import annotations
 
 import logging
+from datetime import UTC
 from typing import Any
 
 from Agent_Guru.verifier.models import VerificationResult, VerificationStatus
@@ -39,6 +40,7 @@ class LLMRuntimeIntegration:
 
         Returns:
             (should_forward, result) — if should_forward=False, use result.feedback
+
         """
         result = await self._verifier.verify_llm_response(
             response,
@@ -84,6 +86,7 @@ class AgentOrchestrationIntegration:
             - is_valid: True if output passes verification
             - result: Full verification result with feedback
             - should_escalate: True if retries exhausted
+
         """
         result = await self._verifier.verify_task_output(task_id, output, expected_schema)
         is_valid = result.status == VerificationStatus.PASSED
@@ -135,14 +138,16 @@ class MemorySystemIntegration:
         Returns:
             (should_store, result)
             - should_store: False if hallucination detected
+
         """
         result = await self._verifier.verify_before_storage(content, metadata)
         should_store = result.status != VerificationStatus.FAILED
 
         if should_store:
-            from datetime import datetime, timezone
+            from datetime import datetime
+
             self._stored_metadata[content_id] = {
-                "stored_at": datetime.now(tz=timezone.utc).isoformat(),
+                "stored_at": datetime.now(tz=UTC).isoformat(),
                 "confidence": result.confidence,
                 "result_id": str(result.result_id),
             }
@@ -164,9 +169,10 @@ class MemorySystemIntegration:
         meta = self._stored_metadata.get(content_id)
         if not meta:
             return False
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         stored_at = datetime.fromisoformat(meta["stored_at"])
-        age_days = (datetime.now(tz=timezone.utc) - stored_at).total_seconds() / 86400
+        age_days = (datetime.now(tz=UTC) - stored_at).total_seconds() / 86400
         return age_days >= self._reverification_age_days
 
 

@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.platform.macos.controller
-Purpose: macOS OS Controller - App launching, keyboard/mouse, window management
+"""Module: Agent_Guru.platform.macos.controller
+Purpose: macOS OS Controller - App launching, keyboard/mouse, window management.
 
 Uses subprocess 'open -a' for app launching, pyautogui for keyboard/mouse,
 and pyobjc (AppKit/Quartz) for Accessibility API and CGEvent simulation.
@@ -22,7 +21,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -35,29 +34,29 @@ _QUARTZ_AVAILABLE = False
 
 try:
     import pyautogui  # type: ignore[import]
+
     pyautogui.FAILSAFE = False
     _PYAUTOGUI_AVAILABLE = True
-except ImportError as e:
-    logger.warning("pyautogui not available – keyboard/mouse simulation limited: %s", e)
-
+except ImportError:
+    logger.exception("pyautogui not available – keyboard/mouse simulation limited")
 if sys.platform == "darwin":
     try:
         import AppKit  # type: ignore[import]
-        import Foundation  # type: ignore[import]
-        _APPKIT_AVAILABLE = True
-    except ImportError as e:
-        logger.warning("pyobjc-framework-AppKit not available: %s", e)
+        import Foundation  # type: ignore[import]  # noqa: F401
 
+        _APPKIT_AVAILABLE = True
+    except ImportError:
+        logger.exception("pyobjc-framework-AppKit not available")
     try:
         import Quartz  # type: ignore[import]
+
         _QUARTZ_AVAILABLE = True
-    except ImportError as e:
-        logger.warning("pyobjc-framework-Quartz not available: %s", e)
-
-
+    except ImportError:
+        logger.exception("pyobjc-framework-Quartz not available")
 # ---------------------------------------------------------------------------
 # Data models
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class MacOSControllerResult:
@@ -66,7 +65,7 @@ class MacOSControllerResult:
     success: bool
     operation: str
     message: str
-    error: Optional[str] = None
+    error: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     latency_ms: float = 0.0
 
@@ -134,8 +133,7 @@ _APP_ALIASES: dict[str, str] = {
 
 
 class MacOSController:
-    """
-    macOS OS Controller for voice-driven automation.
+    """macOS OS Controller for voice-driven automation.
 
     Provides:
     - Application launching via 'open -a' subprocess
@@ -149,6 +147,7 @@ class MacOSController:
         >>> ctrl.launch_app("safari")
         >>> ctrl.type_text("Hello from Guru!")
         >>> ctrl.press_key("return")
+
     """
 
     def __init__(self) -> None:
@@ -164,9 +163,8 @@ class MacOSController:
     def _validate_platform() -> None:
         """Raise RuntimeError if not on macOS."""
         if sys.platform != "darwin":
-            raise RuntimeError(
-                f"MacOSController requires macOS, running on {sys.platform}"
-            )
+            msg = f"MacOSController requires macOS, running on {sys.platform}"
+            raise RuntimeError(msg)
 
     # ------------------------------------------------------------------
     # Application launching
@@ -175,10 +173,9 @@ class MacOSController:
     def launch_app(
         self,
         app_name: str,
-        args: Optional[list[str]] = None,
+        args: list[str] | None = None,
     ) -> MacOSControllerResult:
-        """
-        Launch an application by name.
+        """Launch an application by name.
 
         Tries in order:
         1. Known alias → macOS app name
@@ -194,6 +191,7 @@ class MacOSController:
 
         Returns:
             MacOSControllerResult with success status
+
         """
         start = time.perf_counter()
         args = args or []
@@ -204,8 +202,8 @@ class MacOSController:
 
         try:
             # URL → open in default browser
-            if resolved.startswith("http://") or resolved.startswith("https://"):
-                subprocess.Popen(  # nosec B603 B607
+            if resolved.startswith(("http://", "https://")):
+                subprocess.Popen(  # nosec B603 B607  # noqa: S603
                     ["open", resolved],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -221,9 +219,10 @@ class MacOSController:
                 )
 
             # 'open -a <AppName>' — standard macOS app launch
-            cmd = ["open", "-a", resolved] + (["--args"] + args if args else [])
-            result = subprocess.run(  # nosec B603 B607
+            cmd = ["open", "-a", resolved] + (["--args", *args] if args else [])
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 cmd,
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -239,24 +238,23 @@ class MacOSController:
                     latency_ms=latency_ms,
                     metadata={"app": resolved},
                 )
-            else:
-                # Fallback: try direct subprocess
-                proc = subprocess.Popen(  # nosec B603 B607
-                    [resolved] + args,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                latency_ms = (time.perf_counter() - start) * 1000
-                logger.info("Launched via direct exec: %s (PID: %s)", resolved, proc.pid)
-                return MacOSControllerResult(
-                    success=True,
-                    operation="launch_app",
-                    message=f"Launched {app_name} (PID: {proc.pid})",
-                    latency_ms=latency_ms,
-                    metadata={"pid": proc.pid, "app": resolved},
-                )
+            # Fallback: try direct subprocess
+            proc = subprocess.Popen(  # nosec B603 B607  # noqa: S603
+                [resolved, *args],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            latency_ms = (time.perf_counter() - start) * 1000
+            logger.info("Launched via direct exec: %s (PID: %s)", resolved, proc.pid)
+            return MacOSControllerResult(
+                success=True,
+                operation="launch_app",
+                message=f"Launched {app_name} (PID: {proc.pid})",
+                latency_ms=latency_ms,
+                metadata={"pid": proc.pid, "app": resolved},
+            )
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
             latency_ms = (time.perf_counter() - start) * 1000
             return MacOSControllerResult(
                 success=False,
@@ -265,9 +263,8 @@ class MacOSController:
                 error="Launch timed out after 10s",
                 latency_ms=latency_ms,
             )
-        except Exception as e:
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.error("Failed to launch %s: %s", app_name, e)
+            logger.exception("Failed to launch %s: %s")
             return MacOSControllerResult(
                 success=False,
                 operation="launch_app",
@@ -285,8 +282,7 @@ class MacOSController:
         text: str,
         interval: float = 0.0,
     ) -> MacOSControllerResult:
-        """
-        Type text into the active window.
+        """Type text into the active window.
 
         Uses pyautogui if available, falls back to AppleScript.
 
@@ -298,6 +294,7 @@ class MacOSController:
 
         Returns:
             MacOSControllerResult
+
         """
         start = time.perf_counter()
 
@@ -313,15 +310,15 @@ class MacOSController:
                     latency_ms=latency_ms,
                     metadata={"length": len(text), "method": "pyautogui"},
                 )
-            except Exception as e:
-                logger.warning("pyautogui type_text failed, trying AppleScript: %s", e)
-
+            except Exception:
+                logger.exception("pyautogui type_text failed, trying AppleScript")
         # AppleScript fallback
         try:
             escaped = text.replace('"', '\\"').replace("\\", "\\\\")
             script = f'tell application "System Events" to keystroke "{escaped}"'
-            result = subprocess.run(  # nosec B603 B607
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["osascript", "-e", script],
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -336,14 +333,13 @@ class MacOSController:
                     latency_ms=latency_ms,
                     metadata={"length": len(text), "method": "applescript"},
                 )
-            else:
-                return MacOSControllerResult(
-                    success=False,
-                    operation="type_text",
-                    message="AppleScript type_text failed",
-                    error=result.stderr,
-                    latency_ms=latency_ms,
-                )
+            return MacOSControllerResult(
+                success=False,
+                operation="type_text",
+                message="AppleScript type_text failed",
+                error=result.stderr,
+                latency_ms=latency_ms,
+            )
         except Exception as e:
             latency_ms = (time.perf_counter() - start) * 1000
             return MacOSControllerResult(
@@ -355,14 +351,14 @@ class MacOSController:
             )
 
     def press_key(self, key: str) -> MacOSControllerResult:
-        """
-        Press a single key or key combination.
+        """Press a single key or key combination.
 
         Args:
             key: Key name (e.g. 'return', 'cmd+c', 'ctrl+alt+t')
 
         Returns:
             MacOSControllerResult
+
         """
         start = time.perf_counter()
 
@@ -381,9 +377,8 @@ class MacOSController:
                     latency_ms=latency_ms,
                     metadata={"key": key},
                 )
-            except Exception as e:
-                logger.warning("pyautogui press_key failed: %s", e)
-
+            except Exception:
+                logger.exception("pyautogui press_key failed")
         # AppleScript fallback for common keys
         _key_map = {
             "return": "return",
@@ -403,8 +398,9 @@ class MacOSController:
             script = f'tell application "System Events" to key code (key code of key "{as_key}")'
             # Simpler approach: use keystroke for printable, key code for special
             script = f'tell application "System Events" to keystroke (ASCII character {ord(key[0]) if len(key) == 1 else 13})'
-            result = subprocess.run(  # nosec B603 B607
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["osascript", "-e", script],
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -454,7 +450,6 @@ class MacOSController:
                     error=str(e),
                     latency_ms=latency_ms,
                 )
-
         return MacOSControllerResult(
             success=False,
             operation="hotkey",
@@ -514,19 +509,15 @@ class MacOSController:
             try:
                 workspace = AppKit.NSWorkspace.sharedWorkspace()
                 apps = workspace.runningApplications()
-                return [
-                    str(app.localizedName())
-                    for app in apps
-                    if app.localizedName()
-                ]
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("NSWorkspace app listing failed: %s", exc)
-
+                return [str(app.localizedName()) for app in apps if app.localizedName()]
+            except Exception:
+                logger.exception("NSWorkspace app listing failed")
         # AppleScript fallback
         try:
             script = 'tell application "System Events" to get name of every process whose background only is false'
-            result = subprocess.run(  # nosec B603 B607
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["osascript", "-e", script],
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -535,18 +526,17 @@ class MacOSController:
                 return [a.strip() for a in result.stdout.split(",") if a.strip()]
         except (OSError, subprocess.TimeoutExpired) as exc:
             logger.debug("AppleScript app listing failed: %s", exc)
-
         return []
 
     def focus_app(self, app_name: str) -> MacOSControllerResult:
-        """
-        Bring an application to the foreground.
+        """Bring an application to the foreground.
 
         Args:
             app_name: Application name (partial match)
 
         Returns:
             MacOSControllerResult
+
         """
         start = time.perf_counter()
         normalized = app_name.lower().strip()
@@ -559,9 +549,7 @@ class MacOSController:
                 for app in apps:
                     name = str(app.localizedName() or "")
                     if resolved.lower() in name.lower():
-                        app.activateWithOptions_(
-                            AppKit.NSApplicationActivateIgnoringOtherApps
-                        )
+                        app.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps)
                         latency_ms = (time.perf_counter() - start) * 1000
                         logger.info("Focused app: %s", name)
                         return MacOSControllerResult(
@@ -571,14 +559,14 @@ class MacOSController:
                             latency_ms=latency_ms,
                             metadata={"app": name},
                         )
-            except Exception as e:
-                logger.warning("AppKit focus failed: %s", e)
-
+            except Exception:
+                logger.exception("AppKit focus failed")
         # AppleScript fallback
         try:
             script = f'tell application "{resolved}" to activate'
-            result = subprocess.run(  # nosec B603 B607
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["osascript", "-e", script],
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -607,28 +595,32 @@ class MacOSController:
     # ------------------------------------------------------------------
 
     def check_accessibility_permission(self) -> bool:
-        """
-        Check if Accessibility permission is granted.
+        """Check if Accessibility permission is granted.
 
         Required for keyboard/mouse simulation via Accessibility API.
 
         Returns:
             True if Accessibility permission is granted
+
         """
         if _QUARTZ_AVAILABLE:
             try:
                 return bool(
                     Quartz.AXIsProcessTrustedWithOptions(
-                        {Quartz.kAXTrustedCheckOptionPrompt: False}
-                    )
+                        {Quartz.kAXTrustedCheckOptionPrompt: False},
+                    ),
                 )
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("Quartz accessibility check failed: %s", exc)
-
+            except Exception:
+                logger.exception("Quartz accessibility check failed")
         # Fallback: try a benign AppleScript operation
         try:
             result = subprocess.run(  # nosec B603 B607
-                ["osascript", "-e", 'tell application "System Events" to get name of first process'],
+                [
+                    "osascript",
+                    "-e",
+                    'tell application "System Events" to get name of first process',
+                ],
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=3,
@@ -639,14 +631,14 @@ class MacOSController:
             return False
 
     def check_permission(self, operation: str) -> bool:
-        """
-        Check if the current process has permission for an operation.
+        """Check if the current process has permission for an operation.
 
         Args:
             operation: Operation name
 
         Returns:
             True if permitted
+
         """
         accessibility_required = {
             "type_text",

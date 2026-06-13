@@ -1,5 +1,4 @@
-"""
-Online learning module for continuous model improvement.
+"""Online learning module for continuous model improvement.
 
 This module provides feedback collection, performance tracking, drift detection,
 and retraining coordination for the intent detection system.
@@ -21,14 +20,14 @@ from Agent_Guru.reasoning.learning.preference_learner import PreferenceLearner
 from Agent_Guru.reasoning.learning.suggestion_generator import SuggestionGenerator
 
 __all__ = [
+    "AppTracker",
+    "BehavioralEngine",
+    "CommandTracker",
     # Behavioral Learning
     "FeedbackStore",
+    "GoalEngine",
     "OnlineLearner",
-    "CommandTracker",
     "PatternDetector",
-    "AppTracker",
     "PreferenceLearner",
     "SuggestionGenerator",
-    "BehavioralEngine",
-    "GoalEngine",
 ]

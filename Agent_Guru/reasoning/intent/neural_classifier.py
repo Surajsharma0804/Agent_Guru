@@ -1,5 +1,4 @@
-"""
-Neural Intent Classifier - GPU Accelerated
+"""Neural Intent Classifier - GPU Accelerated.
 
 This module provides GPU-accelerated neural intent classification using a fine-tuned
 DeBERTa-v3-large model with ONNX Runtime for optimal inference performance.
@@ -34,14 +33,17 @@ Version: 1.0.0
 """
 
 import asyncio
+import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-import numpy as np
-import yaml
-from transformers import DebertaV2Tokenizer
+_logger = logging.getLogger(__name__)
+
+import numpy as np  # noqa: E402
+import yaml  # noqa: E402
+from transformers import DebertaV2Tokenizer  # noqa: E402
 
 # Try to import ONNX Runtime with GPU support
 try:
@@ -66,11 +68,14 @@ class ClassifierConfig:
         batch_size: Batch size for inference (32)
         use_gpu: Whether to use GPU acceleration
         warmup_iterations: Number of warmup iterations on startup (10)
+
     """
 
     model_path: str = "Agent_Guru/reasoning/models/intent_classifier/final_model/model.onnx"
     tokenizer_path: str = "Agent_Guru/reasoning/models/intent_classifier/final_model"
-    label_mappings_path: str = "Agent_Guru/reasoning/models/intent_classifier/final_model/label_mappings.yaml"
+    label_mappings_path: str = (
+        "Agent_Guru/reasoning/models/intent_classifier/final_model/label_mappings.yaml"
+    )
     confidence_threshold: float = 0.8
     max_length: int = 256
     batch_size: int = 32
@@ -88,6 +93,7 @@ class ClassificationResult:
         alternative_intents: Top 3 alternative intents with confidence
         inference_time_ms: Inference time in milliseconds
         used_gpu: Whether GPU was used for inference
+
     """
 
     intent_type: str
@@ -112,9 +118,10 @@ class NeuralIntentClassifier:
     Note:
         Uses DeBERTa-v3-large (435M parameters) - SOTA for text classification
         Achieves 91.37% on GLUE benchmark, superior to RoBERTa and BERT
+
     """
 
-    def __init__(self, config: Optional[ClassifierConfig] = None) -> None:
+    def __init__(self, config: ClassifierConfig | None = None) -> None:
         """Initialize neural intent classifier.
 
         Args:
@@ -122,15 +129,17 @@ class NeuralIntentClassifier:
 
         Raises:
             RuntimeError: If ONNX Runtime is not available
+
         """
         if not ONNX_AVAILABLE:
+            msg = "ONNX Runtime not available. Install with: pip install onnxruntime-gpu"
             raise RuntimeError(
-                "ONNX Runtime not available. Install with: pip install onnxruntime-gpu"
+                msg,
             )
 
         self.config = config or ClassifierConfig()
-        self.session: Optional[ort.InferenceSession] = None
-        self.tokenizer: Optional[DebertaV2Tokenizer] = None
+        self.session: ort.InferenceSession | None = None
+        self.tokenizer: DebertaV2Tokenizer | None = None
         self.id_to_label: dict[int, str] = {}
         self.label_to_id: dict[str, int] = {}
 
@@ -143,7 +152,7 @@ class NeuralIntentClassifier:
         # Batch processing
         self._batch_queue: list[tuple[str, asyncio.Future]] = []
         self._batch_lock = asyncio.Lock()
-        self._batch_task: Optional[asyncio.Task] = None
+        self._batch_task: asyncio.Task | None = None
 
     def load_model(self) -> None:
         """Load ONNX model, tokenizer, and label mappings.
@@ -151,22 +160,28 @@ class NeuralIntentClassifier:
         Raises:
             FileNotFoundError: If model files not found
             RuntimeError: If GPU requested but not available
+
         """
         # Check if model files exist
         model_path = Path(self.config.model_path)
         if not model_path.exists():
-            raise FileNotFoundError(
+            msg = (
                 f"ONNX model not found at: {model_path}. "
                 "Please convert the model first using convert_to_onnx.py"
+            )
+            raise FileNotFoundError(
+                msg,
             )
 
         tokenizer_path = Path(self.config.tokenizer_path)
         if not tokenizer_path.exists():
-            raise FileNotFoundError(f"Tokenizer not found at: {tokenizer_path}")
+            msg = f"Tokenizer not found at: {tokenizer_path}"
+            raise FileNotFoundError(msg)
 
         label_mappings_path = Path(self.config.label_mappings_path)
         if not label_mappings_path.exists():
-            raise FileNotFoundError(f"Label mappings not found at: {label_mappings_path}")
+            msg = f"Label mappings not found at: {label_mappings_path}"
+            raise FileNotFoundError(msg)
 
         # Load tokenizer (DeBERTa-v3)
         self.tokenizer = DebertaV2Tokenizer.from_pretrained(str(tokenizer_path))  # nosec B615
@@ -186,7 +201,9 @@ class NeuralIntentClassifier:
 
         # Create inference session
         self.session = ort.InferenceSession(
-            str(model_path), sess_options=sess_options, providers=providers
+            str(model_path),
+            sess_options=sess_options,
+            providers=providers,
         )
 
         _logger.info("Neural classifier loaded: %s", model_path)
@@ -201,6 +218,7 @@ class NeuralIntentClassifier:
 
         Returns:
             List of execution providers in priority order
+
         """
         if not self.config.use_gpu:
             return ["CPUExecutionProvider"]
@@ -210,11 +228,10 @@ class NeuralIntentClassifier:
 
         if "CUDAExecutionProvider" in available_providers:
             return ["CUDAExecutionProvider", "CPUExecutionProvider"]
-        elif "ROCMExecutionProvider" in available_providers:
+        if "ROCMExecutionProvider" in available_providers:
             return ["ROCMExecutionProvider", "CPUExecutionProvider"]
-        else:
-            _logger.warning("GPU requested but not available, falling back to CPU")
-            return ["CPUExecutionProvider"]
+        _logger.warning("GPU requested but not available, falling back to CPU")
+        return ["CPUExecutionProvider"]
 
     def _warmup(self) -> None:
         """Warm up model to avoid cold start latency.
@@ -252,9 +269,11 @@ class NeuralIntentClassifier:
 
         Raises:
             RuntimeError: If model not loaded
+
         """
         if self.session is None or self.tokenizer is None:
-            raise RuntimeError("Model not loaded. Call load_model() first.")
+            msg = "Model not loaded. Call load_model() first."
+            raise RuntimeError(msg)
 
         start_time = time.perf_counter()
 
@@ -311,6 +330,7 @@ class NeuralIntentClassifier:
 
         Returns:
             Probability distribution
+
         """
         exp_logits = np.exp(logits - np.max(logits))  # Numerical stability
         return exp_logits / np.sum(exp_logits)
@@ -326,6 +346,7 @@ class NeuralIntentClassifier:
 
         Returns:
             Classification result with intent and confidence
+
         """
         # For now, run synchronously in executor
         # TODO: Implement proper batching for throughput
@@ -348,6 +369,7 @@ class NeuralIntentClassifier:
 
         Returns:
             Classification result with intent and confidence
+
         """
         result = self._classify_sync(text)
         self._update_metrics(result)
@@ -358,6 +380,7 @@ class NeuralIntentClassifier:
 
         Args:
             result: Classification result
+
         """
         self.total_inferences += 1
         self.total_latency_ms += result.inference_time_ms
@@ -373,6 +396,7 @@ class NeuralIntentClassifier:
 
         Returns:
             Dictionary with metrics
+
         """
         if self.total_inferences == 0:
             return {
@@ -397,5 +421,6 @@ class NeuralIntentClassifier:
 
         Returns:
             True if should fallback to LLM, False otherwise
+
         """
         return result.confidence < self.config.confidence_threshold

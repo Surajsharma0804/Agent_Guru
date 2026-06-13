@@ -1,5 +1,4 @@
-"""
-Response Cache for Fast-Path Optimization.
+"""Response Cache for Fast-Path Optimization.
 
 This module implements a high-performance TTL-based response cache for the reasoning engine,
 enabling sub-100ms responses for repeated queries.
@@ -33,7 +32,7 @@ Version: 2.0.0 (Optimized)
 import hashlib
 import time
 from collections import OrderedDict
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -71,6 +70,7 @@ class ResponseCache:
         'response'
         >>> stats = cache.get_statistics()
         >>> print(f"Hit rate: {stats['hit_rate']:.2%}")
+
     """
 
     def __init__(
@@ -83,6 +83,7 @@ class ResponseCache:
         Args:
             max_size: Maximum number of entries (default 1000)
             ttl_seconds: Time-to-live in seconds (default 300 = 5 minutes)
+
         """
         self.max_size = max_size
         self.ttl_seconds = ttl_seconds
@@ -103,7 +104,7 @@ class ResponseCache:
             ttl_seconds=ttl_seconds,
         )
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         """Get cached response if available and not expired.
 
         Time Complexity: O(1) average case
@@ -119,6 +120,7 @@ class ResponseCache:
         Example:
             >>> cache = ResponseCache()
             >>> response = cache.get("user_query_hash")
+
         """
         # Check if key exists
         if key not in self._cache:
@@ -158,6 +160,7 @@ class ResponseCache:
         Example:
             >>> cache = ResponseCache()
             >>> cache.set("user_query_hash", "Hello, how can I help?")
+
         """
         # If key already exists, update it and move to end
         if key in self._cache:
@@ -184,6 +187,7 @@ class ResponseCache:
         Example:
             >>> cache = ResponseCache()
             >>> cache.clear()
+
         """
         count = len(self._cache)
         self._cache.clear()
@@ -201,6 +205,7 @@ class ResponseCache:
         Example:
             >>> cache = ResponseCache()
             >>> removed = cache.remove("user_query_hash")
+
         """
         if key in self._cache:
             del self._cache[key]
@@ -218,6 +223,7 @@ class ResponseCache:
             >>> cache = ResponseCache()
             >>> stats = cache.get_statistics()
             >>> print(f"Hit rate: {stats['hit_rate']:.2%}")
+
         """
         total_requests = self._hits + self._misses
         hit_rate = self._hits / total_requests if total_requests > 0 else 0.0
@@ -248,6 +254,7 @@ class ResponseCache:
             >>> cache = ResponseCache()
             >>> removed = cache.cleanup_expired()
             >>> print(f"Removed {removed} expired entries")
+
         """
         current_time = time.time()
         expired_keys = [
@@ -284,13 +291,14 @@ def generate_cache_key(text: str, source: str = "") -> str:
         >>> key = generate_cache_key("set a timer for 5 minutes", "voice")
         >>> print(key)
         'a1b2c3d4...'
+
     """
     content = f"{text}:{source}"
     return hashlib.sha256(content.encode()).hexdigest()
 
 
 # Global cache instance
-_global_cache: Optional[ResponseCache] = None
+_global_cache: ResponseCache | None = None
 
 
 def get_response_cache() -> ResponseCache:
@@ -302,9 +310,9 @@ def get_response_cache() -> ResponseCache:
     Example:
         >>> cache = get_response_cache()
         >>> cache.set("key", "response")
+
     """
     global _global_cache
     if _global_cache is None:
         _global_cache = ResponseCache()
     return _global_cache
-

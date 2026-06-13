@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Model Downloader for Llama 3.2 8B
+"""Model Downloader for Llama 3.2 8B.
 
 Downloads and prepares Llama 3.2 8B model with Q4_K_M quantization for local inference.
 
@@ -30,18 +29,17 @@ def download_model(output_dir: Path, model_name: str = "llama-3.2-8b-q4_k_m") ->
     Raises:
         ImportError: If huggingface_hub not installed
         RuntimeError: If download fails
+
     """
     try:
         from huggingface_hub import hf_hub_download
     except ImportError as e:
+        msg = "huggingface_hub not installed. Install with: pip install huggingface-hub"
         raise ImportError(
-            "huggingface_hub not installed. " "Install with: pip install huggingface-hub"
+            msg,
         ) from e
 
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    print(f"Downloading {model_name} to {output_dir}...")
-    print("This may take several minutes (model size: ~4.5GB)")
 
     try:
         # Download pre-quantized GGUF model
@@ -53,14 +51,14 @@ def download_model(output_dir: Path, model_name: str = "llama-3.2-8b-q4_k_m") ->
             local_dir_use_symlinks=False,
         )
 
-        print(f"✓ Model downloaded: {model_file}")
         return Path(model_file)
 
     except Exception as e:
-        raise RuntimeError(f"Model download failed: {str(e)}") from e
+        msg = f"Model download failed: {e!s}"
+        raise RuntimeError(msg) from e
 
 
-def main():
+def main() -> int | None:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Download Llama 3.2 8B model for local inference")
     parser.add_argument(
@@ -79,15 +77,9 @@ def main():
     args = parser.parse_args()
 
     try:
-        model_path = download_model(args.output_dir, args.model_name)
-        print(f"\n✓ Model ready: {model_path}")
-        print("\nNext steps:")
-        print("1. Install llama.cpp server binary")
-        print("2. Configure LocalLLMConfig with model path")
-        print("3. Start LocalLLMServer")
+        download_model(args.output_dir, args.model_name)
         return 0
-    except Exception as e:
-        print(f"✗ Error: {e}", file=sys.stderr)
+    except Exception:
         return 1
 
 

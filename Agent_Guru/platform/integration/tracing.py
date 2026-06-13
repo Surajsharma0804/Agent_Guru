@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.platform.integration.tracing
+"""Module: Agent_Guru.platform.integration.tracing
 Purpose: Distributed tracing with OpenTelemetry-compatible API.
 
 Performance Requirements:
@@ -24,7 +23,7 @@ import logging
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -36,8 +35,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SpanContext:
-    """
-    Propagation context for a distributed trace span.
+    """Propagation context for a distributed trace span.
 
     Follows W3C Trace Context specification (traceparent header).
     https://www.w3.org/TR/trace-context/
@@ -48,23 +46,25 @@ class SpanContext:
         parent_span_id: Parent span ID if this is a child span
         baggage: Key-value pairs propagated across service boundaries
         sampled: Whether this trace is being sampled
+
     """
 
     trace_id: str
     span_id: str
-    parent_span_id: Optional[str] = None
+    parent_span_id: str | None = None
     baggage: dict[str, str] = field(default_factory=dict)
     sampled: bool = True
 
     def __post_init__(self) -> None:
         if not self.trace_id:
-            raise ValueError("trace_id cannot be empty")
+            msg = "trace_id cannot be empty"
+            raise ValueError(msg)
         if not self.span_id:
-            raise ValueError("span_id cannot be empty")
+            msg = "span_id cannot be empty"
+            raise ValueError(msg)
 
     def to_headers(self) -> dict[str, str]:
-        """
-        Serialize to W3C traceparent + tracestate headers.
+        """Serialize to W3C traceparent + tracestate headers.
 
         Format: 00-{trace_id}-{span_id}-{flags}
         Flags: 01 = sampled, 00 = not sampled
@@ -79,14 +79,14 @@ class SpanContext:
 
     @classmethod
     def from_headers(cls, headers: dict[str, str]) -> Optional["SpanContext"]:
-        """
-        Parse SpanContext from W3C traceparent header.
+        """Parse SpanContext from W3C traceparent header.
 
         Args:
             headers: HTTP headers dict (case-insensitive keys not handled here)
 
         Returns:
             SpanContext if valid traceparent found, None otherwise
+
         """
         traceparent = headers.get("traceparent", "")
         parts = traceparent.split("-")
@@ -132,8 +132,7 @@ class SpanContext:
 
 @dataclass
 class Span:
-    """
-    A single unit of work in a distributed trace.
+    """A single unit of work in a distributed trace.
 
     Attributes:
         name: Operation name (e.g., "file_read", "http_post")
@@ -146,29 +145,31 @@ class Span:
         events: Timestamped events within the span
         status: "OK" or "ERROR"
         error: Error message if status is ERROR
+
     """
 
     name: str
     trace_id: str
     span_id: str = field(default_factory=lambda: uuid4().hex[:16])
-    parent_span_id: Optional[str] = None
+    parent_span_id: str | None = None
     start_time: float = field(default_factory=time.monotonic)
-    end_time: Optional[float] = None
+    end_time: float | None = None
     attributes: dict[str, Any] = field(default_factory=dict)
     events: list[dict[str, Any]] = field(default_factory=list)
     status: str = "OK"
-    error: Optional[str] = None
+    error: str | None = None
 
     def __post_init__(self) -> None:
         if not self.name:
-            raise ValueError("Span name cannot be empty")
+            msg = "Span name cannot be empty"
+            raise ValueError(msg)
         if not self.trace_id:
-            raise ValueError("trace_id cannot be empty")
+            msg = "trace_id cannot be empty"
+            raise ValueError(msg)
 
     @property
     def duration_ms(self) -> float:
-        """
-        Span duration in milliseconds.
+        """Span duration in milliseconds.
 
         Returns elapsed time if span is still active.
         """
@@ -181,41 +182,44 @@ class Span:
         return self.end_time is not None
 
     def set_attribute(self, key: str, value: Any) -> None:
-        """
-        Set a span attribute.
+        """Set a span attribute.
 
         Args:
             key: Attribute name (use dot notation: "http.method", "db.type")
             value: Attribute value (string, int, float, bool)
+
         """
         if not key:
-            raise ValueError("Attribute key cannot be empty")
+            msg = "Attribute key cannot be empty"
+            raise ValueError(msg)
         self.attributes[key] = value
 
     def add_event(
         self,
         name: str,
-        attributes: Optional[dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Add a timestamped event to the span.
+        """Add a timestamped event to the span.
 
         Args:
             name: Event name
             attributes: Optional event attributes
-        """
-        self.events.append({
-            "name": name,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat() + "Z",
-            "attributes": attributes or {},
-        })
 
-    def finish(self, error: Optional[str] = None) -> None:
         """
-        Mark span as finished.
+        self.events.append(
+            {
+                "name": name,
+                "timestamp": datetime.now(tz=UTC).isoformat() + "Z",
+                "attributes": attributes or {},
+            },
+        )
+
+    def finish(self, error: str | None = None) -> None:
+        """Mark span as finished.
 
         Args:
             error: Error message if the operation failed
+
         """
         if self.end_time is not None:
             logger.warning("Span '%s' already finished", self.name)
@@ -245,8 +249,7 @@ class Span:
 
 
 class Tracer:
-    """
-    Distributed tracer with OpenTelemetry-compatible API.
+    """Distributed tracer with OpenTelemetry-compatible API.
 
     Features:
     - W3C traceparent context propagation
@@ -264,18 +267,18 @@ class Tracer:
         ...     span.add_event("cache_miss")
         ...     # do work
         >>> # span is automatically finished
+
     """
 
     def __init__(
         self,
         service_name: str = "platform-integration",
-        collector_url: Optional[str] = None,
+        collector_url: str | None = None,
         enabled: bool = True,
         sample_rate: float = 1.0,
         max_completed_spans: int = 1000,
     ) -> None:
-        """
-        Initialize tracer.
+        """Initialize tracer.
 
         Args:
             service_name: Name of this service (added to all spans)
@@ -286,13 +289,17 @@ class Tracer:
 
         Raises:
             ValueError: If parameters are invalid
+
         """
         if not service_name:
-            raise ValueError("service_name cannot be empty")
+            msg = "service_name cannot be empty"
+            raise ValueError(msg)
         if not 0.0 <= sample_rate <= 1.0:
-            raise ValueError(f"sample_rate must be 0.0–1.0, got {sample_rate}")
+            msg = f"sample_rate must be 0.0–1.0, got {sample_rate}"
+            raise ValueError(msg)
         if max_completed_spans <= 0:
-            raise ValueError(f"max_completed_spans must be positive, got {max_completed_spans}")
+            msg = f"max_completed_spans must be positive, got {max_completed_spans}"
+            raise ValueError(msg)
 
         self.service_name = service_name
         self.collector_url = collector_url
@@ -313,11 +320,10 @@ class Tracer:
     def start_span(
         self,
         name: str,
-        parent_context: Optional[SpanContext] = None,
-        attributes: Optional[dict[str, Any]] = None,
+        parent_context: SpanContext | None = None,
+        attributes: dict[str, Any] | None = None,
     ) -> "SpanManager":
-        """
-        Start a new span and return a context manager.
+        """Start a new span and return a context manager.
 
         If tracer is disabled or span is sampled out, returns a no-op
         SpanManager (span=None) with zero overhead.
@@ -331,14 +337,16 @@ class Tracer:
 
         Returns:
             SpanManager (use as `with tracer.start_span(...) as span:`)
+
         """
         if not self.enabled:
             return SpanManager(None, self)
 
         # Sampling decision
         if self.sample_rate < 1.0:
-            import random
-            if random.random() > self.sample_rate:
+            import secrets
+
+            if secrets.SystemRandom().random() > self.sample_rate:
                 self._spans_sampled_out += 1
                 return SpanManager(None, self)
 
@@ -361,15 +369,15 @@ class Tracer:
         logger.debug("Started span: %s [%s] trace=[%s]", name, span.span_id[:8], trace_id[:8])
         return SpanManager(span, self)
 
-    def finish_span(self, span: Span, error: Optional[str] = None) -> None:
-        """
-        Finish a span and move it to the completed ring buffer.
+    def finish_span(self, span: Span, error: str | None = None) -> None:
+        """Finish a span and move it to the completed ring buffer.
 
         Time Complexity: O(1) — deque append is O(1)
 
         Args:
             span: Span to finish
             error: Error message if the operation failed
+
         """
         span.finish(error=error)
         self._active_spans.pop(span.span_id, None)
@@ -378,12 +386,11 @@ class Tracer:
 
         logger.debug(
             f"Finished span: {span.name} [{span.span_id[:8]}] "
-            f"status={span.status} duration={span.duration_ms:.2f}ms"
+            f"status={span.status} duration={span.duration_ms:.2f}ms",
         )
 
     def get_context(self, span: Span) -> SpanContext:
-        """
-        Get a propagation context from a span.
+        """Get a propagation context from a span.
 
         Use this to pass context to downstream service calls.
 
@@ -392,6 +399,7 @@ class Tracer:
 
         Returns:
             SpanContext for header injection
+
         """
         return SpanContext(
             trace_id=span.trace_id,
@@ -404,14 +412,14 @@ class Tracer:
         return list(self._active_spans.values())
 
     def get_completed_spans(self, limit: int = 100) -> list[Span]:
-        """
-        Return recently completed spans (newest last).
+        """Return recently completed spans (newest last).
 
         Args:
             limit: Maximum spans to return
 
         Returns:
             List of completed spans, up to limit
+
         """
         spans = list(self._completed_spans)
         return spans[-limit:]
@@ -434,8 +442,7 @@ class Tracer:
 
 
 class SpanManager:
-    """
-    Context manager for span lifecycle management.
+    """Context manager for span lifecycle management.
 
     Supports both sync (`with`) and async (`async with`) usage.
     When span is None (disabled/sampled-out), all operations are no-ops.
@@ -450,12 +457,12 @@ class SpanManager:
             await do_work()
     """
 
-    def __init__(self, span: Optional[Span], tracer: Tracer) -> None:
+    def __init__(self, span: Span | None, tracer: Tracer) -> None:
         self.span = span
         self._tracer = tracer
 
     # Sync context manager
-    def __enter__(self) -> Optional[Span]:
+    def __enter__(self) -> Span | None:
         return self.span
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
@@ -465,7 +472,7 @@ class SpanManager:
         return False  # Never suppress exceptions
 
     # Async context manager (same logic, async-compatible)
-    async def __aenter__(self) -> Optional[Span]:
+    async def __aenter__(self) -> Span | None:
         return self.span
 
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:

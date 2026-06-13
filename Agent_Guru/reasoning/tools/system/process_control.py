@@ -1,5 +1,4 @@
-"""
-Process control tools for listing and killing processes.
+"""Process control tools for listing and killing processes.
 
 Platform-specific implementations for Windows, macOS, and Linux.
 """
@@ -35,6 +34,7 @@ class PlatformProcessController:
 
         Returns:
             Result dictionary with process list
+
         """
         system = PlatformProcessController.get_platform()
 
@@ -43,6 +43,7 @@ class PlatformProcessController:
                 # Windows: use tasklist
                 result = subprocess.run(
                     ["tasklist", "/FO", "CSV", "/NH"],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -62,13 +63,14 @@ class PlatformProcessController:
                                 {
                                     "name": parts[0],
                                     "pid": parts[1],
-                                }
+                                },
                             )
 
-            elif system == "darwin" or system == "linux":
+            elif system in {"darwin", "linux"}:
                 # macOS/Linux: use ps
                 result = subprocess.run(
                     ["ps", "aux"],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -91,7 +93,7 @@ class PlatformProcessController:
                                 "cpu": parts[2],
                                 "mem": parts[3],
                                 "command": parts[10],
-                            }
+                            },
                         )
 
             else:
@@ -115,7 +117,7 @@ class PlatformProcessController:
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to list processes: {str(e)}",
+                "error": f"Failed to list processes: {e!s}",
             }
 
     @staticmethod
@@ -128,6 +130,7 @@ class PlatformProcessController:
 
         Returns:
             Result dictionary
+
         """
         system = PlatformProcessController.get_platform()
 
@@ -138,8 +141,9 @@ class PlatformProcessController:
                 if force:
                     cmd.append("/F")
 
-                result = subprocess.run(
+                result = subprocess.run(  # noqa: S603
                     cmd,
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -149,11 +153,12 @@ class PlatformProcessController:
                         "error": f"Failed to kill process {pid}: {result.stderr}",
                     }
 
-            elif system == "darwin" or system == "linux":
+            elif system in {"darwin", "linux"}:
                 # macOS/Linux: use kill
                 signal = "-9" if force else "-15"
-                result = subprocess.run(
+                result = subprocess.run(  # noqa: S603
                     ["kill", signal, str(pid)],
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
@@ -184,7 +189,7 @@ class PlatformProcessController:
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to kill process: {str(e)}",
+                "error": f"Failed to kill process: {e!s}",
             }
 
 
@@ -210,6 +215,7 @@ class ProcessListTool(Tool):
 
         Returns:
             Execution result with process list
+
         """
         return await PlatformProcessController.list_processes()
 
@@ -254,6 +260,7 @@ class ProcessKillTool(Tool):
 
         Returns:
             Execution result
+
         """
         pid = kwargs["pid"]
         force = kwargs.get("force", False)

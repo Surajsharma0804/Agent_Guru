@@ -1,5 +1,4 @@
-"""
-Memory Integration for LLM Reasoning.
+"""Memory Integration for LLM Reasoning.
 
 This module provides utilities for integrating memory retrieval with LLM reasoning,
 including memory formatting for prompts, usage tracking, and relevance updates.
@@ -29,8 +28,7 @@ Version: 1.0.0
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import UUID
 
 from Agent_Guru.reasoning.memory_retriever import MemoryRetriever
@@ -48,6 +46,7 @@ class MemoryContext:
         retrieval_time_ms: Time taken to retrieve memories (ms)
         memory_ids: List of memory IDs for usage tracking
         query: Original query used for retrieval
+
     """
 
     memories: list[Memory]
@@ -66,6 +65,7 @@ class MemoryUsageStats:
         usage_count: Number of times memory was retrieved
         last_used: Timestamp of last usage
         relevance_boost: Boost to relevance score based on usage
+
     """
 
     memory_id: UUID
@@ -105,6 +105,7 @@ class MemoryLLMIntegration:
         ... )
         >>> print(context.formatted_prompt)
         >>> integration.track_memory_usage(context.memory_ids)
+
     """
 
     def __init__(
@@ -122,11 +123,14 @@ class MemoryLLMIntegration:
 
         Raises:
             ValueError: If max_memories < 1 or relevance_boost_factor < 0
+
         """
         if max_memories < 1:
-            raise ValueError(f"max_memories must be >= 1, got {max_memories}")
+            msg = f"max_memories must be >= 1, got {max_memories}"
+            raise ValueError(msg)
         if relevance_boost_factor < 0:
-            raise ValueError(f"relevance_boost_factor must be >= 0, got {relevance_boost_factor}")
+            msg = f"relevance_boost_factor must be >= 0, got {relevance_boost_factor}"
+            raise ValueError(msg)
 
         self.memory_retriever = memory_retriever
         self.max_memories = max_memories
@@ -136,7 +140,10 @@ class MemoryLLMIntegration:
         self.usage_stats: dict[UUID, MemoryUsageStats] = {}
 
     def retrieve_for_reasoning(
-        self, intent: Intent, user_id: str, memory_types: Optional[list[MemoryType]] = None
+        self,
+        intent: Intent,
+        user_id: str,
+        memory_types: list[MemoryType] | None = None,
     ) -> MemoryContext:
         """Retrieve relevant memories for LLM reasoning.
 
@@ -162,6 +169,7 @@ class MemoryLLMIntegration:
             ...     user_id="user_123",
             ...     memory_types=[MemoryType.EPISODIC, MemoryType.PREFERENCE]
             ... )
+
         """
         import time
 
@@ -172,7 +180,10 @@ class MemoryLLMIntegration:
 
         # Retrieve memories
         memories = self.memory_retriever.retrieve(
-            query=query, user_id=user_id, memory_types=memory_types, top_k=self.max_memories
+            query=query,
+            user_id=user_id,
+            memory_types=memory_types,
+            top_k=self.max_memories,
         )
 
         # Format for LLM prompt
@@ -212,6 +223,7 @@ class MemoryLLMIntegration:
             >>> integration = MemoryLLMIntegration(memory_retriever)
             >>> formatted = integration.format_memories_for_prompt(memories)
             >>> print(formatted)
+
         """
         if not memories:
             return "No relevant memories found."
@@ -258,7 +270,7 @@ class MemoryLLMIntegration:
 
                 if isinstance(memory, PreferenceMemory):
                     lines.append(
-                        f"**Preference**: {memory.preference_key} = {memory.preference_value}"
+                        f"**Preference**: {memory.preference_key} = {memory.preference_value}",
                     )
                     lines.append(f"**Learned From**: {memory.learned_from}")
 
@@ -293,8 +305,9 @@ class MemoryLLMIntegration:
         Example:
             >>> integration = MemoryLLMIntegration(memory_retriever)
             >>> integration.track_memory_usage(context.memory_ids)
+
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         for memory_id in memory_ids:
             if memory_id in self.usage_stats:
@@ -332,6 +345,7 @@ class MemoryLLMIntegration:
             >>> integration = MemoryLLMIntegration(memory_retriever)
             >>> updated_count = integration.update_relevance_from_usage()
             >>> print(f"Updated {updated_count} memories")
+
         """
         updated_count = 0
 
@@ -356,7 +370,7 @@ class MemoryLLMIntegration:
 
         return updated_count
 
-    def get_usage_stats(self, memory_id: UUID) -> Optional[MemoryUsageStats]:
+    def get_usage_stats(self, memory_id: UUID) -> MemoryUsageStats | None:
         """Get usage statistics for a memory.
 
         Args:
@@ -364,6 +378,7 @@ class MemoryLLMIntegration:
 
         Returns:
             MemoryUsageStats if found, None otherwise
+
         """
         return self.usage_stats.get(memory_id)
 
@@ -382,6 +397,7 @@ class MemoryLLMIntegration:
 
         Returns:
             Query string for semantic search
+
         """
         # Start with intent type
         query_parts = [intent.intent_type.value.replace("_", " ")]

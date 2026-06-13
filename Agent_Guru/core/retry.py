@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,7 @@ async def retry_async(
 
     Raises:
         Last exception if all attempts fail.
+
     """
     last_exc: Exception = RuntimeError("No attempts made")
     for attempt, delay in enumerate([0.0, *delays]):

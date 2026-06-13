@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from ..exceptions import AudioProcessingError
+from Agent_Guru.speech.exceptions import AudioProcessingError
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,8 @@ def _get_noisereduce() -> Any | None:
             import noisereduce as nr
 
             _noisereduce = nr
-        except Exception as e:
-            logger.warning("Failed to import noisereduce: %s", e)
+        except Exception:
+            logger.exception("Failed to import noisereduce")
             # Set to False to indicate failed import (not None which means not tried yet)
             _noisereduce = False
     return _noisereduce if _noisereduce is not False else None
@@ -42,19 +42,18 @@ class NoiseType(Enum):
 
 
 class AdvancedNoiseCancellation:
-    """
-    Advanced noise cancellation with >20dB reduction and adaptive filtering.
+    """Advanced noise cancellation with >20dB reduction and adaptive filtering.
 
     Supports multiple noise types and adapts to changing noise conditions.
     Preserves speech intelligibility while aggressively removing noise.
     """
 
-    def __init__(self, sample_rate: int = 16000):
-        """
-        Initialize advanced noise cancellation.
+    def __init__(self, sample_rate: int = 16000) -> None:
+        """Initialize advanced noise cancellation.
 
         Args:
             sample_rate: Sample rate in Hz
+
         """
         self.sample_rate = sample_rate
         self._noise_profile: np.ndarray | None = None
@@ -64,8 +63,7 @@ class AdvancedNoiseCancellation:
         logger.info("AdvancedNoiseCancellation initialized at %sHz", sample_rate)
 
     async def reduce_noise(self, audio: np.ndarray, noise_level: str = "medium") -> np.ndarray:
-        """
-        Apply advanced noise reduction with >20dB reduction.
+        """Apply advanced noise reduction with >20dB reduction.
 
         Uses spectral subtraction with adaptive filtering based on noise type.
 
@@ -78,6 +76,7 @@ class AdvancedNoiseCancellation:
 
         Raises:
             AudioProcessingError: If noise reduction fails
+
         """
         try:
             nr = _get_noisereduce()
@@ -87,7 +86,8 @@ class AdvancedNoiseCancellation:
 
             # Validate input
             if len(audio) == 0:
-                raise AudioProcessingError("Cannot reduce noise on empty audio")
+                msg = "Cannot reduce noise on empty audio"
+                raise AudioProcessingError(msg)
 
             # Map noise level to reduction strength
             strength_map = {"light": 0.5, "medium": 0.8, "aggressive": 0.95}
@@ -118,12 +118,11 @@ class AdvancedNoiseCancellation:
 
         except AudioProcessingError as e:
             raise
-        except Exception as e:
-            raise AudioProcessingError(f"Advanced noise reduction failed: {e}") from e
+            msg = f"Advanced noise reduction failed: {e}"
+            raise AudioProcessingError(msg) from e
 
     def detect_noise_type(self, audio: np.ndarray) -> NoiseType:
-        """
-        Detect the type of background noise present.
+        """Detect the type of background noise present.
 
         Analyzes spectral characteristics to classify noise type.
 
@@ -132,6 +131,7 @@ class AdvancedNoiseCancellation:
 
         Returns:
             Detected noise type
+
         """
         try:
             # Compute FFT for spectral analysis
@@ -160,18 +160,14 @@ class AdvancedNoiseCancellation:
                 noise_type = NoiseType.WHITE
             elif low_energy > mid_energy * 1.5 and low_energy > high_energy * 2:
                 # Low frequency dominant = traffic or wind
-                if spectral_flatness > 0.5:
-                    noise_type = NoiseType.WIND
-                else:
-                    noise_type = NoiseType.TRAFFIC
+                noise_type = NoiseType.WIND if spectral_flatness > 0.5 else NoiseType.TRAFFIC
+
             elif mid_energy > low_energy * 1.2 and mid_energy > high_energy * 1.2:
                 # Mid frequency dominant = babble or music
                 # Check temporal variation
                 temporal_var = float(np.std(audio))
-                if temporal_var > 0.1:
-                    noise_type = NoiseType.MUSIC
-                else:
-                    noise_type = NoiseType.BABBLE
+                noise_type = NoiseType.MUSIC if temporal_var > 0.1 else NoiseType.BABBLE
+
             elif high_energy > low_energy * 1.5:
                 # High frequency dominant = pink noise
                 noise_type = NoiseType.PINK
@@ -183,13 +179,12 @@ class AdvancedNoiseCancellation:
 
             return noise_type
 
-        except Exception as e:
-            logger.warning("Noise type detection failed: %s", e)
+        except Exception:
+            logger.exception("Noise type detection failed")
             return NoiseType.UNKNOWN
 
     def compute_snr(self, signal: np.ndarray, noise: np.ndarray | None = None) -> float:
-        """
-        Compute Signal-to-Noise Ratio in dB.
+        """Compute Signal-to-Noise Ratio in dB.
 
         Args:
             signal: Signal audio
@@ -197,6 +192,7 @@ class AdvancedNoiseCancellation:
 
         Returns:
             SNR in dB
+
         """
         try:
             # Calculate signal power
@@ -222,13 +218,12 @@ class AdvancedNoiseCancellation:
 
             return float(snr_db)
 
-        except Exception as e:
-            logger.warning("SNR computation failed: %s", e)
+        except Exception:
+            logger.exception("SNR computation failed")
             return 0.0
 
     async def adapt_to_noise(self, audio: np.ndarray, update_profile: bool = True) -> np.ndarray:
-        """
-        Apply adaptive noise reduction that learns from audio.
+        """Apply adaptive noise reduction that learns from audio.
 
         Continuously updates noise profile for changing conditions.
 
@@ -238,6 +233,7 @@ class AdvancedNoiseCancellation:
 
         Returns:
             Adaptively noise-reduced audio
+
         """
         try:
             # Detect current noise type
@@ -268,11 +264,11 @@ class AdvancedNoiseCancellation:
             return reduced
 
         except Exception as e:
-            raise AudioProcessingError(f"Adaptive noise reduction failed: {e}") from e
+            msg = f"Adaptive noise reduction failed: {e}"
+            raise AudioProcessingError(msg) from e
 
     def _compute_spectral_flatness(self, magnitude: np.ndarray) -> float:
-        """
-        Compute spectral flatness measure.
+        """Compute spectral flatness measure.
 
         Flatness near 1.0 indicates noise-like signal.
         Flatness near 0.0 indicates tonal signal.
@@ -282,6 +278,7 @@ class AdvancedNoiseCancellation:
 
         Returns:
             Spectral flatness (0.0 to 1.0)
+
         """
         # Avoid log of zero
         magnitude = magnitude + 1e-10
@@ -293,20 +290,17 @@ class AdvancedNoiseCancellation:
         arithmetic_mean = np.mean(magnitude)
 
         # Spectral flatness
-        if arithmetic_mean > 0:
-            flatness = geometric_mean / arithmetic_mean
-        else:
-            flatness = 0.0
+        flatness = geometric_mean / arithmetic_mean if arithmetic_mean > 0 else 0.0
 
         return float(flatness)
 
     def _update_noise_profile(self, original: np.ndarray, reduced: np.ndarray) -> None:
-        """
-        Update internal noise profile for adaptive filtering.
+        """Update internal noise profile for adaptive filtering.
 
         Args:
             original: Original audio
             reduced: Noise-reduced audio
+
         """
         try:
             # Estimate noise as difference between original and reduced
@@ -323,24 +317,24 @@ class AdvancedNoiseCancellation:
 
             logger.debug("Noise profile updated")
 
-        except Exception as e:
-            logger.warning("Failed to update noise profile: %s", e)
+        except Exception:
+            logger.exception("Failed to update noise profile")
 
     def get_noise_profile(self) -> np.ndarray | None:
-        """
-        Get current noise profile.
+        """Get current noise profile.
 
         Returns:
             Noise profile array or None if not initialized
+
         """
         return self._noise_profile
 
     def get_noise_type(self) -> NoiseType:
-        """
-        Get last detected noise type.
+        """Get last detected noise type.
 
         Returns:
             Last detected noise type
+
         """
         return self._noise_type
 

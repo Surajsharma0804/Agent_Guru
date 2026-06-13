@@ -1,5 +1,4 @@
-"""
-Agent Orchestrator - Multi-agent coordination with self-improvement integration.
+"""Agent Orchestrator - Multi-agent coordination with self-improvement integration.
 
 BUG-015 disambiguation:
   THIS file (agents/orchestrator.py) is the TASK ORCHESTRATOR.
@@ -23,21 +22,18 @@ Date: 2026-02-28
 Version: 1.0.0
 """
 
-import html
 import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # TYPE_CHECKING-only imports — no runtime overhead, no circular deps.
 # Injected instances are typed as Any at runtime; callers pass real objects.
-if TYPE_CHECKING:
-    pass
 
 
 class TaskStatus(Enum):
@@ -77,8 +73,7 @@ class TaskResult:
 
 
 class AgentOrchestrator:
-    """
-    Orchestrates multi-agent task execution with self-improvement integration.
+    """Orchestrates multi-agent task execution with self-improvement integration.
 
     This class coordinates task execution across multiple agents and integrates
     with the self-improvement engine to:
@@ -107,6 +102,7 @@ class AgentOrchestrator:
         >>>
         >>> print(f"Success: {result.success}")
         >>> print(f"Strategy used: {result.strategy_used}")
+
     """
 
     def __init__(
@@ -120,9 +116,8 @@ class AgentOrchestrator:
         emotion_detector: Any | None = None,
         empathy_adapter: Any | None = None,
         degradation_controller: Any | None = None,
-    ):
-        """
-        Initialize agent orchestrator with capability module wiring.
+    ) -> None:
+        """Initialize agent orchestrator with capability module wiring.
 
         Args:
             self_improvement_engine: Optional SelfImprovementEngine instance
@@ -136,6 +131,7 @@ class AgentOrchestrator:
             degradation_controller: DegradationController for offline resilience
 
         Time Complexity: O(1)
+
         """
         self.self_improvement_engine = self_improvement_engine
         self.enable_learning = enable_learning
@@ -171,9 +167,12 @@ class AgentOrchestrator:
 
         Args:
             intent: Encoded intent string, e.g. 'system_control:open_app:notepad:'
+
         """
-        logger.debug("AgentOrchestrator.execute called with intent: %r — delegating to platform control", intent)
-        return None  # Trigger integration orchestrator's direct platform control fallback
+        logger.debug(
+            "AgentOrchestrator.execute called with intent: %r — delegating to platform control",
+            intent,
+        )
 
     def execute_task(
         self,
@@ -184,8 +183,7 @@ class AgentOrchestrator:
         executor: Callable[[dict[str, Any]], Any],
         context: dict[str, Any] | None = None,
     ) -> TaskResult:
-        """
-        Execute a task with self-improvement integration.
+        """Execute a task with self-improvement integration.
 
         This method:
         1. Gets optimal strategy from self-improvement engine
@@ -207,6 +205,7 @@ class AgentOrchestrator:
         Performance Target: <10% overhead on task execution
 
         Validates: Requirements 15.2, 15.3, 15.4
+
         """
         # Create task
         task = Task(
@@ -215,7 +214,7 @@ class AgentOrchestrator:
             description=description,
             parameters=parameters,
             # BUG-003 / BUG-015: use UTC-aware timestamp for consistency
-            created_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
             status=TaskStatus.PENDING,
         )
 
@@ -259,6 +258,8 @@ class AgentOrchestrator:
             task.error = str(e)
             task.execution_time_ms = execution_time_ms
 
+            logger.exception("Task execution failed")
+
             # Create result
             task_result = TaskResult(
                 task_id=task_id,
@@ -281,8 +282,7 @@ class AgentOrchestrator:
         return task_result
 
     def _select_strategy(self, task_type: str, context: dict[str, Any] | None = None) -> str:
-        """
-        Select optimal strategy for task execution.
+        """Select optimal strategy for task execution.
 
         Queries self-improvement engine for best strategy based on
         historical performance.
@@ -298,6 +298,7 @@ class AgentOrchestrator:
         Performance Target: <5ms
 
         Validates: Requirement 15.3
+
         """
         if not self.enable_learning or not self.self_improvement_engine:
             return self.default_strategy
@@ -305,24 +306,26 @@ class AgentOrchestrator:
         try:
             # Get optimal strategy from self-improvement engine
             strategy = self.self_improvement_engine.get_optimal_strategy(
-                task_type=task_type, context=context
+                task_type=task_type,
+                context=context,
             )
 
             if strategy:
                 return strategy.strategy_id
-            else:
-                return self.default_strategy
+            return self.default_strategy
 
-        except Exception as e:
+        except Exception:
             # Fallback to default if error
-            logger.warning("Strategy selection failed: %s", e)
+            logger.exception("Strategy selection failed")
             return self.default_strategy
 
     def _record_outcome(
-        self, result: TaskResult, task_type: str, context: dict[str, Any] | None = None
+        self,
+        result: TaskResult,
+        task_type: str,
+        context: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Record task outcome for learning.
+        """Record task outcome for learning.
 
         Sends execution outcome to self-improvement engine for analysis
         and continuous learning.
@@ -336,6 +339,7 @@ class AgentOrchestrator:
         Performance Target: <5ms
 
         Validates: Requirement 15.4
+
         """
         if not self.enable_learning or not self.self_improvement_engine:
             return
@@ -361,24 +365,23 @@ class AgentOrchestrator:
                 context=context,
             )
 
-        except Exception as e:
+        except Exception:
             # Don't fail task if recording fails
-            logger.warning("Outcome recording failed: %s", e)
+            logger.exception("Outcome recording failed")
 
     def get_active_tasks(self) -> dict[str, Task]:
-        """
-        Get currently active tasks.
+        """Get currently active tasks.
 
         Returns:
             Dictionary of active tasks by task_id
 
         Time Complexity: O(1)
+
         """
         return self.active_tasks.copy()
 
     def get_task_status(self, task_id: str) -> TaskStatus | None:
-        """
-        Get status of a specific task.
+        """Get status of a specific task.
 
         Args:
             task_id: Task identifier
@@ -387,6 +390,7 @@ class AgentOrchestrator:
             Task status or None if not found
 
         Time Complexity: O(1)
+
         """
         task = self.active_tasks.get(task_id)
         return task.status if task else None
@@ -410,8 +414,8 @@ class AgentOrchestrator:
                     details={"modalities": len(modality_inputs)},
                 )
             return fused
-        except Exception as exc:
-            logger.warning("FusionEngine.fuse failed: %s", exc)
+        except Exception:
+            logger.exception("FusionEngine.fuse failed")
             return None
 
     def get_context_snapshot(self) -> Any | None:
@@ -423,8 +427,8 @@ class AgentOrchestrator:
             return None
         try:
             return self.context_engine.get_snapshot()
-        except Exception as exc:
-            logger.warning("ContextEngine.get_snapshot failed: %s", exc)
+        except Exception:
+            logger.exception("ContextEngine.get_snapshot failed")
             return None
 
     async def evaluate_proactive(self) -> Any | None:
@@ -436,10 +440,9 @@ class AgentOrchestrator:
             return None
         try:
             context = self.get_context_snapshot()
-            suggestion = await self.proactive_engine.evaluate_context(context)
-            return suggestion
-        except Exception as exc:
-            logger.warning("ProactiveEngine.evaluate_context failed: %s", exc)
+            return await self.proactive_engine.evaluate_context(context)
+        except Exception:
+            logger.exception("ProactiveEngine.evaluate_context failed")
             return None
 
     def adapt_response_for_emotion(self, response: str, audio: bytes | None = None) -> str:
@@ -452,8 +455,8 @@ class AgentOrchestrator:
         try:
             emotion_state = self.emotion_detector.detect(audio=audio, text=response)
             return self.empathy_adapter.adapt_response(response, emotion_state)
-        except Exception as exc:
-            logger.warning("Emotion adaptation failed: %s", exc)
+        except Exception:
+            logger.exception("Emotion adaptation failed")
             return response
 
 
@@ -461,10 +464,11 @@ class AgentOrchestrator:
 
 
 def create_orchestrator_with_learning(
-    storage_path: str, improvement_threshold: float = 0.15, measurement_window: int = 100
+    storage_path: str,
+    improvement_threshold: float = 0.15,
+    measurement_window: int = 100,
 ) -> AgentOrchestrator:
-    """
-    Create an orchestrator with self-improvement learning enabled.
+    """Create an orchestrator with self-improvement learning enabled.
 
     This is a convenience function that initializes both the self-improvement
     engine and the orchestrator with proper integration.
@@ -487,6 +491,7 @@ def create_orchestrator_with_learning(
         ...     executor=lambda p: sum(p["data"])
         ... )
         >>> print(f"Result: {result.result}")
+
     """
     from Agent_Guru.self_improvement.self_improvement_engine import SelfImprovementEngine
 
@@ -499,6 +504,4 @@ def create_orchestrator_with_learning(
     )
 
     # Create orchestrator with engine
-    orchestrator = AgentOrchestrator(self_improvement_engine=engine, enable_learning=True)
-
-    return orchestrator
+    return AgentOrchestrator(self_improvement_engine=engine, enable_learning=True)

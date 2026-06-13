@@ -1,6 +1,4 @@
-"""
-Music tool for playing music.
-"""
+"""Music tool for playing music."""
 
 from typing import Any
 
@@ -49,6 +47,7 @@ class MusicTool(Tool):
 
         Returns:
             Execution result
+
         """
         query = kwargs["query"]
         shuffle = kwargs.get("shuffle", False)

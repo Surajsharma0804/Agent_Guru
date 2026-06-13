@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.error_handling.error_response
-Purpose: Structured error responses with categorization and remediation
+"""Module: agent_guru.platform.error_handling.error_response
+Purpose: Structured error responses with categorization and remediation.
 
 This module implements production-grade error response structures that provide
 comprehensive error information including categorization, context tracking, and
@@ -57,7 +56,7 @@ import time
 import traceback
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +68,9 @@ class ErrorCategory(Enum):
         RECOVERABLE: Transient errors that can be retried automatically
         NON_RECOVERABLE: Permanent errors requiring user intervention
         CRITICAL: System-level errors requiring immediate attention
+
     """
+
     RECOVERABLE = "recoverable"
     NON_RECOVERABLE = "non_recoverable"
     CRITICAL = "critical"
@@ -106,16 +107,18 @@ class ErrorResponse:
         >>> print(f"Error: {error.error_code} - {error.message}")
         >>> if error.is_recoverable():
         ...     print("This error can be retried")
+
     """
+
     error_code: str
     message: str
     category: ErrorCategory
     context: dict[str, Any] = field(default_factory=dict)
     remediation_steps: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
-    exception_type: Optional[str] = None
-    exception_message: Optional[str] = None
-    stack_trace: Optional[str] = None
+    exception_type: str | None = None
+    exception_message: str | None = None
+    stack_trace: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def is_recoverable(self) -> bool:
@@ -134,6 +137,7 @@ class ErrorResponse:
             ... )
             >>> error.is_recoverable()
             True
+
         """
         return self.category == ErrorCategory.RECOVERABLE
 
@@ -153,6 +157,7 @@ class ErrorResponse:
             ... )
             >>> error.is_critical()
             True
+
         """
         return self.category == ErrorCategory.CRITICAL
 
@@ -174,6 +179,7 @@ class ErrorResponse:
             >>> error_dict = error.to_dict()
             >>> print(error_dict["error_code"])
             TEST_ERROR
+
         """
         return {
             "error_code": self.error_code,
@@ -185,7 +191,7 @@ class ErrorResponse:
             "exception_type": self.exception_type,
             "exception_message": self.exception_message,
             "stack_trace": self.stack_trace,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
     def __str__(self) -> str:
@@ -202,6 +208,7 @@ class ErrorResponse:
             ... )
             >>> print(error)
             [RECOVERABLE] TEST_ERROR: Test message
+
         """
         return f"[{self.category.value.upper()}] {self.error_code}: {self.message}"
 
@@ -210,9 +217,9 @@ def create_error_response(
     error_code: str,
     message: str,
     category: ErrorCategory,
-    context: Optional[dict[str, Any]] = None,
-    exception: Optional[Exception] = None,
-    metadata: Optional[dict[str, Any]] = None
+    context: dict[str, Any] | None = None,
+    exception: Exception | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> ErrorResponse:
     """Create error response with automatic remediation generation.
 
@@ -243,6 +250,7 @@ def create_error_response(
         ... )
         >>> print(error.remediation_steps)
         ['Verify the file path exists', 'Check file permissions', ...]
+
     """
     # Extract exception information
     exception_type = None
@@ -252,16 +260,16 @@ def create_error_response(
     if exception is not None:
         exception_type = type(exception).__name__
         exception_message = str(exception)
-        stack_trace = "".join(traceback.format_exception(
-            type(exception), exception, exception.__traceback__
-        ))
+        stack_trace = "".join(
+            traceback.format_exception(type(exception), exception, exception.__traceback__),
+        )
 
     # Generate remediation steps
     remediation_steps = generate_remediation_steps(
         error_code=error_code,
         category=category,
         exception_type=exception_type,
-        context=context or {}
+        context=context or {},
     )
 
     # Create error response
@@ -274,13 +282,11 @@ def create_error_response(
         exception_type=exception_type,
         exception_message=exception_message,
         stack_trace=stack_trace,
-        metadata=metadata or {}
+        metadata=metadata or {},
     )
 
     # Log error creation
-    logger.debug(
-        f"Created error response: {error_code} ({category.value})"
-    )
+    logger.debug("Created error response: %s (%s)", error_code, category.value)
 
     return error_response
 
@@ -288,8 +294,8 @@ def create_error_response(
 def generate_remediation_steps(
     error_code: str,
     category: ErrorCategory,
-    exception_type: Optional[str],
-    context: dict[str, Any]
+    exception_type: str | None,
+    context: dict[str, Any],
 ) -> list[str]:
     """Generate remediation steps based on error information.
 
@@ -318,6 +324,7 @@ def generate_remediation_steps(
         ... )
         >>> print(steps)
         ['Retry the operation', 'Check network connectivity', ...]
+
     """
     steps: list[str] = []
 
@@ -422,14 +429,21 @@ def categorize_exception(exception: Exception) -> ErrorCategory:
         >>> category = categorize_exception(TimeoutError("Request timed out"))
         >>> print(category)
         ErrorCategory.RECOVERABLE
+
     """
     exception_type = type(exception).__name__
 
     # Recoverable errors (transient)
     recoverable_types = {
-        "TimeoutError", "ConnectionError", "NetworkError",
-        "TemporaryError", "RetryableError", "TransientError",
-        "BusyError", "LockError", "ResourceUnavailableError"
+        "TimeoutError",
+        "ConnectionError",
+        "NetworkError",
+        "TemporaryError",
+        "RetryableError",
+        "TransientError",
+        "BusyError",
+        "LockError",
+        "ResourceUnavailableError",
     }
 
     if exception_type in recoverable_types:
@@ -437,9 +451,15 @@ def categorize_exception(exception: Exception) -> ErrorCategory:
 
     # Critical errors (system-level)
     critical_types = {
-        "MemoryError", "OutOfMemoryError", "SystemError",
-        "OSError", "RuntimeError", "FatalError",
-        "CriticalError", "SystemExit", "KeyboardInterrupt"
+        "MemoryError",
+        "OutOfMemoryError",
+        "SystemError",
+        "OSError",
+        "RuntimeError",
+        "FatalError",
+        "CriticalError",
+        "SystemExit",
+        "KeyboardInterrupt",
     }
 
     if exception_type in critical_types:
@@ -457,6 +477,7 @@ class ErrorCode:
     This class provides standardized error codes for consistent error handling
     across the platform integration system.
     """
+
     # File operations
     FILE_NOT_FOUND = "FILE_NOT_FOUND"
     FILE_PERMISSION_DENIED = "FILE_PERMISSION_DENIED"

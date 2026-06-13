@@ -1,5 +1,4 @@
-"""
-Improvement Reporter for Self-Improvement Engine.
+"""Improvement Reporter for Self-Improvement Engine.
 
 Generates comprehensive improvement reports after every 100 tasks with
 statistical analysis, confidence intervals, and threshold checking.
@@ -16,11 +15,12 @@ Date: 2026-02-28
 """
 
 import logging
+
 _logger = logging.getLogger(__name__)
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from dataclasses import dataclass  # noqa: E402
+from datetime import UTC, datetime  # noqa: E402
+from typing import TYPE_CHECKING  # noqa: E402
 
 if TYPE_CHECKING:
     from Agent_Guru.self_improvement.performance_tracker import PerformanceTracker
@@ -71,12 +71,11 @@ class ImprovementReport:
 
     # Alert Status
     requires_alert: bool
-    alert_reason: Optional[str]
+    alert_reason: str | None
 
 
 class ImprovementReporter:
-    """
-    Generates improvement reports after every 100 tasks.
+    """Generates improvement reports after every 100 tasks.
 
     Provides statistical analysis, confidence intervals, and threshold checking
     to verify the 15% improvement guarantee.
@@ -88,6 +87,7 @@ class ImprovementReporter:
         >>> reporter = ImprovementReporter(tracker, improvement_threshold=0.15)
         >>> report = reporter.generate_report(measurement_window=100)
         >>> print(f"Improvement: {report.relative_improvement_percent}%")
+
     """
 
     def __init__(
@@ -95,8 +95,7 @@ class ImprovementReporter:
         performance_tracker: "PerformanceTracker",
         improvement_threshold: float = 0.15,
     ) -> None:
-        """
-        Initialize improvement reporter.
+        """Initialize improvement reporter.
 
         Args:
             performance_tracker: PerformanceTracker instance
@@ -104,20 +103,24 @@ class ImprovementReporter:
 
         Raises:
             ValueError: If improvement_threshold not in [0.0, 1.0]
+
         """
         if not 0.0 <= improvement_threshold <= 1.0:
+            msg = f"Improvement threshold must be in [0.0, 1.0], got {improvement_threshold}"
             raise ValueError(
-                f"Improvement threshold must be in [0.0, 1.0], got {improvement_threshold}"
+                msg,
             )
 
         self.tracker = performance_tracker
         self.improvement_threshold = improvement_threshold
 
     def generate_report(
-        self, measurement_window: int = 100, baseline_size: int = 10, recent_size: int = 10
-    ) -> Optional[ImprovementReport]:
-        """
-        Generate comprehensive improvement report.
+        self,
+        measurement_window: int = 100,
+        baseline_size: int = 10,
+        recent_size: int = 10,
+    ) -> ImprovementReport | None:
+        """Generate comprehensive improvement report.
 
         Time Complexity: O(n) where n is measurement_window
 
@@ -128,6 +131,7 @@ class ImprovementReporter:
 
         Returns:
             ImprovementReport if sufficient data, None otherwise
+
         """
         # Check if we have enough data
         total_tasks = self.tracker.get_task_count()
@@ -147,9 +151,7 @@ class ImprovementReporter:
             return None
 
         # Calculate statistical significance
-        significance = self.tracker.calculate_statistical_significance(
-            baseline_size, recent_size
-        )
+        significance = self.tracker.calculate_statistical_significance(baseline_size, recent_size)
         if not significance:
             return None
 
@@ -170,10 +172,10 @@ class ImprovementReporter:
             )
 
         # Create report
-        report = ImprovementReport(
+        return ImprovementReport(
             # Metadata
-            report_id=f"report_{datetime.now(tz=timezone.utc).timestamp()}",
-            timestamp=datetime.now(tz=timezone.utc),
+            report_id=f"report_{datetime.now(tz=UTC).timestamp()}",
+            timestamp=datetime.now(tz=UTC),
             total_tasks=total_tasks,
             measurement_window=measurement_window,
             # Performance Metrics
@@ -207,17 +209,15 @@ class ImprovementReporter:
             alert_reason=alert_reason,
         )
 
-        return report
-
     def format_report(self, report: ImprovementReport) -> str:
-        """
-        Format improvement report as human-readable text.
+        """Format improvement report as human-readable text.
 
         Args:
             report: ImprovementReport to format
 
         Returns:
             Formatted report string
+
         """
         lines = []
         lines.append("=" * 80)
@@ -237,7 +237,7 @@ class ImprovementReporter:
         lines.append(f"OVERALL STATUS: {status_icon}")
         lines.append(
             f"Relative Improvement: {report.relative_improvement_percent:+.2f}% "
-            f"(Threshold: {report.improvement_threshold * 100:.0f}%)"
+            f"(Threshold: {report.improvement_threshold * 100:.0f}%)",
         )
         lines.append("")
 
@@ -287,7 +287,7 @@ class ImprovementReporter:
         lines.append(f"T-statistic: {report.t_statistic:.4f}")
         lines.append(
             f"95% Confidence Interval: "
-            f"[{report.confidence_interval_95[0]:+.4f}, {report.confidence_interval_95[1]:+.4f}]"
+            f"[{report.confidence_interval_95[0]:+.4f}, {report.confidence_interval_95[1]:+.4f}]",
         )
         lines.append("")
 
@@ -304,44 +304,42 @@ class ImprovementReporter:
         return "\n".join(lines)
 
     def format_report_for_commit(self, report: ImprovementReport) -> str:
-        """
-        Format improvement report for Git commit message.
+        """Format improvement report for Git commit message.
 
         Args:
             report: ImprovementReport to format
 
         Returns:
             Formatted commit message
+
         """
         status_icon = "✅" if report.meets_improvement_threshold else "⚠️"
         threshold_pct = report.improvement_threshold * 100
 
-        message = (
+        return (
             f"📈 Improvement Report: {report.relative_improvement_percent:+.1f}% "
             f"after {report.measurement_window} tasks "
             f"(Target: +{threshold_pct:.0f}% {status_icon})"
         )
 
-        return message
-
     def check_improvement_threshold(self, report: ImprovementReport) -> bool:
-        """
-        Check if improvement meets threshold.
+        """Check if improvement meets threshold.
 
         Args:
             report: ImprovementReport to check
 
         Returns:
             True if threshold met, False otherwise
+
         """
         return report.meets_improvement_threshold
 
     def trigger_alert(self, report: ImprovementReport) -> None:
-        """
-        Trigger alert if improvement targets not met.
+        """Trigger alert if improvement targets not met.
 
         Args:
             report: ImprovementReport with alert status
+
         """
         if not report.requires_alert:
             return

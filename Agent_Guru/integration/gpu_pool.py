@@ -1,5 +1,4 @@
-"""
-Agent_Guru/integration/gpu_pool.py
+"""Agent_Guru/integration/gpu_pool.py.
 
 GPUResourcePool — coordinates GPU VRAM allocation across PyTorch, ONNX Runtime,
 and faster-whisper so all three coexist without contention.
@@ -16,6 +15,7 @@ Performance:
   - Time Complexity: O(1) for all operations
   - Space Complexity: O(1) — fixed number of subsystems
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 # Ollama (LLM) manages its own VRAM separately — not tracked here.
 _BUDGETS: dict[str, float] = {
     "whisper": 0.40,
-    "onnx":    0.20,
-    "torch":   0.40,
+    "onnx": 0.20,
+    "torch": 0.40,
 }
 
 
@@ -44,6 +44,7 @@ class DeviceConfig:
         device: "cuda" or "cpu"
         memory_limit: Maximum bytes this subsystem may allocate on the device.
                       0 when device is "cpu" (no hard limit enforced by OS).
+
     """
 
     device: str
@@ -77,17 +78,16 @@ class GPUResourcePool:
                 self.device: str = "cuda"
                 self.total_vram: int = props.total_memory
                 logger.info(
-                    "GPUResourcePool: CUDA device '%s' detected — "
-                    "total VRAM %.1f GB",
+                    "GPUResourcePool: CUDA device '%s' detected — total VRAM %.1f GB",
                     props.name,
-                    self.total_vram / (1024 ** 3),
+                    self.total_vram / (1024**3),
                 )
             else:
                 self.device = "cpu"
                 self.total_vram = 0
                 logger.info("GPUResourcePool: no CUDA device — CPU-only mode")
-        except Exception as exc:  # torch not installed or CUDA error
-            logger.warning("GPUResourcePool: GPU detection failed (%s) — CPU-only mode", exc)
+        except Exception:  # torch not installed or CUDA error
+            logger.exception("GPUResourcePool: GPU detection failed (%s) — CPU-only mode")
             self.device = "cpu"
             self.total_vram = 0
 
@@ -98,9 +98,9 @@ class GPUResourcePool:
 
         logger.info(
             "GPUResourcePool budgets — whisper: %d MB, onnx: %d MB, torch: %d MB",
-            self.whisper_budget // (1024 ** 2),
-            self.onnx_budget // (1024 ** 2),
-            self.torch_budget // (1024 ** 2),
+            self.whisper_budget // (1024**2),
+            self.onnx_budget // (1024**2),
+            self.torch_budget // (1024**2),
         )
 
     # ------------------------------------------------------------------
@@ -120,6 +120,7 @@ class GPUResourcePool:
             ValueError: If subsystem name is not recognised.
 
         Time Complexity: O(1)
+
         """
         if subsystem == "whisper":
             return DeviceConfig(device=self.device, memory_limit=self.whisper_budget)
@@ -127,9 +128,8 @@ class GPUResourcePool:
             return DeviceConfig(device=self.device, memory_limit=self.onnx_budget)
         if subsystem == "torch":
             return DeviceConfig(device=self.device, memory_limit=self.torch_budget)
-        raise ValueError(
-            f"Unknown subsystem '{subsystem}'. Valid names: whisper, onnx, torch."
-        )
+        msg = f"Unknown subsystem '{subsystem}'. Valid names: whisper, onnx, torch."
+        raise ValueError(msg)
 
     def get_utilization(self) -> float:
         """Return current GPU utilization as a fraction in [0.0, 1.0].
@@ -145,5 +145,5 @@ class GPUResourcePool:
 
             allocated = torch.cuda.memory_allocated(0)
             return min(allocated / self.total_vram, 1.0)
-        except Exception as e:
+        except Exception:
             return 0.0

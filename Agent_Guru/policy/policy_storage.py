@@ -1,5 +1,4 @@
-"""
-Policy Storage - SQLite-backed persistent storage for policies and roles.
+"""Policy Storage - SQLite-backed persistent storage for policies and roles.
 
 Provides CRUD operations with versioning and efficient indexed retrieval.
 
@@ -16,12 +15,14 @@ import json
 import logging
 import sqlite3
 import uuid
-from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from Agent_Guru.policy.models import Policy, PolicyEffect, Role
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 logger = logging.getLogger(__name__)
 
@@ -83,13 +84,17 @@ class PolicyStorage:
 
         Args:
             db_path: Path to SQLite database (":memory:" for in-memory).
+
         """
         self.db_path = db_path
         # For in-memory databases, keep a persistent connection so the
         # schema and data survive across multiple _conn() calls.
-        self._persistent_conn: Optional[sqlite3.Connection] = None
+        self._persistent_conn: sqlite3.Connection | None = None
         if db_path == ":memory:":
-            self._persistent_conn = sqlite3.connect(":memory:", check_same_thread=False)  # persistent; closed when object is GC'd
+            self._persistent_conn = sqlite3.connect(
+                ":memory:",
+                check_same_thread=False,
+            )  # persistent; closed when object is GC'd
             self._persistent_conn.row_factory = sqlite3.Row
             self._persistent_conn.execute("PRAGMA foreign_keys = ON")
             self._persistent_conn.executescript(_SCHEMA)
@@ -108,7 +113,7 @@ class PolicyStorage:
             try:
                 yield self._persistent_conn
                 self._persistent_conn.commit()
-            except Exception as e:
+            except Exception:
                 self._persistent_conn.rollback()
                 raise
         else:
@@ -118,7 +123,7 @@ class PolicyStorage:
                 try:
                     yield conn
                     conn.commit()
-                except Exception as e:
+                except Exception:
                     conn.rollback()
                     raise
 
@@ -136,7 +141,7 @@ class PolicyStorage:
         if not policy.id:
             policy.id = str(uuid.uuid4())
 
-        now = datetime.now(tz=timezone.utc).isoformat()
+        now = datetime.now(tz=UTC).isoformat()
         with self._conn() as conn:
             conn.execute(
                 """
@@ -170,15 +175,13 @@ class PolicyStorage:
 
         return policy.id
 
-    def get_policy(self, policy_id: str) -> Optional[Policy]:
+    def get_policy(self, policy_id: str) -> Policy | None:
         """Retrieve a policy by ID.
 
         Validates: Requirement 1.6
         """
         with self._conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM policies WHERE id = ?", (policy_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM policies WHERE id = ?", (policy_id,)).fetchone()
         return self._row_to_policy(row) if row else None
 
     def update_policy(self, policy: Policy) -> None:
@@ -186,14 +189,13 @@ class PolicyStorage:
 
         Validates: Requirement 1.5
         """
-        now = datetime.now(tz=timezone.utc).isoformat()
+        now = datetime.now(tz=UTC).isoformat()
         with self._conn() as conn:
             # Increment version
-            row = conn.execute(
-                "SELECT version FROM policies WHERE id = ?", (policy.id,)
-            ).fetchone()
+            row = conn.execute("SELECT version FROM policies WHERE id = ?", (policy.id,)).fetchone()
             if not row:
-                raise KeyError(f"Policy '{policy.id}' not found")
+                msg = f"Policy '{policy.id}' not found"
+                raise KeyError(msg)
             new_version = row["version"] + 1
 
             conn.execute(
@@ -231,15 +233,13 @@ class PolicyStorage:
         Validates: Requirement 1.1
         """
         with self._conn() as conn:
-            conn.execute(
-                "UPDATE policies SET active = 0 WHERE id = ?", (policy_id,)
-            )
+            conn.execute("UPDATE policies SET active = 0 WHERE id = ?", (policy_id,))
 
     def find_policies(
         self,
-        principal: Optional[str] = None,
-        resource: Optional[str] = None,
-        action: Optional[str] = None,
+        principal: str | None = None,
+        resource: str | None = None,
+        action: str | None = None,
         active_only: bool = True,
     ) -> list[Policy]:
         """Find active policies. Filters are applied in Python after fetch.
@@ -250,7 +250,7 @@ class PolicyStorage:
         where = "WHERE active = 1" if active_only else ""
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT * FROM policies " + where + " ORDER BY priority DESC",  # nosec B608
+                "SELECT * FROM policies " + where + " ORDER BY priority DESC",  # nosec B608  # noqa: S608 - SQL parameterization reviewed
             ).fetchall()
 
         policies = [self._row_to_policy(r) for r in rows]
@@ -302,20 +302,16 @@ class PolicyStorage:
             )
         return role.id
 
-    def get_role(self, role_id: str) -> Optional[Role]:
+    def get_role(self, role_id: str) -> Role | None:
         """Retrieve a role by ID."""
         with self._conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM roles WHERE id = ?", (role_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM roles WHERE id = ?", (role_id,)).fetchone()
         return self._row_to_role(row) if row else None
 
-    def get_role_by_name(self, name: str) -> Optional[Role]:
+    def get_role_by_name(self, name: str) -> Role | None:
         """Retrieve a role by name."""
         with self._conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM roles WHERE name = ?", (name,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM roles WHERE name = ?", (name,)).fetchone()
         return self._row_to_role(row) if row else None
 
     def assign_role(self, principal_id: str, role_id: str) -> None:
@@ -326,7 +322,7 @@ class PolicyStorage:
         with self._conn() as conn:
             conn.execute(
                 "INSERT OR IGNORE INTO role_assignments (principal_id, role_id, assigned_at) VALUES (?, ?, ?)",
-                (principal_id, role_id, datetime.now(tz=timezone.utc).isoformat()),
+                (principal_id, role_id, datetime.now(tz=UTC).isoformat()),
             )
 
     def revoke_role(self, principal_id: str, role_id: str) -> None:

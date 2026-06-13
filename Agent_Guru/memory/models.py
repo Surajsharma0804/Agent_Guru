@@ -6,7 +6,7 @@ constrained to [0.0, 1.0]. All identifiers are UUIDs.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -118,7 +118,8 @@ class MetricType(str, Enum):
 
 def _validate_confidence(v: float) -> float:
     if not 0.0 <= v <= 1.0:
-        raise ValueError(f"confidence must be in [0.0, 1.0], got {v}")
+        msg = f"confidence must be in [0.0, 1.0], got {v}"
+        raise ValueError(msg)
     return v
 
 
@@ -130,7 +131,7 @@ def _validate_confidence(v: float) -> float:
 class EntityVersion(BaseModel):
     version_id: UUID = Field(default_factory=uuid4)
     attributes: dict[str, Any] = Field(default_factory=dict)
-    valid_from: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    valid_from: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     valid_until: datetime | None = None
     confidence: float = Field(default=1.0)
     source: str = ""
@@ -145,8 +146,8 @@ class Entity(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     type: EntityType = EntityType.OTHER
     attributes: dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     confidence: float = Field(default=1.0)
     source: str = ""
     versions: list[EntityVersion] = Field(default_factory=list)
@@ -164,8 +165,8 @@ class Relationship(BaseModel):
     relationship_type: RelationshipType = RelationshipType.RELATED_TO
     attributes: dict[str, Any] = Field(default_factory=dict)
     confidence: float = Field(default=1.0)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    valid_from: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    valid_from: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     valid_until: datetime | None = None
     bidirectional: bool = False
 
@@ -208,7 +209,7 @@ class QueryResult(BaseModel):
 class PreferenceEvidence(BaseModel):
     evidence_id: UUID = Field(default_factory=uuid4)
     evidence_type: EvidenceType = EvidenceType.FEEDBACK
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     weight: float = Field(default=1.0)
     description: str = ""
 
@@ -216,7 +217,8 @@ class PreferenceEvidence(BaseModel):
     @classmethod
     def check_weight(cls, v: float) -> float:
         if v < 0.0:
-            raise ValueError(f"weight must be >= 0.0, got {v}")
+            msg = f"weight must be >= 0.0, got {v}"
+            raise ValueError(msg)
         return v
 
 
@@ -228,9 +230,9 @@ class Preference(BaseModel):
     value: Any = None
     confidence: float = Field(default=0.5)
     evidence: list[PreferenceEvidence] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    last_confirmed: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    last_confirmed: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
     @field_validator("confidence")
     @classmethod
@@ -243,7 +245,7 @@ class PreferenceSignal(BaseModel):
     signal_type: SignalType = SignalType.FEEDBACK
     context: dict[str, str] = Field(default_factory=dict)
     value: Any = None
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class PreferenceQuery(BaseModel):
@@ -267,13 +269,13 @@ class Action(BaseModel):
     action_id: UUID = Field(default_factory=uuid4)
     action_type: str
     parameters: dict[str, Any] = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     duration_ms: int = 0
 
 
 class State(BaseModel):
     state_id: UUID = Field(default_factory=uuid4)
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     variables: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -298,8 +300,8 @@ class ExecutionTrace(BaseModel):
 class Experience(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     task_type: str
-    start_time: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    end_time: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    start_time: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    end_time: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     success: bool = True
     success_score: float = Field(default=1.0)
     execution_trace: ExecutionTrace = Field(default_factory=ExecutionTrace)
@@ -368,7 +370,7 @@ class PersonalityMetrics(BaseModel):
     consistency_score: float = Field(default=1.0)
     user_satisfaction: float = Field(default=0.5)
     interaction_count: int = 0
-    last_updated: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
     @field_validator("consistency_score", "user_satisfaction")
     @classmethod
@@ -379,7 +381,7 @@ class PersonalityMetrics(BaseModel):
 class PersonalitySnapshot(BaseModel):
     version: int
     parameters: PersonalityParameters
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     trigger: str = ""
 
 
@@ -387,7 +389,7 @@ class PersonalityProfile(BaseModel):
     user_id: UUID
     version: int = 1
     parameters: PersonalityParameters = Field(default_factory=PersonalityParameters)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     metrics: PersonalityMetrics = Field(default_factory=PersonalityMetrics)
     evolution_history: list[PersonalitySnapshot] = Field(default_factory=list)
 
@@ -397,7 +399,7 @@ class InteractionFeedback(BaseModel):
     interaction_id: UUID = Field(default_factory=uuid4)
     feedback_type: FeedbackType = FeedbackType.NEUTRAL
     feedback_aspects: list[str] = Field(default_factory=list)
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 # ---------------------------------------------------------------------------
@@ -428,7 +430,7 @@ class DuplicationCandidate(BaseModel):
 class MergeResult(BaseModel):
     merged_id: UUID
     source_ids: list[UUID]
-    merge_timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    merge_timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     preserved_data: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -443,7 +445,7 @@ class SyncOperation(BaseModel):
     file_path: str = "README.md"
     content: str = ""
     commit_message: str = ""
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     status: SyncStatus = SyncStatus.PENDING
     retry_count: int = 0
     last_error: str | None = None
@@ -455,7 +457,7 @@ class SyncOperation(BaseModel):
 
 
 class MetricSnapshot(BaseModel):
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     metric_type: MetricType
     value: float
     metadata: dict[str, str] = Field(default_factory=dict)
@@ -474,7 +476,7 @@ class Alert(BaseModel):
     threshold: float
     current_value: float
     message: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class Dashboard(BaseModel):

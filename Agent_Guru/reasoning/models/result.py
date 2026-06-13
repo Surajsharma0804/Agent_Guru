@@ -1,8 +1,8 @@
 """Execution result and response data models."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -21,11 +21,11 @@ class ExecutionResult(BaseModel):
     """Represents the result of an action execution."""
 
     success: bool = Field(..., description="Whether execution succeeded")
-    result_data: Optional[Any] = Field(
+    result_data: Any | None = Field(
         default=None,
         description="Result data from successful execution",
     )
-    error: Optional[str] = Field(
+    error: str | None = Field(
         default=None,
         description="Error message if execution failed",
     )
@@ -36,7 +36,7 @@ class ExecutionResult(BaseModel):
     action_id: str = Field(..., description="ID of executed action")
     tool_id: str = Field(..., description="ID of tool that was executed")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
+        default_factory=lambda: datetime.now(tz=UTC),
         description="Execution timestamp",
     )
     metadata: dict[str, Any] = Field(
@@ -49,7 +49,8 @@ class ExecutionResult(BaseModel):
     def validate_execution_time(cls, v: float) -> float:
         """Validate execution time is non-negative."""
         if v < 0:
-            raise ValueError("Execution time must be non-negative")
+            msg = "Execution time must be non-negative"
+            raise ValueError(msg)
         return v
 
     @field_validator("action_id")
@@ -57,7 +58,8 @@ class ExecutionResult(BaseModel):
     def validate_action_id(cls, v: str) -> str:
         """Validate action ID is not empty."""
         if not v:
-            raise ValueError("Action ID cannot be empty")
+            msg = "Action ID cannot be empty"
+            raise ValueError(msg)
         return v
 
     @field_validator("tool_id")
@@ -65,15 +67,16 @@ class ExecutionResult(BaseModel):
     def validate_tool_id(cls, v: str) -> str:
         """Validate tool ID is not empty."""
         if not v:
-            raise ValueError("Tool ID cannot be empty")
+            msg = "Tool ID cannot be empty"
+            raise ValueError(msg)
         return v
 
     def is_timeout(self) -> bool:
-        """
-        Check if execution resulted in timeout.
+        """Check if execution resulted in timeout.
 
         Returns:
             True if execution timed out
+
         """
         if not self.success and self.error:
             return "timeout" in self.error.lower()
@@ -83,10 +86,7 @@ class ExecutionResult(BaseModel):
         """Check equality based on action ID and success status."""
         if not isinstance(other, ExecutionResult):
             return False
-        return (
-            self.action_id == other.action_id
-            and self.success == other.success
-        )
+        return self.action_id == other.action_id and self.success == other.success
 
     def __hash__(self) -> int:
         """Generate hash for execution result."""
@@ -94,6 +94,7 @@ class ExecutionResult(BaseModel):
 
     class Config:
         """Pydantic configuration."""
+
         json_schema_extra = {
             "example": {
                 "success": True,
@@ -103,7 +104,7 @@ class ExecutionResult(BaseModel):
                 "action_id": "action_123",
                 "tool_id": "set_timer",
                 "metadata": {"user_id": "user_456"},
-            }
+            },
         }
 
 
@@ -123,7 +124,7 @@ class Response(BaseModel):
         default_factory=list,
         description="Proactive follow-up suggestions",
     )
-    rich_content: Optional[dict[str, Any]] = Field(
+    rich_content: dict[str, Any] | None = Field(
         default=None,
         description="Structured data for UI (cards, images, buttons)",
     )
@@ -136,7 +137,7 @@ class Response(BaseModel):
         description="Available action options for user",
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
+        default_factory=lambda: datetime.now(tz=UTC),
         description="Response generation timestamp",
     )
 
@@ -145,7 +146,8 @@ class Response(BaseModel):
     def validate_text(cls, v: str) -> str:
         """Validate response text is not empty."""
         if not v or not v.strip():
-            raise ValueError("Response text cannot be empty")
+            msg = "Response text cannot be empty"
+            raise ValueError(msg)
         return v
 
     @field_validator("suggestions")
@@ -153,7 +155,8 @@ class Response(BaseModel):
     def validate_suggestions(cls, v: list[str]) -> list[str]:
         """Validate suggestions are not empty strings."""
         if any(not s.strip() for s in v):
-            raise ValueError("Suggestions cannot contain empty strings")
+            msg = "Suggestions cannot contain empty strings"
+            raise ValueError(msg)
         return v
 
     @field_validator("action_options")
@@ -161,15 +164,16 @@ class Response(BaseModel):
     def validate_action_options(cls, v: list[str]) -> list[str]:
         """Validate action options are not empty strings."""
         if any(not opt.strip() for opt in v):
-            raise ValueError("Action options cannot contain empty strings")
+            msg = "Action options cannot contain empty strings"
+            raise ValueError(msg)
         return v
 
     def is_voice_compatible(self) -> bool:
-        """
-        Check if response is compatible with voice output.
+        """Check if response is compatible with voice output.
 
         Returns:
             True if response can be spoken
+
         """
         return self.modality in {
             ResponseModality.VOICE,
@@ -178,11 +182,11 @@ class Response(BaseModel):
         }
 
     def is_text_compatible(self) -> bool:
-        """
-        Check if response is compatible with text output.
+        """Check if response is compatible with text output.
 
         Returns:
             True if response can be displayed as text
+
         """
         return self.modality in {
             ResponseModality.TEXT,
@@ -191,11 +195,11 @@ class Response(BaseModel):
         }
 
     def has_rich_content(self) -> bool:
-        """
-        Check if response has rich content.
+        """Check if response has rich content.
 
         Returns:
             True if response has rich content
+
         """
         return self.rich_content is not None and len(self.rich_content) > 0
 
@@ -211,6 +215,7 @@ class Response(BaseModel):
 
     class Config:
         """Pydantic configuration."""
+
         json_schema_extra = {
             "example": {
                 "text": "Timer set for 5 minutes",
@@ -227,5 +232,5 @@ class Response(BaseModel):
                 },
                 "requires_user_action": False,
                 "action_options": [],
-            }
+            },
         }

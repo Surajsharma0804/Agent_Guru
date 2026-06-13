@@ -1,5 +1,4 @@
-"""
-Agent Guru - Speech Engine
+"""Agent Guru - Speech Engine.
 
 Provides dual-personality AI voice processing with:
 - Wake word detection (Hey Guru / Hey Maya)
@@ -36,13 +35,13 @@ from Agent_Guru.speech.models import (
 )
 
 __all__ = [
+    "CommandResult",
+    "EmotionResult",
+    "EmotionType",
+    "PersonalityType",
     # Main facade
     "SpeechEngine",
     # Data models
     "TranscriptionResult",
-    "EmotionResult",
-    "EmotionType",
-    "CommandResult",
     "VoiceFeatures",
-    "PersonalityType",
 ]

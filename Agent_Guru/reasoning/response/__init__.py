@@ -1,5 +1,4 @@
-"""
-Response Generation Module
+"""Response Generation Module.
 
 This module provides template-based and LLM-based response generation
 for the Core Reasoning Engine.
@@ -18,8 +17,8 @@ from Agent_Guru.reasoning.response.rich_content_generator import (
 from Agent_Guru.reasoning.response.template_generator import TemplateGenerator
 
 __all__ = [
-    "TemplateGenerator",
-    "RichContentGenerator",
     "ClientCapability",
     "ContentType",
+    "RichContentGenerator",
+    "TemplateGenerator",
 ]

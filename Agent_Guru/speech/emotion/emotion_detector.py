@@ -3,20 +3,18 @@
 import logging
 import time
 from collections.abc import AsyncIterator
-from typing import Optional
 
 import librosa
 import numpy as np
 
-from ..exceptions import EmotionDetectionError
-from ..models import EmotionHistory, EmotionResult, EmotionType
+from Agent_Guru.speech.exceptions import EmotionDetectionError
+from Agent_Guru.speech.models import EmotionHistory, EmotionResult, EmotionType
 
 logger = logging.getLogger(__name__)
 
 
 class EmotionDetector:
-    """
-    Detect emotional state from voice patterns.
+    """Detect emotional state from voice patterns.
 
     Uses acoustic features (pitch, energy, tempo, MFCC, spectral features)
     to classify emotional state into 7 categories:
@@ -31,12 +29,12 @@ class EmotionDetector:
     Completes analysis within 200ms as per requirements.
     """
 
-    def __init__(self, model_path: Optional[str] = None):
-        """
-        Initialize emotion detector.
+    def __init__(self, model_path: str | None = None) -> None:
+        """Initialize emotion detector.
 
         Args:
             model_path: Path to emotion detection model (optional, uses rule-based if None)
+
         """
         self.model_path = model_path
         self._use_ml_model = model_path is not None
@@ -45,65 +43,60 @@ class EmotionDetector:
         # These are empirically derived values for acoustic features
         self._emotion_profiles = {
             EmotionType.HAPPY: {
-                'pitch_mean': (200, 300),  # Hz
-                'pitch_std': (20, 60),
-                'energy_mean': (0.05, 0.3),
-                'tempo': (120, 180),  # BPM
-                'zcr_mean': (0.1, 0.3)
+                "pitch_mean": (200, 300),  # Hz
+                "pitch_std": (20, 60),
+                "energy_mean": (0.05, 0.3),
+                "tempo": (120, 180),  # BPM
+                "zcr_mean": (0.1, 0.3),
             },
             EmotionType.SAD: {
-                'pitch_mean': (100, 180),
-                'pitch_std': (10, 30),
-                'energy_mean': (0.01, 0.08),
-                'tempo': (60, 100),
-                'zcr_mean': (0.05, 0.15)
+                "pitch_mean": (100, 180),
+                "pitch_std": (10, 30),
+                "energy_mean": (0.01, 0.08),
+                "tempo": (60, 100),
+                "zcr_mean": (0.05, 0.15),
             },
             EmotionType.ANGRY: {
-                'pitch_mean': (180, 280),
-                'pitch_std': (40, 100),
-                'energy_mean': (0.1, 0.4),
-                'tempo': (130, 200),
-                'zcr_mean': (0.15, 0.35)
+                "pitch_mean": (180, 280),
+                "pitch_std": (40, 100),
+                "energy_mean": (0.1, 0.4),
+                "tempo": (130, 200),
+                "zcr_mean": (0.15, 0.35),
             },
             EmotionType.NEUTRAL: {
-                'pitch_mean': (120, 220),
-                'pitch_std': (15, 40),
-                'energy_mean': (0.03, 0.15),
-                'tempo': (90, 130),
-                'zcr_mean': (0.08, 0.2)
+                "pitch_mean": (120, 220),
+                "pitch_std": (15, 40),
+                "energy_mean": (0.03, 0.15),
+                "tempo": (90, 130),
+                "zcr_mean": (0.08, 0.2),
             },
             EmotionType.SURPRISED: {
-                'pitch_mean': (220, 320),
-                'pitch_std': (30, 80),
-                'energy_mean': (0.08, 0.35),
-                'tempo': (140, 200),
-                'zcr_mean': (0.12, 0.3)
+                "pitch_mean": (220, 320),
+                "pitch_std": (30, 80),
+                "energy_mean": (0.08, 0.35),
+                "tempo": (140, 200),
+                "zcr_mean": (0.12, 0.3),
             },
             EmotionType.FEARFUL: {
-                'pitch_mean': (200, 300),
-                'pitch_std': (35, 90),
-                'energy_mean': (0.04, 0.2),
-                'tempo': (110, 160),
-                'zcr_mean': (0.1, 0.28)
+                "pitch_mean": (200, 300),
+                "pitch_std": (35, 90),
+                "energy_mean": (0.04, 0.2),
+                "tempo": (110, 160),
+                "zcr_mean": (0.1, 0.28),
             },
             EmotionType.DISGUSTED: {
-                'pitch_mean': (100, 190),
-                'pitch_std': (15, 45),
-                'energy_mean': (0.03, 0.12),
-                'tempo': (70, 110),
-                'zcr_mean': (0.06, 0.18)
-            }
+                "pitch_mean": (100, 190),
+                "pitch_std": (15, 45),
+                "energy_mean": (0.03, 0.12),
+                "tempo": (70, 110),
+                "zcr_mean": (0.06, 0.18),
+            },
         }
 
         logger.info("EmotionDetector initialized (ML model: %s)", self._use_ml_model)
 
-    def detect_emotion(
-        self,
-        audio: np.ndarray,
-        sample_rate: int
-    ) -> EmotionResult:
-        """
-        Detect emotion from audio.
+    def detect_emotion(self, audio: np.ndarray, sample_rate: int) -> EmotionResult:
+        """Detect emotion from audio.
 
         Completes analysis within 200ms as per requirements.
 
@@ -116,6 +109,7 @@ class EmotionDetector:
 
         Raises:
             EmotionDetectionError: If detection fails
+
         """
         start_time = time.time()
 
@@ -136,36 +130,34 @@ class EmotionDetector:
             # Check processing time (should be < 200ms)
             processing_time = (time.time() - start_time) * 1000
             if processing_time > 200:
-                logger.warning(
-                    f"Emotion detection took {processing_time:.1f}ms (target: <200ms)"
-                )
+                logger.warning("Emotion detection took %.1fms (target: <200ms)", processing_time)
 
             result = EmotionResult(
                 primary_emotion=primary_emotion,
                 emotion_scores=emotion_scores,
                 confidence=confidence,
                 timestamp=time.time(),
-                audio_quality=audio_quality
+                audio_quality=audio_quality,
             )
 
             logger.debug(
                 f"Detected emotion: {primary_emotion.value} "
                 f"(confidence: {confidence:.2f}, quality: {audio_quality:.2f}, "
-                f"time: {processing_time:.1f}ms)"
+                f"time: {processing_time:.1f}ms)",
             )
 
             return result
 
         except Exception as e:
-            raise EmotionDetectionError(f"Failed to detect emotion: {e}") from e
+            msg = f"Failed to detect emotion: {e}"
+            raise EmotionDetectionError(msg) from e
 
     async def detect_emotion_streaming(
         self,
         audio_stream: AsyncIterator[np.ndarray],
-        sample_rate: int
+        sample_rate: int,
     ) -> AsyncIterator[EmotionResult]:
-        """
-        Detect emotion from streaming audio.
+        """Detect emotion from streaming audio.
 
         Yields emotion results as audio is processed in real-time.
 
@@ -175,6 +167,7 @@ class EmotionDetector:
 
         Yields:
             EmotionResult for each audio chunk
+
         """
         try:
             async for audio_chunk in audio_stream:
@@ -187,16 +180,16 @@ class EmotionDetector:
                 yield result
 
         except Exception as e:
-            logger.error("Streaming emotion detection failed: %s", e)
-            raise EmotionDetectionError(f"Streaming detection failed: {e}") from e
+            logger.exception("Streaming emotion detection failed")
+            msg = f"Streaming detection failed: {e}"
+            raise EmotionDetectionError(msg) from e
 
     def track_emotion_history(
         self,
         emotions: list[EmotionResult],
-        window_seconds: float = 60.0
+        window_seconds: float = 60.0,
     ) -> EmotionHistory:
-        """
-        Track emotion changes over time.
+        """Track emotion changes over time.
 
         Analyzes emotion transitions and identifies dominant emotion
         within the specified time window.
@@ -207,6 +200,7 @@ class EmotionDetector:
 
         Returns:
             EmotionHistory with transitions and dominant emotion
+
         """
         try:
             if not emotions:
@@ -214,16 +208,13 @@ class EmotionDetector:
                 return EmotionHistory(
                     emotions=[],
                     dominant_emotion=EmotionType.NEUTRAL,
-                    emotion_transitions=[]
+                    emotion_transitions=[],
                 )
 
             # Filter emotions within time window
             current_time = time.time()
             cutoff_time = current_time - window_seconds
-            recent_emotions = [
-                e for e in emotions
-                if e.timestamp >= cutoff_time
-            ]
+            recent_emotions = [e for e in emotions if e.timestamp >= cutoff_time]
 
             if not recent_emotions:
                 recent_emotions = emotions[-10:]  # Use last 10 if none in window
@@ -236,11 +227,7 @@ class EmotionDetector:
 
                 # Only record actual transitions (emotion changes)
                 if prev_emotion != curr_emotion:
-                    transitions.append((
-                        prev_emotion,
-                        curr_emotion,
-                        recent_emotions[i].timestamp
-                    ))
+                    transitions.append((prev_emotion, curr_emotion, recent_emotions[i].timestamp))
 
             # Calculate dominant emotion (weighted by confidence)
             emotion_weights: dict[EmotionType, float] = {}
@@ -258,26 +245,22 @@ class EmotionDetector:
             history = EmotionHistory(
                 emotions=recent_emotions,
                 dominant_emotion=dominant_emotion,
-                emotion_transitions=transitions
+                emotion_transitions=transitions,
             )
 
             logger.debug(
                 f"Emotion history: {len(recent_emotions)} emotions, "
-                f"{len(transitions)} transitions, dominant: {dominant_emotion.value}"
+                f"{len(transitions)} transitions, dominant: {dominant_emotion.value}",
             )
 
             return history
 
         except Exception as e:
-            raise EmotionDetectionError(f"Failed to track emotion history: {e}") from e
+            msg = f"Failed to track emotion history: {e}"
+            raise EmotionDetectionError(msg) from e
 
-    def extract_acoustic_features(
-        self,
-        audio: np.ndarray,
-        sample_rate: int
-    ) -> dict[str, float]:
-        """
-        Extract acoustic features for emotion detection.
+    def extract_acoustic_features(self, audio: np.ndarray, sample_rate: int) -> dict[str, float]:
+        """Extract acoustic features for emotion detection.
 
         Features include:
         - Pitch (F0): Mean and standard deviation
@@ -293,6 +276,7 @@ class EmotionDetector:
 
         Returns:
             Dictionary of acoustic features
+
         """
         try:
             # Ensure audio is float32
@@ -316,14 +300,14 @@ class EmotionDetector:
                     n_fft_pitch = 2 ** int(np.log2(n_fft_pitch))
 
                 hop_length_pitch = min(512, n_fft_pitch // 4)
-                if hop_length_pitch < 1:
-                    hop_length_pitch = 1
+                hop_length_pitch = max(hop_length_pitch, 1)
 
                 # Suppress librosa warnings for short audio
                 import warnings
+
                 with warnings.catch_warnings():
-                    warnings.filterwarnings('ignore', message='n_fft=.*is too large')
-                    warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+                    warnings.filterwarnings("ignore", message="n_fft=.*is too large")
+                    warnings.filterwarnings("ignore", category=UserWarning, module="librosa")
 
                     # Use librosa's piptrack for pitch detection
                     pitches, magnitudes = librosa.piptrack(
@@ -332,7 +316,7 @@ class EmotionDetector:
                         fmin=50,
                         fmax=400,
                         n_fft=n_fft_pitch,
-                        hop_length=hop_length_pitch
+                        hop_length=hop_length_pitch,
                     )
 
                 # Extract pitch values where magnitude is highest
@@ -344,46 +328,46 @@ class EmotionDetector:
                         pitch_values.append(pitch)
 
                 if pitch_values:
-                    features['pitch_mean'] = float(np.mean(pitch_values))
-                    features['pitch_std'] = float(np.std(pitch_values))
-                    features['pitch_min'] = float(np.min(pitch_values))
-                    features['pitch_max'] = float(np.max(pitch_values))
+                    features["pitch_mean"] = float(np.mean(pitch_values))
+                    features["pitch_std"] = float(np.std(pitch_values))
+                    features["pitch_min"] = float(np.min(pitch_values))
+                    features["pitch_max"] = float(np.max(pitch_values))
                 else:
-                    features['pitch_mean'] = 150.0
-                    features['pitch_std'] = 20.0
-                    features['pitch_min'] = 100.0
-                    features['pitch_max'] = 200.0
-            except Exception as e:
-                logger.warning("Pitch extraction failed: %s", e)
-                features['pitch_mean'] = 150.0
-                features['pitch_std'] = 20.0
-                features['pitch_min'] = 100.0
-                features['pitch_max'] = 200.0
+                    features["pitch_mean"] = 150.0
+                    features["pitch_std"] = 20.0
+                    features["pitch_min"] = 100.0
+                    features["pitch_max"] = 200.0
+            except Exception:
+                logger.exception("Pitch extraction failed")
+                features["pitch_mean"] = 150.0
+                features["pitch_std"] = 20.0
+                features["pitch_min"] = 100.0
+                features["pitch_max"] = 200.0
 
             # 2. Energy features
             rms = librosa.feature.rms(y=audio)[0]
-            features['energy_mean'] = float(np.mean(rms))
-            features['energy_std'] = float(np.std(rms))
-            features['energy_max'] = float(np.max(rms))
+            features["energy_mean"] = float(np.mean(rms))
+            features["energy_std"] = float(np.std(rms))
+            features["energy_max"] = float(np.max(rms))
 
             # 3. Tempo (speaking rate)
             try:
                 # Adjust hop_length for short audio
                 audio_length = len(audio)
                 hop_length_tempo = min(512, audio_length // 4)
-                if hop_length_tempo < 1:
-                    hop_length_tempo = 1
+                hop_length_tempo = max(hop_length_tempo, 1)
 
                 # Suppress warnings
                 import warnings
+
                 with warnings.catch_warnings():
-                    warnings.filterwarnings('ignore', message='n_fft=.*is too large')
-                    warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+                    warnings.filterwarnings("ignore", message="n_fft=.*is too large")
+                    warnings.filterwarnings("ignore", category=UserWarning, module="librosa")
 
                     tempo, _ = librosa.beat.beat_track(
                         y=audio,
                         sr=sample_rate,
-                        hop_length=hop_length_tempo
+                        hop_length=hop_length_tempo,
                     )
                 # Ensure tempo is a scalar
                 if isinstance(tempo, np.ndarray):
@@ -393,126 +377,118 @@ class EmotionDetector:
                 # Ensure reasonable tempo range
                 if tempo <= 0 or tempo > 300:
                     tempo = 100.0
-                features['tempo'] = tempo
-            except Exception as e:
-                logger.warning("Tempo extraction failed: %s", e)
-                features['tempo'] = 100.0
+                features["tempo"] = tempo
+            except Exception:
+                logger.exception("Tempo extraction failed")
+                features["tempo"] = 100.0
 
             # 4. MFCC features (first 13 coefficients)
             # Adjust n_fft for short audio
             audio_length = len(audio)
             n_fft_mfcc = min(2048, audio_length)
-            if n_fft_mfcc < 2:
-                n_fft_mfcc = 2
-            else:
-                n_fft_mfcc = 2 ** int(np.log2(n_fft_mfcc))
+            n_fft_mfcc = 2 if n_fft_mfcc < 2 else 2 ** int(np.log2(n_fft_mfcc))
 
             hop_length_mfcc = min(512, n_fft_mfcc // 4)
-            if hop_length_mfcc < 1:
-                hop_length_mfcc = 1
+            hop_length_mfcc = max(hop_length_mfcc, 1)
 
             # Suppress warnings
             import warnings
+
             with warnings.catch_warnings():
-                warnings.filterwarnings('ignore', message='n_fft=.*is too large')
-                warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+                warnings.filterwarnings("ignore", message="n_fft=.*is too large")
+                warnings.filterwarnings("ignore", category=UserWarning, module="librosa")
 
                 mfccs = librosa.feature.mfcc(
                     y=audio,
                     sr=sample_rate,
                     n_mfcc=13,
                     n_fft=n_fft_mfcc,
-                    hop_length=hop_length_mfcc
+                    hop_length=hop_length_mfcc,
                 )
             for i in range(min(13, mfccs.shape[0])):
-                features[f'mfcc_{i}_mean'] = float(np.mean(mfccs[i]))
-                features[f'mfcc_{i}_std'] = float(np.std(mfccs[i]))
+                features[f"mfcc_{i}_mean"] = float(np.mean(mfccs[i]))
+                features[f"mfcc_{i}_std"] = float(np.std(mfccs[i]))
 
             # 5. Zero Crossing Rate
             # Adjust frame_length for short audio
             frame_length_zcr = min(2048, len(audio))
-            if frame_length_zcr < 2:
-                frame_length_zcr = 2
+            frame_length_zcr = max(frame_length_zcr, 2)
 
             hop_length_zcr = min(512, frame_length_zcr // 4)
-            if hop_length_zcr < 1:
-                hop_length_zcr = 1
+            hop_length_zcr = max(hop_length_zcr, 1)
 
             import warnings
+
             with warnings.catch_warnings():
-                warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+                warnings.filterwarnings("ignore", category=UserWarning, module="librosa")
 
                 zcr = librosa.feature.zero_crossing_rate(
                     audio,
                     frame_length=frame_length_zcr,
-                    hop_length=hop_length_zcr
+                    hop_length=hop_length_zcr,
                 )[0]
-            features['zcr_mean'] = float(np.mean(zcr))
-            features['zcr_std'] = float(np.std(zcr))
+            features["zcr_mean"] = float(np.mean(zcr))
+            features["zcr_std"] = float(np.std(zcr))
 
             # 6. Spectral features
             # Adjust n_fft for short audio
             audio_length = len(audio)
             n_fft_spectral = min(2048, audio_length)
-            if n_fft_spectral < 2:
-                n_fft_spectral = 2
-            else:
-                n_fft_spectral = 2 ** int(np.log2(n_fft_spectral))
+            n_fft_spectral = 2 if n_fft_spectral < 2 else 2 ** int(np.log2(n_fft_spectral))
 
             hop_length_spectral = min(512, n_fft_spectral // 4)
-            if hop_length_spectral < 1:
-                hop_length_spectral = 1
+            hop_length_spectral = max(hop_length_spectral, 1)
 
             import warnings
+
             with warnings.catch_warnings():
-                warnings.filterwarnings('ignore', message='n_fft=.*is too large')
-                warnings.filterwarnings('ignore', category=UserWarning, module='librosa')
+                warnings.filterwarnings("ignore", message="n_fft=.*is too large")
+                warnings.filterwarnings("ignore", category=UserWarning, module="librosa")
 
                 spectral_centroids = librosa.feature.spectral_centroid(
                     y=audio,
                     sr=sample_rate,
                     n_fft=n_fft_spectral,
-                    hop_length=hop_length_spectral
+                    hop_length=hop_length_spectral,
                 )[0]
-                features['spectral_centroid_mean'] = float(np.mean(spectral_centroids))
-                features['spectral_centroid_std'] = float(np.std(spectral_centroids))
+                features["spectral_centroid_mean"] = float(np.mean(spectral_centroids))
+                features["spectral_centroid_std"] = float(np.std(spectral_centroids))
 
                 spectral_rolloff = librosa.feature.spectral_rolloff(
                     y=audio,
                     sr=sample_rate,
                     n_fft=n_fft_spectral,
-                    hop_length=hop_length_spectral
+                    hop_length=hop_length_spectral,
                 )[0]
-                features['spectral_rolloff_mean'] = float(np.mean(spectral_rolloff))
+                features["spectral_rolloff_mean"] = float(np.mean(spectral_rolloff))
 
                 spectral_bandwidth = librosa.feature.spectral_bandwidth(
                     y=audio,
                     sr=sample_rate,
                     n_fft=n_fft_spectral,
-                    hop_length=hop_length_spectral
+                    hop_length=hop_length_spectral,
                 )[0]
-                features['spectral_bandwidth_mean'] = float(np.mean(spectral_bandwidth))
+                features["spectral_bandwidth_mean"] = float(np.mean(spectral_bandwidth))
 
             return features
 
-        except Exception as e:
-            logger.error("Feature extraction failed: %s", e)
+        except Exception:
+            logger.exception("Feature extraction failed")
             # Return default features
             return {
-                'pitch_mean': 150.0,
-                'pitch_std': 20.0,
-                'energy_mean': 0.1,
-                'tempo': 100.0,
-                'zcr_mean': 0.1
+                "pitch_mean": 150.0,
+                "pitch_std": 20.0,
+                "energy_mean": 0.1,
+                "tempo": 100.0,
+                "zcr_mean": 0.1,
             }
 
     def _classify_emotion(
         self,
         features: dict[str, float],
-        audio_quality: float
+        audio_quality: float,
     ) -> dict[EmotionType, float]:
-        """
-        Classify emotion based on acoustic features.
+        """Classify emotion based on acoustic features.
 
         Uses rule-based classification with feature matching.
         Returns confidence scores for all emotion types.
@@ -523,6 +499,7 @@ class EmotionDetector:
 
         Returns:
             Dictionary mapping EmotionType to confidence scores
+
         """
         emotion_scores = {}
 
@@ -559,10 +536,7 @@ class EmotionDetector:
                     matches += 1
 
             # Normalize score by number of features
-            if matches > 0:
-                normalized_score = score / matches
-            else:
-                normalized_score = 0.5
+            normalized_score = score / matches if matches > 0 else 0.5
 
             # Apply audio quality weighting
             final_score = normalized_score * (0.5 + 0.5 * audio_quality)
@@ -574,8 +548,7 @@ class EmotionDetector:
         total_score = sum(emotion_scores.values())
         if total_score > 0:
             emotion_scores = {
-                emotion: score / total_score
-                for emotion, score in emotion_scores.items()
+                emotion: score / total_score for emotion, score in emotion_scores.items()
             }
         else:
             # Default to neutral if all scores are zero
@@ -583,13 +556,8 @@ class EmotionDetector:
 
         return emotion_scores
 
-    def _compute_audio_quality(
-        self,
-        audio: np.ndarray,
-        features: dict[str, float]
-    ) -> float:
-        """
-        Compute audio quality score for emotion detection.
+    def _compute_audio_quality(self, audio: np.ndarray, features: dict[str, float]) -> float:
+        """Compute audio quality score for emotion detection.
 
         Considers:
         - Signal-to-noise ratio (SNR)
@@ -603,6 +571,7 @@ class EmotionDetector:
 
         Returns:
             Quality score between 0.0 and 1.0
+
         """
         quality_factors = []
 
@@ -617,7 +586,7 @@ class EmotionDetector:
         quality_factors.append(duration_score)
 
         # 2. Check energy level (not too quiet or too loud)
-        energy = features.get('energy_mean', 0.1)
+        energy = features.get("energy_mean", 0.1)
         if 0.05 <= energy <= 0.3:
             energy_score = 1.0
         elif energy < 0.05:
@@ -628,7 +597,7 @@ class EmotionDetector:
         quality_factors.append(energy_score)
 
         # 3. Check pitch reliability (should have reasonable variance)
-        pitch_std = features.get('pitch_std', 20.0)
+        pitch_std = features.get("pitch_std", 20.0)
         if 10.0 <= pitch_std <= 100.0:
             pitch_score = 1.0
         elif pitch_std < 10.0:
@@ -639,15 +608,13 @@ class EmotionDetector:
         quality_factors.append(pitch_score)
 
         # 4. Check zero crossing rate (voice quality indicator)
-        zcr = features.get('zcr_mean', 0.1)
-        if 0.05 <= zcr <= 0.35:
-            zcr_score = 1.0
-        else:
-            zcr_score = 0.5
+        zcr = features.get("zcr_mean", 0.1)
+        zcr_score = 1.0 if 0.05 <= zcr <= 0.35 else 0.5
+
         quality_factors.append(zcr_score)
 
         # 5. Check signal strength (RMS)
-        rms = np.sqrt(np.mean(audio ** 2))
+        rms = np.sqrt(np.mean(audio**2))
         if rms > 0.02:  # Reasonable signal strength
             signal_score = 1.0
         elif rms > 0.005:  # Weak signal

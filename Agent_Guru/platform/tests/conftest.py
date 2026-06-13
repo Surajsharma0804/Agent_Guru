@@ -1,6 +1,4 @@
-"""
-Pytest configuration and fixtures for platform integration tests.
-"""
+"""Pytest configuration and fixtures for platform integration tests."""
 
 import platform
 

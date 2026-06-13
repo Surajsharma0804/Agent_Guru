@@ -1,21 +1,23 @@
 """Degradation controller for offline-first resilience."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
 from enum import Enum
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 try:
     import httpx
+
     _HTTPX_AVAILABLE = True
 except ImportError:
     _HTTPX_AVAILABLE = False
 
 try:
     import psutil
+
     _PSUTIL_AVAILABLE = True
 except ImportError:
     _PSUTIL_AVAILABLE = False
@@ -51,6 +53,7 @@ class DegradationController:
             async with httpx.AsyncClient(timeout=NETWORK_CHECK_TIMEOUT_S) as client:
                 resp = await client.head(NETWORK_CHECK_URL)
                 self._online = resp.status_code < 500
+
         except Exception as e:
             logger.debug("Network check failed: %s", e)
             self._online = False
@@ -78,19 +81,18 @@ class DegradationController:
     async def llm_with_failover(
         self,
         prompt: str,
-        providers: Optional[list[str]] = None,
+        providers: list[str] | None = None,
     ) -> str:
         """Try LLM providers in failover chain with 3s timeout each."""
         chain = providers or self._llm_providers
         for provider in chain:
             try:
-                result = await asyncio.wait_for(
+                return await asyncio.wait_for(
                     self._call_provider(provider, prompt),
                     timeout=LLM_TIMEOUT_S,
                 )
-                return result
-            except (asyncio.TimeoutError, Exception) as e:
-                logger.warning("Provider %s failed: %s", provider, e)
+            except (TimeoutError, Exception):
+                logger.exception("Provider %s failed: %s")
         return self._rule_based_response(prompt)
 
     async def _call_provider(self, provider: str, prompt: str) -> str:

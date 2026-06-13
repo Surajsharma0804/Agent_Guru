@@ -1,5 +1,4 @@
-"""
-Token Counter for accurate per-provider token counting.
+"""Token Counter for accurate per-provider token counting.
 
 Uses provider-specific tokenizers:
 - OpenAI: tiktoken
@@ -18,34 +17,34 @@ Version: 1.0.0
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING
 
-from Agent_Guru.llm.models import Message
+if TYPE_CHECKING:
+    from Agent_Guru.llm.models import Message
 
 
 class TokenCounter:
-    """
-    Accurate token counting for all supported providers.
+    """Accurate token counting for all supported providers.
 
     Example:
         >>> counter = TokenCounter()
         >>> messages = [Message(role="user", content="Hello world")]
         >>> count = counter.count_messages(messages, "gpt-3.5-turbo")
         >>> print(f"Token count: {count}")
+
     """
 
     def __init__(self) -> None:
         """Initialize token counter with lazy-loaded encoders."""
         self._openai_encoders: dict[str, object] = {}
-        self._anthropic_client: Optional[object] = None
+        self._anthropic_client: object | None = None
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
     def count_messages(self, messages: list[Message], model: str) -> int:
-        """
-        Count tokens in a list of messages.
+        """Count tokens in a list of messages.
 
         Args:
             messages: List of chat messages.
@@ -53,21 +52,21 @@ class TokenCounter:
 
         Returns:
             Total token count including message format overhead.
+
         """
         provider = self._get_provider(model)
 
         if provider == "openai":
             return self._count_openai_messages(messages, model)
-        elif provider == "anthropic":
+        if provider == "anthropic":
             return self._count_anthropic_messages(messages, model)
-        elif provider == "google":
+        if provider == "google":
             return self._count_google_messages(messages)
-        else:  # ollama / unknown
-            return self._count_ollama_messages(messages)
+        # ollama / unknown
+        return self._count_ollama_messages(messages)
 
     def count_text(self, text: str, model: str) -> int:
-        """
-        Count tokens in a plain text string.
+        """Count tokens in a plain text string.
 
         Args:
             text: Text to tokenize.
@@ -75,6 +74,7 @@ class TokenCounter:
 
         Returns:
             Token count.
+
         """
         if not text:
             return 0
@@ -83,15 +83,13 @@ class TokenCounter:
 
         if provider == "openai":
             return self._count_openai_text(text, model)
-        elif provider == "anthropic":
+        if provider == "anthropic":
             return self._count_anthropic_text(text)
-        elif provider == "google":
+        if provider == "google":
             return self._count_google_text(text)
-        else:
-            return self._count_ollama_text(text)
+        return self._count_ollama_text(text)
 
     # ------------------------------------------------------------------
-    # OpenAI (tiktoken)
     # ------------------------------------------------------------------
 
     def _count_openai_messages(self, messages: list[Message], model: str) -> int:
@@ -150,12 +148,11 @@ class TokenCounter:
         # Approximation: ~4 chars per token (Anthropic uses Claude tokenizer)
         return max(1, len(text) // 4)
 
-    def _get_anthropic_client(self) -> Optional[object]:
+    def _get_anthropic_client(self) -> object | None:
         """Anthropic client — not used for token counting (approximation only)."""
         return None
 
     # ------------------------------------------------------------------
-    # Google (approximation)
     # ------------------------------------------------------------------
 
     def _count_google_messages(self, messages: list[Message]) -> int:
@@ -170,7 +167,6 @@ class TokenCounter:
         return max(1, len(text) // 4)
 
     # ------------------------------------------------------------------
-    # Ollama (approximation)
     # ------------------------------------------------------------------
 
     def _count_ollama_messages(self, messages: list[Message]) -> int:

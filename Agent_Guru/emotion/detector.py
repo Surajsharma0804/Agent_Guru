@@ -4,7 +4,6 @@ from __future__ import annotations
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
@@ -96,6 +95,7 @@ _NEUTRAL_SCORES: dict[str, float] = {"neutral": 0.8, "happy": 0.1, "sad": 0.1}
 @dataclass
 class EmotionalState:
     """Detected emotional state."""
+
     emotion: str
     confidence: float
     timestamp: float = field(default_factory=time.time)
@@ -105,6 +105,7 @@ class EmotionalState:
 @dataclass
 class EmotionTrend:
     """7-day emotion trend."""
+
     dominant_emotion: str
     emotion_counts: dict[str, int]
     period_days: int = 7
@@ -135,9 +136,9 @@ class EmotionDetector:
 
     def detect(
         self,
-        audio: Optional[np.ndarray] = None,
-        text: Optional[str] = None,
-        face_features: Optional[np.ndarray] = None,
+        audio: np.ndarray | None = None,
+        text: str | None = None,
+        face_features: np.ndarray | None = None,
     ) -> EmotionalState:
         """Detect emotion from available modalities.
 

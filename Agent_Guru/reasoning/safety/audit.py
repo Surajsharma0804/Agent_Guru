@@ -5,7 +5,7 @@ import sqlite3
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from cryptography.fernet import Fernet
@@ -31,6 +31,7 @@ class AuditLogEntry:
         reason: Reason for decision
         validation_time: Time taken for validation
         metadata: Additional metadata
+
     """
 
     entry_id: int
@@ -74,21 +75,21 @@ class AuditLogger:
 
     def __init__(
         self,
-        db_path: Optional[str] = None,
-        encryption_key: Optional[bytes] = None,
+        db_path: str | None = None,
+        encryption_key: bytes | None = None,
         retention_days: int = 90,
     ) -> None:
-        """
-        Initialize audit logger.
+        """Initialize audit logger.
 
         Args:
             db_path: Path to SQLite database (None for in-memory)
             encryption_key: Encryption key for sensitive data (None = generate)
             retention_days: Number of days to retain logs (minimum 90)
+
         """
         self._db_path = db_path or ":memory:"
         self._retention_days = max(retention_days, 90)  # Minimum 90 days
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
 
         # Initialize encryption
         if encryption_key is None:
@@ -157,10 +158,9 @@ class AuditLogger:
         requires_confirmation: bool,
         reason: str,
         validation_time: float,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
-        """
-        Log safety decision to audit trail.
+        """Log safety decision to audit trail.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -178,6 +178,7 @@ class AuditLogger:
 
         Returns:
             Entry ID of logged decision
+
         """
         timestamp = time.time()
 
@@ -187,31 +188,36 @@ class AuditLogger:
 
         # Store in database
         if self._conn is None:
-            raise RuntimeError("Database connection not initialized")
+            msg = "Database connection not initialized"
+            raise RuntimeError(msg)
 
         cursor = self._conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO audit_log
             (timestamp, user_id, tool_id, parameters_encrypted, sensitivity,
              decision, requires_confirmation, reason, validation_time, metadata)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            timestamp,
-            user_id,
-            tool_id,
-            parameters_encrypted,
-            sensitivity.value,
-            decision,
-            1 if requires_confirmation else 0,
-            reason,
-            validation_time,
-            json.dumps(metadata) if metadata else None,
-        ))
+        """,
+            (
+                timestamp,
+                user_id,
+                tool_id,
+                parameters_encrypted,
+                sensitivity.value,
+                decision,
+                1 if requires_confirmation else 0,
+                reason,
+                validation_time,
+                json.dumps(metadata) if metadata else None,
+            ),
+        )
         self._conn.commit()
 
         entry_id = cursor.lastrowid
         if entry_id is None:
-            raise RuntimeError("Failed to get entry ID from database")
+            msg = "Failed to get entry ID from database"
+            raise RuntimeError(msg)
 
         logger.info(
             "audit_decision_logged",
@@ -225,15 +231,14 @@ class AuditLogger:
 
     def query_logs(
         self,
-        user_id: Optional[str] = None,
-        tool_id: Optional[str] = None,
-        decision: Optional[str] = None,
-        start_time: Optional[float] = None,
-        end_time: Optional[float] = None,
+        user_id: str | None = None,
+        tool_id: str | None = None,
+        decision: str | None = None,
+        start_time: float | None = None,
+        end_time: float | None = None,
         limit: int = 100,
     ) -> list[AuditLogEntry]:
-        """
-        Query audit logs with filters.
+        """Query audit logs with filters.
 
         Time Complexity: O(n) where n is number of matching entries
         Space Complexity: O(n)
@@ -248,9 +253,11 @@ class AuditLogger:
 
         Returns:
             List of AuditLogEntry objects
+
         """
         if self._conn is None:
-            raise RuntimeError("Database connection not initialized")
+            msg = "Database connection not initialized"
+            raise RuntimeError(msg)
 
         cursor = self._conn.cursor()
 
@@ -312,12 +319,11 @@ class AuditLogger:
 
     def get_statistics(
         self,
-        user_id: Optional[str] = None,
-        start_time: Optional[float] = None,
-        end_time: Optional[float] = None,
+        user_id: str | None = None,
+        start_time: float | None = None,
+        end_time: float | None = None,
     ) -> dict[str, Any]:
-        """
-        Get audit log statistics.
+        """Get audit log statistics.
 
         Args:
             user_id: Filter by user ID (None for all)
@@ -326,9 +332,11 @@ class AuditLogger:
 
         Returns:
             Dictionary with statistics
+
         """
         if self._conn is None:
-            raise RuntimeError("Database connection not initialized")
+            msg = "Database connection not initialized"
+            raise RuntimeError(msg)
 
         cursor = self._conn.cursor()
 
@@ -350,28 +358,28 @@ class AuditLogger:
 
         # Get total count — where_clause is built from hardcoded strings with ? placeholders only
         cursor.execute(
-            "SELECT COUNT(*) FROM audit_log " + where_clause,  # nosec B608
+            "SELECT COUNT(*) FROM audit_log " + where_clause,  # nosec B608  # noqa: S608 - SQL parameterization reviewed
             params,
         )
         total_count = cursor.fetchone()[0]
 
         # Get counts by decision
         cursor.execute(
-            "SELECT decision, COUNT(*) FROM audit_log " + where_clause + " GROUP BY decision",  # nosec B608
+            "SELECT decision, COUNT(*) FROM audit_log " + where_clause + " GROUP BY decision",  # nosec B608  # noqa: S608 - SQL parameterization reviewed
             params,
         )
         decision_counts = {row[0]: row[1] for row in cursor.fetchall()}
 
         # Get counts by sensitivity
         cursor.execute(
-            "SELECT sensitivity, COUNT(*) FROM audit_log " + where_clause + " GROUP BY sensitivity",  # nosec B608
+            "SELECT sensitivity, COUNT(*) FROM audit_log " + where_clause + " GROUP BY sensitivity",  # nosec B608  # noqa: S608 - SQL parameterization reviewed
             params,
         )
         sensitivity_counts = {row[0]: row[1] for row in cursor.fetchall()}
 
         # Get average validation time
         cursor.execute(
-            "SELECT AVG(validation_time) FROM audit_log " + where_clause,  # nosec B608
+            "SELECT AVG(validation_time) FROM audit_log " + where_clause,  # nosec B608  # noqa: S608 - SQL parameterization reviewed
             params,
         )
         avg_validation_time = cursor.fetchone()[0] or 0.0
@@ -384,35 +392,30 @@ class AuditLogger:
         }
 
     def apply_retention_policy(self) -> int:
-        """
-        Apply retention policy by deleting old logs.
+        """Apply retention policy by deleting old logs.
 
         Deletes logs older than retention_days.
 
         Returns:
             Number of entries deleted
+
         """
         if self._conn is None:
-            raise RuntimeError("Database connection not initialized")
+            msg = "Database connection not initialized"
+            raise RuntimeError(msg)
 
         cutoff_time = time.time() - (self._retention_days * 24 * 60 * 60)
 
         cursor = self._conn.cursor()
 
         # Count entries to delete
-        cursor.execute(
-            "SELECT COUNT(*) FROM audit_log WHERE timestamp < ?",
-            (cutoff_time,)
-        )
+        cursor.execute("SELECT COUNT(*) FROM audit_log WHERE timestamp < ?", (cutoff_time,))
         result = cursor.fetchone()
         count = int(result[0]) if result else 0
 
         if count > 0:
             # Delete old entries
-            cursor.execute(
-                "DELETE FROM audit_log WHERE timestamp < ?",
-                (cutoff_time,)
-            )
+            cursor.execute("DELETE FROM audit_log WHERE timestamp < ?", (cutoff_time,))
             self._conn.commit()
 
             logger.info(
@@ -426,12 +429,11 @@ class AuditLogger:
     def export_logs(
         self,
         output_path: str,
-        user_id: Optional[str] = None,
-        start_time: Optional[float] = None,
-        end_time: Optional[float] = None,
+        user_id: str | None = None,
+        start_time: float | None = None,
+        end_time: float | None = None,
     ) -> int:
-        """
-        Export audit logs to JSON file.
+        """Export audit logs to JSON file.
 
         Args:
             output_path: Path to output file
@@ -441,6 +443,7 @@ class AuditLogger:
 
         Returns:
             Number of entries exported
+
         """
         entries = self.query_logs(
             user_id=user_id,
@@ -456,7 +459,7 @@ class AuditLogger:
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             json.dump(entries_dict, f, indent=2)
 
         logger.info(
@@ -468,13 +471,13 @@ class AuditLogger:
         return len(entries)
 
     def get_encryption_key(self) -> bytes:
-        """
-        Get encryption key (for backup/restore).
+        """Get encryption key (for backup/restore).
 
         WARNING: Keep this key secure!
 
         Returns:
             Encryption key bytes (Fernet key format)
+
         """
         # Return the original Fernet key, not the internal components
         # We need to extract it from the cipher object

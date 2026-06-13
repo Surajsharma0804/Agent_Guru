@@ -1,5 +1,4 @@
-"""
-CrewAI benchmark implementation.
+"""CrewAI benchmark implementation.
 
 Benchmarks CrewAI framework for comparison with Agent Guru.
 """
@@ -16,22 +15,20 @@ from Agent_Guru.self_improvement.benchmarks.base_benchmark import (
 # Check if CrewAI is installed
 try:
     from crewai import Agent, Crew, Task
+
     CREWAI_AVAILABLE = True
 except ImportError:
     CREWAI_AVAILABLE = False
-    print("WARNING: CrewAI not installed. Install with: pip install crewai")
-    print("Benchmark will run in simulation mode.")
 
 
 class CrewAIBenchmark(BaseBenchmark):
-    """
-    Benchmark for CrewAI framework.
+    """Benchmark for CrewAI framework.
 
     Measures performance of CrewAI agents on standard test scenarios.
     Falls back to simulation mode if CrewAI is not installed.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize CrewAI benchmark."""
         super().__init__("CrewAI")
         self.simulation_mode = not CREWAI_AVAILABLE
@@ -39,7 +36,7 @@ class CrewAIBenchmark(BaseBenchmark):
         if not self.simulation_mode:
             self._init_crewai()
         else:
-            print("Running in simulation mode (CrewAI not installed)")
+            pass
 
     def _init_crewai(self) -> None:
         """Initialize CrewAI agents and crew."""
@@ -59,19 +56,18 @@ class CrewAIBenchmark(BaseBenchmark):
                 tasks=[],  # Tasks added dynamically
                 verbose=False,
             )
-        except Exception as e:
-            print(f"Error initializing CrewAI: {e}")
+        except Exception:
             self.simulation_mode = True
 
     def execute_scenario(self, scenario: TestScenario) -> Any:
-        """
-        Execute a test scenario using CrewAI.
+        """Execute a test scenario using CrewAI.
 
         Args:
             scenario: Test scenario to execute
 
         Returns:
             Result of scenario execution
+
         """
         if self.simulation_mode:
             return self._simulate_execution(scenario)
@@ -94,23 +90,20 @@ class CrewAIBenchmark(BaseBenchmark):
             self.track_api_call(tokens=100)  # Estimate
 
             # Execute task
-            result = self.crew.kickoff()
+            return self.crew.kickoff()
 
-            return result
-
-        except Exception as e:
-            print(f"Error executing CrewAI scenario: {e}")
+        except Exception:
             return None
 
     def _simulate_execution(self, scenario: TestScenario) -> Any:
-        """
-        Simulate CrewAI execution when not installed.
+        """Simulate CrewAI execution when not installed.
 
         Args:
             scenario: Test scenario to execute
 
         Returns:
             Simulated result
+
         """
         # Simulate processing time
         time.sleep(0.05)  # 50ms
@@ -124,13 +117,13 @@ class CrewAIBenchmark(BaseBenchmark):
         # Pattern-based responses for different scenario types
         if scenario.scenario_type == ScenarioType.SIMPLE:
             return self._simulate_simple_scenario(question)
-        elif scenario.scenario_type == ScenarioType.COMPLEX:
+        if scenario.scenario_type == ScenarioType.COMPLEX:
             return self._simulate_complex_scenario(question)
-        elif scenario.scenario_type == ScenarioType.TOOL_USAGE:
+        if scenario.scenario_type == ScenarioType.TOOL_USAGE:
             return self._simulate_tool_scenario(question)
-        elif scenario.scenario_type == ScenarioType.ERROR_RECOVERY:
+        if scenario.scenario_type == ScenarioType.ERROR_RECOVERY:
             return self._simulate_error_scenario(question)
-        elif scenario.scenario_type == ScenarioType.LEARNING:
+        if scenario.scenario_type == ScenarioType.LEARNING:
             return self._simulate_learning_scenario(question)
 
         return "I don't know"
@@ -139,17 +132,17 @@ class CrewAIBenchmark(BaseBenchmark):
         """Simulate simple scenario response."""
         if "2+2" in question or "2 + 2" in question:
             return "4"
-        elif "uppercase" in question:
+        if "uppercase" in question:
             if "hello" in question:
                 return "HELLO"
             return "TEXT"
-        elif "count" in question or "how many" in question:
+        if "count" in question or "how many" in question:
             if "apple" in question:
                 return "3"
             return "5"
-        elif "greater" in question or "larger" in question:
+        if "greater" in question or "larger" in question:
             return "True"
-        elif "concatenate" in question or "combine" in question:
+        if "concatenate" in question or "combine" in question:
             return "hello world"
         return "42"
 
@@ -157,13 +150,13 @@ class CrewAIBenchmark(BaseBenchmark):
         """Simulate complex scenario response."""
         if "fibonacci" in question:
             return "55"
-        elif "prime" in question:
+        if "prime" in question:
             return "2, 3, 5, 7, 11"
-        elif "puzzle" in question or "logic" in question:
+        if "puzzle" in question or "logic" in question:
             return "The answer is C"
-        elif "pattern" in question:
+        if "pattern" in question:
             return "The next number is 16"
-        elif "word problem" in question:
+        if "word problem" in question:
             return "15 apples"
         return "The solution involves multiple steps"
 
@@ -171,13 +164,13 @@ class CrewAIBenchmark(BaseBenchmark):
         """Simulate tool usage scenario response."""
         if "read file" in question:
             return "File contents: Hello World"
-        elif "write file" in question:
+        if "write file" in question:
             return "File written successfully"
-        elif "weather" in question:
+        if "weather" in question:
             return "Temperature: 72°F, Sunny"
-        elif "database" in question:
+        if "database" in question:
             return "Query result: 42 records found"
-        elif "calculator" in question:
+        if "calculator" in question:
             return "Calculation result: 156"
         return "Tool executed successfully"
 
@@ -185,13 +178,13 @@ class CrewAIBenchmark(BaseBenchmark):
         """Simulate error recovery scenario response."""
         if "divide by zero" in question:
             return "Error: Cannot divide by zero. Please provide a non-zero divisor."
-        elif "missing data" in question:
+        if "missing data" in question:
             return "Using default value: 0"
-        elif "ambiguous" in question:
+        if "ambiguous" in question:
             return "Please clarify: did you mean option A or option B?"
-        elif "contradictory" in question:
+        if "contradictory" in question:
             return "Detected contradiction. Prioritizing the most recent instruction."
-        elif "not available" in question:
+        if "not available" in question:
             return "Resource unavailable. Using cached data instead."
         return "Error handled gracefully"
 
@@ -205,10 +198,10 @@ class CrewAIBenchmark(BaseBenchmark):
 
 
 def create_crewai_benchmark() -> CrewAIBenchmark:
-    """
-    Create CrewAI benchmark instance.
+    """Create CrewAI benchmark instance.
 
     Returns:
         CrewAIBenchmark instance
+
     """
     return CrewAIBenchmark()

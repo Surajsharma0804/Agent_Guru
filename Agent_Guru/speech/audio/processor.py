@@ -5,8 +5,8 @@ from typing import Any
 
 import numpy as np
 
-from ..config import AudioProcessingConfig
-from ..exceptions import AudioProcessingError
+from Agent_Guru.speech.config import AudioProcessingConfig
+from Agent_Guru.speech.exceptions import AudioProcessingError
 
 logger = logging.getLogger(__name__)
 
@@ -22,27 +22,26 @@ def _get_noisereduce() -> Any | None:
             import noisereduce as nr
 
             _noisereduce = nr
-        except Exception as e:
-            logger.warning("Failed to import noisereduce: %s", e)
+        except Exception:
+            logger.exception("Failed to import noisereduce")
             # Set to False to indicate failed import (not None which means not tried yet)
             _noisereduce = False
     return _noisereduce if _noisereduce is not False else None
 
 
 class AudioProcessor:
-    """
-    Audio processor with Voice Activity Detection, noise reduction, and AGC.
+    """Audio processor with Voice Activity Detection, noise reduction, and AGC.
 
     Provides real-time audio enhancement for speech recognition.
     """
 
-    def __init__(self, config: AudioProcessingConfig, sample_rate: int = 16000):
-        """
-        Initialize audio processor.
+    def __init__(self, config: AudioProcessingConfig, sample_rate: int = 16000) -> None:
+        """Initialize audio processor.
 
         Args:
             config: Audio processing configuration
             sample_rate: Sample rate in Hz
+
         """
         self.config = config
         self.sample_rate = sample_rate
@@ -51,12 +50,11 @@ class AudioProcessor:
         logger.info(
             f"AudioProcessor initialized: VAD={config.enable_vad}, "
             f"NoiseReduction={config.enable_noise_reduction}, "
-            f"AGC={config.enable_agc}"
+            f"AGC={config.enable_agc}",
         )
 
     async def process_chunk(self, audio: np.ndarray) -> np.ndarray:
-        """
-        Process a single audio chunk with all enabled enhancements.
+        """Process a single audio chunk with all enabled enhancements.
 
         Applies noise reduction, AGC, and other processing in optimal order.
 
@@ -68,6 +66,7 @@ class AudioProcessor:
 
         Raises:
             AudioProcessingError: If processing fails
+
         """
         try:
             processed = audio.copy()
@@ -83,11 +82,11 @@ class AudioProcessor:
             return processed
 
         except Exception as e:
-            raise AudioProcessingError(f"Failed to process audio chunk: {e}") from e
+            msg = f"Failed to process audio chunk: {e}"
+            raise AudioProcessingError(msg) from e
 
     async def detect_voice_activity(self, audio: np.ndarray) -> bool:
-        """
-        Detect if voice is present in audio chunk.
+        """Detect if voice is present in audio chunk.
 
         Uses energy-based VAD with configurable aggressiveness.
 
@@ -96,6 +95,7 @@ class AudioProcessor:
 
         Returns:
             True if voice activity detected, False otherwise
+
         """
         if not self.config.enable_vad:
             return True
@@ -117,17 +117,14 @@ class AudioProcessor:
             zcr_threshold = zcr_thresholds[aggressiveness]
 
             # Voice typically has moderate energy and zero crossing rate
-            has_voice = bool(energy > energy_threshold and zero_crossings > zcr_threshold)
+            return bool(energy > energy_threshold and zero_crossings > zcr_threshold)
 
-            return has_voice
-
-        except Exception as e:
-            logger.warning("VAD failed: %s, assuming voice present", e)
+        except Exception:
+            logger.exception("VAD failed: %s, assuming voice present")
             return True
 
     async def reduce_noise(self, audio: np.ndarray) -> np.ndarray:
-        """
-        Apply noise reduction to audio.
+        """Apply noise reduction to audio.
 
         Uses spectral subtraction via noisereduce library.
 
@@ -136,6 +133,7 @@ class AudioProcessor:
 
         Returns:
             Noise-reduced audio
+
         """
         try:
             nr = _get_noisereduce()
@@ -157,13 +155,12 @@ class AudioProcessor:
 
             return reduced
 
-        except Exception as e:
-            logger.warning("Noise reduction failed: %s, returning original audio", e)
+        except Exception:
+            logger.exception("Noise reduction failed: %s, returning original audio")
             return audio
 
     async def cancel_echo(self, audio: np.ndarray, reference: np.ndarray) -> np.ndarray:
-        """
-        Cancel echo using reference signal.
+        """Cancel echo using reference signal.
 
         Simple echo cancellation using adaptive filtering.
 
@@ -173,6 +170,7 @@ class AudioProcessor:
 
         Returns:
             Echo-cancelled audio
+
         """
         if not self.config.enable_echo_cancellation:
             return audio
@@ -190,13 +188,12 @@ class AudioProcessor:
 
             return cancelled
 
-        except Exception as e:
-            logger.warning("Echo cancellation failed: %s, returning original audio", e)
+        except Exception:
+            logger.exception("Echo cancellation failed: %s, returning original audio")
             return audio
 
     async def apply_agc(self, audio: np.ndarray) -> np.ndarray:
-        """
-        Apply automatic gain control to normalize audio levels.
+        """Apply automatic gain control to normalize audio levels.
 
         Normalizes audio to target RMS level while preventing clipping.
 
@@ -205,6 +202,7 @@ class AudioProcessor:
 
         Returns:
             Gain-controlled audio
+
         """
         try:
             # Calculate current RMS
@@ -234,13 +232,12 @@ class AudioProcessor:
             result: np.ndarray = normalized
             return result
 
-        except Exception as e:
-            logger.warning("AGC failed: %s, returning original audio", e)
+        except Exception:
+            logger.exception("AGC failed: %s, returning original audio")
             return audio
 
     def convert_format(self, audio: np.ndarray, target_rate: int) -> np.ndarray:
-        """
-        Convert audio sample rate.
+        """Convert audio sample rate.
 
         Uses simple linear interpolation for resampling.
         For production, consider using scipy.signal.resample or librosa.
@@ -251,6 +248,7 @@ class AudioProcessor:
 
         Returns:
             Resampled audio
+
         """
         if self.sample_rate == target_rate:
             return audio
@@ -264,19 +262,18 @@ class AudioProcessor:
 
             # Simple linear interpolation
             indices = np.linspace(0, len(audio) - 1, new_length)
-            resampled = np.interp(indices, np.arange(len(audio)), audio)
-
-            return resampled
+            return np.interp(indices, np.arange(len(audio)), audio)
 
         except Exception as e:
-            raise AudioProcessingError(f"Format conversion failed: {e}") from e
+            msg = f"Format conversion failed: {e}"
+            raise AudioProcessingError(msg) from e
 
     def set_noise_profile(self, noise_sample: np.ndarray) -> None:
-        """
-        Set noise profile for adaptive noise reduction.
+        """Set noise profile for adaptive noise reduction.
 
         Args:
             noise_sample: Sample of background noise
+
         """
         self._noise_profile = noise_sample
         logger.info("Noise profile updated")

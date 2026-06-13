@@ -1,18 +1,20 @@
 """Federated Learning with Differential Privacy."""
+
 from __future__ import annotations
 
 import logging
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.learning.privacy import PrivacyBudget, PrivacyProof
 
 logger = logging.getLogger(__name__)
 
 try:
-    import opacus  # type: ignore[import]
+    import opacus  # type: ignore[import]  # noqa: F401
+
     _OPACUS_AVAILABLE = True
 except ImportError:
     _OPACUS_AVAILABLE = False
@@ -27,11 +29,12 @@ DEFAULT_NOISE_MULTIPLIER = 1.1
 @dataclass
 class FederatedUpdate:
     """A differentially-private gradient update."""
+
     round_id: int
     gradient_delta: list[float]
     epsilon_cost: float
     delta_cost: float
-    proof: Optional[PrivacyProof] = None
+    proof: PrivacyProof | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -63,7 +66,7 @@ class FederatedLearner:
         local_data: list[Any],
         epsilon_cost: float = 0.1,
         delta_cost: float = 1e-6,
-    ) -> Optional[FederatedUpdate]:
+    ) -> FederatedUpdate | None:
         """Train one round with DP guarantees. Returns None if budget exceeded."""
         if self._opted_out:
             logger.info("Opted out; skipping training round")
@@ -96,6 +99,7 @@ class FederatedLearner:
     def _compute_dp_gradient(self, local_data: list[Any]) -> list[float]:
         """Compute differentially-private gradient (stub)."""
         import random
+
         # Stub: return noisy zero gradient
         n = min(len(local_data), 10)
         noise = self.noise_multiplier * self.max_grad_norm

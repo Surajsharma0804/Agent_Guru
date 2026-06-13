@@ -1,5 +1,4 @@
-"""
-Face database module for GuruVision facial recognition system.
+"""Face database module for GuruVision facial recognition system.
 
 Stores identity embeddings and metadata with multi-angle memory support,
 permission-based access control, and JSON persistence.
@@ -18,12 +17,13 @@ Design:
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import numpy as np
 
@@ -45,6 +45,7 @@ class Embedding:
         angle_category: Head pose category at capture time.
         lighting_condition: Lighting category at capture time.
         metadata: Arbitrary extra metadata.
+
     """
 
     vector: np.ndarray  # shape (512,), float32, L2-normalised
@@ -64,6 +65,7 @@ class Identity:
         permission_level: RBAC level: "admin", "user", "guest", or "denied".
         date_added: ISO 8601 timestamp when the identity was first added.
         metadata: Arbitrary extra metadata.
+
     """
 
     name: str
@@ -81,6 +83,7 @@ class MatchResult:
         identity: Matched identity name, or "Unknown" if no match found.
         confidence: Cosine similarity score of the best match (0.0–1.0).
         permission_level: Permission level of the matched identity.
+
     """
 
     identity: str  # name or "Unknown"
@@ -99,6 +102,7 @@ def _l2_normalise(vector: np.ndarray) -> np.ndarray:
 
     Returns:
         Unit-length float32 array with the same shape.
+
     """
     norm = float(np.linalg.norm(vector))
     if norm == 0.0:
@@ -109,7 +113,7 @@ def _l2_normalise(vector: np.ndarray) -> np.ndarray:
 
 def _now_iso() -> str:
     """Return the current UTC time as an ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class FaceDatabase:
@@ -131,6 +135,7 @@ class FaceDatabase:
         >>> result = db.search(emb)
         >>> result.identity
         'Alice'
+
     """
 
     def __init__(
@@ -144,6 +149,7 @@ class FaceDatabase:
 
         Args:
             db_path: Path to the JSON persistence file.
+
         """
         self._db_path = db_path
         self._identities: dict[str, Identity] = {}
@@ -151,7 +157,7 @@ class FaceDatabase:
         # Ensure parent directory exists
         parent = os.path.dirname(db_path)
         if parent:
-            os.makedirs(parent, exist_ok=True)
+            os.makedirs(parent, exist_ok=True)  # noqa: PTH103
 
         self.load()
 
@@ -164,7 +170,7 @@ class FaceDatabase:
         name: str,
         embeddings: list[np.ndarray],
         permission_level: str = "user",
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """Add a new identity with one or more embeddings.
 
@@ -178,6 +184,7 @@ class FaceDatabase:
 
         Returns:
             True on success, False if *embeddings* is empty or *name* is blank.
+
         """
         if not name or not name.strip():
             logger.warning("add_identity: name must not be empty")
@@ -220,7 +227,7 @@ class FaceDatabase:
         embedding: np.ndarray,
         angle_category: str = "frontal",
         lighting_condition: str = "normal",
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """Append a single embedding to an existing identity.
 
@@ -233,6 +240,7 @@ class FaceDatabase:
 
         Returns:
             True on success, False if the identity does not exist.
+
         """
         if name not in self._identities:
             logger.warning("add_embedding: identity '%s' not found", name)
@@ -250,7 +258,7 @@ class FaceDatabase:
         self.save()
         return True
 
-    def get_identity(self, name: str) -> Optional[Identity]:
+    def get_identity(self, name: str) -> Identity | None:
         """Retrieve an identity by name.
 
         Args:
@@ -258,6 +266,7 @@ class FaceDatabase:
 
         Returns:
             The :class:`Identity` object, or ``None`` if not found.
+
         """
         return self._identities.get(name)
 
@@ -266,6 +275,7 @@ class FaceDatabase:
 
         Returns:
             List of all :class:`Identity` objects (may be empty).
+
         """
         return list(self._identities.values())
 
@@ -294,12 +304,13 @@ class FaceDatabase:
             :class:`MatchResult` with the best match, or
             ``MatchResult("Unknown", 0.0, "guest")`` if no match exceeds
             *threshold* or the database is empty.
+
         """
         query = _l2_normalise(embedding)
 
         best_score = -1.0
-        best_name: Optional[str] = None
-        best_emb_vector: Optional[np.ndarray] = None
+        best_name: str | None = None
+        best_emb_vector: np.ndarray | None = None
 
         for identity in self._identities.values():
             for emb in identity.embeddings:
@@ -337,14 +348,13 @@ class FaceDatabase:
         Returns:
             True on success, False if the identity does not exist or the
             permission level is invalid.
+
         """
         if name not in self._identities:
             logger.warning("update_permission: identity '%s' not found", name)
             return False
         if permission_level not in VALID_PERMISSION_LEVELS:
-            logger.warning(
-                "update_permission: invalid permission_level %r", permission_level
-            )
+            logger.warning("update_permission: invalid permission_level %r", permission_level)
             return False
 
         self._identities[name].permission_level = permission_level
@@ -360,6 +370,7 @@ class FaceDatabase:
 
         Returns:
             True if the identity was found and removed, False otherwise.
+
         """
         if name not in self._identities:
             logger.warning("remove_identity: identity '%s' not found", name)
@@ -385,16 +396,14 @@ class FaceDatabase:
         try:
             with open(tmp_path, "w", encoding="utf-8") as fh:
                 json.dump(data, fh, indent=2)
-            os.replace(tmp_path, self._db_path)
+            os.replace(tmp_path, self._db_path)  # noqa: PTH105
             logger.debug("save: database written to '%s'", self._db_path)
-        except OSError as exc:
-            logger.error("save: failed to write database: %s", exc)
+        except OSError:
+            logger.exception("save: failed to write database")
             # Clean up temp file if it exists
             if os.path.exists(tmp_path):
-                try:
-                    os.remove(tmp_path)
-                except OSError:
-                    pass
+                with contextlib.suppress(OSError):
+                    os.remove(tmp_path)  # noqa: PTH107
 
     def load(self) -> None:
         """Load the database from disk.
@@ -416,8 +425,8 @@ class FaceDatabase:
                 len(self._identities),
                 self._db_path,
             )
-        except (OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
-            logger.error("load: failed to load database: %s", exc)
+        except (OSError, json.JSONDecodeError, KeyError, ValueError):
+            logger.exception("load: failed to load database")
             self._identities = {}
 
     # ------------------------------------------------------------------
@@ -429,6 +438,7 @@ class FaceDatabase:
 
         Returns:
             JSON-encoded string representing all identities and embeddings.
+
         """
         return json.dumps(self._serialise(), indent=2)
 
@@ -443,12 +453,13 @@ class FaceDatabase:
 
         Returns:
             True on success, False if the JSON is invalid.
+
         """
         try:
             data = json.loads(json_str)
             imported = self._deserialise(data)
-        except (json.JSONDecodeError, KeyError, ValueError) as exc:
-            logger.error("import_json: failed to parse JSON: %s", exc)
+        except (json.JSONDecodeError, KeyError, ValueError):
+            logger.exception("import_json: failed to parse JSON")
             return False
 
         self._identities.update(imported)
@@ -475,7 +486,7 @@ class FaceDatabase:
                         "angle_category": emb.angle_category,
                         "lighting_condition": emb.lighting_condition,
                         "metadata": emb.metadata,
-                    }
+                    },
                 )
             identities_list.append(
                 {
@@ -484,7 +495,7 @@ class FaceDatabase:
                     "permission_level": identity.permission_level,
                     "date_added": identity.date_added,
                     "metadata": identity.metadata,
-                }
+                },
             )
         return {"version": "1.0", "identities": identities_list}
 
@@ -504,7 +515,7 @@ class FaceDatabase:
                         angle_category=emb_data.get("angle_category", "frontal"),
                         lighting_condition=emb_data.get("lighting_condition", "normal"),
                         metadata=emb_data.get("metadata", {}),
-                    )
+                    ),
                 )
             name = id_data["name"]
             identities[name] = Identity(

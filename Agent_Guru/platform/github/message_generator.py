@@ -1,6 +1,5 @@
-"""
-Module: agent_guru.platform.github.message_generator
-Purpose: Intelligent commit message generation for automated Git operations
+"""Module: agent_guru.platform.github.message_generator
+Purpose: Intelligent commit message generation for automated Git operations.
 
 This module implements commit message generation with:
 - Task context extraction
@@ -29,12 +28,12 @@ Version: 1.0.0
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 # Data Models
+
 
 @dataclass
 class TaskContext:
@@ -45,10 +44,12 @@ class TaskContext:
         task_description: Human-readable task description
         component: Component being modified (optional)
         task_type: Type of task (feature, bugfix, refactor, etc.)
+
     """
+
     task_id: str
     task_description: str
-    component: Optional[str] = None
+    component: str | None = None
     task_type: str = "task"
 
 
@@ -63,7 +64,9 @@ class FileChangeSummary:
         deleted_files: Number of files deleted
         components: Set of components affected
         file_types: Set of file extensions
+
     """
+
     total_files: int
     added_files: int
     modified_files: int
@@ -82,7 +85,9 @@ class CommitMessageTemplate:
         footer_format: Format string for commit footer
         include_file_list: Whether to include file list
         max_header_length: Maximum header length (default: 72)
+
     """
+
     header_format: str = "[{task_type} {task_id}] {task_description}"
     body_format: str = (
         "\n"
@@ -97,8 +102,7 @@ class CommitMessageTemplate:
 
 
 class CommitMessageGenerator:
-    """
-    Intelligent commit message generator.
+    """Intelligent commit message generator.
 
     Generates descriptive commit messages based on:
     - Task context (ID, description, type)
@@ -132,32 +136,31 @@ class CommitMessageGenerator:
         - Message generation: ~10ms for 100 files
         - Component extraction: ~1ms per file
         - Template rendering: ~1ms
+
     """
 
     def __init__(
         self,
-        template: Optional[CommitMessageTemplate] = None,
-        repo_root: Optional[Path] = None
+        template: CommitMessageTemplate | None = None,
+        repo_root: Path | None = None,
     ) -> None:
         """Initialize commit message generator.
 
         Args:
             template: Custom message template (default: standard template)
             repo_root: Repository root path for relative path calculation
+
         """
         self.template = template or CommitMessageTemplate()
         self.repo_root = Path(repo_root) if repo_root else Path.cwd()
 
-        logger.info(
-            f"CommitMessageGenerator initialized: "
-            f"repo_root={self.repo_root}"
-        )
+        logger.info("CommitMessageGenerator initialized: repo_root=%s", self.repo_root)
 
     def generate_message(
         self,
         context: TaskContext,
         changed_files: list[str],
-        file_stats: Optional[dict[str, str]] = None
+        file_stats: dict[str, str] | None = None,
     ) -> str:
         """Generate commit message from task context and file changes.
 
@@ -179,14 +182,18 @@ class CommitMessageGenerator:
             >>> context = TaskContext("1.2", "Add feature", task_type="Feature")
             >>> files = ["src/feature.py", "tests/test_feature.py"]
             >>> message = generator.generate_message(context, files)
+
         """
         # Validate inputs
         if not context.task_id:
-            raise ValueError("Task ID cannot be empty")
+            msg = "Task ID cannot be empty"
+            raise ValueError(msg)
         if not context.task_description:
-            raise ValueError("Task description cannot be empty")
+            msg = "Task description cannot be empty"
+            raise ValueError(msg)
         if not changed_files:
-            raise ValueError("Changed files list cannot be empty")
+            msg = "Changed files list cannot be empty"
+            raise ValueError(msg)
 
         # Analyze file changes
         summary = self._analyze_file_changes(changed_files, file_stats)
@@ -204,7 +211,7 @@ class CommitMessageGenerator:
 
         logger.debug(
             f"Generated commit message: task_id={context.task_id}, "
-            f"files={len(changed_files)}, components={len(summary.components)}"
+            f"files={len(changed_files)}, components={len(summary.components)}",
         )
 
         return message
@@ -214,7 +221,7 @@ class CommitMessageGenerator:
         task_id: str,
         task_description: str,
         changed_files: list[str],
-        task_type: str = "Task"
+        task_type: str = "Task",
     ) -> str:
         """Convenience method to generate message from task parameters.
 
@@ -226,11 +233,12 @@ class CommitMessageGenerator:
 
         Returns:
             Formatted commit message
+
         """
         context = TaskContext(
             task_id=task_id,
             task_description=task_description,
-            task_type=task_type
+            task_type=task_type,
         )
         return self.generate_message(context, changed_files)
 
@@ -239,6 +247,7 @@ class CommitMessageGenerator:
 
         Args:
             template: New template configuration
+
         """
         self.template = template
         logger.info("Commit message template updated")
@@ -248,7 +257,7 @@ class CommitMessageGenerator:
     def _analyze_file_changes(
         self,
         files: list[str],
-        file_stats: Optional[dict[str, str]] = None
+        file_stats: dict[str, str] | None = None,
     ) -> FileChangeSummary:
         """Analyze file changes and extract statistics.
 
@@ -261,6 +270,7 @@ class CommitMessageGenerator:
 
         Returns:
             FileChangeSummary with statistics
+
         """
         added = 0
         modified = 0
@@ -299,10 +309,10 @@ class CommitMessageGenerator:
             modified_files=modified,
             deleted_files=deleted,
             components=components,
-            file_types=file_types
+            file_types=file_types,
         )
 
-    def _extract_component_from_path(self, path: Path) -> Optional[str]:
+    def _extract_component_from_path(self, path: Path) -> str | None:
         """Extract component name from file path.
 
         Extracts component from paths like:
@@ -315,6 +325,7 @@ class CommitMessageGenerator:
 
         Returns:
             Component name or None
+
         """
         parts = path.parts
 
@@ -339,6 +350,7 @@ class CommitMessageGenerator:
 
         Returns:
             Primary component name or "multiple"
+
         """
         if not components:
             return "core"
@@ -353,11 +365,7 @@ class CommitMessageGenerator:
 
         return f"{', '.join(sorted_components[:3])}, ..."
 
-    def _generate_header(
-        self,
-        context: TaskContext,
-        component: str
-    ) -> str:
+    def _generate_header(self, context: TaskContext, component: str) -> str:
         """Generate commit message header.
 
         Args:
@@ -366,13 +374,14 @@ class CommitMessageGenerator:
 
         Returns:
             Formatted header string
+
         """
         # Format header using template
         header = self.template.header_format.format(
             task_type=context.task_type,
             task_id=context.task_id,
             task_description=context.task_description,
-            component=component
+            component=component,
         )
 
         # Truncate if too long
@@ -387,16 +396,12 @@ class CommitMessageGenerator:
                 task_type=context.task_type,
                 task_id=context.task_id,
                 task_description=truncated_desc,
-                component=component
+                component=component,
             )
 
         return header
 
-    def _generate_body(
-        self,
-        summary: FileChangeSummary,
-        files: list[str]
-    ) -> str:
+    def _generate_body(self, summary: FileChangeSummary, files: list[str]) -> str:
         """Generate commit message body.
 
         Args:
@@ -405,6 +410,7 @@ class CommitMessageGenerator:
 
         Returns:
             Formatted body string
+
         """
         # Format components and file types
         components_str = self._extract_primary_component(summary.components)
@@ -426,7 +432,7 @@ class CommitMessageGenerator:
             file_count=summary.total_files,
             components=components_str,
             file_types=file_types_str,
-            change_summary=change_summary
+            change_summary=change_summary,
         )
 
         # Add file list if requested
@@ -445,13 +451,14 @@ class CommitMessageGenerator:
 
         Returns:
             Formatted footer string
+
         """
         # Check if footer format contains placeholders
         if "{task_id}" in self.template.footer_format:
             return self.template.footer_format.format(task_id=context.task_id)
         return self.template.footer_format
 
-    def validate_message(self, message: str) -> tuple[bool, Optional[str]]:
+    def validate_message(self, message: str) -> tuple[bool, str | None]:
         """Validate commit message format.
 
         Checks:
@@ -464,6 +471,7 @@ class CommitMessageGenerator:
 
         Returns:
             Tuple of (is_valid, error_message)
+
         """
         if not message or not message.strip():
             return False, "Message cannot be empty"
@@ -487,12 +495,10 @@ class CommitMessageGenerator:
 CONVENTIONAL_COMMIT_TEMPLATE = CommitMessageTemplate(
     header_format="{task_type}({component}): {task_description}",
     body_format=(
-        "\n"
-        "- {file_count} file(s) changed ({change_summary})\n"
-        "- File types: {file_types}\n"
+        "\n- {file_count} file(s) changed ({change_summary})\n- File types: {file_types}\n"
     ),
     footer_format="\nTask-ID: {task_id}\nAuto-committed by Agent_Guru",
-    max_header_length=72
+    max_header_length=72,
 )
 
 DETAILED_TEMPLATE = CommitMessageTemplate(
@@ -507,12 +513,12 @@ DETAILED_TEMPLATE = CommitMessageTemplate(
     ),
     footer_format="\nAuto-committed by Agent_Guru",
     include_file_list=True,
-    max_header_length=100
+    max_header_length=100,
 )
 
 MINIMAL_TEMPLATE = CommitMessageTemplate(
     header_format="[{task_id}] {task_description}",
     body_format="",
     footer_format="",
-    max_header_length=72
+    max_header_length=72,
 )

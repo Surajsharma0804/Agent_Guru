@@ -1,5 +1,4 @@
-"""
-Optimization module for Agent Guru Platform Integration.
+"""Optimization module for Agent Guru Platform Integration.
 
 This module provides optimization utilities including duplicate operation detection,
 caching strategies, and performance enhancements.
@@ -26,17 +25,17 @@ from Agent_Guru.platform.optimization.lru_cache import (
 )
 
 __all__ = [
-    "DuplicateOperationDetector",
     "CacheEntry",
-    "CacheStats",
-    "Operation",
-    "OperationType",
-    "OperationResult",
-    "LRUCache",
     "CacheStatistics",
-    "get_global_cache",
-    "DuplicateAwareFileOperations",
+    "CacheStats",
     "DuplicateAwareCommandExecutor",
+    "DuplicateAwareFileOperations",
     "DuplicateAwareGitOperations",
+    "DuplicateOperationDetector",
     "DuplicateStats",
+    "LRUCache",
+    "Operation",
+    "OperationResult",
+    "OperationType",
+    "get_global_cache",
 ]

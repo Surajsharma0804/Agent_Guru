@@ -1,6 +1,4 @@
-"""
-Timer tool for setting and canceling timers.
-"""
+"""Timer tool for setting and canceling timers."""
 
 import time
 from typing import Any
@@ -50,6 +48,7 @@ class SetTimerTool(Tool):
 
         Returns:
             Execution result with timer ID and expiration time
+
         """
         duration_seconds = kwargs["duration_seconds"]
         label = kwargs.get("label", "Timer")
@@ -93,7 +92,7 @@ class SetTimerTool(Tool):
             type=ToolParameterType.STRING,
             description="ID of the timer to cancel",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=50,
@@ -111,6 +110,7 @@ class CancelTimerTool(Tool):
 
         Returns:
             Execution result
+
         """
         timer_id = kwargs["timer_id"]
 

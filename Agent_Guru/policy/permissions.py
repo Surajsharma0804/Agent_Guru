@@ -1,5 +1,4 @@
-"""
-Permission Manager - Grant, revoke, and check fine-grained permissions.
+"""Permission Manager - Grant, revoke, and check fine-grained permissions.
 
 Provides a high-level API over the RBAC/ABAC system for managing
 explicit permission grants on specific resources.
@@ -11,8 +10,8 @@ from __future__ import annotations
 
 import html
 import logging
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from Agent_Guru.policy.access_controller import AccessController
 from Agent_Guru.policy.conflict_resolver import ConflictResolver
@@ -24,8 +23,10 @@ from Agent_Guru.policy.models import (
     Principal,
     Resource,
 )
-from Agent_Guru.policy.policy_storage import PolicyStorage
 from Agent_Guru.policy.rule_evaluator import RuleEvaluator
+
+if TYPE_CHECKING:
+    from Agent_Guru.policy.policy_storage import PolicyStorage
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +64,9 @@ class PermissionManager:
         principal_id: str,
         resource_id: str,
         actions: list[str],
-        conditions: Optional[dict[str, Any]] = None,
+        conditions: dict[str, Any] | None = None,
         priority: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ) -> str:
         """Grant a principal permission to perform actions on a resource.
 
@@ -81,12 +82,14 @@ class PermissionManager:
 
         Returns:
             ID of the created policy.
+
         """
         policy_id = f"perm:{html.escape(str(principal_id))}:{html.escape(str(resource_id))}:{':'.join(sorted(actions))}"
         policy = Policy(
             id=policy_id,
             version=1,
-            name=name or f"Grant {html.escape(str(principal_id))} on {html.escape(str(resource_id))}",
+            name=name
+            or f"Grant {html.escape(str(principal_id))} on {html.escape(str(resource_id))}",
             description="Auto-generated permission grant",
             effect=PolicyEffect.ALLOW,
             priority=priority,
@@ -94,8 +97,8 @@ class PermissionManager:
             resources=[resource_id],
             actions=actions,
             conditions=conditions or {},
-            created_at=datetime.now(tz=timezone.utc),
-            updated_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
+            updated_at=datetime.now(tz=UTC),
             active=True,
         )
         existing = self.storage.get_policy(policy_id)
@@ -110,9 +113,9 @@ class PermissionManager:
         principal_id: str,
         resource_id: str,
         actions: list[str],
-        conditions: Optional[dict[str, Any]] = None,
+        conditions: dict[str, Any] | None = None,
         priority: int = 100,
-        name: Optional[str] = None,
+        name: str | None = None,
     ) -> str:
         """Explicitly deny a principal from performing actions on a resource.
 
@@ -128,12 +131,14 @@ class PermissionManager:
 
         Returns:
             ID of the created policy.
+
         """
         policy_id = f"deny:{html.escape(str(principal_id))}:{html.escape(str(resource_id))}:{':'.join(sorted(actions))}"
         policy = Policy(
             id=policy_id,
             version=1,
-            name=name or f"Deny {html.escape(str(principal_id))} on {html.escape(str(resource_id))}",
+            name=name
+            or f"Deny {html.escape(str(principal_id))} on {html.escape(str(resource_id))}",
             description="Auto-generated permission denial",
             effect=PolicyEffect.DENY,
             priority=priority,
@@ -141,8 +146,8 @@ class PermissionManager:
             resources=[resource_id],
             actions=actions,
             conditions=conditions or {},
-            created_at=datetime.now(tz=timezone.utc),
-            updated_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
+            updated_at=datetime.now(tz=UTC),
             active=True,
         )
         existing = self.storage.get_policy(policy_id)
@@ -159,6 +164,7 @@ class PermissionManager:
             principal_id: Principal whose permission to revoke.
             resource_id: Resource to revoke access on.
             actions: Actions to revoke.
+
         """
         policy_id = f"perm:{principal_id}:{resource_id}:{':'.join(sorted(actions))}"
         self.storage.delete_policy(policy_id)
@@ -172,7 +178,7 @@ class PermissionManager:
         principal: Principal,
         resource: Resource,
         action: str,
-        context: Optional[dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> bool:
         """Check if a principal has permission to perform an action on a resource.
 
@@ -184,6 +190,7 @@ class PermissionManager:
 
         Returns:
             True if access is allowed, False otherwise.
+
         """
         decision = self._controller.check_access(
             principal=principal,
@@ -197,7 +204,7 @@ class PermissionManager:
         self,
         principal: Principal,
         resource: Resource,
-        candidate_actions: Optional[list[str]] = None,
+        candidate_actions: list[str] | None = None,
     ) -> set[str]:
         """Return the set of actions a principal is allowed on a resource.
 
@@ -208,6 +215,7 @@ class PermissionManager:
 
         Returns:
             Set of allowed action strings.
+
         """
         if candidate_actions is None:
             candidate_actions = ["read", "write", "delete", "execute", "admin"]

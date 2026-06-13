@@ -1,5 +1,4 @@
-"""
-Error response strategies for conversation.
+"""Error response strategies for conversation.
 
 This module implements:
 - Error classification (user error, system error, external error)
@@ -12,7 +11,7 @@ Requirements: 19.5, 26.4
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.models.error import Error, ErrorType
 
@@ -67,14 +66,14 @@ class ErrorClassifier:
 
     @staticmethod
     def classify_error(error: Error) -> ErrorCategory:
-        """
-        Classify error into high-level category.
+        """Classify error into high-level category.
 
         Args:
             error: The error to classify
 
         Returns:
             Error category
+
         """
         # Try to map from error type
         if error.error_type in ErrorClassifier.ERROR_CATEGORY_MAP:
@@ -85,14 +84,14 @@ class ErrorClassifier:
 
     @staticmethod
     def is_recoverable(error: Error) -> bool:
-        """
-        Determine if error is recoverable.
+        """Determine if error is recoverable.
 
         Args:
             error: The error
 
         Returns:
             True if recoverable
+
         """
         # Check error's own recoverable flag
         if hasattr(error, "recoverable"):
@@ -113,21 +112,20 @@ class ErrorClassifier:
 
     @staticmethod
     def get_empathy_level(category: ErrorCategory) -> float:
-        """
-        Get appropriate empathy level for error category.
+        """Get appropriate empathy level for error category.
 
         Args:
             category: Error category
 
         Returns:
             Empathy level (0.0 to 1.0)
+
         """
         if category == ErrorCategory.USER_ERROR:
             return 0.8  # High empathy for user errors
-        elif category == ErrorCategory.EXTERNAL_ERROR:
+        if category == ErrorCategory.EXTERNAL_ERROR:
             return 0.6  # Medium empathy for external errors
-        else:
-            return 0.4  # Lower empathy for system errors
+        return 0.4  # Lower empathy for system errors
 
 
 class ErrorResponseStrategy:
@@ -232,15 +230,16 @@ class ErrorResponseStrategy:
         ],
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize error response strategy."""
         self.classifier = ErrorClassifier()
 
     def generate_error_response(
-        self, error: Error, context: Optional[dict[str, Any]] = None
+        self,
+        error: Error,
+        context: dict[str, Any] | None = None,
     ) -> ErrorResponse:
-        """
-        Generate appropriate error response.
+        """Generate appropriate error response.
 
         Args:
             error: The error
@@ -248,6 +247,7 @@ class ErrorResponseStrategy:
 
         Returns:
             ErrorResponse with message and suggestions
+
         """
         # Classify error
         category = self.classifier.classify_error(error)
@@ -269,10 +269,12 @@ class ErrorResponseStrategy:
         )
 
     def _generate_message(
-        self, error: Error, category: ErrorCategory, context: Optional[dict[str, Any]]
+        self,
+        error: Error,
+        category: ErrorCategory,
+        context: dict[str, Any] | None,
     ) -> str:
-        """
-        Generate error message.
+        """Generate error message.
 
         Args:
             error: The error
@@ -281,6 +283,7 @@ class ErrorResponseStrategy:
 
         Returns:
             Error message string
+
         """
         # Get template
         template_key = (error.error_type, category)
@@ -305,10 +308,12 @@ class ErrorResponseStrategy:
         return message
 
     def _generate_suggestions(
-        self, error: Error, is_recoverable: bool, context: Optional[dict[str, Any]]
+        self,
+        error: Error,
+        is_recoverable: bool,
+        context: dict[str, Any] | None,
     ) -> list[str]:
-        """
-        Generate actionable suggestions.
+        """Generate actionable suggestions.
 
         Args:
             error: The error
@@ -317,6 +322,7 @@ class ErrorResponseStrategy:
 
         Returns:
             List of suggestions
+
         """
         if not is_recoverable:
             return []
@@ -329,7 +335,8 @@ class ErrorResponseStrategy:
         for suggestion in suggestions:
             try:
                 formatted_suggestion = suggestion.format(
-                    alternatives=self._get_alternatives(context), details=error.message
+                    alternatives=self._get_alternatives(context),
+                    details=error.message,
                 )
                 formatted.append(formatted_suggestion)
             except KeyError:
@@ -337,9 +344,8 @@ class ErrorResponseStrategy:
 
         return formatted
 
-    def _get_first_suggestion(self, error: Error, context: Optional[dict[str, Any]]) -> str:
-        """
-        Get first suggestion for inline use.
+    def _get_first_suggestion(self, error: Error, context: dict[str, Any] | None) -> str:
+        """Get first suggestion for inline use.
 
         Args:
             error: The error
@@ -347,6 +353,7 @@ class ErrorResponseStrategy:
 
         Returns:
             First suggestion string
+
         """
         suggestions = self._generate_suggestions(error, True, context)
         return suggestions[0] if suggestions else "Please try again."
@@ -363,7 +370,7 @@ class ErrorResponseStrategy:
             return error.details["tool_id"]
         return "the service"
 
-    def _get_alternatives(self, context: Optional[dict[str, Any]]) -> str:
+    def _get_alternatives(self, context: dict[str, Any] | None) -> str:
         """Get alternative actions from context."""
         if context and "alternatives" in context:
             alternatives = context["alternatives"]
@@ -372,10 +379,11 @@ class ErrorResponseStrategy:
         return "other options"
 
     def adapt_for_tone(
-        self, response: ErrorResponse, empathy_multiplier: float = 1.0
+        self,
+        response: ErrorResponse,
+        empathy_multiplier: float = 1.0,
     ) -> ErrorResponse:
-        """
-        Adapt error response for tone preferences.
+        """Adapt error response for tone preferences.
 
         Args:
             response: Original error response
@@ -383,6 +391,7 @@ class ErrorResponseStrategy:
 
         Returns:
             Adapted error response
+
         """
         # Adjust empathy level
         adjusted_empathy = min(1.0, response.empathy_level * empathy_multiplier)

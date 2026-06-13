@@ -1,5 +1,4 @@
-"""
-Meta-Learning System for Self-Improvement Engine.
+"""Meta-Learning System for Self-Improvement Engine.
 
 This module implements pattern recognition and strategy recommendation
 based on historical task execution data. It identifies generalizable
@@ -35,9 +34,9 @@ import hashlib
 import json
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 from sklearn.cluster import DBSCAN
@@ -46,14 +45,14 @@ from sklearn.preprocessing import StandardScaler
 
 class PatternType(Enum):
     """Types of patterns identified by meta-learner."""
+
     SUCCESS_PATTERN = "success"
     FAILURE_PATTERN = "failure"
 
 
 @dataclass
 class TaskFeatures:
-    """
-    Extracted features from a task execution.
+    """Extracted features from a task execution.
 
     Features are numerical representations of task characteristics
     used for pattern recognition and clustering.
@@ -67,7 +66,9 @@ class TaskFeatures:
         tool_selection_correct: Whether tool selection was correct (1/0)
         hallucination_detected: Whether hallucination was detected (1/0)
         context_complexity: Complexity score of task context
+
     """
+
     task_type_hash: int
     strategy_hash: int
     execution_time_ms: float
@@ -78,31 +79,33 @@ class TaskFeatures:
     context_complexity: float
 
     def to_vector(self) -> np.ndarray:
-        """
-        Convert features to numerical vector for ML.
+        """Convert features to numerical vector for ML.
 
         Returns:
             NumPy array of shape (8,) with all features
 
         Time Complexity: O(1)
         Space Complexity: O(1)
+
         """
-        return np.array([
-            float(self.task_type_hash % 10000),  # Normalize hash
-            float(self.strategy_hash % 10000),   # Normalize hash
-            self.execution_time_ms,
-            float(self.success),
-            self.reasoning_quality,
-            float(self.tool_selection_correct),
-            float(self.hallucination_detected),
-            self.context_complexity
-        ], dtype=np.float32)
+        return np.array(
+            [
+                float(self.task_type_hash % 10000),  # Normalize hash
+                float(self.strategy_hash % 10000),  # Normalize hash
+                self.execution_time_ms,
+                float(self.success),
+                self.reasoning_quality,
+                float(self.tool_selection_correct),
+                float(self.hallucination_detected),
+                self.context_complexity,
+            ],
+            dtype=np.float32,
+        )
 
 
 @dataclass
 class Pattern:
-    """
-    A learned pattern from task executions.
+    """A learned pattern from task executions.
 
     Patterns represent clusters of similar task executions that
     share common characteristics leading to success or failure.
@@ -117,7 +120,9 @@ class Pattern:
         sample_count: Number of executions in this pattern
         created_at: When pattern was first identified
         last_updated: When pattern was last updated
+
     """
+
     pattern_id: str
     pattern_type: PatternType
     centroid: np.ndarray
@@ -130,8 +135,7 @@ class Pattern:
 
 
 class MetaLearner:
-    """
-    Meta-learning system for pattern recognition and strategy recommendation.
+    """Meta-learning system for pattern recognition and strategy recommendation.
 
     Analyzes historical task executions to identify patterns that predict
     success or failure. Recommends optimal strategies for new tasks based
@@ -150,6 +154,7 @@ class MetaLearner:
         >>> learner.process_execution(task_execution)
         >>> strategies = learner.recommend_strategies("task_type", context)
         >>> print(f"Recommended: {strategies}")
+
     """
 
     def __init__(
@@ -157,10 +162,9 @@ class MetaLearner:
         storage_path: str,
         min_samples: int = 5,
         eps: float = 0.5,
-        min_confidence: float = 0.6
-    ):
-        """
-        Initialize meta-learner.
+        min_confidence: float = 0.6,
+    ) -> None:
+        """Initialize meta-learner.
 
         Args:
             storage_path: Path to SQLite database
@@ -170,6 +174,7 @@ class MetaLearner:
 
         Time Complexity: O(1)
         Space Complexity: O(1)
+
         """
         self.storage_path = storage_path
         self.min_samples = min_samples
@@ -180,15 +185,14 @@ class MetaLearner:
         self.scaler = StandardScaler()
 
         # Cache for patterns (loaded on demand)
-        self._pattern_cache: Optional[list[Pattern]] = None
-        self._cache_timestamp: Optional[datetime] = None
+        self._pattern_cache: list[Pattern] | None = None
+        self._cache_timestamp: datetime | None = None
 
         # Initialize pattern storage table
         self._init_pattern_storage()
 
     def _init_pattern_storage(self) -> None:
-        """
-        Initialize pattern storage table.
+        """Initialize pattern storage table.
 
         Creates meta_patterns table if it doesn't exist.
 
@@ -229,8 +233,7 @@ class MetaLearner:
             conn.commit()
 
     def process_execution(self, execution: Any) -> None:
-        """
-        Process a task execution for meta-learning.
+        """Process a task execution for meta-learning.
 
         Extracts features and triggers incremental pattern update.
 
@@ -239,6 +242,7 @@ class MetaLearner:
 
         Time Complexity: O(1) amortized
         Space Complexity: O(1)
+
         """
         # Extract features
         features = self.extract_features(execution)
@@ -254,8 +258,7 @@ class MetaLearner:
             self.update_patterns()
 
     def extract_features(self, execution: Any) -> TaskFeatures:
-        """
-        Extract numerical features from task execution.
+        """Extract numerical features from task execution.
 
         Converts task execution into numerical feature vector for ML.
 
@@ -267,6 +270,7 @@ class MetaLearner:
 
         Time Complexity: O(1)
         Space Complexity: O(1)
+
         """
         # Hash task type and strategy for categorical encoding
         task_type_hash = self._hash_string(execution.task_type)
@@ -281,10 +285,14 @@ class MetaLearner:
         tool_selection_correct = 0
         hallucination_detected = 0
 
-        if hasattr(execution, 'error_details') and execution.error_details:
-            reasoning_quality = float(execution.error_details.get('reasoning_quality', 0.0))
-            tool_selection_correct = 1 if execution.error_details.get('tool_selection_correct') else 0
-            hallucination_detected = 1 if execution.error_details.get('hallucination_detected') else 0
+        if hasattr(execution, "error_details") and execution.error_details:
+            reasoning_quality = float(execution.error_details.get("reasoning_quality", 0.0))
+            tool_selection_correct = (
+                1 if execution.error_details.get("tool_selection_correct") else 0
+            )
+            hallucination_detected = (
+                1 if execution.error_details.get("hallucination_detected") else 0
+            )
         elif execution.success:
             # Successful executions have high reasoning quality
             reasoning_quality = 1.0
@@ -301,12 +309,11 @@ class MetaLearner:
             reasoning_quality=reasoning_quality,
             tool_selection_correct=tool_selection_correct,
             hallucination_detected=hallucination_detected,
-            context_complexity=context_complexity
+            context_complexity=context_complexity,
         )
 
     def _hash_string(self, s: str) -> int:
-        """
-        Hash string to integer for categorical encoding.
+        """Hash string to integer for categorical encoding.
 
         Args:
             s: String to hash
@@ -316,12 +323,12 @@ class MetaLearner:
 
         Time Complexity: O(len(s))
         Space Complexity: O(1)
+
         """
-        return int(hashlib.md5(s.encode(), usedforsecurity=False).hexdigest()[:8], 16)  # noqa: S324
+        return int(hashlib.md5(s.encode(), usedforsecurity=False).hexdigest()[:8], 16)
 
     def _calculate_context_complexity(self, context: dict[str, Any]) -> float:
-        """
-        Calculate complexity score for task context.
+        """Calculate complexity score for task context.
 
         Measures how complex the task context is based on:
         - Number of context keys
@@ -336,6 +343,7 @@ class MetaLearner:
 
         Time Complexity: O(n) where n is context size
         Space Complexity: O(1)
+
         """
         if not context:
             return 0.0
@@ -351,17 +359,17 @@ class MetaLearner:
         size_kb = len(context_str) / 1024.0
 
         # Normalize to 0-1 range
-        complexity = min(1.0, (
-            (num_keys / 20.0) * 0.4 +      # Max 20 keys
-            (max_depth / 5.0) * 0.3 +       # Max depth 5
-            (size_kb / 10.0) * 0.3          # Max 10KB
-        ))
-
-        return complexity
+        return min(
+            1.0,
+            (
+                (num_keys / 20.0) * 0.4  # Max 20 keys
+                + (max_depth / 5.0) * 0.3  # Max depth 5
+                + (size_kb / 10.0) * 0.3  # Max 10KB
+            ),
+        )
 
     def _get_dict_depth(self, d: dict, current_depth: int = 1) -> int:
-        """
-        Get maximum depth of nested dictionary.
+        """Get maximum depth of nested dictionary.
 
         Args:
             d: Dictionary to measure
@@ -372,23 +380,18 @@ class MetaLearner:
 
         Time Complexity: O(n) where n is total elements
         Space Complexity: O(d) where d is depth (recursion stack)
+
         """
         if not isinstance(d, dict) or not d:
             return current_depth
 
         return max(
-            self._get_dict_depth(v, current_depth + 1)
-            if isinstance(v, dict) else current_depth
+            self._get_dict_depth(v, current_depth + 1) if isinstance(v, dict) else current_depth
             for v in d.values()
         )
 
-    def _store_execution_features(
-        self,
-        execution: Any,
-        features: TaskFeatures
-    ) -> None:
-        """
-        Store execution features for later clustering.
+    def _store_execution_features(self, execution: Any, features: TaskFeatures) -> None:
+        """Store execution features for later clustering.
 
         Args:
             execution: TaskExecution object
@@ -396,6 +399,7 @@ class MetaLearner:
 
         Time Complexity: O(1)
         Space Complexity: O(1)
+
         """
         with sqlite3.connect(self.storage_path) as conn:
             cursor = conn.cursor()
@@ -418,24 +422,26 @@ class MetaLearner:
             feature_vector = features.to_vector()
             feature_blob = feature_vector.tobytes()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO execution_features (
                     task_id, task_type, strategy_id, success, features, timestamp
                 ) VALUES (?, ?, ?, ?, ?, ?)
-            """, (
-                execution.task_id,
-                execution.task_type,
-                execution.strategy_id,
-                1 if execution.success else 0,
-                feature_blob,
-                execution.timestamp.isoformat()
-            ))
+            """,
+                (
+                    execution.task_id,
+                    execution.task_type,
+                    execution.strategy_id,
+                    1 if execution.success else 0,
+                    feature_blob,
+                    execution.timestamp.isoformat(),
+                ),
+            )
 
             conn.commit()
 
     def _should_update_patterns(self) -> bool:
-        """
-        Check if patterns should be updated.
+        """Check if patterns should be updated.
 
         Updates patterns when:
         - Enough new executions since last update (>10)
@@ -446,6 +452,7 @@ class MetaLearner:
 
         Time Complexity: O(1)
         Space Complexity: O(1)
+
         """
         with sqlite3.connect(self.storage_path) as conn:
             cursor = conn.cursor()
@@ -462,8 +469,7 @@ class MetaLearner:
         return pattern_count == 0 or total_count % 10 == 0
 
     def update_patterns(self) -> None:
-        """
-        Update patterns using clustering on all execution data.
+        """Update patterns using clustering on all execution data.
 
         Performs DBSCAN clustering on successful and failed executions
         separately to identify patterns.
@@ -480,7 +486,7 @@ class MetaLearner:
             success_patterns = self._cluster_features(
                 success_features,
                 success_data,
-                PatternType.SUCCESS_PATTERN
+                PatternType.SUCCESS_PATTERN,
             )
             self._store_patterns(success_patterns)
 
@@ -489,16 +495,12 @@ class MetaLearner:
             failure_patterns = self._cluster_features(
                 failure_features,
                 failure_data,
-                PatternType.FAILURE_PATTERN
+                PatternType.FAILURE_PATTERN,
             )
             self._store_patterns(failure_patterns)
 
-    def _load_features(
-        self,
-        success: bool
-    ) -> tuple[np.ndarray, list[dict[str, Any]]]:
-        """
-        Load execution features from database.
+    def _load_features(self, success: bool) -> tuple[np.ndarray, list[dict[str, Any]]]:
+        """Load execution features from database.
 
         Args:
             success: Load successful (True) or failed (False) executions
@@ -508,17 +510,21 @@ class MetaLearner:
 
         Time Complexity: O(n) where n is number of executions
         Space Complexity: O(n)
+
         """
         with sqlite3.connect(self.storage_path) as conn:
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT task_id, task_type, strategy_id, features
                 FROM execution_features
                 WHERE success = ?
                 ORDER BY timestamp DESC
                 LIMIT 1000
-            """, (1 if success else 0,))
+            """,
+                (1 if success else 0,),
+            )
 
             rows = cursor.fetchall()
 
@@ -532,11 +538,7 @@ class MetaLearner:
         for task_id, task_type, strategy_id, feature_blob in rows:
             feature_vector = np.frombuffer(feature_blob, dtype=np.float32)
             features.append(feature_vector)
-            data.append({
-                'task_id': task_id,
-                'task_type': task_type,
-                'strategy_id': strategy_id
-            })
+            data.append({"task_id": task_id, "task_type": task_type, "strategy_id": strategy_id})
 
         return np.array(features), data
 
@@ -544,10 +546,9 @@ class MetaLearner:
         self,
         features: np.ndarray,
         data: list[dict[str, Any]],
-        pattern_type: PatternType
+        pattern_type: PatternType,
     ) -> list[Pattern]:
-        """
-        Cluster features using DBSCAN.
+        """Cluster features using DBSCAN.
 
         Args:
             features: Feature matrix (n_samples, n_features)
@@ -559,6 +560,7 @@ class MetaLearner:
 
         Time Complexity: O(n log n)
         Space Complexity: O(n)
+
         """
         # Normalize features
         features_scaled = self.scaler.fit_transform(features)
@@ -596,20 +598,16 @@ class MetaLearner:
                 recommended_strategies=recommended_strategies,
                 confidence=confidence,
                 sample_count=len(cluster_data),
-                created_at=datetime.now(tz=timezone.utc),
-                last_updated=datetime.now(tz=timezone.utc)
+                created_at=datetime.now(tz=UTC),
+                last_updated=datetime.now(tz=UTC),
             )
 
             patterns.append(pattern)
 
         return patterns
 
-    def _calculate_feature_ranges(
-        self,
-        features: np.ndarray
-    ) -> dict[str, tuple[float, float]]:
-        """
-        Calculate min/max ranges for each feature.
+    def _calculate_feature_ranges(self, features: np.ndarray) -> dict[str, tuple[float, float]]:
+        """Calculate min/max ranges for each feature.
 
         Args:
             features: Feature matrix
@@ -619,33 +617,27 @@ class MetaLearner:
 
         Time Complexity: O(n * m) where n=samples, m=features
         Space Complexity: O(m)
+
         """
         feature_names = [
-            'task_type_hash',
-            'strategy_hash',
-            'execution_time_ms',
-            'success',
-            'reasoning_quality',
-            'tool_selection_correct',
-            'hallucination_detected',
-            'context_complexity'
+            "task_type_hash",
+            "strategy_hash",
+            "execution_time_ms",
+            "success",
+            "reasoning_quality",
+            "tool_selection_correct",
+            "hallucination_detected",
+            "context_complexity",
         ]
 
         ranges = {}
         for i, name in enumerate(feature_names):
-            ranges[name] = (
-                float(np.min(features[:, i])),
-                float(np.max(features[:, i]))
-            )
+            ranges[name] = (float(np.min(features[:, i])), float(np.max(features[:, i])))
 
         return ranges
 
-    def _extract_strategies(
-        self,
-        cluster_data: list[dict[str, Any]]
-    ) -> list[str]:
-        """
-        Extract most common strategies from cluster.
+    def _extract_strategies(self, cluster_data: list[dict[str, Any]]) -> list[str]:
+        """Extract most common strategies from cluster.
 
         Args:
             cluster_data: Execution data for cluster members
@@ -655,26 +647,22 @@ class MetaLearner:
 
         Time Complexity: O(n log n)
         Space Complexity: O(n)
+
         """
         strategy_counts: dict[str, int] = {}
 
         for data in cluster_data:
-            strategy_id = data['strategy_id']
+            strategy_id = data["strategy_id"]
             strategy_counts[strategy_id] = strategy_counts.get(strategy_id, 0) + 1
 
         # Sort by frequency
-        sorted_strategies = sorted(
-            strategy_counts.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        sorted_strategies = sorted(strategy_counts.items(), key=lambda x: x[1], reverse=True)
 
         # Return top 3 strategies
         return [s[0] for s in sorted_strategies[:3]]
 
     def _calculate_confidence(self, sample_count: int) -> float:
-        """
-        Calculate confidence score based on sample size.
+        """Calculate confidence score based on sample size.
 
         Args:
             sample_count: Number of samples in pattern
@@ -684,17 +672,13 @@ class MetaLearner:
 
         Time Complexity: O(1)
         Space Complexity: O(1)
+
         """
         # Confidence increases with sample size, plateaus at 50 samples
         return min(1.0, sample_count / 50.0)
 
-    def _generate_pattern_id(
-        self,
-        pattern_type: PatternType,
-        centroid: np.ndarray
-    ) -> str:
-        """
-        Generate unique pattern ID.
+    def _generate_pattern_id(self, pattern_type: PatternType, centroid: np.ndarray) -> str:
+        """Generate unique pattern ID.
 
         Args:
             pattern_type: Type of pattern
@@ -705,51 +689,54 @@ class MetaLearner:
 
         Time Complexity: O(1)
         Space Complexity: O(1)
+
         """
-        centroid_hash = hashlib.md5(centroid.tobytes(), usedforsecurity=False).hexdigest()[:8]  # noqa: S324
+        centroid_hash = hashlib.md5(centroid.tobytes(), usedforsecurity=False).hexdigest()[:8]
         return f"{pattern_type.value}_{centroid_hash}"
 
     def _store_patterns(self, patterns: list[Pattern]) -> None:
-        """
-        Store patterns in database.
+        """Store patterns in database.
 
         Args:
             patterns: List of patterns to store
 
         Time Complexity: O(n) where n is number of patterns
         Space Complexity: O(1)
+
         """
         with sqlite3.connect(self.storage_path) as conn:
             cursor = conn.cursor()
 
             for pattern in patterns:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT OR REPLACE INTO meta_patterns (
                         pattern_id, pattern_type, centroid, feature_ranges,
                         recommended_strategies, confidence, sample_count,
                         created_at, last_updated
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    pattern.pattern_id,
-                    pattern.pattern_type.value,
-                    pattern.centroid.tobytes(),
-                    json.dumps(pattern.feature_ranges),
-                    json.dumps(pattern.recommended_strategies),
-                    pattern.confidence,
-                    pattern.sample_count,
-                    pattern.created_at.isoformat(),
-                    pattern.last_updated.isoformat()
-                ))
+                """,
+                    (
+                        pattern.pattern_id,
+                        pattern.pattern_type.value,
+                        pattern.centroid.tobytes(),
+                        json.dumps(pattern.feature_ranges),
+                        json.dumps(pattern.recommended_strategies),
+                        pattern.confidence,
+                        pattern.sample_count,
+                        pattern.created_at.isoformat(),
+                        pattern.last_updated.isoformat(),
+                    ),
+                )
 
             conn.commit()
 
     def recommend_strategies(
         self,
         task_type: str,
-        context: Optional[dict[str, Any]] = None
+        context: dict[str, Any] | None = None,
     ) -> list[str]:
-        """
-        Recommend strategies for a new task based on patterns.
+        """Recommend strategies for a new task based on patterns.
 
         Matches task characteristics against known success patterns
         and returns recommended strategies.
@@ -763,6 +750,7 @@ class MetaLearner:
 
         Time Complexity: O(k) where k is number of patterns
         Space Complexity: O(k)
+
         """
         # Load patterns if not cached
         if self._pattern_cache is None:
@@ -775,7 +763,7 @@ class MetaLearner:
         matching_patterns = self._match_patterns(
             task_features,
             self._pattern_cache,
-            PatternType.SUCCESS_PATTERN
+            PatternType.SUCCESS_PATTERN,
         )
 
         # Extract recommended strategies
@@ -795,14 +783,14 @@ class MetaLearner:
         return unique_recommendations
 
     def _load_patterns(self) -> list[Pattern]:
-        """
-        Load all patterns from database.
+        """Load all patterns from database.
 
         Returns:
             List of all patterns
 
         Time Complexity: O(n) where n is number of patterns
         Space Complexity: O(n)
+
         """
         with sqlite3.connect(self.storage_path) as conn:
             cursor = conn.cursor()
@@ -826,19 +814,14 @@ class MetaLearner:
                     confidence=row[5],
                     sample_count=row[6],
                     created_at=datetime.fromisoformat(row[7]),
-                    last_updated=datetime.fromisoformat(row[8])
+                    last_updated=datetime.fromisoformat(row[8]),
                 )
                 patterns.append(pattern)
 
         return patterns
 
-    def _extract_task_features(
-        self,
-        task_type: str,
-        context: dict[str, Any]
-    ) -> np.ndarray:
-        """
-        Extract features for a new task (without execution data).
+    def _extract_task_features(self, task_type: str, context: dict[str, Any]) -> np.ndarray:
+        """Extract features for a new task (without execution data).
 
         Args:
             task_type: Type of task
@@ -849,30 +832,33 @@ class MetaLearner:
 
         Time Complexity: O(1)
         Space Complexity: O(1)
+
         """
         task_type_hash = self._hash_string(task_type)
         context_complexity = self._calculate_context_complexity(context)
 
         # Create feature vector with defaults for unknown values
-        return np.array([
-            float(task_type_hash % 10000),
-            0.0,  # strategy_hash unknown
-            0.0,  # execution_time_ms unknown
-            0.0,  # success unknown
-            0.0,  # reasoning_quality unknown
-            0.0,  # tool_selection_correct unknown
-            0.0,  # hallucination_detected unknown
-            context_complexity
-        ], dtype=np.float32)
+        return np.array(
+            [
+                float(task_type_hash % 10000),
+                0.0,  # strategy_hash unknown
+                0.0,  # execution_time_ms unknown
+                0.0,  # success unknown
+                0.0,  # reasoning_quality unknown
+                0.0,  # tool_selection_correct unknown
+                0.0,  # hallucination_detected unknown
+                context_complexity,
+            ],
+            dtype=np.float32,
+        )
 
     def _match_patterns(
         self,
         task_features: np.ndarray,
         patterns: list[Pattern],
-        pattern_type: PatternType
+        pattern_type: PatternType,
     ) -> list[tuple[Pattern, float]]:
-        """
-        Match task features against patterns.
+        """Match task features against patterns.
 
         Args:
             task_features: Feature vector for new task
@@ -884,6 +870,7 @@ class MetaLearner:
 
         Time Complexity: O(k) where k is number of patterns
         Space Complexity: O(k)
+
         """
         matches = []
 
@@ -903,8 +890,7 @@ class MetaLearner:
         return matches[:5]  # Return top 5 matches
 
     def analyze_feature_correlations(self) -> dict[str, float]:
-        """
-        Analyze correlation between task features and success.
+        """Analyze correlation between task features and success.
 
         Calculates Pearson correlation coefficient between each feature
         and task success to identify which features predict success.
@@ -914,6 +900,7 @@ class MetaLearner:
 
         Time Complexity: O(n) where n is number of executions
         Space Complexity: O(n)
+
         """
         # Load all execution features
         with sqlite3.connect(self.storage_path) as conn:
@@ -946,19 +933,19 @@ class MetaLearner:
 
         # Calculate correlations for each feature
         feature_names = [
-            'task_type_hash',
-            'strategy_hash',
-            'execution_time_ms',
-            'success',
-            'reasoning_quality',
-            'tool_selection_correct',
-            'hallucination_detected',
-            'context_complexity'
+            "task_type_hash",
+            "strategy_hash",
+            "execution_time_ms",
+            "success",
+            "reasoning_quality",
+            "tool_selection_correct",
+            "hallucination_detected",
+            "context_complexity",
         ]
 
         correlations = {}
         for i, name in enumerate(feature_names):
-            if name == 'success':
+            if name == "success":
                 continue  # Skip success feature itself
 
             feature_values = features_matrix[:, i]

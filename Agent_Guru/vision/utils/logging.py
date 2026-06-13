@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.vision.utils.logging
+"""Module: Agent_Guru.vision.utils.logging
 Purpose: Logging setup utilities for the GuruVision system.
 
 Provides a single entry-point, ``setup_logging``, that configures a named
@@ -56,6 +55,7 @@ def setup_logging(
 
         logger = setup_logging(log_level="DEBUG", log_file="/tmp/gv.log")
         logger.info("GuruVision initialised")
+
     """
     numeric_level: int = getattr(logging, log_level.upper(), logging.INFO)
 

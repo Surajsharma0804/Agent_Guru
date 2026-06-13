@@ -1,5 +1,4 @@
-"""
-Module: Agent_Guru.vision.training.failure_analysis
+"""Module: Agent_Guru.vision.training.failure_analysis
 Purpose: Categorize and analyze model failures to guide improvements.
 
 Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6
@@ -10,36 +9,37 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
 logger = logging.getLogger("guruvision.training.failure_analysis")
 
-FAILURE_CATEGORIES = [
-    "pose", "lighting", "blur", "occlusion", "aging", "accessories", "unknown"
-]
+FAILURE_CATEGORIES = ["pose", "lighting", "blur", "occlusion", "aging", "accessories", "unknown"]
 
 
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class BenchmarkMetadata:
     """Metadata for benchmark dataset pairs."""
+
     pair_indices: list[tuple[int, int]] = field(default_factory=list)
-    pose_angles: Optional[dict[int, float]] = None
-    age_differences: Optional[dict[tuple[int, int], int]] = None
-    has_accessories: Optional[dict[int, bool]] = None
-    lighting_conditions: Optional[dict[int, str]] = None
-    blur_scores: Optional[dict[int, float]] = None
-    occlusion_masks: Optional[dict[int, np.ndarray]] = None
+    pose_angles: dict[int, float] | None = None
+    age_differences: dict[tuple[int, int], int] | None = None
+    has_accessories: dict[int, bool] | None = None
+    lighting_conditions: dict[int, str] | None = None
+    blur_scores: dict[int, float] | None = None
+    occlusion_masks: dict[int, np.ndarray] | None = None
 
 
 @dataclass
 class FailureCategory:
     """A single failure instance with category assignment."""
+
     category: str
     pair_idx: int
     score: float
@@ -50,6 +50,7 @@ class FailureCategory:
 @dataclass
 class CategoryStats:
     """Statistics for failure categories."""
+
     category_counts: dict[str, int] = field(default_factory=dict)
     category_rates: dict[str, float] = field(default_factory=dict)
     total_failures: int = 0
@@ -58,6 +59,7 @@ class CategoryStats:
 @dataclass
 class FailureAnalysis:
     """Complete failure analysis result."""
+
     total_failures: int = 0
     category_counts: dict[str, int] = field(default_factory=dict)
     category_rates: dict[str, float] = field(default_factory=dict)
@@ -69,11 +71,13 @@ class FailureAnalysis:
 # FailureAnalyzer
 # ---------------------------------------------------------------------------
 
+
 class FailureAnalyzer:
     """Categorize and analyze model failures.
 
     Args:
         top_k: Number of top failure categories to report.
+
     """
 
     def __init__(self, top_k: int = 3) -> None:
@@ -83,8 +87,8 @@ class FailureAnalyzer:
         self,
         predictions: np.ndarray,
         labels: np.ndarray,
-        metadata: Optional[BenchmarkMetadata] = None,
-        scores: Optional[np.ndarray] = None,
+        metadata: BenchmarkMetadata | None = None,
+        scores: np.ndarray | None = None,
     ) -> FailureAnalysis:
         """Analyze failures from evaluation predictions.
 
@@ -96,6 +100,7 @@ class FailureAnalyzer:
 
         Returns:
             FailureAnalysis with category breakdown.
+
         """
         failure_indices = np.where(predictions != labels)[0]
         failures: list[FailureCategory] = []
@@ -103,12 +108,14 @@ class FailureAnalyzer:
         for idx in failure_indices:
             score = float(scores[idx]) if scores is not None else 0.0
             category = self.categorize_failure(int(idx), metadata)
-            failures.append(FailureCategory(
-                category=category,
-                pair_idx=int(idx),
-                score=score,
-                ground_truth=bool(labels[idx]),
-            ))
+            failures.append(
+                FailureCategory(
+                    category=category,
+                    pair_idx=int(idx),
+                    score=score,
+                    ground_truth=bool(labels[idx]),
+                ),
+            )
 
         stats = self.compute_category_stats(failures)
         top_cats = self.identify_top_failures(stats, self.top_k)
@@ -129,7 +136,7 @@ class FailureAnalyzer:
     def categorize_failure(
         self,
         pair_idx: int,
-        metadata: Optional[BenchmarkMetadata] = None,
+        metadata: BenchmarkMetadata | None = None,
     ) -> str:
         """Assign a failure to a category based on metadata.
 
@@ -139,6 +146,7 @@ class FailureAnalyzer:
 
         Returns:
             Category string.
+
         """
         if metadata is None:
             return "unknown"
@@ -170,9 +178,8 @@ class FailureAnalyzer:
         # Check age difference
         if metadata.age_differences is not None:
             for (i, j), diff in metadata.age_differences.items():
-                if i == pair_idx or j == pair_idx:
-                    if diff > 10:
-                        return "aging"
+                if (pair_idx in (i, j)) and diff > 10:
+                    return "aging"
 
         # Check occlusion
         if metadata.occlusion_masks is not None:
@@ -182,9 +189,7 @@ class FailureAnalyzer:
 
         return "unknown"
 
-    def compute_category_stats(
-        self, failures: list[FailureCategory]
-    ) -> CategoryStats:
+    def compute_category_stats(self, failures: list[FailureCategory]) -> CategoryStats:
         """Compute failure rates per category.
 
         Args:
@@ -192,15 +197,14 @@ class FailureAnalyzer:
 
         Returns:
             CategoryStats with counts and rates.
+
         """
         counts: dict[str, int] = dict.fromkeys(FAILURE_CATEGORIES, 0)
         for f in failures:
             counts[f.category] = counts.get(f.category, 0) + 1
 
         total = len(failures)
-        rates: dict[str, float] = {
-            c: counts[c] / max(total, 1) for c in counts
-        }
+        rates: dict[str, float] = {c: counts[c] / max(total, 1) for c in counts}
 
         return CategoryStats(
             category_counts=counts,
@@ -208,9 +212,7 @@ class FailureAnalyzer:
             total_failures=total,
         )
 
-    def identify_top_failures(
-        self, stats: CategoryStats, top_k: int = 3
-    ) -> list[str]:
+    def identify_top_failures(self, stats: CategoryStats, top_k: int = 3) -> list[str]:
         """Rank categories by failure frequency.
 
         Args:
@@ -219,6 +221,7 @@ class FailureAnalyzer:
 
         Returns:
             List of category names sorted by frequency (descending).
+
         """
         sorted_cats = sorted(
             stats.category_counts.items(),
@@ -237,6 +240,7 @@ class FailureAnalyzer:
         Args:
             analysis: FailureAnalysis result.
             output_path: Path to write the report.
+
         """
         import json
 
@@ -267,13 +271,16 @@ class FailureAnalyzer:
         logger.info("Failure report written to '%s'", output_path)
 
     def generate_failure_distribution_plot(
-        self, analysis: FailureAnalysis, output_path: str
+        self,
+        analysis: FailureAnalysis,
+        output_path: str,
     ) -> None:
         """Generate a bar chart of failure distribution.
 
         Args:
             analysis: FailureAnalysis result.
             output_path: Path to save the plot image.
+
         """
         try:
             import matplotlib.pyplot as plt  # type: ignore[import]
@@ -294,5 +301,5 @@ class FailureAnalyzer:
             fig.savefig(str(path))
             plt.close(fig)
             logger.info("Failure distribution plot saved to '%s'", output_path)
-        except ImportError as e:
-            logger.warning("matplotlib not available; skipping failure distribution plot: %s", e)
+        except ImportError:
+            logger.exception("matplotlib not available; skipping failure distribution plot")

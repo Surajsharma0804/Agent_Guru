@@ -1,5 +1,4 @@
-"""
-Tone and personality adaptation for conversation strategy.
+"""Tone and personality adaptation for conversation strategy.
 
 This module implements:
 - Personality dimension definitions
@@ -11,9 +10,8 @@ Requirements: 19.4, 26.2, 26.3
 """
 
 from dataclasses import dataclass
-from datetime import datetime, time, timezone
+from datetime import datetime, time
 from enum import Enum
-from typing import Optional
 
 
 class PersonalityDimension(Enum):
@@ -48,10 +46,10 @@ class ToneProfile:
 class ContextualFactors:
     """Contextual factors affecting tone."""
 
-    time_of_day: Optional[datetime] = None
+    time_of_day: datetime | None = None
     is_work_hours: bool = False
-    battery_level: Optional[float] = None
-    user_stress_level: Optional[float] = None
+    battery_level: float | None = None
+    user_stress_level: float | None = None
     conversation_length: int = 0
 
 
@@ -65,15 +63,16 @@ class ToneAdapter:
     WORK_START = time(9, 0)
     WORK_END = time(17, 0)
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize tone adapter."""
         self.user_profiles: dict[str, ToneProfile] = {}
 
     def get_tone_profile(
-        self, user_id: str, context: Optional[ContextualFactors] = None
+        self,
+        user_id: str,
+        context: ContextualFactors | None = None,
     ) -> ToneProfile:
-        """
-        Get tone profile for user with contextual adjustments.
+        """Get tone profile for user with contextual adjustments.
 
         Args:
             user_id: User identifier
@@ -81,6 +80,7 @@ class ToneAdapter:
 
         Returns:
             Adjusted tone profile
+
         """
         # Get base profile
         base_profile = self.user_profiles.get(user_id, self.DEFAULT_PROFILE)
@@ -92,16 +92,20 @@ class ToneAdapter:
         return base_profile
 
     def learn_preference(
-        self, user_id: str, dimension: PersonalityDimension, value: float, weight: float = 0.1
+        self,
+        user_id: str,
+        dimension: PersonalityDimension,
+        value: float,
+        weight: float = 0.1,
     ) -> None:
-        """
-        Learn user's tone preference using exponential moving average.
+        """Learn user's tone preference using exponential moving average.
 
         Args:
             user_id: User identifier
             dimension: Personality dimension to update
             value: New observed value (0.0 to 1.0)
             weight: Learning rate (0.0 to 1.0)
+
         """
         # Get current profile
         current = self.user_profiles.get(user_id, self.DEFAULT_PROFILE)
@@ -110,32 +114,37 @@ class ToneAdapter:
         if dimension == PersonalityDimension.FORMALITY:
             new_formality = (1 - weight) * current.formality + weight * value
             self.user_profiles[user_id] = ToneProfile(
-                formality=new_formality, warmth=current.warmth, verbosity=current.verbosity
+                formality=new_formality,
+                warmth=current.warmth,
+                verbosity=current.verbosity,
             )
         elif dimension == PersonalityDimension.WARMTH:
             new_warmth = (1 - weight) * current.warmth + weight * value
             self.user_profiles[user_id] = ToneProfile(
-                formality=current.formality, warmth=new_warmth, verbosity=current.verbosity
+                formality=current.formality,
+                warmth=new_warmth,
+                verbosity=current.verbosity,
             )
         elif dimension == PersonalityDimension.VERBOSITY:
             new_verbosity = (1 - weight) * current.verbosity + weight * value
             self.user_profiles[user_id] = ToneProfile(
-                formality=current.formality, warmth=current.warmth, verbosity=new_verbosity
+                formality=current.formality,
+                warmth=current.warmth,
+                verbosity=new_verbosity,
             )
 
     def set_profile(self, user_id: str, profile: ToneProfile) -> None:
-        """
-        Set user's tone profile directly.
+        """Set user's tone profile directly.
 
         Args:
             user_id: User identifier
             profile: Tone profile to set
+
         """
         self.user_profiles[user_id] = profile
 
     def _apply_context(self, base_profile: ToneProfile, context: ContextualFactors) -> ToneProfile:
-        """
-        Apply contextual adjustments to tone profile.
+        """Apply contextual adjustments to tone profile.
 
         Args:
             base_profile: Base tone profile
@@ -143,6 +152,7 @@ class ToneAdapter:
 
         Returns:
             Adjusted tone profile
+
         """
         formality = base_profile.formality
         warmth = base_profile.warmth
@@ -183,8 +193,7 @@ class ToneAdapter:
         return ToneProfile(formality=formality, warmth=warmth, verbosity=verbosity)
 
     def adapt_response(self, response: str, tone_profile: ToneProfile) -> str:
-        """
-        Adapt response text to match tone profile.
+        """Adapt response text to match tone profile.
 
         Args:
             response: Original response text
@@ -192,6 +201,7 @@ class ToneAdapter:
 
         Returns:
             Adapted response text
+
         """
         # Apply formality adjustments
         if tone_profile.formality > 0.7:
@@ -298,14 +308,14 @@ class ToneAdapter:
 
     @staticmethod
     def is_work_hours(current_time: datetime) -> bool:
-        """
-        Determine if current time is work hours.
+        """Determine if current time is work hours.
 
         Args:
             current_time: Current datetime
 
         Returns:
             True if work hours
+
         """
         # Weekend check
         if current_time.weekday() >= 5:  # Saturday = 5, Sunday = 6
@@ -349,8 +359,7 @@ class ResponseTemplateSelector:
 
     @staticmethod
     def select_template(template_type: str, tone_profile: ToneProfile) -> str:
-        """
-        Select appropriate template based on tone profile.
+        """Select appropriate template based on tone profile.
 
         Args:
             template_type: Type of template ("success" or "error")
@@ -358,6 +367,7 @@ class ResponseTemplateSelector:
 
         Returns:
             Selected template string
+
         """
         # Determine tone category
         if tone_profile.formality > 0.7:

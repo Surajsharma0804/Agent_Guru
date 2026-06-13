@@ -1,5 +1,4 @@
-"""
-Health check endpoints for self-improvement engine.
+"""Health check endpoints for self-improvement engine.
 
 Provides monitoring and diagnostic information for production deployment.
 """
@@ -7,15 +6,16 @@ Provides monitoring and diagnostic information for production deployment.
 import os
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import psutil
 
 
 class HealthStatus(Enum):
     """Health status levels."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -24,6 +24,7 @@ class HealthStatus(Enum):
 @dataclass
 class HealthCheckResult:
     """Result of a health check."""
+
     status: HealthStatus
     message: str
     details: dict[str, Any]
@@ -40,29 +41,28 @@ class HealthCheckResult:
 
 
 class HealthChecker:
-    """
-    Health checker for self-improvement engine.
+    """Health checker for self-improvement engine.
 
     Monitors system health and provides diagnostic information.
     """
 
-    def __init__(self, storage_path: str, config: Optional[Any] = None):
-        """
-        Initialize health checker.
+    def __init__(self, storage_path: str, config: Any | None = None) -> None:
+        """Initialize health checker.
 
         Args:
             storage_path: Path to SQLite database
             config: Optional deployment configuration
+
         """
         self.storage_path = storage_path
         self.config = config
 
     def check_health(self) -> HealthCheckResult:
-        """
-        Perform comprehensive health check.
+        """Perform comprehensive health check.
 
         Returns:
             HealthCheckResult with overall system health
+
         """
         checks = {
             "database": self._check_database(),
@@ -87,7 +87,7 @@ class HealthChecker:
             status=status,
             message=message,
             details={name: check.to_dict() for name, check in checks.items()},
-            timestamp=datetime.now(tz=timezone.utc)
+            timestamp=datetime.now(tz=UTC),
         )
 
     def _check_database(self) -> HealthCheckResult:
@@ -99,7 +99,7 @@ class HealthChecker:
                     status=HealthStatus.UNHEALTHY,
                     message="Database file not found",
                     details={"path": self.storage_path},
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
             # Check database size
@@ -111,7 +111,7 @@ class HealthChecker:
                     status=HealthStatus.DEGRADED,
                     message=f"Database size ({db_size_mb:.1f}MB) exceeds limit ({max_size_mb}MB)",
                     details={"size_mb": db_size_mb, "limit_mb": max_size_mb},
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
             # Check database connectivity
@@ -126,17 +126,17 @@ class HealthChecker:
                 details={
                     "size_mb": db_size_mb,
                     "task_count": task_count,
-                    "path": self.storage_path
+                    "path": self.storage_path,
                 },
-                timestamp=datetime.now(tz=timezone.utc)
+                timestamp=datetime.now(tz=UTC),
             )
 
         except Exception as e:
             return HealthCheckResult(
                 status=HealthStatus.UNHEALTHY,
-                message=f"Database error: {str(e)}",
+                message=f"Database error: {e!s}",
                 details={"error": str(e)},
-                timestamp=datetime.now(tz=timezone.utc)
+                timestamp=datetime.now(tz=UTC),
             )
 
     def _check_memory(self) -> HealthCheckResult:
@@ -151,28 +151,28 @@ class HealthChecker:
                     status=HealthStatus.DEGRADED,
                     message=f"Memory usage ({memory_mb:.1f}MB) exceeds limit ({max_memory_mb}MB)",
                     details={"memory_mb": memory_mb, "limit_mb": max_memory_mb},
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
             return HealthCheckResult(
                 status=HealthStatus.HEALTHY,
                 message="Memory usage is normal",
                 details={"memory_mb": memory_mb, "limit_mb": max_memory_mb},
-                timestamp=datetime.now(tz=timezone.utc)
+                timestamp=datetime.now(tz=UTC),
             )
 
         except Exception as e:
             return HealthCheckResult(
                 status=HealthStatus.DEGRADED,
-                message=f"Memory check error: {str(e)}",
+                message=f"Memory check error: {e!s}",
                 details={"error": str(e)},
-                timestamp=datetime.now(tz=timezone.utc)
+                timestamp=datetime.now(tz=UTC),
             )
 
     def _check_disk(self) -> HealthCheckResult:
         """Check disk space."""
         try:
-            disk = psutil.disk_usage(os.path.dirname(self.storage_path) or '.')
+            disk = psutil.disk_usage(os.path.dirname(self.storage_path) or ".")
             free_gb = disk.free / (1024 * 1024 * 1024)
 
             if free_gb < 1.0:
@@ -180,29 +180,29 @@ class HealthChecker:
                     status=HealthStatus.UNHEALTHY,
                     message=f"Low disk space: {free_gb:.1f}GB free",
                     details={"free_gb": free_gb, "total_gb": disk.total / (1024**3)},
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
-            elif free_gb < 5.0:
+            if free_gb < 5.0:
                 return HealthCheckResult(
                     status=HealthStatus.DEGRADED,
                     message=f"Disk space running low: {free_gb:.1f}GB free",
                     details={"free_gb": free_gb, "total_gb": disk.total / (1024**3)},
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
             return HealthCheckResult(
                 status=HealthStatus.HEALTHY,
                 message="Disk space is adequate",
                 details={"free_gb": free_gb, "total_gb": disk.total / (1024**3)},
-                timestamp=datetime.now(tz=timezone.utc)
+                timestamp=datetime.now(tz=UTC),
             )
 
         except Exception as e:
             return HealthCheckResult(
                 status=HealthStatus.DEGRADED,
-                message=f"Disk check error: {str(e)}",
+                message=f"Disk check error: {e!s}",
                 details={"error": str(e)},
-                timestamp=datetime.now(tz=timezone.utc)
+                timestamp=datetime.now(tz=UTC),
             )
 
     def _check_performance(self) -> HealthCheckResult:
@@ -233,7 +233,7 @@ class HealthChecker:
                     status=HealthStatus.HEALTHY,
                     message="Insufficient data for performance check",
                     details={"avg_time_ms": None, "success_rate": None},
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
             min_success_rate = self.config.min_success_rate * 100 if self.config else 50.0
@@ -243,22 +243,22 @@ class HealthChecker:
                     status=HealthStatus.DEGRADED,
                     message=f"Success rate ({success_rate:.1f}%) below threshold ({min_success_rate}%)",
                     details={"avg_time_ms": avg_time, "success_rate": success_rate},
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
             return HealthCheckResult(
                 status=HealthStatus.HEALTHY,
                 message="Performance is good",
                 details={"avg_time_ms": avg_time, "success_rate": success_rate},
-                timestamp=datetime.now(tz=timezone.utc)
+                timestamp=datetime.now(tz=UTC),
             )
 
         except Exception as e:
             return HealthCheckResult(
                 status=HealthStatus.DEGRADED,
-                message=f"Performance check error: {str(e)}",
+                message=f"Performance check error: {e!s}",
                 details={"error": str(e)},
-                timestamp=datetime.now(tz=timezone.utc)
+                timestamp=datetime.now(tz=UTC),
             )
 
     def _check_learning(self) -> HealthCheckResult:
@@ -286,7 +286,7 @@ class HealthChecker:
                     status=HealthStatus.HEALTHY,
                     message=f"Learning in progress ({total_tasks}/100 tasks)",
                     details={"total_tasks": total_tasks, "improvement": None},
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
             if recent_improvement is None:
@@ -294,7 +294,7 @@ class HealthChecker:
                     status=HealthStatus.DEGRADED,
                     message="No improvement data available",
                     details={"total_tasks": total_tasks, "improvement": None},
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
             threshold = self.config.improvement_threshold if self.config else 0.15
@@ -304,30 +304,30 @@ class HealthChecker:
                     status=HealthStatus.DEGRADED,
                     message=f"Improvement ({recent_improvement:.1%}) below threshold ({threshold:.1%})",
                     details={"total_tasks": total_tasks, "improvement": recent_improvement},
-                    timestamp=datetime.now(tz=timezone.utc)
+                    timestamp=datetime.now(tz=UTC),
                 )
 
             return HealthCheckResult(
                 status=HealthStatus.HEALTHY,
                 message=f"Learning is effective ({recent_improvement:.1%} improvement)",
                 details={"total_tasks": total_tasks, "improvement": recent_improvement},
-                timestamp=datetime.now(tz=timezone.utc)
+                timestamp=datetime.now(tz=UTC),
             )
 
         except Exception as e:
             return HealthCheckResult(
                 status=HealthStatus.DEGRADED,
-                message=f"Learning check error: {str(e)}",
+                message=f"Learning check error: {e!s}",
                 details={"error": str(e)},
-                timestamp=datetime.now(tz=timezone.utc)
+                timestamp=datetime.now(tz=UTC),
             )
 
     def get_metrics(self) -> dict[str, Any]:
-        """
-        Get current metrics for monitoring.
+        """Get current metrics for monitoring.
 
         Returns:
             Dictionary with key metrics
+
         """
         try:
             with sqlite3.connect(self.storage_path) as conn:
@@ -386,11 +386,8 @@ class HealthChecker:
                 "avg_execution_time_ms": avg_time,
                 "failure_counts": failure_counts,
                 "top_strategies": top_strategies,
-                "timestamp": datetime.now(tz=timezone.utc).isoformat()
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             }
 
         except Exception as e:
-            return {
-                "error": str(e),
-                "timestamp": datetime.now(tz=timezone.utc).isoformat()
-            }
+            return {"error": str(e), "timestamp": datetime.now(tz=UTC).isoformat()}

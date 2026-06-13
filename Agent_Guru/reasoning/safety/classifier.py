@@ -17,6 +17,7 @@ class SensitivityRule:
         sensitivity: Sensitivity level to assign if rule matches
         reason: Human-readable reason for classification
         priority: Rule priority (higher = checked first)
+
     """
 
     tool_pattern: str
@@ -26,8 +27,7 @@ class SensitivityRule:
     priority: int = 0
 
     def matches(self, tool_id: str, parameters: dict[str, Any]) -> bool:
-        """
-        Check if rule matches the given tool and parameters.
+        """Check if rule matches the given tool and parameters.
 
         Args:
             tool_id: Tool identifier
@@ -35,6 +35,7 @@ class SensitivityRule:
 
         Returns:
             True if rule matches, False otherwise
+
         """
         # Check tool pattern
         if not re.match(self.tool_pattern, tool_id):
@@ -77,7 +78,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.DANGEROUS,
                 reason="File deletion can cause data loss",
                 priority=100,
-            )
+            ),
         )
 
         self.add_rule(
@@ -87,7 +88,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.DANGEROUS,
                 reason="Deletion operations can cause data loss",
                 priority=90,
-            )
+            ),
         )
 
         self.add_rule(
@@ -97,7 +98,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.DANGEROUS,
                 reason="System configuration changes can affect stability",
                 priority=90,
-            )
+            ),
         )
 
         self.add_rule(
@@ -107,7 +108,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.DANGEROUS,
                 reason="Command execution can be harmful",
                 priority=90,
-            )
+            ),
         )
 
         # Sensitive actions (medium priority)
@@ -118,7 +119,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.SENSITIVE,
                 reason="Messaging involves external communication",
                 priority=50,
-            )
+            ),
         )
 
         self.add_rule(
@@ -128,7 +129,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.SENSITIVE,
                 reason="Email involves external communication",
                 priority=50,
-            )
+            ),
         )
 
         self.add_rule(
@@ -138,7 +139,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.SENSITIVE,
                 reason="Phone calls involve external communication",
                 priority=50,
-            )
+            ),
         )
 
         self.add_rule(
@@ -148,7 +149,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.SENSITIVE,
                 reason="Smart home control affects physical devices",
                 priority=50,
-            )
+            ),
         )
 
         self.add_rule(
@@ -158,7 +159,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.SENSITIVE,
                 reason="Financial transactions require confirmation",
                 priority=50,
-            )
+            ),
         )
 
         self.add_rule(
@@ -168,7 +169,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.SENSITIVE,
                 reason="Purchases involve financial transactions",
                 priority=50,
-            )
+            ),
         )
 
         self.add_rule(
@@ -178,7 +179,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.SENSITIVE,
                 reason="Data sharing involves privacy concerns",
                 priority=50,
-            )
+            ),
         )
 
         self.add_rule(
@@ -188,7 +189,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.SENSITIVE,
                 reason="Data export involves privacy concerns",
                 priority=50,
-            )
+            ),
         )
 
         self.add_rule(
@@ -198,7 +199,7 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.SENSITIVE,
                 reason="File modification can affect data",
                 priority=40,
-            )
+            ),
         )
 
         self.add_rule(
@@ -208,29 +209,29 @@ class ActionSensitivityClassifier:
                 sensitivity=ActionSensitivity.SENSITIVE,
                 reason="File writing can affect data",
                 priority=40,
-            )
+            ),
         )
 
     def add_rule(self, rule: SensitivityRule) -> None:
-        """
-        Add a sensitivity rule.
+        """Add a sensitivity rule.
 
         Args:
             rule: Sensitivity rule to add
+
         """
         self._rules.append(rule)
         # Keep rules sorted by priority (highest first)
         self._rules.sort(key=lambda r: r.priority, reverse=True)
 
     def remove_rule(self, tool_pattern: str) -> bool:
-        """
-        Remove a sensitivity rule by tool pattern.
+        """Remove a sensitivity rule by tool pattern.
 
         Args:
             tool_pattern: Tool pattern to remove
 
         Returns:
             True if rule was removed, False if not found
+
         """
         initial_count = len(self._rules)
         self._rules = [r for r in self._rules if r.tool_pattern != tool_pattern]
@@ -241,8 +242,7 @@ class ActionSensitivityClassifier:
         tool: Tool,
         parameters: dict[str, Any],
     ) -> tuple[ActionSensitivity, str]:
-        """
-        Classify action sensitivity based on tool and parameters.
+        """Classify action sensitivity based on tool and parameters.
 
         Time Complexity: O(n) where n is number of rules
         Space Complexity: O(1)
@@ -253,6 +253,7 @@ class ActionSensitivityClassifier:
 
         Returns:
             Tuple of (sensitivity_level, reason)
+
         """
         # First check tool's declared sensitivity
         if tool.sensitivity != ActionSensitivity.SAFE:
@@ -267,11 +268,11 @@ class ActionSensitivityClassifier:
         return ActionSensitivity.SAFE, "No sensitivity rules matched"
 
     def get_rules(self) -> list[SensitivityRule]:
-        """
-        Get all sensitivity rules.
+        """Get all sensitivity rules.
 
         Returns:
             List of sensitivity rules sorted by priority
+
         """
         return self._rules.copy()
 
@@ -280,11 +281,11 @@ class ActionSensitivityClassifier:
         self._rules.clear()
 
     def load_rules_from_config(self, config: dict[str, Any]) -> None:
-        """
-        Load sensitivity rules from configuration.
+        """Load sensitivity rules from configuration.
 
         Args:
             config: Configuration dictionary with rules
+
         """
         self.clear_rules()
 

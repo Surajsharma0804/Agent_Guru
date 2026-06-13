@@ -1,5 +1,4 @@
-"""
-File operation tools for reading, writing, deleting, moving, and copying files.
+"""File operation tools for reading, writing, deleting, moving, and copying files.
 
 Implements safe file operations with validation and error handling.
 """
@@ -61,6 +60,7 @@ class FileReadTool(Tool):
 
         Returns:
             Execution result with file contents
+
         """
         file_path = kwargs["file_path"]
         encoding = kwargs.get("encoding", "utf-8")
@@ -104,15 +104,14 @@ class FileReadTool(Tool):
                 },
             }
 
-        except UnicodeDecodeError:
+        except UnicodeDecodeError as e:
             return {
                 "success": False,
                 "error": f"Failed to decode file with encoding {encoding}",
             }
-        except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to read file: {str(e)}",
+                "error": f"Failed to read file: {e!s}",
             }
 
 
@@ -171,6 +170,7 @@ class FileWriteTool(Tool):
 
         Returns:
             Execution result
+
         """
         file_path = kwargs["file_path"]
         content = kwargs["content"]
@@ -185,9 +185,7 @@ class FileWriteTool(Tool):
 
             # Write file
             if append:
-                await asyncio.to_thread(
-                    lambda: path.open("a", encoding=encoding).write(content)
-                )
+                await asyncio.to_thread(lambda: path.open("a", encoding=encoding).write(content))
                 mode = "appended to"
             else:
                 await asyncio.to_thread(path.write_text, content, encoding=encoding)
@@ -209,7 +207,7 @@ class FileWriteTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to write file: {str(e)}",
+                "error": f"Failed to write file: {e!s}",
             }
 
 
@@ -223,7 +221,7 @@ class FileWriteTool(Tool):
             type=ToolParameterType.STRING,
             description="Path to the file to delete",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.DANGEROUS,
     estimated_latency_ms=50,
@@ -245,6 +243,7 @@ class FileDeleteTool(Tool):
 
         Returns:
             Execution result
+
         """
         file_path = kwargs["file_path"]
 
@@ -279,7 +278,7 @@ class FileDeleteTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to delete file: {str(e)}",
+                "error": f"Failed to delete file: {e!s}",
             }
 
 
@@ -322,6 +321,7 @@ class FileMoveTool(Tool):
 
         Returns:
             Execution result
+
         """
         source_path = kwargs["source_path"]
         destination_path = kwargs["destination_path"]
@@ -362,7 +362,7 @@ class FileMoveTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to move file: {str(e)}",
+                "error": f"Failed to move file: {e!s}",
             }
 
 
@@ -405,6 +405,7 @@ class FileCopyTool(Tool):
 
         Returns:
             Execution result
+
         """
         source_path = kwargs["source_path"]
         destination_path = kwargs["destination_path"]
@@ -448,5 +449,5 @@ class FileCopyTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to copy file: {str(e)}",
+                "error": f"Failed to copy file: {e!s}",
             }

@@ -1,14 +1,16 @@
 """Explainability Engine with LLM-backed explanation generation."""
+
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
 class ConfidenceBreakdown:
     """Weighted contributions to a decision."""
+
     memory: float = 0.0
     llm: float = 0.0
     policy: float = 0.0
@@ -26,11 +28,12 @@ class ConfidenceBreakdown:
 @dataclass
 class Explanation:
     """Plain-language explanation of a decision."""
+
     action: str
     explanation: str
     confidence_breakdown: ConfidenceBreakdown
     reversible: bool = False
-    reversal_info: Optional[str] = None
+    reversal_info: str | None = None
     latency_ms: float = 0.0
 
 

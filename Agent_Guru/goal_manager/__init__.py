@@ -1,5 +1,4 @@
-"""
-Goal Manager - Persistent autonomous goal management system.
+"""Goal Manager - Persistent autonomous goal management system.
 
 This module provides persistent, self-managing goal execution across multiple
 sessions with LLM-powered decomposition, progress tracking, and GitHub integration.
@@ -67,26 +66,26 @@ from Agent_Guru.goal_manager.session_manager import SessionManager
 from Agent_Guru.goal_manager.utils import retry_with_backoff
 
 __all__ = [
+    "DecompositionError",
+    "DependencyResolver",
+    "ExecutionError",
     # Models
     "Goal",
-    "GoalStatus",
-    "Priority",
-    # Exceptions
-    "GoalManagerError",
-    "StorageError",
-    "DecompositionError",
-    "ValidationError",
-    "ExecutionError",
+    "GoalDecomposer",
+    "GoalExecutor",
     # Main API
     "GoalManager",
+    # Exceptions
+    "GoalManagerError",
+    "GoalStatus",
     # Components
     "GoalStorage",
-    "GoalDecomposer",
-    "ProgressTracker",
+    "Priority",
     "PriorityManager",
-    "DependencyResolver",
-    "GoalExecutor",
+    "ProgressTracker",
     "SessionManager",
+    "StorageError",
+    "ValidationError",
     # Utilities
     "retry_with_backoff",
 ]

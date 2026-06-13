@@ -1,12 +1,11 @@
-"""
-Skill data models for the skill ecosystem.
+"""Skill data models for the skill ecosystem.
 
 Defines data structures for skills, permissions, and installed skills.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -48,24 +47,15 @@ class SkillManifestModel(BaseModel):
     name: str = Field(..., description="Human-readable skill name")
     description: str = Field(..., description="Skill description")
     author: str = Field(..., description="Skill author")
-    capabilities: list[str] = Field(
-        default_factory=list, description="Skill capabilities"
-    )
+    capabilities: list[str] = Field(default_factory=list, description="Skill capabilities")
     required_permissions: list[Permission] = Field(
-        default_factory=list, description="Required permissions"
+        default_factory=list,
+        description="Required permissions",
     )
-    entry_points: dict[str, str] = Field(
-        default_factory=dict, description="Entry points for tools"
-    )
-    max_latency: int = Field(
-        default=5000, description="Maximum execution latency in ms"
-    )
-    dependencies: list[str] = Field(
-        default_factory=list, description="Required dependencies"
-    )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional metadata"
-    )
+    entry_points: dict[str, str] = Field(default_factory=dict, description="Entry points for tools")
+    max_latency: int = Field(default=5000, description="Maximum execution latency in ms")
+    dependencies: list[str] = Field(default_factory=list, description="Required dependencies")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     @field_validator("version")
     @classmethod
@@ -73,9 +63,11 @@ class SkillManifestModel(BaseModel):
         """Validate version format (semver)."""
         parts = v.split(".")
         if len(parts) != 3:
-            raise ValueError("Version must be in semver format (x.y.z)")
+            msg = "Version must be in semver format (x.y.z)"
+            raise ValueError(msg)
         if not all(part.isdigit() for part in parts):
-            raise ValueError("Version parts must be numeric")
+            msg = "Version parts must be numeric"
+            raise ValueError(msg)
         return v
 
     @field_validator("max_latency")
@@ -83,9 +75,11 @@ class SkillManifestModel(BaseModel):
     def validate_max_latency(cls, v: int) -> int:
         """Validate max latency."""
         if v <= 0:
-            raise ValueError("Max latency must be positive")
+            msg = "Max latency must be positive"
+            raise ValueError(msg)
         if v > 60000:
-            raise ValueError("Max latency cannot exceed 60 seconds")
+            msg = "Max latency cannot exceed 60 seconds"
+            raise ValueError(msg)
         return v
 
 
@@ -93,21 +87,17 @@ class InstalledSkill(BaseModel):
     """Installed skill data model."""
 
     manifest: SkillManifestModel = Field(..., description="Skill manifest")
-    status: SkillStatus = Field(
-        default=SkillStatus.ACTIVE, description="Skill status"
-    )
-    trust_level: TrustLevel = Field(
-        default=TrustLevel.RESTRICTED, description="Trust level"
-    )
+    status: SkillStatus = Field(default=SkillStatus.ACTIVE, description="Skill status")
+    trust_level: TrustLevel = Field(default=TrustLevel.RESTRICTED, description="Trust level")
     granted_permissions: list[Permission] = Field(
-        default_factory=list, description="Granted permissions"
+        default_factory=list,
+        description="Granted permissions",
     )
     install_date: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc), description="Installation date"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="Installation date",
     )
-    last_used: Optional[datetime] = Field(
-        None, description="Last usage timestamp"
-    )
+    last_used: datetime | None = Field(None, description="Last usage timestamp")
     usage_count: int = Field(default=0, description="Total usage count")
     success_rate: float = Field(default=1.0, description="Success rate (0.0-1.0)")
 
@@ -116,7 +106,8 @@ class InstalledSkill(BaseModel):
     def validate_success_rate(cls, v: float) -> float:
         """Validate success rate."""
         if not 0.0 <= v <= 1.0:
-            raise ValueError("Success rate must be between 0.0 and 1.0")
+            msg = "Success rate must be between 0.0 and 1.0"
+            raise ValueError(msg)
         return v
 
     def has_permission(self, permission: Permission) -> bool:
@@ -127,6 +118,7 @@ class InstalledSkill(BaseModel):
 
         Returns:
             True if permission is granted
+
         """
         return permission in self.granted_permissions
 
@@ -135,6 +127,7 @@ class InstalledSkill(BaseModel):
 
         Args:
             permission: Permission to grant
+
         """
         if permission not in self.granted_permissions:
             self.granted_permissions.append(permission)
@@ -144,6 +137,7 @@ class InstalledSkill(BaseModel):
 
         Args:
             permission: Permission to revoke
+
         """
         if permission in self.granted_permissions:
             self.granted_permissions.remove(permission)
@@ -153,9 +147,10 @@ class InstalledSkill(BaseModel):
 
         Args:
             success: Whether the execution was successful
+
         """
         self.usage_count += 1
-        self.last_used = datetime.now(tz=timezone.utc)
+        self.last_used = datetime.now(tz=UTC)
 
         # Update success rate with exponential moving average
         alpha = 0.1  # Smoothing factor

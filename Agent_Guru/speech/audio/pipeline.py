@@ -1,6 +1,5 @@
-"""
-Module: Agent_Guru.speech.audio.pipeline
-Purpose: Audio pipeline with ring buffer, device management, and feedback prevention
+"""Module: Agent_Guru.speech.audio.pipeline
+Purpose: Audio pipeline with ring buffer, device management, and feedback prevention.
 
 Provides:
 - Lock-free ring buffer (10 seconds capacity at 16kHz)
@@ -24,11 +23,14 @@ import logging
 import threading
 import time
 from collections import deque
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
 
-import numpy as np
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,7 @@ _MAX_RECONNECT_ATTEMPTS = 5
 
 class DeviceState(str, Enum):
     """Audio device connection state."""
+
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
     RECONNECTING = "reconnecting"
@@ -59,7 +62,9 @@ class AudioDevice:
         max_output_channels: Number of output channels
         default_sample_rate: Default sample rate
         is_default: Whether this is the system default
+
     """
+
     device_id: int
     name: str
     max_input_channels: int
@@ -77,8 +82,7 @@ class AudioDevice:
 
 
 class RingBuffer:
-    """
-    Thread-safe ring buffer for audio frames.
+    """Thread-safe ring buffer for audio frames.
 
     Uses a deque with maxlen for O(1) append and O(1) popleft.
     Capacity is fixed at construction time.
@@ -94,9 +98,11 @@ class RingBuffer:
 
         Args:
             capacity_frames: Maximum number of frames to store
+
         """
         if capacity_frames < 1:
-            raise ValueError(f"capacity_frames must be >= 1, got {capacity_frames}")
+            msg = f"capacity_frames must be >= 1, got {capacity_frames}"
+            raise ValueError(msg)
         self._buffer: deque[np.ndarray] = deque(maxlen=capacity_frames)
         self._lock = threading.Lock()
         self._capacity = capacity_frames
@@ -108,6 +114,7 @@ class RingBuffer:
 
         Args:
             frame: Audio frame as numpy array
+
         """
         with self._lock:
             self._buffer.append(frame.copy())
@@ -122,6 +129,7 @@ class RingBuffer:
 
         Returns:
             List of frames (oldest first), up to n frames
+
         """
         with self._lock:
             frames = list(self._buffer)
@@ -132,6 +140,7 @@ class RingBuffer:
 
         Returns:
             All buffered frames in order
+
         """
         with self._lock:
             frames = list(self._buffer)
@@ -159,8 +168,7 @@ class RingBuffer:
 
 
 class AudioPipeline:
-    """
-    Production audio pipeline with device management and feedback prevention.
+    """Production audio pipeline with device management and feedback prevention.
 
     Manages audio capture and playback with:
     - Lock-free ring buffer (10 seconds at 16kHz)
@@ -178,6 +186,7 @@ class AudioPipeline:
         - Ring buffer write: O(1)
         - Frame read: O(k)
         - Device detection: O(d)
+
     """
 
     def __init__(
@@ -192,6 +201,7 @@ class AudioPipeline:
             sample_rate: Audio sample rate in Hz (default 16000)
             channels: Number of channels (default 1 = mono)
             ring_buffer_seconds: Ring buffer capacity in seconds
+
         """
         self._sample_rate = sample_rate
         self._channels = channels
@@ -213,7 +223,7 @@ class AudioPipeline:
 
         logger.info(
             f"AudioPipeline initialized: {sample_rate}Hz, {channels}ch, "
-            f"ring_buffer={ring_buffer_seconds}s ({capacity_frames} frames)"
+            f"ring_buffer={ring_buffer_seconds}s ({capacity_frames} frames)",
         )
 
     # ------------------------------------------------------------------
@@ -225,6 +235,7 @@ class AudioPipeline:
 
         Returns:
             List of AudioDevice with input capability
+
         """
         return self._query_devices(input_only=True)
 
@@ -233,6 +244,7 @@ class AudioPipeline:
 
         Returns:
             List of AudioDevice with output capability
+
         """
         return self._query_devices(output_only=True)
 
@@ -241,6 +253,7 @@ class AudioPipeline:
 
         Returns:
             List of all AudioDevice objects
+
         """
         return self._query_devices()
 
@@ -249,6 +262,7 @@ class AudioPipeline:
 
         Args:
             device_id: Device ID, or None for system default
+
         """
         with self._lock:
             self._input_device_id = device_id
@@ -261,6 +275,7 @@ class AudioPipeline:
 
         Args:
             device_id: Device ID, or None for system default
+
         """
         with self._lock:
             self._output_device_id = device_id
@@ -275,6 +290,7 @@ class AudioPipeline:
 
         Args:
             callback: Callable invoked when device reconnects
+
         """
         self._reconnect_callbacks.append(callback)
 
@@ -294,8 +310,13 @@ class AudioPipeline:
     def _attempt_reconnect(self) -> None:
         """Attempt to reconnect to audio device."""
         for attempt in range(_MAX_RECONNECT_ATTEMPTS):
-            delay = _RECONNECT_DELAY_S * (2 ** attempt)  # Exponential backoff
-            logger.info("Reconnect attempt %d/%d in %.1fs", attempt + 1, _MAX_RECONNECT_ATTEMPTS, delay)
+            delay = _RECONNECT_DELAY_S * (2**attempt)  # Exponential backoff
+            logger.info(
+                "Reconnect attempt %d/%d in %.1fs",
+                attempt + 1,
+                _MAX_RECONNECT_ATTEMPTS,
+                delay,
+            )
 
             with self._lock:
                 self._device_state = DeviceState.RECONNECTING
@@ -314,8 +335,8 @@ class AudioPipeline:
                 for cb in self._reconnect_callbacks:
                     try:
                         cb()
-                    except Exception as e:
-                        logger.error("Reconnect callback error: %s", e)
+                    except Exception:
+                        logger.exception("Reconnect callback error")
                 return
 
         with self._lock:
@@ -335,6 +356,7 @@ class AudioPipeline:
 
         Args:
             frame: Audio frame as numpy array
+
         """
         # Feedback prevention: don't capture during playback
         if self._is_playing.is_set():
@@ -351,6 +373,7 @@ class AudioPipeline:
 
         Returns:
             List of audio frames
+
         """
         return self._ring_buffer.read_frames(n)
 
@@ -359,6 +382,7 @@ class AudioPipeline:
 
         Returns:
             All buffered frames
+
         """
         return self._ring_buffer.read_all()
 
@@ -382,6 +406,7 @@ class AudioPipeline:
 
         Args:
             playing: True if playback is active
+
         """
         if playing:
             self._is_playing.set()
@@ -425,12 +450,14 @@ class AudioPipeline:
 
         Returns:
             List of AudioDevice objects
+
         """
         try:
             import sounddevice as sd
+
             raw_devices = sd.query_devices()
-            default_input = sd.default.device[0] if hasattr(sd.default, 'device') else None
-            default_output = sd.default.device[1] if hasattr(sd.default, 'device') else None
+            default_input = sd.default.device[0] if hasattr(sd.default, "device") else None
+            default_output = sd.default.device[1] if hasattr(sd.default, "device") else None
 
             devices = []
             for i, dev in enumerate(raw_devices):
@@ -440,7 +467,7 @@ class AudioPipeline:
                     max_input_channels=dev.get("max_input_channels", 0),
                     max_output_channels=dev.get("max_output_channels", 0),
                     default_sample_rate=dev.get("default_samplerate", 44100.0),
-                    is_default=(i == default_input or i == default_output),
+                    is_default=(i in (default_input, default_output)),
                 )
                 if input_only and not device.is_input:
                     continue
@@ -450,6 +477,6 @@ class AudioPipeline:
 
             return devices
 
-        except Exception as e:
-            logger.warning("Could not query audio devices: %s", e)
+        except Exception:
+            logger.exception("Could not query audio devices")
             return []

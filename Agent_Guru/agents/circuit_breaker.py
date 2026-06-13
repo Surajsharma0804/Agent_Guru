@@ -1,5 +1,4 @@
-"""
-Circuit Breaker - Prevents cascading failures from external system outages.
+"""Circuit Breaker - Prevents cascading failures from external system outages.
 
 Validates: Requirements 26.1, 26.2, 26.3, 26.4, 26.5
 """
@@ -7,16 +6,16 @@ Validates: Requirements 26.1, 26.2, 26.3, 26.4, 26.5
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class CircuitState(Enum):
-    CLOSED = "closed"      # Normal operation
-    OPEN = "open"          # Failing — reject calls
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Failing — reject calls
     HALF_OPEN = "half_open"  # Testing recovery
 
 
@@ -24,14 +23,13 @@ class CircuitState(Enum):
 class CircuitBreakerConfig:
     """Configuration for a circuit breaker."""
 
-    failure_threshold: int = 5       # Failures before opening
+    failure_threshold: int = 5  # Failures before opening
     recovery_timeout_seconds: float = 30.0  # Time before trying half-open
-    success_threshold: int = 2       # Successes in half-open before closing
+    success_threshold: int = 2  # Successes in half-open before closing
 
 
 class CircuitBreaker:
-    """
-    Circuit breaker pattern for external system calls.
+    """Circuit breaker pattern for external system calls.
 
     States:
     - CLOSED: Normal operation, calls pass through
@@ -46,15 +44,16 @@ class CircuitBreaker:
         >>> result = await cb.call(my_async_func, arg1, arg2)
 
     Validates: Requirements 26.1, 26.2, 26.3, 26.4, 26.5
+
     """
 
-    def __init__(self, name: str, config: Optional[CircuitBreakerConfig] = None) -> None:
+    def __init__(self, name: str, config: CircuitBreakerConfig | None = None) -> None:
         self.name = name
         self.config = config or CircuitBreakerConfig()
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._success_count = 0
-        self._last_failure_time: Optional[datetime] = None
+        self._last_failure_time: datetime | None = None
 
     @property
     def state(self) -> CircuitState:
@@ -64,15 +63,15 @@ class CircuitBreaker:
         """Check if enough time has passed to try half-open."""
         if self._last_failure_time is None:
             return False
-        elapsed = (datetime.now(tz=timezone.utc) - self._last_failure_time).total_seconds()
+        elapsed = (datetime.now(tz=UTC) - self._last_failure_time).total_seconds()
         return elapsed >= self.config.recovery_timeout_seconds
 
     async def call(self, func: Callable[..., Awaitable[Any]], *args: Any, **kwargs: Any) -> Any:
-        """
-        Execute func through the circuit breaker.
+        """Execute func through the circuit breaker.
 
         Raises:
             CircuitOpenError: If circuit is OPEN and recovery timeout not elapsed
+
         """
         if self._state == CircuitState.OPEN:
             if self._should_attempt_reset():
@@ -80,7 +79,8 @@ class CircuitBreaker:
                 self._success_count = 0
                 logger.info("Circuit %s transitioning to HALF_OPEN", self.name)
             else:
-                raise CircuitOpenError(f"Circuit '{self.name}' is OPEN")
+                msg = f"Circuit '{self.name}' is OPEN"
+                raise CircuitOpenError(msg)
 
         try:
             result = await func(*args, **kwargs)
@@ -103,16 +103,14 @@ class CircuitBreaker:
 
     def _on_failure(self) -> None:
         self._failure_count += 1
-        self._last_failure_time = datetime.now(tz=timezone.utc)
+        self._last_failure_time = datetime.now(tz=UTC)
 
         if self._state == CircuitState.HALF_OPEN:
             self._state = CircuitState.OPEN
             logger.warning("Circuit %s re-OPENED (half-open failure)", self.name)
         elif self._failure_count >= self.config.failure_threshold:
             self._state = CircuitState.OPEN
-            logger.warning(
-                "Circuit %s OPENED after %d failures", self.name, self._failure_count
-            )
+            logger.warning("Circuit %s OPENED after %d failures", self.name, self._failure_count)
 
     def reset(self) -> None:
         """Manually reset circuit to CLOSED state."""

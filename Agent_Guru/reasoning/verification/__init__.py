@@ -1,5 +1,4 @@
-"""
-Reasoning Verification Layer
+"""Reasoning Verification Layer.
 
 This module provides verification and validation of reasoning plans before execution.
 """

@@ -1,5 +1,4 @@
-"""
-Feedback storage system for online learning.
+"""Feedback storage system for online learning.
 
 This module provides persistent storage for user feedback on intent predictions,
 enabling continuous model improvement through online learning.
@@ -16,9 +15,9 @@ Date: 2024
 import asyncio
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.reasoning.models.feedback import (
     FeedbackType,
@@ -28,8 +27,7 @@ from Agent_Guru.reasoning.models.feedback import (
 
 
 class FeedbackStore:
-    """
-    Persistent storage for intent feedback with SQLite backend.
+    """Persistent storage for intent feedback with SQLite backend.
 
     Time Complexity: O(1) for insert, O(n) for queries
     Space Complexity: O(n) where n is number of feedback entries
@@ -39,14 +37,15 @@ class FeedbackStore:
         >>> await store.initialize()
         >>> feedback = IntentFeedback(...)
         >>> await store.store_feedback(feedback)
+
     """
 
-    def __init__(self, db_path: str = "feedback.db"):
-        """
-        Initialize feedback store.
+    def __init__(self, db_path: str = "feedback.db") -> None:
+        """Initialize feedback store.
 
         Args:
             db_path: Path to SQLite database file
+
         """
         self.db_path = Path(db_path)
         self._lock = asyncio.Lock()
@@ -84,7 +83,7 @@ class FeedbackStore:
                         metadata TEXT NOT NULL,
                         created_at TEXT NOT NULL
                     )
-                """
+                """,
                 )
 
                 # Performance metrics table
@@ -104,7 +103,7 @@ class FeedbackStore:
                         metadata TEXT NOT NULL,
                         created_at TEXT NOT NULL
                     )
-                """
+                """,
                 )
 
                 # Create indexes for common queries
@@ -112,25 +111,25 @@ class FeedbackStore:
                     """
                     CREATE INDEX IF NOT EXISTS idx_feedback_user_id
                     ON feedback(user_id)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_feedback_timestamp
                     ON feedback(timestamp)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_feedback_model_version
                     ON feedback(model_version)
-                """
+                """,
                 )
                 cursor.execute(
                     """
                     CREATE INDEX IF NOT EXISTS idx_metrics_model_version
                     ON performance_metrics(model_version)
-                """
+                """,
                 )
 
                 conn.commit()
@@ -140,13 +139,13 @@ class FeedbackStore:
             self._initialized = True
 
     async def store_feedback(self, feedback: IntentFeedback) -> None:
-        """
-        Store feedback entry.
+        """Store feedback entry.
 
         Time Complexity: O(1)
 
         Args:
             feedback: Feedback to store
+
         """
         if not self._initialized:
             await self.initialize()
@@ -179,7 +178,7 @@ class FeedbackStore:
                         feedback.feedback_type.value,
                         feedback.model_version,
                         json.dumps(feedback.metadata),
-                        datetime.now(tz=timezone.utc).isoformat(),
+                        datetime.now(tz=UTC).isoformat(),
                     ),
                 )
                 conn.commit()
@@ -187,10 +186,11 @@ class FeedbackStore:
                 conn.close()
 
     async def get_feedback_since(
-        self, since: datetime, model_version: Optional[str] = None
+        self,
+        since: datetime,
+        model_version: str | None = None,
     ) -> list[IntentFeedback]:
-        """
-        Get feedback entries since a given time.
+        """Get feedback entries since a given time.
 
         Time Complexity: O(n) where n is number of matching entries
 
@@ -200,6 +200,7 @@ class FeedbackStore:
 
         Returns:
             List of feedback entries
+
         """
         if not self._initialized:
             await self.initialize()
@@ -234,10 +235,11 @@ class FeedbackStore:
                 conn.close()
 
     async def get_corrections_for_training(
-        self, model_version: str, limit: Optional[int] = None
+        self,
+        model_version: str,
+        limit: int | None = None,
     ) -> list[IntentFeedback]:
-        """
-        Get feedback corrections for model retraining.
+        """Get feedback corrections for model retraining.
 
         Time Complexity: O(n) where n is number of corrections
 
@@ -247,6 +249,7 @@ class FeedbackStore:
 
         Returns:
             List of feedback with corrections
+
         """
         if not self._initialized:
             await self.initialize()
@@ -275,13 +278,13 @@ class FeedbackStore:
                 conn.close()
 
     async def store_metrics(self, metrics: ModelPerformanceMetrics) -> None:
-        """
-        Store performance metrics.
+        """Store performance metrics.
 
         Time Complexity: O(1)
 
         Args:
             metrics: Metrics to store
+
         """
         if not self._initialized:
             await self.initialize()
@@ -311,16 +314,15 @@ class FeedbackStore:
                         metrics.low_confidence_rate,
                         metrics.correction_rate,
                         json.dumps(metrics.metadata),
-                        datetime.now(tz=timezone.utc).isoformat(),
+                        datetime.now(tz=UTC).isoformat(),
                     ),
                 )
                 conn.commit()
             finally:
                 conn.close()
 
-    async def get_latest_metrics(self, model_version: str) -> Optional[ModelPerformanceMetrics]:
-        """
-        Get latest performance metrics for a model version.
+    async def get_latest_metrics(self, model_version: str) -> ModelPerformanceMetrics | None:
+        """Get latest performance metrics for a model version.
 
         Time Complexity: O(log n) due to index
 
@@ -329,6 +331,7 @@ class FeedbackStore:
 
         Returns:
             Latest metrics or None
+
         """
         if not self._initialized:
             await self.initialize()
@@ -353,10 +356,11 @@ class FeedbackStore:
                 conn.close()
 
     async def get_feedback_count(
-        self, model_version: Optional[str] = None, since: Optional[datetime] = None
+        self,
+        model_version: str | None = None,
+        since: datetime | None = None,
     ) -> int:
-        """
-        Get count of feedback entries.
+        """Get count of feedback entries.
 
         Time Complexity: O(1) with index
 
@@ -366,6 +370,7 @@ class FeedbackStore:
 
         Returns:
             Number of feedback entries
+
         """
         if not self._initialized:
             await self.initialize()

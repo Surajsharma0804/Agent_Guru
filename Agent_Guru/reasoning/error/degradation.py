@@ -1,5 +1,4 @@
-"""
-Graceful degradation system.
+"""Graceful degradation system.
 
 Provides intelligent degradation when services fail:
 - Multiple degradation levels
@@ -9,9 +8,8 @@ Provides intelligent degradation when services fail:
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
 import structlog
 
@@ -54,19 +52,23 @@ class DegradationConfig:
 
     # Features available at each level
     normal_features: set[FeatureCategory] = field(default_factory=lambda: set(FeatureCategory))
-    degraded_features: set[FeatureCategory] = field(default_factory=lambda: {
-        FeatureCategory.BASIC_INTENT_DETECTION,
-        FeatureCategory.SIMPLE_COMMANDS,
-        FeatureCategory.ERROR_RESPONSES,
-        FeatureCategory.NEURAL_INTENT_DETECTION,
-        FeatureCategory.TOOL_EXECUTION,
-        FeatureCategory.CONVERSATION_CONTEXT,
-    })
-    minimal_features: set[FeatureCategory] = field(default_factory=lambda: {
-        FeatureCategory.BASIC_INTENT_DETECTION,
-        FeatureCategory.SIMPLE_COMMANDS,
-        FeatureCategory.ERROR_RESPONSES,
-    })
+    degraded_features: set[FeatureCategory] = field(
+        default_factory=lambda: {
+            FeatureCategory.BASIC_INTENT_DETECTION,
+            FeatureCategory.SIMPLE_COMMANDS,
+            FeatureCategory.ERROR_RESPONSES,
+            FeatureCategory.NEURAL_INTENT_DETECTION,
+            FeatureCategory.TOOL_EXECUTION,
+            FeatureCategory.CONVERSATION_CONTEXT,
+        },
+    )
+    minimal_features: set[FeatureCategory] = field(
+        default_factory=lambda: {
+            FeatureCategory.BASIC_INTENT_DETECTION,
+            FeatureCategory.SIMPLE_COMMANDS,
+            FeatureCategory.ERROR_RESPONSES,
+        },
+    )
 
     # Thresholds for automatic degradation
     error_rate_threshold: float = 0.10  # 10% error rate
@@ -81,11 +83,12 @@ class DegradationConfig:
 class DegradationManager:
     """Manager for graceful degradation."""
 
-    def __init__(self, config: Optional[DegradationConfig] = None):
+    def __init__(self, config: DegradationConfig | None = None) -> None:
         """Initialize degradation manager.
 
         Args:
             config: Degradation configuration
+
         """
         self.config = config or DegradationConfig()
         self._current_level = DegradationLevel.NORMAL
@@ -93,13 +96,14 @@ class DegradationManager:
         self._service_failures: dict[str, int] = {}
         self._service_successes: dict[str, int] = {}
         self._degradation_history: list[dict] = []
-        self._last_level_change = datetime.now(tz=timezone.utc)
+        self._last_level_change = datetime.now(tz=UTC)
 
     def get_current_level(self) -> DegradationLevel:
         """Get current degradation level.
 
         Returns:
             Current degradation level
+
         """
         return self._current_level
 
@@ -111,31 +115,31 @@ class DegradationManager:
 
         Returns:
             True if feature is available
+
         """
         if self._current_level == DegradationLevel.NORMAL:
             return feature in self.config.normal_features
 
-        elif self._current_level == DegradationLevel.DEGRADED:
+        if self._current_level == DegradationLevel.DEGRADED:
             return feature in self.config.degraded_features
 
-        else:  # MINIMAL
-            return feature in self.config.minimal_features
+        # MINIMAL
+        return feature in self.config.minimal_features
 
-    def degrade_to_level(
-        self, level: DegradationLevel, reason: str
-    ) -> None:
+    def degrade_to_level(self, level: DegradationLevel, reason: str) -> None:
         """Degrade system to specified level.
 
         Args:
             level: Target degradation level
             reason: Reason for degradation
+
         """
         if level == self._current_level:
             return
 
         old_level = self._current_level
         self._current_level = level
-        self._last_level_change = datetime.now(tz=timezone.utc)
+        self._last_level_change = datetime.now(tz=UTC)
 
         # Update disabled features
         self._update_disabled_features()
@@ -150,25 +154,26 @@ class DegradationManager:
         )
 
         # Record in history
-        self._degradation_history.append({
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
-            "old_level": old_level.value,
-            "new_level": level.value,
-            "reason": reason,
-        })
+        self._degradation_history.append(
+            {
+                "timestamp": datetime.now(tz=UTC).isoformat(),
+                "old_level": old_level.value,
+                "new_level": level.value,
+                "reason": reason,
+            },
+        )
 
         # Keep only last 100 entries
         if len(self._degradation_history) > 100:
             self._degradation_history = self._degradation_history[-100:]
 
-    def recover_to_level(
-        self, level: DegradationLevel, reason: str
-    ) -> None:
+    def recover_to_level(self, level: DegradationLevel, reason: str) -> None:
         """Recover system to specified level.
 
         Args:
             level: Target recovery level
             reason: Reason for recovery
+
         """
         if level == self._current_level:
             return
@@ -193,7 +198,7 @@ class DegradationManager:
 
         old_level = self._current_level
         self._current_level = level
-        self._last_level_change = datetime.now(tz=timezone.utc)
+        self._last_level_change = datetime.now(tz=UTC)
 
         # Update disabled features
         self._update_disabled_features()
@@ -204,30 +209,28 @@ class DegradationManager:
             old_level=old_level.value,
             new_level=level.value,
             reason=reason,
-            enabled_features=[
-                f.value
-                for f in self._get_available_features()
-            ],
+            enabled_features=[f.value for f in self._get_available_features()],
         )
 
         # Record in history
-        self._degradation_history.append({
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
-            "old_level": old_level.value,
-            "new_level": level.value,
-            "reason": reason,
-            "recovery": True,
-        })
+        self._degradation_history.append(
+            {
+                "timestamp": datetime.now(tz=UTC).isoformat(),
+                "old_level": old_level.value,
+                "new_level": level.value,
+                "reason": reason,
+                "recovery": True,
+            },
+        )
 
     def record_service_failure(self, service_name: str) -> None:
         """Record a service failure.
 
         Args:
             service_name: Name of service that failed
+
         """
-        self._service_failures[service_name] = (
-            self._service_failures.get(service_name, 0) + 1
-        )
+        self._service_failures[service_name] = self._service_failures.get(service_name, 0) + 1
         self._service_successes[service_name] = 0
 
         # Check if should degrade
@@ -250,10 +253,9 @@ class DegradationManager:
 
         Args:
             service_name: Name of service that succeeded
+
         """
-        self._service_successes[service_name] = (
-            self._service_successes.get(service_name, 0) + 1
-        )
+        self._service_successes[service_name] = self._service_successes.get(service_name, 0) + 1
         self._service_failures[service_name] = 0
 
         # Check if should recover
@@ -271,49 +273,43 @@ class DegradationManager:
                     f"Service {service_name} recovered with {successes} successes",
                 )
 
-    def get_user_notification(self) -> Optional[str]:
+    def get_user_notification(self) -> str | None:
         """Get user notification message for current degradation.
 
         Returns:
             Notification message or None if normal
+
         """
         if self._current_level == DegradationLevel.NORMAL:
             return None
 
-        elif self._current_level == DegradationLevel.DEGRADED:
+        if self._current_level == DegradationLevel.DEGRADED:
             return (
                 "Some advanced features are temporarily unavailable. "
                 "Basic functionality is still working."
             )
 
-        else:  # MINIMAL
-            return (
-                "System is running in minimal mode. "
-                "Only essential features are available."
-            )
+        # MINIMAL
+        return "System is running in minimal mode. Only essential features are available."
 
     def get_status(self) -> dict:
         """Get degradation status.
 
         Returns:
             Status dictionary
+
         """
         return {
             "current_level": self._current_level.value,
-            "available_features": [
-                f.value for f in self._get_available_features()
-            ],
-            "disabled_features": [
-                f.value for f in self._disabled_features
-            ],
+            "available_features": [f.value for f in self._get_available_features()],
+            "disabled_features": [f.value for f in self._disabled_features],
             "service_health": {
                 service: {
                     "failures": self._service_failures.get(service, 0),
                     "successes": self._service_successes.get(service, 0),
                 }
                 for service in set(
-                    list(self._service_failures.keys())
-                    + list(self._service_successes.keys())
+                    list(self._service_failures.keys()) + list(self._service_successes.keys()),
                 )
             },
             "last_level_change": self._last_level_change.isoformat(),
@@ -331,15 +327,16 @@ class DegradationManager:
 
         Returns:
             Set of available features
+
         """
         if self._current_level == DegradationLevel.NORMAL:
             return self.config.normal_features
 
-        elif self._current_level == DegradationLevel.DEGRADED:
+        if self._current_level == DegradationLevel.DEGRADED:
             return self.config.degraded_features
 
-        else:  # MINIMAL
-            return self.config.minimal_features
+        # MINIMAL
+        return self.config.minimal_features
 
     def get_degradation_history(self, limit: int = 10) -> list[dict]:
         """Get recent degradation history.
@@ -349,12 +346,13 @@ class DegradationManager:
 
         Returns:
             List of degradation events
+
         """
         return self._degradation_history[-limit:]
 
 
 # Global degradation manager
-_global_degradation_manager: Optional[DegradationManager] = None
+_global_degradation_manager: DegradationManager | None = None
 
 
 def get_degradation_manager() -> DegradationManager:
@@ -362,6 +360,7 @@ def get_degradation_manager() -> DegradationManager:
 
     Returns:
         Global DegradationManager instance
+
     """
     global _global_degradation_manager
     if _global_degradation_manager is None:

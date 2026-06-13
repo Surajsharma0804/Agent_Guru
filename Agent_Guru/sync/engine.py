@@ -1,4 +1,5 @@
 """Cross-Device Sync Engine with CRDT conflict resolution."""
+
 from __future__ import annotations
 
 import hashlib
@@ -6,7 +7,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from Agent_Guru.sync.crdt import CRDTEntry, resolve_conflict
 
@@ -15,9 +16,8 @@ logger = logging.getLogger(__name__)
 PROPAGATION_TARGET_S = 5.0
 
 try:
-    pass
-
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
     _CRYPTO_AVAILABLE = True
 except ImportError:
     _CRYPTO_AVAILABLE = False
@@ -26,6 +26,7 @@ except ImportError:
 @dataclass
 class ContextDelta:
     """A signed context delta for cross-device sync."""
+
     delta_id: str
     device_id: str
     timestamp: float
@@ -38,12 +39,15 @@ class ContextDelta:
             self.delta_hash = self._compute_hash()
 
     def _compute_hash(self) -> str:
-        data = json.dumps({
-            "delta_id": self.delta_id,
-            "device_id": self.device_id,
-            "timestamp": self.timestamp,
-            "payload": self.payload,
-        }, sort_keys=True)
+        data = json.dumps(
+            {
+                "delta_id": self.delta_id,
+                "device_id": self.device_id,
+                "timestamp": self.timestamp,
+                "payload": self.payload,
+            },
+            sort_keys=True,
+        )
         return hashlib.sha256(data.encode()).hexdigest()
 
     def to_dict(self) -> dict[str, Any]:
@@ -57,7 +61,7 @@ class ContextDelta:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "ContextDelta":
+    def from_dict(cls, d: dict[str, Any]) -> ContextDelta:
         obj = cls(
             delta_id=d["delta_id"],
             device_id=d["device_id"],
@@ -72,7 +76,7 @@ class ContextDelta:
         return json.dumps(self.to_dict())
 
     @classmethod
-    def deserialize(cls, data: str) -> "ContextDelta":
+    def deserialize(cls, data: str) -> ContextDelta:
         return cls.from_dict(json.loads(data))
 
 
@@ -85,7 +89,7 @@ class SyncEngine:
         self._local_deltas: list[ContextDelta] = []
         self._offline_queue: list[ContextDelta] = []
         self._online = True
-        self._private_key: Optional[Any] = None
+        self._private_key: Any | None = None
         if _CRYPTO_AVAILABLE:
             self._private_key = Ed25519PrivateKey.generate()
 
@@ -93,6 +97,7 @@ class SyncEngine:
         if not _CRYPTO_AVAILABLE or self._private_key is None:
             return ""
         import base64
+
         sig = self._private_key.sign(data.encode())
         return base64.b64encode(sig).decode()
 

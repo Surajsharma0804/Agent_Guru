@@ -1,5 +1,4 @@
-"""
-Handwriting Recognizer for the Agent Guru Vision System.
+"""Handwriting Recognizer for the Agent Guru Vision System.
 
 Provides:
 - HandwritingRecognizer: Transcribes handwritten text from images.
@@ -15,14 +14,17 @@ Requirements: 4.1–4.6
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import structlog
 
-from Agent_Guru.vision.model_manager import ModelManager
 from Agent_Guru.vision.vision_models import BoundingBox, OCRResult, VisionConfig
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from Agent_Guru.vision.model_manager import ModelManager
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
@@ -43,6 +45,7 @@ class HandwritingRecognizer:
         _recognize_fn: Optional callable for testing; replaces ONNX inference.
             Signature: ``(image: np.ndarray) -> tuple[str, float]``
             Returns: ``(text, confidence)``
+
     """
 
     def __init__(
@@ -69,10 +72,11 @@ class HandwritingRecognizer:
         if self._session is None:
             try:
                 self._session = self._model_manager.load_model(
-                    "handwriting_recognizer", self._model_path
+                    "handwriting_recognizer",
+                    self._model_path,
                 )
             except Exception as exc:
-                logger.error(
+                logger.exception(
                     "HandwritingRecognizer: failed to load model",
                     path=self._model_path,
                     error=str(exc),
@@ -94,9 +98,7 @@ class HandwritingRecognizer:
             grey = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
             blurred = cv2.GaussianBlur(grey, (5, 5), 0)
             edges = cv2.Canny(blurred, 50, 150)
-            contours, _ = cv2.findContours(
-                edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-            )
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if not contours:
                 return image
 
@@ -114,10 +116,9 @@ class HandwritingRecognizer:
                 [[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]],
                 dtype=np.float32,
             )
-            M = cv2.getPerspectiveTransform(src_pts, dst_pts)  # noqa: N806
-            warped = cv2.warpPerspective(image, M, (w, h))
-            return warped
-        except Exception as e:
+            M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+            return cv2.warpPerspective(image, M, (w, h))
+        except Exception:
             return image
 
     def _get_tokenizer(self) -> Any:
@@ -136,19 +137,21 @@ class HandwritingRecognizer:
         # Attempt 1: transformers (preferred — handles BPE correctly)
         try:
             from transformers import AutoTokenizer  # type: ignore[import]
+
             tokenizer = AutoTokenizer.from_pretrained(model_name)  # nosec B615
             logger.info("HandwritingRecognizer: loaded transformers tokenizer")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("HandwritingRecognizer: transformers tokenizer unavailable: %s", exc)
 
         # Attempt 2: tokenizers library (lighter, no PyTorch dependency)
         if tokenizer is None:
             try:
                 from tokenizers import Tokenizer  # type: ignore[import]
+
                 tokenizer = Tokenizer.from_pretrained(model_name)
                 logger.info("HandwritingRecognizer: loaded tokenizers library tokenizer")
             except Exception as exc:
-                logger.warning(
+                logger.exception(
                     "HandwritingRecognizer: no tokenizer available (%s) — "
                     "text output will be empty on ONNX path",
                     exc,
@@ -165,6 +168,7 @@ class HandwritingRecognizer:
         confidence check downstream can mark the result as unreadable.
         """
         ids = [int(t) for t in token_ids if int(t) > 2]
+
         if not ids:
             return ""
 
@@ -179,8 +183,8 @@ class HandwritingRecognizer:
             # tokenizers library Tokenizer
             if hasattr(tokenizer, "decode"):
                 return tokenizer.decode(ids).strip()
-        except Exception as exc:
-            logger.warning("HandwritingRecognizer: token decode failed: %s", exc)
+        except Exception:
+            logger.exception("HandwritingRecognizer: token decode failed")
 
         return ""
 
@@ -201,6 +205,7 @@ class HandwritingRecognizer:
 
         try:
             import cv2  # type: ignore[import]
+
             resized = cv2.resize(image, (384, 384)).astype(np.float32) / 255.0
         except ImportError:
             # Nearest-neighbour fallback without cv2
@@ -244,12 +249,11 @@ class HandwritingRecognizer:
 
         Returns:
             OCRResult with transcribed text and per-word details.
+
         """
         corrected = self._correct_perspective(image)
         loop = asyncio.get_running_loop()
-        text, confidence = await loop.run_in_executor(
-            None, self._run_recognition, corrected
-        )
+        text, confidence = await loop.run_in_executor(None, self._run_recognition, corrected)
 
         if confidence < _UNREADABLE_CONFIDENCE_THRESHOLD:
             logger.warning(
@@ -272,11 +276,13 @@ class HandwritingRecognizer:
         words: list[dict[str, Any]] = []
         x_offset = 0.0
         for token in text.split():
-            words.append({
-                "text": token,
-                "bounding_box": BoundingBox(x=x_offset, y=0.0, width=40.0, height=15.0),
-                "confidence": confidence,
-            })
+            words.append(
+                {
+                    "text": token,
+                    "bounding_box": BoundingBox(x=x_offset, y=0.0, width=40.0, height=15.0),
+                    "confidence": confidence,
+                },
+            )
             x_offset += 50.0
 
         return OCRResult(
@@ -286,9 +292,7 @@ class HandwritingRecognizer:
             reading_order_preserved=True,
         )
 
-    def classify_region(
-        self, image: np.ndarray
-    ) -> Literal["printed", "handwritten", "mixed"]:
+    def classify_region(self, image: np.ndarray) -> Literal["printed", "handwritten", "mixed"]:
         """Classify whether a region contains printed, handwritten, or mixed text.
 
         Uses a heuristic based on stroke irregularity (variance of edge
@@ -299,6 +303,7 @@ class HandwritingRecognizer:
 
         Returns:
             "printed", "handwritten", or "mixed".
+
         """
         try:
             import cv2  # type: ignore[import]

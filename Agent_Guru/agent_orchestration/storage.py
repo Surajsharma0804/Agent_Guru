@@ -1,5 +1,4 @@
-"""
-SQLite storage backend for Agent Orchestration System.
+"""SQLite storage backend for Agent Orchestration System.
 
 Provides persistent storage for agents, performance records, task assignments,
 and evolution events with efficient querying through indexes.
@@ -20,23 +19,23 @@ Version: 1.0.0
 
 import json
 import sqlite3
+from collections.abc import Iterator
 from contextlib import closing, contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Any
 
-from Agent_Guru.utils.path_utils import safe_path
 from Agent_Guru.agent_orchestration.models import (
     Agent,
     AgentStatus,
     EvolutionEvent,
     PerformanceRecord,
 )
+from Agent_Guru.utils.path_utils import safe_path
 
 
 class AgentStorage:
-    """
-    SQLite storage backend for agent orchestration.
+    """SQLite storage backend for agent orchestration.
 
     Manages persistent storage of agents, performance records, task assignments,
     and evolution events with optimized indexes for efficient queries.
@@ -102,9 +101,8 @@ class AgentStorage:
         ON evolution_events(timestamp);
     """
 
-    def __init__(self, db_path: str):
-        """
-        Initialize storage backend.
+    def __init__(self, db_path: str) -> None:
+        """Initialize storage backend.
 
         Args:
             db_path: Path to SQLite database file, or ":memory:" for in-memory DB.
@@ -113,11 +111,13 @@ class AgentStorage:
             ValueError: If db_path attempts to escape its resolved parent directory.
 
         Time Complexity: O(1)
+
         """
         if db_path == ":memory:":
             self.db_path = db_path
-            self._memory_conn: Optional[sqlite3.Connection] = sqlite3.connect(
-                ":memory:", check_same_thread=False
+            self._memory_conn: sqlite3.Connection | None = sqlite3.connect(
+                ":memory:",
+                check_same_thread=False,
             )
             self._memory_conn.row_factory = sqlite3.Row
         else:
@@ -135,8 +135,7 @@ class AgentStorage:
         self._init_database()
 
     def close(self) -> None:
-        """
-        Explicitly close the database connection.
+        """Explicitly close the database connection.
 
         Safe to call multiple times.
 
@@ -176,8 +175,7 @@ class AgentStorage:
                 yield conn
 
     def _init_database(self) -> None:
-        """
-        Initialize database schema.
+        """Initialize database schema.
 
         Creates tables and indexes if they don't exist.
 
@@ -188,8 +186,7 @@ class AgentStorage:
             conn.commit()
 
     async def store_agent(self, agent: Agent) -> None:
-        """
-        Store agent in database.
+        """Store agent in database.
 
         Args:
             agent: Agent to store
@@ -198,6 +195,7 @@ class AgentStorage:
         Performance Target: <5ms
 
         Validates: Requirements 1.1, 1.2
+
         """
         with self._get_connection() as conn:
             conn.execute(
@@ -221,9 +219,8 @@ class AgentStorage:
             )
             conn.commit()
 
-    async def get_agent(self, agent_id: str) -> Optional[Agent]:
-        """
-        Retrieve agent by ID.
+    async def get_agent(self, agent_id: str) -> Agent | None:
+        """Retrieve agent by ID.
 
         Args:
             agent_id: Agent identifier
@@ -233,12 +230,10 @@ class AgentStorage:
 
         Time Complexity: O(1) with index
         Performance Target: <2ms
+
         """
         with self._get_connection() as conn:
-            row = conn.execute(
-                "SELECT * FROM agents WHERE id = ?",
-                (agent_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM agents WHERE id = ?", (agent_id,)).fetchone()
 
             if not row:
                 return None
@@ -246,24 +241,23 @@ class AgentStorage:
             return self._row_to_agent(row)
 
     async def update_agent(self, agent: Agent) -> None:
-        """
-        Update existing agent.
+        """Update existing agent.
 
         Args:
             agent: Agent to update
 
         Time Complexity: O(1)
         Performance Target: <5ms
+
         """
         await self.store_agent(agent)
 
     async def query_agents(
         self,
-        status: Optional[AgentStatus] = None,
-        limit: Optional[int] = None
+        status: AgentStatus | None = None,
+        limit: int | None = None,
     ) -> list[Agent]:
-        """
-        Query agents by criteria.
+        """Query agents by criteria.
 
         Args:
             status: Filter by status (optional)
@@ -274,6 +268,7 @@ class AgentStorage:
 
         Time Complexity: O(n) where n is matching agents
         Performance Target: <10ms for typical queries
+
         """
         with self._get_connection() as conn:
             query = "SELECT * FROM agents"
@@ -292,24 +287,19 @@ class AgentStorage:
             return [self._row_to_agent(row) for row in rows]
 
     async def get_active_agents(self) -> list[Agent]:
-        """
-        Get all active agents.
+        """Get all active agents.
 
         Returns:
             List of active agents
 
         Time Complexity: O(n) where n is active agents
         Performance Target: <10ms
+
         """
         return await self.query_agents(status=AgentStatus.ACTIVE)
 
-    async def store_performance_record(
-        self,
-        agent_id: str,
-        record: PerformanceRecord
-    ) -> None:
-        """
-        Store performance record for agent.
+    async def store_performance_record(self, agent_id: str, record: PerformanceRecord) -> None:
+        """Store performance record for agent.
 
         Args:
             agent_id: Agent identifier
@@ -319,6 +309,7 @@ class AgentStorage:
         Performance Target: <3ms
 
         Validates: Requirements 12.1, 12.5
+
         """
         with self._get_connection() as conn:
             conn.execute(
@@ -344,11 +335,10 @@ class AgentStorage:
     async def get_performance_records(
         self,
         agent_id: str,
-        task_type: Optional[str] = None,
-        limit: Optional[int] = None
+        task_type: str | None = None,
+        limit: int | None = None,
     ) -> list[PerformanceRecord]:
-        """
-        Get performance records for agent.
+        """Get performance records for agent.
 
         Args:
             agent_id: Agent identifier
@@ -360,6 +350,7 @@ class AgentStorage:
 
         Time Complexity: O(log n) with index
         Performance Target: <5ms
+
         """
         with self._get_connection() as conn:
             query = """
@@ -386,10 +377,9 @@ class AgentStorage:
         self,
         task_id: str,
         agent_id: str,
-        timestamp: datetime
+        timestamp: datetime,
     ) -> None:
-        """
-        Record task assignment to agent.
+        """Record task assignment to agent.
 
         Args:
             task_id: Task identifier
@@ -400,6 +390,7 @@ class AgentStorage:
         Performance Target: <3ms
 
         Validates: Requirements 7.4
+
         """
         with self._get_connection() as conn:
             conn.execute(
@@ -413,8 +404,7 @@ class AgentStorage:
             conn.commit()
 
     async def store_evolution_event(self, event: dict[str, Any]) -> None:
-        """
-        Store evolution event.
+        """Store evolution event.
 
         Args:
             event: Evolution event data
@@ -423,6 +413,7 @@ class AgentStorage:
         Performance Target: <3ms
 
         Validates: Requirements 1.4, 3.5, 4.4, 5.3
+
         """
         with self._get_connection() as conn:
             conn.execute(
@@ -432,7 +423,7 @@ class AgentStorage:
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    event.get("id", f"evt_{datetime.now(tz=timezone.utc).timestamp()}"),
+                    event.get("id", f"evt_{datetime.now(tz=UTC).timestamp()}"),
                     event["event_type"],
                     json.dumps(event["agent_ids"]),
                     event["reason"],
@@ -442,12 +433,8 @@ class AgentStorage:
             )
             conn.commit()
 
-    async def get_evolution_events(
-        self,
-        limit: Optional[int] = None
-    ) -> list[EvolutionEvent]:
-        """
-        Get evolution events.
+    async def get_evolution_events(self, limit: int | None = None) -> list[EvolutionEvent]:
+        """Get evolution events.
 
         Args:
             limit: Maximum number of results (optional)
@@ -456,6 +443,7 @@ class AgentStorage:
             List of evolution events (most recent first)
 
         Time Complexity: O(log n) with index
+
         """
         with self._get_connection() as conn:
             query = "SELECT * FROM evolution_events ORDER BY timestamp DESC"
@@ -469,8 +457,7 @@ class AgentStorage:
             return [self._row_to_evolution_event(row) for row in rows]
 
     def _row_to_agent(self, row: sqlite3.Row) -> Agent:
-        """
-        Convert database row to Agent model.
+        """Convert database row to Agent model.
 
         Args:
             row: Database row
@@ -479,6 +466,7 @@ class AgentStorage:
             Agent instance
 
         Time Complexity: O(1)
+
         """
         return Agent(
             id=row["id"],
@@ -494,8 +482,7 @@ class AgentStorage:
         )
 
     def _row_to_performance_record(self, row: sqlite3.Row) -> PerformanceRecord:
-        """
-        Convert database row to PerformanceRecord model.
+        """Convert database row to PerformanceRecord model.
 
         Args:
             row: Database row
@@ -504,6 +491,7 @@ class AgentStorage:
             PerformanceRecord instance
 
         Time Complexity: O(1)
+
         """
         return PerformanceRecord(
             task_id=row["task_id"],
@@ -515,8 +503,7 @@ class AgentStorage:
         )
 
     def _row_to_evolution_event(self, row: sqlite3.Row) -> EvolutionEvent:
-        """
-        Convert database row to EvolutionEvent model.
+        """Convert database row to EvolutionEvent model.
 
         Args:
             row: Database row
@@ -525,6 +512,7 @@ class AgentStorage:
             EvolutionEvent instance
 
         Time Complexity: O(1)
+
         """
         return EvolutionEvent(
             id=row["id"],

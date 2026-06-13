@@ -7,10 +7,10 @@ from .sleep_wake import SleepWakeCoordinator
 
 __all__ = [
     "BackgroundServiceOrchestrator",
-    "ServiceHealth",
-    "ServiceState",
-    "SystemMode",
-    "SleepWakeCoordinator",
     "PlatformLifecycleHandler",
     "ResourceMonitor",
+    "ServiceHealth",
+    "ServiceState",
+    "SleepWakeCoordinator",
+    "SystemMode",
 ]

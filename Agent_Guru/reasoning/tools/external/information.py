@@ -1,5 +1,4 @@
-"""
-Information tools for news and stock prices.
+"""Information tools for news and stock prices.
 
 Provides access to news APIs and financial data.
 """
@@ -64,6 +63,7 @@ class GetNewsTool(Tool):
 
         Returns:
             Execution result with news articles
+
         """
         query = kwargs.get("query", "")
         category = kwargs.get("category", "general").lower()
@@ -110,7 +110,7 @@ class GetNewsTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to get news: {str(e)}",
+                "error": f"Failed to get news: {e!s}",
             }
 
 
@@ -124,7 +124,7 @@ class GetNewsTool(Tool):
             type=ToolParameterType.STRING,
             description="Stock ticker symbol (e.g., AAPL, GOOGL)",
             required=True,
-        )
+        ),
     ],
     sensitivity=ToolSensitivity.SAFE,
     estimated_latency_ms=1000,
@@ -146,6 +146,7 @@ class GetStockPriceTool(Tool):
 
         Returns:
             Execution result with stock data
+
         """
         symbol = kwargs["symbol"].upper()
 
@@ -183,5 +184,5 @@ class GetStockPriceTool(Tool):
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to get stock price: {str(e)}",
+                "error": f"Failed to get stock price: {e!s}",
             }

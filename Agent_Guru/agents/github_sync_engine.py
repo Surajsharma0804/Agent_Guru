@@ -1,5 +1,4 @@
-"""
-GitHub Sync Engine - Queues and syncs agent evolution events to GitHub.
+"""GitHub Sync Engine - Queues and syncs agent evolution events to GitHub.
 
 Validates: Requirements 20.1, 20.2, 20.3, 20.4, 20.5
 """
@@ -7,7 +6,7 @@ Validates: Requirements 20.1, 20.2, 20.3, 20.4, 20.5
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -25,8 +24,7 @@ class SyncEvent:
 
 
 class GitHubSyncEngine:
-    """
-    Queues agent evolution events and syncs them to GitHub.
+    """Queues agent evolution events and syncs them to GitHub.
 
     Uses exponential backoff for retries on network failures.
     Only updates README.md — never creates other markdown files.
@@ -40,6 +38,7 @@ class GitHubSyncEngine:
         >>> await engine.process_sync_queue()
 
     Validates: Requirements 20.1, 20.2, 20.3, 20.4, 20.5
+
     """
 
     def __init__(
@@ -63,8 +62,7 @@ class GitHubSyncEngine:
         agent_ids: list[str],
         details: dict[str, Any],
     ) -> None:
-        """
-        Queue an evolution event for GitHub sync.
+        """Queue an evolution event for GitHub sync.
 
         Validates: Requirement 20.1
         """
@@ -72,19 +70,19 @@ class GitHubSyncEngine:
             event_type=event_type,
             agent_ids=agent_ids,
             details=details,
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
         )
         self._queue.append(event)
         logger.debug("Queued evolution event: %s for agents %s", event_type, agent_ids)
 
     async def process_sync_queue(self) -> dict[str, int]:
-        """
-        Process all queued events in batches with retry logic.
+        """Process all queued events in batches with retry logic.
 
         Returns:
             Dict with 'processed' and 'failed' counts
 
         Validates: Requirements 20.1, 20.3, 20.4
+
         """
         processed = 0
         failed = 0
@@ -106,8 +104,7 @@ class GitHubSyncEngine:
         return {"processed": processed, "failed": failed}
 
     async def _sync_with_retry(self, event: SyncEvent) -> bool:
-        """
-        Attempt to sync event with exponential backoff.
+        """Attempt to sync event with exponential backoff.
 
         Validates: Requirement 20.4
         """
@@ -117,8 +114,8 @@ class GitHubSyncEngine:
                 return True
             except Exception as exc:
                 event.attempts += 1
-                wait = self.base_backoff_seconds * (2 ** attempt)
-                logger.warning(
+                wait = self.base_backoff_seconds * (2**attempt)
+                logger.exception(
                     "GitHub sync attempt %d/%d failed: %s. Retrying in %.1fs",
                     attempt + 1,
                     self.max_retries,
@@ -128,7 +125,11 @@ class GitHubSyncEngine:
                 if attempt < self.max_retries - 1:
                     await asyncio.sleep(wait)
 
-        logger.error("GitHub sync failed after %d attempts for event %s", self.max_retries, event.event_type)
+        logger.error(
+            "GitHub sync failed after %d attempts for event %s",
+            self.max_retries,
+            event.event_type,
+        )
         return False
 
     async def _push_event(self, event: SyncEvent) -> None:
@@ -139,7 +140,7 @@ class GitHubSyncEngine:
         await self.github_client.update_readme(readme_content, commit_message)
 
     def _build_commit_message(self, event: SyncEvent) -> str:
-        """Build a meaningful commit message for the evolution event. Validates: Req 20.3"""
+        """Build a meaningful commit message for the evolution event. Validates: Req 20.3."""
         safe_type = self._sanitize(event.event_type)
         safe_ids = [self._sanitize(a) for a in event.agent_ids]
         agents_str = ", ".join(safe_ids[:3])
@@ -150,8 +151,7 @@ class GitHubSyncEngine:
 
     @staticmethod
     def _sanitize(value: str) -> str:
-        """
-        Escape characters that carry meaning in Markdown/HTML.
+        """Escape characters that carry meaning in Markdown/HTML.
 
         Prevents CWE-20/79/80: untrusted strings injected into Markdown
         must not be able to introduce raw HTML tags, links, or script content.
@@ -159,8 +159,7 @@ class GitHubSyncEngine:
         Time Complexity: O(n)
         """
         return (
-            value
-            .replace("&", "&amp;")
+            value.replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace('"', "&quot;")
@@ -171,14 +170,13 @@ class GitHubSyncEngine:
         )
 
     def _build_readme_content(self, event: SyncEvent) -> str:
-        """Build README.md content summarizing the evolution event. Validates: Req 20.2"""
+        """Build README.md content summarizing the evolution event. Validates: Req 20.2."""
         safe_event_type = self._sanitize(event.event_type)
         safe_agents = ", ".join(self._sanitize(a) for a in event.agent_ids)
         safe_timestamp = self._sanitize(event.timestamp.isoformat())
         # Represent details as a sanitized key=value list to avoid raw dict repr
         safe_details = ", ".join(
-            f"{self._sanitize(str(k))}={self._sanitize(str(v))}"
-            for k, v in event.details.items()
+            f"{self._sanitize(str(k))}={self._sanitize(str(v))}" for k, v in event.details.items()
         )
         return (
             f"## Agent Evolution Update\n\n"
@@ -193,5 +191,5 @@ class GitHubSyncEngine:
         return [events[i : i + self.batch_size] for i in range(0, len(events), self.batch_size)]
 
     async def update_readme(self, content: str, commit_message: str) -> None:
-        """Directly update README.md. Validates: Requirement 20.2"""
+        """Directly update README.md. Validates: Requirement 20.2."""
         await self.github_client.update_readme(content, commit_message)

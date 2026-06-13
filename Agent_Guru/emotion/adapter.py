@@ -3,8 +3,10 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from Agent_Guru.emotion.detector import EmotionalState
+if TYPE_CHECKING:
+    from Agent_Guru.emotion.detector import EmotionalState
 
 DISTRESS_EMOTIONS = frozenset({"sad", "fearful", "frustrated", "tired"})
 DISTRESS_CONFIDENCE_THRESHOLD = 0.8
@@ -14,6 +16,7 @@ DISTRESS_CONSECUTIVE_TURNS = 3
 @dataclass
 class AdaptedResponse:
     """Response adapted for emotional state."""
+
     original: str
     adapted: str
     tone: str

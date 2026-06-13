@@ -1,5 +1,4 @@
-"""
-Error Manager for comprehensive error handling and classification.
+"""Error Manager for comprehensive error handling and classification.
 
 Provides centralized error management with:
 - Error classification and categorization
@@ -9,9 +8,9 @@ Provides centralized error management with:
 """
 
 import traceback
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -75,15 +74,15 @@ class ErrorSeverity(str, Enum):
 class ErrorContext(BaseModel):
     """Context information for an error."""
 
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    user_id: Optional[str] = None
-    conversation_id: Optional[str] = None
-    turn_id: Optional[str] = None
-    input_text: Optional[str] = None
-    intent_type: Optional[str] = None
-    action_id: Optional[str] = None
-    tool_id: Optional[str] = None
-    stack_trace: Optional[str] = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    user_id: str | None = None
+    conversation_id: str | None = None
+    turn_id: str | None = None
+    input_text: str | None = None
+    intent_type: str | None = None
+    action_id: str | None = None
+    tool_id: str | None = None
+    stack_trace: str | None = None
     additional_data: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -97,7 +96,7 @@ class StructuredError(BaseModel):
     context: ErrorContext
     recoverable: bool = True
     suggested_actions: list[str] = Field(default_factory=list)
-    error_id: Optional[str] = None
+    error_id: str | None = None
 
 
 class ErrorClassifier:
@@ -153,6 +152,7 @@ class ErrorClassifier:
 
         Returns:
             Error type
+
         """
         # Check direct mapping
         exc_type = type(exception)
@@ -164,16 +164,15 @@ class ErrorClassifier:
 
         if "timeout" in message:
             return ErrorType.TIMEOUT
-        elif "permission" in message or "denied" in message:
+        if "permission" in message or "denied" in message:
             return ErrorType.PERMISSION_DENIED
-        elif "network" in message or "connection" in message:
+        if "network" in message or "connection" in message:
             return ErrorType.NETWORK_ERROR
-        elif "llm" in message or "model" in message:
+        if "llm" in message or "model" in message:
             return ErrorType.LLM_UNAVAILABLE
-        elif "tool" in message:
+        if "tool" in message:
             return ErrorType.TOOL_EXECUTION_FAILED
-        else:
-            return ErrorType.INTERNAL_ERROR
+        return ErrorType.INTERNAL_ERROR
 
     @staticmethod
     def get_severity(error_type: ErrorType) -> ErrorSeverity:
@@ -184,10 +183,9 @@ class ErrorClassifier:
 
         Returns:
             Error severity
+
         """
-        return ErrorClassifier.SEVERITY_MAPPINGS.get(
-            error_type, ErrorSeverity.MEDIUM
-        )
+        return ErrorClassifier.SEVERITY_MAPPINGS.get(error_type, ErrorSeverity.MEDIUM)
 
     @staticmethod
     def is_recoverable(error_type: ErrorType) -> bool:
@@ -198,6 +196,7 @@ class ErrorClassifier:
 
         Returns:
             True if recoverable
+
         """
         # Non-recoverable errors
         non_recoverable = {
@@ -213,7 +212,7 @@ class ErrorClassifier:
 class ErrorManager:
     """Manager for error handling and classification."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize error manager."""
         self._error_count = 0
         self._error_history: list[StructuredError] = []
@@ -222,8 +221,8 @@ class ErrorManager:
         self,
         error_type: ErrorType,
         message: str,
-        context: Optional[ErrorContext] = None,
-        exception: Optional[Exception] = None,
+        context: ErrorContext | None = None,
+        exception: Exception | None = None,
     ) -> StructuredError:
         """Create a structured error.
 
@@ -235,6 +234,7 @@ class ErrorManager:
 
         Returns:
             Structured error
+
         """
         self._error_count += 1
 
@@ -245,9 +245,7 @@ class ErrorManager:
         # Add stack trace if exception provided
         if exception:
             context.stack_trace = "".join(
-                traceback.format_exception(
-                    type(exception), exception, exception.__traceback__
-                )
+                traceback.format_exception(type(exception), exception, exception.__traceback__),
             )
 
         # Get severity and recoverability
@@ -284,7 +282,7 @@ class ErrorManager:
     def handle_exception(
         self,
         exception: Exception,
-        context: Optional[ErrorContext] = None,
+        context: ErrorContext | None = None,
     ) -> StructuredError:
         """Handle an exception and create structured error.
 
@@ -294,6 +292,7 @@ class ErrorManager:
 
         Returns:
             Structured error
+
         """
         # Classify exception
         error_type = ErrorClassifier.classify_exception(exception)
@@ -306,9 +305,7 @@ class ErrorManager:
             exception=exception,
         )
 
-    def _generate_user_message(
-        self, error_type: ErrorType, technical_message: str
-    ) -> str:
+    def _generate_user_message(self, error_type: ErrorType, technical_message: str) -> str:
         """Generate user-friendly error message.
 
         Args:
@@ -317,6 +314,7 @@ class ErrorManager:
 
         Returns:
             User-friendly message
+
         """
         # User-friendly messages per error type
         messages = {
@@ -359,6 +357,7 @@ class ErrorManager:
 
         Returns:
             List of suggested actions
+
         """
         suggestions = {
             ErrorType.INVALID_INPUT: [
@@ -402,6 +401,7 @@ class ErrorManager:
 
         Returns:
             Statistics dictionary
+
         """
         if not self._error_history:
             return {
@@ -430,7 +430,7 @@ class ErrorManager:
 
 
 # Global error manager instance
-_global_manager: Optional[ErrorManager] = None
+_global_manager: ErrorManager | None = None
 
 
 def get_error_manager() -> ErrorManager:
@@ -438,6 +438,7 @@ def get_error_manager() -> ErrorManager:
 
     Returns:
         Global ErrorManager instance
+
     """
     global _global_manager
     if _global_manager is None:

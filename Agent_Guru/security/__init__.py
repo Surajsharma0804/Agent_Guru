@@ -16,14 +16,15 @@ def __getattr__(name: str) -> object:
         from Agent_Guru.security.speech_integration import SpeechSecurityIntegration
 
         return SpeechSecurityIntegration
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+    msg = f"module '{__name__}' has no attribute '{name}'"
+    raise AttributeError(msg)
 
 
 __all__ = [
     "AuthenticationResult",
     "BiometricAuthenticator",
+    "SpeechSecurityIntegration",
+    "VoiceAuthenticationError",
     "VoiceAuthenticator",
     "VoiceProfile",
-    "VoiceAuthenticationError",
-    "SpeechSecurityIntegration",
 ]

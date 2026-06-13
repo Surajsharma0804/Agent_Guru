@@ -1,5 +1,4 @@
-"""
-Error handling module for Agent Guru platform integration.
+"""Error handling module for Agent Guru platform integration.
 
 This module provides robust error handling capabilities including:
 - Exponential backoff with jitter for retries
@@ -44,6 +43,7 @@ Example:
     >>> health_manager = get_health_manager()
     >>> status = await health_manager.check_health()
     >>> print(f"System healthy: {status.is_healthy}")
+
 """
 
 from Agent_Guru.platform.error_handling.graceful_degradation import (
@@ -69,25 +69,24 @@ from Agent_Guru.platform.error_handling.health_endpoint import (
 )
 
 __all__ = [
+    "ComponentHealth",
+    "DegradationConfig",
+    "DegradationEvent",
     # Graceful degradation
     "DegradationManager",
-    "DegradationConfig",
-    "FeaturePriority",
-    "OperationMode",
     "FeatureConfig",
-    "DegradationEvent",
+    "FeaturePriority",
     # Health checks
     "HealthCheckManager",
     "HealthStatus",
-    "ComponentHealth",
+    "OperationMode",
     "SystemHealth",
-    "get_health_manager",
-    "check_system_resources",
     "check_platform_integration",
+    "check_system_resources",
     # Health endpoints
     "create_health_app",
-    "create_simple_health_handler"
+    "create_simple_health_handler",
+    "get_health_manager",
 ]
 
 __version__ = "1.0.0"
-

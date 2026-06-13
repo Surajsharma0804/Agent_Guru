@@ -24,147 +24,546 @@ class EntityAnnotator:
     # -----------------------------------------------------------------------
 
     _KNOWN_APPS = {
-        "spotify", "chrome", "google chrome", "firefox", "safari", "edge",
-        "netflix", "youtube", "gmail", "email", "outlook", "calendar",
-        "maps", "google maps", "apple maps", "camera", "calculator",
-        "settings", "notepad", "word", "excel", "powerpoint", "slack",
-        "whatsapp", "telegram", "instagram", "twitter", "facebook",
-        "tiktok", "snapchat", "zoom", "teams", "discord", "spotify",
-        "apple music", "amazon music", "pandora", "soundcloud",
-        "uber", "lyft", "doordash", "grubhub", "amazon", "ebay",
-        "photos", "files", "notes", "reminders", "clock", "weather",
-        "news", "stocks", "health", "fitness", "maps", "translate",
+        "spotify",
+        "chrome",
+        "google chrome",
+        "firefox",
+        "safari",
+        "edge",
+        "netflix",
+        "youtube",
+        "gmail",
+        "email",
+        "outlook",
+        "calendar",
+        "maps",
+        "google maps",
+        "apple maps",
+        "camera",
+        "calculator",
+        "settings",
+        "notepad",
+        "word",
+        "excel",
+        "powerpoint",
+        "slack",
+        "whatsapp",
+        "telegram",
+        "instagram",
+        "twitter",
+        "facebook",
+        "tiktok",
+        "snapchat",
+        "zoom",
+        "teams",
+        "discord",
+        "apple music",
+        "amazon music",
+        "pandora",
+        "soundcloud",
+        "uber",
+        "lyft",
+        "doordash",
+        "grubhub",
+        "amazon",
+        "ebay",
+        "photos",
+        "files",
+        "notes",
+        "reminders",
+        "clock",
+        "weather",
+        "news",
+        "stocks",
+        "health",
+        "fitness",
+        "translate",
     }
 
     _KNOWN_CONTACTS = {
-        "mom", "dad", "wife", "husband", "sister", "brother", "boss",
-        "john", "sarah", "lisa", "mike", "david", "emma", "james",
-        "mary", "robert", "jennifer", "william", "linda", "richard",
-        "barbara", "joseph", "susan", "thomas", "jessica", "charles",
-        "karen", "christopher", "nancy", "daniel", "betty", "matthew",
-        "margaret", "anthony", "sandra", "mark", "ashley", "donald",
-        "dorothy", "steven", "kimberly", "paul", "emily", "andrew",
-        "donna", "kenneth", "michelle", "george", "carol", "joshua",
-        "amanda", "kevin", "melissa", "brian", "deborah", "edward",
-        "stephanie", "ronald", "rebecca", "timothy", "sharon", "jason",
-        "laura", "jeffrey", "cynthia", "ryan", "kathleen", "jacob",
-        "amy", "gary", "angela", "nicholas", "shirley", "eric",
-        "anna", "jonathan", "brenda", "stephen", "pamela", "larry",
-        "emma", "justin", "virginia", "scott", "katherine", "brandon",
-        "christine", "benjamin", "samantha", "samuel", "debra",
-        "raymond", "rachel", "gregory", "carolyn", "frank", "janet",
-        "alexander", "catherine", "patrick", "maria", "jack", "heather",
-        "dennis", "diane", "jerry", "julie", "tyler", "joyce",
-        "aaron", "victoria", "jose", "kelly", "adam", "christina",
-        "henry", "ruth", "nathan", "joan", "douglas", "evelyn",
-        "zachary", "judith", "peter", "andrea", "kyle", "megan",
-        "walter", "cheryl", "ethan", "alice", "jeremy", "ann",
-        "harold", "jean", "terry", "alice", "sean", "frances",
-        "austin", "martha", "christian", "gloria", "joe", "teresa",
-        "noah", "sara", "albert", "janice", "caleb", "marie",
-        "carl", "julia", "ralph", "grace", "lloyd", "judy",
-        "team", "office", "support", "customer service", "doctor",
-        "dentist", "lawyer", "accountant", "manager", "colleague",
+        "mom",
+        "dad",
+        "wife",
+        "husband",
+        "sister",
+        "brother",
+        "boss",
+        "john",
+        "sarah",
+        "lisa",
+        "mike",
+        "david",
+        "emma",
+        "james",
+        "mary",
+        "robert",
+        "jennifer",
+        "william",
+        "linda",
+        "richard",
+        "barbara",
+        "joseph",
+        "susan",
+        "thomas",
+        "jessica",
+        "charles",
+        "karen",
+        "christopher",
+        "nancy",
+        "daniel",
+        "betty",
+        "matthew",
+        "margaret",
+        "anthony",
+        "sandra",
+        "mark",
+        "ashley",
+        "donald",
+        "dorothy",
+        "steven",
+        "kimberly",
+        "paul",
+        "emily",
+        "andrew",
+        "donna",
+        "kenneth",
+        "michelle",
+        "george",
+        "carol",
+        "joshua",
+        "amanda",
+        "kevin",
+        "melissa",
+        "brian",
+        "deborah",
+        "edward",
+        "stephanie",
+        "ronald",
+        "rebecca",
+        "timothy",
+        "sharon",
+        "jason",
+        "laura",
+        "jeffrey",
+        "cynthia",
+        "ryan",
+        "kathleen",
+        "jacob",
+        "amy",
+        "gary",
+        "angela",
+        "nicholas",
+        "shirley",
+        "eric",
+        "anna",
+        "jonathan",
+        "brenda",
+        "stephen",
+        "pamela",
+        "larry",
+        "justin",
+        "virginia",
+        "scott",
+        "katherine",
+        "brandon",
+        "christine",
+        "benjamin",
+        "samantha",
+        "samuel",
+        "debra",
+        "raymond",
+        "rachel",
+        "gregory",
+        "carolyn",
+        "frank",
+        "janet",
+        "alexander",
+        "catherine",
+        "patrick",
+        "maria",
+        "jack",
+        "heather",
+        "dennis",
+        "diane",
+        "jerry",
+        "julie",
+        "tyler",
+        "joyce",
+        "aaron",
+        "victoria",
+        "jose",
+        "kelly",
+        "adam",
+        "christina",
+        "henry",
+        "ruth",
+        "nathan",
+        "joan",
+        "douglas",
+        "evelyn",
+        "zachary",
+        "judith",
+        "peter",
+        "andrea",
+        "kyle",
+        "megan",
+        "walter",
+        "cheryl",
+        "ethan",
+        "alice",
+        "jeremy",
+        "ann",
+        "harold",
+        "jean",
+        "terry",
+        "sean",
+        "frances",
+        "austin",
+        "martha",
+        "christian",
+        "gloria",
+        "joe",
+        "teresa",
+        "noah",
+        "sara",
+        "albert",
+        "janice",
+        "caleb",
+        "marie",
+        "carl",
+        "julia",
+        "ralph",
+        "grace",
+        "lloyd",
+        "judy",
+        "team",
+        "office",
+        "support",
+        "customer service",
+        "doctor",
+        "dentist",
+        "lawyer",
+        "accountant",
+        "manager",
+        "colleague",
     }
 
     _KNOWN_GENRES = {
-        "jazz", "rock", "pop", "classical", "hip hop", "hip-hop",
-        "country", "r&b", "electronic", "dance", "metal", "punk",
-        "folk", "blues", "reggae", "soul", "indie", "alternative",
-        "latin", "gospel", "opera", "ambient", "techno", "house",
-        "edm", "rap", "trap", "lo-fi", "lofi", "chill", "relaxing",
-        "workout", "study", "sleep", "meditation", "focus",
+        "jazz",
+        "rock",
+        "pop",
+        "classical",
+        "hip hop",
+        "hip-hop",
+        "country",
+        "r&b",
+        "electronic",
+        "dance",
+        "metal",
+        "punk",
+        "folk",
+        "blues",
+        "reggae",
+        "soul",
+        "indie",
+        "alternative",
+        "latin",
+        "gospel",
+        "opera",
+        "ambient",
+        "techno",
+        "house",
+        "edm",
+        "rap",
+        "trap",
+        "lo-fi",
+        "lofi",
+        "chill",
+        "relaxing",
+        "workout",
+        "study",
+        "sleep",
+        "meditation",
+        "focus",
     }
 
     _KNOWN_ARTISTS = {
-        "taylor swift", "ed sheeran", "the beatles", "queen", "adele",
-        "beyonce", "drake", "eminem", "rihanna", "kanye west",
-        "michael jackson", "madonna", "lady gaga", "coldplay",
-        "imagine dragons", "maroon 5", "bruno mars", "the weeknd",
-        "billie eilish", "ariana grande", "post malone", "travis scott",
-        "kendrick lamar", "jay-z", "nicki minaj", "cardi b",
-        "harry styles", "olivia rodrigo", "dua lipa", "bad bunny",
-        "j. cole", "21 savage", "lil baby", "roddy ricch",
-        "morgan wallen", "luke combs", "chris stapleton",
-        "beethoven", "mozart", "bach", "chopin", "vivaldi",
+        "taylor swift",
+        "ed sheeran",
+        "the beatles",
+        "queen",
+        "adele",
+        "beyonce",
+        "drake",
+        "eminem",
+        "rihanna",
+        "kanye west",
+        "michael jackson",
+        "madonna",
+        "lady gaga",
+        "coldplay",
+        "imagine dragons",
+        "maroon 5",
+        "bruno mars",
+        "the weeknd",
+        "billie eilish",
+        "ariana grande",
+        "post malone",
+        "travis scott",
+        "kendrick lamar",
+        "jay-z",
+        "nicki minaj",
+        "cardi b",
+        "harry styles",
+        "olivia rodrigo",
+        "dua lipa",
+        "bad bunny",
+        "j. cole",
+        "21 savage",
+        "lil baby",
+        "roddy ricch",
+        "morgan wallen",
+        "luke combs",
+        "chris stapleton",
+        "beethoven",
+        "mozart",
+        "bach",
+        "chopin",
+        "vivaldi",
     }
 
     _KNOWN_DEVICES = {
-        "lights", "light", "lamp", "bulb", "thermostat", "heater",
-        "ac", "air conditioner", "fan", "tv", "television", "speaker",
-        "door", "lock", "garage", "blinds", "curtains", "shades",
-        "dishwasher", "washing machine", "dryer", "oven", "microwave",
-        "coffee maker", "vacuum", "robot vacuum", "security camera",
-        "doorbell", "alarm", "smoke detector", "sprinkler",
-        "bedroom lights", "living room lights", "kitchen lights",
-        "bathroom lights", "office lights", "porch lights",
-        "front door", "back door", "garage door",
+        "lights",
+        "light",
+        "lamp",
+        "bulb",
+        "thermostat",
+        "heater",
+        "ac",
+        "air conditioner",
+        "fan",
+        "tv",
+        "television",
+        "speaker",
+        "door",
+        "lock",
+        "garage",
+        "blinds",
+        "curtains",
+        "shades",
+        "dishwasher",
+        "washing machine",
+        "dryer",
+        "oven",
+        "microwave",
+        "coffee maker",
+        "vacuum",
+        "robot vacuum",
+        "security camera",
+        "doorbell",
+        "alarm",
+        "smoke detector",
+        "sprinkler",
+        "bedroom lights",
+        "living room lights",
+        "kitchen lights",
+        "bathroom lights",
+        "office lights",
+        "porch lights",
+        "front door",
+        "back door",
+        "garage door",
     }
 
     _KNOWN_ACTIONS = {
-        "turn on", "turn off", "switch on", "switch off",
-        "enable", "disable", "activate", "deactivate",
-        "open", "close", "lock", "unlock", "dim", "brighten",
-        "increase", "decrease", "raise", "lower", "set",
-        "start", "stop", "pause", "resume", "play",
+        "turn on",
+        "turn off",
+        "switch on",
+        "switch off",
+        "enable",
+        "disable",
+        "activate",
+        "deactivate",
+        "open",
+        "close",
+        "lock",
+        "unlock",
+        "dim",
+        "brighten",
+        "increase",
+        "decrease",
+        "raise",
+        "lower",
+        "set",
+        "start",
+        "stop",
+        "pause",
+        "resume",
+        "play",
     }
 
     _KNOWN_LOCATIONS = {
-        "new york", "london", "paris", "tokyo", "los angeles",
-        "chicago", "houston", "phoenix", "philadelphia", "san antonio",
-        "san diego", "dallas", "san jose", "austin", "jacksonville",
-        "fort worth", "columbus", "charlotte", "san francisco",
-        "indianapolis", "seattle", "denver", "washington", "boston",
-        "nashville", "baltimore", "louisville", "portland", "las vegas",
-        "miami", "atlanta", "minneapolis", "new orleans", "cleveland",
-        "home", "work", "office", "school", "gym", "store",
-        "restaurant", "hospital", "airport", "downtown", "uptown",
-        "here", "there", "outside", "inside",
+        "new york",
+        "london",
+        "paris",
+        "tokyo",
+        "los angeles",
+        "chicago",
+        "houston",
+        "phoenix",
+        "philadelphia",
+        "san antonio",
+        "san diego",
+        "dallas",
+        "san jose",
+        "austin",
+        "jacksonville",
+        "fort worth",
+        "columbus",
+        "charlotte",
+        "san francisco",
+        "indianapolis",
+        "seattle",
+        "denver",
+        "washington",
+        "boston",
+        "nashville",
+        "baltimore",
+        "louisville",
+        "portland",
+        "las vegas",
+        "miami",
+        "atlanta",
+        "minneapolis",
+        "new orleans",
+        "cleveland",
+        "home",
+        "work",
+        "office",
+        "school",
+        "gym",
+        "store",
+        "restaurant",
+        "hospital",
+        "airport",
+        "downtown",
+        "uptown",
+        "here",
+        "there",
+        "outside",
+        "inside",
     }
 
     _KNOWN_SONGS = {
-        "bohemian rhapsody", "imagine", "yesterday", "hotel california",
-        "stairway to heaven", "smells like teen spirit", "purple rain",
-        "billie jean", "thriller", "like a rolling stone",
-        "what's going on", "respect", "johnny b. goode",
-        "good vibrations", "superstition", "born to run",
-        "sweet home alabama", "piano man", "rocket man",
-        "don't stop believin", "africa", "take on me",
-        "sweet child o mine", "november rain", "welcome to the jungle",
-        "enter sandman", "master of puppets", "one",
-        "shape of you", "blinding lights", "bad guy",
-        "drivers license", "levitating", "stay",
+        "bohemian rhapsody",
+        "imagine",
+        "yesterday",
+        "hotel california",
+        "stairway to heaven",
+        "smells like teen spirit",
+        "purple rain",
+        "billie jean",
+        "thriller",
+        "like a rolling stone",
+        "what's going on",
+        "respect",
+        "johnny b. goode",
+        "good vibrations",
+        "superstition",
+        "born to run",
+        "sweet home alabama",
+        "piano man",
+        "rocket man",
+        "don't stop believin",
+        "africa",
+        "take on me",
+        "sweet child o mine",
+        "november rain",
+        "welcome to the jungle",
+        "enter sandman",
+        "master of puppets",
+        "one",
+        "shape of you",
+        "blinding lights",
+        "bad guy",
+        "drivers license",
+        "levitating",
+        "stay",
     }
 
     # Intents that intentionally have NO entities — excluded from coverage calc
     _NO_ENTITY_INTENTS = {
-        "confirmation", "cancellation", "clarification_request",
-        "unknown", "multi_intent",
+        "confirmation",
+        "cancellation",
+        "clarification_request",
+        "unknown",
+        "multi_intent",
     }
 
     # System command types
     _COMMAND_TYPES = {
-        "volume", "brightness", "wifi", "wi-fi", "bluetooth",
-        "airplane mode", "screen", "display", "sound", "audio",
-        "notification", "notifications", "do not disturb", "dnd",
-        "dark mode", "night mode", "battery saver", "power saving",
-        "hotspot", "location", "gps", "nfc", "flashlight", "torch",
-        "screenshot", "screen record", "rotate", "orientation",
-        "auto rotate", "vibration", "silent mode", "ringer",
+        "volume",
+        "brightness",
+        "wifi",
+        "wi-fi",
+        "bluetooth",
+        "airplane mode",
+        "screen",
+        "display",
+        "sound",
+        "audio",
+        "notification",
+        "notifications",
+        "do not disturb",
+        "dnd",
+        "dark mode",
+        "night mode",
+        "battery saver",
+        "power saving",
+        "hotspot",
+        "location",
+        "gps",
+        "nfc",
+        "flashlight",
+        "torch",
+        "screenshot",
+        "screen record",
+        "rotate",
+        "orientation",
+        "auto rotate",
+        "vibration",
+        "silent mode",
+        "ringer",
     }
 
     # Thermostat/temperature actions
     _TEMP_ACTIONS = {
-        "warmer", "cooler", "hotter", "colder", "heat", "cool",
-        "warm", "cold", "hot", "comfortable", "higher", "lower",
+        "warmer",
+        "cooler",
+        "hotter",
+        "colder",
+        "heat",
+        "cool",
+        "warm",
+        "cold",
+        "hot",
+        "comfortable",
+        "higher",
+        "lower",
     }
 
     # Query fact subjects — what/who/when/where/how questions
     _FACT_QUESTION_WORDS = {
-        "what", "who", "when", "where", "how", "which", "why",
+        "what",
+        "who",
+        "when",
+        "where",
+        "how",
+        "which",
+        "why",
     }
 
-    def __init__(self, intents_file: str = "Agent_Guru/reasoning/data/intents.yaml"):
+    def __init__(self, intents_file: str = "Agent_Guru/reasoning/data/intents.yaml") -> None:
         self.intents_file = Path(intents_file)
         self.intents_data = self._load_intents()
         self.entity_patterns = self._build_entity_patterns()
@@ -234,7 +633,9 @@ class EntityAnnotator:
         for value in sorted(known_set, key=len, reverse=True):
             idx = utt_lower.find(value)
             if idx != -1:
-                results.append((utterance[idx: idx + len(value)], idx, idx + len(value), entity_type))
+                results.append(
+                    (utterance[idx : idx + len(value)], idx, idx + len(value), entity_type),
+                )
         return results
 
     def extract_entities(
@@ -278,12 +679,33 @@ class EntityAnnotator:
             # Capitalized proper nouns not already matched
             for m in re.finditer(r"\b([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)\b", utterance):
                 word = m.group(1).lower()
-                if word not in {"monday", "tuesday", "wednesday", "thursday",
-                                "friday", "saturday", "sunday", "january",
-                                "february", "march", "april", "june", "july",
-                                "august", "september", "october", "november",
-                                "december", "please", "quickly", "right",
-                                "now", "today", "tomorrow", "yesterday"}:
+                if word not in {
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                    "january",
+                    "february",
+                    "march",
+                    "april",
+                    "june",
+                    "july",
+                    "august",
+                    "september",
+                    "october",
+                    "november",
+                    "december",
+                    "please",
+                    "quickly",
+                    "right",
+                    "now",
+                    "today",
+                    "tomorrow",
+                    "yesterday",
+                }:
                     entities.append((m.group(1), m.start(1), m.end(1), "location"))
 
         if "song_name" in expected or not expected:
@@ -421,8 +843,14 @@ class EntityAnnotator:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
                     subj = m.group(1).strip() if m.lastindex else m.group().strip()
                     if subj and len(subj) > 1:
-                        entities.append((subj, m.start(1) if m.lastindex else m.start(),
-                                         m.end(1) if m.lastindex else m.end(), "query_subject"))
+                        entities.append(
+                            (
+                                subj,
+                                m.start(1) if m.lastindex else m.start(),
+                                m.end(1) if m.lastindex else m.end(),
+                                "query_subject",
+                            ),
+                        )
 
         # ---- query_time: extract location for timezone queries ----
         if intent == "query_time" or "location" in expected:
@@ -443,8 +871,14 @@ class EntityAnnotator:
                 ]:
                     for m in re.finditer(pat, utterance, re.IGNORECASE):
                         val = m.group(1) if m.lastindex else m.group()
-                        entities.append((val, m.start(1) if m.lastindex else m.start(),
-                                         m.end(1) if m.lastindex else m.end(), "query_type"))
+                        entities.append(
+                            (
+                                val,
+                                m.start(1) if m.lastindex else m.start(),
+                                m.end(1) if m.lastindex else m.end(),
+                                "query_type",
+                            ),
+                        )
                         break  # one is enough
 
         # ---- query_date: extract date references ----
@@ -465,8 +899,14 @@ class EntityAnnotator:
                 ]:
                     for m in re.finditer(pat, utterance, re.IGNORECASE):
                         val = m.group(1) if m.lastindex else m.group()
-                        entities.append((val, m.start(1) if m.lastindex else m.start(),
-                                         m.end(1) if m.lastindex else m.end(), "query_type"))
+                        entities.append(
+                            (
+                                val,
+                                m.start(1) if m.lastindex else m.start(),
+                                m.end(1) if m.lastindex else m.end(),
+                                "query_type",
+                            ),
+                        )
                         break
 
         # ---- cancel_timer: extract what to cancel ----
@@ -478,8 +918,14 @@ class EntityAnnotator:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
                     val = m.group(1).strip() if m.lastindex else m.group().strip()
                     if val:
-                        entities.append((val, m.start(1) if m.lastindex else m.start(),
-                                         m.end(1) if m.lastindex else m.end(), "action"))
+                        entities.append(
+                            (
+                                val,
+                                m.start(1) if m.lastindex else m.start(),
+                                m.end(1) if m.lastindex else m.end(),
+                                "action",
+                            ),
+                        )
 
         # ---- make_call: extract phone number or contact ----
         if intent == "make_call":
@@ -499,7 +945,9 @@ class EntityAnnotator:
                     for m in re.finditer(pat, utterance, re.IGNORECASE):
                         val = m.group(1).strip()
                         if val and len(val) > 1:
-                            etype = "phone_number" if re.match(r"^[\d\-\s\+]+$", val) else "recipient"
+                            etype = (
+                                "phone_number" if re.match(r"^[\d\-\s\+]+$", val) else "recipient"
+                            )
                             entities.append((val, m.start(1), m.end(1), etype))
 
         # ---- delete_event: extract event name ----
@@ -546,7 +994,9 @@ class EntityAnnotator:
                         if m.lastindex:
                             topic = m.group(m.lastindex).strip()
                             if topic and len(topic) > 1:
-                                entities.append((topic, m.start(m.lastindex), m.end(m.lastindex), "help_topic"))
+                                entities.append(
+                                    (topic, m.start(m.lastindex), m.end(m.lastindex), "help_topic"),
+                                )
                                 break
                 # If still no entity, add a generic "help" entity
                 if not any(e[3] == "help_topic" for e in entities):
@@ -557,8 +1007,14 @@ class EntityAnnotator:
                     ]:
                         for m in re.finditer(pat, utterance, re.IGNORECASE):
                             val = m.group(1) if m.lastindex else m.group()
-                            entities.append((val, m.start(1) if m.lastindex else m.start(),
-                                             m.end(1) if m.lastindex else m.end(), "help_topic"))
+                            entities.append(
+                                (
+                                    val,
+                                    m.start(1) if m.lastindex else m.start(),
+                                    m.end(1) if m.lastindex else m.end(),
+                                    "help_topic",
+                                ),
+                            )
                             break
 
         if intent in ("next_track", "previous_track"):
@@ -579,9 +1035,14 @@ class EntityAnnotator:
                 r"\b(on|off|enable|disable|mute|unmute)\b",
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    entities.append((m.group(1) if m.lastindex else m.group(),
-                                     m.start(1) if m.lastindex else m.start(),
-                                     m.end(1) if m.lastindex else m.end(), "value"))
+                    entities.append(
+                        (
+                            m.group(1) if m.lastindex else m.group(),
+                            m.start(1) if m.lastindex else m.start(),
+                            m.end(1) if m.lastindex else m.end(),
+                            "value",
+                        ),
+                    )
 
         # ---- control_thermostat: extract temperature + action ----
         if intent == "control_thermostat" or "temperature" in expected:
@@ -594,8 +1055,14 @@ class EntityAnnotator:
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
                     val = m.group(1) if m.lastindex else m.group()
-                    entities.append((val, m.start(1) if m.lastindex else m.start(),
-                                     m.end(1) if m.lastindex else m.end(), "temperature"))
+                    entities.append(
+                        (
+                            val,
+                            m.start(1) if m.lastindex else m.start(),
+                            m.end(1) if m.lastindex else m.end(),
+                            "temperature",
+                        ),
+                    )
 
         # ---- query_events: extract date for calendar queries ----
         if intent == "query_events" or "date" in expected:
@@ -617,8 +1084,14 @@ class EntityAnnotator:
                 ]:
                     for m in re.finditer(pat, utterance, re.IGNORECASE):
                         val = m.group(1) if m.lastindex else m.group()
-                        entities.append((val, m.start(1) if m.lastindex else m.start(),
-                                         m.end(1) if m.lastindex else m.end(), "query_type"))
+                        entities.append(
+                            (
+                                val,
+                                m.start(1) if m.lastindex else m.start(),
+                                m.end(1) if m.lastindex else m.end(),
+                                "query_type",
+                            ),
+                        )
                         break
 
         # ---- clarification_request: extract what needs clarification ----
@@ -658,8 +1131,14 @@ class EntityAnnotator:
                 ]:
                     for m in re.finditer(pat, utterance, re.IGNORECASE):
                         val = m.group(1) if m.lastindex else m.group()
-                        entities.append((val, m.start(1) if m.lastindex else m.start(),
-                                         m.end(1) if m.lastindex else m.end(), "weather_condition"))
+                        entities.append(
+                            (
+                                val,
+                                m.start(1) if m.lastindex else m.start(),
+                                m.end(1) if m.lastindex else m.end(),
+                                "weather_condition",
+                            ),
+                        )
                         break
 
         # ---- set_reminder: extract task from "remind me about X" ----
@@ -735,17 +1214,18 @@ class EntityAnnotator:
                     continue
                 intent, utterance = parts
                 entities = self.extract_entities(utterance, intent)
-                annotated_data.append({
-                    "utterance": utterance,
-                    "intent": intent,
-                    "entities": [
-                        {"text": text, "start": start, "end": end, "type": etype}
-                        for text, start, end, etype in entities
-                    ],
-                })
+                annotated_data.append(
+                    {
+                        "utterance": utterance,
+                        "intent": intent,
+                        "entities": [
+                            {"text": text, "start": start, "end": end, "type": etype}
+                            for text, start, end, etype in entities
+                        ],
+                    },
+                )
         with open(output_file, "w", encoding="utf-8") as f:
             yaml.dump(annotated_data, f, default_flow_style=False, allow_unicode=True)
-        print(f"Annotated {len(annotated_data)} examples -> {output_file}")
 
     def validate_annotations(self, annotated_file: str) -> dict[str, Any]:
         """Validate annotation quality and return metrics.
@@ -774,6 +1254,7 @@ class EntityAnnotator:
 
         # Per-intent coverage
         from collections import defaultdict
+
         intent_total: dict[str, int] = defaultdict(int)
         intent_with: dict[str, int] = defaultdict(int)
         for item in data:
@@ -785,7 +1266,9 @@ class EntityAnnotator:
             intent: {
                 "total": intent_total[intent],
                 "with_entities": intent_with[intent],
-                "coverage": intent_with[intent] / intent_total[intent] if intent_total[intent] > 0 else 0.0,
+                "coverage": intent_with[intent] / intent_total[intent]
+                if intent_total[intent] > 0
+                else 0.0,
             }
             for intent in intent_total
         }
@@ -810,32 +1293,27 @@ def main() -> None:
     for split in ["train", "val", "test"]:
         input_file = f"Agent_Guru/reasoning/data/{split}.txt"
         output_file = f"Agent_Guru/reasoning/data/{split}_annotated.yaml"
-        print(f"\nAnnotating {split} set...")
         annotator.annotate_dataset(input_file, output_file)
         metrics = annotator.validate_annotations(output_file)
-        print(f"  Raw coverage      : {metrics['coverage']:.1%}  ({metrics['examples_with_entities']}/{metrics['total_examples']})")
-        print(f"  Adjusted coverage : {metrics['adjusted_coverage']:.1%}  ({metrics['adjusted_with_entities']}/{metrics['adjusted_total']})  [excl. no-entity intents]")
-        print(f"  Avg entities/ex   : {metrics['avg_entities_per_example']:.2f}")
 
         # Show low-coverage intents
         low = {
-            k: v for k, v in metrics["per_intent_coverage"].items()
+            k: v
+            for k, v in metrics["per_intent_coverage"].items()
             if v["coverage"] < 0.90 and k not in annotator._NO_ENTITY_INTENTS
         }
         if low:
-            print("  Low-coverage intents (<90%):")
-            for intent, info in sorted(low.items(), key=lambda x: x[1]["coverage"]):
-                print(f"    {intent}: {info['with_entities']}/{info['total']} = {info['coverage']:.0%}")
+            for _intent, _info in sorted(low.items(), key=lambda x: x[1]["coverage"]):
+                pass
         else:
-            print("  All intents >= 90% coverage!")
+            pass
 
-        print("  Top entity types:")
-        for etype, count in sorted(
+        for _etype, _count in sorted(
             metrics["entity_type_distribution"].items(),
             key=lambda x: x[1],
             reverse=True,
         )[:10]:
-            print(f"    {etype}: {count}")
+            pass
 
 
 if __name__ == "__main__":

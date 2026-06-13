@@ -1,5 +1,4 @@
-"""
-Core data models for the LLM Runtime System.
+"""Core data models for the LLM Runtime System.
 
 Defines unified data structures used across all providers:
 Message, CompletionRequest, CompletionResponse, TokenUsage,
@@ -14,11 +13,13 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field, field_validator
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class ModelProvider(Enum):
@@ -41,8 +42,8 @@ class Message:
 
     role: str  # "system", "user", "assistant", "function"
     content: str
-    name: Optional[str] = None  # For function messages
-    function_call: Optional[dict[str, Any]] = None
+    name: str | None = None  # For function messages
+    function_call: dict[str, Any] | None = None
 
 
 @dataclass
@@ -69,8 +70,8 @@ class StreamChunk:
     """Streaming response chunk."""
 
     content: str
-    finish_reason: Optional[str] = None
-    function_call: Optional[dict[str, Any]] = None
+    finish_reason: str | None = None
+    function_call: dict[str, Any] | None = None
 
 
 @dataclass
@@ -80,11 +81,11 @@ class CompletionRequest:
     model: str
     messages: list[Message]
     temperature: float = 0.7
-    max_tokens: Optional[int] = None
+    max_tokens: int | None = None
     stream: bool = False
-    functions: Optional[list[FunctionDefinition]] = None
-    function_call: Optional[Union[str, dict[str, str]]] = None
-    session_id: Optional[str] = None
+    functions: list[FunctionDefinition] | None = None
+    function_call: str | dict[str, str] | None = None
+    session_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -99,7 +100,7 @@ class CompletionResponse:
     usage: TokenUsage
     latency_ms: float
     timestamp: datetime
-    function_call: Optional[dict[str, Any]] = None
+    function_call: dict[str, Any] | None = None
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
@@ -139,15 +140,16 @@ class RuntimeConfig(BaseModel):
     failure_threshold: int = 5
 
     # GitHub sync (optional)
-    github_repo_url: Optional[str] = None
+    github_repo_url: str | None = None
     github_branch: str = "main"
-    github_auth_token: Optional[str] = None
+    github_auth_token: str | None = None
 
     @field_validator("compression_threshold")
     @classmethod
     def validate_threshold(cls, v: float) -> float:
         if not 0.0 < v <= 1.0:
-            raise ValueError("compression_threshold must be between 0 and 1")
+            msg = "compression_threshold must be between 0 and 1"
+            raise ValueError(msg)
         return v
 
     model_config = {"extra": "forbid"}
@@ -162,12 +164,9 @@ class ContextWindowExceededError(Exception):
     """Raised when a request would exceed the model's context window."""
 
 
-
 class CircuitBreakerOpenError(Exception):
     """Raised when the circuit breaker is open for a provider."""
 
 
-
 class ProviderNotSupportedError(Exception):
     """Raised when a feature is not supported by the provider."""
-

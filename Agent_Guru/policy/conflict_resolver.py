@@ -1,5 +1,4 @@
-"""
-Conflict Resolver - Resolves conflicts when multiple policies apply.
+"""Conflict Resolver - Resolves conflicts when multiple policies apply.
 
 Supports four strategies:
 - deny-overrides: Any DENY wins over all ALLOWs
@@ -13,7 +12,6 @@ Validates: Requirement 5 (Conflict Resolution)
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from Agent_Guru.policy.models import (
     ConflictStrategy,
@@ -42,13 +40,14 @@ class ConflictResolver:
 
         Args:
             default_strategy: Default strategy when none is specified per-call.
+
         """
         self.default_strategy = default_strategy
 
     def resolve(
         self,
         policies: list[EvaluatedPolicy],
-        strategy: Optional[ConflictStrategy] = None,
+        strategy: ConflictStrategy | None = None,
     ) -> PolicyDecision:
         """Resolve conflicts among evaluated policies.
 
@@ -60,6 +59,7 @@ class ConflictResolver:
 
         Returns:
             PolicyDecision with the resolved effect.
+
         """
         active = [p for p in policies if p.conditions_met]
 
@@ -101,7 +101,7 @@ class ConflictResolver:
     # ------------------------------------------------------------------
 
     def _deny_overrides(self, policies: list[EvaluatedPolicy]) -> PolicyDecision:
-        """Any DENY overrides all ALLOWs. Validates: Req 5.3, 5.6"""
+        """Any DENY overrides all ALLOWs. Validates: Req 5.3, 5.6."""
         deny_policies = [p for p in policies if p.effect == PolicyEffect.DENY]
         allow_policies = [p for p in policies if p.effect == PolicyEffect.ALLOW]
 
@@ -126,7 +126,7 @@ class ConflictResolver:
         return self._abstain(policies)
 
     def _allow_overrides(self, policies: list[EvaluatedPolicy]) -> PolicyDecision:
-        """Any ALLOW overrides all DENYs. Validates: Req 5.3"""
+        """Any ALLOW overrides all DENYs. Validates: Req 5.3."""
         allow_policies = [p for p in policies if p.effect == PolicyEffect.ALLOW]
         deny_policies = [p for p in policies if p.effect == PolicyEffect.DENY]
 
@@ -151,7 +151,7 @@ class ConflictResolver:
         return self._abstain(policies)
 
     def _first_applicable(self, policies: list[EvaluatedPolicy]) -> PolicyDecision:
-        """First matching policy wins (list order). Validates: Req 5.3"""
+        """First matching policy wins (list order). Validates: Req 5.3."""
         winner = policies[0]
         return PolicyDecision(
             effect=winner.effect,
@@ -161,7 +161,7 @@ class ConflictResolver:
         )
 
     def _priority_based(self, policies: list[EvaluatedPolicy]) -> PolicyDecision:
-        """Highest priority wins. Validates: Req 5.2"""
+        """Highest priority wins. Validates: Req 5.2."""
         winner = max(policies, key=lambda p: p.priority)
         return PolicyDecision(
             effect=winner.effect,

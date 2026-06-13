@@ -1,15 +1,13 @@
-"""
-System Event Integration for WorldState.
+"""System Event Integration for WorldState.
 
 This module provides integration between system events and WorldState updates.
 
 Performance: <10ms event processing latency
 """
 
-from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -22,6 +20,9 @@ from Agent_Guru.reasoning.models.world_state import (
     LocationState,
 )
 from Agent_Guru.reasoning.state.world_state_engine import WorldStateEngine
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = structlog.get_logger(__name__)
 
@@ -51,13 +52,14 @@ class SystemEvent:
         event_type: SystemEventType,
         timestamp: datetime,
         data: dict[str, Any],
-    ):
+    ) -> None:
         """Initialize system event.
 
         Args:
             event_type: Type of event
             timestamp: When event occurred
             data: Event-specific data
+
         """
         self.event_type = event_type
         self.timestamp = timestamp
@@ -71,11 +73,12 @@ class SystemEventIntegration:
     Space Complexity: O(1)
     """
 
-    def __init__(self, world_state_engine: WorldStateEngine):
+    def __init__(self, world_state_engine: WorldStateEngine) -> None:
         """Initialize system event integration.
 
         Args:
             world_state_engine: WorldState engine to update
+
         """
         self._engine = world_state_engine
         self._event_handlers: dict[SystemEventType, Callable] = {
@@ -102,6 +105,7 @@ class SystemEventIntegration:
 
         Args:
             event: System event to process
+
         """
         handler = self._event_handlers.get(event.event_type)
         if handler:
@@ -113,7 +117,7 @@ class SystemEventIntegration:
                     timestamp=event.timestamp.isoformat(),
                 )
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "event_processing_failed",
                     event_type=event.event_type.value,
                     error=str(e),
@@ -135,7 +139,7 @@ class SystemEventIntegration:
 
         # Add to active apps if not already there
         if app_id not in state.active_apps:
-            active_apps = state.active_apps + [app_id]
+            active_apps = [*state.active_apps, app_id]
             await self._engine.update_state(active_apps=active_apps)
 
         # Update app state
@@ -243,7 +247,7 @@ class SystemEventIntegration:
 
         # Add new event
         calendar_event = CalendarEvent(**event_data)
-        calendar_events = state.calendar_events + [calendar_event]
+        calendar_events = [*state.calendar_events, calendar_event]
 
         await self._engine.update_state(calendar_events=calendar_events)
 
@@ -317,7 +321,7 @@ class SystemEventIntegration:
 
         # Add to active tasks
         if task_id not in state.active_tasks:
-            active_tasks = state.active_tasks + [task_id]
+            active_tasks = [*state.active_tasks, task_id]
             await self._engine.update_state(active_tasks=active_tasks)
 
     async def _handle_task_completed(self, event: SystemEvent) -> None:
@@ -343,7 +347,7 @@ class SystemEventIntegration:
             timestamp=event.timestamp,
             details={"task_id": task_id, "description": f"Completed task: {task_id}"},
         )
-        recent_activities = state.recent_activities + [activity]
+        recent_activities = [*state.recent_activities, activity]
 
         await self._engine.update_state(recent_activities=recent_activities)
 
@@ -370,6 +374,6 @@ class SystemEventIntegration:
                 **event.data.get("metadata", {}),
             },
         )
-        recent_activities = state.recent_activities + [activity]
+        recent_activities = [*state.recent_activities, activity]
 
         await self._engine.update_state(recent_activities=recent_activities)

@@ -1,12 +1,11 @@
-"""
-Adversarial Handler - Detects and handles adversarial agent behavior.
+"""Adversarial Handler - Detects and handles adversarial agent behavior.
 
 Validates: Requirements 22.1, 22.2, 22.3, 22.4, 22.5
 """
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -27,8 +26,7 @@ class AdversarialEvent:
 
 
 class AdversarialHandler:
-    """
-    Detects and handles adversarial or pathological agent behavior.
+    """Detects and handles adversarial or pathological agent behavior.
 
     Tracks invalid output counts, resource usage, delegation counts,
     and coordinated behavior patterns to keep the system stable.
@@ -42,6 +40,7 @@ class AdversarialHandler:
         >>> print(quarantined)  # True if threshold exceeded
 
     Validates: Requirements 22.1, 22.2, 22.3, 22.4, 22.5
+
     """
 
     def __init__(
@@ -64,7 +63,7 @@ class AdversarialHandler:
 
     def _log_event(self, event_type: str, agent_ids: list[str], details: str) -> None:
         event = AdversarialEvent(
-            timestamp=datetime.now(tz=timezone.utc),
+            timestamp=datetime.now(tz=UTC),
             event_type=event_type,
             agent_ids=agent_ids,
             details=details,
@@ -73,8 +72,7 @@ class AdversarialHandler:
         logger.warning("Adversarial event [%s] agents=%s: %s", event_type, agent_ids, details)
 
     async def detect_invalid_outputs(self, agent_id: str, invalid_count: int) -> bool:
-        """
-        Check if agent has exceeded invalid output threshold and quarantine if so.
+        """Check if agent has exceeded invalid output threshold and quarantine if so.
 
         Args:
             agent_id: Agent to check
@@ -84,6 +82,7 @@ class AdversarialHandler:
             True if agent was quarantined
 
         Validates: Requirement 22.1
+
         """
         self._invalid_counts[agent_id] = invalid_count
 
@@ -102,10 +101,12 @@ class AdversarialHandler:
         return agent_id in self._quarantined
 
     async def detect_resource_exhaustion(
-        self, agent_id: str, resource_usage: dict[str, float], limits: dict[str, float]
+        self,
+        agent_id: str,
+        resource_usage: dict[str, float],
+        limits: dict[str, float],
     ) -> bool:
-        """
-        Detect resource exhaustion and terminate offending agent.
+        """Detect resource exhaustion and terminate offending agent.
 
         Args:
             agent_id: Agent to check
@@ -116,6 +117,7 @@ class AdversarialHandler:
             True if agent was terminated
 
         Validates: Requirement 22.2
+
         """
         exceeded = [k for k, v in resource_usage.items() if v > limits.get(k, float("inf"))]
         if exceeded:
@@ -129,13 +131,13 @@ class AdversarialHandler:
         return False
 
     async def detect_excessive_delegation(self, agent_id: str) -> bool:
-        """
-        Track delegation count and limit privileges if excessive.
+        """Track delegation count and limit privileges if excessive.
 
         Returns:
             True if delegation was limited
 
         Validates: Requirement 22.3
+
         """
         self._delegation_counts[agent_id] = self._delegation_counts.get(agent_id, 0) + 1
         count = self._delegation_counts[agent_id]
@@ -155,10 +157,11 @@ class AdversarialHandler:
         return agent_id in self._delegation_limited
 
     async def detect_coordinated_behavior(
-        self, agent_ids: list[str], similarity_threshold: float = 0.9
+        self,
+        agent_ids: list[str],
+        similarity_threshold: float = 0.9,
     ) -> bool:
-        """
-        Detect coordinated malicious behavior and retire all involved agents.
+        """Detect coordinated malicious behavior and retire all involved agents.
 
         Uses the fraction of agents with identical invalid output patterns
         as a proxy for coordination.
@@ -171,6 +174,7 @@ class AdversarialHandler:
             True if coordinated behavior detected and agents retired
 
         Validates: Requirement 22.4
+
         """
         if not agent_ids:
             return False
@@ -190,5 +194,5 @@ class AdversarialHandler:
         return False
 
     def get_security_log(self) -> list[AdversarialEvent]:
-        """Return all recorded adversarial events. Validates: Requirement 22.5"""
+        """Return all recorded adversarial events. Validates: Requirement 22.5."""
         return list(self._security_log)
