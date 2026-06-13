@@ -24,7 +24,8 @@ Quick start::
 __version__ = "0.1.0"
 __status__ = "IMPLEMENTED"
 
-from Agent_Guru.speech.engine import SpeechEngine
+from typing import TYPE_CHECKING
+
 from Agent_Guru.speech.models import (
     CommandResult,
     EmotionResult,
@@ -33,6 +34,17 @@ from Agent_Guru.speech.models import (
     TranscriptionResult,
     VoiceFeatures,
 )
+
+if TYPE_CHECKING:
+    from Agent_Guru.speech.engine import SpeechEngine
+
+
+def __getattr__(name: str):
+    if name == "SpeechEngine":
+        from Agent_Guru.speech.engine import SpeechEngine
+
+        return SpeechEngine
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
     "CommandResult",
