@@ -69,16 +69,19 @@ class UserMemory:
         """Return all stored facts."""
         return dict(self._facts)
 
-    def get_summary(self, max_chars: int = 300) -> str:
+    def get_summary(self, max_chars: int = 500) -> str:
         """Return a natural language summary of known user facts.
 
         This gets injected into the LLM system prompt so the assistant
-        can refer to the user by name and remember their preferences.
+        can refer to the user by name and remember their preferences,
+        goals, relationships, and frequently discussed topics.
         """
         if not self._facts:
             return ""
 
         parts = []
+
+        # Identity
         if "name" in self._facts:
             parts.append(f"The user's name is {self._facts['name']}.")
         if "preferred_language" in self._facts:
@@ -87,11 +90,32 @@ class UserMemory:
             parts.append(f"They are located in {self._facts['location']}.")
         if "occupation" in self._facts:
             parts.append(f"They work as a {self._facts['occupation']}.")
+        if "age" in self._facts:
+            parts.append(f"They are {self._facts['age']} years old.")
 
-        # Add any other facts
-        skip = {"name", "preferred_language", "location", "occupation"}
+        # Goals and projects
+        if "current_goal" in self._facts:
+            parts.append(f"Their current goal is: {self._facts['current_goal']}.")
+        if "current_project" in self._facts:
+            parts.append(f"They're currently working on: {self._facts['current_project']}.")
+
+        # Personal context
+        if "hobbies" in self._facts:
+            parts.append(f"Their hobbies include: {self._facts['hobbies']}.")
+        if "interests" in self._facts:
+            parts.append(f"They're interested in: {self._facts['interests']}.")
+        if "friends" in self._facts:
+            parts.append(f"Friends/people they mention: {self._facts['friends']}.")
+        if "family" in self._facts:
+            parts.append(f"Family context: {self._facts['family']}.")
+
+        # Preferences
+        if "communication_style" in self._facts:
+            parts.append(f"They prefer a {self._facts['communication_style']} communication style.")
+
+        # Any other facts
         for k, v in self._facts.items():
-            if k not in skip:
+            if k not in _SUMMARY_SKIP_KEYS:
                 parts.append(f"They mentioned: {k} = {v}.")
 
         summary = " ".join(parts)
@@ -130,38 +154,81 @@ def get_user_memory() -> UserMemory:
         _user_memory = UserMemory()
     return _user_memory
 
+# ── Module-level constants ────────────────────────────────────────────────
+
+# Keys handled explicitly by get_summary() — hoisted from per-call set creation
+_SUMMARY_SKIP_KEYS = frozenset({
+    "name", "preferred_language", "location", "occupation", "age",
+    "current_goal", "current_project", "hobbies", "interests",
+    "friends", "family", "communication_style",
+})
+
+# Precompiled regex patterns for fact extraction.
+# Previously: 22 raw strings compiled by re.search() on EVERY call.
+# Now: compiled once at import time. re.compile() returns a cached Pattern
+# object — subsequent .search() calls skip the compile step entirely.
+_FACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    # Identity
+    (re.compile(r"my name is (.+)", re.I), "name"),
+    (re.compile(r"call me (.+)", re.I), "name"),
+    (re.compile(r"i(?:'m| am) (.+?) (?:and|,|\.)", re.I), "name"),
+    (re.compile(r"i live in (.+)", re.I), "location"),
+    (re.compile(r"i(?:'m| am) from (.+)", re.I), "location"),
+    (re.compile(r"i work as (?:a |an )?(.+)", re.I), "occupation"),
+    (re.compile(r"i(?:'m| am) (\d+)(?: years old)?", re.I), "age"),
+    # Goals and projects — BEFORE the generic "I am a ..." occupation pattern
+    (re.compile(r"my goal is (?:to )?(.+)", re.I), "current_goal"),
+    (re.compile(r"i(?:'m| am) trying to (.+)", re.I), "current_goal"),
+    (re.compile(r"i want to (.+)", re.I), "current_goal"),
+    (re.compile(r"i(?:'m| am) (?:currently )?working on (.+)", re.I), "current_project"),
+    (re.compile(r"my (?:current )?project is (.+)", re.I), "current_project"),
+    (re.compile(r"i(?:'m| am) building (.+)", re.I), "current_project"),
+    # Generic occupation — after project patterns
+    (re.compile(r"i(?:'m| am) (?:a |an )?(.+?)(?:\s+and|\s*$)", re.I), "occupation"),
+    (re.compile(r"i prefer (.+?) (?:language|lang)", re.I), "preferred_language"),
+    (re.compile(r"i speak (.+)", re.I), "preferred_language"),
+    # Hobbies and interests
+    (re.compile(r"i (?:love|enjoy|like) (.+)", re.I), "hobbies"),
+    (re.compile(r"my hobb(?:y|ies) (?:is|are|include) (.+)", re.I), "hobbies"),
+    (re.compile(r"i(?:'m| am) (?:into|interested in) (.+)", re.I), "interests"),
+    # Relationships
+    (re.compile(r"my (?:best )?friend(?:s)? (?:is|are) (.+)", re.I), "friends"),
+    (re.compile(r"my (?:wife|husband|partner|girlfriend|boyfriend) (?:is )?(?:named )?(.+)", re.I), "family"),
+    (re.compile(r"my (?:mom|mother|dad|father|sister|brother) (?:is )?(?:named )?(.+)", re.I), "family"),
+    # Communication style
+    (re.compile(r"i prefer (?:a )?(.+?) (?:tone|style|approach)", re.I), "communication_style"),
+]
+
 
 def extract_user_fact(transcript: str) -> Optional[tuple[str, str]]:
     """Try to extract a user fact from a transcript.
+
+    Covers identity, goals, projects, relationships, hobbies, and preferences.
+
+    Time:  O(P × T) where P = 22 patterns (constant), T = transcript length.
+           Short-circuits on first match, so average case is much faster.
+    Space: O(1) beyond the return value.
 
     Examples:
         "my name is Suraj" → ("name", "Suraj")
         "I live in Mumbai" → ("location", "Mumbai")
         "I am a software engineer" → ("occupation", "software engineer")
         "I prefer Hindi" → ("preferred_language", "Hindi")
+        "my goal is to launch my app this month" → ("current_goal", "launch my app this month")
+        "I'm working on a Django project" → ("current_project", "a Django project")
+        "I love hiking and photography" → ("hobbies", "hiking and photography")
+        "my best friend is Arjun" → ("friends", "Arjun")
 
     Returns:
         (key, value) tuple or None if no fact found.
     """
     t = transcript.strip()
 
-    patterns = [
-        (r"my name is (.+)", "name"),
-        (r"call me (.+)", "name"),
-        (r"i(?:'m| am) (.+?) (?:and|,|\.)", "name"),  # "I'm Suraj and..."
-        (r"i live in (.+)", "location"),
-        (r"i(?:'m| am) from (.+)", "location"),
-        (r"i(?:'m| am) (?:a |an )?(.+?)(?:\s+and|\s*$)", "occupation"),
-        (r"i work as (?:a |an )?(.+)", "occupation"),
-        (r"i prefer (.+?) (?:language|lang)", "preferred_language"),
-        (r"i speak (.+)", "preferred_language"),
-    ]
-
-    for pattern, key in patterns:
-        m = re.search(pattern, t, re.I)
+    for compiled_pattern, key in _FACT_PATTERNS:
+        m = compiled_pattern.search(t)
         if m:
             value = m.group(1).strip().rstrip(".,!?")
-            if len(value) > 1 and len(value) < 100:
+            if 1 < len(value) < 150:
                 return key, value
 
     return None

@@ -185,7 +185,7 @@ class _AudioCapture:
         return self._capture_sounddevice()
 
     def _capture_pyaudio(self) -> np.ndarray:
-        """Read one frame from a PyAudio stream."""
+        """Read one frame from a PyAudio stream, auto-reopening on stream-closed errors."""
         n_samples = int(self._sample_rate * self._duration)
         try:
             raw = self._stream.read(n_samples, exception_on_overflow=False)
@@ -195,7 +195,27 @@ class _AudioCapture:
                 audio = audio / 32768.0
             return audio
         except Exception as exc:
-            logger.warning("PyAudio read error: %s", exc)
+            # -9988 = paStreamIsStopped / stream closed — reopen transparently
+            if "-9988" in str(exc) or "Stream closed" in str(exc) or "Stream is stopped" in str(exc):
+                logger.info("PyAudio stream closed — reopening...")
+                try:
+                    self.close()
+                except Exception:
+                    pass
+                try:
+                    self._open_desktop()
+                    if self._stream is not None and self._pyaudio_instance is not None:
+                        raw = self._stream.read(n_samples, exception_on_overflow=False)
+                        audio = np.frombuffer(raw, dtype=np.float32).copy()
+                        if audio.max() > 1.0 or audio.min() < -1.0:
+                            audio = audio / 32768.0
+                        logger.info("PyAudio stream reopened successfully")
+                        return audio
+                except Exception as reopen_exc:
+                    logger.warning("PyAudio reopen failed (%s) — trying sounddevice", reopen_exc)
+                    self._open_sounddevice()
+            else:
+                logger.warning("PyAudio read error: %s", exc)
             return np.zeros(n_samples, dtype=np.float32)
 
     def _open_sounddevice(self) -> None:

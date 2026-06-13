@@ -49,15 +49,29 @@ class WhisperTranscriber:
         self._model: Optional[WhisperModel] = None
 
     def _load_model(self) -> WhisperModel:
-        """Load Whisper model (lazy loading, synchronous)."""
+        """Load Whisper model (lazy loading, synchronous).
+
+        Uses local cache when available to avoid HuggingFace network calls on
+        every startup. Falls back to downloading if not yet cached.
+        """
         if self._model is None:
             try:
                 model_id = self.model_path or self.model_size
-                self._model = WhisperModel(
-                    model_id,
-                    device=self.device,
-                    compute_type=self.compute_type
-                )
+                # Try local cache first — no HuggingFace ping
+                try:
+                    self._model = WhisperModel(
+                        model_id,
+                        device=self.device,
+                        compute_type=self.compute_type,
+                        local_files_only=True,
+                    )
+                except Exception:
+                    # Model not cached yet — allow download, then it's cached forever
+                    self._model = WhisperModel(
+                        model_id,
+                        device=self.device,
+                        compute_type=self.compute_type,
+                    )
             except Exception as e:
                 raise GuruSpeechError(f"Failed to load Whisper model: {e}") from e
         return self._model

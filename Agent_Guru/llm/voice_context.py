@@ -27,26 +27,9 @@ from typing import Any, Optional
 from Agent_Guru.llm.context_manager import ContextManager
 from Agent_Guru.llm.models import Message
 from Agent_Guru.llm.token_counter import TokenCounter
+from Agent_Guru.llm.companion_prompts import build_companion_prompt
 
 logger = logging.getLogger(__name__)
-
-# Default voice system prompt
-_VOICE_SYSTEM_PROMPT = (
-    "You are Guru, a helpful AI voice assistant. "
-    "Keep responses concise and natural for voice output. "
-    "Avoid markdown, bullet points, or formatting. "
-    "Speak in a friendly, conversational tone. "
-    "If you don't know something, say so clearly."
-)
-
-# Default Maya personality prompt
-_MAYA_SYSTEM_PROMPT = (
-    "You are Maya, a warm and creative AI voice assistant. "
-    "Keep responses concise and natural for voice output. "
-    "Avoid markdown, bullet points, or formatting. "
-    "Speak in a warm, empathetic, and creative tone. "
-    "If you don't know something, say so clearly."
-)
 
 
 @dataclass
@@ -100,9 +83,7 @@ class VoiceContextManager:
         """Resolve system prompt from config or personality."""
         if self._config.system_prompt:
             return self._config.system_prompt
-        if self._config.personality.lower() == "maya":
-            return _MAYA_SYSTEM_PROMPT
-        return _VOICE_SYSTEM_PROMPT
+        return build_companion_prompt(personality=self._config.personality)
 
     def add_turn(
         self,

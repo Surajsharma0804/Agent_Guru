@@ -25,6 +25,9 @@ class ModelProvider(Enum):
     """Supported model providers."""
 
     OLLAMA = "ollama"
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GOOGLE = "google"
 
 
 # ---------------------------------------------------------------------------

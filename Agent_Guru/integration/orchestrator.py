@@ -32,6 +32,7 @@ import asyncio
 import logging
 import re
 import sys
+import urllib.parse as _up
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Optional
@@ -204,6 +205,18 @@ class IntegrationOrchestrator:
 
         # User memory — persistent facts about the user (name, preferences, etc.)
         self._user_memory: Any = None  # lazy-init on first use
+
+        # Emotion detector — persistent across pipeline calls for trend tracking
+        self._emotion_detector: Any = None  # lazy-init on first LLM call
+
+        # Empathy adapter — adapts responses for emotional state + distress support
+        self._empathy_adapter: Any = None  # lazy-init alongside emotion detector
+
+        # Conversation history — last 4 exchanges (8 messages) for continuity.
+        # Without this, the LLM has no memory of what was said 10 seconds ago.
+        # A companion must remember at least the recent conversation.
+        from collections import deque as _deque
+        self._chat_history: _deque = _deque(maxlen=8)  # 4 user + 4 assistant turns
 
         logger.info("IntegrationOrchestrator wired — all subsystems connected")
 
@@ -894,16 +907,31 @@ class IntegrationOrchestrator:
                 from Agent_Guru.platform.features.user_memory import get_user_memory
                 user_facts = get_user_memory().get_summary()
 
-                if personality == Personality.MAYA:
-                    persona = (
-                        "You are Maya, a warm, creative, and empathetic AI voice assistant. "
-                        "You speak in a friendly, personal tone. "
-                    )
-                else:
-                    persona = (
-                        "You are Guru, a professional, analytical, and knowledgeable AI voice assistant. "
-                        "You speak in a clear, direct, confident tone. "
-                    )
+                # Build companion-grade system prompt from the centralized module
+                from Agent_Guru.llm.companion_prompts import build_companion_prompt
+                persona_key = "maya" if personality == Personality.MAYA else "guru"
+
+                # ── Emotion detection — feed detected state into the prompt ──
+                # CRITICAL: detect emotion from the RAW transcript, NOT the
+                # enriched prompt. The enriched prompt contains [Context: ...]
+                # and [Reasoning: ...] metadata that poisons keyword matching.
+                emotion_hint = ""
+                try:
+                    if self._emotion_detector is None:
+                        from Agent_Guru.emotion.detector import EmotionDetector
+                        self._emotion_detector = EmotionDetector()
+                    if self._empathy_adapter is None:
+                        from Agent_Guru.emotion.adapter import EmpathyAdapter
+                        self._empathy_adapter = EmpathyAdapter()
+                    _raw_text = transcript or ""
+                    _emo_state = self._emotion_detector.detect(text=_raw_text)
+                    if _emo_state.confidence > 0.4 and _emo_state.emotion != "neutral":
+                        emotion_hint = _emo_state.emotion
+                        logger.info("Emotion detected: %s (%.2f)", _emo_state.emotion, _emo_state.confidence)
+                    # Track for distress support
+                    self._empathy_adapter.adapt_response("", _emo_state)
+                except Exception as _emo_exc:
+                    logger.debug("Emotion detection skipped: %s", _emo_exc)
 
                 # ── Real-time web search ──────────────────────────────────
                 # Trigger for ANY question that might need current data,
@@ -925,16 +953,11 @@ class IntegrationOrchestrator:
                 else:
                     web_context = ""
 
-                system_prompt = (
-                    f"{persona}"
-                    f"Today's date is {current_date}. "
-                    + (f"{user_facts} " if user_facts else "")
-                    + "Your training data has a cutoff, so for questions about current leaders, "
-                    "recent events, or who currently holds a position, give the most recent "
-                    "information you know and note your knowledge may not reflect events after "
-                    "early 2024. "
-                    "Answer directly and concisely in 1-3 sentences. "
-                    "No bullet points, no markdown. Speak naturally."
+                system_prompt = build_companion_prompt(
+                    personality=persona_key,
+                    user_facts=user_facts,
+                    current_date=current_date,
+                    emotion_hint=emotion_hint,
                 )
 
                 if web_context:
@@ -949,10 +972,30 @@ class IntegrationOrchestrator:
                     )
                 system_prompt = system_prompt + lang_instruction
 
-                messages = [
-                    Message(role="system", content=system_prompt),
-                    Message(role="user", content=prompt),
-                ]
+                # ── Distress support — if 3+ consecutive distress turns ──
+                distress_note = ""
+                try:
+                    if self._empathy_adapter and self._empathy_adapter.should_offer_support():
+                        distress_note = (
+                            "\n\nIMPORTANT: The user has been in distress for multiple turns. "
+                            "Gently check in on them — ask how they're really doing. "
+                            "Offer genuine support, not generic platitudes."
+                        )
+                        logger.info("Distress support triggered — 3+ consecutive distress turns")
+                except Exception:
+                    pass
+
+                if distress_note:
+                    system_prompt = system_prompt + distress_note
+
+                # ── Build message list with conversation history ──────────
+                # The LLM needs recent context to be a real companion.
+                # Without history, it forgets what the user said 10 seconds ago.
+                messages = [Message(role="system", content=system_prompt)]
+                # Inject last N turns of conversation history
+                for hist_msg in self._chat_history:
+                    messages.append(Message(role=hist_msg["role"], content=hist_msg["content"]))
+                messages.append(Message(role="user", content=prompt))
 
                 import os as _os
                 # Default: gemma3:4b — best model for 4GB VRAM (RTX 2050), May 2025.
@@ -964,10 +1007,18 @@ class IntegrationOrchestrator:
                 request = CompletionRequest(
                     model=ollama_model,
                     messages=messages,
-                    max_tokens=120,  # Short for voice — faster and clearer
+                    max_tokens=220,  # Companion responses need space for emotional acknowledgment + follow-ups
                 )
                 response = await complete_fn(request)
-                return response.content or ""
+                llm_response = response.content or ""
+
+                # ── Update conversation history ───────────────────────────
+                # Store the raw transcript (not enriched) + the LLM response
+                if llm_response:
+                    self._chat_history.append({"role": "user", "content": transcript or ""})
+                    self._chat_history.append({"role": "assistant", "content": llm_response})
+
+                return llm_response
             except ImportError as e:
                 logger.warning("LLM stage: CompletionRequest import failed: %s", e)
                 return ""
@@ -1047,7 +1098,6 @@ class IntegrationOrchestrator:
             "Hey Maya play chak de india" → "play chak de india"
             "Himaya open youtube" → "open youtube"
         """
-        import re as _re
 
         t = text.strip()
         if not t:
@@ -1057,7 +1107,7 @@ class IntegrationOrchestrator:
         # Handle Whisper mishearings: "Himaya", "Hi Maya", "A Maya", "Hey Maya"
         # Also handle mid-sentence repetitions like "Open Notepad. Himaya Open Notepad."
         # First, take only the FIRST sentence (before first period/exclamation)
-        first_sentence = _re.split(r"[.!]", t)[0].strip()
+        first_sentence = re.split(r"[.!]", t)[0].strip()
         if first_sentence:
             t = first_sentence
 
@@ -1074,7 +1124,7 @@ class IntegrationOrchestrator:
             r"^hey\s+",      # "Hey open" → "open"
         ]
         for pat in wake_patterns:
-            t = _re.sub(pat, "", t, flags=_re.I).strip()
+            t = re.sub(pat, "", t, flags=re.I).strip()
 
         # ── Step 2: Remove filler words ───────────────────────────────────
         fillers = [
@@ -1084,40 +1134,40 @@ class IntegrationOrchestrator:
             r"\b(and write there that|write there that|there that),?\s*",
         ]
         for f in fillers:
-            t = _re.sub(f, " ", t, flags=_re.I)
+            t = re.sub(f, " ", t, flags=re.I)
 
         # ── Step 3: Fix "in edge/chrome/browser" context phrases ─────────
-        t = _re.sub(
+        t = re.sub(
             r"\bin\s+(edge|chrome|firefox|browser|it)\s+(?=open|play|search|go)",
             "open ",
             t,
-            flags=_re.I,
+            flags=re.I,
         )
 
         # ── Step 4: Remove leading conjunctions and politeness markers ──────
-        t = _re.sub(r"^(and|but|so|then|also|now|please|can you|could you|would you|will you|i want you to|i need you to|i'd like you to)\s+", "", t, flags=_re.I)
+        t = re.sub(r"^(and|but|so|then|also|now|please|can you|could you|would you|will you|i want you to|i need you to|i'd like you to)\s+", "", t, flags=re.I)
 
         # ── Step 5: Remove trailing politeness markers ────────────────────
-        t = _re.sub(r",?\s*(please|for me|right now|now|immediately|quickly)\s*$", "", t, flags=_re.I)
+        t = re.sub(r",?\s*(please|for me|right now|now|immediately|quickly)\s*$", "", t, flags=re.I)
 
         # ── Step 6: Remove articles before app/site names ────────────────
         # "open the notepad" → "open notepad"
         # "open a new tab" → keep (meaningful)
-        t = _re.sub(r"\b(open|launch|start|close|quit)\s+the\s+", r"\1 ", t, flags=_re.I)
+        t = re.sub(r"\b(open|launch|start|close|quit)\s+the\s+", r"\1 ", t, flags=re.I)
 
         # ── Step 7: Collapse whitespace and strip ─────────────────────────
-        t = _re.sub(r"\s{2,}", " ", t).strip().lstrip(".,!?;: ")
+        t = re.sub(r"\s{2,}", " ", t).strip().lstrip(".,!?;: ")
 
         # ── Step 8: Normalize & → and, + → and ───────────────────────────
-        t = _re.sub(r"\s*[&+]\s*", " and ", t)
+        t = re.sub(r"\s*[&+]\s*", " and ", t)
 
         # ── Step 9: Collapse "open youtube and play X" → "play X on youtube"
-        t = _re.sub(
+        t = re.sub(
             r"(?:open\s+youtube\s+and\s+|go\s+to\s+youtube\s+and\s+)"
             r"play\s+(.+)",
             r"play \1 on youtube",
             t,
-            flags=_re.I,
+            flags=re.I,
         )
 
         # ── Step 10: Fix common Whisper mishearings ───────────────────────
@@ -1146,7 +1196,7 @@ class IntegrationOrchestrator:
             r"\bmicrosoft\s*edge\b": "edge",
         }
         for pattern, replacement in _corrections.items():
-            t = _re.sub(pattern, replacement, t, flags=_re.I)
+            t = re.sub(pattern, replacement, t, flags=re.I)
 
         return t if t else text.strip()
 
@@ -1165,7 +1215,6 @@ class IntegrationOrchestrator:
 
         Only splits when EACH part starts with an action verb.
         """
-        import re as _re
 
         # Action verbs that start a new step
         _ACTION_VERBS = (
@@ -1173,11 +1222,11 @@ class IntegrationOrchestrator:
             r"type|write|take|set|increase|decrease|volume|mute|unmute|"
             r"minimize|maximize|screenshot|navigate|go to|switch|send|call"
         )
-        _STEP_PATTERN = _re.compile(
+        _STEP_PATTERN = re.compile(
             rf"(?:^|\s+(?:and\s+then|then|and)\s+)(?={_ACTION_VERBS})",
-            _re.I,
+            re.I,
         )
-        _VERB_START = _re.compile(rf"^(?:{_ACTION_VERBS})\b", _re.I)
+        _VERB_START = re.compile(rf"^(?:{_ACTION_VERBS})\b", re.I)
 
         # Split on "and then" / "then" / "and" only when followed by action verb
         parts = _STEP_PATTERN.split(text.strip())
@@ -1383,15 +1432,14 @@ class IntegrationOrchestrator:
                     # Wire TTS so reminders speak when they fire
                     tts_eng = getattr(self.speech_engine, "tts_engine", None)
                     if tts_eng:
-                        import sounddevice as _sd
-                        import numpy as _np
+                        import sounddevice as sd
                         def _speak_reminder(text: str) -> None:
                             try:
                                 audio, sr = tts_eng.synthesize_to_array(text)
-                                tail = _np.zeros(int(sr * 0.30), dtype=_np.float32)
-                                padded = _np.concatenate([audio.astype(_np.float32), tail])
-                                _sd.play(padded, samplerate=sr)
-                                _sd.wait()
+                                tail = np.zeros(int(sr * 0.30), dtype=np.float32)
+                                padded = np.concatenate([audio.astype(np.float32), tail])
+                                sd.play(padded, samplerate=sr)
+                                sd.wait()
                             except Exception as _e:
                                 logger.warning("Reminder TTS failed: %s", _e)
                         self._reminder_mgr.set_speak_callback(_speak_reminder)
@@ -1445,9 +1493,24 @@ class IntegrationOrchestrator:
             if fact:
                 key, value = fact
                 get_user_memory().set(key, value)
-                if key == "name":
-                    return f"Got it, I'll remember your name is {self._sanitize_output(value)}."
-                return "Got it, I'll remember that."
+                _sval = self._sanitize_output(value)
+                # Companion-grade acknowledgments — warm, not robotic.
+                # Covers ALL 12 keys that extract_user_fact() can return.
+                _ack_map = {
+                    "name": f"Nice to meet you, {_sval}! I'll remember that.",
+                    "location": f"{_sval} — cool, I'll keep that in mind.",
+                    "occupation": f"That's awesome. I'll remember you're into {_sval}.",
+                    "age": f"Got it — {_sval}. I'll remember.",
+                    "current_project": f"Nice — {_sval} sounds interesting. Keep me posted on how it goes.",
+                    "current_goal": f"Love that. I'll remember you're working toward {_sval}.",
+                    "hobbies": f"Good taste! I'll remember you're into {_sval}.",
+                    "interests": f"That's interesting! I'll keep that in mind.",
+                    "friends": f"Cool, I'll remember that.",
+                    "family": f"Got it, thanks for sharing that.",
+                    "preferred_language": f"{_sval} — got it, I'll keep that in mind.",
+                    "communication_style": f"Understood — I'll adjust to a {_sval} style.",
+                }
+                return _ack_map.get(key, "Noted — I'll keep that in mind.")
 
             # ── Conversation → no action, TTS uses LLM response ──────────
             if intent_type == "conversation":
@@ -1596,8 +1659,7 @@ class IntegrationOrchestrator:
 
                 # Explicit URL (starts with http/https)
                 if param.startswith("http://") or param.startswith("https://"):
-                    import urllib.parse as _urlparse
-                    parsed = _urlparse.urlparse(param)
+                    parsed = _up.urlparse(param)
                     if parsed.scheme not in ("http", "https"):
                         return "Cannot open URL with unsafe scheme"
                     fn = getattr(ctrl, "open_url", None)
@@ -1615,7 +1677,6 @@ class IntegrationOrchestrator:
 
                 # Unknown name → try as direct URL first, then Google search
                 # e.g. "open leetcode" → try https://www.leetcode.com, then Google search
-                import urllib.parse as _up
                 # Try direct URL (www.X.com)
                 direct_url = f"https://www.{param_lower.replace(' ', '')}.com"
                 fn = getattr(ctrl, "open_url", None)
@@ -1631,7 +1692,6 @@ class IntegrationOrchestrator:
                 if engine not in ("google", "youtube", "bing"):
                     engine = "google"
                 logger.info("ACTION: web_search('%s', engine='%s')", query, engine)
-                import urllib.parse as _up
 
                 if engine == "youtube":
                     # Use Playwright to find and open the first result so the
@@ -1883,7 +1943,6 @@ class IntegrationOrchestrator:
                         app = "whatsapp"
                     fn = getattr(ctrl, "open_url", None)
                     if fn and contact:
-                        import urllib.parse as _up
                         if app == "whatsapp":
                             digits = contact.replace("+", "").replace("-", "").replace(" ", "")
                             url = f"https://wa.me/{digits}" if digits.isdigit() else "https://web.whatsapp.com"

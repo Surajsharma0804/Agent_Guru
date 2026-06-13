@@ -757,21 +757,22 @@ class WakeWordDetector:
             # Use cached instance — injected at startup or loaded on first call
             if not hasattr(self, "_whisper_tiny") or self._whisper_tiny is None:
                 import torch
+
+                def _load_tiny(device: str, compute_type: str) -> "WhisperModel":
+                    try:
+                        return WhisperModel("tiny", device=device, compute_type=compute_type, local_files_only=True)
+                    except Exception:
+                        return WhisperModel("tiny", device=device, compute_type=compute_type)
+
                 if torch.cuda.is_available():
                     try:
-                        self._whisper_tiny = WhisperModel(
-                            "tiny", device="cuda", compute_type="int8"
-                        )
+                        self._whisper_tiny = _load_tiny("cuda", "int8")
                         logger.info("Whisper tiny loaded for wake word detection on cuda (int8)")
                     except Exception:
-                        self._whisper_tiny = WhisperModel(
-                            "tiny", device="cpu", compute_type="float32"
-                        )
+                        self._whisper_tiny = _load_tiny("cpu", "float32")
                         logger.info("Whisper tiny loaded for wake word detection on cpu (float32)")
                 else:
-                    self._whisper_tiny = WhisperModel(
-                        "tiny", device="cpu", compute_type="float32"
-                    )
+                    self._whisper_tiny = _load_tiny("cpu", "float32")
                     logger.info("Whisper tiny loaded for wake word detection on cpu")
 
             segments, _ = self._whisper_tiny.transcribe(

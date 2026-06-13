@@ -447,13 +447,20 @@ async def run() -> None:
         from faster_whisper import WhisperModel
         import torch
 
+        def _load_whisper_tiny(device: str, compute_type: str) -> WhisperModel:
+            """Load Whisper tiny, preferring local cache to avoid HuggingFace calls."""
+            try:
+                return WhisperModel("tiny", device=device, compute_type=compute_type, local_files_only=True)
+            except Exception:
+                return WhisperModel("tiny", device=device, compute_type=compute_type)
+
         # Try GPU (int8) first — 10x faster than CPU, safe on Windows with CTranslate2
         # Fall back to CPU float32 if CUDA is unavailable or has DLL issues
         _ww_device = "cpu"
         _ww_compute = "float32"
         if torch.cuda.is_available():
             try:
-                _test = WhisperModel("tiny", device="cuda", compute_type="int8")
+                _test = _load_whisper_tiny("cuda", "int8")
                 _dummy = np.zeros(16000, dtype=np.float32)
                 list(_test.transcribe(_dummy, language="en", beam_size=1)[0])
                 _ww_device = "cuda"
@@ -465,7 +472,7 @@ async def run() -> None:
                 _whisper_tiny_global = None
 
         if _whisper_tiny_global is None:
-            _whisper_tiny_global = WhisperModel("tiny", device="cpu", compute_type="float32")
+            _whisper_tiny_global = _load_whisper_tiny("cpu", "float32")
             _dummy = np.zeros(16000, dtype=np.float32)
             list(_whisper_tiny_global.transcribe(_dummy, language="en", beam_size=1)[0])
             logger.info("Whisper tiny pre-warmed on CPU — Maya detection ready")
