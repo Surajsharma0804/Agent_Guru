@@ -53,6 +53,7 @@ Version: 1.0.0
 """
 
 import asyncio
+import inspect
 import json
 import logging
 import os
@@ -233,6 +234,8 @@ class OSController:
     def _init_audit_log(self) -> None:
         """Initialize audit log file."""
         try:
+            if self.audit_log_path is None:
+                return
             audit_path = Path(self.audit_log_path)
             audit_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             if not audit_path.exists():
@@ -278,7 +281,7 @@ class OSController:
             return cls(*args, **kwargs)
         except Exception:
             getattr(cls, "__name__", repr(cls))
-            logger.exception("Controller %s failed to initialize: %s")
+            logger.exception("Controller failed to initialize")
             return None
 
     def _safe_init_desktop_app(self) -> Any:
@@ -297,6 +300,7 @@ class OSController:
         except RuntimeError as e:
             logger.info("DesktopApplicationController not available on mobile platform: %s", e)
             return None
+        except Exception:
             logger.exception("DesktopApplicationController failed to initialize")
             return None
 
@@ -1233,7 +1237,7 @@ class OSController:
                 metadata={"url": resolved},
             )
         except Exception as e:
-            logger.exception("Failed to open URL %s: %s")
+            logger.exception("Failed to open URL")
             self._log_operation(OperationCategory.APPLICATION, "open_url", False, {"error": str(e)})
             return OperationResult(
                 success=False,
@@ -1482,7 +1486,7 @@ class OSController:
                 _log("Closing YouTube now.")
                 if pre_close_callback is not None:
                     try:
-                        if asyncio.iscoroutinefunction(pre_close_callback):
+                        if inspect.iscoroutinefunction(pre_close_callback):
                             await pre_close_callback()
                         else:
                             await asyncio.get_running_loop().run_in_executor(
@@ -1670,7 +1674,7 @@ class OSController:
                 metadata={"app_name": app_name},
             )
         except Exception as e:
-            logger.exception("Failed to uninstall %s: %s")
+            logger.exception("Failed to uninstall")
             return OperationResult(
                 success=False,
                 category=OperationCategory.APPLICATION,
@@ -2083,9 +2087,17 @@ class OSController:
 
         try:
             method = operation_map[operation]
-            return method(**kwargs)
+            result = method(**kwargs)
+            if isinstance(result, OperationResult):
+                return result
+            return OperationResult(
+                success=True,
+                category=OperationCategory.FILE,
+                operation=operation,
+                message=str(result) if result is not None else "OK",
+            )
         except TypeError as e:
-            logger.exception("Invalid arguments for operation %s: %s")
+            logger.exception("Invalid arguments for operation")
             return OperationResult(
                 success=False,
                 category=OperationCategory.FILE,  # Default category
@@ -2093,7 +2105,8 @@ class OSController:
                 message=f"Invalid arguments for operation: {operation}",
                 error=str(e),
             )
-            logger.exception("Failed to execute operation %s: %s")
+        except Exception as e:
+            logger.exception("Failed to execute operation")
             return OperationResult(
                 success=False,
                 category=OperationCategory.FILE,  # Default category

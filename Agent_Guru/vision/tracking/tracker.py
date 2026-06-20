@@ -9,8 +9,12 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from Agent_Guru.vision.detection.detector import Detection
 
 logger = logging.getLogger("guruvision.tracking")
 
@@ -66,7 +70,7 @@ class FaceTracker:
 
     def update(
         self,
-        detections: list[object],
+        detections: list[Detection],
         embeddings: list[np.ndarray] | None = None,
     ) -> list[TrackedFace]:
         """Update tracks with new detections.
@@ -198,14 +202,14 @@ class FaceTracker:
         return float(intersection / union)
 
     @staticmethod
-    def _get_bbox(detection: object) -> tuple[int, int, int, int]:
+    def _get_bbox(detection: Detection) -> tuple[int, int, int, int]:
         """Extract (x, y, w, h) from a detection object or tuple."""
         if hasattr(detection, "bbox"):
             return tuple(detection.bbox)  # type: ignore[return-value]
         return tuple(detection)  # type: ignore[return-value]
 
     @staticmethod
-    def _get_conf(detection: object) -> float:
+    def _get_conf(detection: Detection) -> float:
         if hasattr(detection, "confidence"):
             return float(detection.confidence)
         return 1.0

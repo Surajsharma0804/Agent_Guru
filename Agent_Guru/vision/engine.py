@@ -188,6 +188,9 @@ class GuruVisionEngine:
         else:
             self._config = GuruVisionConfig()
 
+        # At this point _config is guaranteed non-None (set in all branches above)
+        assert self._config is not None  # noqa: S101 — type narrowing, not runtime check
+
         warnings = self._config.validate()
         for w in warnings:
             logger.warning("Config warning: %s", w)
@@ -229,7 +232,7 @@ class GuruVisionEngine:
             try:
                 self._liveness = LivenessDetector()
             except Exception:
-                logger.exception("LivenessDetector init failed (%s) — liveness disabled")
+                logger.exception("LivenessDetector init failed — liveness disabled")
                 self._liveness = None
         else:
             self._liveness = None
@@ -238,7 +241,7 @@ class GuruVisionEngine:
             try:
                 self._emotion = EmotionRecognizer(use_gpu=cfg.use_gpu)
             except Exception:
-                logger.exception("EmotionRecognizer init failed (%s) — emotion disabled")
+                logger.exception("EmotionRecognizer init failed — emotion disabled")
                 self._emotion = None
         else:
             self._emotion = None
@@ -247,7 +250,7 @@ class GuruVisionEngine:
             try:
                 self._tracker = FaceTracker(max_age=cfg.tracker_max_age)
             except Exception:
-                logger.exception("FaceTracker init failed (%s) — tracking disabled")
+                logger.exception("FaceTracker init failed — tracking disabled")
                 self._tracker = None
         else:
             self._tracker = None
@@ -323,6 +326,10 @@ class GuruVisionEngine:
         timestamp = datetime.now(UTC).isoformat()
         frame_enhanced = False
 
+        if self._config is None:
+            msg = "Config not initialized"
+            raise RuntimeError(msg)
+
         # Step 1: Low-light enhancement
         if self._config.enable_low_light_enhancement and is_low_light(frame):
             frame = enhance_low_light(frame)
@@ -396,9 +403,12 @@ class GuruVisionEngine:
 
         # Align — failure skips this face entirely (AlignmentError)
         try:
+            if self._aligner is None:
+                logger.error("FaceAligner not initialized — cannot align detection %d", det_index)
+                return None
             aligned = self._aligner.align(frame, detection)
         except Exception as exc:
-            logger.exception("Alignment failed for detection %d: %s")
+            logger.exception("Alignment failed for detection %d: %s", det_index, exc)
             self._emit("error", {"stage": "alignment", "error": str(exc)})
             return None
         # Liveness check — failure degrades gracefully (LivenessError → continue without)
@@ -434,10 +444,18 @@ class GuruVisionEngine:
         confidence = 0.0
         permission_level = "guest"
         try:
+            if self._recognizer is None:
+                logger.error("FaceRecognizer not initialized — cannot extract embedding")
+                return None
             embedding = self._recognizer.extract_embedding(aligned)
+            if self._database is None:
+                logger.error("FaceDatabase not initialized — cannot search")
+                return None
             match: MatchResult = self._database.search(
                 embedding,
-                threshold=self._config.recognition_threshold,
+                threshold=self._config.recognition_threshold
+                if self._config is not None
+                else 0.6,
             )
             identity = match.identity
             confidence = match.confidence
@@ -447,9 +465,10 @@ class GuruVisionEngine:
             if self._tracker is not None and track_id >= 0 and identity != "Unknown":
                 self._tracker.assign_identity(track_id, identity)
         except InvalidImageError as exc:
-            logger.exception("Invalid aligned face for detection %d: %s")
+            logger.exception("Invalid aligned face for detection %d: %s", det_index, exc)
             return None
-            logger.exception("Recognition failed for detection %d: %s")
+        except Exception as exc:
+            logger.exception("Recognition failed for detection %d: %s", det_index, exc)
             self._emit("error", {"stage": "recognition", "error": str(exc)})
             # Return partial result with Unknown identity rather than dropping the face
         # Emotion recognition — failure falls back to "neutral" (EmotionError)
@@ -461,7 +480,7 @@ class GuruVisionEngine:
                 emotion = emotion_result.emotion
                 emotion_conf = emotion_result.confidence
             except Exception:
-                logger.exception("Emotion recognition failed (%s) — returning neutral")
+                logger.exception("Emotion recognition failed — returning neutral")
                 emotion = "neutral"
                 emotion_conf = 0.0
         return FaceResult(
@@ -505,13 +524,22 @@ class GuruVisionEngine:
 
         for i, img in enumerate(images):
             try:
+                if self._detector is None:
+                    msg = "FaceDetector not initialized"
+                    raise RuntimeError(msg)
                 detections = self._detector.detect(img)
                 if not detections:
                     logger.warning("add_identity '%s': no face in image %d", name, i)
                     continue
                 # Use the largest face
                 detection = max(detections, key=lambda d: d.bbox[2] * d.bbox[3])
+                if self._aligner is None:
+                    msg = "FaceAligner not initialized"
+                    raise RuntimeError(msg)
                 aligned = self._aligner.align(img, detection)
+                if self._recognizer is None:
+                    msg = "FaceRecognizer not initialized"
+                    raise RuntimeError(msg)
                 embedding = self._recognizer.extract_embedding(aligned)
                 embeddings.append(embedding)
             except Exception as exc:
@@ -521,6 +549,9 @@ class GuruVisionEngine:
             return False
 
         try:
+            if self._database is None:
+                msg = "FaceDatabase not initialized"
+                raise RuntimeError(msg)
             result = self._database.add_identity(
                 name,
                 embeddings,
@@ -528,7 +559,7 @@ class GuruVisionEngine:
             )
         except Exception as exc:
             logger.exception("add_identity '%s': database write failed: %s", name, exc)
-            msg = f"Failed to store identity '{html.escape(str(name))}': {exc}"
+            msg = f"Failed to store identity '{html.escape(name)}': {exc}"
             raise DatabaseError(
                 msg,
             ) from exc
@@ -544,11 +575,17 @@ class GuruVisionEngine:
 
         """
         self._require_initialized()
+        if self._database is None:
+            msg = "FaceDatabase not initialized"
+            raise RuntimeError(msg)
         return self._database.remove_identity(name)
 
     def get_identities(self) -> list[IdentityInfo]:
         """Return summary info for all stored identities."""
         self._require_initialized()
+        if self._database is None:
+            msg = "FaceDatabase not initialized"
+            raise RuntimeError(msg)
         return [
             IdentityInfo(
                 name=identity.name,
@@ -567,6 +604,9 @@ class GuruVisionEngine:
 
         """
         self._require_initialized()
+        if self._database is None:
+            msg = "FaceDatabase not initialized"
+            raise RuntimeError(msg)
         result = self._database.update_permission(name, permission_level)
         if result:
             self._emit("permission_changed", {"name": name, "permission_level": permission_level})
@@ -596,7 +636,7 @@ class GuruVisionEngine:
         """
         if event_type not in self._callbacks:
             msg = (
-                f"Unknown event type '{html.escape(str(event_type))}'. "
+                f"Unknown event type '{html.escape(event_type)}'. "
                 f"Valid types: {sorted(self._callbacks.keys())}"
             )
             raise ValueError(
@@ -643,6 +683,9 @@ class GuruVisionEngine:
                 msg,
             ) from exc
         if source is None:
+            if self._config is None:
+                msg = "Config not initialized"
+                raise RuntimeError(msg)
             source = self._config.camera_index
 
         cap = cv2.VideoCapture(source)

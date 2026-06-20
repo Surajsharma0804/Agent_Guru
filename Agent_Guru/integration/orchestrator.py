@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import inspect
 import logging
 import re
 import sys
@@ -330,7 +331,7 @@ class IntegrationOrchestrator:
             create_fn(policy)
             logger.info("Policy: seeded default allow policy for guru_pipeline")
         except Exception:
-            logger.exception("Policy seed failed: %s — policy check will default to allow")
+            logger.exception("Policy seed failed — policy check will default to allow")
 
     async def _init_subsystem(self, name: str, subsystem: Any, device_cfg: Any = None) -> None:
         """Initialise a single subsystem, passing device_cfg if accepted."""
@@ -338,7 +339,7 @@ class IntegrationOrchestrator:
             init = getattr(subsystem, "initialize", None)
             if init is None:
                 return
-            if asyncio.iscoroutinefunction(init):
+            if inspect.iscoroutinefunction(init):
                 if device_cfg is not None:
                     try:
                         await init(device_cfg=device_cfg)
@@ -667,7 +668,7 @@ class IntegrationOrchestrator:
             process = getattr(self.vision_engine, "process_frame", None)
             if process is None:
                 return None
-            if asyncio.iscoroutinefunction(process):
+            if inspect.iscoroutinefunction(process):
                 return await process(vision_event.frame)
             loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, process, vision_event.frame)
@@ -722,7 +723,7 @@ class IntegrationOrchestrator:
                 return ("", "")
 
             # If the function is async (e.g. AsyncMock in tests), call it directly
-            if asyncio.iscoroutinefunction(fn):
+            if inspect.iscoroutinefunction(fn):
                 try:
                     result = await fn(audio)
                     if hasattr(result, "text") and hasattr(result, "language"):
@@ -828,7 +829,7 @@ class IntegrationOrchestrator:
             fn = getattr(self.memory, "retrieve", None) or getattr(self.memory, "search", None)
             if fn is None:
                 return None
-            if asyncio.iscoroutinefunction(fn):
+            if inspect.iscoroutinefunction(fn):
                 return await fn(transcript)
             loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, fn, transcript)
@@ -846,7 +847,7 @@ class IntegrationOrchestrator:
             # Prefer analyze() — used by mocks and simpler subsystems
             fn = getattr(self.reasoning, "analyze", None)
             if fn is not None:
-                if asyncio.iscoroutinefunction(fn):
+                if inspect.iscoroutinefunction(fn):
                     return await fn(transcript, memory_context)
                 loop = asyncio.get_running_loop()
                 return await loop.run_in_executor(None, fn, transcript, memory_context)
@@ -868,7 +869,7 @@ class IntegrationOrchestrator:
                     user_id="guru_pipeline",
                     metadata={"memory_context": memory_context},
                 )
-                if asyncio.iscoroutinefunction(process_fn):
+                if inspect.iscoroutinefunction(process_fn):
                     result = await process_fn(raw)
                 else:
                     loop = asyncio.get_running_loop()
@@ -876,7 +877,7 @@ class IntegrationOrchestrator:
                 return result
             except ImportError:
                 # RawInput not available — call with transcript only
-                if asyncio.iscoroutinefunction(process_fn):
+                if inspect.iscoroutinefunction(process_fn):
                     return await process_fn(transcript)
                 loop = asyncio.get_running_loop()
                 return await loop.run_in_executor(None, process_fn, transcript)
@@ -901,7 +902,7 @@ class IntegrationOrchestrator:
                 None,
             )
             if fn is not None:
-                if asyncio.iscoroutinefunction(fn):
+                if inspect.iscoroutinefunction(fn):
                     result = await fn(transcript, memory_context, reasoning_output)
                 else:
                     loop = asyncio.get_running_loop()
@@ -1050,7 +1051,7 @@ class IntegrationOrchestrator:
                         )
                         logger.info("Distress support triggered — 3+ consecutive distress turns")
                 except Exception:
-                    pass
+                    logger.debug("Empathy adapter check failed", exc_info=True)
 
                 if distress_note:
                     system_prompt = system_prompt + distress_note
@@ -1058,10 +1059,54 @@ class IntegrationOrchestrator:
                 # ── Build message list with conversation history ──────────
                 # The LLM needs recent context to be a real companion.
                 # Without history, it forgets what the user said 10 seconds ago.
+                #
+                # TOKEN BUDGET GUARD: gemma3:4b has a 4096-token context window.
+                # System prompt ~650 tokens, response budget 220 tokens, current
+                # user message ~50-200 tokens. That leaves ~2900 tokens for history.
+                # If we blindly inject all 8 history messages, long conversations
+                # will overflow and silently truncate — the LLM loses all context.
+                # This is how ChatGPT and Gemini Live manage their context windows.
+                _MAX_HISTORY_TOKENS = 2900
+                _system_tokens = len(system_prompt) // 4
+                _user_tokens = len(prompt) // 4
+                _available = _MAX_HISTORY_TOKENS - _user_tokens
+
+                # Build history messages, trimming oldest if over budget
+                history_messages: list[Message] = []
+                _history_tokens = 0
+                # Iterate newest-first so we keep the most recent turns
+                for hist_msg in reversed(list(self._chat_history)):
+                    msg_tokens = len(hist_msg["content"]) // 4
+                    if _history_tokens + msg_tokens > _available:
+                        break  # Budget exhausted — drop older turns
+                    history_messages.insert(0, Message(role=hist_msg["role"], content=hist_msg["content"]))
+                    _history_tokens += msg_tokens
+
+                if _history_tokens > 0 and len(history_messages) < len(self._chat_history):
+                    logger.info(
+                        "Token budget: trimmed history from %d to %d messages (%d tokens)",
+                        len(self._chat_history), len(history_messages), _history_tokens,
+                    )
+
+                # ── Conversation context note ─────────────────────────────
+                # Tell the LLM which turn it's on and the user's recent mood.
+                # "You seemed frustrated earlier" doesn't work without this.
+                _turn_count = len(self._chat_history) // 2 + 1
+                _recent_moods = [
+                    h.get("emotion", "neutral")
+                    for h in list(self._chat_history)[-6:]
+                    if h.get("role") == "user"
+                ]
+                if _turn_count > 1 and _recent_moods:
+                    mood_summary = ", ".join(_recent_moods[-3:])
+                    context_note = (
+                        f"\n\nCONVERSATION STATE: This is turn {_turn_count}. "
+                        f"The user's recent mood: [{mood_summary}]."
+                    )
+                    system_prompt = system_prompt + context_note
+
                 messages = [Message(role="system", content=system_prompt)]
-                # Inject last N turns of conversation history
-                for hist_msg in self._chat_history:
-                    messages.append(Message(role=hist_msg["role"], content=hist_msg["content"]))
+                messages.extend(history_messages)
                 messages.append(Message(role="user", content=prompt))
 
                 import os as _os
@@ -1079,9 +1124,17 @@ class IntegrationOrchestrator:
 
                 # ── Update conversation history ───────────────────────────
                 # Store the raw transcript (not enriched) + the LLM response
+                # + emotion hint for mood tracking across turns
                 if llm_response:
-                    self._chat_history.append({"role": "user", "content": transcript or ""})
-                    self._chat_history.append({"role": "assistant", "content": llm_response})
+                    self._chat_history.append({
+                        "role": "user",
+                        "content": transcript or "",
+                        "emotion": emotion_hint or "neutral",
+                    })
+                    self._chat_history.append({
+                        "role": "assistant",
+                        "content": llm_response,
+                    })
 
                 return llm_response
             except ImportError as e:
@@ -1361,7 +1414,7 @@ class IntegrationOrchestrator:
             # Prefer evaluate() — used by mocks and simpler subsystems
             fn = getattr(self.policy, "evaluate", None)
             if fn is not None:
-                if asyncio.iscoroutinefunction(fn):
+                if inspect.iscoroutinefunction(fn):
                     decision = await fn(intent)
                 else:
                     loop = asyncio.get_running_loop()
@@ -1387,7 +1440,7 @@ class IntegrationOrchestrator:
 
                 principal = Principal(id="guru_pipeline", attributes={"role": "assistant"})
                 resource = Resource(id="action", type="command")
-                if asyncio.iscoroutinefunction(eval_fn):
+                if inspect.iscoroutinefunction(eval_fn):
                     decision = await eval_fn(principal, resource, intent)
                 else:
                     loop = asyncio.get_running_loop()
@@ -1404,7 +1457,7 @@ class IntegrationOrchestrator:
             except ImportError:
                 return False  # Can't build Principal/Resource — deny by default (secure)
         except Exception:
-            logger.exception("Policy stage error: %s — defaulting to deny for safety")
+            logger.exception("Policy stage error — defaulting to deny for safety")
             return False  # Deny by default when policy check fails
 
     async def _stage_action(self, intent: str) -> Any:
@@ -1455,7 +1508,7 @@ class IntegrationOrchestrator:
             execute_fn = getattr(self.agent_orchestrator, "execute", None)
             if execute_fn is not None:
                 try:
-                    if asyncio.iscoroutinefunction(execute_fn):
+                    if inspect.iscoroutinefunction(execute_fn):
                         result = await execute_fn(safe_intent)
                     else:
                         result = await loop.run_in_executor(None, execute_fn, safe_intent)
@@ -1522,11 +1575,13 @@ class IntegrationOrchestrator:
                         import sounddevice as sd
                         def _speak_reminder(text: str) -> None:
                             try:
+                                import numpy as np
+
                                 audio, sr = tts_eng.synthesize_to_array(text)
                                 tail = np.zeros(int(sr * 0.30), dtype=np.float32)
                                 padded = np.concatenate([audio.astype(np.float32), tail])
-                                sd.play(padded, samplerate=sr)
-                                sd.wait()
+                                sd.play(padded, samplerate=sr)  # type: ignore[attr-defined]
+                                sd.wait()  # type: ignore[attr-defined]
                             except Exception as _e:
                                 logger.exception("Reminder TTS failed")
 
@@ -1840,7 +1895,7 @@ class IntegrationOrchestrator:
                 if num_match:
                     vol = max(0, min(100, int(num_match.group())))
                     logger.info("ACTION: set_volume(%d)", vol)
-                    if yt_open:
+                    if yt_open and mgr is not None:
                         try:
                             return await mgr.set_volume(vol)
                         except Exception:
@@ -1852,7 +1907,7 @@ class IntegrationOrchestrator:
                     return f"Volume set to {vol}%"
 
                 if "up" in param.lower() or "increase" in param.lower():
-                    if yt_open:
+                    if yt_open and mgr is not None:
                         try:
                             return await mgr.volume_up()
                         except Exception:
@@ -1866,7 +1921,7 @@ class IntegrationOrchestrator:
                     return "Volume increased"
 
                 if "down" in param.lower() or "decrease" in param.lower():
-                    if yt_open:
+                    if yt_open and mgr is not None:
                         try:
                             return await mgr.volume_down()
                         except Exception:
@@ -1881,7 +1936,7 @@ class IntegrationOrchestrator:
 
                 if re.search(r"\b(mute|unmute)\b", param, re.IGNORECASE):
                     is_unmute = bool(re.search(r"\bunmute\b", param, re.IGNORECASE))
-                    if yt_open:
+                    if yt_open and mgr is not None:
                         try:
                             return await (mgr.unmute() if is_unmute else mgr.mute())
                         except Exception:
@@ -2146,7 +2201,7 @@ class IntegrationOrchestrator:
         audio_array: Any = None
 
         if fn_type in ("array", "response"):
-            if asyncio.iscoroutinefunction(fn):
+            if inspect.iscoroutinefunction(fn):
                 result = await fn(text, pt)
             else:
                 result = await asyncio.to_thread(fn, text, pt)
@@ -2156,7 +2211,7 @@ class IntegrationOrchestrator:
                 audio_array = result
 
         elif fn_type == "bytes":
-            if asyncio.iscoroutinefunction(fn):
+            if inspect.iscoroutinefunction(fn):
                 wav_bytes = await fn(text, pt)
             else:
                 wav_bytes = await asyncio.to_thread(fn, text, pt)
@@ -2236,11 +2291,13 @@ class IntegrationOrchestrator:
                     import sounddevice as sd
 
                     def _play() -> None:
+                        import numpy as np
+
                         # Pad with 300ms silence to prevent last-word cutoff
                         tail = np.zeros(int(sample_rate * 0.30), dtype=np.float32)
                         padded = np.concatenate([audio_array.astype(np.float32), tail])
-                        sd.play(padded, samplerate=sample_rate)
-                        sd.wait()
+                        sd.play(padded, samplerate=sample_rate)  # type: ignore[attr-defined]
+                        sd.wait()  # type: ignore[attr-defined]
 
                     loop = asyncio.get_running_loop()
                     await loop.run_in_executor(None, _play)
@@ -2318,7 +2375,7 @@ class IntegrationOrchestrator:
             return text
         import html as _html_mod
 
-        return _html_mod.escape(str(text), quote=True)
+        return _html_mod.escape(text, quote=True)
 
     @staticmethod
     def _sanitize_for_shell(text: str) -> str:
@@ -2340,7 +2397,7 @@ class IntegrationOrchestrator:
         import shlex as _shlex
 
         # Shell-quote for OS safety, then HTML-escape for any log/display output
-        return _shlex.quote(str(text))
+        return _shlex.quote(text)
 
     @staticmethod
     def _resolve_personality(wake_word: str) -> Personality:

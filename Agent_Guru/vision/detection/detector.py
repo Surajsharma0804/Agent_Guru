@@ -249,7 +249,7 @@ class FaceDetector:
         try:
             faces = app.get(frame)  # type: ignore[union-attr]
         except Exception:
-            logger.exception("InsightFace detection failed: %s — returning empty list.")
+            logger.exception("InsightFace detection failed — returning empty list.")
             return []
 
         results: list[Detection] = []
@@ -299,7 +299,7 @@ class FaceDetector:
                 minSize=(30, 30),
             )
         except Exception:
-            logger.exception("OpenCV Haar detection failed: %s — returning empty list.")
+            logger.exception("OpenCV Haar detection failed — returning empty list.")
             return []
 
         results: list[Detection] = []
