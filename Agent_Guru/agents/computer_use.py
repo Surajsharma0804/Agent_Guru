@@ -16,7 +16,7 @@ HALT_TIMEOUT_MS = 500
 TASK_TIMEOUT_S = 120
 MAX_RECOVERY_ATTEMPTS = 3
 
-CONFIRMATION_REQUIRED_ACTIONS = {"financial", "communication", "persistent_data"}
+CONFIRMATION_REQUIRED_ACTIONS = frozenset({"financial", "communication", "persistent_data"})
 
 try:
     from playwright.async_api import async_playwright  # type: ignore[import]  # noqa: F401

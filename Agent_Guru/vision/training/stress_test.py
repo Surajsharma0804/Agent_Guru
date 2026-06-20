@@ -91,7 +91,7 @@ class StressTester:
             try:
                 stressed[i] = self._apply_single(stressed[i], condition)
             except Exception:
-                logger.exception("Stress application failed for image %d: %s")
+                logger.exception("Stress application failed for image")
         return stressed
 
     def test_low_light(

@@ -10,7 +10,6 @@ from Agent_Guru.speech.exceptions import AudioInputError
 
 logger = logging.getLogger(__name__)
 
-
 class AudioCapture:
     """Base class for audio capture."""
 
@@ -29,7 +28,6 @@ class AudioCapture:
         """
         msg = "Subclasses must implement capture()"
         raise NotImplementedError(msg)
-
 
 class MicrophoneCapture(AudioCapture):
     """Captures audio from system microphone using sounddevice."""
@@ -96,7 +94,7 @@ class MicrophoneCapture(AudioCapture):
                 device=self.device,
                 dtype="float32",
             )
-            sd.wait()  # Wait for recording to complete
+            sd.wait()  # Wait for recording to complete  # type: ignore[attr-defined]
 
             # Convert to mono if needed
             if self.channels > 1 and audio.ndim > 1:
@@ -135,7 +133,6 @@ class MicrophoneCapture(AudioCapture):
         except Exception:
             logger.exception("Failed to list devices")
             return []
-
 
 class FileCapture(AudioCapture):
     """Loads audio from files using soundfile."""
@@ -207,8 +204,6 @@ class FileCapture(AudioCapture):
 
         except FileNotFoundError as e:
             msg = f"Audio file not found: {file_path}"
-            raise AudioInputError(msg) from e
-            msg = f"Failed to load audio file: {e}"
             raise AudioInputError(msg) from e
 
     @staticmethod

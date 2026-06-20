@@ -27,7 +27,6 @@ from Agent_Guru.speech.audio.streaming import (
 )
 from Agent_Guru.speech.exceptions import StreamingError
 
-
 class TestStreamingAudioManager:
     """Test streaming audio manager with comprehensive coverage."""
     
@@ -506,7 +505,6 @@ class TestStreamingAudioManager:
         """Test handling of empty audio stream."""
         async def empty_source() -> AsyncIterator[bytes]:
             return
-            yield  # Never yields
         
         chunks = []
         async for chunk in manager.stream_input(empty_source()):

@@ -23,7 +23,7 @@ from Agent_Guru.verifier.models import (
 # Confidence signal patterns (hedging / uncertainty language)
 # ---------------------------------------------------------------------------
 
-_UNCERTAINTY_PATTERNS = [
+_UNCERTAINTY_PATTERNS = (
     re.compile(
         r"\b(I think|I believe|I'm not sure|I'm uncertain|probably|possibly|maybe|perhaps|might be|could be|I guess|I assume)\b",
         re.IGNORECASE,
@@ -32,10 +32,10 @@ _UNCERTAINTY_PATTERNS = [
         r"\b(as far as I know|to the best of my knowledge|I recall|I remember)\b",
         re.IGNORECASE,
     ),
-]
+)
 
 # Fabrication signal patterns
-_FABRICATION_PATTERNS = [
+_FABRICATION_PATTERNS = (
     re.compile(
         r"\b(according to .{0,30}study|research shows|studies show|experts say|scientists found)\b",
         re.IGNORECASE,
@@ -46,15 +46,15 @@ _FABRICATION_PATTERNS = [
     ),
     re.compile(r"\b\d+(\.\d+)?%\b"),  # Specific percentages
     re.compile(r"\$\d[\d,]*(\.\d+)?\b"),  # Specific dollar amounts
-]
+)
 
 # Contradiction signal patterns
-_CONTRADICTION_PATTERNS = [
+_CONTRADICTION_PATTERNS = (
     re.compile(
         r"\b(however|but|although|despite|on the other hand|in contrast|nevertheless|yet|while)\b",
         re.IGNORECASE,
     ),
-]
+)
 
 
 class HallucinationDetector:

@@ -27,7 +27,6 @@ from Agent_Guru.goal_manager.models import Goal, GoalStatus
 # Initialize structured logger
 logger = get_logger(__name__)
 
-
 def _escape_strings(obj: Any) -> Any:
     """Recursively HTML-escape all strings in a nested structure.
 
@@ -41,7 +40,6 @@ def _escape_strings(obj: Any) -> Any:
     if isinstance(obj, list):
         return [_escape_strings(item) for item in obj]
     return obj
-
 
 class GoalDecomposer:
     """Decomposes high-level goals into actionable sub-goals using LLM.
@@ -307,24 +305,6 @@ class GoalDecomposer:
                 error_type="JSONDecodeError",
             )
             msg = f"Failed to parse JSON from LLM response: {e}"
-            raise DecompositionError(msg) from e
-            logger.exception(
-                "llm_response_missing_field",
-                goal_id=parent_goal.id,
-                operation="parse_response",
-                error=str(e),
-                error_type="KeyError",
-            )
-            msg = f"Missing required field in LLM response: {e}"
-            raise DecompositionError(msg) from e
-            logger.exception(
-                "llm_response_parse_error",
-                goal_id=parent_goal.id,
-                operation="parse_response",
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            msg = f"Failed to parse LLM response: {e}"
             raise DecompositionError(msg) from e
 
     def _validate_subgoals(self, sub_goals: list[Goal]) -> None:

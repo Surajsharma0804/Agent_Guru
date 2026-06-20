@@ -151,7 +151,7 @@ class VerifierIntegration:
         try:
             result = self._backend.verify(item_id, item_type, data)
         except Exception as exc:
-            logger.exception("Verification error for %s: %s")
+            logger.exception("Verification error for")
             self._pending_queue.append((item_id, item_type, data))
             return VerificationResult(
                 verified=False,

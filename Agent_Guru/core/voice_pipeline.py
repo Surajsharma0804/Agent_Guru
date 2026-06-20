@@ -35,8 +35,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Commands that control pipeline flow
-_STOP_COMMANDS = {"stop listening", "pause", "stop"}
-_EXIT_COMMANDS = {"exit", "goodbye", "bye", "quit", "shutdown"}
+_STOP_COMMANDS = frozenset({"stop listening", "pause", "stop"})
+_EXIT_COMMANDS = frozenset({"exit", "goodbye", "bye", "quit", "shutdown"})
 
 
 class PipelineState(str, Enum):

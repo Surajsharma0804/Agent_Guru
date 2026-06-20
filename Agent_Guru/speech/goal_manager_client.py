@@ -153,7 +153,7 @@ class GoalManagerClient:
             logger.info("Voice task cancelled: goal_id=%s", goal_id)
             return True
         except Exception:
-            logger.exception("Failed to cancel task %s: %s")
+            logger.exception("Failed to cancel task")
             return False
 
     def build_confirmation_text(self, description: str, success: bool) -> str:

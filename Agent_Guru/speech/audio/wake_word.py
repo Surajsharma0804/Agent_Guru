@@ -481,7 +481,7 @@ class WakeWordDetector:
                 return detection
 
         except Exception:
-            logger.exception("openWakeWord error: %s — falling back to MFCC")
+            logger.exception("openWakeWord error — falling back to MFCC")
             self._oww_model = None
             self._backend = "mfcc"
             return await self._detect_mfcc(audio, now)
@@ -513,7 +513,7 @@ class WakeWordDetector:
                     logger.info("Wake word detected (porcupine): %s", keyword)
                     return result
         except Exception:
-            logger.exception("Porcupine detection error: %s — falling back to MFCC")
+            logger.exception("Porcupine detection error — falling back to MFCC")
             return await self._detect_mfcc(audio, now)
         return None
 
@@ -546,7 +546,7 @@ class WakeWordDetector:
                     logger.info("Wake word detected (vosk): %s", phrase)
                     return detection
         except Exception:
-            logger.exception("Vosk detection error: %s — falling back to MFCC")
+            logger.exception("Vosk detection error — falling back to MFCC")
             return await self._detect_mfcc(audio, now)
         return None
 

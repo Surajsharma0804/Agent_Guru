@@ -216,7 +216,7 @@ class _DesktopTTSBackend:
                 if os.path.exists(tmp_path):
                     os.unlink(tmp_path)
         except Exception:
-            logger.exception("pyttsx3 synthesis failed: %s — using silence")
+            logger.exception("pyttsx3 synthesis failed — using silence")
             return self._silence_bytes(text)
 
     @staticmethod
@@ -275,7 +275,7 @@ class _AndroidTTSBackend:
             self._initialized = True
             logger.debug("Android TextToSpeech initialized")
         except Exception:
-            logger.exception("Android TTS unavailable: %s — using silence")
+            logger.exception("Android TTS unavailable — using silence")
             self._tts = None
 
     def synthesize(self, text: str) -> bytes:
@@ -348,7 +348,7 @@ class _IOSTTSBackend:
             self._initialized = True
             logger.debug("iOS AVSpeechSynthesizer initialized")
         except Exception:
-            logger.exception("iOS AVSpeechSynthesizer unavailable: %s — using silence")
+            logger.exception("iOS AVSpeechSynthesizer unavailable — using silence")
             self._synthesizer = None
 
     def synthesize(self, text: str) -> bytes:
@@ -508,7 +508,7 @@ class TTSManager:
             self._active_backend = TTSBackend.KOKORO
             logger.debug("Desktop Kokoro TTS backend initialized")
         except Exception:
-            logger.exception("Kokoro TTS init failed: %s — trying pyttsx3")
+            logger.exception("Kokoro TTS init failed — trying pyttsx3")
             await self._init_pyttsx3_fallback()
 
     async def _init_pyttsx3_fallback(self) -> None:

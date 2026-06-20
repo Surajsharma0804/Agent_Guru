@@ -26,12 +26,12 @@ from uuid import UUID, uuid4
 logger = logging.getLogger(__name__)
 
 # Sensitive field patterns for redaction
-_SENSITIVE_PATTERNS = [
+_SENSITIVE_PATTERNS = (
     re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),  # SSN
     re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"),  # email
     re.compile(r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b"),  # credit card
     re.compile(r"\b\d{10,15}\b"),  # phone numbers
-]
+)
 _REDACTION_PLACEHOLDER = "[REDACTED]"
 
 

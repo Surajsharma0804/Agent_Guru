@@ -92,7 +92,7 @@ class DegradationController:
                     timeout=LLM_TIMEOUT_S,
                 )
             except (TimeoutError, Exception):
-                logger.exception("Provider %s failed: %s")
+                logger.exception("Provider failed")
         return self._rule_based_response(prompt)
 
     async def _call_provider(self, provider: str, prompt: str) -> str:

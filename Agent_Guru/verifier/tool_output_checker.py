@@ -13,7 +13,7 @@ from typing import Any
 from Agent_Guru.verifier.models import ToolOutputCheckResult
 
 # Common error indicator patterns in tool outputs
-_ERROR_PATTERNS = [
+_ERROR_PATTERNS = (
     re.compile(r"\b(error|exception|traceback|failed|failure|fatal|critical)\b", re.IGNORECASE),
     re.compile(
         r"\b(errno|oserror|ioerror|valueerror|typeerror|keyerror|indexerror)\b",
@@ -22,12 +22,12 @@ _ERROR_PATTERNS = [
     re.compile(r"(Traceback \(most recent call last\)|File \".*\", line \d+)", re.IGNORECASE),
     re.compile(r"\b(null|undefined|none)\b.*\b(error|exception)\b", re.IGNORECASE),
     re.compile(r"HTTP [45]\d{2}", re.IGNORECASE),  # HTTP error codes
-]
+)
 
 # Success indicator patterns
-_SUCCESS_PATTERNS = [
+_SUCCESS_PATTERNS = (
     re.compile(r"\b(success|ok|done|completed|finished|200)\b", re.IGNORECASE),
-]
+)
 
 
 class ToolOutputChecker:

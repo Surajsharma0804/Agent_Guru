@@ -28,7 +28,7 @@ _W_PERFORMANCE = 0.4
 _W_CAPABILITY = 0.2
 # Local provider bonus (prefer local over cloud)
 _LOCAL_PROVIDER_BONUS = 0.1
-_LOCAL_PROVIDERS = {"ollama"}
+_LOCAL_PROVIDERS = frozenset({"ollama"})
 # Latency warning threshold (ms)
 _LATENCY_WARNING_MS = 100.0
 

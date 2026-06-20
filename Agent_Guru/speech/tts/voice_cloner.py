@@ -23,10 +23,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 class VoiceCloningError(GuruSpeechError):
     """Voice cloning error."""
-
 
 @dataclass
 class VoiceProfile:
@@ -40,7 +38,6 @@ class VoiceProfile:
     created_at: float
     updated_at: float
     metadata: dict = field(default_factory=dict)
-
 
 class VoiceCloner:
     """Voice cloning and personalization system.
@@ -378,8 +375,6 @@ class VoiceCloner:
 
         except VoiceCloningError as exc:
             raise
-            msg = f"Voice synthesis failed: {exc}"
-            raise VoiceCloningError(msg) from exc
 
     def compute_similarity(
         self,

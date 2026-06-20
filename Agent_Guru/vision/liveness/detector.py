@@ -149,7 +149,7 @@ class LivenessDetector:
                 return float(probs[1])  # live probability
             return float(1.0 / (1.0 + np.exp(-float(logits[0]))))
         except Exception:
-            logger.exception("Liveness ONNX inference failed: %s — using heuristic")
+            logger.exception("Liveness ONNX inference failed — using heuristic")
             return -1.0
 
     def check_liveness(

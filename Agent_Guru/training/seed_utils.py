@@ -52,7 +52,7 @@ def set_deterministic_seeds(seed: int = 42) -> None:
         np.random.seed(seed)
         logger.debug("NumPy seed set to %d", seed)
     except ImportError:
-        logger.exception("NumPy not available — skipping np.random.seed(%d)")
+        logger.exception("NumPy not available — skipping np.random.seed")
 
     # PyTorch CPU + CUDA (optional dependency)
     try:
@@ -62,4 +62,4 @@ def set_deterministic_seeds(seed: int = 42) -> None:
         torch.cuda.manual_seed_all(seed)
         logger.debug("PyTorch CPU and CUDA seeds set to %d", seed)
     except ImportError:
-        logger.exception("PyTorch not available — skipping torch seed calls for seed=%d")
+        logger.exception("PyTorch not available — skipping torch seed calls for seed=")

@@ -214,7 +214,7 @@ class PolicyManager:
             dialog = ConfirmationDialog(timeout_seconds=timeout_seconds)
             return dialog.ask(message)
         except Exception:
-            logger.exception("Confirmation dialog unavailable: %s — defaulting to DENY")
+            logger.exception("Confirmation dialog unavailable — defaulting to DENY")
             return False
 
     # ------------------------------------------------------------------

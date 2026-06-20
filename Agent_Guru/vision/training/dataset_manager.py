@@ -16,7 +16,7 @@ import numpy as np
 logger = logging.getLogger("guruvision.training.dataset_manager")
 
 # Supported datasets
-SUPPORTED_DATASETS = {"ms1m-arcface", "vggface2", "lfw", "cfp-fp", "agedb-30", "ijb-c"}
+SUPPORTED_DATASETS = frozenset({"ms1m-arcface", "vggface2", "lfw", "cfp-fp", "agedb-30", "ijb-c"})
 
 _IMAGE_EXTENSIONS: frozenset = frozenset(
     {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"},
@@ -472,7 +472,7 @@ class DatasetManager:
                     num_processed += 1
                 except Exception:
                     failed.append(str(img_path))
-                    logger.exception("Preprocessing failed for %s: %s")
+                    logger.exception("Preprocessing failed for")
 
         return PreprocessResult(
             success=True,

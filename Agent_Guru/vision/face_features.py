@@ -429,5 +429,5 @@ class FaceFeatureExtractor:
             score = float(min(1.0, lap_var / 200.0))
             return score >= self.liveness_threshold, round(score, 4)
         except Exception:
-            logger.exception("Liveness check failed: %s — defaulting to not-live")
+            logger.exception("Liveness check failed — defaulting to not-live")
             return False, 0.0

@@ -120,7 +120,7 @@ class AudioProcessor:
             return bool(energy > energy_threshold and zero_crossings > zcr_threshold)
 
         except Exception:
-            logger.exception("VAD failed: %s, assuming voice present")
+            logger.exception("VAD failed, assuming voice present")
             return True
 
     async def reduce_noise(self, audio: np.ndarray) -> np.ndarray:
@@ -156,7 +156,7 @@ class AudioProcessor:
             return reduced
 
         except Exception:
-            logger.exception("Noise reduction failed: %s, returning original audio")
+            logger.exception("Noise reduction failed, returning original audio")
             return audio
 
     async def cancel_echo(self, audio: np.ndarray, reference: np.ndarray) -> np.ndarray:
@@ -189,7 +189,7 @@ class AudioProcessor:
             return cancelled
 
         except Exception:
-            logger.exception("Echo cancellation failed: %s, returning original audio")
+            logger.exception("Echo cancellation failed, returning original audio")
             return audio
 
     async def apply_agc(self, audio: np.ndarray) -> np.ndarray:
@@ -233,7 +233,7 @@ class AudioProcessor:
             return result
 
         except Exception:
-            logger.exception("AGC failed: %s, returning original audio")
+            logger.exception("AGC failed, returning original audio")
             return audio
 
     def convert_format(self, audio: np.ndarray, target_rate: int) -> np.ndarray:

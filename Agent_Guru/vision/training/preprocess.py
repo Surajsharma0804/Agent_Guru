@@ -226,7 +226,7 @@ def preprocess_dataset(
                 detections = _detector.detect(frame)
             except Exception:
                 stats.skipped_error += 1
-                logger.exception("Detection failed for %s: %s")
+                logger.exception("Detection failed for")
                 continue
 
             if not detections:
@@ -241,7 +241,7 @@ def preprocess_dataset(
                 aligned = _aligner.align(frame, detection)
             except Exception:
                 stats.skipped_error += 1
-                logger.exception("Alignment failed for %s: %s")
+                logger.exception("Alignment failed for")
                 continue
 
             out_path = out_identity_dir / img_path.name
@@ -329,7 +329,7 @@ def _save_image(image: np.ndarray, path: Path) -> bool:
         Image.fromarray(rgb).save(str(path))
         return True
     except Exception:
-        logger.exception("Failed to save image to %s: %s")
+        logger.exception("Failed to save image to")
         return False
 
 

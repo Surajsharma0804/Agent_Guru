@@ -316,7 +316,7 @@ class AvatarRenderer:
                 logger.info("OpenCV display initialized (%dx%d)", self._width, self._height)
                 return True
             except Exception:
-                logger.exception("OpenCV display init failed: %s — using headless")
+                logger.exception("OpenCV display init failed — using headless")
                 self._backend = "headless"
                 return True
         elif self._backend == "pyqt":

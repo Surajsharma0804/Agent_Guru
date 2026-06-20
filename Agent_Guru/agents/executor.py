@@ -21,7 +21,6 @@ from typing import Any
 
 from .task_decomposer import Task
 
-
 class ExecutionStatus(Enum):
     """Status of a task during execution."""
 
@@ -31,7 +30,6 @@ class ExecutionStatus(Enum):
     FAILED = "failed"
     TIMEOUT = "timeout"
     CANCELLED = "cancelled"
-
 
 class ExecutionResult:
     """Result of a single task execution.
@@ -65,10 +63,8 @@ class ExecutionResult:
         delta = self.finished_at - self.started_at
         self.duration_ms = int(delta.total_seconds() * 1000)
 
-
 # Type alias for a task handler coroutine
 TaskHandler = Callable[[Task], Coroutine[Any, Any, Any]]
-
 
 class TaskExecutor:
     """Executes tasks in dependency order with timeout and monitoring.
@@ -278,14 +274,6 @@ class TaskExecutor:
                 task_id=task.id,
                 status=ExecutionStatus.TIMEOUT,
                 error=f"Task timed out after {timeout}s",
-                started_at=started_at,
-                finished_at=finished_at,
-            )
-            finished_at = datetime.now(tz=UTC)
-            return ExecutionResult(
-                task_id=task.id,
-                status=ExecutionStatus.FAILED,
-                error=str(exc),
                 started_at=started_at,
                 finished_at=finished_at,
             )

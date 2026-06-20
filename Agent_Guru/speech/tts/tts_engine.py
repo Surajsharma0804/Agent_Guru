@@ -99,11 +99,9 @@ _EMOTION_SPEED: dict[EmotionType, float] = {
     EmotionType.DISGUSTED: 0.92,
 }
 
-
 # ---------------------------------------------------------------------------
 # TTSError
 # ---------------------------------------------------------------------------
-
 
 class TTSError(GuruSpeechError):
     """TTS-specific error."""
@@ -111,11 +109,9 @@ class TTSError(GuruSpeechError):
     def __init__(self, message: str, original_error: Exception | None = None) -> None:
         super().__init__(message, "KokoroTTSEngine", original_error)
 
-
 # ---------------------------------------------------------------------------
 # Download helper
 # ---------------------------------------------------------------------------
-
 
 def _download(url: str, dest: Path) -> None:
     """Download *url* to *dest* with a progress bar. Raises on failure."""
@@ -136,11 +132,9 @@ def _download(url: str, dest: Path) -> None:
         msg = f"Failed to download {dest.name}: {exc}"
         raise TTSError(msg, exc) from exc
 
-
 # ---------------------------------------------------------------------------
 # KokoroTTSEngine  (primary engine)
 # ---------------------------------------------------------------------------
-
 
 class KokoroTTSEngine:
     """Human-quality multilingual TTS using Kokoro ONNX.
@@ -323,14 +317,10 @@ class KokoroTTSEngine:
         except ImportError as exc:
             msg = "kokoro-onnx not installed. Run: pip install kokoro-onnx"
             raise TTSError(msg, exc) from exc
-            msg = f"Failed to load Kokoro model: {exc}"
-            raise TTSError(msg, exc) from exc
-
 
 # ---------------------------------------------------------------------------
 # Pyttsx3 fallback engine
 # ---------------------------------------------------------------------------
-
 
 class _Pyttsx3Engine:
     """Lightweight pyttsx3 fallback. Used only when Kokoro is unavailable."""
@@ -412,11 +402,9 @@ class _Pyttsx3Engine:
                 _logger.warning("pyttsx3 synthesis failed: %s", exc)
                 return _silence_wav(text)
 
-
 # ---------------------------------------------------------------------------
 # Unified engine (used by the rest of the project)
 # ---------------------------------------------------------------------------
-
 
 class CoquiTTSEngine:
     """Unified TTS engine — Kokoro ONNX primary, pyttsx3 fallback.
@@ -546,15 +534,12 @@ class CoquiTTSEngine:
         """Return supported BCP-47 language codes."""
         return list(_LANG_MAP.keys())
 
-
 # Backward-compatibility alias
 TTSEngine = CoquiTTSEngine
-
 
 # ---------------------------------------------------------------------------
 # Audio utilities
 # ---------------------------------------------------------------------------
-
 
 def _clean_text(text: str) -> str:
     """Strip emojis, markdown, and non-speakable characters from *text*."""
@@ -580,7 +565,6 @@ def _clean_text(text: str) -> str:
     # Normalize whitespace
     return re.sub(r"\s+", " ", text).strip()
 
-
 def _coerce_personality(p: PersonalityType | str) -> PersonalityType:
     """Convert string ``"guru"``/``"maya"`` to :class:`PersonalityType`."""
     if isinstance(p, PersonalityType):
@@ -593,7 +577,6 @@ def _coerce_personality(p: PersonalityType | str) -> PersonalityType:
     msg = f"Invalid personality '{p}'. Must be 'guru' or 'maya'."
     raise TTSError(msg)
 
-
 def _array_to_wav(audio: np.ndarray, sample_rate: int) -> bytes:
     """Convert float32 numpy array to 16-bit mono WAV bytes."""
     pcm = np.clip(audio, -1.0, 1.0)
@@ -605,7 +588,6 @@ def _array_to_wav(audio: np.ndarray, sample_rate: int) -> bytes:
         wf.setframerate(sample_rate)
         wf.writeframes(pcm_int16.tobytes())
     return buf.getvalue()
-
 
 def _wav_to_array(wav_bytes: bytes) -> tuple[np.ndarray, int]:
     """Convert WAV bytes to float32 numpy array."""
@@ -625,7 +607,6 @@ def _wav_to_array(wav_bytes: bytes) -> tuple[np.ndarray, int]:
         return audio, sr
     except Exception:
         return np.zeros(12000, dtype=np.float32), 24000
-
 
 def _silence_wav(text: str, sample_rate: int = 24000) -> bytes:
     """Generate silence WAV proportional to text length."""

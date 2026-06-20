@@ -15,7 +15,7 @@ import numpy as np
 
 logger = logging.getLogger("guruvision.training.failure_analysis")
 
-FAILURE_CATEGORIES = ["pose", "lighting", "blur", "occlusion", "aging", "accessories", "unknown"]
+FAILURE_CATEGORIES = ("pose", "lighting", "blur", "occlusion", "aging", "accessories", "unknown")
 
 
 # ---------------------------------------------------------------------------

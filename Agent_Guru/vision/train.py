@@ -43,7 +43,6 @@ from Agent_Guru.vision.utils.logging import setup_logging
 
 BASE_DIR = Path(__file__).parent.resolve()
 
-
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Train GuruVision ArcFace face recognition model",
@@ -80,7 +79,6 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     return parser.parse_args(argv)
 
-
 def _load_config_overrides(config_path: str, config: TrainingConfig) -> TrainingConfig:
     """Apply overrides from a YAML or JSON config file."""
     path = safe_path(BASE_DIR, config_path)
@@ -109,7 +107,6 @@ def _load_config_overrides(config_path: str, config: TrainingConfig) -> Training
         if hasattr(config, key):
             setattr(config, key, value)
     return config
-
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
@@ -188,10 +185,6 @@ def main(argv: list[str] | None = None) -> int:
         report["phases"]["training"] = {"success": False, "error": str(exc)}
         _write_report(report, args.output_dir)
         return 1
-        logger.exception("Training failed: %s", exc)
-        report["phases"]["training"] = {"success": False, "error": str(exc)}
-        _write_report(report, args.output_dir)
-        return 1
     report["phases"]["training"] = {
         "success": True,
         "checkpoint_path": checkpoint_path,
@@ -231,7 +224,6 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("Training pipeline complete in %.1fs", report["total_elapsed_s"])
     return 0
 
-
 def _write_report(report: dict, output_dir: str) -> None:
     report_path = str(safe_path(BASE_DIR, os.path.join(output_dir, "training_report.json")))
     try:
@@ -240,7 +232,6 @@ def _write_report(report: dict, output_dir: str) -> None:
         logging.getLogger("guruvision.train").info("Report written to %s", report_path)
     except Exception as exc:
         logging.getLogger("guruvision.train").exception("Failed to write report: %s", exc)
-
 
 if __name__ == "__main__":
     sys.exit(main())

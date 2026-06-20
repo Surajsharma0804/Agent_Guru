@@ -44,7 +44,6 @@ from .models import Goal, GoalStatus, Priority
 # Initialize structured logger
 logger = get_logger(__name__)
 
-
 class GoalStorage:
     """Persistent storage for goals using SQLite.
 
@@ -200,8 +199,6 @@ class GoalStorage:
                 self._close(conn)
         except _StorageError as e:
             raise
-            msg = f"Failed to update goal status: {e}"
-            raise _StorageError(msg) from e
 
     def _connect(self) -> sqlite3.Connection:
         """Return the persistent connection."""
@@ -332,17 +329,6 @@ class GoalStorage:
             )
             msg = f"Goal with ID {goal.id} already exists: {e}"
             raise StorageError(msg) from e
-            raise
-            conn.rollback()
-            logger.exception(
-                "goal_store_failed",
-                goal_id=goal.id,
-                operation="store",
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            msg = f"Failed to store goal: {e}"
-            raise StorageError(msg) from e
         finally:
             self._close(conn)
 
@@ -413,16 +399,6 @@ class GoalStorage:
 
         except StorageError as e:
             raise
-            conn.rollback()
-            logger.exception(
-                "goal_update_failed",
-                goal_id=goal.id,
-                operation="update",
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            msg = f"Failed to update goal: {e}"
-            raise StorageError(msg) from e
         finally:
             self._close(conn)
 

@@ -174,7 +174,7 @@ class SynthesisEngine:
             self._initialized = True
             logger.info("SynthesisEngine: Kokoro TTS engine loaded")
         except Exception:
-            logger.exception("TTS engine unavailable: %s. Using silence fallback.")
+            logger.exception("TTS engine unavailable. Using silence fallback.")
             self._initialized = True  # Mark as initialized even without model
 
     def synthesize(self, text: str) -> SynthesisResult:
@@ -298,7 +298,7 @@ class SynthesisEngine:
                 )
                 return audio_bytes, self._config.sample_rate
             except Exception:
-                logger.exception("CoquiTTS synthesis failed: %s. Using silence fallback.")
+                logger.exception("CoquiTTS synthesis failed. Using silence fallback.")
 
         # Fallback: generate silence (for testing/offline mode)
         return self._generate_silence(text), self._config.sample_rate

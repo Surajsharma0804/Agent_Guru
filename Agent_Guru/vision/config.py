@@ -241,7 +241,7 @@ class GuruVisionConfig:
                 raise ValueError(msg)
             return result
         except ImportError:
-            logger.exception("PyYAML not installed; attempting to parse %r as JSON")
+            logger.exception("PyYAML not installed; attempting to parse as JSON")
             return cls._parse_json(text, path)
 
     @classmethod

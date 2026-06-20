@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 # Lazy import to avoid loading torch unnecessarily
 _noisereduce: Any | None = None
 
-
 def _get_noisereduce() -> Any | None:
     """Lazy import of noisereduce to avoid torch loading issues."""
     global _noisereduce
@@ -28,7 +27,6 @@ def _get_noisereduce() -> Any | None:
             _noisereduce = False
     return _noisereduce if _noisereduce is not False else None
 
-
 class NoiseType(Enum):
     """Types of background noise."""
 
@@ -39,7 +37,6 @@ class NoiseType(Enum):
     TRAFFIC = "traffic"
     WIND = "wind"
     UNKNOWN = "unknown"
-
 
 class AdvancedNoiseCancellation:
     """Advanced noise cancellation with >20dB reduction and adaptive filtering.
@@ -118,8 +115,6 @@ class AdvancedNoiseCancellation:
 
         except AudioProcessingError as e:
             raise
-            msg = f"Advanced noise reduction failed: {e}"
-            raise AudioProcessingError(msg) from e
 
     def detect_noise_type(self, audio: np.ndarray) -> NoiseType:
         """Detect the type of background noise present.

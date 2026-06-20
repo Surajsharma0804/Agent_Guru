@@ -138,7 +138,7 @@ class GuruAvatarSystem:
             )
             self._renderer.initialize_display()
         except Exception as exc:
-            logger.exception("AvatarRenderer init failed: %s — using headless")
+            logger.exception("AvatarRenderer init failed — using headless")
             self._notify_error(exc, "renderer", {})
             self._renderer = AvatarRenderer(backend="headless")
             self._renderer.initialize_display()
@@ -193,7 +193,7 @@ class GuruAvatarSystem:
         try:
             raw_emotion = self._emotion_recognizer.detect_emotion_smooth(frame)
         except Exception as exc:
-            logger.exception("Emotion detection failed: %s — using neutral")
+            logger.exception("Emotion detection failed — using neutral")
             self._notify_error(exc, "emotion_recognizer", {"frame_shape": frame.shape})
             raw_emotion = EmotionState.neutral()
 
@@ -217,7 +217,7 @@ class GuruAvatarSystem:
         try:
             lip_state = self._lip_sync.process_audio_chunk(audio, sample_rate)
         except Exception as exc:
-            logger.exception("Lip sync failed: %s — using neutral")
+            logger.exception("Lip sync failed — using neutral")
             self._notify_error(exc, "lip_sync", {})
             lip_state = LipSyncState.neutral()
 

@@ -8,14 +8,14 @@ from dataclasses import dataclass, field
 import numpy as np
 
 # Original 7 Ekman emotions + companion-required emotions
-EKMAN_EMOTIONS = ["happy", "sad", "angry", "fearful", "disgusted", "surprised", "neutral"]
+EKMAN_EMOTIONS = ("happy", "sad", "angry", "fearful", "disgusted", "surprised", "neutral")
 
-COMPANION_EMOTIONS = [
+COMPANION_EMOTIONS = (
     # Core Ekman
     "happy", "sad", "angry", "fearful", "disgusted", "surprised", "neutral",
     # Companion-layer emotions
     "frustrated", "tired", "confused", "proud", "motivated", "curious", "excited",
-]
+)
 
 # ── Precompiled keyword → emotion mapping ─────────────────────────────────
 # Each entry: (tuple of keyword phrases, emotion_scores dict)
@@ -216,6 +216,12 @@ class EmotionDetector:
                The `any(w in t ...)` short-circuits on first match.
         Space: O(T) for the normalized text copy
         """
+        # Short-circuit: inputs < 4 chars ("hi", "ok", "yes") are always neutral.
+        # Saves 11 keyword group scans per call. Competitive with Alexa+'s
+        # early-exit for non-conversational inputs.
+        if len(text) < 4:
+            return _NEUTRAL_SCORES
+
         # Normalize: lowercase, strip apostrophes — O(T)
         t = text.lower().replace("'", "").replace("\u2019", "")
 

@@ -38,7 +38,6 @@ from queue import Empty, Full, Queue
 
 _logger = logging.getLogger(__name__)
 
-
 @dataclass
 class ConnectionStats:
     """Statistics for connection pool monitoring."""
@@ -52,7 +51,6 @@ class ConnectionStats:
     avg_transaction_time_ms: float
     failed_acquisitions: int
     failed_transactions: int
-
 
 class PooledConnection:
     """Wrapper for SQLite connection with metadata.
@@ -106,7 +104,6 @@ class PooledConnection:
         except Exception:
             self.healthy = False
             return False
-
 
 class ConnectionPool:
     """Thread-safe connection pool for SQLite.
@@ -261,9 +258,6 @@ class ConnectionPool:
             return conn
 
         except TimeoutError:
-            with self._lock:
-                self._failed_acquisitions += 1
-            raise
             with self._lock:
                 self._failed_acquisitions += 1
             raise
@@ -501,11 +495,9 @@ class ConnectionPool:
             conn.execute(f"ROLLBACK TO SAVEPOINT {name}")  # nosec B608
             raise
 
-
 # Global connection pool instance
 _global_pool: ConnectionPool | None = None
 _pool_lock = threading.Lock()
-
 
 def get_connection_pool(db_path: str | None = None, **kwargs) -> ConnectionPool:
     """Get global connection pool instance.
@@ -533,7 +525,6 @@ def get_connection_pool(db_path: str | None = None, **kwargs) -> ConnectionPool:
             _global_pool = ConnectionPool(db_path, **kwargs)
 
         return _global_pool
-
 
 def close_connection_pool() -> None:
     """Close global connection pool."""

@@ -15,11 +15,9 @@ from typing import Any
 
 logger = logging.getLogger("guruvision.training.integration")
 
-
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
-
 
 @dataclass
 class DeploymentArtifacts:
@@ -31,7 +29,6 @@ class DeploymentArtifacts:
     report_path: str = ""
     production_ready: bool = False
     artifact_dir: str = ""
-
 
 @dataclass
 class ModelMetadataFile:
@@ -47,11 +44,9 @@ class ModelMetadataFile:
     input_range: str = "[-1, 1]"
     onnx_opset: int = 11
 
-
 # ---------------------------------------------------------------------------
 # GuruVisionIntegration
 # ---------------------------------------------------------------------------
-
 
 class GuruVisionIntegration:
     """Generate deployment artifacts for GuruVision system integration.
@@ -167,8 +162,6 @@ class GuruVisionIntegration:
         except ImportError:
             logger.exception("onnxruntime not available; skipping ONNX validation")
             return True
-            logger.exception("ONNX compatibility check failed")
-            return False
 
     # ------------------------------------------------------------------
     # Private helpers

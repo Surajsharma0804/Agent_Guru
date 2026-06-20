@@ -23,7 +23,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class SyncOperation:
     """A pending GitHub sync operation."""
@@ -34,7 +33,6 @@ class SyncOperation:
     timestamp: datetime
     retry_count: int = 0
     status: str = "pending"  # pending | in_progress | completed | failed
-
 
 class GitHubSyncEngine:
     """Syncs LLM Runtime performance data to GitHub README.md.
@@ -141,7 +139,6 @@ class GitHubSyncEngine:
                     await self._process_pending_operations()
             except asyncio.CancelledError:
                 break
-                logger.exception("Error in GitHub sync loop")
 
     async def _process_pending_operations(self) -> None:
         """Process (and batch) pending sync operations."""

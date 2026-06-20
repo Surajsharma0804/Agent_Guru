@@ -39,7 +39,7 @@ _DESCRIPTION = "World-class AI voice assistant with dual personalities"
 _HOMEPAGE = "https://agentguru.ai"
 
 # Android permissions required
-_ANDROID_PERMISSIONS = [
+_ANDROID_PERMISSIONS = (
     "INTERNET",
     "RECORD_AUDIO",
     "CAMERA",
@@ -47,7 +47,7 @@ _ANDROID_PERMISSIONS = [
     "FOREGROUND_SERVICE",
     "RECEIVE_BOOT_COMPLETED",
     "VIBRATE",
-]
+)
 
 # iOS permission descriptions
 _IOS_PERMISSIONS = {

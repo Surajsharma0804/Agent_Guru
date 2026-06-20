@@ -82,7 +82,7 @@ class AutomationEngine:
                     (scene_id,),
                 ).fetchone()
         except sqlite3.Error:
-            logger.exception("DB error fetching scene %s: %s")
+            logger.exception("DB error fetching scene")
             return False
         if not row:
             logger.warning("Scene %s not found", scene_id)
@@ -91,7 +91,7 @@ class AutomationEngine:
         try:
             actions: list[dict[str, Any]] = json.loads(row[0])
         except json.JSONDecodeError:
-            logger.exception("Invalid JSON in scene %s: %s")
+            logger.exception("Invalid JSON in scene")
             return False
         from Agent_Guru.iot.matter import DeviceCommand
 
@@ -104,8 +104,8 @@ class AutomationEngine:
                 )
                 await controller.control(cmd)
             except KeyError:
-                logger.exception("Scene %s action missing field %s — skipping")
-                logger.exception("Scene %s action failed: %s — continuing")
+                logger.exception("Scene action missing field — skipping")
+                logger.exception("Scene action failed — continuing")
         logger.info("Activated scene %s", scene_id)
         return True
 
@@ -118,7 +118,7 @@ class AutomationEngine:
                     (scene_id,),
                 ).fetchone()
         except sqlite3.Error:
-            logger.exception("DB error fetching scene %s: %s")
+            logger.exception("DB error fetching scene")
             return None
         if not row:
             return None
@@ -130,7 +130,7 @@ class AutomationEngine:
                 created_at=row[3],
             )
         except (json.JSONDecodeError, TypeError):
-            logger.exception("Failed to deserialize scene %s: %s")
+            logger.exception("Failed to deserialize scene")
             return None
 
     # ------------------------------------------------------------------

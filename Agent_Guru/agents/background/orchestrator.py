@@ -25,13 +25,13 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # Default services managed by the orchestrator
-DEFAULT_SERVICES = [
+DEFAULT_SERVICES = (
     "speech_engine",
     "llm_runtime",
     "platform_integration",
     "memory_system",
     "policy_engine",
-]
+)
 
 # Heartbeat timeout before marking a service unresponsive
 HEARTBEAT_TIMEOUT_SECONDS = 30

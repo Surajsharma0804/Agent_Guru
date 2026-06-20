@@ -33,7 +33,6 @@ logger = structlog.get_logger(__name__)
 _CHUNK_SIZE = 65536  # 64 KB
 _DEFAULT_TIMEOUT = 30
 
-
 class PackageManager:
     """Downloads, installs, updates, and removes Python packages.
 
@@ -134,11 +133,6 @@ class PackageManager:
         except subprocess.TimeoutExpired as exc:
             self._cleanup_partial(package_path)
             msg = f"Installation timed out: {exc}"
-            raise InstallationError(msg) from exc
-            self._cleanup_partial(package_path)
-            raise
-            self._cleanup_partial(package_path)
-            msg = f"Installation error: {exc}"
             raise InstallationError(msg) from exc
         duration = time.monotonic() - start
         pkg_name = package_path.stem.split("-")[0]

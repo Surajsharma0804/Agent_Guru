@@ -11,23 +11,23 @@ import re
 from typing import Any
 
 # Task type patterns
-_FACTUAL_PATTERNS = [
+_FACTUAL_PATTERNS = (
     re.compile(r"\b(what is|who is|when did|where is|how many|define|explain)\b", re.IGNORECASE),
     re.compile(r"\b(fact|statistic|data|number|date|year|history)\b", re.IGNORECASE),
-]
+)
 
-_CODE_PATTERNS = [
+_CODE_PATTERNS = (
     re.compile(r"\b(code|function|class|implement|program|script|algorithm)\b", re.IGNORECASE),
     re.compile(r"```|def |class |import |from .* import", re.IGNORECASE),
-]
+)
 
-_TOOL_PATTERNS = [
+_TOOL_PATTERNS = (
     re.compile(r"\b(tool|api|call|execute|run|invoke|fetch|search)\b", re.IGNORECASE),
-]
+)
 
-_CREATIVE_PATTERNS = [
+_CREATIVE_PATTERNS = (
     re.compile(r"\b(write|create|generate|compose|story|poem|essay)\b", re.IGNORECASE),
-]
+)
 
 
 class VerificationStrategy:

@@ -23,10 +23,10 @@ from Agent_Guru.policy.models import EvaluationContext, MissingAttributeStrategy
 logger = logging.getLogger(__name__)
 
 # Supported boolean operators
-BOOLEAN_OPERATORS = {"AND", "OR", "NOT"}
+BOOLEAN_OPERATORS = frozenset({"AND", "OR", "NOT"})
 
 # Supported comparison operators
-COMPARISON_OPERATORS = {
+COMPARISON_OPERATORS = frozenset({
     "equals",
     "not_equals",
     "greater_than",
@@ -42,12 +42,10 @@ COMPARISON_OPERATORS = {
     "matches",
     "exists",
     "not_exists",
-}
-
+})
 
 class RuleEvaluationError(Exception):
     """Raised when a rule cannot be evaluated."""
-
 
 class RuleEvaluator:
     """Evaluates policy rule expressions against evaluation contexts.
@@ -125,9 +123,6 @@ class RuleEvaluator:
             result = self._evaluate_node(rule, context)
         except RuleEvaluationError as exc:
             raise
-            msg = f"Rule evaluation error: {exc}"
-            logger.exception(msg)
-            raise RuleEvaluationError(msg) from exc
         if cache_key is not None and memo_cache is not None:
             memo_cache[cache_key] = result
 

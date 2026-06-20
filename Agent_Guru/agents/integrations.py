@@ -104,7 +104,7 @@ class ModelRouterIntegration:
                 self._cache[cache_key] = selection
                 return selection
             except Exception:
-                logger.exception("Model Router unavailable: %s. Using default.")
+                logger.exception("Model Router unavailable. Using default.")
 
         # Fallback: default model
         default = ModelSelection(model_id="default", configuration={})

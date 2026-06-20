@@ -20,8 +20,8 @@ from typing import Any
 
 logger = logging.getLogger("guruvision.avatar.config")
 
-_VALID_BACKENDS = {"opencv", "pyqt", "headless"}
-_VALID_EMOTION_MODELS = {"DeepFace", "FER", "heuristic", "auto"}
+_VALID_BACKENDS = frozenset({"opencv", "pyqt", "headless"})
+_VALID_EMOTION_MODELS = frozenset({"DeepFace", "FER", "heuristic", "auto"})
 
 
 try:

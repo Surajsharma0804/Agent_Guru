@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_PARAM_NAMES = ["formality", "verbosity", "humor", "technical_depth", "empathy", "proactivity"]
+_PARAM_NAMES = ("formality", "verbosity", "humor", "technical_depth", "empathy", "proactivity")
 _MAX_CHANGE = 0.1
 _N_PARAMS = len(_PARAM_NAMES)
 _AUTO_ROLLBACK_THRESHOLD = 0.3  # Satisfaction below this triggers rollback

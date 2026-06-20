@@ -419,7 +419,7 @@ class STTManager:
             self._mobile_backend.initialize()
             self._active_backend = STTBackend.ANDROID_SPEECH
         except Exception:
-            logger.exception("Android STT init failed: %s — using fallback")
+            logger.exception("Android STT init failed — using fallback")
             # Fall back to Whisper if available
             try:
                 await self._init_desktop()
@@ -433,7 +433,7 @@ class STTManager:
             self._mobile_backend.initialize()
             self._active_backend = STTBackend.IOS_SPEECH
         except Exception:
-            logger.exception("iOS STT init failed: %s — using fallback")
+            logger.exception("iOS STT init failed — using fallback")
             try:
                 await self._init_desktop()
             except ModelLoadError:
