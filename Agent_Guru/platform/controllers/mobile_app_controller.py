@@ -282,7 +282,7 @@ class MobileApplicationController:
             # ios
             return await self._open_ios(app_name)
         except Exception:
-            logger.exception("open_app(%r) failed: %s")
+            logger.exception("open_app failed")
             return False
 
     async def close_app(self, app_name: str) -> bool:
@@ -306,7 +306,7 @@ class MobileApplicationController:
             # ios
             return await self._close_ios(app_name)
         except Exception:
-            logger.exception("close_app(%r) failed: %s")
+            logger.exception("close_app failed")
             return False
 
     # ------------------------------------------------------------------

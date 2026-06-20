@@ -51,14 +51,12 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-
 class RetryDecision(Enum):
     """Retry decision outcomes."""
 
     RETRY = "retry"
     ABORT = "abort"
     SUCCESS = "success"
-
 
 @dataclass
 class RetryConfig:
@@ -94,7 +92,6 @@ class RetryConfig:
             msg = f"jitter_factor must be in [0, 1], got {self.jitter_factor}"
             raise ValueError(msg)
 
-
 @dataclass
 class RetryResult:
     """Result of retry operation.
@@ -113,7 +110,6 @@ class RetryResult:
     error: str | None = None
     attempts: int = 0
     total_delay: float = 0.0
-
 
 class RetryStrategy:
     """Retry strategy with exponential backoff and jitter.
@@ -278,24 +274,8 @@ class RetryStrategy:
                     attempts=attempt + 1,
                     total_delay=total_delay,
                 )
-                last_error = e
-                logger.debug("Operation failed: %s: %s", type(e).__name__, e)
                 # Check if should retry
-                decision = self.should_retry(attempt, e)
-                if decision == RetryDecision.ABORT:
-                    # Abort immediately
-                    return RetryResult(
-                        success=False,
-                        error=f"{type(e).__name__}: {e}",
-                        attempts=attempt + 1,
-                        total_delay=total_delay,
-                    )
                 # Calculate delay and wait (only if not the last attempt)
-                if attempt < self.config.max_attempts - 1:
-                    delay = self.calculate_delay(attempt)
-                    logger.info("Retrying after %.2fs delay", delay)
-                    time.sleep(delay)
-                    total_delay += delay
         # All retries exhausted
         error_msg = f"{type(last_error).__name__}: {last_error}" if last_error else "Unknown error"
         logger.error(
@@ -375,24 +355,8 @@ class RetryStrategy:
                     attempts=attempt + 1,
                     total_delay=total_delay,
                 )
-                last_error = e
-                logger.debug("Async operation failed: %s: %s", type(e).__name__, e)
                 # Check if should retry
-                decision = self.should_retry(attempt, e)
-                if decision == RetryDecision.ABORT:
-                    # Abort immediately
-                    return RetryResult(
-                        success=False,
-                        error=f"{type(e).__name__}: {e}",
-                        attempts=attempt + 1,
-                        total_delay=total_delay,
-                    )
                 # Calculate delay and wait (only if not the last attempt)
-                if attempt < self.config.max_attempts - 1:
-                    delay = self.calculate_delay(attempt)
-                    logger.info("Retrying async operation after %.2fs delay", delay)
-                    await asyncio.sleep(delay)
-                    total_delay += delay
         # All retries exhausted
         error_msg = f"{type(last_error).__name__}: {last_error}" if last_error else "Unknown error"
         logger.error(

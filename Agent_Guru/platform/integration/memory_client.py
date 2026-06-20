@@ -31,9 +31,7 @@ import aiohttp
 
 logger = logging.getLogger(__name__)
 
-
 # ─── Data Models ─────────────────────────────────────────────────────────────
-
 
 @dataclass
 class OperationMetadata:
@@ -81,7 +79,6 @@ class OperationMetadata:
             "success": self.success,
         }
 
-
 @dataclass
 class MemoryQueryResult:
     """Result of a memory query.
@@ -103,7 +100,6 @@ class MemoryQueryResult:
     has_more: bool = False
     next_cursor: str | None = None
 
-
 class CircuitState(Enum):
     """Circuit breaker state machine."""
 
@@ -111,9 +107,7 @@ class CircuitState(Enum):
     OPEN = "open"  # Failing fast, not sending requests
     HALF_OPEN = "half_open"  # Testing if service recovered
 
-
 # ─── Circuit Breaker ─────────────────────────────────────────────────────────
-
 
 class CircuitBreaker:
     """Circuit breaker for Memory System calls.
@@ -203,9 +197,7 @@ class CircuitBreaker:
             "success_count": self._success_count,
         }
 
-
 # ─── Client ──────────────────────────────────────────────────────────────────
-
 
 class MemorySystemClient:
     """Production-grade async client for Memory System integration.
@@ -604,9 +596,6 @@ class MemorySystemClient:
 
         except TimeoutError:
             logger.exception("Memory query timed out")
-            self._circuit.record_failure()
-            return MemoryQueryResult()
-            logger.exception("Memory query failed")
             self._circuit.record_failure()
             return MemoryQueryResult()
 

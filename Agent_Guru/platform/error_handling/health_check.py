@@ -45,7 +45,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-
 class HealthStatus(str, Enum):
     """Health status levels for components."""
 
@@ -53,7 +52,6 @@ class HealthStatus(str, Enum):
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
     UNKNOWN = "unknown"
-
 
 @dataclass
 class ComponentHealth:
@@ -86,7 +84,6 @@ class ComponentHealth:
             "response_time_ms": self.response_time_ms,
             "metadata": self.metadata,
         }
-
 
 @dataclass
 class SystemHealth:
@@ -141,10 +138,8 @@ class SystemHealth:
             "components": [comp.to_dict() for comp in self.components],
         }
 
-
 # Type alias for health check functions
 HealthCheckFunc = Callable[[], Awaitable[ComponentHealth]]
-
 
 class HealthCheckManager:
     """Manager for system health checks.
@@ -319,17 +314,6 @@ class HealthCheckManager:
                 last_check=datetime.now(tz=UTC),
                 response_time_ms=response_time_ms,
             )
-            end_time = time.perf_counter()
-            response_time_ms = (end_time - start_time) * 1000
-            logger.exception("Health check failed for %s: %s", component_name, e)
-            return ComponentHealth(
-                name=component_name,
-                status=HealthStatus.UNHEALTHY,
-                message=f"Health check failed: {e!s}",
-                last_check=datetime.now(tz=UTC),
-                response_time_ms=response_time_ms,
-                metadata={"error": str(e)},
-            )
 
     def get_component_status(self, component_name: str) -> ComponentHealth | None:
         """Get health status for a specific component.
@@ -363,10 +347,8 @@ class HealthCheckManager:
         """
         return list(self._checks.keys())
 
-
 # Global health check manager instance
 _global_health_manager: HealthCheckManager | None = None
-
 
 def get_health_manager() -> HealthCheckManager:
     """Get global health check manager instance.
@@ -382,9 +364,7 @@ def get_health_manager() -> HealthCheckManager:
 
     return _global_health_manager
 
-
 # Built-in health check functions
-
 
 async def check_system_resources() -> ComponentHealth:
     """Check system resource availability.
@@ -439,7 +419,6 @@ async def check_system_resources() -> ComponentHealth:
             last_check=datetime.now(tz=UTC),
             response_time_ms=0.0,
         )
-
 
 async def check_platform_integration() -> ComponentHealth:
     """Check platform integration health.

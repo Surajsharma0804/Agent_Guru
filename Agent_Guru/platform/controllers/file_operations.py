@@ -65,7 +65,6 @@ from Agent_Guru.security.path_utils import safe_path
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
 class FileOperationType(Enum):
     """File operation types for audit logging."""
 
@@ -78,7 +77,6 @@ class FileOperationType(Enum):
     RENAME = "rename"
     MKDIR = "mkdir"
     RMDIR = "rmdir"
-
 
 @dataclass
 class FileOperationResult:
@@ -100,7 +98,6 @@ class FileOperationResult:
     message: str
     error: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass
 class AuditLogEntry:
@@ -135,7 +132,6 @@ class AuditLogEntry:
                 "details": self.details,
             },
         )
-
 
 class FileOperationsController:
     """Controller for comprehensive file and directory operations.
@@ -412,9 +408,6 @@ class FileOperationsController:
         except PermissionError as e:
             # Re-raise PermissionError so callers can detect path traversal violations
             raise
-            self._log_operation(FileOperationType.READ, path, False, {"error": str(e)})
-            logger.exception("Failed to read file %s: %s")
-            return None
 
     # ==================== File Update Operations ====================
 
@@ -995,7 +988,7 @@ class FileOperationsController:
             return sorted(entries)
 
         except Exception:
-            logger.exception("Failed to list directory %s: %s")
+            logger.exception("Failed to list directory")
             return None
 
     # ==================== Utility Operations ====================
@@ -1073,7 +1066,7 @@ class FileOperationsController:
             }
 
         except Exception:
-            logger.exception("Failed to get file info for %s: %s")
+            logger.exception("Failed to get file info for")
             return None
 
     def compute_file_hash(self, path: str, algorithm: str = "sha256") -> str | None:
@@ -1118,5 +1111,5 @@ class FileOperationsController:
             return hasher.hexdigest()
 
         except Exception:
-            logger.exception("Failed to compute hash for %s: %s")
+            logger.exception("Failed to compute hash for")
             return None

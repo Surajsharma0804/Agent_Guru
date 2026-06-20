@@ -264,7 +264,7 @@ class DesktopFileController:
             await loop.run_in_executor(None, self._blocking_create_file, resolved, content)
             return True
         except Exception:
-            logger.exception("create_file(%s) failed: %s")
+            logger.exception("create_file failed")
             return False
 
     async def delete_file(self, path: str) -> bool:
@@ -287,7 +287,7 @@ class DesktopFileController:
             await loop.run_in_executor(None, self._blocking_delete_file, resolved)
             return True
         except Exception:
-            logger.exception("delete_file(%s) failed: %s")
+            logger.exception("delete_file failed")
             return False
 
     async def move_file(self, src: str, dst: str) -> bool:
@@ -427,7 +427,7 @@ class DesktopFileController:
             await loop.run_in_executor(None, self._blocking_delete_directory, resolved, recursive)
             return True
         except Exception:
-            logger.exception("delete_directory(%s) failed: %s")
+            logger.exception("delete_directory failed")
             return False
 
     async def list_directory(self, path: str) -> list[str]:
@@ -450,7 +450,7 @@ class DesktopFileController:
             loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, self._blocking_list_directory, resolved)
         except Exception:
-            logger.exception("list_directory(%s) failed: %s")
+            logger.exception("list_directory failed")
             return []
 
     # ------------------------------------------------------------------

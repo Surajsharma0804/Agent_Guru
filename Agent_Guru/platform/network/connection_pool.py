@@ -27,7 +27,6 @@ import aiohttp
 # Configure structured logging
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class ConnectionPoolConfig:
     """Configuration for connection pool.
@@ -48,7 +47,6 @@ class ConnectionPoolConfig:
     cleanup_interval: float = 30.0
     ttl_dns_cache: int = 300
     enable_cleanup_closed: bool = True
-
 
 @dataclass
 class ConnectionStats:
@@ -86,7 +84,6 @@ class ConnectionStats:
             return 0.0
         return self.reused_connections / self.total_connections
 
-
 @dataclass
 class PoolStatistics:
     """Overall connection pool statistics.
@@ -111,7 +108,6 @@ class PoolStatistics:
     total_closed: int
     average_reuse_rate: float
     per_host_stats: dict[str, ConnectionStats]
-
 
 class ConnectionPoolManager:
     """Advanced connection pool manager with per-host limits.
@@ -238,7 +234,6 @@ class ConnectionPoolManager:
                 await self._cleanup_idle_connections()
             except asyncio.CancelledError as e:
                 break
-                logger.exception("Error in cleanup loop", extra={"error": str(e)}, exc_info=True)
         logger.info("Cleanup loop stopped")
 
     async def _cleanup_idle_connections(self) -> None:

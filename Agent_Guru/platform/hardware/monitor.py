@@ -32,14 +32,12 @@ try:
 except ImportError:
     GPU_AVAILABLE = False
 
-
 class NetworkInterfaceStatus(Enum):
     """Network interface status."""
 
     UP = "up"
     DOWN = "down"
     UNKNOWN = "unknown"
-
 
 @dataclass
 class CPUInfo:
@@ -64,7 +62,6 @@ class CPUInfo:
     frequency_min: float | None
     frequency_max: float | None
 
-
 @dataclass
 class MemoryInfo:
     """Memory usage information.
@@ -88,7 +85,6 @@ class MemoryInfo:
     swap_used: int
     swap_percent: float
 
-
 @dataclass
 class DiskInfo:
     """Disk usage information.
@@ -107,7 +103,6 @@ class DiskInfo:
     free: int
     percent: float
     path: str
-
 
 @dataclass
 class NetworkInterface:
@@ -138,7 +133,6 @@ class NetworkInterface:
     drops_in: int
     drops_out: int
 
-
 @dataclass
 class GPUInfo:
     """GPU information.
@@ -162,7 +156,6 @@ class GPUInfo:
     memory_free: float
     temperature: float
 
-
 @dataclass
 class BatteryInfo:
     """Battery information.
@@ -177,7 +170,6 @@ class BatteryInfo:
     percent: float
     is_charging: bool
     time_remaining: int | None
-
 
 class HardwareMonitor:
     """Cross-platform hardware monitor using psutil and GPUtil.
@@ -310,8 +302,6 @@ class HardwareMonitor:
         except FileNotFoundError as e:
             msg = f"Path does not exist: {path}"
             raise ValueError(msg) from e
-            msg = f"Failed to get disk usage: {e}"
-            raise RuntimeError(msg) from e
 
     def get_network_interfaces(self) -> list[NetworkInterface]:
         """Get network interface information.

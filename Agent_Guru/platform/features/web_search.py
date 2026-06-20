@@ -85,11 +85,13 @@ async def _search_ddgs(query: str, max_chars: int) -> str | None:
             loop.run_in_executor(None, _sync_search),
             timeout=5.0,
         )
-    except ImportError as exc:
+    except ImportError:
         logger.debug("duckduckgo-search not installed — run: pip install duckduckgo-search")
         return None
+    except TimeoutError:
         logger.debug("ddgs search timed out")
         return None
+    except Exception as exc:
         logger.debug("ddgs search failed: %s", exc)
         return None
 
@@ -129,8 +131,9 @@ async def _search_ddg_instant(query: str, max_chars: int) -> str | None:
                 return text[:max_chars]
 
         return None
-    except TimeoutError as exc:
+    except TimeoutError:
         logger.debug("DDG instant answer timed out")
         return None
+    except Exception as exc:
         logger.debug("DDG instant answer failed: %s", exc)
         return None

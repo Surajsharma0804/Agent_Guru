@@ -34,7 +34,6 @@ except ImportError:
     logging.warning("dbus-python not available - some Linux features will be limited")
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class CommandResult:
     """Result of command execution."""
@@ -43,7 +42,6 @@ class CommandResult:
     stderr: str
     return_code: int
     execution_time: float  # seconds
-
 
 @dataclass
 class ProcessInfo:
@@ -55,7 +53,6 @@ class ProcessInfo:
     cpu_percent: float
     memory_percent: float
     create_time: float  # Unix timestamp
-
 
 @dataclass
 class SystemInfo:
@@ -70,7 +67,6 @@ class SystemInfo:
     cpu_count_logical: int
     boot_time: float  # Unix timestamp
 
-
 @dataclass
 class ServiceStatus:
     """Linux systemd service status information."""
@@ -79,10 +75,8 @@ class ServiceStatus:
     status: str  # "running", "stopped", "disabled"
     startup_type: str  # "automatic", "manual", "disabled"
 
-
 class DBusError(Exception):
     """Raised when D-Bus operation fails."""
-
 
 class LinuxIntegration:
     """Linux-specific platform integration.
@@ -203,9 +197,6 @@ class LinuxIntegration:
             error_msg = f"D-Bus error calling {bus_name}.{method}: {e}"
             logger.exception(error_msg)
             raise DBusError(error_msg) from e
-            error_msg = f"Error calling D-Bus method {method}: {e}"
-            logger.exception(error_msg)
-            raise DBusError(error_msg) from e
 
     # systemd Service Management
 
@@ -270,12 +261,6 @@ class LinuxIntegration:
 
         except FileNotFoundError as e:
             error_msg = "systemctl not found. Is systemd installed?"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
-            error_msg = f"Timeout querying service {service_name}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
-            error_msg = f"Error querying service {service_name}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
 
@@ -371,11 +356,6 @@ class LinuxIntegration:
             error_msg = f"Timeout starting service {service_name}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
-            if isinstance(e, PermissionError):
-                raise
-            error_msg = f"Error starting service {service_name}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def stop_systemd_service(self, service_name: str) -> bool:
         """Stop a systemd service.
@@ -434,11 +414,6 @@ class LinuxIntegration:
             error_msg = f"Timeout stopping service {service_name}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
-            if isinstance(e, PermissionError):
-                raise
-            error_msg = f"Error stopping service {service_name}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def restart_systemd_service(self, service_name: str) -> bool:
         """Restart a systemd service.
@@ -495,11 +470,6 @@ class LinuxIntegration:
 
         except subprocess.TimeoutExpired as e:
             error_msg = f"Timeout restarting service {service_name}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
-            if isinstance(e, PermissionError):
-                raise
-            error_msg = f"Error restarting service {service_name}: {e}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
 
@@ -584,12 +554,6 @@ class LinuxIntegration:
             error_msg = f"Executable not found: {executable}"
             logger.exception(error_msg)
             raise FileNotFoundError(error_msg) from e
-            error_msg = f"Permission denied starting process: {executable}"
-            logger.exception(error_msg)
-            raise PermissionError(error_msg) from e
-            error_msg = f"Error starting process {executable}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def terminate_process(self, pid: int, force: bool = False) -> bool:
         """Terminate a process.
@@ -628,15 +592,6 @@ class LinuxIntegration:
             error_msg = f"Process not found: PID {pid}"
             logger.exception(error_msg)
             raise ProcessLookupError(error_msg) from e
-            error_msg = (
-                f"Permission denied terminating process {pid}. "
-                f"Root/sudo privileges may be required."
-            )
-            logger.exception(error_msg)
-            raise PermissionError(error_msg) from e
-            error_msg = f"Error terminating process {pid}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def execute_command(self, command: str, args: list[str]) -> CommandResult:
         """Execute a Linux command.
@@ -689,9 +644,6 @@ class LinuxIntegration:
             error_msg = f"Command timed out: {command}"
             logger.exception(error_msg)
             raise TimeoutError(error_msg) from e
-            error_msg = f"Error executing command {command}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def get_system_info(self) -> SystemInfo:
         """Get Linux system information.

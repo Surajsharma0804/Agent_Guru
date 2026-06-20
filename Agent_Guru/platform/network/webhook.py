@@ -409,7 +409,7 @@ class WebhookManager:
             return True
 
         except (ValueError, OSError):
-            logger.exception("Invalid timestamp format: %s - %s")
+            logger.exception("Invalid timestamp format -")
             return False
 
     async def process_webhook(

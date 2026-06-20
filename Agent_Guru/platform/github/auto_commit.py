@@ -38,9 +38,7 @@ from .integrator import GitHubIntegrator, GitOperationResult
 
 logger = logging.getLogger(__name__)
 
-
 # Data Models
-
 
 @dataclass
 class TaskContext:
@@ -61,7 +59,6 @@ class TaskContext:
     files_changed: list[str] = field(default_factory=list)
     timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
-
 @dataclass
 class PendingCommit:
     """Pending commit waiting to be batched.
@@ -78,7 +75,6 @@ class PendingCommit:
     message: str
     files: list[str]
     created_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
-
 
 @dataclass
 class AutoCommitConfig:
@@ -100,7 +96,6 @@ class AutoCommitConfig:
     auto_push: bool = True
     commit_message_template: str = "[Task {task_id}] {task_description}"
     include_file_summary: bool = True
-
 
 class AutoCommitManager:
     """Automatic commit and push manager with batching.
@@ -404,8 +399,6 @@ class AutoCommitManager:
 
             except asyncio.CancelledError:
                 break
-                logger.exception("Error in batch processor")
-                await asyncio.sleep(5)  # Back off on error
         logger.info("Batch processor stopped")
 
     async def _process_pending_commits(self) -> None:

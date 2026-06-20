@@ -59,9 +59,7 @@ else:
     win32security = None  # type: ignore[assignment]
     pywintypes = None  # type: ignore[assignment]
 
-
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class CommandResult:
@@ -71,7 +69,6 @@ class CommandResult:
     stderr: str
     return_code: int
     execution_time: float  # seconds
-
 
 @dataclass
 class ProcessInfo:
@@ -83,7 +80,6 @@ class ProcessInfo:
     cpu_percent: float
     memory_percent: float
     create_time: float  # Unix timestamp
-
 
 @dataclass
 class SystemInfo:
@@ -98,7 +94,6 @@ class SystemInfo:
     cpu_count_logical: int
     boot_time: float  # Unix timestamp
 
-
 @dataclass
 class ServiceStatus:
     """Windows service status information."""
@@ -107,10 +102,8 @@ class ServiceStatus:
     status: str  # "running", "stopped", "disabled"
     startup_type: str  # "automatic", "manual", "disabled"
 
-
 class RegistryKeyNotFoundError(Exception):
     """Raised when Windows registry key not found."""
-
 
 class WindowsIntegration:
     r"""Windows-specific platform integration.
@@ -200,15 +193,6 @@ class WindowsIntegration:
             error_msg = f"Registry key not found: {key_path}\\{value_name}"
             logger.exception(error_msg)
             raise RegistryKeyNotFoundError(error_msg) from e
-            error_msg = (
-                f"Permission denied reading registry key: {key_path}\\{value_name}. "
-                f"Administrator privileges may be required."
-            )
-            logger.exception(error_msg)
-            raise PermissionError(error_msg) from e
-            error_msg = f"Error reading registry key {key_path}\\{value_name}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def write_registry_key(
         self,
@@ -257,9 +241,6 @@ class WindowsIntegration:
             )
             logger.exception(error_msg)
             raise PermissionError(error_msg) from e
-            error_msg = f"Error writing registry key {key_path}\\{value_name}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def delete_registry_key(self, hive: int, key_path: str, value_name: str | None = None) -> None:
         r"""Delete a Windows registry key or value.
@@ -307,15 +288,6 @@ class WindowsIntegration:
                 error_msg += f"\\{value_name}"
             logger.exception(error_msg)
             raise RegistryKeyNotFoundError(error_msg) from e
-            error_msg = (
-                f"Permission denied deleting registry key: {key_path}. "
-                f"Administrator privileges required."
-            )
-            logger.exception(error_msg)
-            raise PermissionError(error_msg) from e
-            error_msg = f"Error deleting registry key {key_path}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     # Service Management
 
@@ -380,10 +352,7 @@ class WindowsIntegration:
 
         except pywintypes.error as e:
             error_msg = f"Service not found or access denied: {service_name}"
-            logger.exception("%s: %s")
-            raise RuntimeError(error_msg) from e
-            error_msg = f"Error querying service {service_name}: {e}"
-            logger.exception(error_msg)
+            logger.exception("")
             raise RuntimeError(error_msg) from e
 
     def _get_service_startup_type(self, service_name: str) -> str:
@@ -510,7 +479,7 @@ class WindowsIntegration:
                     logger.info("Started process via shell: %s (PID: %s)", executable, proc.pid)
                     return proc.pid
                 except (OSError, FileNotFoundError):
-                    logger.exception("Shell launch failed for %r: %s")
+                    logger.exception("Shell launch failed for")
                     # Fall through to raise FileNotFoundError below
             # If we reach here, all attempts failed - executable not found
             msg = f"Executable not found: '{executable}'"
@@ -519,11 +488,6 @@ class WindowsIntegration:
         except FileNotFoundError as e:
             logger.exception("Executable not found")
             raise
-            logger.exception("Permission denied starting process")
-            raise
-            error_msg = f"Error starting process {executable}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def terminate_process(self, pid: int, force: bool = False) -> bool:
         """Terminate a process.
@@ -562,15 +526,6 @@ class WindowsIntegration:
             error_msg = f"Process not found: PID {pid}"
             logger.exception(error_msg)
             raise ProcessLookupError(error_msg) from e
-            error_msg = (
-                f"Permission denied terminating process {pid}. "
-                f"Administrator privileges may be required."
-            )
-            logger.exception(error_msg)
-            raise PermissionError(error_msg) from e
-            error_msg = f"Error terminating process {pid}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def execute_command(self, command: str, args: list[str]) -> CommandResult:
         """Execute a Windows command.
@@ -638,9 +593,6 @@ class WindowsIntegration:
             error_msg = f"Command timed out: {command}"
             logger.exception(error_msg)
             raise TimeoutError(error_msg) from e
-            error_msg = f"Error executing command {command}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def get_system_info(self) -> SystemInfo:
         """Get Windows system information.

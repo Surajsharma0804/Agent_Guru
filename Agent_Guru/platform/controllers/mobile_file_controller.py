@@ -430,7 +430,7 @@ class MobileFileController:
             # ios
             return await self._ios_list_directory(resolved)
         except Exception:
-            logger.exception("list_directory(%s) failed: %s")
+            logger.exception("list_directory failed")
             return []
 
     async def request_permission(self, permission: str) -> bool:

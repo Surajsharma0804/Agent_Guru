@@ -85,7 +85,6 @@ import psutil
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class ProcessInfo:
     """Information about a running process.
@@ -130,22 +129,17 @@ class ProcessInfo:
             msg = f"Invalid create_time: {self.create_time} (must be non-negative)"
             raise ValueError(msg)
 
-
 class ProcessManagerError(Exception):
     """Base exception for process manager errors."""
-
 
 class ProcessNotFoundError(ProcessManagerError):
     """Raised when process with given PID does not exist."""
 
-
 class ProcessStartError(ProcessManagerError):
     """Raised when process creation fails."""
 
-
 class ProcessTerminationError(ProcessManagerError):
     """Raised when process termination fails."""
-
 
 class ProcessManager:
     """Cross-platform process manager using psutil.
@@ -317,12 +311,6 @@ class ProcessManager:
             logger.exception("Executable not found")
             msg = f"Executable not found: {executable}"
             raise ProcessStartError(msg) from e
-            logger.exception("Permission denied to start process")
-            msg = f"Permission denied: {executable}"
-            raise ProcessStartError(msg) from e
-            logger.exception("Failed to start process")
-            msg = f"Failed to start process '{executable}': {e}"
-            raise ProcessStartError(msg) from e
 
     def terminate_process(self, pid: int, force: bool = False) -> bool:
         """Terminate a process.
@@ -364,7 +352,7 @@ class ProcessManager:
             try:
                 process.wait(timeout=5.0)
             except psutil.TimeoutExpired:
-                logger.exception("Process PID=%d did not terminate within timeout")
+                logger.exception("Process PID= did not terminate within timeout")
                 if not force:
                     # If graceful termination timed out, force kill
                     logger.info("Force killing process PID=%d", pid)
@@ -377,15 +365,9 @@ class ProcessManager:
             return True
 
         except psutil.NoSuchProcess as e:
-            logger.exception("Process not found: PID=%d")
+            logger.exception("Process not found: PID=")
             msg = f"Process not found: PID={pid}"
             raise ProcessNotFoundError(msg) from e
-            logger.exception("Permission denied to terminate process PID=%d")
-            msg = f"Permission denied to terminate PID={pid}"
-            raise ProcessTerminationError(msg) from e
-            logger.exception("Failed to terminate process PID=%d: %s")
-            msg = f"Failed to terminate PID={pid}: {e}"
-            raise ProcessTerminationError(msg) from e
 
     def get_process_status(self, pid: int) -> str:
         """Query process status.
@@ -419,12 +401,9 @@ class ProcessManager:
             return normalized_status
 
         except psutil.NoSuchProcess as e:
-            logger.exception("Process not found: PID=%d")
+            logger.exception("Process not found: PID=")
             msg = f"Process not found: PID={pid}"
             raise ProcessNotFoundError(msg) from e
-            logger.exception("Failed to query process status PID=%d: %s")
-            msg = f"Failed to query status for PID={pid}: {e}"
-            raise ProcessManagerError(msg) from e
 
     def get_process_info(self, pid: int) -> ProcessInfo:
         """Get detailed process information.
@@ -471,12 +450,9 @@ class ProcessManager:
             return process_info
 
         except psutil.NoSuchProcess as e:
-            logger.exception("Process not found: PID=%d")
+            logger.exception("Process not found: PID=")
             msg = f"Process not found: PID={pid}"
             raise ProcessNotFoundError(msg) from e
-            logger.exception("Failed to get process info PID=%d: %s")
-            msg = f"Failed to get info for PID={pid}: {e}"
-            raise ProcessManagerError(msg) from e
 
     def process_exists(self, pid: int) -> bool:
         """Check if process exists.

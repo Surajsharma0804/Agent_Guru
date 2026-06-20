@@ -166,7 +166,7 @@ class CommandPermissionChecker:
             self._allowed_patterns.append(compiled_pattern)
             logger.debug("Added allowed command pattern: %s", pattern)
         except re.error as e:
-            logger.exception("Invalid regex pattern: %s (%s)")
+            logger.exception("Invalid regex pattern")
             msg = f"Invalid regex pattern: {pattern}"
             raise CommandValidationError(msg) from e
 
@@ -188,7 +188,7 @@ class CommandPermissionChecker:
             self._blocked_patterns.append(compiled_pattern)
             logger.debug("Added blocked command pattern: %s", pattern)
         except re.error as e:
-            logger.exception("Invalid regex pattern: %s (%s)")
+            logger.exception("Invalid regex pattern")
             msg = f"Invalid regex pattern: {pattern}"
             raise CommandValidationError(msg) from e
 

@@ -25,7 +25,6 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
-
 class DayOfWeek(Enum):
     """Day of week enumeration."""
 
@@ -74,7 +73,6 @@ class DayOfWeek(Enum):
             raise ValueError(msg)
 
         return day_map[normalized]
-
 
 @dataclass
 class TimeWindow:
@@ -157,7 +155,6 @@ class TimeWindow:
     def __str__(self) -> str:
         """String representation."""
         return f"{self.start_time.strftime('%H:%M')}-{self.end_time.strftime('%H:%M')}"
-
 
 @dataclass
 class TimeRestriction:
@@ -289,8 +286,6 @@ class TimeRestriction:
                 tz_name,
             )
             return UTC
-            msg = f"Invalid timezone name: {tz_name}. Error: {e}"
-            raise ValueError(msg) from e
 
     @classmethod
     def from_dict(cls, config: dict) -> "TimeRestriction":
@@ -328,7 +323,6 @@ class TimeRestriction:
         timezone_name = config.get("timezone")
 
         return cls(days=days, time_windows=time_windows, timezone_name=timezone_name)
-
 
 class TimeChecker:
     """Time-based permission checker with multiple restriction support.
@@ -401,9 +395,7 @@ class TimeChecker:
         restrictions = [TimeRestriction.from_dict(config) for config in config_list]
         return cls(restrictions)
 
-
 # Convenience functions for common time restrictions
-
 
 def business_hours(timezone_name: str = "UTC") -> TimeRestriction:
     """Create business hours restriction (Mon-Fri, 9am-5pm).
@@ -427,7 +419,6 @@ def business_hours(timezone_name: str = "UTC") -> TimeRestriction:
         timezone_name=timezone_name,
     )
 
-
 def weekends(timezone_name: str = "UTC") -> TimeRestriction:
     """Create weekend restriction (Sat-Sun, all day).
 
@@ -443,7 +434,6 @@ def weekends(timezone_name: str = "UTC") -> TimeRestriction:
         time_windows=[TimeWindow.from_string("00:00-23:59")],
         timezone_name=timezone_name,
     )
-
 
 def night_hours(timezone_name: str = "UTC") -> TimeRestriction:
     """Create night hours restriction (every day, 10pm-6am).

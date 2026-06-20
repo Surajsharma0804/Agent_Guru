@@ -42,7 +42,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-
 class ServiceState(Enum):
     """Service lifecycle states."""
 
@@ -54,7 +53,6 @@ class ServiceState(Enum):
     STOPPING = "stopping"
     CRASHED = "crashed"
 
-
 class ThermalState(Enum):
     """Device thermal states."""
 
@@ -62,7 +60,6 @@ class ThermalState(Enum):
     FAIR = "fair"
     SERIOUS = "serious"
     CRITICAL = "critical"
-
 
 @dataclass
 class BatteryUsageStats:
@@ -85,7 +82,6 @@ class BatteryUsageStats:
     battery_level_start: float = 100.0
     battery_level_current: float = 100.0
     last_updated: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
-
 
 @dataclass
 class ServiceConfig:
@@ -111,7 +107,6 @@ class ServiceConfig:
     max_restart_attempts: int = 3
     low_battery_threshold: float = 20.0
     critical_battery_threshold: float = 10.0
-
 
 class BatteryUsageTracker:
     """Tracks battery usage in sleep and wake modes.
@@ -203,7 +198,6 @@ class BatteryUsageTracker:
         """
         self._stats.last_updated = datetime.now(tz=UTC)
         return self._stats
-
 
 class MobileBackgroundService:
     """Mobile background service manager for always-on operation.
@@ -544,8 +538,6 @@ class MobileBackgroundService:
 
             except asyncio.CancelledError:
                 break
-                logger.exception("Monitoring loop error")
-                await asyncio.sleep(5.0)
 
     async def _change_state(self, new_state: ServiceState) -> None:
         """Change service state and invoke callback.

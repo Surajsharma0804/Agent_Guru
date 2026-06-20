@@ -57,7 +57,6 @@ if sys.platform == "darwin":
 # Data models
 # ---------------------------------------------------------------------------
 
-
 @dataclass
 class MacOSControllerResult:
     """Result of a macOS controller operation."""
@@ -68,7 +67,6 @@ class MacOSControllerResult:
     error: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     latency_ms: float = 0.0
-
 
 # ---------------------------------------------------------------------------
 # Known application aliases
@@ -130,7 +128,6 @@ _APP_ALIASES: dict[str, str] = {
     "google": "https://www.google.com",
     "github": "https://www.github.com",
 }
-
 
 class MacOSController:
     """macOS OS Controller for voice-driven automation.
@@ -261,15 +258,6 @@ class MacOSController:
                 operation="launch_app",
                 message=f"Timeout launching {app_name}",
                 error="Launch timed out after 10s",
-                latency_ms=latency_ms,
-            )
-            latency_ms = (time.perf_counter() - start) * 1000
-            logger.exception("Failed to launch %s: %s")
-            return MacOSControllerResult(
-                success=False,
-                operation="launch_app",
-                message=f"Failed to launch {app_name}",
-                error=str(e),
                 latency_ms=latency_ms,
             )
 

@@ -46,9 +46,7 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-
 # Data Models
-
 
 @dataclass
 class MediaState:
@@ -69,24 +67,18 @@ class MediaState:
     track_title: str | None = None
     artist: str | None = None
 
-
 # Exceptions
-
 
 class MediaControlError(Exception):
     """Base exception for media control errors."""
 
-
 class UnsupportedMediaOperationError(MediaControlError):
     """Raised when media operation is not supported on current platform."""
-
 
 class MediaCommandError(MediaControlError):
     """Raised when media command execution fails."""
 
-
 # Backend Interface
-
 
 class MediaBackend(ABC):
     """Abstract base class for platform-specific media control backends.
@@ -205,9 +197,7 @@ class MediaBackend(ABC):
 
         """
 
-
 # Windows Backend
-
 
 class WindowsMediaBackend(MediaBackend):
     """Windows media control backend using pywin32 for media key simulation.
@@ -253,7 +243,7 @@ class WindowsMediaBackend(MediaBackend):
             self.win32api.keybd_event(key_code, 0, self.win32con.KEYEVENTF_KEYUP, 0)
             logger.debug("Sent media key: %s", key_code)
         except Exception as e:
-            logger.exception("Failed to send media key %s: %s")
+            logger.exception("Failed to send media key")
             msg = f"Failed to send media key: {e}"
             raise MediaCommandError(msg) from e
 
@@ -328,9 +318,7 @@ class WindowsMediaBackend(MediaBackend):
         logger.debug("Windows media backend does not support state queries")
         return None
 
-
 # macOS Backend
-
 
 class MacOSMediaBackend(MediaBackend):
     """macOS media control backend using AppleScript.
@@ -365,9 +353,6 @@ class MacOSMediaBackend(MediaBackend):
         except subprocess.CalledProcessError as e:
             logger.exception("AppleScript failed: %s", e.stderr)
             msg = f"AppleScript execution failed: {e.stderr}"
-            raise MediaCommandError(msg) from e
-            logger.exception("AppleScript timeout")
-            msg = "AppleScript execution timeout"
             raise MediaCommandError(msg) from e
 
     def _send_media_key(self, key_code: int) -> None:
@@ -508,9 +493,7 @@ class MacOSMediaBackend(MediaBackend):
             logger.debug("Could not get media state: %s", e)
         return None
 
-
 # Linux Backend
-
 
 class LinuxMediaBackend(MediaBackend):
     """Linux media control backend using D-Bus/playerctl.
@@ -570,9 +553,6 @@ class LinuxMediaBackend(MediaBackend):
             logger.exception("playerctl %s failed: %s", command, e.stderr)
             msg = f"playerctl {command} failed: {e.stderr}"
             raise MediaCommandError(msg) from e
-            logger.exception("playerctl %s timeout")
-            msg = f"playerctl {command} timeout"
-            raise MediaCommandError(msg) from e
 
     def _send_xdotool_key(self, key: str) -> None:
         """Send media key using xdotool.
@@ -588,7 +568,7 @@ class LinuxMediaBackend(MediaBackend):
             subprocess.run(["xdotool", "key", key], capture_output=True, timeout=5.0, check=True)  # noqa: S603
             logger.debug("xdotool key %s sent", key)
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
-            logger.exception("xdotool key %s failed: %s")
+            logger.exception("xdotool key failed")
             msg = f"xdotool key {key} failed: {e}"
             raise MediaCommandError(msg) from e
 
@@ -707,9 +687,7 @@ class LinuxMediaBackend(MediaBackend):
             logger.debug("Could not get media state: %s", e)
             return None
 
-
 # Main Controller
-
 
 class MediaController:
     """Cross-platform media control controller.

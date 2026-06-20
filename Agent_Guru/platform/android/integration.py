@@ -43,11 +43,9 @@ except ImportError:
     cast = None
 logger = logging.getLogger(__name__)
 
-
 def _is_android_available() -> bool:
     """Check Android availability — separate function so tests can patch it."""
     return ANDROID_AVAILABLE
-
 
 class PermissionStatus(Enum):
     """Android permission status."""
@@ -56,7 +54,6 @@ class PermissionStatus(Enum):
     DENIED = "denied"
     DENIED_PERMANENTLY = "denied_permanently"
     NOT_REQUESTED = "not_requested"
-
 
 @dataclass
 class BatteryInfo:
@@ -69,7 +66,6 @@ class BatteryInfo:
     voltage: int
     technology: str
 
-
 @dataclass
 class NotificationConfig:
     """Configuration for Android notifications."""
@@ -81,18 +77,14 @@ class NotificationConfig:
     ongoing: bool = False
     auto_cancel: bool = True
 
-
 class AndroidIntegrationError(Exception):
     """Base exception for Android integration errors."""
-
 
 class PermissionDeniedError(AndroidIntegrationError):
     """Raised when required permission is denied."""
 
-
 class AppNotFoundError(AndroidIntegrationError):
     """Raised when app package is not found."""
-
 
 class AndroidIntegration:
     """Android-specific platform integration.
@@ -199,9 +191,6 @@ class AndroidIntegration:
 
         except AppNotFoundError as e:
             raise
-            logger.exception("Failed to launch app %s: %s")
-            msg = f"Failed to launch app: {e}"
-            raise AndroidIntegrationError(msg) from e
 
     def send_intent(
         self,
@@ -242,7 +231,7 @@ class AndroidIntegration:
             return True
 
         except Exception as e:
-            logger.exception("Failed to send intent %s: %s")
+            logger.exception("Failed to send intent")
             msg = f"Failed to send intent: {e}"
             raise AndroidIntegrationError(msg) from e
 
@@ -314,9 +303,6 @@ class AndroidIntegration:
 
         except AndroidIntegrationError as e:
             raise
-            logger.exception("Failed to get battery info")
-            msg = f"Failed to get battery info: {e}"
-            raise AndroidIntegrationError(msg) from e
 
     # ========== Permission Management ==========
 
@@ -328,7 +314,7 @@ class AndroidIntegration:
                 return PermissionStatus.GRANTED
             return PermissionStatus.DENIED
         except Exception:
-            logger.exception("Failed to check permission %s: %s")
+            logger.exception("Failed to check permission")
             return PermissionStatus.NOT_REQUESTED
 
     def request_permission(self, permission: str) -> bool:
@@ -339,7 +325,7 @@ class AndroidIntegration:
             logger.info("Requested permission: %s", permission)
             return True
         except Exception as e:
-            logger.exception("Failed to request permission %s: %s")
+            logger.exception("Failed to request permission")
             msg = f"Failed to request permission: {e}"
             raise AndroidIntegrationError(msg) from e
 

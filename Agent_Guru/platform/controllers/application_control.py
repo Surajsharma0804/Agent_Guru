@@ -55,7 +55,6 @@ from typing import Any
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
 class ApplicationState(Enum):
     """Application window states."""
 
@@ -64,7 +63,6 @@ class ApplicationState(Enum):
     MAXIMIZED = "maximized"
     HIDDEN = "hidden"
     UNKNOWN = "unknown"
-
 
 @dataclass
 class WindowInfo:
@@ -87,7 +85,6 @@ class WindowInfo:
     position: tuple[int, int, int, int]
     is_active: bool
 
-
 @dataclass
 class ApplicationInfo:
     """Information about a running application.
@@ -104,7 +101,6 @@ class ApplicationInfo:
     pid: int
     executable: str
     windows: list[WindowInfo]
-
 
 class ApplicationController:
     """Controller for comprehensive application and window management.
@@ -244,11 +240,6 @@ class ApplicationController:
         except FileNotFoundError as e:
             logger.exception("Application not found")
             raise
-            logger.exception("Permission denied to launch")
-            raise
-            logger.exception("Failed to launch %s: %s")
-            msg = f"Failed to launch application: {e}"
-            raise RuntimeError(msg) from e
 
     def _resolve_application_path(self, app_name: str) -> str:
         """Resolve application name to full executable path.
@@ -600,9 +591,6 @@ class ApplicationController:
         except ProcessLookupError as e:
             logger.exception("Application not found")
             raise
-            logger.exception("Failed to close %s: %s")
-            msg = f"Failed to close application: {e}"
-            raise RuntimeError(msg) from e
 
     def _taskkill_by_name(self, app_name: str, force: bool = False) -> bool:
         """Use Windows taskkill to close an application by name.
@@ -643,7 +631,7 @@ class ApplicationController:
                     logger.info("taskkill succeeded for %s", exe_name)
                     return True
             except (OSError, _sp.TimeoutExpired):
-                logger.exception("taskkill failed for %s: %s")
+                logger.exception("taskkill failed for")
         logger.error("taskkill could not close any alias for '%s'", app_name)
         return False
 
@@ -719,7 +707,7 @@ class ApplicationController:
             return None
 
         except Exception:
-            logger.exception("Failed to find process %s: %s")
+            logger.exception("Failed to find process")
             return None
 
     def minimize_window(self, window_identifier: str) -> bool:
@@ -753,7 +741,7 @@ class ApplicationController:
             return self._minimize_window_linux(window_identifier)
 
         except Exception as e:
-            logger.exception("Failed to minimize window %s: %s")
+            logger.exception("Failed to minimize window")
             msg = f"Failed to minimize window: {e}"
             raise RuntimeError(msg) from e
 
@@ -788,6 +776,7 @@ class ApplicationController:
         except ImportError:
             logger.exception("pywin32 not available")
             return False
+        except Exception:
             logger.exception("Failed to minimize window")
             return False
 
@@ -867,6 +856,7 @@ class ApplicationController:
         except ValueError:
             logger.exception("Invalid window identifier")
             return False
+        except Exception:
             logger.exception("Failed to minimize window")
             return False
 
@@ -897,6 +887,7 @@ class ApplicationController:
         except ValueError:
             logger.exception("Invalid window identifier")
             return False
+        except Exception:
             logger.exception("wmctrl not available, trying xdotool")
             try:
                 # Sanitize input for xdotool
@@ -915,8 +906,9 @@ class ApplicationController:
             except FileNotFoundError:
                 logger.exception("Neither wmctrl nor xdotool available")
                 return False
-            logger.exception("Failed to minimize window")
-            return False
+            except Exception:
+                logger.exception("Failed to minimize window")
+                return False
 
     def maximize_window(self, window_identifier: str) -> bool:
         """Maximize an application window.
@@ -949,7 +941,7 @@ class ApplicationController:
             return self._maximize_window_linux(window_identifier)
 
         except Exception as e:
-            logger.exception("Failed to maximize window %s: %s")
+            logger.exception("Failed to maximize window")
             msg = f"Failed to maximize window: {e}"
             raise RuntimeError(msg) from e
 
@@ -1010,6 +1002,7 @@ class ApplicationController:
         except ValueError:
             logger.exception("Invalid window identifier")
             return False
+        except Exception:
             logger.exception("Failed to maximize window")
             return False
 
@@ -1029,28 +1022,6 @@ class ApplicationController:
 
         except ValueError:
             logger.exception("Invalid window identifier")
-            return False
-            try:
-                safe_identifier = self._sanitize_window_identifier(window_identifier)
-                result = subprocess.run(  # noqa: S603
-                    [
-                        "xdotool",
-                        "search",
-                        "--name",
-                        safe_identifier,
-                        "windowsize",
-                        "%@",
-                        "100%",
-                        "100%",
-                    ],
-                    check=False,
-                    capture_output=True,
-                    timeout=5.0,
-                )
-                return result.returncode == 0
-            except (ValueError, FileNotFoundError):
-                return False
-            logger.exception("Failed to maximize window")
             return False
 
     def restore_window(self, window_identifier: str) -> bool:
@@ -1084,7 +1055,7 @@ class ApplicationController:
             return self._restore_window_linux(window_identifier)
 
         except Exception as e:
-            logger.exception("Failed to restore window %s: %s")
+            logger.exception("Failed to restore window")
             msg = f"Failed to restore window: {e}"
             raise RuntimeError(msg) from e
 
@@ -1146,6 +1117,7 @@ class ApplicationController:
         except ValueError:
             logger.exception("Invalid window identifier")
             return False
+        except Exception:
             logger.exception("Failed to restore window")
             return False
 
@@ -1172,7 +1144,7 @@ class ApplicationController:
         except ValueError:
             logger.exception("Invalid window identifier")
             return False
-            return False
+        except Exception:
             logger.exception("Failed to restore window")
             return False
 
@@ -1207,7 +1179,7 @@ class ApplicationController:
             return self._focus_window_linux(window_identifier)
 
         except Exception as e:
-            logger.exception("Failed to focus window %s: %s")
+            logger.exception("Failed to focus window")
             msg = f"Failed to focus window: {e}"
             raise RuntimeError(msg) from e
 
@@ -1270,6 +1242,7 @@ class ApplicationController:
         except ValueError:
             logger.exception("Invalid window identifier")
             return False
+        except Exception:
             logger.exception("Failed to focus window")
             return False
 
@@ -1289,19 +1262,6 @@ class ApplicationController:
 
         except ValueError:
             logger.exception("Invalid window identifier")
-            return False
-            try:
-                safe_identifier = self._sanitize_window_identifier(window_identifier)
-                result = subprocess.run(  # noqa: S603
-                    ["xdotool", "search", "--name", safe_identifier, "windowactivate"],
-                    check=False,
-                    capture_output=True,
-                    timeout=5.0,
-                )
-                return result.returncode == 0
-            except (ValueError, FileNotFoundError):
-                return False
-            logger.exception("Failed to focus window")
             return False
 
     def switch_to_application(self, app_name: str) -> bool:
@@ -1345,7 +1305,7 @@ class ApplicationController:
             return self.focus_window(target_window.title)
 
         except Exception as e:
-            logger.exception("Failed to switch to %s: %s")
+            logger.exception("Failed to switch to")
             msg = f"Failed to switch to application: {e}"
             raise RuntimeError(msg) from e
 
@@ -1507,6 +1467,7 @@ class ApplicationController:
         except FileNotFoundError:
             logger.exception("wmctrl not available")
             return []
+        except Exception:
             logger.exception("Failed to list windows")
             return []
 

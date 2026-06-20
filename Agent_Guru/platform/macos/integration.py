@@ -53,7 +53,6 @@ except ImportError:
     logging.warning("pyobjc not available - some macOS features will be limited")
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class CommandResult:
     """Result of command execution with metrics."""
@@ -64,7 +63,6 @@ class CommandResult:
     execution_time: float  # seconds
     timestamp: float = field(default_factory=time.time)
     correlation_id: str | None = None
-
 
 @dataclass
 class ProcessInfo:
@@ -79,7 +77,6 @@ class ProcessInfo:
     num_threads: int = 0
     memory_rss: int = 0  # Resident Set Size in bytes
     memory_vms: int = 0  # Virtual Memory Size in bytes
-
 
 @dataclass
 class SystemInfo:
@@ -97,7 +94,6 @@ class SystemInfo:
     available_memory: int = 0  # Available RAM in bytes
     disk_usage_percent: float = 0.0  # / drive usage
 
-
 @dataclass
 class PerformanceMetrics:
     """Performance metrics for monitoring."""
@@ -108,18 +104,14 @@ class PerformanceMetrics:
     error: str | None = None
     timestamp: float = field(default_factory=time.time)
 
-
 class AppleScriptError(Exception):
     """Raised when AppleScript execution fails."""
-
 
 class PreferenceNotFoundError(Exception):
     """Raised when system preference not found."""
 
-
 class CircuitBreakerError(Exception):
     """Raised when circuit breaker is open."""
-
 
 class MacOSIntegration:
     """Production-grade macOS platform integration with advanced features.
@@ -447,12 +439,6 @@ class MacOSIntegration:
             self._record_failure(operation)
             logger.exception(error_msg)
             raise AppleScriptError(error_msg) from e
-            duration_ms = (time.time() - start_time) * 1000
-            error_msg = f"Error executing AppleScript: {e}"
-            self._record_metric(operation, duration_ms, False, error_msg)
-            self._record_failure(operation)
-            logger.exception(error_msg)
-            raise AppleScriptError(error_msg) from e
 
     async def execute_applescript_async(self, script: str) -> str:
         """Async version of execute_applescript for non-blocking operations.
@@ -558,12 +544,6 @@ class MacOSIntegration:
             self._record_failure(operation)
             logger.exception(error_msg)
             raise TimeoutError(error_msg) from e
-            duration_ms = (time.time() - start_time) * 1000
-            error_msg = f"Error reading preference {domain} {key}: {e}"
-            self._record_metric(operation, duration_ms, False, error_msg)
-            self._record_failure(operation)
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def _parse_defaults_value(self, value_str: str) -> Any:
         """Parse defaults command output to Python type.
@@ -681,9 +661,6 @@ class MacOSIntegration:
             error_msg = f"Preference write timed out: {domain} {key}"
             logger.exception(error_msg)
             raise TimeoutError(error_msg) from e
-            error_msg = f"Error writing preference {domain} {key}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     # Process Management
 
@@ -765,12 +742,6 @@ class MacOSIntegration:
             error_msg = f"Executable not found: {executable}"
             logger.exception(error_msg)
             raise FileNotFoundError(error_msg) from e
-            error_msg = f"Permission denied starting process: {executable}"
-            logger.exception(error_msg)
-            raise PermissionError(error_msg) from e
-            error_msg = f"Error starting process {executable}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def terminate_process(self, pid: int, force: bool = False) -> bool:
         """Terminate a process.
@@ -809,15 +780,6 @@ class MacOSIntegration:
             error_msg = f"Process not found: PID {pid}"
             logger.exception(error_msg)
             raise ProcessLookupError(error_msg) from e
-            error_msg = (
-                f"Permission denied terminating process {pid}. "
-                f"Administrator privileges may be required."
-            )
-            logger.exception(error_msg)
-            raise PermissionError(error_msg) from e
-            error_msg = f"Error terminating process {pid}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def execute_command(self, command: str, args: list[str]) -> CommandResult:
         """Execute a macOS command.
@@ -884,9 +846,6 @@ class MacOSIntegration:
             error_msg = f"Command timed out: {command}"
             logger.exception(error_msg)
             raise TimeoutError(error_msg) from e
-            error_msg = f"Error executing command {command}: {e}"
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
 
     def get_system_info(self) -> SystemInfo:
         """Get macOS system information.

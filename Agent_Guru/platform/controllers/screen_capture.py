@@ -24,9 +24,7 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-
 # Data Models
-
 
 @dataclass
 class CaptureRegion:
@@ -46,7 +44,6 @@ class CaptureRegion:
             msg = f"Invalid region coordinates: ({self.x}, {self.y})"
             raise ValueError(msg)
 
-
 @dataclass
 class RecordingState:
     """Current recording state."""
@@ -56,35 +53,27 @@ class RecordingState:
     start_time: float | None = None
     process: subprocess.Popen | None = None
 
-
 # Exceptions
-
 
 class ScreenCaptureError(Exception):
     """Base exception for screen capture errors."""
 
-
 class ScreenshotError(ScreenCaptureError):
     """Raised when screenshot capture fails."""
-
 
 class RecordingError(ScreenCaptureError):
     """Raised when screen recording fails."""
 
-
 class UnsupportedCaptureOperationError(ScreenCaptureError):
     """Raised when capture operation is not supported on current platform."""
 
-
 # Helper Functions (DRY Principle)
-
 
 def ensure_output_directory(output_path: str) -> None:
     """Ensure output directory exists."""
     directory = os.path.dirname(os.path.abspath(output_path))
     if directory:
         os.makedirs(directory, exist_ok=True)  # noqa: PTH103
-
 
 def stop_ffmpeg_process(process: subprocess.Popen, timeout: int = 5) -> None:
     """Stop ffmpeg recording process gracefully.
@@ -109,7 +98,6 @@ def stop_ffmpeg_process(process: subprocess.Popen, timeout: int = 5) -> None:
         logger.exception(error_msg)
         raise RecordingError(error_msg) from e
 
-
 def run_command(cmd: list, timeout: int = 10, error_prefix: str = "Command failed") -> None:
     """Run subprocess command with error handling.
 
@@ -125,12 +113,8 @@ def run_command(cmd: list, timeout: int = 10, error_prefix: str = "Command faile
     except subprocess.TimeoutExpired as e:
         msg = f"{error_prefix}: timeout"
         raise ScreenshotError(msg) from e
-        msg = f"{error_prefix}: command not found"
-        raise ScreenshotError(msg) from e
-
 
 # Backend Interface
-
 
 class ScreenCaptureBackend(ABC):
     """Abstract base class for platform-specific screen capture backends."""
@@ -151,9 +135,7 @@ class ScreenCaptureBackend(ABC):
         """Stop screen recording (default ffmpeg implementation)."""
         stop_ffmpeg_process(process)
 
-
 # Platform-Specific Backends
-
 
 class WindowsScreenCaptureBackend(ScreenCaptureBackend):
     """Windows screen capture using pyautogui and ffmpeg."""
@@ -231,9 +213,6 @@ class WindowsScreenCaptureBackend(ScreenCaptureBackend):
         except FileNotFoundError as e:
             msg = "ffmpeg not found. Install from: https://ffmpeg.org"
             raise RecordingError(msg) from e
-            msg = f"Failed to start recording: {e}"
-            raise RecordingError(msg) from e
-
 
 class MacOSScreenCaptureBackend(ScreenCaptureBackend):
     """macOS screen capture using screencapture and ffmpeg."""
@@ -287,9 +266,6 @@ class MacOSScreenCaptureBackend(ScreenCaptureBackend):
         except FileNotFoundError as e:
             msg = "ffmpeg not found. Install: brew install ffmpeg"
             raise RecordingError(msg) from e
-            msg = f"Failed to start recording: {e}"
-            raise RecordingError(msg) from e
-
 
 class LinuxScreenCaptureBackend(ScreenCaptureBackend):
     """Linux screen capture using scrot and ffmpeg."""
@@ -359,12 +335,8 @@ class LinuxScreenCaptureBackend(ScreenCaptureBackend):
         except FileNotFoundError as e:
             msg = "ffmpeg not found. Install: sudo apt-get install ffmpeg"
             raise RecordingError(msg) from e
-            msg = f"Failed to start recording: {e}"
-            raise RecordingError(msg) from e
-
 
 # Main Controller
-
 
 class ScreenCaptureController:
     """Cross-platform screen capture controller."""

@@ -152,7 +152,7 @@ class DesktopApplicationController:
             # linux / unknown
             return await self._open_linux(app_name)
         except Exception:
-            logger.exception("open_app(%r) failed: %s")
+            logger.exception("open_app failed")
             return False
 
     async def close_app(self, app_name: str) -> bool:
@@ -177,7 +177,7 @@ class DesktopApplicationController:
                 return await self._close_macos(app_name)
             return await self._close_linux(app_name)
         except Exception:
-            logger.exception("close_app(%r) failed: %s")
+            logger.exception("close_app failed")
             return False
 
     async def minimize_app(self, app_name: str) -> bool:
@@ -201,7 +201,7 @@ class DesktopApplicationController:
                 return await self._minimize_macos(app_name)
             return await self._minimize_linux(app_name)
         except Exception:
-            logger.exception("minimize_app(%r) failed: %s")
+            logger.exception("minimize_app failed")
             return False
 
     async def maximize_app(self, app_name: str) -> bool:
@@ -225,7 +225,7 @@ class DesktopApplicationController:
                 return await self._maximize_macos(app_name)
             return await self._maximize_linux(app_name)
         except Exception:
-            logger.exception("maximize_app(%r) failed: %s")
+            logger.exception("maximize_app failed")
             return False
 
     async def restore_app(self, app_name: str) -> bool:
@@ -249,7 +249,7 @@ class DesktopApplicationController:
                 return await self._restore_macos(app_name)
             return await self._restore_linux(app_name)
         except Exception:
-            logger.exception("restore_app(%r) failed: %s")
+            logger.exception("restore_app failed")
             return False
 
     async def switch_app(self, app_name: str) -> bool:
@@ -273,7 +273,7 @@ class DesktopApplicationController:
                 return await self._switch_macos(app_name)
             return await self._switch_linux(app_name)
         except Exception:
-            logger.exception("switch_app(%r) failed: %s")
+            logger.exception("switch_app failed")
             return False
 
     # ------------------------------------------------------------------
@@ -305,7 +305,7 @@ class DesktopApplicationController:
             return True
         except (OSError, FileNotFoundError, RuntimeError) as exc:
             logger.debug("os.startfile failed for %r: %s", app_name, exc)
-            logger.exception("Unexpected error in os.startfile for %r: %s")
+            logger.exception("Unexpected error in os.startfile for")
         # Fallback: shell start command
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -359,6 +359,7 @@ class DesktopApplicationController:
         except ImportError as e:
             logger.debug("win32gui not available — skipping graceful close: %s", e)
             return False
+        except Exception:
             logger.debug("win32 close failed: %s", e)
             return False
 

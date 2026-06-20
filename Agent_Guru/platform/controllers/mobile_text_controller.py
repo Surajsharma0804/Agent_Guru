@@ -374,7 +374,7 @@ class MobileTextController:
             # ios
             return await self._special_key_ios(normalized)
         except Exception:
-            logger.exception("type_special_key(%r) failed: %s")
+            logger.exception("type_special_key failed")
             return False
 
     async def clear_field(self) -> bool:

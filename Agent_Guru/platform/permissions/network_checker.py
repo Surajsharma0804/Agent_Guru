@@ -203,7 +203,7 @@ class NetworkPermissionChecker:
             self._allowed_patterns.append(compiled_pattern)
             logger.debug("Added allowed URL pattern: %s", pattern)
         except re.error as e:
-            logger.exception("Invalid regex pattern: %s (%s)")
+            logger.exception("Invalid regex pattern")
             msg = f"Invalid regex pattern: {pattern}"
             raise NetworkValidationError(msg) from e
 
@@ -224,7 +224,7 @@ class NetworkPermissionChecker:
             self._blocked_patterns.append(compiled_pattern)
             logger.debug("Added blocked URL pattern: %s", pattern)
         except re.error as e:
-            logger.exception("Invalid regex pattern: %s (%s)")
+            logger.exception("Invalid regex pattern")
             msg = f"Invalid regex pattern: {pattern}"
             raise NetworkValidationError(msg) from e
 

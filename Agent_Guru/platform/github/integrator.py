@@ -37,32 +37,24 @@ from .message_generator import CommitMessageGenerator, CommitMessageTemplate, Ta
 
 logger = logging.getLogger(__name__)
 
-
 # Custom Exceptions
-
 
 class GitError(Exception):
     """Base exception for Git operations."""
 
-
 class GitConflictError(GitError):
     """Raised when Git conflicts are detected."""
-
 
 class GitAuthenticationError(GitError):
     """Raised when Git authentication fails."""
 
-
 class GitRemoteError(GitError):
     """Raised when remote operations fail."""
-
 
 class GitRepositoryError(GitError):
     """Raised when repository is in invalid state."""
 
-
 # Data Models
-
 
 @dataclass
 class GitOperationResult:
@@ -84,7 +76,6 @@ class GitOperationResult:
     stderr: str = ""
     return_code: int = 0
     duration_ms: float = 0.0
-
 
 @dataclass
 class GitRepositoryStatus:
@@ -113,7 +104,6 @@ class GitRepositoryStatus:
     ahead_count: int = 0
     behind_count: int = 0
 
-
 @dataclass
 class PullRequestResult:
     """Result of pull request creation.
@@ -132,7 +122,6 @@ class PullRequestResult:
     pr_url: str | None = None
     message: str = ""
     error: str | None = None
-
 
 @dataclass
 class BranchInfo:
@@ -190,7 +179,6 @@ class BranchInfo:
         exists_remotely: bool
         is_current: bool
         commit_hash: str | None = None
-
 
 class GitHubIntegrator:
     """Automated Git operations for Agent Guru.
@@ -541,14 +529,6 @@ class GitHubIntegrator:
 
         except (GitAuthenticationError, GitConflictError, GitRemoteError) as e:
             raise
-            duration_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
-            logger.exception("Failed to push")
-            return GitOperationResult(
-                success=False,
-                message=f"Push failed: {e}",
-                stderr=str(e),
-                duration_ms=duration_ms,
-            )
 
     def pull(self, branch: str | None = None, rebase: bool = True) -> GitOperationResult:
         """Pull changes from remote repository.
@@ -608,14 +588,6 @@ class GitHubIntegrator:
 
         except (GitConflictError, GitRemoteError) as e:
             raise
-            duration_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
-            logger.exception("Failed to pull")
-            return GitOperationResult(
-                success=False,
-                message=f"Pull failed: {e}",
-                stderr=str(e),
-                duration_ms=duration_ms,
-            )
 
     def commit_and_push(
         self,
@@ -727,7 +699,6 @@ class GitHubIntegrator:
                 message=f"Command timed out after {self.timeout}s",
                 stderr=f"Timeout: {' '.join(cmd)}",
             )
-            return GitOperationResult(success=False, message=f"Command failed: {e}", stderr=str(e))
 
     def _parse_status_output(self, output: str) -> tuple[list[str], list[str], list[str]]:
         """Parse git status --porcelain output.
@@ -1201,21 +1172,7 @@ class GitHubIntegrator:
 
         except GitConflictError as e:
             raise
-            duration_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
-            error_message = f"Conflict resolution failed with exception: {e}"
-            logger.exception(error_message)
             # Notify Goal Manager
-            self._notify_goal_manager_of_failure(
-                operation="conflict_resolution",
-                error_message=error_message,
-                attempt_count=max_attempts,
-            )
-            return GitOperationResult(
-                success=False,
-                message=error_message,
-                stderr=str(e),
-                duration_ms=duration_ms,
-            )
 
     def push_with_conflict_resolution(
         self,
@@ -1315,8 +1272,6 @@ class GitHubIntegrator:
                     # Don't retry authentication errors
                     logger.exception("Authentication error")
                     raise
-                    last_error = str(e)
-                    logger.exception("Exception during push attempt %d: %s")
             # All attempts failed
             duration_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
             error_message = (
@@ -1347,21 +1302,7 @@ class GitHubIntegrator:
 
         except GitAuthenticationError as e:
             raise
-            duration_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
-            error_message = f"Push with conflict resolution failed: {e}"
-            logger.exception(error_message)
             # Notify Goal Manager
-            self._notify_goal_manager_of_failure(
-                operation="push_with_conflict_resolution",
-                error_message=error_message,
-                attempt_count=max_retries,
-            )
-            return GitOperationResult(
-                success=False,
-                message=error_message,
-                stderr=str(e),
-                duration_ms=duration_ms,
-            )
 
     def _notify_goal_manager_of_failure(
         self,
@@ -1779,13 +1720,6 @@ class GitHubIntegrator:
                 success=False,
                 message=f"PR creation timed out after {self.timeout}s",
                 error="Timeout",
-            )
-            (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
-            logger.exception("Failed to create PR")
-            return PullRequestResult(
-                success=False,
-                message=f"PR creation failed: {e}",
-                error=str(e),
             )
 
     def create_pr_from_task(

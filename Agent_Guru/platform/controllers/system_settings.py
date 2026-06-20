@@ -26,7 +26,6 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class VolumeInfo:
     """Volume information.
@@ -40,7 +39,6 @@ class VolumeInfo:
     level: int  # 0-100
     is_muted: bool
 
-
 @dataclass
 class BrightnessInfo:
     """Brightness information.
@@ -51,7 +49,6 @@ class BrightnessInfo:
     """
 
     level: int  # 0-100
-
 
 @dataclass
 class NetworkInfo:
@@ -67,7 +64,6 @@ class NetworkInfo:
     wifi_enabled: bool
     bluetooth_enabled: bool
     airplane_mode: bool
-
 
 @dataclass
 class DisplayInfo:
@@ -86,22 +82,17 @@ class DisplayInfo:
     orientation: int  # 0, 90, 180, 270
     refresh_rate: int | None = None
 
-
 class SystemSettingsError(Exception):
     """Base exception for system settings errors."""
-
 
 class UnsupportedOperationError(SystemSettingsError):
     """Raised when operation is not supported on current platform."""
 
-
 class SettingsPermissionError(SystemSettingsError):
     """Raised when insufficient permissions for settings operation."""
 
-
 class InvalidSettingValueError(SystemSettingsError):
     """Raised when setting value is invalid."""
-
 
 class SystemSettingsBackend(ABC):
     """Abstract base class for platform-specific system settings implementations."""
@@ -157,7 +148,6 @@ class SystemSettingsBackend(ABC):
     @abstractmethod
     def set_display_orientation(self, orientation: int) -> None:
         """Set display orientation (0, 90, 180, 270 degrees)."""
-
 
 class WindowsSettingsBackend(SystemSettingsBackend):
     """Windows-specific system settings implementation using Windows APIs."""
@@ -257,9 +247,6 @@ class WindowsSettingsBackend(SystemSettingsBackend):
         except ImportError as e:
             msg = "Brightness control requires WMI (install wmi)"
             raise UnsupportedOperationError(msg) from e
-            logger.exception("Failed to get brightness")
-            msg = f"Failed to get brightness: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_brightness(self, level: int) -> None:
         """Set brightness using WMI."""
@@ -281,9 +268,6 @@ class WindowsSettingsBackend(SystemSettingsBackend):
         except ImportError as e:
             msg = "Brightness control requires WMI (install wmi)"
             raise UnsupportedOperationError(msg) from e
-            logger.exception("Failed to set brightness")
-            msg = f"Failed to set brightness: {e}"
-            raise SystemSettingsError(msg) from e
 
     def get_network_settings(self) -> NetworkInfo:
         """Get network settings using netsh."""
@@ -324,7 +308,7 @@ class WindowsSettingsBackend(SystemSettingsBackend):
             )
             logger.info("WiFi %sd", action)
         except subprocess.CalledProcessError as e:
-            logger.exception("Failed to %s WiFi: %s")
+            logger.exception("Failed to WiFi")
             msg = f"Failed to {action} WiFi: {e}"
             raise SystemSettingsError(msg) from e
 
@@ -355,9 +339,6 @@ class WindowsSettingsBackend(SystemSettingsBackend):
         except ImportError as e:
             msg = "Display control requires pywin32"
             raise UnsupportedOperationError(msg) from e
-            logger.exception("Failed to get display settings")
-            msg = f"Failed to get display settings: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_display_resolution(self, width: int, height: int) -> None:
         """Set display resolution using Windows API."""
@@ -382,9 +363,6 @@ class WindowsSettingsBackend(SystemSettingsBackend):
         except ImportError as e:
             msg = "Display control requires pywin32"
             raise UnsupportedOperationError(msg) from e
-            logger.exception("Failed to set resolution")
-            msg = f"Failed to set resolution: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_display_orientation(self, orientation: int) -> None:
         """Set display orientation using Windows API."""
@@ -410,10 +388,6 @@ class WindowsSettingsBackend(SystemSettingsBackend):
         except ImportError as e:
             msg = "Display control requires pywin32"
             raise UnsupportedOperationError(msg) from e
-            logger.exception("Failed to set orientation")
-            msg = f"Failed to set orientation: {e}"
-            raise SystemSettingsError(msg) from e
-
 
 class MacOSSettingsBackend(SystemSettingsBackend):
     """macOS-specific system settings implementation using AppleScript and system commands."""
@@ -511,9 +485,6 @@ class MacOSSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to get brightness")
-            msg = f"Failed to get brightness: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_brightness(self, level: int) -> None:
         """Set brightness using brightness command."""
@@ -534,9 +505,6 @@ class MacOSSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to set brightness")
-            msg = f"Failed to set brightness: {e}"
-            raise SystemSettingsError(msg) from e
 
     def get_network_settings(self) -> NetworkInfo:
         """Get network settings using networksetup."""
@@ -601,15 +569,12 @@ class MacOSSettingsBackend(SystemSettingsBackend):
                 capture_output=True,
                 check=True,
             )
-            logger.info("Bluetooth %s", "enabled" if enabled else "disabled")
+            logger.info("Bluetooth", "enabled" if enabled else "disabled")
         except FileNotFoundError as e:
             msg = "Bluetooth control requires 'blueutil' (brew install blueutil)"
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to set Bluetooth")
-            msg = f"Failed to set Bluetooth: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_airplane_mode(self, enabled: bool) -> None:
         """Enable or disable airplane mode (not directly supported on macOS)."""
@@ -665,9 +630,6 @@ class MacOSSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to set resolution")
-            msg = f"Failed to set resolution: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_display_orientation(self, orientation: int) -> None:
         """Set display orientation (limited support on macOS)."""
@@ -679,7 +641,6 @@ class MacOSSettingsBackend(SystemSettingsBackend):
 
         msg = "Display orientation control not supported on macOS"
         raise UnsupportedOperationError(msg)
-
 
 class LinuxSettingsBackend(SystemSettingsBackend):
     """Linux-specific system settings implementation using system commands."""
@@ -709,9 +670,6 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to get volume")
-            msg = f"Failed to get volume: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_volume(self, level: int) -> None:
         """Set volume using amixer."""
@@ -731,9 +689,6 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to set volume")
-            msg = f"Failed to set volume: {e}"
-            raise SystemSettingsError(msg) from e
 
     def mute_volume(self) -> None:
         """Mute audio using amixer."""
@@ -749,9 +704,6 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to mute")
-            msg = f"Failed to mute: {e}"
-            raise SystemSettingsError(msg) from e
 
     def unmute_volume(self) -> None:
         """Unmute audio using amixer."""
@@ -767,9 +719,6 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to unmute")
-            msg = f"Failed to unmute: {e}"
-            raise SystemSettingsError(msg) from e
 
     def get_brightness(self) -> BrightnessInfo:
         """Get current brightness using xbacklight."""
@@ -787,9 +736,6 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to get brightness")
-            msg = f"Failed to get brightness: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_brightness(self, level: int) -> None:
         """Set brightness using xbacklight."""
@@ -809,9 +755,6 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to set brightness")
-            msg = f"Failed to set brightness: {e}"
-            raise SystemSettingsError(msg) from e
 
     def get_network_settings(self) -> NetworkInfo:
         """Get network settings using nmcli."""
@@ -847,9 +790,6 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to get network settings")
-            msg = f"Failed to get network settings: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_wifi(self, enabled: bool) -> None:
         """Enable or disable WiFi using nmcli."""
@@ -866,9 +806,6 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to set WiFi")
-            msg = f"Failed to set WiFi: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_bluetooth(self, enabled: bool) -> None:
         """Enable or disable Bluetooth using rfkill."""
@@ -879,15 +816,12 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 capture_output=True,
                 check=True,
             )
-            logger.info("Bluetooth %s", "enabled" if enabled else "disabled")
+            logger.info("Bluetooth", "enabled" if enabled else "disabled")
         except FileNotFoundError as e:
             msg = "Bluetooth control requires 'rfkill' (install rfkill)"
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to set Bluetooth")
-            msg = f"Failed to set Bluetooth: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_airplane_mode(self, enabled: bool) -> None:
         """Enable or disable airplane mode (all radios)."""
@@ -898,15 +832,12 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 capture_output=True,
                 check=True,
             )
-            logger.info("Airplane mode %s", "enabled" if enabled else "disabled")
+            logger.info("Airplane mode", "enabled" if enabled else "disabled")
         except FileNotFoundError as e:
             msg = "Airplane mode control requires 'rfkill' (install rfkill)"
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to set airplane mode")
-            msg = f"Failed to set airplane mode: {e}"
-            raise SystemSettingsError(msg) from e
 
     def get_display_settings(self) -> DisplayInfo:
         """Get display settings using xrandr."""
@@ -941,9 +872,6 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to get display settings")
-            msg = f"Failed to get display settings: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_display_resolution(self, width: int, height: int) -> None:
         """Set display resolution using xrandr."""
@@ -983,9 +911,6 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to set resolution")
-            msg = f"Failed to set resolution: {e}"
-            raise SystemSettingsError(msg) from e
 
     def set_display_orientation(self, orientation: int) -> None:
         """Set display orientation using xrandr."""
@@ -1030,10 +955,6 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise UnsupportedOperationError(
                 msg,
             ) from e
-            logger.exception("Failed to set orientation")
-            msg = f"Failed to set orientation: {e}"
-            raise SystemSettingsError(msg) from e
-
 
 class SystemSettingsController:
     """Cross-platform system settings controller.

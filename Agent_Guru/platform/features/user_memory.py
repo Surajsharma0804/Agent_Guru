@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -46,13 +47,32 @@ class UserMemory:
     def __init__(self, path: Path | None = None) -> None:
         self._path = path or _MEMORY_PATH
         self._facts: dict[str, Any] = {}
+        # Thread safety: protects concurrent _save()/_load() calls
+        # from the async pipeline (two tasks extracting facts at once)
+        self._lock = threading.Lock()
         self._load()
 
     def set(self, key: str, value: Any) -> None:
-        """Store a fact about the user."""
-        self._facts[key] = value
+        """Store a fact about the user.
+
+        For list-type keys (hobbies, interests, friends), new values are
+        MERGED with existing ones instead of overwriting. This matches
+        the behavior of Alexa+ and ChatGPT memory — users accumulate
+        preferences over time, they don't replace them.
+        """
+        if key in _MERGEABLE_KEYS and key in self._facts:
+            # Merge: split both old and new by separators, deduplicate
+            existing = self._facts[key]
+            merged = _merge_values(existing, value)
+            if merged == existing:
+                return  # No change — skip disk write
+            self._facts[key] = merged
+        else:
+            if self._facts.get(key) == value:
+                return  # No change — skip disk write
+            self._facts[key] = value
         self._save()
-        logger.debug("UserMemory: set %r = %r", key, value)
+        logger.debug("UserMemory: set %r = %r", key, self._facts[key])
 
     def get(self, key: str, default: Any = None) -> Any:
         """Retrieve a stored fact."""
@@ -123,25 +143,27 @@ class UserMemory:
         return summary[:max_chars]
 
     def _load(self) -> None:
-        """Load facts from disk."""
-        try:
-            if self._path.exists():
-                self._facts = json.loads(self._path.read_text(encoding="utf-8"))
-                logger.debug("UserMemory: loaded %d facts", len(self._facts))
-        except Exception:
-            logger.exception("UserMemory: failed to load")
-            self._facts = {}
+        """Load facts from disk (thread-safe)."""
+        with self._lock:
+            try:
+                if self._path.exists():
+                    self._facts = json.loads(self._path.read_text(encoding="utf-8"))
+                    logger.debug("UserMemory: loaded %d facts", len(self._facts))
+            except Exception:
+                logger.exception("UserMemory: failed to load")
+                self._facts = {}
 
     def _save(self) -> None:
-        """Persist facts to disk."""
-        try:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(
-                json.dumps(self._facts, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-        except Exception:
-            logger.exception("UserMemory: failed to save")
+        """Persist facts to disk (thread-safe)."""
+        with self._lock:
+            try:
+                self._path.parent.mkdir(parents=True, exist_ok=True)
+                self._path.write_text(
+                    json.dumps(self._facts, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+            except Exception:
+                logger.exception("UserMemory: failed to save")
 
 
 # Module-level singleton — shared across the whole app
@@ -164,6 +186,33 @@ _SUMMARY_SKIP_KEYS = frozenset({
     "friends", "family", "communication_style",
 })
 
+# Keys where values should MERGE instead of overwrite.
+# "I love hiking" + "I love photography" → "hiking, photography"
+# This is what Alexa+ and ChatGPT do — accumulate, don't replace.
+_MERGEABLE_KEYS = frozenset({"hobbies", "interests", "friends"})
+
+# Separator pattern for splitting merged values
+_SPLIT_RE = re.compile(r"\s*(?:,|\band\b)\s*", re.I)
+
+
+def _merge_values(existing: str, new: str) -> str:
+    """Merge two fact values, deduplicating entries.
+
+    'hiking' + 'photography' → 'hiking, photography'
+    'hiking, photography' + 'hiking' → 'hiking, photography' (no dupe)
+    """
+    old_parts = [p.strip().lower() for p in _SPLIT_RE.split(str(existing)) if p.strip()]
+    new_parts = [p.strip().lower() for p in _SPLIT_RE.split(str(new)) if p.strip()]
+    # Preserve original case from existing, add new ones
+    seen = set(old_parts)
+    merged = [p.strip() for p in _SPLIT_RE.split(str(existing)) if p.strip()]
+    for part in _SPLIT_RE.split(str(new)):
+        part = part.strip()
+        if part and part.lower() not in seen:
+            merged.append(part)
+            seen.add(part.lower())
+    return ", ".join(merged)
+
 # Precompiled regex patterns for fact extraction.
 # Previously: 22 raw strings compiled by re.search() on EVERY call.
 # Now: compiled once at import time. re.compile() returns a cached Pattern
@@ -184,20 +233,21 @@ _FACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"i(?:'m| am) (?:currently )?working on (.+)", re.I), "current_project"),
     (re.compile(r"my (?:current )?project is (.+)", re.I), "current_project"),
     (re.compile(r"i(?:'m| am) building (.+)", re.I), "current_project"),
-    # Generic occupation — after project patterns
-    (re.compile(r"i(?:'m| am) (?:a |an )?(.+?)(?:\s+and|\s*$)", re.I), "occupation"),
-    (re.compile(r"i prefer (.+?) (?:language|lang)", re.I), "preferred_language"),
-    (re.compile(r"i speak (.+)", re.I), "preferred_language"),
-    # Hobbies and interests
+    # Hobbies, interests, and preferences — BEFORE the generic occupation
+    # fallback, because "I am into X" and "I am interested in X" would
+    # otherwise match the generic "I am ..." occupation pattern.
     (re.compile(r"i (?:love|enjoy|like) (.+)", re.I), "hobbies"),
     (re.compile(r"my hobb(?:y|ies) (?:is|are|include) (.+)", re.I), "hobbies"),
     (re.compile(r"i(?:'m| am) (?:into|interested in) (.+)", re.I), "interests"),
+    (re.compile(r"i prefer (?:a )?(.+?) (?:language|lang)", re.I), "preferred_language"),
+    (re.compile(r"i speak (.+)", re.I), "preferred_language"),
+    (re.compile(r"i prefer (?:a )?(.+?) (?:tone|style|approach)", re.I), "communication_style"),
+    # Generic occupation — LAST of the "I am ..." patterns (catch-all)
+    (re.compile(r"i(?:'m| am) (?:a |an )?(.+?)(?:\s+and|\s*$)", re.I), "occupation"),
     # Relationships
     (re.compile(r"my (?:best )?friend(?:s)? (?:is|are) (.+)", re.I), "friends"),
     (re.compile(r"my (?:wife|husband|partner|girlfriend|boyfriend) (?:is )?(?:named )?(.+)", re.I), "family"),
     (re.compile(r"my (?:mom|mother|dad|father|sister|brother) (?:is )?(?:named )?(.+)", re.I), "family"),
-    # Communication style
-    (re.compile(r"i prefer (?:a )?(.+?) (?:tone|style|approach)", re.I), "communication_style"),
 ]
 
 

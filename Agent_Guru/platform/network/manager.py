@@ -53,7 +53,6 @@ from .webhook import (
 # Configure structured logging
 logger = logging.getLogger(__name__)
 
-
 class HttpMethod(str, Enum):
     """HTTP methods supported by NetworkManager."""
 
@@ -64,7 +63,6 @@ class HttpMethod(str, Enum):
     PATCH = "PATCH"
     HEAD = "HEAD"
     OPTIONS = "OPTIONS"
-
 
 @dataclass
 class NetworkConfig:
@@ -104,7 +102,6 @@ class NetworkConfig:
     connection_pool_config: ConnectionPoolConfig | None = None
     enable_webhooks: bool = True
     webhook_config: WebhookConfig | None = None
-
 
 @dataclass
 class HttpResponse:
@@ -156,7 +153,6 @@ class HttpResponse:
         """Check if status code indicates server error (5xx)."""
         return 500 <= self.status_code < 600
 
-
 @dataclass
 class DownloadResult:
     """Result of file download operation.
@@ -179,7 +175,6 @@ class DownloadResult:
     average_speed: float
     success: bool
     error: str | None = None
-
 
 @dataclass
 class UploadResult:
@@ -254,25 +249,19 @@ class UploadResult:
         response_status: int | None = None
         error: str | None = None
 
-
 # Exception hierarchy
-
 
 class NetworkError(Exception):
     """Base exception for network operations."""
 
-
 class SSLValidationError(NetworkError):
     """Raised when SSL/TLS certificate validation fails."""
-
 
 class TimeoutError(NetworkError):
     """Raised when request times out."""
 
-
 class ConnectionError(NetworkError):
     """Raised when connection fails."""
-
 
 class RateLimitError(NetworkError):
     """Raised when rate limit is exceeded (429 status code)."""
@@ -285,7 +274,6 @@ class RateLimitError(NetworkError):
             f"Rate limit exceeded for service '{service}'. "
             f"Retry after {retry_after:.1f} seconds. (HTTP {status_code})",
         )
-
 
 class NetworkManager:
     """Advanced network manager with enterprise features.
@@ -708,15 +696,6 @@ class NetworkManager:
                     },
                 )
                 raise RateLimitError(service, e.retry_after) from e
-                logger.exception(
-                    "Rate limit timeout",
-                    extra={
-                        "service": service,
-                        "timeout": timeout,
-                    },
-                )
-                msg = f"Rate limit timeout for service '{service}'"
-                raise TimeoutError(msg) from e
         # Prepare request
         request_timeout = timeout if timeout is not None else self.config.default_timeout
         request_headers = headers.copy() if headers else {}
@@ -850,26 +829,6 @@ class NetworkManager:
                 )
                 msg = f"SSL certificate validation failed: {url}"
                 raise SSLValidationError(msg) from e
-                last_exception = ConnectionError(f"Connection failed: {url}")
-                logger.exception(
-                    "Connection error",
-                    extra={
-                        "method": method.value,
-                        "url": url,
-                        "error": str(e),
-                        "attempt": attempt + 1,
-                    },
-                )
-                last_exception = NetworkError(f"Request failed: {url}")
-                logger.exception(
-                    "Request error",
-                    extra={
-                        "method": method.value,
-                        "url": url,
-                        "error": str(e),
-                        "attempt": attempt + 1,
-                    },
-                )
             # Exponential backoff before retry
             if attempt < self.config.max_retries - 1:
                 delay = self.config.retry_delay * (2**attempt)
@@ -1157,15 +1116,6 @@ class NetworkManager:
                     },
                 )
                 raise RateLimitError(service, e.retry_after) from e
-                logger.exception(
-                    "Rate limit timeout",
-                    extra={
-                        "service": service,
-                        "timeout": timeout,
-                    },
-                )
-                msg = f"Rate limit timeout for service '{service}'"
-                raise TimeoutError(msg) from e
         # Prepare request
         request_timeout = timeout if timeout is not None else self.config.default_timeout
         request_headers = headers.copy() if headers else {}
@@ -1240,36 +1190,6 @@ class NetworkManager:
             )
             msg = f"Request timed out after {request_timeout}s: {url}"
             raise TimeoutError(msg) from e
-            logger.exception(
-                "SSL validation failed",
-                extra={
-                    "method": method.value,
-                    "url": url,
-                    "error": str(e),
-                },
-            )
-            msg = f"SSL certificate validation failed: {url}"
-            raise SSLValidationError(msg) from e
-            logger.exception(
-                "Connection error",
-                extra={
-                    "method": method.value,
-                    "url": url,
-                    "error": str(e),
-                },
-            )
-            msg = f"Connection failed: {url}"
-            raise ConnectionError(msg) from e
-            logger.exception(
-                "Request error",
-                extra={
-                    "method": method.value,
-                    "url": url,
-                    "error": str(e),
-                },
-            )
-            msg = f"Request failed: {url}"
-            raise NetworkError(msg) from e
 
     async def download_file(
         self,

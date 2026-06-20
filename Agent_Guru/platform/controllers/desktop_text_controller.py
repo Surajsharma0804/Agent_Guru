@@ -93,26 +93,21 @@ _SPECIAL_KEY_MAP: dict[str, str] = {
 # Platform detection (shared with desktop_app_controller pattern)
 # ---------------------------------------------------------------------------
 
-
 def _detect_platform() -> str:
     """Thin wrapper — delegates to canonical PlatformDetector."""
     return PlatformDetector.detect().os_name.lower()
-
 
 def _is_desktop(plat: str) -> bool:
     """Return True if *plat* is a desktop platform."""
     return plat in ("windows", "macos", "linux", "unknown")
 
-
 def _is_mobile(plat: str) -> bool:
     """Return True if *plat* is a mobile platform."""
     return plat in ("android", "ios")
 
-
 # ---------------------------------------------------------------------------
 # Input sanitization helpers
 # ---------------------------------------------------------------------------
-
 
 def _sanitize_text(text: str) -> str:
     """Strip null bytes and truncate to _MAX_TEXT_LENGTH.
@@ -130,7 +125,6 @@ def _sanitize_text(text: str) -> str:
         text = text[:_MAX_TEXT_LENGTH]
     return text
 
-
 def _is_ascii_typeable(text: str) -> bool:
     """Return True if every character in *text* is ASCII-printable or whitespace.
 
@@ -143,11 +137,9 @@ def _is_ascii_typeable(text: str) -> bool:
             return False
     return True
 
-
 # ---------------------------------------------------------------------------
 # DesktopTextController
 # ---------------------------------------------------------------------------
-
 
 class DesktopTextController:
     """Async controller for desktop text input via keyboard simulation.
@@ -292,7 +284,7 @@ class DesktopTextController:
             await loop.run_in_executor(None, self._blocking_press, pyautogui_key)
             return True
         except Exception:
-            logger.exception("type_special_key(%r) failed: %s")
+            logger.exception("type_special_key failed")
             return False
 
     async def paste_text(self, text: str) -> bool:
@@ -481,8 +473,6 @@ class DesktopTextController:
                 if proc.returncode == 0:
                     return
             except FileNotFoundError as exc:
-                continue
-                logger.debug("Clipboard command %r failed: %s", cmd[0], exc)
                 continue
         msg = "No clipboard tool available on Linux (install xclip or pyperclip)"
         raise RuntimeError(msg)

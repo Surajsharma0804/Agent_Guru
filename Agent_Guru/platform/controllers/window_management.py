@@ -565,6 +565,7 @@ class WindowManager:
         except ImportError:
             logger.exception("win32gui not available")
             return False
+        except Exception:
             logger.exception("Failed to snap window on Windows")
             return False
 
@@ -686,6 +687,7 @@ class WindowManager:
         except FileNotFoundError:
             logger.exception("wmctrl not installed")
             return False
+        except Exception:
             logger.exception("Failed to snap window on Linux")
             return False
 
@@ -1067,6 +1069,7 @@ class WindowManager:
         except ImportError:
             logger.exception("pyautogui not available")
             return None
+        except Exception:
             logger.exception("Failed to create virtual desktop on Windows")
             return None
 
@@ -1133,6 +1136,7 @@ class WindowManager:
         except FileNotFoundError:
             logger.exception("wmctrl not installed")
             return None
+        except Exception:
             logger.exception("Failed to create virtual desktop on Linux")
             return None
 
@@ -1189,6 +1193,7 @@ class WindowManager:
         except ImportError:
             logger.exception("pyautogui not available")
             return False
+        except Exception:
             logger.exception("Failed to switch desktop on Windows")
             return False
 
@@ -1264,6 +1269,7 @@ class WindowManager:
         except FileNotFoundError:
             logger.exception("wmctrl not installed")
             return False
+        except Exception:
             logger.exception("Failed to switch desktop on Linux")
             return False
 
@@ -1316,6 +1322,7 @@ class WindowManager:
         except ImportError:
             logger.exception("pyautogui not available")
             return False
+        except Exception:
             logger.exception("Failed to close desktop on Windows")
             return False
 
@@ -1388,6 +1395,7 @@ class WindowManager:
         except FileNotFoundError:
             logger.exception("wmctrl not installed")
             return False
+        except Exception:
             logger.exception("Failed to close desktop on Linux")
             return False
 
@@ -1484,5 +1492,6 @@ class WindowManager:
         except FileNotFoundError:
             logger.exception("wmctrl not installed")
             return []
+        except Exception:
             logger.exception("Failed to list desktops on Linux")
             return []

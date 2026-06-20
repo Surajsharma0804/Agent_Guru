@@ -36,7 +36,6 @@ from .time_checker import TimeRestriction as EnhancedTimeRestriction
 
 logger = logging.getLogger(__name__)
 
-
 class FileOperation(Enum):
     """File system operation types."""
 
@@ -44,7 +43,6 @@ class FileOperation(Enum):
     WRITE = "write"
     DELETE = "delete"
     EXECUTE = "execute"
-
 
 class HttpMethod(Enum):
     """HTTP method types."""
@@ -57,14 +55,12 @@ class HttpMethod(Enum):
     HEAD = "HEAD"
     OPTIONS = "OPTIONS"
 
-
 class OperationType(Enum):
     """Operation types for quota tracking."""
 
     FILE_OPERATION = "file_operation"
     COMMAND_EXECUTION = "command_execution"
     NETWORK_REQUEST = "network_request"
-
 
 @dataclass
 class TimeRestriction:
@@ -94,7 +90,6 @@ class TimeRestriction:
 
         return start_time <= current_time <= end_time
 
-
 @dataclass
 class PathPermission:
     """File system path permission with enhanced time restrictions."""
@@ -115,14 +110,12 @@ class PathPermission:
 
         return True
 
-
 @dataclass
 class QuotaConfig:
     """Operation quota configuration."""
 
     per_hour: int
     per_day: int
-
 
 @dataclass
 class QuotaStatus:
@@ -145,7 +138,6 @@ class QuotaStatus:
         """Remaining operations today."""
         return max(0, self.limit_day - self.current_day)
 
-
 @dataclass
 class OperationContext:
     """Context for permission evaluation."""
@@ -155,7 +147,6 @@ class OperationContext:
     ip_address: str | None = None
     user_agent: str | None = None
     additional_data: dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass
 class PermissionModel:
@@ -178,10 +169,8 @@ class PermissionModel:
     allowed_domains: set[str] = field(default_factory=set)
     allowed_methods: set[HttpMethod] = field(default_factory=set)
 
-
 class ConfigurationError(Exception):
     """Raised when configuration is invalid."""
-
 
 class PermissionModelManager:
     """Permission model manager with dynamic policy evaluation.
@@ -285,12 +274,6 @@ class PermissionModelManager:
             except FileNotFoundError as e:
                 logger.exception("Configuration file not found: %s", self.config_path)
                 raise
-                logger.exception("YAML parsing error")
-                msg = f"Invalid YAML configuration: {e}"
-                raise ConfigurationError(msg) from e
-                logger.exception("Configuration loading error")
-                msg = f"Failed to load configuration: {e}"
-                raise ConfigurationError(msg) from e
 
     def _validate_config(self, config: dict[str, Any]) -> None:
         """Validate configuration structure and values.

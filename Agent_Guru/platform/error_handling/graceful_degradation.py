@@ -64,14 +64,12 @@ import psutil
 
 logger = logging.getLogger(__name__)
 
-
 class OperationMode(Enum):
     """System operation modes."""
 
     NORMAL = "normal"
     DEGRADED = "degraded"
     CRITICAL = "critical"
-
 
 class FeaturePriority(Enum):
     """Feature priority levels for degradation."""
@@ -80,7 +78,6 @@ class FeaturePriority(Enum):
     HIGH = 2  # Disabled only in critical mode
     MEDIUM = 3  # Disabled in degraded mode
     LOW = 4  # Disabled first when resources constrained
-
 
 @dataclass
 class DegradationConfig:
@@ -109,7 +106,6 @@ class DegradationConfig:
     min_degraded_duration: float = 30.0
     enable_auto_recovery: bool = True
 
-
 @dataclass
 class FeatureConfig:
     """Configuration for a degradable feature.
@@ -131,7 +127,6 @@ class FeatureConfig:
     disable_callback: Callable[[], None] | None = None
     enable_callback: Callable[[], None] | None = None
 
-
 @dataclass
 class DegradationEvent:
     """Event representing a degradation state change.
@@ -152,7 +147,6 @@ class DegradationEvent:
     reason: str
     resource_stats: dict[str, float]
     disabled_features: list[str] = field(default_factory=list)
-
 
 class DegradationManager:
     """Manages graceful degradation of system features.
@@ -542,7 +536,7 @@ class DegradationManager:
                     try:
                         feature.enable_callback()
                     except Exception:
-                        logger.exception("Error enabling feature %s: %s")
+                        logger.exception("Error enabling feature")
                 logger.info("Feature enabled: %s", name)
 
             elif not should_enable and feature.enabled:
@@ -552,7 +546,7 @@ class DegradationManager:
                     try:
                         feature.disable_callback()
                     except Exception:
-                        logger.exception("Error disabling feature %s: %s")
+                        logger.exception("Error disabling feature")
                 disabled_features.append(name)
                 logger.info("Feature disabled: %s", name)
 
@@ -632,7 +626,6 @@ class DegradationManager:
 
             except asyncio.CancelledError:
                 raise
-                logger.exception("Error in monitoring loop")
 
     def _add_event(self, event: DegradationEvent) -> None:
         """Add event to history with size limit.
