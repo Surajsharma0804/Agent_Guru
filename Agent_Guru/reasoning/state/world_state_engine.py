@@ -17,6 +17,7 @@ Architecture:
 """
 
 import asyncio
+import inspect
 import logging
 from collections import deque
 from collections.abc import Callable
@@ -165,7 +166,7 @@ class WorldStateEngine:
             for change in changes:
                 try:
                     # Call subscriber callback
-                    if asyncio.iscoroutinefunction(callback):
+                    if inspect.iscoroutinefunction(callback):
                         await callback(change)
                     else:
                         callback(change)

@@ -8,6 +8,7 @@ Provides intelligent recovery strategies:
 """
 
 import asyncio
+import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -90,7 +91,7 @@ class RetryHandler:
         while retry_count <= self.config.max_retries:
             try:
                 # Execute function
-                if asyncio.iscoroutinefunction(func):
+                if inspect.iscoroutinefunction(func):
                     result = await func(*args, **kwargs)
                 else:
                     result = func(*args, **kwargs)
@@ -292,7 +293,7 @@ class CircuitBreaker:
 
         try:
             # Execute function
-            if asyncio.iscoroutinefunction(func):
+            if inspect.iscoroutinefunction(func):
                 result = await func(*args, **kwargs)
             else:
                 result = func(*args, **kwargs)
@@ -456,7 +457,7 @@ class FailoverManager:
                 )
 
                 # Execute with this backend
-                if asyncio.iscoroutinefunction(func):
+                if inspect.iscoroutinefunction(func):
                     result = await func(backend, *args, **kwargs)
                 else:
                     result = func(backend, *args, **kwargs)

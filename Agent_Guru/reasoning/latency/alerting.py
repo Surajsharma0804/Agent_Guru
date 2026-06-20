@@ -268,7 +268,7 @@ class LatencyMonitor:
                 self.alert_callback(alert)
             except Exception:
                 # Don't let alert callback failures break monitoring
-                pass
+                logger.debug("Alert callback failed", exc_info=True)
 
     def get_recent_alerts(self, limit: int = 100) -> list[Alert]:
         """Get recent alerts.

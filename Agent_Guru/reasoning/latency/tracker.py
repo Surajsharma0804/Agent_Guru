@@ -5,6 +5,7 @@ for all stages of the reasoning pipeline.
 """
 
 import asyncio
+import inspect
 import statistics
 import time
 from collections import defaultdict, deque
@@ -18,7 +19,6 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-
 class PipelineStage(str, Enum):
     """Pipeline stage identifiers."""
 
@@ -30,7 +30,6 @@ class PipelineStage(str, Enum):
     SAFETY_VALIDATION = "safety_validation"
     EXECUTION = "execution"
     RESPONSE_GENERATION = "response_generation"
-
 
 # Latency budget per stage (in milliseconds)
 LATENCY_BUDGETS = {
@@ -68,7 +67,6 @@ LATENCY_BUDGETS = {
     },
 }
 
-
 @dataclass
 class StageMetrics:
     """Metrics for a pipeline stage."""
@@ -80,7 +78,6 @@ class StageMetrics:
     timeout: bool = False
     degraded: bool = False
     error: str | None = None
-
 
 @dataclass
 class LatencyStatistics:
@@ -98,7 +95,6 @@ class LatencyStatistics:
     timeout_rate: float
     degraded_count: int
     degraded_rate: float
-
 
 class LatencyTracker:
     """Tracker for pipeline stage latencies."""
@@ -274,7 +270,6 @@ class LatencyTracker:
             "actual_ms": metrics.duration_ms,
         }
 
-
 class LatencyEnforcer:
     """Enforcer for latency budgets with timeout support."""
 
@@ -316,7 +311,7 @@ class LatencyEnforcer:
 
         try:
             # Execute with timeout
-            if asyncio.iscoroutinefunction(func):
+            if inspect.iscoroutinefunction(func):
                 result = await asyncio.wait_for(
                     func(*args, **kwargs),
                     timeout=timeout_seconds,
@@ -340,15 +335,6 @@ class LatencyEnforcer:
             )
             raise
             # Mark as error and log
-            self.tracker.end_stage(metrics, error=str(e))
-            logger.exception(
-                "stage_error",
-                stage=stage.value,
-                error=str(e),
-                timestamp=datetime.now(tz=UTC).isoformat(),
-            )
-            raise
-
 
 class DegradedModeManager:
     """Manager for degraded mode activation."""
@@ -429,12 +415,10 @@ class DegradedModeManager:
         """
         return self._degraded_count
 
-
 # Global instances
 _global_tracker: LatencyTracker | None = None
 _global_enforcer: LatencyEnforcer | None = None
 _global_degraded_manager: DegradedModeManager | None = None
-
 
 def get_latency_tracker() -> LatencyTracker:
     """Get the global latency tracker instance.
@@ -448,7 +432,6 @@ def get_latency_tracker() -> LatencyTracker:
         _global_tracker = LatencyTracker()
     return _global_tracker
 
-
 def get_latency_enforcer() -> LatencyEnforcer:
     """Get the global latency enforcer instance.
 
@@ -460,7 +443,6 @@ def get_latency_enforcer() -> LatencyEnforcer:
     if _global_enforcer is None:
         _global_enforcer = LatencyEnforcer(get_latency_tracker())
     return _global_enforcer
-
 
 def get_degraded_mode_manager() -> DegradedModeManager:
     """Get the global degraded mode manager instance.

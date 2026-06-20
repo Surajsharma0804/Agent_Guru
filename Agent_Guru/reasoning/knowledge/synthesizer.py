@@ -594,7 +594,7 @@ class KnowledgeSynthesizer:
                     )
             except Exception:
                 # Fall back to template-based generation on any error
-                pass
+                logger.debug("LLM synthesis failed, falling back to template", exc_info=True)
         # Template-based generation (fallback or default)
         # Route to specialized handler based on query type
         if query.query_type == KnowledgeQueryType.TEMPORAL:

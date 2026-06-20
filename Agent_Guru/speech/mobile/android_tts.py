@@ -138,7 +138,7 @@ class AndroidTTS:
 
         except Exception:
             # If voice caching fails, continue with default
-            pass
+            logger.debug("Voice caching failed, using defaults", exc_info=True)
 
     def synthesize(
         self,

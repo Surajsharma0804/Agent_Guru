@@ -212,7 +212,7 @@ class _AudioCapture:
                 try:
                     self.close()
                 except Exception:
-                    pass
+                    logger.debug("Stream close during reopen failed", exc_info=True)
                 try:
                     self._open_desktop()
                     if self._stream is not None and self._pyaudio_instance is not None:
@@ -243,7 +243,7 @@ class _AudioCapture:
             self._stream.start()
             logger.debug("Desktop audio opened via sounddevice")
         except Exception:
-            logger.exception("sounddevice unavailable: %s — using silence")
+            logger.exception("sounddevice unavailable — using silence")
             self._stream = None
 
     def _capture_sounddevice(self) -> np.ndarray:
@@ -286,7 +286,7 @@ class _AudioCapture:
             self._stream.startRecording()
             logger.debug("Android AudioRecord opened")
         except Exception:
-            logger.exception("Android AudioRecord unavailable: %s — using silence")
+            logger.exception("Android AudioRecord unavailable — using silence")
             self._stream = None
 
     def _capture_android(self) -> np.ndarray:
@@ -320,7 +320,7 @@ class _AudioCapture:
             engine.startAndReturnError_(None)
             logger.debug("iOS AVAudioEngine opened")
         except Exception:
-            logger.exception("iOS AVAudioEngine unavailable: %s — using silence")
+            logger.exception("iOS AVAudioEngine unavailable — using silence")
             self._stream = None
 
     def _capture_ios(self) -> np.ndarray:
@@ -665,6 +665,7 @@ class WakeWordManager:
 
             except asyncio.CancelledError:
                 break
+            except Exception:
                 logger.exception("Listen loop error")
                 await asyncio.sleep(0.1)
 
