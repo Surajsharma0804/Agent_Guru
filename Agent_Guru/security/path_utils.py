@@ -60,9 +60,9 @@ def safe_path(user_input: str | Path, base_dir: Path) -> Path:
 
     if not resolved.is_relative_to(resolved_base):
         msg = (
-            f"Path traversal detected: {str(user_input)!r} resolves to "
-            f"{str(resolved)!r} which is outside the permitted base "
-            f"directory {str(resolved_base)!r}."
+            f"Path traversal detected: {user_input!r} resolves to "
+            f"{resolved!r} which is outside the permitted base "
+            f"directory {resolved_base!r}."
         )
         raise ValueError(
             msg,

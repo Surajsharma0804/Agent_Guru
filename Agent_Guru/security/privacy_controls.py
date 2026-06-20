@@ -46,7 +46,7 @@ _SENSITIVE_ACTIONS: set[str] = {
 }
 
 # Injection attack patterns
-_INJECTION_PATTERNS = [
+_INJECTION_PATTERNS = (
     re.compile(r"[;|&`$]"),  # Shell injection
     re.compile(r"<script", re.IGNORECASE),  # XSS
     re.compile(r"DROP\s+TABLE", re.IGNORECASE),  # SQL injection
@@ -54,7 +54,7 @@ _INJECTION_PATTERNS = [
     re.compile(r"\.\./"),  # Path traversal
     re.compile(r"__import__"),  # Python injection
     re.compile(r"eval\s*\("),  # Code injection
-]
+)
 
 # Maximum input lengths
 _MAX_VOICE_INPUT_LEN = 2000

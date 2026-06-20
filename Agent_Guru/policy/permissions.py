@@ -84,12 +84,12 @@ class PermissionManager:
             ID of the created policy.
 
         """
-        policy_id = f"perm:{html.escape(str(principal_id))}:{html.escape(str(resource_id))}:{':'.join(sorted(actions))}"
+        policy_id = f"perm:{html.escape(principal_id)}:{html.escape(resource_id)}:{':'.join(sorted(actions))}"
         policy = Policy(
             id=policy_id,
             version=1,
             name=name
-            or f"Grant {html.escape(str(principal_id))} on {html.escape(str(resource_id))}",
+            or f"Grant {html.escape(principal_id)} on {html.escape(resource_id)}",
             description="Auto-generated permission grant",
             effect=PolicyEffect.ALLOW,
             priority=priority,
@@ -133,12 +133,12 @@ class PermissionManager:
             ID of the created policy.
 
         """
-        policy_id = f"deny:{html.escape(str(principal_id))}:{html.escape(str(resource_id))}:{':'.join(sorted(actions))}"
+        policy_id = f"deny:{html.escape(principal_id)}:{html.escape(resource_id)}:{':'.join(sorted(actions))}"
         policy = Policy(
             id=policy_id,
             version=1,
             name=name
-            or f"Deny {html.escape(str(principal_id))} on {html.escape(str(resource_id))}",
+            or f"Deny {html.escape(principal_id)} on {html.escape(resource_id)}",
             description="Auto-generated permission denial",
             effect=PolicyEffect.DENY,
             priority=priority,

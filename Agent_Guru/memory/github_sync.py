@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).parent.resolve()
 
 # Exponential backoff delays in seconds
-_BACKOFF_DELAYS = [0.1, 0.2, 0.4, 0.8, 1.6]
+_BACKOFF_DELAYS = (0.1, 0.2, 0.4, 0.8, 1.6)
 _README_FILENAME = "README.md"
 _BATCH_WINDOW_SECONDS = 5.0
 
@@ -218,12 +218,12 @@ class GitHubSyncEngine:
         personality_count: int = 0,
     ) -> str:
         return (
-            f"[Memory Update] {html.escape(str(component))}: learned information\n\n"
+            f"[Memory Update] {html.escape(component)}: learned information\n\n"
             f"- Entity updates: {entity_count}\n"
             f"- Preference updates: {preference_count}\n"
             f"- Experience updates: {experience_count}\n"
             f"- Personality updates: {personality_count}\n\n"
-            f"Triggered by: {html.escape(str(component))}"
+            f"Triggered by: {html.escape(component)}"
         )
 
     # ------------------------------------------------------------------

@@ -34,7 +34,6 @@ logger = structlog.get_logger(__name__)
 
 _MIN_FREE_BYTES = 100 * 1024 * 1024  # 100 MB minimum
 
-
 class RollbackManager:
     """Creates and restores system snapshots for transactional rollback.
 
@@ -147,12 +146,12 @@ class RollbackManager:
         """
         snap_dir = self._snapshot_dir / snapshot_id
         if not snap_dir.exists():
-            msg = f"Snapshot '{html.escape(str(snapshot_id))}' not found"
+            msg = f"Snapshot '{html.escape(snapshot_id)}' not found"
             raise SnapshotNotFoundError(msg)
 
         meta_path = snap_dir / "metadata.json"
         if not meta_path.exists():
-            msg = f"Snapshot '{html.escape(str(snapshot_id))}' is corrupted (missing metadata.json)"
+            msg = f"Snapshot '{html.escape(snapshot_id)}' is corrupted (missing metadata.json)"
             raise RestoreError(
                 msg,
             )
@@ -173,7 +172,7 @@ class RollbackManager:
                 for p in meta.get("packages", [])
             ]
         except Exception as exc:
-            msg = f"Failed to load snapshot '{html.escape(str(snapshot_id))}': {exc}"
+            msg = f"Failed to load snapshot '{html.escape(snapshot_id)}': {exc}"
             raise RestoreError(
                 msg,
             ) from exc
@@ -283,11 +282,6 @@ class RollbackManager:
                 )
         except InsufficientSpaceError as exc:
             raise
-            logger.exception(
-                "disk_check_failed",
-                path=str(path),
-                error=str(exc),
-            )  # Non-fatal if disk check fails
 
     def _audit(
         self,

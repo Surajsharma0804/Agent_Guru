@@ -26,7 +26,6 @@ from Agent_Guru.security.crypto.errors import ReplayAttackError, ZKProofError
 # Replay window: proofs older than this are rejected
 _REPLAY_WINDOW_SECONDS = 300  # 5 minutes
 
-
 @dataclass
 class IdentityClaim:
     """Claim about an identity."""
@@ -34,7 +33,6 @@ class IdentityClaim:
     claim_type: str  # e.g., "age_over_18", "has_credential"
     claim_value: Any
     profile_id: str
-
 
 @dataclass
 class ZKProof:
@@ -45,7 +43,6 @@ class ZKProof:
     timestamp: datetime
     proof_type: str = "ed25519-commitment"
     nonce: bytes = field(default_factory=lambda: os.urandom(16))
-
 
 class ZKProofSystem:
     """Zero-knowledge proof generation and verification.
@@ -121,8 +118,6 @@ class ZKProofSystem:
 
         except ZKProofError as exc:
             raise
-            msg = f"Proof generation failed: type={type(exc).__name__}"
-            raise ZKProofError(msg) from exc
 
     def verify_proof(self, proof: ZKProof, expected_claim_type: str) -> bool:
         """Verify zero-knowledge proof.
@@ -188,8 +183,6 @@ class ZKProofSystem:
 
         except (ReplayAttackError, ZKProofError) as exc:
             raise
-            msg = f"Verification failed: type={type(exc).__name__}"
-            raise ZKProofError(msg) from exc
 
     def _check_replay(self, proof: ZKProof) -> bool:
         """Check if proof timestamp indicates replay attack.

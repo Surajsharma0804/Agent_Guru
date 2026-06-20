@@ -26,7 +26,6 @@ from Agent_Guru.security.crypto.errors import (
     SignatureError,
 )
 
-
 @dataclass
 class KeyPair:
     """Ed25519 key pair."""
@@ -36,7 +35,6 @@ class KeyPair:
     created_at: datetime
     deprecated_at: datetime | None = None
 
-
 @dataclass
 class IdentityProfile:
     """Named identity with associated keys."""
@@ -45,7 +43,6 @@ class IdentityProfile:
     name: str
     key_pair: KeyPair
     metadata: dict[str, str] = field(default_factory=dict)
-
 
 class IdentityManager:
     """Manages cryptographic identities using Ed25519.
@@ -262,8 +259,6 @@ class IdentityManager:
             return private_key_obj.sign(message)
         except IdentityNotFoundError as exc:
             raise
-            msg = f"Signing failed: type={type(exc).__name__}"
-            raise SignatureError(msg) from exc
 
     def verify(self, public_key: bytes, message: bytes, signature: bytes) -> bool:
         """Verify Ed25519 signature.
