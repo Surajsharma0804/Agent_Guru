@@ -43,28 +43,28 @@ MAX_ARRAY_LENGTH = 100
 MAX_OBJECT_DEPTH = 5
 
 # Dangerous patterns for injection prevention
-SQL_INJECTION_PATTERNS = [
+SQL_INJECTION_PATTERNS = (
     r"(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b)",
     r"(--|;|\/\*|\*\/)",
     r"(\bOR\b.*=.*)",
     r"(\bAND\b.*=.*)",
     r"('|\")",
-]
+)
 
-COMMAND_INJECTION_PATTERNS = [
+COMMAND_INJECTION_PATTERNS = (
     r"[;&|`$()]",
     r"(\.\./)",
     r"(~\/)",
-]
+)
 
-XSS_PATTERNS = [
+XSS_PATTERNS = (
     r"<script[^>]*>.*?</script>",
     r"javascript:",
     r"on\w+\s*=",
     r"<iframe",
     r"<object",
     r"<embed",
-]
+)
 
 
 class SecurityValidator:

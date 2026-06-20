@@ -34,6 +34,20 @@ from Agent_Guru.reasoning.models.intent import Entity, EntityType
 
 _logger = logging.getLogger(__name__)
 
+# Module-level entity type mapping — allocated once, not per-call.
+# Previously rebuilt inside _get_entity_type() on every invocation.
+_ENTITY_TYPE_MAPPING: dict[str, EntityType] = {
+    "duration": EntityType.DURATION,
+    "time": EntityType.TIME,
+    "location": EntityType.LOCATION,
+    "contact": EntityType.PERSON,
+    "person": EntityType.PERSON,
+    "device": EntityType.DEVICE,
+    "app": EntityType.APP,
+    "song": EntityType.MEDIA,
+    "task": EntityType.TASK,
+}
+
 
 class MatchQuality(Enum):
     """Quality of pattern match for routing decisions."""
@@ -425,20 +439,7 @@ class FastIntentRouter:
             Corresponding EntityType enum value
 
         """
-        # Map common entity names to types
-        type_mapping = {
-            "duration": EntityType.DURATION,
-            "time": EntityType.TIME,
-            "location": EntityType.LOCATION,
-            "contact": EntityType.PERSON,
-            "person": EntityType.PERSON,
-            "device": EntityType.DEVICE,
-            "app": EntityType.APP,
-            "song": EntityType.MEDIA,
-            "task": EntityType.TASK,
-        }
-
-        return type_mapping.get(entity_name.lower(), EntityType.UNKNOWN)
+        return _ENTITY_TYPE_MAPPING.get(entity_name.lower(), EntityType.UNKNOWN)
 
     def _parse_entity_value(self, value: str, entity_type: EntityType) -> Any | None:
         """Parse entity value using type-specific regex patterns.

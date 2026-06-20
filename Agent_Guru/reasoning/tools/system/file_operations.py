@@ -19,7 +19,6 @@ from Agent_Guru.reasoning.tools.registry import tool
 # Maximum file size for read operations (10MB)
 MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
-
 @tool(
     tool_id="file.read",
     name="Read File",
@@ -109,11 +108,6 @@ class FileReadTool(Tool):
                 "success": False,
                 "error": f"Failed to decode file with encoding {encoding}",
             }
-            return {
-                "success": False,
-                "error": f"Failed to read file: {e!s}",
-            }
-
 
 @tool(
     tool_id="file.write",
@@ -210,7 +204,6 @@ class FileWriteTool(Tool):
                 "error": f"Failed to write file: {e!s}",
             }
 
-
 @tool(
     tool_id="file.delete",
     name="Delete File",
@@ -280,7 +273,6 @@ class FileDeleteTool(Tool):
                 "success": False,
                 "error": f"Failed to delete file: {e!s}",
             }
-
 
 @tool(
     tool_id="file.move",
@@ -364,7 +356,6 @@ class FileMoveTool(Tool):
                 "success": False,
                 "error": f"Failed to move file: {e!s}",
             }
-
 
 @tool(
     tool_id="file.copy",

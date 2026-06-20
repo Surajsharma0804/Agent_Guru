@@ -30,7 +30,6 @@ from Agent_Guru.reasoning.models.goal import (
 
 _logger = logging.getLogger(__name__)
 
-
 class GoalEngine:
     """Persistent goal engine with background trigger evaluation.
 
@@ -519,8 +518,6 @@ class GoalEngine:
             except asyncio.CancelledError:
                 break
                 # Log error but continue running
-                _logger.exception("Error in goal evaluation loop")
-                await asyncio.sleep(self.evaluation_interval)
 
     async def evaluate_triggers(self) -> list[PersistentGoal]:
         """Evaluate all active goal triggers.

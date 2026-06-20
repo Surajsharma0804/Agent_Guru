@@ -26,7 +26,6 @@ from typing import Any
 
 from Agent_Guru.reasoning.execution.executor import ExecutionResult
 
-
 @dataclass
 class StepExecution:
     """Represents a step to be executed.
@@ -45,7 +44,6 @@ class StepExecution:
     parameters: dict[str, Any]
     depends_on: list[str]
     timeout: float = 3.0
-
 
 @dataclass
 class ParallelExecutionResult:
@@ -77,7 +75,6 @@ class ParallelExecutionResult:
             "parallel_batches": self.parallel_batches,
             "failed_steps": self.failed_steps,
         }
-
 
 class ParallelExecutor:
     """Executor for parallel execution of independent steps.
@@ -334,16 +331,6 @@ class ParallelExecutor:
                 execution_time=execution_time,
                 action_id=step.step_id,
             )
-            execution_time = time.perf_counter() - start_time
-            return ExecutionResult(
-                success=False,
-                error={
-                    "error_code": type(e).__name__,
-                    "message": str(e),
-                },
-                execution_time=execution_time,
-                action_id=step.step_id,
-            )
 
     def detect_independent_steps(self, steps: list[StepExecution]) -> list[list[str]]:
         """Detect which steps can be executed in parallel.
@@ -357,7 +344,6 @@ class ParallelExecutor:
         """
         batches = self._build_execution_batches(steps)
         return [[step.step_id for step in batch] for batch in batches]
-
 
 class ParallelExecutionController:
     """Controller for managing parallel execution.

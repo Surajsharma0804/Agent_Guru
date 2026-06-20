@@ -13,14 +13,12 @@ from typing import Any
 
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 
-
 class CircuitState(str, Enum):
     """Circuit breaker states."""
 
     CLOSED = "closed"  # Normal operation
     OPEN = "open"  # Failing, reject requests
     HALF_OPEN = "half_open"  # Testing recovery
-
 
 @dataclass
 class ProviderConfig:
@@ -65,7 +63,6 @@ class ProviderConfig:
                 msg,
             )
 
-
 @dataclass
 class RateLimitState:
     """State for rate limiting."""
@@ -95,7 +92,6 @@ class RateLimitState:
         self.reset_if_needed()
         self.requests_this_minute += 1
         self.tokens_this_minute += tokens_used
-
 
 @dataclass
 class CircuitBreakerState:
@@ -137,7 +133,6 @@ class CircuitBreakerState:
 
         # HALF_OPEN: allow one test request
         return True
-
 
 class BaseLLMProvider(ABC):
     """Base class for LLM providers.
@@ -248,13 +243,6 @@ class BaseLLMProvider(ABC):
                 continue
                 # Propagate cancellation immediately — do not retry.
                 # This happens when an outer asyncio.wait_for fires.
-                raise
-                last_exception = e
-                self.circuit_breaker.record_failure(self.config)
-                if attempt < self.config.max_retries - 1:
-                    # Exponential backoff
-                    await asyncio.sleep(2**attempt)
-                continue
         # All retries failed
         raise last_exception or RuntimeError("All retries failed")
 

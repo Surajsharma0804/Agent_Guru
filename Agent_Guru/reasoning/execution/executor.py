@@ -21,7 +21,6 @@ from typing import Any
 
 from Agent_Guru.reasoning.models.action import Action
 
-
 @dataclass
 class ExecutionResult:
     """Result of action execution.
@@ -59,7 +58,6 @@ class ExecutionResult:
             "timed_out": self.timed_out,
             "timestamp": self.timestamp.isoformat(),
         }
-
 
 class SyncExecutor:
     """Synchronous action executor with timeout and retry support.
@@ -196,63 +194,11 @@ class SyncExecutor:
                     timed_out=True,
                 )
                 # Check if this is a cancellation error (from ErrorManager)
-                if "cancelled" in str(e).lower():
-                    execution_time = time.perf_counter() - start_time
-                    return ExecutionResult(
-                        success=False,
-                        error={
-                            "error_code": "CANCELLED",
-                            "message": "Execution was cancelled",
-                            "details": {},
-                            "recoverable": False,
-                        },
-                        execution_time=execution_time,
-                        action_id=action.action_id,
-                        retries=retries,
-                    )
                 # Not a cancellation - treat as regular error
                 # Check if error is transient and retryable
-                if retries < self.max_retries and self._is_transient_error(e):
-                    retries += 1
-                    # Exponential backoff
-                    delay = self.retry_delay * (2 ** (retries - 1))
-                    time.sleep(delay)
-                    continue
                 # Non-transient error or max retries reached
-                execution_time = time.perf_counter() - start_time
-                return ExecutionResult(
-                    success=False,
-                    error={
-                        "error_code": type(e).__name__,
-                        "message": str(e),
-                        "details": {"exception_type": type(e).__name__},
-                        "recoverable": self._is_transient_error(e),
-                    },
-                    execution_time=execution_time,
-                    action_id=action.action_id,
-                    retries=retries,
-                )
                 # Check if error is transient and retryable
-                if retries < self.max_retries and self._is_transient_error(e):
-                    retries += 1
-                    # Exponential backoff
-                    delay = self.retry_delay * (2 ** (retries - 1))
-                    time.sleep(delay)
-                    continue
                 # Non-transient error or max retries reached
-                execution_time = time.perf_counter() - start_time
-                return ExecutionResult(
-                    success=False,
-                    error={
-                        "error_code": type(e).__name__,
-                        "message": str(e),
-                        "details": {"exception_type": type(e).__name__},
-                        "recoverable": self._is_transient_error(e),
-                    },
-                    execution_time=execution_time,
-                    action_id=action.action_id,
-                    retries=retries,
-                )
         # Should never reach here, but handle gracefully
         execution_time = time.perf_counter() - start_time
         return ExecutionResult(
@@ -425,7 +371,6 @@ class SyncExecutor:
             self._latency_stats.clear()
         elif tool_id in self._latency_stats:
             del self._latency_stats[tool_id]
-
 
 class ExecutionController:
     """Controller for managing action execution.

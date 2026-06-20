@@ -57,7 +57,6 @@ RATE_LIMIT_WINDOW = 60  # seconds
 security = HTTPBearer()
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
-
 class Role(str, Enum):
     """User roles for RBAC.
 
@@ -72,7 +71,6 @@ class Role(str, Enum):
     USER = "user"
     SERVICE = "service"
     READONLY = "readonly"
-
 
 class Permission(str, Enum):
     """Permissions for fine-grained access control.
@@ -96,7 +94,6 @@ class Permission(str, Enum):
     READ_STATS = "read:stats"
     MANAGE_USERS = "manage:users"
     MANAGE_API_KEYS = "manage:api_keys"
-
 
 # Role to permissions mapping
 ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
@@ -130,7 +127,6 @@ ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
     },
 }
 
-
 class TokenData(BaseModel):
     """JWT token data.
 
@@ -146,7 +142,6 @@ class TokenData(BaseModel):
     role: Role
     exp: int
     iat: int
-
 
 class APIKey(BaseModel):
     """API key data.
@@ -173,7 +168,6 @@ class APIKey(BaseModel):
     expires_at: datetime | None = None
     last_used: datetime | None = None
     is_active: bool = True
-
 
 class APIKeyManager:
     """Manager for API keys.
@@ -354,7 +348,6 @@ class APIKeyManager:
         """
         return self._keys.get(key_id)
 
-
 class RateLimiter:
     """Rate limiter for API requests.
 
@@ -468,11 +461,9 @@ class RateLimiter:
 
         self._last_cleanup = now
 
-
 # Global instances
 _rate_limiter = RateLimiter()
 _api_key_manager = APIKeyManager()
-
 
 def check_permission(role: Role, permission: Permission) -> bool:
     """Check if role has permission.
@@ -493,7 +484,6 @@ def check_permission(role: Role, permission: Permission) -> bool:
 
     """
     return permission in ROLE_PERMISSIONS.get(role, set())
-
 
 def require_permission(permission: Permission):
     """Decorator to require permission for endpoint.
@@ -535,7 +525,6 @@ def require_permission(permission: Permission):
 
     return decorator
 
-
 def create_access_token(user_id: str, role: Role = Role.USER) -> str:
     """Create JWT access token.
 
@@ -564,7 +553,6 @@ def create_access_token(user_id: str, role: Role = Role.USER) -> str:
     }
 
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-
 
 def verify_token(token: str) -> TokenData:
     """Verify JWT token and extract data.
@@ -596,12 +584,6 @@ def verify_token(token: str) -> TokenData:
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from e
-
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Security(security),  # noqa: B008
@@ -680,7 +662,6 @@ async def get_current_user(
         "role": role,
     }
 
-
 def get_rate_limiter() -> RateLimiter:
     """Get global rate limiter instance.
 
@@ -689,7 +670,6 @@ def get_rate_limiter() -> RateLimiter:
 
     """
     return _rate_limiter
-
 
 def get_api_key_manager() -> APIKeyManager:
     """Get global API key manager instance.

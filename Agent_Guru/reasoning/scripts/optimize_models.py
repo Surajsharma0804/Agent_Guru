@@ -13,7 +13,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 def run_command(cmd: list[str], description: str) -> bool:
     """Run a command and handle errors.
 
@@ -30,8 +29,6 @@ def run_command(cmd: list[str], description: str) -> bool:
         return True
     except subprocess.CalledProcessError:
         return False
-        return False
-
 
 def check_prerequisites() -> bool:
     """Check if all prerequisites are met.
@@ -58,7 +55,6 @@ def check_prerequisites() -> bool:
     # Check if conversion script exists
     convert_script = Path("Agent_Guru/reasoning/scripts/convert_to_onnx.py")
     return convert_script.exists()
-
 
 def main() -> None:
     """Main optimization workflow."""
@@ -108,7 +104,6 @@ def main() -> None:
         pass
     else:
         pass
-
 
 if __name__ == "__main__":
     main()

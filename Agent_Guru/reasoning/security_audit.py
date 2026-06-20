@@ -96,14 +96,14 @@ _DANGEROUS_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 _BARE_EXCEPT_PATTERN = re.compile(r"^\s*except\s*:\s*$", re.MULTILINE)
 
 # Input validation markers (presence check)
-_VALIDATION_MARKERS = [
+_VALIDATION_MARKERS = (
     "validate_",
     "validator",
     "field_validator",
     "model_validator",
     "raise ValueError",
     "raise TypeError",
-]
+)
 
 
 def _python_source_files(root: Path) -> list[Path]:

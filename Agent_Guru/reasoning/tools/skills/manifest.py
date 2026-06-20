@@ -9,7 +9,6 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
-
 class SkillManifest(BaseModel):
     """Skill manifest data model."""
 
@@ -65,7 +64,6 @@ class SkillManifest(BaseModel):
             raise ValueError(msg)
         return v
 
-
 class SkillManifestParser:
     """Parser for skill manifest files."""
 
@@ -96,8 +94,6 @@ class SkillManifestParser:
         except yaml.YAMLError as e:
             msg = f"Invalid YAML format: {e!s}"
             raise ValueError(msg) from e
-            msg = f"Failed to parse manifest: {e!s}"
-            raise ValueError(msg) from e
 
     @staticmethod
     def parse_dict(data: dict[str, Any]) -> SkillManifest:
@@ -118,7 +114,6 @@ class SkillManifestParser:
         except Exception as e:
             msg = f"Failed to parse manifest: {e!s}"
             raise ValueError(msg) from e
-
 
 class SkillManifestValidator:
     """Validator for skill manifests."""

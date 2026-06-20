@@ -12,7 +12,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 def run_training_script(script_name: str, description: str) -> bool:
     """Run a training script and return success status.
 
@@ -48,8 +47,6 @@ def run_training_script(script_name: str, description: str) -> bool:
 
     except subprocess.CalledProcessError:
         return False
-        return False
-
 
 def main() -> None:
     """Run all training scripts in sequence."""
@@ -88,7 +85,6 @@ def main() -> None:
         pass
     else:
         pass
-
 
 if __name__ == "__main__":
     main()

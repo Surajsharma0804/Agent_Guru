@@ -20,7 +20,6 @@ from typing import Any
 from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.prompts import ConversationContext, ReasoningPrompts
 
-
 @dataclass
 class ReasoningStep:
     """Single step in a reasoning plan."""
@@ -56,7 +55,6 @@ class ReasoningStep:
                 raise ValueError(
                     msg,
                 )
-
 
 @dataclass
 class ReasoningPlan:
@@ -97,7 +95,6 @@ class ReasoningPlan:
         # Check if any step requires confirmation
         if not self.requires_confirmation:
             self.requires_confirmation = any(step.requires_confirmation for step in self.steps)
-
 
 class ReasoningPlanGenerator:
     """Generates reasoning plans using LLM.
@@ -200,13 +197,7 @@ class ReasoningPlanGenerator:
                 raise TimeoutError(
                     msg,
                 ) from e
-                if attempt == self.MAX_RETRIES - 1:
-                    msg = f"Failed to generate valid plan after {self.MAX_RETRIES} attempts: {e}"
-                    raise ValueError(
-                        msg,
-                    ) from e
                 # Retry with more explicit instructions
-                continue
         msg = "Failed to generate plan"
         raise ValueError(msg)
 
@@ -359,7 +350,6 @@ class ReasoningPlanGenerator:
         # Check for multiple distinct actions in entities
         action_indicators = ["and", "then", "after", "before"]
         return any(indicator in str(entities).lower() for indicator in action_indicators)
-
 
 class ReasoningPlanValidator:
     """Validates reasoning plans before execution.

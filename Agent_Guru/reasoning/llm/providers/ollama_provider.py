@@ -24,7 +24,6 @@ import aiohttp
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderConfig
 
-
 class OllamaProviderConfig(ProviderConfig):
     """Configuration for Ollama provider."""
 
@@ -50,7 +49,6 @@ class OllamaProviderConfig(ProviderConfig):
         self.port = port
         self.model = model
         self.base_url = f"http://{host}:{port}"
-
 
 class OllamaProvider(BaseLLMProvider):
     """Ollama LLM provider for local inference.
@@ -174,15 +172,6 @@ class OllamaProvider(BaseLLMProvider):
             raise RuntimeError(
                 msg,
             ) from e
-            msg = (
-                f"Ollama request timed out after {self.config.timeout_seconds}s "
-                f"(connect timeout: {self._CONNECT_TIMEOUT_S}s)"
-            )
-            raise RuntimeError(
-                msg,
-            ) from e
-            msg = f"Ollama HTTP client error: {e}"
-            raise RuntimeError(msg) from e
 
     async def health_check(self) -> bool:
         """Check if Ollama server is available.

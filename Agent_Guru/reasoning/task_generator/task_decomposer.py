@@ -31,7 +31,6 @@ from Agent_Guru.reasoning.models.task import Task, TaskStatus, TaskStep, TaskTyp
 
 logger = structlog.get_logger(__name__)
 
-
 class TaskModelGenerator:
     """Generates structured Task objects from LLM reasoning outputs.
 
@@ -239,13 +238,6 @@ class TaskModelGenerator:
             error = error_manager.create_error(
                 error_type=ErrorType.PLAN_VALIDATION_FAILED,
                 message=f"Task validation failed: {e}",
-            )
-            raise ValueError(error.user_message) from e
-            self.logger.exception("task_generation_failed", error=str(e), llm_output=llm_output)
-            error_manager = get_error_manager()
-            error = error_manager.create_error(
-                error_type=ErrorType.PLAN_GENERATION_FAILED,
-                message=f"Failed to generate task: {e}",
             )
             raise ValueError(error.user_message) from e
 

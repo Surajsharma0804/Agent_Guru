@@ -26,7 +26,6 @@ from anthropic import (
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderConfig
 
-
 class AnthropicProvider(BaseLLMProvider):
     """Anthropic Claude LLM provider.
 
@@ -139,12 +138,4 @@ class AnthropicProvider(BaseLLMProvider):
 
         except RateLimitError as e:
             msg = f"Anthropic rate limit exceeded: {e}"
-            raise RuntimeError(msg) from e
-            msg = f"Anthropic connection error: {e}"
-            raise RuntimeError(msg) from e
-            msg = f"Anthropic status error {e.response.status_code}: {e}"
-            raise RuntimeError(msg) from e
-            msg = f"Anthropic API error: {e}"
-            raise RuntimeError(msg) from e
-            msg = f"Unexpected error calling Anthropic API: {e}"
             raise RuntimeError(msg) from e

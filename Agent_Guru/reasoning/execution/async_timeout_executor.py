@@ -28,7 +28,6 @@ from uuid import uuid4
 
 from Agent_Guru.reasoning.models.action import Action
 
-
 @dataclass
 class AsyncExecutionResult:
     """Result of asynchronous action execution.
@@ -72,7 +71,6 @@ class AsyncExecutionResult:
             "partial_result": self.partial_result,
             "timestamp": self.timestamp.isoformat(),
         }
-
 
 class AsyncTimeoutExecutor:
     """Async action executor with timeout and cancellation support.
@@ -190,22 +188,6 @@ class AsyncTimeoutExecutor:
                     partial_result=partial_result if self.enable_partial_results else None,
                 )
                 # Cancelled by user
-                execution_time = time.perf_counter() - start_time
-                partial_result = self._partial_results.pop(task_id, None)
-                return AsyncExecutionResult(
-                    success=False,
-                    error={
-                        "error_code": "CANCELLED",
-                        "message": "Execution was cancelled",
-                        "details": {},
-                        "recoverable": False,
-                    },
-                    execution_time=execution_time,
-                    action_id=action.action_id,
-                    task_id=task_id,
-                    cancelled=True,
-                    partial_result=partial_result if self.enable_partial_results else None,
-                )
         except Exception as e:
             # Unexpected error
             execution_time = time.perf_counter() - start_time
@@ -347,7 +329,6 @@ class AsyncTimeoutExecutor:
 
         # Should never reach here
         return result
-
 
 class AsyncExecutionController:
     """Controller for managing async action execution with timeout and cancellation.

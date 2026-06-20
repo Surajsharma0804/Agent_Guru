@@ -23,45 +23,45 @@ from locust import HttpUser, between, task
 # Test data generators
 # ---------------------------------------------------------------------------
 
-TIMER_COMMANDS = [
+TIMER_COMMANDS = (
     "Set a timer for 5 minutes",
     "Set a timer for 10 minutes",
     "Set a 30 second timer",
     "Remind me in 1 hour",
     "Set an alarm for 7 AM",
-]
+)
 
-WEATHER_COMMANDS = [
+WEATHER_COMMANDS = (
     "What's the weather today?",
     "Will it rain tomorrow?",
     "What's the temperature outside?",
     "Weather forecast for this week",
     "Is it going to be sunny today?",
-]
+)
 
-MUSIC_COMMANDS = [
+MUSIC_COMMANDS = (
     "Play some jazz music",
     "Play my morning playlist",
     "Skip this song",
     "Turn up the volume",
     "Pause the music",
-]
+)
 
-MESSAGING_COMMANDS = [
+MESSAGING_COMMANDS = (
     "Send a message to John saying I'll be late",
     "Read my latest messages",
     "Call Mom",
     "Text Sarah that I'm on my way",
     "Check my notifications",
-]
+)
 
-SYSTEM_COMMANDS = [
+SYSTEM_COMMANDS = (
     "Turn off the lights",
     "Set the thermostat to 72 degrees",
     "Lock the front door",
     "Turn on the TV",
     "Dim the bedroom lights to 50 percent",
-]
+)
 
 # Ramp-up configuration constants
 SPAWN_RATE_BASELINE = 1  # users/second for baseline test

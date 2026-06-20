@@ -254,7 +254,7 @@ Now, convert the user request into a Task object. Consider the context and use a
 Task object (JSON):"""
 
 # Few-shot examples for common task types
-SEMANTIC_INTERPRETER_EXAMPLES = [
+SEMANTIC_INTERPRETER_EXAMPLES = (
     {
         "input": "Set a timer for 5 minutes",
         "output": {
@@ -511,7 +511,7 @@ SEMANTIC_INTERPRETER_EXAMPLES = [
             "estimated_duration": 1.5,
         },
     },
-]
+)
 
 # Create default semantic interpreter prompt template
 SEMANTIC_INTERPRETER_TEMPLATE = PromptTemplate(

@@ -81,7 +81,6 @@ processing_duration = Histogram(
 # Global app instance
 _app: FastAPI | None = None
 
-
 def create_app(
     title: str = "Agent Guru Reasoning Engine API",
     version: str = "1.0.0",
@@ -264,23 +263,7 @@ def create_app(
         except HTTPException as e:
             raise
             # Track error
-            request_counter.labels(
-                endpoint="/v1/process",
-                method="POST",
-                status="error",
-            ).inc()
             # Log error
-            logger.exception(
-                "api_request_failed",
-                endpoint="/v1/process",
-                user_id=user_id,
-                error=str(e),
-                exc_info=True,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Processing failed: {e!s}",
-            ) from e
 
     # Conversations endpoint
     @app.get(
@@ -354,17 +337,6 @@ def create_app(
 
         except HTTPException as e:
             raise
-            logger.exception(
-                "get_conversation_failed",
-                conversation_id=conversation_id,
-                user_id=user_id,
-                error=str(e),
-                exc_info=True,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to retrieve conversation: {e!s}",
-            ) from e
 
     # List conversations endpoint
     @app.get(
@@ -479,17 +451,6 @@ def create_app(
 
         except HTTPException as e:
             raise
-            logger.exception(
-                "get_task_status_failed",
-                task_id=task_id,
-                user_id=user_id,
-                error=str(e),
-                exc_info=True,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to retrieve task status: {e!s}",
-            ) from e
 
     # Statistics endpoint
     @app.get(
@@ -593,7 +554,6 @@ def create_app(
 
     return app
 
-
 def get_app() -> FastAPI:
     """Get global FastAPI application instance.
 
@@ -605,7 +565,6 @@ def get_app() -> FastAPI:
     if _app is None:
         _app = create_app()
     return _app
-
 
 # Create default app instance
 app = create_app()

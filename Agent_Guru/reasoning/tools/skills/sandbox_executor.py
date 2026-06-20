@@ -28,7 +28,6 @@ from Agent_Guru.reasoning.tools.skills.sandbox import (  # noqa: E402
     get_sandbox_manager,
 )
 
-
 @dataclass
 class ExecutionResult:
     """Result of skill execution."""
@@ -38,7 +37,6 @@ class ExecutionResult:
     error: str | None = None
     execution_time_ms: int = 0
     resource_usage: dict[str, Any] | None = None
-
 
 class SkillSandboxExecutor:
     """Executor for skills with sandboxing and permission checking."""
@@ -113,20 +111,6 @@ class SkillSandboxExecutor:
             return ExecutionResult(
                 success=False,
                 error=error_msg,
-                execution_time_ms=execution_time_ms,
-            )
-            execution_time_ms = int((time.perf_counter() - start_time) * 1000)
-            await self._cleanup_sandbox(skill.manifest.skill_id)
-            return ExecutionResult(
-                success=False,
-                error=f"Execution timeout: {e!s}",
-                execution_time_ms=execution_time_ms,
-            )
-            execution_time_ms = int((time.perf_counter() - start_time) * 1000)
-            await self._cleanup_sandbox(skill.manifest.skill_id)
-            return ExecutionResult(
-                success=False,
-                error=f"Execution failed: {e!s}",
                 execution_time_ms=execution_time_ms,
             )
 
@@ -356,10 +340,8 @@ class SkillSandboxExecutor:
             ),
         }
 
-
 # Global executor instance
 _global_executor: SkillSandboxExecutor | None = None
-
 
 def get_sandbox_executor() -> SkillSandboxExecutor:
     """Get the global sandbox executor instance.

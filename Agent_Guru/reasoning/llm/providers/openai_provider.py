@@ -26,7 +26,6 @@ from openai import (
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderConfig
 
-
 class OpenAIProvider(BaseLLMProvider):
     """OpenAI GPT LLM provider.
 
@@ -131,12 +130,4 @@ class OpenAIProvider(BaseLLMProvider):
 
         except RateLimitError as e:
             msg = f"OpenAI rate limit exceeded: {e}"
-            raise RuntimeError(msg) from e
-            msg = f"OpenAI connection error: {e}"
-            raise RuntimeError(msg) from e
-            msg = f"OpenAI timeout error: {e}"
-            raise RuntimeError(msg) from e
-            msg = f"OpenAI API error: {e}"
-            raise RuntimeError(msg) from e
-            msg = f"Unexpected error calling OpenAI API: {e}"
             raise RuntimeError(msg) from e

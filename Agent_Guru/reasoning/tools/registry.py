@@ -12,7 +12,6 @@ from typing import Any
 
 from Agent_Guru.reasoning.tools.base import Tool, ToolMetadata, ToolSensitivity
 
-
 class ToolRegistry:
     """Registry for managing tools with plugin architecture.
 
@@ -196,17 +195,9 @@ class ToolRegistry:
                 "error": f"Tool execution timed out after {timeout_ms}ms",
                 "execution_time_ms": execution_time_ms,
             }
-            execution_time_ms = int((time.perf_counter() - start_time) * 1000)
-            return {
-                "success": False,
-                "error": f"Tool execution failed: {e!s}",
-                "execution_time_ms": execution_time_ms,
-            }
-
 
 # Global registry instance
 _global_registry = ToolRegistry()
-
 
 def get_registry() -> ToolRegistry:
     """Get the global tool registry instance.
@@ -216,7 +207,6 @@ def get_registry() -> ToolRegistry:
 
     """
     return _global_registry
-
 
 def tool(
     tool_id: str,

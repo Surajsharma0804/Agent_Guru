@@ -478,7 +478,9 @@ class MemoryRetriever:
             ]
             for memory_id in to_remove:
                 del self.memories[memory_id]
-                self.memory_ids.remove(memory_id)
+
+            # Rebuild memory_ids — O(n) instead of O(n²) from list.remove()
+            self.memory_ids = list(self.memories.keys())
 
             # Rebuild embeddings array
             if self.memory_ids:
@@ -670,7 +672,9 @@ class MemoryRetriever:
         # Remove memories
         for memory_id in to_remove:
             del self.memories[memory_id]
-            self.memory_ids.remove(memory_id)
+
+        # Rebuild memory_ids — O(n) instead of O(n²) from list.remove()
+        self.memory_ids = list(self.memories.keys())
 
         # Rebuild embeddings array
         if self.memory_ids:
@@ -719,7 +723,9 @@ class MemoryRetriever:
 
         # Delete memory
         del self.memories[memory_id]
-        self.memory_ids.remove(memory_id)
+
+        # Rebuild memory_ids — O(n) instead of O(n) from list.remove()
+        self.memory_ids = list(self.memories.keys())
 
         # Rebuild embeddings array
         if self.memory_ids:
@@ -766,7 +772,9 @@ class MemoryRetriever:
         # Delete memories
         for memory_id in to_remove:
             del self.memories[memory_id]
-            self.memory_ids.remove(memory_id)
+
+        # Rebuild memory_ids — O(n) instead of O(n²) from list.remove()
+        self.memory_ids = list(self.memories.keys())
 
         # Rebuild embeddings array
         if self.memory_ids:

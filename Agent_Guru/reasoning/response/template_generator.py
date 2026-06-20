@@ -382,7 +382,7 @@ class TemplateGenerator:
             return template_str.format(**variables)
         except KeyError:
             # Fallback: use safe_substitute-like behavior
-            logger.exception("Variable %s not found in template, using empty string")
+            logger.exception("Variable not found in template, using empty string")
             # Replace missing variables with empty strings
             safe_vars = dict(variables.items())
             for var in template.variables:

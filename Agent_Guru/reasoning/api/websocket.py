@@ -39,7 +39,6 @@ from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
 
-
 class WebSocketMessage(BaseModel):
     """WebSocket message model.
 
@@ -68,7 +67,6 @@ class WebSocketMessage(BaseModel):
         default=None,
         description="Request ID for correlation",
     )
-
 
 class ConnectionManager:
     """Manages WebSocket connections.
@@ -408,10 +406,8 @@ class ConnectionManager:
             return len(self.active_connections.get(user_id, set()))
         return sum(len(conns) for conns in self.active_connections.values())
 
-
 # Global connection manager
 _connection_manager: ConnectionManager | None = None
-
 
 def get_connection_manager() -> ConnectionManager:
     """Get global connection manager instance.
@@ -424,7 +420,6 @@ def get_connection_manager() -> ConnectionManager:
     if _connection_manager is None:
         _connection_manager = ConnectionManager()
     return _connection_manager
-
 
 async def websocket_endpoint(
     websocket: WebSocket,
@@ -510,27 +505,6 @@ async def websocket_endpoint(
                     user_id=user_id,
                 )
                 break
-                logger.exception(
-                    "invalid_json_received",
-                    user_id=user_id,
-                    error=str(e),
-                )
-                await manager.send_error(
-                    user_id,
-                    message_dict.get("request_id", "unknown"),
-                    "Invalid JSON format",
-                )
-                logger.exception(
-                    "websocket_message_error",
-                    user_id=user_id,
-                    error=str(e),
-                    exc_info=True,
-                )
-                await manager.send_error(
-                    user_id,
-                    message_dict.get("request_id", "unknown"),
-                    f"Error processing message: {e!s}",
-                )
     except Exception as e:
         logger.exception(
             "websocket_connection_error",

@@ -13,7 +13,6 @@ from Agent_Guru.reasoning.tools.base import (
 )
 from Agent_Guru.reasoning.tools.registry import tool
 
-
 @tool(
     tool_id="knowledge.question_answer",
     name="Question Answer",
@@ -79,7 +78,6 @@ class QuestionAnswerTool(Tool):
                 "success": False,
                 "error": f"Failed to answer question: {e!s}",
             }
-
 
 @tool(
     tool_id="knowledge.define_word",
@@ -148,7 +146,6 @@ class DefineWordTool(Tool):
                 "success": False,
                 "error": f"Failed to define word: {e!s}",
             }
-
 
 @tool(
     tool_id="knowledge.calculate",
@@ -243,11 +240,6 @@ class CalculateTool(Tool):
                 "success": False,
                 "error": "Division by zero",
             }
-            return {
-                "success": False,
-                "error": f"Failed to calculate: {e!s}",
-            }
-
 
 # Unit conversion factors (to base unit)
 UNIT_CONVERSIONS = {
@@ -288,7 +280,6 @@ UNIT_CONVERSIONS = {
         "fl_oz": 0.0295735,
     },
 }
-
 
 @tool(
     tool_id="knowledge.convert_units",

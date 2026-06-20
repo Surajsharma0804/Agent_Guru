@@ -27,7 +27,7 @@ from Agent_Guru.reasoning.models.intent import InputSource
 from Agent_Guru.reasoning.pipeline import ReasoningPipeline
 
 # Representative workload - common commands across different categories
-WORKLOAD_COMMANDS = [
+WORKLOAD_COMMANDS = (
     # Simple commands (fast path)
     "set a timer for 5 minutes",
     "what's the weather like",
@@ -52,7 +52,7 @@ WORKLOAD_COMMANDS = [
     "when did I last talk to Sarah",
     "what apps do I use most in the morning",
     "show me my routine for weekdays",
-]
+)
 
 
 async def run_workload(pipeline: ReasoningPipeline, iterations: int = 3) -> dict[str, Any]:
