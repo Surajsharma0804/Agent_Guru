@@ -87,7 +87,7 @@ class GPUResourcePool:
                 self.total_vram = 0
                 logger.info("GPUResourcePool: no CUDA device — CPU-only mode")
         except Exception:  # torch not installed or CUDA error
-            logger.exception("GPUResourcePool: GPU detection failed (%s) — CPU-only mode")
+            logger.exception("GPUResourcePool: GPU detection failed — CPU-only mode")
             self.device = "cpu"
             self.total_vram = 0
 
