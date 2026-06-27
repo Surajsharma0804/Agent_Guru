@@ -171,7 +171,50 @@ class _AudioCapture:
     # ------------------------------------------------------------------
 
     def _open_desktop(self) -> None:
-        """Open desktop audio stream (PyAudio → sounddevice fallback)."""
+        """Open desktop audio stream (sounddevice preferred → PyAudio fallback).
+
+        sounddevice is preferred because PyAudio's built-in resampling
+        produces near-silent output when the default device's native
+        sample rate / channel count differs significantly from the
+        requested 16 kHz mono (common with Intel Smart Sound mic arrays).
+        """
+        # --- Try sounddevice first (handles resampling correctly) ---
+        try:
+            import sounddevice as sd  # type: ignore[import]
+
+            # Use the system default input device — don't try to pick a
+            # specific device by sample rate, because devices that advertise
+            # 16 kHz natively (e.g. "Microphone Array 3 ()") are often
+            # virtual WAS endpoints that can't be opened for mono capture.
+            # The default device is the one the user actually configured in
+            # Windows Sound settings and PortAudio resamples correctly.
+            try:
+                default_dev_idx = sd.default.device[0]
+                dev_info = sd.query_devices(default_dev_idx)
+                logger.info(
+                    "Opening mic via sounddevice: [%d] %s (native_rate=%d, channels=%d) -> resampled to %dHz mono",
+                    default_dev_idx, dev_info["name"],
+                    int(dev_info["default_samplerate"]),
+                    dev_info["max_input_channels"],
+                    self._sample_rate,
+                )
+            except Exception:
+                logger.info("Using system default input device")
+
+            self._stream = sd.InputStream(
+                samplerate=self._sample_rate,
+                channels=1,
+                dtype="float32",
+                blocksize=int(self._sample_rate * self._duration),
+            )
+            self._stream.start()
+            self._pyaudio_instance = None  # mark: using sounddevice path
+            logger.info("Desktop audio opened via sounddevice (rate=%d)", self._sample_rate)
+            return
+        except Exception as exc:
+            logger.warning("sounddevice failed: %s — trying PyAudio", exc)
+
+        # --- Fallback: PyAudio ---
         try:
             import pyaudio  # type: ignore[import]
 
@@ -184,16 +227,20 @@ class _AudioCapture:
                 input=True,
                 frames_per_buffer=int(self._sample_rate * self._duration),
             )
-            logger.debug("Desktop audio opened via PyAudio")
+            logger.info("Desktop audio opened via PyAudio")
         except Exception as exc:
-            logger.debug("PyAudio unavailable (%s), trying sounddevice", exc)
-            self._open_sounddevice()
+            logger.warning("PyAudio also unavailable (%s) — no audio capture", exc)
+            self._stream = None
 
     def _capture_desktop(self) -> np.ndarray:
-        """Capture audio on desktop."""
-        if self._stream is not None and self._pyaudio_instance is not None:
-            return self._capture_pyaudio()
-        return self._capture_sounddevice()
+        """Capture audio on desktop (sounddevice or PyAudio)."""
+        if self._stream is None:
+            return np.zeros(int(self._sample_rate * self._duration), dtype=np.float32)
+        # sounddevice path — _pyaudio_instance is None when using sounddevice
+        if self._pyaudio_instance is None:
+            return self._capture_sounddevice()
+        # PyAudio path
+        return self._capture_pyaudio()
 
     def _capture_pyaudio(self) -> np.ndarray:
         """Read one frame from a PyAudio stream, auto-reopening on stream-closed errors."""

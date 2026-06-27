@@ -193,10 +193,10 @@ class WakeWordDetector:
                 )
             import vosk  # type: ignore[import]
 
-            vosk.SetLogLevel(-1)
+            vosk.SetLogLevel(-1)  # type: ignore[attr-defined]
             model = VoskModel(self.config.vosk_model_path)
             grammar = json.dumps([*list(self.config.wake_words.keys()), "[unk]"])
-            self._vosk_recognizer = KaldiRecognizer(model, self.config.sample_rate, grammar)
+            self._vosk_recognizer = KaldiRecognizer(model, self.config.sample_rate, grammar)  # type: ignore[call-arg]
             self._vosk_recognizer.SetWords(True)
             logger.info("Vosk recogniser initialised (model=%s)", self.config.vosk_model_path)
         return self._vosk_recognizer
@@ -468,7 +468,7 @@ class WakeWordDetector:
                 detection = WakeWordDetection(
                     wake_word=phrase,
                     personality=personality,
-                    confidence=float(max_score),
+                    confidence=max_score,
                     timestamp=now,
                     audio_chunk=audio,
                 )
@@ -571,13 +571,25 @@ class WakeWordDetector:
         peak = float(np.max(np.abs(audio)))
         threshold = self.config.energy_threshold * (1.0 - self.config.sensitivity * 0.5)
 
+        # Periodic audio level logging — shows whether the mic is actually
+        # capturing real audio.  Fires every ~30 frames (~45s at 1.5s chunks).
+        if not hasattr(self, "_mfcc_frame_counter"):
+            self._mfcc_frame_counter = 0
+        self._mfcc_frame_counter += 1
+        if self._mfcc_frame_counter % 30 == 1:
+            logger.info(
+                "Audio levels: rms=%.5f  peak=%.5f  threshold=%.4f  (peak_gate=%.4f)",
+                rms, peak, threshold, threshold * 2.0,
+            )
+
         # Require minimum audio duration (0.3s at 16kHz = 4800 samples)
         min_samples = int(self.config.sample_rate * 0.3)
         if len(audio) < min_samples:
             return None
 
-        # Require peak to be at least 3x the threshold to avoid noise triggers
-        if peak < threshold * 3.0:
+        # Require peak to be at least 2x the threshold to avoid noise triggers
+        # (music rejection provides additional false-positive protection)
+        if peak < threshold * 2.0:
             return None
 
         # ── Music / speaker output rejection ─────────────────────────────
@@ -586,7 +598,7 @@ class WakeWordDetector:
         # variance compared to speech. Speech has bursty energy with clear
         # formant structure. We reject audio that looks like music.
         if self._looks_like_music(audio):
-            logger.debug("MFCC: rejected — audio looks like music/speaker output")
+            logger.info("MFCC: rejected — audio looks like music/speaker output (rms=%.4f, peak=%.4f)", rms, peak)
             return None
 
         self._energy_buffer.append(rms)
@@ -615,7 +627,7 @@ class WakeWordDetector:
                 audio_chunk=audio,
             )
             logger.info(
-                "Wake word detected (mfcc fallback): %s → %s (rms=%.4f, peak=%.4f, threshold=%.4f)",
+                "Wake word detected (mfcc fallback): %s -> %s (rms=%.4f, peak=%.4f, threshold=%.4f)",
                 phrase,
                 personality,
                 rms,
