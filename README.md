@@ -485,7 +485,6 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fo
 ---
 
 <p align="center">
-  <strong>📖 <a href=".kiro/specs/">Docs</a></strong> •
   <strong>🐛 <a href="https://github.com/Surajsharma0804/Agent_Guru/issues">Issues</a></strong> •
   <strong>💬 <a href="https://github.com/Surajsharma0804/Agent_Guru/discussions">Discussions</a></strong>
 </p>

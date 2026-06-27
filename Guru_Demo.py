@@ -153,7 +153,7 @@ def _ask_local_llm(
         temperature=0.7,
         max_tokens=max_tokens,
     )
-    response = asyncio.run(services.llm.complete(request))
+    response = asyncio.run(asyncio.wait_for(services.llm.complete(request), timeout=30.0))
     return response.content.strip()
 
 

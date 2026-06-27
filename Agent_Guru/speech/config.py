@@ -41,11 +41,11 @@ class WakeWordConfig:
 class STTConfig:
     """Speech-to-text configuration."""
     model_size: str = "base"  # base fits in ~300MB VRAM, already cached — no HuggingFace download needed
-    model_path: Optional[str] = None
+    model_path: str | None = None
     compute_type: str = "float16"  # float16 on GPU = 2x faster, same accuracy
     beam_size: int = 5
     device: str = "cuda"   # use GPU — RTX 2050 has 4GB, base model fits easily
-    language: Optional[str] = "en"  # force English — stops Whisper misidentifying as Hindi
+    language: str | None = "en"  # force English — stops Whisper misidentifying as Hindi
 
 
 @dataclass

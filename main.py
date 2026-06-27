@@ -47,7 +47,8 @@ if _cuda_dev in ("-1", ""):
 # Console encoding — Windows UTF-8 setup
 # ---------------------------------------------------------------------------
 if os.name == 'nt':
-    os.system('chcp 65001 >nul 2>&1')  # UTF-8 code page
+    import subprocess
+    subprocess.run('chcp 65001', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # UTF-8 code page
 
 # Fix Python stdout/stderr encoding
 import sys as _sys
@@ -118,7 +119,7 @@ def _load_platform():
     except Exception as e:
         logger.warning("OSController unavailable (%s) — trying SystemSettingsController", e)
         try:
-            from Agent_Guru.platform.controllers import SystemSettingsController
+            from Agent_Guru.platform.controllers.system_settings import SystemSettingsController
             return SystemSettingsController()
         except Exception as e2:
             logger.warning("PlatformController unavailable (%s) — platform control disabled", e2)
@@ -227,12 +228,12 @@ def _load_gpu_pool():
         pool.whisper_budget = 0
         pool.onnx_budget = 0
         pool.torch_budget = 0
-        pool._allocations: dict = {}
+        object.__setattr__(pool, '_allocations', {})
 
-        def _cpu_allocate(name: str) -> DeviceConfig:
+        def _cpu_allocate(subsystem: str) -> DeviceConfig:
             return DeviceConfig(device="cpu", memory_limit=0)
 
-        pool.allocate = _cpu_allocate
+        pool.allocate = _cpu_allocate  # type: ignore[assignment]
         return pool
 
 
@@ -515,7 +516,7 @@ async def run() -> None:
                 _t = _np_beep.linspace(0, 0.15, int(_sr * 0.15), False)
                 _beep = (_np_beep.sin(2 * _np_beep.pi * 880 * _t) * 0.3).astype(_np_beep.float32)
                 _fade = _np_beep.linspace(1, 0, len(_beep))
-                _sd_beep.play(_beep * _fade, samplerate=_sr)
+                _sd_beep.play(_beep * _fade, samplerate=_sr)  # type: ignore[attr-defined]
                 _sd_beep.wait()
             except Exception:
                 pass
@@ -547,7 +548,7 @@ async def run() -> None:
             "hey maya": PersonalityType.MAYA,
             "maya":     PersonalityType.MAYA,
         },
-        energy_threshold=0.025,  # raised from 0.015 — music/speaker output won't trigger
+        energy_threshold=0.015,  # tuned for sounddevice — ambient RMS ~0.001, speech ~0.01-0.05
         cooldown_seconds=3.0,    # 3s cooldown — stops rapid re-triggers from music
     )
     mgr_cfg = WakeWordManagerConfig(

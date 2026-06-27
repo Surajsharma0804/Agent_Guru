@@ -86,6 +86,7 @@ _LANG_MAP: dict[str, str] = {
     "pt-br": "pt-br",
     "it": "it",  # Italian
     "de": "de",  # German
+    "ru": "en-us",  # Russian — Kokoro fallback to English phonetics until native support added
 }
 
 # Emotion → speed multiplier (Kokoro supports speed param)
