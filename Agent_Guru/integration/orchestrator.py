@@ -226,11 +226,12 @@ class IntegrationOrchestrator:
         # Empathy adapter — adapts responses for emotional state + distress support
         self._empathy_adapter: Any = None  # lazy-init alongside emotion detector
 
-        # Conversation history — last 4 exchanges (8 messages) for continuity.
+        # Conversation history — last 12 exchanges (24 messages) for continuity.
         # Without this, the LLM has no memory of what was said 10 seconds ago.
         # A companion must remember at least the recent conversation.
+        # The token budget guard in _stage_llm handles overflow gracefully.
         from collections import deque as _deque
-        self._chat_history: _deque = _deque(maxlen=8)  # 4 user + 4 assistant turns
+        self._chat_history: _deque = _deque(maxlen=24)  # 12 user + 12 assistant turns
 
         logger.info("IntegrationOrchestrator wired — all subsystems connected")
 
@@ -588,6 +589,21 @@ class IntegrationOrchestrator:
 
             result.tts_response = await self._stage_tts(str(tts_text), result.personality)
             result.stages_completed = 8
+
+            # ── Track ALL interactions in chat history ─────────────────
+            # Commands AND conversations are part of the ongoing chat.
+            # Without this, the LLM forgets what it just did ("Opening Chrome")
+            # and can't follow up naturally.
+            if result.transcript and tts_text:
+                self._chat_history.append({
+                    "role": "user",
+                    "content": result.transcript,
+                    "emotion": "neutral",
+                })
+                self._chat_history.append({
+                    "role": "assistant",
+                    "content": str(tts_text),
+                })
 
             # Audit log — record every pipeline execution
             try:
@@ -1104,6 +1120,13 @@ class IntegrationOrchestrator:
                         f"The user's recent mood: [{mood_summary}]."
                     )
                     system_prompt = system_prompt + context_note
+                elif _turn_count == 1:
+                    # First interaction of this session — greet warmly
+                    system_prompt = system_prompt + (
+                        "\n\nSESSION START: This is the FIRST interaction of this session. "
+                        "Greet the user warmly like a friend you haven't talked to in a bit. "
+                        "Ask how they're doing or what's up. Be casual and genuine."
+                    )
 
                 messages = [Message(role="system", content=system_prompt)]
                 messages.extend(history_messages)
@@ -1117,7 +1140,7 @@ class IntegrationOrchestrator:
                 request = CompletionRequest(
                     model=ollama_model,
                     messages=messages,
-                    max_tokens=220,  # Companion responses need space for emotional acknowledgment + follow-ups
+                    max_tokens=400,  # Conversational responses need room for follow-ups + reactions
                 )
                 response = await complete_fn(request)
                 llm_response = response.content or ""
@@ -1690,10 +1713,10 @@ class IntegrationOrchestrator:
                 result = await asyncio.to_thread(ctrl.open_application, param)
                 safe_param = self._sanitize_output(param)
                 if getattr(result, "success", False):
-                    return f"Opening {safe_param}"
+                    return f"Opening {safe_param} for you! What are we doing?"
                 err = getattr(result, "error", "unknown error")
                 logger.error("Failed to open '%s': %s", param, err)
-                return f"Sorry, I couldn't open {safe_param}"
+                return f"Hmm, couldn't open {safe_param} — let me know if you wanna try something else"
 
             if action == "close_app" and param:
                 param = param.rstrip(".,!?;:")
