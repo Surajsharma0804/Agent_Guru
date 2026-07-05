@@ -29,17 +29,47 @@ logger = logging.getLogger(__name__)
 # BUG-031: Renamed to public CONTEXT_LIMITS so llm_runtime.py can import it
 # instead of duplicating the same dict. This is the single canonical definition.
 CONTEXT_LIMITS: dict[str, int] = {
+    # OpenAI
     "gpt-4-32k": 32768,
     "gpt-4-turbo": 128000,
+    "gpt-4o": 128000,
     "gpt-4": 8192,
     "gpt-3.5-turbo-16k": 16384,
     "gpt-3.5-turbo": 4096,
+    # Anthropic
     "claude-3-opus": 200000,
     "claude-3-sonnet": 200000,
     "claude-3-haiku": 200000,
     "claude-2": 100000,
+    # Google
     "gemini-pro": 32768,
     "gemini-1.5": 1000000,
+    "gemini-2.0": 1000000,
+    # Ollama local models (sorted by popularity)
+    "llama3.2": 8192,
+    "llama3.1": 131072,
+    "llama3": 8192,
+    "llama2": 4096,
+    "gemma3": 8192,
+    "gemma2": 8192,
+    "gemma": 8192,
+    "qwen2.5": 32768,
+    "qwen2": 32768,
+    "qwen": 32768,
+    "phi4": 16384,
+    "phi3": 4096,
+    "phi": 4096,
+    "mistral": 32768,
+    "mixtral": 32768,
+    "codellama": 16384,
+    "deepseek-coder": 16384,
+    "deepseek": 16384,
+    "command-r": 131072,
+    "yi": 4096,
+    "vicuna": 4096,
+    "orca": 4096,
+    "nous-hermes": 4096,
+    "tinyllama": 2048,
 }
 # Keep private alias for backward-compat within this module
 _CONTEXT_LIMITS = CONTEXT_LIMITS
@@ -66,6 +96,7 @@ class ContextManager:
     - Automatic context compression at configurable threshold
     - Token budget management
     - Context injection and manipulation
+    - Session TTL and max_sessions to prevent memory leaks
 
     Example:
         >>> counter = TokenCounter()
@@ -80,10 +111,14 @@ class ContextManager:
         token_counter: TokenCounter,
         compression_threshold: float = 0.8,
         max_history_messages: int = 100,
+        max_sessions: int = 1000,
+        session_ttl_seconds: float = 3600.0,  # 1 hour default TTL
     ) -> None:
         self.token_counter = token_counter
         self.compression_threshold = compression_threshold
         self.max_history_messages = max_history_messages
+        self._max_sessions = max_sessions
+        self._session_ttl_s = session_ttl_seconds
         self.sessions: dict[str, SessionContext] = {}
         self._lock = asyncio.Lock()
 
@@ -152,6 +187,9 @@ class ContextManager:
             model_for_count = ctx.metadata.get("model", "gpt-3.5-turbo")
             ctx.token_count = self.token_counter.count_messages(ctx.messages, model_for_count)
 
+            # Evict expired sessions to prevent memory leaks
+            self._evict_stale_sessions()
+
     def get_context_usage(self, session_id: str, model: str) -> dict[str, Any]:
         """Return context usage statistics for a session.
 
@@ -199,6 +237,10 @@ class ContextManager:
         Strategy: Remove oldest non-system messages while preserving
         the system prompt and most recent messages.
 
+        Optimised to batch-delete and recount once (O(n)) instead of
+        the previous approach of deleting one message at a time and
+        recounting after each deletion (O(n²)).
+
         Args:
             session_id: Session identifier.
             target_tokens: Target token budget.
@@ -212,17 +254,33 @@ class ContextManager:
 
         async with self._lock:
             ctx = self.sessions[session_id]
+            model_for_count = ctx.metadata.get("model", "gpt-3.5-turbo")
 
-            while ctx.token_count > target_tokens and len(ctx.messages) > 1:
-                # Preserve system message at index 0
-                if ctx.messages[0].role == "system" and len(ctx.messages) > 1:
-                    del ctx.messages[1]  # O(n) but bounded by conversation length
-                else:
-                    del ctx.messages[0]  # O(n) but bounded by conversation length
+            if ctx.token_count <= target_tokens:
+                return
 
-                # BUG-016: use session's recorded model (same fix as update_context)
-                model_for_count = ctx.metadata.get("model", "gpt-3.5-turbo")
-                ctx.token_count = self.token_counter.count_messages(ctx.messages, model_for_count)
+            # Preserve system message at the front if present
+            has_system = ctx.messages and ctx.messages[0].role == "system"
+            system_msg = ctx.messages[0] if has_system else None
+            non_system = ctx.messages[1:] if has_system else ctx.messages
+
+            # Binary search: find minimum messages to keep from the tail
+            # that fit within the token budget
+            keep_count = len(non_system)
+            while keep_count > 0:
+                candidate = ([system_msg] if system_msg else []) + non_system[-keep_count:]
+                count = self.token_counter.count_messages(candidate, model_for_count)
+                if count <= target_tokens:
+                    break
+                keep_count = keep_count // 2  # Halve each iteration — O(log n)
+
+            if keep_count == 0:
+                ctx.messages = [system_msg] if system_msg else []
+            else:
+                ctx.messages = ([system_msg] if system_msg else []) + non_system[-keep_count:]
+
+            # Single recount instead of per-deletion recount
+            ctx.token_count = self.token_counter.count_messages(ctx.messages, model_for_count)
 
     def clear_context(self, session_id: str) -> None:
         """Remove all history for a session."""
@@ -260,3 +318,32 @@ class ContextManager:
             if model.startswith(prefix):
                 return limit
         return 4096  # Conservative default
+
+    def _evict_stale_sessions(self) -> None:
+        """Remove sessions that have exceeded TTL or when max_sessions is reached.
+
+        Called under the async lock from update_context(). Evicts the oldest
+        sessions first when the cap is exceeded.
+        """
+        now = datetime.now(tz=UTC)
+
+        # TTL-based eviction
+        expired = [
+            sid for sid, ctx in self.sessions.items()
+            if (now - ctx.last_updated).total_seconds() > self._session_ttl_s
+        ]
+        for sid in expired:
+            del self.sessions[sid]
+        if expired:
+            logger.info("Evicted %d expired session(s)", len(expired))
+
+        # Cap-based eviction (oldest first)
+        if len(self.sessions) > self._max_sessions:
+            sorted_sessions = sorted(
+                self.sessions.items(),
+                key=lambda item: item[1].last_updated,
+            )
+            to_remove = len(self.sessions) - self._max_sessions
+            for sid, _ in sorted_sessions[:to_remove]:
+                del self.sessions[sid]
+            logger.info("Evicted %d session(s) to enforce max_sessions=%d", to_remove, self._max_sessions)

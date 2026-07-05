@@ -147,3 +147,84 @@ class GPUResourcePool:
             return min(allocated / self.total_vram, 1.0)
         except Exception:
             return 0.0
+
+    def check_budget_compliance(self) -> dict[str, dict[str, float]]:
+        """Check actual VRAM usage vs budget for each subsystem.
+
+        Returns a dict per subsystem with budget_mb, actual usage is
+        estimated from total GPU allocation (not per-subsystem since
+        CUDA doesn't track per-module allocations).
+
+        Logs a warning if total GPU usage exceeds the sum of budgets.
+
+        Time Complexity: O(1)
+        """
+        result: dict[str, dict[str, float]] = {}
+        for name in ("whisper", "onnx", "torch"):
+            cfg = self.allocate(name)
+            result[name] = {
+                "budget_mb": cfg.memory_limit / (1024**2),
+                "device": cfg.device,
+            }
+
+        # Warn if total GPU usage exceeds budget
+        if self.device == "cuda":
+            utilization = self.get_utilization()
+            total_budget = self.whisper_budget + self.onnx_budget + self.torch_budget
+            if utilization > 0 and self.total_vram * utilization > total_budget * 1.1:
+                logger.warning(
+                    "GPU VRAM usage (%.1f MB) exceeds total budget (%.1f MB) by >10%%",
+                    self.total_vram * utilization / (1024**2),
+                    total_budget / (1024**2),
+                )
+
+        return result
+
+    def rebalance(self, active_subsystems: set[str] | None = None) -> None:
+        """Redistribute VRAM budgets based on which subsystems are active.
+
+        Subsystems not in ``active_subsystems`` donate their budget
+        proportionally to the active ones.
+
+        Args:
+            active_subsystems: Set of active subsystem names.
+                               Defaults to all subsystems if None.
+
+        Time Complexity: O(1)
+        """
+        if self.device == "cpu" or self.total_vram == 0:
+            return
+
+        all_names = {"whisper", "onnx", "torch"}
+        active = active_subsystems or all_names
+        active = active & all_names  # Validate against known subsystems
+
+        if not active:
+            return
+
+        # Calculate total budget to redistribute from inactive subsystems
+        inactive_budget = sum(
+            int(self.total_vram * _BUDGETS[name])
+            for name in all_names - active
+        )
+
+        if inactive_budget == 0:
+            return
+
+        # Distribute evenly among active subsystems
+        bonus_per_active = inactive_budget // len(active)
+
+        for name in all_names:
+            base = int(self.total_vram * _BUDGETS[name])
+            if name in active:
+                setattr(self, f"{name}_budget", base + bonus_per_active)
+            else:
+                setattr(self, f"{name}_budget", 0)
+
+        logger.info(
+            "GPUResourcePool rebalanced — active: %s, budgets: whisper=%dMB onnx=%dMB torch=%dMB",
+            active,
+            self.whisper_budget // (1024**2),
+            self.onnx_budget // (1024**2),
+            self.torch_budget // (1024**2),
+        )

@@ -31,6 +31,29 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Prometheus metrics for circuit breaker observability
+try:
+    from prometheus_client import Counter, Gauge
+
+    _CIRCUIT_TRIPS = Counter(
+        "agent_guru_circuit_breaker_trips_total",
+        "Number of times a circuit breaker has tripped open",
+        ["provider"],
+    )
+    _CIRCUIT_STATE = Gauge(
+        "agent_guru_circuit_breaker_open",
+        "Whether the circuit breaker is currently open (1) or closed (0)",
+        ["provider"],
+    )
+    _RETRY_TOTAL = Counter(
+        "agent_guru_llm_retries_total",
+        "Total number of LLM retries across all providers",
+        ["provider", "error_type"],
+    )
+    _PROM_AVAILABLE = True
+except ImportError:
+    _PROM_AVAILABLE = False
+
 T = TypeVar("T")
 
 
@@ -174,10 +197,9 @@ class ErrorHandler:
                 await asyncio.sleep(backoff_ms / 1000.0)
                 backoff_ms = min(backoff_ms * 2, self.max_backoff_ms)
 
-        # Should never reach here
-        if not (last_error is not None):
-            msg = "last_error is not None assertion failed"
-            raise AssertionError(msg)
+        # Should never reach here, but guard defensively
+        if last_error is None:
+            last_error = RuntimeError("All retry attempts exhausted with no recorded error")
         raise last_error
 
     # ------------------------------------------------------------------
@@ -243,6 +265,8 @@ class ErrorHandler:
                     state.is_open = False
                     state.failure_count = 0
                     logger.info("Circuit breaker for '%s' transitioning to half-open.", provider)
+                    if _PROM_AVAILABLE:
+                        _CIRCUIT_STATE.labels(provider=provider).set(0)
                     return False
 
             return True
@@ -253,7 +277,10 @@ class ErrorHandler:
             if provider in self._circuit_breakers:
                 state = self._circuit_breakers[provider]
                 state.failure_count = 0
-                state.is_open = False
+                if state.is_open:
+                    state.is_open = False
+                    if _PROM_AVAILABLE:
+                        _CIRCUIT_STATE.labels(provider=provider).set(0)
 
     async def _record_failure(self, provider: str) -> None:
         """Record a failure and open circuit if threshold exceeded."""
@@ -274,6 +301,9 @@ class ErrorHandler:
                         provider,
                         state.failure_count,
                     )
+                    if _PROM_AVAILABLE:
+                        _CIRCUIT_TRIPS.labels(provider=provider).inc()
+                        _CIRCUIT_STATE.labels(provider=provider).set(1)
 
     def get_circuit_state(self, provider: str) -> CircuitBreakerState | None:
         """Return the current circuit breaker state for a provider."""

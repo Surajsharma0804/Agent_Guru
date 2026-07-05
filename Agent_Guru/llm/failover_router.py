@@ -18,6 +18,7 @@ Version: 1.0.0
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 import time
 from dataclasses import dataclass, field
@@ -82,16 +83,46 @@ class ProviderHealth:
 # ---------------------------------------------------------------------------
 
 _RULE_BASED_RESPONSES: dict[str, str] = {
+    # Greetings
     "hello": "Hello! I'm Guru. How can I help you today?",
     "hi": "Hi there! I'm Guru. What can I do for you?",
-    "help": "I can help you with tasks, answer questions, and control your computer. Just ask!",
-    "what can you do": "I can open apps, type text, search the web, answer questions, and much more!",
+    "hey": "Hey! I'm ready to help. What do you need?",
+    "good morning": "Good morning! How can I assist you today?",
+    "good afternoon": "Good afternoon! What can I help you with?",
+    "good evening": "Good evening! How can I be of service?",
+    # Farewells
     "goodbye": "Goodbye! Have a great day!",
     "bye": "Bye! Talk to you soon!",
+    "see you": "See you later! Don't hesitate to call me anytime.",
+    "good night": "Good night! Sleep well.",
+    # Gratitude
     "thank you": "You're welcome! Is there anything else I can help with?",
     "thanks": "Happy to help! Anything else?",
-    "what time is it": "I don't have access to real-time data right now, but you can check your system clock.",
+    "appreciate it": "My pleasure! Let me know if you need anything else.",
+    # Help & capabilities
+    "help": "I can help you with tasks, answer questions, and control your computer. Just ask!",
+    "what can you do": "I can open apps, type text, search the web, answer questions, play music, and much more!",
+    "who are you": "I'm Guru, your AI voice assistant. I can help you with everyday tasks and answer questions.",
+    "what are you": "I'm an AI assistant called Guru. I can control your computer, answer questions, and much more.",
+    # Time & date (offline-safe)
+    "what time is it": "I don't have access to real-time data right now, but you can check your system clock or say 'open clock'.",
+    "what day is it": "I can't check the calendar right now. Try saying 'open calendar' and I'll launch it for you.",
+    "what's the date": "I'm offline from my AI services. You can ask me to open the calendar app instead.",
+    # Weather
     "what's the weather": "I can't check the weather right now, but you can ask me to open a weather website.",
+    "weather": "For weather info, try saying 'open weather' and I'll pull up a weather site for you.",
+    # System commands help
+    "open": "Sure! Tell me what you'd like to open — an app, website, or file.",
+    "play": "Tell me what you'd like to play! I can play music on YouTube or open your music app.",
+    "search": "What would you like me to search for? I can search the web for you.",
+    # Status
+    "are you there": "Yes, I'm here and listening! How can I help?",
+    "are you working": "I'm working! Although my AI services may be offline, I can still run commands for you.",
+    # Error recovery
+    "try again": "Of course! Please repeat your request and I'll do my best.",
+    "repeat": "Sure, please say your request again.",
+    "never mind": "No problem! Let me know if you need anything else.",
+    "cancel": "Cancelled. What would you like to do instead?",
 }
 
 _DEFAULT_FALLBACK = (
@@ -399,8 +430,6 @@ class ProviderFailoverRouter:
         new_messages = [system_msg, *list(request.messages)]
 
         # Return a shallow copy with updated messages
-        import dataclasses
-
         return dataclasses.replace(request, messages=new_messages)
 
     def _adapt_request(
@@ -409,8 +438,6 @@ class ProviderFailoverRouter:
         provider: ModelProvider,
     ) -> CompletionRequest:
         """Adapt request model name for the target provider."""
-        import dataclasses
-
         default_model = self._get_default_model(provider)
         # Only override model if it doesn't match the provider's prefix
         if not self._model_matches_provider(request.model, provider):

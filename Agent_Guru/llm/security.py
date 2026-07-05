@@ -45,6 +45,10 @@ _PII_PATTERNS: list[tuple[Pattern[str], str]] = [
     (re.compile(r"\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"), "[PHONE]"),
     (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "[SSN]"),  # US SSN
     (re.compile(r"\b\d{4}[\s\-]?\d{4}[\s\-]?\d{4}[\s\-]?\d{4}\b"), "[CARD]"),  # Credit card
+    # IPv4 addresses (e.g., 192.168.1.1)
+    (re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b"), "[IP]"),
+    # IPv6 addresses (abbreviated and full forms)
+    (re.compile(r"\b(?:[0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}\b"), "[IP]"),
 ]
 
 
@@ -155,3 +159,68 @@ def create_secure_http_client() -> Any:
         verify=True,  # Enforce TLS certificate validation
         timeout=httpx.Timeout(30.0),
     )
+
+
+# ---------------------------------------------------------------------------
+# Prompt injection detection
+# ---------------------------------------------------------------------------
+
+# Patterns that indicate a prompt injection attempt
+_INJECTION_PATTERNS: list[Pattern[str]] = [
+    # System prompt override attempts
+    re.compile(r"ignore\s+(all\s+)?previous\s+instructions", re.IGNORECASE),
+    re.compile(r"ignore\s+(all\s+)?above\s+instructions", re.IGNORECASE),
+    re.compile(r"disregard\s+(all\s+)?previous", re.IGNORECASE),
+    re.compile(r"forget\s+(all\s+)?previous", re.IGNORECASE),
+    re.compile(r"you\s+are\s+now\s+(a|an|the)\s+", re.IGNORECASE),
+    re.compile(r"new\s+instructions?\s*:", re.IGNORECASE),
+    re.compile(r"system\s*:\s*you\s+are", re.IGNORECASE),
+    # Role-play override attempts
+    re.compile(r"pretend\s+you\s+are\s+(a|an)?\s*(?!helpful)", re.IGNORECASE),
+    re.compile(r"act\s+as\s+(a|an)?\s*(different|new|unrestricted)", re.IGNORECASE),
+    # Jailbreak markers
+    re.compile(r"\bDAN\b.*mode", re.IGNORECASE),
+    re.compile(r"developer\s+mode", re.IGNORECASE),
+    re.compile(r"jailbreak", re.IGNORECASE),
+]
+
+
+def detect_prompt_injection(text: str) -> bool:
+    """Check if text contains prompt injection patterns.
+
+    Args:
+        text: User input to check.
+
+    Returns:
+        True if a prompt injection pattern is detected.
+
+    """
+    for pattern in _INJECTION_PATTERNS:
+        if pattern.search(text):
+            logger.warning("Prompt injection detected: pattern=%s", pattern.pattern)
+            return True
+    return False
+
+
+def sanitize_user_input(text: str) -> str:
+    """Sanitize user input by removing potential injection markers.
+
+    Does NOT block the input — just strips obvious injection prefixes
+    so the LLM sees clean input. Use detect_prompt_injection() for
+    hard blocking decisions.
+
+    Args:
+        text: Raw user input.
+
+    Returns:
+        Sanitized input string.
+
+    """
+    # Remove markdown-style system prompt attempts
+    sanitized = re.sub(
+        r"```(?:system|instructions?)\s*\n.*?```",
+        "[content removed]",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    return sanitized.strip()
