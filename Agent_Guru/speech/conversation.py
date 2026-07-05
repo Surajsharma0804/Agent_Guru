@@ -58,13 +58,23 @@ class ConversationContext:
 class BargeInHandler:
     """Handles barge-in detection and output halting."""
 
+    # P2-75: Minimum speech duration before a barge-in is confirmed.
+    # Sub-200ms audio is almost always noise (coughs, sighs, "mm-hmm").
+    _MIN_SPEECH_DURATION_MS: float = 200.0
+
     def __init__(self) -> None:
         self._interrupted_response: str | None = None
+        self._interrupted_at: float | None = None  # P2-76: timestamp of interrupt
         self._output_active = False
+        self._speech_onset: float | None = None  # P2-75: when speech started
 
     async def detect_barge_in(self, audio_chunk: bytes) -> bool:
-        """Detect speech onset within 100ms using VAD stub."""
-        # Stub: in production uses WebRTC VAD
+        """Detect speech onset with 200ms minimum-duration guard.
+
+        Returns True only when speech has persisted for at least
+        _MIN_SPEECH_DURATION_MS, preventing false triggers from
+        coughs, sighs, and backchannels.
+        """
         start = time.perf_counter()
         # Simulate VAD check
         await asyncio.sleep(0)
@@ -74,26 +84,56 @@ class BargeInHandler:
             raise AssertionError(
                 msg,
             )
+
         # Simple energy-based detection stub
-        return len(audio_chunk) > 0 and any(b > 128 for b in audio_chunk[:10])
+        has_speech = len(audio_chunk) > 0 and any(b > 128 for b in audio_chunk[:10])
+
+        if has_speech:
+            now = time.perf_counter()
+            if self._speech_onset is None:
+                # Speech just started — record onset, don't trigger yet
+                self._speech_onset = now
+                return False
+            # P2-75: Only confirm barge-in after minimum duration
+            speech_duration_ms = (now - self._speech_onset) * 1000
+            if speech_duration_ms >= self._MIN_SPEECH_DURATION_MS:
+                return True
+            return False  # Too short — could be a cough or backchannel
+        else:
+            # No speech — reset onset tracker
+            self._speech_onset = None
+            return False
 
     async def halt_output(self, current_response: str) -> None:
         """Halt output within 200ms and preserve context."""
         start = time.perf_counter()
         self.preserve_context(current_response)
         self._output_active = False
+        self._speech_onset = None  # Reset for next detection cycle
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.debug("Output halted in %.1fms", elapsed_ms)
 
     def preserve_context(self, interrupted_response: str) -> None:
-        """Store interrupted response for coherent resumption."""
-        self._interrupted_response = interrupted_response
+        """Store interrupted response for coherent resumption.
 
-    def get_preserved_context(self) -> str | None:
-        return self._interrupted_response
+        P2-76: Also stores the interrupt timestamp so the orchestrator
+        can decide whether to resume or pivot based on elapsed time.
+        """
+        self._interrupted_response = interrupted_response
+        self._interrupted_at = time.time()
+
+    def get_preserved_context(self) -> dict[str, Any] | None:
+        """Return preserved context with metadata, or None."""
+        if self._interrupted_response is None:
+            return None
+        return {
+            "response": self._interrupted_response,
+            "interrupted_at": self._interrupted_at,
+        }
 
     def clear_preserved_context(self) -> None:
         self._interrupted_response = None
+        self._interrupted_at = None
 
 
 class SpeakerDiarization:

@@ -25,7 +25,7 @@ class WhisperTranscriber:
         self,
         model_size: str = "base",
         model_path: str | None = None,
-        compute_type: str = "float32",
+        compute_type: str | None = None,
         beam_size: int = 5,
         device: str = "cpu",
     ) -> None:
@@ -34,14 +34,21 @@ class WhisperTranscriber:
         Args:
             model_size: Whisper model size ("tiny", "base", "small", "medium", "large")
             model_path: Path to custom model (overrides model_size)
-            compute_type: Compute type for inference ("float32", "float16", "int8")
+            compute_type: Compute type for inference. Auto-detected if None:
+                          "int8_float16" on CUDA (saves ~50% VRAM),
+                          "float32" on CPU.
             beam_size: Beam size for decoding
             device: Device to run on ("cpu", "cuda")
 
         """
         self.model_size = model_size
         self.model_path = model_path
-        self.compute_type = compute_type
+        # P2-77: Auto-detect optimal compute type for VRAM reduction.
+        # int8_float16 on CUDA reduces VRAM from ~3GB to ~1.6GB for large-v3.
+        if compute_type is None:
+            self.compute_type = "int8_float16" if device == "cuda" else "float32"
+        else:
+            self.compute_type = compute_type
         self.beam_size = beam_size
         self.device = device
         self._model: WhisperModel | None = None
