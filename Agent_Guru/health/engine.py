@@ -9,6 +9,7 @@ import hashlib
 import json
 import logging
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -101,9 +102,11 @@ class MedicationLog:
 class HealthEngine:
     """Aggregates health data, detects anomalies, and generates wellness insights."""
 
-    def __init__(self) -> None:
+    def __init__(self, max_snapshots: int = 7 * 24) -> None:
         self._platforms: dict[str, Any] = {}
-        self._snapshots: list[BiometricSnapshot] = []
+        # Use deque for O(1) bounded append instead of list slicing
+        self._max_snapshots = max_snapshots
+        self._snapshots: deque[BiometricSnapshot] = deque(maxlen=max_snapshots)
         self._medication_logs: list[MedicationLog] = []
         self._audit_log: list[dict[str, Any]] = []
         self._encryption_key: bytes | None = None
@@ -153,12 +156,11 @@ class HealthEngine:
         return snapshot
 
     def ingest_snapshot(self, snapshot: BiometricSnapshot) -> None:
-        """Ingest a biometric snapshot (from platform connector)."""
+        """Ingest a biometric snapshot (from platform connector).
+
+        Uses a bounded deque so old snapshots are automatically evicted.
+        """
         self._snapshots.append(snapshot)
-        # Keep 7 days of data (assuming hourly snapshots)
-        max_snapshots = 7 * 24
-        if len(self._snapshots) > max_snapshots:
-            self._snapshots = self._snapshots[-max_snapshots:]
 
     # ------------------------------------------------------------------
     # Anomaly detection
@@ -346,23 +348,45 @@ class HealthEngine:
     # ------------------------------------------------------------------
 
     def _audit(self, action: str, details: dict[str, Any]) -> None:
-        """HIPAA-compliant audit log entry."""
+        """HIPAA-compliant audit log entry.
+
+        Uses a single timestamp for both the entry and the integrity hash
+        to ensure deterministic, verifiable records.
+        """
+        ts = time.time()
         entry = {
             "action": action,
             "details": details,
-            "timestamp": time.time(),
+            "timestamp": ts,
             "hash": hashlib.sha256(
-                json.dumps({"action": action, "ts": time.time()}).encode(),
+                json.dumps({"action": action, "ts": ts}).encode(),
             ).hexdigest()[:16],
         }
         self._audit_log.append(entry)
 
-    def delete_user_data(self) -> None:
-        """User-controlled deletion of all health data."""
+    def delete_user_data(self, clear_audit: bool = False) -> None:
+        """User-controlled deletion of all health data.
+
+        Args:
+            clear_audit: If True, also clears the audit log (GDPR right
+                         to erasure). If False, audit log is preserved
+                         with a deletion record but user data entries
+                         are anonymised.
+
+        """
         self._snapshots.clear()
         self._medication_logs.clear()
-        self._audit("user_data_deleted", {})
-        logger.info("All user health data deleted")
+
+        if clear_audit:
+            # Full erasure (GDPR Article 17)
+            self._audit_log.clear()
+            logger.info("All user health data and audit log deleted (GDPR full erasure)")
+        else:
+            # Anonymise audit log: remove details, keep structure for compliance
+            for entry in self._audit_log:
+                entry["details"] = {"anonymised": True}
+            self._audit("user_data_deleted", {})
+            logger.info("All user health data deleted; audit log anonymised")
 
     def get_audit_log(self) -> list[dict[str, Any]]:
         return list(self._audit_log)
