@@ -126,15 +126,24 @@ class VoicePipeline:
 
     """
 
-    def __init__(self) -> None:
-        """Initialize the voice pipeline."""
+    def __init__(self, max_consecutive_errors: int = 10) -> None:
+        """Initialize the voice pipeline.
+
+        Args:
+            max_consecutive_errors: Maximum consecutive errors before
+                auto-transitioning to STOPPED state to prevent infinite loops.
+
+        """
         self._state = PipelineState.IDLE
         self._lock = threading.Lock()
+        self._listener_lock = threading.Lock()  # Guards listener list mutations
         self._state_listeners: list[Callable[[PipelineState, PipelineState], None]] = []
         self._event_listeners: list[Callable[[PipelineEvent, Any], None]] = []
         self._last_transcript: str | None = None
         self._last_response: str | None = None
         self._error_count = 0
+        self._consecutive_errors = 0
+        self._max_consecutive_errors = max_consecutive_errors
 
         logger.info("VoicePipeline initialized in IDLE state")
 
@@ -176,14 +185,18 @@ class VoicePipeline:
                 event.value,
             )
 
-        # Notify listeners outside lock
-        for listener in self._state_listeners:
+        # Notify listeners outside lock — use snapshot copies for thread safety
+        with self._listener_lock:
+            state_listeners = list(self._state_listeners)
+            event_listeners = list(self._event_listeners)
+
+        for listener in state_listeners:
             try:
                 listener(current, next_state)
             except Exception:
                 logger.exception("State listener error")
 
-        for listener in self._event_listeners:
+        for listener in event_listeners:
             try:
                 listener(event, data)
             except Exception:
@@ -198,7 +211,8 @@ class VoicePipeline:
             callback: Called with (old_state, new_state) on each transition
 
         """
-        self._state_listeners.append(callback)
+        with self._listener_lock:
+            self._state_listeners.append(callback)
 
     def on_event(self, callback: Callable[[PipelineEvent, Any], None]) -> None:
         """Register a callback for events.
@@ -207,7 +221,8 @@ class VoicePipeline:
             callback: Called with (event, data) on each dispatch
 
         """
-        self._event_listeners.append(callback)
+        with self._listener_lock:
+            self._event_listeners.append(callback)
 
     # ------------------------------------------------------------------
     # Convenience methods for pipeline stages
@@ -229,6 +244,7 @@ class VoicePipeline:
 
         """
         self._last_transcript = transcript
+        self._consecutive_errors = 0  # Reset on successful speech capture
 
         # Check for flow control commands
         normalized = transcript.strip().lower()
@@ -270,12 +286,24 @@ class VoicePipeline:
     def report_error(self, error: str) -> bool:
         """Signal an error occurred. Returns to IDLE.
 
+        Tracks consecutive errors. If max_consecutive_errors is exceeded,
+        automatically transitions to STOPPED to prevent infinite loops.
+
         Args:
             error: Error description
 
         """
         self._error_count += 1
-        logger.error("Pipeline error: %s", error)
+        self._consecutive_errors += 1
+        logger.error("Pipeline error (%d consecutive): %s", self._consecutive_errors, error)
+
+        if self._consecutive_errors >= self._max_consecutive_errors:
+            logger.critical(
+                "Pipeline exceeded max consecutive errors (%d). Stopping.",
+                self._max_consecutive_errors,
+            )
+            return self.dispatch(PipelineEvent.EXIT_COMMAND, error)
+
         return self.dispatch(PipelineEvent.ERROR, error)
 
     def stop(self) -> bool:

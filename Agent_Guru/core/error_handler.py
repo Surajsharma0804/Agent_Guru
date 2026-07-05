@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import time
 from dataclasses import dataclass, field
@@ -28,33 +29,29 @@ from typing import TYPE_CHECKING, Any
 
 logger = logging.getLogger(__name__)
 
-# BUG-020: moved log path from .kiro/ (IDE config dir — bad for production)
-# to a proper OS application-data directory so logs survive working directory
-# changes and are never accidentally committed to git.
-import os as _os  # noqa: E402
-
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-if _os.name == "nt":
+if os.name == "nt":
     _DEFAULT_LOG_PATH = (
-        Path(_os.environ.get("AGENT_GURU_LOG_DIR", ""))
-        if _os.environ.get("AGENT_GURU_LOG_DIR")
-        else Path(_os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+        Path(os.environ.get("AGENT_GURU_LOG_DIR", ""))
+        if os.environ.get("AGENT_GURU_LOG_DIR")
+        else Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
         / "agent_guru"
         / "logs"
         / "errors.log"
     )
 else:
     _DEFAULT_LOG_PATH = (
-        Path(_os.environ.get("AGENT_GURU_LOG_DIR", ""))
-        if _os.environ.get("AGENT_GURU_LOG_DIR")
-        else Path(_os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+        Path(os.environ.get("AGENT_GURU_LOG_DIR", ""))
+        if os.environ.get("AGENT_GURU_LOG_DIR")
+        else Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
         / "agent_guru"
         / "logs"
         / "errors.log"
     )
 _MAX_LOG_SIZE_BYTES = 100 * 1024 * 1024  # 100MB
+_MAX_ROTATED_FILES = 5  # Keep .log.1 through .log.5
 
 # Retry defaults
 _DEFAULT_MAX_RETRIES = 3
@@ -294,10 +291,25 @@ class ErrorLogger:
                 logger.exception("ErrorLogger: could not write to %s", self._log_path)
 
     def _rotate_if_needed(self) -> None:
-        """Rotate log file if it exceeds max size."""
+        """Rotate log file if it exceeds max size.
+
+        Uses numbered rotation: .log.1 (newest) through .log.N (oldest).
+        Previous .log.N is deleted to bound disk usage.
+        """
         try:
             if self._log_path.exists() and self._log_path.stat().st_size >= self._max_size_bytes:
+                # Shift existing rotated files: .log.4 -> .log.5, .log.3 -> .log.4, etc.
+                for i in range(_MAX_ROTATED_FILES, 1, -1):
+                    src = self._log_path.with_suffix(f".log.{i - 1}")
+                    dst = self._log_path.with_suffix(f".log.{i}")
+                    if src.exists():
+                        if dst.exists():
+                            dst.unlink()
+                        src.rename(dst)
+                # Current -> .log.1
                 rotated = self._log_path.with_suffix(".log.1")
+                if rotated.exists():
+                    rotated.unlink()
                 self._log_path.rename(rotated)
                 logger.info("ErrorLogger: rotated %s → %s", self._log_path, rotated)
         except OSError:
@@ -305,6 +317,9 @@ class ErrorLogger:
 
     def get_recent_errors(self, n: int = 100) -> list[ErrorRecord]:
         """Read the n most recent error records.
+
+        Reads only the tail of the file to avoid loading a 100MB log
+        into memory. Seeks backward in 64KB chunks to find the last N lines.
 
         Args:
             n: Number of records to return
@@ -318,8 +333,16 @@ class ErrorLogger:
 
         records = []
         try:
-            with open(self._log_path, encoding="utf-8") as f:
-                lines = f.readlines()
+            # Read only the tail of the file (avoid O(filesize) memory)
+            chunk_size = 65536  # 64KB — enough for ~100 JSONL records
+            with open(self._log_path, "rb") as f:
+                f.seek(0, 2)  # Seek to end
+                file_size = f.tell()
+                read_size = min(file_size, chunk_size * max(1, n // 50))
+                f.seek(max(0, file_size - read_size))
+                tail = f.read().decode("utf-8", errors="replace")
+
+            lines = tail.strip().splitlines()
             for line in lines[-n:]:
                 try:
                     d = json.loads(line.strip())

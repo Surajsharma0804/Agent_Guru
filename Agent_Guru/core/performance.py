@@ -261,14 +261,19 @@ class ResourceMonitor:
 
     Uses psutil for cross-platform resource monitoring.
     Falls back gracefully if psutil is not available.
+    Caches the psutil.Process object to avoid repeated PID lookups.
     """
 
     def __init__(self) -> None:
         self._psutil_available = False
+        self._process: Any = None  # Cached psutil.Process
         try:
+            import os
+
             import psutil  # noqa: F401
 
             self._psutil_available = True
+            self._process = psutil.Process(os.getpid())
         except ImportError:
             logger.exception("psutil not available - resource monitoring disabled")
 
@@ -295,19 +300,16 @@ class ResourceMonitor:
     def get_memory_mb(self) -> float:
         """Get current process memory usage in MB.
 
+        Uses cached psutil.Process to avoid O(n) PID scan on every call.
+
         Returns:
             Memory usage in MB, or -1.0 if unavailable
 
         """
-        if not self._psutil_available:
+        if not self._psutil_available or self._process is None:
             return -1.0
         try:
-            import os
-
-            import psutil
-
-            proc = psutil.Process(os.getpid())
-            return proc.memory_info().rss / (1024 * 1024)
+            return self._process.memory_info().rss / (1024 * 1024)
         except Exception:
             logger.exception("Memory measurement failed")
             return -1.0

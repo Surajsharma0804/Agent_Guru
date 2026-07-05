@@ -335,11 +335,17 @@ class AgentGuru:
     def _run_housekeeping(self) -> None:
         """Log periodic housekeeping stats (memory, state, uptime)."""
         state = self._pipeline.get_state()
+        if self._memory_manager is not None:
+            interaction_count = getattr(
+                self._memory_manager, "interaction_count", lambda: "n/a"
+            )()
+        else:
+            interaction_count = "n/a (manager not initialized)"
         logger.info(
             "[housekeeping] state=%s personality=%s memory_interactions=%s",
             state.value,
             self.personality,
-            getattr(self._memory_manager, "interaction_count", lambda: "n/a")(),
+            interaction_count,
         )
 
     def _handle_signal(self, signum: int, frame: Any) -> None:
