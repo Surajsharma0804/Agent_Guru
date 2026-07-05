@@ -72,11 +72,29 @@ class LatencyAccumulator:
         with self._lock:
             return sorted(self._samples)
 
-    def _percentile(self, samples: list[float], p: float) -> float:
+    @staticmethod
+    def _percentile(samples: list[float], p: float) -> float:
         if not samples:
             return 0.0
         idx = int(p / 100.0 * (len(samples) - 1))
         return samples[min(idx, len(samples) - 1)]
+
+    def get_stats(self) -> dict[str, float]:
+        """Return all statistics from a single lock-guarded snapshot.
+
+        P2-52: Previous implementation called _sorted_copy() (which acquires
+        the lock) once per stat property. This made reading all stats
+        acquire/release the lock 6+ times. This method does it once.
+        """
+        s = self._sorted_copy()
+        return {
+            "mean_ms": sum(s) / len(s) if s else 0.0,
+            "p50_ms": self._percentile(s, 50),
+            "p95_ms": self._percentile(s, 95),
+            "p99_ms": self._percentile(s, 99),
+            "min_ms": s[0] if s else 0.0,
+            "max_ms": s[-1] if s else 0.0,
+        }
 
     @property
     def mean_ms(self) -> float:

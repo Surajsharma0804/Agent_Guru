@@ -468,10 +468,15 @@ class WindowsIntegration:
             import shutil
 
             if not args and shutil.which(executable):
+                # P2-26: Reject shell metacharacters to prevent injection
+                _SHELL_UNSAFE = set(';&|`$(){}[]<>!#~"\'\n\r')
+                if any(c in _SHELL_UNSAFE for c in executable):
+                    msg = f"Executable name contains unsafe characters: {executable!r}"
+                    raise ValueError(msg)
                 try:
                     proc = subprocess.Popen(
                         executable,
-                        shell=True,
+                        shell=True,  # noqa: S602 — validated above
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                         stdin=subprocess.DEVNULL,
