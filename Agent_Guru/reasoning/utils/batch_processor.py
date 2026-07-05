@@ -163,9 +163,11 @@ class BatchProcessor(Generic[T, R]):
     async def _process_loop(self) -> None:
         """Background loop for processing batches."""
         self._processing = True
+        # P2-21: Guard against infinite spinning — cap at 10000 iterations
+        _MAX_ITERATIONS = 10_000
 
         try:
-            while True:
+            for _iteration in range(_MAX_ITERATIONS):
                 # Wait for items or timeout
                 await asyncio.sleep(0.001)  # 1ms
 
@@ -189,6 +191,8 @@ class BatchProcessor(Generic[T, R]):
 
                 if should_process:
                     await self._process_batch()
+            else:
+                logger.warning("_process_loop hit max iterations (%d), breaking", _MAX_ITERATIONS)
 
         finally:
             self._processing = False

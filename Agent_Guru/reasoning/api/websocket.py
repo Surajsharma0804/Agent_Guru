@@ -98,6 +98,7 @@ class ConnectionManager:
         self.connection_metadata: dict[WebSocket, dict] = {}  # websocket -> metadata
         self.heartbeat_interval = heartbeat_interval
         self._heartbeat_task: asyncio.Task | None = None
+        self._shutdown = False  # P2-22: graceful shutdown flag
 
         logger.info(
             "connection_manager_initialized",
@@ -349,7 +350,7 @@ class ConnectionManager:
 
         Sends ping messages and removes stale connections.
         """
-        while True:
+        while not self._shutdown:
             try:
                 await asyncio.sleep(self.heartbeat_interval)
 
@@ -468,8 +469,15 @@ async def websocket_endpoint(
         # Message loop
         while True:
             try:
-                # Receive message
-                data = await websocket.receive_text()
+                # Receive message with timeout to detect dead connections
+                try:
+                    data = await asyncio.wait_for(
+                        websocket.receive_text(),
+                        timeout=120.0,  # P2-23: 2-minute receive timeout
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("websocket_receive_timeout", user_id=user_id)
+                    break
                 message_dict = json.loads(data)
 
                 # Update heartbeat
