@@ -16,7 +16,7 @@ wttr.in for weather (no key required).
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ async def get_morning_briefing(location: str | None = None) -> str:
     parts = []
 
     # Date and time
-    now = datetime.now()
+    now = datetime.now(tz=UTC)
     day_name = now.strftime("%A")
     date_str = now.strftime("%B %d")
     time_str = now.strftime("%I:%M %p").lstrip("0")

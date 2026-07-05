@@ -15,6 +15,7 @@ Just asyncio tasks that sleep and then speak.
 from __future__ import annotations
 
 import asyncio
+import datetime
 import logging
 import re
 import time
@@ -152,10 +153,8 @@ class ReminderManager:
     @staticmethod
     def _parse_time_to_delay(time_str: str) -> float | None:
         """Parse a time string like '3pm', '15:30', '3:30 pm' to seconds from now."""
-        import datetime
-
         time_str = time_str.strip().lower()
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(tz=datetime.UTC)
 
         # Try "3pm", "3:30pm", "3:30 pm", "15:30"
         patterns = [
