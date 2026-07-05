@@ -14,6 +14,8 @@ Version: 1.0.0
 
 from __future__ import annotations
 
+import logging
+import os
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -53,6 +55,15 @@ class OllamaAdapter(ProviderAdapter):
     def __init__(self, config: OllamaConfig) -> None:
         self.config = config
         self._client: Any | None = None
+        self._logger = logging.getLogger(__name__)
+
+        # P2-61/62/63: Production Ollama optimization via env vars.
+        # KEEP_ALIVE=-1 pins model in VRAM permanently — eliminates cold-start.
+        # FLASH_ATTENTION=1 enables fused attention kernels on supported GPUs.
+        # NUM_PARALLEL controls concurrent request handling based on VRAM.
+        os.environ.setdefault("OLLAMA_KEEP_ALIVE", "-1")
+        os.environ.setdefault("OLLAMA_FLASH_ATTENTION", "1")
+        os.environ.setdefault("OLLAMA_NUM_PARALLEL", "1")
 
     def _get_client(self) -> Any:
         """Lazy-initialize the Ollama async client."""
@@ -93,6 +104,7 @@ class OllamaAdapter(ProviderAdapter):
             model=request.model,
             messages=messages,
             options=options,
+            keep_alive=-1,  # P2-61: keep model loaded permanently
         )
         prompt_tokens = response.get("prompt_eval_count", 0)
         completion_tokens = response.get("eval_count", 0)
