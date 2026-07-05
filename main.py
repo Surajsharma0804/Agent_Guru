@@ -13,8 +13,9 @@ Wake words:
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
-_logger = logging.getLogger(__name__)
+import os
 import signal
 import sys
 from typing import Any, Optional
@@ -25,10 +26,6 @@ try:
     load_dotenv()
 except ImportError:
     pass  # dotenv not installed — env vars must be set manually
-
-# MED-001 fix: consolidate all os usage under a single import — no more
-# temporary aliases (_os_startup deleted, _os_enc deleted).
-import os
 
 # ---------------------------------------------------------------------------
 # GPU / Ollama environment — set BEFORE any imports that touch CUDA or Ollama.
@@ -48,15 +45,20 @@ if _cuda_dev in ("-1", ""):
 # ---------------------------------------------------------------------------
 if os.name == 'nt':
     import subprocess
-    subprocess.run('chcp 65001', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # UTF-8 code page
+    try:
+        subprocess.run(  # noqa: S602, S607
+            'chcp 65001', shell=True,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=5,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        pass  # Non-critical — UTF-8 code page is best-effort
 
 # Fix Python stdout/stderr encoding
-import sys as _sys
-import io as _io
-if hasattr(_sys.stdout, 'buffer'):
+if hasattr(sys.stdout, 'buffer'):
     try:
-        _sys.stdout = _io.TextIOWrapper(_sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
-        _sys.stderr = _io.TextIOWrapper(_sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
     except Exception:
         pass
 
@@ -64,10 +66,15 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s - %(message)s",
     datefmt="%H:%M:%S",
-    stream=_sys.stdout,
+    stream=sys.stdout,
     force=True,
 )
 logger = logging.getLogger("guru.main")
+
+# Startup timeout — prevents infinite hang if Ollama or Whisper download stalls
+_STARTUP_TIMEOUT_S = float(os.environ.get("AGENT_GURU_STARTUP_TIMEOUT", "120"))
+# Max restart attempts with exponential backoff before giving up
+_MAX_RESTART_ATTEMPTS = int(os.environ.get("AGENT_GURU_MAX_RESTARTS", "5"))
 
 # Suppress noisy warnings that fire constantly on a dev machine.
 logging.getLogger("guruvision.avatar.performance").setLevel(logging.ERROR)
@@ -483,7 +490,7 @@ async def run() -> None:
         """Called by WakeWordManager when a real wake word is detected."""
         personality_name = detection.personality.value.upper()
         logger.info("Wake word: '%s' → %s", detection.wake_word, personality_name)
-        _logger.info("[%s] Listening for your command...", personality_name)
+        logger.info("[%s] Listening for your command...", personality_name)
 
         await asyncio.sleep(0.5)
 
@@ -611,13 +618,19 @@ async def run() -> None:
     # --- Shutdown ---
     logger.info("Shutting down Agent Guru...")
     await wake_manager.stop_listening()
-    await orch.sleep()
+
+    # Guard against IntegrationOrchestrator versions without sleep()
+    if hasattr(orch, "sleep") and callable(orch.sleep):
+        try:
+            await orch.sleep()
+        except Exception as e:
+            logger.warning("Orchestrator sleep failed (non-critical): %s", e)
 
     if hasattr(speech, "shutdown") and callable(speech.shutdown):
         try:
             speech.shutdown()
         except Exception as e:
-            _logger.warning("Suppressed exception: %s", e)
+            logger.warning("Speech shutdown suppressed: %s", e)
 
     logger.info("Agent Guru stopped. Goodbye.")
 
@@ -629,19 +642,34 @@ async def run() -> None:
 if __name__ == "__main__":
     import time as _time
 
-    while True:
+    _restart_count = 0
+    _backoff_s = 3.0
+
+    while _restart_count < _MAX_RESTART_ATTEMPTS:
         try:
             asyncio.run(run())
             # run() only returns on clean shutdown (Ctrl+C / SIGTERM)
             break
         except KeyboardInterrupt:
-            _logger.info("Interrupted by user.")
+            logger.info("Interrupted by user.")
             break
         except Exception as _crash:
-            _logger.error(
-                "Agent Guru crashed: %s — restarting in 3 seconds...",
-                _crash, exc_info=True,
+            _restart_count += 1
+            if _restart_count >= _MAX_RESTART_ATTEMPTS:
+                logger.critical(
+                    "Agent Guru crashed %d times — giving up. Last error: %s",
+                    _restart_count, _crash, exc_info=True,
+                )
+                sys.exit(1)
+            logger.error(
+                "Agent Guru crashed (%d/%d): %s — restarting in %.0fs...",
+                _restart_count, _MAX_RESTART_ATTEMPTS,
+                _crash, _backoff_s, exc_info=True,
             )
-            _time.sleep(3)
-            _logger.info("Restarting Agent Guru...")
+            _time.sleep(_backoff_s)
+            _backoff_s = min(_backoff_s * 2, 60.0)  # Exponential backoff, max 60s
+            logger.info("Restarting Agent Guru (attempt %d)...", _restart_count + 1)
             continue
+    else:
+        logger.critical("Max restart attempts (%d) exhausted. Exiting.", _MAX_RESTART_ATTEMPTS)
+        sys.exit(1)

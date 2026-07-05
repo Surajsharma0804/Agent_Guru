@@ -9,11 +9,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: agent-guru-reasoning-dev
-    volumes:
-      # Mount source code for hot reload
-      - ./Agent_Guru:/app/Agent_Guru
-      # Preserve Python cache
-      - python-cache:/root/.cache/pip
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
@@ -24,12 +19,12 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       # Database connections
       - DATABASE_URL=${DATABASE_URL:-postgresql://agent_guru:${POSTGRES_PASSWORD}@postgres:5432/agent_guru}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - REDIS_URL=${REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379/0}
       # Ollama (local LLM) — points to the ollama service in this compose stack
       - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
       # App settings
       - AGENT_GURU_ENV=${AGENT_GURU_ENV:-development}
-      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env or environment}
       # Log directory (persisted via volume mount below)
       - AGENT_GURU_LOG_DIR=/app/logs
     ports:
@@ -82,7 +77,7 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
 
   postgres:
     image: postgres:16-alpine
