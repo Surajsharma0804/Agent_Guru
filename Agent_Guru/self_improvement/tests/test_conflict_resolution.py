@@ -40,7 +40,7 @@ def temp_db():
     try:
         os.unlink(path)
     except Exception as e:
-        _logger.warning("Suppressed exception: %s", e)
+        logger.warning("Suppressed exception: %s", e)
 
 
 @pytest.fixture

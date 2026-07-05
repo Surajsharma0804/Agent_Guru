@@ -41,7 +41,7 @@ import numpy as np
 from Agent_Guru.speech.exceptions import GuruSpeechError
 from Agent_Guru.speech.models import EmotionType, PersonalityType
 
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Model file locations
@@ -302,11 +302,11 @@ class KokoroTTSEngine:
 
         # Auto-download model files if missing
         if not _MODEL_PATH.exists():
-            _logger.info("Kokoro model not found — downloading (~83 MB, one-time)...")
+            logger.info("Kokoro model not found — downloading (~83 MB, one-time)...")
             _download(_MODEL_URL, _MODEL_PATH)
 
         if not _VOICES_PATH.exists():
-            _logger.info("Kokoro voices not found — downloading (~3 MB, one-time)...")
+            logger.info("Kokoro voices not found — downloading (~3 MB, one-time)...")
             _download(_VOICES_URL, _VOICES_PATH)
 
         try:
@@ -314,7 +314,7 @@ class KokoroTTSEngine:
 
             self._kokoro = Kokoro(str(_MODEL_PATH), str(_VOICES_PATH))
             self._loaded = True
-            _logger.info("Kokoro TTS engine loaded (voices: am_michael, af_heart)")
+            logger.info("Kokoro TTS engine loaded (voices: am_michael, af_heart)")
         except ImportError as exc:
             msg = "kokoro-onnx not installed. Run: pip install kokoro-onnx"
             raise TTSError(msg, exc) from exc
@@ -362,7 +362,7 @@ class _Pyttsx3Engine:
             self._engine = engine
             return True
         except Exception as exc:
-            _logger.warning("pyttsx3 unavailable: %s", exc)
+            logger.warning("pyttsx3 unavailable: %s", exc)
             return False
 
     def synthesize(
@@ -400,7 +400,7 @@ class _Pyttsx3Engine:
                     if os.path.exists(tmp):
                         os.unlink(tmp)
             except Exception as exc:
-                _logger.warning("pyttsx3 synthesis failed: %s", exc)
+                logger.warning("pyttsx3 synthesis failed: %s", exc)
                 return _silence_wav(text)
 
 # ---------------------------------------------------------------------------
@@ -484,7 +484,7 @@ class CoquiTTSEngine:
                     lang,
                 )
             except TTSError as exc:
-                _logger.warning("Kokoro failed, falling back to pyttsx3: %s", exc)
+                logger.warning("Kokoro failed, falling back to pyttsx3: %s", exc)
                 self._use_kokoro = False
         # pyttsx3 fallback
         if not self._pyttsx3_ready:
@@ -515,7 +515,7 @@ class CoquiTTSEngine:
                     lang,
                 )
             except TTSError as exc:
-                _logger.warning("Kokoro failed, falling back to pyttsx3: %s", exc)
+                logger.warning("Kokoro failed, falling back to pyttsx3: %s", exc)
                 self._use_kokoro = False
         # pyttsx3 fallback → convert WAV bytes to array
         if not self._pyttsx3_ready:

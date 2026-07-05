@@ -24,11 +24,12 @@ Version: 1.0.0
 """
 
 import logging
+import threading
 import time
 from datetime import UTC, datetime
 from typing import Any
 
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool  # noqa: E402
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema  # noqa: E402
@@ -148,6 +149,8 @@ class SelfImprovementEngine:
 
             self.git_integration = GitIntegration(git_repo_path)
 
+        # P2-53: Lock protects _task_sequence from concurrent mutation
+        self._lock = threading.Lock()
         # Task sequence counter
         self._task_sequence = self._get_current_task_sequence()
 
@@ -267,7 +270,7 @@ class SelfImprovementEngine:
         # Performance monitoring
         elapsed_ms = (time.time() - start_time) * 1000
         if elapsed_ms > 50:
-            _logger.warning("record_task_execution took %.2fms (target: <50ms)", elapsed_ms)
+            logger.warning("record_task_execution took %.2fms (target: <50ms)", elapsed_ms)
 
     def get_optimal_strategy(self, task_type: str, context: dict | None = None) -> Strategy | None:
         """Get the optimal strategy for a task type.
@@ -312,7 +315,7 @@ class SelfImprovementEngine:
         # Performance monitoring
         elapsed_ms = (time.time() - start_time) * 1000
         if elapsed_ms > 10:
-            _logger.warning("get_optimal_strategy took %.2fms (target: <10ms)", elapsed_ms)
+            logger.warning("get_optimal_strategy took %.2fms (target: <10ms)", elapsed_ms)
 
         return strategy
 
@@ -639,7 +642,7 @@ class SelfImprovementEngine:
         )
 
         if not improvement:
-            _logger.warning("Insufficient data for improvement calculation")
+            logger.warning("Insufficient data for improvement calculation")
             return
 
         # Calculate statistical significance
@@ -716,7 +719,7 @@ class SelfImprovementEngine:
                 message=f"Task {execution.task_id}: {'Success' if execution.success else 'Failure'}",
             )
         except Exception as e:
-            _logger.warning("Git commit failed for task %s: %s", execution.task_id, e)
+            logger.warning("Git commit failed for task %s: %s", execution.task_id, e)
             # Don't fail the task execution if Git commit fails
 
     def _commit_improvement_report(self, report: dict[str, Any]) -> None:
@@ -737,7 +740,7 @@ class SelfImprovementEngine:
                 message=f"Improvement Report: {report['total_tasks']} tasks completed",
             )
         except Exception as e:
-            _logger.warning("Git commit failed for improvement report: %s", e)
+            logger.warning("Git commit failed for improvement report: %s", e)
 
     def close(self) -> None:
         """Close all resources.
@@ -751,14 +754,14 @@ class SelfImprovementEngine:
             try:
                 self.meta_learner.close()
             except Exception as e:
-                _logger.warning("Error closing meta_learner: %s", e)
+                logger.warning("Error closing meta_learner: %s", e)
 
         # Close connection pool
         if hasattr(self, "pool") and self.pool:
             try:
                 self.pool.close_all()
             except Exception as e:
-                _logger.warning("Error closing connection pool: %s", e)
+                logger.warning("Error closing connection pool: %s", e)
 
         # Small delay to ensure Windows releases file locks
         import time

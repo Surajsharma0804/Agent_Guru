@@ -15,7 +15,7 @@ Version: 1.0.0
 
 import logging
 
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 from enum import Enum  # noqa: E402
 from typing import Any  # noqa: E402
@@ -125,7 +125,7 @@ class PolicyIntegration:
             return PolicyDecision.ALLOW
 
         except Exception as e:
-            _logger.warning("Warning: Policy check failed: %s", e)
+            logger.warning("Warning: Policy check failed: %s", e)
             # Fail safe - deny on error
             return PolicyDecision.DENY
 
@@ -173,7 +173,7 @@ class PolicyIntegration:
             return PolicyDecision.ALLOW
 
         except Exception as e:
-            _logger.warning("Warning: Prompt evolution policy check failed: %s", e)
+            logger.warning("Warning: Prompt evolution policy check failed: %s", e)
             # Fail safe - deny on error
             return PolicyDecision.DENY
 
@@ -212,7 +212,7 @@ class PolicyIntegration:
             return self._get_all_strategies()
 
         except Exception as e:
-            _logger.warning("Warning: Get allowed strategies failed: %s", e)
+            logger.warning("Warning: Get allowed strategies failed: %s", e)
             return []
 
     def _get_all_strategies(self) -> list[str]:
@@ -227,7 +227,7 @@ class PolicyIntegration:
             strategies = self.engine.strategy_optimizer.get_all_strategies()
             return [s.strategy_id for s in strategies]
         except Exception as e:
-            _logger.warning("Warning: Get all strategies failed: %s", e)
+            logger.warning("Warning: Get all strategies failed: %s", e)
             return []
 
     def set_policy(self, policy_name: str, policy_value: bool) -> None:

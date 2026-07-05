@@ -13,21 +13,20 @@ Design goals:
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import uuid
+from collections import defaultdict
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
+from typing import Any
 
-_logger = logging.getLogger(__name__)
+import structlog
 
-import asyncio  # noqa: E402
-import uuid  # noqa: E402
-from collections import defaultdict  # noqa: E402
-from collections.abc import Callable, Coroutine  # noqa: E402
-from dataclasses import dataclass  # noqa: E402
-from typing import Any  # noqa: E402
+from Agent_Guru.vision.vision_models import VisionEvent
 
-import structlog  # noqa: E402
-
-from Agent_Guru.vision.vision_models import VisionEvent  # noqa: E402
-
+# Single canonical logger — structlog for structured event processing.
+# stdlib logging._logger removed to eliminate dual-logger confusion.
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
 # Type alias for async subscriber callbacks
@@ -63,7 +62,7 @@ class VisionEventBus:
         bus = VisionEventBus()
 
         async def handler(event: VisionEvent) -> None:
-            _logger.debug(event)
+            logger.debug(event)
 
         sub_id = bus.subscribe(["object_detected"], handler, min_confidence=0.5)
         await bus.publish(VisionEvent(...))
@@ -75,6 +74,9 @@ class VisionEventBus:
         self._subscriptions: dict[str, _Subscription] = {}
         # source_module → count of active subscribers interested in that module
         self._module_subscriber_counts: dict[str, int] = defaultdict(int)
+        # P2-40: event_type → set of subscription IDs for O(1) publish lookup.
+        # '*' key holds subscribers interested in ALL event types.
+        self._type_index: dict[str, set[str]] = defaultdict(set)
 
     # ------------------------------------------------------------------
     # Subscribe / unsubscribe
@@ -111,6 +113,13 @@ class VisionEventBus:
         )
         self._subscriptions[sub_id] = sub
 
+        # P2-40: Maintain event-type index
+        if sub.event_types:
+            for et in sub.event_types:
+                self._type_index[et].add(sub_id)
+        else:
+            self._type_index["*"].add(sub_id)
+
         # Update module subscriber counts
         if source_module:
             self._module_subscriber_counts[source_module] += 1
@@ -139,6 +148,13 @@ class VisionEventBus:
             msg = f"Unknown subscription_id: {subscription_id!r}"
             raise KeyError(msg)
 
+        # P2-40: Remove from type index
+        if sub.event_types:
+            for et in sub.event_types:
+                self._type_index[et].discard(subscription_id)
+        else:
+            self._type_index["*"].discard(subscription_id)
+
         if sub.source_module:
             count = self._module_subscriber_counts.get(sub.source_module, 0)
             if count > 0:
@@ -160,7 +176,13 @@ class VisionEventBus:
             event: The VisionEvent to publish.
 
         """
-        matching = [sub for sub in self._subscriptions.values() if self._matches(sub, event)]
+        # P2-40: O(1) lookup via type index instead of O(n) scan
+        candidate_ids = self._type_index.get(event.event_type, set()) | self._type_index.get("*", set())
+        matching = [
+            self._subscriptions[sid]
+            for sid in candidate_ids
+            if sid in self._subscriptions and self._matches(self._subscriptions[sid], event)
+        ]
 
         if not matching:
             return

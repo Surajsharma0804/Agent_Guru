@@ -15,7 +15,7 @@ Version: 1.0.0
 
 import logging
 
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 from datetime import UTC, datetime  # noqa: E402
 from typing import Any  # noqa: E402
@@ -137,7 +137,7 @@ class MemoryIntegration:
             return self._get_patterns_from_engine(task_type, limit)
 
         except Exception as e:
-            _logger.warning("Warning: Historical pattern retrieval failed: %s", e)
+            logger.warning("Warning: Historical pattern retrieval failed: %s", e)
             return []
 
     def _get_patterns_from_engine(self, task_type: str | None, limit: int) -> list[dict[str, Any]]:
@@ -164,7 +164,7 @@ class MemoryIntegration:
             return patterns[:limit]
 
         except Exception as e:
-            _logger.warning("Warning: Pattern retrieval from engine failed: %s", e)
+            logger.warning("Warning: Pattern retrieval from engine failed: %s", e)
             return []
 
     def get_sync_status(self) -> dict[str, Any]:
