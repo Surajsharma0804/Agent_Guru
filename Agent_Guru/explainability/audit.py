@@ -87,6 +87,8 @@ class AuditTrail:
             _conn = closing(sqlite3.connect(":memory:", check_same_thread=False))
             self._memory_conn = _conn.__enter__()
             self._memory_conn.execute("PRAGMA journal_mode=WAL")
+            self._memory_conn.execute("PRAGMA synchronous=NORMAL")
+            self._memory_conn.execute("PRAGMA busy_timeout=5000")
         self._setup_schema()
         self._private_key: Any | None = None
         if _CRYPTO_AVAILABLE:
@@ -105,6 +107,8 @@ class AuditTrail:
         else:
             with closing(sqlite3.connect(self.db_path, check_same_thread=False)) as conn:
                 conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA synchronous=NORMAL")
+                conn.execute("PRAGMA busy_timeout=5000")
                 yield conn
 
     def _setup_schema(self) -> None:

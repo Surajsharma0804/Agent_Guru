@@ -467,6 +467,58 @@ class MemoryManager:
             return []
 
     # ------------------------------------------------------------------
+    # P2-72: Conversation summary compression
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def compress_history(
+        history: list[dict[str, str]],
+        max_verbatim: int = 6,
+        threshold: int = 20,
+    ) -> list[dict[str, str]]:
+        """Compress long conversation history to prevent context noise.
+
+        When history exceeds ``threshold`` messages, older messages are
+        compressed into a single summary message while preserving the
+        most recent ``max_verbatim`` messages verbatim.
+
+        This prevents "memory collapse" — where the LLM becomes confused
+        by too many low-relevance historical messages.
+
+        Args:
+            history: List of ``{"role": ..., "content": ...}`` dicts.
+            max_verbatim: Number of recent messages to keep verbatim.
+            threshold: Minimum history length before compression kicks in.
+
+        Returns:
+            Compressed history list.
+
+        """
+        if len(history) <= threshold:
+            return history
+
+        # Split into older (to compress) and recent (to keep)
+        older = history[:-max_verbatim]
+        recent = history[-max_verbatim:]
+
+        # Build summary of older messages
+        summary_parts = []
+        for msg in older:
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")[:100]  # Truncate for summary
+            summary_parts.append(f"[{role}] {content}")
+
+        summary_text = (
+            "[Compressed conversation history — "
+            f"{len(older)} earlier messages summarized]\n"
+            + "\n".join(summary_parts[-10:])  # Keep last 10 summaries
+        )
+
+        compressed = [{"role": "system", "content": summary_text}]
+        compressed.extend(recent)
+        return compressed
+
+    # ------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------
 
@@ -519,6 +571,7 @@ class MemoryManager:
         # Enable WAL mode for concurrent readers
         await self._db.execute("PRAGMA journal_mode=WAL")
         await self._db.execute("PRAGMA synchronous=NORMAL")
+        await self._db.execute("PRAGMA busy_timeout=5000")
         await self._db.execute("""
             CREATE TABLE IF NOT EXISTS interactions (
                 id        INTEGER PRIMARY KEY AUTOINCREMENT,
