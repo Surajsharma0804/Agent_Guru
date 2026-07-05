@@ -30,11 +30,14 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import datetime as _dt
 import inspect
 import logging
+import os
 import re
 import sys
 import urllib.parse as _up
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import UTC
 from enum import Enum
@@ -230,8 +233,7 @@ class IntegrationOrchestrator:
         # Without this, the LLM has no memory of what was said 10 seconds ago.
         # A companion must remember at least the recent conversation.
         # The token budget guard in _stage_llm handles overflow gracefully.
-        from collections import deque as _deque
-        self._chat_history: _deque = _deque(maxlen=24)  # 12 user + 12 assistant turns
+        self._chat_history: deque = deque(maxlen=24)  # 12 user + 12 assistant turns
 
         logger.info("IntegrationOrchestrator wired — all subsystems connected")
 
@@ -277,7 +279,12 @@ class IntegrationOrchestrator:
         ]
 
         # Concurrent initialisation — NOT sequential awaits
-        await asyncio.gather(*coros, return_exceptions=True)
+        results = await asyncio.gather(*coros, return_exceptions=True)
+
+        # P2-47: Log any subsystem startup failures instead of silently swallowing
+        for name_coro, result in zip(coros, results, strict=False):
+            if isinstance(result, Exception):
+                logger.error("Subsystem startup exception: %s", result)
 
         # Cache STT and TTS callables once so stage methods never repeat reflection
         await self._cache_stt_fn()
@@ -977,9 +984,7 @@ class IntegrationOrchestrator:
                         prompt = f"{prompt}\n\nCurrent screen content:\n{screen_text[:1500]}"
 
                 # ── Personality-aware system prompt ───────────────────────
-                import datetime as _dt
-
-                current_date = _dt.datetime.now().strftime("%B %d, %Y")
+                current_date = _dt.datetime.now(tz=UTC).strftime("%B %d, %Y")
 
                 # Inject persistent user memory so the assistant knows who it's talking to
                 from Agent_Guru.platform.features.user_memory import get_user_memory
@@ -1132,11 +1137,9 @@ class IntegrationOrchestrator:
                 messages.extend(history_messages)
                 messages.append(Message(role="user", content=prompt))
 
-                import os as _os
-
                 # Default: gemma3:4b — best model for 4GB VRAM (RTX 2050), May 2025.
                 # Falls back to env var OLLAMA_MODEL if set.
-                ollama_model = _os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
+                ollama_model = os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
                 request = CompletionRequest(
                     model=ollama_model,
                     messages=messages,

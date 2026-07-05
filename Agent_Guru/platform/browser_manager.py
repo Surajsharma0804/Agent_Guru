@@ -552,9 +552,8 @@ class BrowserManager:
             "/snap/bin/chromium",
         ]
 
-        import os as _os
 
-        username = _os.environ.get("USERNAME") or _os.environ.get("USER") or ""
+        username = os.environ.get("USERNAME") or os.environ.get("USER") or ""
         for c in candidates:
             c = c.replace("{user}", username)
             if Path(c).exists():

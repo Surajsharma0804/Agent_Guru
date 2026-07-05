@@ -22,6 +22,7 @@ Supported Platforms:
 - iOS: Mobile platform (future support)
 """
 
+import os
 import platform
 import sys
 from dataclasses import dataclass
@@ -316,10 +317,8 @@ def _is_android() -> bool:
         True if running on Android, False otherwise
 
     """
-    import os as _os
-
     # Check for Android-specific environment variables
-    if "ANDROID_ROOT" in _os.environ or "ANDROID_DATA" in _os.environ:
+    if "ANDROID_ROOT" in os.environ or "ANDROID_DATA" in os.environ:
         return True
 
     # Check for Android-specific system properties

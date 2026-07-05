@@ -1814,7 +1814,6 @@ class OSController:
 
         """
         try:
-            import os as _os
             import tempfile
 
             # ScreenCaptureController uses capture_screenshot(output_path), not take_screenshot
@@ -1827,7 +1826,7 @@ class OSController:
                 msg = "No screenshot method found on screen controller"
                 raise AttributeError(msg)
             if save_path is None:
-                save_path = _os.path.join(tempfile.gettempdir(), "guru_screenshot.png")
+                save_path = os.path.join(tempfile.gettempdir(), "guru_screenshot.png")
             capture_fn(save_path)
             self._log_operation(
                 OperationCategory.SCREEN_CAPTURE,
