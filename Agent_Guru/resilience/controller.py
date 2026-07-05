@@ -34,7 +34,7 @@ class DegradationMode(Enum):
     FULL = "full"
     DEGRADED = "degraded"
     MINIMAL = "minimal"
-    SAFE = "safe"
+    SAFE = "safe"  # Emergency mode: only rule-based responses, no external calls
 
 
 class DegradationController:
@@ -68,14 +68,32 @@ class DegradationController:
         return self._mode
 
     def monitor_resources(self) -> dict[str, float]:
-        """Check system resources and adjust mode if needed."""
+        """Check system resources and adjust mode.
+
+        Degrades mode when resources are low, and recovers back to FULL
+        when resources normalise for sustained periods.
+        """
         if not _PSUTIL_AVAILABLE:
             return {"ram_mb": 0.0, "cpu_pct": 0.0}
         ram_mb = psutil.virtual_memory().available / (1024 * 1024)
         cpu_pct = psutil.cpu_percent(interval=0.1)
-        if ram_mb < RAM_THRESHOLD_MB or cpu_pct > CPU_THRESHOLD_PCT:
+
+        resources_ok = ram_mb >= RAM_THRESHOLD_MB and cpu_pct <= CPU_THRESHOLD_PCT
+        resources_critical = ram_mb < RAM_THRESHOLD_MB / 2 or cpu_pct > 95.0
+
+        if resources_critical:
+            if self._mode != DegradationMode.SAFE:
+                self.switch_mode(DegradationMode.SAFE)
+        elif not resources_ok:
             if self._mode == DegradationMode.FULL:
                 self.switch_mode(DegradationMode.DEGRADED)
+        else:
+            # Resources are healthy — recover toward FULL
+            if self._mode == DegradationMode.SAFE:
+                self.switch_mode(DegradationMode.DEGRADED)
+            elif self._mode == DegradationMode.DEGRADED:
+                self.switch_mode(DegradationMode.FULL)
+
         return {"ram_mb": ram_mb, "cpu_pct": cpu_pct}
 
     async def llm_with_failover(
@@ -96,9 +114,17 @@ class DegradationController:
         return self._rule_based_response(prompt)
 
     async def _call_provider(self, provider: str, prompt: str) -> str:
-        """Stub LLM provider call."""
+        """Call an LLM provider.
+
+        NOTE: This is a stub implementation. In production, this should
+        delegate to the actual FailoverRouter or provider adapters.
+        Override this method or inject real provider callables via the
+        constructor to enable real LLM calls in degradation mode.
+        """
         await asyncio.sleep(0)
         if provider == "rule_based":
+            return self._rule_based_response(prompt)
+        if self._mode == DegradationMode.SAFE:
             return self._rule_based_response(prompt)
         return f"[{provider}] Response to: {prompt[:50]}"
 

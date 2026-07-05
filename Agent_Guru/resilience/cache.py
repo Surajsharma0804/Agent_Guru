@@ -11,6 +11,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Default cache TTL: 24 hours (in seconds)
+_DEFAULT_TTL_S = 86400.0
+
 
 @dataclass
 class CachedCommand:
@@ -36,10 +39,11 @@ class CachedCommand:
 
 
 class OfflineCache:
-    """SQLite-backed offline cache with FTS5 fuzzy matching."""
+    """SQLite-backed offline cache with FTS5 fuzzy matching and TTL."""
 
-    def __init__(self, db_path: str = ":memory:") -> None:
+    def __init__(self, db_path: str = ":memory:", ttl_s: float = _DEFAULT_TTL_S) -> None:
         self.db_path = db_path
+        self._ttl_s = ttl_s
         self._conn: sqlite3.Connection = sqlite3.connect(
             db_path,
             check_same_thread=False,
@@ -57,11 +61,30 @@ class OfflineCache:
                 )
             """)
             # FTS5 virtual table for fuzzy search
+            self._fts_available = False
             try:
                 self._conn.execute("""
                     CREATE VIRTUAL TABLE IF NOT EXISTS commands_fts
                     USING fts5(command, response, content='commands', content_rowid='rowid')
                 """)
+                # Triggers to keep FTS5 in sync with the commands table
+                self._conn.executescript("""
+                    CREATE TRIGGER IF NOT EXISTS commands_ai AFTER INSERT ON commands BEGIN
+                        INSERT INTO commands_fts(rowid, command, response)
+                        VALUES (new.rowid, new.command, new.response);
+                    END;
+                    CREATE TRIGGER IF NOT EXISTS commands_ad AFTER DELETE ON commands BEGIN
+                        INSERT INTO commands_fts(commands_fts, rowid, command, response)
+                        VALUES ('delete', old.rowid, old.command, old.response);
+                    END;
+                    CREATE TRIGGER IF NOT EXISTS commands_au AFTER UPDATE ON commands BEGIN
+                        INSERT INTO commands_fts(commands_fts, rowid, command, response)
+                        VALUES ('delete', old.rowid, old.command, old.response);
+                        INSERT INTO commands_fts(rowid, command, response)
+                        VALUES (new.rowid, new.command, new.response);
+                    END;
+                """)
+                self._fts_available = True
             except sqlite3.OperationalError:
                 pass  # FTS5 not available
 
@@ -75,23 +98,46 @@ class OfflineCache:
                 )
 
     def lookup(self, query: str) -> CachedCommand | None:
-        """Fuzzy lookup using FTS5."""
-        try:
-            with self._conn:
-                row = self._conn.execute(
-                    "SELECT command, response, timestamp FROM commands_fts WHERE command MATCH ? LIMIT 1",
-                    (query,),
-                ).fetchone()
-        except sqlite3.OperationalError:
-            # Fallback to exact match
+        """Fuzzy lookup using FTS5 with TTL enforcement.
+
+        Expired entries are cleaned up lazily during lookup.
+        """
+        # Clean up expired entries periodically
+        self._cleanup_expired()
+
+        row = None
+        if self._fts_available:
+            try:
+                with self._conn:
+                    row = self._conn.execute(
+                        "SELECT command, response, timestamp FROM commands_fts WHERE command MATCH ? LIMIT 1",
+                        (query,),
+                    ).fetchone()
+            except sqlite3.OperationalError:
+                row = None  # Fall through to exact match
+
+        if row is None:
             with self._conn:
                 row = self._conn.execute(
                     "SELECT command, response, timestamp FROM commands WHERE command = ? LIMIT 1",
                     (query,),
                 ).fetchone()
+
         if row:
+            # TTL check: reject stale entries
+            if time.time() - row[2] > self._ttl_s:
+                return None
             return CachedCommand(command=row[0], response=row[1], timestamp=row[2])
         return None
+
+    def _cleanup_expired(self) -> None:
+        """Remove entries older than TTL."""
+        cutoff = time.time() - self._ttl_s
+        try:
+            with self._conn:
+                self._conn.execute("DELETE FROM commands WHERE timestamp < ?", (cutoff,))
+        except sqlite3.OperationalError:
+            pass
 
     def queue_action(self, action: dict[str, Any]) -> None:
         """Queue an action for sync when reconnected."""
