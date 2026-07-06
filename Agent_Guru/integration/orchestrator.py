@@ -512,9 +512,6 @@ class IntegrationOrchestrator:
                         "switching from MAYA to GURU",
                     )
                     result.personality = Personality.GURU
-                # Nothing heard — skip all remaining stages
-                result.stages_completed = 8
-                return result
 
             # Stage 2: Memory context (fast, <50ms)
             result.memory_context = await self._stage_memory(result.transcript)
