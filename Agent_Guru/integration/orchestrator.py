@@ -24,6 +24,14 @@ This module is purely additive — no existing subsystem code is modified.
 Performance:
   - Time Complexity: O(1) orchestration overhead per pipeline stage
   - Space Complexity: O(1) — fixed subsystem references
+
+Concurrency note (pipeline_mode):
+  Speaker-verification outcome ("full" vs "restricted") is carried on the
+  per-call PipelineResult and passed explicitly through _stage_action() /
+  _execute_single_action() as a parameter — never stored on `self`. Two
+  pipeline runs can be in flight at once (see handle_concurrent_event), so
+  any safety-relevant flag stored on the shared instance would be a race
+  condition. Passing it by value through the call chain avoids that.
 """
 
 from __future__ import annotations
@@ -41,6 +49,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import UTC
 from enum import Enum
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from Agent_Guru.security.audit.logger import AuditLogger, EventType
@@ -101,6 +110,13 @@ class PipelineResult:
         action_result: Result of action execution from stage 7.
         tts_response: TTS audio/text from stage 8.
         personality: Personality used for this interaction.
+        pipeline_mode: "full" or "restricted" — set by speaker verification.
+            "restricted" means the speaking voice did not match the enrolled
+            owner profile; destructive actions and memory writes are denied
+            downstream, but the pipeline still responds conversationally
+            (never a silent drop). Defaults to "full" when no speaker
+            profile is enrolled, so a fresh install isn't locked out of its
+            own destructive actions on day one.
         error: Error message if any stage failed.
 
     """
@@ -116,6 +132,7 @@ class PipelineResult:
     action_result: Any | None = None
     tts_response: Any | None = None
     personality: Personality = Personality.GURU
+    pipeline_mode: str = "full"
     error: str | None = None
 
 
@@ -235,6 +252,16 @@ class IntegrationOrchestrator:
         # The token budget guard in _stage_llm handles overflow gracefully.
         self._chat_history: deque = deque(maxlen=24)  # 12 user + 12 assistant turns
 
+        # NOTE: there is intentionally NO self._pipeline_mode attribute.
+        # pipeline_mode (speaker-verification outcome) is carried per-call on
+        # PipelineResult and passed explicitly through _stage_action() /
+        # _execute_single_action(). Storing it on `self` previously made the
+        # restricted-mode security gate a silent no-op (the attribute was
+        # read via getattr(self, "_pipeline_mode", "full") but never actually
+        # assigned anywhere), and would additionally have been a race
+        # condition across concurrent pipeline runs even if fixed. See the
+        # module docstring's "Concurrency note".
+
         logger.info("IntegrationOrchestrator wired — all subsystems connected")
 
     # ------------------------------------------------------------------
@@ -277,6 +304,27 @@ class IntegrationOrchestrator:
             self._init_subsystem("avatar", self.avatar),
             self._init_subsystem("deployment", self.deployment),
         ]
+
+        # FIX: the filler-response cache (played in run_pipeline()'s
+        # post-wake-word pause) was previously only ever lazily initialised
+        # on the FIRST live wake-word event, inside the hot pipeline path.
+        # initialize() loads the Kokoro ONNX model + voice bank from disk —
+        # exactly the kind of work this concurrent-startup phase exists to
+        # absorb ahead of time. Warmed here instead so the very first
+        # real interaction doesn't pay that load cost. _init_subsystem()
+        # already handles a plain synchronous initialize() method (used by
+        # every other subsystem above) by running it in a thread executor,
+        # so this reuses that same generic path rather than adding a
+        # special case.
+        try:
+            from Agent_Guru.speech.filler_response import get_filler_cache as _get_filler_cache_fn
+
+            coros.append(self._init_subsystem("filler_cache", _get_filler_cache_fn()))
+        except Exception:
+            logger.debug(
+                "Filler-response module unavailable — skipping cache warm-up",
+                exc_info=True,
+            )
 
         # Concurrent initialisation — NOT sequential awaits
         results = await asyncio.gather(*coros, return_exceptions=True)
@@ -480,6 +528,59 @@ class IntegrationOrchestrator:
         # Personality routing — initial assignment from wake word
         result.personality = self._resolve_personality(wake_event.wake_word)
 
+        # ── Timing instrumentation ─────────────────────────────────────
+        import time as _time
+        _wake_timestamp = _time.perf_counter()
+
+        # FIX: import get_user_memory ONCE, unconditionally, here — rather
+        # than relying on it leaking out of the filler-playback try block
+        # below. If filler playback ever raised before that import line ran,
+        # every later block reusing the same name would NameError straight
+        # into its own broad except-clause: e.g. a taught reaction-rule would
+        # get saved with zero confirmation spoken back, silently.
+        from Agent_Guru.platform.features.user_memory import get_user_memory as _get_um
+
+        # ── Filler response — play in the natural post-wake-word pause ──
+        # This is where Alexa/Google put their listening chime.
+        # Fires BEFORE STT starts, in the ~300ms pause after "Hey Guru".
+        #
+        # FIX: previously called `_filler_cache.play_filler(...)` directly —
+        # a BLOCKING call (it does sd.play(); sd.wait()) — straight from this
+        # `async def`, with no await and no thread offload. That froze the
+        # entire event loop, including any concurrently running vision
+        # pipeline task (see handle_concurrent_event's asyncio.gather), for
+        # the full ~300-500ms the filler clip played. Now uses
+        # play_filler_async(), which runs the blocking work in a worker
+        # thread via asyncio.to_thread() and is safe to await here.
+        #
+        # The lazy `_filler_cache.initialize()` call is also offloaded the
+        # same way — it does real model-loading disk I/O — and is kept only
+        # as a safety net; the cache is normally already warmed by
+        # startup()'s concurrent subsystem init (see _init_subsystem calls
+        # in startup()), so this branch should rarely trigger in practice.
+        try:
+            from Agent_Guru.speech.filler_response import get_filler_cache
+
+            _filler_cache = get_filler_cache()
+            if not _filler_cache._initialized:
+                await asyncio.to_thread(_filler_cache.initialize)
+            _lang_pref = _get_um().get("code_mixing", "hinglish")
+            _persona_str = "maya" if result.personality == Personality.MAYA else "guru"
+            await _filler_cache.play_filler_async(
+                personality=_persona_str,
+                language_pref=_lang_pref,
+                wake_timestamp=_wake_timestamp,
+            )
+        except Exception as _filler_exc:
+            logger.debug("Filler playback skipped: %s", _filler_exc)
+
+        # Pipeline mode defaults to "full" until/unless speaker verification
+        # (below) downgrades it for this call. Stored on `result` (a fresh
+        # instance per invocation) — see the module docstring's concurrency
+        # note for why this must never live on `self`.
+        _pipeline_mode = "full"
+        result.pipeline_mode = _pipeline_mode
+
         try:
             # Stage 1: STT — pass personality so Whisper uses the right voice profile
             result.transcript, result.detected_language = await self._stage_stt(
@@ -492,11 +593,13 @@ class IntegrationOrchestrator:
                 result.stages_completed = 8
                 return result
 
-            # ── Re-check personality from transcript ──────────────────────
-            # Wake word detection can misidentify "Hey Maya" as "Hey Guru"
-            # (spectral heuristic is unreliable). If the transcript itself
-            # contains "Maya" at the start, trust the transcript over the
-            # wake word detector and switch personality.
+            # ── Re-check personality from transcript (MOVED UP) ───────────
+            # FIX: this used to run AFTER the teaching-intent and reaction-
+            # rule early-return branches below. That meant a misheard wake
+            # word ("Hey Guru" instead of "Hey Maya") could speak an early-
+            # return response in the WRONG voice whenever this correction
+            # would have applied. Running it here means every branch below
+            # sees the corrected personality.
             transcript_lower = result.transcript.lower().strip()
             if any(kw in transcript_lower[:30] for kw in ("maya", "hey maya", "hi maya")):
                 if result.personality != Personality.MAYA:
@@ -512,6 +615,121 @@ class IntegrationOrchestrator:
                         "switching from MAYA to GURU",
                     )
                     result.personality = Personality.GURU
+
+            # ── Speaker verification (opt-in) ─────────────────────────────
+            # Only runs if a speaker profile has been enrolled.
+            # No profile → pipeline_mode stays "full" (day-one safe).
+            #
+            # FIX: previously this block set a LOCAL variable and the actual
+            # gates (in _execute_single_action) read getattr(self,
+            # "_pipeline_mode", "full") — but self._pipeline_mode was never
+            # assigned anywhere in this class, so that read always fell back
+            # to "full" regardless of what verification decided here. The
+            # restricted-mode security gate was therefore a no-op end to end.
+            # Now the outcome is written onto `result.pipeline_mode` and
+            # passed explicitly down the call chain instead.
+            try:
+                from Agent_Guru.speech.biometric.speaker_verifier import get_speaker_verifier
+
+                _verifier = get_speaker_verifier()
+                if _verifier.is_enrolled() and wake_event.audio is not None:
+                    _verify_result = _verifier.verify(wake_event.audio)
+                    _pipeline_mode = _verify_result.mode
+                    result.pipeline_mode = _pipeline_mode
+                    if _pipeline_mode == "restricted":
+                        logger.info(
+                            "Speaker verification: RESTRICTED mode (similarity=%.3f)",
+                            _verify_result.similarity,
+                        )
+            except Exception as _sv_exc:
+                logger.debug("Speaker verification skipped: %s", _sv_exc)
+
+            # ── Reaction-rule teaching detection (anchor + connector) ──────
+            # Checked FIRST (more specific than generic "remember").
+            # Requires anchor phrase ("jab main bolu" / "when I say") + connector.
+            try:
+                from Agent_Guru.platform.features.reaction_rules import (
+                    extract_teaching_intent,
+                    get_reaction_rules,
+                )
+
+                if _pipeline_mode == "full":  # restricted mode: skip teaching
+                    _teaching = extract_teaching_intent(result.transcript)
+                    if _teaching is not None:
+                        _trigger, _response = _teaching
+                        _store = get_reaction_rules()
+
+                        # FIX: previously only intent_recognizer was passed as
+                        # a guard, so a taught rule could silently shadow a
+                        # built-in feature that lives outside
+                        # intent_recognizer._rule_engine entirely (morning
+                        # briefing / system status / reminders / dictation /
+                        # clipboard / screen-reading — see
+                        # reaction_rules.add_rule()'s docstring). Wire all six
+                        # matchers in as extra_guards so add_rule() can reject
+                        # a collision at teach-time instead of the taught rule
+                        # just silently winning later.
+                        _extra_guards: list[Callable[[str], bool]] = []
+                        try:
+                            from Agent_Guru.platform.features.briefing import is_briefing_command
+                            from Agent_Guru.platform.features.system_status import is_system_status_command
+                            from Agent_Guru.platform.features.reminders import parse_reminder_from_transcript
+                            from Agent_Guru.platform.features.dictation import (
+                                is_clipboard_command,
+                                is_dictation_command,
+                            )
+                            from Agent_Guru.platform.features.screen_reader import is_screen_read_command
+
+                            _extra_guards = [
+                                is_briefing_command,
+                                is_system_status_command,
+                                lambda t: bool(parse_reminder_from_transcript(t)),
+                                is_dictation_command,
+                                is_clipboard_command,
+                                is_screen_read_command,
+                            ]
+                        except Exception:
+                            logger.debug(
+                                "Could not import universal-feature matchers for "
+                                "reaction-rule guard — proceeding with "
+                                "intent_recognizer guard only",
+                                exc_info=True,
+                            )
+
+                        _ok, _msg = _store.add_rule(
+                            _trigger, _response,
+                            intent_recognizer=self._intent_recognizer,
+                            extra_guards=_extra_guards,
+                        )
+                        if _ok:
+                            _lang = _get_um().get("code_mixing", "hinglish")
+                            if _lang == "hinglish":
+                                result.llm_response = "done, yaad rakh liya!"
+                            else:
+                                result.llm_response = "got it, I'll remember that!"
+                        else:
+                            result.llm_response = _msg
+                        result.stages_completed = 8
+                        await self._stage_tts(result.llm_response, result.personality)
+                        logger.info(
+                            "TIMING: wake_to_first_tts_ms=%.1f (teaching-intent)",
+                            (_time.perf_counter() - _wake_timestamp) * 1000,
+                        )
+                        return result
+
+                # ── Reaction-rule matching (before intent dispatch) ─────────
+                _rule_response = get_reaction_rules().match(result.transcript)
+                if _rule_response is not None:
+                    result.llm_response = _rule_response
+                    result.stages_completed = 8
+                    await self._stage_tts(result.llm_response, result.personality)
+                    logger.info(
+                        "TIMING: wake_to_first_tts_ms=%.1f (reaction-rule)",
+                        (_time.perf_counter() - _wake_timestamp) * 1000,
+                    )
+                    return result
+            except Exception as _rr_exc:
+                logger.debug("Reaction rule check skipped: %s", _rr_exc)
 
             # Stage 2: Memory context (fast, <50ms)
             result.memory_context = await self._stage_memory(result.transcript)
@@ -565,7 +783,12 @@ class IntegrationOrchestrator:
 
             # Stage 7: Action execution (only if policy allows)
             if result.policy_allowed:
-                result.action_result = await self._stage_action(result.intent)
+                # FIX: pipeline_mode is passed explicitly here instead of
+                # being read back off `self` inside _execute_single_action.
+                result.action_result = await self._stage_action(
+                    result.intent,
+                    pipeline_mode=result.pipeline_mode,
+                )
             result.stages_completed = 7
 
             # Stage 8: TTS — speak action confirmation OR LLM response
@@ -1039,11 +1262,51 @@ class IntegrationOrchestrator:
                 else:
                     web_context = ""
 
+                # FIX: previously ollama_model was resolved further down
+                # (right before the CompletionRequest call), which meant this
+                # build_companion_prompt() call had no honest way to report
+                # which model's knowledge_cutoff actually applies. Resolve it
+                # here instead, and reuse the same variable below — one
+                # source of truth, no duplicated env-var read.
+                #
+                # Cutoff hints are best-effort per family and intentionally
+                # coarse (month/quarter, not a specific date). Unknown/custom
+                # models fall through to "" so build_companion_prompt() has
+                # the model hedge honestly instead of citing a wrong date —
+                # see its docstring's knowledge_cutoff note.
+                ollama_model = os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
+                _model_family = ollama_model.split(":", 1)[0].lower()
+                _KNOWN_CUTOFFS = {
+                    "gemma3": "early 2025",
+                    "gemma2": "mid 2024",
+                    "llama3.1": "late 2023",
+                    "llama3.2": "late 2023",
+                    "llama3.3": "late 2023",
+                    "sarvam-m": "early 2025",
+                    "qwen2.5": "late 2024",
+                }
+                knowledge_cutoff = _KNOWN_CUTOFFS.get(_model_family, "")
+
+                # FIX: user_country previously wasn't passed at all, so
+                # build_companion_prompt() always fell back to its India
+                # default regardless of who was actually talking. Pull it
+                # from the same UserMemory location fact the morning-briefing
+                # path already reads (see is_briefing_command handling
+                # below) — "country" is a plain optional fact key, absent
+                # for most users today, which is fine: build_companion_prompt
+                # treats "" the same as "unknown" and defaults to India's
+                # helplines rather than guessing at a country it doesn't know.
+                user_country = get_user_memory().get("country", "")
+
                 system_prompt = build_companion_prompt(
                     personality=persona_key,
                     user_facts=user_facts,
                     current_date=current_date,
                     emotion_hint=emotion_hint,
+                    nickname=get_user_memory().get("nickname", ""),
+                    code_mixing=get_user_memory().get("code_mixing", "hinglish"),
+                    user_country=user_country,
+                    knowledge_cutoff=knowledge_cutoff,
                 )
 
                 if web_context:
@@ -1136,7 +1399,17 @@ class IntegrationOrchestrator:
 
                 # Default: gemma3:4b — best model for 4GB VRAM (RTX 2050), May 2025.
                 # Falls back to env var OLLAMA_MODEL if set.
-                ollama_model = os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
+                # NOTE: for the multilingual expansion (Hindi/Tamil/Telugu/Kannada/
+                # Urdu code-mixed conversation), gemma3:4b is a general small model,
+                # not tuned for Indic code-mixing. Sarvam-M is the researched
+                # recommendation there — swap via OLLAMA_MODEL once its hardware
+                # footprint has been checked against this deployment's RAM budget.
+                #
+                # FIX: ollama_model is now resolved earlier (before the
+                # build_companion_prompt() call above), so knowledge_cutoff
+                # can be derived from the same value instead of the prompt
+                # always hedging blind. Reusing that variable here rather
+                # than re-reading the env var a second time.
                 request = CompletionRequest(
                     model=ollama_model,
                     messages=messages,
@@ -1239,6 +1512,15 @@ class IntegrationOrchestrator:
             "Hey Maya play chak de india" → "play chak de india"
             "Himaya open youtube" → "open youtube"
 
+        NOTE (multilingual scope): the patterns below are English/Hindi-
+        Romanized only. Non-English action verbs (e.g. Spanish "abrir",
+        German "öffne", Chinese "打开", Tamil "திற") will NOT match
+        _ACTION_VERBS in _split_multi_step either, so those commands
+        currently fall through to conversational/LLM handling instead of
+        being recognized as system_control intents. Extending this to the
+        rest of the multilingual language set is separate, larger scope —
+        it needs per-language verb tables reviewed the same way the filler/
+        reaction-rule connector tables do, not a quick patch here.
         """
 
         t = text.strip()
@@ -1357,6 +1639,8 @@ class IntegrationOrchestrator:
 
         Only splits when EACH part starts with an action verb.
 
+        NOTE (multilingual scope): _ACTION_VERBS is English-only, same caveat
+        as _clean_transcript above.
         """
 
         # Action verbs that start a new step
@@ -1483,12 +1767,20 @@ class IntegrationOrchestrator:
             logger.exception("Policy stage error — defaulting to deny for safety")
             return False  # Deny by default when policy check fails
 
-    async def _stage_action(self, intent: str) -> Any:
+    async def _stage_action(self, intent: str, pipeline_mode: str = "full") -> Any:
         """Stage 7: Execute action via agent_orchestrator or OSController.
 
         Supports:
         - Single intent: 'intent_type:action:param:level'
         - Multi-step:    'step1|step2|step3' (pipe-separated, from _stage_intent)
+
+        Args:
+            intent: Encoded intent string (single or pipe-separated multi-step).
+            pipeline_mode: "full" or "restricted". Determines whether
+                destructive actions and memory writes are permitted this
+                call. Passed through explicitly to _execute_single_action —
+                never read off `self`. See the module docstring's
+                "Concurrency note" for why.
 
         Examples:
           'system_control:open_app:notepad'
@@ -1505,7 +1797,7 @@ class IntegrationOrchestrator:
             results = []
             for step in steps:
                 try:
-                    step_result = await self._execute_single_action(step)
+                    step_result = await self._execute_single_action(step, pipeline_mode)
                     if step_result:
                         results.append(str(step_result))
                     # Give apps time to open before the next step
@@ -1515,14 +1807,135 @@ class IntegrationOrchestrator:
             return ". ".join(results) if results else None
 
         # ── Single action ─────────────────────────────────────────────────
-        return await self._execute_single_action(intent)
+        return await self._execute_single_action(intent, pipeline_mode)
 
-    async def _execute_single_action(self, intent: str) -> Any:
-        """Execute a single intent string. Returns a human-readable result or None."""
+    async def _confirm_destructive_action(self, action: str, safe_intent: str) -> bool:
+        """Gate a destructive action behind verbal confirmation.
+
+        Fail-safe by design: if a live ConfirmationManager (wired with real
+        TTS/STT callbacks) isn't available yet, this DENIES the action rather
+        than proceeding. A logged "would confirm" comment is not a safety
+        gate — until the callback wiring exists, "can't confirm" must mean
+        "don't do it," not "do it anyway and hope."
+
+        Expects (soft-imported) Agent_Guru.platform.features.confirmation to
+        expose a get_confirmation_manager() factory returning an object with:
+          - is_wired: bool — True once real speak/listen callbacks are injected
+          - request_confirmation(description: str) -> Awaitable[bool]
+        If confirmation.py doesn't yet expose exactly that shape, this method
+        still fails safe (denies) rather than raising — but you'll want to
+        add that factory/attribute so confirmed destructive actions actually
+        become possible instead of always denied.
+
+        Args:
+            action: The resolved action name (e.g. "delete_file", "shutdown").
+            safe_intent: The full encoded intent, for logging only.
+
+        Returns:
+            True if the user verbally confirmed, False otherwise (including
+            whenever confirmation infrastructure isn't fully wired yet).
+        """
+        try:
+            from Agent_Guru.platform.features.confirmation import get_confirmation_manager
+
+            mgr = get_confirmation_manager()
+            request_fn = getattr(mgr, "request_confirmation", None)
+            # is_wired: True only once the manager has real speak/listen
+            # callbacks injected. Until then, treat it as absent.
+            if request_fn is not None and getattr(mgr, "is_wired", False):
+                # FIX: previously passed action.replace("_", " ") (e.g.
+                # "delete file") as a positional "description" argument.
+                # request_confirmation()'s real signature takes the RAW
+                # action name and does its own _ACTION_DESCRIPTIONS lookup
+                # internally (e.g. "delete_file" -> "delete this file") —
+                # passing the space-replaced version made that lookup miss,
+                # falling back to the less natural raw string. Pass the
+                # action unmodified so the intended human-readable prompt
+                # actually gets built.
+                return bool(await request_fn(action=action))
+        except Exception:
+            logger.debug(
+                "ConfirmationManager unavailable for destructive-action gate",
+                exc_info=True,
+            )
+
+        logger.warning(
+            "Destructive action '%s' blocked: no live confirmation flow wired "
+            "yet (intent=%r). Wire ConfirmationManager with TTS/STT callbacks "
+            "to enable confirmed destructive actions instead of blocking them.",
+            action,
+            safe_intent,
+        )
+        return False
+
+    async def _execute_single_action(self, intent: str, pipeline_mode: str = "full") -> Any:
+        """Execute a single intent string. Returns a human-readable result or None.
+
+        Args:
+            intent: Encoded intent string 'intent_type:action:param:level'.
+            pipeline_mode: "full" or "restricted". Gates destructive actions
+                and memory writes for this call. Always passed explicitly by
+                the caller (_stage_action) — never read off `self`. See the
+                module docstring's "Concurrency note".
+        """
         if not intent:
             return None
 
         safe_intent = self._sanitize_output(intent)
+
+        # ── Parse once, up front, so the safety gate below runs BEFORE
+        # dispatch to EITHER the primary (agent_orchestrator.execute) or the
+        # fallback (direct OSController) path.
+        #
+        # FIX: previously this parse only happened inside the fallback
+        # branch, so the destructive-action + restricted-mode gate never ran
+        # at all when agent_orchestrator.execute() handled (and returned
+        # non-None for) the intent — i.e. the gate only protected the path
+        # that usually wasn't the one being used.
+        parts = safe_intent.split(":", 3)
+        intent_type = parts[0] if len(parts) > 0 else ""
+        action = parts[1] if len(parts) > 1 else ""
+        param = parts[2] if len(parts) > 2 else ""
+        level_str = parts[3] if len(parts) > 3 else ""
+
+        # ── Destructive action + restricted-mode gate ──────────────────────
+        # Checks the RESOLVED intent action, not raw transcript text — "don't
+        # shutdown" won't trigger this because it won't resolve to a shutdown
+        # action in the intent recognizer. Runs before ANY execution path.
+        try:
+            from Agent_Guru.platform.features.confirmation import is_destructive_action
+
+            if is_destructive_action(action):
+                if pipeline_mode == "restricted":
+                    logger.info(
+                        "Destructive action '%s' blocked — unverified speaker "
+                        "(restricted mode)",
+                        action,
+                    )
+                    return "Sorry, can't do that without verifying it's you."
+
+                confirmed = await self._confirm_destructive_action(action, safe_intent)
+                if not confirmed:
+                    return "Okay, cancelled — didn't do that."
+        except ImportError:
+            # confirmation module not present at all — fail safe: deny
+            # actions that match a narrow, locally-duplicated destructive
+            # keyword set rather than executing them unchecked. This
+            # duplication is intentional: a missing module must not itself
+            # become a bypass for the safety gate.
+            if action in {
+                "delete_file", "delete_folder", "remove", "shutdown",
+                "restart", "uninstall", "format", "wipe", "empty_trash",
+            }:
+                logger.warning(
+                    "confirmation module unavailable — denying destructive "
+                    "action '%s' for safety",
+                    action,
+                )
+                return "Sorry, I can't confirm that action right now, so I won't do it."
+        except Exception:
+            logger.exception("Destructive-action gate failed — denying for safety")
+            return "Something went wrong checking that — I didn't do it, try again."
 
         try:
             loop = asyncio.get_running_loop()
@@ -1547,12 +1960,10 @@ class IntegrationOrchestrator:
         # Fallback: direct OSController calls (reuse loop already obtained above)
         try:
             loop = asyncio.get_running_loop()  # safe: always inside async context
-            parts = safe_intent.split(":", 3)
-            intent_type = parts[0] if len(parts) > 0 else ""
-            action = parts[1] if len(parts) > 1 else ""
-            param = parts[2] if len(parts) > 2 else ""
 
-            level_str = parts[3] if len(parts) > 3 else ""
+            # NOTE: intent_type / action / param / level_str were already
+            # parsed once, up front, before the destructive-action gate —
+            # not re-parsed here, so the two copies can't drift apart.
 
             # The raw text the user actually said — used for feature detection
             # param holds the extracted parameter, safe_intent holds the full encoded intent
@@ -1664,31 +2075,58 @@ class IntegrationOrchestrator:
                     return None  # LLM answers using screen context injected in _stage_llm
                 return "I couldn't read the screen content right now."
 
-            # User memory extraction — "my name is X", "I live in Y"
+            # User memory extraction — "my name is X", "call me Y", "remember that Z"
             from Agent_Guru.platform.features.user_memory import extract_user_fact, get_user_memory
 
-            fact = extract_user_fact(raw_text)
-            if fact:
-                key, value = fact
-                get_user_memory().set(key, value)
-                _sval = self._sanitize_output(value)
-                # Companion-grade acknowledgments — warm, not robotic.
-                # Covers ALL 12 keys that extract_user_fact() can return.
-                _ack_map = {
-                    "name": f"Nice to meet you, {_sval}! I'll remember that.",
-                    "location": f"{_sval} — cool, I'll keep that in mind.",
-                    "occupation": f"That's awesome. I'll remember you're into {_sval}.",
-                    "age": f"Got it — {_sval}. I'll remember.",
-                    "current_project": f"Nice — {_sval} sounds interesting. Keep me posted on how it goes.",
-                    "current_goal": f"Love that. I'll remember you're working toward {_sval}.",
-                    "hobbies": f"Good taste! I'll remember you're into {_sval}.",
-                    "interests": f"That's interesting! I'll keep that in mind.",
-                    "friends": f"Cool, I'll remember that.",
-                    "family": f"Got it, thanks for sharing that.",
-                    "preferred_language": f"{_sval} — got it, I'll keep that in mind.",
-                    "communication_style": f"Understood — I'll adjust to a {_sval} style.",
-                }
-                return _ack_map.get(key, "Noted — I'll keep that in mind.")
+            # Skip memory writes in restricted mode (unverified speaker)
+            # FIX: reads the pipeline_mode PARAMETER now, not
+            # getattr(self, "_pipeline_mode", "full") — the latter always
+            # evaluated to "full" since self._pipeline_mode was never set.
+            if pipeline_mode == "full":
+                fact = extract_user_fact(raw_text)
+                if fact:
+                    key, value = fact
+
+                    # Handle "forget" commands
+                    if key == "__forget__":
+                        _mem = get_user_memory()
+                        _all_facts = _mem.get_all()
+                        # Search for a matching custom fact value
+                        for fk, fv in _all_facts.items():
+                            if fk.startswith("custom_fact_") and value.lower() in str(fv).lower():
+                                _mem.delete(fk)
+                                _lang = _mem.get("code_mixing", "hinglish")
+                                if _lang == "hinglish":
+                                    return "done, bhool gaya!"
+                                return "done, forgot that!"
+                        return "hmm, I don't remember that one."
+
+                    get_user_memory().set(key, value)
+                    _sval = self._sanitize_output(value)
+                    # Companion-grade acknowledgments — warm, not robotic.
+                    _lang = get_user_memory().get("code_mixing", "hinglish")
+                    _ack_map = {
+                        "name": f"Nice to meet you, {_sval}! I'll remember that.",
+                        "nickname": f"Alright {_sval}! That's what I'll call you from now on.",
+                        "location": f"{_sval} — cool, I'll keep that in mind.",
+                        "occupation": f"That's awesome. I'll remember you're into {_sval}.",
+                        "age": f"Got it — {_sval}. I'll remember.",
+                        "current_project": f"Nice — {_sval} sounds interesting. Keep me posted on how it goes.",
+                        "current_goal": f"Love that. I'll remember you're working toward {_sval}.",
+                        "hobbies": f"Good taste! I'll remember you're into {_sval}.",
+                        "interests": f"That's interesting! I'll keep that in mind.",
+                        "friends": f"Cool, I'll remember that.",
+                        "family": f"Got it, thanks for sharing that.",
+                        "preferred_language": f"{_sval} — got it, I'll keep that in mind.",
+                        "communication_style": f"Understood — I'll adjust to a {_sval} style.",
+                        "code_mixing": "Switched! I'll talk to you in English only from now on." if value == "english" else "Chal done! Hinglish mein baat karenge ab.",
+                    }
+                    # Generic custom fact acknowledgment
+                    if key.startswith("custom_fact_"):
+                        if _lang == "hinglish":
+                            return f"done, yaad rakh liya — {_sval}"
+                        return f"noted — {_sval}"
+                    return _ack_map.get(key, "Noted — I'll keep that in mind.")
 
             # ── Conversation → no action, TTS uses LLM response ──────────
             if intent_type == "conversation":
