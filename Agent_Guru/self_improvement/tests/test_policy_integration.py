@@ -65,10 +65,10 @@ class TestPolicyIntegration:
     
     def test_policy_integration_initialization(self, policy_integration, engine):
         """Test that policy integration initializes correctly."""
-        assert policy_integration.engine is engine
-        assert policy_integration.policy_engine is None
-        assert policy_integration.enforce_policies is True
-        assert "allow_strategy_changes" in policy_integration.default_policies
+        assert policy_integration.engine is engine  # nosec B101
+        assert policy_integration.policy_engine is None  # nosec B101
+        assert policy_integration.enforce_policies is True  # nosec B101
+        assert "allow_strategy_changes" in policy_integration.default_policies  # nosec B101
     
     def test_check_strategy_policy_without_policy_engine(self, policy_integration):
         """Test checking strategy policy without policy engine."""
@@ -78,7 +78,7 @@ class TestPolicyIntegration:
         )
         
         # Should allow by default
-        assert decision == PolicyDecision.ALLOW
+        assert decision == PolicyDecision.ALLOW  # nosec B101
     
     def test_check_strategy_policy_with_enforcement_disabled(self, engine):
         """Test strategy policy check with enforcement disabled."""
@@ -94,7 +94,7 @@ class TestPolicyIntegration:
         )
         
         # Should always allow when enforcement disabled
-        assert decision == PolicyDecision.ALLOW
+        assert decision == PolicyDecision.ALLOW  # nosec B101
     
     def test_check_prompt_evolution_policy_without_policy_engine(self, policy_integration):
         """Test checking prompt evolution policy without policy engine."""
@@ -105,7 +105,7 @@ class TestPolicyIntegration:
         )
         
         # Should allow by default
-        assert decision == PolicyDecision.ALLOW
+        assert decision == PolicyDecision.ALLOW  # nosec B101
     
     def test_check_prompt_evolution_policy_with_enforcement_disabled(self, engine):
         """Test prompt evolution policy check with enforcement disabled."""
@@ -122,7 +122,7 @@ class TestPolicyIntegration:
         )
         
         # Should always allow when enforcement disabled
-        assert decision == PolicyDecision.ALLOW
+        assert decision == PolicyDecision.ALLOW  # nosec B101
     
     def test_get_allowed_strategies_without_policy_engine(self, policy_integration, engine):
         """Test getting allowed strategies without policy engine."""
@@ -147,10 +147,10 @@ class TestPolicyIntegration:
         allowed = policy_integration.get_allowed_strategies(task_type="test_task")
         
         # Should return all strategies
-        assert isinstance(allowed, list)
-        assert len(allowed) == 2
-        assert "strategy_1" in allowed
-        assert "strategy_2" in allowed
+        assert isinstance(allowed, list)  # nosec B101
+        assert len(allowed) == 2  # nosec B101
+        assert "strategy_1" in allowed  # nosec B101
+        assert "strategy_2" in allowed  # nosec B101
     
     def test_set_policy(self, policy_integration):
         """Test setting default policy values."""
@@ -158,7 +158,7 @@ class TestPolicyIntegration:
         policy_integration.set_policy("allow_strategy_changes", False)
         
         # Verify policy changed
-        assert policy_integration.default_policies["allow_strategy_changes"] is False
+        assert policy_integration.default_policies["allow_strategy_changes"] is False  # nosec B101
         
         # Check strategy policy now denies
         decision = policy_integration.check_strategy_policy(
@@ -166,34 +166,34 @@ class TestPolicyIntegration:
             task_type="test_task"
         )
         
-        assert decision == PolicyDecision.DENY
+        assert decision == PolicyDecision.DENY  # nosec B101
     
     def test_get_policy_status(self, policy_integration):
         """Test getting policy status."""
         status = policy_integration.get_policy_status()
         
-        assert "policy_engine_connected" in status
-        assert status["policy_engine_connected"] is False
-        assert "enforce_policies" in status
-        assert status["enforce_policies"] is True
-        assert "default_policies" in status
-        assert isinstance(status["default_policies"], dict)
+        assert "policy_engine_connected" in status  # nosec B101
+        assert status["policy_engine_connected"] is False  # nosec B101
+        assert "enforce_policies" in status  # nosec B101
+        assert status["enforce_policies"] is True  # nosec B101
+        assert "default_policies" in status  # nosec B101
+        assert isinstance(status["default_policies"], dict)  # nosec B101
     
     def test_create_policy_integration(self, engine):
         """Test convenience function for creating integration."""
         integration = create_policy_integration(engine)
         
-        assert integration is not None
-        assert integration.engine is engine
-        assert integration.policy_engine is None
-        assert integration.enforce_policies is True
+        assert integration is not None  # nosec B101
+        assert integration.engine is engine  # nosec B101
+        assert integration.policy_engine is None  # nosec B101
+        assert integration.enforce_policies is True  # nosec B101
         
         # Test it works
         decision = integration.check_strategy_policy(
             strategy_id="test_strategy",
             task_type="test_task"
         )
-        assert decision == PolicyDecision.ALLOW
+        assert decision == PolicyDecision.ALLOW  # nosec B101
 
 
 @pytest.mark.integration
@@ -258,7 +258,7 @@ class TestPolicyIntegrationWithMockEngine:
         )
         
         # Should allow (mock engine allows by default)
-        assert decision == PolicyDecision.ALLOW
+        assert decision == PolicyDecision.ALLOW  # nosec B101
     
     def test_prompt_evolution_with_mock_engine(self, policy_integration):
         """Test prompt evolution policy with mock engine."""
@@ -270,4 +270,4 @@ class TestPolicyIntegrationWithMockEngine:
         )
         
         # Should allow (mock engine allows by default)
-        assert decision == PolicyDecision.ALLOW
+        assert decision == PolicyDecision.ALLOW  # nosec B101

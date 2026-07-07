@@ -79,21 +79,21 @@ class TestVectorDatabase:
         """Test that database initializes correctly."""
         db = VectorDatabase(db_path=temp_db_path, in_memory=IS_WINDOWS)
 
-        assert db.db_path == Path(temp_db_path)
-        assert db.embedding_dimension == 384
-        assert db.client is not None
-        assert len(db.collections) == 4  # One per memory type
+        assert db.db_path == Path(temp_db_path)  # nosec B101
+        assert db.embedding_dimension == 384  # nosec B101
+        assert db.client is not None  # nosec B101
+        assert len(db.collections) == 4  # One per memory type  # nosec B101
 
     def test_initialization_creates_directory(self):
         """Test that initialization creates database directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "new_db"
-            assert not db_path.exists()
+            assert not db_path.exists()  # nosec B101
 
             db = VectorDatabase(db_path=str(db_path), in_memory=IS_WINDOWS)
             if not IS_WINDOWS:
                 # Only check directory creation on non-Windows (in-memory doesn't create dir)
-                assert db_path.exists()
+                assert db_path.exists()  # nosec B101
 
             # Cleanup
             del db
@@ -103,8 +103,8 @@ class TestVectorDatabase:
     def test_collections_initialized(self, db):
         """Test that all collections are initialized."""
         for memory_type in MemoryType:
-            assert memory_type in db.collections
-            assert db.collections[memory_type] is not None
+            assert memory_type in db.collections  # nosec B101
+            assert db.collections[memory_type] is not None  # nosec B101
 
     def test_store_memory(self, db, sample_embedding):
         """Test storing a memory."""
@@ -120,7 +120,7 @@ class TestVectorDatabase:
             metadata=metadata,
         )
 
-        assert result_id == str(memory_id)
+        assert result_id == str(memory_id)  # nosec B101
 
     def test_store_memory_wrong_dimension_raises_error(self, db):
         """Test that wrong embedding dimension raises ValueError."""
@@ -177,12 +177,12 @@ class TestVectorDatabase:
             top_k=3,
         )
 
-        assert len(results) == 3
-        assert all(len(r) == 4 for r in results)  # (id, content, similarity, metadata)
+        assert len(results) == 3  # nosec B101
+        assert all(len(r) == 4 for r in results)  # (id, content, similarity, metadata)  # nosec B101
 
         # Results should be sorted by similarity (highest first)
         similarities = [r[2] for r in results]
-        assert similarities == sorted(similarities, reverse=True)
+        assert similarities == sorted(similarities, reverse=True)  # nosec B101
 
     def test_search_filters_by_user_id(self, db, sample_embedding):
         """Test that search filters by user_id."""
@@ -214,8 +214,8 @@ class TestVectorDatabase:
         )
 
         # Should only return user_1 memories
-        assert len(results) == 1
-        assert results[0][3]["user_id"] == "user_1"
+        assert len(results) == 1  # nosec B101
+        assert results[0][3]["user_id"] == "user_1"  # nosec B101
 
     def test_search_respects_top_k(self, db, sample_embedding):
         """Test that search respects top_k parameter."""
@@ -238,7 +238,7 @@ class TestVectorDatabase:
             top_k=5,
         )
 
-        assert len(results) == 5
+        assert len(results) == 5  # nosec B101
 
     def test_search_respects_min_similarity(self, db, sample_embedding):
         """Test that search filters by minimum similarity."""
@@ -275,8 +275,8 @@ class TestVectorDatabase:
         )
 
         # Should only return very similar memory
-        assert len(results) >= 1
-        assert all(r[2] >= 0.9 for r in results)
+        assert len(results) >= 1  # nosec B101
+        assert all(r[2] >= 0.9 for r in results)  # nosec B101
 
     def test_get_memory(self, db, sample_embedding):
         """Test retrieving a specific memory by ID."""
@@ -295,17 +295,17 @@ class TestVectorDatabase:
         # Retrieve memory
         result = db.get(memory_type=MemoryType.EPISODIC, memory_id=memory_id)
 
-        assert result is not None
+        assert result is not None  # nosec B101
         retrieved_content, retrieved_embedding, retrieved_metadata = result
-        assert retrieved_content == content
-        assert len(retrieved_embedding) == 384
-        assert retrieved_metadata["user_id"] == "user_123"
+        assert retrieved_content == content  # nosec B101
+        assert len(retrieved_embedding) == 384  # nosec B101
+        assert retrieved_metadata["user_id"] == "user_123"  # nosec B101
 
     def test_get_nonexistent_memory_returns_none(self, db):
         """Test that getting nonexistent memory returns None."""
         result = db.get(memory_type=MemoryType.EPISODIC, memory_id=uuid4())
 
-        assert result is None
+        assert result is None  # nosec B101
 
     def test_update_metadata(self, db, sample_embedding):
         """Test updating memory metadata."""
@@ -329,9 +329,9 @@ class TestVectorDatabase:
         # Verify update
         result = db.get(memory_type=MemoryType.EPISODIC, memory_id=memory_id)
 
-        assert result is not None
+        assert result is not None  # nosec B101
         _, _, retrieved_metadata = result
-        assert retrieved_metadata["relevance_score"] == 0.5
+        assert retrieved_metadata["relevance_score"] == 0.5  # nosec B101
 
     def test_delete_memory(self, db, sample_embedding):
         """Test deleting a memory."""
@@ -346,18 +346,18 @@ class TestVectorDatabase:
         )
 
         # Verify memory exists
-        assert db.get(MemoryType.EPISODIC, memory_id) is not None
+        assert db.get(MemoryType.EPISODIC, memory_id) is not None  # nosec B101
 
         # Delete memory
         db.delete(memory_type=MemoryType.EPISODIC, memory_id=memory_id)
 
         # Verify memory is deleted
-        assert db.get(MemoryType.EPISODIC, memory_id) is None
+        assert db.get(MemoryType.EPISODIC, memory_id) is None  # nosec B101
 
     def test_count_memories(self, db, sample_embedding):
         """Test counting memories in a collection."""
         # Initially empty
-        assert db.count(MemoryType.EPISODIC) == 0
+        assert db.count(MemoryType.EPISODIC) == 0  # nosec B101
 
         # Store some memories
         for i in range(5):
@@ -370,7 +370,7 @@ class TestVectorDatabase:
             )
 
         # Count should be 5
-        assert db.count(MemoryType.EPISODIC) == 5
+        assert db.count(MemoryType.EPISODIC) == 5  # nosec B101
 
     def test_reset_specific_collection(self, db, sample_embedding):
         """Test resetting a specific collection."""
@@ -395,8 +395,8 @@ class TestVectorDatabase:
         db.reset(MemoryType.EPISODIC)
 
         # Episodic should be empty, semantic should still have data
-        assert db.count(MemoryType.EPISODIC) == 0
-        assert db.count(MemoryType.SEMANTIC) == 1
+        assert db.count(MemoryType.EPISODIC) == 0  # nosec B101
+        assert db.count(MemoryType.SEMANTIC) == 1  # nosec B101
 
     def test_reset_all_collections(self, db, sample_embedding):
         """Test resetting all collections."""
@@ -415,7 +415,7 @@ class TestVectorDatabase:
 
         # All collections should be empty
         for memory_type in MemoryType:
-            assert db.count(memory_type) == 0
+            assert db.count(memory_type) == 0  # nosec B101
 
     def test_separate_collections_per_memory_type(self, db, sample_embedding):
         """Test that different memory types use separate collections."""
@@ -456,10 +456,10 @@ class TestVectorDatabase:
             top_k=10,
         )
 
-        assert len(episodic_results) == 1
-        assert len(semantic_results) == 1
-        assert episodic_results[0][0] == str(episodic_id)
-        assert semantic_results[0][0] == str(semantic_id)
+        assert len(episodic_results) == 1  # nosec B101
+        assert len(semantic_results) == 1  # nosec B101
+        assert episodic_results[0][0] == str(episodic_id)  # nosec B101
+        assert semantic_results[0][0] == str(semantic_id)  # nosec B101
 
 
 class TestVectorDatabaseProperties:
@@ -527,10 +527,10 @@ class TestVectorDatabaseProperties:
         # Retrieve
         result = db.get(memory_type=MemoryType.EPISODIC, memory_id=memory_id)
 
-        assert result is not None
+        assert result is not None  # nosec B101
         retrieved_content, _, retrieved_metadata = result
-        assert retrieved_content == content
-        assert retrieved_metadata["user_id"] == user_id
+        assert retrieved_content == content  # nosec B101
+        assert retrieved_metadata["user_id"] == user_id  # nosec B101
 
     @settings(
         suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=20, deadline=None
@@ -557,7 +557,7 @@ class TestVectorDatabaseProperties:
             )
 
         # Count should match
-        assert db.count(MemoryType.PREFERENCE) == num_memories
+        assert db.count(MemoryType.PREFERENCE) == num_memories  # nosec B101
 
     @settings(
         suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=20, deadline=None
@@ -588,7 +588,7 @@ class TestVectorDatabaseProperties:
             memory_type=MemoryType.TASK, query_embedding=embedding, user_id="user_123", top_k=top_k
         )
 
-        assert len(results) <= top_k
+        assert len(results) <= top_k  # nosec B101
 
 
 class TestVectorDatabaseIntegration:
@@ -654,9 +654,9 @@ class TestVectorDatabaseIntegration:
         db2 = VectorDatabase(db_path=temp_db_path, in_memory=IS_WINDOWS)
         result = db2.get(memory_type=MemoryType.EPISODIC, memory_id=memory_id)
 
-        assert result is not None
+        assert result is not None  # nosec B101
         retrieved_content, _, _ = result
-        assert retrieved_content == content
+        assert retrieved_content == content  # nosec B101
 
         # Cleanup second instance
         del db2
@@ -714,7 +714,7 @@ class TestVectorDatabaseIntegration:
 
         # At least 2 of top 3 should be similar memories
         matches = sum(1 for tid in top_3_ids if tid in similar_ids_str)
-        assert matches >= 2
+        assert matches >= 2  # nosec B101
 
     def test_multi_user_isolation(self, db):
         """Test that users can only access their own memories."""
@@ -744,5 +744,5 @@ class TestVectorDatabaseIntegration:
                 top_k=10,
             )
 
-            assert len(results) == 3
-            assert all(r[3]["user_id"] == user_id for r in results)
+            assert len(results) == 3  # nosec B101
+            assert all(r[3]["user_id"] == user_id for r in results)  # nosec B101

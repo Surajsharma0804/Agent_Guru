@@ -26,11 +26,11 @@ class TestPersonalityType:
     
     def test_guru_personality(self):
         """Test Guru personality type."""
-        assert PersonalityType.GURU.value == "guru"
+        assert PersonalityType.GURU.value == "guru"  # nosec B101
     
     def test_maya_personality(self):
         """Test Maya personality type."""
-        assert PersonalityType.MAYA.value == "maya"
+        assert PersonalityType.MAYA.value == "maya"  # nosec B101
 
 
 class TestEmotionType:
@@ -43,7 +43,7 @@ class TestEmotionType:
             "surprised", "fearful", "disgusted"
         }
         actual_emotions = {e.value for e in EmotionType}
-        assert actual_emotions == expected_emotions
+        assert actual_emotions == expected_emotions  # nosec B101
 
 
 class TestWakeWordDetection:
@@ -60,11 +60,11 @@ class TestWakeWordDetection:
             audio_chunk=audio
         )
         
-        assert detection.wake_word == "Hey Guru"
-        assert detection.personality == PersonalityType.GURU
-        assert detection.confidence == 0.95
-        assert detection.timestamp == 1234567890.0
-        assert len(detection.audio_chunk) == 1000
+        assert detection.wake_word == "Hey Guru"  # nosec B101
+        assert detection.personality == PersonalityType.GURU  # nosec B101
+        assert detection.confidence == 0.95  # nosec B101
+        assert detection.timestamp == 1234567890.0  # nosec B101
+        assert len(detection.audio_chunk) == 1000  # nosec B101
 
 
 class TestTranscriptionResult:
@@ -78,11 +78,11 @@ class TestTranscriptionResult:
             confidence=0.98
         )
         
-        assert result.text == "Hello world"
-        assert result.language == "en"
-        assert result.confidence == 0.98
-        assert result.segments == []
-        assert result.duration == 0.0
+        assert result.text == "Hello world"  # nosec B101
+        assert result.language == "en"  # nosec B101
+        assert result.confidence == 0.98  # nosec B101
+        assert result.segments == []  # nosec B101
+        assert result.duration == 0.0  # nosec B101
     
     def test_transcription_result_with_segments(self):
         """Test transcription result with segments."""
@@ -111,9 +111,9 @@ class TestTranscriptionResult:
             duration=1.0
         )
         
-        assert len(result.segments) == 2
-        assert result.segments[0].text == "Hello"
-        assert result.segments[1].text == "world"
+        assert len(result.segments) == 2  # nosec B101
+        assert result.segments[0].text == "Hello"  # nosec B101
+        assert result.segments[1].text == "world"  # nosec B101
 
 
 class TestVoiceFeatures:
@@ -128,10 +128,10 @@ class TestVoiceFeatures:
             quality_score=0.85
         )
         
-        assert len(features.feature_vector) == 128
-        assert features.sample_rate == 16000
-        assert features.duration == 2.5
-        assert 0.0 <= features.quality_score <= 1.0
+        assert len(features.feature_vector) == 128  # nosec B101
+        assert features.sample_rate == 16000  # nosec B101
+        assert features.duration == 2.5  # nosec B101
+        assert 0.0 <= features.quality_score <= 1.0  # nosec B101
 
 
 class TestEmotionResult:
@@ -153,10 +153,10 @@ class TestEmotionResult:
             audio_quality=0.9
         )
         
-        assert result.primary_emotion == EmotionType.HAPPY
-        assert result.emotion_scores[EmotionType.HAPPY] == 0.8
-        assert result.confidence == 0.8
-        assert result.audio_quality == 0.9
+        assert result.primary_emotion == EmotionType.HAPPY  # nosec B101
+        assert result.emotion_scores[EmotionType.HAPPY] == 0.8  # nosec B101
+        assert result.confidence == 0.8  # nosec B101
+        assert result.audio_quality == 0.9  # nosec B101
 
 
 class TestVoiceModel:
@@ -174,10 +174,10 @@ class TestVoiceModel:
             updated_at=1234567900.0
         )
         
-        assert model.model_id == "model_123"
-        assert model.user_id == "user_456"
-        assert model.voice_characteristics["pitch"] == 150.0
-        assert model.similarity_score == 0.87
+        assert model.model_id == "model_123"  # nosec B101
+        assert model.user_id == "user_456"  # nosec B101
+        assert model.voice_characteristics["pitch"] == 150.0  # nosec B101
+        assert model.similarity_score == 0.87  # nosec B101
 
 
 class TestConversationContext:
@@ -192,9 +192,9 @@ class TestConversationContext:
             user_preferences={"language": "en"}
         )
         
-        assert context.personality == PersonalityType.GURU
-        assert context.current_topic == "weather"
-        assert context.user_preferences["language"] == "en"
+        assert context.personality == PersonalityType.GURU  # nosec B101
+        assert context.current_topic == "weather"  # nosec B101
+        assert context.user_preferences["language"] == "en"  # nosec B101
 
 
 class TestTTSConfig:
@@ -204,12 +204,12 @@ class TestTTSConfig:
         """Test TTS config with defaults."""
         config = TTSConfig(personality=PersonalityType.MAYA)
         
-        assert config.personality == PersonalityType.MAYA
-        assert config.emotion is None
-        assert config.speech_rate == 1.0
-        assert config.pitch == 1.0
-        assert config.volume == 1.0
-        assert config.use_ssml is False
+        assert config.personality == PersonalityType.MAYA  # nosec B101
+        assert config.emotion is None  # nosec B101
+        assert config.speech_rate == 1.0  # nosec B101
+        assert config.pitch == 1.0  # nosec B101
+        assert config.volume == 1.0  # nosec B101
+        assert config.use_ssml is False  # nosec B101
     
     def test_tts_config_with_emotion(self):
         """Test TTS config with emotion."""
@@ -219,9 +219,9 @@ class TestTTSConfig:
             speech_rate=1.2
         )
         
-        assert config.personality == PersonalityType.GURU
-        assert config.emotion == EmotionType.HAPPY
-        assert config.speech_rate == 1.2
+        assert config.personality == PersonalityType.GURU  # nosec B101
+        assert config.emotion == EmotionType.HAPPY  # nosec B101
+        assert config.speech_rate == 1.2  # nosec B101
 
 
 class TestCommandResult:
@@ -237,10 +237,10 @@ class TestCommandResult:
             raw_text="open browser"
         )
         
-        assert result.is_command is True
-        assert result.action_id == "OPEN_APP"
-        assert result.parameters["app_name"] == "browser"
-        assert result.confidence == 0.92
+        assert result.is_command is True  # nosec B101
+        assert result.action_id == "OPEN_APP"  # nosec B101
+        assert result.parameters["app_name"] == "browser"  # nosec B101
+        assert result.confidence == 0.92  # nosec B101
     
     def test_command_result_not_command(self):
         """Test command result for non-command."""
@@ -252,9 +252,9 @@ class TestCommandResult:
             raw_text="hello there"
         )
         
-        assert result.is_command is False
-        assert result.action_id is None
-        assert result.parameters == {}
+        assert result.is_command is False  # nosec B101
+        assert result.action_id is None  # nosec B101
+        assert result.parameters == {}  # nosec B101
 
 
 class TestEmotionHistory:
@@ -287,11 +287,11 @@ class TestEmotionHistory:
             emotion_transitions=transitions
         )
         
-        assert len(history.emotions) == 2
-        assert history.dominant_emotion == EmotionType.HAPPY
-        assert len(history.emotion_transitions) == 1
-        assert history.emotion_transitions[0][0] == EmotionType.HAPPY
-        assert history.emotion_transitions[0][1] == EmotionType.SAD
+        assert len(history.emotions) == 2  # nosec B101
+        assert history.dominant_emotion == EmotionType.HAPPY  # nosec B101
+        assert len(history.emotion_transitions) == 1  # nosec B101
+        assert history.emotion_transitions[0][0] == EmotionType.HAPPY  # nosec B101
+        assert history.emotion_transitions[0][1] == EmotionType.SAD  # nosec B101
 
 
 class TestNoiseProfile:
@@ -306,10 +306,10 @@ class TestNoiseProfile:
             frequency_profile=np.random.rand(256)
         )
         
-        assert profile.noise_type == "white"
-        assert profile.noise_level == 0.3
-        assert profile.snr == 15.0
-        assert len(profile.frequency_profile) == 256
+        assert profile.noise_type == "white"  # nosec B101
+        assert profile.noise_level == 0.3  # nosec B101
+        assert profile.snr == 15.0  # nosec B101
+        assert len(profile.frequency_profile) == 256  # nosec B101
 
 
 class TestStreamMetrics:
@@ -324,10 +324,10 @@ class TestStreamMetrics:
             buffer_size=4096
         )
         
-        assert metrics.latency_ms == 250.0
-        assert metrics.jitter_ms == 10.0
-        assert metrics.packet_loss_percent == 0.5
-        assert metrics.buffer_size == 4096
+        assert metrics.latency_ms == 250.0  # nosec B101
+        assert metrics.jitter_ms == 10.0  # nosec B101
+        assert metrics.packet_loss_percent == 0.5  # nosec B101
+        assert metrics.buffer_size == 4096  # nosec B101
 
 
 class TestConversationTurn:
@@ -342,10 +342,10 @@ class TestConversationTurn:
             emotion=EmotionType.HAPPY
         )
         
-        assert turn.speaker == "user"
-        assert turn.text == "Hello Guru"
-        assert turn.timestamp == 1234567890.0
-        assert turn.emotion == EmotionType.HAPPY
+        assert turn.speaker == "user"  # nosec B101
+        assert turn.text == "Hello Guru"  # nosec B101
+        assert turn.timestamp == 1234567890.0  # nosec B101
+        assert turn.emotion == EmotionType.HAPPY  # nosec B101
     
     def test_conversation_turn_without_emotion(self):
         """Test conversation turn without emotion."""
@@ -355,8 +355,8 @@ class TestConversationTurn:
             timestamp=1234567891.0
         )
         
-        assert turn.speaker == "agent"
-        assert turn.emotion is None
+        assert turn.speaker == "agent"  # nosec B101
+        assert turn.emotion is None  # nosec B101
 
 
 # Property-Based Tests for Confidence Score Consistency
@@ -381,7 +381,7 @@ def test_property_wake_word_detection_confidence_bounds(confidence, timestamp):
         audio_chunk=audio
     )
     
-    assert 0.0 <= detection.confidence <= 1.0
+    assert 0.0 <= detection.confidence <= 1.0  # nosec B101
 
 
 @given(
@@ -402,8 +402,8 @@ def test_property_transcription_result_confidence_bounds(confidence, duration):
         duration=duration
     )
     
-    assert 0.0 <= result.confidence <= 1.0
-    assert result.duration >= 0.0
+    assert 0.0 <= result.confidence <= 1.0  # nosec B101
+    assert result.duration >= 0.0  # nosec B101
 
 
 @given(
@@ -425,8 +425,8 @@ def test_property_transcription_segment_confidence_bounds(segment_confidence, st
         confidence=segment_confidence
     )
     
-    assert 0.0 <= segment.confidence <= 1.0
-    assert segment.start_time <= segment.end_time
+    assert 0.0 <= segment.confidence <= 1.0  # nosec B101
+    assert segment.start_time <= segment.end_time  # nosec B101
 
 
 @given(
@@ -447,8 +447,8 @@ def test_property_voice_features_quality_score_bounds(quality_score, duration):
         quality_score=quality_score
     )
     
-    assert 0.0 <= features.quality_score <= 1.0
-    assert features.duration > 0.0
+    assert 0.0 <= features.quality_score <= 1.0  # nosec B101
+    assert features.duration > 0.0  # nosec B101
 
 
 @given(
@@ -483,10 +483,10 @@ def test_property_emotion_result_confidence_bounds(confidence, audio_quality, ti
         audio_quality=audio_quality
     )
     
-    assert 0.0 <= result.confidence <= 1.0
-    assert 0.0 <= result.audio_quality <= 1.0
+    assert 0.0 <= result.confidence <= 1.0  # nosec B101
+    assert 0.0 <= result.audio_quality <= 1.0  # nosec B101
     for emotion, score in result.emotion_scores.items():
-        assert 0.0 <= score <= 1.0
+        assert 0.0 <= score <= 1.0  # nosec B101
 
 
 @given(
@@ -510,8 +510,8 @@ def test_property_voice_model_similarity_score_bounds(similarity_score, training
         updated_at=1234567900.0
     )
     
-    assert 0.0 <= model.similarity_score <= 1.0
-    assert model.training_duration_seconds >= 300.0
+    assert 0.0 <= model.similarity_score <= 1.0  # nosec B101
+    assert model.training_duration_seconds >= 300.0  # nosec B101
 
 
 @given(
@@ -532,7 +532,7 @@ def test_property_command_result_confidence_bounds(confidence):
         raw_text="open browser"
     )
     
-    assert 0.0 <= result.confidence <= 1.0
+    assert 0.0 <= result.confidence <= 1.0  # nosec B101
 
 
 # Edge Case Tests for Confidence Scores
@@ -547,7 +547,7 @@ class TestConfidenceScoreEdgeCases:
             language="en",
             confidence=0.0
         )
-        assert result.confidence == 0.0
+        assert result.confidence == 0.0  # nosec B101
     
     def test_confidence_score_one(self):
         """Test confidence score at maximum (1.0)."""
@@ -556,7 +556,7 @@ class TestConfidenceScoreEdgeCases:
             language="en",
             confidence=1.0
         )
-        assert result.confidence == 1.0
+        assert result.confidence == 1.0  # nosec B101
     
     def test_quality_score_boundaries(self):
         """Test quality score at boundaries."""
@@ -566,7 +566,7 @@ class TestConfidenceScoreEdgeCases:
             duration=1.0,
             quality_score=0.0
         )
-        assert features_min.quality_score == 0.0
+        assert features_min.quality_score == 0.0  # nosec B101
         
         features_max = VoiceFeatures(
             feature_vector=np.random.rand(128),
@@ -574,7 +574,7 @@ class TestConfidenceScoreEdgeCases:
             duration=1.0,
             quality_score=1.0
         )
-        assert features_max.quality_score == 1.0
+        assert features_max.quality_score == 1.0  # nosec B101
     
     def test_emotion_scores_sum_to_one(self):
         """Test that emotion scores can sum to 1.0."""
@@ -593,7 +593,7 @@ class TestConfidenceScoreEdgeCases:
         )
         
         total = sum(result.emotion_scores.values())
-        assert abs(total - 1.0) < 0.01  # Allow small floating point error
+        assert abs(total - 1.0) < 0.01  # Allow small floating point error  # nosec B101
     
     def test_similarity_score_high_quality(self):
         """Test voice model with high similarity score."""
@@ -606,7 +606,7 @@ class TestConfidenceScoreEdgeCases:
             created_at=1234567890.0,
             updated_at=1234567900.0
         )
-        assert model.similarity_score >= 0.85  # Meets requirement
+        assert model.similarity_score >= 0.85  # Meets requirement  # nosec B101
 
 
 # Field Validation Tests
@@ -624,9 +624,9 @@ class TestDataclassFieldValidation:
             timestamp=1234567890.0,
             audio_chunk=audio
         )
-        assert detection.wake_word is not None
-        assert detection.personality is not None
-        assert detection.audio_chunk is not None
+        assert detection.wake_word is not None  # nosec B101
+        assert detection.personality is not None  # nosec B101
+        assert detection.audio_chunk is not None  # nosec B101
     
     def test_transcription_result_default_values(self):
         """Test TranscriptionResult default values."""
@@ -635,8 +635,8 @@ class TestDataclassFieldValidation:
             language="en",
             confidence=0.98
         )
-        assert result.segments == []
-        assert result.duration == 0.0
+        assert result.segments == []  # nosec B101
+        assert result.duration == 0.0  # nosec B101
     
     def test_transcription_segment_optional_speaker(self):
         """Test TranscriptionSegment with optional speaker_id."""
@@ -645,8 +645,8 @@ class TestDataclassFieldValidation:
             start_time=0.0,
             end_time=1.0
         )
-        assert segment.speaker_id is None
-        assert segment.confidence == 1.0
+        assert segment.speaker_id is None  # nosec B101
+        assert segment.confidence == 1.0  # nosec B101
     
     def test_conversation_turn_optional_emotion(self):
         """Test ConversationTurn with optional emotion."""
@@ -655,7 +655,7 @@ class TestDataclassFieldValidation:
             text="Hello",
             timestamp=1234567890.0
         )
-        assert turn.emotion is None
+        assert turn.emotion is None  # nosec B101
     
     def test_conversation_context_default_values(self):
         """Test ConversationContext default values."""
@@ -663,19 +663,19 @@ class TestDataclassFieldValidation:
             personality=PersonalityType.GURU,
             turns=[]
         )
-        assert context.current_topic is None
-        assert context.user_preferences == {}
-        assert context.created_at == 0.0
-        assert context.updated_at == 0.0
+        assert context.current_topic is None  # nosec B101
+        assert context.user_preferences == {}  # nosec B101
+        assert context.created_at == 0.0  # nosec B101
+        assert context.updated_at == 0.0  # nosec B101
     
     def test_tts_config_all_defaults(self):
         """Test TTSConfig with all default values."""
         config = TTSConfig(personality=PersonalityType.MAYA)
-        assert config.emotion is None
-        assert config.speech_rate == 1.0
-        assert config.pitch == 1.0
-        assert config.volume == 1.0
-        assert config.use_ssml is False
+        assert config.emotion is None  # nosec B101
+        assert config.speech_rate == 1.0  # nosec B101
+        assert config.pitch == 1.0  # nosec B101
+        assert config.volume == 1.0  # nosec B101
+        assert config.use_ssml is False  # nosec B101
     
     def test_command_result_with_none_action(self):
         """Test CommandResult with None action_id."""
@@ -686,5 +686,5 @@ class TestDataclassFieldValidation:
             confidence=0.2,
             raw_text="just talking"
         )
-        assert result.action_id is None
-        assert result.is_command is False
+        assert result.action_id is None  # nosec B101
+        assert result.is_command is False  # nosec B101

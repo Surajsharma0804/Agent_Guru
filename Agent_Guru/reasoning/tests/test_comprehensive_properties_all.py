@@ -197,24 +197,24 @@ class TestInputNormalizationProperties:
         result = normalizer.normalize(raw_input)
         
         # Assert result is NormalizedInput
-        assert isinstance(result, NormalizedInput), "Result must be NormalizedInput"
+        assert isinstance(result, NormalizedInput), "Result must be NormalizedInput"  # nosec B101
         
         # Assert all required fields are present
-        assert hasattr(result, 'text'), "Must have text field"
-        assert hasattr(result, 'metadata'), "Must have metadata field"
-        assert hasattr(result, 'timestamp'), "Must have timestamp field"
-        assert hasattr(result, 'source'), "Must have source field"
-        assert hasattr(result, 'user_id'), "Must have user_id field"
+        assert hasattr(result, 'text'), "Must have text field"  # nosec B101
+        assert hasattr(result, 'metadata'), "Must have metadata field"  # nosec B101
+        assert hasattr(result, 'timestamp'), "Must have timestamp field"  # nosec B101
+        assert hasattr(result, 'source'), "Must have source field"  # nosec B101
+        assert hasattr(result, 'user_id'), "Must have user_id field"  # nosec B101
         
         # Assert fields are not None
-        assert result.text is not None, "text must not be None"
-        assert result.metadata is not None, "metadata must not be None"
-        assert result.timestamp is not None, "timestamp must not be None"
-        assert result.source is not None, "source must not be None"
+        assert result.text is not None, "text must not be None"  # nosec B101
+        assert result.metadata is not None, "metadata must not be None"  # nosec B101
+        assert result.timestamp is not None, "timestamp must not be None"  # nosec B101
+        assert result.source is not None, "source must not be None"  # nosec B101
         
         # Assert text is cleaned
-        assert len(result.text.strip()) > 0, "text must not be empty"
-        assert result.text == result.text.strip(), "text must be stripped"
+        assert len(result.text.strip()) > 0, "text must not be empty"  # nosec B101
+        assert result.text == result.text.strip(), "text must be stripped"  # nosec B101
 
 
 # ============================================================================
@@ -245,9 +245,9 @@ class TestInputNormalizationProperties:
         result = normalizer.normalize(raw_input)
         
         # Assert metadata is preserved (at least the keys we care about)
-        assert result.metadata is not None, "Metadata must be preserved"
-        assert result.source == raw_input.source, "source must match"
-        assert result.user_id == raw_input.user_id, "user_id must match"
+        assert result.metadata is not None, "Metadata must be preserved"  # nosec B101
+        assert result.source == raw_input.source, "source must match"  # nosec B101
+        assert result.user_id == raw_input.user_id, "user_id must match"  # nosec B101
 
 
 # ============================================================================
@@ -279,16 +279,16 @@ class TestInputNormalizationProperties:
             
             # If it succeeds with empty/whitespace input, that's acceptable
             # as long as it doesn't crash
-            assert True, "Normalizer handled invalid input gracefully"
+            assert True, "Normalizer handled invalid input gracefully"  # nosec B101
             
         except ValueError as e:
             # ValueError is acceptable for invalid input
-            assert len(str(e)) > 0, "Error message must be descriptive"
-            assert not any(word in str(e).lower() for word in [
+            assert len(str(e)) > 0, "Error message must be descriptive"  # nosec B101
+            assert not any(word in str(e).lower() for word in [  # nosec B101
                 "traceback", "stack"
             ]), "Error message must not contain stack traces"
             # Other exceptions should provide descriptive messages
-            assert len(str(e)) > 0, "Error message must be descriptive"
+            assert len(str(e)) > 0, "Error message must be descriptive"  # nosec B101
 # ============================================================================
 # PROPERTY 20: Responses match input modality
 # Validates: Requirements 8.4
@@ -340,9 +340,9 @@ class TestResponseGenerationProperties:
         response = generator.generate(result, intent, expected_modality)
         
         # Assert response modality matches input
-        assert isinstance(response, Response), "Must return Response object"
+        assert isinstance(response, Response), "Must return Response object"  # nosec B101
         assert response.modality == expected_modality, \
-            f"Response modality {response.modality} must match expected {expected_modality} for source {source}"
+            f"Response modality {response.modality} must match expected {expected_modality} for source {source}"  # nosec B101
 
 
 # ============================================================================
@@ -376,8 +376,8 @@ class TestResponseGenerationProperties:
         response = generator.generate_error_response(error_obj, ResponseModality.TEXT)
         
         # Assert response is user-friendly
-        assert isinstance(response, Response), "Must return Response object"
-        assert len(response.text) > 0, "Response text must not be empty"
+        assert isinstance(response, Response), "Must return Response object"  # nosec B101
+        assert len(response.text) > 0, "Response text must not be empty"  # nosec B101
         
         # Assert no technical jargon
         forbidden_words = [
@@ -389,7 +389,7 @@ class TestResponseGenerationProperties:
         response_lower = response.text.lower()
         for word in forbidden_words:
             assert word not in response_lower, \
-                f"Error response must not contain technical term: '{word}'"
+                f"Error response must not contain technical term: '{word}'"  # nosec B101
         
         # Assert response is helpful (at least one of these indicators OR short enough to be clear)
         helpful_indicators = [
@@ -402,7 +402,7 @@ class TestResponseGenerationProperties:
         is_short_and_clear = len(response.text) < 100  # Short messages are often clear enough
         
         assert has_helpful_language or is_short_and_clear, \
-            f"Error response should contain helpful language or be concise. Got: '{response.text}'"
+            f"Error response should contain helpful language or be concise. Got: '{response.text}'"  # nosec B101
 
 
 # ============================================================================
@@ -441,12 +441,12 @@ class TestLatencyProperties:
         
         # Assert latency is within budget
         assert latency < 1.5, \
-            f"Fast-path latency {latency:.3f}s exceeds 1.5s budget for command: '{text}'"
+            f"Fast-path latency {latency:.3f}s exceeds 1.5s budget for command: '{text}'"  # nosec B101
         
         # For fast-path matches, should be much faster (<50ms)
         if result is not None:
             assert latency < 0.05, \
-                f"Fast-path match latency {latency:.3f}s exceeds 50ms target for command: '{text}'"
+                f"Fast-path match latency {latency:.3f}s exceeds 50ms target for command: '{text}'"  # nosec B101
 
 
 # ============================================================================
@@ -497,8 +497,8 @@ class TestLatencyProperties:
         metrics = controller.end_stage(timer)
         
         # Assert metrics were recorded
-        assert metrics is not None, "Metrics must be recorded"
-        assert metrics.duration_ms > 0, "Duration must be positive"
+        assert metrics is not None, "Metrics must be recorded"  # nosec B101
+        assert metrics.duration_ms > 0, "Duration must be positive"  # nosec B101
 
 
 # ============================================================================
@@ -533,10 +533,10 @@ class TestErrorHandlingProperties:
         # Handle error (should not throw)
         try:
             # Error manager creates structured errors
-            assert error is not None, "Error handling must return structured result"
-            assert hasattr(error, 'error_type'), "Error must have error_type"
-            assert hasattr(error, 'message'), "Error must have message"
-            assert hasattr(error, 'user_message'), "Error must have user_message"
+            assert error is not None, "Error handling must return structured result"  # nosec B101
+            assert hasattr(error, 'error_type'), "Error must have error_type"  # nosec B101
+            assert hasattr(error, 'message'), "Error must have message"  # nosec B101
+            assert hasattr(error, 'user_message'), "Error must have user_message"  # nosec B101
         except Exception as e:
             pytest.fail(f"Error handling must not throw exceptions: {type(e).__name__}: {e}")
 # ============================================================================
@@ -578,10 +578,10 @@ class TestErrorHandlingProperties:
         
         if error_type in common_error_types:
             # These should have fallback handlers registered
-            assert True, f"Fallback strategy should be available for {error_type}"
+            assert True, f"Fallback strategy should be available for {error_type}"  # nosec B101
         else:
             # Other error types may not have specific fallback handlers
-            assert True, "Error type may not have specific fallback handler"
+            assert True, "Error type may not have specific fallback handler"  # nosec B101
 
 
 # ============================================================================
@@ -611,7 +611,7 @@ class TestErrorHandlingProperties:
         
         # Assert system is in valid degradation level
         assert current_level.value in ["normal", "degraded", "minimal"], \
-            f"Degradation level must be valid: {current_level.value}"
+            f"Degradation level must be valid: {current_level.value}"  # nosec B101
         
         # If component is critical, should eventually degrade after multiple failures
         critical_components = ["llm", "database"]
@@ -623,12 +623,12 @@ class TestErrorHandlingProperties:
             current_level_after = degradation_manager.get_current_level()
             # After multiple failures, should be degraded
             assert current_level_after.value != "normal" or True, \
-                f"System should consider degrading when critical component '{component}' fails repeatedly"
+                f"System should consider degrading when critical component '{component}' fails repeatedly"  # nosec B101
         
         # Assert status is available
         status = degradation_manager.get_status()
-        assert status is not None, "Degradation status must be available"
-        assert "current_level" in status, "Status must include current_level"
+        assert status is not None, "Degradation status must be available"  # nosec B101
+        assert "current_level" in status, "Status must include current_level"  # nosec B101
 
 
 # ============================================================================
@@ -653,12 +653,12 @@ class TestEdgeCases:
                 metadata={}
             )
             result = normalizer.normalize(raw_input)
-            assert isinstance(result, NormalizedInput), "Must handle Unicode"
+            assert isinstance(result, NormalizedInput), "Must handle Unicode"  # nosec B101
         except ValueError as e:
             # Empty after normalization is acceptable (whitespace-only input)
             err_lower = str(e).lower()
             if "empty after normalization" in err_lower or "cannot be empty" in err_lower:
-                assert True, "Whitespace-only input handled correctly"
+                assert True, "Whitespace-only input handled correctly"  # nosec B101
             else:
                 # Other ValueErrors should not occur for valid Unicode
                 if all(ord(c) < 0x110000 for c in text):  # Valid Unicode range
@@ -699,7 +699,7 @@ class TestEdgeCases:
                 metadata=metadata
             )
             result = normalizer.normalize(raw_input)
-            assert isinstance(result, NormalizedInput), "Must handle various metadata types"
+            assert isinstance(result, NormalizedInput), "Must handle various metadata types"  # nosec B101
         except Exception as e:
             pytest.fail(f"Should handle various metadata types: {e}")
     @given(
@@ -726,7 +726,7 @@ class TestEdgeCases:
         # Assert accuracy within 15% or 20ms (whichever is larger) - more lenient for Windows timing
         tolerance = max(latency * 0.15, 0.02)
         assert abs(measured - latency) < tolerance, \
-            f"Measured latency {measured:.3f}s should be close to actual {latency:.3f}s"
+            f"Measured latency {measured:.3f}s should be close to actual {latency:.3f}s"  # nosec B101
 
     @given(
         error_count=st.integers(min_value=1, max_value=10)
@@ -755,14 +755,14 @@ class TestEdgeCases:
             try:
                 # ErrorManager.create_error returns StructuredError, not handles Error objects
                 # So we just verify the error object is valid
-                assert error.error_code is not None
-                assert error.error_type is not None
-                assert error.message is not None
+                assert error.error_code is not None  # nosec B101
+                assert error.error_type is not None  # nosec B101
+                assert error.message is not None  # nosec B101
                 results.append(error)
             except Exception as e:
                 pytest.fail(f"Error handling failed: {e}")
         # Assert all errors were handled
-        assert len(results) == error_count, "All errors must be handled"
+        assert len(results) == error_count, "All errors must be handled"  # nosec B101
 
     @given(
         response_length=st.integers(min_value=1, max_value=5000)
@@ -802,8 +802,8 @@ class TestEdgeCases:
         response = generator.generate(result, intent, ResponseModality.TEXT)
         
         # Assert response is generated
-        assert isinstance(response, Response), "Must generate response"
-        assert len(response.text) > 0, "Response must have text"
+        assert isinstance(response, Response), "Must generate response"  # nosec B101
+        assert len(response.text) > 0, "Response must have text"  # nosec B101
 
 
 # ============================================================================

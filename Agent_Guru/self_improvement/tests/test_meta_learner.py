@@ -91,11 +91,11 @@ class TestFeatureExtraction:
         
         features = meta_learner.extract_features(execution)
         
-        assert isinstance(features, TaskFeatures)
-        assert features.success == 1
-        assert features.execution_time_ms == 100.0
-        assert features.task_type_hash > 0
-        assert features.strategy_hash > 0
+        assert isinstance(features, TaskFeatures)  # nosec B101
+        assert features.success == 1  # nosec B101
+        assert features.execution_time_ms == 100.0  # nosec B101
+        assert features.task_type_hash > 0  # nosec B101
+        assert features.strategy_hash > 0  # nosec B101
     
     def test_extract_features_failed_execution(self, meta_learner):
         """Test feature extraction from failed execution."""
@@ -111,9 +111,9 @@ class TestFeatureExtraction:
         
         features = meta_learner.extract_features(execution)
         
-        assert isinstance(features, TaskFeatures)
-        assert features.success == 0
-        assert features.execution_time_ms == 200.0
+        assert isinstance(features, TaskFeatures)  # nosec B101
+        assert features.success == 0  # nosec B101
+        assert features.execution_time_ms == 200.0  # nosec B101
     
     def test_extract_features_with_hallucination(self, meta_learner):
         """Test feature extraction with hallucination detected."""
@@ -129,7 +129,7 @@ class TestFeatureExtraction:
         
         features = meta_learner.extract_features(execution)
         
-        assert features.hallucination_detected == 1
+        assert features.hallucination_detected == 1  # nosec B101
     
     def test_feature_to_vector_conversion(self, meta_learner):
         """Test conversion of features to numerical vector."""
@@ -145,9 +145,9 @@ class TestFeatureExtraction:
         features = meta_learner.extract_features(execution)
         vector = features.to_vector()
         
-        assert isinstance(vector, np.ndarray)
-        assert vector.shape == (8,)
-        assert vector.dtype == np.float32
+        assert isinstance(vector, np.ndarray)  # nosec B101
+        assert vector.shape == (8,)  # nosec B101
+        assert vector.dtype == np.float32  # nosec B101
     
     def test_context_complexity_calculation(self, meta_learner):
         """Test context complexity calculation."""
@@ -179,7 +179,7 @@ class TestFeatureExtraction:
         simple_features = meta_learner.extract_features(simple_exec)
         complex_features = meta_learner.extract_features(complex_exec)
         
-        assert complex_features.context_complexity > simple_features.context_complexity
+        assert complex_features.context_complexity > simple_features.context_complexity  # nosec B101
 
 
 class TestPatternClustering:
@@ -205,7 +205,7 @@ class TestPatternClustering:
         count = cursor.fetchone()[0]
         conn.close()
         
-        assert count == 1
+        assert count == 1  # nosec B101
     
     def test_pattern_update_threshold(self, meta_learner):
         """Test that patterns update after threshold executions."""
@@ -228,7 +228,7 @@ class TestPatternClustering:
         pattern_count = cursor.fetchone()[0]
         conn.close()
         
-        assert pattern_count > 0
+        assert pattern_count > 0  # nosec B101
     
     def test_pattern_clustering_creates_patterns(self, meta_learner):
         """Test that clustering creates distinct patterns."""
@@ -262,7 +262,7 @@ class TestPatternClustering:
         
         # Should have at least 2 patterns
         patterns = meta_learner._load_patterns()
-        assert len(patterns) >= 2
+        assert len(patterns) >= 2  # nosec B101
     
     def test_pattern_confidence_calculation(self, meta_learner):
         """Test pattern confidence increases with sample count."""
@@ -283,7 +283,7 @@ class TestPatternClustering:
         
         # Patterns with more samples should have higher confidence
         if len(patterns) > 0:
-            assert all(0.0 <= p.confidence <= 1.0 for p in patterns)
+            assert all(0.0 <= p.confidence <= 1.0 for p in patterns)  # nosec B101
 
 
 class TestStrategyRecommendation:
@@ -311,7 +311,7 @@ class TestStrategyRecommendation:
             {"key": "value"}
         )
         
-        assert isinstance(strategies, list)
+        assert isinstance(strategies, list)  # nosec B101
     
     def test_recommend_strategies_matches_patterns(self, meta_learner):
         """Test that recommendations match learned patterns."""
@@ -337,7 +337,7 @@ class TestStrategyRecommendation:
         
         # Should recommend the optimal strategy
         if len(strategies) > 0:
-            assert "optimal_strategy" in strategies
+            assert "optimal_strategy" in strategies  # nosec B101
     
     def test_recommend_strategies_filters_by_confidence(self, meta_learner):
         """Test that low-confidence patterns are filtered out."""
@@ -362,7 +362,7 @@ class TestStrategyRecommendation:
         )
         
         # May be empty due to low confidence
-        assert isinstance(strategies, list)
+        assert isinstance(strategies, list)  # nosec B101
 
 
 class TestEdgeCases:
@@ -380,7 +380,7 @@ class TestEdgeCases:
         )
         
         features = meta_learner.extract_features(execution)
-        assert features.context_complexity >= 0.0
+        assert features.context_complexity >= 0.0  # nosec B101
     
     def test_none_error_details(self, meta_learner):
         """Test handling of None error details."""
@@ -395,7 +395,7 @@ class TestEdgeCases:
         )
         
         features = meta_learner.extract_features(execution)
-        assert features is not None
+        assert features is not None  # nosec B101
     
     def test_very_long_task_type(self, meta_learner):
         """Test handling of very long task type names."""
@@ -410,7 +410,7 @@ class TestEdgeCases:
         )
         
         features = meta_learner.extract_features(execution)
-        assert features.task_type_hash > 0
+        assert features.task_type_hash > 0  # nosec B101
     
     def test_negative_execution_time(self, meta_learner):
         """Test handling of negative execution time."""
@@ -425,7 +425,7 @@ class TestEdgeCases:
         
         features = meta_learner.extract_features(execution)
         # Should handle gracefully
-        assert features is not None
+        assert features is not None  # nosec B101
     
     def test_deeply_nested_context(self, meta_learner):
         """Test handling of deeply nested context."""
@@ -440,7 +440,7 @@ class TestEdgeCases:
         )
         
         features = meta_learner.extract_features(execution)
-        assert features.context_complexity > 0.0
+        assert features.context_complexity > 0.0  # nosec B101
 
 
 class TestPropertyBased:
@@ -471,9 +471,9 @@ class TestPropertyBased:
         
         features = meta_learner.extract_features(execution)
         
-        assert features is not None
-        assert isinstance(features, TaskFeatures)
-        assert features.success == (1 if success else 0)
+        assert features is not None  # nosec B101
+        assert isinstance(features, TaskFeatures)  # nosec B101
+        assert features.success == (1 if success else 0)  # nosec B101
     
     @given(
         context_size=st.integers(min_value=0, max_value=20)
@@ -499,7 +499,7 @@ class TestPropertyBased:
         features = meta_learner.extract_features(execution)
         
         # Complexity should be non-negative
-        assert features.context_complexity >= 0.0
+        assert features.context_complexity >= 0.0  # nosec B101
     
     @given(
         num_executions=st.integers(min_value=1, max_value=30)
@@ -535,7 +535,7 @@ class TestPropertyBased:
             count = cursor.fetchone()[0]
             conn.close()
             
-            assert count == num_executions
+            assert count == num_executions  # nosec B101
         finally:
             # Cleanup
             try:
@@ -605,14 +605,14 @@ class TestPropertyBased:
             # If patterns were learned (sufficient training data), they should generalize
             if train_size >= learner.min_samples:
                 # Should return recommendations (pattern learned)
-                assert isinstance(strategies, list)
+                assert isinstance(strategies, list)  # nosec B101
                 
                 # If variation is reasonable (0.8-1.2x), should recommend trained strategy
                 if 0.9 <= test_variation <= 1.1:
                     # Strong generalization: should recommend strategy_fast
                     if len(strategies) > 0:
                         assert "strategy_fast" in strategies, \
-                            f"Pattern should generalize to similar task (variation={test_variation:.2f})"
+                            f"Pattern should generalize to similar task (variation={test_variation:.2f})"  # nosec B101
             
             # Phase 4: Test that patterns don't overfit
             # Try a very different task type - should not force same strategy
@@ -622,7 +622,7 @@ class TestPropertyBased:
             )
             
             # Should handle gracefully (may return empty or different strategies)
-            assert isinstance(different_strategies, list)
+            assert isinstance(different_strategies, list)  # nosec B101
             
         finally:
             # Cleanup
@@ -695,12 +695,12 @@ class TestPropertyBased:
             )
             
             # Verify robustness
-            assert isinstance(strategies, list)
+            assert isinstance(strategies, list)  # nosec B101
             
             # If noise is low (<20%), optimal strategy should still be recommended
             if noise_level < 0.2 and len(strategies) > 0:
                 assert "strategy_optimal" in strategies, \
-                    f"Pattern should be robust to {noise_level*100:.0f}% noise"
+                    f"Pattern should be robust to {noise_level*100:.0f}% noise"  # nosec B101
             
         finally:
             # Cleanup
@@ -738,9 +738,9 @@ class TestIntegration:
         )
         
         # Phase 4: Verify recommendation
-        assert isinstance(strategies, list)
+        assert isinstance(strategies, list)  # nosec B101
         if len(strategies) > 0:
-            assert "best_strategy" in strategies
+            assert "best_strategy" in strategies  # nosec B101
     
     def test_pattern_persistence(self, temp_db):
         """Test that patterns persist across meta-learner instances."""
@@ -766,7 +766,7 @@ class TestIntegration:
         patterns2 = learner2._load_patterns()
         
         # Patterns should match
-        assert len(patterns1) == len(patterns2)
+        assert len(patterns1) == len(patterns2)  # nosec B101
     
     def test_incremental_learning(self, meta_learner):
         """Test that patterns improve with more data."""
@@ -802,7 +802,7 @@ class TestIntegration:
         updated_patterns = meta_learner._load_patterns()
         
         # Patterns should be updated (confidence should increase)
-        assert len(updated_patterns) >= initial_count
+        assert len(updated_patterns) >= initial_count  # nosec B101
     
     @given(
         initial_data_size=st.integers(min_value=10, max_value=20),
@@ -876,19 +876,19 @@ class TestIntegration:
             # Phase 3: Verify improvement
             # With more data, confidence should increase or stay same
             assert updated_confidence >= initial_confidence, \
-                f"Confidence should not decrease with more data: {initial_confidence:.2f} -> {updated_confidence:.2f}"
+                f"Confidence should not decrease with more data: {initial_confidence:.2f} -> {updated_confidence:.2f}"  # nosec B101
             
             # With sufficient data, should have patterns (even if confidence is low)
             total_data = initial_data_size + additional_data_size
             if total_data >= learner.min_samples * 3:
                 # Should have learned some patterns
                 assert len(updated_patterns) > 0, \
-                    f"Should have patterns with {total_data} samples"
+                    f"Should have patterns with {total_data} samples"  # nosec B101
                 
                 # If patterns exist and have decent confidence, should get recommendations
                 if updated_confidence >= 0.3:  # Lower threshold for test
                     assert len(updated_strategies) >= 0, \
-                        "Should attempt recommendations when patterns exist"
+                        "Should attempt recommendations when patterns exist"  # nosec B101
         
         finally:
             # Cleanup
@@ -918,14 +918,14 @@ class TestIntegration:
         correlations = meta_learner.analyze_feature_correlations()
         
         # Should return correlation dict
-        assert isinstance(correlations, dict)
+        assert isinstance(correlations, dict)  # nosec B101
         
         # Should have correlations for features
         if len(correlations) > 0:
-            assert 'execution_time_ms' in correlations
+            assert 'execution_time_ms' in correlations  # nosec B101
             # Execution time should have negative correlation with success
             # (faster = more successful in this test data)
-            assert correlations['execution_time_ms'] < 0
+            assert correlations['execution_time_ms'] < 0  # nosec B101
 
 
 class TestPatternGeneralization:
@@ -1148,7 +1148,7 @@ class TestPatternGeneralization:
                 assert accuracy >= min_accuracy, \
                     f"Pattern generalization accuracy {accuracy:.2%} below {min_accuracy:.0%} threshold " \
                     f"(pattern_type={pattern_type}, train_size={train_size}, " \
-                    f"noise_level={noise_level:.2f}, correct={correct_predictions}/{total_predictions})"
+                    f"noise_level={noise_level:.2f}, correct={correct_predictions}/{total_predictions})"  # nosec B101
             else:
                 # If no predictions made, patterns may not have formed yet
                 # This is acceptable for small training sets or high noise
@@ -1258,7 +1258,7 @@ class TestPatternGeneralization:
                 if 0.9 <= test_variation <= 1.1:
                     assert "strategy_optimal" in recommended_strategies, \
                         f"Pattern should generalize across task types " \
-                        f"(train_types={train_task_types}, variation={test_variation:.2f})"
+                        f"(train_types={train_task_types}, variation={test_variation:.2f})"  # nosec B101
             else:
                 # If no recommendations, this is acceptable
                 # Clustering may not always find clear patterns
@@ -1345,7 +1345,7 @@ class TestPatternGeneralization:
                 # If variation is reasonable (0.8-1.2x), should still recommend trained strategy
                 if 0.8 <= context_variation <= 1.2:
                     assert "strategy_balanced" in recommended_strategies, \
-                        f"Pattern should be robust to context variation {context_variation:.2f}x"
+                        f"Pattern should be robust to context variation {context_variation:.2f}x"  # nosec B101
             else:
                 # No recommendations is acceptable - clustering may not find patterns
                 pass  # Acceptable - pattern formation depends on data characteristics

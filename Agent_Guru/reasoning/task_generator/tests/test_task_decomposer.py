@@ -60,14 +60,14 @@ class TestTaskModelGenerator:
 
         task = generator.generate_task(llm_output, sample_intent, 0.95)
 
-        assert task.goal == "Set a timer for 5 minutes"
-        assert task.task_type == TaskType.SINGLE_STEP
-        assert len(task.steps) == 1
-        assert task.steps[0].tool_id == "timer_tool"
-        assert task.steps[0].parameters == {"duration_seconds": 300}
-        assert task.confidence == pytest.approx(0.95, abs=0.1)
-        assert task.status == TaskStatus.PENDING
-        assert task.retry_count == 0
+        assert task.goal == "Set a timer for 5 minutes"  # nosec B101
+        assert task.task_type == TaskType.SINGLE_STEP  # nosec B101
+        assert len(task.steps) == 1  # nosec B101
+        assert task.steps[0].tool_id == "timer_tool"  # nosec B101
+        assert task.steps[0].parameters == {"duration_seconds": 300}  # nosec B101
+        assert task.confidence == pytest.approx(0.95, abs=0.1)  # nosec B101
+        assert task.status == TaskStatus.PENDING  # nosec B101
+        assert task.retry_count == 0  # nosec B101
 
     def test_generate_multi_step_task(self, generator, sample_intent):
         """Test generating a valid multi-step task."""
@@ -93,11 +93,11 @@ class TestTaskModelGenerator:
 
         task = generator.generate_task(llm_output, sample_intent, 0.92)
 
-        assert task.task_type == TaskType.MULTI_STEP
-        assert len(task.steps) == 2
-        assert task.steps[0].step_id == 1
-        assert task.steps[1].step_id == 2
-        assert task.estimated_duration == 3.0
+        assert task.task_type == TaskType.MULTI_STEP  # nosec B101
+        assert len(task.steps) == 2  # nosec B101
+        assert task.steps[0].step_id == 1  # nosec B101
+        assert task.steps[1].step_id == 2  # nosec B101
+        assert task.estimated_duration == 3.0  # nosec B101
 
     def test_missing_goal(self, generator, sample_intent):
         """Test error when goal is missing."""
@@ -240,7 +240,7 @@ class TestTaskModelGenerator:
         task = generator.generate_task(llm_output, sample_intent, 0.9)
 
         # Should be corrected to 1
-        assert task.steps[0].step_id == 1
+        assert task.steps[0].step_id == 1  # nosec B101
 
     def test_confidence_adjustment_missing_fields(self, generator, sample_intent):
         """Test confidence adjustment for missing optional fields."""
@@ -261,7 +261,7 @@ class TestTaskModelGenerator:
 
         # Confidence should be reduced by 0.05 * 3 = 0.15
         # 0.9 - 0.15 = 0.75, but may have other adjustments
-        assert task.confidence < 0.9
+        assert task.confidence < 0.9  # nosec B101
 
     def test_confidence_adjustment_complex_task(self, generator, sample_intent):
         """Test confidence penalty for complex multi-step tasks."""
@@ -281,7 +281,7 @@ class TestTaskModelGenerator:
         task = generator.generate_task(llm_output, sample_intent, 0.9)
 
         # Should have penalty for >3 steps
-        assert task.confidence < 0.9
+        assert task.confidence < 0.9  # nosec B101
 
     def test_confidence_bonus_complete_parameters(self, generator, sample_intent):
         """Test confidence bonus when all parameters are present."""
@@ -301,7 +301,7 @@ class TestTaskModelGenerator:
 
         # Should have bonus for complete parameters
         # Base 0.8 + 0.05 (params) + 0.1 (high intent confidence) = 0.95
-        assert task.confidence >= 0.8
+        assert task.confidence >= 0.8  # nosec B101
 
     def test_requires_confirmation_sensitive_keyword(self, generator, sample_intent):
         """Test confirmation required for sensitive keywords."""
@@ -319,7 +319,7 @@ class TestTaskModelGenerator:
 
         task = generator.generate_task(llm_output, sample_intent, 0.9)
 
-        assert task.requires_confirmation is True
+        assert task.requires_confirmation is True  # nosec B101
 
     def test_requires_confirmation_many_steps(self, generator, sample_intent):
         """Test confirmation required for tasks with >3 steps."""
@@ -338,7 +338,7 @@ class TestTaskModelGenerator:
 
         task = generator.generate_task(llm_output, sample_intent, 0.9)
 
-        assert task.requires_confirmation is True
+        assert task.requires_confirmation is True  # nosec B101
 
     def test_no_confirmation_safe_task(self, generator, sample_intent):
         """Test no confirmation for safe tasks."""
@@ -356,7 +356,7 @@ class TestTaskModelGenerator:
 
         task = generator.generate_task(llm_output, sample_intent, 0.9)
 
-        assert task.requires_confirmation is False
+        assert task.requires_confirmation is False  # nosec B101
 
     def test_task_with_dependencies(self, generator, sample_intent):
         """Test task with step dependencies."""
@@ -383,8 +383,8 @@ class TestTaskModelGenerator:
 
         task = generator.generate_task(llm_output, sample_intent, 0.9)
 
-        assert task.steps[1].depends_on == [1]
-        assert task.estimated_duration == 3.0
+        assert task.steps[1].depends_on == [1]  # nosec B101
+        assert task.estimated_duration == 3.0  # nosec B101
 
     def test_invalid_dependency_nonexistent_step(self, generator, sample_intent):
         """Test error when dependency references non-existent step."""
@@ -479,7 +479,7 @@ class TestTaskModelGenerator:
         task = generator.generate_task(llm_output, sample_intent, 0.9)
 
         # Total should be 3.0 (1.0 + 2.0)
-        assert task.estimated_duration == 3.0
+        assert task.estimated_duration == 3.0  # nosec B101
 
     def test_default_estimated_duration(self, generator, sample_intent):
         """Test default estimated duration when not provided."""
@@ -499,8 +499,8 @@ class TestTaskModelGenerator:
         task = generator.generate_task(llm_output, sample_intent, 0.9)
 
         # Should default to 1.0
-        assert task.steps[0].estimated_duration == 1.0
-        assert task.estimated_duration == 1.0
+        assert task.steps[0].estimated_duration == 1.0  # nosec B101
+        assert task.estimated_duration == 1.0  # nosec B101
 
     def test_task_type_classification_single_step(self, generator):
         """Test task type classification for single step."""
@@ -516,7 +516,7 @@ class TestTaskModelGenerator:
         ]
 
         task_type = generator._classify_task_type(steps, None)
-        assert task_type == TaskType.SINGLE_STEP
+        assert task_type == TaskType.SINGLE_STEP  # nosec B101
 
     def test_task_type_classification_multi_step(self, generator):
         """Test task type classification for multi-step."""
@@ -528,7 +528,7 @@ class TestTaskModelGenerator:
         ]
 
         task_type = generator._classify_task_type(steps, None)
-        assert task_type == TaskType.MULTI_STEP
+        assert task_type == TaskType.MULTI_STEP  # nosec B101
 
     def test_sensitive_keywords_detection(self, generator, sample_intent):
         """Test detection of all sensitive keywords."""
@@ -564,7 +564,7 @@ class TestTaskModelGenerator:
 
             task = generator.generate_task(llm_output, sample_intent, 0.9)
 
-            assert task.requires_confirmation is True, f"Failed for keyword: {keyword}"
+            assert task.requires_confirmation is True, f"Failed for keyword: {keyword}"  # nosec B101
 
     def test_logging_on_successful_generation(self, generator, sample_intent, caplog):
         """Test that successful generation logs metrics."""
@@ -583,7 +583,7 @@ class TestTaskModelGenerator:
         task = generator.generate_task(llm_output, sample_intent, 0.9)
 
         # Check that logging occurred (structlog may not show in caplog)
-        assert task is not None
+        assert task is not None  # nosec B101
 
     def test_parameters_type_validation(self, generator, sample_intent):
         """Test that parameters must be a dictionary."""
@@ -618,7 +618,7 @@ class TestTaskModelGenerator:
 
         task = generator.generate_task(llm_output, sample_intent, 0.9)
 
-        assert task.steps[0].parameters == {}
+        assert task.steps[0].parameters == {}  # nosec B101
 
     def test_confidence_bounds_enforcement(self, generator, sample_intent):
         """Test that confidence is always bounded to [0.0, 1.0]."""
@@ -641,5 +641,5 @@ class TestTaskModelGenerator:
         task = generator.generate_task(llm_output, sample_intent, 0.99)
 
         # Should not exceed 1.0
-        assert 0.0 <= task.confidence <= 1.0
+        assert 0.0 <= task.confidence <= 1.0  # nosec B101
 

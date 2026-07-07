@@ -21,9 +21,9 @@ class TestSensitivityRule:
             priority=100,
         )
 
-        assert rule.tool_pattern == r".*delete.*"
-        assert rule.sensitivity == ActionSensitivity.DANGEROUS
-        assert rule.priority == 100
+        assert rule.tool_pattern == r".*delete.*"  # nosec B101
+        assert rule.sensitivity == ActionSensitivity.DANGEROUS  # nosec B101
+        assert rule.priority == 100  # nosec B101
 
     def test_rule_matches_tool_pattern(self):
         """Test rule matching by tool pattern."""
@@ -35,9 +35,9 @@ class TestSensitivityRule:
             priority=100,
         )
 
-        assert rule.matches("delete_file", {})
-        assert rule.matches("delete_user_file", {})
-        assert not rule.matches("create_file", {})
+        assert rule.matches("delete_file", {})  # nosec B101
+        assert rule.matches("delete_user_file", {})  # nosec B101
+        assert not rule.matches("create_file", {})  # nosec B101
 
     def test_rule_matches_parameters(self):
         """Test rule matching with parameter checks."""
@@ -49,9 +49,9 @@ class TestSensitivityRule:
             priority=50,
         )
 
-        assert rule.matches("send_email", {"recipient": "user@external.com"})
-        assert not rule.matches("send_email", {"recipient": "user@internal.com"})
-        assert not rule.matches("send_email", {})  # Missing parameter
+        assert rule.matches("send_email", {"recipient": "user@external.com"})  # nosec B101
+        assert not rule.matches("send_email", {"recipient": "user@internal.com"})  # nosec B101
+        assert not rule.matches("send_email", {})  # Missing parameter  # nosec B101
 
     def test_rule_matches_multiple_parameters(self):
         """Test rule matching with multiple parameter checks."""
@@ -66,9 +66,9 @@ class TestSensitivityRule:
             priority=100,
         )
 
-        assert rule.matches("make_payment", {"amount": "1000", "currency": "USD"})
-        assert not rule.matches("make_payment", {"amount": "100", "currency": "USD"})
-        assert not rule.matches("make_payment", {"amount": "1000", "currency": "EUR"})
+        assert rule.matches("make_payment", {"amount": "1000", "currency": "USD"})  # nosec B101
+        assert not rule.matches("make_payment", {"amount": "100", "currency": "USD"})  # nosec B101
+        assert not rule.matches("make_payment", {"amount": "1000", "currency": "EUR"})  # nosec B101
 
 
 class TestActionSensitivityClassifier:
@@ -79,11 +79,11 @@ class TestActionSensitivityClassifier:
         classifier = ActionSensitivityClassifier()
 
         rules = classifier.get_rules()
-        assert len(rules) > 0
+        assert len(rules) > 0  # nosec B101
 
         # Check rules are sorted by priority
         priorities = [r.priority for r in rules]
-        assert priorities == sorted(priorities, reverse=True)
+        assert priorities == sorted(priorities, reverse=True)  # nosec B101
 
     def test_classify_safe_action(self):
         """Test classifying a safe action."""
@@ -98,8 +98,8 @@ class TestActionSensitivityClassifier:
 
         sensitivity, reason = classifier.classify(tool, {})
 
-        assert sensitivity == ActionSensitivity.SAFE
-        assert "No sensitivity rules matched" in reason
+        assert sensitivity == ActionSensitivity.SAFE  # nosec B101
+        assert "No sensitivity rules matched" in reason  # nosec B101
 
     def test_classify_dangerous_delete_action(self):
         """Test classifying a dangerous delete action."""
@@ -114,8 +114,8 @@ class TestActionSensitivityClassifier:
 
         sensitivity, reason = classifier.classify(tool, {"path": "/important/file.txt"})
 
-        assert sensitivity == ActionSensitivity.DANGEROUS
-        assert "deletion" in reason.lower() or "data loss" in reason.lower()
+        assert sensitivity == ActionSensitivity.DANGEROUS  # nosec B101
+        assert "deletion" in reason.lower() or "data loss" in reason.lower()  # nosec B101
 
     def test_classify_sensitive_messaging_action(self):
         """Test classifying a sensitive messaging action."""
@@ -130,8 +130,8 @@ class TestActionSensitivityClassifier:
 
         sensitivity, reason = classifier.classify(tool, {"recipient": "+1234567890"})
 
-        assert sensitivity == ActionSensitivity.SENSITIVE
-        assert "communication" in reason.lower() or "messaging" in reason.lower()
+        assert sensitivity == ActionSensitivity.SENSITIVE  # nosec B101
+        assert "communication" in reason.lower() or "messaging" in reason.lower()  # nosec B101
 
     def test_classify_respects_tool_declared_sensitivity(self):
         """Test that tool's declared sensitivity is respected."""
@@ -146,8 +146,8 @@ class TestActionSensitivityClassifier:
 
         sensitivity, reason = classifier.classify(tool, {})
 
-        assert sensitivity == ActionSensitivity.DANGEROUS
-        assert "declared" in reason.lower()
+        assert sensitivity == ActionSensitivity.DANGEROUS  # nosec B101
+        assert "declared" in reason.lower()  # nosec B101
 
     def test_add_custom_rule(self):
         """Test adding a custom sensitivity rule."""
@@ -172,8 +172,8 @@ class TestActionSensitivityClassifier:
 
         sensitivity, reason = classifier.classify(tool, {})
 
-        assert sensitivity == ActionSensitivity.SENSITIVE
-        assert reason == "Custom rule"
+        assert sensitivity == ActionSensitivity.SENSITIVE  # nosec B101
+        assert reason == "Custom rule"  # nosec B101
 
     def test_remove_rule(self):
         """Test removing a sensitivity rule."""
@@ -184,8 +184,8 @@ class TestActionSensitivityClassifier:
         # Remove a rule
         removed = classifier.remove_rule(r".*delete.*file.*")
 
-        assert removed
-        assert len(classifier.get_rules()) == initial_count - 1
+        assert removed  # nosec B101
+        assert len(classifier.get_rules()) == initial_count - 1  # nosec B101
 
     def test_remove_nonexistent_rule(self):
         """Test removing a nonexistent rule."""
@@ -193,7 +193,7 @@ class TestActionSensitivityClassifier:
 
         removed = classifier.remove_rule(r".*nonexistent.*")
 
-        assert not removed
+        assert not removed  # nosec B101
 
     def test_clear_rules(self):
         """Test clearing all rules."""
@@ -201,7 +201,7 @@ class TestActionSensitivityClassifier:
 
         classifier.clear_rules()
 
-        assert len(classifier.get_rules()) == 0
+        assert len(classifier.get_rules()) == 0  # nosec B101
 
     def test_load_rules_from_config(self):
         """Test loading rules from configuration."""
@@ -229,9 +229,9 @@ class TestActionSensitivityClassifier:
         classifier.load_rules_from_config(config)
 
         rules = classifier.get_rules()
-        assert len(rules) == 2
-        assert rules[0].priority == 200  # Highest priority first
-        assert rules[1].priority == 100
+        assert len(rules) == 2  # nosec B101
+        assert rules[0].priority == 200  # Highest priority first  # nosec B101
+        assert rules[1].priority == 100  # nosec B101
 
     def test_rule_priority_ordering(self):
         """Test that rules are checked in priority order."""
@@ -270,8 +270,8 @@ class TestActionSensitivityClassifier:
         sensitivity, reason = classifier.classify(tool, {})
 
         # Should match high priority rule
-        assert sensitivity == ActionSensitivity.DANGEROUS
-        assert reason == "High priority"
+        assert sensitivity == ActionSensitivity.DANGEROUS  # nosec B101
+        assert reason == "High priority"  # nosec B101
 
     def test_classify_system_config_action(self):
         """Test classifying system configuration action."""
@@ -286,7 +286,7 @@ class TestActionSensitivityClassifier:
 
         sensitivity, reason = classifier.classify(tool, {})
 
-        assert sensitivity == ActionSensitivity.DANGEROUS
+        assert sensitivity == ActionSensitivity.DANGEROUS  # nosec B101
 
     def test_classify_payment_action(self):
         """Test classifying payment action."""
@@ -301,7 +301,7 @@ class TestActionSensitivityClassifier:
 
         sensitivity, reason = classifier.classify(tool, {"amount": 100})
 
-        assert sensitivity == ActionSensitivity.SENSITIVE
+        assert sensitivity == ActionSensitivity.SENSITIVE  # nosec B101
 
     def test_classify_smart_home_action(self):
         """Test classifying smart home action."""
@@ -316,7 +316,7 @@ class TestActionSensitivityClassifier:
 
         sensitivity, reason = classifier.classify(tool, {})
 
-        assert sensitivity == ActionSensitivity.SENSITIVE
+        assert sensitivity == ActionSensitivity.SENSITIVE  # nosec B101
 
     def test_classify_data_export_action(self):
         """Test classifying data export action."""
@@ -331,7 +331,7 @@ class TestActionSensitivityClassifier:
 
         sensitivity, reason = classifier.classify(tool, {})
 
-        assert sensitivity == ActionSensitivity.SENSITIVE
+        assert sensitivity == ActionSensitivity.SENSITIVE  # nosec B101
 
     def test_get_rules_returns_copy(self):
         """Test that get_rules returns a copy."""
@@ -340,5 +340,5 @@ class TestActionSensitivityClassifier:
         rules1 = classifier.get_rules()
         rules2 = classifier.get_rules()
 
-        assert rules1 is not rules2
-        assert len(rules1) == len(rules2)
+        assert rules1 is not rules2  # nosec B101
+        assert len(rules1) == len(rules2)  # nosec B101

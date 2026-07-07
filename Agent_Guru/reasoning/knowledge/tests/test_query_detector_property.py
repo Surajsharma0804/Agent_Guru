@@ -25,11 +25,11 @@ class TestKnowledgeQueryDetectorProperties:
         result = detector.detect_knowledge_query(query_text, use_llm_fallback=False)
 
         if result is not None:
-            assert hasattr(result, "query_type")
-            assert isinstance(result.query_type, KnowledgeQueryType)
-            assert isinstance(result.query_text, str)
-            assert isinstance(result.confidence, float)
-            assert isinstance(result.entities, dict)
+            assert hasattr(result, "query_type")  # nosec B101
+            assert isinstance(result.query_type, KnowledgeQueryType)  # nosec B101
+            assert isinstance(result.query_text, str)  # nosec B101
+            assert isinstance(result.confidence, float)  # nosec B101
+            assert isinstance(result.entities, dict)  # nosec B101
 
     @given(
         query_text=st.text(
@@ -45,7 +45,7 @@ class TestKnowledgeQueryDetectorProperties:
         result = detector.detect_knowledge_query(query_text, use_llm_fallback=False)
 
         if result is not None:
-            assert 0.0 <= result.confidence <= 1.0
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
 
     @given(
         query_text=st.text(
@@ -61,7 +61,7 @@ class TestKnowledgeQueryDetectorProperties:
         result = detector.detect_knowledge_query(query_text, use_llm_fallback=False)
 
         if result is not None:
-            assert result.query_text == query_text.strip()
+            assert result.query_text == query_text.strip()  # nosec B101
 
     @given(
         query_text=st.text(
@@ -78,7 +78,7 @@ class TestKnowledgeQueryDetectorProperties:
         result2 = detector.classify_query_type(query_text)
         result3 = detector.classify_query_type(query_text)
 
-        assert result1 == result2 == result3
+        assert result1 == result2 == result3  # nosec B101
 
     @given(whitespace=st.text(alphabet=" \t\n\r", min_size=0, max_size=100))
     @settings(max_examples=100)
@@ -87,7 +87,7 @@ class TestKnowledgeQueryDetectorProperties:
         detector = KnowledgeQueryDetector()
         result = detector.detect_knowledge_query(whitespace, use_llm_fallback=False)
 
-        assert result is None
+        assert result is None  # nosec B101
 
     @given(
         query_text=st.text(
@@ -104,9 +104,9 @@ class TestKnowledgeQueryDetectorProperties:
 
         if result is not None and result.entities:
             for entity_type, entity_value in result.entities.items():
-                assert isinstance(entity_value, str)
-                assert len(entity_value) > 0
-                assert entity_value.strip() != ""
+                assert isinstance(entity_value, str)  # nosec B101
+                assert len(entity_value) > 0  # nosec B101
+                assert entity_value.strip() != ""  # nosec B101
 
     @given(
         query_text=st.text(
@@ -122,7 +122,7 @@ class TestKnowledgeQueryDetectorProperties:
         time_range = detector.extract_time_range(query_text)
 
         if time_range is not None:
-            assert time_range.start <= time_range.end
+            assert time_range.start <= time_range.end  # nosec B101
 
     @given(
         query_text=st.text(
@@ -142,7 +142,7 @@ class TestKnowledgeQueryDetectorProperties:
         end = time.perf_counter()
 
         elapsed = end - start
-        assert elapsed < 0.05  # 50ms
+        assert elapsed < 0.05  # 50ms  # nosec B101
 
     @given(
         query_text=st.text(
@@ -164,4 +164,4 @@ class TestKnowledgeQueryDetectorProperties:
                 KnowledgeQueryType.PATTERN,
                 KnowledgeQueryType.FACTUAL,
             }
-            assert result.query_type in valid_types
+            assert result.query_type in valid_types  # nosec B101

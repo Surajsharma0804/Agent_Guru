@@ -46,11 +46,11 @@ class TestTaskOutputParser:
 
         task, confidence = parser.parse(llm_output)
 
-        assert isinstance(task, Task)
-        assert task.goal == "Set a timer"
-        assert task.task_type == TaskType.SINGLE_STEP
-        assert len(task.steps) == 1
-        assert 0.0 <= confidence <= 1.0
+        assert isinstance(task, Task)  # nosec B101
+        assert task.goal == "Set a timer"  # nosec B101
+        assert task.task_type == TaskType.SINGLE_STEP  # nosec B101
+        assert len(task.steps) == 1  # nosec B101
+        assert 0.0 <= confidence <= 1.0  # nosec B101
 
     def test_parse_json_in_markdown(self):
         """Test extracting JSON from markdown code block."""
@@ -78,8 +78,8 @@ class TestTaskOutputParser:
 
         task, confidence = parser.parse(llm_output)
 
-        assert isinstance(task, Task)
-        assert task.goal == "Test task"
+        assert isinstance(task, Task)  # nosec B101
+        assert task.goal == "Test task"  # nosec B101
 
     def test_parse_json_with_surrounding_text(self):
         """Test extracting JSON with surrounding text."""
@@ -107,8 +107,8 @@ class TestTaskOutputParser:
 
         task, confidence = parser.parse(llm_output)
 
-        assert isinstance(task, Task)
-        assert task.goal == "Test task"
+        assert isinstance(task, Task)  # nosec B101
+        assert task.goal == "Test task"  # nosec B101
 
     def test_parse_invalid_json(self):
         """Test parsing invalid JSON raises error."""
@@ -121,7 +121,7 @@ class TestTaskOutputParser:
 
         # Error message should indicate parsing issue (either technical or user-friendly)
         error_msg = str(exc_info.value).lower()
-        assert any(keyword in error_msg for keyword in ["parse", "json", "confusing", "response"])
+        assert any(keyword in error_msg for keyword in ["parse", "json", "confusing", "response"])  # nosec B101
 
     def test_parse_malformed_json(self):
         """Test parsing malformed JSON raises error."""
@@ -206,10 +206,10 @@ class TestTaskOutputParser:
 
         task, confidence = parser.parse(llm_output)
 
-        assert task.task_type == TaskType.MULTI_STEP
-        assert len(task.steps) == 2
-        assert task.steps[0].step_id == 1
-        assert task.steps[1].step_id == 2
+        assert task.task_type == TaskType.MULTI_STEP  # nosec B101
+        assert len(task.steps) == 2  # nosec B101
+        assert task.steps[0].step_id == 1  # nosec B101
+        assert task.steps[1].step_id == 2  # nosec B101
 
     def test_confidence_scoring(self):
         """Test confidence scoring adjustments."""
@@ -262,7 +262,7 @@ class TestTaskOutputParser:
         task2, conf2 = parser.parse(low_quality)
 
         # High quality should have higher confidence
-        assert conf1 > conf2
+        assert conf1 > conf2  # nosec B101
 
     def test_validate_schema(self):
         """Test schema validation."""
@@ -288,7 +288,7 @@ class TestTaskOutputParser:
         }
 
         errors = parser.validate_schema(valid_task)
-        assert len(errors) == 0
+        assert len(errors) == 0  # nosec B101
 
         # Invalid task (missing required fields)
         invalid_task = {
@@ -297,9 +297,9 @@ class TestTaskOutputParser:
         }
 
         errors = parser.validate_schema(invalid_task)
-        assert len(errors) > 0
-        assert any("task_type" in err for err in errors)
-        assert any("steps" in err for err in errors)
+        assert len(errors) > 0  # nosec B101
+        assert any("task_type" in err for err in errors)  # nosec B101
+        assert any("steps" in err for err in errors)  # nosec B101
 
     def test_validate_schema_invalid_step_ids(self):
         """Test schema validation catches invalid step IDs."""
@@ -331,8 +331,8 @@ class TestTaskOutputParser:
         }
 
         errors = parser.validate_schema(task_dict)
-        assert len(errors) > 0
-        assert any("step_id" in err for err in errors)
+        assert len(errors) > 0  # nosec B101
+        assert any("step_id" in err for err in errors)  # nosec B101
 
     def test_parse_with_retry_success_first_attempt(self):
         """Test parse_with_retry succeeds on first attempt."""
@@ -363,8 +363,8 @@ class TestTaskOutputParser:
 
         task, confidence = parser.parse_with_retry(generator, "test prompt")
 
-        assert isinstance(task, Task)
-        assert task.goal == "Test"
+        assert isinstance(task, Task)  # nosec B101
+        assert task.goal == "Test"  # nosec B101
 
     def test_parse_with_retry_success_after_retry(self):
         """Test parse_with_retry succeeds after retry."""
@@ -401,8 +401,8 @@ class TestTaskOutputParser:
 
         task, confidence = parser.parse_with_retry(generator, "test prompt")
 
-        assert isinstance(task, Task)
-        assert call_count == 2  # Failed once, succeeded on retry
+        assert isinstance(task, Task)  # nosec B101
+        assert call_count == 2  # Failed once, succeeded on retry  # nosec B101
 
     def test_parse_with_retry_max_retries_exceeded(self):
         """Test parse_with_retry fails after max retries."""
@@ -423,9 +423,9 @@ class TestTaskOutputParser:
 
         retry_prompt = parser._create_retry_prompt(original_prompt, error)
 
-        assert "error" in retry_prompt.lower()
-        assert "task_type" in retry_prompt
-        assert original_prompt in retry_prompt
+        assert "error" in retry_prompt.lower()  # nosec B101
+        assert "task_type" in retry_prompt  # nosec B101
+        assert original_prompt in retry_prompt  # nosec B101
 
     def test_extract_json_plain(self):
         """Test extracting plain JSON."""
@@ -434,7 +434,7 @@ class TestTaskOutputParser:
         json_str = '{"key": "value"}'
         extracted = parser._extract_json(json_str)
 
-        assert extracted == json_str
+        assert extracted == json_str  # nosec B101
 
     def test_extract_json_markdown(self):
         """Test extracting JSON from markdown."""
@@ -444,7 +444,7 @@ class TestTaskOutputParser:
         markdown = f"```json\n{json_str}\n```"
         extracted = parser._extract_json(markdown)
 
-        assert extracted == json_str
+        assert extracted == json_str  # nosec B101
 
     def test_extract_json_with_text(self):
         """Test extracting JSON with surrounding text."""
@@ -454,7 +454,7 @@ class TestTaskOutputParser:
         text = f"Here is the JSON: {json_str} Done!"
         extracted = parser._extract_json(text)
 
-        assert extracted == json_str
+        assert extracted == json_str  # nosec B101
 
     def test_extract_json_no_json(self):
         """Test extracting JSON when none present."""
@@ -489,8 +489,8 @@ class TestTaskOutputParser:
 
         task, confidence = parse_task_from_llm(llm_output)
 
-        assert isinstance(task, Task)
-        assert task.goal == "Test"
+        assert isinstance(task, Task)  # nosec B101
+        assert task.goal == "Test"  # nosec B101
 
     def test_score_completeness(self):
         """Test completeness scoring."""
@@ -514,7 +514,7 @@ class TestTaskOutputParser:
         )
 
         score = parser._score_completeness(complete_task, complete_task.model_dump())
-        assert score > 0.8
+        assert score > 0.8  # nosec B101
 
         # Incomplete task
         incomplete_task = Task(
@@ -527,7 +527,7 @@ class TestTaskOutputParser:
         )
 
         score = parser._score_completeness(incomplete_task, incomplete_task.model_dump())
-        assert score < 0.8
+        assert score < 0.8  # nosec B101
 
     def test_score_consistency(self):
         """Test consistency scoring."""
@@ -552,7 +552,7 @@ class TestTaskOutputParser:
         )
 
         score = parser._score_consistency(consistent_task)
-        assert score > 0.8
+        assert score > 0.8  # nosec B101
 
     def test_score_quality(self):
         """Test quality scoring."""
@@ -576,7 +576,7 @@ class TestTaskOutputParser:
         )
 
         score = parser._score_quality(quality_task)
-        assert score > 0.8
+        assert score > 0.8  # nosec B101
 
         # Low quality task (placeholder text)
         low_quality_task = Task(
@@ -589,4 +589,4 @@ class TestTaskOutputParser:
         )
 
         score = parser._score_quality(low_quality_task)
-        assert score < 0.8
+        assert score < 0.8  # nosec B101

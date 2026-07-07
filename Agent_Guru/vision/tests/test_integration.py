@@ -84,9 +84,9 @@ class TestTrainingPipelineIntegration:
 
         result = validate_dataset_structure(str(tmp_path))
         # Returns (is_valid: bool, issues: list)
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[1], list)
+        assert isinstance(result, tuple)  # nosec B101
+        assert len(result) == 2  # nosec B101
+        assert isinstance(result[1], list)  # nosec B101
 
     def test_preprocess_dataset_skips_no_face_images(self, tmp_path: Path) -> None:
         """preprocess_dataset skips images where no face is detected."""
@@ -102,8 +102,8 @@ class TestTrainingPipelineIntegration:
         report = preprocess_dataset(str(tmp_path), str(aligned_dir))
 
         # report is a PreprocessingReport dataclass
-        assert hasattr(report, "total_images_found")
-        assert report.total_images_found >= 1
+        assert hasattr(report, "total_images_found")  # nosec B101
+        assert report.total_images_found >= 1  # nosec B101
 
     def test_export_to_onnx_produces_file(self, tmp_path: Path) -> None:
         """export_to_onnx creates an .onnx file from a valid ResNet-50 checkpoint."""
@@ -120,8 +120,8 @@ class TestTrainingPipelineIntegration:
 
         onnx_path = tmp_path / "model.onnx"
         export_to_onnx(str(ckpt_path), str(onnx_path))
-        assert onnx_path.exists()
-        assert onnx_path.stat().st_size > 0
+        assert onnx_path.exists()  # nosec B101
+        assert onnx_path.stat().st_size > 0  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -135,29 +135,29 @@ class TestRecognitionPipelineIntegration:
     def test_process_frame_returns_recognition_result(self) -> None:
         engine = _make_engine()
         result = engine.process_frame(_blank_frame())
-        assert isinstance(result, RecognitionResult)
+        assert isinstance(result, RecognitionResult)  # nosec B101
 
     def test_process_frame_faces_is_list(self) -> None:
         engine = _make_engine()
         result = engine.process_frame(_blank_frame())
-        assert isinstance(result.faces, list)
+        assert isinstance(result.faces, list)  # nosec B101
 
     def test_process_frame_timestamp_non_empty(self) -> None:
         engine = _make_engine()
         result = engine.process_frame(_blank_frame())
-        assert len(result.frame_timestamp) > 0
+        assert len(result.frame_timestamp) > 0  # nosec B101
 
     def test_process_frame_processing_time_non_negative(self) -> None:
         engine = _make_engine()
         result = engine.process_frame(_blank_frame())
-        assert result.processing_time_ms >= 0.0
+        assert result.processing_time_ms >= 0.0  # nosec B101
 
     def test_process_frame_multiple_frames_consistent(self) -> None:
         """Processing multiple frames never raises and always returns results."""
         engine = _make_engine()
         for _ in range(20):
             result = engine.process_frame(_blank_frame())
-            assert isinstance(result, RecognitionResult)
+            assert isinstance(result, RecognitionResult)  # nosec B101
 
     def test_process_frame_raises_before_initialize(self) -> None:
         engine = GuruVisionEngine()
@@ -180,7 +180,7 @@ class TestIncrementalIdentityAddition:
         engine._database.add_identity("Alice", [emb], permission_level="user")
 
         names = [i.name for i in engine.get_identities()]
-        assert "Alice" in names
+        assert "Alice" in names  # nosec B101
 
     def test_existing_identities_unaffected_after_add(self) -> None:
         """Adding a new identity does not remove existing ones."""
@@ -192,8 +192,8 @@ class TestIncrementalIdentityAddition:
         engine._database.add_identity("Bob", [emb_b], permission_level="user")
 
         names = {i.name for i in engine.get_identities()}
-        assert "Alice" in names
-        assert "Bob" in names
+        assert "Alice" in names  # nosec B101
+        assert "Bob" in names  # nosec B101
 
     def test_remove_identity_does_not_affect_others(self) -> None:
         """Removing one identity leaves others intact."""
@@ -206,8 +206,8 @@ class TestIncrementalIdentityAddition:
         engine.remove_identity("Alice")
 
         names = {i.name for i in engine.get_identities()}
-        assert "Alice" not in names
-        assert "Bob" in names
+        assert "Alice" not in names  # nosec B101
+        assert "Bob" in names  # nosec B101
 
     def test_database_search_finds_added_identity(self) -> None:
         """A stored embedding is matched by the database search."""
@@ -217,7 +217,7 @@ class TestIncrementalIdentityAddition:
         engine._database.add_identity("Alice", [emb], permission_level="user")
 
         match = engine._database.search(emb, threshold=0.5)
-        assert match.identity == "Alice"
+        assert match.identity == "Alice"  # nosec B101
 
     def test_update_permission_reflected_immediately(self) -> None:
         """update_permission is visible in get_identities without restart."""
@@ -227,7 +227,7 @@ class TestIncrementalIdentityAddition:
 
         engine.update_permission("Charlie", "admin")
         info = next(i for i in engine.get_identities() if i.name == "Charlie")
-        assert info.permission_level == "admin"
+        assert info.permission_level == "admin"  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -261,7 +261,7 @@ class TestEventSystemIntegration:
         engine._initialized = True
         engine._emit("system_ready", {})
 
-        assert len(fired) == 1
+        assert len(fired) == 1  # nosec B101
 
     def test_error_callback_fires_on_detection_failure(self) -> None:
         """error callback fires when detection raises."""
@@ -272,4 +272,4 @@ class TestEventSystemIntegration:
         engine._detector.detect.side_effect = RuntimeError("detector boom")
         engine.process_frame(_blank_frame())
 
-        assert any(e.get("stage") == "detection" for e in errors)
+        assert any(e.get("stage") == "detection" for e in errors)  # nosec B101

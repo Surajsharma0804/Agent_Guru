@@ -18,11 +18,11 @@ class TestPermission:
             granted_by="admin",
         )
         
-        assert perm.user_id == "user123"
-        assert perm.permission_scope == "messaging"
-        assert perm.granted_by == "admin"
-        assert perm.expires_at is None
-        assert perm.metadata == {}
+        assert perm.user_id == "user123"  # nosec B101
+        assert perm.permission_scope == "messaging"  # nosec B101
+        assert perm.granted_by == "admin"  # nosec B101
+        assert perm.expires_at is None  # nosec B101
+        assert perm.metadata == {}  # nosec B101
     
     def test_permission_with_expiration(self):
         """Test permission with expiration."""
@@ -35,7 +35,7 @@ class TestPermission:
             expires_at=now + 3600,  # Expires in 1 hour
         )
         
-        assert not perm.is_expired()
+        assert not perm.is_expired()  # nosec B101
     
     def test_permission_expired(self):
         """Test expired permission."""
@@ -48,7 +48,7 @@ class TestPermission:
             expires_at=now - 3600,  # Expired 1 hour ago
         )
         
-        assert perm.is_expired()
+        assert perm.is_expired()  # nosec B101
     
     def test_permission_never_expires(self):
         """Test permission that never expires."""
@@ -60,7 +60,7 @@ class TestPermission:
             expires_at=None,
         )
         
-        assert not perm.is_expired()
+        assert not perm.is_expired()  # nosec B101
     
     def test_permission_to_dict(self):
         """Test converting permission to dictionary."""
@@ -75,11 +75,11 @@ class TestPermission:
         
         data = perm.to_dict()
         
-        assert data["user_id"] == "user123"
-        assert data["permission_scope"] == "messaging"
-        assert data["granted_at"] == now
-        assert data["granted_by"] == "admin"
-        assert data["metadata"] == {"reason": "test"}
+        assert data["user_id"] == "user123"  # nosec B101
+        assert data["permission_scope"] == "messaging"  # nosec B101
+        assert data["granted_at"] == now  # nosec B101
+        assert data["granted_by"] == "admin"  # nosec B101
+        assert data["metadata"] == {"reason": "test"}  # nosec B101
     
     def test_permission_from_dict(self):
         """Test creating permission from dictionary."""
@@ -95,12 +95,12 @@ class TestPermission:
         
         perm = Permission.from_dict(data)
         
-        assert perm.user_id == "user123"
-        assert perm.permission_scope == "messaging"
-        assert perm.granted_at == now
-        assert perm.granted_by == "admin"
-        assert perm.expires_at == now + 3600
-        assert perm.metadata == {"reason": "test"}
+        assert perm.user_id == "user123"  # nosec B101
+        assert perm.permission_scope == "messaging"  # nosec B101
+        assert perm.granted_at == now  # nosec B101
+        assert perm.granted_by == "admin"  # nosec B101
+        assert perm.expires_at == now + 3600  # nosec B101
+        assert perm.metadata == {"reason": "test"}  # nosec B101
 
 
 class TestPermissionManager:
@@ -110,15 +110,15 @@ class TestPermissionManager:
         """Test permission manager initialization."""
         manager = PermissionManager()
         
-        assert manager is not None
+        assert manager is not None  # nosec B101
     
     def test_manager_with_file_database(self, tmp_path):
         """Test permission manager with file database."""
         db_path = tmp_path / "permissions.db"
         manager = PermissionManager(db_path=str(db_path))
         
-        assert manager is not None
-        assert db_path.exists()
+        assert manager is not None  # nosec B101
+        assert db_path.exists()  # nosec B101
         
         manager.close()
     
@@ -132,9 +132,9 @@ class TestPermissionManager:
             granted_by="admin",
         )
         
-        assert perm.user_id == "user123"
-        assert perm.permission_scope == "messaging"
-        assert perm.granted_by == "admin"
+        assert perm.user_id == "user123"  # nosec B101
+        assert perm.permission_scope == "messaging"  # nosec B101
+        assert perm.granted_by == "admin"  # nosec B101
     
     def test_grant_permission_with_expiration(self):
         """Test granting permission with expiration."""
@@ -148,7 +148,7 @@ class TestPermissionManager:
             expires_at=expires_at,
         )
         
-        assert perm.expires_at == expires_at
+        assert perm.expires_at == expires_at  # nosec B101
     
     def test_grant_permission_with_metadata(self):
         """Test granting permission with metadata."""
@@ -162,7 +162,7 @@ class TestPermissionManager:
             metadata=metadata,
         )
         
-        assert perm.metadata == metadata
+        assert perm.metadata == metadata  # nosec B101
     
     def test_check_permission_granted(self):
         """Test checking granted permission."""
@@ -170,13 +170,13 @@ class TestPermissionManager:
         
         manager.grant_permission("user123", "messaging", "admin")
         
-        assert manager.check_permission("user123", "messaging")
+        assert manager.check_permission("user123", "messaging")  # nosec B101
     
     def test_check_permission_not_granted(self):
         """Test checking permission not granted."""
         manager = PermissionManager()
         
-        assert not manager.check_permission("user123", "messaging")
+        assert not manager.check_permission("user123", "messaging")  # nosec B101
     
     def test_check_permission_different_scope(self):
         """Test checking different permission scope."""
@@ -184,7 +184,7 @@ class TestPermissionManager:
         
         manager.grant_permission("user123", "messaging", "admin")
         
-        assert not manager.check_permission("user123", "file_deletion")
+        assert not manager.check_permission("user123", "file_deletion")  # nosec B101
     
     def test_check_permission_expired(self):
         """Test checking expired permission."""
@@ -198,19 +198,19 @@ class TestPermissionManager:
             expires_at=time.time() - 1,  # Already expired
         )
         
-        assert not manager.check_permission("user123", "messaging")
+        assert not manager.check_permission("user123", "messaging")  # nosec B101
     
     def test_revoke_permission(self):
         """Test revoking permission."""
         manager = PermissionManager()
         
         manager.grant_permission("user123", "messaging", "admin")
-        assert manager.check_permission("user123", "messaging")
+        assert manager.check_permission("user123", "messaging")  # nosec B101
         
         revoked = manager.revoke_permission("user123", "messaging", "admin")
         
-        assert revoked
-        assert not manager.check_permission("user123", "messaging")
+        assert revoked  # nosec B101
+        assert not manager.check_permission("user123", "messaging")  # nosec B101
     
     def test_revoke_nonexistent_permission(self):
         """Test revoking permission that doesn't exist."""
@@ -218,7 +218,7 @@ class TestPermissionManager:
         
         revoked = manager.revoke_permission("user123", "messaging", "admin")
         
-        assert not revoked
+        assert not revoked  # nosec B101
     
     def test_get_user_permissions_empty(self):
         """Test getting permissions for user with none."""
@@ -226,7 +226,7 @@ class TestPermissionManager:
         
         perms = manager.get_user_permissions("user123")
         
-        assert len(perms) == 0
+        assert len(perms) == 0  # nosec B101
     
     def test_get_user_permissions_multiple(self):
         """Test getting multiple permissions for user."""
@@ -238,9 +238,9 @@ class TestPermissionManager:
         
         perms = manager.get_user_permissions("user123")
         
-        assert len(perms) == 3
+        assert len(perms) == 3  # nosec B101
         scopes = {p.permission_scope for p in perms}
-        assert scopes == {"messaging", "file_deletion", "smart_home"}
+        assert scopes == {"messaging", "file_deletion", "smart_home"}  # nosec B101
     
     def test_get_user_permissions_filters_expired(self):
         """Test that get_user_permissions filters out expired permissions."""
@@ -260,8 +260,8 @@ class TestPermissionManager:
         perms = manager.get_user_permissions("user123")
         
         # Should only return the valid permission
-        assert len(perms) == 1
-        assert perms[0].permission_scope == "messaging"
+        assert len(perms) == 1  # nosec B101
+        assert perms[0].permission_scope == "messaging"  # nosec B101
     
     def test_request_permission(self):
         """Test requesting permission."""
@@ -273,11 +273,11 @@ class TestPermissionManager:
             reason="Need to send notifications",
         )
         
-        assert request["user_id"] == "user123"
-        assert request["permission_scope"] == "messaging"
-        assert request["reason"] == "Need to send notifications"
-        assert request["status"] == "pending"
-        assert "request_id" in request
+        assert request["user_id"] == "user123"  # nosec B101
+        assert request["permission_scope"] == "messaging"  # nosec B101
+        assert request["reason"] == "Need to send notifications"  # nosec B101
+        assert request["status"] == "pending"  # nosec B101
+        assert "request_id" in request  # nosec B101
     
     def test_cache_performance(self):
         """Test that caching improves performance."""
@@ -296,7 +296,7 @@ class TestPermissionManager:
         second_time = time.perf_counter() - start
         
         # Cached check should be faster (or at least not slower)
-        assert second_time <= first_time * 2  # Allow some variance
+        assert second_time <= first_time * 2  # Allow some variance  # nosec B101
     
     def test_clear_cache_specific_user(self):
         """Test clearing cache for specific user."""
@@ -313,8 +313,8 @@ class TestPermissionManager:
         manager.clear_cache("user1")
         
         # Both should still work (user2 from cache, user1 from database)
-        assert manager.check_permission("user1", "messaging")
-        assert manager.check_permission("user2", "messaging")
+        assert manager.check_permission("user1", "messaging")  # nosec B101
+        assert manager.check_permission("user2", "messaging")  # nosec B101
     
     def test_clear_cache_all_users(self):
         """Test clearing cache for all users."""
@@ -331,8 +331,8 @@ class TestPermissionManager:
         manager.clear_cache()
         
         # Both should still work (from database)
-        assert manager.check_permission("user1", "messaging")
-        assert manager.check_permission("user2", "messaging")
+        assert manager.check_permission("user1", "messaging")  # nosec B101
+        assert manager.check_permission("user2", "messaging")  # nosec B101
     
     def test_audit_log_grant(self):
         """Test audit log for grant action."""
@@ -342,10 +342,10 @@ class TestPermissionManager:
         
         log = manager.get_audit_log(user_id="user123")
         
-        assert len(log) > 0
-        assert log[0]["action"] == "grant"
-        assert log[0]["user_id"] == "user123"
-        assert log[0]["permission_scope"] == "messaging"
+        assert len(log) > 0  # nosec B101
+        assert log[0]["action"] == "grant"  # nosec B101
+        assert log[0]["user_id"] == "user123"  # nosec B101
+        assert log[0]["permission_scope"] == "messaging"  # nosec B101
     
     def test_audit_log_revoke(self):
         """Test audit log for revoke action."""
@@ -357,10 +357,10 @@ class TestPermissionManager:
         log = manager.get_audit_log(user_id="user123")
         
         # Should have both grant and revoke
-        assert len(log) >= 2
+        assert len(log) >= 2  # nosec B101
         actions = [entry["action"] for entry in log]
-        assert "grant" in actions
-        assert "revoke" in actions
+        assert "grant" in actions  # nosec B101
+        assert "revoke" in actions  # nosec B101
     
     def test_audit_log_request(self):
         """Test audit log for request action."""
@@ -370,9 +370,9 @@ class TestPermissionManager:
         
         log = manager.get_audit_log(user_id="user123")
         
-        assert len(log) > 0
-        assert log[0]["action"] == "request"
-        assert log[0]["reason"] == "Need access"
+        assert len(log) > 0  # nosec B101
+        assert log[0]["action"] == "request"  # nosec B101
+        assert log[0]["reason"] == "Need access"  # nosec B101
     
     def test_audit_log_limit(self):
         """Test audit log with limit."""
@@ -384,7 +384,7 @@ class TestPermissionManager:
         
         log = manager.get_audit_log(limit=5)
         
-        assert len(log) == 5
+        assert len(log) == 5  # nosec B101
     
     def test_audit_log_all_users(self):
         """Test audit log for all users."""
@@ -395,10 +395,10 @@ class TestPermissionManager:
         
         log = manager.get_audit_log()
         
-        assert len(log) >= 2
+        assert len(log) >= 2  # nosec B101
         user_ids = {entry["user_id"] for entry in log}
-        assert "user1" in user_ids
-        assert "user2" in user_ids
+        assert "user1" in user_ids  # nosec B101
+        assert "user2" in user_ids  # nosec B101
     
     def test_permission_persistence(self, tmp_path):
         """Test that permissions persist across manager instances."""
@@ -411,7 +411,7 @@ class TestPermissionManager:
         
         # Create second manager and check permission
         manager2 = PermissionManager(db_path=str(db_path))
-        assert manager2.check_permission("user123", "messaging")
+        assert manager2.check_permission("user123", "messaging")  # nosec B101
         manager2.close()
     
     def test_replace_existing_permission(self):
@@ -429,11 +429,11 @@ class TestPermissionManager:
         perm2 = manager.grant_permission("user123", "messaging", "system")
         
         # Should have new granted_by
-        assert perm2.granted_by == "system"
-        assert perm2.granted_at >= perm1.granted_at  # Use >= to handle fast execution
+        assert perm2.granted_by == "system"  # nosec B101
+        assert perm2.granted_at >= perm1.granted_at  # Use >= to handle fast execution  # nosec B101
         
         # Should still have permission
-        assert manager.check_permission("user123", "messaging")
+        assert manager.check_permission("user123", "messaging")  # nosec B101
     
     def test_manager_close(self):
         """Test closing manager."""
@@ -443,4 +443,4 @@ class TestPermissionManager:
         manager.close()
         
         # Should not raise error
-        assert True
+        assert True  # nosec B101

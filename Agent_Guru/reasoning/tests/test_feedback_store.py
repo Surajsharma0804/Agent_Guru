@@ -52,7 +52,7 @@ class TestFeedbackStoreInitialization:
         store = FeedbackStore(temp_db)
         await store.initialize()
 
-        assert Path(temp_db).exists()
+        assert Path(temp_db).exists()  # nosec B101
 
     @pytest.mark.asyncio
     async def test_initialize_creates_tables(self, temp_db):
@@ -62,7 +62,7 @@ class TestFeedbackStoreInitialization:
 
         # Check tables exist by querying them
         feedback_list = await store.get_feedback_since(since=datetime.now(tz=timezone.utc) - timedelta(days=1))
-        assert feedback_list == []
+        assert feedback_list == []  # nosec B101
 
     @pytest.mark.asyncio
     async def test_initialize_idempotent(self, temp_db):
@@ -71,7 +71,7 @@ class TestFeedbackStoreInitialization:
         await store.initialize()
         await store.initialize()  # Should not raise
 
-        assert Path(temp_db).exists()
+        assert Path(temp_db).exists()  # nosec B101
 
 
 class TestFeedbackStorage:
@@ -95,8 +95,8 @@ class TestFeedbackStorage:
 
         # Verify stored
         retrieved = await store.get_feedback_since(since=datetime.now(tz=timezone.utc) - timedelta(hours=1))
-        assert len(retrieved) == 1
-        assert retrieved[0].feedback_id == "test-123"
+        assert len(retrieved) == 1  # nosec B101
+        assert retrieved[0].feedback_id == "test-123"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_multiple_feedback(self, store):
@@ -115,7 +115,7 @@ class TestFeedbackStorage:
             await store.store_feedback(feedback)
 
         retrieved = await store.get_feedback_since(since=datetime.now(tz=timezone.utc) - timedelta(hours=1))
-        assert len(retrieved) == 5
+        assert len(retrieved) == 5  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_feedback_with_correction(self, store):
@@ -136,9 +136,9 @@ class TestFeedbackStorage:
         await store.store_feedback(feedback)
 
         retrieved = await store.get_feedback_since(since=datetime.now(tz=timezone.utc) - timedelta(hours=1))
-        assert len(retrieved) == 1
-        assert retrieved[0].correct_intent == "play_music"
-        assert retrieved[0].correct_entities == {"action": "play"}
+        assert len(retrieved) == 1  # nosec B101
+        assert retrieved[0].correct_intent == "play_music"  # nosec B101
+        assert retrieved[0].correct_entities == {"action": "play"}  # nosec B101
 
 
 class TestFeedbackRetrieval:
@@ -177,8 +177,8 @@ class TestFeedbackRetrieval:
         # Get feedback from last 7 days
         retrieved = await store.get_feedback_since(since=datetime.now(tz=timezone.utc) - timedelta(days=7))
 
-        assert len(retrieved) == 1
-        assert retrieved[0].feedback_id == "recent-123"
+        assert len(retrieved) == 1  # nosec B101
+        assert retrieved[0].feedback_id == "recent-123"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_feedback_by_model_version(self, store):
@@ -214,8 +214,8 @@ class TestFeedbackRetrieval:
             since=datetime.now(tz=timezone.utc) - timedelta(hours=1), model_version="v1.0"
         )
 
-        assert len(retrieved) == 1
-        assert retrieved[0].model_version == "v1.0"
+        assert len(retrieved) == 1  # nosec B101
+        assert retrieved[0].model_version == "v1.0"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_corrections_for_training(self, store):
@@ -250,8 +250,8 @@ class TestFeedbackRetrieval:
         # Get corrections only
         corrections = await store.get_corrections_for_training(model_version="v1.0")
 
-        assert len(corrections) == 1
-        assert corrections[0].feedback_id == "correction-123"
+        assert len(corrections) == 1  # nosec B101
+        assert corrections[0].feedback_id == "correction-123"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_corrections_with_limit(self, store):
@@ -274,7 +274,7 @@ class TestFeedbackRetrieval:
         # Get only 3
         corrections = await store.get_corrections_for_training(model_version="v1.0", limit=3)
 
-        assert len(corrections) == 3
+        assert len(corrections) == 3  # nosec B101
 
 
 class TestMetricsStorage:
@@ -298,8 +298,8 @@ class TestMetricsStorage:
 
         # Verify stored
         retrieved = await store.get_latest_metrics("v1.0")
-        assert retrieved is not None
-        assert retrieved.metric_id == "metric-123"
+        assert retrieved is not None  # nosec B101
+        assert retrieved.metric_id == "metric-123"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_latest_metrics(self, store):
@@ -333,13 +333,13 @@ class TestMetricsStorage:
 
         # Get latest
         retrieved = await store.get_latest_metrics("v1.0")
-        assert retrieved.metric_id == "recent-123"
+        assert retrieved.metric_id == "recent-123"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_latest_metrics_no_data(self, store):
         """Test retrieving metrics when none exist."""
         retrieved = await store.get_latest_metrics("v1.0")
-        assert retrieved is None
+        assert retrieved is None  # nosec B101
 
 
 class TestFeedbackCount:
@@ -363,7 +363,7 @@ class TestFeedbackCount:
             await store.store_feedback(feedback)
 
         count = await store.get_feedback_count()
-        assert count == 3
+        assert count == 3  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_feedback_count_by_model_version(self, store):
@@ -396,7 +396,7 @@ class TestFeedbackCount:
         await store.store_feedback(feedback)
 
         count = await store.get_feedback_count(model_version="v1.0")
-        assert count == 2
+        assert count == 2  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_feedback_count_since(self, store):
@@ -429,4 +429,4 @@ class TestFeedbackCount:
         await store.store_feedback(recent_feedback)
 
         count = await store.get_feedback_count(since=datetime.now(tz=timezone.utc) - timedelta(days=7))
-        assert count == 1
+        assert count == 1  # nosec B101

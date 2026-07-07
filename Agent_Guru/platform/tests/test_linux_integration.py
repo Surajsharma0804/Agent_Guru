@@ -33,7 +33,7 @@ class TestLinuxIntegrationInitialization:
         """Test successful initialization on Linux."""
         with patch('platform.system', return_value='Linux'):
             integration = LinuxIntegration()
-            assert integration is not None
+            assert integration is not None  # nosec B101
 
     def test_initialization_wrong_platform(self):
         """Test initialization fails on non-Linux platform."""
@@ -62,9 +62,9 @@ class TestSystemdServiceManagement:
             
             status = integration.get_systemd_service_status("ssh")
             
-            assert status.name == "ssh.service"
-            assert status.status == "running"
-            assert mock_run.called
+            assert status.name == "ssh.service"  # nosec B101
+            assert status.status == "running"  # nosec B101
+            assert mock_run.called  # nosec B101
     
     def test_get_service_status_stopped(self, integration):
         """Test getting status of stopped service."""
@@ -78,8 +78,8 @@ class TestSystemdServiceManagement:
             
             status = integration.get_systemd_service_status("nginx")
             
-            assert status.name == "nginx.service"
-            assert status.status == "stopped"
+            assert status.name == "nginx.service"  # nosec B101
+            assert status.status == "stopped"  # nosec B101
     
     def test_get_service_status_adds_suffix(self, integration):
         """Test that .service suffix is added if missing."""
@@ -94,7 +94,7 @@ class TestSystemdServiceManagement:
             
             # Check that systemctl was called with .service suffix
             call_args = mock_run.call_args_list[0][0][0]
-            assert "ssh.service" in call_args
+            assert "ssh.service" in call_args  # nosec B101
     
     def test_get_service_status_timeout(self, integration):
         """Test service status query timeout."""
@@ -113,12 +113,12 @@ class TestSystemdServiceManagement:
             
             result = integration.start_systemd_service("nginx")
             
-            assert result is True
-            assert mock_run.called
+            assert result is True  # nosec B101
+            assert mock_run.called  # nosec B101
             call_args = mock_run.call_args[0][0]
-            assert "systemctl" in call_args
-            assert "start" in call_args
-            assert "nginx.service" in call_args
+            assert "systemctl" in call_args  # nosec B101
+            assert "start" in call_args  # nosec B101
+            assert "nginx.service" in call_args  # nosec B101
     
     def test_start_service_permission_denied(self, integration):
         """Test starting service without permissions."""
@@ -143,9 +143,9 @@ class TestSystemdServiceManagement:
             
             result = integration.stop_systemd_service("nginx")
             
-            assert result is True
+            assert result is True  # nosec B101
             call_args = mock_run.call_args[0][0]
-            assert "stop" in call_args
+            assert "stop" in call_args  # nosec B101
     
     def test_restart_service_success(self, integration):
         """Test restarting a service successfully."""
@@ -158,9 +158,9 @@ class TestSystemdServiceManagement:
             
             result = integration.restart_systemd_service("nginx")
             
-            assert result is True
+            assert result is True  # nosec B101
             call_args = mock_run.call_args[0][0]
-            assert "restart" in call_args
+            assert "restart" in call_args  # nosec B101
 
 
 class TestDBusOperations:
@@ -227,10 +227,10 @@ class TestProcessManagement:
             
             processes = integration.get_process_list()
             
-            assert len(processes) == 1
-            assert processes[0].pid == 1234
-            assert processes[0].name == 'test_process'
-            assert processes[0].status == 'running'
+            assert len(processes) == 1  # nosec B101
+            assert processes[0].pid == 1234  # nosec B101
+            assert processes[0].name == 'test_process'  # nosec B101
+            assert processes[0].status == 'running'  # nosec B101
     
     def test_get_process_list_handles_no_such_process(self, integration):
         """Test that process list handles terminated processes."""
@@ -255,7 +255,7 @@ class TestProcessManagement:
             processes = integration.get_process_list()
 
             # Should skip the terminated process
-            assert len(processes) == 0
+            assert len(processes) == 0  # nosec B101
     
     def test_start_process_success(self, integration):
         """Test starting a process successfully."""
@@ -266,8 +266,8 @@ class TestProcessManagement:
             
             pid = integration.start_process("/bin/echo", ["hello"])
             
-            assert pid == 5678
-            assert mock_popen.called
+            assert pid == 5678  # nosec B101
+            assert mock_popen.called  # nosec B101
     
     def test_start_process_not_found(self, integration):
         """Test starting non-existent process."""
@@ -289,7 +289,7 @@ class TestProcessManagement:
             
             result = integration.terminate_process(1234, force=False)
             
-            assert result is True
+            assert result is True  # nosec B101
             mock_process.terminate.assert_called_once()
             mock_process.kill.assert_not_called()
     
@@ -301,7 +301,7 @@ class TestProcessManagement:
             
             result = integration.terminate_process(1234, force=True)
             
-            assert result is True
+            assert result is True  # nosec B101
             mock_process.kill.assert_called_once()
             mock_process.terminate.assert_not_called()
     
@@ -345,11 +345,11 @@ class TestCommandExecution:
             
             result = integration.execute_command("echo", ["Hello"])
             
-            assert isinstance(result, CommandResult)
-            assert result.stdout == "Hello\n"
-            assert result.stderr == ""
-            assert result.return_code == 0
-            assert result.execution_time >= 0
+            assert isinstance(result, CommandResult)  # nosec B101
+            assert result.stdout == "Hello\n"  # nosec B101
+            assert result.stderr == ""  # nosec B101
+            assert result.return_code == 0  # nosec B101
+            assert result.execution_time >= 0  # nosec B101
     
     def test_execute_command_with_error(self, integration):
         """Test command execution with non-zero return code."""
@@ -362,12 +362,12 @@ class TestCommandExecution:
             
             result = integration.execute_command("false", [])
             
-            assert result.return_code == 1
-            assert "Error message" in result.stderr
+            assert result.return_code == 1  # nosec B101
+            assert "Error message" in result.stderr  # nosec B101
     
     def test_execute_command_timeout(self, integration):
         """Test command execution timeout."""
-        import subprocess
+        import subprocess  # nosec B404
         
         with patch('subprocess.run', side_effect=subprocess.TimeoutExpired("cmd", 30)):
             with pytest.raises(TimeoutError, match="timed out"):
@@ -392,14 +392,14 @@ class TestSystemInfo:
                             with patch('psutil.boot_time', return_value=1234567890.0):
                                 info = integration.get_system_info()
         
-        assert isinstance(info, SystemInfo)
-        assert info.hostname == 'test-host'
-        assert info.platform == 'Linux'
-        assert info.platform_version == '5.15.0'
-        assert info.architecture == 'x86_64'
-        assert info.cpu_count_physical == 4
-        assert info.cpu_count_logical == 8
-        assert info.boot_time == 1234567890.0
+        assert isinstance(info, SystemInfo)  # nosec B101
+        assert info.hostname == 'test-host'  # nosec B101
+        assert info.platform == 'Linux'  # nosec B101
+        assert info.platform_version == '5.15.0'  # nosec B101
+        assert info.architecture == 'x86_64'  # nosec B101
+        assert info.cpu_count_physical == 4  # nosec B101
+        assert info.cpu_count_logical == 8  # nosec B101
+        assert info.boot_time == 1234567890.0  # nosec B101
 
 
 class TestPermissionValidation:
@@ -413,12 +413,12 @@ class TestPermissionValidation:
     def test_is_root_true(self, integration):
         """Test root detection when running as root."""
         with patch('os.geteuid', return_value=0, create=True):
-            assert integration.is_root() is True
+            assert integration.is_root() is True  # nosec B101
     
     def test_is_root_false(self, integration):
         """Test root detection when not running as root."""
         with patch('os.geteuid', return_value=1000, create=True):
-            assert integration.is_root() is False
+            assert integration.is_root() is False  # nosec B101
     
     def test_require_root_success(self, integration):
         """Test require_root when running as root."""
@@ -473,10 +473,10 @@ class TestLinuxIntegrationReal:
                             with patch('psutil.boot_time', return_value=1234567890.0):
                                 info = integration.get_system_info()
 
-        assert info.platform == "Linux"
-        assert len(info.hostname) > 0
-        assert info.cpu_count_logical > 0
-        assert info.boot_time > 0
+        assert info.platform == "Linux"  # nosec B101
+        assert len(info.hostname) > 0  # nosec B101
+        assert info.cpu_count_logical > 0  # nosec B101
+        assert info.boot_time > 0  # nosec B101
 
     def test_real_process_list(self, integration):
         """Test getting process list returns valid data."""
@@ -494,11 +494,11 @@ class TestLinuxIntegrationReal:
 
             processes = integration.get_process_list()
 
-        assert len(processes) > 0
+        assert len(processes) > 0  # nosec B101
         for proc in processes:
-            assert proc.pid > 0
-            assert len(proc.name) > 0
-            assert proc.status in [
+            assert proc.pid > 0  # nosec B101
+            assert len(proc.name) > 0  # nosec B101
+            assert proc.status in [  # nosec B101
                 'running', 'sleeping', 'stopped', 'zombie',
                 'disk-sleep', 'idle',
             ]
@@ -509,13 +509,13 @@ class TestLinuxIntegrationReal:
             mock_run.return_value = Mock(stdout="test\n", stderr="", returncode=0)
             result = integration.execute_command("echo", ["test"])
 
-        assert result.return_code == 0
-        assert "test" in result.stdout
-        assert result.execution_time >= 0
+        assert result.return_code == 0  # nosec B101
+        assert "test" in result.stdout  # nosec B101
+        assert result.execution_time >= 0  # nosec B101
 
     def test_real_permission_check(self, integration):
         """Test permission check returns boolean."""
         with patch('os.geteuid', return_value=1000, create=True):
             is_root = integration.is_root()
 
-        assert isinstance(is_root, bool)
+        assert isinstance(is_root, bool)  # nosec B101

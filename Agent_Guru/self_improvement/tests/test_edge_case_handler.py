@@ -50,9 +50,9 @@ class TestEdgeCaseHandlerInitialization:
     def test_initialization_success(self, pool):
         """Test successful initialization."""
         handler = EdgeCaseHandler(pool, min_sample_size=10)
-        assert handler.min_sample_size == 10
-        assert handler.edge_case_threshold == 0.05
-        assert handler.confidence_level == 0.95
+        assert handler.min_sample_size == 10  # nosec B101
+        assert handler.edge_case_threshold == 0.05  # nosec B101
+        assert handler.confidence_level == 0.95  # nosec B101
 
     def test_initialization_custom_params(self, pool):
         """Test initialization with custom parameters."""
@@ -62,9 +62,9 @@ class TestEdgeCaseHandlerInitialization:
             edge_case_threshold=0.1,
             confidence_level=0.99,
         )
-        assert handler.min_sample_size == 20
-        assert handler.edge_case_threshold == 0.1
-        assert handler.confidence_level == 0.99
+        assert handler.min_sample_size == 20  # nosec B101
+        assert handler.edge_case_threshold == 0.1  # nosec B101
+        assert handler.confidence_level == 0.99  # nosec B101
 
     def test_initialization_invalid_min_sample_size(self, pool):
         """Test initialization with invalid min_sample_size."""
@@ -96,13 +96,13 @@ class TestConfidenceCalculation:
             total_events=1000,
         )
 
-        assert metrics.pattern_id == "common_pattern"
-        assert metrics.sample_size == 100
-        assert metrics.success_rate > 0.85  # Bayesian smoothing
-        assert metrics.confidence_score > 0.8  # High confidence
-        assert metrics.meets_threshold is True  # >= 10 samples
-        assert metrics.is_edge_case is False  # 10% frequency > 5% threshold
-        assert 0.0 <= metrics.lower_bound <= metrics.upper_bound <= 1.0
+        assert metrics.pattern_id == "common_pattern"  # nosec B101
+        assert metrics.sample_size == 100  # nosec B101
+        assert metrics.success_rate > 0.85  # Bayesian smoothing  # nosec B101
+        assert metrics.confidence_score > 0.8  # High confidence  # nosec B101
+        assert metrics.meets_threshold is True  # >= 10 samples  # nosec B101
+        assert metrics.is_edge_case is False  # 10% frequency > 5% threshold  # nosec B101
+        assert 0.0 <= metrics.lower_bound <= metrics.upper_bound <= 1.0  # nosec B101
 
     def test_calculate_confidence_rare_pattern(self, handler):
         """Test confidence calculation for rare pattern (edge case)."""
@@ -115,12 +115,12 @@ class TestConfidenceCalculation:
             total_events=1000,
         )
 
-        assert metrics.pattern_id == "rare_pattern"
-        assert metrics.sample_size == 2
-        assert metrics.meets_threshold is False  # < 10 samples
-        assert metrics.is_edge_case is True  # 0.2% frequency < 5% threshold
-        assert metrics.event_frequency < 0.05
-        assert metrics.weighted_score < metrics.success_rate  # Downweighted
+        assert metrics.pattern_id == "rare_pattern"  # nosec B101
+        assert metrics.sample_size == 2  # nosec B101
+        assert metrics.meets_threshold is False  # < 10 samples  # nosec B101
+        assert metrics.is_edge_case is True  # 0.2% frequency < 5% threshold  # nosec B101
+        assert metrics.event_frequency < 0.05  # nosec B101
+        assert metrics.weighted_score < metrics.success_rate  # Downweighted  # nosec B101
 
     def test_calculate_confidence_perfect_success_small_sample(self, handler):
         """Test that perfect success with small sample gets low confidence."""
@@ -133,11 +133,11 @@ class TestConfidenceCalculation:
         )
 
         # Bayesian smoothing should prevent 100% success rate
-        assert metrics.success_rate < 1.0
+        assert metrics.success_rate < 1.0  # nosec B101
         # Low confidence due to small sample
-        assert metrics.confidence_score < 0.7
+        assert metrics.confidence_score < 0.7  # nosec B101
         # Doesn't meet threshold
-        assert metrics.meets_threshold is False
+        assert metrics.meets_threshold is False  # nosec B101
 
     def test_calculate_confidence_zero_samples(self, handler):
         """Test confidence calculation with zero samples."""
@@ -148,14 +148,14 @@ class TestConfidenceCalculation:
             total_events=100,
         )
 
-        assert metrics.sample_size == 0
-        assert metrics.success_rate >= 0.0  # Bayesian prior
+        assert metrics.sample_size == 0  # nosec B101
+        assert metrics.success_rate >= 0.0  # Bayesian prior  # nosec B101
         # Confidence score will be non-zero due to sigmoid function
         # but should be low
-        assert metrics.confidence_score < 0.5  # Low confidence
-        assert metrics.meets_threshold is False
-        assert metrics.lower_bound == 0.0
-        assert metrics.upper_bound == 0.0
+        assert metrics.confidence_score < 0.5  # Low confidence  # nosec B101
+        assert metrics.meets_threshold is False  # nosec B101
+        assert metrics.lower_bound == 0.0  # nosec B101
+        assert metrics.upper_bound == 0.0  # nosec B101
 
     def test_calculate_confidence_large_sample(self, handler):
         """Test confidence calculation with large sample."""
@@ -167,11 +167,11 @@ class TestConfidenceCalculation:
             total_events=1000,
         )
 
-        assert metrics.sample_size == 500
-        assert metrics.meets_threshold is True
-        assert metrics.confidence_score > 0.9  # Very high confidence
+        assert metrics.sample_size == 500  # nosec B101
+        assert metrics.meets_threshold is True  # nosec B101
+        assert metrics.confidence_score > 0.9  # Very high confidence  # nosec B101
         # Narrow confidence interval
-        assert (metrics.upper_bound - metrics.lower_bound) < 0.1
+        assert (metrics.upper_bound - metrics.lower_bound) < 0.1  # nosec B101
 
 
 class TestEdgeCaseDetection:
@@ -187,8 +187,8 @@ class TestEdgeCaseDetection:
             total_events=1000,
         )
 
-        assert metrics.is_edge_case is True
-        assert metrics.event_frequency == 0.01
+        assert metrics.is_edge_case is True  # nosec B101
+        assert metrics.event_frequency == 0.01  # nosec B101
 
     def test_edge_case_detection_common_event(self, handler):
         """Test that common events are not edge cases."""
@@ -200,8 +200,8 @@ class TestEdgeCaseDetection:
             total_events=1000,
         )
 
-        assert metrics.is_edge_case is False
-        assert metrics.event_frequency == 0.1
+        assert metrics.is_edge_case is False  # nosec B101
+        assert metrics.event_frequency == 0.1  # nosec B101
 
     def test_edge_case_detection_boundary(self, handler):
         """Test edge case detection at boundary."""
@@ -214,8 +214,8 @@ class TestEdgeCaseDetection:
         )
 
         # Should not be edge case (>= threshold)
-        assert metrics.is_edge_case is False
-        assert metrics.event_frequency == 0.05
+        assert metrics.is_edge_case is False  # nosec B101
+        assert metrics.event_frequency == 0.05  # nosec B101
 
 
 class TestWeightedScoring:
@@ -232,8 +232,8 @@ class TestWeightedScoring:
         )
 
         # Weighted score should be less than raw success rate
-        assert metrics.weighted_score < metrics.success_rate
-        assert metrics.is_edge_case is True
+        assert metrics.weighted_score < metrics.success_rate  # nosec B101
+        assert metrics.is_edge_case is True  # nosec B101
 
     def test_weighted_score_common_event_full_weight(self, handler):
         """Test that common events get full weight."""
@@ -246,8 +246,8 @@ class TestWeightedScoring:
         )
 
         # Weighted score should be close to raw success rate
-        assert abs(metrics.weighted_score - metrics.success_rate) < 0.1
-        assert metrics.is_edge_case is False
+        assert abs(metrics.weighted_score - metrics.success_rate) < 0.1  # nosec B101
+        assert metrics.is_edge_case is False  # nosec B101
 
     def test_get_weighted_success_rate(self, handler):
         """Test get_weighted_success_rate method."""
@@ -268,7 +268,7 @@ class TestWeightedScoring:
         )
 
         # Common event should have higher weighted rate
-        assert common_rate > rare_rate
+        assert common_rate > rare_rate  # nosec B101
 
 
 class TestPatternTrust:
@@ -283,8 +283,8 @@ class TestPatternTrust:
             total_events=1000,
         )
 
-        assert should_trust is True
-        assert "trusted" in reason.lower() or "edge case" in reason.lower()
+        assert should_trust is True  # nosec B101
+        assert "trusted" in reason.lower() or "edge case" in reason.lower()  # nosec B101
 
     def test_should_trust_pattern_insufficient_data(self, handler):
         """Test not trusting pattern with insufficient data."""
@@ -295,8 +295,8 @@ class TestPatternTrust:
             total_events=1000,
         )
 
-        assert should_trust is False
-        assert "insufficient data" in reason.lower()
+        assert should_trust is False  # nosec B101
+        assert "insufficient data" in reason.lower()  # nosec B101
 
     def test_should_trust_pattern_low_confidence(self, handler):
         """Test not trusting pattern with low confidence."""
@@ -308,9 +308,9 @@ class TestPatternTrust:
             total_events=1000,
         )
 
-        assert should_trust is False
+        assert should_trust is False  # nosec B101
         # Either insufficient data or low confidence
-        assert "insufficient" in reason.lower() or "confidence" in reason.lower()
+        assert "insufficient" in reason.lower() or "confidence" in reason.lower()  # nosec B101
 
     def test_should_trust_pattern_edge_case_warning(self, handler):
         """Test that edge cases are trusted but with warning."""
@@ -323,8 +323,8 @@ class TestPatternTrust:
         )
 
         # Should trust (meets threshold) but with edge case warning
-        assert should_trust is True
-        assert "edge case" in reason.lower()
+        assert should_trust is True  # nosec B101
+        assert "edge case" in reason.lower()  # nosec B101
 
 
 class TestConfidenceReport:
@@ -340,19 +340,19 @@ class TestConfidenceReport:
         )
 
         # Check all required fields
-        assert "pattern_id" in report
-        assert "sample_size" in report
-        assert "success_rate" in report
-        assert "weighted_score" in report
-        assert "confidence_score" in report
-        assert "confidence_interval" in report
-        assert "is_edge_case" in report
-        assert "event_frequency" in report
-        assert "meets_threshold" in report
-        assert "should_trust" in report
-        assert "reason" in report
-        assert "recommendations" in report
-        assert "timestamp" in report
+        assert "pattern_id" in report  # nosec B101
+        assert "sample_size" in report  # nosec B101
+        assert "success_rate" in report  # nosec B101
+        assert "weighted_score" in report  # nosec B101
+        assert "confidence_score" in report  # nosec B101
+        assert "confidence_interval" in report  # nosec B101
+        assert "is_edge_case" in report  # nosec B101
+        assert "event_frequency" in report  # nosec B101
+        assert "meets_threshold" in report  # nosec B101
+        assert "should_trust" in report  # nosec B101
+        assert "reason" in report  # nosec B101
+        assert "recommendations" in report  # nosec B101
+        assert "timestamp" in report  # nosec B101
 
     def test_get_confidence_report_recommendations_insufficient_data(self, handler):
         """Test recommendations for insufficient data."""
@@ -364,8 +364,8 @@ class TestConfidenceReport:
         )
 
         recommendations = report["recommendations"]
-        assert len(recommendations) > 0
-        assert any("collect" in r.lower() for r in recommendations)
+        assert len(recommendations) > 0  # nosec B101
+        assert any("collect" in r.lower() for r in recommendations)  # nosec B101
 
     def test_get_confidence_report_recommendations_edge_case(self, handler):
         """Test recommendations for edge case."""
@@ -377,7 +377,7 @@ class TestConfidenceReport:
         )
 
         recommendations = report["recommendations"]
-        assert any("rare event" in r.lower() for r in recommendations)
+        assert any("rare event" in r.lower() for r in recommendations)  # nosec B101
 
     def test_get_confidence_report_recommendations_high_confidence(self, handler):
         """Test recommendations for high confidence pattern."""
@@ -389,7 +389,7 @@ class TestConfidenceReport:
         )
 
         recommendations = report["recommendations"]
-        assert any("high confidence" in r.lower() for r in recommendations)
+        assert any("high confidence" in r.lower() for r in recommendations)  # nosec B101
 
 
 class TestWilsonScoreInterval:
@@ -404,9 +404,9 @@ class TestWilsonScoreInterval:
         )
 
         # Should be centered around 0.5
-        assert 0.4 < lower < 0.5
-        assert 0.5 < upper < 0.6
-        assert lower < 0.5 < upper
+        assert 0.4 < lower < 0.5  # nosec B101
+        assert 0.5 < upper < 0.6  # nosec B101
+        assert lower < 0.5 < upper  # nosec B101
 
     def test_wilson_score_interval_high_success(self, handler):
         """Test Wilson score for high success rate."""
@@ -417,9 +417,9 @@ class TestWilsonScoreInterval:
         )
 
         # Should be centered around 0.9
-        assert 0.8 < lower < 0.9
-        assert 0.9 < upper < 1.0
-        assert lower < 0.9 < upper
+        assert 0.8 < lower < 0.9  # nosec B101
+        assert 0.9 < upper < 1.0  # nosec B101
+        assert lower < 0.9 < upper  # nosec B101
 
     def test_wilson_score_interval_zero_samples(self, handler):
         """Test Wilson score with zero samples."""
@@ -429,8 +429,8 @@ class TestWilsonScoreInterval:
             z=1.96,
         )
 
-        assert lower == 0.0
-        assert upper == 0.0
+        assert lower == 0.0  # nosec B101
+        assert upper == 0.0  # nosec B101
 
     def test_wilson_score_interval_bounds(self, handler):
         """Test that Wilson score stays within [0, 1]."""
@@ -441,9 +441,9 @@ class TestWilsonScoreInterval:
             z=1.96,
         )
 
-        assert 0.0 <= lower <= 1.0
-        assert 0.0 <= upper <= 1.0
-        assert lower <= upper
+        assert 0.0 <= lower <= 1.0  # nosec B101
+        assert 0.0 <= upper <= 1.0  # nosec B101
+        assert lower <= upper  # nosec B101
 
 
 class TestRecentEdgeCases:
@@ -452,7 +452,7 @@ class TestRecentEdgeCases:
     def test_get_recent_edge_cases_empty(self, handler):
         """Test getting recent edge cases when none exist."""
         edge_cases = handler.get_recent_edge_cases(limit=10, days=7)
-        assert len(edge_cases) == 0
+        assert len(edge_cases) == 0  # nosec B101
 
     def test_get_recent_edge_cases_with_data(self, handler):
         """Test getting recent edge cases with data."""
@@ -466,8 +466,8 @@ class TestRecentEdgeCases:
             )
 
         edge_cases = handler.get_recent_edge_cases(limit=10, days=7)
-        assert len(edge_cases) == 5
-        assert all(case.is_edge_case for case in edge_cases)
+        assert len(edge_cases) == 5  # nosec B101
+        assert all(case.is_edge_case for case in edge_cases)  # nosec B101
 
     def test_get_recent_edge_cases_limit(self, handler):
         """Test that limit is respected."""
@@ -481,7 +481,7 @@ class TestRecentEdgeCases:
             )
 
         edge_cases = handler.get_recent_edge_cases(limit=5, days=7)
-        assert len(edge_cases) == 5
+        assert len(edge_cases) == 5  # nosec B101
 
     def test_get_recent_edge_cases_excludes_common(self, handler):
         """Test that common patterns are excluded."""
@@ -502,8 +502,8 @@ class TestRecentEdgeCases:
         )
 
         edge_cases = handler.get_recent_edge_cases(limit=10, days=7)
-        assert len(edge_cases) == 1
-        assert edge_cases[0].pattern_id == "edge"
+        assert len(edge_cases) == 1  # nosec B101
+        assert edge_cases[0].pattern_id == "edge"  # nosec B101
 
 
 class TestBayesianSmoothing:
@@ -520,8 +520,8 @@ class TestBayesianSmoothing:
         )
 
         # Should not be exactly 1.0 due to Bayesian prior
-        assert metrics.success_rate < 1.0
-        assert metrics.success_rate > 0.8  # But still high
+        assert metrics.success_rate < 1.0  # nosec B101
+        assert metrics.success_rate > 0.8  # But still high  # nosec B101
 
     def test_bayesian_smoothing_prevents_0_percent(self, handler):
         """Test that Bayesian smoothing prevents 0% success rate."""
@@ -534,8 +534,8 @@ class TestBayesianSmoothing:
         )
 
         # Should not be exactly 0.0 due to Bayesian prior
-        assert metrics.success_rate > 0.0
-        assert metrics.success_rate < 0.2  # But still low
+        assert metrics.success_rate > 0.0  # nosec B101
+        assert metrics.success_rate < 0.2  # But still low  # nosec B101
 
     def test_bayesian_smoothing_minimal_impact_large_sample(self, handler):
         """Test that Bayesian smoothing has minimal impact on large samples."""
@@ -548,4 +548,4 @@ class TestBayesianSmoothing:
         )
 
         # Should be very close to 0.9
-        assert 0.89 < metrics.success_rate < 0.91
+        assert 0.89 < metrics.success_rate < 0.91  # nosec B101

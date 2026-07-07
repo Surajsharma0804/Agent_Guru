@@ -39,11 +39,11 @@ class TestVoiceAuthenticator:
         """Test user enrollment."""
         profile = authenticator.enroll_user("user1", voice_features)
         
-        assert profile.user_id == "user1"
-        assert np.array_equal(profile.feature_vector, voice_features.feature_vector)
-        assert profile.quality_score == voice_features.quality_score
-        assert profile.sample_count == 1
-        assert isinstance(profile.enrollment_date, datetime)
+        assert profile.user_id == "user1"  # nosec B101
+        assert np.array_equal(profile.feature_vector, voice_features.feature_vector)  # nosec B101
+        assert profile.quality_score == voice_features.quality_score  # nosec B101
+        assert profile.sample_count == 1  # nosec B101
+        assert isinstance(profile.enrollment_date, datetime)  # nosec B101
     
     def test_enroll_duplicate_user(self, authenticator: VoiceAuthenticator, voice_features: VoiceFeatures):
         """Test enrolling duplicate user fails."""
@@ -83,9 +83,9 @@ class TestVoiceAuthenticator:
             user_id="user1"
         )
         
-        assert authenticated == True
-        assert user_id == "user1"
-        assert similarity >= 0.85
+        assert authenticated == True  # nosec B101
+        assert user_id == "user1"  # nosec B101
+        assert similarity >= 0.85  # nosec B101
     
     def test_authenticate_identification_mode(
         self,
@@ -99,9 +99,9 @@ class TestVoiceAuthenticator:
         # Authenticate without user_id (should identify user1)
         authenticated, user_id, similarity = authenticator.authenticate(voice_features)
         
-        assert authenticated == True
-        assert user_id == "user1"
-        assert similarity >= 0.85
+        assert authenticated == True  # nosec B101
+        assert user_id == "user1"  # nosec B101
+        assert similarity >= 0.85  # nosec B101
     
     def test_authenticate_wrong_user(
         self,
@@ -127,9 +127,9 @@ class TestVoiceAuthenticator:
             user_id="user1"
         )
         
-        assert authenticated == False
-        assert user_id is None
-        assert similarity < 0.85
+        assert authenticated == False  # nosec B101
+        assert user_id is None  # nosec B101
+        assert similarity < 0.85  # nosec B101
     
     def test_authenticate_no_enrolled_users(
         self,
@@ -174,8 +174,8 @@ class TestVoiceAuthenticator:
         
         updated_profile = authenticator.update_profile("user1", new_features)
         
-        assert updated_profile.sample_count == 2
-        assert updated_profile.quality_score > voice_features.quality_score
+        assert updated_profile.sample_count == 2  # nosec B101
+        assert updated_profile.quality_score > voice_features.quality_score  # nosec B101
     
     def test_update_profile_not_enrolled(
         self,
@@ -199,7 +199,7 @@ class TestVoiceAuthenticator:
         authenticator.delete_profile("user1")
         
         # Verify deleted
-        assert authenticator.get_profile("user1") is None
+        assert authenticator.get_profile("user1") is None  # nosec B101
     
     def test_delete_profile_not_enrolled(self, authenticator: VoiceAuthenticator):
         """Test deleting non-enrolled user fails."""
@@ -218,13 +218,13 @@ class TestVoiceAuthenticator:
         # Get profile
         profile = authenticator.get_profile("user1")
         
-        assert profile is not None
-        assert profile.user_id == "user1"
+        assert profile is not None  # nosec B101
+        assert profile.user_id == "user1"  # nosec B101
     
     def test_get_profile_not_enrolled(self, authenticator: VoiceAuthenticator):
         """Test getting non-enrolled user returns None."""
         profile = authenticator.get_profile("user1")
-        assert profile is None
+        assert profile is None  # nosec B101
     
     def test_list_users(
         self,
@@ -248,9 +248,9 @@ class TestVoiceAuthenticator:
         # List users
         users = authenticator.list_users()
         
-        assert len(users) == 2
-        assert "user1" in users
-        assert "user2" in users
+        assert len(users) == 2  # nosec B101
+        assert "user1" in users  # nosec B101
+        assert "user2" in users  # nosec B101
     
     # ========================================================================
     # SIMILARITY COMPUTATION TESTS
@@ -261,7 +261,7 @@ class TestVoiceAuthenticator:
         features = np.random.randn(128).astype(np.float32)
         similarity = authenticator._compute_similarity(features, features)
         
-        assert similarity == pytest.approx(1.0, abs=0.01)
+        assert similarity == pytest.approx(1.0, abs=0.01)  # nosec B101
     
     def test_similarity_different_features(self, authenticator: VoiceAuthenticator):
         """Test similarity of different features is < 1.0."""
@@ -270,8 +270,8 @@ class TestVoiceAuthenticator:
         
         similarity = authenticator._compute_similarity(features1, features2)
         
-        assert 0.0 <= similarity <= 1.0
-        assert similarity < 1.0
+        assert 0.0 <= similarity <= 1.0  # nosec B101
+        assert similarity < 1.0  # nosec B101
     
     def test_similarity_zero_vectors(self, authenticator: VoiceAuthenticator):
         """Test similarity with zero vectors."""
@@ -280,7 +280,7 @@ class TestVoiceAuthenticator:
         
         similarity = authenticator._compute_similarity(features1, features2)
         
-        assert similarity == 0.0
+        assert similarity == 0.0  # nosec B101
 
     # ========================================================================
     # EDGE CASE AND BOUNDARY TESTS - ZERO COMPROMISE
@@ -290,13 +290,13 @@ class TestVoiceAuthenticator:
         """Test initialization with negative similarity threshold."""
         # Should allow but will cause issues - test the behavior
         authenticator = VoiceAuthenticator(similarity_threshold=-0.5)
-        assert authenticator.similarity_threshold == -0.5
+        assert authenticator.similarity_threshold == -0.5  # nosec B101
     
     def test_invalid_similarity_threshold_above_one(self):
         """Test initialization with similarity threshold > 1.0."""
         # Should allow but will never authenticate - test the behavior
         authenticator = VoiceAuthenticator(similarity_threshold=1.5)
-        assert authenticator.similarity_threshold == 1.5
+        assert authenticator.similarity_threshold == 1.5  # nosec B101
     
     def test_boundary_similarity_threshold_zero(self):
         """Test authentication with similarity threshold of 0.0 (passes for similar vectors)."""
@@ -320,7 +320,7 @@ class TestVoiceAuthenticator:
         )
         
         # Should authenticate because similarity=1.0 >= threshold=0.0
-        assert authenticated == True
+        assert authenticated == True  # nosec B101
     
     def test_boundary_similarity_threshold_one(self):
         """Test authentication with similarity threshold of 1.0 (only identical passes).
@@ -349,7 +349,7 @@ class TestVoiceAuthenticator:
         )
 
         # Similarity should be very close to 1.0 (floating-point precision)
-        assert similarity == pytest.approx(1.0, abs=1e-5)
+        assert similarity == pytest.approx(1.0, abs=1e-5)  # nosec B101
         # With threshold=1.0, floating-point similarity (~0.9999999) may not pass
         # This is expected behaviour — the test verifies consistency, not a specific outcome
     
@@ -367,7 +367,7 @@ class TestVoiceAuthenticator:
         
         # Should succeed because >= threshold
         profile = authenticator.enroll_user("user1", boundary_features)
-        assert profile.quality_score == 0.5
+        assert profile.quality_score == 0.5  # nosec B101
     
     def test_empty_user_id(self):
         """Test enrollment with empty user ID."""
@@ -381,7 +381,7 @@ class TestVoiceAuthenticator:
             is_live=True,
         )
         profile = authenticator.enroll_user("", voice_features)
-        assert profile.user_id == ""
+        assert profile.user_id == ""  # nosec B101
     
     def test_special_characters_user_id(self):
         """Test enrollment with special characters in user ID."""
@@ -396,7 +396,7 @@ class TestVoiceAuthenticator:
         )
         special_id = "user@#$%^&*()_+-=[]{}|;':\",./<>?"
         profile = authenticator.enroll_user(special_id, voice_features)
-        assert profile.user_id == special_id
+        assert profile.user_id == special_id  # nosec B101
     
     def test_very_long_user_id(self):
         """Test enrollment with very long user ID."""
@@ -411,8 +411,8 @@ class TestVoiceAuthenticator:
         )
         long_id = "a" * 1000
         profile = authenticator.enroll_user(long_id, voice_features)
-        assert profile.user_id == long_id
-        assert len(profile.user_id) == 1000
+        assert profile.user_id == long_id  # nosec B101
+        assert len(profile.user_id) == 1000  # nosec B101
     
     def test_unicode_user_id(self):
         """Test enrollment with Unicode characters in user ID."""
@@ -427,7 +427,7 @@ class TestVoiceAuthenticator:
         )
         unicode_id = "用户名_مستخدم_пользователь_🎤🔊"
         profile = authenticator.enroll_user(unicode_id, voice_features)
-        assert profile.user_id == unicode_id
+        assert profile.user_id == unicode_id  # nosec B101
     
     def test_multiple_updates_profile_convergence(self):
         """Test that multiple profile updates converge properly."""
@@ -455,10 +455,10 @@ class TestVoiceAuthenticator:
             profile = authenticator.update_profile("user1", update_features)
         
         # Verify sample count
-        assert profile.sample_count == 11  # 1 initial + 10 updates
+        assert profile.sample_count == 11  # 1 initial + 10 updates  # nosec B101
         
         # Verify quality score is averaged
-        assert 0.7 < profile.quality_score < 0.9
+        assert 0.7 < profile.quality_score < 0.9  # nosec B101
     
     def test_identification_with_single_user(self):
         """Test identification mode with only one enrolled user."""
@@ -473,8 +473,8 @@ class TestVoiceAuthenticator:
         )
         authenticator.enroll_user("user1", voice_features)
         authenticated, user_id, similarity = authenticator.authenticate(voice_features)
-        assert authenticated == True
-        assert user_id == "user1"
+        assert authenticated == True  # nosec B101
+        assert user_id == "user1"  # nosec B101
     
     def test_identification_with_many_users(self):
         """Test identification mode with many enrolled users."""
@@ -493,8 +493,8 @@ class TestVoiceAuthenticator:
             if i == 50:
                 target_features = features
         authenticated, user_id, similarity = authenticator.authenticate(target_features)
-        assert authenticated == True
-        assert user_id == "user50"
+        assert authenticated == True  # nosec B101
+        assert user_id == "user50"  # nosec B101
     
     def test_similarity_with_negative_features(self):
         """Test similarity computation with negative feature values."""
@@ -507,7 +507,7 @@ class TestVoiceAuthenticator:
         similarity = authenticator._compute_similarity(features1, features2)
         
         # Should be 1.0 (identical)
-        assert similarity == pytest.approx(1.0, abs=0.01)
+        assert similarity == pytest.approx(1.0, abs=0.01)  # nosec B101
     
     def test_similarity_with_mixed_sign_features(self):
         """Test similarity with mixed positive/negative features."""
@@ -520,7 +520,7 @@ class TestVoiceAuthenticator:
         similarity = authenticator._compute_similarity(features1, features2)
         
         # Should be 0.0 (opposite)
-        assert similarity == pytest.approx(0.0, abs=0.01)
+        assert similarity == pytest.approx(0.0, abs=0.01)  # nosec B101
     
     def test_similarity_with_very_large_values(self):
         """Test similarity with very large feature values."""
@@ -533,7 +533,7 @@ class TestVoiceAuthenticator:
         similarity = authenticator._compute_similarity(features1, features2)
         
         # Should still be 1.0 (cosine similarity is scale-invariant)
-        assert similarity == pytest.approx(1.0, abs=0.01)
+        assert similarity == pytest.approx(1.0, abs=0.01)  # nosec B101
     
     def test_similarity_with_very_small_values(self):
         """Test similarity with very small feature values."""
@@ -546,7 +546,7 @@ class TestVoiceAuthenticator:
         similarity = authenticator._compute_similarity(features1, features2)
         
         # Should still be 1.0 (cosine similarity is scale-invariant)
-        assert similarity == pytest.approx(1.0, abs=0.01)
+        assert similarity == pytest.approx(1.0, abs=0.01)  # nosec B101
     
     def test_profile_timestamps_update(self):
         """Test that profile timestamps are updated correctly."""
@@ -565,5 +565,5 @@ class TestVoiceAuthenticator:
         import time
         time.sleep(0.01)
         updated_profile = authenticator.update_profile("user1", features)
-        assert updated_profile.enrollment_date == enrollment_time
-        assert updated_profile.last_updated > initial_update_time
+        assert updated_profile.enrollment_date == enrollment_time  # nosec B101
+        assert updated_profile.last_updated > initial_update_time  # nosec B101

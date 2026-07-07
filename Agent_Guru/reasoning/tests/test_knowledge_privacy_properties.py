@@ -55,10 +55,10 @@ class TestPIIRedactionProperties:
         redacted = redact_pii(text)
 
         # Email should not appear in redacted text
-        assert email not in redacted, f"Email {email} was not redacted"
+        assert email not in redacted, f"Email {email} was not redacted"  # nosec B101
 
         # [EMAIL] should be in redacted text
-        assert "[EMAIL]" in redacted, "Email marker not found in redacted text"
+        assert "[EMAIL]" in redacted, "Email marker not found in redacted text"  # nosec B101
 
     @given(
         text=st.text(min_size=0, max_size=200),
@@ -71,7 +71,7 @@ class TestPIIRedactionProperties:
         redacted_once = redact_pii(text)
         redacted_twice = redact_pii(redacted_once)
 
-        assert redacted_once == redacted_twice, "Redaction is not idempotent"
+        assert redacted_once == redacted_twice, "Redaction is not idempotent"  # nosec B101
 
     @given(
         text=st.text(min_size=0, max_size=200),
@@ -85,7 +85,7 @@ class TestPIIRedactionProperties:
 
         # Redacted text should not be more than 2x original length
         # (accounting for replacement markers like [EMAIL])
-        assert len(redacted) <= len(text) * 2, "Redaction made text too long"
+        assert len(redacted) <= len(text) * 2, "Redaction made text too long"  # nosec B101
 
     @given(
         text=st.text(
@@ -101,7 +101,7 @@ class TestPIIRedactionProperties:
         """
         try:
             redacted = redact_pii(text)
-            assert isinstance(redacted, str), "Redaction must return string"
+            assert isinstance(redacted, str), "Redaction must return string"  # nosec B101
         except Exception as e:
             pytest.fail(f"Redaction raised exception: {e}")
 
@@ -147,7 +147,7 @@ class TestUserDataIsolationProperties:
             synthesizer.retrieve_relevant_data(query, user_id)
         except ValueError:
             # Only acceptable if user_id is empty/whitespace
-            assert not user_id.strip(), f"Valid user_id {user_id} was rejected"
+            assert not user_id.strip(), f"Valid user_id {user_id} was rejected"  # nosec B101
 
     @given(
         requested_user=st.text(
@@ -203,7 +203,7 @@ class TestUserDataIsolationProperties:
 
             # Should not contain memory from different user
             for mem in memories:
-                assert (
+                assert (  # nosec B101
                     mem.user_id == requested_user
                 ), f"Cross-user data leaked: {mem.user_id} != {requested_user}"
 
@@ -256,7 +256,7 @@ class TestConfidenceThresholdProperties:
 
         # If confidence < threshold, uncertainty indicator should be present
         if answer.confidence < threshold:
-            assert answer.summary.lower().startswith(
+            assert answer.summary.lower().startswith(  # nosec B101
                 "i'm not very confident"
             ), f"Uncertainty indicator missing for confidence {answer.confidence} < threshold {threshold}"
 
@@ -301,7 +301,7 @@ class TestConfidenceThresholdProperties:
         answer = synthesizer.synthesize_answer(query, "user_1")
 
         # Confidence must be in valid range
-        assert (
+        assert (  # nosec B101
             0.0 <= answer.confidence <= 1.0
         ), f"Confidence {answer.confidence} out of range [0.0, 1.0]"
 
@@ -347,7 +347,7 @@ class TestAuditLoggingProperties:
                 synthesizer.synthesize_answer(query, user_id)
 
                 # Verify logging occurred
-                assert mock_logger.info.called, "No audit logs were created"
+                assert mock_logger.info.called, "No audit logs were created"  # nosec B101
 
                 # Verify user_id is in logs
                 log_calls = mock_logger.info.call_args_list
@@ -357,11 +357,11 @@ class TestAuditLoggingProperties:
                     if "extra" in call[1] and "user_id" in call[1]["extra"]
                 ]
 
-                assert user_id in user_ids_logged, f"User ID {user_id} not found in audit logs"
+                assert user_id in user_ids_logged, f"User ID {user_id} not found in audit logs"  # nosec B101
 
             except ValueError:
                 # Only acceptable if user_id is empty/whitespace
-                assert not user_id.strip(), f"Valid user_id {user_id} caused error"
+                assert not user_id.strip(), f"Valid user_id {user_id} caused error"  # nosec B101
 
 
 if __name__ == "__main__":

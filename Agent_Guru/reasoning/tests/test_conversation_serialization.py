@@ -178,26 +178,26 @@ def test_conversation_state_json_round_trip(state: ConversationState):
     deserialized = ConversationState.model_validate_json(json_str)
     
     # Verify all required fields are preserved
-    assert deserialized.conversation_id == state.conversation_id
-    assert deserialized.user_id == state.user_id
-    assert len(deserialized.turns) == len(state.turns)
-    assert len(deserialized.entities) == len(state.entities)
-    assert deserialized.user_preferences == state.user_preferences
-    assert deserialized.context_summary == state.context_summary
-    assert len(deserialized.active_tasks) == len(state.active_tasks)
+    assert deserialized.conversation_id == state.conversation_id  # nosec B101
+    assert deserialized.user_id == state.user_id  # nosec B101
+    assert len(deserialized.turns) == len(state.turns)  # nosec B101
+    assert len(deserialized.entities) == len(state.entities)  # nosec B101
+    assert deserialized.user_preferences == state.user_preferences  # nosec B101
+    assert deserialized.context_summary == state.context_summary  # nosec B101
+    assert len(deserialized.active_tasks) == len(state.active_tasks)  # nosec B101
     
     # Verify turns are preserved
     for orig_turn, deser_turn in zip(state.turns, deserialized.turns):
-        assert deser_turn.turn_id == orig_turn.turn_id
-        assert deser_turn.turn_number == orig_turn.turn_number
-        assert deser_turn.user_input == orig_turn.user_input
-        assert deser_turn.response == orig_turn.response
+        assert deser_turn.turn_id == orig_turn.turn_id  # nosec B101
+        assert deser_turn.turn_number == orig_turn.turn_number  # nosec B101
+        assert deser_turn.user_input == orig_turn.user_input  # nosec B101
+        assert deser_turn.response == orig_turn.response  # nosec B101
     
     # Verify entities are preserved
     for key in state.entities:
-        assert key in deserialized.entities
-        assert deserialized.entities[key].entity_type == state.entities[key].entity_type
-        assert deserialized.entities[key].value == state.entities[key].value
+        assert key in deserialized.entities  # nosec B101
+        assert deserialized.entities[key].entity_type == state.entities[key].entity_type  # nosec B101
+        assert deserialized.entities[key].value == state.entities[key].value  # nosec B101
 
 
 @pytest.mark.property
@@ -220,10 +220,10 @@ def test_conversation_state_dict_round_trip(state: ConversationState):
     deserialized = ConversationState.model_validate(state_dict)
     
     # Verify core fields
-    assert deserialized.conversation_id == state.conversation_id
-    assert deserialized.user_id == state.user_id
-    assert len(deserialized.turns) == len(state.turns)
-    assert len(deserialized.entities) == len(state.entities)
+    assert deserialized.conversation_id == state.conversation_id  # nosec B101
+    assert deserialized.user_id == state.user_id  # nosec B101
+    assert len(deserialized.turns) == len(state.turns)  # nosec B101
+    assert len(deserialized.entities) == len(state.entities)  # nosec B101
 
 
 @pytest.mark.property
@@ -246,13 +246,13 @@ def test_conversation_state_timestamps_preserved(state: ConversationState):
     created_diff = abs((deserialized.created_at - state.created_at).total_seconds())
     updated_diff = abs((deserialized.updated_at - state.updated_at).total_seconds())
     
-    assert created_diff < 1.0, "created_at timestamp not preserved"
-    assert updated_diff < 1.0, "updated_at timestamp not preserved"
+    assert created_diff < 1.0, "created_at timestamp not preserved"  # nosec B101
+    assert updated_diff < 1.0, "updated_at timestamp not preserved"  # nosec B101
     
     # Verify turn timestamps
     for orig_turn, deser_turn in zip(state.turns, deserialized.turns):
         turn_diff = abs((deser_turn.timestamp - orig_turn.timestamp).total_seconds())
-        assert turn_diff < 1.0, f"Turn {orig_turn.turn_id} timestamp not preserved"
+        assert turn_diff < 1.0, f"Turn {orig_turn.turn_id} timestamp not preserved"  # nosec B101
 
 
 @pytest.mark.property
@@ -274,20 +274,20 @@ def test_conversation_state_nested_objects_preserved(state: ConversationState):
     # Check nested intents in turns
     for orig_turn, deser_turn in zip(state.turns, deserialized.turns):
         if orig_turn.intent is not None:
-            assert deser_turn.intent is not None
-            assert deser_turn.intent.intent_type == orig_turn.intent.intent_type
-            assert deser_turn.intent.confidence == orig_turn.intent.confidence
-            assert deser_turn.intent.original_input == orig_turn.intent.original_input
+            assert deser_turn.intent is not None  # nosec B101
+            assert deser_turn.intent.intent_type == orig_turn.intent.intent_type  # nosec B101
+            assert deser_turn.intent.confidence == orig_turn.intent.confidence  # nosec B101
+            assert deser_turn.intent.original_input == orig_turn.intent.original_input  # nosec B101
         
         if orig_turn.action_taken is not None:
-            assert deser_turn.action_taken is not None
-            assert deser_turn.action_taken.action_id == orig_turn.action_taken.action_id
-            assert deser_turn.action_taken.tool_id == orig_turn.action_taken.tool_id
+            assert deser_turn.action_taken is not None  # nosec B101
+            assert deser_turn.action_taken.action_id == orig_turn.action_taken.action_id  # nosec B101
+            assert deser_turn.action_taken.tool_id == orig_turn.action_taken.tool_id  # nosec B101
     
     # Check last_intent
     if state.last_intent is not None:
-        assert deserialized.last_intent is not None
-        assert deserialized.last_intent.intent_type == state.last_intent.intent_type
+        assert deserialized.last_intent is not None  # nosec B101
+        assert deserialized.last_intent.intent_type == state.last_intent.intent_type  # nosec B101
 
 
 @pytest.mark.property
@@ -317,4 +317,4 @@ def test_conversation_state_metadata_preserved(state: ConversationState, extra_d
     deserialized = ConversationState.model_validate_json(json_str)
     
     # Verify metadata is preserved
-    assert deserialized.metadata == state.metadata
+    assert deserialized.metadata == state.metadata  # nosec B101

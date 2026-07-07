@@ -79,17 +79,17 @@ class TestRootCauseInvestigatorInitialization:
     def test_initialization(self, pool):
         """Test investigator initializes correctly."""
         investigator = RootCauseInvestigator(pool)
-        assert investigator.pool == pool
-        assert investigator.min_correlation_threshold == 0.5
-        assert investigator.max_time_to_degradation_hours == 72
+        assert investigator.pool == pool  # nosec B101
+        assert investigator.min_correlation_threshold == 0.5  # nosec B101
+        assert investigator.max_time_to_degradation_hours == 72  # nosec B101
 
     def test_custom_thresholds(self, pool):
         """Test custom correlation thresholds."""
         investigator = RootCauseInvestigator(
             pool, min_correlation_threshold=0.7, max_time_to_degradation_hours=48
         )
-        assert investigator.min_correlation_threshold == 0.7
-        assert investigator.max_time_to_degradation_hours == 48
+        assert investigator.min_correlation_threshold == 0.7  # nosec B101
+        assert investigator.max_time_to_degradation_hours == 48  # nosec B101
 
     def test_invalid_correlation_threshold(self, pool):
         """Test invalid correlation threshold raises error."""
@@ -131,10 +131,10 @@ class TestDegradationInvestigation:
         # Investigate
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
-        assert report.total_changes_analyzed == 0
-        assert len(report.likely_root_causes) == 0
-        assert "No changes" in report.diagnostic_summary
-        assert len(report.prevention_recommendations) > 0
+        assert report.total_changes_analyzed == 0  # nosec B101
+        assert len(report.likely_root_causes) == 0  # nosec B101
+        assert "No changes" in report.diagnostic_summary  # nosec B101
+        assert len(report.prevention_recommendations) > 0  # nosec B101
 
     def test_investigate_with_correlated_change(self, investigator, rollback_manager):
         """Test investigation identifies correlated change."""
@@ -168,9 +168,9 @@ class TestDegradationInvestigation:
         # Investigate
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
-        assert report.total_changes_analyzed == 1
-        assert len(report.likely_root_causes) > 0
-        assert report.likely_root_causes[0].component_id == "strategy_1"
+        assert report.total_changes_analyzed == 1  # nosec B101
+        assert len(report.likely_root_causes) > 0  # nosec B101
+        assert report.likely_root_causes[0].component_id == "strategy_1"  # nosec B101
 
     def test_investigate_ranks_by_confidence(self, investigator, rollback_manager):
         """Test investigation ranks causes by confidence."""
@@ -218,12 +218,12 @@ class TestDegradationInvestigation:
         # Investigate
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
-        assert len(report.likely_root_causes) >= 1
+        assert len(report.likely_root_causes) >= 1  # nosec B101
         # First cause should be the high confidence one (larger performance drop)
         # Both are recent, so the one with larger metric change should rank higher
         high_conf_cause = next((rc for rc in report.likely_root_causes if rc.component_id == "strategy_high_confidence"), None)
-        assert high_conf_cause is not None
-        assert high_conf_cause.correlation_score > 0.5
+        assert high_conf_cause is not None  # nosec B101
+        assert high_conf_cause.correlation_score > 0.5  # nosec B101
 
     def test_investigate_includes_evidence(self, investigator, rollback_manager):
         """Test investigation includes supporting evidence."""
@@ -255,13 +255,13 @@ class TestDegradationInvestigation:
         # Investigate
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
-        assert len(report.likely_root_causes) > 0
+        assert len(report.likely_root_causes) > 0  # nosec B101
         root_cause = report.likely_root_causes[0]
 
         # Should have evidence
-        assert len(root_cause.evidence) > 0
-        assert any("correlation" in e.lower() for e in root_cause.evidence)
-        assert any("time to degradation" in e.lower() for e in root_cause.evidence)
+        assert len(root_cause.evidence) > 0  # nosec B101
+        assert any("correlation" in e.lower() for e in root_cause.evidence)  # nosec B101
+        assert any("time to degradation" in e.lower() for e in root_cause.evidence)  # nosec B101
 
     def test_investigate_provides_recommendations(self, investigator, rollback_manager):
         """Test investigation provides actionable recommendations."""
@@ -294,8 +294,8 @@ class TestDegradationInvestigation:
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
         # Should have recommendations
-        assert len(report.prevention_recommendations) > 0
-        assert all(isinstance(rec, str) for rec in report.prevention_recommendations)
+        assert len(report.prevention_recommendations) > 0  # nosec B101
+        assert all(isinstance(rec, str) for rec in report.prevention_recommendations)  # nosec B101
 
 
 class TestRecentChangesInvestigation:
@@ -305,9 +305,9 @@ class TestRecentChangesInvestigation:
         """Test investigating recent changes when none exist."""
         report = investigator.investigate_recent_changes(hours=24)
 
-        assert report.total_changes_analyzed == 0
-        assert len(report.likely_root_causes) == 0
-        assert "No recent changes" in report.diagnostic_summary
+        assert report.total_changes_analyzed == 0  # nosec B101
+        assert len(report.likely_root_causes) == 0  # nosec B101
+        assert "No recent changes" in report.diagnostic_summary  # nosec B101
 
     def test_investigate_recent_changes_with_suspicious_change(self, investigator, rollback_manager):
         """Test identifying suspicious recent changes."""
@@ -324,13 +324,13 @@ class TestRecentChangesInvestigation:
         # Investigate
         report = investigator.investigate_recent_changes(hours=24)
 
-        assert report.total_changes_analyzed == 1
+        assert report.total_changes_analyzed == 1  # nosec B101
         # Should identify as suspicious due to lack of validation (suspicion score >= 0.3)
         # The suspicion score calculation gives 0.3 for untested changes
         # But we need score > 0.5 to be included, so let's check if it's identified
         # Actually, untested alone gives 0.3, which is < 0.5, so it won't be flagged
         # Let's adjust the test to check the report was generated
-        assert report.diagnostic_summary is not None
+        assert report.diagnostic_summary is not None  # nosec B101
 
     def test_investigate_recent_changes_with_rolled_back(self, investigator, rollback_manager):
         """Test identifying rolled back changes as suspicious."""
@@ -350,9 +350,9 @@ class TestRecentChangesInvestigation:
         # Investigate
         report = investigator.investigate_recent_changes(hours=24)
 
-        assert report.total_changes_analyzed == 1
+        assert report.total_changes_analyzed == 1  # nosec B101
         # Should identify as suspicious due to rollback
-        assert len(report.likely_root_causes) > 0
+        assert len(report.likely_root_causes) > 0  # nosec B101
 
 
 class TestCorrelationCalculation:
@@ -388,9 +388,9 @@ class TestCorrelationCalculation:
         # Investigate
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
-        assert len(report.likely_root_causes) > 0
+        assert len(report.likely_root_causes) > 0  # nosec B101
         # Recent change should have high correlation
-        assert report.likely_root_causes[0].correlation_score > 0.5
+        assert report.likely_root_causes[0].correlation_score > 0.5  # nosec B101
 
     def test_correlation_with_metric_alignment(self, investigator, rollback_manager):
         """Test correlation considers metric change alignment."""
@@ -422,9 +422,9 @@ class TestCorrelationCalculation:
         # Investigate
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
-        assert len(report.likely_root_causes) > 0
+        assert len(report.likely_root_causes) > 0  # nosec B101
         # Should have positive correlation due to aligned metrics
-        assert report.likely_root_causes[0].correlation_score > 0.0
+        assert report.likely_root_causes[0].correlation_score > 0.0  # nosec B101
 
 
 class TestContributingFactors:
@@ -462,7 +462,7 @@ class TestContributingFactors:
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
         # Should identify high change rate
-        assert any("High change rate" in factor for factor in report.contributing_factors)
+        assert any("High change rate" in factor for factor in report.contributing_factors)  # nosec B101
 
     def test_identifies_multiple_changes_to_component(self, investigator, rollback_manager):
         """Test identifies multiple changes to same component."""
@@ -499,7 +499,7 @@ class TestContributingFactors:
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
         # Should identify multiple changes to same component
-        assert any("Multiple changes to" in factor for factor in report.contributing_factors)
+        assert any("Multiple changes to" in factor for factor in report.contributing_factors)  # nosec B101
 
     def test_identifies_untested_changes(self, investigator, rollback_manager):
         """Test identifies changes without performance validation."""
@@ -533,7 +533,7 @@ class TestContributingFactors:
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
         # Should identify untested changes
-        assert any("without performance validation" in factor for factor in report.contributing_factors)
+        assert any("without performance validation" in factor for factor in report.contributing_factors)  # nosec B101
 
 
 class TestDiagnosticReporting:
@@ -570,14 +570,14 @@ class TestDiagnosticReporting:
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
         # Check all fields present
-        assert isinstance(report, RootCauseReport)
-        assert isinstance(report.investigation_timestamp, datetime)
-        assert isinstance(report.analysis_window_hours, int)
-        assert isinstance(report.total_changes_analyzed, int)
-        assert isinstance(report.likely_root_causes, list)
-        assert isinstance(report.contributing_factors, list)
-        assert isinstance(report.diagnostic_summary, str)
-        assert isinstance(report.prevention_recommendations, list)
+        assert isinstance(report, RootCauseReport)  # nosec B101
+        assert isinstance(report.investigation_timestamp, datetime)  # nosec B101
+        assert isinstance(report.analysis_window_hours, int)  # nosec B101
+        assert isinstance(report.total_changes_analyzed, int)  # nosec B101
+        assert isinstance(report.likely_root_causes, list)  # nosec B101
+        assert isinstance(report.contributing_factors, list)  # nosec B101
+        assert isinstance(report.diagnostic_summary, str)  # nosec B101
+        assert isinstance(report.prevention_recommendations, list)  # nosec B101
 
     def test_diagnostic_summary_is_readable(self, investigator, rollback_manager):
         """Test diagnostic summary is human-readable."""
@@ -610,9 +610,9 @@ class TestDiagnosticReporting:
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
         # Summary should be readable
-        assert len(report.diagnostic_summary) > 0
-        assert report.diagnostic_summary[0].isupper()  # Starts with capital
-        assert "." in report.diagnostic_summary  # Has punctuation
+        assert len(report.diagnostic_summary) > 0  # nosec B101
+        assert report.diagnostic_summary[0].isupper()  # Starts with capital  # nosec B101
+        assert "." in report.diagnostic_summary  # Has punctuation  # nosec B101
 
 
 class TestPerformanceMetrics:
@@ -653,8 +653,8 @@ class TestPerformanceMetrics:
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
         elapsed_ms = (time.time() - start) * 1000
 
-        assert isinstance(report, RootCauseReport)
-        assert elapsed_ms < 500  # Target: <500ms
+        assert isinstance(report, RootCauseReport)  # nosec B101
+        assert elapsed_ms < 500  # Target: <500ms  # nosec B101
 
 
 class TestIntegrationWithRollbackManager:
@@ -694,9 +694,9 @@ class TestIntegrationWithRollbackManager:
         report = investigator.investigate_degradation(alert, analysis_window_hours=48)
 
         # Should identify the rolled back change
-        assert len(report.likely_root_causes) > 0
+        assert len(report.likely_root_causes) > 0  # nosec B101
         root_cause = report.likely_root_causes[0]
-        assert any("rolled back" in e.lower() for e in root_cause.evidence)
+        assert any("rolled back" in e.lower() for e in root_cause.evidence)  # nosec B101
 
 
 if __name__ == "__main__":

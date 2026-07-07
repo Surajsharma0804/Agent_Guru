@@ -88,7 +88,7 @@ class TestSafetyGateProperties:
 
             # Property: Sensitive/dangerous actions require confirmation
             if decision.allowed:  # Only check if action is allowed
-                assert decision.requires_confirmation, (
+                assert decision.requires_confirmation, (  # nosec B101
                     f"Sensitive/dangerous action {tool_id} with sensitivity "
                     f"{sensitivity.value} must require confirmation"
                 )
@@ -131,11 +131,11 @@ class TestSafetyGateProperties:
         decision = gate.validate_action(tool, params, user_id)
 
         # Property: Action without required permission must be blocked
-        assert not decision.allowed, (
+        assert not decision.allowed, (  # nosec B101
             f"Action {tool_id} requiring permission '{permission_scope}' "
             f"must be blocked when user {user_id} lacks permission"
         )
-        assert (
+        assert (  # nosec B101
             "permission" in decision.reason.lower()
         ), "Blocked action reason must mention permissions"
 
@@ -194,16 +194,16 @@ class TestSafetyGateProperties:
             final_logs = audit_logger.query_logs(user_id=user_id)
             final_count = len(final_logs)
 
-            assert final_count > initial_count, (
+            assert final_count > initial_count, (  # nosec B101
                 f"Blocked action {tool_id} for user {user_id} must create "
                 f"audit log entry (before: {initial_count}, after: {final_count})"
             )
 
             # Verify the log entry contains correct information
             latest_log = final_logs[0]  # Most recent entry
-            assert latest_log.user_id == user_id
-            assert latest_log.tool_id == tool.tool_id
-            assert latest_log.decision == "blocked"
+            assert latest_log.user_id == user_id  # nosec B101
+            assert latest_log.tool_id == tool.tool_id  # nosec B101
+            assert latest_log.decision == "blocked"  # nosec B101
 
         audit_logger.close()
 
@@ -243,7 +243,7 @@ class TestPermissionProperties:
 
         # Property: Granted permission must be checkable
         has_permission = gate.check_permissions(user_id, tool)
-        assert has_permission, (
+        assert has_permission, (  # nosec B101
             f"User {user_id} must have permission '{permission_scope}' " f"after it was granted"
         )
 
@@ -282,7 +282,7 @@ class TestPermissionProperties:
 
         # Property: Revoked permission must not be checkable
         has_permission = gate.check_permissions(user_id, tool)
-        assert not has_permission, (
+        assert not has_permission, (  # nosec B101
             f"User {user_id} must not have permission '{permission_scope}' " f"after it was revoked"
         )
 
@@ -325,20 +325,20 @@ class TestAuditLogProperties:
         # Property: Logged decision must be queryable
         entries = audit_logger.query_logs(user_id=user_id)
 
-        assert len(entries) > 0, f"Audit log must contain entry for user {user_id}"
+        assert len(entries) > 0, f"Audit log must contain entry for user {user_id}"  # nosec B101
 
         # Find the entry we just logged
         found = False
         for entry in entries:
             if entry.entry_id == entry_id:
                 found = True
-                assert entry.user_id == user_id
-                assert entry.tool_id == tool_id
-                assert entry.parameters == params
-                assert entry.decision == "allowed"
+                assert entry.user_id == user_id  # nosec B101
+                assert entry.tool_id == tool_id  # nosec B101
+                assert entry.parameters == params  # nosec B101
+                assert entry.decision == "allowed"  # nosec B101
                 break
 
-        assert found, f"Logged entry {entry_id} must be found in query results"
+        assert found, f"Logged entry {entry_id} must be found in query results"  # nosec B101
 
         audit_logger.close()
 
@@ -379,11 +379,11 @@ class TestAuditLogProperties:
         # Property: Entries must be in reverse chronological order
         entries = audit_logger.query_logs(user_id=user_id)
 
-        assert len(entries) >= 3, "Must have at least 3 entries"
+        assert len(entries) >= 3, "Must have at least 3 entries"  # nosec B101
 
         # Check that timestamps are in descending order
         for i in range(len(entries) - 1):
-            assert entries[i].timestamp >= entries[i + 1].timestamp, (
+            assert entries[i].timestamp >= entries[i + 1].timestamp, (  # nosec B101
                 f"Audit log entries must be in reverse chronological order "
                 f"(entry {i} timestamp {entries[i].timestamp} should be >= "
                 f"entry {i+1} timestamp {entries[i+1].timestamp})"
@@ -426,10 +426,10 @@ class TestAuditLogProperties:
         # Property: Parameters must be decryptable and match original
         entries = audit_logger.query_logs(user_id=user_id, limit=1)
 
-        assert len(entries) > 0, "Must have at least one entry"
+        assert len(entries) > 0, "Must have at least one entry"  # nosec B101
 
         entry = entries[0]
-        assert entry.parameters == params, (
+        assert entry.parameters == params, (  # nosec B101
             f"Decrypted parameters must match original: "
             f"expected {params}, got {entry.parameters}"
         )

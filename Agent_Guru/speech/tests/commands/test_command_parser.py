@@ -35,35 +35,35 @@ class TestCommandParser:
     def test_parser_initialization(self, parser: CommandParser):
         """Test parser initializes with default commands."""
         commands = parser.get_registered_commands()
-        assert len(commands) > 0
+        assert len(commands) > 0  # nosec B101
         
         # Check some default commands exist
         action_ids = [cmd["action_id"] for cmd in commands]
-        assert "OPEN_APP" in action_ids
-        assert "CLOSE_APP" in action_ids
-        assert "TYPE_TEXT" in action_ids
-        assert "SET_VOLUME" in action_ids
+        assert "OPEN_APP" in action_ids  # nosec B101
+        assert "CLOSE_APP" in action_ids  # nosec B101
+        assert "TYPE_TEXT" in action_ids  # nosec B101
+        assert "SET_VOLUME" in action_ids  # nosec B101
     
     def test_empty_text(self, parser: CommandParser):
         """Test handling of empty text."""
         result = parser.interpret("")
-        assert not result.is_command
-        assert result.action_id is None
-        assert result.confidence == 0.0
+        assert not result.is_command  # nosec B101
+        assert result.action_id is None  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
     
     def test_whitespace_only(self, parser: CommandParser):
         """Test handling of whitespace-only text."""
         result = parser.interpret("   ")
-        assert not result.is_command
-        assert result.action_id is None
-        assert result.confidence == 0.0
+        assert not result.is_command  # nosec B101
+        assert result.action_id is None  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
     
     def test_non_command_text(self, parser: CommandParser):
         """Test handling of non-command text."""
         result = parser.interpret("this is just a regular sentence")
         # Should either be not a command or have low confidence
         if result.is_command:
-            assert result.confidence < 0.6
+            assert result.confidence < 0.6  # nosec B101
     
     # ========================================================================
     # SYSTEM CONTROL COMMANDS
@@ -80,10 +80,10 @@ class TestCommandParser:
         
         for text, expected_action, expected_params in test_cases:
             result = parser.interpret(text)
-            assert result.is_command, f"Failed for: {text}"
-            assert result.action_id == expected_action
-            assert result.parameters["app_name"] == expected_params["app_name"]
-            assert 0.0 <= result.confidence <= 1.0
+            assert result.is_command, f"Failed for: {text}"  # nosec B101
+            assert result.action_id == expected_action  # nosec B101
+            assert result.parameters["app_name"] == expected_params["app_name"]  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_close_app_command(self, parser: CommandParser):
         """Test closing application command."""
@@ -95,31 +95,31 @@ class TestCommandParser:
         
         for text, expected_action, expected_params in test_cases:
             result = parser.interpret(text)
-            assert result.is_command
-            assert result.action_id == expected_action
-            assert result.parameters["app_name"] == expected_params["app_name"]
+            assert result.is_command  # nosec B101
+            assert result.action_id == expected_action  # nosec B101
+            assert result.parameters["app_name"] == expected_params["app_name"]  # nosec B101
     
     def test_minimize_maximize_commands(self, parser: CommandParser):
         """Test window management commands."""
         # Minimize
         result = parser.interpret("minimize window")
-        assert result.is_command
-        assert result.action_id == "MINIMIZE_WINDOW"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "MINIMIZE_WINDOW"  # nosec B101
         
         result = parser.interpret("minimize chrome")
-        assert result.is_command
-        assert result.action_id == "MINIMIZE_WINDOW"
-        assert result.parameters.get("app_name") == "chrome"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "MINIMIZE_WINDOW"  # nosec B101
+        assert result.parameters.get("app_name") == "chrome"  # nosec B101
         
         # Maximize
         result = parser.interpret("maximize window")
-        assert result.is_command
-        assert result.action_id == "MAXIMIZE_WINDOW"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "MAXIMIZE_WINDOW"  # nosec B101
         
         result = parser.interpret("maximize firefox")
-        assert result.is_command
-        assert result.action_id == "MAXIMIZE_WINDOW"
-        assert result.parameters.get("app_name") == "firefox"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "MAXIMIZE_WINDOW"  # nosec B101
+        assert result.parameters.get("app_name") == "firefox"  # nosec B101
     
     # ========================================================================
     # TEXT OPERATIONS
@@ -135,22 +135,22 @@ class TestCommandParser:
         
         for text in test_cases:
             result = parser.interpret(text)
-            assert result.is_command
-            assert result.action_id == "TYPE_TEXT"
-            assert "text" in result.parameters
-            assert len(result.parameters["text"]) > 0
+            assert result.is_command  # nosec B101
+            assert result.action_id == "TYPE_TEXT"  # nosec B101
+            assert "text" in result.parameters  # nosec B101
+            assert len(result.parameters["text"]) > 0  # nosec B101
     
     def test_send_message_command(self, parser: CommandParser):
         """Test sending message command."""
         result = parser.interpret("send message hello there to john")
-        assert result.is_command
-        assert result.action_id == "SEND_MESSAGE"
-        assert "message" in result.parameters
-        assert "recipient" in result.parameters
+        assert result.is_command  # nosec B101
+        assert result.action_id == "SEND_MESSAGE"  # nosec B101
+        assert "message" in result.parameters  # nosec B101
+        assert "recipient" in result.parameters  # nosec B101
         
         result = parser.interpret("message alice how are you")
-        assert result.is_command
-        assert result.action_id == "SEND_MESSAGE"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "SEND_MESSAGE"  # nosec B101
     
     def test_read_item_command(self, parser: CommandParser):
         """Test reading emails/messages command."""
@@ -163,9 +163,9 @@ class TestCommandParser:
         
         for text, expected_item in test_cases:
             result = parser.interpret(text)
-            assert result.is_command
-            assert result.action_id == "READ_ITEM"
-            assert result.parameters.get("item") == expected_item
+            assert result.is_command  # nosec B101
+            assert result.action_id == "READ_ITEM"  # nosec B101
+            assert result.parameters.get("item") == expected_item  # nosec B101
     
     # ========================================================================
     # FILE OPERATIONS
@@ -181,21 +181,21 @@ class TestCommandParser:
         
         for text, expected_filename in test_cases:
             result = parser.interpret(text)
-            assert result.is_command
-            assert result.action_id == "CREATE_FILE"
-            assert result.parameters["filename"] == expected_filename
+            assert result.is_command  # nosec B101
+            assert result.action_id == "CREATE_FILE"  # nosec B101
+            assert result.parameters["filename"] == expected_filename  # nosec B101
     
     def test_delete_file_command(self, parser: CommandParser):
         """Test file deletion command."""
         result = parser.interpret("delete file test.txt")
-        assert result.is_command
-        assert result.action_id == "DELETE_FILE"
-        assert result.parameters["filename"] == "test.txt"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "DELETE_FILE"  # nosec B101
+        assert result.parameters["filename"] == "test.txt"  # nosec B101
         
         # Check that delete requires confirmation
         commands = parser.get_registered_commands()
         delete_cmd = next(cmd for cmd in commands if cmd["action_id"] == "DELETE_FILE")
-        assert delete_cmd["requires_confirmation"] is True
+        assert delete_cmd["requires_confirmation"] is True  # nosec B101
     
     def test_move_file_command(self, parser: CommandParser):
         """Test file move/rename command."""
@@ -206,10 +206,10 @@ class TestCommandParser:
         
         for text, expected_source, expected_dest in test_cases:
             result = parser.interpret(text)
-            assert result.is_command
-            assert result.action_id == "MOVE_FILE"
-            assert result.parameters["source"] == expected_source
-            assert result.parameters["destination"] == expected_dest
+            assert result.is_command  # nosec B101
+            assert result.action_id == "MOVE_FILE"  # nosec B101
+            assert result.parameters["source"] == expected_source  # nosec B101
+            assert result.parameters["destination"] == expected_dest  # nosec B101
     
     def test_search_files_command(self, parser: CommandParser):
         """Test file search command."""
@@ -221,11 +221,11 @@ class TestCommandParser:
         
         for text, expected_query, expected_location in test_cases:
             result = parser.interpret(text)
-            assert result.is_command
-            assert result.action_id == "SEARCH_FILES"
-            assert result.parameters["query"] == expected_query
+            assert result.is_command  # nosec B101
+            assert result.action_id == "SEARCH_FILES"  # nosec B101
+            assert result.parameters["query"] == expected_query  # nosec B101
             if expected_location:
-                assert result.parameters.get("location") == expected_location
+                assert result.parameters.get("location") == expected_location  # nosec B101
     
     # ========================================================================
     # SETTINGS COMMANDS
@@ -242,30 +242,30 @@ class TestCommandParser:
         
         for text, expected_action, expected_level in test_cases:
             result = parser.interpret(text)
-            assert result.is_command
-            assert result.action_id == expected_action
-            assert result.parameters["level"] == expected_level
+            assert result.is_command  # nosec B101
+            assert result.action_id == expected_action  # nosec B101
+            assert result.parameters["level"] == expected_level  # nosec B101
         
         # Volume up/down
         result = parser.interpret("increase volume")
-        assert result.is_command
-        assert result.action_id == "VOLUME_UP"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "VOLUME_UP"  # nosec B101
         
         result = parser.interpret("volume down")
-        assert result.is_command
-        assert result.action_id == "VOLUME_DOWN"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "VOLUME_DOWN"  # nosec B101
         
         # Mute
         result = parser.interpret("mute")
-        assert result.is_command
-        assert result.action_id == "MUTE"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "MUTE"  # nosec B101
     
     def test_brightness_command(self, parser: CommandParser):
         """Test brightness control command."""
         result = parser.interpret("set brightness to 80 percent")
-        assert result.is_command
-        assert result.action_id == "SET_BRIGHTNESS"
-        assert result.parameters["level"] == 80
+        assert result.is_command  # nosec B101
+        assert result.action_id == "SET_BRIGHTNESS"  # nosec B101
+        assert result.parameters["level"] == 80  # nosec B101
     
     def test_wifi_toggle_command(self, parser: CommandParser):
         """Test WiFi toggle command."""
@@ -279,16 +279,16 @@ class TestCommandParser:
         
         for text, expected_state in test_cases:
             result = parser.interpret(text)
-            assert result.is_command
-            assert result.action_id == "TOGGLE_WIFI"
-            assert result.parameters["state"] == expected_state
+            assert result.is_command  # nosec B101
+            assert result.action_id == "TOGGLE_WIFI"  # nosec B101
+            assert result.parameters["state"] == expected_state  # nosec B101
     
     def test_bluetooth_toggle_command(self, parser: CommandParser):
         """Test Bluetooth toggle command."""
         result = parser.interpret("turn on bluetooth")
-        assert result.is_command
-        assert result.action_id == "TOGGLE_BLUETOOTH"
-        assert result.parameters["state"] == "on"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "TOGGLE_BLUETOOTH"  # nosec B101
+        assert result.parameters["state"] == "on"  # nosec B101
     
     # ========================================================================
     # MOUSE/KEYBOARD COMMANDS
@@ -298,18 +298,18 @@ class TestCommandParser:
         """Test mouse click commands."""
         # Left click
         result = parser.interpret("click")
-        assert result.is_command
-        assert result.action_id == "CLICK"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "CLICK"  # nosec B101
         
         # Right click
         result = parser.interpret("right click")
-        assert result.is_command
-        assert result.action_id == "RIGHT_CLICK"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "RIGHT_CLICK"  # nosec B101
         
         # Double click
         result = parser.interpret("double click")
-        assert result.is_command
-        assert result.action_id == "DOUBLE_CLICK"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "DOUBLE_CLICK"  # nosec B101
     
     def test_scroll_command(self, parser: CommandParser):
         """Test scroll command."""
@@ -322,11 +322,11 @@ class TestCommandParser:
         
         for text, expected_direction, expected_amount in test_cases:
             result = parser.interpret(text)
-            assert result.is_command
-            assert result.action_id == "SCROLL"
-            assert result.parameters["direction"] == expected_direction
+            assert result.is_command  # nosec B101
+            assert result.action_id == "SCROLL"  # nosec B101
+            assert result.parameters["direction"] == expected_direction  # nosec B101
             if expected_amount:
-                assert result.parameters.get("amount") == expected_amount
+                assert result.parameters.get("amount") == expected_amount  # nosec B101
     
     def test_press_key_command(self, parser: CommandParser):
         """Test keyboard press command."""
@@ -338,9 +338,9 @@ class TestCommandParser:
         
         for text in test_cases:
             result = parser.interpret(text)
-            assert result.is_command
-            assert result.action_id == "PRESS_KEY"
-            assert "key" in result.parameters
+            assert result.is_command  # nosec B101
+            assert result.action_id == "PRESS_KEY"  # nosec B101
+            assert "key" in result.parameters  # nosec B101
     
     # ========================================================================
     # ENTITY EXTRACTION
@@ -349,16 +349,16 @@ class TestCommandParser:
     def test_extract_numbers(self, parser: CommandParser):
         """Test number extraction."""
         result = parser.interpret("set volume to 50")
-        assert result.is_command
+        assert result.is_command  # nosec B101
         # Number should be extracted as parameter
         if "level" in result.parameters:
-            assert isinstance(result.parameters["level"], int)
+            assert isinstance(result.parameters["level"], int)  # nosec B101
     
     def test_extract_percentages(self, parser: CommandParser):
         """Test percentage extraction."""
         result = parser.interpret("set brightness to 75 percent")
-        assert result.is_command
-        assert result.parameters["level"] == 75
+        assert result.is_command  # nosec B101
+        assert result.parameters["level"] == 75  # nosec B101
     
     def test_generic_command_with_entities(self, parser: CommandParser):
         """Test generic command with entity extraction."""
@@ -366,7 +366,7 @@ class TestCommandParser:
         result = parser.interpret("remind me at 3 pm tomorrow")
         # Should extract entities even if no command matches
         if result.is_command:
-            assert result.confidence > 0.0
+            assert result.confidence > 0.0  # nosec B101
     
     # ========================================================================
     # COMMAND CHAINING
@@ -375,28 +375,28 @@ class TestCommandParser:
     def test_command_chaining_with_and(self, parser: CommandParser):
         """Test command chaining with 'and'."""
         result = parser.interpret("open chrome and search for weather")
-        assert result.is_command
-        assert result.action_id == "CHAINED_COMMAND"
-        assert "sub_commands" in result.parameters
-        assert len(result.parameters["sub_commands"]) >= 1
+        assert result.is_command  # nosec B101
+        assert result.action_id == "CHAINED_COMMAND"  # nosec B101
+        assert "sub_commands" in result.parameters  # nosec B101
+        assert len(result.parameters["sub_commands"]) >= 1  # nosec B101
     
     def test_command_chaining_with_then(self, parser: CommandParser):
         """Test command chaining with 'then'."""
         result = parser.interpret("open notepad then type hello world")
-        assert result.is_command
-        assert result.action_id == "CHAINED_COMMAND"
-        assert "sub_commands" in result.parameters
+        assert result.is_command  # nosec B101
+        assert result.action_id == "CHAINED_COMMAND"  # nosec B101
+        assert "sub_commands" in result.parameters  # nosec B101
     
     def test_complex_command_chain(self, parser: CommandParser):
         """Test complex command chain."""
         result = parser.interpret("open chrome and maximize window then search for python")
-        assert result.is_command
-        assert result.action_id == "CHAINED_COMMAND"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "CHAINED_COMMAND"  # nosec B101
         sub_commands = result.parameters["sub_commands"]
-        assert len(sub_commands) >= 2
+        assert len(sub_commands) >= 2  # nosec B101
         
         # Check confidence is averaged
-        assert 0.0 <= result.confidence <= 1.0
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     # ========================================================================
     # CUSTOM COMMAND REGISTRATION
@@ -412,9 +412,9 @@ class TestCommandParser:
         )
         
         result = parser.interpret("hello alice")
-        assert result.is_command
-        assert result.action_id == "GREET"
-        assert result.parameters["name"] == "alice"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "GREET"  # nosec B101
+        assert result.parameters["name"] == "alice"  # nosec B101
     
     def test_custom_command_with_confirmation(self, parser: CommandParser):
         """Test custom command requiring confirmation."""
@@ -427,22 +427,22 @@ class TestCommandParser:
         
         commands = parser.get_registered_commands()
         shutdown_cmd = next(cmd for cmd in commands if cmd["action_id"] == "SHUTDOWN")
-        assert shutdown_cmd["requires_confirmation"] is True
+        assert shutdown_cmd["requires_confirmation"] is True  # nosec B101
     
     def test_get_registered_commands(self, parser: CommandParser):
         """Test getting all registered commands."""
         commands = parser.get_registered_commands()
-        assert isinstance(commands, list)
-        assert len(commands) > 0
+        assert isinstance(commands, list)  # nosec B101
+        assert len(commands) > 0  # nosec B101
         
         # Check structure
         for cmd in commands:
-            assert "action_id" in cmd
-            assert "patterns" in cmd
-            assert "description" in cmd
-            assert "parameters" in cmd
-            assert "requires_confirmation" in cmd
-            assert "language" in cmd
+            assert "action_id" in cmd  # nosec B101
+            assert "patterns" in cmd  # nosec B101
+            assert "description" in cmd  # nosec B101
+            assert "parameters" in cmd  # nosec B101
+            assert "requires_confirmation" in cmd  # nosec B101
+            assert "language" in cmd  # nosec B101
     
     # ========================================================================
     # CONFIDENCE SCORING
@@ -459,20 +459,20 @@ class TestCommandParser:
         
         for text in test_cases:
             result = parser.interpret(text)
-            assert 0.0 <= result.confidence <= 1.0
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_exact_match_high_confidence(self, parser: CommandParser):
         """Test exact matches have high confidence."""
         result = parser.interpret("click")
-        assert result.is_command
-        assert result.confidence >= 0.9  # Exact match should have very high confidence
+        assert result.is_command  # nosec B101
+        assert result.confidence >= 0.9  # Exact match should have very high confidence  # nosec B101
     
     def test_partial_match_lower_confidence(self, parser: CommandParser):
         """Test partial matches have lower confidence."""
         result = parser.interpret("maybe you could open chrome if possible")
         if result.is_command:
             # Partial match should have lower confidence
-            assert result.confidence < 1.0
+            assert result.confidence < 1.0  # nosec B101
     
     # ========================================================================
     # CASE INSENSITIVITY
@@ -489,8 +489,8 @@ class TestCommandParser:
         
         for text in test_cases:
             result = parser.interpret(text)
-            assert result.is_command
-            assert result.action_id == "OPEN_APP"
+            assert result.is_command  # nosec B101
+            assert result.action_id == "OPEN_APP"  # nosec B101
     
     # ========================================================================
     # EDGE CASES
@@ -499,28 +499,28 @@ class TestCommandParser:
     def test_command_with_special_characters(self, parser: CommandParser):
         """Test commands with special characters."""
         result = parser.interpret("type hello@example.com")
-        assert result.is_command
-        assert result.action_id == "TYPE_TEXT"
-        assert "@" in result.parameters["text"]
+        assert result.is_command  # nosec B101
+        assert result.action_id == "TYPE_TEXT"  # nosec B101
+        assert "@" in result.parameters["text"]  # nosec B101
     
     def test_command_with_numbers(self, parser: CommandParser):
         """Test commands with numbers."""
         result = parser.interpret("open app123")
-        assert result.is_command
-        assert result.action_id == "OPEN_APP"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "OPEN_APP"  # nosec B101
     
     def test_very_long_command(self, parser: CommandParser):
         """Test very long command text."""
         long_text = "type " + "a" * 1000
         result = parser.interpret(long_text)
-        assert result.is_command
-        assert result.action_id == "TYPE_TEXT"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "TYPE_TEXT"  # nosec B101
     
     def test_command_with_unicode(self, parser: CommandParser):
         """Test commands with unicode characters."""
         result = parser.interpret("type hello 你好 مرحبا")
-        assert result.is_command
-        assert result.action_id == "TYPE_TEXT"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "TYPE_TEXT"  # nosec B101
     
     def test_ambiguous_command(self, parser: CommandParser):
         """Test handling of ambiguous commands."""
@@ -528,19 +528,19 @@ class TestCommandParser:
         result = parser.interpret("open")
         # Should either not match or have low confidence
         if result.is_command:
-            assert result.confidence < 1.0
+            assert result.confidence < 1.0  # nosec B101
     
     def test_multiple_spaces(self, parser: CommandParser):
         """Test commands with multiple spaces."""
         result = parser.interpret("open    chrome")
-        assert result.is_command
-        assert result.action_id == "OPEN_APP"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "OPEN_APP"  # nosec B101
     
     def test_leading_trailing_spaces(self, parser: CommandParser):
         """Test commands with leading/trailing spaces."""
         result = parser.interpret("   open chrome   ")
-        assert result.is_command
-        assert result.action_id == "OPEN_APP"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "OPEN_APP"  # nosec B101
     
     # ========================================================================
     # RAW TEXT PRESERVATION
@@ -550,7 +550,7 @@ class TestCommandParser:
         """Test that raw text is preserved in result."""
         text = "open chrome"
         result = parser.interpret(text)
-        assert result.raw_text == text.strip().lower()
+        assert result.raw_text == text.strip().lower()  # nosec B101
     
     # ========================================================================
     # MULTI-LANGUAGE SUPPORT
@@ -574,7 +574,7 @@ class TestCommandParser:
         # Should match with French language
         result = parser.interpret("ouvrir chrome", language="fr")
         if result.is_command:
-            assert result.action_id == "OPEN_APP_FR"
+            assert result.action_id == "OPEN_APP_FR"  # nosec B101
     
     # ========================================================================
     # PARAMETER EXTRACTION ACCURACY
@@ -590,10 +590,10 @@ class TestCommandParser:
         
         for text, expected_action, expected_params in test_cases:
             result = parser.interpret(text)
-            assert result.is_command
-            assert result.action_id == expected_action
+            assert result.is_command  # nosec B101
+            assert result.action_id == expected_action  # nosec B101
             for key, value in expected_params.items():
-                assert result.parameters[key] == value
+                assert result.parameters[key] == value  # nosec B101
     
     # ========================================================================
     # STRESS TESTS
@@ -611,13 +611,13 @@ class TestCommandParser:
         
         # Should still work
         result = parser.interpret("open chrome")
-        assert result.is_command
-        assert result.action_id == "OPEN_APP"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "OPEN_APP"  # nosec B101
         
         # Custom commands should work
         result = parser.interpret("custom50")
-        assert result.is_command
-        assert result.action_id == "CUSTOM_50"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "CUSTOM_50"  # nosec B101
     
     def test_rapid_interpretation(self, parser: CommandParser):
         """Test rapid command interpretation."""
@@ -631,7 +631,7 @@ class TestCommandParser:
         
         for cmd in commands * 10:  # 50 interpretations
             result = parser.interpret(cmd)
-            assert result.is_command
+            assert result.is_command  # nosec B101
 
     # ========================================================================
     # REQUIREMENT 6.5: CONVERSATION CONTEXT DISAMBIGUATION
@@ -641,24 +641,24 @@ class TestCommandParser:
         """Test disambiguation using conversation context with pronouns."""
         # First command establishes context
         result1 = parser.interpret("open chrome")
-        assert result1.is_command
+        assert result1.is_command  # nosec B101
         
         # Second command uses pronoun - should resolve to chrome
         # Note: This requires context manager integration
         result2 = parser.interpret("close it")
         # Without context manager, this will just be a generic close command
-        assert result2.is_command
+        assert result2.is_command  # nosec B101
     
     def test_context_disambiguation_references(self, parser: CommandParser):
         """Test disambiguation using references to previous commands."""
         result1 = parser.interpret("search for python tutorial")
-        assert result1.is_command
+        assert result1.is_command  # nosec B101
         
         # Reference to previous search
         result2 = parser.interpret("open the first result")
         # Should recognize this as a command even without full context
         if result2.is_command:
-            assert result2.confidence > 0.0
+            assert result2.confidence > 0.0  # nosec B101
     
     # ========================================================================
     # REQUIREMENT 6.6: MULTIPLE INTENT RANKING
@@ -673,17 +673,17 @@ class TestCommandParser:
         # 1. Not match (low confidence)
         # 2. Match with lower confidence than exact match
         if result.is_command:
-            assert result.confidence < 0.8  # Lower than exact match
+            assert result.confidence < 0.8  # Lower than exact match  # nosec B101
     
     def test_intent_confidence_ordering(self, parser: CommandParser):
         """Test that more specific commands have higher confidence."""
         result1 = parser.interpret("open chrome")
         result2 = parser.interpret("maybe open chrome if possible")
         
-        assert result1.is_command
+        assert result1.is_command  # nosec B101
         if result2.is_command:
             # Exact command should have higher confidence
-            assert result1.confidence > result2.confidence
+            assert result1.confidence > result2.confidence  # nosec B101
     
     # ========================================================================
     # REQUIREMENT 6.7: STRUCTURED ERROR WITH SUGGESTIONS
@@ -694,11 +694,11 @@ class TestCommandParser:
         result = parser.interpret("xyzabc123 invalid nonsense")
         
         # Should not be recognized as command
-        assert not result.is_command
-        assert result.confidence == 0.0
+        assert not result.is_command  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
         
         # Raw text should be preserved for error handling
-        assert result.raw_text is not None
+        assert result.raw_text is not None  # nosec B101
     
     def test_error_with_close_match_suggestion(self, parser: CommandParser):
         """Test that close matches can be identified."""
@@ -708,7 +708,7 @@ class TestCommandParser:
         # May or may not match depending on fuzzy matching
         # But should have low confidence if it does match
         if result.is_command:
-            assert result.confidence < 0.7
+            assert result.confidence < 0.7  # nosec B101
     
     # ========================================================================
     # REQUIREMENT 17.2: COMMUNICATION COMMANDS (ENHANCED)
@@ -729,16 +729,16 @@ class TestCommandParser:
         )
         
         result = parser.interpret("call john smith")
-        assert result.is_command
-        assert result.action_id == "MAKE_CALL"
-        assert "contact" in result.parameters
+        assert result.is_command  # nosec B101
+        assert result.action_id == "MAKE_CALL"  # nosec B101
+        assert "contact" in result.parameters  # nosec B101
     
     def test_read_email_command_enhanced(self, parser: CommandParser):
         """Test reading email with filters."""
         result = parser.interpret("read email")
-        assert result.is_command
-        assert result.action_id == "READ_ITEM"
-        assert result.parameters["item"] == "email"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "READ_ITEM"  # nosec B101
+        assert result.parameters["item"] == "email"  # nosec B101
     
     # ========================================================================
     # REQUIREMENT 17.5: CLARIFICATION FOR AMBIGUOUS COMMANDS
@@ -752,7 +752,7 @@ class TestCommandParser:
         # Should either not match or have low confidence
         if result.is_command:
             # Missing recipient and message content
-            assert result.confidence < 0.8
+            assert result.confidence < 0.8  # nosec B101
     
     def test_incomplete_command_detection(self, parser: CommandParser):
         """Test detection of incomplete commands."""
@@ -760,7 +760,7 @@ class TestCommandParser:
         
         # Missing the volume level
         if result.is_command:
-            assert result.confidence < 0.8
+            assert result.confidence < 0.8  # nosec B101
     
     # ========================================================================
     # REQUIREMENT 17.9: CONFIRMATION REQUIRED COMMANDS
@@ -779,7 +779,7 @@ class TestCommandParser:
         
         commands = parser.get_registered_commands()
         format_cmd = next(cmd for cmd in commands if cmd["action_id"] == "FORMAT_DRIVE")
-        assert format_cmd["requires_confirmation"] is True
+        assert format_cmd["requires_confirmation"] is True  # nosec B101
     
     def test_all_delete_commands_require_confirmation(self, parser: CommandParser):
         """Test that all delete operations require confirmation."""
@@ -788,7 +788,7 @@ class TestCommandParser:
         
         for cmd in delete_commands:
             assert cmd["requires_confirmation"] is True, \
-                f"Delete command {cmd['action_id']} should require confirmation"
+                f"Delete command {cmd['action_id']} should require confirmation"  # nosec B101
     
     # ========================================================================
     # SECURITY TESTS - ZERO COMPROMISE
@@ -809,8 +809,8 @@ class TestCommandParser:
             # Parser should extract parameters as-is
             # EXECUTION layer is responsible for sanitization
             # Test just ensures parser doesn't crash
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_sql_injection_prevention(self, parser: CommandParser):
         """Test prevention of SQL injection attempts."""
@@ -825,7 +825,7 @@ class TestCommandParser:
             # Should parse safely without executing SQL
             if result.is_command:
                 # Parameters should be treated as literal strings
-                assert result.confidence > 0.0
+                assert result.confidence > 0.0  # nosec B101
     
     def test_path_traversal_prevention(self, parser: CommandParser):
         """Test prevention of path traversal attacks."""
@@ -839,7 +839,7 @@ class TestCommandParser:
             result = parser.interpret(path_trav)
             # Should parse but parameters should be validated by execution layer
             if result.is_command:
-                assert result.confidence > 0.0
+                assert result.confidence > 0.0  # nosec B101
     
     def test_buffer_overflow_prevention(self, parser: CommandParser):
         """Test handling of extremely long inputs."""
@@ -849,7 +849,7 @@ class TestCommandParser:
         try:
             result = parser.interpret(huge_input)
             # Should handle gracefully without crashing
-            assert result is not None
+            assert result is not None  # nosec B101
         except MemoryError as e:
             # Acceptable to raise MemoryError for huge inputs
             pass
@@ -865,7 +865,7 @@ class TestCommandParser:
         for null_input in null_byte_inputs:
             result = parser.interpret(null_input)
             # Should handle gracefully
-            assert result is not None
+            assert result is not None  # nosec B101
     
     def test_unicode_normalization_attacks(self, parser: CommandParser):
         """Test handling of unicode normalization attacks."""
@@ -878,7 +878,7 @@ class TestCommandParser:
         for unicode_attack in unicode_attacks:
             result = parser.interpret(unicode_attack)
             # Should handle unicode gracefully
-            assert result is not None
+            assert result is not None  # nosec B101
     
     # ========================================================================
     # CHAOS TESTS - ZERO COMPROMISE
@@ -889,14 +889,14 @@ class TestCommandParser:
         import random
         
         for _ in range(10):
-            random_bytes = bytes([random.randint(0, 255) for _ in range(100)])
+            random_bytes = bytes([random.randint(0, 255) for _ in range(100)])  # nosec B311
             try:
                 random_text = random_bytes.decode('utf-8', errors='ignore')
                 result = parser.interpret(random_text)
-                assert result is not None
+                assert result is not None  # nosec B101
             except Exception as e:
                 # Should not crash with unhandled exceptions
-                assert False, f"Crashed on random bytes: {e}"
+                assert False, f"Crashed on random bytes: {e}"  # nosec B101
     
     def test_corrupted_input_handling(self, parser: CommandParser):
         """Test handling of corrupted/malformed input."""
@@ -912,8 +912,8 @@ class TestCommandParser:
         
         for corrupted in corrupted_inputs:
             result = parser.interpret(corrupted)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_mixed_encoding_handling(self, parser: CommandParser):
         """Test handling of mixed character encodings."""
@@ -927,7 +927,7 @@ class TestCommandParser:
         
         for mixed in mixed_encodings:
             result = parser.interpret(mixed)
-            assert result is not None
+            assert result is not None  # nosec B101
     
     # ========================================================================
     # STRESS TESTS - ZERO COMPROMISE
@@ -945,8 +945,8 @@ class TestCommandParser:
         
         # Should still work efficiently
         result = parser.interpret("open chrome")
-        assert result.is_command
-        assert result.action_id == "OPEN_APP"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "OPEN_APP"  # nosec B101
     
     def test_rapid_fire_interpretation(self, parser: CommandParser):
         """Test rapid interpretation of many commands."""
@@ -960,8 +960,8 @@ class TestCommandParser:
         
         for cmd in commands:
             result = parser.interpret(cmd)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_memory_leak_detection(self, parser: CommandParser):
         """Test for memory leaks during repeated interpretation."""
@@ -983,7 +983,7 @@ class TestCommandParser:
         # Object count should not grow significantly
         # Allow 10% growth for caching and internal structures
         assert final_objects < initial_objects * 1.1, \
-            f"Potential memory leak: {initial_objects} -> {final_objects} objects"
+            f"Potential memory leak: {initial_objects} -> {final_objects} objects"  # nosec B101
     
     # ========================================================================
     # EDGE CASES - ZERO COMPROMISE
@@ -995,32 +995,32 @@ class TestCommandParser:
         chain = " and ".join(["open chrome"] * 100)
         result = parser.interpret(chain)
         
-        assert result.is_command
-        assert result.action_id == "CHAINED_COMMAND"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "CHAINED_COMMAND"  # nosec B101
     
     def test_command_with_all_special_characters(self, parser: CommandParser):
         """Test command with every special character."""
         special_chars = "!@#$%^&*()_+-=[]{}|;':\",./<>?`~"
         result = parser.interpret(f"type {special_chars}")
         
-        assert result.is_command
-        assert result.action_id == "TYPE_TEXT"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "TYPE_TEXT"  # nosec B101
     
     def test_command_with_emoji(self, parser: CommandParser):
         """Test command with emoji characters."""
         emoji_text = "type hello 😀😃😄😁🎉🎊🎈"
         result = parser.interpret(emoji_text)
         
-        assert result.is_command
-        assert result.action_id == "TYPE_TEXT"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "TYPE_TEXT"  # nosec B101
     
     def test_command_with_rtl_text(self, parser: CommandParser):
         """Test command with right-to-left text."""
         rtl_text = "type مرحبا بك في العالم"
         result = parser.interpret(rtl_text)
         
-        assert result.is_command
-        assert result.action_id == "TYPE_TEXT"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "TYPE_TEXT"  # nosec B101
     
     def test_command_with_zero_width_characters(self, parser: CommandParser):
         """Test command with zero-width characters."""
@@ -1029,26 +1029,26 @@ class TestCommandParser:
         result = parser.interpret(zwc_text)
         
         # Should handle gracefully
-        assert result is not None
+        assert result is not None  # nosec B101
     
     def test_command_with_combining_characters(self, parser: CommandParser):
         """Test command with combining diacritical marks."""
         combining_text = "type café"  # e with combining acute accent
         result = parser.interpret(combining_text)
         
-        assert result.is_command
-        assert result.action_id == "TYPE_TEXT"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "TYPE_TEXT"  # nosec B101
     
     def test_parameter_extraction_with_quotes(self, parser: CommandParser):
         """Test parameter extraction with quoted strings."""
         result = parser.interpret('type "hello world"')
         
-        assert result.is_command
-        assert result.action_id == "TYPE_TEXT"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "TYPE_TEXT"  # nosec B101
     
     def test_parameter_extraction_with_escaped_characters(self, parser: CommandParser):
         """Test parameter extraction with escaped characters."""
         result = parser.interpret(r"type hello\nworld\ttab")
         
-        assert result.is_command
-        assert result.action_id == "TYPE_TEXT"
+        assert result.is_command  # nosec B101
+        assert result.action_id == "TYPE_TEXT"  # nosec B101

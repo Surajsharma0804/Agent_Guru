@@ -27,13 +27,13 @@ class TestTaskStep:
             estimated_duration=2.0,
         )
 
-        assert step.step_id == 1
-        assert step.description == "Test step"
-        assert step.tool_id == "test_tool"
-        assert step.parameters == {"param1": "value1"}
-        assert step.estimated_duration == 2.0
-        assert step.status == TaskStatus.PENDING
-        assert step.depends_on == []
+        assert step.step_id == 1  # nosec B101
+        assert step.description == "Test step"  # nosec B101
+        assert step.tool_id == "test_tool"  # nosec B101
+        assert step.parameters == {"param1": "value1"}  # nosec B101
+        assert step.estimated_duration == 2.0  # nosec B101
+        assert step.status == TaskStatus.PENDING  # nosec B101
+        assert step.depends_on == []  # nosec B101
 
     def test_step_with_dependencies(self):
         """Test TaskStep with dependencies."""
@@ -45,14 +45,14 @@ class TestTaskStep:
             depends_on=[1],
         )
 
-        assert step.depends_on == [1]
+        assert step.depends_on == [1]  # nosec B101
 
     def test_invalid_step_id(self):
         """Test that step_id must be >= 1."""
         with pytest.raises(ValidationError) as exc_info:
             TaskStep(step_id=0, description="Test", tool_id="test_tool", parameters={})
 
-        assert "step_id" in str(exc_info.value).lower()
+        assert "step_id" in str(exc_info.value).lower()  # nosec B101
 
     def test_invalid_dependency(self):
         """Test that dependencies must reference earlier steps."""
@@ -65,7 +65,7 @@ class TestTaskStep:
                 depends_on=[2],  # Cannot depend on itself
             )
 
-        assert "depend" in str(exc_info.value).lower()
+        assert "depend" in str(exc_info.value).lower()  # nosec B101
 
     def test_invalid_duration(self):
         """Test duration validation."""
@@ -122,12 +122,12 @@ class TestTask:
             estimated_duration=1.0,
         )
 
-        assert task.goal == "Set a timer"
-        assert task.task_type == TaskType.SINGLE_STEP
-        assert len(task.steps) == 1
-        assert task.confidence == 0.95
-        assert task.status == TaskStatus.PENDING
-        assert task.retry_count == 0
+        assert task.goal == "Set a timer"  # nosec B101
+        assert task.task_type == TaskType.SINGLE_STEP  # nosec B101
+        assert len(task.steps) == 1  # nosec B101
+        assert task.confidence == 0.95  # nosec B101
+        assert task.status == TaskStatus.PENDING  # nosec B101
+        assert task.retry_count == 0  # nosec B101
 
     def test_valid_multi_step_task(self):
         """Test creating a valid multi-step task."""
@@ -155,8 +155,8 @@ class TestTask:
             estimated_duration=3.0,
         )
 
-        assert task.task_type == TaskType.MULTI_STEP
-        assert len(task.steps) == 2
+        assert task.task_type == TaskType.MULTI_STEP  # nosec B101
+        assert len(task.steps) == 2  # nosec B101
 
     def test_invalid_single_step_with_multiple_steps(self):
         """Test that single_step task must have exactly 1 step."""
@@ -172,7 +172,7 @@ class TestTask:
                 estimated_duration=2.0,
             )
 
-        assert "single_step" in str(exc_info.value).lower()
+        assert "single_step" in str(exc_info.value).lower()  # nosec B101
 
     def test_invalid_multi_step_with_one_step(self):
         """Test that multi_step task must have 2-5 steps."""
@@ -185,7 +185,7 @@ class TestTask:
                 estimated_duration=1.0,
             )
 
-        assert "multi_step" in str(exc_info.value).lower()
+        assert "multi_step" in str(exc_info.value).lower()  # nosec B101
 
     def test_too_many_steps(self):
         """Test that task cannot have more than 5 steps."""
@@ -217,7 +217,7 @@ class TestTask:
                 estimated_duration=2.0,
             )
 
-        assert "sequential" in str(exc_info.value).lower()
+        assert "sequential" in str(exc_info.value).lower()  # nosec B101
 
     def test_circular_dependency(self):
         """Test that circular dependencies are detected."""
@@ -286,7 +286,7 @@ class TestTask:
                 estimated_duration=10.0,  # Should be ~5.0
             )
 
-        assert "duration" in str(exc_info.value).lower()
+        assert "duration" in str(exc_info.value).lower()  # nosec B101
 
     def test_increment_retry(self):
         """Test retry count increment."""
@@ -298,13 +298,13 @@ class TestTask:
             estimated_duration=1.0,
         )
 
-        assert task.retry_count == 0
+        assert task.retry_count == 0  # nosec B101
         task.increment_retry()
-        assert task.retry_count == 1
+        assert task.retry_count == 1  # nosec B101
         task.increment_retry()
-        assert task.retry_count == 2
+        assert task.retry_count == 2  # nosec B101
         task.increment_retry()
-        assert task.retry_count == 3
+        assert task.retry_count == 3  # nosec B101
 
         # Cannot exceed 3
         with pytest.raises(ValueError):
@@ -320,13 +320,13 @@ class TestTask:
             estimated_duration=1.0,
         )
 
-        assert task.status == TaskStatus.PENDING
-        assert task.started_at is None
+        assert task.status == TaskStatus.PENDING  # nosec B101
+        assert task.started_at is None  # nosec B101
 
         task.mark_started()
 
-        assert task.status == TaskStatus.RUNNING
-        assert task.started_at is not None
+        assert task.status == TaskStatus.RUNNING  # nosec B101
+        assert task.started_at is not None  # nosec B101
 
     def test_mark_completed(self):
         """Test marking task as completed."""
@@ -340,8 +340,8 @@ class TestTask:
 
         task.mark_completed()
 
-        assert task.status == TaskStatus.COMPLETED
-        assert task.completed_at is not None
+        assert task.status == TaskStatus.COMPLETED  # nosec B101
+        assert task.completed_at is not None  # nosec B101
 
     def test_mark_failed(self):
         """Test marking task as failed."""
@@ -355,9 +355,9 @@ class TestTask:
 
         task.mark_failed("Test error")
 
-        assert task.status == TaskStatus.FAILED
-        assert task.error == "Test error"
-        assert task.completed_at is not None
+        assert task.status == TaskStatus.FAILED  # nosec B101
+        assert task.error == "Test error"  # nosec B101
+        assert task.completed_at is not None  # nosec B101
 
     def test_mark_cancelled(self):
         """Test marking task as cancelled."""
@@ -371,8 +371,8 @@ class TestTask:
 
         task.mark_cancelled()
 
-        assert task.status == TaskStatus.CANCELLED
-        assert task.completed_at is not None
+        assert task.status == TaskStatus.CANCELLED  # nosec B101
+        assert task.completed_at is not None  # nosec B101
 
     def test_can_retry(self):
         """Test retry eligibility check."""
@@ -385,15 +385,15 @@ class TestTask:
         )
 
         # Pending task cannot retry
-        assert not task.can_retry()
+        assert not task.can_retry()  # nosec B101
 
         # Failed task can retry
         task.mark_failed("Error")
-        assert task.can_retry()
+        assert task.can_retry()  # nosec B101
 
         # After 3 retries, cannot retry
         task.retry_count = 3
-        assert not task.can_retry()
+        assert not task.can_retry()  # nosec B101
 
     def test_is_complete(self):
         """Test completion check."""
@@ -406,15 +406,15 @@ class TestTask:
         )
 
         # Pending is not complete
-        assert not task.is_complete()
+        assert not task.is_complete()  # nosec B101
 
         # Running is not complete
         task.mark_started()
-        assert not task.is_complete()
+        assert not task.is_complete()  # nosec B101
 
         # Completed is complete
         task.mark_completed()
-        assert task.is_complete()
+        assert task.is_complete()  # nosec B101
 
     def test_get_next_pending_step(self):
         """Test getting next pending step."""
@@ -444,23 +444,23 @@ class TestTask:
 
         # First step is next
         next_step = task.get_next_pending_step()
-        assert next_step is not None
-        assert next_step.step_id == 1
+        assert next_step is not None  # nosec B101
+        assert next_step.step_id == 1  # nosec B101
 
         # Mark first step as completed
         task.steps[0].status = TaskStatus.COMPLETED
 
         # Second step is next
         next_step = task.get_next_pending_step()
-        assert next_step is not None
-        assert next_step.step_id == 2
+        assert next_step is not None  # nosec B101
+        assert next_step.step_id == 2  # nosec B101
 
         # Mark second step as completed
         task.steps[1].status = TaskStatus.COMPLETED
 
         # No more pending steps
         next_step = task.get_next_pending_step()
-        assert next_step is None
+        assert next_step is None  # nosec B101
 
     def test_get_completed_steps(self):
         """Test getting completed steps."""
@@ -488,15 +488,15 @@ class TestTask:
         )
 
         # No completed steps initially
-        assert len(task.get_completed_steps()) == 0
+        assert len(task.get_completed_steps()) == 0  # nosec B101
 
         # Mark first step as completed
         task.steps[0].status = TaskStatus.COMPLETED
-        assert len(task.get_completed_steps()) == 1
+        assert len(task.get_completed_steps()) == 1  # nosec B101
 
         # Mark second step as completed
         task.steps[1].status = TaskStatus.COMPLETED
-        assert len(task.get_completed_steps()) == 2
+        assert len(task.get_completed_steps()) == 2  # nosec B101
 
     def test_get_failed_steps(self):
         """Test getting failed steps."""
@@ -524,11 +524,11 @@ class TestTask:
         )
 
         # No failed steps initially
-        assert len(task.get_failed_steps()) == 0
+        assert len(task.get_failed_steps()) == 0  # nosec B101
 
         # Mark first step as failed
         task.steps[0].status = TaskStatus.FAILED
-        assert len(task.get_failed_steps()) == 1
+        assert len(task.get_failed_steps()) == 1  # nosec B101
 
     def test_calculate_progress(self):
         """Test progress calculation."""
@@ -556,15 +556,15 @@ class TestTask:
         )
 
         # 0% progress initially
-        assert task.calculate_progress() == 0.0
+        assert task.calculate_progress() == 0.0  # nosec B101
 
         # 50% after first step
         task.steps[0].status = TaskStatus.COMPLETED
-        assert task.calculate_progress() == 0.5
+        assert task.calculate_progress() == 0.5  # nosec B101
 
         # 100% after both steps
         task.steps[1].status = TaskStatus.COMPLETED
-        assert task.calculate_progress() == 1.0
+        assert task.calculate_progress() == 1.0  # nosec B101
 
     def test_json_serialization(self):
         """Test JSON serialization."""
@@ -578,10 +578,10 @@ class TestTask:
 
         # Should be able to serialize to JSON
         json_str = task.model_dump_json()
-        assert isinstance(json_str, str)
-        assert "Test" in json_str
+        assert isinstance(json_str, str)  # nosec B101
+        assert "Test" in json_str  # nosec B101
 
         # Should be able to deserialize from JSON
         task2 = Task.model_validate_json(json_str)
-        assert task2.goal == task.goal
-        assert task2.task_type == task.task_type
+        assert task2.goal == task.goal  # nosec B101
+        assert task2.task_type == task.task_type  # nosec B101

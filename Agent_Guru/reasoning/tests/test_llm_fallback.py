@@ -36,13 +36,13 @@ class TestLLMFallbackConfig:
         """Test default configuration values."""
         config = LLMFallbackConfig()
 
-        assert config.provider == "ollama"
-        assert config.model == "gemma3:4b"
-        assert config.api_key is None
-        assert config.timeout_ms == 1000.0
-        assert config.max_retries == 3
-        assert config.temperature == 0.0
-        assert config.max_tokens == 512
+        assert config.provider == "ollama"  # nosec B101
+        assert config.model == "gemma3:4b"  # nosec B101
+        assert config.api_key is None  # nosec B101
+        assert config.timeout_ms == 1000.0  # nosec B101
+        assert config.max_retries == 3  # nosec B101
+        assert config.temperature == 0.0  # nosec B101
+        assert config.max_tokens == 512  # nosec B101
 
     def test_custom_config(self):
         """Test custom configuration values."""
@@ -56,13 +56,13 @@ class TestLLMFallbackConfig:
             max_tokens=1024,
         )
 
-        assert config.provider == "anthropic"
-        assert config.model == "claude-3-5-sonnet-20241022"
-        assert config.api_key == "test-key"
-        assert config.timeout_ms == 500.0
-        assert config.max_retries == 5
-        assert config.temperature == 0.5
-        assert config.max_tokens == 1024
+        assert config.provider == "anthropic"  # nosec B101
+        assert config.model == "claude-3-5-sonnet-20241022"  # nosec B101
+        assert config.api_key == "test-key"  # nosec B101
+        assert config.timeout_ms == 500.0  # nosec B101
+        assert config.max_retries == 5  # nosec B101
+        assert config.temperature == 0.5  # nosec B101
+        assert config.max_tokens == 1024  # nosec B101
 
 
 class TestLLMIntentResponse:
@@ -77,10 +77,10 @@ class TestLLMIntentResponse:
             reasoning="Clear timer intent",
         )
 
-        assert response.intent_type == "set_timer"
-        assert response.confidence == 0.95
-        assert "duration" in response.entities
-        assert response.reasoning == "Clear timer intent"
+        assert response.intent_type == "set_timer"  # nosec B101
+        assert response.confidence == 0.95  # nosec B101
+        assert "duration" in response.entities  # nosec B101
+        assert response.reasoning == "Clear timer intent"  # nosec B101
 
     def test_confidence_validation(self):
         """Test confidence score validation."""
@@ -88,7 +88,7 @@ class TestLLMIntentResponse:
         response = LLMIntentResponse(
             intent_type="set_timer", confidence=0.5, entities={}, reasoning=""
         )
-        assert response.confidence == 0.5
+        assert response.confidence == 0.5  # nosec B101
 
         # Invalid confidence (too low)
         with pytest.raises(ValidationError):
@@ -102,8 +102,8 @@ class TestLLMIntentResponse:
         """Test default values for optional fields."""
         response = LLMIntentResponse(intent_type="set_timer", confidence=0.95, reasoning="test")
 
-        assert response.entities == {}
-        assert response.reasoning == "test"
+        assert response.entities == {}  # nosec B101
+        assert response.reasoning == "test"  # nosec B101
 
 
 class TestLLMFallbackClassifierInit:
@@ -118,8 +118,8 @@ class TestLLMFallbackClassifierInit:
 
         classifier = LLMFallbackClassifier(config)
 
-        assert classifier.config.provider == "openai"
-        assert classifier.client is not None
+        assert classifier.config.provider == "openai"  # nosec B101
+        assert classifier.client is not None  # nosec B101
         mock_openai.OpenAI.assert_called_once_with(api_key="test-key")
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.ANTHROPIC_AVAILABLE", True)
@@ -131,8 +131,8 @@ class TestLLMFallbackClassifierInit:
 
         classifier = LLMFallbackClassifier(config)
 
-        assert classifier.config.provider == "anthropic"
-        assert classifier.client is not None
+        assert classifier.config.provider == "anthropic"  # nosec B101
+        assert classifier.client is not None  # nosec B101
         mock_anthropic.Anthropic.assert_called_once_with(api_key="test-key")
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", False)
@@ -169,12 +169,12 @@ class TestLLMFallbackClassifierInit:
 
         classifier = LLMFallbackClassifier()
 
-        assert classifier.config.provider == "ollama"
-        assert classifier.total_inferences == 0
-        assert classifier.total_latency_ms == 0.0
-        assert classifier.successful_inferences == 0
-        assert classifier.failed_inferences == 0
-        assert classifier.total_retries == 0
+        assert classifier.config.provider == "ollama"  # nosec B101
+        assert classifier.total_inferences == 0  # nosec B101
+        assert classifier.total_latency_ms == 0.0  # nosec B101
+        assert classifier.successful_inferences == 0  # nosec B101
+        assert classifier.failed_inferences == 0  # nosec B101
+        assert classifier.total_retries == 0  # nosec B101
 
 
 # ============================================================================
@@ -209,10 +209,10 @@ class TestResponseParsing:
 
         result = classifier._parse_response(response_text)
 
-        assert result.intent_type == "set_timer"
-        assert result.confidence == 0.95
-        assert "duration" in result.entities
-        assert result.reasoning == "Clear timer intent"
+        assert result.intent_type == "set_timer"  # nosec B101
+        assert result.confidence == 0.95  # nosec B101
+        assert "duration" in result.entities  # nosec B101
+        assert result.reasoning == "Clear timer intent"  # nosec B101
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.openai")
@@ -254,12 +254,12 @@ class TestResponseParsing:
 
         result = classifier._parse_entities(entities_dict)
 
-        assert "duration" in result
-        assert isinstance(result["duration"], Entity)
-        assert result["duration"].entity_type == "duration"
-        assert result["duration"].value == 300
-        assert result["duration"].raw_text == "5 minutes"
-        assert result["duration"].confidence == 0.95
+        assert "duration" in result  # nosec B101
+        assert isinstance(result["duration"], Entity)  # nosec B101
+        assert result["duration"].entity_type == "duration"  # nosec B101
+        assert result["duration"].value == 300  # nosec B101
+        assert result["duration"].raw_text == "5 minutes"  # nosec B101
+        assert result["duration"].confidence == 0.95  # nosec B101
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.openai")
@@ -272,12 +272,12 @@ class TestResponseParsing:
 
         result = classifier._parse_entities(entities_dict)
 
-        assert "duration" in result
-        assert isinstance(result["duration"], Entity)
-        assert result["duration"].entity_type == "unknown"
-        assert result["duration"].value == 300
-        assert result["duration"].raw_text == "300"
-        assert result["duration"].confidence == 1.0
+        assert "duration" in result  # nosec B101
+        assert isinstance(result["duration"], Entity)  # nosec B101
+        assert result["duration"].entity_type == "unknown"  # nosec B101
+        assert result["duration"].value == 300  # nosec B101
+        assert result["duration"].raw_text == "300"  # nosec B101
+        assert result["duration"].confidence == 1.0  # nosec B101
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.openai")
@@ -288,7 +288,7 @@ class TestResponseParsing:
 
         result = classifier._parse_entities({})
 
-        assert result == {}
+        assert result == {}  # nosec B101
 
 
 # ============================================================================
@@ -310,13 +310,13 @@ class TestUnknownResultCreation:
             text="test input", inference_time_ms=100.0, retries=2
         )
 
-        assert result.intent_type == "unknown"
-        assert result.confidence == 0.0
-        assert result.entities == {}
-        assert result.reasoning == "Classification failed"
-        assert result.inference_time_ms == 100.0
-        assert result.retries == 2
-        assert result.provider == "ollama"
+        assert result.intent_type == "unknown"  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
+        assert result.entities == {}  # nosec B101
+        assert result.reasoning == "Classification failed"  # nosec B101
+        assert result.inference_time_ms == 100.0  # nosec B101
+        assert result.retries == 2  # nosec B101
+        assert result.provider == "ollama"  # nosec B101
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.openai")
@@ -332,12 +332,12 @@ class TestUnknownResultCreation:
             error="API timeout",
         )
 
-        assert result.intent_type == "unknown"
-        assert result.confidence == 0.0
-        assert result.entities == {}
-        assert "Classification failed: API timeout" in result.reasoning
-        assert result.inference_time_ms == 100.0
-        assert result.retries == 2
+        assert result.intent_type == "unknown"  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
+        assert result.entities == {}  # nosec B101
+        assert "Classification failed: API timeout" in result.reasoning  # nosec B101
+        assert result.inference_time_ms == 100.0  # nosec B101
+        assert result.retries == 2  # nosec B101
 
 
 # ============================================================================
@@ -357,10 +357,10 @@ class TestMetrics:
 
         metrics = classifier.get_metrics()
 
-        assert metrics["total_inferences"] == 0
-        assert metrics["average_latency_ms"] == 0.0
-        assert metrics["success_rate"] == 0.0
-        assert metrics["average_retries"] == 0.0
+        assert metrics["total_inferences"] == 0  # nosec B101
+        assert metrics["average_latency_ms"] == 0.0  # nosec B101
+        assert metrics["success_rate"] == 0.0  # nosec B101
+        assert metrics["average_retries"] == 0.0  # nosec B101
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.openai")
@@ -371,11 +371,11 @@ class TestMetrics:
 
         classifier._update_metrics(100.0, 1, success=True)
 
-        assert classifier.total_inferences == 1
-        assert classifier.total_latency_ms == 100.0
-        assert classifier.successful_inferences == 1
-        assert classifier.failed_inferences == 0
-        assert classifier.total_retries == 1
+        assert classifier.total_inferences == 1  # nosec B101
+        assert classifier.total_latency_ms == 100.0  # nosec B101
+        assert classifier.successful_inferences == 1  # nosec B101
+        assert classifier.failed_inferences == 0  # nosec B101
+        assert classifier.total_retries == 1  # nosec B101
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.openai")
@@ -386,11 +386,11 @@ class TestMetrics:
 
         classifier._update_metrics(200.0, 3, success=False)
 
-        assert classifier.total_inferences == 1
-        assert classifier.total_latency_ms == 200.0
-        assert classifier.successful_inferences == 0
-        assert classifier.failed_inferences == 1
-        assert classifier.total_retries == 3
+        assert classifier.total_inferences == 1  # nosec B101
+        assert classifier.total_latency_ms == 200.0  # nosec B101
+        assert classifier.successful_inferences == 0  # nosec B101
+        assert classifier.failed_inferences == 1  # nosec B101
+        assert classifier.total_retries == 3  # nosec B101
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.openai")
@@ -405,11 +405,11 @@ class TestMetrics:
 
         metrics = classifier.get_metrics()
 
-        assert metrics["total_inferences"] == 3
-        assert metrics["average_latency_ms"] == 200.0  # (100+200+300)/3
-        assert metrics["success_rate"] == 2 / 3  # 2 successes out of 3
-        assert metrics["average_retries"] == 1.0  # (0+1+2)/3
-        assert metrics["failed_inferences"] == 1
+        assert metrics["total_inferences"] == 3  # nosec B101
+        assert metrics["average_latency_ms"] == 200.0  # (100+200+300)/3  # nosec B101
+        assert metrics["success_rate"] == 2 / 3  # 2 successes out of 3  # nosec B101
+        assert metrics["average_retries"] == 1.0  # (0+1+2)/3  # nosec B101
+        assert metrics["failed_inferences"] == 1  # nosec B101
 
 
 # ============================================================================
@@ -461,11 +461,11 @@ class TestAsyncClassification:
 
         result = await classifier.classify_async("set timer for 5 minutes")
 
-        assert result.intent_type == "set_timer"
-        assert result.confidence == 0.95
-        assert "duration" in result.entities
-        assert result.retries == 0
-        assert result.provider == "ollama"
+        assert result.intent_type == "set_timer"  # nosec B101
+        assert result.confidence == 0.95  # nosec B101
+        assert "duration" in result.entities  # nosec B101
+        assert result.retries == 0  # nosec B101
+        assert result.provider == "ollama"  # nosec B101
 
     @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
@@ -487,9 +487,9 @@ class TestAsyncClassification:
 
         result = await classifier.classify_async("test input")
 
-        assert result.intent_type == "unknown"
-        assert result.confidence == 0.0
-        assert result.retries == 1  # One retry attempted
+        assert result.intent_type == "unknown"  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
+        assert result.retries == 1  # One retry attempted  # nosec B101
 
     @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
@@ -519,10 +519,10 @@ class TestAsyncClassification:
 
         result = await classifier.classify_async("test input")
 
-        assert result.intent_type == "set_timer"
-        assert result.confidence == 0.95
-        assert result.retries == 1  # One retry needed
-        assert call_count == 2  # Called twice (initial + 1 retry)
+        assert result.intent_type == "set_timer"  # nosec B101
+        assert result.confidence == 0.95  # nosec B101
+        assert result.retries == 1  # One retry needed  # nosec B101
+        assert call_count == 2  # Called twice (initial + 1 retry)  # nosec B101
 
     @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
@@ -538,10 +538,10 @@ class TestAsyncClassification:
 
         result = await classifier.classify_async("test input")
 
-        assert result.intent_type == "unknown"
-        assert result.confidence == 0.0
-        assert result.retries == 2  # All retries attempted
-        assert "API error" in result.reasoning
+        assert result.intent_type == "unknown"  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
+        assert result.retries == 2  # All retries attempted  # nosec B101
+        assert "API error" in result.reasoning  # nosec B101
 
     @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
@@ -563,16 +563,16 @@ class TestAsyncClassification:
         context = {"last_intent": "query_time", "entities": {"time": "3pm"}}
         result = await classifier.classify_async("remind me then", context=context)
 
-        assert result.intent_type == "set_reminder"
-        assert result.confidence == 0.92
+        assert result.intent_type == "set_reminder"  # nosec B101
+        assert result.confidence == 0.92  # nosec B101
         # Verify context was passed to LLM call
         classifier._call_llm_async.assert_called_once()
         call_args = classifier._call_llm_async.call_args
         # Check positional or keyword args
         if len(call_args[0]) > 1:
-            assert call_args[0][1] == context
+            assert call_args[0][1] == context  # nosec B101
         else:
-            assert call_args[1].get("context") == context
+            assert call_args[1].get("context") == context  # nosec B101
 
 
 # ============================================================================
@@ -598,10 +598,10 @@ class TestPropertyBased:
         entities_dict = {"test": {"entity_type": "test", "value": text}}
         result = classifier._parse_entities(entities_dict)
 
-        assert isinstance(result, dict)
+        assert isinstance(result, dict)  # nosec B101
         if entities_dict:
-            assert "test" in result
-            assert isinstance(result["test"], Entity)
+            assert "test" in result  # nosec B101
+            assert isinstance(result["test"], Entity)  # nosec B101
 
     @given(
         inference_time=st.floats(min_value=0.0, max_value=10000.0),
@@ -619,11 +619,11 @@ class TestPropertyBased:
             text="test", inference_time_ms=inference_time, retries=retries
         )
 
-        assert result.intent_type == "unknown"
-        assert result.confidence == 0.0
-        assert isinstance(result.entities, dict)
-        assert result.inference_time_ms == inference_time
-        assert result.retries == retries
+        assert result.intent_type == "unknown"  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
+        assert isinstance(result.entities, dict)  # nosec B101
+        assert result.inference_time_ms == inference_time  # nosec B101
+        assert result.retries == retries  # nosec B101
 
 
 # ============================================================================
@@ -653,7 +653,7 @@ class TestPerformance:
         result = await classifier.classify_async("set timer for 5 minutes")
 
         # Verify latency is reasonable (mocked, so should be very fast)
-        assert result.inference_time_ms < 1000.0  # Generous for mocked call
+        assert result.inference_time_ms < 1000.0  # Generous for mocked call  # nosec B101
 
 
 # ============================================================================
@@ -689,8 +689,8 @@ class TestLLMAPICalls:
 
         result = await classifier._call_openai("test prompt")
 
-        assert isinstance(result, str)
-        assert "intent_type" in result
+        assert isinstance(result, str)  # nosec B101
+        assert "intent_type" in result  # nosec B101
         mock_client.chat.completions.create.assert_called_once()
 
     @pytest.mark.asyncio
@@ -719,8 +719,8 @@ class TestLLMAPICalls:
 
         result = await classifier._call_anthropic("test prompt")
 
-        assert isinstance(result, str)
-        assert "intent_type" in result
+        assert isinstance(result, str)  # nosec B101
+        assert "intent_type" in result  # nosec B101
         mock_client.messages.create.assert_called_once()
 
     @pytest.mark.asyncio
@@ -746,8 +746,8 @@ class TestLLMAPICalls:
 
         result = await classifier._call_llm_async("test input")
 
-        assert result.intent_type == "set_timer"
-        assert result.confidence == 0.95
+        assert result.intent_type == "set_timer"  # nosec B101
+        assert result.confidence == 0.95  # nosec B101
         classifier._call_openai.assert_called_once()
 
     @pytest.mark.asyncio
@@ -773,8 +773,8 @@ class TestLLMAPICalls:
 
         result = await classifier._call_llm_async("test input")
 
-        assert result.intent_type == "set_timer"
-        assert result.confidence == 0.95
+        assert result.intent_type == "set_timer"  # nosec B101
+        assert result.confidence == 0.95  # nosec B101
         classifier._call_anthropic.assert_called_once()
 
     @pytest.mark.asyncio
@@ -806,9 +806,9 @@ class TestLLMAPICalls:
         context = {"last_intent": "query_time"}
         await classifier._call_llm_async("test input", context=context)
 
-        assert captured_prompt is not None
-        assert "Context:" in captured_prompt
-        assert "last_intent" in captured_prompt
+        assert captured_prompt is not None  # nosec B101
+        assert "Context:" in captured_prompt  # nosec B101
+        assert "last_intent" in captured_prompt  # nosec B101
 
     @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
@@ -837,8 +837,8 @@ class TestImportErrors:
         # We verify the flag exists
         from Agent_Guru.reasoning.intent import llm_fallback
 
-        assert hasattr(llm_fallback, "OPENAI_AVAILABLE")
-        assert isinstance(llm_fallback.OPENAI_AVAILABLE, bool)
+        assert hasattr(llm_fallback, "OPENAI_AVAILABLE")  # nosec B101
+        assert isinstance(llm_fallback.OPENAI_AVAILABLE, bool)  # nosec B101
 
     def test_anthropic_import_error_handling(self):
         """Test that ANTHROPIC_AVAILABLE is False when import fails."""
@@ -846,8 +846,8 @@ class TestImportErrors:
         # We verify the flag exists
         from Agent_Guru.reasoning.intent import llm_fallback
 
-        assert hasattr(llm_fallback, "ANTHROPIC_AVAILABLE")
-        assert isinstance(llm_fallback.ANTHROPIC_AVAILABLE, bool)
+        assert hasattr(llm_fallback, "ANTHROPIC_AVAILABLE")  # nosec B101
+        assert isinstance(llm_fallback.ANTHROPIC_AVAILABLE, bool)  # nosec B101
 
 
 class TestEdgeCases:
@@ -889,10 +889,10 @@ class TestEdgeCases:
         result = await classifier.classify_async("test input")
 
         # Should return UNKNOWN result
-        assert result.intent_type == "unknown"
-        assert result.confidence == 0.0
-        assert "Network error" in result.reasoning
-        assert result.retries == 2
+        assert result.intent_type == "unknown"  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
+        assert "Network error" in result.reasoning  # nosec B101
+        assert result.retries == 2  # nosec B101
 
     @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
@@ -913,12 +913,12 @@ class TestEdgeCases:
 
         result = classifier._parse_entities(entities_dict)
 
-        assert "duration" in result
-        assert result["duration"].entity_type == "duration"
-        assert result["duration"].value == 300
+        assert "duration" in result  # nosec B101
+        assert result["duration"].entity_type == "duration"  # nosec B101
+        assert result["duration"].value == 300  # nosec B101
         # Should use default values
-        assert result["duration"].raw_text == "300"
-        assert result["duration"].confidence == 1.0
+        assert result["duration"].raw_text == "300"  # nosec B101
+        assert result["duration"].confidence == 1.0  # nosec B101
 
     @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
@@ -948,8 +948,8 @@ class TestEdgeCases:
 
         await classifier._call_llm_async("test input", context=None)
 
-        assert captured_prompt is not None
-        assert "Context:" not in captured_prompt  # No context added
+        assert captured_prompt is not None  # nosec B101
+        assert "Context:" not in captured_prompt  # No context added  # nosec B101
 
     @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
@@ -971,12 +971,12 @@ class TestEdgeCases:
         result = await classifier.classify_async("test input")
 
         # Should have made 3 attempts
-        assert len(call_times) == 3
+        assert len(call_times) == 3  # nosec B101
         # Verify exponential backoff (approximate timing)
         # First retry after ~0.1s, second after ~0.2s
         if len(call_times) >= 2:
             # Just verify retries happened (timing may vary)
-            assert result.retries == 3
+            assert result.retries == 3  # nosec B101
 
 
 # ============================================================================
@@ -1026,20 +1026,20 @@ class TestEndToEndIntegration:
         result = await classifier.classify_async("remind me to call mom tomorrow at 3pm")
 
         # Verify result
-        assert result.intent_type == "set_reminder"
-        assert result.confidence == 0.92
-        assert "task" in result.entities
-        assert "datetime" in result.entities
-        assert result.entities["task"].value == "call mom"
-        assert result.entities["datetime"].value == "tomorrow 3pm"
-        assert result.reasoning == "Reminder with task and time"
-        assert result.retries == 0
-        assert result.provider == "openai"
+        assert result.intent_type == "set_reminder"  # nosec B101
+        assert result.confidence == 0.92  # nosec B101
+        assert "task" in result.entities  # nosec B101
+        assert "datetime" in result.entities  # nosec B101
+        assert result.entities["task"].value == "call mom"  # nosec B101
+        assert result.entities["datetime"].value == "tomorrow 3pm"  # nosec B101
+        assert result.reasoning == "Reminder with task and time"  # nosec B101
+        assert result.retries == 0  # nosec B101
+        assert result.provider == "openai"  # nosec B101
 
         # Verify metrics updated
         metrics = classifier.get_metrics()
-        assert metrics["total_inferences"] == 1
-        assert metrics["success_rate"] == 1.0
+        assert metrics["total_inferences"] == 1  # nosec B101
+        assert metrics["success_rate"] == 1.0  # nosec B101
 
     @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.intent.llm_fallback.ANTHROPIC_AVAILABLE", True)
@@ -1073,16 +1073,16 @@ class TestEndToEndIntegration:
         result = await classifier.classify_async("what's the weather in San Francisco")
 
         # Verify result
-        assert result.intent_type == "query_weather"
-        assert result.confidence == 0.97
-        assert "location" in result.entities
-        assert result.entities["location"].value == "San Francisco"
-        assert result.provider == "anthropic"
+        assert result.intent_type == "query_weather"  # nosec B101
+        assert result.confidence == 0.97  # nosec B101
+        assert "location" in result.entities  # nosec B101
+        assert result.entities["location"].value == "San Francisco"  # nosec B101
+        assert result.provider == "anthropic"  # nosec B101
 
         # Verify metrics
         metrics = classifier.get_metrics()
-        assert metrics["total_inferences"] == 1
-        assert metrics["success_rate"] == 1.0
+        assert metrics["total_inferences"] == 1  # nosec B101
+        assert metrics["success_rate"] == 1.0  # nosec B101
 
 
 # ============================================================================
@@ -1108,8 +1108,8 @@ class TestCoverageCompletion:
         result = await classifier.classify_async("test input")
 
         # Should return UNKNOWN result
-        assert result.intent_type == "unknown"
-        assert result.confidence == 0.0
+        assert result.intent_type == "unknown"  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
 
     def test_module_level_imports(self):
         """Test that module-level imports are handled correctly."""
@@ -1117,11 +1117,11 @@ class TestCoverageCompletion:
         import Agent_Guru.reasoning.intent.llm_fallback as llm_fallback
 
         # Verify flags exist
-        assert hasattr(llm_fallback, "OPENAI_AVAILABLE")
-        assert hasattr(llm_fallback, "ANTHROPIC_AVAILABLE")
-        assert hasattr(llm_fallback, "openai")
-        assert hasattr(llm_fallback, "anthropic")
+        assert hasattr(llm_fallback, "OPENAI_AVAILABLE")  # nosec B101
+        assert hasattr(llm_fallback, "ANTHROPIC_AVAILABLE")  # nosec B101
+        assert hasattr(llm_fallback, "openai")  # nosec B101
+        assert hasattr(llm_fallback, "anthropic")  # nosec B101
 
         # Verify they are boolean or None
-        assert isinstance(llm_fallback.OPENAI_AVAILABLE, bool)
-        assert isinstance(llm_fallback.ANTHROPIC_AVAILABLE, bool)
+        assert isinstance(llm_fallback.OPENAI_AVAILABLE, bool)  # nosec B101
+        assert isinstance(llm_fallback.ANTHROPIC_AVAILABLE, bool)  # nosec B101

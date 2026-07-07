@@ -133,9 +133,9 @@ class TestKnowledgeSynthesizerProperties:
             use_llm_synthesis=False
         )
 
-        assert synthesizer.max_memories == max_memories
-        assert synthesizer.pattern_min_frequency == pattern_min_frequency
-        assert synthesizer.confidence_threshold == confidence_threshold
+        assert synthesizer.max_memories == max_memories  # nosec B101
+        assert synthesizer.pattern_min_frequency == pattern_min_frequency  # nosec B101
+        assert synthesizer.confidence_threshold == confidence_threshold  # nosec B101
 
     @given(query=knowledge_query_strategy())
     @settings(max_examples=100)
@@ -151,13 +151,13 @@ class TestKnowledgeSynthesizerProperties:
         answer = synthesizer.synthesize_answer(query, "user_123")
 
         # Verify answer is valid
-        assert isinstance(answer, KnowledgeAnswer)
-        assert isinstance(answer.summary, str)
-        assert len(answer.summary) > 0
-        assert 0.0 <= answer.confidence <= 1.0
-        assert isinstance(answer.supporting_memories, list)
-        assert isinstance(answer.patterns, list)
-        assert isinstance(answer.statistics, dict)
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert isinstance(answer.summary, str)  # nosec B101
+        assert len(answer.summary) > 0  # nosec B101
+        assert 0.0 <= answer.confidence <= 1.0  # nosec B101
+        assert isinstance(answer.supporting_memories, list)  # nosec B101
+        assert isinstance(answer.patterns, list)  # nosec B101
+        assert isinstance(answer.statistics, dict)  # nosec B101
 
     @given(
         query=knowledge_query_strategy(),
@@ -176,7 +176,7 @@ class TestKnowledgeSynthesizerProperties:
         answer = synthesizer.synthesize_answer(query, "user_123")
 
         # Verify confidence is in valid range
-        assert 0.0 <= answer.confidence <= 1.0
+        assert 0.0 <= answer.confidence <= 1.0  # nosec B101
 
     @given(
         query=knowledge_query_strategy(),
@@ -195,9 +195,9 @@ class TestKnowledgeSynthesizerProperties:
         answer = synthesizer.synthesize_answer(query, "user_123")
 
         # Verify statistics are non-negative
-        assert answer.statistics["total_count"] >= 0
+        assert answer.statistics["total_count"] >= 0  # nosec B101
         if "time_span_days" in answer.statistics:
-            assert answer.statistics["time_span_days"] >= 0
+            assert answer.statistics["time_span_days"] >= 0  # nosec B101
 
     @given(memories=st.lists(memory_strategy(), min_size=3, max_size=20))
     @settings(max_examples=100)
@@ -217,9 +217,9 @@ class TestKnowledgeSynthesizerProperties:
 
         # Verify all patterns have valid frequency and confidence
         for pattern in patterns:
-            assert 0.0 <= pattern.frequency <= 1.0
-            assert 0.0 <= pattern.confidence <= 1.0
-            assert pattern.frequency >= synthesizer.pattern_min_frequency
+            assert 0.0 <= pattern.frequency <= 1.0  # nosec B101
+            assert 0.0 <= pattern.confidence <= 1.0  # nosec B101
+            assert pattern.frequency >= synthesizer.pattern_min_frequency  # nosec B101
 
     @given(
         query=knowledge_query_strategy(),
@@ -240,7 +240,7 @@ class TestKnowledgeSynthesizerProperties:
         retrieved = synthesizer.retrieve_relevant_data(query, "user_123")
 
         # Verify count is within limit
-        assert len(retrieved) <= max_memories
+        assert len(retrieved) <= max_memories  # nosec B101
 
     @given(
         memories=st.lists(memory_strategy(), min_size=0, max_size=20),
@@ -261,9 +261,9 @@ class TestKnowledgeSynthesizerProperties:
         statistics = synthesizer.aggregate_statistics(memories, query)
 
         # Verify result is a dictionary
-        assert isinstance(statistics, dict)
-        assert "total_count" in statistics
-        assert statistics["total_count"] == len(memories)
+        assert isinstance(statistics, dict)  # nosec B101
+        assert "total_count" in statistics  # nosec B101
+        assert statistics["total_count"] == len(memories)  # nosec B101
 
     @given(
         query=knowledge_query_strategy(),
@@ -282,7 +282,7 @@ class TestKnowledgeSynthesizerProperties:
         answer = synthesizer.synthesize_answer(query, "user_123")
 
         # Verify supporting memories are limited
-        assert len(answer.supporting_memories) <= 5
+        assert len(answer.supporting_memories) <= 5  # nosec B101
 
     @given(
         query=knowledge_query_strategy(),
@@ -300,10 +300,10 @@ class TestKnowledgeSynthesizerProperties:
         answer = synthesizer.synthesize_answer(query, "user_123")
 
         # Verify answer is valid
-        assert isinstance(answer, KnowledgeAnswer)
-        assert len(answer.summary) > 0
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert len(answer.summary) > 0  # nosec B101
         # Check for various "no data" messages depending on query type
-        assert any(
+        assert any(  # nosec B101
             phrase in answer.summary.lower()
             for phrase in [
                 "don't have",
@@ -314,7 +314,7 @@ class TestKnowledgeSynthesizerProperties:
                 "insufficient",
             ]
         )
-        assert answer.statistics["total_count"] == 0
+        assert answer.statistics["total_count"] == 0  # nosec B101
 
     @given(
         memories=st.lists(memory_strategy(), min_size=3, max_size=10),
@@ -336,11 +336,11 @@ class TestKnowledgeSynthesizerProperties:
         patterns2 = synthesizer.detect_patterns(memories, query)
 
         # Verify results are identical
-        assert len(patterns1) == len(patterns2)
+        assert len(patterns1) == len(patterns2)  # nosec B101
         for p1, p2 in zip(patterns1, patterns2, strict=False):
-            assert p1.pattern_type == p2.pattern_type
-            assert p1.frequency == p2.frequency
-            assert p1.confidence == p2.confidence
+            assert p1.pattern_type == p2.pattern_type  # nosec B101
+            assert p1.frequency == p2.frequency  # nosec B101
+            assert p1.confidence == p2.confidence  # nosec B101
 
     @given(
         query=knowledge_query_strategy(),
@@ -359,8 +359,8 @@ class TestKnowledgeSynthesizerProperties:
         answer = synthesizer.synthesize_answer(query, "user_123")
 
         # Verify summary is not empty
-        assert len(answer.summary) > 0
-        assert answer.summary.strip() != ""
+        assert len(answer.summary) > 0  # nosec B101
+        assert answer.summary.strip() != ""  # nosec B101
 
 
 class TestEdgeCases:
@@ -389,7 +389,7 @@ class TestEdgeCases:
         retrieved = synthesizer.retrieve_relevant_data(query, "user_123")
 
         # Verify limit is enforced
-        assert len(retrieved) <= max_memories
+        assert len(retrieved) <= max_memories  # nosec B101
 
     @given(
         pattern_min_frequency=st.floats(min_value=0.5, max_value=1.0),
@@ -414,7 +414,7 @@ class TestEdgeCases:
 
         # Verify all patterns meet frequency threshold
         for pattern in patterns:
-            assert pattern.frequency >= pattern_min_frequency
+            assert pattern.frequency >= pattern_min_frequency  # nosec B101
 
     @given(
         confidence_threshold=st.floats(min_value=0.5, max_value=0.9),
@@ -450,4 +450,4 @@ class TestEdgeCases:
 
         # Verify low confidence indicator is present
         if answer.confidence < confidence_threshold:
-            assert "not very confident" in answer.summary.lower()
+            assert "not very confident" in answer.summary.lower()  # nosec B101

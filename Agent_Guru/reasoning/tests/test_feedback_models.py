@@ -34,12 +34,12 @@ class TestIntentFeedback:
             model_version="v1.0",
         )
 
-        assert feedback.feedback_id == "test-123"
-        assert feedback.user_id == "user-456"
-        assert feedback.original_input == "set timer for 5 minutes"
-        assert feedback.predicted_intent == "set_timer"
-        assert feedback.predicted_confidence == 0.95
-        assert feedback.feedback_type == FeedbackType.POSITIVE
+        assert feedback.feedback_id == "test-123"  # nosec B101
+        assert feedback.user_id == "user-456"  # nosec B101
+        assert feedback.original_input == "set timer for 5 minutes"  # nosec B101
+        assert feedback.predicted_intent == "set_timer"  # nosec B101
+        assert feedback.predicted_confidence == 0.95  # nosec B101
+        assert feedback.feedback_type == FeedbackType.POSITIVE  # nosec B101
 
     def test_feedback_with_correction(self):
         """Test feedback with intent correction."""
@@ -55,10 +55,10 @@ class TestIntentFeedback:
             model_version="v1.0",
         )
 
-        assert feedback.correct_intent == "play_music"
-        assert feedback.is_correction()
-        assert not feedback.was_correct()
-        assert feedback.get_training_label() == "play_music"
+        assert feedback.correct_intent == "play_music"  # nosec B101
+        assert feedback.is_correction()  # nosec B101
+        assert not feedback.was_correct()  # nosec B101
+        assert feedback.get_training_label() == "play_music"  # nosec B101
 
     def test_empty_input_validation(self):
         """Test validation rejects empty input."""
@@ -131,19 +131,19 @@ class TestIntentFeedback:
             feedback_type=FeedbackType.POSITIVE,
             model_version="v1.0",
         )
-        assert not feedback.is_correction()
+        assert not feedback.is_correction()  # nosec B101
 
         # Intent correction is a correction
         feedback.feedback_type = FeedbackType.INTENT_CORRECTION
-        assert feedback.is_correction()
+        assert feedback.is_correction()  # nosec B101
 
         # Entity correction is a correction
         feedback.feedback_type = FeedbackType.ENTITY_CORRECTION
-        assert feedback.is_correction()
+        assert feedback.is_correction()  # nosec B101
 
         # Negative feedback is a correction
         feedback.feedback_type = FeedbackType.NEGATIVE
-        assert feedback.is_correction()
+        assert feedback.is_correction()  # nosec B101
 
     def test_was_correct_method(self):
         """Test was_correct method."""
@@ -158,10 +158,10 @@ class TestIntentFeedback:
             model_version="v1.0",
         )
 
-        assert feedback.was_correct()
+        assert feedback.was_correct()  # nosec B101
 
         feedback.feedback_type = FeedbackType.NEGATIVE
-        assert not feedback.was_correct()
+        assert not feedback.was_correct()  # nosec B101
 
     def test_get_training_label_with_correction(self):
         """Test get_training_label returns correct intent."""
@@ -177,7 +177,7 @@ class TestIntentFeedback:
             model_version="v1.0",
         )
 
-        assert feedback.get_training_label() == "correct_intent"
+        assert feedback.get_training_label() == "correct_intent"  # nosec B101
 
     def test_get_training_label_without_correction(self):
         """Test get_training_label returns predicted intent when no correction."""
@@ -192,7 +192,7 @@ class TestIntentFeedback:
             model_version="v1.0",
         )
 
-        assert feedback.get_training_label() == "test_intent"
+        assert feedback.get_training_label() == "test_intent"  # nosec B101
 
     def test_default_timestamp(self):
         """Test timestamp defaults to current time."""
@@ -209,7 +209,7 @@ class TestIntentFeedback:
         )
         after = datetime.now(tz=timezone.utc)
 
-        assert before <= feedback.timestamp <= after
+        assert before <= feedback.timestamp <= after  # nosec B101
 
     def test_metadata_defaults_to_empty_dict(self):
         """Test metadata defaults to empty dictionary."""
@@ -224,7 +224,7 @@ class TestIntentFeedback:
             model_version="v1.0",
         )
 
-        assert feedback.metadata == {}
+        assert feedback.metadata == {}  # nosec B101
 
     def test_input_trimming(self):
         """Test input is trimmed of whitespace."""
@@ -239,8 +239,8 @@ class TestIntentFeedback:
             model_version="v1.0",
         )
 
-        assert feedback.original_input == "test input"
-        assert feedback.predicted_intent == "test"
+        assert feedback.original_input == "test input"  # nosec B101
+        assert feedback.predicted_intent == "test"  # nosec B101
 
 
 class TestModelPerformanceMetrics:
@@ -260,11 +260,11 @@ class TestModelPerformanceMetrics:
             correction_rate=0.03,
         )
 
-        assert metrics.metric_id == "metric-123"
-        assert metrics.model_version == "v1.0"
-        assert metrics.total_predictions == 100
-        assert metrics.correct_predictions == 95
-        assert metrics.accuracy == 0.95
+        assert metrics.metric_id == "metric-123"  # nosec B101
+        assert metrics.model_version == "v1.0"  # nosec B101
+        assert metrics.total_predictions == 100  # nosec B101
+        assert metrics.correct_predictions == 95  # nosec B101
+        assert metrics.accuracy == 0.95  # nosec B101
 
     def test_correct_predictions_validation(self):
         """Test correct predictions cannot exceed total."""
@@ -308,7 +308,7 @@ class TestModelPerformanceMetrics:
         )
 
         # Baseline 0.95, current 0.94, drop 0.01 < threshold 0.05
-        assert not metrics.has_drift(baseline_accuracy=0.95, threshold=0.05)
+        assert not metrics.has_drift(baseline_accuracy=0.95, threshold=0.05)  # nosec B101
 
     def test_has_drift_with_drift(self):
         """Test has_drift returns True when drift detected."""
@@ -324,7 +324,7 @@ class TestModelPerformanceMetrics:
         )
 
         # Baseline 0.95, current 0.88, drop 0.07 > threshold 0.05
-        assert metrics.has_drift(baseline_accuracy=0.95, threshold=0.05)
+        assert metrics.has_drift(baseline_accuracy=0.95, threshold=0.05)  # nosec B101
 
     def test_has_drift_custom_threshold(self):
         """Test has_drift with custom threshold."""
@@ -340,10 +340,10 @@ class TestModelPerformanceMetrics:
         )
 
         # Drop 0.03 > threshold 0.02
-        assert metrics.has_drift(baseline_accuracy=0.95, threshold=0.02)
+        assert metrics.has_drift(baseline_accuracy=0.95, threshold=0.02)  # nosec B101
 
         # Drop 0.03 < threshold 0.05
-        assert not metrics.has_drift(baseline_accuracy=0.95, threshold=0.05)
+        assert not metrics.has_drift(baseline_accuracy=0.95, threshold=0.05)  # nosec B101
 
     def test_default_timestamp(self):
         """Test timestamp defaults to current time."""
@@ -360,7 +360,7 @@ class TestModelPerformanceMetrics:
         )
         after = datetime.now(tz=timezone.utc)
 
-        assert before <= metrics.timestamp <= after
+        assert before <= metrics.timestamp <= after  # nosec B101
 
     def test_intent_accuracies_defaults_to_empty_dict(self):
         """Test intent_accuracies defaults to empty dictionary."""
@@ -375,7 +375,7 @@ class TestModelPerformanceMetrics:
             correction_rate=0.03,
         )
 
-        assert metrics.intent_accuracies == {}
+        assert metrics.intent_accuracies == {}  # nosec B101
 
     def test_metadata_defaults_to_empty_dict(self):
         """Test metadata defaults to empty dictionary."""
@@ -390,7 +390,7 @@ class TestModelPerformanceMetrics:
             correction_rate=0.03,
         )
 
-        assert metrics.metadata == {}
+        assert metrics.metadata == {}  # nosec B101
 
     def test_negative_predictions_validation(self):
         """Test predictions cannot be negative."""

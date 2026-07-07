@@ -19,13 +19,13 @@ class TestEntity:
             end_pos=19,
             normalized_value=300,
         )
-        assert entity.entity_type == "duration"
-        assert entity.value == 300
-        assert entity.raw_text == "5 minutes"
-        assert entity.confidence == 0.95
-        assert entity.start_pos == 10
-        assert entity.end_pos == 19
-        assert entity.normalized_value == 300
+        assert entity.entity_type == "duration"  # nosec B101
+        assert entity.value == 300  # nosec B101
+        assert entity.raw_text == "5 minutes"  # nosec B101
+        assert entity.confidence == 0.95  # nosec B101
+        assert entity.start_pos == 10  # nosec B101
+        assert entity.end_pos == 19  # nosec B101
+        assert entity.normalized_value == 300  # nosec B101
     
     def test_entity_confidence_validation_invalid(self):
         """Test entity confidence validation fails for invalid values."""
@@ -55,17 +55,17 @@ class TestEntity:
         entity2 = Entity(entity_type="person", value="John", raw_text="John")
         entity3 = Entity(entity_type="person", value="Jane", raw_text="Jane")
         
-        assert entity1 == entity2
-        assert entity1 != entity3
-        assert entity1 != "not an entity"
+        assert entity1 == entity2  # nosec B101
+        assert entity1 != entity3  # nosec B101
+        assert entity1 != "not an entity"  # nosec B101
     
     def test_entity_hash(self):
         """Test entity hashing."""
         entity1 = Entity(entity_type="person", value="John", raw_text="John")
         entity2 = Entity(entity_type="person", value="John", raw_text="John")
         
-        assert hash(entity1) == hash(entity2)
-        assert len({entity1, entity2}) == 1
+        assert hash(entity1) == hash(entity2)  # nosec B101
+        assert len({entity1, entity2}) == 1  # nosec B101
 
 
 class TestIntent:
@@ -83,12 +83,12 @@ class TestIntent:
             detection_method="neural",
         )
         
-        assert intent.intent_type == IntentType.SET_TIMER
-        assert "duration" in intent.entities
-        assert intent.confidence == 0.98
-        assert not intent.requires_reasoning
-        assert intent.original_input == "set a timer for 5 minutes"
-        assert intent.detection_method == "neural"
+        assert intent.intent_type == IntentType.SET_TIMER  # nosec B101
+        assert "duration" in intent.entities  # nosec B101
+        assert intent.confidence == 0.98  # nosec B101
+        assert not intent.requires_reasoning  # nosec B101
+        assert intent.original_input == "set a timer for 5 minutes"  # nosec B101
+        assert intent.detection_method == "neural"  # nosec B101
     
     def test_intent_confidence_validation_invalid(self):
         """Test intent confidence validation fails for invalid values."""
@@ -133,7 +133,7 @@ class TestIntent:
             original_input="test",
         )
         
-        assert intent.get_entity("duration") == 300
+        assert intent.get_entity("duration") == 300  # nosec B101
     
     def test_intent_get_entity_not_exists(self):
         """Test getting a non-existing entity returns default."""
@@ -144,8 +144,8 @@ class TestIntent:
             original_input="test",
         )
         
-        assert intent.get_entity("duration") is None
-        assert intent.get_entity("duration", default=0) == 0
+        assert intent.get_entity("duration") is None  # nosec B101
+        assert intent.get_entity("duration", default=0) == 0  # nosec B101
     
     def test_intent_has_entity(self):
         """Test checking if entity exists."""
@@ -157,8 +157,8 @@ class TestIntent:
             original_input="test",
         )
         
-        assert intent.has_entity("duration")
-        assert not intent.has_entity("location")
+        assert intent.has_entity("duration")  # nosec B101
+        assert not intent.has_entity("location")  # nosec B101
     
     def test_intent_is_ambiguous_low_confidence(self):
         """Test intent is ambiguous with low confidence."""
@@ -169,7 +169,7 @@ class TestIntent:
             original_input="test",
         )
         
-        assert intent.is_ambiguous(threshold=0.8)
+        assert intent.is_ambiguous(threshold=0.8)  # nosec B101
     
     def test_intent_is_ambiguous_close_alternatives(self):
         """Test intent is ambiguous with close alternative confidence."""
@@ -181,7 +181,7 @@ class TestIntent:
             alternative_intents=[(IntentType.SET_ALARM, 0.82)],
         )
         
-        assert intent.is_ambiguous(threshold=0.8)
+        assert intent.is_ambiguous(threshold=0.8)  # nosec B101
     
     def test_intent_is_not_ambiguous(self):
         """Test intent is not ambiguous."""
@@ -193,7 +193,7 @@ class TestIntent:
             alternative_intents=[(IntentType.SET_ALARM, 0.15)],
         )
         
-        assert not intent.is_ambiguous(threshold=0.8)
+        assert not intent.is_ambiguous(threshold=0.8)  # nosec B101
     
     def test_intent_equality(self):
         """Test intent equality comparison."""
@@ -217,9 +217,9 @@ class TestIntent:
             original_input="set alarm",
         )
         
-        assert intent1 == intent2
-        assert intent1 != intent3
-        assert intent1 != "not an intent"
+        assert intent1 == intent2  # nosec B101
+        assert intent1 != intent3  # nosec B101
+        assert intent1 != "not an intent"  # nosec B101
     
     def test_intent_hash(self):
         """Test intent hashing."""
@@ -237,14 +237,14 @@ class TestIntent:
             original_input="set timer",
         )
         
-        assert hash(intent1) == hash(intent2)
+        assert hash(intent1) == hash(intent2)  # nosec B101
     
     def test_intent_all_intent_types(self):
         """Test all intent types are accessible."""
-        assert IntentType.SET_TIMER == "set_timer"
-        assert IntentType.QUERY_WEATHER == "query_weather"
-        assert IntentType.SEND_MESSAGE == "send_message"
-        assert IntentType.UNKNOWN == "unknown"
+        assert IntentType.SET_TIMER == "set_timer"  # nosec B101
+        assert IntentType.QUERY_WEATHER == "query_weather"  # nosec B101
+        assert IntentType.SEND_MESSAGE == "send_message"  # nosec B101
+        assert IntentType.UNKNOWN == "unknown"  # nosec B101
 
 
     def test_entity_validate_confidence_valid(self):
@@ -255,7 +255,7 @@ class TestIntent:
             raw_text="5 minutes",
             confidence=0.95,
         )
-        assert entity.confidence == 0.95
+        assert entity.confidence == 0.95  # nosec B101
     
     def test_intent_validate_confidence_valid(self):
         """Test confidence validation passes for valid value."""
@@ -265,4 +265,4 @@ class TestIntent:
             confidence=0.95,
             original_input="test",
         )
-        assert intent.confidence == 0.95
+        assert intent.confidence == 0.95  # nosec B101

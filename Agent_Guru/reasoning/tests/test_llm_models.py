@@ -30,13 +30,13 @@ class TestLLMRequest:
             max_tokens=512,
         )
 
-        assert request.prompt == "Hello, world!"
-        assert request.temperature == 0.7
-        assert request.top_p == 0.9
-        assert request.max_tokens == 512
-        assert request.stop_sequences == []
-        assert request.stream is False
-        assert request.metadata == {}
+        assert request.prompt == "Hello, world!"  # nosec B101
+        assert request.temperature == 0.7  # nosec B101
+        assert request.top_p == 0.9  # nosec B101
+        assert request.max_tokens == 512  # nosec B101
+        assert request.stop_sequences == []  # nosec B101
+        assert request.stream is False  # nosec B101
+        assert request.metadata == {}  # nosec B101
 
     def test_invalid_temperature(self):
         """Test that invalid temperature raises error."""
@@ -66,14 +66,14 @@ class TestLLMRequest:
         """Test request with stop sequences."""
         request = LLMRequest(prompt="test", stop_sequences=["\\n", "END"])
 
-        assert request.stop_sequences == ["\\n", "END"]
+        assert request.stop_sequences == ["\\n", "END"]  # nosec B101
 
     def test_with_metadata(self):
         """Test request with metadata."""
         request = LLMRequest(prompt="test", metadata={"user_id": "123", "session": "abc"})
 
-        assert request.metadata["user_id"] == "123"
-        assert request.metadata["session"] == "abc"
+        assert request.metadata["user_id"] == "123"  # nosec B101
+        assert request.metadata["session"] == "abc"  # nosec B101
 
 
 class TestLLMResponse:
@@ -89,12 +89,12 @@ class TestLLMResponse:
             finish_reason="stop",
         )
 
-        assert response.text == "Generated text"
-        assert response.provider == LLMProvider.LOCAL
-        assert response.latency_ms == 150.5
-        assert response.tokens_generated == 50
-        assert response.finish_reason == "stop"
-        assert isinstance(response.timestamp, datetime)
+        assert response.text == "Generated text"  # nosec B101
+        assert response.provider == LLMProvider.LOCAL  # nosec B101
+        assert response.latency_ms == 150.5  # nosec B101
+        assert response.tokens_generated == 50  # nosec B101
+        assert response.finish_reason == "stop"  # nosec B101
+        assert isinstance(response.timestamp, datetime)  # nosec B101
 
     def test_invalid_latency(self):
         """Test that negative latency raises error."""
@@ -139,7 +139,7 @@ class TestLLMResponse:
                 tokens_generated=10,
                 finish_reason=reason,
             )
-            assert response.finish_reason == reason
+            assert response.finish_reason == reason  # nosec B101
 
     def test_with_metadata(self):
         """Test response with metadata."""
@@ -152,8 +152,8 @@ class TestLLMResponse:
             metadata={"model": "llama-3.2-8b", "gpu": "cuda"},
         )
 
-        assert response.metadata["model"] == "llama-3.2-8b"
-        assert response.metadata["gpu"] == "cuda"
+        assert response.metadata["model"] == "llama-3.2-8b"  # nosec B101
+        assert response.metadata["gpu"] == "cuda"  # nosec B101
 
 
 class TestLocalLLMConfig:
@@ -171,16 +171,16 @@ class TestLocalLLMConfig:
             port=8080,
         )
 
-        assert config.model_path == "models/llama-3.2-8b.gguf"
-        assert config.gpu_backend == GPUBackend.CUDA
-        assert config.n_gpu_layers == 35
-        assert config.n_ctx == 2048
-        assert config.n_threads == 8
-        assert config.host == "127.0.0.1"
-        assert config.port == 8080
-        assert config.temperature == 0.7
-        assert config.top_p == 0.9
-        assert config.max_tokens == 512
+        assert config.model_path == "models/llama-3.2-8b.gguf"  # nosec B101
+        assert config.gpu_backend == GPUBackend.CUDA  # nosec B101
+        assert config.n_gpu_layers == 35  # nosec B101
+        assert config.n_ctx == 2048  # nosec B101
+        assert config.n_threads == 8  # nosec B101
+        assert config.host == "127.0.0.1"  # nosec B101
+        assert config.port == 8080  # nosec B101
+        assert config.temperature == 0.7  # nosec B101
+        assert config.top_p == 0.9  # nosec B101
+        assert config.max_tokens == 512  # nosec B101
 
     def test_invalid_gpu_layers(self):
         """Test that negative GPU layers raises error."""
@@ -227,7 +227,7 @@ class TestLocalLLMConfig:
         """Test all GPU backend options."""
         for backend in [GPUBackend.CUDA, GPUBackend.METAL, GPUBackend.CPU]:
             config = LocalLLMConfig(model_path="test.gguf", gpu_backend=backend)
-            assert config.gpu_backend == backend
+            assert config.gpu_backend == backend  # nosec B101
 
 
 class TestServerHealth:
@@ -243,13 +243,13 @@ class TestServerHealth:
             latency_ms=25.5,
         )
 
-        assert health.is_healthy is True
-        assert health.model_loaded is True
-        assert health.gpu_available is True
-        assert health.gpu_backend == GPUBackend.CUDA
-        assert health.latency_ms == 25.5
-        assert health.error_message is None
-        assert isinstance(health.timestamp, datetime)
+        assert health.is_healthy is True  # nosec B101
+        assert health.model_loaded is True  # nosec B101
+        assert health.gpu_available is True  # nosec B101
+        assert health.gpu_backend == GPUBackend.CUDA  # nosec B101
+        assert health.latency_ms == 25.5  # nosec B101
+        assert health.error_message is None  # nosec B101
+        assert isinstance(health.timestamp, datetime)  # nosec B101
 
     def test_unhealthy_server(self):
         """Test unhealthy server status."""
@@ -262,12 +262,12 @@ class TestServerHealth:
             error_message="Server not running",
         )
 
-        assert health.is_healthy is False
-        assert health.model_loaded is False
-        assert health.gpu_available is False
-        assert health.gpu_backend is None
-        assert health.latency_ms is None
-        assert health.error_message == "Server not running"
+        assert health.is_healthy is False  # nosec B101
+        assert health.model_loaded is False  # nosec B101
+        assert health.gpu_available is False  # nosec B101
+        assert health.gpu_backend is None  # nosec B101
+        assert health.latency_ms is None  # nosec B101
+        assert health.error_message == "Server not running"  # nosec B101
 
     def test_partial_health(self):
         """Test server with partial health (running but model not loaded)."""
@@ -279,6 +279,6 @@ class TestServerHealth:
             latency_ms=30.0,
         )
 
-        assert health.is_healthy is True
-        assert health.model_loaded is False
-        assert health.gpu_available is True
+        assert health.is_healthy is True  # nosec B101
+        assert health.model_loaded is False  # nosec B101
+        assert health.gpu_available is True  # nosec B101

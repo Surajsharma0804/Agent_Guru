@@ -26,18 +26,18 @@ class TestDatasetGenerator:
     
     def test_load_intents(self, generator):
         """Test loading intents from YAML file."""
-        assert 'intents' in generator.intents_data
-        assert 'entity_types' in generator.intents_data
-        assert len(generator.intents_data['intents']) > 0
+        assert 'intents' in generator.intents_data  # nosec B101
+        assert 'entity_types' in generator.intents_data  # nosec B101
+        assert len(generator.intents_data['intents']) > 0  # nosec B101
     
     def test_augment_utterance_basic(self, generator):
         """Test basic utterance augmentation."""
         utterance = "set a timer for 5 minutes"
         variations = generator.augment_utterance(utterance)
         
-        assert len(variations) > 1
-        assert utterance in variations
-        assert any("create a timer" in v.lower() for v in variations)
+        assert len(variations) > 1  # nosec B101
+        assert utterance in variations  # nosec B101
+        assert any("create a timer" in v.lower() for v in variations)  # nosec B101
     
     def test_augment_utterance_paraphrase(self, generator):
         """Test paraphrase substitution."""
@@ -45,8 +45,8 @@ class TestDatasetGenerator:
         variations = generator.augment_utterance(utterance)
         
         # Should have paraphrases
-        assert any("could you" in v.lower() for v in variations)
-        assert any("switch on" in v.lower() for v in variations)
+        assert any("could you" in v.lower() for v in variations)  # nosec B101
+        assert any("switch on" in v.lower() for v in variations)  # nosec B101
     
     def test_augment_utterance_noise_words(self, generator):
         """Test adding noise words."""
@@ -54,8 +54,8 @@ class TestDatasetGenerator:
         variations = generator.augment_utterance(utterance)
         
         # Should have noise words added
-        assert any(v.startswith("please") for v in variations)
-        assert any(v.endswith("now") for v in variations)
+        assert any(v.startswith("please") for v in variations)  # nosec B101
+        assert any(v.endswith("now") for v in variations)  # nosec B101
     
     def test_augment_utterance_case_variations(self, generator):
         """Test case variations are generated."""
@@ -63,8 +63,8 @@ class TestDatasetGenerator:
         variations = generator.augment_utterance(utterance)
         
         # Should have variations (original + noise words + paraphrases)
-        assert len(variations) > 1
-        assert utterance in variations or utterance.lower() in variations
+        assert len(variations) > 1  # nosec B101
+        assert utterance in variations or utterance.lower() in variations  # nosec B101
     
     def test_augment_utterance_no_duplicates(self, generator):
         """Test that augmentation removes duplicates."""
@@ -73,7 +73,7 @@ class TestDatasetGenerator:
         
         # Check no duplicate variations (case-insensitive)
         lower_variations = [v.lower() for v in variations]
-        assert len(lower_variations) == len(set(lower_variations))
+        assert len(lower_variations) == len(set(lower_variations))  # nosec B101
     
     def test_generate_dataset_splits(self, generator):
         """Test dataset generation with correct splits."""
@@ -88,9 +88,9 @@ class TestDatasetGenerator:
         total = len(train) + len(val) + len(test)
         
         # Check splits are approximately correct
-        assert abs(len(train) / total - 0.8) < 0.05
-        assert abs(len(val) / total - 0.1) < 0.05
-        assert abs(len(test) / total - 0.1) < 0.05
+        assert abs(len(train) / total - 0.8) < 0.05  # nosec B101
+        assert abs(len(val) / total - 0.1) < 0.05  # nosec B101
+        assert abs(len(test) / total - 0.1) < 0.05  # nosec B101
     
     def test_generate_dataset_format(self, generator):
         """Test dataset format is correct."""
@@ -101,10 +101,10 @@ class TestDatasetGenerator:
         
         # Check format
         for utterance, intent in train[:10]:
-            assert isinstance(utterance, str)
-            assert isinstance(intent, str)
-            assert len(utterance) > 0
-            assert intent in generator.intents_data['intents']
+            assert isinstance(utterance, str)  # nosec B101
+            assert isinstance(intent, str)  # nosec B101
+            assert len(utterance) > 0  # nosec B101
+            assert intent in generator.intents_data['intents']  # nosec B101
     
     def test_generate_dataset_augmentation(self, generator):
         """Test augmentation increases dataset size."""
@@ -118,16 +118,16 @@ class TestDatasetGenerator:
         )
         
         # More augmentation should give more examples
-        assert len(train2) > len(train1)
+        assert len(train2) > len(train1)  # nosec B101
     
     def test_generate_dataset_reproducibility(self, generator):
         """Test dataset generation is reproducible with same seed."""
         train1, val1, test1 = generator.generate_dataset(random_seed=42)
         train2, val2, test2 = generator.generate_dataset(random_seed=42)
         
-        assert train1 == train2
-        assert val1 == val2
-        assert test1 == test2
+        assert train1 == train2  # nosec B101
+        assert val1 == val2  # nosec B101
+        assert test1 == test2  # nosec B101
     
     def test_generate_dataset_different_seeds(self, generator):
         """Test different seeds produce different datasets."""
@@ -135,7 +135,7 @@ class TestDatasetGenerator:
         train2, _, _ = generator.generate_dataset(random_seed=123)
         
         # Should be different (very unlikely to be same)
-        assert train1 != train2
+        assert train1 != train2  # nosec B101
     
     def test_save_dataset(self, generator, temp_dir):
         """Test saving dataset to files."""
@@ -146,10 +146,10 @@ class TestDatasetGenerator:
         generator.save_dataset(train, val, test, output_dir=temp_dir)
         
         # Check files exist
-        assert Path(temp_dir, "train.txt").exists()
-        assert Path(temp_dir, "val.txt").exists()
-        assert Path(temp_dir, "test.txt").exists()
-        assert Path(temp_dir, "dataset_stats.yaml").exists()
+        assert Path(temp_dir, "train.txt").exists()  # nosec B101
+        assert Path(temp_dir, "val.txt").exists()  # nosec B101
+        assert Path(temp_dir, "test.txt").exists()  # nosec B101
+        assert Path(temp_dir, "dataset_stats.yaml").exists()  # nosec B101
     
     def test_save_dataset_content(self, generator, temp_dir):
         """Test saved dataset content is correct."""
@@ -162,7 +162,7 @@ class TestDatasetGenerator:
         # Read and verify content
         with open(Path(temp_dir, "train.txt", encoding='utf-8'), 'r', encoding='utf-8') as f:
             content = f.read()
-            assert "set_timer\ttest utterance" in content
+            assert "set_timer\ttest utterance" in content  # nosec B101
     
     def test_get_intent_distribution(self, generator):
         """Test getting intent distribution."""
@@ -174,28 +174,28 @@ class TestDatasetGenerator:
         
         distribution = generator.get_intent_distribution(data)
         
-        assert distribution["set_timer"] == 2
-        assert distribution["play_music"] == 1
+        assert distribution["set_timer"] == 2  # nosec B101
+        assert distribution["play_music"] == 1  # nosec B101
     
     def test_get_intent_distribution_empty(self, generator):
         """Test intent distribution with empty data."""
         distribution = generator.get_intent_distribution([])
-        assert distribution == {}
+        assert distribution == {}  # nosec B101
     
     def test_paraphrase_patterns_exist(self, generator):
         """Test paraphrase patterns are defined."""
-        assert len(generator.paraphrase_patterns) > 0
-        assert "can you" in generator.paraphrase_patterns
+        assert len(generator.paraphrase_patterns) > 0  # nosec B101
+        assert "can you" in generator.paraphrase_patterns  # nosec B101
     
     def test_noise_words_exist(self, generator):
         """Test noise words are defined."""
-        assert len(generator.noise_words) > 0
-        assert "please" in generator.noise_words
+        assert len(generator.noise_words) > 0  # nosec B101
+        assert "please" in generator.noise_words  # nosec B101
     
     def test_intents_file_path(self, generator):
         """Test intents file path is set correctly."""
-        assert generator.intents_file.exists()
-        assert generator.intents_file.name == "intents.yaml"
+        assert generator.intents_file.exists()  # nosec B101
+        assert generator.intents_file.name == "intents.yaml"  # nosec B101
 
 
     def test_main_function_execution(self, generator, temp_dir, capsys, monkeypatch):
@@ -212,7 +212,7 @@ class TestDatasetGenerator:
         # Check output was printed
         capsys.readouterr()
         # Main function should execute without errors
-        assert True  # If we get here, main() executed successfully
+        assert True  # If we get here, main() executed successfully  # nosec B101
     
     def test_save_dataset_creates_stats_file(self, generator, temp_dir):
         """Test that save_dataset creates statistics file."""
@@ -223,12 +223,12 @@ class TestDatasetGenerator:
         generator.save_dataset(train, val, test, output_dir=temp_dir)
         
         stats_file = Path(temp_dir, "dataset_stats.yaml")
-        assert stats_file.exists()
+        assert stats_file.exists()  # nosec B101
         
         with open(stats_file, 'r', encoding='utf-8') as f:
             stats = yaml.safe_load(f)
-            assert 'train_size' in stats
-            assert 'val_size' in stats
-            assert 'test_size' in stats
-            assert 'total_size' in stats
-            assert 'num_intents' in stats
+            assert 'train_size' in stats  # nosec B101
+            assert 'val_size' in stats  # nosec B101
+            assert 'test_size' in stats  # nosec B101
+            assert 'total_size' in stats  # nosec B101
+            assert 'num_intents' in stats  # nosec B101

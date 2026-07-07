@@ -111,9 +111,9 @@ class TestPromptGenerationProperties:
 
         prompt = synthesizer._build_synthesis_prompt(query, memories, patterns, statistics)
 
-        assert isinstance(prompt, str)
-        assert len(prompt) > 0
-        assert query.query_text in prompt
+        assert isinstance(prompt, str)  # nosec B101
+        assert len(prompt) > 0  # nosec B101
+        assert query.query_text in prompt  # nosec B101
 
     @given(
         query=knowledge_query_strategy(),
@@ -132,7 +132,7 @@ class TestPromptGenerationProperties:
         # Count memory references in prompt (approximate)
         # Each memory should appear as a JSON object in the prompt
         memory_count = prompt.count('"content":')
-        assert memory_count <= 10
+        assert memory_count <= 10  # nosec B101
 
     @given(
         query=knowledge_query_strategy(),
@@ -148,7 +148,7 @@ class TestPromptGenerationProperties:
 
         prompt = synthesizer._build_synthesis_prompt(query, memories, [], {})
 
-        assert query.query_type.value in prompt
+        assert query.query_type.value in prompt  # nosec B101
 
 
 class TestResponseParsingProperties:
@@ -180,11 +180,11 @@ class TestResponseParsingProperties:
 
         parsed = synthesizer._parse_llm_synthesis_response(response_text)
 
-        assert isinstance(parsed, LLMSynthesisResponse)
-        assert parsed.summary == summary
-        assert parsed.confidence == confidence
-        assert parsed.reasoning == reasoning
-        assert parsed.key_insights == key_insights
+        assert isinstance(parsed, LLMSynthesisResponse)  # nosec B101
+        assert parsed.summary == summary  # nosec B101
+        assert parsed.confidence == confidence  # nosec B101
+        assert parsed.reasoning == reasoning  # nosec B101
+        assert parsed.key_insights == key_insights  # nosec B101
 
     @given(
         summary=st.text(min_size=1, max_size=500),
@@ -203,9 +203,9 @@ class TestResponseParsingProperties:
 
         parsed = synthesizer._parse_llm_synthesis_response(response_text)
 
-        assert isinstance(parsed, LLMSynthesisResponse)
-        assert parsed.summary == summary
-        assert parsed.confidence == confidence
+        assert isinstance(parsed, LLMSynthesisResponse)  # nosec B101
+        assert parsed.summary == summary  # nosec B101
+        assert parsed.confidence == confidence  # nosec B101
 
     @given(confidence=st.floats(min_value=-10.0, max_value=-0.01))
     @settings(max_examples=50)
@@ -264,8 +264,8 @@ class TestAnswerCreationProperties:
 
         answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
-        assert isinstance(answer, KnowledgeAnswer)
-        assert 0.0 <= answer.confidence <= 1.0
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert 0.0 <= answer.confidence <= 1.0  # nosec B101
 
     @given(
         summary=st.text(min_size=1, max_size=500),
@@ -290,7 +290,7 @@ class TestAnswerCreationProperties:
 
         answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
-        assert len(answer.supporting_memories) <= 5
+        assert len(answer.supporting_memories) <= 5  # nosec B101
 
     @given(
         summary=st.text(min_size=1, max_size=500),
@@ -316,7 +316,7 @@ class TestAnswerCreationProperties:
 
         # Confidence should be reduced (multiplied by 0.5)
         expected_confidence = max(0.0, min(1.0, llm_confidence * 0.5))
-        assert answer.confidence == round(expected_confidence, 2)
+        assert answer.confidence == round(expected_confidence, 2)  # nosec B101
 
     @given(
         summary=st.text(min_size=1, max_size=500),
@@ -357,7 +357,7 @@ class TestAnswerCreationProperties:
 
         # Confidence should be reduced (multiplied by 0.8)
         expected_confidence = max(0.0, min(1.0, llm_confidence * 0.8))
-        assert answer.confidence == round(expected_confidence, 2)
+        assert answer.confidence == round(expected_confidence, 2)  # nosec B101
 
 
 class TestConfidenceIndicatorProperties:
@@ -400,7 +400,7 @@ class TestConfidenceIndicatorProperties:
         answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         # Should add confidence indicator
-        assert "I'm not very confident" in answer.summary
+        assert "I'm not very confident" in answer.summary  # nosec B101
 
     @given(
         summary=st.text(min_size=1, max_size=500),
@@ -439,5 +439,5 @@ class TestConfidenceIndicatorProperties:
         answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         # Should NOT add confidence indicator
-        assert "I'm not very confident" not in answer.summary
-        assert answer.summary == summary
+        assert "I'm not very confident" not in answer.summary  # nosec B101
+        assert answer.summary == summary  # nosec B101

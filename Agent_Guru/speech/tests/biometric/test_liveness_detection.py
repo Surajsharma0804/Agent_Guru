@@ -64,8 +64,8 @@ class TestLivenessDetection:
         # Genuine voice should be detected as live
         # Note: This is a heuristic test - we check that it's detected as live
         # The confidence threshold is 0.55
-        assert is_live, f"Genuine voice not detected as live (confidence: {confidence})"
-        assert confidence >= 0.55, f"Confidence {confidence} too low for genuine voice"
+        assert is_live, f"Genuine voice not detected as live (confidence: {confidence})"  # nosec B101
+        assert confidence >= 0.55, f"Confidence {confidence} too low for genuine voice"  # nosec B101
     
     def test_recorded_voice_detection(self):
         """Test liveness detection with recorded voice characteristics.
@@ -103,7 +103,7 @@ class TestLivenessDetection:
         # Recorded voice should have lower confidence
         # Note: This is a heuristic test, so we check for reduced confidence
         # rather than absolute rejection
-        assert confidence < 0.8, (
+        assert confidence < 0.8, (  # nosec B101
             f"Confidence {confidence} too high for recorded voice"
         )
     
@@ -138,7 +138,7 @@ class TestLivenessDetection:
         is_live, confidence = extractor.detect_liveness(audio, sample_rate)
         
         # Synthesized voice should have lower confidence due to regularity
-        assert confidence < 0.7, (
+        assert confidence < 0.7, (  # nosec B101
             f"Confidence {confidence} too high for synthesized voice"
         )
     
@@ -150,8 +150,8 @@ class TestLivenessDetection:
         is_live, confidence = extractor.detect_liveness(empty_audio, 16000)
         
         # Empty audio should not be considered live
-        assert not is_live, "Empty audio should not be detected as live"
-        assert confidence == 0.0, f"Confidence should be 0.0 for empty audio, got {confidence}"
+        assert not is_live, "Empty audio should not be detected as live"  # nosec B101
+        assert confidence == 0.0, f"Confidence should be 0.0 for empty audio, got {confidence}"  # nosec B101
     
     def test_liveness_confidence_bounds(self):
         """Test that liveness confidence is always in valid range."""
@@ -170,12 +170,12 @@ class TestLivenessDetection:
             is_live, confidence = extractor.detect_liveness(audio, sample_rate)
             
             # Confidence must be in [0.0, 1.0]
-            assert 0.0 <= confidence <= 1.0, (
+            assert 0.0 <= confidence <= 1.0, (  # nosec B101
                 f"Confidence {confidence} outside [0.0, 1.0]"
             )
             
             # is_live should be boolean
-            assert isinstance(is_live, bool), (
+            assert isinstance(is_live, bool), (  # nosec B101
                 f"is_live should be boolean, got {type(is_live)}"
             )
     
@@ -204,11 +204,11 @@ class TestLivenessDetection:
             
             # Check threshold consistency
             if confidence >= 0.55:
-                assert is_live, (
+                assert is_live, (  # nosec B101
                     f"Confidence {confidence} >= 0.55 but is_live is False"
                 )
             else:
-                assert not is_live, (
+                assert not is_live, (  # nosec B101
                     f"Confidence {confidence} < 0.55 but is_live is True"
                 )
     
@@ -238,7 +238,7 @@ class TestLivenessDetection:
         _, conf_no_hf = extractor.detect_liveness(audio_no_hf, sample_rate)
         
         # Audio with high-frequency content should have higher confidence
-        assert conf_with_hf > conf_no_hf, (
+        assert conf_with_hf > conf_no_hf, (  # nosec B101
             f"High-freq confidence {conf_with_hf} not greater than "
             f"no-high-freq confidence {conf_no_hf}"
         )
@@ -273,7 +273,7 @@ class TestLivenessDetection:
         
         # Audio with pitch variation should have higher confidence
         # (or at least not significantly lower)
-        assert conf_varied >= conf_constant * 0.8, (
+        assert conf_varied >= conf_constant * 0.8, (  # nosec B101
             f"Varied pitch confidence {conf_varied} significantly lower than "
             f"constant pitch confidence {conf_constant}"
         )
@@ -290,8 +290,8 @@ class TestLivenessDetection:
                 16000
             )
             # If it doesn't raise, check it returns valid values
-            assert isinstance(is_live, bool)
-            assert 0.0 <= confidence <= 1.0
+            assert isinstance(is_live, bool)  # nosec B101
+            assert 0.0 <= confidence <= 1.0  # nosec B101
         except OSError as exc:
             # If it raises, that's also acceptable
             logger.debug("Cleanup skipped: %s", exc)

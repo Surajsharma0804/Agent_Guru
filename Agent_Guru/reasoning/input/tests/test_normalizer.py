@@ -21,11 +21,11 @@ class TestInputNormalizer:
     def test_initialization(self):
         """Test normalizer initialization."""
         normalizer = InputNormalizer()
-        assert normalizer.max_length == InputNormalizer.MAX_INPUT_LENGTH
+        assert normalizer.max_length == InputNormalizer.MAX_INPUT_LENGTH  # nosec B101
         
         # Custom max length
         normalizer = InputNormalizer(max_length=1000)
-        assert normalizer.max_length == 1000
+        assert normalizer.max_length == 1000  # nosec B101
     
     def test_normalize_text_basic(self):
         """Test basic text normalization."""
@@ -38,12 +38,12 @@ class TestInputNormalizer:
         
         normalized = normalizer.normalize(raw)
         
-        assert normalized.text == "Set a timer for 5 minutes"
-        assert normalized.source == InputSource.TEXT
-        assert normalized.user_id == "user_123"
-        assert isinstance(normalized.timestamp, datetime)
-        assert "original_length" in normalized.metadata
-        assert "normalized_length" in normalized.metadata
+        assert normalized.text == "Set a timer for 5 minutes"  # nosec B101
+        assert normalized.source == InputSource.TEXT  # nosec B101
+        assert normalized.user_id == "user_123"  # nosec B101
+        assert isinstance(normalized.timestamp, datetime)  # nosec B101
+        assert "original_length" in normalized.metadata  # nosec B101
+        assert "normalized_length" in normalized.metadata  # nosec B101
     
     def test_normalize_text_whitespace(self):
         """Test whitespace normalization."""
@@ -57,8 +57,8 @@ class TestInputNormalizer:
         normalized = normalizer.normalize(raw)
         
         # Multiple spaces should be collapsed to single space
-        assert "  " not in normalized.text
-        assert normalized.text == "Set a timer for 5 minutes"
+        assert "  " not in normalized.text  # nosec B101
+        assert normalized.text == "Set a timer for 5 minutes"  # nosec B101
     
     def test_normalize_text_empty_input(self):
         """Test empty text input raises error."""
@@ -120,10 +120,10 @@ class TestInputNormalizer:
         normalized = normalizer.normalize(raw)
         
         # Script tags should be removed
-        assert "<script>" not in normalized.text
-        assert "alert" not in normalized.text
+        assert "<script>" not in normalized.text  # nosec B101
+        assert "alert" not in normalized.text  # nosec B101
         # Safe content should remain
-        assert "Hello" in normalized.text
+        assert "Hello" in normalized.text  # nosec B101
     
     def test_normalize_text_metadata_extraction(self):
         """Test metadata extraction from text."""
@@ -138,14 +138,14 @@ class TestInputNormalizer:
         normalized = normalizer.normalize(raw)
         
         # Check extracted metadata
-        assert normalized.metadata["has_uppercase"] is True
-        assert normalized.metadata["has_numbers"] is True
-        assert normalized.metadata["has_special_chars"] is True
-        assert normalized.metadata["original_length"] > 0
-        assert normalized.metadata["normalized_length"] > 0
+        assert normalized.metadata["has_uppercase"] is True  # nosec B101
+        assert normalized.metadata["has_numbers"] is True  # nosec B101
+        assert normalized.metadata["has_special_chars"] is True  # nosec B101
+        assert normalized.metadata["original_length"] > 0  # nosec B101
+        assert normalized.metadata["normalized_length"] > 0  # nosec B101
         
         # Check preserved metadata
-        assert normalized.metadata["custom_key"] == "custom_value"
+        assert normalized.metadata["custom_key"] == "custom_value"  # nosec B101
     
     def test_normalize_voice_basic(self):
         """Test basic voice input normalization."""
@@ -158,9 +158,9 @@ class TestInputNormalizer:
         
         normalized = normalizer.normalize(raw)
         
-        assert normalized.text == "set a timer for five minutes"
-        assert normalized.source == InputSource.VOICE
-        assert normalized.metadata["transcribed"] is True
+        assert normalized.text == "set a timer for five minutes"  # nosec B101
+        assert normalized.source == InputSource.VOICE  # nosec B101
+        assert normalized.metadata["transcribed"] is True  # nosec B101
     
     def test_normalize_voice_empty(self):
         """Test empty voice input raises error."""
@@ -197,11 +197,11 @@ class TestInputNormalizer:
         
         normalized = normalizer.normalize(raw)
         
-        assert "timer" in normalized.text.lower()
-        assert "cooking" in normalized.text.lower()
-        assert normalized.source == InputSource.SYSTEM_EVENT
-        assert normalized.metadata["system_generated"] is True
-        assert normalized.metadata["event_type"] == "timer_expired"
+        assert "timer" in normalized.text.lower()  # nosec B101
+        assert "cooking" in normalized.text.lower()  # nosec B101
+        assert normalized.source == InputSource.SYSTEM_EVENT  # nosec B101
+        assert normalized.metadata["system_generated"] is True  # nosec B101
+        assert normalized.metadata["event_type"] == "timer_expired"  # nosec B101
     
     def test_normalize_system_event_string(self):
         """Test system event string normalization."""
@@ -214,8 +214,8 @@ class TestInputNormalizer:
         
         normalized = normalizer.normalize(raw)
         
-        assert normalized.text == "System notification: Battery low"
-        assert normalized.metadata["system_generated"] is True
+        assert normalized.text == "System notification: Battery low"  # nosec B101
+        assert normalized.metadata["system_generated"] is True  # nosec B101
     
     def test_normalize_system_event_empty(self):
         """Test empty system event raises error."""
@@ -263,8 +263,8 @@ class TestInputNormalizer:
         
         text = normalizer._event_dict_to_text(event)
         
-        assert "timer" in text.lower()
-        assert "workout" in text.lower()
+        assert "timer" in text.lower()  # nosec B101
+        assert "workout" in text.lower()  # nosec B101
     
     def test_event_dict_to_text_alarm(self):
         """Test alarm event conversion."""
@@ -273,8 +273,8 @@ class TestInputNormalizer:
         
         text = normalizer._event_dict_to_text(event)
         
-        assert "alarm" in text.lower()
-        assert "morning" in text.lower()
+        assert "alarm" in text.lower()  # nosec B101
+        assert "morning" in text.lower()  # nosec B101
     
     def test_event_dict_to_text_reminder(self):
         """Test reminder event conversion."""
@@ -283,8 +283,8 @@ class TestInputNormalizer:
         
         text = normalizer._event_dict_to_text(event)
         
-        assert "reminder" in text.lower()
-        assert "Take medicine" in text
+        assert "reminder" in text.lower()  # nosec B101
+        assert "Take medicine" in text  # nosec B101
     
     def test_event_dict_to_text_notification(self):
         """Test notification event conversion."""
@@ -293,9 +293,9 @@ class TestInputNormalizer:
         
         text = normalizer._event_dict_to_text(event)
         
-        assert "notification" in text.lower()
-        assert "Email" in text
-        assert "New message" in text
+        assert "notification" in text.lower()  # nosec B101
+        assert "Email" in text  # nosec B101
+        assert "New message" in text  # nosec B101
     
     def test_event_dict_to_text_generic(self):
         """Test generic event conversion."""
@@ -304,9 +304,9 @@ class TestInputNormalizer:
         
         text = normalizer._event_dict_to_text(event)
         
-        assert "custom_event" in text
-        assert "key1" in text
-        assert "value1" in text
+        assert "custom_event" in text  # nosec B101
+        assert "key1" in text  # nosec B101
+        assert "value1" in text  # nosec B101
 
 
 class TestRawInput:
@@ -320,11 +320,11 @@ class TestRawInput:
             user_id="user_123"
         )
         
-        assert raw.content == "test"
-        assert raw.source == InputSource.TEXT
-        assert raw.user_id == "user_123"
-        assert isinstance(raw.timestamp, datetime)
-        assert raw.metadata == {}
+        assert raw.content == "test"  # nosec B101
+        assert raw.source == InputSource.TEXT  # nosec B101
+        assert raw.user_id == "user_123"  # nosec B101
+        assert isinstance(raw.timestamp, datetime)  # nosec B101
+        assert raw.metadata == {}  # nosec B101
     
     def test_raw_input_with_metadata(self):
         """Test RawInput with metadata."""
@@ -336,7 +336,7 @@ class TestRawInput:
             metadata=metadata
         )
         
-        assert raw.metadata == metadata
+        assert raw.metadata == metadata  # nosec B101
     
     def test_raw_input_empty_user_id(self):
         """Test RawInput with empty user_id raises error."""
@@ -369,12 +369,12 @@ class TestNormalizedInput:
             timestamp=datetime.now(tz=timezone.utc)
         )
         
-        assert normalized.text == "test"
-        assert normalized.source == InputSource.TEXT
-        assert normalized.user_id == "user_123"
-        assert isinstance(normalized.timestamp, datetime)
-        assert normalized.metadata == {}
-        assert normalized.original_content is None
+        assert normalized.text == "test"  # nosec B101
+        assert normalized.source == InputSource.TEXT  # nosec B101
+        assert normalized.user_id == "user_123"  # nosec B101
+        assert isinstance(normalized.timestamp, datetime)  # nosec B101
+        assert normalized.metadata == {}  # nosec B101
+        assert normalized.original_content is None  # nosec B101
     
     def test_normalized_input_with_metadata(self):
         """Test NormalizedInput with metadata."""
@@ -388,8 +388,8 @@ class TestNormalizedInput:
             original_content="original"
         )
         
-        assert normalized.metadata == metadata
-        assert normalized.original_content == "original"
+        assert normalized.metadata == metadata  # nosec B101
+        assert normalized.original_content == "original"  # nosec B101
     
     def test_normalized_input_empty_text(self):
         """Test NormalizedInput with empty text raises error."""
@@ -441,12 +441,12 @@ class TestInputNormalizerIntegration:
         normalized = normalizer.normalize(raw)
         
         # Verify all aspects
-        assert normalized.text == "Set a timer for 5 minutes!"
-        assert normalized.source == InputSource.TEXT
-        assert normalized.user_id == "user_123"
-        assert normalized.metadata["device"] == "mobile"
-        assert normalized.metadata["has_numbers"] is True
-        assert normalized.original_content is not None
+        assert normalized.text == "Set a timer for 5 minutes!"  # nosec B101
+        assert normalized.source == InputSource.TEXT  # nosec B101
+        assert normalized.user_id == "user_123"  # nosec B101
+        assert normalized.metadata["device"] == "mobile"  # nosec B101
+        assert normalized.metadata["has_numbers"] is True  # nosec B101
+        assert normalized.original_content is not None  # nosec B101
     
     def test_end_to_end_voice_normalization(self):
         """Test complete voice normalization flow."""
@@ -463,11 +463,11 @@ class TestInputNormalizerIntegration:
         normalized = normalizer.normalize(raw)
         
         # Verify all aspects
-        assert normalized.text == "play my favorite music"
-        assert normalized.source == InputSource.VOICE
-        assert normalized.user_id == "user_456"
-        assert normalized.metadata["confidence"] == 0.95
-        assert normalized.metadata["transcribed"] is True
+        assert normalized.text == "play my favorite music"  # nosec B101
+        assert normalized.source == InputSource.VOICE  # nosec B101
+        assert normalized.user_id == "user_456"  # nosec B101
+        assert normalized.metadata["confidence"] == 0.95  # nosec B101
+        assert normalized.metadata["transcribed"] is True  # nosec B101
     
     def test_end_to_end_system_event_normalization(self):
         """Test complete system event normalization flow."""
@@ -483,9 +483,9 @@ class TestInputNormalizerIntegration:
         normalized = normalizer.normalize(raw)
         
         # Verify all aspects
-        assert "alarm" in normalized.text.lower()
-        assert "wake up" in normalized.text.lower()
-        assert normalized.source == InputSource.SYSTEM_EVENT
-        assert normalized.user_id == "user_789"
-        assert normalized.metadata["system_generated"] is True
-        assert normalized.metadata["event_type"] == "alarm_triggered"
+        assert "alarm" in normalized.text.lower()  # nosec B101
+        assert "wake up" in normalized.text.lower()  # nosec B101
+        assert normalized.source == InputSource.SYSTEM_EVENT  # nosec B101
+        assert normalized.user_id == "user_789"  # nosec B101
+        assert normalized.metadata["system_generated"] is True  # nosec B101
+        assert normalized.metadata["event_type"] == "alarm_triggered"  # nosec B101

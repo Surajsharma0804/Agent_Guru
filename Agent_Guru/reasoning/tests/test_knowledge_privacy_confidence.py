@@ -43,16 +43,16 @@ class TestPIIRedaction:
         """Test email address redaction."""
         text = "Contact me at john.doe@example.com for details"
         redacted = redact_pii(text)
-        assert "[EMAIL]" in redacted
-        assert "john.doe@example.com" not in redacted
-        assert "Contact me at [EMAIL] for details" == redacted
+        assert "[EMAIL]" in redacted  # nosec B101
+        assert "john.doe@example.com" not in redacted  # nosec B101
+        assert "Contact me at [EMAIL] for details" == redacted  # nosec B101
 
     def test_redact_phone(self):
         """Test phone number redaction."""
         text = "Call me at 555-123-4567 or (555) 987-6543"
         redacted = redact_pii(text)
-        assert "[PHONE]" in redacted
-        assert "555-123-4567" not in redacted
+        assert "[PHONE]" in redacted  # nosec B101
+        assert "555-123-4567" not in redacted  # nosec B101
         # Note: (555) 987-6543 format may not be caught by simple regex
 
     def test_redact_phone_simple(self):
@@ -66,52 +66,52 @@ class TestPIIRedaction:
         """Test SSN redaction."""
         text = "My SSN is 123-45-6789"
         redacted = redact_pii(text)
-        assert "[SSN]" in redacted
-        assert "123-45-6789" not in redacted
-        assert "My SSN is [SSN]" == redacted
+        assert "[SSN]" in redacted  # nosec B101
+        assert "123-45-6789" not in redacted  # nosec B101
+        assert "My SSN is [SSN]" == redacted  # nosec B101
 
     def test_redact_credit_card(self):
         """Test credit card number redaction."""
         text = "Card number: 1234-5678-9012-3456"
         redacted = redact_pii(text)
-        assert "[CREDIT_CARD]" in redacted
-        assert "1234-5678-9012-3456" not in redacted
+        assert "[CREDIT_CARD]" in redacted  # nosec B101
+        assert "1234-5678-9012-3456" not in redacted  # nosec B101
 
     def test_redact_ip_address(self):
         """Test IP address redaction."""
         text = "Server IP: 192.168.1.1"
         redacted = redact_pii(text)
-        assert "[IP]" in redacted
-        assert "192.168.1.1" not in redacted
-        assert "Server IP: [IP]" == redacted
+        assert "[IP]" in redacted  # nosec B101
+        assert "192.168.1.1" not in redacted  # nosec B101
+        assert "Server IP: [IP]" == redacted  # nosec B101
 
     def test_redact_url(self):
         """Test URL redaction."""
         text = "Visit https://example.com/secret for more info"
         redacted = redact_pii(text)
-        assert "[URL]" in redacted
-        assert "https://example.com/secret" not in redacted
+        assert "[URL]" in redacted  # nosec B101
+        assert "https://example.com/secret" not in redacted  # nosec B101
 
     def test_redact_multiple_pii_types(self):
         """Test redacting multiple PII types in one text."""
         text = "Email: john@example.com, Phone: 555-123-4567, SSN: 123-45-6789"
         redacted = redact_pii(text)
-        assert "[EMAIL]" in redacted
-        assert "[PHONE]" in redacted
-        assert "[SSN]" in redacted
-        assert "john@example.com" not in redacted
-        assert "123-45-6789" not in redacted
+        assert "[EMAIL]" in redacted  # nosec B101
+        assert "[PHONE]" in redacted  # nosec B101
+        assert "[SSN]" in redacted  # nosec B101
+        assert "john@example.com" not in redacted  # nosec B101
+        assert "123-45-6789" not in redacted  # nosec B101
 
     def test_redact_no_pii(self):
         """Test text without PII remains unchanged."""
         text = "This is a normal sentence without any PII"
         redacted = redact_pii(text)
-        assert redacted == text
+        assert redacted == text  # nosec B101
 
     def test_redact_empty_string(self):
         """Test empty string redaction."""
         redacted = redact_pii("")
-        assert redacted == ""
+        assert redacted == ""  # nosec B101
 
 
 class TestUserDataIsolation:
@@ -171,14 +171,14 @@ class TestUserDataIsolation:
         memories = synthesizer.retrieve_relevant_data(query, "user_1")
 
         # Verify only user_1's data is returned
-        assert len(memories) == 1
-        assert memories[0].user_id == "user_1"
-        assert "John" in memories[0].content
+        assert len(memories) == 1  # nosec B101
+        assert memories[0].user_id == "user_1"  # nosec B101
+        assert "John" in memories[0].content  # nosec B101
 
         # Verify retriever was called with correct user_id
         mock_retriever.retrieve.assert_called_once()
         call_kwargs = mock_retriever.retrieve.call_args.kwargs
-        assert call_kwargs["user_id"] == "user_1"
+        assert call_kwargs["user_id"] == "user_1"  # nosec B101
 
     def test_cross_user_data_leakage_prevention(self):
         """Test defense against cross-user data leakage."""
@@ -235,16 +235,16 @@ class TestUserDataIsolation:
             memories = synthesizer.retrieve_relevant_data(query, "user_1")
 
             # Verify only user_1's data is returned (defense in depth)
-            assert len(memories) == 1
-            assert memories[0].user_id == "user_1"
-            assert "User 1 data" in memories[0].content
+            assert len(memories) == 1  # nosec B101
+            assert memories[0].user_id == "user_1"  # nosec B101
+            assert "User 1 data" in memories[0].content  # nosec B101
 
             # Verify security violation was logged
             mock_logger.error.assert_called_once()
             error_call = mock_logger.error.call_args
-            assert "SECURITY VIOLATION" in error_call[0][0]
-            assert error_call[1]["extra"]["requested_user_id"] == "user_1"
-            assert error_call[1]["extra"]["memory_user_id"] == "user_2"
+            assert "SECURITY VIOLATION" in error_call[0][0]  # nosec B101
+            assert error_call[1]["extra"]["requested_user_id"] == "user_1"  # nosec B101
+            assert error_call[1]["extra"]["memory_user_id"] == "user_2"  # nosec B101
 
     def test_empty_user_id_raises_error(self):
         """Test that empty user_id raises ValueError."""
@@ -311,8 +311,8 @@ class TestConfidenceThresholds:
         answer = synthesizer.synthesize_answer(query, "user_1")
 
         # Verify uncertainty indicator is added
-        assert answer.summary.lower().startswith("i'm not very confident")
-        assert answer.confidence < 0.6
+        assert answer.summary.lower().startswith("i'm not very confident")  # nosec B101
+        assert answer.confidence < 0.6  # nosec B101
 
     def test_high_confidence_no_uncertainty_indicator(self):
         """Test that high confidence (>=0.6) doesn't add uncertainty indicator."""
@@ -351,8 +351,8 @@ class TestConfidenceThresholds:
         answer = synthesizer.synthesize_answer(query, "user_1")
 
         # Verify no uncertainty indicator
-        assert not answer.summary.lower().startswith("i'm not very confident")
-        assert answer.confidence >= 0.6
+        assert not answer.summary.lower().startswith("i'm not very confident")  # nosec B101
+        assert answer.confidence >= 0.6  # nosec B101
 
     def test_confidence_threshold_configurable(self):
         """Test that confidence threshold is configurable."""
@@ -366,7 +366,7 @@ class TestConfidenceThresholds:
                 use_llm_synthesis=False,
             )
 
-            assert synthesizer.confidence_threshold == threshold
+            assert synthesizer.confidence_threshold == threshold  # nosec B101
 
 
 class TestAuditLogging:
@@ -395,14 +395,14 @@ class TestAuditLogging:
 
             # Verify query received was logged
             info_calls = [call for call in mock_logger.info.call_args_list]
-            assert len(info_calls) >= 1
+            assert len(info_calls) >= 1  # nosec B101
 
             # Check first log (query received)
             first_log = info_calls[0]
-            assert "Knowledge query received" in first_log[0][0]
-            assert first_log[1]["extra"]["user_id"] == "user_1"
-            assert first_log[1]["extra"]["query_text"] == "test query"
-            assert first_log[1]["extra"]["query_type"] == "temporal"
+            assert "Knowledge query received" in first_log[0][0]  # nosec B101
+            assert first_log[1]["extra"]["user_id"] == "user_1"  # nosec B101
+            assert first_log[1]["extra"]["query_text"] == "test query"  # nosec B101
+            assert first_log[1]["extra"]["query_type"] == "temporal"  # nosec B101
 
     def test_query_completed_logged(self):
         """Test that query completion is logged."""
@@ -427,14 +427,14 @@ class TestAuditLogging:
 
             # Verify query completed was logged
             info_calls = [call for call in mock_logger.info.call_args_list]
-            assert len(info_calls) >= 3  # received, retrieved, completed
+            assert len(info_calls) >= 3  # received, retrieved, completed  # nosec B101
 
             # Check last log (query completed)
             last_log = info_calls[-1]
-            assert "Knowledge query completed" in last_log[0][0]
-            assert last_log[1]["extra"]["user_id"] == "user_1"
-            assert "answer_confidence" in last_log[1]["extra"]
-            assert "latency_ms" in last_log[1]["extra"]
+            assert "Knowledge query completed" in last_log[0][0]  # nosec B101
+            assert last_log[1]["extra"]["user_id"] == "user_1"  # nosec B101
+            assert "answer_confidence" in last_log[1]["extra"]  # nosec B101
+            assert "latency_ms" in last_log[1]["extra"]  # nosec B101
 
     def test_latency_warning_logged(self):
         """Test that latency warnings are logged."""
@@ -480,11 +480,11 @@ class TestAuditLogging:
 
             # Verify latency warning was logged
             warning_calls = [call for call in mock_logger.warning.call_args_list]
-            assert len(warning_calls) >= 1
+            assert len(warning_calls) >= 1  # nosec B101
 
             warning_log = warning_calls[0]
-            assert "exceeded latency budget" in warning_log[0][0]
-            assert warning_log[1]["extra"]["latency_ms"] > 1500
+            assert "exceeded latency budget" in warning_log[0][0]  # nosec B101
+            assert warning_log[1]["extra"]["latency_ms"] > 1500  # nosec B101
 
 
 class TestPrivacyPreservingAggregation:
@@ -524,8 +524,8 @@ class TestPrivacyPreservingAggregation:
         answer = synthesizer.synthesize_answer(query, "user_1")
 
         # Verify PII is redacted
-        assert "[EMAIL]" in answer.summary or "john@example.com" not in answer.summary
-        assert "[PHONE]" in answer.summary or "555-123-4567" not in answer.summary
+        assert "[EMAIL]" in answer.summary or "john@example.com" not in answer.summary  # nosec B101
+        assert "[PHONE]" in answer.summary or "555-123-4567" not in answer.summary  # nosec B101
 
     def test_aggregation_without_pii_leakage(self):
         """Test that aggregation doesn't leak PII."""
@@ -566,8 +566,8 @@ class TestPrivacyPreservingAggregation:
         answer = synthesizer.synthesize_answer(query, "user_1")
 
         # Verify PII is redacted from summary
-        assert "john@example.com" not in answer.summary
-        assert "555-" not in answer.summary or "[PHONE]" in answer.summary
+        assert "john@example.com" not in answer.summary  # nosec B101
+        assert "555-" not in answer.summary or "[PHONE]" in answer.summary  # nosec B101
 
 
 if __name__ == "__main__":

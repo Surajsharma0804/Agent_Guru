@@ -42,7 +42,7 @@ class TestCommandParserProperties:
         
         # PROPERTY ASSERTION: Confidence must be in valid range
         assert 0.0 <= result.confidence <= 1.0, \
-            f"Confidence {result.confidence} outside [0.0, 1.0] for text: {text}"
+            f"Confidence {result.confidence} outside [0.0, 1.0] for text: {text}"  # nosec B101
     
     @given(
         app_name=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -68,10 +68,10 @@ class TestCommandParserProperties:
         result = parser.interpret(text)
         
         # PROPERTY ASSERTIONS
-        assert result.is_command, f"Failed to recognize command: {text}"
-        assert result.action_id is not None, "No action_id extracted"
-        assert result.action_id == "OPEN_APP", f"Wrong action_id: {result.action_id}"
-        assert "app_name" in result.parameters, "Failed to extract app_name parameter"
+        assert result.is_command, f"Failed to recognize command: {text}"  # nosec B101
+        assert result.action_id is not None, "No action_id extracted"  # nosec B101
+        assert result.action_id == "OPEN_APP", f"Wrong action_id: {result.action_id}"  # nosec B101
+        assert "app_name" in result.parameters, "Failed to extract app_name parameter"  # nosec B101
     
     @given(
         volume_level=st.integers(min_value=0, max_value=100),
@@ -91,10 +91,10 @@ class TestCommandParserProperties:
         result = parser.interpret(text)
         
         # PROPERTY ASSERTIONS
-        assert result.is_command, f"Failed to recognize command: {text}"
-        assert "level" in result.parameters, "Failed to extract number entity"
+        assert result.is_command, f"Failed to recognize command: {text}"  # nosec B101
+        assert "level" in result.parameters, "Failed to extract number entity"  # nosec B101
         assert result.parameters["level"] == volume_level, \
-            f"Extracted {result.parameters['level']}, expected {volume_level}"
+            f"Extracted {result.parameters['level']}, expected {volume_level}"  # nosec B101
     
     @given(
         text_content=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'P', 'Zs'))),
@@ -118,16 +118,16 @@ class TestCommandParserProperties:
         result = parser.interpret(command_text)
         
         # PROPERTY ASSERTIONS
-        assert result.is_command, f"Failed to recognize command: {command_text}"
-        assert "text" in result.parameters, "Failed to extract text parameter"
+        assert result.is_command, f"Failed to recognize command: {command_text}"  # nosec B101
+        assert "text" in result.parameters, "Failed to extract text parameter"  # nosec B101
         
         # Handle both string and int types (parser converts numeric strings to int)
         text_param = result.parameters["text"]
         if isinstance(text_param, str):
-            assert len(text_param) > 0, "Extracted empty text parameter"
+            assert len(text_param) > 0, "Extracted empty text parameter"  # nosec B101
         else:
             # If it's an int, it was successfully extracted
-            assert text_param is not None, "Extracted None text parameter"
+            assert text_param is not None, "Extracted None text parameter"  # nosec B101
     
     # ========================================================================
     # PROPERTY 20: COMMAND RECOGNITION COVERAGE
@@ -161,9 +161,9 @@ class TestCommandParserProperties:
         result = parser.interpret(text)
         
         # PROPERTY ASSERTION: System control commands must be recognized
-        assert result.is_command, f"Failed to recognize system control command: {text}"
-        assert result.action_id is not None, f"No action_id for command: {text}"
-        assert result.confidence > 0.0, f"Zero confidence for valid command: {text}"
+        assert result.is_command, f"Failed to recognize system control command: {text}"  # nosec B101
+        assert result.action_id is not None, f"No action_id for command: {text}"  # nosec B101
+        assert result.confidence > 0.0, f"Zero confidence for valid command: {text}"  # nosec B101
     
     @given(
         filename=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=('L', 'N'))),
@@ -193,8 +193,8 @@ class TestCommandParserProperties:
             result = parser.interpret(text)
             
             # PROPERTY ASSERTION
-            assert result.is_command, f"Failed to recognize file operation: {text}"
-            assert result.action_id is not None
+            assert result.is_command, f"Failed to recognize file operation: {text}"  # nosec B101
+            assert result.action_id is not None  # nosec B101
     
     @given(
         setting_value=st.integers(min_value=0, max_value=100),
@@ -215,10 +215,10 @@ class TestCommandParserProperties:
         result = parser.interpret(text)
         
         # PROPERTY ASSERTIONS
-        assert result.is_command, f"Failed to recognize settings command: {text}"
-        assert result.action_id is not None
-        assert "level" in result.parameters, "Failed to extract level parameter"
-        assert result.parameters["level"] == setting_value
+        assert result.is_command, f"Failed to recognize settings command: {text}"  # nosec B101
+        assert result.action_id is not None  # nosec B101
+        assert "level" in result.parameters, "Failed to extract level parameter"  # nosec B101
+        assert result.parameters["level"] == setting_value  # nosec B101
     
     # ========================================================================
     # PROPERTY 21: COMMAND CHAINING SUPPORT
@@ -244,21 +244,21 @@ class TestCommandParserProperties:
         result = parser.interpret(text)
         
         # PROPERTY ASSERTIONS
-        assert result.is_command, f"Failed to recognize chained command: {text}"
+        assert result.is_command, f"Failed to recognize chained command: {text}"  # nosec B101
         assert result.action_id == "CHAINED_COMMAND", \
-            f"Wrong action_id for chained command: {result.action_id}"
-        assert "sub_commands" in result.parameters, "No sub_commands in chained command"
+            f"Wrong action_id for chained command: {result.action_id}"  # nosec B101
+        assert "sub_commands" in result.parameters, "No sub_commands in chained command"  # nosec B101
         
         sub_commands = result.parameters["sub_commands"]
         assert len(sub_commands) >= 2, \
-            f"Expected at least 2 sub-commands, got {len(sub_commands)}"
+            f"Expected at least 2 sub-commands, got {len(sub_commands)}"  # nosec B101
         
         # Each sub-command should have required fields
         for sub_cmd in sub_commands:
-            assert "action_id" in sub_cmd
-            assert "parameters" in sub_cmd
-            assert "confidence" in sub_cmd
-            assert 0.0 <= sub_cmd["confidence"] <= 1.0
+            assert "action_id" in sub_cmd  # nosec B101
+            assert "parameters" in sub_cmd  # nosec B101
+            assert "confidence" in sub_cmd  # nosec B101
+            assert 0.0 <= sub_cmd["confidence"] <= 1.0  # nosec B101
     
     @given(
         num_commands=st.integers(min_value=2, max_value=5),
@@ -280,15 +280,15 @@ class TestCommandParserProperties:
         result = parser.interpret(text)
         
         # PROPERTY ASSERTIONS
-        assert result.is_command, f"Failed to recognize chained command: {text}"
-        assert result.action_id == "CHAINED_COMMAND"
+        assert result.is_command, f"Failed to recognize chained command: {text}"  # nosec B101
+        assert result.action_id == "CHAINED_COMMAND"  # nosec B101
         
         sub_commands = result.parameters["sub_commands"]
         # Should extract at least some sub-commands
-        assert len(sub_commands) >= 1, "No sub-commands extracted"
+        assert len(sub_commands) >= 1, "No sub-commands extracted"  # nosec B101
         
         # Confidence should be averaged
-        assert 0.0 <= result.confidence <= 1.0
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     @given(
         app_name=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=('L',))),
@@ -314,17 +314,17 @@ class TestCommandParserProperties:
         result = parser.interpret(text)
         
         # PROPERTY ASSERTIONS
-        assert result.is_command, f"Failed to recognize chained command: {text}"
-        assert result.action_id == "CHAINED_COMMAND"
+        assert result.is_command, f"Failed to recognize chained command: {text}"  # nosec B101
+        assert result.action_id == "CHAINED_COMMAND"  # nosec B101
         
         sub_commands = result.parameters["sub_commands"]
-        assert len(sub_commands) >= 2, "Expected at least 2 sub-commands"
+        assert len(sub_commands) >= 2, "Expected at least 2 sub-commands"  # nosec B101
         
         # Check that parameters were extracted for sub-commands
         has_app_param = any("app_name" in cmd["parameters"] for cmd in sub_commands)
         has_text_param = any("text" in cmd["parameters"] for cmd in sub_commands)
         
-        assert has_app_param or has_text_param, "No parameters extracted from chained commands"
+        assert has_app_param or has_text_param, "No parameters extracted from chained commands"  # nosec B101
     
     # ========================================================================
     # PROPERTY: CONSISTENCY
@@ -351,11 +351,11 @@ class TestCommandParserProperties:
         
         # PROPERTY ASSERTION: Results should be consistent
         for i in range(1, len(results)):
-            assert results[i].is_command == results[0].is_command
-            assert results[i].action_id == results[0].action_id
-            assert results[i].confidence == results[0].confidence
+            assert results[i].is_command == results[0].is_command  # nosec B101
+            assert results[i].action_id == results[0].action_id  # nosec B101
+            assert results[i].confidence == results[0].confidence  # nosec B101
             # Parameters might have different object identity but same content
-            assert results[i].parameters == results[0].parameters
+            assert results[i].parameters == results[0].parameters  # nosec B101
     
     # ========================================================================
     # PROPERTY: ROBUSTNESS
@@ -379,8 +379,8 @@ class TestCommandParserProperties:
         result = parser.interpret(text_with_whitespace)
         
         # PROPERTY ASSERTION: Should still recognize command
-        assert result.is_command, f"Failed to recognize command with whitespace: '{text_with_whitespace}'"
-        assert result.confidence > 0.0
+        assert result.is_command, f"Failed to recognize command with whitespace: '{text_with_whitespace}'"  # nosec B101
+        assert result.confidence > 0.0  # nosec B101
     
     @given(
         command=st.sampled_from(["open chrome", "OPEN CHROME", "Open Chrome", "OpEn ChRoMe"]),
@@ -396,5 +396,5 @@ class TestCommandParserProperties:
         result = parser.interpret(command)
         
         # PROPERTY ASSERTION: Should recognize regardless of case
-        assert result.is_command, f"Failed to recognize command: {command}"
-        assert result.action_id == "OPEN_APP"
+        assert result.is_command, f"Failed to recognize command: {command}"  # nosec B101
+        assert result.action_id == "OPEN_APP"  # nosec B101

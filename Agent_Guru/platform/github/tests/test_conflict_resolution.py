@@ -37,8 +37,8 @@ class TestConflictDetection:
         
         has_conflicts, conflicted_files = mock_integrator.detect_conflicts()
         
-        assert has_conflicts is False
-        assert conflicted_files == []
+        assert has_conflicts is False  # nosec B101
+        assert conflicted_files == []  # nosec B101
     
     def test_detect_conflicts_with_conflicts(self, mock_integrator):
         """Test conflict detection when conflicts exist."""
@@ -52,11 +52,11 @@ class TestConflictDetection:
         
         has_conflicts, conflicted_files = mock_integrator.detect_conflicts()
         
-        assert has_conflicts is True
-        assert len(conflicted_files) == 2
-        assert "file1.py" in conflicted_files
-        assert "file2.py" in conflicted_files
-        assert "file3.py" not in conflicted_files
+        assert has_conflicts is True  # nosec B101
+        assert len(conflicted_files) == 2  # nosec B101
+        assert "file1.py" in conflicted_files  # nosec B101
+        assert "file2.py" in conflicted_files  # nosec B101
+        assert "file3.py" not in conflicted_files  # nosec B101
     
     def test_detect_conflicts_all_conflict_types(self, mock_integrator):
         """Test detection of all conflict marker types."""
@@ -78,8 +78,8 @@ class TestConflictDetection:
         
         has_conflicts, conflicted_files = mock_integrator.detect_conflicts()
         
-        assert has_conflicts is True
-        assert len(conflicted_files) == 7
+        assert has_conflicts is True  # nosec B101
+        assert len(conflicted_files) == 7  # nosec B101
     
     def test_detect_conflicts_command_failure(self, mock_integrator):
         """Test conflict detection when git command fails."""
@@ -92,8 +92,8 @@ class TestConflictDetection:
         has_conflicts, conflicted_files = mock_integrator.detect_conflicts()
         
         # Should return False, [] on failure (graceful degradation)
-        assert has_conflicts is False
-        assert conflicted_files == []
+        assert has_conflicts is False  # nosec B101
+        assert conflicted_files == []  # nosec B101
     
     def test_detect_conflicts_exception_handling(self, mock_integrator):
         """Test conflict detection handles exceptions gracefully."""
@@ -102,8 +102,8 @@ class TestConflictDetection:
         has_conflicts, conflicted_files = mock_integrator.detect_conflicts()
         
         # Should return False, [] on exception
-        assert has_conflicts is False
-        assert conflicted_files == []
+        assert has_conflicts is False  # nosec B101
+        assert conflicted_files == []  # nosec B101
 
 
 class TestConflictResolution:
@@ -127,8 +127,8 @@ class TestConflictResolution:
         
         result = mock_integrator.resolve_conflicts_with_rebase(max_attempts=3)
         
-        assert result.success is True
-        assert "attempt 1/3" in result.message.lower()
+        assert result.success is True  # nosec B101
+        assert "attempt 1/3" in result.message.lower()  # nosec B101
     
     def test_resolve_conflicts_success_after_retry(self, mock_integrator):
         """Test successful conflict resolution after retry."""
@@ -162,8 +162,8 @@ class TestConflictResolution:
         with patch('time.sleep'):  # Skip actual sleep
             result = mock_integrator.resolve_conflicts_with_rebase(max_attempts=3)
         
-        assert result.success is True
-        assert "attempt 2/3" in result.message.lower()
+        assert result.success is True  # nosec B101
+        assert "attempt 2/3" in result.message.lower()  # nosec B101
     
     def test_resolve_conflicts_all_attempts_fail(self, mock_integrator):
         """Test conflict resolution when all attempts fail."""
@@ -189,7 +189,7 @@ class TestConflictResolution:
             with pytest.raises(GitConflictError) as exc_info:
                 mock_integrator.resolve_conflicts_with_rebase(max_attempts=3)
         
-        assert "Failed to resolve conflicts after 3 attempts" in str(exc_info.value)
+        assert "Failed to resolve conflicts after 3 attempts" in str(exc_info.value)  # nosec B101
         mock_integrator._notify_goal_manager_of_failure.assert_called_once()
     
     def test_resolve_conflicts_existing_conflicts_aborted(self, mock_integrator):
@@ -218,8 +218,8 @@ class TestConflictResolution:
         
         result = mock_integrator.resolve_conflicts_with_rebase(max_attempts=3)
         
-        assert abort_called[0] is True
-        assert result.success is True
+        assert abort_called[0] is True  # nosec B101
+        assert result.success is True  # nosec B101
     
     def test_resolve_conflicts_fetch_failure(self, mock_integrator):
         """Test conflict resolution when fetch fails."""
@@ -265,7 +265,7 @@ class TestConflictResolution:
             mock_integrator.resolve_conflicts_with_rebase(max_attempts=3)
         
         # Verify exponential backoff: 1s, 2s (no sleep after last attempt)
-        assert mock_sleep.call_count == 2
+        assert mock_sleep.call_count == 2  # nosec B101
         mock_sleep.assert_any_call(1)  # 2^0 = 1
         mock_sleep.assert_any_call(2)  # 2^1 = 2
 
@@ -285,8 +285,8 @@ class TestPushWithConflictResolution:
         
         result = mock_integrator.push_with_conflict_resolution(max_retries=3)
         
-        assert result.success is True
-        assert "attempt 1/3" in result.message.lower()
+        assert result.success is True  # nosec B101
+        assert "attempt 1/3" in result.message.lower()  # nosec B101
         mock_integrator.push.assert_called_once()
     
     def test_push_with_conflict_resolution_success(self, mock_integrator):
@@ -322,9 +322,9 @@ class TestPushWithConflictResolution:
         
         result = mock_integrator.push_with_conflict_resolution(max_retries=3)
         
-        assert result.success is True
-        assert mock_integrator.resolve_conflicts_with_rebase.call_count == 1
-        assert mock_integrator.push.call_count == 2
+        assert result.success is True  # nosec B101
+        assert mock_integrator.resolve_conflicts_with_rebase.call_count == 1  # nosec B101
+        assert mock_integrator.push.call_count == 2  # nosec B101
     
     def test_push_all_retries_fail(self, mock_integrator):
         """Test push when all retry attempts fail."""
@@ -338,8 +338,8 @@ class TestPushWithConflictResolution:
         
         result = mock_integrator.push_with_conflict_resolution(max_retries=3)
         
-        assert result.success is False
-        assert "Push failed after 3 attempts" in result.message
+        assert result.success is False  # nosec B101
+        assert "Push failed after 3 attempts" in result.message  # nosec B101
         mock_integrator._notify_goal_manager_of_failure.assert_called_once()
     
     def test_push_authentication_error_no_retry(self, mock_integrator):
@@ -351,7 +351,7 @@ class TestPushWithConflictResolution:
             mock_integrator.push_with_conflict_resolution(max_retries=3)
         
         # Should only attempt once (no retry for auth errors)
-        assert mock_integrator.push.call_count == 1
+        assert mock_integrator.push.call_count == 1  # nosec B101
     
     def test_push_conflict_resolution_fails(self, mock_integrator):
         """Test push when conflict resolution fails."""
@@ -370,8 +370,8 @@ class TestPushWithConflictResolution:
         
         result = mock_integrator.push_with_conflict_resolution(max_retries=3)
         
-        assert result.success is False
-        assert mock_integrator.resolve_conflicts_with_rebase.call_count == 3
+        assert result.success is False  # nosec B101
+        assert mock_integrator.resolve_conflicts_with_rebase.call_count == 3  # nosec B101
 
 
 class TestGoalManagerNotification:
@@ -386,9 +386,9 @@ class TestGoalManagerNotification:
         )
         
         # Check that error was logged
-        assert "GOAL_MANAGER_NOTIFICATION" in caplog.text
-        assert "test_operation" in caplog.text
-        assert "attempts=3" in caplog.text
+        assert "GOAL_MANAGER_NOTIFICATION" in caplog.text  # nosec B101
+        assert "test_operation" in caplog.text  # nosec B101
+        assert "attempts=3" in caplog.text  # nosec B101
     
     def test_notify_goal_manager_handles_exception(self, mock_integrator, caplog):
         """Test that notification handles exceptions gracefully."""
@@ -400,7 +400,7 @@ class TestGoalManagerNotification:
         )
         
         # Should still log something
-        assert "GOAL_MANAGER_NOTIFICATION" in caplog.text
+        assert "GOAL_MANAGER_NOTIFICATION" in caplog.text  # nosec B101
 
 
 # Integration Tests
@@ -444,19 +444,19 @@ def mock_integrator(tmp_path):
 @pytest.fixture
 def temp_git_repo(tmp_path):
     """Create a temporary Git repository for integration tests."""
-    import subprocess
+    import subprocess  # nosec B404
     
     repo_path = tmp_path / "test_repo"
     repo_path.mkdir()
     
     # Initialize Git repository
-    subprocess.run(["git", "init"], cwd=str(repo_path), check=True)
-    subprocess.run(
+    subprocess.run(["git", "init"], cwd=str(repo_path), check=True)  # nosec B603 B607
+    subprocess.run(  # nosec B603 B607
         ["git", "config", "user.email", "test@example.com"],
         cwd=str(repo_path),
         check=True
     )
-    subprocess.run(
+    subprocess.run(  # nosec B603 B607
         ["git", "config", "user.name", "Test User"],
         cwd=str(repo_path),
         check=True

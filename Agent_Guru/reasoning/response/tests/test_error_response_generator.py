@@ -32,8 +32,8 @@ class TestErrorResponseGenerator:
 
     def test_initialization(self, generator: ErrorResponseGenerator):
         """Test generator initialization."""
-        assert generator is not None
-        assert len(generator._error_templates) > 0
+        assert generator is not None  # nosec B101
+        assert len(generator._error_templates) > 0  # nosec B101
 
     def test_generate_error_response_invalid_input(self, generator: ErrorResponseGenerator):
         """Test error response for invalid input."""
@@ -46,13 +46,13 @@ class TestErrorResponseGenerator:
 
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert response is not None
-        assert response.text
-        assert "didn't understand" in response.text.lower()
-        assert "rephrase" in response.text.lower()
-        assert len(response.suggestions) > 0
-        assert response.metadata["error_type"] == ErrorType.INVALID_INPUT.value
-        assert response.metadata["recoverable"] is True
+        assert response is not None  # nosec B101
+        assert response.text  # nosec B101
+        assert "didn't understand" in response.text.lower()  # nosec B101
+        assert "rephrase" in response.text.lower()  # nosec B101
+        assert len(response.suggestions) > 0  # nosec B101
+        assert response.metadata["error_type"] == ErrorType.INVALID_INPUT.value  # nosec B101
+        assert response.metadata["recoverable"] is True  # nosec B101
 
     def test_generate_error_response_permission_denied(self, generator: ErrorResponseGenerator):
         """Test error response for permission denied."""
@@ -65,10 +65,10 @@ class TestErrorResponseGenerator:
 
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert response is not None
-        assert "permission" in response.text.lower()
-        assert len(response.suggestions) > 0
-        assert (
+        assert response is not None  # nosec B101
+        assert "permission" in response.text.lower()  # nosec B101
+        assert len(response.suggestions) > 0  # nosec B101
+        assert (  # nosec B101
             "Grant permission" in response.suggestions
             or "grant permission" in str(response.suggestions).lower()
         )
@@ -84,11 +84,11 @@ class TestErrorResponseGenerator:
 
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert response is not None
-        assert (
+        assert response is not None  # nosec B101
+        assert (  # nosec B101
             "longer than expected" in response.text.lower() or "too long" in response.text.lower()
         )
-        assert len(response.suggestions) > 0
+        assert len(response.suggestions) > 0  # nosec B101
 
     def test_generate_error_response_network_error(self, generator: ErrorResponseGenerator):
         """Test error response for network error."""
@@ -101,10 +101,10 @@ class TestErrorResponseGenerator:
 
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert response is not None
-        assert "network" in response.text.lower() or "connection" in response.text.lower()
-        assert len(response.suggestions) > 0
-        assert any("connection" in s.lower() for s in response.suggestions)
+        assert response is not None  # nosec B101
+        assert "network" in response.text.lower() or "connection" in response.text.lower()  # nosec B101
+        assert len(response.suggestions) > 0  # nosec B101
+        assert any("connection" in s.lower() for s in response.suggestions)  # nosec B101
 
     def test_generate_error_response_tool_unavailable(self, generator: ErrorResponseGenerator):
         """Test error response for tool unavailable."""
@@ -117,9 +117,9 @@ class TestErrorResponseGenerator:
 
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert response is not None
-        assert "unavailable" in response.text.lower() or "not available" in response.text.lower()
-        assert len(response.suggestions) > 0
+        assert response is not None  # nosec B101
+        assert "unavailable" in response.text.lower() or "not available" in response.text.lower()  # nosec B101
+        assert len(response.suggestions) > 0  # nosec B101
 
     def test_voice_vs_text_modality(self, generator: ErrorResponseGenerator):
         """Test that voice responses are more concise than text."""
@@ -135,9 +135,9 @@ class TestErrorResponseGenerator:
         voice_response = generator.generate_error_response(error, ResponseModality.VOICE)
 
         # Voice should be shorter or equal
-        assert len(voice_response.text) <= len(text_response.text)
-        assert voice_response.modality == ResponseModality.VOICE
-        assert text_response.modality == ResponseModality.TEXT
+        assert len(voice_response.text) <= len(text_response.text)  # nosec B101
+        assert voice_response.modality == ResponseModality.VOICE  # nosec B101
+        assert text_response.modality == ResponseModality.TEXT  # nosec B101
 
     def test_no_technical_jargon(self, generator: ErrorResponseGenerator):
         """Test that error messages don't contain technical jargon."""
@@ -151,12 +151,12 @@ class TestErrorResponseGenerator:
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
         # Should not contain technical terms
-        assert "NullPointerException" not in response.text
-        assert (
+        assert "NullPointerException" not in response.text  # nosec B101
+        assert (  # nosec B101
             "module" not in response.text.lower() or "something went wrong" in response.text.lower()
         )
-        assert "stack trace" not in response.text.lower()
-        assert "exception" not in response.text.lower()
+        assert "stack trace" not in response.text.lower()  # nosec B101
+        assert "exception" not in response.text.lower()  # nosec B101
 
     def test_recoverable_errors_have_suggestions(self, generator: ErrorResponseGenerator):
         """Test that recoverable errors include suggested actions."""
@@ -169,8 +169,8 @@ class TestErrorResponseGenerator:
 
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert len(response.suggestions) > 0
-        assert any("try" in s.lower() for s in response.suggestions)
+        assert len(response.suggestions) > 0  # nosec B101
+        assert any("try" in s.lower() for s in response.suggestions)  # nosec B101
 
     def test_non_recoverable_errors_have_alternatives(self, generator: ErrorResponseGenerator):
         """Test that non-recoverable errors include alternatives."""
@@ -183,7 +183,7 @@ class TestErrorResponseGenerator:
 
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert len(response.suggestions) > 0
+        assert len(response.suggestions) > 0  # nosec B101
 
     def test_context_aware_responses(self, generator: ErrorResponseGenerator):
         """Test that responses are context-aware."""
@@ -208,7 +208,7 @@ class TestErrorResponseGenerator:
         response = generator.generate_error_response(error, ResponseModality.TEXT, intent=intent)
 
         # Should mention timer in context
-        assert "timer" in response.text.lower() or len(response.suggestions) > 0
+        assert "timer" in response.text.lower() or len(response.suggestions) > 0  # nosec B101
 
     def test_intent_specific_alternatives(self, generator: ErrorResponseGenerator):
         """Test that alternatives are intent-specific."""
@@ -236,7 +236,7 @@ class TestErrorResponseGenerator:
         )
 
         # Should have timer-specific alternatives
-        assert len(timer_response.suggestions) > 0
+        assert len(timer_response.suggestions) > 0  # nosec B101
 
     def test_fallback_strategy_suggestions(self, generator: ErrorResponseGenerator):
         """Test that fallback strategies generate appropriate suggestions."""
@@ -250,9 +250,9 @@ class TestErrorResponseGenerator:
 
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert len(response.suggestions) > 0
+        assert len(response.suggestions) > 0  # nosec B101
         # Should suggest retry
-        assert any("try" in s.lower() or "again" in s.lower() for s in response.suggestions)
+        assert any("try" in s.lower() or "again" in s.lower() for s in response.suggestions)  # nosec B101
 
     def test_clarification_required_flag(self, generator: ErrorResponseGenerator):
         """Test that clarification required flag is set correctly."""
@@ -265,7 +265,7 @@ class TestErrorResponseGenerator:
 
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert response.metadata["requires_clarification"] is True
+        assert response.metadata["requires_clarification"] is True  # nosec B101
 
     def test_all_error_types_have_templates(self, generator: ErrorResponseGenerator):
         """Test that all error types have templates."""
@@ -279,9 +279,9 @@ class TestErrorResponseGenerator:
 
             response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-            assert response is not None
-            assert response.text
-            assert len(response.text) > 0
+            assert response is not None  # nosec B101
+            assert response.text  # nosec B101
+            assert len(response.text) > 0  # nosec B101
 
     def test_error_response_metadata(self, generator: ErrorResponseGenerator):
         """Test that error response includes proper metadata."""
@@ -294,11 +294,11 @@ class TestErrorResponseGenerator:
 
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert "error_type" in response.metadata
-        assert "error_code" in response.metadata
-        assert "recoverable" in response.metadata
-        assert "generation_method" in response.metadata
-        assert response.metadata["generation_method"] == "error_response"
+        assert "error_type" in response.metadata  # nosec B101
+        assert "error_code" in response.metadata  # nosec B101
+        assert "recoverable" in response.metadata  # nosec B101
+        assert "generation_method" in response.metadata  # nosec B101
+        assert response.metadata["generation_method"] == "error_response"  # nosec B101
 
     def test_suggestion_limit(self, generator: ErrorResponseGenerator):
         """Test that suggestions are limited to 3."""
@@ -324,7 +324,7 @@ class TestErrorResponseGenerator:
         response = generator.generate_error_response(error, ResponseModality.TEXT, intent=intent)
 
         # Should be limited to 3 suggestions
-        assert len(response.suggestions) <= 3
+        assert len(response.suggestions) <= 3  # nosec B101
 
     def test_invalid_parameters_with_details(self, generator: ErrorResponseGenerator):
         """Test error response for invalid parameters with details."""
@@ -338,9 +338,9 @@ class TestErrorResponseGenerator:
 
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert response is not None
+        assert response is not None  # nosec B101
         # Should mention missing parameters
-        assert (
+        assert (  # nosec B101
             "duration" in response.text
             or "label" in response.text
             or "more information" in response.text.lower()
@@ -357,8 +357,8 @@ class TestErrorResponseGenerator:
 
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert "confirm" in response.text.lower()
-        assert any("confirm" in s.lower() or "cancel" in s.lower() for s in response.suggestions)
+        assert "confirm" in response.text.lower()  # nosec B101
+        assert any("confirm" in s.lower() or "cancel" in s.lower() for s in response.suggestions)  # nosec B101
 
     def test_llm_error_responses(self, generator: ErrorResponseGenerator):
         """Test error responses for LLM-related errors."""
@@ -380,9 +380,9 @@ class TestErrorResponseGenerator:
             response = generator.generate_error_response(error, ResponseModality.TEXT)
 
             # Should not mention "LLM" or technical terms
-            assert "llm" not in response.text.lower()
-            assert "model" not in response.text.lower() or "thinking" in response.text.lower()
-            assert len(response.suggestions) > 0
+            assert "llm" not in response.text.lower()  # nosec B101
+            assert "model" not in response.text.lower() or "thinking" in response.text.lower()  # nosec B101
+            assert len(response.suggestions) > 0  # nosec B101
 
 
 class TestErrorResponseTemplate:
@@ -398,11 +398,11 @@ class TestErrorResponseTemplate:
             requires_clarification=True,
         )
 
-        assert template.user_message == "Test error message"
-        assert template.voice_message == "Test error"
-        assert len(template.suggested_actions) == 2
-        assert len(template.alternatives) == 1
-        assert template.requires_clarification is True
+        assert template.user_message == "Test error message"  # nosec B101
+        assert template.voice_message == "Test error"  # nosec B101
+        assert len(template.suggested_actions) == 2  # nosec B101
+        assert len(template.alternatives) == 1  # nosec B101
+        assert template.requires_clarification is True  # nosec B101
 
     def test_template_defaults(self):
         """Test template default values."""
@@ -410,4 +410,4 @@ class TestErrorResponseTemplate:
             user_message="Test", voice_message="Test", suggested_actions=[], alternatives=[]
         )
 
-        assert template.requires_clarification is False
+        assert template.requires_clarification is False  # nosec B101

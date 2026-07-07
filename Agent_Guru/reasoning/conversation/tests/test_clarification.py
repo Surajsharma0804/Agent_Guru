@@ -50,8 +50,8 @@ class TestClarificationRules:
 
         should_clarify, trigger = ClarificationRules.should_clarify(intent, task, 0.6)
 
-        assert should_clarify is True
-        assert trigger == ClarificationTrigger.LOW_CONFIDENCE
+        assert should_clarify is True  # nosec B101
+        assert trigger == ClarificationTrigger.LOW_CONFIDENCE  # nosec B101
 
     def test_should_not_clarify_high_confidence(self):
         """Test no clarification for high confidence."""
@@ -87,8 +87,8 @@ class TestClarificationRules:
 
         should_clarify, trigger = ClarificationRules.should_clarify(intent, task, 0.9)
 
-        assert should_clarify is False
-        assert trigger is None
+        assert should_clarify is False  # nosec B101
+        assert trigger is None  # nosec B101
 
     def test_should_clarify_missing_entities(self):
         """Test clarification needed for missing entities."""
@@ -120,8 +120,8 @@ class TestClarificationRules:
 
         should_clarify, trigger = ClarificationRules.should_clarify(intent, task, 0.8)
 
-        assert should_clarify is True
-        assert trigger == ClarificationTrigger.MISSING_ENTITIES
+        assert should_clarify is True  # nosec B101
+        assert trigger == ClarificationTrigger.MISSING_ENTITIES  # nosec B101
 
     def test_should_offer_options_ambiguous(self):
         """Test offering options for ambiguous intent."""
@@ -131,7 +131,7 @@ class TestClarificationRules:
             ClarificationTrigger.AMBIGUOUS_INTENT, alternatives
         )
 
-        assert should_offer is True
+        assert should_offer is True  # nosec B101
 
     def test_should_not_offer_options_no_alternatives(self):
         """Test not offering options without alternatives."""
@@ -141,7 +141,7 @@ class TestClarificationRules:
             ClarificationTrigger.LOW_CONFIDENCE, alternatives
         )
 
-        assert should_offer is False
+        assert should_offer is False  # nosec B101
 
 
 class TestClarificationGenerator:
@@ -183,9 +183,9 @@ class TestClarificationGenerator:
 
         clarification = generator.generate_clarification(intent, task, 0.6)
 
-        assert clarification is not None
-        assert clarification.trigger == ClarificationTrigger.LOW_CONFIDENCE
-        assert len(clarification.question) > 0
+        assert clarification is not None  # nosec B101
+        assert clarification.trigger == ClarificationTrigger.LOW_CONFIDENCE  # nosec B101
+        assert len(clarification.question) > 0  # nosec B101
 
     def test_generate_clarification_with_options(self):
         """Test generating clarification with multiple options."""
@@ -202,9 +202,9 @@ class TestClarificationGenerator:
 
         clarification = generator.generate_clarification(intent, task, 0.5, alternatives)
 
-        assert clarification is not None
-        assert len(clarification.options) > 0
-        assert clarification.is_open_ended is False
+        assert clarification is not None  # nosec B101
+        assert len(clarification.options) > 0  # nosec B101
+        assert clarification.is_open_ended is False  # nosec B101
 
     def test_no_clarification_high_confidence(self):
         """Test no clarification for high confidence."""
@@ -242,7 +242,7 @@ class TestClarificationGenerator:
 
         clarification = generator.generate_clarification(intent, task, 0.9)
 
-        assert clarification is None
+        assert clarification is None  # nosec B101
 
 
 if __name__ == "__main__":

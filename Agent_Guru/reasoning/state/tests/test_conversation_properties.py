@@ -94,8 +94,8 @@ class TestConversationStateProperties:
         """
         # Verify turns are in order
         for i in range(len(state.turns) - 1):
-            assert state.turns[i].turn_number <= state.turns[i + 1].turn_number
-            assert state.turns[i].timestamp <= state.turns[i + 1].timestamp
+            assert state.turns[i].turn_number <= state.turns[i + 1].turn_number  # nosec B101
+            assert state.turns[i].timestamp <= state.turns[i + 1].timestamp  # nosec B101
 
     @settings(max_examples=100)
     @given(
@@ -133,7 +133,7 @@ class TestConversationStateProperties:
         )
 
         # Verify count increased or stayed at limit
-        assert len(new_state.turns) == min(initial_count + 1, 20)
+        assert len(new_state.turns) == min(initial_count + 1, 20)  # nosec B101
 
 
 class TestConversationStateSizeLimits:
@@ -147,7 +147,7 @@ class TestConversationStateSizeLimits:
 
         Validates: Requirements 3.4
         """
-        assert len(state.turns) <= 20
+        assert len(state.turns) <= 20  # nosec B101
 
     @settings(max_examples=100)
     @given(
@@ -184,11 +184,11 @@ class TestConversationStateSizeLimits:
         )
 
         # Verify size limit
-        assert len(state.turns) == 20
+        assert len(state.turns) == 20  # nosec B101
 
         # Verify most recent turns are kept
-        assert state.turns[-1].turn_number == num_turns
-        assert state.turns[0].turn_number == num_turns - 19
+        assert state.turns[-1].turn_number == num_turns  # nosec B101
+        assert state.turns[0].turn_number == num_turns - 19  # nosec B101
 
 
 class TestConversationStatePersistence:
@@ -209,15 +209,15 @@ class TestConversationStatePersistence:
         restored_state = ConversationState.model_validate_json(json_data)
 
         # Verify equivalence
-        assert restored_state.conversation_id == state.conversation_id
-        assert restored_state.user_id == state.user_id
-        assert len(restored_state.turns) == len(state.turns)
+        assert restored_state.conversation_id == state.conversation_id  # nosec B101
+        assert restored_state.user_id == state.user_id  # nosec B101
+        assert len(restored_state.turns) == len(state.turns)  # nosec B101
 
         # Verify all turns are preserved
         for original, restored in zip(state.turns, restored_state.turns, strict=False):
-            assert original.turn_id == restored.turn_id
-            assert original.user_input == restored.user_input
-            assert original.response == restored.response
+            assert original.turn_id == restored.turn_id  # nosec B101
+            assert original.user_input == restored.user_input  # nosec B101
+            assert original.response == restored.response  # nosec B101
 
     @settings(max_examples=100)
     @given(state=conversation_state_strategy())
@@ -234,9 +234,9 @@ class TestConversationStatePersistence:
         restored_state = ConversationState(**state_dict)
 
         # Verify equivalence
-        assert restored_state.conversation_id == state.conversation_id
-        assert restored_state.user_id == state.user_id
-        assert len(restored_state.turns) == len(state.turns)
+        assert restored_state.conversation_id == state.conversation_id  # nosec B101
+        assert restored_state.user_id == state.user_id  # nosec B101
+        assert len(restored_state.turns) == len(state.turns)  # nosec B101
 
     @settings(max_examples=100)
     @given(state=conversation_state_strategy())
@@ -251,15 +251,15 @@ class TestConversationStatePersistence:
         restored_state = ConversationState.model_validate_json(json_data)
 
         # Verify timestamps
-        assert restored_state.created_at.replace(microsecond=0) == state.created_at.replace(
+        assert restored_state.created_at.replace(microsecond=0) == state.created_at.replace(  # nosec B101
             microsecond=0
         )
-        assert restored_state.updated_at.replace(microsecond=0) == state.updated_at.replace(
+        assert restored_state.updated_at.replace(microsecond=0) == state.updated_at.replace(  # nosec B101
             microsecond=0
         )
 
         # Verify turn timestamps
         for original, restored in zip(state.turns, restored_state.turns, strict=False):
-            assert original.timestamp.replace(microsecond=0) == restored.timestamp.replace(
+            assert original.timestamp.replace(microsecond=0) == restored.timestamp.replace(  # nosec B101
                 microsecond=0
             )

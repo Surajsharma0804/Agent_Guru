@@ -69,18 +69,18 @@ class TestMemoryLLMIntegration:
         retriever = MemoryRetriever()
         integration = MemoryLLMIntegration(retriever)
 
-        assert integration.memory_retriever is retriever
-        assert integration.max_memories == 5
-        assert integration.relevance_boost_factor == 0.1
-        assert len(integration.usage_stats) == 0
+        assert integration.memory_retriever is retriever  # nosec B101
+        assert integration.max_memories == 5  # nosec B101
+        assert integration.relevance_boost_factor == 0.1  # nosec B101
+        assert len(integration.usage_stats) == 0  # nosec B101
 
     def test_initialization_with_custom_params(self):
         """Test initialization with custom parameters."""
         retriever = MemoryRetriever()
         integration = MemoryLLMIntegration(retriever, max_memories=10, relevance_boost_factor=0.2)
 
-        assert integration.max_memories == 10
-        assert integration.relevance_boost_factor == 0.2
+        assert integration.max_memories == 10  # nosec B101
+        assert integration.relevance_boost_factor == 0.2  # nosec B101
 
     def test_initialization_invalid_max_memories(self):
         """Test initialization with invalid max_memories."""
@@ -109,12 +109,12 @@ class TestMemoryLLMIntegration:
 
         context = integration.retrieve_for_reasoning(intent=intent, user_id="user_123")
 
-        assert isinstance(context, MemoryContext)
-        assert len(context.memories) == 0
-        assert context.formatted_prompt == "No relevant memories found."
-        assert context.retrieval_time_ms >= 0
-        assert len(context.memory_ids) == 0
-        assert "timer" in context.query.lower()
+        assert isinstance(context, MemoryContext)  # nosec B101
+        assert len(context.memories) == 0  # nosec B101
+        assert context.formatted_prompt == "No relevant memories found."  # nosec B101
+        assert context.retrieval_time_ms >= 0  # nosec B101
+        assert len(context.memory_ids) == 0  # nosec B101
+        assert "timer" in context.query.lower()  # nosec B101
 
     def test_retrieve_for_reasoning_with_memories(self):
         """Test retrieve_for_reasoning with stored memories."""
@@ -148,12 +148,12 @@ class TestMemoryLLMIntegration:
 
         context = integration.retrieve_for_reasoning(intent=intent, user_id="user_123")
 
-        assert len(context.memories) > 0
-        assert len(context.memories) <= integration.max_memories
-        assert context.formatted_prompt != "No relevant memories found."
-        assert context.retrieval_time_ms >= 0
-        assert len(context.memory_ids) == len(context.memories)
-        assert all(isinstance(mid, type(memory1.memory_id)) for mid in context.memory_ids)
+        assert len(context.memories) > 0  # nosec B101
+        assert len(context.memories) <= integration.max_memories  # nosec B101
+        assert context.formatted_prompt != "No relevant memories found."  # nosec B101
+        assert context.retrieval_time_ms >= 0  # nosec B101
+        assert len(context.memory_ids) == len(context.memories)  # nosec B101
+        assert all(isinstance(mid, type(memory1.memory_id)) for mid in context.memory_ids)  # nosec B101
 
     def test_retrieve_for_reasoning_with_memory_types(self):
         """Test retrieve_for_reasoning with memory type filtering."""
@@ -189,8 +189,8 @@ class TestMemoryLLMIntegration:
             intent=intent, user_id="user_123", memory_types=[MemoryType.EPISODIC]
         )
 
-        assert len(context.memories) > 0
-        assert all(m.memory_type == MemoryType.EPISODIC for m in context.memories)
+        assert len(context.memories) > 0  # nosec B101
+        assert all(m.memory_type == MemoryType.EPISODIC for m in context.memories)  # nosec B101
 
     def test_retrieve_for_reasoning_latency(self):
         """Test that retrieve_for_reasoning meets latency budget."""
@@ -216,7 +216,7 @@ class TestMemoryLLMIntegration:
         context = integration.retrieve_for_reasoning(intent=intent, user_id="user_123")
 
         # Should meet <100ms latency budget
-        assert context.retrieval_time_ms < 100
+        assert context.retrieval_time_ms < 100  # nosec B101
 
     def test_format_memories_for_prompt_empty(self):
         """Test format_memories_for_prompt with empty list."""
@@ -225,7 +225,7 @@ class TestMemoryLLMIntegration:
 
         formatted = integration.format_memories_for_prompt([])
 
-        assert formatted == "No relevant memories found."
+        assert formatted == "No relevant memories found."  # nosec B101
 
     def test_format_memories_for_prompt_episodic(self):
         """Test format_memories_for_prompt with episodic memory."""
@@ -242,14 +242,14 @@ class TestMemoryLLMIntegration:
 
         formatted = integration.format_memories_for_prompt([memory])
 
-        assert "## Relevant Memories" in formatted
-        assert "Memory 1" in formatted
-        assert "episodic" in formatted.lower()
-        assert memory.content in formatted
-        assert memory.action_taken in formatted
-        assert memory.result in formatted
-        assert "**Success**: True" in formatted
-        assert f"**Relevance**: {memory.relevance_score:.2f}" in formatted
+        assert "## Relevant Memories" in formatted  # nosec B101
+        assert "Memory 1" in formatted  # nosec B101
+        assert "episodic" in formatted.lower()  # nosec B101
+        assert memory.content in formatted  # nosec B101
+        assert memory.action_taken in formatted  # nosec B101
+        assert memory.result in formatted  # nosec B101
+        assert "**Success**: True" in formatted  # nosec B101
+        assert f"**Relevance**: {memory.relevance_score:.2f}" in formatted  # nosec B101
 
     def test_format_memories_for_prompt_semantic(self):
         """Test format_memories_for_prompt with semantic memory."""
@@ -266,11 +266,11 @@ class TestMemoryLLMIntegration:
 
         formatted = integration.format_memories_for_prompt([memory])
 
-        assert "## Relevant Memories" in formatted
-        assert "semantic" in formatted.lower()
-        assert memory.content in formatted
-        assert memory.fact in formatted
-        assert f"**Confidence**: {memory.confidence:.2f}" in formatted
+        assert "## Relevant Memories" in formatted  # nosec B101
+        assert "semantic" in formatted.lower()  # nosec B101
+        assert memory.content in formatted  # nosec B101
+        assert memory.fact in formatted  # nosec B101
+        assert f"**Confidence**: {memory.confidence:.2f}" in formatted  # nosec B101
 
     def test_format_memories_for_prompt_preference(self):
         """Test format_memories_for_prompt with preference memory."""
@@ -287,12 +287,12 @@ class TestMemoryLLMIntegration:
 
         formatted = integration.format_memories_for_prompt([memory])
 
-        assert "## Relevant Memories" in formatted
-        assert "preference" in formatted.lower()
-        assert memory.content in formatted
-        assert memory.preference_key in formatted
-        assert memory.preference_value in formatted
-        assert memory.learned_from in formatted
+        assert "## Relevant Memories" in formatted  # nosec B101
+        assert "preference" in formatted.lower()  # nosec B101
+        assert memory.content in formatted  # nosec B101
+        assert memory.preference_key in formatted  # nosec B101
+        assert memory.preference_value in formatted  # nosec B101
+        assert memory.learned_from in formatted  # nosec B101
 
     def test_format_memories_for_prompt_task(self):
         """Test format_memories_for_prompt with task memory."""
@@ -310,12 +310,12 @@ class TestMemoryLLMIntegration:
 
         formatted = integration.format_memories_for_prompt([memory])
 
-        assert "## Relevant Memories" in formatted
-        assert "task" in formatted.lower()
-        assert memory.content in formatted
-        assert memory.task_description in formatted
-        assert memory.outcome in formatted
-        assert "User likes stacked timers" in formatted
+        assert "## Relevant Memories" in formatted  # nosec B101
+        assert "task" in formatted.lower()  # nosec B101
+        assert memory.content in formatted  # nosec B101
+        assert memory.task_description in formatted  # nosec B101
+        assert memory.outcome in formatted  # nosec B101
+        assert "User likes stacked timers" in formatted  # nosec B101
 
     def test_format_memories_for_prompt_multiple(self):
         """Test format_memories_for_prompt with multiple memories."""
@@ -335,10 +335,10 @@ class TestMemoryLLMIntegration:
 
         formatted = integration.format_memories_for_prompt([memory1, memory2])
 
-        assert "Memory 1" in formatted
-        assert "Memory 2" in formatted
-        assert memory1.content in formatted
-        assert memory2.content in formatted
+        assert "Memory 1" in formatted  # nosec B101
+        assert "Memory 2" in formatted  # nosec B101
+        assert memory1.content in formatted  # nosec B101
+        assert memory2.content in formatted  # nosec B101
 
     def test_track_memory_usage_new(self):
         """Test track_memory_usage with new memory."""
@@ -348,11 +348,11 @@ class TestMemoryLLMIntegration:
         memory_id = uuid4()
         integration.track_memory_usage([memory_id])
 
-        assert memory_id in integration.usage_stats
+        assert memory_id in integration.usage_stats  # nosec B101
         stats = integration.usage_stats[memory_id]
-        assert stats.usage_count == 1
-        assert stats.relevance_boost == integration.relevance_boost_factor
-        assert isinstance(stats.last_used, datetime)
+        assert stats.usage_count == 1  # nosec B101
+        assert stats.relevance_boost == integration.relevance_boost_factor  # nosec B101
+        assert isinstance(stats.last_used, datetime)  # nosec B101
 
     def test_track_memory_usage_existing(self):
         """Test track_memory_usage with existing memory."""
@@ -369,9 +369,9 @@ class TestMemoryLLMIntegration:
         integration.track_memory_usage([memory_id])
         second_stats = integration.usage_stats[memory_id]
 
-        assert second_stats.usage_count == 2
+        assert second_stats.usage_count == 2  # nosec B101
         # Boost should increase (with diminishing returns)
-        assert second_stats.relevance_boost >= first_boost
+        assert second_stats.relevance_boost >= first_boost  # nosec B101
 
     def test_track_memory_usage_multiple(self):
         """Test track_memory_usage with multiple memories."""
@@ -381,10 +381,10 @@ class TestMemoryLLMIntegration:
         memory_ids = [uuid4() for _ in range(5)]
         integration.track_memory_usage(memory_ids)
 
-        assert len(integration.usage_stats) == 5
+        assert len(integration.usage_stats) == 5  # nosec B101
         for memory_id in memory_ids:
-            assert memory_id in integration.usage_stats
-            assert integration.usage_stats[memory_id].usage_count == 1
+            assert memory_id in integration.usage_stats  # nosec B101
+            assert integration.usage_stats[memory_id].usage_count == 1  # nosec B101
 
     def test_track_memory_usage_diminishing_returns(self):
         """Test that relevance boost has diminishing returns."""
@@ -400,9 +400,9 @@ class TestMemoryLLMIntegration:
             boosts.append(integration.usage_stats[memory_id].relevance_boost)
 
         # Check diminishing returns
-        assert boosts[0] < boosts[1]  # First boost is significant
-        assert boosts[-1] - boosts[-2] < boosts[1] - boosts[0]  # Later boosts are smaller
-        assert boosts[-1] <= 0.5  # Max boost is 0.5
+        assert boosts[0] < boosts[1]  # First boost is significant  # nosec B101
+        assert boosts[-1] - boosts[-2] < boosts[1] - boosts[0]  # Later boosts are smaller  # nosec B101
+        assert boosts[-1] <= 0.5  # Max boost is 0.5  # nosec B101
 
     def test_update_relevance_from_usage_empty(self):
         """Test update_relevance_from_usage with no usage stats."""
@@ -411,7 +411,7 @@ class TestMemoryLLMIntegration:
 
         updated_count = integration.update_relevance_from_usage()
 
-        assert updated_count == 0
+        assert updated_count == 0  # nosec B101
 
     def test_update_relevance_from_usage_with_memories(self):
         """Test update_relevance_from_usage with tracked memories."""
@@ -446,13 +446,13 @@ class TestMemoryLLMIntegration:
         # Update relevance
         updated_count = integration.update_relevance_from_usage()
 
-        assert updated_count == 2
+        assert updated_count == 2  # nosec B101
 
         # Check scores increased
         new_score1 = retriever.memories[memory1.memory_id].relevance_score
         new_score2 = retriever.memories[memory2.memory_id].relevance_score
-        assert new_score1 > 0.5
-        assert new_score2 > 0.5
+        assert new_score1 > 0.5  # nosec B101
+        assert new_score2 > 0.5  # nosec B101
 
     def test_update_relevance_from_usage_clamped(self):
         """Test that relevance scores are clamped to [0.0, 1.0]."""
@@ -481,7 +481,7 @@ class TestMemoryLLMIntegration:
 
         # Check score is clamped to 1.0
         final_score = retriever.memories[memory.memory_id].relevance_score
-        assert final_score <= 1.0
+        assert final_score <= 1.0  # nosec B101
 
     def test_update_relevance_from_usage_missing_memory(self):
         """Test update_relevance_from_usage with missing memory."""
@@ -495,7 +495,7 @@ class TestMemoryLLMIntegration:
         # Update relevance (should skip missing memory)
         updated_count = integration.update_relevance_from_usage()
 
-        assert updated_count == 0
+        assert updated_count == 0  # nosec B101
 
     def test_get_usage_stats_existing(self):
         """Test get_usage_stats for existing memory."""
@@ -507,9 +507,9 @@ class TestMemoryLLMIntegration:
 
         stats = integration.get_usage_stats(memory_id)
 
-        assert stats is not None
-        assert stats.memory_id == memory_id
-        assert stats.usage_count == 1
+        assert stats is not None  # nosec B101
+        assert stats.memory_id == memory_id  # nosec B101
+        assert stats.usage_count == 1  # nosec B101
 
     def test_get_usage_stats_missing(self):
         """Test get_usage_stats for missing memory."""
@@ -518,7 +518,7 @@ class TestMemoryLLMIntegration:
 
         stats = integration.get_usage_stats(uuid4())
 
-        assert stats is None
+        assert stats is None  # nosec B101
 
     def test_clear_usage_stats(self):
         """Test clear_usage_stats."""
@@ -529,12 +529,12 @@ class TestMemoryLLMIntegration:
         memory_ids = [uuid4() for _ in range(5)]
         integration.track_memory_usage(memory_ids)
 
-        assert len(integration.usage_stats) == 5
+        assert len(integration.usage_stats) == 5  # nosec B101
 
         # Clear stats
         integration.clear_usage_stats()
 
-        assert len(integration.usage_stats) == 0
+        assert len(integration.usage_stats) == 0  # nosec B101
 
     def test_build_query_from_intent_simple(self):
         """Test _build_query_from_intent with simple intent."""
@@ -549,8 +549,8 @@ class TestMemoryLLMIntegration:
 
         query = integration._build_query_from_intent(intent)
 
-        assert "set timer" in query.lower()
-        assert "5 minutes" in query.lower()
+        assert "set timer" in query.lower()  # nosec B101
+        assert "5 minutes" in query.lower()  # nosec B101
 
     def test_build_query_from_intent_multiple_entities(self):
         """Test _build_query_from_intent with multiple entities."""
@@ -565,10 +565,10 @@ class TestMemoryLLMIntegration:
 
         query = integration._build_query_from_intent(intent)
 
-        assert "send message" in query.lower()
-        assert "john" in query.lower()
-        assert "hello" in query.lower()
-        assert "sms" in query.lower()
+        assert "send message" in query.lower()  # nosec B101
+        assert "john" in query.lower()  # nosec B101
+        assert "hello" in query.lower()  # nosec B101
+        assert "sms" in query.lower()  # nosec B101
 
     def test_build_query_from_intent_numeric_entities(self):
         """Test _build_query_from_intent with numeric entities."""
@@ -583,9 +583,9 @@ class TestMemoryLLMIntegration:
 
         query = integration._build_query_from_intent(intent)
 
-        assert "set timer" in query.lower()
-        assert "5" in query
-        assert "3" in query
+        assert "set timer" in query.lower()  # nosec B101
+        assert "5" in query  # nosec B101
+        assert "3" in query  # nosec B101
 
 
 class TestMemoryContext:
@@ -609,11 +609,11 @@ class TestMemoryContext:
             query="test query",
         )
 
-        assert len(context.memories) == 1
-        assert context.formatted_prompt == "Test prompt"
-        assert context.retrieval_time_ms == 50.0
-        assert len(context.memory_ids) == 1
-        assert context.query == "test query"
+        assert len(context.memories) == 1  # nosec B101
+        assert context.formatted_prompt == "Test prompt"  # nosec B101
+        assert context.retrieval_time_ms == 50.0  # nosec B101
+        assert len(context.memory_ids) == 1  # nosec B101
+        assert context.query == "test query"  # nosec B101
 
 
 class TestMemoryUsageStats:
@@ -628,10 +628,10 @@ class TestMemoryUsageStats:
             memory_id=memory_id, usage_count=5, last_used=now, relevance_boost=0.3
         )
 
-        assert stats.memory_id == memory_id
-        assert stats.usage_count == 5
-        assert stats.last_used == now
-        assert stats.relevance_boost == 0.3
+        assert stats.memory_id == memory_id  # nosec B101
+        assert stats.usage_count == 5  # nosec B101
+        assert stats.last_used == now  # nosec B101
+        assert stats.relevance_boost == 0.3  # nosec B101
 
     """Unit tests for MemoryLLMIntegration class."""
 
@@ -640,18 +640,18 @@ class TestMemoryUsageStats:
         retriever = MemoryRetriever()
         integration = MemoryLLMIntegration(retriever)
 
-        assert integration.memory_retriever is retriever
-        assert integration.max_memories == 5
-        assert integration.relevance_boost_factor == 0.1
-        assert len(integration.usage_stats) == 0
+        assert integration.memory_retriever is retriever  # nosec B101
+        assert integration.max_memories == 5  # nosec B101
+        assert integration.relevance_boost_factor == 0.1  # nosec B101
+        assert len(integration.usage_stats) == 0  # nosec B101
 
     def test_initialization_with_custom_params(self):
         """Test initialization with custom parameters."""
         retriever = MemoryRetriever()
         integration = MemoryLLMIntegration(retriever, max_memories=10, relevance_boost_factor=0.2)
 
-        assert integration.max_memories == 10
-        assert integration.relevance_boost_factor == 0.2
+        assert integration.max_memories == 10  # nosec B101
+        assert integration.relevance_boost_factor == 0.2  # nosec B101
 
     def test_initialization_invalid_max_memories(self):
         """Test initialization with invalid max_memories."""
@@ -678,12 +678,12 @@ class TestMemoryUsageStats:
 
         context = integration.retrieve_for_reasoning(intent=intent, user_id="user_123")
 
-        assert isinstance(context, MemoryContext)
-        assert len(context.memories) == 0
-        assert context.formatted_prompt == "No relevant memories found."
-        assert context.retrieval_time_ms >= 0
-        assert len(context.memory_ids) == 0
-        assert "timer" in context.query.lower()
+        assert isinstance(context, MemoryContext)  # nosec B101
+        assert len(context.memories) == 0  # nosec B101
+        assert context.formatted_prompt == "No relevant memories found."  # nosec B101
+        assert context.retrieval_time_ms >= 0  # nosec B101
+        assert len(context.memory_ids) == 0  # nosec B101
+        assert "timer" in context.query.lower()  # nosec B101
 
     def test_retrieve_for_reasoning_with_memories(self):
         """Test retrieve_for_reasoning with stored memories."""
@@ -715,12 +715,12 @@ class TestMemoryUsageStats:
 
         context = integration.retrieve_for_reasoning(intent=intent, user_id="user_123")
 
-        assert len(context.memories) > 0
-        assert len(context.memories) <= integration.max_memories
-        assert context.formatted_prompt != "No relevant memories found."
-        assert context.retrieval_time_ms >= 0
-        assert len(context.memory_ids) == len(context.memories)
-        assert all(isinstance(mid, type(memory1.memory_id)) for mid in context.memory_ids)
+        assert len(context.memories) > 0  # nosec B101
+        assert len(context.memories) <= integration.max_memories  # nosec B101
+        assert context.formatted_prompt != "No relevant memories found."  # nosec B101
+        assert context.retrieval_time_ms >= 0  # nosec B101
+        assert len(context.memory_ids) == len(context.memories)  # nosec B101
+        assert all(isinstance(mid, type(memory1.memory_id)) for mid in context.memory_ids)  # nosec B101
 
     def test_retrieve_for_reasoning_with_memory_types(self):
         """Test retrieve_for_reasoning with memory type filtering."""
@@ -754,8 +754,8 @@ class TestMemoryUsageStats:
             intent=intent, user_id="user_123", memory_types=[MemoryType.EPISODIC]
         )
 
-        assert len(context.memories) > 0
-        assert all(m.memory_type == MemoryType.EPISODIC for m in context.memories)
+        assert len(context.memories) > 0  # nosec B101
+        assert all(m.memory_type == MemoryType.EPISODIC for m in context.memories)  # nosec B101
 
     def test_retrieve_for_reasoning_latency(self):
         """Test that retrieve_for_reasoning meets latency budget."""
@@ -779,7 +779,7 @@ class TestMemoryUsageStats:
         context = integration.retrieve_for_reasoning(intent=intent, user_id="user_123")
 
         # Should meet <100ms latency budget
-        assert context.retrieval_time_ms < 100
+        assert context.retrieval_time_ms < 100  # nosec B101
 
     def test_format_memories_for_prompt_empty(self):
         """Test format_memories_for_prompt with empty list."""
@@ -788,7 +788,7 @@ class TestMemoryUsageStats:
 
         formatted = integration.format_memories_for_prompt([])
 
-        assert formatted == "No relevant memories found."
+        assert formatted == "No relevant memories found."  # nosec B101
 
     def test_format_memories_for_prompt_episodic(self):
         """Test format_memories_for_prompt with episodic memory."""
@@ -805,14 +805,14 @@ class TestMemoryUsageStats:
 
         formatted = integration.format_memories_for_prompt([memory])
 
-        assert "## Relevant Memories" in formatted
-        assert "Memory 1" in formatted
-        assert "episodic" in formatted.lower()
-        assert memory.content in formatted
-        assert memory.action_taken in formatted
-        assert memory.result in formatted
-        assert "Success: True" in formatted
-        assert f"Relevance: {memory.relevance_score:.2f}" in formatted
+        assert "## Relevant Memories" in formatted  # nosec B101
+        assert "Memory 1" in formatted  # nosec B101
+        assert "episodic" in formatted.lower()  # nosec B101
+        assert memory.content in formatted  # nosec B101
+        assert memory.action_taken in formatted  # nosec B101
+        assert memory.result in formatted  # nosec B101
+        assert "Success: True" in formatted  # nosec B101
+        assert f"Relevance: {memory.relevance_score:.2f}" in formatted  # nosec B101
 
     def test_format_memories_for_prompt_semantic(self):
         """Test format_memories_for_prompt with semantic memory."""
@@ -829,11 +829,11 @@ class TestMemoryUsageStats:
 
         formatted = integration.format_memories_for_prompt([memory])
 
-        assert "## Relevant Memories" in formatted
-        assert "semantic" in formatted.lower()
-        assert memory.content in formatted
-        assert memory.fact in formatted
-        assert f"Confidence: {memory.confidence:.2f}" in formatted
+        assert "## Relevant Memories" in formatted  # nosec B101
+        assert "semantic" in formatted.lower()  # nosec B101
+        assert memory.content in formatted  # nosec B101
+        assert memory.fact in formatted  # nosec B101
+        assert f"Confidence: {memory.confidence:.2f}" in formatted  # nosec B101
 
     def test_format_memories_for_prompt_preference(self):
         """Test format_memories_for_prompt with preference memory."""
@@ -850,12 +850,12 @@ class TestMemoryUsageStats:
 
         formatted = integration.format_memories_for_prompt([memory])
 
-        assert "## Relevant Memories" in formatted
-        assert "preference" in formatted.lower()
-        assert memory.content in formatted
-        assert memory.preference_key in formatted
-        assert memory.preference_value in formatted
-        assert memory.learned_from in formatted
+        assert "## Relevant Memories" in formatted  # nosec B101
+        assert "preference" in formatted.lower()  # nosec B101
+        assert memory.content in formatted  # nosec B101
+        assert memory.preference_key in formatted  # nosec B101
+        assert memory.preference_value in formatted  # nosec B101
+        assert memory.learned_from in formatted  # nosec B101
 
     def test_format_memories_for_prompt_task(self):
         """Test format_memories_for_prompt with task memory."""
@@ -873,12 +873,12 @@ class TestMemoryUsageStats:
 
         formatted = integration.format_memories_for_prompt([memory])
 
-        assert "## Relevant Memories" in formatted
-        assert "task" in formatted.lower()
-        assert memory.content in formatted
-        assert memory.task_description in formatted
-        assert memory.outcome in formatted
-        assert memory.lessons_learned in formatted
+        assert "## Relevant Memories" in formatted  # nosec B101
+        assert "task" in formatted.lower()  # nosec B101
+        assert memory.content in formatted  # nosec B101
+        assert memory.task_description in formatted  # nosec B101
+        assert memory.outcome in formatted  # nosec B101
+        assert memory.lessons_learned in formatted  # nosec B101
 
     def test_format_memories_for_prompt_multiple(self):
         """Test format_memories_for_prompt with multiple memories."""
@@ -898,10 +898,10 @@ class TestMemoryUsageStats:
 
         formatted = integration.format_memories_for_prompt([memory1, memory2])
 
-        assert "Memory 1" in formatted
-        assert "Memory 2" in formatted
-        assert memory1.content in formatted
-        assert memory2.content in formatted
+        assert "Memory 1" in formatted  # nosec B101
+        assert "Memory 2" in formatted  # nosec B101
+        assert memory1.content in formatted  # nosec B101
+        assert memory2.content in formatted  # nosec B101
 
     def test_track_memory_usage_new(self):
         """Test track_memory_usage with new memory."""
@@ -911,11 +911,11 @@ class TestMemoryUsageStats:
         memory_id = uuid4()
         integration.track_memory_usage([memory_id])
 
-        assert memory_id in integration.usage_stats
+        assert memory_id in integration.usage_stats  # nosec B101
         stats = integration.usage_stats[memory_id]
-        assert stats.usage_count == 1
-        assert stats.relevance_boost == integration.relevance_boost_factor
-        assert isinstance(stats.last_used, datetime)
+        assert stats.usage_count == 1  # nosec B101
+        assert stats.relevance_boost == integration.relevance_boost_factor  # nosec B101
+        assert isinstance(stats.last_used, datetime)  # nosec B101
 
     def test_track_memory_usage_existing(self):
         """Test track_memory_usage with existing memory."""
@@ -932,9 +932,9 @@ class TestMemoryUsageStats:
         integration.track_memory_usage([memory_id])
         second_stats = integration.usage_stats[memory_id]
 
-        assert second_stats.usage_count == 2
-        assert second_stats.relevance_boost > first_stats.relevance_boost
-        assert second_stats.last_used >= first_stats.last_used
+        assert second_stats.usage_count == 2  # nosec B101
+        assert second_stats.relevance_boost > first_stats.relevance_boost  # nosec B101
+        assert second_stats.last_used >= first_stats.last_used  # nosec B101
 
     def test_track_memory_usage_multiple(self):
         """Test track_memory_usage with multiple memories."""
@@ -944,10 +944,10 @@ class TestMemoryUsageStats:
         memory_ids = [uuid4() for _ in range(5)]
         integration.track_memory_usage(memory_ids)
 
-        assert len(integration.usage_stats) == 5
+        assert len(integration.usage_stats) == 5  # nosec B101
         for memory_id in memory_ids:
-            assert memory_id in integration.usage_stats
-            assert integration.usage_stats[memory_id].usage_count == 1
+            assert memory_id in integration.usage_stats  # nosec B101
+            assert integration.usage_stats[memory_id].usage_count == 1  # nosec B101
 
     def test_track_memory_usage_diminishing_returns(self):
         """Test that relevance boost has diminishing returns."""
@@ -963,9 +963,9 @@ class TestMemoryUsageStats:
             boosts.append(integration.usage_stats[memory_id].relevance_boost)
 
         # Check diminishing returns
-        assert boosts[0] < boosts[1]  # First boost is significant
-        assert boosts[-1] - boosts[-2] < boosts[1] - boosts[0]  # Later boosts are smaller
-        assert boosts[-1] <= 0.5  # Max boost is 0.5
+        assert boosts[0] < boosts[1]  # First boost is significant  # nosec B101
+        assert boosts[-1] - boosts[-2] < boosts[1] - boosts[0]  # Later boosts are smaller  # nosec B101
+        assert boosts[-1] <= 0.5  # Max boost is 0.5  # nosec B101
 
     def test_update_relevance_from_usage_empty(self):
         """Test update_relevance_from_usage with no usage stats."""
@@ -974,7 +974,7 @@ class TestMemoryUsageStats:
 
         updated_count = integration.update_relevance_from_usage()
 
-        assert updated_count == 0
+        assert updated_count == 0  # nosec B101
 
     def test_update_relevance_from_usage_with_memories(self):
         """Test update_relevance_from_usage with tracked memories."""
@@ -1009,13 +1009,13 @@ class TestMemoryUsageStats:
         # Update relevance
         updated_count = integration.update_relevance_from_usage()
 
-        assert updated_count == 2
+        assert updated_count == 2  # nosec B101
 
         # Check scores increased
         new_score1 = retriever.memories[memory1.memory_id].relevance_score
         new_score2 = retriever.memories[memory2.memory_id].relevance_score
-        assert new_score1 > original_score1
-        assert new_score2 > original_score2
+        assert new_score1 > original_score1  # nosec B101
+        assert new_score2 > original_score2  # nosec B101
 
     def test_update_relevance_from_usage_clamped(self):
         """Test that relevance scores are clamped to [0.0, 1.0]."""
@@ -1044,7 +1044,7 @@ class TestMemoryUsageStats:
 
         # Check score is clamped to 1.0
         final_score = retriever.memories[memory.memory_id].relevance_score
-        assert final_score <= 1.0
+        assert final_score <= 1.0  # nosec B101
 
     def test_update_relevance_from_usage_missing_memory(self):
         """Test update_relevance_from_usage with missing memory."""
@@ -1058,7 +1058,7 @@ class TestMemoryUsageStats:
         # Update relevance (should skip missing memory)
         updated_count = integration.update_relevance_from_usage()
 
-        assert updated_count == 0
+        assert updated_count == 0  # nosec B101
 
     def test_get_usage_stats_existing(self):
         """Test get_usage_stats for existing memory."""
@@ -1070,9 +1070,9 @@ class TestMemoryUsageStats:
 
         stats = integration.get_usage_stats(memory_id)
 
-        assert stats is not None
-        assert stats.memory_id == memory_id
-        assert stats.usage_count == 1
+        assert stats is not None  # nosec B101
+        assert stats.memory_id == memory_id  # nosec B101
+        assert stats.usage_count == 1  # nosec B101
 
     def test_get_usage_stats_missing(self):
         """Test get_usage_stats for missing memory."""
@@ -1081,7 +1081,7 @@ class TestMemoryUsageStats:
 
         stats = integration.get_usage_stats(uuid4())
 
-        assert stats is None
+        assert stats is None  # nosec B101
 
     def test_clear_usage_stats(self):
         """Test clear_usage_stats."""
@@ -1092,12 +1092,12 @@ class TestMemoryUsageStats:
         memory_ids = [uuid4() for _ in range(5)]
         integration.track_memory_usage(memory_ids)
 
-        assert len(integration.usage_stats) == 5
+        assert len(integration.usage_stats) == 5  # nosec B101
 
         # Clear stats
         integration.clear_usage_stats()
 
-        assert len(integration.usage_stats) == 0
+        assert len(integration.usage_stats) == 0  # nosec B101
 
     def test_build_query_from_intent_simple(self):
         """Test _build_query_from_intent with simple intent."""
@@ -1110,8 +1110,8 @@ class TestMemoryUsageStats:
 
         query = integration._build_query_from_intent(intent)
 
-        assert "set timer" in query.lower()
-        assert "5 minutes" in query.lower()
+        assert "set timer" in query.lower()  # nosec B101
+        assert "5 minutes" in query.lower()  # nosec B101
 
     def test_build_query_from_intent_multiple_entities(self):
         """Test _build_query_from_intent with multiple entities."""
@@ -1126,10 +1126,10 @@ class TestMemoryUsageStats:
 
         query = integration._build_query_from_intent(intent)
 
-        assert "send message" in query.lower()
-        assert "john" in query.lower()
-        assert "hello" in query.lower()
-        assert "sms" in query.lower()
+        assert "send message" in query.lower()  # nosec B101
+        assert "john" in query.lower()  # nosec B101
+        assert "hello" in query.lower()  # nosec B101
+        assert "sms" in query.lower()  # nosec B101
 
     def test_build_query_from_intent_numeric_entities(self):
         """Test _build_query_from_intent with numeric entities."""
@@ -1142,9 +1142,9 @@ class TestMemoryUsageStats:
 
         query = integration._build_query_from_intent(intent)
 
-        assert "set timer" in query.lower()
-        assert "5" in query
-        assert "3" in query
+        assert "set timer" in query.lower()  # nosec B101
+        assert "5" in query  # nosec B101
+        assert "3" in query  # nosec B101
 
 
 class TestMemoryContext:
@@ -1168,11 +1168,11 @@ class TestMemoryContext:
             query="test query",
         )
 
-        assert len(context.memories) == 1
-        assert context.formatted_prompt == "Test prompt"
-        assert context.retrieval_time_ms == 50.0
-        assert len(context.memory_ids) == 1
-        assert context.query == "test query"
+        assert len(context.memories) == 1  # nosec B101
+        assert context.formatted_prompt == "Test prompt"  # nosec B101
+        assert context.retrieval_time_ms == 50.0  # nosec B101
+        assert len(context.memory_ids) == 1  # nosec B101
+        assert context.query == "test query"  # nosec B101
 
 
 class TestMemoryUsageStats:
@@ -1187,7 +1187,7 @@ class TestMemoryUsageStats:
             memory_id=memory_id, usage_count=5, last_used=now, relevance_boost=0.3
         )
 
-        assert stats.memory_id == memory_id
-        assert stats.usage_count == 5
-        assert stats.last_used == now
-        assert stats.relevance_boost == 0.3
+        assert stats.memory_id == memory_id  # nosec B101
+        assert stats.usage_count == 5  # nosec B101
+        assert stats.last_used == now  # nosec B101
+        assert stats.relevance_boost == 0.3  # nosec B101

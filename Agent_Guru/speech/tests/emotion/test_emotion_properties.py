@@ -63,35 +63,35 @@ class TestEmotionDetectionProperties:
         processing_time = (time.time() - start_time) * 1000  # Convert to ms
         
         # Verify primary emotion is identified (Requirement 13.1)
-        assert result.primary_emotion is not None
-        assert isinstance(result.primary_emotion, EmotionType)
+        assert result.primary_emotion is not None  # nosec B101
+        assert isinstance(result.primary_emotion, EmotionType)  # nosec B101
         
         # Verify confidence scores for ALL 7 emotion categories (Requirement 13.3)
-        assert len(result.emotion_scores) == 7
+        assert len(result.emotion_scores) == 7  # nosec B101
         for emotion in EmotionType:
-            assert emotion in result.emotion_scores
+            assert emotion in result.emotion_scores  # nosec B101
             score = result.emotion_scores[emotion]
-            assert 0.0 <= score <= 1.0, f"Score for {emotion} out of range: {score}"
+            assert 0.0 <= score <= 1.0, f"Score for {emotion} out of range: {score}"  # nosec B101
         
         # Verify analysis completes within 200ms (Requirement 13.4)
-        assert processing_time < 200, f"Processing took {processing_time:.1f}ms (limit: 200ms)"
+        assert processing_time < 200, f"Processing took {processing_time:.1f}ms (limit: 200ms)"  # nosec B101
         
         # Verify overall confidence is valid
-        assert 0.0 <= result.confidence <= 1.0
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
         
         # Verify emotion scores sum to approximately 1.0 (normalized distribution)
         total_score = sum(result.emotion_scores.values())
-        assert 0.95 <= total_score <= 1.05, f"Emotion scores sum to {total_score}, expected ~1.0"
+        assert 0.95 <= total_score <= 1.05, f"Emotion scores sum to {total_score}, expected ~1.0"  # nosec B101
         
         # Verify primary emotion has the highest score
         max_score = max(result.emotion_scores.values())
-        assert result.emotion_scores[result.primary_emotion] == max_score
+        assert result.emotion_scores[result.primary_emotion] == max_score  # nosec B101
         
         # Verify audio quality is in valid range
-        assert 0.0 <= result.audio_quality <= 1.0
+        assert 0.0 <= result.audio_quality <= 1.0  # nosec B101
         
         # Verify timestamp is reasonable
-        assert result.timestamp > 0
+        assert result.timestamp > 0  # nosec B101
     
     @given(audio_samples())
     @settings(max_examples=50, deadline=5000)
@@ -111,13 +111,13 @@ class TestEmotionDetectionProperties:
         result2 = detector.detect_emotion(audio, sample_rate)
         
         # Results should be identical (except timestamp)
-        assert result1.primary_emotion == result2.primary_emotion
-        assert result1.confidence == result2.confidence
-        assert result1.audio_quality == result2.audio_quality
+        assert result1.primary_emotion == result2.primary_emotion  # nosec B101
+        assert result1.confidence == result2.confidence  # nosec B101
+        assert result1.audio_quality == result2.audio_quality  # nosec B101
         
         # Emotion scores should match
         for emotion in EmotionType:
-            assert result1.emotion_scores[emotion] == result2.emotion_scores[emotion]
+            assert result1.emotion_scores[emotion] == result2.emotion_scores[emotion]  # nosec B101
     
     @given(st.lists(audio_samples(), min_size=2, max_size=10))
     @settings(max_examples=30, deadline=10000)
@@ -144,11 +144,11 @@ class TestEmotionDetectionProperties:
         history = detector.track_emotion_history(emotion_results, window_seconds=3600)
         
         # Verify all emotions are recorded
-        assert len(history.emotions) == len(emotion_results)
+        assert len(history.emotions) == len(emotion_results)  # nosec B101
         
         # Verify dominant emotion is identified
-        assert history.dominant_emotion is not None
-        assert isinstance(history.dominant_emotion, EmotionType)
+        assert history.dominant_emotion is not None  # nosec B101
+        assert isinstance(history.dominant_emotion, EmotionType)  # nosec B101
         
         # Verify transitions are detected
         # Count actual emotion changes
@@ -158,14 +158,14 @@ class TestEmotionDetectionProperties:
                 actual_transitions += 1
         
         # Number of recorded transitions should match actual changes
-        assert len(history.emotion_transitions) == actual_transitions
+        assert len(history.emotion_transitions) == actual_transitions  # nosec B101
         
         # Verify transition format
         for from_emotion, to_emotion, timestamp in history.emotion_transitions:
-            assert isinstance(from_emotion, EmotionType)
-            assert isinstance(to_emotion, EmotionType)
-            assert from_emotion != to_emotion  # Transitions only for changes
-            assert timestamp > 0
+            assert isinstance(from_emotion, EmotionType)  # nosec B101
+            assert isinstance(to_emotion, EmotionType)  # nosec B101
+            assert from_emotion != to_emotion  # Transitions only for changes  # nosec B101
+            assert timestamp > 0  # nosec B101
 
 
 class TestEmotionDetectionConfidenceCalibration:
@@ -203,16 +203,16 @@ class TestEmotionDetectionConfidenceCalibration:
         # Extremely low amplitude should result in lower quality
         if noise_level < 0.003:
             assert result.audio_quality < 0.75, \
-                f"Audio quality too high for very low amplitude input: {result.audio_quality}"
+                f"Audio quality too high for very low amplitude input: {result.audio_quality}"  # nosec B101
         
         # Confidence should be affected by poor quality
         # (not necessarily low, but should reflect uncertainty)
-        assert 0.0 <= result.confidence <= 1.0
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
         
         # Emotion scores should still be valid
-        assert len(result.emotion_scores) == 7
+        assert len(result.emotion_scores) == 7  # nosec B101
         for score in result.emotion_scores.values():
-            assert 0.0 <= score <= 1.0
+            assert 0.0 <= score <= 1.0  # nosec B101
     
     @given(audio_samples(min_duration=1.0, max_duration=3.0))
     @settings(max_examples=50, deadline=5000)
@@ -230,13 +230,13 @@ class TestEmotionDetectionConfidenceCalibration:
         result = detector.detect_emotion(audio, sample_rate)
         
         # Clean audio should have reasonable quality
-        assert result.audio_quality >= 0.3
+        assert result.audio_quality >= 0.3  # nosec B101
         
         # Confidence should be in valid range
-        assert 0.0 <= result.confidence <= 1.0
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
         
         # Primary emotion should have highest score
-        assert result.emotion_scores[result.primary_emotion] == result.confidence
+        assert result.emotion_scores[result.primary_emotion] == result.confidence  # nosec B101
     
     @given(st.floats(min_value=0.1, max_value=2.0))
     @settings(max_examples=30, deadline=5000)
@@ -262,13 +262,13 @@ class TestEmotionDetectionConfidenceCalibration:
         
         # Very short audio should have lower quality
         if duration < 0.5:
-            assert result.audio_quality < 0.8
+            assert result.audio_quality < 0.8  # nosec B101
         
         # Optimal duration (1-5 seconds) should have good quality
         elif 1.0 <= duration <= 5.0:
             # Quality should be reasonable for optimal duration
-            assert result.audio_quality >= 0.3
+            assert result.audio_quality >= 0.3  # nosec B101
         
         # All results should be valid
-        assert 0.0 <= result.audio_quality <= 1.0
-        assert 0.0 <= result.confidence <= 1.0
+        assert 0.0 <= result.audio_quality <= 1.0  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101

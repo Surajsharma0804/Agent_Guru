@@ -24,13 +24,13 @@ class TestExecutionResult:
             metadata={"user_id": "user_456"},
         )
         
-        assert result.success
-        assert result.result_data == {"timer_id": "timer_123", "duration": 300}
-        assert result.error is None
-        assert result.execution_time == 0.045
-        assert result.action_id == "action_123"
-        assert result.tool_id == "set_timer"
-        assert result.metadata == {"user_id": "user_456"}
+        assert result.success  # nosec B101
+        assert result.result_data == {"timer_id": "timer_123", "duration": 300}  # nosec B101
+        assert result.error is None  # nosec B101
+        assert result.execution_time == 0.045  # nosec B101
+        assert result.action_id == "action_123"  # nosec B101
+        assert result.tool_id == "set_timer"  # nosec B101
+        assert result.metadata == {"user_id": "user_456"}  # nosec B101
     
     def test_execution_result_failure(self):
         """Test creating a failed execution result."""
@@ -43,9 +43,9 @@ class TestExecutionResult:
             tool_id="set_timer",
         )
         
-        assert not result.success
-        assert result.result_data is None
-        assert result.error == "Timeout occurred"
+        assert not result.success  # nosec B101
+        assert result.result_data is None  # nosec B101
+        assert result.error == "Timeout occurred"  # nosec B101
     
     def test_execution_time_validation_invalid(self):
         """Test execution time validation fails for negative value."""
@@ -88,7 +88,7 @@ class TestExecutionResult:
             tool_id="test",
         )
         
-        assert result.is_timeout()
+        assert result.is_timeout()  # nosec B101
     
     def test_is_timeout_false(self):
         """Test is_timeout returns False for non-timeout errors."""
@@ -100,7 +100,7 @@ class TestExecutionResult:
             tool_id="test",
         )
         
-        assert not result.is_timeout()
+        assert not result.is_timeout()  # nosec B101
     
     def test_is_timeout_success(self):
         """Test is_timeout returns False for successful execution."""
@@ -111,7 +111,7 @@ class TestExecutionResult:
             tool_id="test",
         )
         
-        assert not result.is_timeout()
+        assert not result.is_timeout()  # nosec B101
     
     def test_execution_result_equality(self):
         """Test execution result equality comparison."""
@@ -134,9 +134,9 @@ class TestExecutionResult:
             tool_id="test",
         )
         
-        assert result1 == result2
-        assert result1 != result3
-        assert result1 != "not a result"
+        assert result1 == result2  # nosec B101
+        assert result1 != result3  # nosec B101
+        assert result1 != "not a result"  # nosec B101
     
     def test_execution_result_hash(self):
         """Test execution result hashing."""
@@ -153,7 +153,7 @@ class TestExecutionResult:
             tool_id="test",
         )
         
-        assert hash(result1) == hash(result2)
+        assert hash(result1) == hash(result2)  # nosec B101
 
 
 class TestResponse:
@@ -171,12 +171,12 @@ class TestResponse:
             action_options=[],
         )
         
-        assert response.text == "Timer set for 5 minutes"
-        assert response.modality == ResponseModality.BOTH
-        assert response.metadata == {"intent_type": "set_timer"}
-        assert len(response.suggestions) == 2
-        assert response.rich_content["type"] == "card"
-        assert not response.requires_user_action
+        assert response.text == "Timer set for 5 minutes"  # nosec B101
+        assert response.modality == ResponseModality.BOTH  # nosec B101
+        assert response.metadata == {"intent_type": "set_timer"}  # nosec B101
+        assert len(response.suggestions) == 2  # nosec B101
+        assert response.rich_content["type"] == "card"  # nosec B101
+        assert not response.requires_user_action  # nosec B101
     
     def test_response_text_validation_invalid_empty(self):
         """Test response text validation fails for empty text."""
@@ -207,42 +207,42 @@ class TestResponse:
     def test_response_is_voice_compatible_voice(self):
         """Test is_voice_compatible for voice modality."""
         response = Response(text="Test", modality=ResponseModality.VOICE)
-        assert response.is_voice_compatible()
+        assert response.is_voice_compatible()  # nosec B101
     
     def test_response_is_voice_compatible_both(self):
         """Test is_voice_compatible for both modality."""
         response = Response(text="Test", modality=ResponseModality.BOTH)
-        assert response.is_voice_compatible()
+        assert response.is_voice_compatible()  # nosec B101
     
     def test_response_is_voice_compatible_multimodal(self):
         """Test is_voice_compatible for multimodal."""
         response = Response(text="Test", modality=ResponseModality.MULTIMODAL)
-        assert response.is_voice_compatible()
+        assert response.is_voice_compatible()  # nosec B101
     
     def test_response_is_voice_compatible_text_only(self):
         """Test is_voice_compatible returns False for text-only."""
         response = Response(text="Test", modality=ResponseModality.TEXT)
-        assert not response.is_voice_compatible()
+        assert not response.is_voice_compatible()  # nosec B101
     
     def test_response_is_text_compatible_text(self):
         """Test is_text_compatible for text modality."""
         response = Response(text="Test", modality=ResponseModality.TEXT)
-        assert response.is_text_compatible()
+        assert response.is_text_compatible()  # nosec B101
     
     def test_response_is_text_compatible_both(self):
         """Test is_text_compatible for both modality."""
         response = Response(text="Test", modality=ResponseModality.BOTH)
-        assert response.is_text_compatible()
+        assert response.is_text_compatible()  # nosec B101
     
     def test_response_is_text_compatible_multimodal(self):
         """Test is_text_compatible for multimodal."""
         response = Response(text="Test", modality=ResponseModality.MULTIMODAL)
-        assert response.is_text_compatible()
+        assert response.is_text_compatible()  # nosec B101
     
     def test_response_is_text_compatible_visual_only(self):
         """Test is_text_compatible returns False for visual-only."""
         response = Response(text="Test", modality=ResponseModality.VISUAL)
-        assert not response.is_text_compatible()
+        assert not response.is_text_compatible()  # nosec B101
     
     def test_response_has_rich_content_true(self):
         """Test has_rich_content returns True when rich content exists."""
@@ -250,17 +250,17 @@ class TestResponse:
             text="Test",
             rich_content={"type": "card", "title": "Test"},
         )
-        assert response.has_rich_content()
+        assert response.has_rich_content()  # nosec B101
     
     def test_response_has_rich_content_false_none(self):
         """Test has_rich_content returns False when rich content is None."""
         response = Response(text="Test", rich_content=None)
-        assert not response.has_rich_content()
+        assert not response.has_rich_content()  # nosec B101
     
     def test_response_has_rich_content_false_empty(self):
         """Test has_rich_content returns False when rich content is empty."""
         response = Response(text="Test", rich_content={})
-        assert not response.has_rich_content()
+        assert not response.has_rich_content()  # nosec B101
     
     def test_response_equality(self):
         """Test response equality comparison."""
@@ -268,24 +268,24 @@ class TestResponse:
         response2 = Response(text="Test", modality=ResponseModality.TEXT)
         response3 = Response(text="Different", modality=ResponseModality.TEXT)
         
-        assert response1 == response2
-        assert response1 != response3
-        assert response1 != "not a response"
+        assert response1 == response2  # nosec B101
+        assert response1 != response3  # nosec B101
+        assert response1 != "not a response"  # nosec B101
     
     def test_response_hash(self):
         """Test response hashing."""
         response1 = Response(text="Test", modality=ResponseModality.TEXT)
         response2 = Response(text="Test", modality=ResponseModality.TEXT)
         
-        assert hash(response1) == hash(response2)
+        assert hash(response1) == hash(response2)  # nosec B101
     
     def test_response_modality_enum(self):
         """Test response modality enum values."""
-        assert ResponseModality.VOICE == "voice"
-        assert ResponseModality.TEXT == "text"
-        assert ResponseModality.BOTH == "both"
-        assert ResponseModality.VISUAL == "visual"
-        assert ResponseModality.MULTIMODAL == "multimodal"
+        assert ResponseModality.VOICE == "voice"  # nosec B101
+        assert ResponseModality.TEXT == "text"  # nosec B101
+        assert ResponseModality.BOTH == "both"  # nosec B101
+        assert ResponseModality.VISUAL == "visual"  # nosec B101
+        assert ResponseModality.MULTIMODAL == "multimodal"  # nosec B101
 
 
     def test_execution_time_validation_valid(self):
@@ -296,4 +296,4 @@ class TestResponse:
             action_id="action_123",
             tool_id="test",
         )
-        assert result.execution_time == 0.5
+        assert result.execution_time == 0.5  # nosec B101

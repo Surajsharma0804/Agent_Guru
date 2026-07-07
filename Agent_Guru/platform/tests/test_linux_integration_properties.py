@@ -85,13 +85,13 @@ class TestServiceStatusProperties:
                 status = integration.get_systemd_service_status(service_name)
                 
                 # Verify status is valid
-                assert isinstance(status, ServiceStatus)
-                assert status.status in ['running', 'stopped', 'disabled', 'unknown', 
+                assert isinstance(status, ServiceStatus)  # nosec B101
+                assert status.status in ['running', 'stopped', 'disabled', 'unknown',   # nosec B101
                                         'starting', 'stopping', 'paused', 'failed',
                                         'active', 'inactive', 'activating', 'deactivating']
-                assert isinstance(status.name, str)
-                assert len(status.name) > 0
-                assert isinstance(status.startup_type, str)
+                assert isinstance(status.name, str)  # nosec B101
+                assert len(status.name) > 0  # nosec B101
+                assert isinstance(status.startup_type, str)  # nosec B101
                 
             except RuntimeError:
                 # Service not found is acceptable
@@ -116,7 +116,7 @@ class TestServiceStatusProperties:
                 status = integration.get_systemd_service_status(service_name)
                 
                 # Verify .service suffix is added
-                assert status.name.endswith('.service')
+                assert status.name.endswith('.service')  # nosec B101
                 
             except RuntimeError:
                 pass
@@ -148,8 +148,8 @@ class TestProcessManagementProperties:
                 result = integration.terminate_process(pid, force=False)
                 
                 # Should return boolean
-                assert isinstance(result, bool)
-                assert result is True
+                assert isinstance(result, bool)  # nosec B101
+                assert result is True  # nosec B101
                 
             except (ProcessLookupError, PermissionError):
                 # These exceptions are acceptable
@@ -210,13 +210,13 @@ class TestProcessManagementProperties:
             
             # Verify all processes have valid data
             for proc in processes:
-                assert proc.pid > 0
-                assert len(proc.name) > 0
-                assert proc.status in ['running', 'sleeping', 'stopped', 'zombie', 
+                assert proc.pid > 0  # nosec B101
+                assert len(proc.name) > 0  # nosec B101
+                assert proc.status in ['running', 'sleeping', 'stopped', 'zombie',   # nosec B101
                                       'disk-sleep', 'idle', 'dead', 'tracing-stop']
-                assert proc.cpu_percent >= 0
-                assert proc.memory_percent >= 0
-                assert proc.create_time > 0
+                assert proc.cpu_percent >= 0  # nosec B101
+                assert proc.memory_percent >= 0  # nosec B101
+                assert proc.create_time > 0  # nosec B101
 
 
 class TestCommandExecutionProperties:
@@ -250,12 +250,12 @@ class TestCommandExecutionProperties:
                 result = integration.execute_command(command, args)
                 
                 # Verify complete result
-                assert isinstance(result, CommandResult)
-                assert isinstance(result.stdout, str)
-                assert isinstance(result.stderr, str)
-                assert isinstance(result.return_code, int)
-                assert isinstance(result.execution_time, float)
-                assert result.execution_time >= 0
+                assert isinstance(result, CommandResult)  # nosec B101
+                assert isinstance(result.stdout, str)  # nosec B101
+                assert isinstance(result.stderr, str)  # nosec B101
+                assert isinstance(result.return_code, int)  # nosec B101
+                assert isinstance(result.execution_time, float)  # nosec B101
+                assert result.execution_time >= 0  # nosec B101
                 
             except (TimeoutError, RuntimeError):
                 # Timeout or execution errors are acceptable
@@ -281,7 +281,7 @@ class TestCommandExecutionProperties:
             
             result = integration.execute_command(command, [])
             
-            assert result.return_code == return_code
+            assert result.return_code == return_code  # nosec B101
 
 
 class TestPermissionValidationProperties:
@@ -303,11 +303,11 @@ class TestPermissionValidationProperties:
         with patch('os.geteuid', return_value=uid, create=True):
             is_root = integration.is_root()
             
-            assert isinstance(is_root, bool)
+            assert isinstance(is_root, bool)  # nosec B101
             if uid == 0:
-                assert is_root is True
+                assert is_root is True  # nosec B101
             else:
-                assert is_root is False
+                assert is_root is False  # nosec B101
     
     @given(uid=st.integers(min_value=1, max_value=65535))
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -356,14 +356,14 @@ class TestSystemInfoProperties:
                                 info = integration.get_system_info()
         
         # Verify all required fields are present and valid
-        assert isinstance(info, SystemInfo)
-        assert len(info.hostname) > 0
-        assert info.platform == "Linux"
-        assert len(info.platform_version) > 0
-        assert len(info.architecture) > 0
-        assert info.cpu_count_physical >= 0
-        assert info.cpu_count_logical >= 0
-        assert info.boot_time > 0
+        assert isinstance(info, SystemInfo)  # nosec B101
+        assert len(info.hostname) > 0  # nosec B101
+        assert info.platform == "Linux"  # nosec B101
+        assert len(info.platform_version) > 0  # nosec B101
+        assert len(info.architecture) > 0  # nosec B101
+        assert info.cpu_count_physical >= 0  # nosec B101
+        assert info.cpu_count_logical >= 0  # nosec B101
+        assert info.boot_time > 0  # nosec B101
 
 
 class TestErrorHandlingProperties:
@@ -395,8 +395,8 @@ class TestErrorHandlingProperties:
             except PermissionError as e:
                 # Verify error message is descriptive
                 error_msg = str(e)
-                assert "Permission denied" in error_msg or "permission" in error_msg.lower()
-                assert "root" in error_msg.lower() or "sudo" in error_msg.lower()
+                assert "Permission denied" in error_msg or "permission" in error_msg.lower()  # nosec B101
+                assert "root" in error_msg.lower() or "sudo" in error_msg.lower()  # nosec B101
     
     @given(pid=process_ids())
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -415,4 +415,4 @@ class TestErrorHandlingProperties:
             except ProcessLookupError as e:
                 # Verify error contains PID
                 error_msg = str(e)
-                assert str(pid) in error_msg or "PID" in error_msg
+                assert str(pid) in error_msg or "PID" in error_msg  # nosec B101

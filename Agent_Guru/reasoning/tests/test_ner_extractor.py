@@ -99,11 +99,11 @@ class TestNERConfig:
         """Test default configuration values."""
         config = NERConfig()
 
-        assert config.use_gpu is True
-        assert config.confidence_threshold == 0.7
-        assert config.max_entities == 50
-        assert config.enable_normalization is True
-        assert config.warmup_iterations == 5
+        assert config.use_gpu is True  # nosec B101
+        assert config.confidence_threshold == 0.7  # nosec B101
+        assert config.max_entities == 50  # nosec B101
+        assert config.enable_normalization is True  # nosec B101
+        assert config.warmup_iterations == 5  # nosec B101
 
     def test_custom_config(self):
         """Test custom configuration values."""
@@ -115,11 +115,11 @@ class TestNERConfig:
             warmup_iterations=2,
         )
 
-        assert config.use_gpu is False
-        assert config.confidence_threshold == 0.8
-        assert config.max_entities == 20
-        assert config.enable_normalization is False
-        assert config.warmup_iterations == 2
+        assert config.use_gpu is False  # nosec B101
+        assert config.confidence_threshold == 0.8  # nosec B101
+        assert config.max_entities == 20  # nosec B101
+        assert config.enable_normalization is False  # nosec B101
+        assert config.warmup_iterations == 2  # nosec B101
 
 
 # ============================================================================
@@ -148,10 +148,10 @@ class TestExtractionResult:
             entity_count=1,
         )
 
-        assert len(result.entities) == 1
-        assert result.extraction_time_ms == 45.5
-        assert result.used_gpu is True
-        assert result.entity_count == 1
+        assert len(result.entities) == 1  # nosec B101
+        assert result.extraction_time_ms == 45.5  # nosec B101
+        assert result.used_gpu is True  # nosec B101
+        assert result.entity_count == 1  # nosec B101
 
 
 # ============================================================================
@@ -167,10 +167,10 @@ class TestNEREntityExtractorInit:
         """Test initialization with default config."""
         extractor = NEREntityExtractor()
 
-        assert extractor.config is not None
-        assert extractor.nlp is None
-        assert extractor.total_extractions == 0
-        assert extractor.total_latency_ms == 0.0
+        assert extractor.config is not None  # nosec B101
+        assert extractor.nlp is None  # nosec B101
+        assert extractor.total_extractions == 0  # nosec B101
+        assert extractor.total_latency_ms == 0.0  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_init_custom_config(self):
@@ -178,7 +178,7 @@ class TestNEREntityExtractorInit:
         config = NERConfig(confidence_threshold=0.8)
         extractor = NEREntityExtractor(config)
 
-        assert extractor.config.confidence_threshold == 0.8
+        assert extractor.config.confidence_threshold == 0.8  # nosec B101
 
     @patch("Agent_Guru.reasoning.intent.ner_extractor.SPACY_AVAILABLE", False)
     def test_init_without_spacy(self):
@@ -225,7 +225,7 @@ class TestModelLoading:
         extractor.load_model()
 
         # Verify
-        assert extractor.nlp is not None
+        assert extractor.nlp is not None  # nosec B101
         mock_require_gpu.assert_called_once()
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
@@ -250,7 +250,7 @@ class TestModelLoading:
         extractor.load_model()
 
         # Verify
-        assert extractor.nlp is not None
+        assert extractor.nlp is not None  # nosec B101
 
 
 # ============================================================================
@@ -300,9 +300,9 @@ class TestEntityExtraction:
         result = extractor.extract("set timer for 5 minutes")
 
         # Verify
-        assert result.entity_count >= 0
-        assert result.extraction_time_ms > 0
-        assert isinstance(result.used_gpu, bool)
+        assert result.entity_count >= 0  # nosec B101
+        assert result.extraction_time_ms > 0  # nosec B101
+        assert isinstance(result.used_gpu, bool)  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     @patch("Agent_Guru.reasoning.intent.ner_extractor.spacy.load")
@@ -343,7 +343,7 @@ class TestEntityExtraction:
         result = extractor.extract("text with many entities")
 
         # Verify max entities respected
-        assert result.entity_count <= 10
+        assert result.entity_count <= 10  # nosec B101
 
 
 # ============================================================================
@@ -360,7 +360,7 @@ class TestEntityTypeMapping:
         extractor = NEREntityExtractor()
 
         result = extractor._map_entity_type("DURATION")
-        assert result == EntityType.DURATION.value
+        assert result == EntityType.DURATION.value  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_map_entity_type_person(self):
@@ -368,7 +368,7 @@ class TestEntityTypeMapping:
         extractor = NEREntityExtractor()
 
         result = extractor._map_entity_type("PERSON")
-        assert result == EntityType.PERSON.value
+        assert result == EntityType.PERSON.value  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_map_entity_type_gpe_to_location(self):
@@ -376,7 +376,7 @@ class TestEntityTypeMapping:
         extractor = NEREntityExtractor()
 
         result = extractor._map_entity_type("GPE")
-        assert result == EntityType.LOCATION.value
+        assert result == EntityType.LOCATION.value  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_map_entity_type_unknown(self):
@@ -384,7 +384,7 @@ class TestEntityTypeMapping:
         extractor = NEREntityExtractor()
 
         result = extractor._map_entity_type("UNKNOWN_TYPE")
-        assert result == EntityType.UNKNOWN.value
+        assert result == EntityType.UNKNOWN.value  # nosec B101
 
 
 # ============================================================================
@@ -401,7 +401,7 @@ class TestEntityNormalization:
         extractor = NEREntityExtractor()
 
         result = extractor._normalize_duration("5 minutes")
-        assert result == 300  # 5 * 60
+        assert result == 300  # 5 * 60  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_normalize_duration_hours(self):
@@ -409,7 +409,7 @@ class TestEntityNormalization:
         extractor = NEREntityExtractor()
 
         result = extractor._normalize_duration("2 hours")
-        assert result == 7200  # 2 * 3600
+        assert result == 7200  # 2 * 3600  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_normalize_duration_seconds(self):
@@ -417,7 +417,7 @@ class TestEntityNormalization:
         extractor = NEREntityExtractor()
 
         result = extractor._normalize_duration("30 seconds")
-        assert result == 30
+        assert result == 30  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_normalize_duration_invalid(self):
@@ -425,7 +425,7 @@ class TestEntityNormalization:
         extractor = NEREntityExtractor()
 
         result = extractor._normalize_duration("invalid")
-        assert result is None
+        assert result is None  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_normalize_number_digit(self):
@@ -433,7 +433,7 @@ class TestEntityNormalization:
         extractor = NEREntityExtractor()
 
         result = extractor._normalize_number("5")
-        assert result == 5.0
+        assert result == 5.0  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_normalize_number_word(self):
@@ -441,7 +441,7 @@ class TestEntityNormalization:
         extractor = NEREntityExtractor()
 
         result = extractor._normalize_number("five")
-        assert result == 5.0
+        assert result == 5.0  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_normalize_number_invalid(self):
@@ -449,7 +449,7 @@ class TestEntityNormalization:
         extractor = NEREntityExtractor()
 
         result = extractor._normalize_number("invalid")
-        assert result is None
+        assert result is None  # nosec B101
 
 
 # ============================================================================
@@ -485,7 +485,7 @@ class TestOverlapResolution:
         result = extractor._resolve_overlaps(entities)
 
         # Both entities should be kept
-        assert len(result) == 2
+        assert len(result) == 2  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_resolve_overlaps_with_overlap(self):
@@ -512,8 +512,8 @@ class TestOverlapResolution:
         result = extractor._resolve_overlaps(entities)
 
         # Only one entity should be kept (higher priority)
-        assert len(result) == 1
-        assert result[0].entity_type == "duration"  # Higher priority
+        assert len(result) == 1  # nosec B101
+        assert result[0].entity_type == "duration"  # Higher priority  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_resolve_overlaps_empty_list(self):
@@ -522,7 +522,7 @@ class TestOverlapResolution:
 
         result = extractor._resolve_overlaps([])
 
-        assert len(result) == 0
+        assert len(result) == 0  # nosec B101
 
 
 # ============================================================================
@@ -539,10 +539,10 @@ class TestMetrics:
         extractor = NEREntityExtractor()
         metrics = extractor.get_metrics()
 
-        assert metrics["total_extractions"] == 0
-        assert metrics["average_latency_ms"] == 0.0
-        assert metrics["gpu_usage_percent"] == 0.0
-        assert metrics["average_entities_per_extraction"] == 0.0
+        assert metrics["total_extractions"] == 0  # nosec B101
+        assert metrics["average_latency_ms"] == 0.0  # nosec B101
+        assert metrics["gpu_usage_percent"] == 0.0  # nosec B101
+        assert metrics["average_entities_per_extraction"] == 0.0  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     def test_update_metrics(self):
@@ -558,10 +558,10 @@ class TestMetrics:
 
         extractor._update_metrics(result)
 
-        assert extractor.total_extractions == 1
-        assert extractor.total_latency_ms == 50.0
-        assert extractor.gpu_extractions == 1
-        assert extractor.total_entities_extracted == 3
+        assert extractor.total_extractions == 1  # nosec B101
+        assert extractor.total_latency_ms == 50.0  # nosec B101
+        assert extractor.gpu_extractions == 1  # nosec B101
+        assert extractor.total_entities_extracted == 3  # nosec B101
 
 
 # ============================================================================
@@ -586,8 +586,8 @@ class TestNERExtractorProperties:
         )
         extractor = NEREntityExtractor(config)
 
-        assert extractor.config.confidence_threshold == confidence_threshold
-        assert extractor.config.max_entities == max_entities
+        assert extractor.config.confidence_threshold == confidence_threshold  # nosec B101
+        assert extractor.config.max_entities == max_entities  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     @given(text=st.text(min_size=1, max_size=100))
@@ -599,7 +599,7 @@ class TestNERExtractorProperties:
         result = extractor._normalize_duration(text)
 
         if result is not None:
-            assert result >= 0
+            assert result >= 0  # nosec B101
 
 
 # ============================================================================
@@ -646,14 +646,14 @@ class TestNERExtractorIntegration:
         results = [extractor.extract(text) for text in inputs]
 
         # Verify all results
-        assert len(results) == 3
+        assert len(results) == 3  # nosec B101
         for result in results:
-            assert isinstance(result, ExtractionResult)
-            assert result.extraction_time_ms > 0
+            assert isinstance(result, ExtractionResult)  # nosec B101
+            assert result.extraction_time_ms > 0  # nosec B101
 
         # Verify metrics
         metrics = extractor.get_metrics()
-        assert metrics["total_extractions"] == 3
+        assert metrics["total_extractions"] == 3  # nosec B101
 
 
 # ============================================================================
@@ -699,4 +699,4 @@ class TestNERExtractorPerformance:
 
         # Note: With mocks, latency will be very low
         # In real GPU inference, target is <100ms
-        assert avg_latency >= 0  # Sanity check
+        assert avg_latency >= 0  # Sanity check  # nosec B101

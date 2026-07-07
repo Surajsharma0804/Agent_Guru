@@ -28,7 +28,7 @@ class TestSelfImprovementEngineIntegration:
         import time
         import random
         import uuid
-        unique_id = f"{os.getpid()}_{int(time.time()*1000)}_{random.randint(1000, 9999)}_{uuid.uuid4().hex[:8]}"
+        unique_id = f"{os.getpid()}_{int(time.time()*1000)}_{random.randint(1000, 9999)}_{uuid.uuid4().hex[:8]}"  # nosec B311
         fd, path = tempfile.mkstemp(suffix=f"_{unique_id}.db")
         os.close(fd)
         yield path
@@ -43,7 +43,7 @@ class TestSelfImprovementEngineIntegration:
                 try:
                     os.unlink(path)
                 except Exception as e:
-                    pass  # Best effort cleanup
+                    pass  # nosec B110
     
     @pytest.fixture
     def engine(self, temp_db):
@@ -62,12 +62,12 @@ class TestSelfImprovementEngineIntegration:
     
     def test_engine_initialization(self, engine):
         """Test that engine initializes all components correctly."""
-        assert engine.failure_analyzer is not None
-        assert engine.strategy_optimizer is not None
-        assert engine.prompt_evolution is not None
-        assert engine.performance_tracker is not None
-        assert engine.meta_learner is not None
-        assert engine._task_sequence == 0
+        assert engine.failure_analyzer is not None  # nosec B101
+        assert engine.strategy_optimizer is not None  # nosec B101
+        assert engine.prompt_evolution is not None  # nosec B101
+        assert engine.performance_tracker is not None  # nosec B101
+        assert engine.meta_learner is not None  # nosec B101
+        assert engine._task_sequence == 0  # nosec B101
     
     def test_record_successful_task(self, engine):
         """Test recording a successful task execution."""
@@ -91,12 +91,12 @@ class TestSelfImprovementEngineIntegration:
         )
         
         # Verify task was recorded
-        assert engine._task_sequence == 1
+        assert engine._task_sequence == 1  # nosec B101
         
         # Verify metrics were recorded
         metrics = engine.get_improvement_metrics()
-        assert metrics["total_tasks"] == 1
-        assert metrics["success_rate"] == 1.0
+        assert metrics["total_tasks"] == 1  # nosec B101
+        assert metrics["success_rate"] == 1.0  # nosec B101
     
     def test_record_failed_task(self, engine):
         """Test recording a failed task execution."""
@@ -124,13 +124,13 @@ class TestSelfImprovementEngineIntegration:
         )
         
         # Verify task was recorded
-        assert engine._task_sequence == 1
+        assert engine._task_sequence == 1  # nosec B101
         
         # Verify failure was analyzed
         failures = engine.failure_analyzer.get_recent_failures(limit=1)
-        assert len(failures) == 1
-        assert failures[0]["task_id"] == "task_2"
-        assert failures[0]["failure_type"] == "reasoning_error"
+        assert len(failures) == 1  # nosec B101
+        assert failures[0]["task_id"] == "task_2"  # nosec B101
+        assert failures[0]["failure_type"] == "reasoning_error"  # nosec B101
     
     def test_strategy_performance_tracking(self, engine):
         """Test that strategy performance is tracked correctly."""
@@ -156,11 +156,11 @@ class TestSelfImprovementEngineIntegration:
         
         # Verify strategy performance
         strategy = engine.strategy_optimizer.get_strategy("strategy_1")
-        assert strategy is not None
-        assert strategy.total_executions == 10
-        assert strategy.success_rate == 0.7
-        assert strategy.success_count == 7
-        assert strategy.failure_count == 3
+        assert strategy is not None  # nosec B101
+        assert strategy.total_executions == 10  # nosec B101
+        assert strategy.success_rate == 0.7  # nosec B101
+        assert strategy.success_count == 7  # nosec B101
+        assert strategy.failure_count == 3  # nosec B101
     
     def test_get_optimal_strategy(self, engine):
         """Test getting optimal strategy for a task type."""
@@ -210,7 +210,7 @@ class TestSelfImprovementEngineIntegration:
                 good_count += 1
         
         # Should select good strategy most of the time (>50%)
-        assert good_count > 10
+        assert good_count > 10  # nosec B101
     
     def test_prompt_evolution_integration(self, engine):
         """Test prompt evolution integration."""
@@ -223,7 +223,7 @@ class TestSelfImprovementEngineIntegration:
         
         # Get evolved prompt
         prompt_text = engine.get_evolved_prompt("task_analysis")
-        assert prompt_text == "Analyze the following task carefully."
+        assert prompt_text == "Analyze the following task carefully."  # nosec B101
         
         # Record prompt outcomes
         for i in range(10):
@@ -236,9 +236,9 @@ class TestSelfImprovementEngineIntegration:
         
         # Verify prompt performance was tracked
         prompt = engine.prompt_evolution.get_prompt_version(prompt_id)
-        assert prompt is not None
-        assert prompt.total_uses == 10
-        assert prompt.success_rate == 0.8
+        assert prompt is not None  # nosec B101
+        assert prompt.total_uses == 10  # nosec B101
+        assert prompt.success_rate == 0.8  # nosec B101
     
     def test_improvement_metrics_calculation(self, engine):
         """Test improvement metrics calculation."""
@@ -274,15 +274,15 @@ class TestSelfImprovementEngineIntegration:
         # Get improvement metrics
         metrics = engine.get_improvement_metrics()
         
-        assert "improvement" in metrics
+        assert "improvement" in metrics  # nosec B101
         improvement = metrics["improvement"]
         
         # Should show improvement in success rate
-        assert improvement["success_rate_improvement"] > 0
-        assert improvement["relative_improvement"] > 0
+        assert improvement["success_rate_improvement"] > 0  # nosec B101
+        assert improvement["relative_improvement"] > 0  # nosec B101
         
         # Should show improvement in execution time
-        assert improvement["execution_time_improvement"] > 0
+        assert improvement["execution_time_improvement"] > 0  # nosec B101
     
     def test_failure_injection(self, engine):
         """Test failure injection for testing."""
@@ -295,9 +295,9 @@ class TestSelfImprovementEngineIntegration:
         
         # Verify failure was recorded
         failures = engine.failure_analyzer.get_recent_failures(limit=1)
-        assert len(failures) == 1
-        assert failures[0]["failure_type"] == "reasoning_error"
-        assert failures[0]["error_details"]["test"] is True
+        assert len(failures) == 1  # nosec B101
+        assert failures[0]["failure_type"] == "reasoning_error"  # nosec B101
+        assert failures[0]["error_details"]["test"] is True  # nosec B101
     
     def test_full_learning_cycle(self, engine):
         """Test complete learning cycle over 100 tasks."""
@@ -341,24 +341,24 @@ class TestSelfImprovementEngineIntegration:
             )
         
         # Verify 100 tasks completed
-        assert engine._task_sequence == 100
+        assert engine._task_sequence == 100  # nosec B101
         
         # Verify improvement metrics
         metrics = engine.get_improvement_metrics()
-        assert metrics["total_tasks"] == 100
+        assert metrics["total_tasks"] == 100  # nosec B101
         
         # Should have improvement data
-        assert "improvement" in metrics
+        assert "improvement" in metrics  # nosec B101
         improvement = metrics["improvement"]
         
         # Success rate should have improved
-        assert improvement["success_rate_improvement"] > 0
+        assert improvement["success_rate_improvement"] > 0  # nosec B101
         
         # Strategy B should have better performance
         strategy_a = engine.strategy_optimizer.get_strategy("strategy_a")
         strategy_b = engine.strategy_optimizer.get_strategy("strategy_b")
         
-        assert strategy_a.success_rate < strategy_b.success_rate
+        assert strategy_a.success_rate < strategy_b.success_rate  # nosec B101
     
     def test_meta_learning_pattern_recognition(self, engine):
         """Test that meta-learner identifies patterns."""
@@ -389,7 +389,7 @@ class TestSelfImprovementEngineIntegration:
         # Meta-learner should have processed executions
         # Verify by checking if patterns were updated
         # (patterns are updated every 10 executions)
-        assert engine.meta_learner._should_update_patterns() or True
+        assert engine.meta_learner._should_update_patterns() or True  # nosec B101
         
         # Get strategy recommendations
         recommendations = engine.meta_learner.recommend_strategies(
@@ -398,7 +398,7 @@ class TestSelfImprovementEngineIntegration:
         )
         
         # Should recommend the pattern_strategy
-        assert "pattern_strategy" in recommendations or len(recommendations) >= 0
+        assert "pattern_strategy" in recommendations or len(recommendations) >= 0  # nosec B101
     
     def test_performance_degradation_detection(self, engine):
         """Test detection of performance degradation."""
@@ -437,8 +437,8 @@ class TestSelfImprovementEngineIntegration:
         
         if improvement:
             # Should show negative improvement (degradation)
-            assert improvement["success_rate_improvement"] < 0
-            assert improvement["relative_improvement"] < 0
+            assert improvement["success_rate_improvement"] < 0  # nosec B101
+            assert improvement["relative_improvement"] < 0  # nosec B101
 
 
 @pytest.mark.integration
@@ -498,7 +498,7 @@ class TestSelfImprovementEnginePerformance:
         mean_time_ms = benchmark.stats['mean'] * 1000
         if mean_time_ms > 50:
             print(f"INFO: record_task_execution took {mean_time_ms:.2f}ms (target: <50ms, acceptable: <150ms)")
-        assert benchmark.stats['mean'] < 0.15  # 150ms (realistic threshold with database overhead)
+        assert benchmark.stats['mean'] < 0.15  # 150ms (realistic threshold with database overhead)  # nosec B101
     
     def test_get_optimal_strategy_performance(self, engine, benchmark):
         """Test get_optimal_strategy performance (<10ms target)."""
@@ -518,7 +518,7 @@ class TestSelfImprovementEnginePerformance:
         benchmark(get_strategy)
         
         # Should complete in <10ms (target from requirements)
-        assert benchmark.stats['mean'] < 0.01  # 10ms
+        assert benchmark.stats['mean'] < 0.01  # 10ms  # nosec B101
     
     def test_get_improvement_metrics_performance(self, engine, benchmark):
         """Test get_improvement_metrics performance (<10ms target)."""
@@ -538,7 +538,7 @@ class TestSelfImprovementEnginePerformance:
         benchmark(get_metrics)
         
         # Should complete in <10ms (target from requirements)
-        assert benchmark.stats['mean'] < 0.01  # 10ms
+        assert benchmark.stats['mean'] < 0.01  # 10ms  # nosec B101
 
 
 
@@ -595,11 +595,11 @@ class TestLearningEffectivenessValidation:
                 }
             )
             
-            assert task_id.startswith("test_")
+            assert task_id.startswith("test_")  # nosec B101
         
         # Verify all failures were recorded
         failures = engine.failure_analyzer.get_recent_failures(limit=10)
-        assert len(failures) >= len(failure_types)
+        assert len(failures) >= len(failure_types)  # nosec B101
     
     def test_batch_failure_injection(self, engine):
         """Test batch failure injection."""
@@ -623,12 +623,12 @@ class TestLearningEffectivenessValidation:
         
         task_ids = engine.inject_multiple_failures(failure_configs)
         
-        assert len(task_ids) == 3
-        assert all(tid.startswith("test_") for tid in task_ids)
+        assert len(task_ids) == 3  # nosec B101
+        assert all(tid.startswith("test_") for tid in task_ids)  # nosec B101
         
         # Verify failures were recorded
         failures = engine.failure_analyzer.get_recent_failures(limit=5)
-        assert len(failures) >= 3
+        assert len(failures) >= 3  # nosec B101
     
     def test_learning_from_repeated_failures(self, engine):
         """Test that system learns from repeated similar failures."""
@@ -662,12 +662,12 @@ class TestLearningEffectivenessValidation:
         )
         
         # Should have identified at least one pattern
-        assert len(patterns) > 0
+        assert len(patterns) > 0  # nosec B101
         
         # Verify strategy performance was updated
         strategy = engine.strategy_optimizer.get_strategy("learning_strategy")
-        assert strategy.total_executions == 10
-        assert strategy.failure_count == 10
+        assert strategy.total_executions == 10  # nosec B101
+        assert strategy.failure_count == 10  # nosec B101
     
     def test_strategy_adaptation_after_failures(self, engine):
         """Test that strategy selection adapts after failures."""
@@ -717,7 +717,7 @@ class TestLearningEffectivenessValidation:
                 success_count += 1
         
         # Should select succeeding strategy most of the time
-        assert success_count > 10
+        assert success_count > 10  # nosec B101
     
     def test_prompt_evolution_after_hallucinations(self, engine):
         """Test that prompts evolve after hallucination detection."""
@@ -739,9 +739,9 @@ class TestLearningEffectivenessValidation:
         
         # Verify prompt performance was tracked
         prompt = engine.prompt_evolution.get_prompt_version(prompt_id)
-        assert prompt.total_uses == 10
-        assert prompt.success_rate == 0.0
-        assert prompt.hallucination_count == 10
+        assert prompt.total_uses == 10  # nosec B101
+        assert prompt.success_rate == 0.0  # nosec B101
+        assert prompt.hallucination_count == 10  # nosec B101
         
         # Verify hallucinations were recorded
         failures = engine.failure_analyzer.get_recent_failures(limit=15)
@@ -750,7 +750,7 @@ class TestLearningEffectivenessValidation:
             if f.get("failure_type") == "hallucination"
         ]
         # Should have some hallucination records
-        assert len(hallucination_failures) >= 0
+        assert len(hallucination_failures) >= 0  # nosec B101
     
     def test_performance_improvement_validation(self, engine):
         """Test that performance improvement is correctly measured."""
@@ -789,12 +789,12 @@ class TestLearningEffectivenessValidation:
         metrics = engine.get_improvement_metrics()
         improvement = metrics.get("improvement")
         
-        assert improvement is not None
-        assert improvement["success_rate_improvement"] > 0
-        assert improvement["relative_improvement"] > 0
+        assert improvement is not None  # nosec B101
+        assert improvement["success_rate_improvement"] > 0  # nosec B101
+        assert improvement["relative_improvement"] > 0  # nosec B101
         
         # Should show significant improvement
-        assert improvement["relative_improvement"] > 50  # >50% improvement
+        assert improvement["relative_improvement"] > 50  # >50% improvement  # nosec B101
     
     def test_meta_learning_generalization(self, engine):
         """Test that meta-learner generalizes patterns to new tasks."""
@@ -825,7 +825,7 @@ class TestLearningEffectivenessValidation:
         )
         
         # Should recommend meta_strategy based on pattern similarity
-        assert "meta_strategy" in recommendations or len(recommendations) >= 0
+        assert "meta_strategy" in recommendations or len(recommendations) >= 0  # nosec B101
     
     def test_failure_pattern_convergence(self, engine):
         """Test that failure patterns converge with repeated failures."""
@@ -848,11 +848,11 @@ class TestLearningEffectivenessValidation:
         )
         
         # Should have identified pattern
-        assert len(patterns) > 0
+        assert len(patterns) > 0  # nosec B101
         
         # Pattern should have high occurrence count
         max_occurrences = max(p.occurrence_count for p in patterns)
-        assert max_occurrences >= 5
+        assert max_occurrences >= 5  # nosec B101
     
     def test_statistical_significance_validation(self, engine):
         """Test that statistical significance is correctly calculated."""
@@ -891,12 +891,12 @@ class TestLearningEffectivenessValidation:
             recent_size=10
         )
         
-        assert significance is not None
-        assert "p_value" in significance
-        assert "confidence_interval_95" in significance or "confidence_interval" in significance
+        assert significance is not None  # nosec B101
+        assert "p_value" in significance  # nosec B101
+        assert "confidence_interval_95" in significance or "confidence_interval" in significance  # nosec B101
         
         # With such a large difference, should be statistically significant
-        assert significance["p_value"] < 0.05
+        assert significance["p_value"] < 0.05  # nosec B101
     
     def test_learning_effectiveness_over_time(self, engine):
         """Test that learning effectiveness improves over time."""
@@ -929,7 +929,7 @@ class TestLearningEffectivenessValidation:
         # Should show improvement
         if "improvement" in metrics:
             improvement = metrics["improvement"]
-            assert improvement["relative_improvement"] > 0
+            assert improvement["relative_improvement"] > 0  # nosec B101
 
 
 
@@ -999,11 +999,11 @@ class TestLearningPropertiesWithFailureInjection:
         )
         
         # Property: Must identify at least one pattern
-        assert len(patterns) > 0, f"Failed to identify pattern after {num_failures} failures of type {failure_type}"
+        assert len(patterns) > 0, f"Failed to identify pattern after {num_failures} failures of type {failure_type}"  # nosec B101
         
         # Property: Pattern occurrence count must be reasonable
         max_occurrences = max(p.occurrence_count for p in patterns)
-        assert max_occurrences >= 2, f"Pattern occurrence count too low: {max_occurrences}"
+        assert max_occurrences >= 2, f"Pattern occurrence count too low: {max_occurrences}"  # nosec B101
     
     @given(
         num_failures=st.integers(min_value=10, max_value=30),
@@ -1036,7 +1036,7 @@ class TestLearningPropertiesWithFailureInjection:
         # Use unique strategy ID for each test run
         import random
         import time
-        strategy_id = f"learning_property_strategy_{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}_{id(engine)}"
+        strategy_id = f"learning_property_strategy_{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}_{id(engine)}"  # nosec B311
         
         # Register strategy
         engine.strategy_optimizer.register_strategy(
@@ -1079,9 +1079,9 @@ class TestLearningPropertiesWithFailureInjection:
         )
         
         # Property: Must show improvement
-        assert improvement is not None, "Improvement calculation failed"
+        assert improvement is not None, "Improvement calculation failed"  # nosec B101
         assert improvement["success_rate_improvement"] > 0, \
-            f"No improvement detected: {improvement['success_rate_improvement']}"
+            f"No improvement detected: {improvement['success_rate_improvement']}"  # nosec B101
     
     @given(
         num_strategies=st.integers(min_value=2, max_value=4),  # Reduced from 5
@@ -1122,7 +1122,7 @@ class TestLearningPropertiesWithFailureInjection:
             strategies = []
             import random
             import time
-            test_run_id = random.randint(10000, 99999)
+            test_run_id = random.randint(10000, 99999)  # nosec B311
             timestamp = int(time.time() * 1000)
             for i in range(num_strategies):
                 strategy_id = f"property_strategy_{test_run_id}_{i}_{timestamp}"
@@ -1166,7 +1166,7 @@ class TestLearningPropertiesWithFailureInjection:
             if selections:
                 best_count = selections.count(best_strategy_id)
                 assert best_count > len(selections) * 0.7, \
-                    f"Best strategy {best_strategy_id} selected only {best_count}/{len(selections)} times (expected >{len(selections)*0.7:.0f})"
+                    f"Best strategy {best_strategy_id} selected only {best_count}/{len(selections)} times (expected >{len(selections)*0.7:.0f})"  # nosec B101
         finally:
             engine.close()
             import time
@@ -1213,14 +1213,14 @@ class TestLearningPropertiesWithFailureInjection:
         # Property: All failures must be categorized as same type
         test_failures = [f for f in failures if f["task_id"] in task_ids]
         assert len(test_failures) >= num_failures * 0.9, \
-            f"Only {len(test_failures)}/{num_failures} failures recorded"
+            f"Only {len(test_failures)}/{num_failures} failures recorded"  # nosec B101
         
         # Property: All must have same failure type
         failure_types = set(f["failure_type"] for f in test_failures)
         assert len(failure_types) == 1, \
-            f"Inconsistent failure types: {failure_types}"
+            f"Inconsistent failure types: {failure_types}"  # nosec B101
         assert failure_types.pop() == failure_type.value, \
-            f"Wrong failure type categorization"
+            f"Wrong failure type categorization"  # nosec B101
     
     @given(
         batch_size=st.integers(min_value=5, max_value=20)
@@ -1253,11 +1253,11 @@ class TestLearningPropertiesWithFailureInjection:
         
         # Property: Must return correct number of task IDs
         assert len(batch_task_ids) == batch_size, \
-            f"Batch injection returned {len(batch_task_ids)} IDs, expected {batch_size}"
+            f"Batch injection returned {len(batch_task_ids)} IDs, expected {batch_size}"  # nosec B101
         
         # Property: All task IDs must be unique
         assert len(set(batch_task_ids)) == batch_size, \
-            f"Duplicate task IDs in batch injection"
+            f"Duplicate task IDs in batch injection"  # nosec B101
         
         # Property: All failures must be recorded
         failures = engine.failure_analyzer.get_recent_failures(limit=batch_size + 5)
@@ -1265,7 +1265,7 @@ class TestLearningPropertiesWithFailureInjection:
         
         for task_id in batch_task_ids:
             assert task_id in recorded_ids, \
-                f"Task {task_id} not found in recorded failures"
+                f"Task {task_id} not found in recorded failures"  # nosec B101
     
     @given(
         num_iterations=st.integers(min_value=3, max_value=8)
@@ -1286,7 +1286,7 @@ class TestLearningPropertiesWithFailureInjection:
         # Register strategy with unique ID
         import random
         import time
-        strategy_id = f"convergence_strategy_{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+        strategy_id = f"convergence_strategy_{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
         engine.strategy_optimizer.register_strategy(
             strategy_id=strategy_id,
             name="Convergence Strategy",
@@ -1326,4 +1326,4 @@ class TestLearningPropertiesWithFailureInjection:
             
             # Variance should be reasonable (not too high)
             assert variance < 10000, \
-                f"Learning not converging, variance too high: {variance}"
+                f"Learning not converging, variance too high: {variance}"  # nosec B101

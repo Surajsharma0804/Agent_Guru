@@ -112,10 +112,10 @@ class TestEnsembleVotingSystemInitialization:
         """Test system initializes correctly."""
         system = EnsembleVotingSystem(pool, strategy_optimizer)
 
-        assert system.pool == pool
-        assert system.strategy_optimizer == strategy_optimizer
-        assert system.default_voting_method == VotingMethod.WEIGHTED
-        assert system.min_agreement_threshold == 0.6
+        assert system.pool == pool  # nosec B101
+        assert system.strategy_optimizer == strategy_optimizer  # nosec B101
+        assert system.default_voting_method == VotingMethod.WEIGHTED  # nosec B101
+        assert system.min_agreement_threshold == 0.6  # nosec B101
 
     def test_initialization_with_custom_params(self, pool, strategy_optimizer):
         """Test initialization with custom parameters."""
@@ -126,8 +126,8 @@ class TestEnsembleVotingSystemInitialization:
             min_agreement_threshold=0.8,
         )
 
-        assert system.default_voting_method == VotingMethod.MAJORITY
-        assert system.min_agreement_threshold == 0.8
+        assert system.default_voting_method == VotingMethod.MAJORITY  # nosec B101
+        assert system.min_agreement_threshold == 0.8  # nosec B101
 
     def test_initialization_invalid_threshold(self, pool, strategy_optimizer):
         """Test initialization fails with invalid threshold."""
@@ -148,7 +148,7 @@ class TestEnsembleVotingSystemInitialization:
                 WHERE type='table' AND name='ensemble_executions'
             """
             )
-            assert cursor.fetchone() is not None
+            assert cursor.fetchone() is not None  # nosec B101
 
             # Check indexes exist
             cursor.execute(
@@ -158,7 +158,7 @@ class TestEnsembleVotingSystemInitialization:
             """
             )
             indexes = cursor.fetchall()
-            assert len(indexes) >= 3
+            assert len(indexes) >= 3  # nosec B101
 
 
 class TestEnsembleExecution:
@@ -183,14 +183,14 @@ class TestEnsembleExecution:
             criticality=TaskCriticality.MEDIUM,
         )
 
-        assert result.task_id == "test_task_1"
-        assert result.task_type == "test_task"
-        assert result.criticality == TaskCriticality.MEDIUM
-        assert len(result.strategies_used) == 3  # Medium = 3 strategies
-        assert len(result.individual_results) == 3
-        assert result.success is True
-        assert result.agreement_score > 0.0
-        assert result.confidence > 0.0
+        assert result.task_id == "test_task_1"  # nosec B101
+        assert result.task_type == "test_task"  # nosec B101
+        assert result.criticality == TaskCriticality.MEDIUM  # nosec B101
+        assert len(result.strategies_used) == 3  # Medium = 3 strategies  # nosec B101
+        assert len(result.individual_results) == 3  # nosec B101
+        assert result.success is True  # nosec B101
+        assert result.agreement_score > 0.0  # nosec B101
+        assert result.confidence > 0.0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_execute_with_ensemble_high_criticality(self, ensemble_system):
@@ -219,7 +219,7 @@ class TestEnsembleExecution:
             criticality=TaskCriticality.HIGH,
         )
 
-        assert len(result.strategies_used) == 5  # High = 5 strategies
+        assert len(result.strategies_used) == 5  # High = 5 strategies  # nosec B101
 
     @pytest.mark.asyncio
     async def test_execute_with_all_strategies_agree(self, ensemble_system):
@@ -236,9 +236,9 @@ class TestEnsembleExecution:
             criticality=TaskCriticality.MEDIUM,
         )
 
-        assert result.success is True
-        assert result.agreement_score >= 0.9  # High agreement
-        assert result.voted_result["result"] == "agreed_result"
+        assert result.success is True  # nosec B101
+        assert result.agreement_score >= 0.9  # High agreement  # nosec B101
+        assert result.voted_result["result"] == "agreed_result"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_execute_with_strategies_disagree(self, ensemble_system):
@@ -264,9 +264,9 @@ class TestEnsembleExecution:
 
         # When strategies disagree, success depends on agreement threshold
         # With all different results, agreement_score will be ~0.56 (below 0.6 threshold)
-        assert result.success is False  # Below agreement threshold
-        assert result.agreement_score < 0.6  # Low agreement (all different)
-        assert result.voted_result is not None
+        assert result.success is False  # Below agreement threshold  # nosec B101
+        assert result.agreement_score < 0.6  # Low agreement (all different)  # nosec B101
+        assert result.voted_result is not None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_execute_with_some_failures(self, ensemble_system):
@@ -289,10 +289,10 @@ class TestEnsembleExecution:
         )
 
         # Should still succeed with majority
-        assert len(result.individual_results) == 3
-        assert result.individual_results[0]["success"] is False
-        assert result.individual_results[1]["success"] is True
-        assert result.individual_results[2]["success"] is True
+        assert len(result.individual_results) == 3  # nosec B101
+        assert result.individual_results[0]["success"] is False  # nosec B101
+        assert result.individual_results[1]["success"] is True  # nosec B101
+        assert result.individual_results[2]["success"] is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_execute_with_all_failures(self, ensemble_system):
@@ -308,9 +308,9 @@ class TestEnsembleExecution:
             criticality=TaskCriticality.MEDIUM,
         )
 
-        assert result.success is False
-        assert all(not r["success"] for r in result.individual_results)
-        assert result.agreement_score == 0.0
+        assert result.success is False  # nosec B101
+        assert all(not r["success"] for r in result.individual_results)  # nosec B101
+        assert result.agreement_score == 0.0  # nosec B101
 
 
 class TestVotingMethods:
@@ -334,8 +334,8 @@ class TestVotingMethods:
             voting_method=VotingMethod.MAJORITY,
         )
 
-        assert result.voted_result["result"] == "A"  # Majority wins
-        assert result.agreement_score >= 0.6  # 2/3 agreement
+        assert result.voted_result["result"] == "A"  # Majority wins  # nosec B101
+        assert result.agreement_score >= 0.6  # 2/3 agreement  # nosec B101
 
     @pytest.mark.asyncio
     async def test_weighted_vote(self, ensemble_system):
@@ -357,7 +357,7 @@ class TestVotingMethods:
         )
 
         # strategy_1 has highest success rate, so "A" should win despite minority
-        assert result.voted_result["result"] == "A"
+        assert result.voted_result["result"] == "A"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_confidence_vote(self, ensemble_system):
@@ -377,8 +377,8 @@ class TestVotingMethods:
             voting_method=VotingMethod.CONFIDENCE,
         )
 
-        assert result.voted_result["result"] == "A"  # Highest confidence wins
-        assert result.confidence >= 0.95
+        assert result.voted_result["result"] == "A"  # Highest confidence wins  # nosec B101
+        assert result.confidence >= 0.95  # nosec B101
 
     @pytest.mark.asyncio
     async def test_unanimous_vote_with_agreement(self, ensemble_system):
@@ -395,8 +395,8 @@ class TestVotingMethods:
             voting_method=VotingMethod.UNANIMOUS,
         )
 
-        assert result.voted_result["result"] == "unanimous"
-        assert result.agreement_score == 1.0  # Perfect agreement
+        assert result.voted_result["result"] == "unanimous"  # nosec B101
+        assert result.agreement_score == 1.0  # Perfect agreement  # nosec B101
 
     @pytest.mark.asyncio
     async def test_unanimous_vote_without_agreement(self, ensemble_system):
@@ -421,7 +421,7 @@ class TestVotingMethods:
         )
 
         # Falls back to majority vote
-        assert result.agreement_score < 1.0
+        assert result.agreement_score < 1.0  # nosec B101
 
 
 class TestPerformanceMetrics:
@@ -448,9 +448,9 @@ class TestPerformanceMetrics:
         # Get metrics
         metrics = ensemble_system.get_performance_metrics(task_type="test_task")
 
-        assert metrics.total_ensemble_executions == 5
-        assert metrics.ensemble_success_rate > 0.0
-        assert metrics.ensemble_avg_time_ms >= 0.0  # May be 0 if very fast
+        assert metrics.total_ensemble_executions == 5  # nosec B101
+        assert metrics.ensemble_success_rate > 0.0  # nosec B101
+        assert metrics.ensemble_avg_time_ms >= 0.0  # May be 0 if very fast  # nosec B101
 
     @pytest.mark.asyncio
     async def test_performance_metrics_with_failures(self, ensemble_system):
@@ -480,14 +480,14 @@ class TestPerformanceMetrics:
         metrics = ensemble_system.get_performance_metrics(task_type="test_task")
 
         # Should track both successes and failures
-        assert metrics.total_ensemble_executions > 0
+        assert metrics.total_ensemble_executions > 0  # nosec B101
 
     def test_performance_metrics_empty(self, ensemble_system):
         """Test metrics with no executions."""
         metrics = ensemble_system.get_performance_metrics(task_type="nonexistent")
 
-        assert metrics.total_ensemble_executions == 0
-        assert metrics.ensemble_success_rate == 0.0
+        assert metrics.total_ensemble_executions == 0  # nosec B101
+        assert metrics.ensemble_success_rate == 0.0  # nosec B101
 
 
 class TestCriticalityAssessment:
@@ -499,8 +499,8 @@ class TestCriticalityAssessment:
             task_type="simple_task", task_context={}
         )
 
-        assert use_ensemble is False
-        assert criticality == TaskCriticality.LOW
+        assert use_ensemble is False  # nosec B101
+        assert criticality == TaskCriticality.LOW  # nosec B101
 
     def test_should_use_ensemble_high_criticality_type(self, ensemble_system):
         """Test high criticality task types use ensemble."""
@@ -508,8 +508,8 @@ class TestCriticalityAssessment:
             task_type="security_validation", task_context={}
         )
 
-        assert use_ensemble is True
-        assert criticality == TaskCriticality.HIGH
+        assert use_ensemble is True  # nosec B101
+        assert criticality == TaskCriticality.HIGH  # nosec B101
 
     def test_should_use_ensemble_with_user_data(self, ensemble_system):
         """Test tasks with user data use ensemble."""
@@ -517,7 +517,7 @@ class TestCriticalityAssessment:
             task_type="simple_task", task_context={"user_data": True}
         )
 
-        assert use_ensemble is True
+        assert use_ensemble is True  # nosec B101
         # Check criticality is at least MEDIUM
         criticality_values = {
             TaskCriticality.LOW: 0,
@@ -525,7 +525,7 @@ class TestCriticalityAssessment:
             TaskCriticality.HIGH: 2,
             TaskCriticality.CRITICAL: 3,
         }
-        assert criticality_values[criticality] >= criticality_values[TaskCriticality.MEDIUM]
+        assert criticality_values[criticality] >= criticality_values[TaskCriticality.MEDIUM]  # nosec B101
 
     def test_should_use_ensemble_with_financial_data(self, ensemble_system):
         """Test tasks with financial data use ensemble."""
@@ -533,7 +533,7 @@ class TestCriticalityAssessment:
             task_type="simple_task", task_context={"financial": True}
         )
 
-        assert use_ensemble is True
+        assert use_ensemble is True  # nosec B101
         # Check criticality is at least HIGH
         criticality_values = {
             TaskCriticality.LOW: 0,
@@ -541,7 +541,7 @@ class TestCriticalityAssessment:
             TaskCriticality.HIGH: 2,
             TaskCriticality.CRITICAL: 3,
         }
-        assert criticality_values[criticality] >= criticality_values[TaskCriticality.HIGH]
+        assert criticality_values[criticality] >= criticality_values[TaskCriticality.HIGH]  # nosec B101
 
     def test_should_use_ensemble_safety_critical(self, ensemble_system):
         """Test safety-critical tasks use maximum ensemble."""
@@ -549,8 +549,8 @@ class TestCriticalityAssessment:
             task_type="simple_task", task_context={"safety_critical": True}
         )
 
-        assert use_ensemble is True
-        assert criticality == TaskCriticality.CRITICAL
+        assert use_ensemble is True  # nosec B101
+        assert criticality == TaskCriticality.CRITICAL  # nosec B101
 
 
 class TestEnsembleSizing:
@@ -559,22 +559,22 @@ class TestEnsembleSizing:
     def test_ensemble_size_low(self, ensemble_system):
         """Test low criticality uses 1 strategy."""
         size = ensemble_system._get_ensemble_size(TaskCriticality.LOW)
-        assert size == 1
+        assert size == 1  # nosec B101
 
     def test_ensemble_size_medium(self, ensemble_system):
         """Test medium criticality uses 3 strategies."""
         size = ensemble_system._get_ensemble_size(TaskCriticality.MEDIUM)
-        assert size == 3
+        assert size == 3  # nosec B101
 
     def test_ensemble_size_high(self, ensemble_system):
         """Test high criticality uses 5 strategies."""
         size = ensemble_system._get_ensemble_size(TaskCriticality.HIGH)
-        assert size == 5
+        assert size == 5  # nosec B101
 
     def test_ensemble_size_critical(self, ensemble_system):
         """Test critical tasks use 7 strategies."""
         size = ensemble_system._get_ensemble_size(TaskCriticality.CRITICAL)
-        assert size == 7
+        assert size == 7  # nosec B101
 
 
 class TestEdgeCases:
@@ -617,8 +617,8 @@ class TestEdgeCases:
         )
 
         # Should complete successfully
-        assert result.success is True
-        assert result.execution_time_ms >= 100  # At least 100ms
+        assert result.success is True  # nosec B101
+        assert result.execution_time_ms >= 100  # At least 100ms  # nosec B101
 
     @pytest.mark.asyncio
     async def test_execute_with_low_agreement(self, ensemble_system):
@@ -649,8 +649,8 @@ class TestEdgeCases:
         )
 
         # Should fail due to low agreement
-        assert result.agreement_score < 0.9
-        assert result.success is False  # Below threshold
+        assert result.agreement_score < 0.9  # nosec B101
+        assert result.success is False  # Below threshold  # nosec B101
 
 
 # Property-based tests would go here using hypothesis

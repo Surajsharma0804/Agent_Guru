@@ -83,8 +83,8 @@ class TestContradictoryFeedbackDetection:
         # Detect conflicts
         conflict = resolver.detect_contradictory_feedback(executions)
         
-        assert not conflict.has_conflict
-        assert conflict.confidence < 0.7
+        assert not conflict.has_conflict  # nosec B101
+        assert conflict.confidence < 0.7  # nosec B101
     
     def test_no_conflict_with_consistent_failure(self, resolver):
         """Test no conflict detected with consistent failure."""
@@ -104,7 +104,7 @@ class TestContradictoryFeedbackDetection:
         # Detect conflicts
         conflict = resolver.detect_contradictory_feedback(executions)
         
-        assert not conflict.has_conflict
+        assert not conflict.has_conflict  # nosec B101
     
     def test_conflict_with_oscillating_outcomes(self, resolver):
         """Test conflict detected with oscillating success/failure."""
@@ -125,10 +125,10 @@ class TestContradictoryFeedbackDetection:
         conflict = resolver.detect_contradictory_feedback(executions)
         
         # The oscillating pattern should be detected as a conflict
-        assert conflict.has_conflict
-        assert conflict.conflict_type == ConflictType.CONTRADICTORY_FEEDBACK
-        assert conflict.confidence >= 0.5  # Lower threshold for oscillating pattern
-        assert len(conflict.conflicting_executions) > 0
+        assert conflict.has_conflict  # nosec B101
+        assert conflict.conflict_type == ConflictType.CONTRADICTORY_FEEDBACK  # nosec B101
+        assert conflict.confidence >= 0.5  # Lower threshold for oscillating pattern  # nosec B101
+        assert len(conflict.conflicting_executions) > 0  # nosec B101
     
     def test_conflict_with_sudden_change(self, resolver):
         """Test conflict detected with sudden performance change."""
@@ -157,8 +157,8 @@ class TestContradictoryFeedbackDetection:
         # Detect conflicts
         conflict = resolver.detect_contradictory_feedback(executions)
         
-        assert conflict.has_conflict
-        assert conflict.confidence >= 0.7
+        assert conflict.has_conflict  # nosec B101
+        assert conflict.confidence >= 0.7  # nosec B101
     
     def test_insufficient_data(self, resolver):
         """Test no conflict with insufficient data."""
@@ -181,8 +181,8 @@ class TestContradictoryFeedbackDetection:
             min_executions=5
         )
         
-        assert not conflict.has_conflict
-        assert conflict.details["reason"] == "insufficient_data"
+        assert not conflict.has_conflict  # nosec B101
+        assert conflict.details["reason"] == "insufficient_data"  # nosec B101
 
 
 class TestDataPoisoningDetection:
@@ -206,7 +206,7 @@ class TestDataPoisoningDetection:
         # Detect poisoning
         conflict = resolver.detect_data_poisoning(executions)
         
-        assert not conflict.has_conflict
+        assert not conflict.has_conflict  # nosec B101
     
     def test_poisoning_with_execution_time_anomalies(self, resolver):
         """Test poisoning detected with execution time anomalies."""
@@ -239,9 +239,9 @@ class TestDataPoisoningDetection:
             contamination=0.25  # Expect 25% anomalies (conservative)
         )
         
-        assert conflict.has_conflict
-        assert conflict.conflict_type == ConflictType.DATA_POISONING
-        assert len(conflict.conflicting_executions) > 0
+        assert conflict.has_conflict  # nosec B101
+        assert conflict.conflict_type == ConflictType.DATA_POISONING  # nosec B101
+        assert len(conflict.conflicting_executions) > 0  # nosec B101
     
     def test_poisoning_with_sudden_failure_spike(self, resolver):
         """Test poisoning detected with sudden failure spike."""
@@ -274,8 +274,8 @@ class TestDataPoisoningDetection:
             contamination=0.25  # Expect 25% anomalies (conservative)
         )
         
-        assert conflict.has_conflict
-        assert conflict.confidence >= 0.75
+        assert conflict.has_conflict  # nosec B101
+        assert conflict.confidence >= 0.75  # nosec B101
     
     def test_insufficient_data_for_poisoning(self, resolver):
         """Test no poisoning detection with insufficient data."""
@@ -295,8 +295,8 @@ class TestDataPoisoningDetection:
         # Detect poisoning
         conflict = resolver.detect_data_poisoning(executions, min_executions=20)
         
-        assert not conflict.has_conflict
-        assert conflict.details["reason"] == "insufficient_data"
+        assert not conflict.has_conflict  # nosec B101
+        assert conflict.details["reason"] == "insufficient_data"  # nosec B101
 
 
 class TestConflictResolution:
@@ -333,14 +333,14 @@ class TestConflictResolution:
             # Resolve conflict
             resolution = resolver.resolve_conflict(conflict, executions, use_majority_vote=True)
             
-            assert resolution["resolved"]
-            assert resolution["method"] == "majority_vote"
-            assert resolution["majority_outcome"] == True
-            assert len(resolution["actions"]) > 0
+            assert resolution["resolved"]  # nosec B101
+            assert resolution["method"] == "majority_vote"  # nosec B101
+            assert resolution["majority_outcome"] == True  # nosec B101
+            assert len(resolution["actions"]) > 0  # nosec B101
             
             # Check that minority outcomes were quarantined
             quarantined = resolver.get_quarantined_data(data_type="execution")
-            assert len(quarantined) > 0
+            assert len(quarantined) > 0  # nosec B101
     
     def test_resolve_data_poisoning_quarantine_all(self, resolver):
         """Test resolving data poisoning by quarantining all suspicious data."""
@@ -374,13 +374,13 @@ class TestConflictResolution:
             # Resolve conflict
             resolution = resolver.resolve_conflict(conflict, executions)
             
-            assert resolution["resolved"]
-            assert resolution["method"] == "quarantine_all"
-            assert resolution["quarantined_count"] > 0
+            assert resolution["resolved"]  # nosec B101
+            assert resolution["method"] == "quarantine_all"  # nosec B101
+            assert resolution["quarantined_count"] > 0  # nosec B101
             
             # Check quarantine
             quarantined = resolver.get_quarantined_data(data_type="execution")
-            assert len(quarantined) > 0
+            assert len(quarantined) > 0  # nosec B101
 
 
 class TestQuarantineSystem:
@@ -404,13 +404,13 @@ class TestQuarantineSystem:
         )
         
         # Check quarantine
-        assert resolver.is_quarantined("task_1")
+        assert resolver.is_quarantined("task_1")  # nosec B101
         
         quarantined = resolver.get_quarantined_data(data_type="execution")
-        assert len(quarantined) == 1
-        assert quarantined[0].data_id == "task_1"
-        assert quarantined[0].reason == QuarantineReason.POISONING_DETECTED
-        assert quarantined[0].confidence == 0.9
+        assert len(quarantined) == 1  # nosec B101
+        assert quarantined[0].data_id == "task_1"  # nosec B101
+        assert quarantined[0].reason == QuarantineReason.POISONING_DETECTED  # nosec B101
+        assert quarantined[0].confidence == 0.9  # nosec B101
     
     def test_quarantine_expiration(self, resolver):
         """Test quarantine expiration."""
@@ -440,13 +440,13 @@ class TestQuarantineSystem:
             ))
         
         # Should not be quarantined (expired)
-        assert not resolver.is_quarantined("task_1")
+        assert not resolver.is_quarantined("task_1")  # nosec B101
         
         # Release expired
         released = resolver.release_expired_quarantines()
         
         # Should have released at least 1
-        assert released >= 1
+        assert released >= 1  # nosec B101
     
     def test_multiple_quarantines(self, resolver):
         """Test multiple quarantines."""
@@ -461,10 +461,10 @@ class TestQuarantineSystem:
         
         # Check all quarantined
         quarantined = resolver.get_quarantined_data()
-        assert len(quarantined) == 5
+        assert len(quarantined) == 5  # nosec B101
         
         for i in range(5):
-            assert resolver.is_quarantined(f"task_{i}")
+            assert resolver.is_quarantined(f"task_{i}")  # nosec B101
 
 
 class TestPropertyBasedConflictDetection:
@@ -498,7 +498,7 @@ class TestPropertyBasedConflictDetection:
                 task_id=f"task_{i}",
                 task_type="analysis",
                 strategy_id="test_strategy",
-                success=random.random() < success_rate,
+                success=random.random() < success_rate,  # nosec B311
                 execution_time_ms=100.0,
                 timestamp=datetime.now(tz=timezone.utc)
             )
@@ -514,7 +514,7 @@ class TestPropertyBasedConflictDetection:
         if success_rate < 0.2 or success_rate > 0.8:
             # Extreme success rates should have low conflict
             # Relaxed threshold to account for edge cases with oscillation
-            assert conflict.confidence < 0.90
+            assert conflict.confidence < 0.90  # nosec B101
         # For success rates near 0.5, some conflict is expected due to variance
         # This is normal and not a test failure
         
@@ -575,7 +575,7 @@ class TestPropertyBasedConflictDetection:
         
         # Should detect anomalies if they're significant (>25%)
         if contamination > 0.25:
-            assert conflict.confidence > 0.5
+            assert conflict.confidence > 0.5  # nosec B101
         
         pool.close_all()
 
@@ -601,12 +601,12 @@ class TestAdversarialRobustness:
         # Should detect conflict
         conflict = resolver.detect_contradictory_feedback(executions)
         
-        assert conflict.has_conflict
-        assert conflict.conflict_type == ConflictType.CONTRADICTORY_FEEDBACK
+        assert conflict.has_conflict  # nosec B101
+        assert conflict.conflict_type == ConflictType.CONTRADICTORY_FEEDBACK  # nosec B101
         
         # Should resolve conflict
         resolution = resolver.resolve_conflict(conflict, executions)
-        assert resolution["resolved"]
+        assert resolution["resolved"]  # nosec B101
     
     def test_gradual_poisoning_attack(self, resolver):
         """Test system detects gradual poisoning attack."""
@@ -651,7 +651,7 @@ class TestAdversarialRobustness:
         # But system should remain stable
         if conflict.has_conflict:
             resolution = resolver.resolve_conflict(conflict, executions)
-            assert resolution["resolved"]
+            assert resolution["resolved"]  # nosec B101
     
     def test_targeted_strategy_attack(self, resolver):
         """Test system handles targeted attack on specific strategy."""
@@ -683,12 +683,12 @@ class TestAdversarialRobustness:
         
         # Strategy A should not show conflict
         conflict_a = resolver.detect_contradictory_feedback(executions_a)
-        assert not conflict_a.has_conflict
+        assert not conflict_a.has_conflict  # nosec B101
         
         # Strategy B should show consistent failure (not conflict)
         conflict_b = resolver.detect_contradictory_feedback(executions_b)
         # Consistent failure is not a conflict
-        assert not conflict_b.has_conflict or conflict_b.confidence < 0.7
+        assert not conflict_b.has_conflict or conflict_b.confidence < 0.7  # nosec B101
 
 
 if __name__ == "__main__":

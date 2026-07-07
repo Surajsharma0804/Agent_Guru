@@ -149,7 +149,7 @@ class TestNoOscillations:
             )
 
             # Register two strategies
-            test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+            test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
             strategy1_id = f"strategy1_{test_id}"
             strategy2_id = f"strategy2_{test_id}"
 
@@ -176,24 +176,24 @@ class TestNoOscillations:
                 # Generate feedback based on pattern
                 if feedback_pattern == "consistent":
                     # Strategy 1 consistently better
-                    success1 = random.random() < 0.8
-                    success2 = random.random() < 0.3
+                    success1 = random.random() < 0.8  # nosec B311
+                    success2 = random.random() < 0.3  # nosec B311
                 elif feedback_pattern == "contradictory":
                     # Alternating which strategy is better
                     if i % 20 < 10:
-                        success1 = random.random() < 0.8
-                        success2 = random.random() < 0.3
+                        success1 = random.random() < 0.8  # nosec B311
+                        success2 = random.random() < 0.3  # nosec B311
                     else:
-                        success1 = random.random() < 0.3
-                        success2 = random.random() < 0.8
+                        success1 = random.random() < 0.3  # nosec B311
+                        success2 = random.random() < 0.8  # nosec B311
                 elif feedback_pattern == "noisy":
                     # Random noise
-                    success1 = random.random() < 0.5
-                    success2 = random.random() < 0.5
+                    success1 = random.random() < 0.5  # nosec B311
+                    success2 = random.random() < 0.5  # nosec B311
                 else:  # alternating
                     # Rapid alternation
-                    success1 = random.random() < (0.8 if i % 2 == 0 else 0.3)
-                    success2 = random.random() < (0.3 if i % 2 == 0 else 0.8)
+                    success1 = random.random() < (0.8 if i % 2 == 0 else 0.3)  # nosec B311
+                    success2 = random.random() < (0.3 if i % 2 == 0 else 0.8)  # nosec B311
 
                 # Update performance
                 optimizer.update_strategy_performance(strategy1_id, success1, 100.0)
@@ -221,7 +221,7 @@ class TestNoOscillations:
                 # - Dampening effects during convergence
                 # - Noisy/contradictory feedback patterns
                 max_allowed_transitions = 25
-                assert (
+                assert (  # nosec B101
                     transitions <= max_allowed_transitions
                 ), f"Too many transitions ({transitions}) in recent selections, indicates oscillation (pattern: {feedback_pattern})"
 
@@ -269,21 +269,21 @@ class TestNoUnboundedGrowth:
 
         # Record many changes
         for i in range(num_events):
-            value = random.random()
+            value = random.random()  # nosec B311
             monitor.record_change("test_component", "test_metric", value)
 
         # Check that history is bounded by window_size
         history = monitor.get_recent_changes("test_component", "test_metric", limit=200)
 
         # History should never exceed window_size
-        assert (
+        assert (  # nosec B101
             len(history) <= 100
         ), f"History size {len(history)} exceeds window_size 100"
 
         # Verify oldest entries are dropped (FIFO)
         if num_events > 100:
             # The history should only contain the most recent 100 entries
-            assert len(history) == 100, "History should be exactly window_size"
+            assert len(history) == 100, "History should be exactly window_size"  # nosec B101
 
     @settings(
         max_examples=30,
@@ -307,7 +307,7 @@ class TestNoUnboundedGrowth:
         optimizer = StrategyOptimizer(connection_pool, epsilon=0.1)
 
         # Register multiple strategies
-        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
         strategy_ids = []
         for i in range(num_strategies):
             strategy_id = f"strategy_{i}_{test_id}"
@@ -322,8 +322,8 @@ class TestNoUnboundedGrowth:
 
         # Perform many updates
         for _ in range(num_updates):
-            strategy_id = random.choice(strategy_ids)
-            success = random.random() < 0.5
+            strategy_id = random.choice(strategy_ids)  # nosec B311
+            success = random.random() < 0.5  # nosec B311
             optimizer.update_strategy_performance(strategy_id, success, 100.0)
 
         # Verify strategy count is bounded
@@ -339,16 +339,16 @@ class TestNoUnboundedGrowth:
             )
             test_strategy_count = cursor.fetchone()[0]
         
-        assert (
+        assert (  # nosec B101
             test_strategy_count == num_strategies
         ), f"Strategy count {test_strategy_count} should equal registered {num_strategies}"
 
         # Verify each strategy has bounded state
         for strategy_id in strategy_ids:
             strategy = optimizer.get_strategy(strategy_id)
-            assert strategy is not None
+            assert strategy is not None  # nosec B101
             # Execution counts should be reasonable
-            assert strategy.total_executions <= num_updates
+            assert strategy.total_executions <= num_updates  # nosec B101
 
 
 # ============================================================================
@@ -398,7 +398,7 @@ class TestConvergenceToStability:
             )
 
             # Register strategies with clear performance difference
-            test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+            test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
             best_id = f"best_{test_id}"
             worse_id = f"worse_{test_id}"
 
@@ -421,8 +421,8 @@ class TestConvergenceToStability:
             # Simulate events with clear performance difference
             selections = []
             for _ in range(num_events):
-                success_best = random.random() < true_best_rate
-                success_worse = random.random() < (true_best_rate - 0.3)
+                success_best = random.random() < true_best_rate  # nosec B311
+                success_worse = random.random() < (true_best_rate - 0.3)  # nosec B311
 
                 optimizer.update_strategy_performance(best_id, success_best, 100.0)
                 optimizer.update_strategy_performance(worse_id, success_worse, 100.0)
@@ -438,7 +438,7 @@ class TestConvergenceToStability:
 
                 # Should mostly select best strategy (allowing for 5% exploration + dampening effects)
                 # At least 80% should be best strategy (40/50) - increased from 60% since we have isolated database
-                assert (
+                assert (  # nosec B101
                     best_count >= 40
                 ), f"Should converge to best strategy, got {best_count}/50 (expected >=40)"
 
@@ -446,7 +446,7 @@ class TestConvergenceToStability:
             is_stable, metrics = monitor.check_stability("strategy_selection", "test")
             if metrics:
                 # Stability score should be reasonable after convergence
-                assert (
+                assert (  # nosec B101
                     metrics.stability_score > 0.4
                 ), f"Stability score {metrics.stability_score:.2f} should be >0.4 after convergence"
         finally:
@@ -506,14 +506,14 @@ class TestRateLimiting:
             distance_to_current = abs(dampened_value - current_value)
             distance_to_proposed = abs(proposed_value - current_value)
 
-            assert (
+            assert (  # nosec B101
                 distance_to_current < distance_to_proposed
             ), f"Dampened value {dampened_value:.2f} should be closer to current {current_value:.2f} than proposed {proposed_value:.2f}"
 
             current_value = dampened_value
 
         # Final value should not have reached extremes
-        assert (
+        assert (  # nosec B101
             0.2 < current_value < 0.8
         ), f"After dampening, value {current_value:.2f} should remain moderate"
 
@@ -549,8 +549,8 @@ class TestRateLimiting:
 
         # System should detect oscillation
         is_stable, metrics = monitor.check_stability("test_component", "test_metric")
-        assert not is_stable, "System should detect oscillation"
-        assert metrics and metrics.oscillation_detected, "Should detect oscillation"
+        assert not is_stable, "System should detect oscillation"  # nosec B101
+        assert metrics and metrics.oscillation_detected, "Should detect oscillation"  # nosec B101
 
         # Try to make more changes
         blocked_count = 0
@@ -564,7 +564,7 @@ class TestRateLimiting:
                 blocked_count += 1
 
         # At least some changes should be blocked due to instability
-        assert (
+        assert (  # nosec B101
             blocked_count > 0
         ), "Some changes should be blocked when system is unstable"
 
@@ -607,7 +607,7 @@ class TestFeedbackPatternRobustness:
         )
 
         # Register strategy
-        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
         strategy_id = f"strategy_{test_id}"
 
         optimizer.register_strategy(
@@ -622,10 +622,10 @@ class TestFeedbackPatternRobustness:
         # Base success rate is 0.7, but add noise
         for _ in range(num_events):
             base_rate = 0.7
-            noise = random.uniform(-noise_level, noise_level)
+            noise = random.uniform(-noise_level, noise_level)  # nosec B311
             actual_rate = max(0.0, min(1.0, base_rate + noise))
 
-            success = random.random() < actual_rate
+            success = random.random() < actual_rate  # nosec B311
             optimizer.update_strategy_performance(strategy_id, success, 100.0)
 
         # Get final strategy
@@ -634,7 +634,7 @@ class TestFeedbackPatternRobustness:
         # Success rate should be close to base rate despite noise
         # Allow tolerance based on noise level
         tolerance = 0.15 + noise_level
-        assert (
+        assert (  # nosec B101
             abs(strategy.success_rate - 0.7) < tolerance
         ), f"Success rate {strategy.success_rate:.2f} should be close to 0.7 despite noise (tolerance: {tolerance:.2f})"
 
@@ -642,7 +642,7 @@ class TestFeedbackPatternRobustness:
         is_stable, metrics = monitor.check_stability("strategy_selection", "test")
         if metrics:
             # Should maintain reasonable stability despite noise
-            assert (
+            assert (  # nosec B101
                 metrics.stability_score > 0.3
             ), f"Should maintain stability under noise (score: {metrics.stability_score:.2f})"
 
@@ -675,7 +675,7 @@ class TestFeedbackPatternRobustness:
         )
 
         # Register two strategies
-        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
         strategy1_id = f"strategy1_{test_id}"
         strategy2_id = f"strategy2_{test_id}"
 
@@ -699,25 +699,25 @@ class TestFeedbackPatternRobustness:
         for i in range(num_events):
             # Switch which strategy is better every switch_frequency events
             if (i // switch_frequency) % 2 == 0:
-                success1 = random.random() < 0.8
-                success2 = random.random() < 0.3
+                success1 = random.random() < 0.8  # nosec B311
+                success2 = random.random() < 0.3  # nosec B311
             else:
-                success1 = random.random() < 0.3
-                success2 = random.random() < 0.8
+                success1 = random.random() < 0.3  # nosec B311
+                success2 = random.random() < 0.8  # nosec B311
 
             optimizer.update_strategy_performance(strategy1_id, success1, 100.0)
             optimizer.update_strategy_performance(strategy2_id, success2, 100.0)
 
         # System should still be functional
         best = optimizer.get_best_strategy("test")
-        assert best is not None, "Should still be able to select a strategy"
+        assert best is not None, "Should still be able to select a strategy"  # nosec B101
 
         # Check stability - may not be perfectly stable due to contradictions,
         # but should not be completely unstable
         is_stable, metrics = monitor.check_stability("strategy_selection", "test")
         if metrics:
             # Allow lower stability score due to contradictory feedback
-            assert (
+            assert (  # nosec B101
                 metrics.stability_score > 0.2
             ), f"Should maintain minimal stability despite contradictions (score: {metrics.stability_score:.2f})"
 
@@ -758,7 +758,7 @@ class TestMetricsStability:
         base_value = 0.5
         for _ in range(num_updates):
             # Add random variation within range
-            value = base_value + random.uniform(-value_range, value_range)
+            value = base_value + random.uniform(-value_range, value_range)  # nosec B311
             value = max(0.0, min(1.0, value))  # Clamp to [0, 1]
             monitor.record_change("test_component", "test_metric", value)
 
@@ -767,13 +767,13 @@ class TestMetricsStability:
 
         if metrics:
             # Variance should be bounded
-            assert (
+            assert (  # nosec B101
                 metrics.variance <= 0.25
             ), f"Variance {metrics.variance:.3f} should be bounded"
 
             # If value_range is small, should be stable
             if value_range < 0.15:
-                assert (
+                assert (  # nosec B101
                     is_stable
                 ), f"Should be stable with small value range {value_range:.2f}"
 
@@ -799,8 +799,8 @@ class TestMetricsStability:
         current_value = 0.5
         for i in range(num_events):
             # Change value only 20% of the time
-            if random.random() < 0.2:
-                current_value = random.random()
+            if random.random() < 0.2:  # nosec B311
+                current_value = random.random()  # nosec B311
 
             monitor.record_change("test_component", "test_metric", current_value)
 
@@ -809,12 +809,12 @@ class TestMetricsStability:
 
         if metrics:
             # Change frequency should be low
-            assert (
+            assert (  # nosec B101
                 metrics.change_frequency <= 0.5
             ), f"Change frequency {metrics.change_frequency:.3f} should be bounded"
 
             # Should be stable with low change frequency
-            assert (
+            assert (  # nosec B101
                 is_stable
             ), f"Should be stable with low change frequency (freq: {metrics.change_frequency:.3f})"
 
@@ -866,7 +866,7 @@ class TestExtendedPeriodStability:
             )
 
             # Register multiple strategies with varying performance
-            test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+            test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
             strategy_ids = []
             strategy_rates = []
 
@@ -890,7 +890,7 @@ class TestExtendedPeriodStability:
             for _ in range(num_events):
                 # Update all strategies
                 for strategy_id, rate in zip(strategy_ids, strategy_rates):
-                    success = random.random() < rate
+                    success = random.random() < rate  # nosec B311
                     optimizer.update_strategy_performance(strategy_id, success, 100.0)
 
                 # Select strategy
@@ -899,7 +899,7 @@ class TestExtendedPeriodStability:
                     selections.append(selected.strategy_id)
 
             # Verify long-term stability
-            assert len(selections) > 0, "Should have made selections"
+            assert len(selections) > 0, "Should have made selections"  # nosec B101
 
             # Check that best strategy is selected most often in recent history
             if len(selections) >= 100:
@@ -914,7 +914,7 @@ class TestExtendedPeriodStability:
                 # - Dampening effects during convergence
                 # - Multiple strategies competing (not just 2)
                 # Reduced from 50% to 40% to account for realistic variance
-                assert (
+                assert (  # nosec B101
                     best_count >= 40
                 ), f"Best strategy should be selected frequently (got {best_count}/100, expected >=40)"
 
@@ -923,13 +923,13 @@ class TestExtendedPeriodStability:
 
             # After many events, system should be stable
             if num_events >= 200:
-                assert (
+                assert (  # nosec B101
                     is_stable or (metrics and metrics.stability_score > 0.5)
                 ), f"System should be stable after {num_events} events"
 
             # Verify no unbounded growth
             total_strategies = optimizer.get_strategy_count()
-            assert (
+            assert (  # nosec B101
                 total_strategies == num_strategies
             ), f"Strategy count should remain constant at {num_strategies}"
         finally:
@@ -976,13 +976,13 @@ class TestStabilityReportConsistency:
             for i in range(num_updates):
                 if comp_idx == 0:
                     # Stable component - consistent values
-                    value = 0.5 + random.uniform(-0.05, 0.05)
+                    value = 0.5 + random.uniform(-0.05, 0.05)  # nosec B311
                 elif comp_idx == 1:
                     # Oscillating component
                     value = 0.8 if i % 2 == 0 else 0.2
                 else:
                     # Noisy component
-                    value = random.random()
+                    value = random.random()  # nosec B311
 
                 monitor.record_change(component, "metric", value)
 
@@ -990,28 +990,28 @@ class TestStabilityReportConsistency:
         report = monitor.get_stability_report()
 
         # Verify report structure
-        assert "components" in report
-        assert "metrics" in report
-        assert "overall_stability_score" in report
-        assert "unstable_metrics" in report
-        assert "recommendations" in report
+        assert "components" in report  # nosec B101
+        assert "metrics" in report  # nosec B101
+        assert "overall_stability_score" in report  # nosec B101
+        assert "unstable_metrics" in report  # nosec B101
+        assert "recommendations" in report  # nosec B101
 
         # Verify component count
-        assert len(report["components"]) == num_components
+        assert len(report["components"]) == num_components  # nosec B101
 
         # Verify stability scores are in valid range
-        assert 0.0 <= report["overall_stability_score"] <= 1.0
+        assert 0.0 <= report["overall_stability_score"] <= 1.0  # nosec B101
 
         # Verify unstable metrics are identified
         # Component 1 (oscillating) should be unstable
         unstable_components = {m.component for m in report["unstable_metrics"]}
-        assert (
+        assert (  # nosec B101
             "component_1" in unstable_components
         ), "Oscillating component should be identified as unstable"
 
         # Verify recommendations are provided if there are unstable metrics
         if report["unstable_metrics"]:
-            assert (
+            assert (  # nosec B101
                 len(report["recommendations"]) > 0
             ), "Should provide recommendations for unstable metrics"
 

@@ -36,8 +36,8 @@ class TestLanguageDetector:
         text = "Hello, how are you today? This is a test."
         result = detector.detect_language(text)
         
-        assert result.language == Language.ENGLISH
-        assert result.confidence > 0.3  # Lowered threshold for realistic detection
+        assert result.language == Language.ENGLISH  # nosec B101
+        assert result.confidence > 0.3  # Lowered threshold for realistic detection  # nosec B101
     
     def test_detect_english_short(self, detector: LanguageDetector):
         """Test detecting short English text."""
@@ -45,7 +45,7 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # Short text may have lower confidence
-        assert result.language in [Language.ENGLISH, Language.UNKNOWN]
+        assert result.language in [Language.ENGLISH, Language.UNKNOWN]  # nosec B101
     
     # ========================================================================
     # SPANISH DETECTION
@@ -56,15 +56,15 @@ class TestLanguageDetector:
         text = "Hola, ¿cómo estás? Este es un mensaje en español."
         result = detector.detect_language(text)
         
-        assert result.language == Language.SPANISH
-        assert result.confidence > 0.5
+        assert result.language == Language.SPANISH  # nosec B101
+        assert result.confidence > 0.5  # nosec B101
     
     def test_detect_spanish_accents(self, detector: LanguageDetector):
         """Test Spanish detection with accents."""
         text = "El niño está en la montaña con José."
         result = detector.detect_language(text)
         
-        assert result.language == Language.SPANISH
+        assert result.language == Language.SPANISH  # nosec B101
     
     # ========================================================================
     # FRENCH DETECTION
@@ -76,16 +76,16 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # French detection may be challenging without more common words
-        assert result.language in [Language.FRENCH, Language.SPANISH, Language.UNKNOWN]
+        assert result.language in [Language.FRENCH, Language.SPANISH, Language.UNKNOWN]  # nosec B101
         if result.language == Language.FRENCH:
-            assert result.confidence > 0.2
+            assert result.confidence > 0.2  # nosec B101
     
     def test_detect_french_accents(self, detector: LanguageDetector):
         """Test French detection with accents."""
         text = "L'été est très chaud à Paris."
         result = detector.detect_language(text)
         
-        assert result.language == Language.FRENCH
+        assert result.language == Language.FRENCH  # nosec B101
     
     # ========================================================================
     # GERMAN DETECTION
@@ -96,15 +96,15 @@ class TestLanguageDetector:
         text = "Guten Tag, wie geht es Ihnen? Das ist eine Nachricht auf Deutsch."
         result = detector.detect_language(text)
         
-        assert result.language == Language.GERMAN
-        assert result.confidence > 0.3  # Lowered threshold
+        assert result.language == Language.GERMAN  # nosec B101
+        assert result.confidence > 0.3  # Lowered threshold  # nosec B101
     
     def test_detect_german_umlauts(self, detector: LanguageDetector):
         """Test German detection with umlauts."""
         text = "Der Junge ist in München mit dem Mädchen."
         result = detector.detect_language(text)
         
-        assert result.language == Language.GERMAN
+        assert result.language == Language.GERMAN  # nosec B101
     
     # ========================================================================
     # CHINESE DETECTION
@@ -115,8 +115,8 @@ class TestLanguageDetector:
         text = "你好，你好吗？这是一条中文消息。"
         result = detector.detect_language(text)
         
-        assert result.language == Language.CHINESE
-        assert result.confidence > 0.7
+        assert result.language == Language.CHINESE  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     def test_detect_chinese_mixed(self, detector: LanguageDetector):
         """Test Chinese with some English."""
@@ -125,7 +125,7 @@ class TestLanguageDetector:
         
         # Mixed text is genuinely ambiguous - could be either language
         # Just verify we get a reasonable detection (not unknown)
-        assert result.language in [Language.CHINESE, Language.ENGLISH, Language.UNKNOWN]
+        assert result.language in [Language.CHINESE, Language.ENGLISH, Language.UNKNOWN]  # nosec B101
     
     # ========================================================================
     # JAPANESE DETECTION
@@ -136,16 +136,16 @@ class TestLanguageDetector:
         text = "こんにちは、お元気ですか？"
         result = detector.detect_language(text)
         
-        assert result.language == Language.JAPANESE
-        assert result.confidence > 0.3  # Lowered threshold
+        assert result.language == Language.JAPANESE  # nosec B101
+        assert result.confidence > 0.3  # Lowered threshold  # nosec B101
     
     def test_detect_japanese_katakana(self, detector: LanguageDetector):
         """Test detecting Japanese with Katakana."""
         text = "コンピュータ、テスト、メッセージ"
         result = detector.detect_language(text)
         
-        assert result.language == Language.JAPANESE
-        assert result.confidence > 0.7
+        assert result.language == Language.JAPANESE  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     # ========================================================================
     # HINDI DETECTION
@@ -156,8 +156,8 @@ class TestLanguageDetector:
         text = "नमस्ते, आप कैसे हैं? यह एक हिंदी संदेश है।"
         result = detector.detect_language(text)
         
-        assert result.language == Language.HINDI
-        assert result.confidence > 0.7
+        assert result.language == Language.HINDI  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     # ========================================================================
     # PUNJABI DETECTION
@@ -168,8 +168,8 @@ class TestLanguageDetector:
         text = "ਸਤ ਸ੍ਰੀ ਅਕਾਲ, ਤੁਸੀਂ ਕਿਵੇਂ ਹੋ?"
         result = detector.detect_language(text)
         
-        assert result.language == Language.PUNJABI
-        assert result.confidence > 0.7
+        assert result.language == Language.PUNJABI  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     # ========================================================================
     # CODE-SWITCHING DETECTION
@@ -180,16 +180,16 @@ class TestLanguageDetector:
         text = "Hello, how are you? Hola, ¿cómo estás?"
         segments = detector.detect_code_switching(text)
         
-        assert len(segments) >= 2
+        assert len(segments) >= 2  # nosec B101
         # Code-switching detection is best-effort
-        assert len(segments) > 0
+        assert len(segments) > 0  # nosec B101
     
     def test_detect_code_switching_multiple(self, detector: LanguageDetector):
         """Test detecting multiple language switches."""
         text = "Hello. Bonjour. Hola. Guten Tag."
         segments = detector.detect_code_switching(text)
         
-        assert len(segments) >= 3
+        assert len(segments) >= 3  # nosec B101
     
     # ========================================================================
     # CONFIDENCE SCORING
@@ -209,7 +209,7 @@ class TestLanguageDetector:
         
         for text in test_texts:
             result = detector.detect_language(text)
-            assert 0.0 <= result.confidence <= 1.0
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_high_confidence_clear_language(self, detector: LanguageDetector):
         """Test high confidence for clear language text."""
@@ -217,9 +217,9 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # Should detect English but confidence may vary
-        assert result.language in [Language.ENGLISH, Language.UNKNOWN]
+        assert result.language in [Language.ENGLISH, Language.UNKNOWN]  # nosec B101
         if result.language == Language.ENGLISH:
-            assert result.confidence > 0.2
+            assert result.confidence > 0.2  # nosec B101
     
     def test_low_confidence_ambiguous(self, detector: LanguageDetector):
         """Test low confidence for ambiguous text."""
@@ -227,7 +227,7 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # Should have low confidence or unknown
-        assert result.confidence < 0.5 or result.language == Language.UNKNOWN
+        assert result.confidence < 0.5 or result.language == Language.UNKNOWN  # nosec B101
     
     # ========================================================================
     # ALTERNATIVE LANGUAGES
@@ -239,7 +239,7 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # Should have alternatives
-        assert isinstance(result.alternative_languages, list)
+        assert isinstance(result.alternative_languages, list)  # nosec B101
     
     # ========================================================================
     # EDGE CASES
@@ -249,28 +249,28 @@ class TestLanguageDetector:
         """Test detecting language from empty text."""
         result = detector.detect_language("")
         
-        assert result.language == Language.UNKNOWN
-        assert result.confidence == 0.0
+        assert result.language == Language.UNKNOWN  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
     
     def test_whitespace_only(self, detector: LanguageDetector):
         """Test detecting language from whitespace."""
         result = detector.detect_language("   \n\t  ")
         
-        assert result.language == Language.UNKNOWN
-        assert result.confidence == 0.0
+        assert result.language == Language.UNKNOWN  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
     
     def test_numbers_only(self, detector: LanguageDetector):
         """Test detecting language from numbers."""
         result = detector.detect_language("123 456 789")
         
         # Should be unknown or low confidence
-        assert result.language == Language.UNKNOWN or result.confidence < 0.3
+        assert result.language == Language.UNKNOWN or result.confidence < 0.3  # nosec B101
     
     def test_special_characters_only(self, detector: LanguageDetector):
         """Test detecting language from special characters."""
         result = detector.detect_language("!@#$%^&*()")
         
-        assert result.language == Language.UNKNOWN or result.confidence < 0.3
+        assert result.language == Language.UNKNOWN or result.confidence < 0.3  # nosec B101
     
     def test_mixed_scripts(self, detector: LanguageDetector):
         """Test detecting language from mixed scripts."""
@@ -278,7 +278,7 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # Should detect something
-        assert result.language != Language.UNKNOWN or result.confidence > 0.0
+        assert result.language != Language.UNKNOWN or result.confidence > 0.0  # nosec B101
     
     def test_very_long_text(self, detector: LanguageDetector):
         """Test detecting language from very long text."""
@@ -286,14 +286,14 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # Very repetitive text may be challenging
-        assert result.language in [Language.ENGLISH, Language.UNKNOWN]
+        assert result.language in [Language.ENGLISH, Language.UNKNOWN]  # nosec B101
     
     def test_single_word(self, detector: LanguageDetector):
         """Test detecting language from single word."""
         result = detector.detect_language("hello")
         
         # Should detect or be unknown
-        assert result.language in [Language.ENGLISH, Language.UNKNOWN]
+        assert result.language in [Language.ENGLISH, Language.UNKNOWN]  # nosec B101
     
     # ========================================================================
     # MINIMUM CONFIDENCE THRESHOLD
@@ -306,7 +306,7 @@ class TestLanguageDetector:
         
         # Should return unknown if below threshold
         if result.confidence < 0.8:
-            assert result.language == Language.UNKNOWN
+            assert result.language == Language.UNKNOWN  # nosec B101
     
     # ========================================================================
     # SUPPORTED LANGUAGES
@@ -316,15 +316,15 @@ class TestLanguageDetector:
         """Test getting list of supported languages."""
         languages = detector.get_supported_languages()
         
-        assert len(languages) >= 8
-        assert Language.ENGLISH in languages
-        assert Language.SPANISH in languages
-        assert Language.FRENCH in languages
-        assert Language.GERMAN in languages
-        assert Language.CHINESE in languages
-        assert Language.JAPANESE in languages
-        assert Language.HINDI in languages
-        assert Language.PUNJABI in languages
+        assert len(languages) >= 8  # nosec B101
+        assert Language.ENGLISH in languages  # nosec B101
+        assert Language.SPANISH in languages  # nosec B101
+        assert Language.FRENCH in languages  # nosec B101
+        assert Language.GERMAN in languages  # nosec B101
+        assert Language.CHINESE in languages  # nosec B101
+        assert Language.JAPANESE in languages  # nosec B101
+        assert Language.HINDI in languages  # nosec B101
+        assert Language.PUNJABI in languages  # nosec B101
     
     # ========================================================================
     # SECURITY TESTS
@@ -336,8 +336,8 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # Should handle gracefully
-        assert result is not None
-        assert 0.0 <= result.confidence <= 1.0
+        assert result is not None  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_xss_text(self, detector: LanguageDetector):
         """Test handling XSS in text."""
@@ -345,7 +345,7 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # Should handle gracefully
-        assert result is not None
+        assert result is not None  # nosec B101
     
     def test_unicode_normalization(self, detector: LanguageDetector):
         """Test handling unicode normalization attacks."""
@@ -353,7 +353,7 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # Should handle gracefully
-        assert result is not None
+        assert result is not None  # nosec B101
     
     def test_null_bytes(self, detector: LanguageDetector):
         """Test handling null bytes."""
@@ -361,7 +361,7 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # Should handle gracefully
-        assert result is not None
+        assert result is not None  # nosec B101
     
     # ========================================================================
     # CASE SENSITIVITY
@@ -378,7 +378,7 @@ class TestLanguageDetector:
         result3 = detector.detect_language(text3)
         
         # All should detect same language
-        assert result1.language == result2.language == result3.language
+        assert result1.language == result2.language == result3.language  # nosec B101
 
     # ========================================================================
     # INTERNATIONAL PRODUCTION SCALE - ADDITIONAL LANGUAGES
@@ -389,152 +389,152 @@ class TestLanguageDetector:
         text = "Ciao, come stai? Questo è un messaggio in italiano."
         result = detector.detect_language(text)
         
-        assert result.language == Language.ITALIAN
-        assert result.confidence > 0.3
+        assert result.language == Language.ITALIAN  # nosec B101
+        assert result.confidence > 0.3  # nosec B101
     
     def test_detect_portuguese(self, detector: LanguageDetector):
         """Test detecting Portuguese text."""
         text = "Olá, como você está? Esta é uma mensagem em português."
         result = detector.detect_language(text)
         
-        assert result.language == Language.PORTUGUESE
-        assert result.confidence > 0.3
+        assert result.language == Language.PORTUGUESE  # nosec B101
+        assert result.confidence > 0.3  # nosec B101
     
     def test_detect_russian(self, detector: LanguageDetector):
         """Test detecting Russian text."""
         text = "Привет, как дела? Это сообщение на русском языке."
         result = detector.detect_language(text)
         
-        assert result.language == Language.RUSSIAN
-        assert result.confidence > 0.7
+        assert result.language == Language.RUSSIAN  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     def test_detect_korean(self, detector: LanguageDetector):
         """Test detecting Korean text."""
         text = "안녕하세요, 어떻게 지내세요? 이것은 한국어 메시지입니다."
         result = detector.detect_language(text)
         
-        assert result.language == Language.KOREAN
-        assert result.confidence > 0.7
+        assert result.language == Language.KOREAN  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     def test_detect_arabic(self, detector: LanguageDetector):
         """Test detecting Arabic text."""
         text = "مرحبا، كيف حالك؟ هذه رسالة باللغة العربية."
         result = detector.detect_language(text)
         
-        assert result.language == Language.ARABIC
-        assert result.confidence > 0.7
+        assert result.language == Language.ARABIC  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     def test_detect_bengali(self, detector: LanguageDetector):
         """Test detecting Bengali text."""
         text = "হ্যালো, আপনি কেমন আছেন? এটি একটি বাংলা বার্তা।"
         result = detector.detect_language(text)
         
-        assert result.language == Language.BENGALI
-        assert result.confidence > 0.7
+        assert result.language == Language.BENGALI  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     def test_detect_tamil(self, detector: LanguageDetector):
         """Test detecting Tamil text."""
         text = "வணக்கம், நீங்கள் எப்படி இருக்கிறீர்கள்? இது ஒரு தமிழ் செய்தி."
         result = detector.detect_language(text)
         
-        assert result.language == Language.TAMIL
-        assert result.confidence > 0.7
+        assert result.language == Language.TAMIL  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     def test_detect_telugu(self, detector: LanguageDetector):
         """Test detecting Telugu text."""
         text = "హలో, మీరు ఎలా ఉన్నారు? ఇది తెలుగు సందేశం."
         result = detector.detect_language(text)
         
-        assert result.language == Language.TELUGU
-        assert result.confidence > 0.7
+        assert result.language == Language.TELUGU  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     def test_detect_gujarati(self, detector: LanguageDetector):
         """Test detecting Gujarati text."""
         text = "નમસ્તે, તમે કેમ છો? આ એક ગુજરાતી સંદેશ છે."
         result = detector.detect_language(text)
         
-        assert result.language == Language.GUJARATI
-        assert result.confidence > 0.7
+        assert result.language == Language.GUJARATI  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     def test_detect_kannada(self, detector: LanguageDetector):
         """Test detecting Kannada text."""
         text = "ನಮಸ್ಕಾರ, ನೀವು ಹೇಗಿದ್ದೀರಿ? ಇದು ಕನ್ನಡ ಸಂದೇಶ."
         result = detector.detect_language(text)
         
-        assert result.language == Language.KANNADA
-        assert result.confidence > 0.7
+        assert result.language == Language.KANNADA  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     def test_detect_malayalam(self, detector: LanguageDetector):
         """Test detecting Malayalam text."""
         text = "ഹലോ, നിങ്ങൾ എങ്ങനെയുണ്ട്? ഇതൊരു മലയാളം സന്ദേശമാണ്."
         result = detector.detect_language(text)
         
-        assert result.language == Language.MALAYALAM
-        assert result.confidence > 0.7
+        assert result.language == Language.MALAYALAM  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     def test_detect_thai(self, detector: LanguageDetector):
         """Test detecting Thai text."""
         text = "สวัสดี คุณเป็นอย่างไรบ้าง? นี่คือข้อความภาษาไทย"
         result = detector.detect_language(text)
         
-        assert result.language == Language.THAI
-        assert result.confidence > 0.7
+        assert result.language == Language.THAI  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     def test_detect_vietnamese(self, detector: LanguageDetector):
         """Test detecting Vietnamese text."""
         text = "Xin chào, bạn khỏe không? Đây là tin nhắn tiếng Việt."
         result = detector.detect_language(text)
         
-        assert result.language == Language.VIETNAMESE
-        assert result.confidence > 0.3
+        assert result.language == Language.VIETNAMESE  # nosec B101
+        assert result.confidence > 0.3  # nosec B101
     
     def test_detect_turkish(self, detector: LanguageDetector):
         """Test detecting Turkish text."""
         text = "Merhaba, nasılsınız? Bu Türkçe bir mesajdır."
         result = detector.detect_language(text)
         
-        assert result.language == Language.TURKISH
-        assert result.confidence > 0.3
+        assert result.language == Language.TURKISH  # nosec B101
+        assert result.confidence > 0.3  # nosec B101
     
     def test_detect_polish(self, detector: LanguageDetector):
         """Test detecting Polish text."""
         text = "Cześć, jak się masz? To jest wiadomość po polsku."
         result = detector.detect_language(text)
         
-        assert result.language == Language.POLISH
-        assert result.confidence > 0.3
+        assert result.language == Language.POLISH  # nosec B101
+        assert result.confidence > 0.3  # nosec B101
     
     def test_detect_dutch(self, detector: LanguageDetector):
         """Test detecting Dutch text."""
         text = "Hallo, hoe gaat het met je? Dit is een bericht in het Nederlands."
         result = detector.detect_language(text)
         
-        assert result.language == Language.DUTCH
-        assert result.confidence > 0.3
+        assert result.language == Language.DUTCH  # nosec B101
+        assert result.confidence > 0.3  # nosec B101
     
     def test_detect_indonesian(self, detector: LanguageDetector):
         """Test detecting Indonesian text."""
         text = "Halo, apa kabar? Ini adalah pesan dalam bahasa Indonesia."
         result = detector.detect_language(text)
         
-        assert result.language == Language.INDONESIAN
-        assert result.confidence > 0.3
+        assert result.language == Language.INDONESIAN  # nosec B101
+        assert result.confidence > 0.3  # nosec B101
     
     def test_detect_hebrew(self, detector: LanguageDetector):
         """Test detecting Hebrew text."""
         text = "שלום, מה שלומך? זה הודעה בעברית."
         result = detector.detect_language(text)
         
-        assert result.language == Language.HEBREW
-        assert result.confidence > 0.7
+        assert result.language == Language.HEBREW  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     def test_detect_greek(self, detector: LanguageDetector):
         """Test detecting Greek text."""
         text = "Γεια σου, πώς είσαι; Αυτό είναι ένα μήνυμα στα ελληνικά."
         result = detector.detect_language(text)
         
-        assert result.language == Language.GREEK
-        assert result.confidence > 0.7
+        assert result.language == Language.GREEK  # nosec B101
+        assert result.confidence > 0.7  # nosec B101
     
     # ========================================================================
     # STRESS TESTS - INTERNATIONAL SCALE
@@ -544,15 +544,15 @@ class TestLanguageDetector:
         """Test that all 40+ languages are supported."""
         languages = detector.get_supported_languages()
         
-        assert len(languages) >= 38  # At least 38 languages
+        assert len(languages) >= 38  # At least 38 languages  # nosec B101
         
         # Verify key languages
-        assert Language.ENGLISH in languages
-        assert Language.ITALIAN in languages
-        assert Language.BHOJPURI in languages
-        assert Language.KOREAN in languages
-        assert Language.ARABIC in languages
-        assert Language.BENGALI in languages
+        assert Language.ENGLISH in languages  # nosec B101
+        assert Language.ITALIAN in languages  # nosec B101
+        assert Language.BHOJPURI in languages  # nosec B101
+        assert Language.KOREAN in languages  # nosec B101
+        assert Language.ARABIC in languages  # nosec B101
+        assert Language.BENGALI in languages  # nosec B101
     
     def test_multilingual_code_switching_complex(self, detector: LanguageDetector):
         """Test complex multilingual code-switching."""
@@ -560,7 +560,7 @@ class TestLanguageDetector:
         segments = detector.detect_code_switching(text)
         
         # Should detect multiple segments
-        assert len(segments) >= 5
+        assert len(segments) >= 5  # nosec B101
     
     def test_similar_scripts_disambiguation(self, detector: LanguageDetector):
         """Test disambiguation between similar scripts."""
@@ -572,8 +572,8 @@ class TestLanguageDetector:
         marathi_result = detector.detect_language(marathi_text)
         
         # Both should detect as Devanagari-based languages
-        assert hindi_result.language in [Language.HINDI, Language.MARATHI]
-        assert marathi_result.language in [Language.HINDI, Language.MARATHI]
+        assert hindi_result.language in [Language.HINDI, Language.MARATHI]  # nosec B101
+        assert marathi_result.language in [Language.HINDI, Language.MARATHI]  # nosec B101
     
     def test_arabic_vs_urdu_disambiguation(self, detector: LanguageDetector):
         """Test disambiguation between Arabic and Urdu."""
@@ -584,8 +584,8 @@ class TestLanguageDetector:
         urdu_result = detector.detect_language(urdu_text)
         
         # Both use Arabic script
-        assert arabic_result.language in [Language.ARABIC, Language.URDU]
-        assert urdu_result.language in [Language.ARABIC, Language.URDU]
+        assert arabic_result.language in [Language.ARABIC, Language.URDU]  # nosec B101
+        assert urdu_result.language in [Language.ARABIC, Language.URDU]  # nosec B101
     
     def test_performance_40_languages_rapid_detection(self, detector: LanguageDetector):
         """Test rapid detection across all 40+ languages."""
@@ -608,8 +608,8 @@ class TestLanguageDetector:
         for expected_lang, text in test_texts.items():
             result = detector.detect_language(text)
             # Should detect without crashing
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_mixed_rtl_ltr_text(self, detector: LanguageDetector):
         """Test mixed right-to-left and left-to-right text."""
@@ -617,8 +617,8 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # Should handle gracefully
-        assert result is not None
-        assert 0.0 <= result.confidence <= 1.0
+        assert result is not None  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_all_indian_languages(self, detector: LanguageDetector):
         """Test all Indian languages are supported."""
@@ -639,7 +639,7 @@ class TestLanguageDetector:
         supported = detector.get_supported_languages()
         
         for lang in indian_languages:
-            assert lang in supported, f"{lang} not supported"
+            assert lang in supported, f"{lang} not supported"  # nosec B101
     
     def test_european_languages_coverage(self, detector: LanguageDetector):
         """Test comprehensive European language coverage."""
@@ -660,7 +660,7 @@ class TestLanguageDetector:
         supported = detector.get_supported_languages()
         
         for lang in european_languages:
-            assert lang in supported, f"{lang} not supported"
+            assert lang in supported, f"{lang} not supported"  # nosec B101
     
     def test_asian_languages_coverage(self, detector: LanguageDetector):
         """Test comprehensive Asian language coverage."""
@@ -676,7 +676,7 @@ class TestLanguageDetector:
         supported = detector.get_supported_languages()
         
         for lang in asian_languages:
-            assert lang in supported, f"{lang} not supported"
+            assert lang in supported, f"{lang} not supported"  # nosec B101
     
     # ========================================================================
     # PRODUCTION SCALE ROBUSTNESS
@@ -692,8 +692,8 @@ class TestLanguageDetector:
         result = detector.detect_language(text)
         
         # Should handle without crashing
-        assert result is not None
-        assert 0.0 <= result.confidence <= 1.0
+        assert result is not None  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_all_unicode_blocks(self, detector: LanguageDetector):
         """Test handling of all major Unicode blocks."""
@@ -711,8 +711,8 @@ class TestLanguageDetector:
         
         for sample in unicode_samples:
             result = detector.detect_language(sample)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
 
 
     # ========================================================================
@@ -734,8 +734,8 @@ class TestLanguageDetector:
         for i in range(10000):
             text = texts[i % len(texts)]
             result = detector.detect_language(text)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_stress_extremely_long_text(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Stress test with extremely long text (100KB)."""
@@ -744,9 +744,9 @@ class TestLanguageDetector:
         
         result = detector.detect_language(text)
         
-        assert result is not None
-        assert result.language in [Language.ENGLISH, Language.UNKNOWN]
-        assert 0.0 <= result.confidence <= 1.0
+        assert result is not None  # nosec B101
+        assert result.language in [Language.ENGLISH, Language.UNKNOWN]  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_stress_1000_different_languages_rapid(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Stress test with 1000 rapid language switches."""
@@ -766,8 +766,8 @@ class TestLanguageDetector:
             lang = list(test_texts.keys())[i % len(test_texts)]
             text = test_texts[lang]
             result = detector.detect_language(text)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_stress_memory_usage_10000_detections(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Stress test for memory leaks with 10,000 detections."""
@@ -780,13 +780,13 @@ class TestLanguageDetector:
         for i in range(10000):
             text = f"Test text number {i} with some content"
             result = detector.detect_language(text)
-            assert result is not None
+            assert result is not None  # nosec B101
         
         # Force garbage collection again
         gc.collect()
         
         # If we got here without crashing, no obvious memory leak
-        assert True
+        assert True  # nosec B101
     
     def test_stress_concurrent_detections(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Stress test with concurrent-like rapid detections."""
@@ -807,8 +807,8 @@ class TestLanguageDetector:
         
         # All results should be valid
         for result in results:
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     # ========================================================================
     # ZERO COMPROMISE - CHAOS TESTS
@@ -820,15 +820,15 @@ class TestLanguageDetector:
         
         # Generate random bytes and try to decode
         for _ in range(100):
-            random_bytes = bytes([random.randint(0, 255) for _ in range(50)])
+            random_bytes = bytes([random.randint(0, 255) for _ in range(50)])  # nosec B311
             try:
                 text = random_bytes.decode('utf-8', errors='ignore')
                 result = detector.detect_language(text)
-                assert result is not None
-                assert 0.0 <= result.confidence <= 1.0
+                assert result is not None  # nosec B101
+                assert 0.0 <= result.confidence <= 1.0  # nosec B101
             except Exception as e:
                 # If decode fails, that's ok
-                pass
+                pass  # nosec B110
     
     def test_chaos_corrupted_unicode(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Chaos test with corrupted Unicode."""
@@ -842,8 +842,8 @@ class TestLanguageDetector:
         
         for text in corrupted_texts:
             result = detector.detect_language(text)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_chaos_mixed_encodings(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Chaos test with mixed encoding artifacts."""
@@ -856,8 +856,8 @@ class TestLanguageDetector:
         
         for text in mixed_texts:
             result = detector.detect_language(text)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_chaos_control_characters(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Chaos test with control characters."""
@@ -871,8 +871,8 @@ class TestLanguageDetector:
         
         for text in control_texts:
             result = detector.detect_language(text)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_chaos_bidirectional_text(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Chaos test with bidirectional text markers."""
@@ -885,8 +885,8 @@ class TestLanguageDetector:
         
         for text in bidi_texts:
             result = detector.detect_language(text)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_chaos_combining_characters(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Chaos test with excessive combining characters."""
@@ -894,8 +894,8 @@ class TestLanguageDetector:
         text = "e" + "\u0301" * 50  # e with 50 acute accents
         
         result = detector.detect_language(text)
-        assert result is not None
-        assert 0.0 <= result.confidence <= 1.0
+        assert result is not None  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_chaos_homoglyphs(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Chaos test with homoglyphs (look-alike characters)."""
@@ -908,8 +908,8 @@ class TestLanguageDetector:
         
         for text in homoglyph_texts:
             result = detector.detect_language(text)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_chaos_zalgo_text(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Chaos test with Zalgo text (excessive diacritics)."""
@@ -917,8 +917,8 @@ class TestLanguageDetector:
         zalgo = "H̸̡̪̯ͨ͊̽̅̾̎Ẹ̢̣̤͙̃͋̑̓L̸̡̪̯ͨ͊̽̅̾̎L̸̡̪̯ͨ͊̽̅̾̎O̸̡̪̯ͨ͊̽̅̾̎"
         
         result = detector.detect_language(zalgo)
-        assert result is not None
-        assert 0.0 <= result.confidence <= 1.0
+        assert result is not None  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     # ========================================================================
     # ZERO COMPROMISE - EDGE CASES
@@ -937,7 +937,7 @@ class TestLanguageDetector:
         
         for text in texts:
             result = detector.detect_language(text)
-            assert result.language == Language.UNKNOWN or result.confidence < 0.3
+            assert result.language == Language.UNKNOWN or result.confidence < 0.3  # nosec B101
     
     def test_edge_case_only_emojis(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Edge case with only emojis."""
@@ -950,8 +950,8 @@ class TestLanguageDetector:
         
         for text in emoji_texts:
             result = detector.detect_language(text)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_edge_case_mathematical_symbols(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Edge case with mathematical symbols."""
@@ -964,8 +964,8 @@ class TestLanguageDetector:
         
         for text in math_texts:
             result = detector.detect_language(text)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_edge_case_currency_symbols(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Edge case with currency symbols."""
@@ -979,8 +979,8 @@ class TestLanguageDetector:
         
         for text in currency_texts:
             result = detector.detect_language(text)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_edge_case_urls(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Edge case with URLs."""
@@ -993,8 +993,8 @@ class TestLanguageDetector:
         
         for url in urls:
             result = detector.detect_language(url)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_edge_case_email_addresses(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Edge case with email addresses."""
@@ -1006,8 +1006,8 @@ class TestLanguageDetector:
         
         for email in emails:
             result = detector.detect_language(email)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_edge_case_phone_numbers(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Edge case with phone numbers."""
@@ -1020,8 +1020,8 @@ class TestLanguageDetector:
         
         for phone in phones:
             result = detector.detect_language(phone)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_edge_case_code_snippets(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Edge case with code snippets."""
@@ -1034,8 +1034,8 @@ class TestLanguageDetector:
         
         for code in code_snippets:
             result = detector.detect_language(code)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_edge_case_repeated_characters(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Edge case with repeated characters."""
@@ -1048,8 +1048,8 @@ class TestLanguageDetector:
         
         for text in repeated_texts:
             result = detector.detect_language(text)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_edge_case_alternating_scripts(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Edge case with alternating scripts."""
@@ -1061,5 +1061,5 @@ class TestLanguageDetector:
         
         for text in alternating_texts:
             result = detector.detect_language(text)
-            assert result is not None
-            assert 0.0 <= result.confidence <= 1.0
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101

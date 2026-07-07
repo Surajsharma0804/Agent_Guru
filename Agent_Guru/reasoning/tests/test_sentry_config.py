@@ -30,35 +30,35 @@ class TestSentryConfig:
             debug=True,
         )
         
-        assert config.dsn == "https://test@sentry.io/123"
-        assert config.environment == "production"
-        assert config.release == "1.0.0"
-        assert config.traces_sample_rate == 0.5
-        assert config.profiles_sample_rate == 0.3
-        assert config.send_default_pii is True
-        assert config.attach_stacktrace is False
-        assert config.max_breadcrumbs == 100
-        assert config.debug is True
+        assert config.dsn == "https://test@sentry.io/123"  # nosec B101
+        assert config.environment == "production"  # nosec B101
+        assert config.release == "1.0.0"  # nosec B101
+        assert config.traces_sample_rate == 0.5  # nosec B101
+        assert config.profiles_sample_rate == 0.3  # nosec B101
+        assert config.send_default_pii is True  # nosec B101
+        assert config.attach_stacktrace is False  # nosec B101
+        assert config.max_breadcrumbs == 100  # nosec B101
+        assert config.debug is True  # nosec B101
     
     def test_init_with_defaults(self):
         """Test initialization with default values."""
         config = SentryConfig()
         
-        assert config.environment == "development"
-        assert config.traces_sample_rate == 0.1
-        assert config.profiles_sample_rate == 0.1
-        assert config.send_default_pii is False
-        assert config.attach_stacktrace is True
-        assert config.max_breadcrumbs == 50
-        assert config.debug is False
+        assert config.environment == "development"  # nosec B101
+        assert config.traces_sample_rate == 0.1  # nosec B101
+        assert config.profiles_sample_rate == 0.1  # nosec B101
+        assert config.send_default_pii is False  # nosec B101
+        assert config.attach_stacktrace is True  # nosec B101
+        assert config.max_breadcrumbs == 50  # nosec B101
+        assert config.debug is False  # nosec B101
     
     def test_init_with_env_vars(self):
         """Test initialization with environment variables."""
         with patch.dict(os.environ, {"SENTRY_DSN": "https://env@sentry.io/456", "SENTRY_RELEASE": "2.0.0"}):
             config = SentryConfig()
             
-            assert config.dsn == "https://env@sentry.io/456"
-            assert config.release == "2.0.0"
+            assert config.dsn == "https://env@sentry.io/456"  # nosec B101
+            assert config.release == "2.0.0"  # nosec B101
 
 
 class TestConfigureSentry:
@@ -72,8 +72,8 @@ class TestConfigureSentry:
         
         mock_sentry.init.assert_called_once()
         call_kwargs = mock_sentry.init.call_args[1]
-        assert call_kwargs["dsn"] == "https://test@sentry.io/123"
-        assert call_kwargs["environment"] == "development"
+        assert call_kwargs["dsn"] == "https://test@sentry.io/123"  # nosec B101
+        assert call_kwargs["environment"] == "development"  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.sentry_config.sentry_sdk")
     def test_configure_sentry_without_dsn(self, mock_sentry):
@@ -94,7 +94,7 @@ class TestBeforeSendFilter:
         
         result = before_send_filter(event, hint)
         
-        assert result["tags"]["component"] == "reasoning_engine"
+        assert result["tags"]["component"] == "reasoning_engine"  # nosec B101
     
     def test_before_send_filter_removes_sensitive_headers(self):
         """Test filter removes sensitive headers."""
@@ -112,10 +112,10 @@ class TestBeforeSendFilter:
         
         result = before_send_filter(event, hint)
         
-        assert "authorization" not in result["request"]["headers"]
-        assert "cookie" not in result["request"]["headers"]
-        assert "x-api-key" not in result["request"]["headers"]
-        assert "content-type" in result["request"]["headers"]
+        assert "authorization" not in result["request"]["headers"]  # nosec B101
+        assert "cookie" not in result["request"]["headers"]  # nosec B101
+        assert "x-api-key" not in result["request"]["headers"]  # nosec B101
+        assert "content-type" in result["request"]["headers"]  # nosec B101
     
     def test_before_send_filter_groups_timeout_errors(self):
         """Test filter groups timeout errors."""
@@ -130,7 +130,7 @@ class TestBeforeSendFilter:
         
         result = before_send_filter(event, hint)
         
-        assert result["fingerprint"] == ["timeout-error"]
+        assert result["fingerprint"] == ["timeout-error"]  # nosec B101
     
     def test_before_send_filter_no_request(self):
         """Test filter handles events without request."""
@@ -139,7 +139,7 @@ class TestBeforeSendFilter:
         
         result = before_send_filter(event, hint)
         
-        assert result is not None
+        assert result is not None  # nosec B101
 
 
 class TestBeforeBreadcrumbFilter:
@@ -155,7 +155,7 @@ class TestBeforeBreadcrumbFilter:
         
         result = before_breadcrumb_filter(crumb, hint)
         
-        assert result is None
+        assert result is None  # nosec B101
     
     def test_before_breadcrumb_filter_keeps_other_queries(self):
         """Test filter keeps non-SELECT queries."""
@@ -167,7 +167,7 @@ class TestBeforeBreadcrumbFilter:
         
         result = before_breadcrumb_filter(crumb, hint)
         
-        assert result is not None
+        assert result is not None  # nosec B101
     
     def test_before_breadcrumb_filter_keeps_other_categories(self):
         """Test filter keeps other categories."""
@@ -179,7 +179,7 @@ class TestBeforeBreadcrumbFilter:
         
         result = before_breadcrumb_filter(crumb, hint)
         
-        assert result is not None
+        assert result is not None  # nosec B101
 
 
 class TestSentryContextManager:
@@ -197,10 +197,10 @@ class TestSentryContextManager:
         
         mock_sentry.set_user.assert_called_once()
         user_data = mock_sentry.set_user.call_args[0][0]
-        assert user_data["id"] == "user123"
-        assert user_data["username"] == "testuser"
-        assert user_data["email"] == "test@example.com"
-        assert user_data["custom_field"] == "value"
+        assert user_data["id"] == "user123"  # nosec B101
+        assert user_data["username"] == "testuser"  # nosec B101
+        assert user_data["email"] == "test@example.com"  # nosec B101
+        assert user_data["custom_field"] == "value"  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.sentry_config.sentry_sdk")
     def test_set_user_context_partial(self, mock_sentry):
@@ -209,8 +209,8 @@ class TestSentryContextManager:
         
         mock_sentry.set_user.assert_called_once()
         user_data = mock_sentry.set_user.call_args[0][0]
-        assert user_data["id"] == "user123"
-        assert "username" not in user_data
+        assert user_data["id"] == "user123"  # nosec B101
+        assert "username" not in user_data  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.sentry_config.sentry_sdk")
     def test_set_conversation_context(self, mock_sentry):
@@ -226,10 +226,10 @@ class TestSentryContextManager:
         
         mock_scope.set_context.assert_called_once()
         context_name, context_data = mock_scope.set_context.call_args[0]
-        assert context_name == "conversation"
-        assert context_data["conversation_id"] == "conv123"
-        assert context_data["turn_id"] == "turn456"
-        assert context_data["intent_type"] == "set_timer"
+        assert context_name == "conversation"  # nosec B101
+        assert context_data["conversation_id"] == "conv123"  # nosec B101
+        assert context_data["turn_id"] == "turn456"  # nosec B101
+        assert context_data["intent_type"] == "set_timer"  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.sentry_config.sentry_sdk")
     def test_set_input_context(self, mock_sentry):
@@ -244,9 +244,9 @@ class TestSentryContextManager:
         
         mock_scope.set_context.assert_called_once()
         context_name, context_data = mock_scope.set_context.call_args[0]
-        assert context_name == "input"
-        assert context_data["text"] == "set a timer for 5 minutes"
-        assert context_data["source"] == "voice"
+        assert context_name == "input"  # nosec B101
+        assert context_data["text"] == "set a timer for 5 minutes"  # nosec B101
+        assert context_data["source"] == "voice"  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.sentry_config.sentry_sdk")
     def test_set_input_context_truncates_long_input(self, mock_sentry):
@@ -261,8 +261,8 @@ class TestSentryContextManager:
         )
         
         context_data = mock_scope.set_context.call_args[0][1]
-        assert len(context_data["text"]) == 203  # 200 + "..."
-        assert context_data["text"].endswith("...")
+        assert len(context_data["text"]) == 203  # 200 + "..."  # nosec B101
+        assert context_data["text"].endswith("...")  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.sentry_config.sentry_sdk")
     def test_add_breadcrumb(self, mock_sentry):
@@ -276,10 +276,10 @@ class TestSentryContextManager:
         
         mock_sentry.add_breadcrumb.assert_called_once()
         call_kwargs = mock_sentry.add_breadcrumb.call_args[1]
-        assert call_kwargs["message"] == "User clicked button"
-        assert call_kwargs["category"] == "ui"
-        assert call_kwargs["level"] == "info"
-        assert call_kwargs["data"]["button_id"] == "submit"
+        assert call_kwargs["message"] == "User clicked button"  # nosec B101
+        assert call_kwargs["category"] == "ui"  # nosec B101
+        assert call_kwargs["level"] == "info"  # nosec B101
+        assert call_kwargs["data"]["button_id"] == "submit"  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.sentry_config.sentry_sdk")
     def test_capture_exception(self, mock_sentry):
@@ -296,10 +296,10 @@ class TestSentryContextManager:
             extras={"detail": "extra info"},
         )
         
-        assert event_id == "event123"
+        assert event_id == "event123"  # nosec B101
         mock_scope.set_tag.assert_called_once_with("component", "test")
         mock_scope.set_extra.assert_called_once_with("detail", "extra info")
-        assert mock_scope.level == "error"
+        assert mock_scope.level == "error"  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.sentry_config.sentry_sdk")
     def test_capture_message(self, mock_sentry):
@@ -315,10 +315,10 @@ class TestSentryContextManager:
             extras={"context": "test context"},
         )
         
-        assert event_id == "event456"
+        assert event_id == "event456"  # nosec B101
         mock_scope.set_tag.assert_called_once_with("source", "test")
         mock_scope.set_extra.assert_called_once_with("context", "test context")
-        assert mock_scope.level == "warning"
+        assert mock_scope.level == "warning"  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.sentry_config.sentry_sdk")
     def test_clear_context(self, mock_sentry):
@@ -337,4 +337,4 @@ class TestGlobalSentryContext:
     
     def test_sentry_context_is_instance(self):
         """Test sentry_context is SentryContextManager instance."""
-        assert isinstance(sentry_context, SentryContextManager)
+        assert isinstance(sentry_context, SentryContextManager)  # nosec B101

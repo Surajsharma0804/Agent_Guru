@@ -9,7 +9,7 @@ Author: Kiro AI
 Date: 2026-02-19
 """
 
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -25,7 +25,7 @@ def run_command(cmd: list[str], description: str) -> bool:
 
     """
     try:
-        subprocess.run(cmd, check=True, capture_output=False, text=True)  # noqa: S603
+        subprocess.run(cmd, check=True, capture_output=False, text=True)  # nosec B603  # noqa: S603
         return True
     except subprocess.CalledProcessError:
         return False

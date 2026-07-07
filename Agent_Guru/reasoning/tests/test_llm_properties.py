@@ -34,10 +34,10 @@ class TestLLMRequestProperties:
             max_tokens=max_tokens,
         )
 
-        assert request.prompt == prompt
-        assert request.temperature == temperature
-        assert request.top_p == top_p
-        assert request.max_tokens == max_tokens
+        assert request.prompt == prompt  # nosec B101
+        assert request.temperature == temperature  # nosec B101
+        assert request.top_p == top_p  # nosec B101
+        assert request.max_tokens == max_tokens  # nosec B101
 
     @given(temperature=st.floats(min_value=-10.0, max_value=-0.01))
     def test_negative_temperature_always_fails(self, temperature):
@@ -79,10 +79,10 @@ class TestLLMResponseProperties:
             finish_reason=finish_reason,
         )
 
-        assert response.text == text
-        assert response.latency_ms == latency_ms
-        assert response.tokens_generated == tokens_generated
-        assert response.finish_reason == finish_reason
+        assert response.text == text  # nosec B101
+        assert response.latency_ms == latency_ms  # nosec B101
+        assert response.tokens_generated == tokens_generated  # nosec B101
+        assert response.finish_reason == finish_reason  # nosec B101
 
     @given(latency_ms=st.floats(min_value=-10000.0, max_value=-0.01))
     def test_negative_latency_always_fails(self, latency_ms):
@@ -143,13 +143,13 @@ class TestLocalLLMConfigProperties:
             max_tokens=max_tokens,
         )
 
-        assert config.n_gpu_layers == n_gpu_layers
-        assert config.n_ctx == n_ctx
-        assert config.n_threads == n_threads
-        assert config.port == port
-        assert config.temperature == temperature
-        assert config.top_p == top_p
-        assert config.max_tokens == max_tokens
+        assert config.n_gpu_layers == n_gpu_layers  # nosec B101
+        assert config.n_ctx == n_ctx  # nosec B101
+        assert config.n_threads == n_threads  # nosec B101
+        assert config.port == port  # nosec B101
+        assert config.temperature == temperature  # nosec B101
+        assert config.top_p == top_p  # nosec B101
+        assert config.max_tokens == max_tokens  # nosec B101
 
     @given(n_gpu_layers=st.integers(max_value=-1))
     def test_negative_gpu_layers_always_fails(self, n_gpu_layers):

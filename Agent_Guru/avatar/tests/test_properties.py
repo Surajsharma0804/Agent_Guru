@@ -83,8 +83,8 @@ def test_property_1_emotion_detection_output_validity(frame: np.ndarray) -> None
     """Emotion detection always returns valid category and confidence in [0,1]."""
     er = EmotionRecognizer()
     result = er.detect_emotion(frame)
-    assert result.emotion in EMOTION_CATEGORIES
-    assert 0.0 <= result.confidence <= 1.0
+    assert result.emotion in EMOTION_CATEGORIES  # nosec B101
+    assert 0.0 <= result.confidence <= 1.0  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ def test_property_2_primary_face_selection_consistency(frame: np.ndarray) -> Non
     er = EmotionRecognizer()
     r1 = er.detect_emotion(frame)
     r2 = er.detect_emotion(frame)
-    assert r1.emotion == r2.emotion
+    assert r1.emotion == r2.emotion  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -122,7 +122,7 @@ def test_property_3_confidence_threshold_enforcement(
     result = er.detect_emotion(frame)
     # If confidence < threshold, emotion must be neutral
     if result.confidence < threshold:
-        assert result.emotion == "neutral"
+        assert result.emotion == "neutral"  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +142,7 @@ def test_property_4_temporal_smoothing_reduces_jitter(n_frames: int) -> None:
     smooth = [er_smooth.detect_emotion_smooth(f).emotion for f in frames]
     raw_t = sum(1 for i in range(1, len(raw)) if raw[i] != raw[i - 1])
     smooth_t = sum(1 for i in range(1, len(smooth)) if smooth[i] != smooth[i - 1])
-    assert smooth_t <= raw_t + 1  # smoothed has at most 1 more transition (rounding)
+    assert smooth_t <= raw_t + 1  # smoothed has at most 1 more transition (rounding)  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -160,8 +160,8 @@ def test_property_5_audio_feature_extraction_completeness(
     audio, sr = audio_sr
     lsc = LipSyncController()
     features = lsc.extract_audio_features(audio, sr)
-    assert isinstance(features, np.ndarray)
-    assert features.size > 0
+    assert isinstance(features, np.ndarray)  # nosec B101
+    assert features.size > 0  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -179,8 +179,8 @@ def test_property_6_landmark_validity(audio_sr: Tuple[np.ndarray, int]) -> None:
     features = lsc.extract_audio_features(audio, sr)
     state = lsc.generate_landmarks(features, 0.0)
     for x, y in state.landmarks:
-        assert 0.0 <= x <= 1.0
-        assert 0.0 <= y <= 1.0
+        assert 0.0 <= x <= 1.0  # nosec B101
+        assert 0.0 <= y <= 1.0  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -199,7 +199,7 @@ def test_property_7_sync_timing_accuracy(audio_sr: Tuple[np.ndarray, int]) -> No
     t_before = time.time()
     state = lsc.generate_landmarks(features, 0.0)
     t_after = time.time()
-    assert t_before <= state.timestamp <= t_after + 0.1
+    assert t_before <= state.timestamp <= t_after + 0.1  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -218,7 +218,7 @@ def test_property_8_processing_latency_bound(audio_sr: Tuple[np.ndarray, int]) -
     features = lsc.extract_audio_features(audio, sr)
     lsc.generate_landmarks(features, 0.0)
     elapsed_ms = (time.perf_counter() - t0) * 1000
-    assert elapsed_ms < 500.0
+    assert elapsed_ms < 500.0  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +234,7 @@ def test_property_9_personality_profile_validation(profile: PersonalityProfile) 
     for trait in ("friendliness", "formality", "expressiveness",
                   "responsiveness", "humor", "empathy"):
         val = getattr(profile, trait)
-        assert 0.0 <= val <= 1.0
+        assert 0.0 <= val <= 1.0  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -251,8 +251,8 @@ def test_property_10_emotion_intensity_modulation(
     """Modulated emotion confidence stays in [0,1]."""
     pe = PersonalityEngine()
     result = pe.modulate_emotion(emotion, profile)
-    assert 0.0 <= result.confidence <= 1.0
-    assert result.emotion in EMOTION_CATEGORIES
+    assert 0.0 <= result.confidence <= 1.0  # nosec B101
+    assert result.emotion in EMOTION_CATEGORIES  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -269,8 +269,8 @@ def test_property_11_personality_response_generation(
     """Generated response emotion is always valid."""
     pe = PersonalityEngine()
     result = pe.generate_response_emotion(emotion, profile)
-    assert result.emotion in EMOTION_CATEGORIES
-    assert 0.0 <= result.confidence <= 1.0
+    assert result.emotion in EMOTION_CATEGORIES  # nosec B101
+    assert 0.0 <= result.confidence <= 1.0  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +292,7 @@ def test_property_12_minimum_frame_rate(n_frames: int) -> None:
     elapsed = time.perf_counter() - t0
     # Should render at least 24 FPS — i.e. n_frames / elapsed >= 24
     # We use a generous bound for CI
-    assert elapsed < n_frames * 0.5  # each frame < 500ms
+    assert elapsed < n_frames * 0.5  # each frame < 500ms  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -313,7 +313,7 @@ def test_property_13_emotion_update_latency(emotion: EmotionState) -> None:
     state = sm.get_state()
     r.render_frame(state)
     elapsed_ms = (time.perf_counter() - t0) * 1000
-    assert elapsed_ms < 200.0  # generous for CI
+    assert elapsed_ms < 200.0  # generous for CI  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -337,8 +337,8 @@ def test_property_15_smooth_emotion_transitions(
     s2 = AvatarState(emotion=e2)
     f1 = r.render_frame(s1)
     f2 = r.render_frame(s2)
-    assert f1.shape == f2.shape
-    assert f1.dtype == np.uint8
+    assert f1.shape == f2.shape  # nosec B101
+    assert f1.dtype == np.uint8  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -354,8 +354,8 @@ def test_property_16_state_propagation_timing(emotion: EmotionState) -> None:
     sm = StateManager()
     sm.update_emotion(emotion)
     state = sm.get_state()
-    assert state.emotion.emotion == emotion.emotion
-    assert abs(state.emotion.confidence - emotion.confidence) < 1e-9
+    assert state.emotion.emotion == emotion.emotion  # nosec B101
+    assert abs(state.emotion.confidence - emotion.confidence) < 1e-9  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -389,8 +389,8 @@ def test_property_17_state_transition_validation(bad_confidence: float) -> None:
     original = sm.get_state().emotion.emotion
     bad = _BadEmotionState(confidence=bad_confidence)
     result = sm.update_emotion(bad)  # type: ignore[arg-type]
-    assert result is False
-    assert sm.get_state().emotion.emotion == original
+    assert result is False  # nosec B101
+    assert sm.get_state().emotion.emotion == original  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -410,10 +410,10 @@ def test_property_18_state_serialization_round_trip(
     sm.update_personality(profile)
     data = sm.serialize()
     sm2 = StateManager()
-    assert sm2.deserialize(data) is True
+    assert sm2.deserialize(data) is True  # nosec B101
     s2 = sm2.get_state()
-    assert s2.emotion.emotion == emotion.emotion
-    assert abs(s2.emotion.confidence - emotion.confidence) < 1e-6
+    assert s2.emotion.emotion == emotion.emotion  # nosec B101
+    assert abs(s2.emotion.confidence - emotion.confidence) < 1e-6  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -431,10 +431,10 @@ def test_property_19_deserialization_validation(bad_key: str, bad_val: int) -> N
     """Deserializing garbage data returns False without corrupting state."""
     sm = StateManager()
     result = sm.deserialize({bad_key: bad_val})
-    assert result is False
+    assert result is False  # nosec B101
     # State should still be valid
     state = sm.get_state()
-    assert state.emotion.emotion in EMOTION_CATEGORIES
+    assert state.emotion.emotion in EMOTION_CATEGORIES  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -458,7 +458,7 @@ def test_property_20_thread_safe_state_access(n_threads: int) -> None:
                     sm.update_emotion(EmotionState(emotion="joy", confidence=0.8))
                 else:
                     state = sm.get_state()
-                    assert state.emotion.emotion in EMOTION_CATEGORIES
+                    assert state.emotion.emotion in EMOTION_CATEGORIES  # nosec B101
         except Exception as exc:
             errors.append(exc)
 
@@ -467,7 +467,7 @@ def test_property_20_thread_safe_state_access(n_threads: int) -> None:
         t.start()
     for t in threads:
         t.join()
-    assert errors == []
+    assert errors == []  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -490,7 +490,7 @@ def test_property_23_resource_usage_bounds(n_frames: int) -> None:
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     # Peak memory should be < 50MB for simple rendering
-    assert peak < 50 * 1024 * 1024
+    assert peak < 50 * 1024 * 1024  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -512,9 +512,9 @@ def test_property_24_configuration_validation(threshold: float, fps: int) -> Non
     )
     warnings = cfg.validate_config()
     # validate_config() returns a list of warnings (strings), never raises
-    assert isinstance(warnings, list)
-    assert 0.0 <= cfg.emotion_confidence_threshold <= 1.0
-    assert cfg.target_fps >= 1
+    assert isinstance(warnings, list)  # nosec B101
+    assert 0.0 <= cfg.emotion_confidence_threshold <= 1.0  # nosec B101
+    assert cfg.target_fps >= 1  # nosec B101
 
 
 # ---------------------------------------------------------------------------

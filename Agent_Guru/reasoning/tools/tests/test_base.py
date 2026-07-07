@@ -26,10 +26,10 @@ class TestToolParameter:
             required=True,
         )
 
-        assert param.name == "duration"
-        assert param.type == ToolParameterType.INTEGER
-        assert param.required is True
-        assert param.default is None
+        assert param.name == "duration"  # nosec B101
+        assert param.type == ToolParameterType.INTEGER  # nosec B101
+        assert param.required is True  # nosec B101
+        assert param.default is None  # nosec B101
 
     def test_optional_parameter_with_default(self) -> None:
         """Test creating an optional parameter with default value."""
@@ -41,8 +41,8 @@ class TestToolParameter:
             default=False,
         )
 
-        assert param.required is False
-        assert param.default is False
+        assert param.required is False  # nosec B101
+        assert param.default is False  # nosec B101
 
     def test_required_parameter_cannot_have_default(self) -> None:
         """Test that required parameters cannot have default values."""
@@ -65,12 +65,12 @@ class TestToolMetadata:
             tool_id="test.tool", name="Test Tool", description="A test tool"
         )
 
-        assert metadata.tool_id == "test.tool"
-        assert metadata.name == "Test Tool"
-        assert metadata.sensitivity == ToolSensitivity.SAFE
-        assert metadata.estimated_latency_ms == 1000
-        assert metadata.parameters == []
-        assert metadata.capabilities == []
+        assert metadata.tool_id == "test.tool"  # nosec B101
+        assert metadata.name == "Test Tool"  # nosec B101
+        assert metadata.sensitivity == ToolSensitivity.SAFE  # nosec B101
+        assert metadata.estimated_latency_ms == 1000  # nosec B101
+        assert metadata.parameters == []  # nosec B101
+        assert metadata.capabilities == []  # nosec B101
 
     def test_full_metadata(self) -> None:
         """Test creating full tool metadata."""
@@ -91,10 +91,10 @@ class TestToolMetadata:
             examples=["Process text input"],
         )
 
-        assert len(metadata.parameters) == 1
-        assert metadata.sensitivity == ToolSensitivity.SENSITIVE
-        assert metadata.estimated_latency_ms == 500
-        assert "text_processing" in metadata.capabilities
+        assert len(metadata.parameters) == 1  # nosec B101
+        assert metadata.sensitivity == ToolSensitivity.SENSITIVE  # nosec B101
+        assert metadata.estimated_latency_ms == 500  # nosec B101
+        assert "text_processing" in metadata.capabilities  # nosec B101
 
     def test_negative_latency_rejected(self) -> None:
         """Test that negative latency is rejected."""
@@ -222,8 +222,8 @@ class TestTool:
 
         tool = TestTool()
 
-        assert tool._validate_type("hello", ToolParameterType.STRING) is True
-        assert tool._validate_type(123, ToolParameterType.STRING) is False
+        assert tool._validate_type("hello", ToolParameterType.STRING) is True  # nosec B101
+        assert tool._validate_type(123, ToolParameterType.STRING) is False  # nosec B101
 
     def test_validate_type_integer(self) -> None:
         """Test type validation for integers."""
@@ -234,9 +234,9 @@ class TestTool:
 
         tool = TestTool()
 
-        assert tool._validate_type(123, ToolParameterType.INTEGER) is True
-        assert tool._validate_type(123.45, ToolParameterType.INTEGER) is False
-        assert tool._validate_type(True, ToolParameterType.INTEGER) is False  # bool is not int
+        assert tool._validate_type(123, ToolParameterType.INTEGER) is True  # nosec B101
+        assert tool._validate_type(123.45, ToolParameterType.INTEGER) is False  # nosec B101
+        assert tool._validate_type(True, ToolParameterType.INTEGER) is False  # bool is not int  # nosec B101
 
     def test_validate_type_float(self) -> None:
         """Test type validation for floats."""
@@ -247,9 +247,9 @@ class TestTool:
 
         tool = TestTool()
 
-        assert tool._validate_type(123.45, ToolParameterType.FLOAT) is True
-        assert tool._validate_type(123, ToolParameterType.FLOAT) is True  # int is acceptable
-        assert tool._validate_type(True, ToolParameterType.FLOAT) is False
+        assert tool._validate_type(123.45, ToolParameterType.FLOAT) is True  # nosec B101
+        assert tool._validate_type(123, ToolParameterType.FLOAT) is True  # int is acceptable  # nosec B101
+        assert tool._validate_type(True, ToolParameterType.FLOAT) is False  # nosec B101
 
     def test_validate_type_boolean(self) -> None:
         """Test type validation for booleans."""
@@ -260,9 +260,9 @@ class TestTool:
 
         tool = TestTool()
 
-        assert tool._validate_type(True, ToolParameterType.BOOLEAN) is True
-        assert tool._validate_type(False, ToolParameterType.BOOLEAN) is True
-        assert tool._validate_type(1, ToolParameterType.BOOLEAN) is False
+        assert tool._validate_type(True, ToolParameterType.BOOLEAN) is True  # nosec B101
+        assert tool._validate_type(False, ToolParameterType.BOOLEAN) is True  # nosec B101
+        assert tool._validate_type(1, ToolParameterType.BOOLEAN) is False  # nosec B101
 
     def test_validate_type_array(self) -> None:
         """Test type validation for arrays."""
@@ -273,9 +273,9 @@ class TestTool:
 
         tool = TestTool()
 
-        assert tool._validate_type([1, 2, 3], ToolParameterType.ARRAY) is True
-        assert tool._validate_type([], ToolParameterType.ARRAY) is True
-        assert tool._validate_type((1, 2, 3), ToolParameterType.ARRAY) is False
+        assert tool._validate_type([1, 2, 3], ToolParameterType.ARRAY) is True  # nosec B101
+        assert tool._validate_type([], ToolParameterType.ARRAY) is True  # nosec B101
+        assert tool._validate_type((1, 2, 3), ToolParameterType.ARRAY) is False  # nosec B101
 
     def test_validate_type_object(self) -> None:
         """Test type validation for objects."""
@@ -286,6 +286,6 @@ class TestTool:
 
         tool = TestTool()
 
-        assert tool._validate_type({"key": "value"}, ToolParameterType.OBJECT) is True
-        assert tool._validate_type({}, ToolParameterType.OBJECT) is True
-        assert tool._validate_type([1, 2], ToolParameterType.OBJECT) is False
+        assert tool._validate_type({"key": "value"}, ToolParameterType.OBJECT) is True  # nosec B101
+        assert tool._validate_type({}, ToolParameterType.OBJECT) is True  # nosec B101
+        assert tool._validate_type([1, 2], ToolParameterType.OBJECT) is False  # nosec B101

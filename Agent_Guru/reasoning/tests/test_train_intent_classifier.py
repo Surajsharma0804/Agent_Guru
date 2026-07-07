@@ -58,47 +58,47 @@ class TestTrainingConfig:
         config = TrainingConfig()
 
         # Model settings
-        assert config.model_name == "microsoft/deberta-v3-large"
-        assert config.max_length == 256
+        assert config.model_name == "microsoft/deberta-v3-large"  # nosec B101
+        assert config.max_length == 256  # nosec B101
 
         # Training hyperparameters
-        assert config.learning_rate == 8e-6
-        assert config.batch_size == 1
-        assert config.num_epochs == 30
-        assert config.warmup_ratio == 0.1
-        assert config.weight_decay == 0.01
+        assert config.learning_rate == 8e-6  # nosec B101
+        assert config.batch_size == 1  # nosec B101
+        assert config.num_epochs == 30  # nosec B101
+        assert config.warmup_ratio == 0.1  # nosec B101
+        assert config.weight_decay == 0.01  # nosec B101
 
         # Optimization
-        assert config.gradient_clip_val == 1.0
-        assert config.label_smoothing == 0.1
+        assert config.gradient_clip_val == 1.0  # nosec B101
+        assert config.label_smoothing == 0.1  # nosec B101
 
         # GPU optimization
-        assert config.mixed_precision is True
-        assert config.gradient_accumulation_steps == 32
-        assert config.num_workers == min(4, __import__("os").cpu_count() or 1)
+        assert config.mixed_precision is True  # nosec B101
+        assert config.gradient_accumulation_steps == 32  # nosec B101
+        assert config.num_workers == min(4, __import__("os").cpu_count() or 1)  # nosec B101
 
         # Data augmentation
-        assert config.use_augmentation is True
-        assert config.augmentation_factor == 3
+        assert config.use_augmentation is True  # nosec B101
+        assert config.augmentation_factor == 3  # nosec B101
 
         # Advanced techniques
-        assert config.use_adversarial_training is False
-        assert config.use_focal_loss is False
-        assert config.use_rdrop is False
-        assert config.rdrop_alpha == 5.0
+        assert config.use_adversarial_training is False  # nosec B101
+        assert config.use_focal_loss is False  # nosec B101
+        assert config.use_rdrop is False  # nosec B101
+        assert config.rdrop_alpha == 5.0  # nosec B101
 
         # Learning rate scheduling
-        assert config.scheduler_type == "cosine_with_restarts"
-        assert config.num_cycles == 0.5
+        assert config.scheduler_type == "cosine_with_restarts"  # nosec B101
+        assert config.num_cycles == 0.5  # nosec B101
 
         # Paths
-        assert config.data_dir == "Agent_Guru/reasoning/data"
-        assert config.output_dir == "Agent_Guru/reasoning/models/intent_classifier"
-        assert config.log_dir == "Agent_Guru/reasoning/logs/intent_classifier"
+        assert config.data_dir == "Agent_Guru/reasoning/data"  # nosec B101
+        assert config.output_dir == "Agent_Guru/reasoning/models/intent_classifier"  # nosec B101
+        assert config.log_dir == "Agent_Guru/reasoning/logs/intent_classifier"  # nosec B101
 
         # Early stopping
-        assert config.patience == 7
-        assert config.min_delta == 0.001
+        assert config.patience == 7  # nosec B101
+        assert config.min_delta == 0.001  # nosec B101
 
     def test_custom_config(self):
         """Test custom configuration values."""
@@ -130,31 +130,31 @@ class TestTrainingConfig:
             min_delta=0.01,
         )
 
-        assert config.model_name == "custom-model"
-        assert config.max_length == 128
-        assert config.learning_rate == 1e-5
-        assert config.batch_size == 16
-        assert config.num_epochs == 10
-        assert config.warmup_ratio == 0.2
-        assert config.weight_decay == 0.02
-        assert config.gradient_clip_val == 2.0
-        assert config.label_smoothing == 0.2
-        assert config.mixed_precision is False
-        assert config.gradient_accumulation_steps == 8
-        assert config.num_workers == 4
-        assert config.use_augmentation is False
-        assert config.augmentation_factor == 5
-        assert config.use_adversarial_training is True
-        assert config.use_focal_loss is True
-        assert config.use_rdrop is True
-        assert config.rdrop_alpha == 3.0
-        assert config.scheduler_type == "linear"
-        assert config.num_cycles == 1.0
-        assert config.data_dir == "/custom/data"
-        assert config.output_dir == "/custom/output"
-        assert config.log_dir == "/custom/logs"
-        assert config.patience == 5
-        assert config.min_delta == 0.01
+        assert config.model_name == "custom-model"  # nosec B101
+        assert config.max_length == 128  # nosec B101
+        assert config.learning_rate == 1e-5  # nosec B101
+        assert config.batch_size == 16  # nosec B101
+        assert config.num_epochs == 10  # nosec B101
+        assert config.warmup_ratio == 0.2  # nosec B101
+        assert config.weight_decay == 0.02  # nosec B101
+        assert config.gradient_clip_val == 2.0  # nosec B101
+        assert config.label_smoothing == 0.2  # nosec B101
+        assert config.mixed_precision is False  # nosec B101
+        assert config.gradient_accumulation_steps == 8  # nosec B101
+        assert config.num_workers == 4  # nosec B101
+        assert config.use_augmentation is False  # nosec B101
+        assert config.augmentation_factor == 5  # nosec B101
+        assert config.use_adversarial_training is True  # nosec B101
+        assert config.use_focal_loss is True  # nosec B101
+        assert config.use_rdrop is True  # nosec B101
+        assert config.rdrop_alpha == 3.0  # nosec B101
+        assert config.scheduler_type == "linear"  # nosec B101
+        assert config.num_cycles == 1.0  # nosec B101
+        assert config.data_dir == "/custom/data"  # nosec B101
+        assert config.output_dir == "/custom/output"  # nosec B101
+        assert config.log_dir == "/custom/logs"  # nosec B101
+        assert config.patience == 5  # nosec B101
+        assert config.min_delta == 0.01  # nosec B101
 
 
 class TestDataAugmenter:
@@ -163,9 +163,9 @@ class TestDataAugmenter:
     def test_init(self):
         """Test DataAugmenter initialization."""
         augmenter = DataAugmenter()
-        assert augmenter is not None
-        assert hasattr(augmenter, "synonym_aug")
-        assert hasattr(augmenter, "context_aug")
+        assert augmenter is not None  # nosec B101
+        assert hasattr(augmenter, "synonym_aug")  # nosec B101
+        assert hasattr(augmenter, "context_aug")  # nosec B101
 
     def test_augment_returns_list(self):
         """Test that augment returns a list of strings."""
@@ -173,9 +173,9 @@ class TestDataAugmenter:
         text = "set a timer for 5 minutes"
 
         augmented = augmenter.augment(text, num_augmentations=2)
-        assert isinstance(augmented, list)
-        assert len(augmented) > 0
-        assert all(isinstance(s, str) for s in augmented)
+        assert isinstance(augmented, list)  # nosec B101
+        assert len(augmented) > 0  # nosec B101
+        assert all(isinstance(s, str) for s in augmented)  # nosec B101
 
     def test_augment_preserves_original(self):
         """Test that augmentation includes original text."""
@@ -184,8 +184,8 @@ class TestDataAugmenter:
 
         augmented = augmenter.augment(text, num_augmentations=2)
         # First item should be original
-        assert augmented[0] == text
-        assert len(augmented) >= 1
+        assert augmented[0] == text  # nosec B101
+        assert len(augmented) >= 1  # nosec B101
 
     def test_augment_generates_variations(self):
         """Test that augmentation generates different variations."""
@@ -194,9 +194,9 @@ class TestDataAugmenter:
 
         augmented = augmenter.augment(text, num_augmentations=3)
         # Should have at least original + some augmented versions
-        assert len(augmented) >= 1
+        assert len(augmented) >= 1  # nosec B101
         # Original should be first
-        assert augmented[0] == text
+        assert augmented[0] == text  # nosec B101
 
     def test_augment_handles_short_text(self):
         """Test augmentation with very short text."""
@@ -204,9 +204,9 @@ class TestDataAugmenter:
         text = "hi"
 
         augmented = augmenter.augment(text, num_augmentations=2)
-        assert isinstance(augmented, list)
-        assert len(augmented) >= 1
-        assert augmented[0] == text
+        assert isinstance(augmented, list)  # nosec B101
+        assert len(augmented) >= 1  # nosec B101
+        assert augmented[0] == text  # nosec B101
 
     def test_augment_handles_empty_text(self):
         """Test augmentation with empty text."""
@@ -214,8 +214,8 @@ class TestDataAugmenter:
         text = ""
 
         augmented = augmenter.augment(text, num_augmentations=2)
-        assert isinstance(augmented, list)
-        assert len(augmented) >= 1
+        assert isinstance(augmented, list)  # nosec B101
+        assert len(augmented) >= 1  # nosec B101
 
 
 class TestFocalLoss:
@@ -224,16 +224,16 @@ class TestFocalLoss:
     def test_init_default(self):
         """Test FocalLoss initialization with defaults."""
         loss_fn = FocalLoss()
-        assert loss_fn.alpha == 1.0
-        assert loss_fn.gamma == 2.0
-        assert loss_fn.reduction == "mean"
+        assert loss_fn.alpha == 1.0  # nosec B101
+        assert loss_fn.gamma == 2.0  # nosec B101
+        assert loss_fn.reduction == "mean"  # nosec B101
 
     def test_init_custom(self):
         """Test FocalLoss initialization with custom values."""
         loss_fn = FocalLoss(alpha=0.5, gamma=3.0, reduction="sum")
-        assert loss_fn.alpha == 0.5
-        assert loss_fn.gamma == 3.0
-        assert loss_fn.reduction == "sum"
+        assert loss_fn.alpha == 0.5  # nosec B101
+        assert loss_fn.gamma == 3.0  # nosec B101
+        assert loss_fn.reduction == "sum"  # nosec B101
 
     def test_forward_shape_mean_reduction(self):
         """Test FocalLoss forward pass with mean reduction."""
@@ -247,8 +247,8 @@ class TestFocalLoss:
         loss = loss_fn(inputs, targets)
 
         # Loss should be a scalar
-        assert loss.dim() == 0
-        assert loss.item() >= 0
+        assert loss.dim() == 0  # nosec B101
+        assert loss.item() >= 0  # nosec B101
 
     def test_forward_shape_sum_reduction(self):
         """Test FocalLoss forward pass with sum reduction."""
@@ -261,8 +261,8 @@ class TestFocalLoss:
 
         loss = loss_fn(inputs, targets)
 
-        assert loss.dim() == 0
-        assert loss.item() >= 0
+        assert loss.dim() == 0  # nosec B101
+        assert loss.item() >= 0  # nosec B101
 
     def test_forward_shape_none_reduction(self):
         """Test FocalLoss forward pass with no reduction."""
@@ -276,8 +276,8 @@ class TestFocalLoss:
         loss = loss_fn(inputs, targets)
 
         # Should return per-sample losses
-        assert loss.shape == (batch_size,)
-        assert all(loss >= 0)
+        assert loss.shape == (batch_size,)  # nosec B101
+        assert all(loss >= 0)  # nosec B101
 
     def test_focal_loss_reduces_easy_examples(self):
         """Test that focal loss down-weights easy examples."""
@@ -295,7 +295,7 @@ class TestFocalLoss:
         hard_loss = loss_fn(hard_input, hard_target)
 
         # Hard examples should have higher loss
-        assert hard_loss > easy_loss
+        assert hard_loss > easy_loss  # nosec B101
 
     def test_focal_loss_gamma_effect(self):
         """Test that higher gamma focuses more on hard examples."""
@@ -306,8 +306,8 @@ class TestFocalLoss:
         loss_high_gamma = FocalLoss(gamma=3.0)(inputs, targets)
 
         # Both should be positive
-        assert loss_low_gamma > 0
-        assert loss_high_gamma > 0
+        assert loss_low_gamma > 0  # nosec B101
+        assert loss_high_gamma > 0  # nosec B101
 
 
 class TestMixupFunctions:
@@ -320,10 +320,10 @@ class TestMixupFunctions:
 
         mixed_x, y_a, y_b, lam = mixup_data(x, y, alpha=0.2)
 
-        assert mixed_x.shape == x.shape
-        assert y_a.shape == y.shape
-        assert y_b.shape == y.shape
-        assert 0 <= lam <= 1
+        assert mixed_x.shape == x.shape  # nosec B101
+        assert y_a.shape == y.shape  # nosec B101
+        assert y_b.shape == y.shape  # nosec B101
+        assert 0 <= lam <= 1  # nosec B101
 
     def test_mixup_data_lambda_range(self):
         """Test that lambda is in valid range."""
@@ -332,7 +332,7 @@ class TestMixupFunctions:
 
         for _ in range(10):
             _, _, _, lam = mixup_data(x, y, alpha=0.2)
-            assert 0 <= lam <= 1
+            assert 0 <= lam <= 1  # nosec B101
 
     def test_mixup_data_alpha_zero(self):
         """Test mixup with alpha=0 (no mixing)."""
@@ -342,9 +342,9 @@ class TestMixupFunctions:
         mixed_x, y_a, y_b, lam = mixup_data(x, y, alpha=0.0)
 
         # Lambda should be 1 (no mixing)
-        assert lam == 1.0
+        assert lam == 1.0  # nosec B101
         # Mixed x should equal original x
-        assert torch.allclose(mixed_x, x)
+        assert torch.allclose(mixed_x, x)  # nosec B101
 
     def test_mixup_criterion(self):
         """Test mixup_criterion combines losses correctly."""
@@ -356,8 +356,8 @@ class TestMixupFunctions:
 
         loss = mixup_criterion(criterion, pred, y_a, y_b, lam)
 
-        assert loss.dim() == 0
-        assert loss.item() >= 0
+        assert loss.dim() == 0  # nosec B101
+        assert loss.item() >= 0  # nosec B101
 
     def test_mixup_criterion_lambda_extremes(self):
         """Test mixup criterion with lambda at extremes."""
@@ -369,12 +369,12 @@ class TestMixupFunctions:
         # Lambda = 1 (only y_a)
         loss_1 = mixup_criterion(criterion, pred, y_a, y_b, 1.0)
         loss_a = criterion(pred, y_a)
-        assert torch.allclose(loss_1, loss_a)
+        assert torch.allclose(loss_1, loss_a)  # nosec B101
 
         # Lambda = 0 (only y_b)
         loss_0 = mixup_criterion(criterion, pred, y_a, y_b, 0.0)
         loss_b = criterion(pred, y_b)
-        assert torch.allclose(loss_0, loss_b)
+        assert torch.allclose(loss_0, loss_b)  # nosec B101
 
 
 class TestKLLoss:
@@ -387,8 +387,8 @@ class TestKLLoss:
 
         loss = compute_kl_loss(p, q)
 
-        assert loss.dim() == 0
-        assert loss.item() >= 0
+        assert loss.dim() == 0  # nosec B101
+        assert loss.item() >= 0  # nosec B101
 
     def test_compute_kl_loss_identical_distributions(self):
         """Test KL loss is near zero for identical distributions."""
@@ -397,7 +397,7 @@ class TestKLLoss:
         loss = compute_kl_loss(p, p)
 
         # Should be very close to zero
-        assert loss.item() < 0.01
+        assert loss.item() < 0.01  # nosec B101
 
     def test_compute_kl_loss_symmetry(self):
         """Test KL loss is symmetric (averaged)."""
@@ -408,7 +408,7 @@ class TestKLLoss:
         loss_qp = compute_kl_loss(q, p)
 
         # Should be equal due to averaging
-        assert torch.allclose(loss_pq, loss_qp, atol=1e-5)
+        assert torch.allclose(loss_pq, loss_qp, atol=1e-5)  # nosec B101
 
     def test_compute_kl_loss_different_distributions(self):
         """Test KL loss is positive for different distributions."""
@@ -417,7 +417,7 @@ class TestKLLoss:
 
         loss = compute_kl_loss(p, q)
 
-        assert loss.item() > 0
+        assert loss.item() > 0  # nosec B101
 
 
 class TestIntentDataset:
@@ -497,8 +497,8 @@ class TestIntentDataset:
         dataset = IntentDataset(data_file, mock_tokenizer, intent_mapping, max_length=128)
 
         # Should filter out unknown intent (4 -> 3)
-        assert len(dataset) == 3
-        assert dataset.max_length == 128
+        assert len(dataset) == 3  # nosec B101
+        assert dataset.max_length == 128  # nosec B101
 
     def test_dataset_init_val_keeps_unknown(
         self, temp_val_data_file, mock_tokenizer, intent_mapping
@@ -508,14 +508,14 @@ class TestIntentDataset:
         dataset = IntentDataset(data_file, mock_tokenizer, intent_mapping, max_length=128)
 
         # Should keep unknown intent (2 items)
-        assert len(dataset) == 2
+        assert len(dataset) == 2  # nosec B101
 
     def test_dataset_len(self, temp_train_data_file, mock_tokenizer, intent_mapping):
         """Test dataset length."""
         data_file, _ = temp_train_data_file
         dataset = IntentDataset(data_file, mock_tokenizer, intent_mapping)
 
-        assert len(dataset) == 3
+        assert len(dataset) == 3  # nosec B101
 
     def test_dataset_getitem(self, temp_train_data_file, mock_tokenizer, intent_mapping):
         """Test dataset item retrieval."""
@@ -524,21 +524,21 @@ class TestIntentDataset:
 
         item = dataset[0]
 
-        assert "input_ids" in item
-        assert "attention_mask" in item
-        assert "labels" in item
-        assert isinstance(item["input_ids"], torch.Tensor)
-        assert isinstance(item["attention_mask"], torch.Tensor)
-        assert isinstance(item["labels"], torch.Tensor)
+        assert "input_ids" in item  # nosec B101
+        assert "attention_mask" in item  # nosec B101
+        assert "labels" in item  # nosec B101
+        assert isinstance(item["input_ids"], torch.Tensor)  # nosec B101
+        assert isinstance(item["attention_mask"], torch.Tensor)  # nosec B101
+        assert isinstance(item["labels"], torch.Tensor)  # nosec B101
 
     def test_dataset_class_weights(self, temp_train_data_file, mock_tokenizer, intent_mapping):
         """Test that dataset computes class weights."""
         data_file, _ = temp_train_data_file
         dataset = IntentDataset(data_file, mock_tokenizer, intent_mapping)
 
-        assert hasattr(dataset, "class_weights")
-        assert isinstance(dataset.class_weights, torch.Tensor)
-        assert dataset.class_weights.numel() > 0
+        assert hasattr(dataset, "class_weights")  # nosec B101
+        assert isinstance(dataset.class_weights, torch.Tensor)  # nosec B101
+        assert dataset.class_weights.numel() > 0  # nosec B101
 
 
 class TestLoadIntentMapping:
@@ -569,19 +569,19 @@ class TestLoadIntentMapping:
         """Test successful loading of intent mapping."""
         intent_to_id, id_to_intent = load_intent_mapping(temp_data_dir)
 
-        assert len(intent_to_id) == 3
-        assert len(id_to_intent) == 3
+        assert len(intent_to_id) == 3  # nosec B101
+        assert len(id_to_intent) == 3  # nosec B101
         # Intents are sorted alphabetically
-        assert "set_timer" in intent_to_id
-        assert "play_music" in intent_to_id
-        assert "send_message" in intent_to_id
+        assert "set_timer" in intent_to_id  # nosec B101
+        assert "play_music" in intent_to_id  # nosec B101
+        assert "send_message" in intent_to_id  # nosec B101
 
     def test_load_intent_mapping_bidirectional(self, temp_data_dir):
         """Test that mappings are bidirectional."""
         intent_to_id, id_to_intent = load_intent_mapping(temp_data_dir)
 
         for intent, idx in intent_to_id.items():
-            assert id_to_intent[idx] == intent
+            assert id_to_intent[idx] == intent  # nosec B101
 
     def test_load_intent_mapping_file_not_found(self):
         """Test error handling when intents.yaml not found."""
@@ -629,13 +629,13 @@ class TestLoadDataFromTxt:
             test_labels,
         ) = load_data_from_txt(temp_data_dir)
 
-        assert len(train_texts) == 2
-        assert len(train_labels) == 2
-        assert len(val_texts) == 1
-        assert len(test_texts) == 1
+        assert len(train_texts) == 2  # nosec B101
+        assert len(train_labels) == 2  # nosec B101
+        assert len(val_texts) == 1  # nosec B101
+        assert len(test_texts) == 1  # nosec B101
 
-        assert train_labels[0] == "set_timer"
-        assert train_texts[0] == "set timer"
+        assert train_labels[0] == "set_timer"  # nosec B101
+        assert train_texts[0] == "set timer"  # nosec B101
 
     def test_load_data_from_txt_missing_files(self):
         """Test error handling when data files are missing."""
@@ -657,12 +657,12 @@ class TestCreateLabelMappings:
         )
 
         # Should have 4 unique labels
-        assert len(label_to_id) == 4
-        assert len(id_to_label) == 4
+        assert len(label_to_id) == 4  # nosec B101
+        assert len(id_to_label) == 4  # nosec B101
 
         # Check bidirectional mapping
         for label, id_val in label_to_id.items():
-            assert id_to_label[id_val] == label
+            assert id_to_label[id_val] == label  # nosec B101
 
     def test_create_label_mappings_sorted(self):
         """Test that labels are sorted."""
@@ -675,16 +675,16 @@ class TestCreateLabelMappings:
         )
 
         # Should be sorted: apple=0, banana=1, zebra=2
-        assert label_to_id["apple"] == 0
-        assert label_to_id["banana"] == 1
-        assert label_to_id["zebra"] == 2
+        assert label_to_id["apple"] == 0  # nosec B101
+        assert label_to_id["banana"] == 1  # nosec B101
+        assert label_to_id["zebra"] == 2  # nosec B101
 
     def test_create_label_mappings_empty_input(self):
         """Test handling of empty input."""
         label_to_id, id_to_label = create_label_mappings_from_data([], [], [])
 
-        assert len(label_to_id) == 0
-        assert len(id_to_label) == 0
+        assert len(label_to_id) == 0  # nosec B101
+        assert len(id_to_label) == 0  # nosec B101
 
 
 class TestIntentClassifierModule:
@@ -724,9 +724,9 @@ class TestIntentClassifierModule:
             class_weights=None,
         )
 
-        assert module.config == config
-        assert module.id_to_intent == id_to_intent
-        assert module.class_weights is None
+        assert module.config == config  # nosec B101
+        assert module.id_to_intent == id_to_intent  # nosec B101
+        assert module.class_weights is None  # nosec B101
 
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
@@ -757,8 +757,8 @@ class TestIntentClassifierModule:
 
         output = module.forward(input_ids, attention_mask)
 
-        assert output is not None
-        assert output.shape == (2, 3)
+        assert output is not None  # nosec B101
+        assert output.shape == (2, 3)  # nosec B101
 
 
 # Note: Full integration test of train_intent_classifier function requires
@@ -840,8 +840,8 @@ class TestIntentClassifierModuleAdvanced:
 
         loss = module.training_step(batch, 0)
 
-        assert loss is not None
-        assert isinstance(loss, torch.Tensor)
+        assert loss is not None  # nosec B101
+        assert isinstance(loss, torch.Tensor)  # nosec B101
 
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
@@ -877,7 +877,7 @@ class TestIntentClassifierModuleAdvanced:
 
         loss = module.training_step(batch, 0)
 
-        assert loss is not None
+        assert loss is not None  # nosec B101
 
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
@@ -913,9 +913,9 @@ class TestIntentClassifierModuleAdvanced:
 
         result = module.validation_step(batch, 0)
 
-        assert "loss" in result
-        assert "preds" in result
-        assert "labels" in result
+        assert "loss" in result  # nosec B101
+        assert "preds" in result  # nosec B101
+        assert "labels" in result  # nosec B101
 
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
@@ -956,7 +956,7 @@ class TestIntentClassifierModuleAdvanced:
         module.on_validation_epoch_end()
 
         # Should clear outputs
-        assert len(module.validation_step_outputs) == 0
+        assert len(module.validation_step_outputs) == 0  # nosec B101
 
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
@@ -991,8 +991,8 @@ class TestIntentClassifierModuleAdvanced:
 
         result = module.test_step(batch, 0)
 
-        assert "preds" in result
-        assert "labels" in result
+        assert "preds" in result  # nosec B101
+        assert "labels" in result  # nosec B101
 
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
@@ -1035,7 +1035,7 @@ class TestIntentClassifierModuleAdvanced:
         module.on_test_epoch_end()
 
         # Should clear outputs
-        assert len(module.test_step_outputs) == 0
+        assert len(module.test_step_outputs) == 0  # nosec B101
 
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
@@ -1070,9 +1070,9 @@ class TestIntentClassifierModuleAdvanced:
 
         optimizer_config = module.configure_optimizers()
 
-        assert "optimizer" in optimizer_config
-        assert "lr_scheduler" in optimizer_config
-        assert optimizer_config["lr_scheduler"]["interval"] == "step"
+        assert "optimizer" in optimizer_config  # nosec B101
+        assert "lr_scheduler" in optimizer_config  # nosec B101
+        assert optimizer_config["lr_scheduler"]["interval"] == "step"  # nosec B101
 
 
 class TestDataAugmenterEdgeCases:
@@ -1083,7 +1083,7 @@ class TestDataAugmenterEdgeCases:
         """Test that NLTK is not re-downloaded if already initialized."""
         # This should not trigger downloads
         augmenter = DataAugmenter()
-        assert augmenter is not None
+        assert augmenter is not None  # nosec B101
 
     def test_augment_handles_augmentation_errors(self):
         """Test that augmentation handles errors gracefully."""
@@ -1100,8 +1100,8 @@ class TestDataAugmenterEdgeCases:
         result = augmenter.augment(text, num_augmentations=2)
 
         # Should still return at least the original
-        assert len(result) >= 1
-        assert result[0] == text
+        assert len(result) >= 1  # nosec B101
+        assert result[0] == text  # nosec B101
 
     def test_augment_with_back_translation_none(self):
         """Test augmentation when back_translation_aug is None."""
@@ -1112,8 +1112,8 @@ class TestDataAugmenterEdgeCases:
         result = augmenter.augment(text, num_augmentations=5)
 
         # Should work without back translation
-        assert isinstance(result, list)
-        assert len(result) >= 1
+        assert isinstance(result, list)  # nosec B101
+        assert len(result) >= 1  # nosec B101
 
 
 class TestIntentDatasetWithAugmentation:
@@ -1187,7 +1187,7 @@ class TestIntentDatasetWithAugmentation:
 
         # Should have more data due to augmentation
         # Original 2 items * 3 augmentations = 6 items
-        assert len(dataset) >= 2
+        assert len(dataset) >= 2  # nosec B101
 
 
 # Note: train_intent_classifier function is a complex integration function
@@ -1534,8 +1534,8 @@ class TestIntentClassifierModuleAdversarialTraining:
         # Call adversarial_perturbation
         adv_loss = module.adversarial_perturbation(input_ids, attention_mask, labels, epsilon=1.0)
 
-        assert adv_loss is not None
-        assert isinstance(adv_loss, torch.Tensor)
+        assert adv_loss is not None  # nosec B101
+        assert isinstance(adv_loss, torch.Tensor)  # nosec B101
 
 
 class TestDataAugmenterNLTKInitialization:
@@ -1554,7 +1554,7 @@ class TestDataAugmenterNLTKInitialization:
         DataAugmenter()
 
         # Verify downloads were attempted
-        assert mock_download.call_count >= 3  # averaged_perceptron_tagger, wordnet, omw-1.4
+        assert mock_download.call_count >= 3  # averaged_perceptron_tagger, wordnet, omw-1.4  # nosec B101
 
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DataAugmenter._nltk_initialized", False)
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.nltk.data.find")
@@ -1566,7 +1566,7 @@ class TestDataAugmenterNLTKInitialization:
         # This should not trigger downloads
         augmenter = DataAugmenter()
 
-        assert augmenter is not None
+        assert augmenter is not None  # nosec B101
 
 
 class TestIntentClassifierModuleValidationAndTest:
@@ -1619,13 +1619,13 @@ class TestIntentClassifierModuleValidationAndTest:
         }
 
         # Initially empty
-        assert len(module.validation_step_outputs) == 0
+        assert len(module.validation_step_outputs) == 0  # nosec B101
 
         # Call validation_step
         module.validation_step(batch, 0)
 
         # Should have appended
-        assert len(module.validation_step_outputs) == 1
+        assert len(module.validation_step_outputs) == 1  # nosec B101
 
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2Config")
     @patch("Agent_Guru.reasoning.scripts.train_intent_classifier.DebertaV2ForSequenceClassification")
@@ -1659,13 +1659,13 @@ class TestIntentClassifierModuleValidationAndTest:
         }
 
         # Initially empty
-        assert len(module.test_step_outputs) == 0
+        assert len(module.test_step_outputs) == 0  # nosec B101
 
         # Call test_step
         module.test_step(batch, 0)
 
         # Should have appended
-        assert len(module.test_step_outputs) == 1
+        assert len(module.test_step_outputs) == 1  # nosec B101
 
 
 # FINAL NOTE: 100% COVERAGE ACHIEVED

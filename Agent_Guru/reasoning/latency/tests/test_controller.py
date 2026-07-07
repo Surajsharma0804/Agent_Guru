@@ -26,11 +26,11 @@ class TestLatencyController:
         """Test controller initialization."""
         controller = LatencyController()
         
-        assert controller.tracker is not None
-        assert controller.enforcer is not None
-        assert controller.degraded_manager is not None
-        assert controller.enable_warnings is True
-        assert controller.enable_hard_timeouts is True
+        assert controller.tracker is not None  # nosec B101
+        assert controller.enforcer is not None  # nosec B101
+        assert controller.degraded_manager is not None  # nosec B101
+        assert controller.enable_warnings is True  # nosec B101
+        assert controller.enable_hard_timeouts is True  # nosec B101
     
     def test_initialization_with_custom_components(self):
         """Test controller initialization with custom components."""
@@ -44,22 +44,22 @@ class TestLatencyController:
             enable_hard_timeouts=False,
         )
         
-        assert controller.tracker is tracker
-        assert controller.degraded_manager is degraded_manager
-        assert controller.enable_warnings is False
-        assert controller.enable_hard_timeouts is False
+        assert controller.tracker is tracker  # nosec B101
+        assert controller.degraded_manager is degraded_manager  # nosec B101
+        assert controller.enable_warnings is False  # nosec B101
+        assert controller.enable_hard_timeouts is False  # nosec B101
     
     def test_start_stage(self):
         """Test starting a stage."""
         controller = LatencyController()
         timer = controller.start_stage(PipelineStage.INPUT_NORMALIZATION)
         
-        assert isinstance(timer, StageTimer)
-        assert timer.stage == PipelineStage.INPUT_NORMALIZATION
-        assert timer.start_time > 0
-        assert timer.budget_ms > 0
-        assert timer.max_budget_ms > 0
-        assert timer.warned is False
+        assert isinstance(timer, StageTimer)  # nosec B101
+        assert timer.stage == PipelineStage.INPUT_NORMALIZATION  # nosec B101
+        assert timer.start_time > 0  # nosec B101
+        assert timer.budget_ms > 0  # nosec B101
+        assert timer.max_budget_ms > 0  # nosec B101
+        assert timer.warned is False  # nosec B101
     
     def test_end_stage(self):
         """Test ending a stage."""
@@ -71,9 +71,9 @@ class TestLatencyController:
         
         metrics = controller.end_stage(timer)
         
-        assert metrics.duration_ms is not None
-        assert metrics.duration_ms > 0
-        assert metrics.end_time is not None
+        assert metrics.duration_ms is not None  # nosec B101
+        assert metrics.duration_ms > 0  # nosec B101
+        assert metrics.end_time is not None  # nosec B101
     
     def test_end_stage_with_error(self):
         """Test ending a stage with error."""
@@ -82,7 +82,7 @@ class TestLatencyController:
         
         metrics = controller.end_stage(timer, error="Test error")
         
-        assert metrics.error == "Test error"
+        assert metrics.error == "Test error"  # nosec B101
     
     def test_check_timeout_no_timeout(self):
         """Test check_timeout when not timed out."""
@@ -90,7 +90,7 @@ class TestLatencyController:
         timer = controller.start_stage(PipelineStage.INPUT_NORMALIZATION)
         
         # Should not timeout immediately
-        assert controller.check_timeout(timer) is False
+        assert controller.check_timeout(timer) is False  # nosec B101
     
     def test_check_timeout_warning(self):
         """Test check_timeout issues warning."""
@@ -101,8 +101,8 @@ class TestLatencyController:
         timer.start_time = time.perf_counter() - (timer.budget_ms * 0.85 / 1000)
         
         # Should issue warning but not timeout
-        assert controller.check_timeout(timer) is False
-        assert timer.warned is True
+        assert controller.check_timeout(timer) is False  # nosec B101
+        assert timer.warned is True  # nosec B101
     
     def test_check_timeout_hard_timeout(self):
         """Test check_timeout with hard timeout."""
@@ -113,7 +113,7 @@ class TestLatencyController:
         timer.start_time = time.perf_counter() - (timer.max_budget_ms * 1.1 / 1000)
         
         # Should timeout
-        assert controller.check_timeout(timer) is True
+        assert controller.check_timeout(timer) is True  # nosec B101
     
     def test_check_timeout_disabled(self):
         """Test check_timeout when timeouts disabled."""
@@ -124,19 +124,19 @@ class TestLatencyController:
         timer.start_time = time.perf_counter() - (timer.max_budget_ms * 2 / 1000)
         
         # Should not timeout when disabled
-        assert controller.check_timeout(timer) is False
+        assert controller.check_timeout(timer) is False  # nosec B101
     
     def test_stage_context_success(self):
         """Test stage context manager with success."""
         controller = LatencyController()
         
         with controller.stage_context(PipelineStage.INPUT_NORMALIZATION) as timer:
-            assert isinstance(timer, StageTimer)
+            assert isinstance(timer, StageTimer)  # nosec B101
             time.sleep(0.01)
         
         # Should complete without error
-        assert timer.metrics.duration_ms is not None
-        assert timer.metrics.error is None
+        assert timer.metrics.duration_ms is not None  # nosec B101
+        assert timer.metrics.error is None  # nosec B101
     
     def test_stage_context_with_error(self):
         """Test stage context manager with error."""
@@ -147,7 +147,7 @@ class TestLatencyController:
                 raise ValueError("Test error")
         
         # Should record error
-        assert timer.metrics.error == "Test error"
+        assert timer.metrics.error == "Test error"  # nosec B101
     
     def test_get_stage_statistics(self):
         """Test getting stage statistics."""
@@ -163,9 +163,9 @@ class TestLatencyController:
         
         stats = controller.get_stage_statistics(PipelineStage.INPUT_NORMALIZATION)
         
-        assert stats is not None
-        assert stats.count == 5
-        assert stats.mean > 0
+        assert stats is not None  # nosec B101
+        assert stats.count == 5  # nosec B101
+        assert stats.mean > 0  # nosec B101
     
     def test_get_all_statistics(self):
         """Test getting all statistics."""
@@ -179,22 +179,22 @@ class TestLatencyController:
         
         all_stats = controller.get_all_statistics()
         
-        assert len(all_stats) >= 2
-        assert PipelineStage.INPUT_NORMALIZATION in all_stats
-        assert PipelineStage.INTENT_DETECTION in all_stats
+        assert len(all_stats) >= 2  # nosec B101
+        assert PipelineStage.INPUT_NORMALIZATION in all_stats  # nosec B101
+        assert PipelineStage.INTENT_DETECTION in all_stats  # nosec B101
     
     def test_is_degraded(self):
         """Test checking degraded mode."""
         controller = LatencyController()
         
         # Initially not degraded
-        assert controller.is_degraded(PipelineStage.INPUT_NORMALIZATION) is False
+        assert controller.is_degraded(PipelineStage.INPUT_NORMALIZATION) is False  # nosec B101
         
         # Activate degraded mode
         controller.degraded_manager.activate_degraded_mode(PipelineStage.INPUT_NORMALIZATION)
         
         # Should be degraded
-        assert controller.is_degraded(PipelineStage.INPUT_NORMALIZATION) is True
+        assert controller.is_degraded(PipelineStage.INPUT_NORMALIZATION) is True  # nosec B101
     
     def test_get_degraded_stages(self):
         """Test getting degraded stages."""
@@ -206,9 +206,9 @@ class TestLatencyController:
         
         degraded = controller.get_degraded_stages()
         
-        assert len(degraded) == 2
-        assert PipelineStage.INPUT_NORMALIZATION in degraded
-        assert PipelineStage.INTENT_DETECTION in degraded
+        assert len(degraded) == 2  # nosec B101
+        assert PipelineStage.INPUT_NORMALIZATION in degraded  # nosec B101
+        assert PipelineStage.INTENT_DETECTION in degraded  # nosec B101
     
     def test_reset_degraded_mode_single(self):
         """Test resetting degraded mode for single stage."""
@@ -216,11 +216,11 @@ class TestLatencyController:
         
         # Activate degraded mode
         controller.degraded_manager.activate_degraded_mode(PipelineStage.INPUT_NORMALIZATION)
-        assert controller.is_degraded(PipelineStage.INPUT_NORMALIZATION) is True
+        assert controller.is_degraded(PipelineStage.INPUT_NORMALIZATION) is True  # nosec B101
         
         # Reset
         controller.reset_degraded_mode(PipelineStage.INPUT_NORMALIZATION)
-        assert controller.is_degraded(PipelineStage.INPUT_NORMALIZATION) is False
+        assert controller.is_degraded(PipelineStage.INPUT_NORMALIZATION) is False  # nosec B101
     
     def test_reset_degraded_mode_all(self):
         """Test resetting degraded mode for all stages."""
@@ -233,7 +233,7 @@ class TestLatencyController:
         # Reset all
         controller.reset_degraded_mode()
         
-        assert len(controller.get_degraded_stages()) == 0
+        assert len(controller.get_degraded_stages()) == 0  # nosec B101
 
 
 class TestStageTimer:
@@ -259,8 +259,8 @@ class TestStageTimer:
         time.sleep(0.01)
         
         elapsed = timer.elapsed_ms()
-        assert elapsed > 0
-        assert elapsed >= 10  # At least 10ms
+        assert elapsed > 0  # nosec B101
+        assert elapsed >= 10  # At least 10ms  # nosec B101
     
     def test_remaining_ms(self):
         """Test remaining budget calculation."""
@@ -280,7 +280,7 @@ class TestStageTimer:
         )
         
         remaining = timer.remaining_ms()
-        assert remaining <= 100
+        assert remaining <= 100  # nosec B101
     
     def test_is_over_budget(self):
         """Test budget check."""
@@ -299,7 +299,7 @@ class TestStageTimer:
             metrics=metrics,
         )
         
-        assert timer.is_over_budget() is True
+        assert timer.is_over_budget() is True  # nosec B101
     
     def test_is_over_max_budget(self):
         """Test maximum budget check."""
@@ -318,7 +318,7 @@ class TestStageTimer:
             metrics=metrics,
         )
         
-        assert timer.is_over_max_budget() is True
+        assert timer.is_over_max_budget() is True  # nosec B101
     
     def test_budget_utilization(self):
         """Test budget utilization calculation."""
@@ -338,7 +338,7 @@ class TestStageTimer:
         )
         
         utilization = timer.budget_utilization()
-        assert 0.4 <= utilization <= 0.6  # Around 50%
+        assert 0.4 <= utilization <= 0.6  # Around 50%  # nosec B101
 
 
 class TestGlobalController:
@@ -350,7 +350,7 @@ class TestGlobalController:
         controller2 = get_latency_controller()
         
         # Should return same instance
-        assert controller1 is controller2
+        assert controller1 is controller2  # nosec B101
 
 
 @pytest.mark.integration
@@ -368,15 +368,15 @@ class TestLatencyControllerIntegration:
         time.sleep(0.02)
         
         # Check timeout (should not timeout)
-        assert controller.check_timeout(timer) is False
+        assert controller.check_timeout(timer) is False  # nosec B101
         
         # End stage
         metrics = controller.end_stage(timer)
         
         # Verify metrics
-        assert metrics.duration_ms >= 20
-        assert metrics.timeout is False
-        assert metrics.error is None
+        assert metrics.duration_ms >= 20  # nosec B101
+        assert metrics.timeout is False  # nosec B101
+        assert metrics.error is None  # nosec B101
     
     def test_degraded_mode_activation(self):
         """Test degraded mode activation on timeout."""
@@ -396,8 +396,8 @@ class TestLatencyControllerIntegration:
         metrics = controller.end_stage(timer)
         
         # Verify degraded mode activated (duration should be ~200ms, max budget is 100ms)
-        assert metrics.duration_ms > timer.max_budget_ms
-        assert controller.is_degraded(PipelineStage.INPUT_NORMALIZATION) is True
+        assert metrics.duration_ms > timer.max_budget_ms  # nosec B101
+        assert controller.is_degraded(PipelineStage.INPUT_NORMALIZATION) is True  # nosec B101
     
     def test_context_manager_integration(self):
         """Test context manager with real timing."""
@@ -408,8 +408,8 @@ class TestLatencyControllerIntegration:
             time.sleep(0.01)
             
             # Check timeout during work
-            assert controller.check_timeout(timer) is False
+            assert controller.check_timeout(timer) is False  # nosec B101
         
         # Verify completion
-        assert timer.metrics.duration_ms >= 10
-        assert timer.metrics.error is None
+        assert timer.metrics.duration_ms >= 10  # nosec B101
+        assert timer.metrics.error is None  # nosec B101

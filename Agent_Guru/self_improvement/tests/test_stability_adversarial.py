@@ -117,7 +117,7 @@ class TestRapidAlternatingFeedback:
         )
 
         # Register two strategies
-        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
         strategy1_id = f"strategy1_{test_id}"
         strategy2_id = f"strategy2_{test_id}"
 
@@ -166,7 +166,7 @@ class TestRapidAlternatingFeedback:
 
             # With dampening, transitions should be limited
             # Should be much less than 50 (which would be alternating every time)
-            assert (
+            assert (  # nosec B101
                 transitions < 25
             ), f"Dampening should limit transitions to <25, got {transitions}"
 
@@ -176,18 +176,18 @@ class TestRapidAlternatingFeedback:
         if metrics:
             # Under extreme alternating feedback, stability score may be lower
             # But dampening should prevent it from being terrible
-            assert (
+            assert (  # nosec B101
                 metrics.stability_score > 0.3
             ), f"Dampening should prevent terrible instability (score: {metrics.stability_score:.2f})"
             
             # Should show clear signs of stress
-            assert (
+            assert (  # nosec B101
                 metrics.change_frequency > 0.05 or metrics.variance > 0.02
             ), f"Should show signs of stress (freq: {metrics.change_frequency:.3f}, variance: {metrics.variance:.3f})"
 
         # Verify system remains functional despite adversarial input
         best = optimizer.get_best_strategy("test")
-        assert best is not None, "System should remain functional"
+        assert best is not None, "System should remain functional"  # nosec B101
 
     def test_rapid_alternating_every_few_events(self, connection_pool):
         """
@@ -213,7 +213,7 @@ class TestRapidAlternatingFeedback:
         )
 
         # Register strategy
-        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
         strategy_id = f"strategy_{test_id}"
 
         optimizer.register_strategy(
@@ -233,7 +233,7 @@ class TestRapidAlternatingFeedback:
         is_stable, metrics = monitor.check_stability("strategy_selection", "test")
         if metrics:
             # Should show signs of instability
-            assert (
+            assert (  # nosec B101
                 metrics.stability_score < 0.8
             ), f"Should show instability with alternating pattern (score: {metrics.stability_score:.2f})"
 
@@ -246,7 +246,7 @@ class TestRapidAlternatingFeedback:
         is_stable_after, metrics_after = monitor.check_stability(
             "strategy_selection", "test"
         )
-        assert (
+        assert (  # nosec B101
             is_stable_after or (metrics_after and metrics_after.stability_score > 0.6)
         ), "System should recover to stable state after consistent feedback"
 
@@ -284,7 +284,7 @@ class TestExtremeFeedbackSwings:
         )
 
         # Register strategy
-        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
         strategy_id = f"strategy_{test_id}"
 
         optimizer.register_strategy(
@@ -301,7 +301,7 @@ class TestExtremeFeedbackSwings:
 
         strategy = optimizer.get_strategy(strategy_id)
         phase1_rate = strategy.success_rate
-        assert phase1_rate > 0.9, "Phase 1 should have high success rate"
+        assert phase1_rate > 0.9, "Phase 1 should have high success rate"  # nosec B101
 
         # Phase 2: 0% success (20 events) - EXTREME SWING
         for _ in range(20):
@@ -312,10 +312,10 @@ class TestExtremeFeedbackSwings:
 
         # Success rate should drop, but dampening should prevent it from
         # dropping all the way to 0% immediately
-        assert (
+        assert (  # nosec B101
             phase2_rate < phase1_rate
         ), "Success rate should drop after failures"
-        assert phase2_rate > 0.2, "Dampening should prevent extreme drop"
+        assert phase2_rate > 0.2, "Dampening should prevent extreme drop"  # nosec B101
 
         # Phase 3: 100% success again (20 events) - EXTREME SWING BACK
         for _ in range(20):
@@ -325,7 +325,7 @@ class TestExtremeFeedbackSwings:
         phase3_rate = strategy.success_rate
 
         # Success rate should recover, but gradually
-        assert (
+        assert (  # nosec B101
             phase3_rate > phase2_rate
         ), "Success rate should recover after successes"
 
@@ -333,7 +333,7 @@ class TestExtremeFeedbackSwings:
         is_stable, metrics = monitor.check_stability("strategy_selection", "test")
         if metrics:
             # Variance should be high due to extreme swings
-            assert (
+            assert (  # nosec B101
                 metrics.variance > 0.1
             ), f"Should detect high variance from swings (got {metrics.variance:.3f})"
 
@@ -360,8 +360,8 @@ class TestExtremeFeedbackSwings:
         )
 
         # Should block extreme change (change magnitude 0.6 > 0.5 threshold)
-        assert not allow1, f"Should block extreme change to 1.1: {reason1}"
-        assert "too large" in reason1.lower(), "Reason should mention large change"
+        assert not allow1, f"Should block extreme change to 1.1: {reason1}"  # nosec B101
+        assert "too large" in reason1.lower(), "Reason should mention large change"  # nosec B101
 
         # Try extreme drop to -0.1 (>50% change: 0.5 - (-0.1) = 0.6 > 0.5)
         allow2, reason2 = monitor.should_allow_change(
@@ -369,15 +369,15 @@ class TestExtremeFeedbackSwings:
         )
 
         # Should block extreme change (change magnitude 0.6 > 0.5 threshold)
-        assert not allow2, f"Should block extreme change to -0.1: {reason2}"
-        assert "too large" in reason2.lower(), "Reason should mention large change"
+        assert not allow2, f"Should block extreme change to -0.1: {reason2}"  # nosec B101
+        assert "too large" in reason2.lower(), "Reason should mention large change"  # nosec B101
 
         # Moderate change should be allowed
         allow3, reason3 = monitor.should_allow_change(
             "test_component", "test_metric", 0.6
         )
 
-        assert allow3, f"Should allow moderate change to 0.6: {reason3}"
+        assert allow3, f"Should allow moderate change to 0.6: {reason3}"  # nosec B101
 
 
 # ============================================================================
@@ -413,7 +413,7 @@ class TestMultipleCompetingStrategies:
         )
 
         # Register three strategies
-        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
         strategy_ids = [
             f"strategy1_{test_id}",
             f"strategy2_{test_id}",
@@ -437,9 +437,9 @@ class TestMultipleCompetingStrategies:
 
             for idx, strategy_id in enumerate(strategy_ids):
                 if idx == best_idx:
-                    success = random.random() < 0.9  # Best strategy
+                    success = random.random() < 0.9  # Best strategy  # nosec B311
                 else:
-                    success = random.random() < 0.3  # Worse strategies
+                    success = random.random() < 0.3  # Worse strategies  # nosec B311
 
                 optimizer.update_strategy_performance(strategy_id, success, 100.0)
 
@@ -455,7 +455,7 @@ class TestMultipleCompetingStrategies:
 
             # Should not be switching between all 3 strategies constantly
             # With dampening, should stick to 1-2 strategies mostly
-            assert (
+            assert (  # nosec B101
                 unique_strategies <= 3
             ), f"Should use at most 3 strategies (got {unique_strategies})"
 
@@ -465,7 +465,7 @@ class TestMultipleCompetingStrategies:
             )
 
             # Transitions should be limited by dampening
-            assert (
+            assert (  # nosec B101
                 transitions < 30
             ), f"Dampening should limit transitions to <30, got {transitions}"
 
@@ -473,7 +473,7 @@ class TestMultipleCompetingStrategies:
         is_stable, metrics = monitor.check_stability("strategy_selection", "test")
         # May not be perfectly stable, but should have reasonable stability score
         if metrics:
-            assert (
+            assert (  # nosec B101
                 metrics.stability_score > 0.3
             ), f"Should maintain minimal stability (score: {metrics.stability_score:.2f})"
 
@@ -522,9 +522,9 @@ class TestRateLimitingUnderPressure:
 
         # Verify original prompt is still active
         active = prompt_system.get_active_prompt("test_prompt")
-        assert active is not None
-        assert active.prompt_id == prompt_id_v1
-        assert active.version == 1
+        assert active is not None  # nosec B101
+        assert active.prompt_id == prompt_id_v1  # nosec B101
+        assert active.version == 1  # nosec B101
 
         # Wait for rate limit to expire (simulate with force=True for testing)
         prompt_id_v2 = prompt_system.register_prompt(
@@ -536,9 +536,9 @@ class TestRateLimitingUnderPressure:
 
         # Verify update succeeded
         active = prompt_system.get_active_prompt("test_prompt")
-        assert active is not None
-        assert active.prompt_id == prompt_id_v2
-        assert active.version == 2
+        assert active is not None  # nosec B101
+        assert active.prompt_id == prompt_id_v2  # nosec B101
+        assert active.version == 2  # nosec B101
 
     def test_dampening_under_rapid_changes(self, connection_pool):
         """
@@ -574,14 +574,14 @@ class TestRateLimitingUnderPressure:
 
             # Verify dampening is working
             change_magnitude = abs(dampened_value - current_value)
-            assert (
+            assert (  # nosec B101
                 change_magnitude < 0.3
             ), f"Dampening should limit change magnitude to <0.3, got {change_magnitude:.3f}"
 
             current_value = dampened_value
 
         # Final value should be moderate (not at extremes)
-        assert (
+        assert (  # nosec B101
             0.3 < current_value < 0.7
         ), f"After dampening, value {current_value:.2f} should be moderate"
 
@@ -619,7 +619,7 @@ class TestRecoveryFromAdversarialInput:
         )
 
         # Register strategy
-        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
         strategy_id = f"strategy_{test_id}"
 
         optimizer.register_strategy(
@@ -641,26 +641,26 @@ class TestRecoveryFromAdversarialInput:
         )
         # Should show signs of instability
         if metrics_phase1:
-            assert (
+            assert (  # nosec B101
                 metrics_phase1.stability_score < 0.7
             ), f"Should show instability in phase 1 (score: {metrics_phase1.stability_score:.2f})"
 
         # Phase 2: Consistent feedback for recovery (50 events)
         for _ in range(50):
-            success = random.random() < 0.8  # Consistent 80% success
+            success = random.random() < 0.8  # Consistent 80% success  # nosec B311
             optimizer.update_strategy_performance(strategy_id, success, 100.0)
 
         # Verify recovery to stable state
         is_stable_phase2, metrics_phase2 = monitor.check_stability(
             "strategy_selection", "test"
         )
-        assert (
+        assert (  # nosec B101
             is_stable_phase2 or (metrics_phase2 and metrics_phase2.stability_score > 0.6)
         ), "System should recover to stable state after consistent feedback"
 
         # Verify oscillation no longer detected
         if metrics_phase2:
-            assert (
+            assert (  # nosec B101
                 not metrics_phase2.oscillation_detected
             ), "Oscillation should no longer be detected after recovery"
 
@@ -687,7 +687,7 @@ class TestRecoveryFromAdversarialInput:
         )
 
         # Register strategy
-        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
         strategy_id = f"strategy_{test_id}"
 
         optimizer.register_strategy(
@@ -716,13 +716,13 @@ class TestRecoveryFromAdversarialInput:
             "strategy_selection", "test"
         )
         if metrics_phase1:
-            assert (
+            assert (  # nosec B101
                 metrics_phase1.variance > 0.1
             ), "Should have high variance after extreme swings"
 
         # Phase 2: Stable feedback for recovery
         for _ in range(50):
-            success = random.random() < 0.75  # Consistent 75% success
+            success = random.random() < 0.75  # Consistent 75% success  # nosec B311
             optimizer.update_strategy_performance(strategy_id, success, 100.0)
 
         # Verify recovery
@@ -731,12 +731,12 @@ class TestRecoveryFromAdversarialInput:
         )
         if metrics_phase2:
             # Variance should decrease
-            assert (
+            assert (  # nosec B101
                 metrics_phase2.variance < metrics_phase1.variance
             ), "Variance should decrease during recovery"
 
             # Stability score should improve
-            assert (
+            assert (  # nosec B101
                 metrics_phase2.stability_score > metrics_phase1.stability_score
             ), "Stability score should improve during recovery"
 
@@ -776,7 +776,7 @@ class TestCombinedAdversarialScenarios:
         )
 
         # Register two strategies
-        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"
+        test_id = f"{random.randint(10000, 99999)}_{os.getpid()}_{int(time.time()*1000)}"  # nosec B311
         strategy1_id = f"strategy1_{test_id}"
         strategy2_id = f"strategy2_{test_id}"
 
@@ -818,7 +818,7 @@ class TestCombinedAdversarialScenarios:
                 selections.append(selected.strategy_id)
 
         # Verify system survives the combined adversarial attack
-        assert len(selections) > 0, "System should continue making selections"
+        assert len(selections) > 0, "System should continue making selections"  # nosec B101
 
         # Verify dampening limits transitions
         if len(selections) >= 50:
@@ -828,7 +828,7 @@ class TestCombinedAdversarialScenarios:
             )
 
             # Even under extreme adversarial conditions, dampening should limit transitions
-            assert (
+            assert (  # nosec B101
                 transitions < 35
             ), f"Dampening should limit transitions even under extreme conditions, got {transitions}"
 
@@ -838,7 +838,7 @@ class TestCombinedAdversarialScenarios:
         
         if metrics:
             # Dampening is working well - system should maintain good stability
-            assert (
+            assert (  # nosec B101
                 metrics.stability_score > 0.3
             ), f"Dampening should maintain stability (score: {metrics.stability_score:.2f})"
             
@@ -856,7 +856,7 @@ class TestCombinedAdversarialScenarios:
         is_stable_after, metrics_after = monitor.check_stability(
             "strategy_selection", "test"
         )
-        assert (
+        assert (  # nosec B101
             is_stable_after or (metrics_after and metrics_after.stability_score > 0.5)
         ), "System should recover after consistent feedback"
 
@@ -890,7 +890,7 @@ class TestCombinedAdversarialScenarios:
                     value = 0.9 if (_ // 20) % 2 == 0 else 0.1
                 else:
                     # Rapid random changes
-                    value = random.choice([0.1, 0.5, 0.9])
+                    value = random.choice([0.1, 0.5, 0.9])  # nosec B311
 
                 monitor.record_change(component, "metric", value)
 
@@ -898,20 +898,20 @@ class TestCombinedAdversarialScenarios:
         report = monitor.get_stability_report()
 
         # Verify all components tracked
-        assert len(report["components"]) == 3, "Should track all 3 components"
+        assert len(report["components"]) == 3, "Should track all 3 components"  # nosec B101
 
         # Verify unstable components identified
-        assert (
+        assert (  # nosec B101
             len(report["unstable_metrics"]) > 0
         ), "Should identify unstable components"
 
         # Verify recommendations provided
-        assert (
+        assert (  # nosec B101
             len(report["recommendations"]) > 0
         ), "Should provide recommendations for instability"
 
         # Verify overall stability score reflects the stress
-        assert (
+        assert (  # nosec B101
             report["overall_stability_score"] < 0.7
         ), f"Overall stability should be low under stress (got {report['overall_stability_score']:.2f})"
 

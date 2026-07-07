@@ -41,13 +41,13 @@ class TestReasoningStep:
             estimated_duration_seconds=1.0,
         )
 
-        assert step.step_id == 1
-        assert step.description == "Set a timer"
-        assert step.tool_id == "timer_tool"
-        assert step.parameters == {"duration_seconds": 300}
-        assert step.estimated_duration_seconds == 1.0
-        assert step.requires_confirmation is False
-        assert step.depends_on == []
+        assert step.step_id == 1  # nosec B101
+        assert step.description == "Set a timer"  # nosec B101
+        assert step.tool_id == "timer_tool"  # nosec B101
+        assert step.parameters == {"duration_seconds": 300}  # nosec B101
+        assert step.estimated_duration_seconds == 1.0  # nosec B101
+        assert step.requires_confirmation is False  # nosec B101
+        assert step.depends_on == []  # nosec B101
 
     def test_step_with_dependencies(self):
         """Test step with dependencies."""
@@ -60,7 +60,7 @@ class TestReasoningStep:
             depends_on=[1],
         )
 
-        assert step.depends_on == [1]
+        assert step.depends_on == [1]  # nosec B101
 
     def test_step_invalid_id(self):
         """Test step with invalid ID."""
@@ -141,12 +141,12 @@ class TestReasoningPlan:
             confidence=0.95,
         )
 
-        assert plan.goal == "Set a 5-minute timer"
-        assert len(plan.steps) == 1
-        assert plan.reasoning == "Simple timer creation"
-        assert plan.confidence == 0.95
-        assert plan.requires_confirmation is False
-        assert plan.estimated_duration_seconds == 1.0
+        assert plan.goal == "Set a 5-minute timer"  # nosec B101
+        assert len(plan.steps) == 1  # nosec B101
+        assert plan.reasoning == "Simple timer creation"  # nosec B101
+        assert plan.confidence == 0.95  # nosec B101
+        assert plan.requires_confirmation is False  # nosec B101
+        assert plan.estimated_duration_seconds == 1.0  # nosec B101
 
     def test_plan_with_multiple_steps(self):
         """Test plan with multiple steps."""
@@ -174,8 +174,8 @@ class TestReasoningPlan:
             confidence=0.92,
         )
 
-        assert len(plan.steps) == 2
-        assert plan.estimated_duration_seconds == 3.0
+        assert len(plan.steps) == 2  # nosec B101
+        assert plan.estimated_duration_seconds == 3.0  # nosec B101
 
     def test_plan_requires_confirmation_from_step(self):
         """Test plan requires confirmation if any step does."""
@@ -197,7 +197,7 @@ class TestReasoningPlan:
             confidence=0.90,
         )
 
-        assert plan.requires_confirmation is True
+        assert plan.requires_confirmation is True  # nosec B101
 
     def test_plan_empty_goal(self):
         """Test plan with empty goal."""
@@ -317,10 +317,10 @@ class TestReasoningPlanGenerator:
             available_tools=["timer_tool"],
         )
 
-        assert plan.goal == "Set a 5-minute timer"
-        assert len(plan.steps) == 1
-        assert plan.steps[0].tool_id == "timer_tool"
-        assert plan.confidence == 0.95
+        assert plan.goal == "Set a 5-minute timer"  # nosec B101
+        assert len(plan.steps) == 1  # nosec B101
+        assert plan.steps[0].tool_id == "timer_tool"  # nosec B101
+        assert plan.confidence == 0.95  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_multi_step_plan(self, generator, mock_llm_provider):
@@ -362,9 +362,9 @@ class TestReasoningPlanGenerator:
             available_tools=["music_tool", "timer_tool"],
         )
 
-        assert len(plan.steps) == 2
-        assert plan.steps[0].tool_id == "music_tool"
-        assert plan.steps[1].tool_id == "timer_tool"
+        assert len(plan.steps) == 2  # nosec B101
+        assert plan.steps[0].tool_id == "music_tool"  # nosec B101
+        assert plan.steps[1].tool_id == "timer_tool"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_plan_with_context(self, generator, mock_llm_provider):
@@ -406,7 +406,7 @@ class TestReasoningPlanGenerator:
             context=context,
         )
 
-        assert plan is not None
+        assert plan is not None  # nosec B101
         mock_llm_provider.generate.assert_called_once()
 
     @pytest.mark.asyncio
@@ -445,7 +445,7 @@ class TestReasoningPlanGenerator:
             available_tools=["timer_tool"],
         )
 
-        assert plan.goal == "Set timer"
+        assert plan.goal == "Set timer"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_plan_retry_on_invalid_json(self, generator, mock_llm_provider):
@@ -497,8 +497,8 @@ class TestReasoningPlanGenerator:
             available_tools=["timer_tool"],
         )
 
-        assert plan.goal == "Set timer"
-        assert mock_llm_provider.generate.call_count == 3
+        assert plan.goal == "Set timer"  # nosec B101
+        assert mock_llm_provider.generate.call_count == 3  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_plan_max_retries_exceeded(self, generator, mock_llm_provider):
@@ -519,7 +519,7 @@ class TestReasoningPlanGenerator:
                 available_tools=["timer_tool"],
             )
 
-        assert mock_llm_provider.generate.call_count == 3
+        assert mock_llm_provider.generate.call_count == 3  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_plan_timeout(self, generator, mock_llm_provider):
@@ -622,9 +622,9 @@ class TestReasoningPlanGenerator:
         ):
             steps.append(step)
 
-        assert len(steps) == 2
-        assert steps[0].tool_id == "tool1"
-        assert steps[1].tool_id == "tool2"
+        assert len(steps) == 2  # nosec B101
+        assert steps[0].tool_id == "tool1"  # nosec B101
+        assert steps[1].tool_id == "tool2"  # nosec B101
 
 
 class TestReasoningPlanValidator:
@@ -673,8 +673,8 @@ class TestReasoningPlanValidator:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is True
-        assert error is None
+        assert is_valid is True  # nosec B101
+        assert error is None  # nosec B101
 
     def test_validate_unknown_tool(self, validator):
         """Test validation fails for unknown tool."""
@@ -696,8 +696,8 @@ class TestReasoningPlanValidator:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is False
-        assert "Unknown tool" in error
+        assert is_valid is False  # nosec B101
+        assert "Unknown tool" in error  # nosec B101
 
     def test_validate_missing_required_parameter(self, validator):
         """Test validation fails for missing required parameter."""
@@ -719,9 +719,9 @@ class TestReasoningPlanValidator:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is False
-        assert "Missing required parameter" in error
-        assert "duration_seconds" in error
+        assert is_valid is False  # nosec B101
+        assert "Missing required parameter" in error  # nosec B101
+        assert "duration_seconds" in error  # nosec B101
 
     def test_validate_duration_exceeds_limit(self, validator):
         """Test validation fails when duration exceeds limit."""
@@ -743,8 +743,8 @@ class TestReasoningPlanValidator:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is False
-        assert "exceeds limit" in error
+        assert is_valid is False  # nosec B101
+        assert "exceeds limit" in error  # nosec B101
 
     def test_validate_circular_dependencies(self, validator):
         """Test validation detects circular dependencies."""
@@ -776,4 +776,4 @@ class TestReasoningPlanValidator:
 
         # Valid plan with no circular dependencies
         is_valid, error = validator.validate(plan)
-        assert is_valid is True
+        assert is_valid is True  # nosec B101

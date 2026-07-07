@@ -71,9 +71,9 @@ class TestRichContentGeneratorSimple:
 
     def test_initialization(self, generator: RichContentGenerator):
         """Test generator initialization."""
-        assert generator is not None
-        assert isinstance(generator.INTENT_CONTENT_MAP, dict)
-        assert len(generator.INTENT_CONTENT_MAP) > 0
+        assert generator is not None  # nosec B101
+        assert isinstance(generator.INTENT_CONTENT_MAP, dict)  # nosec B101
+        assert len(generator.INTENT_CONTENT_MAP) > 0  # nosec B101
 
     def test_generate_with_no_capabilities(
         self, generator: RichContentGenerator, timer_result: ExecutionResult, timer_intent: Mock
@@ -83,7 +83,7 @@ class TestRichContentGeneratorSimple:
         content = generator.generate(timer_result, timer_intent, capabilities)
 
         # Should return None for text-only clients
-        assert content is None
+        assert content is None  # nosec B101
 
     def test_generate_with_card_capability(
         self, generator: RichContentGenerator, timer_result: ExecutionResult, timer_intent: Mock
@@ -92,12 +92,12 @@ class TestRichContentGeneratorSimple:
         capabilities = {ClientCapability.CARDS, ClientCapability.BUTTONS}
         content = generator.generate(timer_result, timer_intent, capabilities)
 
-        assert content is not None
-        assert content["type"] == "card"
-        assert "title" in content
-        assert "body" in content
-        assert "buttons" in content
-        assert len(content["buttons"]) > 0
+        assert content is not None  # nosec B101
+        assert content["type"] == "card"  # nosec B101
+        assert "title" in content  # nosec B101
+        assert "body" in content  # nosec B101
+        assert "buttons" in content  # nosec B101
+        assert len(content["buttons"]) > 0  # nosec B101
 
     def test_generate_timer_card(
         self, generator: RichContentGenerator, timer_result: ExecutionResult, timer_intent: Mock
@@ -106,11 +106,11 @@ class TestRichContentGeneratorSimple:
         capabilities = {ClientCapability.CARDS, ClientCapability.BUTTONS}
         content = generator.generate(timer_result, timer_intent, capabilities)
 
-        assert content["type"] == "card"
-        assert content["title"] == "Timer Set"
-        assert "5 minutes" in content["body"]
-        assert content["icon"] == "⏱️"
-        assert len(content["buttons"]) == 2
+        assert content["type"] == "card"  # nosec B101
+        assert content["title"] == "Timer Set"  # nosec B101
+        assert "5 minutes" in content["body"]  # nosec B101
+        assert content["icon"] == "⏱️"  # nosec B101
+        assert len(content["buttons"]) == 2  # nosec B101
 
     def test_generate_weather_card(
         self, generator: RichContentGenerator, weather_result: ExecutionResult, weather_intent: Mock
@@ -119,12 +119,12 @@ class TestRichContentGeneratorSimple:
         capabilities = {ClientCapability.CARDS, ClientCapability.IMAGES, ClientCapability.BUTTONS}
         content = generator.generate(weather_result, weather_intent, capabilities)
 
-        assert content["type"] == "card"
-        assert "Weather in San Francisco" in content["title"]
-        assert "72°F" in content["body"]
-        assert "Sunny" in content["body"]
-        assert content["image"] == "https://example.com/sunny.png"
-        assert len(content["buttons"]) == 2
+        assert content["type"] == "card"  # nosec B101
+        assert "Weather in San Francisco" in content["title"]  # nosec B101
+        assert "72°F" in content["body"]  # nosec B101
+        assert "Sunny" in content["body"]  # nosec B101
+        assert content["image"] == "https://example.com/sunny.png"  # nosec B101
+        assert len(content["buttons"]) == 2  # nosec B101
 
     def test_generate_with_all_capabilities(
         self, generator: RichContentGenerator, timer_result: ExecutionResult, timer_intent: Mock
@@ -133,8 +133,8 @@ class TestRichContentGeneratorSimple:
         capabilities = set(ClientCapability)
         content = generator.generate(timer_result, timer_intent, capabilities)
 
-        assert content is not None
-        assert content["type"] == "card"
+        assert content is not None  # nosec B101
+        assert content["type"] == "card"  # nosec B101
 
     def test_generate_with_none_capabilities(
         self, generator: RichContentGenerator, timer_result: ExecutionResult, timer_intent: Mock
@@ -142,40 +142,40 @@ class TestRichContentGeneratorSimple:
         """Test generation with None capabilities (defaults to all)."""
         content = generator.generate(timer_result, timer_intent, None)
 
-        assert content is not None
-        assert content["type"] == "card"
+        assert content is not None  # nosec B101
+        assert content["type"] == "card"  # nosec B101
 
     def test_supports_rich_content(self, generator: RichContentGenerator):
         """Test rich content support detection."""
         # Text-only should not support rich content
-        assert not generator._supports_rich_content({ClientCapability.TEXT_ONLY})
+        assert not generator._supports_rich_content({ClientCapability.TEXT_ONLY})  # nosec B101
 
         # Cards should support rich content
-        assert generator._supports_rich_content({ClientCapability.CARDS})
+        assert generator._supports_rich_content({ClientCapability.CARDS})  # nosec B101
 
         # Mixed capabilities should support rich content
-        assert generator._supports_rich_content(
+        assert generator._supports_rich_content(  # nosec B101
             {ClientCapability.TEXT_ONLY, ClientCapability.IMAGES}
         )
 
     def test_get_content_type(self, generator: RichContentGenerator):
         """Test content type mapping."""
-        assert generator._get_content_type("set_timer") == ContentType.CARD
-        assert generator._get_content_type("search_web") == ContentType.LIST
-        assert generator._get_content_type("play_music") == ContentType.MEDIA_PLAYER
-        assert generator._get_content_type("unknown_intent") is None
+        assert generator._get_content_type("set_timer") == ContentType.CARD  # nosec B101
+        assert generator._get_content_type("search_web") == ContentType.LIST  # nosec B101
+        assert generator._get_content_type("play_music") == ContentType.MEDIA_PLAYER  # nosec B101
+        assert generator._get_content_type("unknown_intent") is None  # nosec B101
 
     def test_supports_content_type(self, generator: RichContentGenerator):
         """Test content type support detection."""
         # Card requires CARDS capability
-        assert generator._supports_content_type(ContentType.CARD, {ClientCapability.CARDS})
-        assert not generator._supports_content_type(ContentType.CARD, {ClientCapability.TEXT_ONLY})
+        assert generator._supports_content_type(ContentType.CARD, {ClientCapability.CARDS})  # nosec B101
+        assert not generator._supports_content_type(ContentType.CARD, {ClientCapability.TEXT_ONLY})  # nosec B101
 
         # List requires LISTS capability
-        assert generator._supports_content_type(ContentType.LIST, {ClientCapability.LISTS})
+        assert generator._supports_content_type(ContentType.LIST, {ClientCapability.LISTS})  # nosec B101
 
         # Media player requires MEDIA capability
-        assert generator._supports_content_type(ContentType.MEDIA_PLAYER, {ClientCapability.MEDIA})
+        assert generator._supports_content_type(ContentType.MEDIA_PLAYER, {ClientCapability.MEDIA})  # nosec B101
 
     def test_generate_list_content(self, generator: RichContentGenerator):
         """Test list content generation."""
@@ -201,10 +201,10 @@ class TestRichContentGeneratorSimple:
         capabilities = {ClientCapability.LISTS}
         content = generator.generate(result, intent, capabilities)
 
-        assert content["type"] == "list"
-        assert content["title"] == "Search Results"
-        assert len(content["items"]) == 3
-        assert content["items"][0]["title"] == "Item 1"
+        assert content["type"] == "list"  # nosec B101
+        assert content["title"] == "Search Results"  # nosec B101
+        assert len(content["items"]) == 3  # nosec B101
+        assert content["items"][0]["title"] == "Item 1"  # nosec B101
 
     def test_generate_send_message_card(self, generator: RichContentGenerator):
         """Test send message card generation."""
@@ -223,11 +223,11 @@ class TestRichContentGeneratorSimple:
         capabilities = {ClientCapability.CARDS, ClientCapability.BUTTONS}
         content = generator.generate(result, intent, capabilities)
 
-        assert content["type"] == "card"
-        assert content["title"] == "Message Sent"
-        assert "John" in content["body"]
-        assert content["icon"] == "✉️"
-        assert len(content["buttons"]) == 2
+        assert content["type"] == "card"  # nosec B101
+        assert content["title"] == "Message Sent"  # nosec B101
+        assert "John" in content["body"]  # nosec B101
+        assert content["icon"] == "✉️"  # nosec B101
+        assert len(content["buttons"]) == 2  # nosec B101
 
     def test_generate_default_card(self, generator: RichContentGenerator):
         """Test default card generation for unmapped intents."""
@@ -246,9 +246,9 @@ class TestRichContentGeneratorSimple:
         # Manually call _generate_card to test default behavior
         content = generator._generate_card(result, intent)
 
-        assert content["type"] == "card"
-        assert content["title"] == "Action Complete"
-        assert "0.05s" in content["footer"]
+        assert content["type"] == "card"  # nosec B101
+        assert content["title"] == "Action Complete"  # nosec B101
+        assert "0.05s" in content["footer"]  # nosec B101
 
     def test_generate_list_with_string_items(self, generator: RichContentGenerator):
         """Test list generation with string items."""
@@ -270,10 +270,10 @@ class TestRichContentGeneratorSimple:
         capabilities = {ClientCapability.LISTS}
         content = generator.generate(result, intent, capabilities)
 
-        assert content["type"] == "list"
-        assert len(content["items"]) == 3
-        assert content["items"][0]["title"] == "Item 1"
-        assert content["items"][0]["subtitle"] == ""
+        assert content["type"] == "list"  # nosec B101
+        assert len(content["items"]) == 3  # nosec B101
+        assert content["items"][0]["title"] == "Item 1"  # nosec B101
+        assert content["items"][0]["subtitle"] == ""  # nosec B101
 
     def test_generate_list_with_limit(self, generator: RichContentGenerator):
         """Test list generation respects item limit."""
@@ -294,9 +294,9 @@ class TestRichContentGeneratorSimple:
         capabilities = {ClientCapability.LISTS}
         content = generator.generate(result, intent, capabilities)
 
-        assert content["type"] == "list"
-        assert len(content["items"]) == 10  # Limited to 10
-        assert content["footer"] == "15 items"
+        assert content["type"] == "list"  # nosec B101
+        assert len(content["items"]) == 10  # Limited to 10  # nosec B101
+        assert content["footer"] == "15 items"  # nosec B101
 
 
 class TestClientCapability:
@@ -304,16 +304,16 @@ class TestClientCapability:
 
     def test_capability_values(self):
         """Test capability enum values."""
-        assert ClientCapability.TEXT_ONLY.value == "text_only"
-        assert ClientCapability.CARDS.value == "cards"
-        assert ClientCapability.IMAGES.value == "images"
-        assert ClientCapability.BUTTONS.value == "buttons"
+        assert ClientCapability.TEXT_ONLY.value == "text_only"  # nosec B101
+        assert ClientCapability.CARDS.value == "cards"  # nosec B101
+        assert ClientCapability.IMAGES.value == "images"  # nosec B101
+        assert ClientCapability.BUTTONS.value == "buttons"  # nosec B101
 
     def test_capability_membership(self):
         """Test capability set membership."""
         capabilities = {ClientCapability.CARDS, ClientCapability.BUTTONS}
-        assert ClientCapability.CARDS in capabilities
-        assert ClientCapability.TEXT_ONLY not in capabilities
+        assert ClientCapability.CARDS in capabilities  # nosec B101
+        assert ClientCapability.TEXT_ONLY not in capabilities  # nosec B101
 
 
 class TestContentType:
@@ -321,12 +321,12 @@ class TestContentType:
 
     def test_content_type_values(self):
         """Test content type enum values."""
-        assert ContentType.CARD.value == "card"
-        assert ContentType.LIST.value == "list"
-        assert ContentType.CAROUSEL.value == "carousel"
-        assert ContentType.IMAGE.value == "image"
+        assert ContentType.CARD.value == "card"  # nosec B101
+        assert ContentType.LIST.value == "list"  # nosec B101
+        assert ContentType.CAROUSEL.value == "carousel"  # nosec B101
+        assert ContentType.IMAGE.value == "image"  # nosec B101
 
     def test_content_type_membership(self):
         """Test content type comparison."""
-        assert ContentType.CARD == ContentType.CARD
-        assert ContentType.CARD != ContentType.LIST
+        assert ContentType.CARD == ContentType.CARD  # nosec B101
+        assert ContentType.CARD != ContentType.LIST  # nosec B101

@@ -61,9 +61,9 @@ class TestSpeechSecurityIntegration:
         """Test enrolling user from audio."""
         profile = integration.enroll_user_from_audio("user1", sample_audio)
         
-        assert profile.user_id == "user1"
-        assert profile.sample_count == 1
-        assert profile.quality_score > 0.0
+        assert profile.user_id == "user1"  # nosec B101
+        assert profile.sample_count == 1  # nosec B101
+        assert profile.quality_score > 0.0  # nosec B101
     
     def test_enroll_duplicate_user_from_audio(
         self,
@@ -95,9 +95,9 @@ class TestSpeechSecurityIntegration:
             user_id="user1"
         )
         
-        assert authenticated == True
-        assert user_id == "user1"
-        assert similarity >= 0.85
+        assert authenticated == True  # nosec B101
+        assert user_id == "user1"  # nosec B101
+        assert similarity >= 0.85  # nosec B101
     
     def test_authenticate_from_audio_identification(
         self,
@@ -111,9 +111,9 @@ class TestSpeechSecurityIntegration:
         # Authenticate without user_id
         authenticated, user_id, similarity = integration.authenticate_from_audio(sample_audio)
         
-        assert authenticated == True
-        assert user_id == "user1"
-        assert similarity >= 0.85
+        assert authenticated == True  # nosec B101
+        assert user_id == "user1"  # nosec B101
+        assert similarity >= 0.85  # nosec B101
     
     def test_authenticate_wrong_audio(
         self,
@@ -131,8 +131,8 @@ class TestSpeechSecurityIntegration:
             user_id="user1"
         )
         
-        assert bool(authenticated) == False
-        assert user_id is None
+        assert bool(authenticated) == False  # nosec B101
+        assert user_id is None  # nosec B101
     
     # ========================================================================
     # PROFILE MANAGEMENT TESTS
@@ -151,7 +151,7 @@ class TestSpeechSecurityIntegration:
         new_audio = np.random.randn(48000).astype(np.float32)
         updated_profile = integration.update_profile_from_audio("user1", new_audio)
         
-        assert updated_profile.sample_count == 2
+        assert updated_profile.sample_count == 2  # nosec B101
     
     def test_delete_user(
         self,
@@ -166,7 +166,7 @@ class TestSpeechSecurityIntegration:
         integration.delete_user("user1")
         
         # Verify deleted
-        assert integration.get_user_profile("user1") is None
+        assert integration.get_user_profile("user1") is None  # nosec B101
     
     def test_get_user_profile(
         self,
@@ -180,8 +180,8 @@ class TestSpeechSecurityIntegration:
         # Get profile
         profile = integration.get_user_profile("user1")
         
-        assert profile is not None
-        assert profile.user_id == "user1"
+        assert profile is not None  # nosec B101
+        assert profile.user_id == "user1"  # nosec B101
     
     def test_list_enrolled_users(
         self,
@@ -196,9 +196,9 @@ class TestSpeechSecurityIntegration:
         # List users
         users = integration.list_enrolled_users()
         
-        assert len(users) == 2
-        assert "user1" in users
-        assert "user2" in users
+        assert len(users) == 2  # nosec B101
+        assert "user1" in users  # nosec B101
+        assert "user2" in users  # nosec B101
     
     # ========================================================================
     # END-TO-END WORKFLOW TESTS
@@ -212,24 +212,24 @@ class TestSpeechSecurityIntegration:
         """Test complete enrollment and authentication workflow."""
         # Step 1: Enroll user
         profile = integration.enroll_user_from_audio("user1", sample_audio)
-        assert profile.user_id == "user1"
+        assert profile.user_id == "user1"  # nosec B101
         
         # Step 2: Authenticate user
         authenticated, user_id, similarity = integration.authenticate_from_audio(
             sample_audio,
             user_id="user1"
         )
-        assert authenticated == True
-        assert user_id == "user1"
+        assert authenticated == True  # nosec B101
+        assert user_id == "user1"  # nosec B101
         
         # Step 3: Update profile
         new_audio = np.random.randn(48000).astype(np.float32)
         updated_profile = integration.update_profile_from_audio("user1", new_audio)
-        assert updated_profile.sample_count == 2
+        assert updated_profile.sample_count == 2  # nosec B101
         
         # Step 4: Delete user
         integration.delete_user("user1")
-        assert integration.get_user_profile("user1") is None
+        assert integration.get_user_profile("user1") is None  # nosec B101
     
     def test_multi_user_authentication(
         self,
@@ -251,9 +251,9 @@ class TestSpeechSecurityIntegration:
         auth2, uid2, _ = integration.authenticate_from_audio(audio2)
         auth3, uid3, _ = integration.authenticate_from_audio(audio3)
         
-        assert auth1 == True and uid1 == "user1"
-        assert auth2 == True and uid2 == "user2"
-        assert auth3 == True and uid3 == "user3"
+        assert auth1 == True and uid1 == "user1"  # nosec B101
+        assert auth2 == True and uid2 == "user2"  # nosec B101
+        assert auth3 == True and uid3 == "user3"  # nosec B101
 
     # ========================================================================
     # EDGE CASE AND STRESS TESTS - ZERO COMPROMISE
@@ -292,7 +292,7 @@ class TestSpeechSecurityIntegration:
         long_audio = np.random.randn(9600000).astype(np.float32)
         
         profile = integration.enroll_user_from_audio("user1", long_audio)
-        assert profile.user_id == "user1"
+        assert profile.user_id == "user1"  # nosec B101
     
     def test_enroll_with_silent_audio(
         self,
@@ -303,7 +303,7 @@ class TestSpeechSecurityIntegration:
         
         # Should handle but may have low quality
         profile = integration.enroll_user_from_audio("user1", silent_audio)
-        assert profile.user_id == "user1"
+        assert profile.user_id == "user1"  # nosec B101
     
     def test_enroll_with_clipped_audio(
         self,
@@ -314,7 +314,7 @@ class TestSpeechSecurityIntegration:
         clipped_audio = np.ones(48000, dtype=np.float32)
         
         profile = integration.enroll_user_from_audio("user1", clipped_audio)
-        assert profile.user_id == "user1"
+        assert profile.user_id == "user1"  # nosec B101
     
     def test_enroll_with_nan_audio(
         self,
@@ -326,7 +326,7 @@ class TestSpeechSecurityIntegration:
         # Should handle (speech engine may filter or fail gracefully)
         try:
             profile = integration.enroll_user_from_audio("user1", nan_audio)
-            assert profile.user_id == "user1"
+            assert profile.user_id == "user1"  # nosec B101
         except Exception as exc:  # noqa: BLE001
             # Acceptable to fail with NaN audio
             logger.debug("NaN audio enrollment failed as expected: %s", exc)
@@ -341,7 +341,7 @@ class TestSpeechSecurityIntegration:
         # Should handle (speech engine may filter or fail gracefully)
         try:
             profile = integration.enroll_user_from_audio("user1", inf_audio)
-            assert profile.user_id == "user1"
+            assert profile.user_id == "user1"  # nosec B101
         except Exception as exc:  # noqa: BLE001
             # Acceptable to fail with inf audio
             logger.debug("Inf audio enrollment failed as expected: %s", exc)
@@ -367,7 +367,7 @@ class TestSpeechSecurityIntegration:
         )
         
         # May or may not authenticate depending on how much profile drifted
-        assert user_id in [None, "user1"]
+        assert user_id in [None, "user1"]  # nosec B101
     
     def test_concurrent_user_operations(
         self,
@@ -382,7 +382,7 @@ class TestSpeechSecurityIntegration:
         
         # Verify all users are enrolled
         users = integration.list_enrolled_users()
-        assert len(users) == 50
+        assert len(users) == 50  # nosec B101
         
         # Delete half of them
         for i in range(0, 50, 2):
@@ -390,7 +390,7 @@ class TestSpeechSecurityIntegration:
         
         # Verify only 25 remain
         users = integration.list_enrolled_users()
-        assert len(users) == 25
+        assert len(users) == 25  # nosec B101
     
     def test_profile_quality_degradation(
         self,
@@ -409,9 +409,9 @@ class TestSpeechSecurityIntegration:
             profile = integration.update_profile_from_audio("user1", noisy_audio)
         
         # Quality may fluctuate but sample count should increase
-        assert profile.sample_count == 11  # 1 initial + 10 updates
+        assert profile.sample_count == 11  # 1 initial + 10 updates  # nosec B101
         # Quality is averaged, so it may not strictly degrade
-        assert 0.0 < profile.quality_score <= 1.0
+        assert 0.0 < profile.quality_score <= 1.0  # nosec B101
     
     def test_authentication_with_different_audio_lengths(
         self,
@@ -431,8 +431,8 @@ class TestSpeechSecurityIntegration:
         authenticated2, _, _ = integration.authenticate_from_audio(long_audio, user_id="user1")
         
         # Both should work (may or may not authenticate depending on features)
-        assert isinstance(authenticated1, (bool, np.bool_))
-        assert isinstance(authenticated2, (bool, np.bool_))
+        assert isinstance(authenticated1, (bool, np.bool_))  # nosec B101
+        assert isinstance(authenticated2, (bool, np.bool_))  # nosec B101
     
     def test_delete_and_reenroll_same_user(
         self,
@@ -451,8 +451,8 @@ class TestSpeechSecurityIntegration:
         profile2 = integration.enroll_user_from_audio("user1", different_audio)
         
         # Should be a fresh profile
-        assert profile2.sample_count == 1
-        assert profile2.enrollment_date > profile1.enrollment_date
+        assert profile2.sample_count == 1  # nosec B101
+        assert profile2.enrollment_date > profile1.enrollment_date  # nosec B101
     
     def test_get_nonexistent_profile(
         self,
@@ -460,7 +460,7 @@ class TestSpeechSecurityIntegration:
     ):
         """Test getting profile for non-existent user."""
         profile = integration.get_user_profile("nonexistent_user")
-        assert profile is None
+        assert profile is None  # nosec B101
     
     def test_update_nonexistent_profile(
         self,
@@ -485,7 +485,7 @@ class TestSpeechSecurityIntegration:
     ):
         """Test listing users when none are enrolled."""
         users = integration.list_enrolled_users()
-        assert users == []
+        assert users == []  # nosec B101
     
     def test_authenticate_identification_no_match(
         self,
@@ -501,6 +501,6 @@ class TestSpeechSecurityIntegration:
         authenticated, user_id, similarity = integration.authenticate_from_audio(different_audio)
         
         # Should not authenticate
-        assert bool(authenticated) == False
-        assert user_id is None
-        assert similarity < 0.85
+        assert bool(authenticated) == False  # nosec B101
+        assert user_id is None  # nosec B101
+        assert similarity < 0.85  # nosec B101

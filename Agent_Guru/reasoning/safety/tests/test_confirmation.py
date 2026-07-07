@@ -31,13 +31,13 @@ class TestConfirmationRequest:
             reason="Dangerous file deletion",
         )
 
-        assert request.request_id == "req_123"
-        assert request.user_id == "user123"
-        assert request.tool == tool
-        assert request.parameters == {"path": "/important/file.txt"}
-        assert request.reason == "Dangerous file deletion"
-        assert request.status == ConfirmationStatus.PENDING
-        assert request.response_at is None
+        assert request.request_id == "req_123"  # nosec B101
+        assert request.user_id == "user123"  # nosec B101
+        assert request.tool == tool  # nosec B101
+        assert request.parameters == {"path": "/important/file.txt"}  # nosec B101
+        assert request.reason == "Dangerous file deletion"  # nosec B101
+        assert request.status == ConfirmationStatus.PENDING  # nosec B101
+        assert request.response_at is None  # nosec B101
 
     def test_request_with_expiration(self):
         """Test request with expiration."""
@@ -53,8 +53,8 @@ class TestConfirmationRequest:
             expires_at=expires_at,
         )
 
-        assert not request.is_expired()
-        assert request.is_pending()
+        assert not request.is_expired()  # nosec B101
+        assert request.is_pending()  # nosec B101
 
     def test_request_expired(self):
         """Test expired request."""
@@ -70,8 +70,8 @@ class TestConfirmationRequest:
             expires_at=expires_at,
         )
 
-        assert request.is_expired()
-        assert not request.is_pending()
+        assert request.is_expired()  # nosec B101
+        assert not request.is_pending()  # nosec B101
 
     def test_request_never_expires(self):
         """Test request with no expiration."""
@@ -86,8 +86,8 @@ class TestConfirmationRequest:
             expires_at=None,
         )
 
-        assert not request.is_expired()
-        assert request.is_pending()
+        assert not request.is_expired()  # nosec B101
+        assert request.is_pending()  # nosec B101
 
 
 class TestBatchConfirmationRequest:
@@ -119,10 +119,10 @@ class TestBatchConfirmationRequest:
             requests=[req1, req2],
         )
 
-        assert batch.batch_id == "batch_123"
-        assert batch.user_id == "user123"
-        assert len(batch.requests) == 2
-        assert not batch.all_or_nothing
+        assert batch.batch_id == "batch_123"  # nosec B101
+        assert batch.user_id == "user123"  # nosec B101
+        assert len(batch.requests) == 2  # nosec B101
+        assert not batch.all_or_nothing  # nosec B101
 
     def test_batch_all_confirmed(self):
         """Test checking if all requests confirmed."""
@@ -151,7 +151,7 @@ class TestBatchConfirmationRequest:
             requests=[req1, req2],
         )
 
-        assert batch.all_confirmed()
+        assert batch.all_confirmed()  # nosec B101
 
     def test_batch_not_all_confirmed(self):
         """Test batch with pending requests."""
@@ -180,7 +180,7 @@ class TestBatchConfirmationRequest:
             requests=[req1, req2],
         )
 
-        assert not batch.all_confirmed()
+        assert not batch.all_confirmed()  # nosec B101
 
     def test_batch_any_denied(self):
         """Test checking if any request denied."""
@@ -209,7 +209,7 @@ class TestBatchConfirmationRequest:
             requests=[req1, req2],
         )
 
-        assert batch.any_denied()
+        assert batch.any_denied()  # nosec B101
 
 
 class TestConfirmationManager:
@@ -219,15 +219,15 @@ class TestConfirmationManager:
         """Test manager initialization."""
         manager = ConfirmationManager()
 
-        assert manager._default_expiration == 300.0
-        assert len(manager._pending) == 0
-        assert len(manager._completed) == 0
+        assert manager._default_expiration == 300.0  # nosec B101
+        assert len(manager._pending) == 0  # nosec B101
+        assert len(manager._completed) == 0  # nosec B101
 
     def test_manager_with_custom_expiration(self):
         """Test manager with custom default expiration."""
         manager = ConfirmationManager(default_expiration=60.0)
 
-        assert manager._default_expiration == 60.0
+        assert manager._default_expiration == 60.0  # nosec B101
 
     def test_create_confirmation_request(self):
         """Test creating confirmation request."""
@@ -246,20 +246,20 @@ class TestConfirmationManager:
             reason="Dangerous operation",
         )
 
-        assert request.user_id == "user123"
-        assert request.tool == tool
-        assert request.parameters == {"path": "/file.txt"}
-        assert request.reason == "Dangerous operation"
-        assert request.status == ConfirmationStatus.PENDING
-        assert request.expires_at is not None
+        assert request.user_id == "user123"  # nosec B101
+        assert request.tool == tool  # nosec B101
+        assert request.parameters == {"path": "/file.txt"}  # nosec B101
+        assert request.reason == "Dangerous operation"  # nosec B101
+        assert request.status == ConfirmationStatus.PENDING  # nosec B101
+        assert request.expires_at is not None  # nosec B101
 
         # Check it's in pending
-        assert request.request_id in manager._pending
+        assert request.request_id in manager._pending  # nosec B101
 
         # Check metrics
         metrics = manager.get_metrics()
-        assert metrics.total_requests == 1
-        assert metrics.pending == 1
+        assert metrics.total_requests == 1  # nosec B101
+        assert metrics.pending == 1  # nosec B101
 
     def test_create_confirmation_with_custom_expiration(self):
         """Test creating request with custom expiration."""
@@ -276,9 +276,9 @@ class TestConfirmationManager:
         )
 
         # Should expire in ~60 seconds
-        assert request.expires_at is not None
-        assert request.expires_at - time.time() < 61
-        assert request.expires_at - time.time() > 59
+        assert request.expires_at is not None  # nosec B101
+        assert request.expires_at - time.time() < 61  # nosec B101
+        assert request.expires_at - time.time() > 59  # nosec B101
 
     def test_grant_confirmation(self):
         """Test granting confirmation."""
@@ -296,18 +296,18 @@ class TestConfirmationManager:
         # Grant confirmation
         result = manager.grant_confirmation(request.request_id)
 
-        assert result is True
-        assert request.status == ConfirmationStatus.GRANTED
-        assert request.response_at is not None
+        assert result is True  # nosec B101
+        assert request.status == ConfirmationStatus.GRANTED  # nosec B101
+        assert request.response_at is not None  # nosec B101
 
         # Should be moved to completed
-        assert request.request_id not in manager._pending
-        assert request.request_id in manager._completed
+        assert request.request_id not in manager._pending  # nosec B101
+        assert request.request_id in manager._completed  # nosec B101
 
         # Check metrics
         metrics = manager.get_metrics()
-        assert metrics.granted == 1
-        assert metrics.pending == 0
+        assert metrics.granted == 1  # nosec B101
+        assert metrics.pending == 0  # nosec B101
 
     def test_deny_confirmation(self):
         """Test denying confirmation."""
@@ -325,19 +325,19 @@ class TestConfirmationManager:
         # Deny confirmation
         result = manager.deny_confirmation(request.request_id, reason="User declined")
 
-        assert result is True
-        assert request.status == ConfirmationStatus.DENIED
-        assert request.response_at is not None
-        assert request.metadata["denial_reason"] == "User declined"
+        assert result is True  # nosec B101
+        assert request.status == ConfirmationStatus.DENIED  # nosec B101
+        assert request.response_at is not None  # nosec B101
+        assert request.metadata["denial_reason"] == "User declined"  # nosec B101
 
         # Should be moved to completed
-        assert request.request_id not in manager._pending
-        assert request.request_id in manager._completed
+        assert request.request_id not in manager._pending  # nosec B101
+        assert request.request_id in manager._completed  # nosec B101
 
         # Check metrics
         metrics = manager.get_metrics()
-        assert metrics.denied == 1
-        assert metrics.pending == 0
+        assert metrics.denied == 1  # nosec B101
+        assert metrics.pending == 0  # nosec B101
 
     def test_grant_nonexistent_request(self):
         """Test granting nonexistent request."""
@@ -345,7 +345,7 @@ class TestConfirmationManager:
 
         result = manager.grant_confirmation("nonexistent")
 
-        assert result is False
+        assert result is False  # nosec B101
 
     def test_deny_nonexistent_request(self):
         """Test denying nonexistent request."""
@@ -353,7 +353,7 @@ class TestConfirmationManager:
 
         result = manager.deny_confirmation("nonexistent")
 
-        assert result is False
+        assert result is False  # nosec B101
 
     def test_grant_expired_request(self):
         """Test granting expired request."""
@@ -375,13 +375,13 @@ class TestConfirmationManager:
         # Try to grant
         result = manager.grant_confirmation(request.request_id)
 
-        assert result is False
-        assert request.status == ConfirmationStatus.EXPIRED
+        assert result is False  # nosec B101
+        assert request.status == ConfirmationStatus.EXPIRED  # nosec B101
 
         # Check metrics
         metrics = manager.get_metrics()
-        assert metrics.expired == 1
-        assert metrics.granted == 0
+        assert metrics.expired == 1  # nosec B101
+        assert metrics.granted == 0  # nosec B101
 
     def test_get_pending_confirmations_all(self):
         """Test getting all pending confirmations."""
@@ -405,9 +405,9 @@ class TestConfirmationManager:
 
         pending = manager.get_pending_confirmations()
 
-        assert len(pending) == 2
-        assert req1 in pending
-        assert req2 in pending
+        assert len(pending) == 2  # nosec B101
+        assert req1 in pending  # nosec B101
+        assert req2 in pending  # nosec B101
 
     def test_get_pending_confirmations_by_user(self):
         """Test getting pending confirmations for specific user."""
@@ -431,9 +431,9 @@ class TestConfirmationManager:
 
         pending = manager.get_pending_confirmations(user_id="user1")
 
-        assert len(pending) == 1
-        assert req1 in pending
-        assert req2 not in pending
+        assert len(pending) == 1  # nosec B101
+        assert req1 in pending  # nosec B101
+        assert req2 not in pending  # nosec B101
 
     def test_create_batch_confirmation(self):
         """Test creating batch confirmation."""
@@ -450,17 +450,17 @@ class TestConfirmationManager:
             ],
         )
 
-        assert batch.user_id == "user123"
-        assert len(batch.requests) == 2
-        assert not batch.all_or_nothing
+        assert batch.user_id == "user123"  # nosec B101
+        assert len(batch.requests) == 2  # nosec B101
+        assert not batch.all_or_nothing  # nosec B101
 
         # Check individual requests were created
-        assert len(manager._pending) == 2
+        assert len(manager._pending) == 2  # nosec B101
 
         # Check metrics
         metrics = manager.get_metrics()
-        assert metrics.batch_requests == 1
-        assert metrics.total_requests == 2
+        assert metrics.batch_requests == 1  # nosec B101
+        assert metrics.total_requests == 2  # nosec B101
 
     def test_create_batch_all_or_nothing(self):
         """Test creating all-or-nothing batch."""
@@ -477,7 +477,7 @@ class TestConfirmationManager:
             all_or_nothing=True,
         )
 
-        assert batch.all_or_nothing is True
+        assert batch.all_or_nothing is True  # nosec B101
 
     def test_get_batch(self):
         """Test getting batch by ID."""
@@ -492,7 +492,7 @@ class TestConfirmationManager:
 
         retrieved = manager.get_batch(batch.batch_id)
 
-        assert retrieved == batch
+        assert retrieved == batch  # nosec B101
 
     def test_get_nonexistent_batch(self):
         """Test getting nonexistent batch."""
@@ -500,7 +500,7 @@ class TestConfirmationManager:
 
         result = manager.get_batch("nonexistent")
 
-        assert result is None
+        assert result is None  # nosec B101
 
     def test_metrics_average_response_time(self):
         """Test average response time calculation."""
@@ -531,7 +531,7 @@ class TestConfirmationManager:
         metrics = manager.get_metrics()
 
         # Should have average response time
-        assert metrics.average_response_time > 0
+        assert metrics.average_response_time > 0  # nosec B101
 
     def test_clear_completed_all(self):
         """Test clearing all completed confirmations."""
@@ -559,8 +559,8 @@ class TestConfirmationManager:
         # Clear completed
         count = manager.clear_completed()
 
-        assert count == 2
-        assert len(manager._completed) == 0
+        assert count == 2  # nosec B101
+        assert len(manager._completed) == 0  # nosec B101
 
     def test_clear_completed_older_than(self):
         """Test clearing old completed confirmations."""
@@ -592,9 +592,9 @@ class TestConfirmationManager:
         # Clear only old ones (older than 0.01 seconds)
         count = manager.clear_completed(older_than_seconds=0.01)
 
-        assert count == 1
-        assert len(manager._completed) == 1
-        assert req2.request_id in manager._completed
+        assert count == 1  # nosec B101
+        assert len(manager._completed) == 1  # nosec B101
+        assert req2.request_id in manager._completed  # nosec B101
 
     def test_cleanup_expired(self):
         """Test automatic cleanup of expired requests."""
@@ -617,12 +617,12 @@ class TestConfirmationManager:
         # Get pending (triggers cleanup)
         pending = manager.get_pending_confirmations()
 
-        assert len(pending) == 0
-        assert req.request_id not in manager._pending
-        assert req.request_id in manager._completed
-        assert req.status == ConfirmationStatus.EXPIRED
+        assert len(pending) == 0  # nosec B101
+        assert req.request_id not in manager._pending  # nosec B101
+        assert req.request_id in manager._completed  # nosec B101
+        assert req.status == ConfirmationStatus.EXPIRED  # nosec B101
 
         # Check metrics
         metrics = manager.get_metrics()
-        assert metrics.expired == 1
-        assert metrics.pending == 0
+        assert metrics.expired == 1  # nosec B101
+        assert metrics.pending == 0  # nosec B101

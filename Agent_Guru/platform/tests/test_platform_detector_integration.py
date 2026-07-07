@@ -26,22 +26,22 @@ class TestPlatformDetectorIntegration:
         info = PlatformDetector.detect()
         
         # Should return valid PlatformInfo
-        assert isinstance(info, PlatformInfo)
+        assert isinstance(info, PlatformInfo)  # nosec B101
         
         # OS name should be one of supported platforms
-        assert info.os_name in ["Windows", "macOS", "Linux", "Android", "iOS"]
+        assert info.os_name in ["Windows", "macOS", "Linux", "Android", "iOS"]  # nosec B101
         
         # Version should not be empty
-        assert len(info.os_version) > 0
+        assert len(info.os_version) > 0  # nosec B101
         
         # Architecture should be valid
-        assert info.architecture in ["x64", "x86", "ARM64", "ARM"] or len(info.architecture) > 0
+        assert info.architecture in ["x64", "x86", "ARM64", "ARM"] or len(info.architecture) > 0  # nosec B101
         
         # Python version should match actual version
-        assert info.python_version == platform_module.python_version()
+        assert info.python_version == platform_module.python_version()  # nosec B101
         
         # Python implementation should match actual implementation
-        assert info.python_implementation == platform_module.python_implementation()
+        assert info.python_implementation == platform_module.python_implementation()  # nosec B101
     
     def test_is_methods_match_actual_platform(self):
         """Test that is_* methods correctly identify actual platform."""
@@ -57,19 +57,19 @@ class TestPlatformDetectorIntegration:
         ])
         
         # Exactly one should be True
-        assert true_count == 1, "Exactly one platform should be detected"
+        assert true_count == 1, "Exactly one platform should be detected"  # nosec B101
         
         # The True method should match detected os_name
         if info.os_name == "Windows":
-            assert PlatformDetector.is_windows() is True
+            assert PlatformDetector.is_windows() is True  # nosec B101
         elif info.os_name == "macOS":
-            assert PlatformDetector.is_macos() is True
+            assert PlatformDetector.is_macos() is True  # nosec B101
         elif info.os_name == "Linux":
-            assert PlatformDetector.is_linux() is True
+            assert PlatformDetector.is_linux() is True  # nosec B101
         elif info.os_name == "Android":
-            assert PlatformDetector.is_android() is True
+            assert PlatformDetector.is_android() is True  # nosec B101
         elif info.os_name == "iOS":
-            assert PlatformDetector.is_ios() is True
+            assert PlatformDetector.is_ios() is True  # nosec B101
     
     def test_desktop_mobile_classification(self):
         """Test desktop vs mobile classification on actual platform."""
@@ -77,16 +77,16 @@ class TestPlatformDetectorIntegration:
         is_mobile = PlatformDetector.is_mobile()
         
         # Exactly one should be True (mutually exclusive)
-        assert is_desktop != is_mobile
+        assert is_desktop != is_mobile  # nosec B101
         
         # Verify classification matches OS
         info = PlatformDetector.detect()
         if info.os_name in ["Windows", "macOS", "Linux"]:
-            assert is_desktop is True
-            assert is_mobile is False
+            assert is_desktop is True  # nosec B101
+            assert is_mobile is False  # nosec B101
         elif info.os_name in ["Android", "iOS"]:
-            assert is_desktop is False
-            assert is_mobile is True
+            assert is_desktop is False  # nosec B101
+            assert is_mobile is True  # nosec B101
     
     def test_caching_performance(self):
         """Test that caching improves performance."""
@@ -107,10 +107,10 @@ class TestPlatformDetectorIntegration:
         
         # Cached call should be faster (or at least not slower)
         # Allow some variance due to system load
-        assert time2 <= time1 * 2, "Cached call should not be significantly slower"
+        assert time2 <= time1 * 2, "Cached call should not be significantly slower"  # nosec B101
         
         # Should return same object
-        assert info1 is info2
+        assert info1 is info2  # nosec B101
     
     def test_multiple_calls_consistency(self):
         """Test that multiple calls return consistent results."""
@@ -122,13 +122,13 @@ class TestPlatformDetectorIntegration:
         
         # All should be the same object (cached)
         for result in results[1:]:
-            assert result is results[0]
+            assert result is results[0]  # nosec B101
         
         # All should have same values
         for result in results:
-            assert result.os_name == results[0].os_name
-            assert result.os_version == results[0].os_version
-            assert result.architecture == results[0].architecture
+            assert result.os_name == results[0].os_name  # nosec B101
+            assert result.os_version == results[0].os_version  # nosec B101
+            assert result.architecture == results[0].architecture  # nosec B101
     
     def test_platform_info_string_representation(self):
         """Test that PlatformInfo can be converted to string."""
@@ -136,10 +136,10 @@ class TestPlatformDetectorIntegration:
         
         # Should be able to convert to string
         info_str = str(info)
-        assert len(info_str) > 0
+        assert len(info_str) > 0  # nosec B101
         
         # Should contain key information
-        assert info.os_name in info_str
+        assert info.os_name in info_str  # nosec B101
     
     def test_architecture_is_normalized(self):
         """Test that architecture is properly normalized."""
@@ -149,7 +149,7 @@ class TestPlatformDetectorIntegration:
         valid_architectures = ["x64", "x86", "ARM64", "ARM"]
         
         # Either standard value or non-empty string
-        assert info.architecture in valid_architectures or len(info.architecture) > 0
+        assert info.architecture in valid_architectures or len(info.architecture) > 0  # nosec B101
     
     def test_python_version_format(self):
         """Test that Python version has expected format."""
@@ -157,19 +157,19 @@ class TestPlatformDetectorIntegration:
         
         # Python version should have format like "3.11.5"
         parts = info.python_version.split('.')
-        assert len(parts) >= 2, "Python version should have at least major.minor"
+        assert len(parts) >= 2, "Python version should have at least major.minor"  # nosec B101
         
         # First two parts should be numeric
-        assert parts[0].isdigit(), "Major version should be numeric"
-        assert parts[1].isdigit(), "Minor version should be numeric"
+        assert parts[0].isdigit(), "Major version should be numeric"  # nosec B101
+        assert parts[1].isdigit(), "Minor version should be numeric"  # nosec B101
     
     def test_os_version_not_empty(self):
         """Test that OS version is not empty."""
         info = PlatformDetector.detect()
         
         # OS version should not be empty
-        assert len(info.os_version) > 0
-        assert info.os_version.strip() == info.os_version, "Should not have leading/trailing whitespace"
+        assert len(info.os_version) > 0  # nosec B101
+        assert info.os_version.strip() == info.os_version, "Should not have leading/trailing whitespace"  # nosec B101
 
 
 class TestPlatformDetectorPerformance:
@@ -189,7 +189,7 @@ class TestPlatformDetectorPerformance:
         elapsed = time.perf_counter() - start
         
         # Should complete in <10ms (target from design doc)
-        assert elapsed < 0.010, f"Detection took {elapsed*1000:.2f}ms, target is <10ms"
+        assert elapsed < 0.010, f"Detection took {elapsed*1000:.2f}ms, target is <10ms"  # nosec B101
     
     def test_cached_detection_latency_under_1ms(self):
         """Test that cached detection is extremely fast (<1ms)."""
@@ -204,7 +204,7 @@ class TestPlatformDetectorPerformance:
         elapsed = time.perf_counter() - start
         
         # Cached should be <1ms
-        assert elapsed < 0.001, f"Cached detection took {elapsed*1000:.2f}ms, target is <1ms"
+        assert elapsed < 0.001, f"Cached detection took {elapsed*1000:.2f}ms, target is <1ms"  # nosec B101
     
     def test_is_methods_latency_under_1ms(self):
         """Test that is_* methods complete in <1ms."""
@@ -219,7 +219,7 @@ class TestPlatformDetectorPerformance:
         elapsed = time.perf_counter() - start
         
         # Should be <1ms
-        assert elapsed < 0.001, f"is_windows() took {elapsed*1000:.2f}ms, target is <1ms"
+        assert elapsed < 0.001, f"is_windows() took {elapsed*1000:.2f}ms, target is <1ms"  # nosec B101
 
 
 class TestPlatformDetectorEdgeCases:
@@ -238,9 +238,9 @@ class TestPlatformDetectorEdgeCases:
             info2 = PlatformDetector.detect()
             
             # Should have same values (but different objects)
-            assert info1.os_name == info2.os_name
-            assert info1.os_version == info2.os_version
-            assert info1.architecture == info2.architecture
+            assert info1.os_name == info2.os_name  # nosec B101
+            assert info1.os_version == info2.os_version  # nosec B101
+            assert info1.architecture == info2.architecture  # nosec B101
     
     def test_concurrent_detection_calls(self):
         """Test that concurrent calls don't cause issues."""
@@ -268,5 +268,5 @@ class TestPlatformDetectorEdgeCases:
         
         # All should have same values
         for result in results:
-            assert result.os_name == results[0].os_name
-            assert result.os_version == results[0].os_version
+            assert result.os_name == results[0].os_name  # nosec B101
+            assert result.os_version == results[0].os_version  # nosec B101

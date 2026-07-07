@@ -5,3 +5,7 @@ exclude_dirs:
   - htmlcov
   - .git
   - .hypothesis
+  - .venv
+  - .mypy_cache
+  - .ruff_cache
+  - __pycache__

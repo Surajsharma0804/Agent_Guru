@@ -52,11 +52,11 @@ class TestOllamaRequestValidation:
         Validates: Requirements 4.2
         """
         # Valid request should not raise during creation
-        assert isinstance(request, LLMRequest)
-        assert request.prompt is not None
-        assert 0.0 <= request.temperature <= 2.0
-        assert 0.0 <= request.top_p <= 1.0
-        assert request.max_tokens > 0
+        assert isinstance(request, LLMRequest)  # nosec B101
+        assert request.prompt is not None  # nosec B101
+        assert 0.0 <= request.temperature <= 2.0  # nosec B101
+        assert 0.0 <= request.top_p <= 1.0  # nosec B101
+        assert request.max_tokens > 0  # nosec B101
 
     @given(st.floats(min_value=-10.0, max_value=-0.1) | st.floats(min_value=2.1, max_value=10.0))
     @settings(max_examples=100)
@@ -114,11 +114,11 @@ class TestOllamaResponseStructure:
             finish_reason=finish_reason,
         )
 
-        assert isinstance(response, LLMResponse)
-        assert response.text == text
-        assert response.latency_ms >= 0
-        assert response.tokens_generated >= 0
-        assert response.finish_reason in ["stop", "length", "error"]
+        assert isinstance(response, LLMResponse)  # nosec B101
+        assert response.text == text  # nosec B101
+        assert response.latency_ms >= 0  # nosec B101
+        assert response.tokens_generated >= 0  # nosec B101
+        assert response.finish_reason in ["stop", "length", "error"]  # nosec B101
 
     @given(st.floats(max_value=-0.1))
     @settings(max_examples=100)
@@ -175,10 +175,10 @@ class TestOllamaModelSelection:
         model3 = server.select_model_for_task(complexity)
 
         # Should always return same model
-        assert model1 == model2 == model3
+        assert model1 == model2 == model3  # nosec B101
 
         # Should be a valid model
-        assert model1 in OLLAMA_MODELS
+        assert model1 in OLLAMA_MODELS  # nosec B101
 
     @given(st.sampled_from(["simple", "complex"]))
     @settings(max_examples=100)
@@ -191,21 +191,21 @@ class TestOllamaModelSelection:
         model = server.select_model_for_task(complexity)
         config = server.get_model_config(model)
 
-        assert config is not None
-        assert config.name == model
-        assert config.use_case in ["simple", "complex"]
+        assert config is not None  # nosec B101
+        assert config.name == model  # nosec B101
+        assert config.use_case in ["simple", "complex"]  # nosec B101
 
     def test_simple_uses_mistral(self):
         """Property: Simple tasks always use Mistral 7B."""
         server = OllamaServer()
         model = server.select_model_for_task("simple")
-        assert model == "gemma3:4b"
+        assert model == "gemma3:4b"  # nosec B101
 
     def test_complex_uses_qwen(self):
         """Property: Complex tasks always use Qwen 14B."""
         server = OllamaServer()
         model = server.select_model_for_task("complex")
-        assert model == "gemma3:4b"
+        assert model == "gemma3:4b"  # nosec B101
 
 
 class TestOllamaHealthCheckIdempotence:
@@ -233,7 +233,7 @@ class TestOllamaHealthCheckIdempotence:
                 results.append(health.is_healthy)
 
         # All checks should return same result
-        assert all(r == results[0] for r in results)
+        assert all(r == results[0] for r in results)  # nosec B101
 
 
 class TestOllamaServerInitialization:
@@ -251,10 +251,10 @@ class TestOllamaServerInitialization:
         """
         server = OllamaServer(host=host, port=port)
 
-        assert server.host == host
-        assert server.port == port
-        assert not server.is_running()
-        assert server._base_url == f"http://{host}:{port}"
+        assert server.host == host  # nosec B101
+        assert server.port == port  # nosec B101
+        assert not server.is_running()  # nosec B101
+        assert server._base_url == f"http://{host}:{port}"  # nosec B101
 
     @given(st.sampled_from(list(OLLAMA_MODELS.keys())))
     @settings(max_examples=100)
@@ -264,7 +264,7 @@ class TestOllamaServerInitialization:
         Validates: Requirements 4.2
         """
         server = OllamaServer(default_model=model)
-        assert server.default_model == model
+        assert server.default_model == model  # nosec B101
 
     @given(st.text(min_size=1, max_size=100).filter(lambda x: x not in OLLAMA_MODELS))
     @settings(max_examples=100)
@@ -305,13 +305,13 @@ class TestOllamaLatencyProperties:
             stats = await server.measure_latency("gemma3:4b", num_samples=num_samples)
 
         # All stats should be non-negative
-        assert stats["mean"] >= 0
-        assert stats["p50"] >= 0
-        assert stats["p95"] >= 0
-        assert stats["p99"] >= 0
+        assert stats["mean"] >= 0  # nosec B101
+        assert stats["p50"] >= 0  # nosec B101
+        assert stats["p95"] >= 0  # nosec B101
+        assert stats["p99"] >= 0  # nosec B101
 
         # Percentiles should be ordered
-        assert stats["p50"] <= stats["p95"] <= stats["p99"]
+        assert stats["p50"] <= stats["p95"] <= stats["p99"]  # nosec B101
 
 
 class TestOllamaRequestResponseRoundtrip:
@@ -344,7 +344,7 @@ class TestOllamaRequestResponseRoundtrip:
         call_args = mock_post.call_args
         payload = call_args[1]["json"]
 
-        assert payload["prompt"] == request.prompt
-        assert payload["options"]["temperature"] == request.temperature
-        assert payload["options"]["top_p"] == request.top_p
-        assert payload["options"]["num_predict"] == request.max_tokens
+        assert payload["prompt"] == request.prompt  # nosec B101
+        assert payload["options"]["temperature"] == request.temperature  # nosec B101
+        assert payload["options"]["top_p"] == request.top_p  # nosec B101
+        assert payload["options"]["num_predict"] == request.max_tokens  # nosec B101

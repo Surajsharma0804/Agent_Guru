@@ -4,7 +4,7 @@ Tests for LocalLLMServer.
 Tests server lifecycle, health checks, and inference.
 """
 
-import subprocess
+import subprocess  # nosec B404
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -28,11 +28,11 @@ class TestLocalLLMServerInit:
         config = LocalLLMConfig(model_path=str(model_file))
         server = LocalLLMServer(config)
 
-        assert server.config == config
-        assert server.process is None
-        assert server._is_running is False
-        assert server._model_loaded is False
-        assert server._base_url == "http://127.0.0.1:8080"
+        assert server.config == config  # nosec B101
+        assert server.process is None  # nosec B101
+        assert server._is_running is False  # nosec B101
+        assert server._model_loaded is False  # nosec B101
+        assert server._base_url == "http://127.0.0.1:8080"  # nosec B101
 
     def test_init_with_nonexistent_model(self):
         """Test that nonexistent model raises error."""
@@ -49,7 +49,7 @@ class TestLocalLLMServerInit:
         config = LocalLLMConfig(model_path=str(model_file), host="0.0.0.0", port=9000)  # nosec B104
         server = LocalLLMServer(config)
 
-        assert server._base_url == "http://0.0.0.0:9000"
+        assert server._base_url == "http://0.0.0.0:9000"  # nosec B101
 
 
 class TestServerBinaryDetection:
@@ -65,7 +65,7 @@ class TestServerBinaryDetection:
 
         with patch.object(server, "_is_command_available", return_value=True):
             binary = server._detect_server_binary()
-            assert binary in ["llama-server", "server", "llama.cpp-server"]
+            assert binary in ["llama-server", "server", "llama.cpp-server"]  # nosec B101
 
     def test_detect_server_binary_not_found(self, tmp_path):
         """Test error when binary not found."""
@@ -85,13 +85,13 @@ class TestServerBinaryDetection:
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = None
             result = LocalLLMServer._is_command_available("test-command")
-            assert result is True
+            assert result is True  # nosec B101
 
     def test_is_command_available_failure(self):
         """Test _is_command_available with unavailable command."""
         with patch("subprocess.run", side_effect=FileNotFoundError):
             result = LocalLLMServer._is_command_available("nonexistent")
-            assert result is False
+            assert result is False  # nosec B101
 
 
 class TestServerCommandBuilding:
@@ -115,19 +115,19 @@ class TestServerCommandBuilding:
         with patch.object(server, "_detect_server_binary", return_value="llama-server"):
             cmd = server._build_server_command()
 
-            assert "llama-server" in cmd
-            assert "-m" in cmd
-            assert str(model_file) in cmd
-            assert "--host" in cmd
-            assert "127.0.0.1" in cmd
-            assert "--port" in cmd
-            assert "8080" in cmd
-            assert "-c" in cmd
-            assert "2048" in cmd
-            assert "-t" in cmd
-            assert "8" in cmd
-            assert "-ngl" in cmd
-            assert "35" in cmd
+            assert "llama-server" in cmd  # nosec B101
+            assert "-m" in cmd  # nosec B101
+            assert str(model_file) in cmd  # nosec B101
+            assert "--host" in cmd  # nosec B101
+            assert "127.0.0.1" in cmd  # nosec B101
+            assert "--port" in cmd  # nosec B101
+            assert "8080" in cmd  # nosec B101
+            assert "-c" in cmd  # nosec B101
+            assert "2048" in cmd  # nosec B101
+            assert "-t" in cmd  # nosec B101
+            assert "8" in cmd  # nosec B101
+            assert "-ngl" in cmd  # nosec B101
+            assert "35" in cmd  # nosec B101
 
     def test_build_server_command_metal(self, tmp_path):
         """Test building command with Metal backend."""
@@ -144,8 +144,8 @@ class TestServerCommandBuilding:
         with patch.object(server, "_detect_server_binary", return_value="llama-server"):
             cmd = server._build_server_command()
 
-            assert "-ngl" in cmd
-            assert "35" in cmd
+            assert "-ngl" in cmd  # nosec B101
+            assert "35" in cmd  # nosec B101
 
     def test_build_server_command_cpu(self, tmp_path):
         """Test building command with CPU backend."""
@@ -159,7 +159,7 @@ class TestServerCommandBuilding:
             cmd = server._build_server_command()
 
             # CPU mode should not have -ngl flag
-            assert "-ngl" not in cmd
+            assert "-ngl" not in cmd  # nosec B101
 
 
 @pytest.mark.asyncio
@@ -187,8 +187,8 @@ class TestServerLifecycle:
                 with patch.object(server, "health_check", async_health_mock):
                     await server.start(timeout=1.0)
 
-                    assert server._is_running is True
-                    assert server._model_loaded is True
+                    assert server._is_running is True  # nosec B101
+                    assert server._model_loaded is True  # nosec B101
 
     async def test_start_server_timeout(self, tmp_path):
         """Test server start timeout."""
@@ -225,7 +225,7 @@ class TestServerLifecycle:
 
         await server.start()  # Should return immediately
 
-        assert server._is_running is True
+        assert server._is_running is True  # nosec B101
 
     async def test_stop_server(self, tmp_path):
         """Test stopping server."""
@@ -245,8 +245,8 @@ class TestServerLifecycle:
 
         mock_process.terminate.assert_called_once()
         mock_process.wait.assert_called_once()
-        assert server._is_running is False
-        assert server._model_loaded is False
+        assert server._is_running is False  # nosec B101
+        assert server._model_loaded is False  # nosec B101
 
     async def test_stop_server_force_kill(self, tmp_path):
         """Test force killing server on timeout."""
@@ -293,12 +293,12 @@ class TestHealthCheck:
         with patch("requests.get", return_value=mock_response):
             health = await server.health_check()
 
-            assert health.is_healthy is True
-            assert health.model_loaded is True
-            assert health.gpu_available is True
-            assert health.gpu_backend == GPUBackend.CUDA
-            assert health.latency_ms is not None
-            assert health.latency_ms >= 0
+            assert health.is_healthy is True  # nosec B101
+            assert health.model_loaded is True  # nosec B101
+            assert health.gpu_available is True  # nosec B101
+            assert health.gpu_backend == GPUBackend.CUDA  # nosec B101
+            assert health.latency_ms is not None  # nosec B101
+            assert health.latency_ms >= 0  # nosec B101
 
     async def test_health_check_process_not_running(self, tmp_path):
         """Test health check when process not running."""
@@ -310,9 +310,9 @@ class TestHealthCheck:
 
         health = await server.health_check()
 
-        assert health.is_healthy is False
-        assert health.model_loaded is False
-        assert health.error_message == "Server process not running"
+        assert health.is_healthy is False  # nosec B101
+        assert health.model_loaded is False  # nosec B101
+        assert health.error_message == "Server process not running"  # nosec B101
 
     async def test_health_check_http_error(self, tmp_path):
         """Test health check with HTTP error."""
@@ -332,8 +332,8 @@ class TestHealthCheck:
         with patch("requests.get", return_value=mock_response):
             health = await server.health_check()
 
-            assert health.is_healthy is False
-            assert "Health check failed: 500" in health.error_message
+            assert health.is_healthy is False  # nosec B101
+            assert "Health check failed: 500" in health.error_message  # nosec B101
 
     async def test_health_check_request_exception(self, tmp_path):
         """Test health check with request exception."""
@@ -352,8 +352,8 @@ class TestHealthCheck:
         with patch("requests.get", side_effect=requests.RequestException("Connection refused")):
             health = await server.health_check()
 
-            assert health.is_healthy is False
-            assert "Health check error" in health.error_message
+            assert health.is_healthy is False  # nosec B101
+            assert "Health check error" in health.error_message  # nosec B101
 
 
 @pytest.mark.asyncio
@@ -382,13 +382,13 @@ class TestInference:
         with patch("requests.post", return_value=mock_response):
             response = await server.generate(request)
 
-            assert response.text == "Generated response text"
-            assert response.provider.value == "local"
-            assert response.tokens_generated == 50
-            assert response.finish_reason == "stop"
-            assert response.latency_ms >= 0
-            assert "model" in response.metadata
-            assert "gpu_backend" in response.metadata
+            assert response.text == "Generated response text"  # nosec B101
+            assert response.provider.value == "local"  # nosec B101
+            assert response.tokens_generated == 50  # nosec B101
+            assert response.finish_reason == "stop"  # nosec B101
+            assert response.latency_ms >= 0  # nosec B101
+            assert "model" in response.metadata  # nosec B101
+            assert "gpu_backend" in response.metadata  # nosec B101
 
     async def test_generate_server_not_running(self, tmp_path):
         """Test generation when server not running."""
@@ -451,10 +451,10 @@ class TestServerStatus:
         config = LocalLLMConfig(model_path=str(model_file))
         server = LocalLLMServer(config)
 
-        assert server.is_running() is False
+        assert server.is_running() is False  # nosec B101
 
         server._is_running = True
-        assert server.is_running() is True
+        assert server.is_running() is True  # nosec B101
 
     def test_is_model_loaded(self, tmp_path):
         """Test is_model_loaded method."""
@@ -464,7 +464,7 @@ class TestServerStatus:
         config = LocalLLMConfig(model_path=str(model_file))
         server = LocalLLMServer(config)
 
-        assert server.is_model_loaded() is False
+        assert server.is_model_loaded() is False  # nosec B101
 
         server._model_loaded = True
-        assert server.is_model_loaded() is True
+        assert server.is_model_loaded() is True  # nosec B101

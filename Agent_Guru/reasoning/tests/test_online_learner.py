@@ -59,10 +59,10 @@ class TestFeedbackCollection:
             feedback_type=FeedbackType.POSITIVE,
         )
 
-        assert feedback.user_id == "user-123"
-        assert feedback.predicted_intent == "set_timer"
-        assert feedback.feedback_type == FeedbackType.POSITIVE
-        assert feedback.model_version == "v1.0"
+        assert feedback.user_id == "user-123"  # nosec B101
+        assert feedback.predicted_intent == "set_timer"  # nosec B101
+        assert feedback.feedback_type == FeedbackType.POSITIVE  # nosec B101
+        assert feedback.model_version == "v1.0"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_collect_correction_feedback(self, learner):
@@ -77,8 +77,8 @@ class TestFeedbackCollection:
             feedback_type=FeedbackType.INTENT_CORRECTION,
         )
 
-        assert feedback.correct_intent == "play_music"
-        assert feedback.feedback_type == FeedbackType.INTENT_CORRECTION
+        assert feedback.correct_intent == "play_music"  # nosec B101
+        assert feedback.feedback_type == FeedbackType.INTENT_CORRECTION  # nosec B101
 
     @pytest.mark.asyncio
     async def test_collect_feedback_with_metadata(self, learner):
@@ -93,7 +93,7 @@ class TestFeedbackCollection:
             metadata={"source": "voice", "language": "en"},
         )
 
-        assert feedback.metadata == {"source": "voice", "language": "en"}
+        assert feedback.metadata == {"source": "voice", "language": "en"}  # nosec B101
 
 
 class TestMetricsCalculation:
@@ -104,9 +104,9 @@ class TestMetricsCalculation:
         """Test calculating metrics with no feedback."""
         metrics = await learner.calculate_metrics()
 
-        assert metrics.total_predictions == 0
-        assert metrics.correct_predictions == 0
-        assert metrics.accuracy == 0.0
+        assert metrics.total_predictions == 0  # nosec B101
+        assert metrics.correct_predictions == 0  # nosec B101
+        assert metrics.accuracy == 0.0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_calculate_metrics_with_feedback(self, learner):
@@ -135,10 +135,10 @@ class TestMetricsCalculation:
 
         metrics = await learner.calculate_metrics()
 
-        assert metrics.total_predictions == 10
-        assert metrics.correct_predictions == 8
-        assert metrics.accuracy == 0.8
-        assert metrics.correction_rate == 0.2
+        assert metrics.total_predictions == 10  # nosec B101
+        assert metrics.correct_predictions == 8  # nosec B101
+        assert metrics.accuracy == 0.8  # nosec B101
+        assert metrics.correction_rate == 0.2  # nosec B101
 
     @pytest.mark.asyncio
     async def test_calculate_metrics_per_intent(self, learner):
@@ -177,8 +177,8 @@ class TestMetricsCalculation:
 
         metrics = await learner.calculate_metrics()
 
-        assert metrics.intent_accuracies["intent_a"] == 1.0
-        assert abs(metrics.intent_accuracies["intent_b"] - 0.667) < 0.01
+        assert metrics.intent_accuracies["intent_a"] == 1.0  # nosec B101
+        assert abs(metrics.intent_accuracies["intent_b"] - 0.667) < 0.01  # nosec B101
 
     @pytest.mark.asyncio
     async def test_calculate_metrics_confidence(self, learner):
@@ -207,8 +207,8 @@ class TestMetricsCalculation:
 
         metrics = await learner.calculate_metrics()
 
-        assert abs(metrics.avg_confidence - 0.86) < 0.01
-        assert metrics.low_confidence_rate == 0.3
+        assert abs(metrics.avg_confidence - 0.86) < 0.01  # nosec B101
+        assert metrics.low_confidence_rate == 0.3  # nosec B101
 
 
 class TestDriftDetection:
@@ -241,8 +241,8 @@ class TestDriftDetection:
 
         has_drifted, metrics = await learner.detect_drift()
 
-        assert not has_drifted
-        assert metrics.accuracy == 0.94
+        assert not has_drifted  # nosec B101
+        assert metrics.accuracy == 0.94  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_drift_with_drift(self, learner):
@@ -271,8 +271,8 @@ class TestDriftDetection:
 
         has_drifted, metrics = await learner.detect_drift()
 
-        assert has_drifted
-        assert metrics.accuracy == 0.88
+        assert has_drifted  # nosec B101
+        assert metrics.accuracy == 0.88  # nosec B101
 
 
 class TestRetrainingTriggers:
@@ -294,8 +294,8 @@ class TestRetrainingTriggers:
 
         should_retrain, reason = await learner.should_retrain()
 
-        assert not should_retrain
-        assert "Insufficient feedback" in reason
+        assert not should_retrain  # nosec B101
+        assert "Insufficient feedback" in reason  # nosec B101
 
     @pytest.mark.asyncio
     async def test_should_retrain_drift_detected(self, learner):
@@ -329,7 +329,7 @@ class TestRetrainingTriggers:
 
         # With 90% accuracy and 95% baseline, no drift
         # But high correction rate should trigger
-        assert should_retrain or not should_retrain  # Either is valid
+        assert should_retrain or not should_retrain  # Either is valid  # nosec B101
 
     @pytest.mark.asyncio
     async def test_should_retrain_high_correction_rate(self, learner):
@@ -361,8 +361,8 @@ class TestRetrainingTriggers:
 
         should_retrain, reason = await learner.should_retrain()
 
-        assert should_retrain
-        assert "correction rate" in reason.lower() or "drift" in reason.lower()
+        assert should_retrain  # nosec B101
+        assert "correction rate" in reason.lower() or "drift" in reason.lower()  # nosec B101
 
     @pytest.mark.asyncio
     async def test_should_retrain_high_low_confidence_rate(self, learner):
@@ -390,8 +390,8 @@ class TestRetrainingTriggers:
 
         should_retrain, reason = await learner.should_retrain()
 
-        assert should_retrain
-        assert "low-confidence" in reason.lower()
+        assert should_retrain  # nosec B101
+        assert "low-confidence" in reason.lower()  # nosec B101
 
 
 class TestTrainingDataExtraction:
@@ -414,8 +414,8 @@ class TestTrainingDataExtraction:
 
         training_data = await learner.get_training_data()
 
-        assert len(training_data) == 5
-        assert all(label == "correct" for _, label in training_data)
+        assert len(training_data) == 5  # nosec B101
+        assert all(label == "correct" for _, label in training_data)  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_training_data_with_limit(self, learner):
@@ -434,7 +434,7 @@ class TestTrainingDataExtraction:
 
         training_data = await learner.get_training_data(limit=5)
 
-        assert len(training_data) == 5
+        assert len(training_data) == 5  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_training_data_excludes_positive(self, learner):
@@ -462,7 +462,7 @@ class TestTrainingDataExtraction:
 
         training_data = await learner.get_training_data()
 
-        assert len(training_data) == 1
+        assert len(training_data) == 1  # nosec B101
 
 
 class TestPerformanceSummary:
@@ -484,8 +484,8 @@ class TestPerformanceSummary:
 
         summary = await learner.get_performance_summary()
 
-        assert summary["model_version"] == "v1.0"
-        assert summary["baseline_accuracy"] == 0.95
-        assert summary["total_feedback"] == 15
-        assert "should_retrain" in summary
-        assert "retraining_reason" in summary
+        assert summary["model_version"] == "v1.0"  # nosec B101
+        assert summary["baseline_accuracy"] == 0.95  # nosec B101
+        assert summary["total_feedback"] == 15  # nosec B101
+        assert "should_retrain" in summary  # nosec B101
+        assert "retraining_reason" in summary  # nosec B101

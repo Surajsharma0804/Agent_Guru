@@ -43,11 +43,11 @@ class TestModelRouterClientProperties:
         
         # PROPERTY ASSERTION: Network state determines model location
         if network_state == NetworkState.OFFLINE:
-            assert model.location == ModelLocation.LOCAL
+            assert model.location == ModelLocation.LOCAL  # nosec B101
         elif network_state == NetworkState.ONLINE_POOR:
-            assert model.location == ModelLocation.LOCAL
+            assert model.location == ModelLocation.LOCAL  # nosec B101
         elif network_state == NetworkState.ONLINE_GOOD:
-            assert model.location == ModelLocation.CLOUD
+            assert model.location == ModelLocation.CLOUD  # nosec B101
     
     @given(
         model_type=st.sampled_from([ModelType.STT, ModelType.TTS]),
@@ -73,8 +73,8 @@ class TestModelRouterClientProperties:
         elapsed = time.time() - start_time
         
         # PROPERTY ASSERTION: Fallback must complete within 1 second
-        assert elapsed < 1.0, f"Fallback took {elapsed:.3f}s, must be <1s"
-        assert model.location == ModelLocation.LOCAL
+        assert elapsed < 1.0, f"Fallback took {elapsed:.3f}s, must be <1s"  # nosec B101
+        assert model.location == ModelLocation.LOCAL  # nosec B101
     
     @given(
         battery_low=st.booleans(),
@@ -96,9 +96,9 @@ class TestModelRouterClientProperties:
         
         # PROPERTY ASSERTION: Low battery prefers local
         if battery_low:
-            assert model.location == ModelLocation.LOCAL
+            assert model.location == ModelLocation.LOCAL  # nosec B101
         else:
-            assert model.location == ModelLocation.CLOUD
+            assert model.location == ModelLocation.CLOUD  # nosec B101
     
     # ========================================================================
     # PROPERTY: CONSISTENCY
@@ -122,8 +122,8 @@ class TestModelRouterClientProperties:
         
         # PROPERTY ASSERTION: All selections should be consistent
         for i in range(1, len(models)):
-            assert models[i].location == models[0].location
-            assert models[i].model_id == models[0].model_id
+            assert models[i].location == models[0].location  # nosec B101
+            assert models[i].model_id == models[0].model_id  # nosec B101
     
     # ========================================================================
     # PROPERTY: ROBUSTNESS
@@ -145,8 +145,8 @@ class TestModelRouterClientProperties:
         model = client.select_stt_model(language=language)
         
         # PROPERTY ASSERTION
-        assert model is not None
-        assert model.location in ModelLocation
+        assert model is not None  # nosec B101
+        assert model.location in ModelLocation  # nosec B101
     
     @given(
         prefer_local=st.booleans(),
@@ -166,9 +166,9 @@ class TestModelRouterClientProperties:
         
         # PROPERTY ASSERTION: Preferences are respected
         if prefer_local:
-            assert model.location == ModelLocation.LOCAL
+            assert model.location == ModelLocation.LOCAL  # nosec B101
         elif prefer_cloud:
-            assert model.location == ModelLocation.CLOUD
+            assert model.location == ModelLocation.CLOUD  # nosec B101
     
     # ========================================================================
     # PROPERTY: PERFORMANCE TRACKING
@@ -201,12 +201,12 @@ class TestModelRouterClientProperties:
         metrics = client.get_performance_metrics(model_id)
         
         # PROPERTY ASSERTION: Metrics should be in valid ranges
-        assert metrics is not None
-        assert 0.0 <= metrics.accuracy <= 1.0
-        assert metrics.latency_ms >= 0.0
-        assert metrics.cost_per_request >= 0.0
-        assert 0.0 <= metrics.success_rate <= 1.0
-        assert metrics.total_requests >= 1
+        assert metrics is not None  # nosec B101
+        assert 0.0 <= metrics.accuracy <= 1.0  # nosec B101
+        assert metrics.latency_ms >= 0.0  # nosec B101
+        assert metrics.cost_per_request >= 0.0  # nosec B101
+        assert 0.0 <= metrics.success_rate <= 1.0  # nosec B101
+        assert metrics.total_requests >= 1  # nosec B101
     
     @given(
         num_requests=st.integers(min_value=1, max_value=100),
@@ -233,8 +233,8 @@ class TestModelRouterClientProperties:
         metrics = client.get_performance_metrics(model_id)
         
         # PROPERTY ASSERTION: Total requests should match
-        assert metrics is not None
-        assert metrics.total_requests == num_requests
+        assert metrics is not None  # nosec B101
+        assert metrics.total_requests == num_requests  # nosec B101
     
     # ========================================================================
     # PROPERTY: CACHING
@@ -257,7 +257,7 @@ class TestModelRouterClientProperties:
         cached = client.get_cached_result(key)
         
         # PROPERTY ASSERTION: Cached value should match
-        assert cached == value
+        assert cached == value  # nosec B101
     
     @given(
         num_entries=st.integers(min_value=1, max_value=100),
@@ -280,7 +280,7 @@ class TestModelRouterClientProperties:
         
         # PROPERTY ASSERTION: All entries should be gone
         for i in range(num_entries):
-            assert client.get_cached_result(f"key{i}") is None
+            assert client.get_cached_result(f"key{i}") is None  # nosec B101
     
     # ========================================================================
     # PROPERTY: FALLBACK RELIABILITY
@@ -304,8 +304,8 @@ class TestModelRouterClientProperties:
             elapsed = time.time() - start_time
             
             # PROPERTY ASSERTION: Each fallback must be fast
-            assert elapsed < 1.0
-            assert model.location == ModelLocation.LOCAL
+            assert elapsed < 1.0  # nosec B101
+            assert model.location == ModelLocation.LOCAL  # nosec B101
     
     # ========================================================================
     # PROPERTY: MODEL INFO VALIDITY
@@ -331,12 +331,12 @@ class TestModelRouterClientProperties:
         
         # PROPERTY ASSERTION: Model info should be valid
         for model in [stt_model, tts_model]:
-            assert model.model_id is not None
-            assert len(model.model_id) > 0
-            assert model.location in ModelLocation
-            assert model.estimated_latency_ms >= 0.0
-            assert 0.0 <= model.estimated_accuracy <= 1.0
-            assert model.estimated_cost >= 0.0
+            assert model.model_id is not None  # nosec B101
+            assert len(model.model_id) > 0  # nosec B101
+            assert model.location in ModelLocation  # nosec B101
+            assert model.estimated_latency_ms >= 0.0  # nosec B101
+            assert 0.0 <= model.estimated_accuracy <= 1.0  # nosec B101
+            assert model.estimated_cost >= 0.0  # nosec B101
     
     # ========================================================================
     # PROPERTY: LOCAL MODEL COST
@@ -361,8 +361,8 @@ class TestModelRouterClientProperties:
             model = client.select_tts_model(gender="male")
         
         # PROPERTY ASSERTION: Local models are free
-        assert model.location == ModelLocation.LOCAL
-        assert model.estimated_cost == 0.0
+        assert model.location == ModelLocation.LOCAL  # nosec B101
+        assert model.estimated_cost == 0.0  # nosec B101
     
     # ========================================================================
     # PROPERTY: DETERMINISM
@@ -386,6 +386,6 @@ class TestModelRouterClientProperties:
         
         # PROPERTY ASSERTION: All selections should be identical
         for i in range(1, len(models)):
-            assert models[i].model_id == models[0].model_id
-            assert models[i].location == models[0].location
-            assert models[i].provider == models[0].provider
+            assert models[i].model_id == models[0].model_id  # nosec B101
+            assert models[i].location == models[0].location  # nosec B101
+            assert models[i].provider == models[0].provider  # nosec B101

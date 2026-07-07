@@ -60,9 +60,9 @@ class TestProactiveSuggestionGenerator:
         suggestions = generator.generate_follow_up_suggestions(task, result, conversation_state)
 
         # May or may not have suggestions depending on task type
-        assert isinstance(suggestions, list)
+        assert isinstance(suggestions, list)  # nosec B101
         if suggestions:
-            assert all(s.category == SuggestionCategory.FOLLOW_UP for s in suggestions)
+            assert all(s.category == SuggestionCategory.FOLLOW_UP for s in suggestions)  # nosec B101
 
     def test_generate_proactive_suggestions(self):
         """Test generating proactive suggestions based on patterns."""
@@ -79,7 +79,7 @@ class TestProactiveSuggestionGenerator:
         )
 
         # Should return list (may be empty)
-        assert isinstance(suggestions, list)
+        assert isinstance(suggestions, list)  # nosec B101
 
     def test_generate_alternative_suggestions(self):
         """Test generating alternative suggestions when task fails."""
@@ -111,9 +111,9 @@ class TestProactiveSuggestionGenerator:
         suggestions = generator.generate_alternative_suggestions(failed_task)
 
         # May or may not have suggestions depending on task type
-        assert isinstance(suggestions, list)
+        assert isinstance(suggestions, list)  # nosec B101
         if suggestions:
-            assert all(s.category == SuggestionCategory.ALTERNATIVE for s in suggestions)
+            assert all(s.category == SuggestionCategory.ALTERNATIVE for s in suggestions)  # nosec B101
 
     def test_rank_suggestions(self):
         """Test ranking suggestions by relevance."""
@@ -148,12 +148,12 @@ class TestProactiveSuggestionGenerator:
 
         ranked = generator.rank_suggestions(suggestions, max_suggestions=3)
 
-        assert len(ranked) <= 3
+        assert len(ranked) <= 3  # nosec B101
         # Should be sorted by combined score
         if len(ranked) > 1:
             score1 = ranked[0].relevance * 0.6 + ranked[0].confidence * 0.4
             score2 = ranked[1].relevance * 0.6 + ranked[1].confidence * 0.4
-            assert score1 >= score2
+            assert score1 >= score2  # nosec B101
 
     def test_learn_pattern(self):
         """Test learning user patterns."""
@@ -163,9 +163,9 @@ class TestProactiveSuggestionGenerator:
         generator.learn_pattern("user123", "set_timer", {"time_of_day": 10, "day_of_week": 0})
 
         # Check pattern was stored
-        assert "user123" in generator.user_patterns
-        assert len(generator.user_patterns["user123"]) == 1
-        assert generator.user_patterns["user123"][0]["action"] == "set_timer"
+        assert "user123" in generator.user_patterns  # nosec B101
+        assert len(generator.user_patterns["user123"]) == 1  # nosec B101
+        assert generator.user_patterns["user123"][0]["action"] == "set_timer"  # nosec B101
 
     def test_learn_pattern_updates_frequency(self):
         """Test that learning same pattern updates frequency."""
@@ -177,8 +177,8 @@ class TestProactiveSuggestionGenerator:
         generator.learn_pattern("user123", "set_timer", context)
 
         # Should have one pattern with frequency 2
-        assert len(generator.user_patterns["user123"]) == 1
-        assert generator.user_patterns["user123"][0]["frequency"] == 2
+        assert len(generator.user_patterns["user123"]) == 1  # nosec B101
+        assert generator.user_patterns["user123"][0]["frequency"] == 2  # nosec B101
 
 
 if __name__ == "__main__":

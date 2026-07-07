@@ -54,23 +54,23 @@ class TestInitialization:
     def test_init_default_params(self):
         """Test initialization with default parameters."""
         router = FastIntentRouter()
-        assert router._cache_size == 10000
-        assert router._total_matches == 0
-        assert router._cache_hits == 0
-        assert len(router._cache) == 0
+        assert router._cache_size == 10000  # nosec B101
+        assert router._total_matches == 0  # nosec B101
+        assert router._cache_hits == 0  # nosec B101
+        assert len(router._cache) == 0  # nosec B101
 
     def test_init_custom_params(self):
         """Test initialization with custom parameters."""
         router = FastIntentRouter(cache_size=5000, cache_ttl_seconds=600)
-        assert router._cache_size == 5000
-        assert router._cache_ttl.total_seconds() == 600
+        assert router._cache_size == 5000  # nosec B101
+        assert router._cache_ttl.total_seconds() == 600  # nosec B101
 
     def test_load_patterns_success(self, router, patterns_file):
         """Test successful pattern loading."""
-        assert len(router._patterns) > 0
-        assert len(router._entity_patterns) > 0
+        assert len(router._patterns) > 0  # nosec B101
+        assert len(router._entity_patterns) > 0  # nosec B101
         metrics = router.get_metrics()
-        assert metrics["patterns_loaded"] > 0
+        assert metrics["patterns_loaded"] > 0  # nosec B101
 
     def test_load_patterns_file_not_found(self, router_empty):
         """Test loading patterns from non-existent file."""
@@ -96,61 +96,61 @@ class TestPatternMatching:
         """Test exact match for timer command."""
         result = router.match("set timer for 5 minutes")
 
-        assert result is not None
-        assert result.intent_type == "set_timer"
-        assert "duration" in result.entities
-        assert result.confidence > 0.9
-        assert result.quality == MatchQuality.EXACT
-        assert result.latency_ms < 50  # Performance target
+        assert result is not None  # nosec B101
+        assert result.intent_type == "set_timer"  # nosec B101
+        assert "duration" in result.entities  # nosec B101
+        assert result.confidence > 0.9  # nosec B101
+        assert result.quality == MatchQuality.EXACT  # nosec B101
+        assert result.latency_ms < 50  # Performance target  # nosec B101
 
     def test_match_exact_weather(self, router):
         """Test exact match for weather query."""
         result = router.match("what's the weather")
 
-        assert result is not None
-        assert result.intent_type == "query_weather"
-        assert result.confidence > 0.9
-        assert result.latency_ms < 50
+        assert result is not None  # nosec B101
+        assert result.intent_type == "query_weather"  # nosec B101
+        assert result.confidence > 0.9  # nosec B101
+        assert result.latency_ms < 50  # nosec B101
 
     def test_match_with_location_entity(self, router):
         """Test match with location entity extraction."""
         result = router.match("weather in New York")
 
-        assert result is not None
-        assert result.intent_type == "query_weather"
-        assert "location" in result.entities
+        assert result is not None  # nosec B101
+        assert result.intent_type == "query_weather"  # nosec B101
+        assert "location" in result.entities  # nosec B101
         # Note: Input is normalized to lowercase, so entity value is lowercase
-        assert result.entities["location"].value.lower() == "new york"
+        assert result.entities["location"].value.lower() == "new york"  # nosec B101
 
     def test_match_play_music(self, router):
         """Test match for music command."""
         result = router.match("play music")
 
-        assert result is not None
-        assert result.intent_type == "play_music"
-        assert result.confidence > 0.9
+        assert result is not None  # nosec B101
+        assert result.intent_type == "play_music"  # nosec B101
+        assert result.confidence > 0.9  # nosec B101
 
     def test_match_no_match(self, router):
         """Test no match for unknown pattern."""
         result = router.match("this is a completely unknown command that should not match")
 
-        assert result is None
+        assert result is None  # nosec B101
 
     def test_match_case_insensitive(self, router):
         """Test case-insensitive matching."""
         result1 = router.match("SET TIMER FOR 5 MINUTES")
         result2 = router.match("set timer for 5 minutes")
 
-        assert result1 is not None
-        assert result2 is not None
-        assert result1.intent_type == result2.intent_type
+        assert result1 is not None  # nosec B101
+        assert result2 is not None  # nosec B101
+        assert result1.intent_type == result2.intent_type  # nosec B101
 
     def test_match_with_extra_whitespace(self, router):
         """Test matching with extra whitespace."""
         result = router.match("  set   timer   for   5   minutes  ")
 
-        assert result is not None
-        assert result.intent_type == "set_timer"
+        assert result is not None  # nosec B101
+        assert result.intent_type == "set_timer"  # nosec B101
 
 
 # Unit Tests - Entity Extraction
@@ -163,42 +163,42 @@ class TestEntityExtraction:
         """Test duration extraction in minutes."""
         result = router.match("set timer for 10 minutes")
 
-        assert "duration" in result.entities
+        assert "duration" in result.entities  # nosec B101
         entity = result.entities["duration"]
-        assert entity.entity_type == EntityType.DURATION
-        assert entity.confidence == 0.95
+        assert entity.entity_type == EntityType.DURATION  # nosec B101
+        assert entity.confidence == 0.95  # nosec B101
 
     def test_extract_duration_seconds(self, router):
         """Test duration extraction in seconds."""
         result = router.match("set timer for 30 seconds")
 
-        assert "duration" in result.entities
+        assert "duration" in result.entities  # nosec B101
         entity = result.entities["duration"]
-        assert entity.raw_text == "30 seconds"
+        assert entity.raw_text == "30 seconds"  # nosec B101
 
     def test_extract_time_12hour(self, router):
         """Test time extraction in 12-hour format."""
         result = router.match("set alarm for 7:30 am")
 
-        assert "time" in result.entities
+        assert "time" in result.entities  # nosec B101
         entity = result.entities["time"]
-        assert entity.entity_type == EntityType.TIME
+        assert entity.entity_type == EntityType.TIME  # nosec B101
 
     def test_extract_person_entity(self, router):
         """Test person entity extraction."""
         result = router.match("send message to John Smith")
 
-        assert "contact" in result.entities
+        assert "contact" in result.entities  # nosec B101
         entity = result.entities["contact"]
-        assert entity.entity_type == EntityType.PERSON
+        assert entity.entity_type == EntityType.PERSON  # nosec B101
 
     def test_extract_device_entity(self, router):
         """Test device entity extraction."""
         result = router.match("turn on lights")
 
-        assert "device" in result.entities
+        assert "device" in result.entities  # nosec B101
         entity = result.entities["device"]
-        assert entity.entity_type == EntityType.DEVICE
+        assert entity.entity_type == EntityType.DEVICE  # nosec B101
 
 
 # Unit Tests - Caching
@@ -219,9 +219,9 @@ class TestCaching:
         result2 = router.match(input_text)
         metrics2 = router.get_metrics()
 
-        assert result1.intent_type == result2.intent_type
-        assert metrics2["cache_hits"] > metrics1["cache_hits"]
-        assert metrics2["cache_hit_rate"] > 0
+        assert result1.intent_type == result2.intent_type  # nosec B101
+        assert metrics2["cache_hits"] > metrics1["cache_hits"]  # nosec B101
+        assert metrics2["cache_hit_rate"] > 0  # nosec B101
 
     def test_cache_miss(self, router):
         """Test cache miss for different inputs."""
@@ -229,8 +229,8 @@ class TestCaching:
         router.match("what's the weather")
 
         metrics = router.get_metrics()
-        assert metrics["cache_misses"] == 2
-        assert metrics["cache_hits"] == 0
+        assert metrics["cache_misses"] == 2  # nosec B101
+        assert metrics["cache_hits"] == 0  # nosec B101
 
     def test_cache_size_limit(self, router_empty):
         """Test cache size limit enforcement."""
@@ -250,17 +250,17 @@ class TestCaching:
                 ),
             )
 
-        assert len(router_empty._cache) <= 5
+        assert len(router_empty._cache) <= 5  # nosec B101
 
     def test_clear_cache(self, router):
         """Test cache clearing."""
         router.match("set timer for 5 minutes")
-        assert len(router._cache) > 0
+        assert len(router._cache) > 0  # nosec B101
 
         router.clear_cache()
-        assert len(router._cache) == 0
-        assert router._cache_hits == 0
-        assert router._cache_misses == 0
+        assert len(router._cache) == 0  # nosec B101
+        assert router._cache_hits == 0  # nosec B101
+        assert router._cache_misses == 0  # nosec B101
 
 
 # Unit Tests - Metrics
@@ -273,11 +273,11 @@ class TestMetrics:
         """Test metrics in initial state."""
         metrics = router_empty.get_metrics()
 
-        assert metrics["total_matches"] == 0
-        assert metrics["cache_hits"] == 0
-        assert metrics["cache_misses"] == 0
-        assert metrics["cache_hit_rate"] == 0.0
-        assert metrics["average_latency_ms"] == 0.0
+        assert metrics["total_matches"] == 0  # nosec B101
+        assert metrics["cache_hits"] == 0  # nosec B101
+        assert metrics["cache_misses"] == 0  # nosec B101
+        assert metrics["cache_hit_rate"] == 0.0  # nosec B101
+        assert metrics["average_latency_ms"] == 0.0  # nosec B101
 
     def test_metrics_after_matches(self, router):
         """Test metrics after performing matches."""
@@ -285,8 +285,8 @@ class TestMetrics:
         router.match("what's the weather")
 
         metrics = router.get_metrics()
-        assert metrics["total_matches"] == 2
-        assert metrics["average_latency_ms"] > 0
+        assert metrics["total_matches"] == 2  # nosec B101
+        assert metrics["average_latency_ms"] > 0  # nosec B101
 
     def test_metrics_cache_hit_rate(self, router):
         """Test cache hit rate calculation."""
@@ -298,7 +298,7 @@ class TestMetrics:
         router.match(input_text)
 
         metrics = router.get_metrics()
-        assert metrics["cache_hit_rate"] == 0.5  # 1 hit out of 2 total
+        assert metrics["cache_hit_rate"] == 0.5  # 1 hit out of 2 total  # nosec B101
 
 
 # Unit Tests - Confidence Calculation
@@ -310,18 +310,18 @@ class TestConfidenceCalculation:
     def test_confidence_high_for_exact_match(self, router):
         """Test high confidence for exact pattern match."""
         result = router.match("set timer for 5 minutes")
-        assert result.confidence >= 0.95
+        assert result.confidence >= 0.95  # nosec B101
 
     def test_confidence_with_entities(self, router):
         """Test confidence boost with entity extraction."""
         result = router.match("weather in New York")
-        assert result.confidence >= 0.95
+        assert result.confidence >= 0.95  # nosec B101
 
     def test_confidence_short_input(self, router):
         """Test confidence reduction for very short input."""
         result = router.match("help")
         # Short inputs may have slightly lower confidence
-        assert 0.8 <= result.confidence <= 1.0
+        assert 0.8 <= result.confidence <= 1.0  # nosec B101
 
 
 # Performance Tests
@@ -353,7 +353,7 @@ class TestPerformance:
         p95_index = int(len(latencies) * 0.95)
         p95_latency = latencies[p95_index]
 
-        assert p95_latency < 50, f"P95 latency {p95_latency}ms exceeds 50ms target"
+        assert p95_latency < 50, f"P95 latency {p95_latency}ms exceeds 50ms target"  # nosec B101
 
     def test_throughput_target(self, router):
         """Test throughput meets target (>1000 matches/second)."""
@@ -367,7 +367,7 @@ class TestPerformance:
             router.match(input_text)
             count += 1
 
-        assert count > 1000, f"Throughput {count} matches/sec below 1000 target"
+        assert count > 1000, f"Throughput {count} matches/sec below 1000 target"  # nosec B101
 
 
 # Property-Based Tests
@@ -391,9 +391,9 @@ class TestProperties:
             result = router.match(input_text)
             # If result exists, validate it
             if result:
-                assert isinstance(result, PatternMatch)
-                assert 0.0 <= result.confidence <= 1.0
-                assert result.latency_ms >= 0
+                assert isinstance(result, PatternMatch)  # nosec B101
+                assert 0.0 <= result.confidence <= 1.0  # nosec B101
+                assert result.latency_ms >= 0  # nosec B101
         except Exception as e:
             pytest.fail(f"match() crashed on input '{input_text}': {e}")
 
@@ -412,10 +412,10 @@ class TestProperties:
         result2 = router.match(input_text)
 
         if result1 is None:
-            assert result2 is None
+            assert result2 is None  # nosec B101
         else:
-            assert result1.intent_type == result2.intent_type
-            assert result1.confidence == result2.confidence
+            assert result1.intent_type == result2.intent_type  # nosec B101
+            assert result1.confidence == result2.confidence  # nosec B101
 
     @given(st.text(min_size=1, max_size=100))
     @settings(
@@ -430,7 +430,7 @@ class TestProperties:
 
         result = router.match(input_text)
         if result:
-            assert 0.0 <= result.confidence <= 1.0
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
 
     @given(st.text(min_size=1, max_size=100))
     @settings(
@@ -445,7 +445,7 @@ class TestProperties:
 
         result = router.match(input_text)
         if result:
-            assert result.latency_ms >= 0
+            assert result.latency_ms >= 0  # nosec B101
 
 
 # Integration Tests
@@ -459,27 +459,27 @@ class TestIntegration:
         result = router.match("set timer for 10 minutes")
 
         # Verify all components
-        assert result is not None
-        assert result.intent_type == "set_timer"
-        assert "duration" in result.entities
-        assert result.confidence > 0.9
-        assert result.quality == MatchQuality.EXACT
-        assert result.latency_ms < 50
+        assert result is not None  # nosec B101
+        assert result.intent_type == "set_timer"  # nosec B101
+        assert "duration" in result.entities  # nosec B101
+        assert result.confidence > 0.9  # nosec B101
+        assert result.quality == MatchQuality.EXACT  # nosec B101
+        assert result.latency_ms < 50  # nosec B101
 
         # Verify metrics updated
         metrics = router.get_metrics()
-        assert metrics["total_matches"] > 0
+        assert metrics["total_matches"] > 0  # nosec B101
 
     def test_full_workflow_weather_with_location(self, router):
         """Test complete workflow for weather query with location."""
         result = router.match("weather in San Francisco")
 
-        assert result is not None
-        assert result.intent_type == "query_weather"
-        assert "location" in result.entities
+        assert result is not None  # nosec B101
+        assert result.intent_type == "query_weather"  # nosec B101
+        assert "location" in result.entities  # nosec B101
         # Note: Input is normalized to lowercase, so entity value is lowercase
-        assert result.entities["location"].raw_text.lower() == "san francisco"
-        assert result.confidence > 0.9
+        assert result.entities["location"].raw_text.lower() == "san francisco"  # nosec B101
+        assert result.confidence > 0.9  # nosec B101
 
     def test_multiple_commands_sequence(self, router):
         """Test sequence of multiple commands."""
@@ -492,8 +492,8 @@ class TestIntegration:
 
         for input_text, expected_intent in commands:
             result = router.match(input_text)
-            assert result is not None
-            assert result.intent_type == expected_intent
+            assert result is not None  # nosec B101
+            assert result.intent_type == expected_intent  # nosec B101
 
 
 # Edge Cases
@@ -505,31 +505,31 @@ class TestEdgeCases:
     def test_empty_input(self, router):
         """Test empty input string."""
         result = router.match("")
-        assert result is None
+        assert result is None  # nosec B101
 
     def test_whitespace_only(self, router):
         """Test whitespace-only input."""
         result = router.match("   ")
-        assert result is None
+        assert result is None  # nosec B101
 
     def test_very_long_input(self, router):
         """Test very long input string."""
         long_input = "set timer for " + "very " * 100 + "long time"
         result = router.match(long_input)
         # Should handle gracefully (may or may not match)
-        assert isinstance(result, (PatternMatch, type(None)))
+        assert isinstance(result, (PatternMatch, type(None)))  # nosec B101
 
     def test_special_characters(self, router):
         """Test input with special characters."""
         result = router.match("set timer for 5 minutes!!!")
         # Should still match despite special characters
-        assert result is None or result.intent_type == "set_timer"
+        assert result is None or result.intent_type == "set_timer"  # nosec B101
 
     def test_unicode_input(self, router):
         """Test input with unicode characters."""
         result = router.match("set timer for 5 minutes 🎵")
         # Should handle gracefully
-        assert isinstance(result, (PatternMatch, type(None)))
+        assert isinstance(result, (PatternMatch, type(None)))  # nosec B101
 
 
 # Validation Tests
@@ -589,7 +589,7 @@ entity_patterns:
 
         # Should not crash, just skip invalid pattern
         router_empty.load_patterns(patterns_file)
-        assert len(router_empty._patterns) == 1
+        assert len(router_empty._patterns) == 1  # nosec B101
 
 
 class TestTraverseTrie:
@@ -599,17 +599,17 @@ class TestTraverseTrie:
         """Test pattern ending with entity (consumes all remaining words)."""
         result = router.match("send message to John Smith Anderson")
 
-        assert result is not None
-        assert result.intent_type == "send_message"
-        assert "contact" in result.entities
+        assert result is not None  # nosec B101
+        assert result.intent_type == "send_message"  # nosec B101
+        assert "contact" in result.entities  # nosec B101
 
     def test_entity_with_no_following_pattern_word(self, router):
         """Test entity that consumes remaining words when no pattern word follows."""
         result = router.match("remind me to buy groceries and cook dinner")
 
-        assert result is not None
-        assert result.intent_type == "set_reminder"
-        assert "task" in result.entities
+        assert result is not None  # nosec B101
+        assert result.intent_type == "set_reminder"  # nosec B101
+        assert "task" in result.entities  # nosec B101
 
 
 class TestExtractEntities:
@@ -624,17 +624,17 @@ class TestExtractEntities:
         entities = router_empty._extract_entities(words, entity_positions)
 
         # Should skip invalid position
-        assert len(entities) == 0
+        assert len(entities) == 0  # nosec B101
 
     def test_entity_without_regex_match(self, router):
         """Test entity extraction when regex doesn't match."""
         result = router.match("open some_random_app_name")
 
-        assert result is not None
-        assert result.intent_type == "open_app"
-        assert "app" in result.entities
+        assert result is not None  # nosec B101
+        assert result.intent_type == "open_app"  # nosec B101
+        assert "app" in result.entities  # nosec B101
         # Should use heuristic (first 1-3 words)
-        assert result.entities["app"].raw_text == "some_random_app_name"
+        assert result.entities["app"].raw_text == "some_random_app_name"  # nosec B101
 
 
 class TestFormatEntityValue:
@@ -645,25 +645,25 @@ class TestFormatEntityValue:
         # This tests the 12hour_simple format path
         result = router.match("set alarm for 7 am")
 
-        assert result is not None
-        assert result.intent_type == "set_alarm"
-        assert "time" in result.entities
+        assert result is not None  # nosec B101
+        assert result.intent_type == "set_alarm"  # nosec B101
+        assert "time" in result.entities  # nosec B101
 
     def test_format_24hour(self, router):
         """Test 24-hour format."""
         result = router.match("set alarm for 14:30")
 
-        assert result is not None
-        assert result.intent_type == "set_alarm"
-        assert "time" in result.entities
+        assert result is not None  # nosec B101
+        assert result.intent_type == "set_alarm"  # nosec B101
+        assert "time" in result.entities  # nosec B101
 
     def test_format_time_format_duration(self, router):
         """Test MM:SS duration format."""
         result = router.match("set timer for 5:30")
 
-        assert result is not None
-        assert result.intent_type == "set_timer"
-        assert "duration" in result.entities
+        assert result is not None  # nosec B101
+        assert result.intent_type == "set_timer"  # nosec B101
+        assert "duration" in result.entities  # nosec B101
 
     def test_format_default_case(self, router_empty):
         """Test default formatting when no special format."""
@@ -677,7 +677,7 @@ class TestFormatEntityValue:
         result = router_empty._format_entity_value(match, {})
 
         # Should return first captured group
-        assert result == "test"
+        assert result == "test"  # nosec B101
 
     def test_format_no_groups(self, router_empty):
         """Test formatting when regex has no groups."""
@@ -689,7 +689,7 @@ class TestFormatEntityValue:
         result = router_empty._format_entity_value(match, {})
 
         # Should return entire match
-        assert result == "test"
+        assert result == "test"  # nosec B101
 
 
 class TestCalculateConfidence:
@@ -700,21 +700,21 @@ class TestCalculateConfidence:
         confidence = router_empty._calculate_confidence(1, 0)
 
         # Should be reduced for short input
-        assert confidence == 0.85  # 0.95 - 0.1
+        assert confidence == 0.85  # 0.95 - 0.1  # nosec B101
 
     def test_confidence_single_word_with_entity(self, router_empty):
         """Test confidence for single word with entity."""
         confidence = router_empty._calculate_confidence(1, 1)
 
         # Reduced for short input, but increased for entity
-        assert confidence == 0.90  # 0.95 - 0.1 + 0.05
+        assert confidence == 0.90  # 0.95 - 0.1 + 0.05  # nosec B101
 
     def test_confidence_multiple_words_with_entities(self, router_empty):
         """Test confidence for multiple words with entities."""
         confidence = router_empty._calculate_confidence(5, 2)
 
         # Should be at maximum
-        assert confidence == 1.0  # 0.95 + 0.05, capped at 1.0
+        assert confidence == 1.0  # 0.95 + 0.05, capped at 1.0  # nosec B101
 
 
 class TestCacheExpiration:
@@ -743,8 +743,8 @@ class TestCacheExpiration:
 
         # Check cache - should be expired
         result = router_empty._check_cache("test input")
-        assert result is None
-        assert len(router_empty._cache) == 0  # Should be removed
+        assert result is None  # nosec B101
+        assert len(router_empty._cache) == 0  # Should be removed  # nosec B101
 
 
 class TestClearCache:
@@ -759,16 +759,16 @@ class TestClearCache:
         initial_hits = router._cache_hits
         initial_misses = router._cache_misses
 
-        assert initial_hits > 0
-        assert initial_misses > 0
+        assert initial_hits > 0  # nosec B101
+        assert initial_misses > 0  # nosec B101
 
         # Clear cache
         router.clear_cache()
 
         # Verify metrics reset
-        assert router._cache_hits == 0
-        assert router._cache_misses == 0
-        assert len(router._cache) == 0
+        assert router._cache_hits == 0  # nosec B101
+        assert router._cache_misses == 0  # nosec B101
+        assert len(router._cache) == 0  # nosec B101
 
 
 class TestAdvancedTraversal:
@@ -780,10 +780,10 @@ class TestAdvancedTraversal:
         # This tests the greedy matching logic in _traverse_trie
         result = router.match("remind me at 3 pm to call mom")
 
-        assert result is not None
-        assert result.intent_type == "set_reminder"
-        assert "time" in result.entities
-        assert "task" in result.entities
+        assert result is not None  # nosec B101
+        assert result.intent_type == "set_reminder"  # nosec B101
+        assert "time" in result.entities  # nosec B101
+        assert "task" in result.entities  # nosec B101
 
     def test_entity_no_match_after_entity(self, router_empty, tmp_path):
         """Test pattern where entity is followed by non-matching word."""
@@ -808,7 +808,7 @@ entity_patterns:
 
         # This should fail because "specific" doesn't follow the entity
         result = router_empty.match("test something different")
-        assert result is None
+        assert result is None  # nosec B101
 
 
 class TestEntityFormatting:
@@ -836,14 +836,14 @@ entity_patterns:
         router_empty.load_patterns(patterns_file)
         result = router_empty.match("alarm at 7 pm")
 
-        assert result is not None
-        assert "time" in result.entities
+        assert result is not None  # nosec B101
+        assert "time" in result.entities  # nosec B101
 
     def test_confidence_capped_at_one(self, router_empty):
         """Test that confidence is capped at 1.0."""
         # Multiple words with entities should cap at 1.0
         confidence = router_empty._calculate_confidence(10, 5)
-        assert confidence == 1.0
+        assert confidence == 1.0  # nosec B101
 
 
 class TestMetricsEdgeCases:
@@ -853,9 +853,9 @@ class TestMetricsEdgeCases:
         """Test metrics when no matches have been performed."""
         metrics = router_empty.get_metrics()
 
-        assert metrics["total_matches"] == 0
-        assert metrics["cache_hit_rate"] == 0.0
-        assert metrics["average_latency_ms"] == 0.0
+        assert metrics["total_matches"] == 0  # nosec B101
+        assert metrics["cache_hit_rate"] == 0.0  # nosec B101
+        assert metrics["average_latency_ms"] == 0.0  # nosec B101
 
 
 class TestFinalCoverage:
@@ -884,7 +884,7 @@ entity_patterns:
 
         # This should fail: entity consumes "something" but "more" is missing
         result = router_empty.match("command something")
-        assert result is None
+        assert result is None  # nosec B101
 
     def test_format_12hour_simple_no_period(self, router_empty):
         """Test 12hour_simple format without period in groups."""
@@ -899,7 +899,7 @@ entity_patterns:
         result = router_empty._format_entity_value(match, pattern_data)
 
         # Should handle missing period gracefully
-        assert result is not None
+        assert result is not None  # nosec B101
 
     def test_calculate_confidence_edge_cases(self, router_empty):
         """Test confidence calculation edge cases."""
@@ -907,7 +907,7 @@ entity_patterns:
         # Already tested in test_confidence_single_word_no_entities
         # But let's be explicit
         confidence = router_empty._calculate_confidence(2, 0)
-        assert confidence == 0.95  # Base confidence, no reduction, no boost
+        assert confidence == 0.95  # Base confidence, no reduction, no boost  # nosec B101
 
 
 if __name__ == "__main__":

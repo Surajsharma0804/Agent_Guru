@@ -61,12 +61,12 @@ class TestToolSelector:
 
         result = await selector.select_tool(intent)
 
-        assert result is not None
-        assert result.tier == 1
-        assert result.confidence == 1.0
-        assert result.tool.metadata.tool_id == "timer.set"
-        assert result.parameters["duration_seconds"] == 300
-        assert result.selection_time_ms < 10  # <10ms target
+        assert result is not None  # nosec B101
+        assert result.tier == 1  # nosec B101
+        assert result.confidence == 1.0  # nosec B101
+        assert result.tool.metadata.tool_id == "timer.set"  # nosec B101
+        assert result.parameters["duration_seconds"] == 300  # nosec B101
+        assert result.selection_time_ms < 10  # <10ms target  # nosec B101
 
     async def test_tier1_direct_mapping_weather(self, selector: ToolSelector) -> None:
         """Test Tier 1 direct mapping for weather intent."""
@@ -86,11 +86,11 @@ class TestToolSelector:
 
         result = await selector.select_tool(intent)
 
-        assert result is not None
-        assert result.tier == 1
-        assert result.confidence == 1.0
-        assert result.tool.metadata.tool_id == "weather.query"
-        assert result.parameters["location"] == "New York"
+        assert result is not None  # nosec B101
+        assert result.tier == 1  # nosec B101
+        assert result.confidence == 1.0  # nosec B101
+        assert result.tool.metadata.tool_id == "weather.query"  # nosec B101
+        assert result.parameters["location"] == "New York"  # nosec B101
 
     async def test_tier1_missing_required_parameter(self, selector: ToolSelector) -> None:
         """Test Tier 1 fails when required parameter missing."""
@@ -105,7 +105,7 @@ class TestToolSelector:
         result = await selector.select_tool(intent)
 
         # Should fall through to Tier 2 or return None
-        assert result is None or result.tier > 1
+        assert result is None or result.tier > 1  # nosec B101
 
     async def test_tier2_capability_matching(self, selector: ToolSelector) -> None:
         """Test Tier 2 capability matching."""
@@ -122,12 +122,12 @@ class TestToolSelector:
 
         result = await selector.select_tool(intent)
 
-        assert result is not None
+        assert result is not None  # nosec B101
         # May match Tier 1 if direct mapping exists, or Tier 2 via capability matching
-        assert result.tier in [1, 2]
-        assert result.confidence >= 0.8
-        assert result.tool.metadata.tool_id == "messaging.send"
-        assert result.selection_time_ms < 50  # <50ms target
+        assert result.tier in [1, 2]  # nosec B101
+        assert result.confidence >= 0.8  # nosec B101
+        assert result.tool.metadata.tool_id == "messaging.send"  # nosec B101
+        assert result.selection_time_ms < 50  # <50ms target  # nosec B101
 
     async def test_tier2_scoring_algorithm(self, selector: ToolSelector) -> None:
         """Test Tier 2 scoring algorithm."""
@@ -142,9 +142,9 @@ class TestToolSelector:
 
         result = await selector.select_tool(intent)
 
-        assert result is not None
+        assert result is not None  # nosec B101
         # Should match timer tool based on keywords
-        assert "timer" in result.tool.metadata.tool_id
+        assert "timer" in result.tool.metadata.tool_id  # nosec B101
 
     async def test_tier2_no_match_below_threshold(self, selector: ToolSelector) -> None:
         """Test Tier 2 returns None when score below threshold."""
@@ -158,7 +158,7 @@ class TestToolSelector:
         result = await selector.select_tool(intent)
 
         # Should not match any tool
-        assert result is None
+        assert result is None  # nosec B101
 
     async def test_tier3_not_implemented(self, selector: ToolSelector) -> None:
         """Test Tier 3 returns None (not yet implemented)."""
@@ -172,7 +172,7 @@ class TestToolSelector:
         result = await selector.select_tool(intent)
 
         # Tier 3 not implemented yet
-        assert result is None
+        assert result is None  # nosec B101
 
     async def test_parameter_extraction_exact_match(self, selector: ToolSelector) -> None:
         """Test parameter extraction with exact entity name match."""
@@ -190,9 +190,9 @@ class TestToolSelector:
 
         result = await selector.select_tool(intent)
 
-        assert result is not None
-        assert result.parameters["duration_seconds"] == 600
-        assert result.parameters["label"] == "Cooking"
+        assert result is not None  # nosec B101
+        assert result.parameters["duration_seconds"] == 600  # nosec B101
+        assert result.parameters["label"] == "Cooking"  # nosec B101
 
     async def test_parameter_extraction_fuzzy_match(self, selector: ToolSelector) -> None:
         """Test parameter extraction with fuzzy entity name match."""
@@ -205,9 +205,9 @@ class TestToolSelector:
 
         result = await selector.select_tool(intent)
 
-        assert result is not None
+        assert result is not None  # nosec B101
         # Should fuzzy match "duration" to "duration_seconds"
-        assert "duration_seconds" in result.parameters or "duration" in result.parameters
+        assert "duration_seconds" in result.parameters or "duration" in result.parameters  # nosec B101
 
     async def test_confidence_scoring(self, selector: ToolSelector) -> None:
         """Test confidence scoring for different tiers."""
@@ -221,8 +221,8 @@ class TestToolSelector:
             confidence=0.95,
         )
         result1 = await selector.select_tool(intent1)
-        assert result1 is not None
-        assert result1.confidence == 1.0
+        assert result1 is not None  # nosec B101
+        assert result1.confidence == 1.0  # nosec B101
 
         # Tier 2: confidence = match score (0.8-1.0)
         intent2 = Intent(
@@ -235,15 +235,15 @@ class TestToolSelector:
             confidence=0.8,
         )
         result2 = await selector.select_tool(intent2)
-        assert result2 is not None
+        assert result2 is not None  # nosec B101
         # Confidence should be high (may be Tier 1 or Tier 2)
-        assert result2.confidence >= 0.8
+        assert result2.confidence >= 0.8  # nosec B101
 
     async def test_statistics_tracking(self, selector: ToolSelector) -> None:
         """Test selection statistics tracking."""
         # Initial stats
         stats = selector.get_statistics()
-        assert stats["total_selections"] == 0
+        assert stats["total_selections"] == 0  # nosec B101
 
         # Make some selections
         intent1 = Intent(
@@ -266,9 +266,9 @@ class TestToolSelector:
 
         # Check stats
         stats = selector.get_statistics()
-        assert stats["total_selections"] == 2
-        assert stats["tier1_hits"] == 2
-        assert stats["tier1_percentage"] == 100.0
+        assert stats["total_selections"] == 2  # nosec B101
+        assert stats["tier1_hits"] == 2  # nosec B101
+        assert stats["tier1_percentage"] == 100.0  # nosec B101
 
     async def test_latency_targets(self, selector: ToolSelector) -> None:
         """Test that latency targets are met."""
@@ -282,8 +282,8 @@ class TestToolSelector:
             confidence=0.95,
         )
         result1 = await selector.select_tool(intent1)
-        assert result1 is not None
-        assert result1.selection_time_ms < 10
+        assert result1 is not None  # nosec B101
+        assert result1.selection_time_ms < 10  # nosec B101
 
         # Tier 2: <50ms
         intent2 = Intent(
@@ -298,7 +298,7 @@ class TestToolSelector:
         result2 = await selector.select_tool(intent2)
         if result2 is not None:
             # Should be fast regardless of tier
-            assert result2.selection_time_ms < 50
+            assert result2.selection_time_ms < 50  # nosec B101
 
     async def test_empty_registry(self) -> None:
         """Test selector with empty registry."""
@@ -315,7 +315,7 @@ class TestToolSelector:
         )
 
         result = await selector.select_tool(intent)
-        assert result is None
+        assert result is None  # nosec B101
 
     async def test_multiple_candidates_ranking(self, selector: ToolSelector) -> None:
         """Test that best candidate is selected when multiple match."""
@@ -331,8 +331,8 @@ class TestToolSelector:
         result = await selector.select_tool(intent)
 
         # Should select timer tool (best match)
-        assert result is not None
-        assert "timer" in result.tool.metadata.tool_id
+        assert result is not None  # nosec B101
+        assert "timer" in result.tool.metadata.tool_id  # nosec B101
 
 
 class TestDirectMappings:
@@ -350,7 +350,7 @@ class TestDirectMappings:
         }
 
         mapped_tools = set(DIRECT_MAPPINGS.values())
-        assert mapped_tools == expected_tools
+        assert mapped_tools == expected_tools  # nosec B101
 
     def test_common_intents_mapped(self) -> None:
         """Test that common intents have direct mappings."""
@@ -364,7 +364,7 @@ class TestDirectMappings:
         ]
 
         for intent_type in common_intents:
-            assert intent_type in DIRECT_MAPPINGS
+            assert intent_type in DIRECT_MAPPINGS  # nosec B101
 
 
 class TestToolIntelligenceIntegration:
@@ -410,11 +410,11 @@ class TestToolIntelligenceIntegration:
 
         result = await selector.select_tool(intent)
 
-        assert result is not None
+        assert result is not None  # nosec B101
         # Should have intelligence engine instance
-        assert hasattr(selector, "_intelligence_engine")
+        assert hasattr(selector, "_intelligence_engine")  # nosec B101
         # Should select messaging tool
-        assert result.tool.metadata.tool_id == "messaging.send"
+        assert result.tool.metadata.tool_id == "messaging.send"  # nosec B101
 
     async def test_tool_execution_tracking(self, selector: ToolSelector) -> None:
         """Test that tool execution results are tracked."""
@@ -426,14 +426,14 @@ class TestToolIntelligenceIntegration:
         )
 
         # Check that intelligence engine was created
-        assert hasattr(selector, "_intelligence_engine")
+        assert hasattr(selector, "_intelligence_engine")  # nosec B101
 
         # Get tool stats
         stats = await selector._intelligence_engine.get_tool_stats("timer.set")
-        assert stats is not None
-        assert stats.total_executions == 1
-        assert stats.successful_executions == 1
-        assert stats.success_rate == 1.0
+        assert stats is not None  # nosec B101
+        assert stats.total_executions == 1  # nosec B101
+        assert stats.successful_executions == 1  # nosec B101
+        assert stats.success_rate == 1.0  # nosec B101
 
     async def test_tool_failure_tracking(self, selector: ToolSelector) -> None:
         """Test that tool failures are tracked."""
@@ -449,11 +449,11 @@ class TestToolIntelligenceIntegration:
 
         # Get tool stats
         stats = await selector._intelligence_engine.get_tool_stats("weather.query")
-        assert stats is not None
-        assert stats.total_executions == 1
-        assert stats.failed_executions == 1
-        assert stats.success_rate == 0.0
-        assert "timeout" in stats.failure_patterns
+        assert stats is not None  # nosec B101
+        assert stats.total_executions == 1  # nosec B101
+        assert stats.failed_executions == 1  # nosec B101
+        assert stats.success_rate == 0.0  # nosec B101
+        assert "timeout" in stats.failure_patterns  # nosec B101
 
     async def test_user_feedback_tracking(self, selector: ToolSelector) -> None:
         """Test that user feedback is tracked."""
@@ -467,9 +467,9 @@ class TestToolIntelligenceIntegration:
 
         # Get tool stats
         stats = await selector._intelligence_engine.get_tool_stats("timer.set")
-        assert stats is not None
-        assert stats.user_feedback_count == 1
-        assert stats.user_rating == 5.0
+        assert stats is not None  # nosec B101
+        assert stats.user_feedback_count == 1  # nosec B101
+        assert stats.user_rating == 5.0  # nosec B101
 
     async def test_tool_preference_learning(self, selector: ToolSelector) -> None:
         """Test that tool preferences are learned from selections."""
@@ -485,12 +485,12 @@ class TestToolIntelligenceIntegration:
         )
 
         result = await selector.select_tool(intent)
-        assert result is not None
+        assert result is not None  # nosec B101
 
         # Check that preference was learned
         preferences = await selector._intelligence_engine.get_user_tool_preferences("default")
-        assert "messaging.send" in preferences
-        assert preferences["messaging.send"] > 0.5  # Should have increased
+        assert "messaging.send" in preferences  # nosec B101
+        assert preferences["messaging.send"] > 0.5  # Should have increased  # nosec B101
 
     async def test_degraded_tool_detection(self, selector: ToolSelector) -> None:
         """Test that degraded tools are detected and avoided."""
@@ -507,13 +507,13 @@ class TestToolIntelligenceIntegration:
 
         # Check that tool is degraded
         stats = await selector._intelligence_engine.get_tool_stats("weather.query")
-        assert stats is not None
-        assert stats.is_degraded
-        assert stats.consecutive_failures == 5
+        assert stats is not None  # nosec B101
+        assert stats.is_degraded  # nosec B101
+        assert stats.consecutive_failures == 5  # nosec B101
 
         # Get degraded tools
         degraded = await selector._intelligence_engine.detect_degraded_tools()
-        assert "weather.query" in degraded
+        assert "weather.query" in degraded  # nosec B101
 
     async def test_ranking_with_reliability(self, selector: ToolSelector) -> None:
         """Test that tool ranking considers reliability."""
@@ -549,8 +549,8 @@ class TestToolIntelligenceIntegration:
         result = await selector.select_tool(intent)
 
         # Should match a timer tool
-        assert result is not None
-        assert "timer" in result.tool.metadata.tool_id
+        assert result is not None  # nosec B101
+        assert "timer" in result.tool.metadata.tool_id  # nosec B101
 
     async def test_ranking_with_speed(self, selector: ToolSelector) -> None:
         """Test that tool ranking considers speed."""
@@ -574,9 +574,9 @@ class TestToolIntelligenceIntegration:
         timer_stats = await selector._intelligence_engine.get_tool_stats("timer.set")
         cancel_stats = await selector._intelligence_engine.get_tool_stats("timer.cancel")
 
-        assert timer_stats is not None
-        assert cancel_stats is not None
-        assert timer_stats.avg_latency > cancel_stats.avg_latency
+        assert timer_stats is not None  # nosec B101
+        assert cancel_stats is not None  # nosec B101
+        assert timer_stats.avg_latency > cancel_stats.avg_latency  # nosec B101
 
     async def test_context_passed_to_ranking(self, selector: ToolSelector) -> None:
         """Test that intent context is passed to ranking engine."""
@@ -592,9 +592,9 @@ class TestToolIntelligenceIntegration:
 
         result = await selector.select_tool(intent)
 
-        assert result is not None
+        assert result is not None  # nosec B101
         # Intelligence engine should have been used with context
-        assert hasattr(selector, "_intelligence_engine")
+        assert hasattr(selector, "_intelligence_engine")  # nosec B101
 
     async def test_multiple_executions_improve_ranking(self, selector: ToolSelector) -> None:
         """Test that multiple successful executions improve tool ranking."""
@@ -608,10 +608,10 @@ class TestToolIntelligenceIntegration:
 
         # Get stats
         stats = await selector._intelligence_engine.get_tool_stats("messaging.send")
-        assert stats is not None
-        assert stats.total_executions == 10
-        assert stats.success_rate == 1.0
-        assert stats.get_reliability_score() == 1.0
+        assert stats is not None  # nosec B101
+        assert stats.total_executions == 10  # nosec B101
+        assert stats.success_rate == 1.0  # nosec B101
+        assert stats.get_reliability_score() == 1.0  # nosec B101
 
     async def test_recovery_from_degradation(self, selector: ToolSelector) -> None:
         """Test that tools can recover from degradation."""
@@ -628,8 +628,8 @@ class TestToolIntelligenceIntegration:
 
         # Verify degraded
         stats = await selector._intelligence_engine.get_tool_stats("timer.set")
-        assert stats is not None
-        assert stats.is_degraded
+        assert stats is not None  # nosec B101
+        assert stats.is_degraded  # nosec B101
 
         # Recover with successful executions
         for _ in range(3):
@@ -641,9 +641,9 @@ class TestToolIntelligenceIntegration:
 
         # Check recovery
         stats = await selector._intelligence_engine.get_tool_stats("timer.set")
-        assert stats is not None
-        assert not stats.is_degraded
-        assert stats.consecutive_failures == 0
+        assert stats is not None  # nosec B101
+        assert not stats.is_degraded  # nosec B101
+        assert stats.consecutive_failures == 0  # nosec B101
 
     async def test_user_preference_affects_ranking(self, selector: ToolSelector) -> None:
         """Test that user preferences affect tool ranking."""
@@ -662,8 +662,8 @@ class TestToolIntelligenceIntegration:
 
         # Get preferences
         preferences = await selector._intelligence_engine.get_user_tool_preferences("user123")
-        assert "messaging.send" in preferences
-        assert preferences["messaging.send"] > 0.5
+        assert "messaging.send" in preferences  # nosec B101
+        assert preferences["messaging.send"] > 0.5  # nosec B101
 
     async def test_intelligence_engine_persistence(
         self, selector: ToolSelector, tmp_path: Any
@@ -694,8 +694,8 @@ class TestToolIntelligenceIntegration:
         )
 
         # Verify files were created
-        assert stats_file.exists()
-        assert prefs_file.exists()
+        assert stats_file.exists()  # nosec B101
+        assert prefs_file.exists()  # nosec B101
 
         # Create new engine and load data
         engine2 = ToolIntelligenceEngine(
@@ -705,8 +705,8 @@ class TestToolIntelligenceIntegration:
 
         # Verify data was loaded
         stats = await engine2.get_tool_stats("timer.set")
-        assert stats is not None
-        assert stats.total_executions == 1
+        assert stats is not None  # nosec B101
+        assert stats.total_executions == 1  # nosec B101
 
         preferences = await engine2.get_user_tool_preferences("user123")
-        assert "timer.set" in preferences
+        assert "timer.set" in preferences  # nosec B101

@@ -124,7 +124,7 @@ def test_onnx_pytorch_equivalence_tiny(seed: int, tiny_exported) -> None:  # typ
     ort_out = session.run(None, {input_name: x_np})[0]
 
     max_diff = float(np.max(np.abs(pt_out - ort_out)))
-    assert max_diff < _TOLERANCE, (
+    assert max_diff < _TOLERANCE, (  # nosec B101
         f"ONNX/PyTorch max diff {max_diff:.6f} exceeds tolerance {_TOLERANCE}"
     )
 
@@ -140,8 +140,8 @@ def test_export_creates_onnx_file(tmp_path) -> None:  # type: ignore[no-untyped-
     onnx = str(tmp_path / "model.onnx")
     _make_tiny_checkpoint(ckpt)
     _export_tiny(ckpt, onnx)
-    assert os.path.isfile(onnx)
-    assert os.path.getsize(onnx) > 0
+    assert os.path.isfile(onnx)  # nosec B101
+    assert os.path.getsize(onnx) > 0  # nosec B101
 
 
 @pytest.mark.property
@@ -169,4 +169,4 @@ def test_validate_equivalence_passes_tiny(tiny_exported) -> None:  # type: ignor
             all_pass = False
             break
 
-    assert all_pass
+    assert all_pass  # nosec B101

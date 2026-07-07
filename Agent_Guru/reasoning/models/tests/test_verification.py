@@ -30,14 +30,14 @@ class TestIssueType:
             "intent_alignment",
         }
         actual_types = {t.value for t in IssueType}
-        assert actual_types == expected_types
+        assert actual_types == expected_types  # nosec B101
 
     def test_issue_type_values(self):
         """Test specific issue type values."""
-        assert IssueType.PLAN_CORRECTNESS.value == "plan_correctness"
-        assert IssueType.TOOL_COMPATIBILITY.value == "tool_compatibility"
-        assert IssueType.LOGICAL_CONSISTENCY.value == "logical_consistency"
-        assert IssueType.INTENT_ALIGNMENT.value == "intent_alignment"
+        assert IssueType.PLAN_CORRECTNESS.value == "plan_correctness"  # nosec B101
+        assert IssueType.TOOL_COMPATIBILITY.value == "tool_compatibility"  # nosec B101
+        assert IssueType.LOGICAL_CONSISTENCY.value == "logical_consistency"  # nosec B101
+        assert IssueType.INTENT_ALIGNMENT.value == "intent_alignment"  # nosec B101
 
 
 class TestIssueSeverity:
@@ -47,13 +47,13 @@ class TestIssueSeverity:
         """Test that all expected severities are defined."""
         expected_severities = {"critical", "warning", "info"}
         actual_severities = {s.value for s in IssueSeverity}
-        assert actual_severities == expected_severities
+        assert actual_severities == expected_severities  # nosec B101
 
     def test_severity_values(self):
         """Test specific severity values."""
-        assert IssueSeverity.CRITICAL.value == "critical"
-        assert IssueSeverity.WARNING.value == "warning"
-        assert IssueSeverity.INFO.value == "info"
+        assert IssueSeverity.CRITICAL.value == "critical"  # nosec B101
+        assert IssueSeverity.WARNING.value == "warning"  # nosec B101
+        assert IssueSeverity.INFO.value == "info"  # nosec B101
 
 
 class TestVerificationAction:
@@ -63,14 +63,14 @@ class TestVerificationAction:
         """Test that all expected actions are defined."""
         expected_actions = {"proceed", "clarify", "replan", "abort"}
         actual_actions = {a.value for a in VerificationAction}
-        assert actual_actions == expected_actions
+        assert actual_actions == expected_actions  # nosec B101
 
     def test_action_values(self):
         """Test specific action values."""
-        assert VerificationAction.PROCEED.value == "proceed"
-        assert VerificationAction.CLARIFY.value == "clarify"
-        assert VerificationAction.REPLAN.value == "replan"
-        assert VerificationAction.ABORT.value == "abort"
+        assert VerificationAction.PROCEED.value == "proceed"  # nosec B101
+        assert VerificationAction.CLARIFY.value == "clarify"  # nosec B101
+        assert VerificationAction.REPLAN.value == "replan"  # nosec B101
+        assert VerificationAction.ABORT.value == "abort"  # nosec B101
 
 
 class TestVerificationIssue:
@@ -85,11 +85,11 @@ class TestVerificationIssue:
             affected_step=2,
         )
 
-        assert issue.issue_type == IssueType.TOOL_COMPATIBILITY
-        assert issue.severity == IssueSeverity.CRITICAL
-        assert "send_email" in issue.description
-        assert issue.affected_step == 2
-        assert isinstance(issue.timestamp, datetime)
+        assert issue.issue_type == IssueType.TOOL_COMPATIBILITY  # nosec B101
+        assert issue.severity == IssueSeverity.CRITICAL  # nosec B101
+        assert "send_email" in issue.description  # nosec B101
+        assert issue.affected_step == 2  # nosec B101
+        assert isinstance(issue.timestamp, datetime)  # nosec B101
 
     def test_create_issue_without_affected_step(self):
         """Test creating an issue without affected step (plan-level issue)."""
@@ -99,7 +99,7 @@ class TestVerificationIssue:
             description="Plan may have missing steps to achieve the goal",
         )
 
-        assert issue.affected_step is None
+        assert issue.affected_step is None  # nosec B101
 
     def test_description_validation_empty(self):
         """Test that empty description is rejected."""
@@ -127,7 +127,7 @@ class TestVerificationIssue:
             description="  Valid description with whitespace  ",
         )
 
-        assert issue.description == "Valid description with whitespace"
+        assert issue.description == "Valid description with whitespace"  # nosec B101
 
     def test_affected_step_validation_negative(self):
         """Test that negative affected_step is rejected."""
@@ -148,9 +148,9 @@ class TestVerificationIssue:
         )
 
         json_data = issue.model_dump()
-        assert json_data["issue_type"] == "logical_consistency"
-        assert json_data["severity"] == "warning"
-        assert "Conflicting" in json_data["description"]
+        assert json_data["issue_type"] == "logical_consistency"  # nosec B101
+        assert json_data["severity"] == "warning"  # nosec B101
+        assert "Conflicting" in json_data["description"]  # nosec B101
 
 
 class TestVerificationResult:
@@ -172,12 +172,12 @@ class TestVerificationResult:
             verification_time_ms=150.5,
         )
 
-        assert result.is_valid is False
-        assert result.confidence == 0.85
-        assert len(result.issues) == 1
-        assert result.recommendation == VerificationAction.REPLAN
-        assert result.verification_time_ms == 150.5
-        assert isinstance(result.timestamp, datetime)
+        assert result.is_valid is False  # nosec B101
+        assert result.confidence == 0.85  # nosec B101
+        assert len(result.issues) == 1  # nosec B101
+        assert result.recommendation == VerificationAction.REPLAN  # nosec B101
+        assert result.verification_time_ms == 150.5  # nosec B101
+        assert isinstance(result.timestamp, datetime)  # nosec B101
 
     def test_create_result_no_issues(self):
         """Test creating a result with no issues."""
@@ -189,8 +189,8 @@ class TestVerificationResult:
             verification_time_ms=100.0,
         )
 
-        assert result.is_valid is True
-        assert len(result.issues) == 0
+        assert result.is_valid is True  # nosec B101
+        assert len(result.issues) == 0  # nosec B101
 
     def test_confidence_validation_below_zero(self):
         """Test that confidence below 0.0 is rejected."""
@@ -278,7 +278,7 @@ class TestVerificationResult:
             verification_time_ms=150.0,
         )
 
-        assert result.has_critical_issues() is True
+        assert result.has_critical_issues() is True  # nosec B101
 
     def test_has_critical_issues_false(self):
         """Test has_critical_issues returns False when no critical issues."""
@@ -296,7 +296,7 @@ class TestVerificationResult:
             verification_time_ms=120.0,
         )
 
-        assert result.has_critical_issues() is False
+        assert result.has_critical_issues() is False  # nosec B101
 
     def test_has_warnings_true(self):
         """Test has_warnings returns True when warnings exist."""
@@ -314,7 +314,7 @@ class TestVerificationResult:
             verification_time_ms=130.0,
         )
 
-        assert result.has_warnings() is True
+        assert result.has_warnings() is True  # nosec B101
 
     def test_get_critical_issues(self):
         """Test getting only critical issues."""
@@ -338,8 +338,8 @@ class TestVerificationResult:
         )
 
         critical_issues = result.get_critical_issues()
-        assert len(critical_issues) == 1
-        assert critical_issues[0].severity == IssueSeverity.CRITICAL
+        assert len(critical_issues) == 1  # nosec B101
+        assert critical_issues[0].severity == IssueSeverity.CRITICAL  # nosec B101
 
     def test_get_warnings(self):
         """Test getting only warnings."""
@@ -363,8 +363,8 @@ class TestVerificationResult:
         )
 
         warnings = result.get_warnings()
-        assert len(warnings) == 1
-        assert warnings[0].severity == IssueSeverity.WARNING
+        assert len(warnings) == 1  # nosec B101
+        assert warnings[0].severity == IssueSeverity.WARNING  # nosec B101
 
     def test_get_issues_by_type(self):
         """Test getting issues by type."""
@@ -388,8 +388,8 @@ class TestVerificationResult:
         )
 
         tool_issues = result.get_issues_by_type(IssueType.TOOL_COMPATIBILITY)
-        assert len(tool_issues) == 1
-        assert tool_issues[0].issue_type == IssueType.TOOL_COMPATIBILITY
+        assert len(tool_issues) == 1  # nosec B101
+        assert tool_issues[0].issue_type == IssueType.TOOL_COMPATIBILITY  # nosec B101
 
     def test_get_issues_for_step(self):
         """Test getting issues for a specific step."""
@@ -415,8 +415,8 @@ class TestVerificationResult:
         )
 
         step1_issues = result.get_issues_for_step(1)
-        assert len(step1_issues) == 1
-        assert step1_issues[0].affected_step == 1
+        assert len(step1_issues) == 1  # nosec B101
+        assert step1_issues[0].affected_step == 1  # nosec B101
 
 
 class TestVerificationResultProperties:
@@ -436,9 +436,9 @@ class TestVerificationResultProperties:
             verification_time_ms=verification_time_ms,
         )
 
-        assert result is not None
-        assert 0.0 <= result.confidence <= 1.0
-        assert result.verification_time_ms >= 0.0
+        assert result is not None  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
+        assert result.verification_time_ms >= 0.0  # nosec B101
 
     @given(num_issues=st.integers(min_value=0, max_value=10))
     def test_issues_list_always_valid(self, num_issues: int):
@@ -460,4 +460,4 @@ class TestVerificationResultProperties:
             verification_time_ms=100.0,
         )
 
-        assert len(result.issues) == num_issues
+        assert len(result.issues) == num_issues  # nosec B101

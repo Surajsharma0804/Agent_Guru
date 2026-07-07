@@ -63,8 +63,8 @@ class TestImprovementReporterInit:
     def test_init_with_valid_threshold(self, tracker):
         """Test initialization with valid threshold."""
         reporter = ImprovementReporter(tracker, improvement_threshold=0.15)
-        assert reporter.tracker == tracker
-        assert reporter.improvement_threshold == 0.15
+        assert reporter.tracker == tracker  # nosec B101
+        assert reporter.improvement_threshold == 0.15  # nosec B101
 
     def test_init_with_invalid_threshold(self, tracker):
         """Test that invalid threshold raises ValueError."""
@@ -82,7 +82,7 @@ class TestGenerateReport:
         """Test report generation with insufficient data."""
         # No tasks recorded
         report = reporter.generate_report(measurement_window=100)
-        assert report is None
+        assert report is None  # nosec B101
 
     def test_generate_report_with_improvement(self, reporter, tracker):
         """Test report generation showing improvement."""
@@ -111,11 +111,11 @@ class TestGenerateReport:
 
         report = reporter.generate_report(measurement_window=100)
 
-        assert report is not None
-        assert report.total_tasks == 100
-        assert report.measurement_window == 100
-        assert report.success_rate_improvement > 0
-        assert report.reasoning_quality_improvement > 0
+        assert report is not None  # nosec B101
+        assert report.total_tasks == 100  # nosec B101
+        assert report.measurement_window == 100  # nosec B101
+        assert report.success_rate_improvement > 0  # nosec B101
+        assert report.reasoning_quality_improvement > 0  # nosec B101
 
     def test_generate_report_meets_threshold(self, reporter, tracker):
         """Test report when improvement meets 15% threshold."""
@@ -142,10 +142,10 @@ class TestGenerateReport:
 
         report = reporter.generate_report(measurement_window=100)
 
-        assert report is not None
-        assert report.meets_improvement_threshold == True
-        assert report.requires_alert == False
-        assert report.alert_reason is None
+        assert report is not None  # nosec B101
+        assert report.meets_improvement_threshold == True  # nosec B101
+        assert report.requires_alert == False  # nosec B101
+        assert report.alert_reason is None  # nosec B101
 
     def test_generate_report_below_threshold(self, reporter, tracker):
         """Test report when improvement below 15% threshold."""
@@ -174,11 +174,11 @@ class TestGenerateReport:
 
         report = reporter.generate_report(measurement_window=100)
 
-        assert report is not None
-        assert report.meets_improvement_threshold == False
-        assert report.requires_alert == True
-        assert report.alert_reason is not None
-        assert "below threshold" in report.alert_reason
+        assert report is not None  # nosec B101
+        assert report.meets_improvement_threshold == False  # nosec B101
+        assert report.requires_alert == True  # nosec B101
+        assert report.alert_reason is not None  # nosec B101
+        assert "below threshold" in report.alert_reason  # nosec B101
 
 
 class TestFormatReport:
@@ -205,12 +205,12 @@ class TestFormatReport:
         formatted = reporter.format_report(report)
 
         # Check key sections present
-        assert "IMPROVEMENT REPORT" in formatted
-        assert "PERFORMANCE METRICS" in formatted
-        assert "STATISTICAL ANALYSIS" in formatted
-        assert "Success Rate:" in formatted
-        assert "Execution Time:" in formatted
-        assert "Reasoning Quality:" in formatted
+        assert "IMPROVEMENT REPORT" in formatted  # nosec B101
+        assert "PERFORMANCE METRICS" in formatted  # nosec B101
+        assert "STATISTICAL ANALYSIS" in formatted  # nosec B101
+        assert "Success Rate:" in formatted  # nosec B101
+        assert "Execution Time:" in formatted  # nosec B101
+        assert "Reasoning Quality:" in formatted  # nosec B101
 
     def test_format_report_with_alert(self, reporter, tracker):
         """Test formatted report includes alert section."""
@@ -232,8 +232,8 @@ class TestFormatReport:
         report = reporter.generate_report(measurement_window=100)
         formatted = reporter.format_report(report)
 
-        assert "ALERT" in formatted
-        assert "⚠️" in formatted
+        assert "ALERT" in formatted  # nosec B101
+        assert "⚠️" in formatted  # nosec B101
 
 
 class TestFormatReportForCommit:
@@ -259,10 +259,10 @@ class TestFormatReportForCommit:
         report = reporter.generate_report(measurement_window=100)
         commit_msg = reporter.format_report_for_commit(report)
 
-        assert "📈 Improvement Report:" in commit_msg
-        assert "after 100 tasks" in commit_msg
-        assert "Target: +15%" in commit_msg
-        assert "✅" in commit_msg
+        assert "📈 Improvement Report:" in commit_msg  # nosec B101
+        assert "after 100 tasks" in commit_msg  # nosec B101
+        assert "Target: +15%" in commit_msg  # nosec B101
+        assert "✅" in commit_msg  # nosec B101
 
     def test_format_commit_message_failure(self, reporter, tracker):
         """Test commit message format when threshold not met."""
@@ -284,9 +284,9 @@ class TestFormatReportForCommit:
         report = reporter.generate_report(measurement_window=100)
         commit_msg = reporter.format_report_for_commit(report)
 
-        assert "📈 Improvement Report:" in commit_msg
-        assert "after 100 tasks" in commit_msg
-        assert "⚠️" in commit_msg
+        assert "📈 Improvement Report:" in commit_msg  # nosec B101
+        assert "after 100 tasks" in commit_msg  # nosec B101
+        assert "⚠️" in commit_msg  # nosec B101
 
 
 class TestCheckImprovementThreshold:
@@ -310,7 +310,7 @@ class TestCheckImprovementThreshold:
             )
 
         report = reporter.generate_report(measurement_window=100)
-        assert reporter.check_improvement_threshold(report) == True
+        assert reporter.check_improvement_threshold(report) == True  # nosec B101
 
     def test_threshold_not_met(self, reporter, tracker):
         """Test threshold checking when not met."""
@@ -330,7 +330,7 @@ class TestCheckImprovementThreshold:
             )
 
         report = reporter.generate_report(measurement_window=100)
-        assert reporter.check_improvement_threshold(report) == False
+        assert reporter.check_improvement_threshold(report) == False  # nosec B101
 
 
 class TestTriggerAlert:
@@ -357,8 +357,8 @@ class TestTriggerAlert:
         reporter.trigger_alert(report)
 
         captured = capsys.readouterr()
-        assert "IMPROVEMENT ALERT" in captured.out
-        assert "Recommendations:" in captured.out
+        assert "IMPROVEMENT ALERT" in captured.out  # nosec B101
+        assert "Recommendations:" in captured.out  # nosec B101
 
     def test_no_alert_when_not_required(self, reporter, tracker, capsys):
         """Test no alert when not required."""
@@ -381,7 +381,7 @@ class TestTriggerAlert:
         reporter.trigger_alert(report)
 
         captured = capsys.readouterr()
-        assert captured.out == ""  # No output
+        assert captured.out == ""  # No output  # nosec B101
 
 
 # Property-Based Tests
@@ -435,11 +435,11 @@ def test_property_improvement_always_detected(baseline_success, recent_success):
 
         report = reporter.generate_report(measurement_window=100)
 
-        assert report is not None
+        assert report is not None  # nosec B101
         if recent_success > baseline_success:
-            assert report.success_rate_improvement > 0
+            assert report.success_rate_improvement > 0  # nosec B101
         elif recent_success < baseline_success:
-            assert report.success_rate_improvement < 0
+            assert report.success_rate_improvement < 0  # nosec B101
 
         pool.close_all()
         gc.collect()
@@ -482,10 +482,10 @@ def test_property_threshold_checking_accurate(improvement_threshold):
 
         report = reporter.generate_report(measurement_window=100)
 
-        assert report is not None
+        assert report is not None  # nosec B101
         # 60% relative improvement should meet any threshold <= 0.6
         expected_meets_threshold = 0.6 >= improvement_threshold
-        assert report.meets_improvement_threshold == expected_meets_threshold
+        assert report.meets_improvement_threshold == expected_meets_threshold  # nosec B101
 
         pool.close_all()
         gc.collect()
@@ -521,11 +521,11 @@ def test_edge_case_perfect_improvement(reporter, tracker):
 
     report = reporter.generate_report(measurement_window=100)
 
-    assert report is not None
-    assert report.success_rate_improvement == 1.0  # 100% absolute improvement
+    assert report is not None  # nosec B101
+    assert report.success_rate_improvement == 1.0  # 100% absolute improvement  # nosec B101
     # Note: relative_improvement is 0% due to division by zero in baseline
     # This is a known edge case - absolute improvement is what matters here
-    assert report.is_statistically_significant == True
+    assert report.is_statistically_significant == True  # nosec B101
 
 
 def test_edge_case_no_improvement(reporter, tracker):
@@ -548,10 +548,10 @@ def test_edge_case_no_improvement(reporter, tracker):
 
     report = reporter.generate_report(measurement_window=100)
 
-    assert report is not None
-    assert abs(report.success_rate_improvement) < 0.1
-    assert report.meets_improvement_threshold == False
-    assert report.requires_alert == True
+    assert report is not None  # nosec B101
+    assert abs(report.success_rate_improvement) < 0.1  # nosec B101
+    assert report.meets_improvement_threshold == False  # nosec B101
+    assert report.requires_alert == True  # nosec B101
 
 
 def test_edge_case_regression(reporter, tracker):
@@ -577,10 +577,10 @@ def test_edge_case_regression(reporter, tracker):
 
     report = reporter.generate_report(measurement_window=100)
 
-    assert report is not None
-    assert report.success_rate_improvement < 0
-    assert report.meets_improvement_threshold == False
-    assert report.requires_alert == True
+    assert report is not None  # nosec B101
+    assert report.success_rate_improvement < 0  # nosec B101
+    assert report.meets_improvement_threshold == False  # nosec B101
+    assert report.requires_alert == True  # nosec B101
 
 
 # Hardest Test: 15% Improvement Guarantee
@@ -645,31 +645,31 @@ def test_hardest_15_percent_improvement_guarantee(reporter, tracker):
     report = reporter.generate_report(measurement_window=100)
 
     # CRITICAL ASSERTIONS: 15% improvement guarantee
-    assert report is not None, "Report must be generated after 100 tasks"
+    assert report is not None, "Report must be generated after 100 tasks"  # nosec B101
     
     # 1. Success rate improvement must meet 15% threshold
-    assert report.meets_improvement_threshold == True, (
+    assert report.meets_improvement_threshold == True, (  # nosec B101
         f"FAILED: Improvement {report.relative_improvement_percent:.2f}% "
         f"does not meet 15% threshold"
     )
     
     # 2. Relative improvement must be >= 15%
-    assert report.relative_improvement_percent >= 15.0, (
+    assert report.relative_improvement_percent >= 15.0, (  # nosec B101
         f"FAILED: Relative improvement {report.relative_improvement_percent:.2f}% < 15%"
     )
     
     # 3. Absolute success rate improvement must be positive
-    assert report.success_rate_improvement > 0, (
+    assert report.success_rate_improvement > 0, (  # nosec B101
         f"FAILED: Success rate did not improve (change: {report.success_rate_improvement:.2%})"
     )
     
     # 4. Statistical significance must be achieved (with dramatic improvement)
-    assert report.is_statistically_significant == True, (
+    assert report.is_statistically_significant == True, (  # nosec B101
         f"FAILED: Improvement not statistically significant (p={report.p_value:.4f})"
     )
     
     # 5. P-value must be < 0.05
-    assert report.p_value < 0.05, (
+    assert report.p_value < 0.05, (  # nosec B101
         f"FAILED: P-value {report.p_value:.4f} >= 0.05 (not significant)"
     )
     
@@ -684,18 +684,18 @@ def test_hardest_15_percent_improvement_guarantee(reporter, tracker):
     if report.hallucination_improvement > 0:
         additional_improvements += 1
     
-    assert additional_improvements >= 1, (
+    assert additional_improvements >= 1, (  # nosec B101
         f"FAILED: No additional metrics improved beyond success rate"
     )
     
     # 7. No alert should be triggered
-    assert report.requires_alert == False, (
+    assert report.requires_alert == False, (  # nosec B101
         f"FAILED: Alert triggered despite meeting threshold: {report.alert_reason}"
     )
     
     # 8. Confidence interval should not include zero
     ci_lower, ci_upper = report.confidence_interval_95
-    assert ci_lower > 0 or ci_upper > 0, (
+    assert ci_lower > 0 or ci_upper > 0, (  # nosec B101
         f"FAILED: Confidence interval [{ci_lower:.4f}, {ci_upper:.4f}] includes zero"
     )
     

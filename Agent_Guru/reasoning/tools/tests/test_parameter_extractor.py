@@ -42,8 +42,8 @@ class TestParameterExtractor:
 
         params = extractor.extract_parameters(timer_tool, intent)
 
-        assert "duration_seconds" in params
-        assert params["duration_seconds"] == 300
+        assert "duration_seconds" in params  # nosec B101
+        assert params["duration_seconds"] == 300  # nosec B101
 
     def test_extract_optional_parameters_with_default(
         self, extractor: ParameterExtractor, timer_tool: SetTimerTool
@@ -63,7 +63,7 @@ class TestParameterExtractor:
         params = extractor.extract_parameters(timer_tool, intent)
 
         # Label is optional - may or may not be in params depending on default
-        assert "duration_seconds" in params
+        assert "duration_seconds" in params  # nosec B101
 
     def test_missing_required_parameter_raises_error(
         self, extractor: ParameterExtractor, timer_tool: SetTimerTool
@@ -79,8 +79,8 @@ class TestParameterExtractor:
         with pytest.raises((ValueError, Exception)) as exc_info:
             extractor.extract_parameters(timer_tool, intent)
 
-        assert "duration_seconds" in str(exc_info.value)
-        assert "Required parameter" in str(exc_info.value)
+        assert "duration_seconds" in str(exc_info.value)  # nosec B101
+        assert "Required parameter" in str(exc_info.value)  # nosec B101
 
     def test_type_conversion_integer(self, extractor: ParameterExtractor) -> None:
         """Test type conversion for integer parameters."""
@@ -93,12 +93,12 @@ class TestParameterExtractor:
 
         # String to int
         value = extractor._convert_and_validate("42", param)
-        assert value == 42
-        assert isinstance(value, int)
+        assert value == 42  # nosec B101
+        assert isinstance(value, int)  # nosec B101
 
         # Float to int
         value = extractor._convert_and_validate(42.7, param)
-        assert value == 42
+        assert value == 42  # nosec B101
 
     def test_type_conversion_boolean(self, extractor: ParameterExtractor) -> None:
         """Test type conversion for boolean parameters."""
@@ -110,14 +110,14 @@ class TestParameterExtractor:
         )
 
         # String to bool
-        assert extractor._convert_and_validate("true", param) is True
-        assert extractor._convert_and_validate("false", param) is False
-        assert extractor._convert_and_validate("yes", param) is True
-        assert extractor._convert_and_validate("no", param) is False
+        assert extractor._convert_and_validate("true", param) is True  # nosec B101
+        assert extractor._convert_and_validate("false", param) is False  # nosec B101
+        assert extractor._convert_and_validate("yes", param) is True  # nosec B101
+        assert extractor._convert_and_validate("no", param) is False  # nosec B101
 
         # Int to bool
-        assert extractor._convert_and_validate(1, param) is True
-        assert extractor._convert_and_validate(0, param) is False
+        assert extractor._convert_and_validate(1, param) is True  # nosec B101
+        assert extractor._convert_and_validate(0, param) is False  # nosec B101
 
     def test_validate_parameters_success(
         self, extractor: ParameterExtractor, timer_tool: SetTimerTool
@@ -127,7 +127,7 @@ class TestParameterExtractor:
 
         errors = extractor.validate_parameters(timer_tool, params)
 
-        assert len(errors) == 0
+        assert len(errors) == 0  # nosec B101
 
     def test_validate_parameters_missing_required(
         self, extractor: ParameterExtractor, timer_tool: SetTimerTool
@@ -137,9 +137,9 @@ class TestParameterExtractor:
 
         errors = extractor.validate_parameters(timer_tool, params)
 
-        assert len(errors) > 0
-        assert any("duration_seconds" in error for error in errors)
-        assert any("Required parameter" in error for error in errors)
+        assert len(errors) > 0  # nosec B101
+        assert any("duration_seconds" in error for error in errors)  # nosec B101
+        assert any("Required parameter" in error for error in errors)  # nosec B101
 
     def test_fuzzy_parameter_matching(
         self, extractor: ParameterExtractor, timer_tool: SetTimerTool
@@ -159,5 +159,5 @@ class TestParameterExtractor:
         params = extractor.extract_parameters(timer_tool, intent)
 
         # Should fuzzy match "duration" to "duration_seconds"
-        assert "duration_seconds" in params
-        assert params["duration_seconds"] == 300
+        assert "duration_seconds" in params  # nosec B101
+        assert params["duration_seconds"] == 300  # nosec B101

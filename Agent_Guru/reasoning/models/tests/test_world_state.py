@@ -25,8 +25,8 @@ class TestDeviceStatus:
             screen_state="on",
             do_not_disturb=False,
         )
-        assert status.battery_level == 75.0
-        assert status.charging is True
+        assert status.battery_level == 75.0  # nosec B101
+        assert status.charging is True  # nosec B101
 
     def test_invalid_battery_level(self):
         with pytest.raises(ValueError):
@@ -44,8 +44,8 @@ class TestSystemResources:
             memory_usage=60.0,
             disk_space_available=50000,
         )
-        assert resources.cpu_usage == 45.5
-        assert resources.disk_space_available == 50000
+        assert resources.cpu_usage == 45.5  # nosec B101
+        assert resources.disk_space_available == 50000  # nosec B101
 
 
 class TestAppState:
@@ -56,8 +56,8 @@ class TestAppState:
             last_used=datetime.now(tz=timezone.utc),
             usage_duration=3600.0,
         )
-        assert app.app_id == "com.example.app"
-        assert app.is_active is True
+        assert app.app_id == "com.example.app"  # nosec B101
+        assert app.is_active is True  # nosec B101
 
 
 class TestCalendarEvent:
@@ -73,8 +73,8 @@ class TestCalendarEvent:
             location="Office",
             attendees=["alice@example.com"],
         )
-        assert event.title == "Meeting"
-        assert event.end_time > event.start_time
+        assert event.title == "Meeting"  # nosec B101
+        assert event.end_time > event.start_time  # nosec B101
 
     def test_invalid_end_time(self):
         start = datetime.now(tz=timezone.utc)
@@ -98,8 +98,8 @@ class TestContact:
             email_addresses=["john@example.com"],
             relationship="friend",
         )
-        assert contact.name == "John Doe"
-        assert len(contact.phone_numbers) == 1
+        assert contact.name == "John Doe"  # nosec B101
+        assert len(contact.phone_numbers) == 1  # nosec B101
 
 
 class TestLocationState:
@@ -111,8 +111,8 @@ class TestLocationState:
             place_name="San Francisco",
             place_type="city",
         )
-        assert location.latitude == 37.7749
-        assert location.place_name == "San Francisco"
+        assert location.latitude == 37.7749  # nosec B101
+        assert location.place_name == "San Francisco"  # nosec B101
 
     def test_invalid_latitude(self):
         with pytest.raises(ValueError):
@@ -127,8 +127,8 @@ class TestActivity:
             timestamp=datetime.now(tz=timezone.utc),
             details={"duration": 300, "contact": "John"},
         )
-        assert activity.activity_type == "call"
-        assert "duration" in activity.details
+        assert activity.activity_type == "call"  # nosec B101
+        assert "duration" in activity.details  # nosec B101
 
 
 class TestWorldState:
@@ -157,14 +157,14 @@ class TestWorldState:
         )
 
     def test_world_state_creation(self, sample_world_state):
-        assert sample_world_state.device_status.battery_level == 80.0
-        assert len(sample_world_state.active_apps) == 2
+        assert sample_world_state.device_status.battery_level == 80.0  # nosec B101
+        assert len(sample_world_state.active_apps) == 2  # nosec B101
 
     def test_get_active_app_count(self, sample_world_state):
-        assert sample_world_state.get_active_app_count() == 2
+        assert sample_world_state.get_active_app_count() == 2  # nosec B101
 
     def test_is_battery_low(self, sample_world_state):
-        assert not sample_world_state.is_battery_low()
+        assert not sample_world_state.is_battery_low()  # nosec B101
 
         low_battery_state = WorldState(
             device_status=DeviceStatus(battery_level=15.0),
@@ -174,12 +174,12 @@ class TestWorldState:
                 disk_space_available=100000,
             ),
         )
-        assert low_battery_state.is_battery_low()
+        assert low_battery_state.is_battery_low()  # nosec B101
 
     def test_get_upcoming_events(self, sample_world_state):
         events = sample_world_state.get_upcoming_events(hours=24)
-        assert len(events) == 1
-        assert events[0].title == "Meeting"
+        assert len(events) == 1  # nosec B101
+        assert events[0].title == "Meeting"  # nosec B101
 
     def test_get_contact_by_name(self):
         state = WorldState(
@@ -199,13 +199,13 @@ class TestWorldState:
         )
 
         contact = state.get_contact_by_name("John Doe")
-        assert contact is not None
-        assert contact.name == "John Doe"
+        assert contact is not None  # nosec B101
+        assert contact.name == "John Doe"  # nosec B101
 
         # Case insensitive
         contact = state.get_contact_by_name("john doe")
-        assert contact is not None
+        assert contact is not None  # nosec B101
 
         # Not found
         contact = state.get_contact_by_name("Jane Smith")
-        assert contact is None
+        assert contact is None  # nosec B101

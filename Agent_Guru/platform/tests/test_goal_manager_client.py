@@ -31,14 +31,14 @@ class TestGoalManagerClient:
         """Test client initialization with default parameters."""
         client = GoalManagerClient()
         
-        assert client.base_url == "http://localhost:8080"
-        assert client.timeout == 30.0
-        assert client.max_retries == 3
-        assert client.retry_delay == 1.0
-        assert client.circuit_breaker_threshold == 5
-        assert client.circuit_breaker_timeout == 60.0
-        assert client._session is None
-        assert not client._circuit_open
+        assert client.base_url == "http://localhost:8080"  # nosec B101
+        assert client.timeout == 30.0  # nosec B101
+        assert client.max_retries == 3  # nosec B101
+        assert client.retry_delay == 1.0  # nosec B101
+        assert client.circuit_breaker_threshold == 5  # nosec B101
+        assert client.circuit_breaker_timeout == 60.0  # nosec B101
+        assert client._session is None  # nosec B101
+        assert not client._circuit_open  # nosec B101
     
     def test_initialization_with_custom_params(self):
         """Test client initialization with custom parameters."""
@@ -51,17 +51,17 @@ class TestGoalManagerClient:
             circuit_breaker_timeout=120.0,
         )
         
-        assert client.base_url == "http://goal-manager:9000"
-        assert client.timeout == 60.0
-        assert client.max_retries == 5
-        assert client.retry_delay == 2.0
-        assert client.circuit_breaker_threshold == 10
-        assert client.circuit_breaker_timeout == 120.0
+        assert client.base_url == "http://goal-manager:9000"  # nosec B101
+        assert client.timeout == 60.0  # nosec B101
+        assert client.max_retries == 5  # nosec B101
+        assert client.retry_delay == 2.0  # nosec B101
+        assert client.circuit_breaker_threshold == 10  # nosec B101
+        assert client.circuit_breaker_timeout == 120.0  # nosec B101
     
     def test_initialization_strips_trailing_slash(self):
         """Test that trailing slash is stripped from base_url."""
         client = GoalManagerClient(base_url="http://localhost:8080/")
-        assert client.base_url == "http://localhost:8080"
+        assert client.base_url == "http://localhost:8080"  # nosec B101
     
     def test_invalid_timeout(self):
         """Test validation of invalid timeout."""
@@ -100,8 +100,8 @@ class TestGoalManagerClient:
         
         await client.connect()
         
-        assert client._session is not None
-        assert isinstance(client._session, aiohttp.ClientSession)
+        assert client._session is not None  # nosec B101
+        assert isinstance(client._session, aiohttp.ClientSession)  # nosec B101
         
         await client.disconnect()
     
@@ -125,7 +125,7 @@ class TestGoalManagerClient:
         await client.connect()
         await client.disconnect()
         
-        assert client._session is None
+        assert client._session is None  # nosec B101
     
     @pytest.mark.asyncio
     async def test_disconnect_when_not_connected(self):
@@ -134,16 +134,16 @@ class TestGoalManagerClient:
         
         # Should not raise error
         await client.disconnect()
-        assert client._session is None
+        assert client._session is None  # nosec B101
     
     @pytest.mark.asyncio
     async def test_context_manager(self):
         """Test using client as async context manager."""
         async with GoalManagerClient() as client:
-            assert client._session is not None
+            assert client._session is not None  # nosec B101
         
         # Session should be closed after context exit
-        assert client._session is None
+        assert client._session is None  # nosec B101
     
     @pytest.mark.asyncio
     async def test_notify_task_completion_not_connected(self):
@@ -189,9 +189,9 @@ class TestGoalManagerClient:
             
             status = await client.notify_task_completion(notification)
             
-            assert status == NotificationStatus.SENT
-            assert client._notifications_sent == 1
-            assert client._notifications_failed == 0
+            assert status == NotificationStatus.SENT  # nosec B101
+            assert client._notifications_sent == 1  # nosec B101
+            assert client._notifications_failed == 0  # nosec B101
         
         await client.disconnect()
     
@@ -216,8 +216,8 @@ class TestGoalManagerClient:
             
             status = await client.notify_task_completion(notification)
             
-            assert status == NotificationStatus.FAILED
-            assert client._notifications_failed == 1
+            assert status == NotificationStatus.FAILED  # nosec B101
+            assert client._notifications_failed == 1  # nosec B101
             # Rate limit returns RETRYING status, not exception, so no retry attempts
         
         await client.disconnect()
@@ -244,8 +244,8 @@ class TestGoalManagerClient:
             
             status = await client.notify_task_completion(notification)
             
-            assert status == NotificationStatus.FAILED
-            assert client._notifications_failed == 1
+            assert status == NotificationStatus.FAILED  # nosec B101
+            assert client._notifications_failed == 1  # nosec B101
         
         await client.disconnect()
     
@@ -276,12 +276,12 @@ class TestGoalManagerClient:
             for _ in range(3):
                 await client.notify_task_completion(notification)
             
-            assert client._circuit_open
-            assert client._failure_count == 3
+            assert client._circuit_open  # nosec B101
+            assert client._failure_count == 3  # nosec B101
             
             # Next attempt should fail fast
             status = await client.notify_task_completion(notification)
-            assert status == NotificationStatus.FAILED
+            assert status == NotificationStatus.FAILED  # nosec B101
         
         await client.disconnect()
     
@@ -319,7 +319,7 @@ class TestGoalManagerClient:
             for _ in range(2):
                 await client.notify_task_completion(notification)
             
-            assert client._circuit_open
+            assert client._circuit_open  # nosec B101
         
         # Wait for circuit breaker timeout
         await asyncio.sleep(0.2)
@@ -327,8 +327,8 @@ class TestGoalManagerClient:
         # Next attempt should try again and succeed
         with patch.object(client._session, 'post', return_value=mock_response_success):
             status = await client.notify_task_completion(notification)
-            assert status == NotificationStatus.SENT
-            assert not client._circuit_open
+            assert status == NotificationStatus.SENT  # nosec B101
+            assert not client._circuit_open  # nosec B101
         
         await client.disconnect()
     
@@ -359,8 +359,8 @@ class TestGoalManagerClient:
             
             status = await client.report_operation_result(operation)
             
-            assert status == NotificationStatus.SENT
-            assert client._notifications_sent == 1
+            assert status == NotificationStatus.SENT  # nosec B101
+            assert client._notifications_sent == 1  # nosec B101
         
         await client.disconnect()
     
@@ -370,11 +370,11 @@ class TestGoalManagerClient:
         
         stats = client.get_statistics()
         
-        assert stats["notifications_sent"] == 0
-        assert stats["notifications_failed"] == 0
-        assert stats["total_retry_attempts"] == 0
-        assert stats["circuit_open"] is False
-        assert stats["failure_count"] == 0
+        assert stats["notifications_sent"] == 0  # nosec B101
+        assert stats["notifications_failed"] == 0  # nosec B101
+        assert stats["total_retry_attempts"] == 0  # nosec B101
+        assert stats["circuit_open"] is False  # nosec B101
+        assert stats["failure_count"] == 0  # nosec B101
 
 
 class TestTaskCompletionNotification:
@@ -384,13 +384,13 @@ class TestTaskCompletionNotification:
         """Test notification initialization with default values."""
         notification = TaskCompletionNotification()
         
-        assert isinstance(notification.notification_id, UUID)
-        assert notification.task_id == ""
-        assert notification.task_description == ""
-        assert isinstance(notification.completion_time, datetime)
-        assert notification.operations == []
-        assert notification.overall_status == OperationStatus.SUCCESS
-        assert notification.metadata == {}
+        assert isinstance(notification.notification_id, UUID)  # nosec B101
+        assert notification.task_id == ""  # nosec B101
+        assert notification.task_description == ""  # nosec B101
+        assert isinstance(notification.completion_time, datetime)  # nosec B101
+        assert notification.operations == []  # nosec B101
+        assert notification.overall_status == OperationStatus.SUCCESS  # nosec B101
+        assert notification.metadata == {}  # nosec B101
     
     def test_initialization_with_values(self):
         """Test notification initialization with custom values."""
@@ -413,12 +413,12 @@ class TestTaskCompletionNotification:
             metadata={"user_id": "user-456"},
         )
         
-        assert notification.task_id == "task-123"
-        assert notification.task_description == "Create user profile"
-        assert notification.completion_time == now
-        assert len(notification.operations) == 1
-        assert notification.overall_status == OperationStatus.SUCCESS
-        assert notification.metadata == {"user_id": "user-456"}
+        assert notification.task_id == "task-123"  # nosec B101
+        assert notification.task_description == "Create user profile"  # nosec B101
+        assert notification.completion_time == now  # nosec B101
+        assert len(notification.operations) == 1  # nosec B101
+        assert notification.overall_status == OperationStatus.SUCCESS  # nosec B101
+        assert notification.metadata == {"user_id": "user-456"}  # nosec B101
     
     def test_to_dict(self):
         """Test converting notification to dictionary."""
@@ -442,15 +442,15 @@ class TestTaskCompletionNotification:
         
         data = notification.to_dict()
         
-        assert "notification_id" in data
-        assert data["task_id"] == "task-123"
-        assert data["task_description"] == "Write file"
-        assert "completion_time" in data
-        assert len(data["operations"]) == 1
-        assert data["operations"][0]["operation_id"] == "op-1"
-        assert data["operations"][0]["operation_type"] == "file_write"
-        assert data["operations"][0]["status"] == "success"
-        assert data["overall_status"] == "success"
+        assert "notification_id" in data  # nosec B101
+        assert data["task_id"] == "task-123"  # nosec B101
+        assert data["task_description"] == "Write file"  # nosec B101
+        assert "completion_time" in data  # nosec B101
+        assert len(data["operations"]) == 1  # nosec B101
+        assert data["operations"][0]["operation_id"] == "op-1"  # nosec B101
+        assert data["operations"][0]["operation_type"] == "file_write"  # nosec B101
+        assert data["operations"][0]["status"] == "success"  # nosec B101
+        assert data["overall_status"] == "success"  # nosec B101
 
 
 class TestOperationResult:
@@ -473,15 +473,15 @@ class TestOperationResult:
             resource_usage={"cpu_percent": 5.0, "memory_mb": 10.0},
         )
         
-        assert result.operation_id == "op-1"
-        assert result.operation_type == "command_execution"
-        assert result.status == OperationStatus.SUCCESS
-        assert result.start_time == now
-        assert result.execution_time == 2.0
-        assert result.parameters == {"command": "ls -la"}
-        assert result.result_data == {"exit_code": 0, "output": "file1.txt"}
-        assert result.error_message is None
-        assert result.resource_usage == {"cpu_percent": 5.0, "memory_mb": 10.0}
+        assert result.operation_id == "op-1"  # nosec B101
+        assert result.operation_type == "command_execution"  # nosec B101
+        assert result.status == OperationStatus.SUCCESS  # nosec B101
+        assert result.start_time == now  # nosec B101
+        assert result.execution_time == 2.0  # nosec B101
+        assert result.parameters == {"command": "ls -la"}  # nosec B101
+        assert result.result_data == {"exit_code": 0, "output": "file1.txt"}  # nosec B101
+        assert result.error_message is None  # nosec B101
+        assert result.resource_usage == {"cpu_percent": 5.0, "memory_mb": 10.0}  # nosec B101
     
     def test_initialization_with_error(self):
         """Test operation result initialization with error."""
@@ -497,8 +497,8 @@ class TestOperationResult:
             error_message="Permission denied",
         )
         
-        assert result.status == OperationStatus.FAILURE
-        assert result.error_message == "Permission denied"
+        assert result.status == OperationStatus.FAILURE  # nosec B101
+        assert result.error_message == "Permission denied"  # nosec B101
 
 
 class TestGoalManagerClientProperties:
@@ -522,9 +522,9 @@ class TestGoalManagerClientProperties:
             retry_delay=retry_delay,
         )
         
-        assert client.timeout == timeout
-        assert client.max_retries == max_retries
-        assert client.retry_delay == retry_delay
+        assert client.timeout == timeout  # nosec B101
+        assert client.max_retries == max_retries  # nosec B101
+        assert client.retry_delay == retry_delay  # nosec B101
     
     @given(
         task_id=st.text(min_size=1, max_size=100),
@@ -543,13 +543,13 @@ class TestGoalManagerClientProperties:
         
         data = notification.to_dict()
         
-        assert "notification_id" in data
-        assert "task_id" in data
-        assert "task_description" in data
-        assert "completion_time" in data
-        assert "operations" in data
-        assert "overall_status" in data
-        assert isinstance(data["operations"], list)
+        assert "notification_id" in data  # nosec B101
+        assert "task_id" in data  # nosec B101
+        assert "task_description" in data  # nosec B101
+        assert "completion_time" in data  # nosec B101
+        assert "operations" in data  # nosec B101
+        assert "overall_status" in data  # nosec B101
+        assert isinstance(data["operations"], list)  # nosec B101
 
 
 @pytest.mark.integration
@@ -596,11 +596,11 @@ class TestGoalManagerClientIntegration:
             # Send notification
             status = await client.notify_task_completion(notification)
             
-            assert status == NotificationStatus.SENT
+            assert status == NotificationStatus.SENT  # nosec B101
             
             # Verify statistics
             stats = client.get_statistics()
-            assert stats["notifications_sent"] == 1
-            assert stats["notifications_failed"] == 0
+            assert stats["notifications_sent"] == 1  # nosec B101
+            assert stats["notifications_failed"] == 0  # nosec B101
         
         await client.disconnect()

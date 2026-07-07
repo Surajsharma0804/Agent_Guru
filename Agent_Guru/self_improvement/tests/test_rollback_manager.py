@@ -70,13 +70,13 @@ class TestRollbackManagerInitialization:
     def test_initialization(self, pool):
         """Test manager initializes correctly."""
         manager = RollbackManager(pool)
-        assert manager.pool == pool
-        assert manager.max_rollback_window_hours == 168  # 7 days
+        assert manager.pool == pool  # nosec B101
+        assert manager.max_rollback_window_hours == 168  # 7 days  # nosec B101
 
     def test_custom_rollback_window(self, pool):
         """Test custom rollback window."""
         manager = RollbackManager(pool, max_rollback_window_hours=48)
-        assert manager.max_rollback_window_hours == 48
+        assert manager.max_rollback_window_hours == 48  # nosec B101
 
     def test_invalid_rollback_window(self, pool):
         """Test invalid rollback window raises error."""
@@ -96,7 +96,7 @@ class TestRollbackManagerInitialization:
                 WHERE type='table' AND name='change_history'
             """
             )
-            assert cursor.fetchone() is not None
+            assert cursor.fetchone() is not None  # nosec B101
 
 
 class TestChangeRecording:
@@ -113,8 +113,8 @@ class TestChangeRecording:
             performance_after={"success_rate": 0.85},
         )
 
-        assert change_id.startswith("change_")
-        assert "strategy_1" in change_id
+        assert change_id.startswith("change_")  # nosec B101
+        assert "strategy_1" in change_id  # nosec B101
 
     def test_record_prompt_change(self, manager):
         """Test recording a prompt change."""
@@ -126,8 +126,8 @@ class TestChangeRecording:
             performance_before={"success_rate": 0.7},
         )
 
-        assert change_id.startswith("change_")
-        assert "prompt_v1" in change_id
+        assert change_id.startswith("change_")  # nosec B101
+        assert "prompt_v1" in change_id  # nosec B101
 
     def test_record_multiple_changes(self, manager):
         """Test recording multiple changes."""
@@ -144,7 +144,7 @@ class TestChangeRecording:
             change_ids.append(change_id)
 
         # All change IDs should be unique
-        assert len(set(change_ids)) == 5
+        assert len(set(change_ids)) == 5  # nosec B101
 
     def test_change_persisted_to_database(self, manager, pool):
         """Test change is persisted to database."""
@@ -169,10 +169,10 @@ class TestChangeRecording:
             )
             row = cursor.fetchone()
 
-            assert row is not None
-            assert row[0] == change_id
-            assert row[1] == ChangeType.STRATEGY_UPDATE.value
-            assert row[2] == "strategy_1"
+            assert row is not None  # nosec B101
+            assert row[0] == change_id  # nosec B101
+            assert row[1] == ChangeType.STRATEGY_UPDATE.value  # nosec B101
+            assert row[2] == "strategy_1"  # nosec B101
 
 
 class TestRollbackOperations:
@@ -193,18 +193,18 @@ class TestRollbackOperations:
         # Rollback
         result = manager.rollback_recent_changes(hours=24)
 
-        assert result.success
-        assert result.changes_rolled_back == 3
-        assert len(result.components_affected) == 3
-        assert result.error_message is None
+        assert result.success  # nosec B101
+        assert result.changes_rolled_back == 3  # nosec B101
+        assert len(result.components_affected) == 3  # nosec B101
+        assert result.error_message is None  # nosec B101
 
     def test_rollback_no_changes(self, manager):
         """Test rollback when no changes exist."""
         result = manager.rollback_recent_changes(hours=24)
 
-        assert result.success
-        assert result.changes_rolled_back == 0
-        assert len(result.components_affected) == 0
+        assert result.success  # nosec B101
+        assert result.changes_rolled_back == 0  # nosec B101
+        assert len(result.components_affected) == 0  # nosec B101
 
     def test_rollback_filtered_by_type(self, manager):
         """Test rollback filtered by change type."""
@@ -230,10 +230,10 @@ class TestRollbackOperations:
             hours=24, change_types=[ChangeType.STRATEGY_UPDATE]
         )
 
-        assert result.success
-        assert result.changes_rolled_back == 1
-        assert "strategy_1" in result.components_affected
-        assert "prompt_1" not in result.components_affected
+        assert result.success  # nosec B101
+        assert result.changes_rolled_back == 1  # nosec B101
+        assert "strategy_1" in result.components_affected  # nosec B101
+        assert "prompt_1" not in result.components_affected  # nosec B101
 
     def test_rollback_filtered_by_component(self, manager):
         """Test rollback filtered by component ID."""
@@ -257,18 +257,18 @@ class TestRollbackOperations:
         # Rollback only strategy_1
         result = manager.rollback_recent_changes(hours=24, component_ids=["strategy_1"])
 
-        assert result.success
-        assert result.changes_rolled_back == 1
-        assert "strategy_1" in result.components_affected
-        assert "strategy_2" not in result.components_affected
+        assert result.success  # nosec B101
+        assert result.changes_rolled_back == 1  # nosec B101
+        assert "strategy_1" in result.components_affected  # nosec B101
+        assert "strategy_2" not in result.components_affected  # nosec B101
 
     def test_rollback_exceeds_max_window(self, manager):
         """Test rollback exceeding maximum window fails."""
         result = manager.rollback_recent_changes(hours=200)  # Exceeds 168 hour limit
 
-        assert not result.success
-        assert result.changes_rolled_back == 0
-        assert "exceeds maximum" in result.error_message
+        assert not result.success  # nosec B101
+        assert result.changes_rolled_back == 0  # nosec B101
+        assert "exceeds maximum" in result.error_message  # nosec B101
 
     def test_rollback_marks_changes_as_rolled_back(self, manager, pool):
         """Test rollback marks changes as rolled back in database."""
@@ -296,8 +296,8 @@ class TestRollbackOperations:
             )
             row = cursor.fetchone()
 
-            assert row[0] == 1  # rolled_back = True
-            assert row[1] is not None  # rollback_timestamp set
+            assert row[0] == 1  # rolled_back = True  # nosec B101
+            assert row[1] is not None  # rollback_timestamp set  # nosec B101
 
     def test_rollback_does_not_rollback_twice(self, manager):
         """Test already rolled back changes are not rolled back again."""
@@ -311,11 +311,11 @@ class TestRollbackOperations:
         )
 
         result1 = manager.rollback_recent_changes(hours=24)
-        assert result1.changes_rolled_back == 1
+        assert result1.changes_rolled_back == 1  # nosec B101
 
         # Try to rollback again
         result2 = manager.rollback_recent_changes(hours=24)
-        assert result2.changes_rolled_back == 0  # Already rolled back
+        assert result2.changes_rolled_back == 0  # Already rolled back  # nosec B101
 
 
 class TestRollbackToTimestamp:
@@ -349,23 +349,23 @@ class TestRollbackToTimestamp:
 
         # Both changes are recent, so both should be rolled back
         # (This is a simplified test - in reality, we'd need to manipulate timestamps)
-        assert result.success
+        assert result.success  # nosec B101
 
     def test_rollback_to_future_timestamp(self, manager):
         """Test rollback to future timestamp fails."""
         future_time = datetime.now(tz=timezone.utc) + timedelta(hours=1)
         result = manager.rollback_to_timestamp(future_time)
 
-        assert not result.success
-        assert "future" in result.error_message
+        assert not result.success  # nosec B101
+        assert "future" in result.error_message  # nosec B101
 
     def test_rollback_to_timestamp_exceeds_window(self, manager):
         """Test rollback to timestamp exceeding window fails."""
         old_time = datetime.now(tz=timezone.utc) - timedelta(hours=200)
         result = manager.rollback_to_timestamp(old_time)
 
-        assert not result.success
-        assert "exceeds maximum" in result.error_message
+        assert not result.success  # nosec B101
+        assert "exceeds maximum" in result.error_message  # nosec B101
 
 
 class TestDegradationTriggeredRollback:
@@ -400,7 +400,7 @@ class TestDegradationTriggeredRollback:
         # Rollback on degradation
         result, investigation = manager.rollback_on_degradation(alert)
 
-        assert result.success
+        assert result.success  # nosec B101
         # Should rollback 48 hours for severe degradation
 
     def test_rollback_on_moderate_degradation(self, manager):
@@ -432,7 +432,7 @@ class TestDegradationTriggeredRollback:
         # Rollback on degradation
         result, investigation = manager.rollback_on_degradation(alert)
 
-        assert result.success
+        assert result.success  # nosec B101
         # Should rollback 24 hours for moderate degradation
 
     def test_rollback_targets_correct_change_types(self, manager):
@@ -472,7 +472,7 @@ class TestDegradationTriggeredRollback:
         # Rollback on degradation
         result, investigation = manager.rollback_on_degradation(alert)
 
-        assert result.success
+        assert result.success  # nosec B101
         # Should primarily rollback strategy changes
 
 
@@ -494,8 +494,8 @@ class TestChangeHistory:
         # Get history
         history = manager.get_change_history(hours=24)
 
-        assert len(history) == 3
-        assert all(isinstance(record, ChangeRecord) for record in history)
+        assert len(history) == 3  # nosec B101
+        assert all(isinstance(record, ChangeRecord) for record in history)  # nosec B101
 
     def test_get_change_history_filtered_by_type(self, manager):
         """Test retrieving history filtered by type."""
@@ -521,8 +521,8 @@ class TestChangeHistory:
             hours=24, change_types=[ChangeType.STRATEGY_UPDATE]
         )
 
-        assert len(history) == 1
-        assert history[0].change_type == ChangeType.STRATEGY_UPDATE
+        assert len(history) == 1  # nosec B101
+        assert history[0].change_type == ChangeType.STRATEGY_UPDATE  # nosec B101
 
     def test_get_change_history_exclude_rolled_back(self, manager):
         """Test retrieving history excluding rolled back changes."""
@@ -549,8 +549,8 @@ class TestChangeHistory:
         # Get history excluding rolled back
         history = manager.get_change_history(hours=24, include_rolled_back=False)
 
-        assert len(history) == 1
-        assert history[0].component_id == "strategy_2"
+        assert len(history) == 1  # nosec B101
+        assert history[0].component_id == "strategy_2"  # nosec B101
 
 
 class TestRollbackStatistics:
@@ -574,9 +574,9 @@ class TestRollbackStatistics:
         # Get statistics
         stats = manager.get_rollback_statistics(hours=24)
 
-        assert stats["total_changes"] == 5
-        assert stats["rolled_back_changes"] == 3
-        assert stats["rollback_rate"] == 0.6  # 3/5
+        assert stats["total_changes"] == 5  # nosec B101
+        assert stats["rolled_back_changes"] == 3  # nosec B101
+        assert stats["rollback_rate"] == 0.6  # 3/5  # nosec B101
 
     def test_statistics_by_change_type(self, manager):
         """Test statistics broken down by change type."""
@@ -603,9 +603,9 @@ class TestRollbackStatistics:
         # Get statistics
         stats = manager.get_rollback_statistics(hours=24)
 
-        assert "changes_by_type" in stats
-        assert ChangeType.STRATEGY_UPDATE.value in stats["changes_by_type"]
-        assert ChangeType.PROMPT_UPDATE.value in stats["changes_by_type"]
+        assert "changes_by_type" in stats  # nosec B101
+        assert ChangeType.STRATEGY_UPDATE.value in stats["changes_by_type"]  # nosec B101
+        assert ChangeType.PROMPT_UPDATE.value in stats["changes_by_type"]  # nosec B101
 
 
 class TestDataIntegrity:
@@ -624,7 +624,7 @@ class TestDataIntegrity:
 
         # Rollback
         result = manager.rollback_recent_changes(hours=24)
-        assert result.success
+        assert result.success  # nosec B101
 
         # Verify database integrity
         with pool.connection() as conn:
@@ -638,7 +638,7 @@ class TestDataIntegrity:
             """,
                 (change_id,),
             )
-            assert cursor.fetchone()[0] == 1
+            assert cursor.fetchone()[0] == 1  # nosec B101
 
     def test_concurrent_rollback_operations(self, manager):
         """Test concurrent rollback operations maintain integrity."""
@@ -656,10 +656,10 @@ class TestDataIntegrity:
         result1 = manager.rollback_recent_changes(hours=24, component_ids=["strategy_0", "strategy_1"])
         result2 = manager.rollback_recent_changes(hours=24, component_ids=["strategy_2", "strategy_3"])
 
-        assert result1.success
-        assert result2.success
-        assert result1.changes_rolled_back == 2
-        assert result2.changes_rolled_back == 2
+        assert result1.success  # nosec B101
+        assert result2.success  # nosec B101
+        assert result1.changes_rolled_back == 2  # nosec B101
+        assert result2.changes_rolled_back == 2  # nosec B101
 
 
 class TestPerformanceMetrics:
@@ -684,8 +684,8 @@ class TestPerformanceMetrics:
         result = manager.rollback_recent_changes(hours=24)
         elapsed_ms = (time.time() - start) * 1000
 
-        assert result.success
-        assert elapsed_ms < 100  # Target: <100ms
+        assert result.success  # nosec B101
+        assert elapsed_ms < 100  # Target: <100ms  # nosec B101
 
     def test_performance_restored_calculation(self, manager):
         """Test performance restored metrics are calculated correctly."""
@@ -709,11 +709,11 @@ class TestPerformanceMetrics:
         # Rollback
         result = manager.rollback_recent_changes(hours=24)
 
-        assert result.success
-        assert result.performance_restored is not None
-        assert "success_rate" in result.performance_restored
+        assert result.success  # nosec B101
+        assert result.performance_restored is not None  # nosec B101
+        assert "success_rate" in result.performance_restored  # nosec B101
         # Average of 0.8 and 0.75 = 0.775
-        assert abs(result.performance_restored["success_rate"] - 0.775) < 0.01
+        assert abs(result.performance_restored["success_rate"] - 0.775) < 0.01  # nosec B101
 
 
 if __name__ == "__main__":

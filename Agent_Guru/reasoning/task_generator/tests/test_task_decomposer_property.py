@@ -94,11 +94,11 @@ class TestTaskModelGeneratorProperties:
             )
 
             # Task should be created
-            assert task is not None
-            assert isinstance(task.goal, str)
-            assert len(task.steps) > 0
-            assert task.status == TaskStatus.PENDING
-            assert task.retry_count == 0
+            assert task is not None  # nosec B101
+            assert isinstance(task.goal, str)  # nosec B101
+            assert len(task.steps) > 0  # nosec B101
+            assert task.status == TaskStatus.PENDING  # nosec B101
+            assert task.retry_count == 0  # nosec B101
 
         except (ValueError, TypeError, KeyError):
             # Some generated data may still be invalid due to Pydantic validation
@@ -127,7 +127,7 @@ class TestTaskModelGeneratorProperties:
             )
 
             # Confidence must be bounded
-            assert 0.0 <= task.confidence <= 1.0
+            assert 0.0 <= task.confidence <= 1.0  # nosec B101
 
         except (ValueError, TypeError, KeyError):
             pass
@@ -154,7 +154,7 @@ class TestTaskModelGeneratorProperties:
             # Step IDs should be sequential
             expected_ids = list(range(1, len(task.steps) + 1))
             actual_ids = [step.step_id for step in task.steps]
-            assert actual_ids == expected_ids
+            assert actual_ids == expected_ids  # nosec B101
 
         except (ValueError, TypeError, KeyError):
             pass
@@ -184,9 +184,9 @@ class TestTaskModelGeneratorProperties:
             num_steps = len(task.steps)
 
             if task.task_type == TaskType.SINGLE_STEP:
-                assert num_steps == 1
+                assert num_steps == 1  # nosec B101
             elif task.task_type == TaskType.MULTI_STEP:
-                assert 2 <= num_steps <= 5
+                assert 2 <= num_steps <= 5  # nosec B101
 
         except (ValueError, TypeError, KeyError):
             pass
@@ -216,7 +216,7 @@ class TestTaskModelGeneratorProperties:
             step_sum = sum(step.estimated_duration for step in task.steps)
 
             # Should match task total (within floating point tolerance)
-            assert abs(task.estimated_duration - step_sum) < 0.01
+            assert abs(task.estimated_duration - step_sum) < 0.01  # nosec B101
 
         except (ValueError, TypeError, KeyError):
             pass
@@ -244,7 +244,7 @@ class TestTaskModelGeneratorProperties:
 
             # All steps should be PENDING
             for step in task.steps:
-                assert step.status == TaskStatus.PENDING
+                assert step.status == TaskStatus.PENDING  # nosec B101
 
         except (ValueError, TypeError, KeyError):
             pass
@@ -277,14 +277,14 @@ class TestTaskModelGeneratorProperties:
             )
 
             # Check all required fields
-            assert isinstance(task.goal, str) and len(task.goal) > 0
-            assert isinstance(task.task_type, TaskType)
-            assert isinstance(task.steps, list) and len(task.steps) > 0
-            assert isinstance(task.confidence, float) and 0.0 <= task.confidence <= 1.0
-            assert isinstance(task.status, TaskStatus)
-            assert isinstance(task.user_id, str) and len(task.user_id) > 0
-            assert isinstance(task.conversation_id, str) and len(task.conversation_id) > 0
-            assert isinstance(task.retry_count, int) and task.retry_count >= 0
+            assert isinstance(task.goal, str) and len(task.goal) > 0  # nosec B101
+            assert isinstance(task.task_type, TaskType)  # nosec B101
+            assert isinstance(task.steps, list) and len(task.steps) > 0  # nosec B101
+            assert isinstance(task.confidence, float) and 0.0 <= task.confidence <= 1.0  # nosec B101
+            assert isinstance(task.status, TaskStatus)  # nosec B101
+            assert isinstance(task.user_id, str) and len(task.user_id) > 0  # nosec B101
+            assert isinstance(task.conversation_id, str) and len(task.conversation_id) > 0  # nosec B101
+            assert isinstance(task.retry_count, int) and task.retry_count >= 0  # nosec B101
 
         except (ValueError, TypeError, KeyError):
             pass
@@ -324,7 +324,7 @@ class TestTaskModelGeneratorProperties:
             )
 
             # Should have valid number of steps
-            assert 1 <= len(task.steps) <= 5
+            assert 1 <= len(task.steps) <= 5  # nosec B101
 
         except (ValueError, TypeError, KeyError):
             # Expected for invalid inputs
@@ -375,7 +375,7 @@ class TestTaskModelGeneratorProperties:
             # No cycles should exist
             for step in task.steps:
                 if step.step_id not in visited:
-                    assert not has_cycle(step.step_id)
+                    assert not has_cycle(step.step_id)  # nosec B101
 
         except (ValueError, TypeError, KeyError):
             pass
@@ -405,7 +405,7 @@ class TestTaskModelGeneratorProperties:
             for step in task.steps:
                 for dep_id in step.depends_on:
                     # Dependency must be earlier step
-                    assert dep_id < step.step_id
+                    assert dep_id < step.step_id  # nosec B101
 
         except (ValueError, TypeError, KeyError):
             pass
@@ -444,7 +444,7 @@ class TestTaskModelGeneratorProperties:
                 task = generator.generate_task(
                     llm_output, sample_intent, confidence, "user123", "conv456"
                 )
-                assert task is not None
+                assert task is not None  # nosec B101
             except (ValueError, TypeError, KeyError):
                 # May fail for other reasons
                 pass
@@ -476,12 +476,12 @@ class TestTaskModelGeneratorProperties:
             )
 
             # Core properties should match
-            assert task1.goal == task2.goal
-            assert task1.task_type == task2.task_type
-            assert len(task1.steps) == len(task2.steps)
-            assert task1.confidence == task2.confidence
-            assert task1.requires_confirmation == task2.requires_confirmation
-            assert task1.estimated_duration == task2.estimated_duration
+            assert task1.goal == task2.goal  # nosec B101
+            assert task1.task_type == task2.task_type  # nosec B101
+            assert len(task1.steps) == len(task2.steps)  # nosec B101
+            assert task1.confidence == task2.confidence  # nosec B101
+            assert task1.requires_confirmation == task2.requires_confirmation  # nosec B101
+            assert task1.estimated_duration == task2.estimated_duration  # nosec B101
 
         except (ValueError, TypeError, KeyError):
             pass

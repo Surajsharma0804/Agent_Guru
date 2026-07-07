@@ -44,16 +44,16 @@ class TestIOSSpeechRecognizer:
     
     def test_initialization(self, recognizer):
         """Test recognizer initialization."""
-        assert recognizer is not None
-        assert recognizer.language == "en-US"
-        assert recognizer.prefer_on_device is True
-        assert recognizer.is_initialized is False
+        assert recognizer is not None  # nosec B101
+        assert recognizer.language == "en-US"  # nosec B101
+        assert recognizer.prefer_on_device is True  # nosec B101
+        assert recognizer.is_initialized is False  # nosec B101
     
     @pytest.mark.asyncio
     async def test_initialize(self, recognizer):
         """Test async initialization."""
         await recognizer.initialize()
-        assert recognizer.is_initialized is True
+        assert recognizer.is_initialized is True  # nosec B101
     
     @pytest.mark.asyncio
     async def test_recognize_stub(self, recognizer, sample_audio):
@@ -68,13 +68,13 @@ class TestIOSSpeechRecognizer:
         )
         
         # Verify result structure
-        assert isinstance(result, TranscriptionResult)
-        assert result.text is not None
-        assert len(result.text) > 0
-        assert result.language == "en-US"
-        assert 0.0 <= result.confidence <= 1.0
-        assert result.duration > 0.0
-        assert len(result.segments) > 0
+        assert isinstance(result, TranscriptionResult)  # nosec B101
+        assert result.text is not None  # nosec B101
+        assert len(result.text) > 0  # nosec B101
+        assert result.language == "en-US"  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
+        assert result.duration > 0.0  # nosec B101
+        assert len(result.segments) > 0  # nosec B101
     
     @pytest.mark.asyncio
     async def test_recognize_different_languages(self, recognizer, sample_audio):
@@ -88,8 +88,8 @@ class TestIOSSpeechRecognizer:
                 language=lang
             )
             
-            assert result.language == lang
-            assert isinstance(result, TranscriptionResult)
+            assert result.language == lang  # nosec B101
+            assert isinstance(result, TranscriptionResult)  # nosec B101
     
     @pytest.mark.asyncio
     async def test_recognize_streaming_stub(self, recognizer, sample_audio):
@@ -109,50 +109,50 @@ class TestIOSSpeechRecognizer:
             results.append(result)
         
         # Verify we got results
-        assert len(results) > 0
+        assert len(results) > 0  # nosec B101
         for result in results:
-            assert isinstance(result, TranscriptionResult)
+            assert isinstance(result, TranscriptionResult)  # nosec B101
     
     @pytest.mark.asyncio
     async def test_check_availability(self, recognizer):
         """Test availability check."""
         availability = await recognizer.check_availability()
         
-        assert isinstance(availability, dict)
-        assert "available" in availability
-        assert "on_device" in availability
-        assert "languages" in availability
-        assert "authorization" in availability
-        assert "platform" in availability
+        assert isinstance(availability, dict)  # nosec B101
+        assert "available" in availability  # nosec B101
+        assert "on_device" in availability  # nosec B101
+        assert "languages" in availability  # nosec B101
+        assert "authorization" in availability  # nosec B101
+        assert "platform" in availability  # nosec B101
         
         # On non-iOS platform, should indicate stub
-        assert availability["platform"] == "non-ios (stub)"
+        assert availability["platform"] == "non-ios (stub)"  # nosec B101
     
     @pytest.mark.asyncio
     async def test_get_supported_languages(self, recognizer):
         """Test getting supported languages."""
         languages = await recognizer.get_supported_languages()
         
-        assert isinstance(languages, list)
-        assert len(languages) > 0
+        assert isinstance(languages, list)  # nosec B101
+        assert len(languages) > 0  # nosec B101
         
         # Should include common languages
-        assert any("en" in lang for lang in languages)
+        assert any("en" in lang for lang in languages)  # nosec B101
     
     @pytest.mark.asyncio
     async def test_cleanup(self, recognizer):
         """Test resource cleanup."""
         await recognizer.initialize()
-        assert recognizer.is_initialized is True
+        assert recognizer.is_initialized is True  # nosec B101
         
         await recognizer.cleanup()
-        assert recognizer.is_initialized is False
-        assert recognizer.recognizer is None
+        assert recognizer.is_initialized is False  # nosec B101
+        assert recognizer.recognizer is None  # nosec B101
     
     def test_platform_detection(self, recognizer):
         """Test iOS platform detection."""
         # On non-iOS platform, should detect correctly
-        assert recognizer._is_ios is False
+        assert recognizer._is_ios is False  # nosec B101
     
     @pytest.mark.asyncio
     async def test_confidence_scores(self, recognizer, sample_audio):
@@ -166,11 +166,11 @@ class TestIOSSpeechRecognizer:
         )
         
         # Check overall confidence
-        assert 0.0 <= result.confidence <= 1.0
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
         
         # Check segment confidences
         for segment in result.segments:
-            assert 0.0 <= segment.confidence <= 1.0
+            assert 0.0 <= segment.confidence <= 1.0  # nosec B101
     
     @pytest.mark.asyncio
     async def test_audio_duration_calculation(self, recognizer):
@@ -189,7 +189,7 @@ class TestIOSSpeechRecognizer:
         )
         
         # Duration should be close to expected (within 0.1s)
-        assert abs(result.duration - duration_seconds) < 0.1
+        assert abs(result.duration - duration_seconds) < 0.1  # nosec B101
     
     @pytest.mark.asyncio
     async def test_empty_audio(self, recognizer):
@@ -202,8 +202,8 @@ class TestIOSSpeechRecognizer:
         )
         
         # Should still return valid result structure
-        assert isinstance(result, TranscriptionResult)
-        assert result.duration == 0.0
+        assert isinstance(result, TranscriptionResult)  # nosec B101
+        assert result.duration == 0.0  # nosec B101
     
     @pytest.mark.asyncio
     async def test_multiple_recognitions(self, recognizer, sample_audio):
@@ -218,9 +218,9 @@ class TestIOSSpeechRecognizer:
             results.append(result)
         
         # All should succeed
-        assert len(results) == 3
+        assert len(results) == 3  # nosec B101
         for result in results:
-            assert isinstance(result, TranscriptionResult)
+            assert isinstance(result, TranscriptionResult)  # nosec B101
     
     def test_custom_configuration(self):
         """Test recognizer with custom configuration."""
@@ -230,9 +230,9 @@ class TestIOSSpeechRecognizer:
             require_on_device=False
         )
         
-        assert recognizer.prefer_on_device is False
-        assert recognizer.language == "es-ES"
-        assert recognizer.require_on_device is False
+        assert recognizer.prefer_on_device is False  # nosec B101
+        assert recognizer.language == "es-ES"  # nosec B101
+        assert recognizer.require_on_device is False  # nosec B101
     
     def test_require_on_device_configuration(self):
         """Test require_on_device configuration."""
@@ -241,13 +241,13 @@ class TestIOSSpeechRecognizer:
             require_on_device=True
         )
         
-        assert recognizer.require_on_device is True
+        assert recognizer.require_on_device is True  # nosec B101
     
     @pytest.mark.asyncio
     async def test_language_override(self, recognizer, sample_audio):
         """Test language override in recognize method."""
         # Recognizer default is en-US
-        assert recognizer.language == "en-US"
+        assert recognizer.language == "en-US"  # nosec B101
         
         # Override with different language
         result = await recognizer.recognize(
@@ -257,7 +257,7 @@ class TestIOSSpeechRecognizer:
         )
         
         # Result should use overridden language
-        assert result.language == "fr-FR"
+        assert result.language == "fr-FR"  # nosec B101
     
     @pytest.mark.asyncio
     async def test_segment_structure(self, recognizer, sample_audio):
@@ -268,10 +268,10 @@ class TestIOSSpeechRecognizer:
         )
         
         for segment in result.segments:
-            assert segment.text is not None
-            assert segment.start_time >= 0.0
-            assert segment.end_time >= segment.start_time
-            assert 0.0 <= segment.confidence <= 1.0
+            assert segment.text is not None  # nosec B101
+            assert segment.start_time >= 0.0  # nosec B101
+            assert segment.end_time >= segment.start_time  # nosec B101
+            assert 0.0 <= segment.confidence <= 1.0  # nosec B101
     
     @pytest.mark.asyncio
     async def test_authorization_status(self, recognizer):
@@ -279,7 +279,7 @@ class TestIOSSpeechRecognizer:
         await recognizer.initialize()
         
         # After initialization, should have authorization status
-        assert recognizer.authorization_status is not None
+        assert recognizer.authorization_status is not None  # nosec B101
     
     @pytest.mark.asyncio
     async def test_latency_requirement(self, recognizer, sample_audio):
@@ -302,8 +302,8 @@ class TestIOSSpeechRecognizer:
         
         # Should complete quickly (stub implementation)
         # Real implementation should be < 1 second
-        assert latency < 2.0  # Generous for stub
-        assert isinstance(result, TranscriptionResult)
+        assert latency < 2.0  # Generous for stub  # nosec B101
+        assert isinstance(result, TranscriptionResult)  # nosec B101
     
     @pytest.mark.asyncio
     async def test_memory_usage(self, recognizer, sample_audio):
@@ -325,5 +325,5 @@ class TestIOSSpeechRecognizer:
         final_size = sys.getsizeof(recognizer)
         
         # Object size shouldn't grow significantly
-        assert final_size - initial_size < 1000000  # < 1MB growth
-        assert isinstance(result, TranscriptionResult)
+        assert final_size - initial_size < 1000000  # < 1MB growth  # nosec B101
+        assert isinstance(result, TranscriptionResult)  # nosec B101

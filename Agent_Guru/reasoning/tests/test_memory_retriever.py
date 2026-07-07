@@ -42,27 +42,27 @@ class TestMemoryRetrieverInitialization:
         """Test MemoryRetriever initialization with defaults."""
         retriever = MemoryRetriever()
 
-        assert retriever.embedding_model is not None
-        assert retriever.embedding_dim > 0
-        assert retriever.memories == {}
-        assert retriever.embeddings is None
-        assert retriever.memory_ids == []
-        assert retriever.max_results == 5
-        assert retriever.relevance_decay_days == 90
+        assert retriever.embedding_model is not None  # nosec B101
+        assert retriever.embedding_dim > 0  # nosec B101
+        assert retriever.memories == {}  # nosec B101
+        assert retriever.embeddings is None  # nosec B101
+        assert retriever.memory_ids == []  # nosec B101
+        assert retriever.max_results == 5  # nosec B101
+        assert retriever.relevance_decay_days == 90  # nosec B101
 
     def test_initialization_custom_params(self):
         """Test MemoryRetriever initialization with custom parameters."""
         retriever = MemoryRetriever(max_results=10, relevance_decay_days=30)
 
-        assert retriever.max_results == 10
-        assert retriever.relevance_decay_days == 30
+        assert retriever.max_results == 10  # nosec B101
+        assert retriever.relevance_decay_days == 30  # nosec B101
 
     def test_initialization_invalid_max_results(self):
         """Test that invalid max_results raises ValueError."""
         with pytest.raises(ValueError) as exc_info:
             MemoryRetriever(max_results=0)
 
-        assert "max_results must be >= 1" in str(exc_info.value)
+        assert "max_results must be >= 1" in str(exc_info.value)  # nosec B101
 
         with pytest.raises(ValueError):
             MemoryRetriever(max_results=-1)
@@ -72,7 +72,7 @@ class TestMemoryRetrieverInitialization:
         with pytest.raises(ValueError) as exc_info:
             MemoryRetriever(relevance_decay_days=0)
 
-        assert "relevance_decay_days must be >= 1" in str(exc_info.value)
+        assert "relevance_decay_days must be >= 1" in str(exc_info.value)  # nosec B101
 
         with pytest.raises(ValueError):
             MemoryRetriever(relevance_decay_days=-1)
@@ -90,19 +90,19 @@ class TestMemoryStorage:
 
         retriever.store(memory)
 
-        assert len(retriever.memories) == 1
-        assert memory.memory_id in retriever.memories
+        assert len(retriever.memories) == 1  # nosec B101
+        assert memory.memory_id in retriever.memories  # nosec B101
 
         # Compare relevant fields (embedding is auto-generated)
         stored = retriever.memories[memory.memory_id]
-        assert stored.memory_type == memory.memory_type
-        assert stored.content == memory.content
-        assert stored.user_id == memory.user_id
-        assert stored.embedding is not None  # Embedding was generated
+        assert stored.memory_type == memory.memory_type  # nosec B101
+        assert stored.content == memory.content  # nosec B101
+        assert stored.user_id == memory.user_id  # nosec B101
+        assert stored.embedding is not None  # Embedding was generated  # nosec B101
 
-        assert len(retriever.memory_ids) == 1
-        assert retriever.embeddings is not None
-        assert retriever.embeddings.shape == (1, retriever.embedding_dim)
+        assert len(retriever.memory_ids) == 1  # nosec B101
+        assert retriever.embeddings is not None  # nosec B101
+        assert retriever.embeddings.shape == (1, retriever.embedding_dim)  # nosec B101
 
     def test_store_memory_generates_embedding(self):
         """Test that storing memory generates embedding if not provided."""
@@ -111,12 +111,12 @@ class TestMemoryStorage:
             memory_type=MemoryType.EPISODIC, content="Test memory content", user_id="user_123"
         )
 
-        assert memory.embedding is None
+        assert memory.embedding is None  # nosec B101
         retriever.store(memory)
 
         stored_memory = retriever.memories[memory.memory_id]
-        assert stored_memory.embedding is not None
-        assert len(stored_memory.embedding) == retriever.embedding_dim
+        assert stored_memory.embedding is not None  # nosec B101
+        assert len(stored_memory.embedding) == retriever.embedding_dim  # nosec B101
 
     def test_store_memory_preserves_existing_embedding(self):
         """Test that storing memory preserves existing embedding."""
@@ -132,7 +132,7 @@ class TestMemoryStorage:
         retriever.store(memory)
 
         stored_memory = retriever.memories[memory.memory_id]
-        assert stored_memory.embedding == embedding
+        assert stored_memory.embedding == embedding  # nosec B101
 
     def test_store_multiple_memories(self):
         """Test storing multiple memories."""
@@ -144,9 +144,9 @@ class TestMemoryStorage:
             )
             retriever.store(memory)
 
-        assert len(retriever.memories) == 5
-        assert len(retriever.memory_ids) == 5
-        assert retriever.embeddings.shape == (5, retriever.embedding_dim)
+        assert len(retriever.memories) == 5  # nosec B101
+        assert len(retriever.memory_ids) == 5  # nosec B101
+        assert retriever.embeddings.shape == (5, retriever.embedding_dim)  # nosec B101
 
     def test_store_duplicate_memory_id_raises_error(self):
         """Test that storing memory with duplicate ID raises ValueError."""
@@ -171,7 +171,7 @@ class TestMemoryStorage:
         with pytest.raises(ValueError) as exc_info:
             retriever.store(memory2)
 
-        assert "already exists" in str(exc_info.value)
+        assert "already exists" in str(exc_info.value)  # nosec B101
 
     def test_store_different_memory_types(self):
         """Test storing different types of memories."""
@@ -214,11 +214,11 @@ class TestMemoryStorage:
         retriever.store(preference)
         retriever.store(task)
 
-        assert len(retriever.memories) == 4
-        assert isinstance(retriever.memories[episodic.memory_id], EpisodicMemory)
-        assert isinstance(retriever.memories[semantic.memory_id], SemanticMemory)
-        assert isinstance(retriever.memories[preference.memory_id], PreferenceMemory)
-        assert isinstance(retriever.memories[task.memory_id], TaskMemory)
+        assert len(retriever.memories) == 4  # nosec B101
+        assert isinstance(retriever.memories[episodic.memory_id], EpisodicMemory)  # nosec B101
+        assert isinstance(retriever.memories[semantic.memory_id], SemanticMemory)  # nosec B101
+        assert isinstance(retriever.memories[preference.memory_id], PreferenceMemory)  # nosec B101
+        assert isinstance(retriever.memories[task.memory_id], TaskMemory)  # nosec B101
 
 
 class TestSemanticSearch:
@@ -244,8 +244,8 @@ class TestSemanticSearch:
         # Search for timer-related memories
         results = retriever.semantic_search("timer", user_id="user_123", top_k=2)
 
-        assert len(results) <= 2
-        assert results[0].memory_id == memory1.memory_id  # Timer memory should rank higher
+        assert len(results) <= 2  # nosec B101
+        assert results[0].memory_id == memory1.memory_id  # Timer memory should rank higher  # nosec B101
 
     def test_semantic_search_user_filtering(self):
         """Test that semantic search filters by user_id."""
@@ -264,8 +264,8 @@ class TestSemanticSearch:
         # Search for user_123
         results = retriever.semantic_search("timer", user_id="user_123", top_k=10)
 
-        assert len(results) == 1
-        assert results[0].memory_id == memory1.memory_id
+        assert len(results) == 1  # nosec B101
+        assert results[0].memory_id == memory1.memory_id  # nosec B101
 
     def test_semantic_search_memory_type_filtering(self):
         """Test that semantic search filters by memory type."""
@@ -295,8 +295,8 @@ class TestSemanticSearch:
             "timer", user_id="user_123", memory_types=[MemoryType.EPISODIC], top_k=10
         )
 
-        assert len(results) == 1
-        assert results[0].memory_id == episodic.memory_id
+        assert len(results) == 1  # nosec B101
+        assert results[0].memory_id == episodic.memory_id  # nosec B101
 
     def test_semantic_search_empty_results(self):
         """Test semantic search with no matching memories."""
@@ -310,7 +310,7 @@ class TestSemanticSearch:
         # Search for different user
         results = retriever.semantic_search("timer", user_id="user_456", top_k=10)
 
-        assert len(results) == 0
+        assert len(results) == 0  # nosec B101
 
     def test_semantic_search_top_k_limit(self):
         """Test that semantic search respects top_k limit."""
@@ -328,7 +328,7 @@ class TestSemanticSearch:
         # Search with top_k=3
         results = retriever.semantic_search("timer", user_id="user_123", top_k=3)
 
-        assert len(results) == 3
+        assert len(results) == 3  # nosec B101
 
 
 class TestMemoryRanking:
@@ -354,7 +354,7 @@ class TestMemoryRanking:
         ranked = retriever.rank_memories(memories, "timer")
 
         # Timer memory should rank higher
-        assert ranked[0].memory_id == memory1.memory_id
+        assert ranked[0].memory_id == memory1.memory_id  # nosec B101
 
     def test_rank_memories_by_recency(self):
         """Test that memories are ranked by recency."""
@@ -383,7 +383,7 @@ class TestMemoryRanking:
         ranked = retriever.rank_memories(memories, "timer")
 
         # Recent memory should rank higher (same content, different timestamps)
-        assert ranked[0].memory_id == recent_memory.memory_id
+        assert ranked[0].memory_id == recent_memory.memory_id  # nosec B101
 
     def test_rank_memories_by_importance(self):
         """Test that memories are ranked by importance (relevance_score)."""
@@ -410,7 +410,7 @@ class TestMemoryRanking:
         ranked = retriever.rank_memories(memories, "timer")
 
         # High importance memory should rank higher
-        assert ranked[0].memory_id == high_importance.memory_id
+        assert ranked[0].memory_id == high_importance.memory_id  # nosec B101
 
     def test_rank_memories_empty_list(self):
         """Test ranking empty list of memories."""
@@ -418,7 +418,7 @@ class TestMemoryRanking:
 
         ranked = retriever.rank_memories([], "query")
 
-        assert ranked == []
+        assert ranked == []  # nosec B101
 
     def test_rank_memories_combined_score(self):
         """Test that ranking uses combined score (semantic + recency + importance)."""
@@ -449,7 +449,7 @@ class TestMemoryRanking:
         ranked = retriever.rank_memories(memories, "timer")
 
         # Combined score should determine ranking
-        assert len(ranked) == 2
+        assert len(ranked) == 2  # nosec B101
 
 
 class TestMemoryRetrieval:
@@ -468,8 +468,8 @@ class TestMemoryRetrieval:
 
         results = retriever.retrieve("timer", user_id="user_123")
 
-        assert len(results) == 1
-        assert results[0].memory_id == memory.memory_id
+        assert len(results) == 1  # nosec B101
+        assert results[0].memory_id == memory.memory_id  # nosec B101
 
     def test_retrieve_respects_max_results(self):
         """Test that retrieve respects max_results limit."""
@@ -486,7 +486,7 @@ class TestMemoryRetrieval:
 
         results = retriever.retrieve("timer", user_id="user_123")
 
-        assert len(results) == 3
+        assert len(results) == 3  # nosec B101
 
     def test_retrieve_custom_top_k(self):
         """Test retrieve with custom top_k parameter."""
@@ -503,7 +503,7 @@ class TestMemoryRetrieval:
 
         results = retriever.retrieve("timer", user_id="user_123", top_k=2)
 
-        assert len(results) == 2
+        assert len(results) == 2  # nosec B101
 
     def test_retrieve_with_memory_type_filter(self):
         """Test retrieve with memory type filtering."""
@@ -532,8 +532,8 @@ class TestMemoryRetrieval:
             "timer", user_id="user_123", memory_types=[MemoryType.EPISODIC]
         )
 
-        assert len(results) == 1
-        assert results[0].memory_id == episodic.memory_id
+        assert len(results) == 1  # nosec B101
+        assert results[0].memory_id == episodic.memory_id  # nosec B101
 
     def test_retrieve_empty_database(self):
         """Test retrieve with empty database."""
@@ -541,7 +541,7 @@ class TestMemoryRetrieval:
 
         results = retriever.retrieve("timer", user_id="user_123")
 
-        assert results == []
+        assert results == []  # nosec B101
 
     def test_retrieve_latency_budget(self):
         """Test that retrieve completes within 100ms latency budget."""
@@ -563,7 +563,7 @@ class TestMemoryRetrieval:
 
         # Should complete within 100ms (may log warning but shouldn't fail)
         # Note: This is a soft requirement, actual time depends on hardware
-        assert results is not None
+        assert results is not None  # nosec B101
 
 
 class TestRelevanceUpdate:
@@ -584,7 +584,7 @@ class TestRelevanceUpdate:
         retriever.update_relevance(memory.memory_id, 0.5)
 
         updated_memory = retriever.memories[memory.memory_id]
-        assert updated_memory.relevance_score == 0.5
+        assert updated_memory.relevance_score == 0.5  # nosec B101
 
     def test_update_relevance_invalid_memory_id(self):
         """Test updating relevance for non-existent memory."""
@@ -593,7 +593,7 @@ class TestRelevanceUpdate:
         with pytest.raises(ValueError) as exc_info:
             retriever.update_relevance(uuid4(), 0.5)
 
-        assert "not found" in str(exc_info.value)
+        assert "not found" in str(exc_info.value)  # nosec B101
 
     def test_update_relevance_invalid_score(self):
         """Test updating relevance with invalid score."""
@@ -605,12 +605,12 @@ class TestRelevanceUpdate:
         # Below range
         with pytest.raises(ValueError) as exc_info:
             retriever.update_relevance(memory.memory_id, -0.1)
-        assert "between 0.0 and 1.0" in str(exc_info.value)
+        assert "between 0.0 and 1.0" in str(exc_info.value)  # nosec B101
 
         # Above range
         with pytest.raises(ValueError) as exc_info:
             retriever.update_relevance(memory.memory_id, 1.1)
-        assert "between 0.0 and 1.0" in str(exc_info.value)
+        assert "between 0.0 and 1.0" in str(exc_info.value)  # nosec B101
 
     def test_update_relevance_boundary_values(self):
         """Test updating relevance with boundary values."""
@@ -621,11 +621,11 @@ class TestRelevanceUpdate:
 
         # Test 0.0
         retriever.update_relevance(memory.memory_id, 0.0)
-        assert retriever.memories[memory.memory_id].relevance_score == 0.0
+        assert retriever.memories[memory.memory_id].relevance_score == 0.0  # nosec B101
 
         # Test 1.0
         retriever.update_relevance(memory.memory_id, 1.0)
-        assert retriever.memories[memory.memory_id].relevance_score == 1.0
+        assert retriever.memories[memory.memory_id].relevance_score == 1.0  # nosec B101
 
 
 class TestUtilityMethods:
@@ -641,7 +641,7 @@ class TestUtilityMethods:
             )
             retriever.store(memory)
 
-        assert retriever.get_memory_count() == 5
+        assert retriever.get_memory_count() == 5  # nosec B101
 
     def test_get_memory_count_by_user(self):
         """Test getting memory count for specific user."""
@@ -659,8 +659,8 @@ class TestUtilityMethods:
             )
             retriever.store(memory)
 
-        assert retriever.get_memory_count(user_id="user_123") == 3
-        assert retriever.get_memory_count(user_id="user_456") == 2
+        assert retriever.get_memory_count(user_id="user_123") == 3  # nosec B101
+        assert retriever.get_memory_count(user_id="user_456") == 2  # nosec B101
 
     def test_clear_all_memories(self):
         """Test clearing all memories."""
@@ -674,9 +674,9 @@ class TestUtilityMethods:
 
         retriever.clear()
 
-        assert len(retriever.memories) == 0
-        assert len(retriever.memory_ids) == 0
-        assert retriever.embeddings is None
+        assert len(retriever.memories) == 0  # nosec B101
+        assert len(retriever.memory_ids) == 0  # nosec B101
+        assert retriever.embeddings is None  # nosec B101
 
     def test_clear_user_memories(self):
         """Test clearing memories for specific user."""
@@ -696,9 +696,9 @@ class TestUtilityMethods:
 
         retriever.clear(user_id="user_123")
 
-        assert retriever.get_memory_count() == 2
-        assert retriever.get_memory_count(user_id="user_123") == 0
-        assert retriever.get_memory_count(user_id="user_456") == 2
+        assert retriever.get_memory_count() == 2  # nosec B101
+        assert retriever.get_memory_count(user_id="user_123") == 0  # nosec B101
+        assert retriever.get_memory_count(user_id="user_456") == 2  # nosec B101
 
 
 class TestCosineSimilarity:
@@ -711,7 +711,7 @@ class TestCosineSimilarity:
         vector = np.array([1.0, 0.0, 0.0], dtype=np.float32)
         similarity = retriever._cosine_similarity(vector, vector)
 
-        assert abs(similarity - 1.0) < 1e-6
+        assert abs(similarity - 1.0) < 1e-6  # nosec B101
 
     def test_cosine_similarity_orthogonal_vectors(self):
         """Test cosine similarity of orthogonal vectors."""
@@ -721,7 +721,7 @@ class TestCosineSimilarity:
         vector2 = np.array([0.0, 1.0, 0.0], dtype=np.float32)
         similarity = retriever._cosine_similarity(vector1, vector2)
 
-        assert abs(similarity - 0.0) < 1e-6
+        assert abs(similarity - 0.0) < 1e-6  # nosec B101
 
     def test_cosine_similarity_opposite_vectors(self):
         """Test cosine similarity of opposite vectors."""
@@ -732,7 +732,7 @@ class TestCosineSimilarity:
         similarity = retriever._cosine_similarity(vector1, vector2)
 
         # Clamped to [0, 1], so -1 becomes 0
-        assert abs(similarity - 0.0) < 1e-6
+        assert abs(similarity - 0.0) < 1e-6  # nosec B101
 
 
 # Property-based tests
@@ -750,8 +750,8 @@ class TestMemoryRetrieverProperties:
         """Property: Valid parameters always create retriever."""
         retriever = MemoryRetriever(max_results=max_results, relevance_decay_days=decay_days)
 
-        assert retriever.max_results == max_results
-        assert retriever.relevance_decay_days == decay_days
+        assert retriever.max_results == max_results  # nosec B101
+        assert retriever.relevance_decay_days == decay_days  # nosec B101
 
     @given(content=st.text(min_size=1, max_size=100), user_id=st.text(min_size=1, max_size=50))
     @settings(deadline=None, max_examples=50)  # Disable deadline, reduce examples
@@ -763,7 +763,7 @@ class TestMemoryRetrieverProperties:
         memory = Memory(memory_type=MemoryType.EPISODIC, content=content, user_id=user_id)
         retriever.store(memory)
 
-        assert retriever.get_memory_count() == initial_count + 1
+        assert retriever.get_memory_count() == initial_count + 1  # nosec B101
 
     @given(relevance_score=st.floats(min_value=0.0, max_value=1.0))
     @settings(deadline=None, max_examples=50)  # Disable deadline, reduce examples
@@ -777,4 +777,4 @@ class TestMemoryRetrieverProperties:
         retriever.update_relevance(memory.memory_id, relevance_score)
 
         updated_memory = retriever.memories[memory.memory_id]
-        assert abs(updated_memory.relevance_score - relevance_score) < 1e-6
+        assert abs(updated_memory.relevance_score - relevance_score) < 1e-6  # nosec B101

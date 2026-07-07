@@ -44,15 +44,15 @@ class TestEndToEndPipelineFlows:
         result = await engine.process(raw_input)
         
         # Verify result structure
-        assert result is not None
-        assert hasattr(result, 'response')
-        assert hasattr(result, 'confidence')
-        assert hasattr(result, 'success')
-        assert hasattr(result, 'total_latency_ms')
+        assert result is not None  # nosec B101
+        assert hasattr(result, 'response')  # nosec B101
+        assert hasattr(result, 'confidence')  # nosec B101
+        assert hasattr(result, 'success')  # nosec B101
+        assert hasattr(result, 'total_latency_ms')  # nosec B101
         
         # Verify latency tracking
-        assert result.total_latency_ms >= 0
-        assert hasattr(result, 'stage_latencies')
+        assert result.total_latency_ms >= 0  # nosec B101
+        assert hasattr(result, 'stage_latencies')  # nosec B101
 
     def test_knowledge_query_flow(self):
         """Test knowledge query processing through pipeline."""
@@ -65,10 +65,10 @@ class TestEndToEndPipelineFlows:
         result = pipeline.process("when did I last call John?", user_id="test_user")
         
         # Verify result (may fail due to no data, but should not crash)
-        assert result is not None
-        assert result.response is not None
-        assert result.confidence >= 0.0
-        assert result.metrics.total_latency_ms > 0
+        assert result is not None  # nosec B101
+        assert result.response is not None  # nosec B101
+        assert result.confidence >= 0.0  # nosec B101
+        assert result.metrics.total_latency_ms > 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_multi_step_task_flow(self):
@@ -84,8 +84,8 @@ class TestEndToEndPipelineFlows:
         result = await engine.process(raw_input)
         
         # Verify result
-        assert result is not None
-        assert result.response is not None
+        assert result is not None  # nosec B101
+        assert result.response is not None  # nosec B101
         # Note: Actual multi-step execution depends on tool availability
 
     @pytest.mark.asyncio
@@ -101,7 +101,7 @@ class TestEndToEndPipelineFlows:
             user_id=user_id
         )
         result1 = await engine.process(raw_input1)
-        assert result1 is not None
+        assert result1 is not None  # nosec B101
         
         # Second turn with context
         raw_input2 = RawInput(
@@ -110,7 +110,7 @@ class TestEndToEndPipelineFlows:
             user_id=user_id
         )
         result2 = await engine.process(raw_input2)
-        assert result2 is not None
+        assert result2 is not None  # nosec B101
         # Note: Context resolution depends on conversation state manager
 
 
@@ -131,7 +131,7 @@ class TestErrorHandlingAndFallbacks:
             )
             result = await engine.process(raw_input)
             # If no exception, verify it's an error result
-            assert result.success is False or result.error is not None
+            assert result.success is False or result.error is not None  # nosec B101
         except ValueError as e:
             # ValueError is also acceptable
             pass
@@ -145,7 +145,7 @@ class TestErrorHandlingAndFallbacks:
             )
             result = await engine.process(raw_input)
             # If no exception, verify it's an error result
-            assert result.success is False or result.error is not None
+            assert result.success is False or result.error is not None  # nosec B101
         except ValueError:
             # ValueError is also acceptable
             pass
@@ -166,9 +166,9 @@ class TestErrorHandlingAndFallbacks:
         result = pipeline.process("test query", user_id="test_user")
         
         # Verify error handling
-        assert result.success is False
-        assert result.metrics.error is not None
-        assert "error" in result.response.lower()
+        assert result.success is False  # nosec B101
+        assert result.metrics.error is not None  # nosec B101
+        assert "error" in result.response.lower()  # nosec B101
 
     @pytest.mark.asyncio
     async def test_timeout_handling(self):
@@ -184,7 +184,7 @@ class TestErrorHandlingAndFallbacks:
         result = await engine.process(raw_input)
         
         # Verify result is returned (not hanging)
-        assert result is not None
+        assert result is not None  # nosec B101
         # Note: Latency varies based on system load, just verify it completes
 
     @pytest.mark.asyncio
@@ -201,8 +201,8 @@ class TestErrorHandlingAndFallbacks:
         result = await engine.process(raw_input)
         
         # Verify result is returned
-        assert result is not None
-        assert result.response is not None
+        assert result is not None  # nosec B101
+        assert result.response is not None  # nosec B101
 
 
 class TestLatencyTargets:
@@ -228,11 +228,11 @@ class TestLatencyTargets:
         (end_time - start_time) * 1000
         
         # Verify result
-        assert result is not None
+        assert result is not None  # nosec B101
         
         # Note: Actual latency depends on system load and component availability
         # We verify latency is tracked, not enforcing strict target in tests
-        assert result.total_latency_ms >= 0
+        assert result.total_latency_ms >= 0  # nosec B101
 
     def test_knowledge_query_latency(self):
         """Test knowledge queries meet latency target (<1.5s)."""
@@ -254,8 +254,8 @@ class TestLatencyTargets:
             (end_time - start_time) * 1000
             
             # Verify result
-            assert result is not None
-            assert result.metrics.total_latency_ms >= 0
+            assert result is not None  # nosec B101
+            assert result.metrics.total_latency_ms >= 0  # nosec B101
 
     def test_stage_latency_tracking(self):
         """Test that all pipeline stages track latency."""
@@ -265,12 +265,12 @@ class TestLatencyTargets:
         result = pipeline.process("test query", user_id="test_user")
         
         # Verify stage latencies are tracked
-        assert result.metrics.stage_latencies is not None
-        assert len(result.metrics.stage_latencies) > 0
+        assert result.metrics.stage_latencies is not None  # nosec B101
+        assert len(result.metrics.stage_latencies) > 0  # nosec B101
         
         # Verify all latencies are non-negative
         for stage, latency in result.metrics.stage_latencies.items():
-            assert latency >= 0, f"Stage {stage} has negative latency"
+            assert latency >= 0, f"Stage {stage} has negative latency"  # nosec B101
 
 
 class TestMemoryAndResourceLimits:
@@ -291,7 +291,7 @@ class TestMemoryAndResourceLimits:
                 user_id=user_id
             )
             result = await engine.process(raw_input)
-            assert result is not None
+            assert result is not None  # nosec B101
         
         # Verify engine still works (state was pruned)
         raw_input = RawInput(
@@ -300,7 +300,7 @@ class TestMemoryAndResourceLimits:
             user_id=user_id
         )
         result = await engine.process(raw_input)
-        assert result is not None
+        assert result is not None  # nosec B101
 
     @pytest.mark.asyncio
     @pytest.mark.slow
@@ -320,9 +320,9 @@ class TestMemoryAndResourceLimits:
             results.append(result)
         
         # Verify all requests completed
-        assert len(results) == 3
+        assert len(results) == 3  # nosec B101
         for result in results:
-            assert result is not None
+            assert result is not None  # nosec B101
 
     @pytest.mark.asyncio
     @pytest.mark.slow
@@ -338,7 +338,7 @@ class TestMemoryAndResourceLimits:
                 user_id="test_user"
             )
             result = await engine.process(raw_input)
-            assert result is not None
+            assert result is not None  # nosec B101
         
         # Verify engine still works (cache was evicted)
         raw_input = RawInput(
@@ -347,7 +347,7 @@ class TestMemoryAndResourceLimits:
             user_id="test_user"
         )
         result = await engine.process(raw_input)
-        assert result is not None
+        assert result is not None  # nosec B101
 
 
 class TestComponentIntegration:
@@ -366,7 +366,7 @@ class TestComponentIntegration:
         result = await engine.process(raw_input)
         
         # Verify intent was detected (if available)
-        assert result is not None
+        assert result is not None  # nosec B101
         # Note: Actual intent depends on component availability
 
     def test_memory_retrieval_integration(self):
@@ -379,7 +379,7 @@ class TestComponentIntegration:
         result = pipeline.process("test query", user_id="test_user")
         
         # Verify memory retrieval was called
-        assert result is not None
+        assert result is not None  # nosec B101
 
     def test_knowledge_synthesis_integration(self):
         """Test knowledge synthesis integrates with pipeline."""
@@ -392,8 +392,8 @@ class TestComponentIntegration:
         result = pipeline.process("when did I last call John?", user_id="test_user")
         
         # Verify knowledge synthesis was attempted
-        assert result is not None
-        assert result.metrics.knowledge_query_detected is not None
+        assert result is not None  # nosec B101
+        assert result.metrics.knowledge_query_detected is not None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_safety_gate_integration(self):
@@ -409,7 +409,7 @@ class TestComponentIntegration:
         result = await engine.process(raw_input)
         
         # Verify result (safety gate should handle)
-        assert result is not None
+        assert result is not None  # nosec B101
         # Note: Actual safety check depends on tool availability
 
     def test_response_generation_integration(self):
@@ -420,10 +420,10 @@ class TestComponentIntegration:
         result = pipeline.process("test query", user_id="test_user")
         
         # Verify response was generated
-        assert result is not None
-        assert result.response is not None
-        assert isinstance(result.response, str)
-        assert len(result.response) > 0
+        assert result is not None  # nosec B101
+        assert result.response is not None  # nosec B101
+        assert isinstance(result.response, str)  # nosec B101
+        assert len(result.response) > 0  # nosec B101
 
 
 class TestMetricsAndObservability:
@@ -440,11 +440,11 @@ class TestMetricsAndObservability:
         result = pipeline.process("test query", user_id="test_user")
         
         # Verify metrics structure
-        assert result.metrics is not None
-        assert hasattr(result.metrics, 'total_latency_ms')
-        assert hasattr(result.metrics, 'stage_latencies')
-        assert hasattr(result.metrics, 'timestamp')
-        assert hasattr(result.metrics, 'error')
+        assert result.metrics is not None  # nosec B101
+        assert hasattr(result.metrics, 'total_latency_ms')  # nosec B101
+        assert hasattr(result.metrics, 'stage_latencies')  # nosec B101
+        assert hasattr(result.metrics, 'timestamp')  # nosec B101
+        assert hasattr(result.metrics, 'error')  # nosec B101
 
     def test_metrics_to_dict_conversion(self):
         """Test metrics can be converted to dict for logging."""
@@ -457,10 +457,10 @@ class TestMetricsAndObservability:
         metrics_dict = result.metrics.to_dict()
         
         # Verify dict structure
-        assert isinstance(metrics_dict, dict)
-        assert 'total_latency_ms' in metrics_dict
-        assert 'stage_latencies' in metrics_dict
-        assert 'timestamp' in metrics_dict
+        assert isinstance(metrics_dict, dict)  # nosec B101
+        assert 'total_latency_ms' in metrics_dict  # nosec B101
+        assert 'stage_latencies' in metrics_dict  # nosec B101
+        assert 'timestamp' in metrics_dict  # nosec B101
 
     @pytest.mark.asyncio
     async def test_statistics_tracking(self):
@@ -480,10 +480,10 @@ class TestMetricsAndObservability:
         stats = engine.get_statistics()
         
         # Verify statistics structure
-        assert isinstance(stats, dict)
-        assert 'total_requests' in stats
-        assert 'successful_requests' in stats
-        assert 'failed_requests' in stats
+        assert isinstance(stats, dict)  # nosec B101
+        assert 'total_requests' in stats  # nosec B101
+        assert 'successful_requests' in stats  # nosec B101
+        assert 'failed_requests' in stats  # nosec B101
 
 
 class TestProductionReadiness:
@@ -512,7 +512,7 @@ class TestProductionReadiness:
             user_id="test_user"
         )
         result = await engine.process(raw_input)
-        assert result is not None
+        assert result is not None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_graceful_degradation(self):
@@ -528,8 +528,8 @@ class TestProductionReadiness:
         result = await engine.process(raw_input)
         
         # Verify result is returned
-        assert result is not None
-        assert result.response is not None
+        assert result is not None  # nosec B101
+        assert result.response is not None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_logging_integration(self):
@@ -545,7 +545,7 @@ class TestProductionReadiness:
         result = await engine.process(raw_input)
         
         # Verify result (logging happens internally)
-        assert result is not None
+        assert result is not None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_tracing_integration(self):
@@ -561,7 +561,7 @@ class TestProductionReadiness:
         result = await engine.process(raw_input)
         
         # Verify result (tracing happens internally)
-        assert result is not None
+        assert result is not None  # nosec B101
 
 
 class TestCheckpointValidation:
@@ -571,12 +571,12 @@ class TestCheckpointValidation:
         """Test all major components can be initialized."""
         # Test engine initialization
         engine = ReasoningEngine()
-        assert engine is not None
+        assert engine is not None  # nosec B101
         
         # Test pipeline initialization
         memory_retriever = Mock()
         pipeline = ReasoningPipeline(memory_retriever=memory_retriever)
-        assert pipeline is not None
+        assert pipeline is not None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_end_to_end_processing(self):
@@ -597,8 +597,8 @@ class TestCheckpointValidation:
                 user_id="test_user"
             )
             result = await engine.process(raw_input)
-            assert result is not None
-            assert result.response is not None
+            assert result is not None  # nosec B101
+            assert result.response is not None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_error_handling_comprehensive(self):
@@ -620,7 +620,7 @@ class TestCheckpointValidation:
                 )
                 result = await engine.process(raw_input)
                 # If no exception, verify it's an error result
-                assert result.success is False or result.error is not None
+                assert result.success is False or result.error is not None  # nosec B101
             except (ValueError, Exception):
                 # Exception is also acceptable
                 pass
@@ -643,10 +643,10 @@ class TestCheckpointValidation:
         (end_time - start_time) * 1000
         
         # Verify result
-        assert result is not None
+        assert result is not None  # nosec B101
         
         # Verify latency is tracked (not enforcing strict target in tests)
-        assert result.total_latency_ms >= 0
+        assert result.total_latency_ms >= 0  # nosec B101
 
     @pytest.mark.asyncio
     @pytest.mark.slow
@@ -662,7 +662,7 @@ class TestCheckpointValidation:
                 user_id="test_user"
             )
             result = await engine.process(raw_input)
-            assert result is not None
+            assert result is not None  # nosec B101
         
         # Verify engine still works (resources were managed)
         raw_input = RawInput(
@@ -671,7 +671,7 @@ class TestCheckpointValidation:
             user_id="test_user"
         )
         result = await engine.process(raw_input)
-        assert result is not None
+        assert result is not None  # nosec B101
 
 
 # Summary test to validate checkpoint completion
@@ -697,9 +697,9 @@ async def test_checkpoint_32_validation():
         user_id="test_user"
     )
     result = await engine.process(raw_input)
-    assert result is not None
-    assert result.response is not None
-    assert result.total_latency_ms >= 0
+    assert result is not None  # nosec B101
+    assert result.response is not None  # nosec B101
+    assert result.total_latency_ms >= 0  # nosec B101
     
     # Test error handling (empty input might be handled gracefully)
     try:
@@ -710,21 +710,21 @@ async def test_checkpoint_32_validation():
         )
         result = await engine.process(raw_input)
         # If no exception, verify it's an error result
-        assert result.success is False or result.error is not None
+        assert result.success is False or result.error is not None  # nosec B101
     except (ValueError, Exception):
         # Exception is also acceptable
         pass
     
     # Test statistics
     stats = engine.get_statistics()
-    assert isinstance(stats, dict)
+    assert isinstance(stats, dict)  # nosec B101
     
     # Test pipeline
     memory_retriever = Mock()
     memory_retriever.retrieve.return_value = []
     pipeline = ReasoningPipeline(memory_retriever=memory_retriever)
     result = pipeline.process("test query", user_id="test_user")
-    assert result is not None
+    assert result is not None  # nosec B101
     
     print("\n✓ Task 32 Checkpoint Validation: PASSED")
     print("  - End-to-end flows: ✓")

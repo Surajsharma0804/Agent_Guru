@@ -34,9 +34,9 @@ class TestTimeRange:
         end = datetime(2024, 1, 31, 23, 59, 59)
         time_range = TimeRange(start=start, end=end, description="January 2024")
 
-        assert time_range.start == start
-        assert time_range.end == end
-        assert time_range.description == "January 2024"
+        assert time_range.start == start  # nosec B101
+        assert time_range.end == end  # nosec B101
+        assert time_range.description == "January 2024"  # nosec B101
 
     def test_time_range_start_after_end_fails(self):
         """Test that start after end raises validation error."""
@@ -58,33 +58,33 @@ class TestTimeRange:
         """Test last_week helper method."""
         time_range = TimeRange.last_week()
 
-        assert time_range.description == "last week"
-        assert time_range.end > time_range.start
-        assert (time_range.end - time_range.start).days == 7
+        assert time_range.description == "last week"  # nosec B101
+        assert time_range.end > time_range.start  # nosec B101
+        assert (time_range.end - time_range.start).days == 7  # nosec B101
 
     def test_time_range_last_month(self):
         """Test last_month helper method."""
         time_range = TimeRange.last_month()
 
-        assert time_range.description == "last month"
-        assert time_range.end > time_range.start
-        assert (time_range.end - time_range.start).days == 30
+        assert time_range.description == "last month"  # nosec B101
+        assert time_range.end > time_range.start  # nosec B101
+        assert (time_range.end - time_range.start).days == 30  # nosec B101
 
     def test_time_range_last_year(self):
         """Test last_year helper method."""
         time_range = TimeRange.last_year()
 
-        assert time_range.description == "last year"
-        assert time_range.end > time_range.start
-        assert (time_range.end - time_range.start).days == 365
+        assert time_range.description == "last year"  # nosec B101
+        assert time_range.end > time_range.start  # nosec B101
+        assert (time_range.end - time_range.start).days == 365  # nosec B101
 
     def test_time_range_last_n_days(self):
         """Test last_n_days helper method."""
         time_range = TimeRange.last_n_days(14)
 
-        assert time_range.description == "last 14 days"
-        assert time_range.end > time_range.start
-        assert (time_range.end - time_range.start).days == 14
+        assert time_range.description == "last 14 days"  # nosec B101
+        assert time_range.end > time_range.start  # nosec B101
+        assert (time_range.end - time_range.start).days == 14  # nosec B101
 
     def test_time_range_last_n_days_negative_fails(self):
         """Test that negative days raises validation error."""
@@ -100,19 +100,19 @@ class TestTimeRange:
         """Test today helper method."""
         time_range = TimeRange.today()
 
-        assert time_range.description == "today"
-        assert time_range.end > time_range.start
-        assert time_range.start.hour == 0
-        assert time_range.start.minute == 0
-        assert time_range.start.second == 0
+        assert time_range.description == "today"  # nosec B101
+        assert time_range.end > time_range.start  # nosec B101
+        assert time_range.start.hour == 0  # nosec B101
+        assert time_range.start.minute == 0  # nosec B101
+        assert time_range.start.second == 0  # nosec B101
 
     def test_time_range_yesterday(self):
         """Test yesterday helper method."""
         time_range = TimeRange.yesterday()
 
-        assert time_range.description == "yesterday"
-        assert time_range.end > time_range.start
-        assert (time_range.end - time_range.start).days == 1
+        assert time_range.description == "yesterday"  # nosec B101
+        assert time_range.end > time_range.start  # nosec B101
+        assert (time_range.end - time_range.start).days == 1  # nosec B101
 
     def test_time_range_json_serialization(self):
         """Test JSON serialization of time range."""
@@ -120,10 +120,10 @@ class TestTimeRange:
         json_str = time_range.model_dump_json()
         data = json.loads(json_str)
 
-        assert "start" in data
-        assert "end" in data
-        assert "description" in data
-        assert data["description"] == "last week"
+        assert "start" in data  # nosec B101
+        assert "end" in data  # nosec B101
+        assert "description" in data  # nosec B101
+        assert data["description"] == "last week"  # nosec B101
 
 
 class TestKnowledgeQuery:
@@ -139,11 +139,11 @@ class TestKnowledgeQuery:
             confidence=0.95,
         )
 
-        assert query.query_text == "when did I last call John?"
-        assert query.query_type == KnowledgeQueryType.TEMPORAL
-        assert query.time_range is not None
-        assert query.entities == {"person": "John", "action": "call"}
-        assert query.confidence == 0.95
+        assert query.query_text == "when did I last call John?"  # nosec B101
+        assert query.query_type == KnowledgeQueryType.TEMPORAL  # nosec B101
+        assert query.time_range is not None  # nosec B101
+        assert query.entities == {"person": "John", "action": "call"}  # nosec B101
+        assert query.confidence == 0.95  # nosec B101
 
     def test_knowledge_query_empty_text_fails(self):
         """Test that empty query text raises validation error."""
@@ -178,8 +178,8 @@ class TestKnowledgeQuery:
             confidence=0.95,
         )
 
-        assert query.time_range is not None
-        assert query.time_range.description == "last month"
+        assert query.time_range is not None  # nosec B101
+        assert query.time_range.description == "last month"  # nosec B101
 
     def test_knowledge_query_non_temporal_no_time_range(self):
         """Test that non-temporal queries don't require time range."""
@@ -189,7 +189,7 @@ class TestKnowledgeQuery:
             confidence=0.95,
         )
 
-        assert query.time_range is None
+        assert query.time_range is None  # nosec B101
 
     def test_knowledge_query_all_types(self):
         """Test creating queries with all query types."""
@@ -199,7 +199,7 @@ class TestKnowledgeQuery:
                 query_type=query_type,
                 confidence=0.9,
             )
-            assert query.query_type == query_type
+            assert query.query_type == query_type  # nosec B101
 
     def test_knowledge_query_json_serialization(self):
         """Test JSON serialization of knowledge query."""
@@ -212,10 +212,10 @@ class TestKnowledgeQuery:
         json_str = query.model_dump_json()
         data = json.loads(json_str)
 
-        assert data["query_text"] == "when did I last call John?"
-        assert data["query_type"] == "temporal"
-        assert data["entities"] == {"person": "John"}
-        assert data["confidence"] == 0.95
+        assert data["query_text"] == "when did I last call John?"  # nosec B101
+        assert data["query_type"] == "temporal"  # nosec B101
+        assert data["entities"] == {"person": "John"}  # nosec B101
+        assert data["confidence"] == 0.95  # nosec B101
 
 
 class TestPattern:
@@ -231,11 +231,11 @@ class TestPattern:
             examples=["2024-01-15 09:00", "2024-01-16 09:05"],
         )
 
-        assert pattern.pattern_type == "daily"
-        assert pattern.description == "User checks email every morning at 9am"
-        assert pattern.frequency == 0.95
-        assert pattern.confidence == 0.92
-        assert len(pattern.examples) == 2
+        assert pattern.pattern_type == "daily"  # nosec B101
+        assert pattern.description == "User checks email every morning at 9am"  # nosec B101
+        assert pattern.frequency == 0.95  # nosec B101
+        assert pattern.confidence == 0.92  # nosec B101
+        assert len(pattern.examples) == 2  # nosec B101
 
     def test_pattern_invalid_type_fails(self):
         """Test that invalid pattern type raises validation error."""
@@ -257,7 +257,7 @@ class TestPattern:
                 frequency=0.9,
                 confidence=0.8,
             )
-            assert pattern.pattern_type == pattern_type
+            assert pattern.pattern_type == pattern_type  # nosec B101
 
     def test_pattern_empty_description_fails(self):
         """Test that empty description raises validation error."""
@@ -324,7 +324,7 @@ class TestPattern:
             frequency=0.9,
             confidence=0.8,
         )
-        assert pattern.examples == []
+        assert pattern.examples == []  # nosec B101
 
     def test_pattern_json_serialization(self):
         """Test JSON serialization of pattern."""
@@ -338,11 +338,11 @@ class TestPattern:
         json_str = pattern.model_dump_json()
         data = json.loads(json_str)
 
-        assert data["pattern_type"] == "daily"
-        assert data["description"] == "User checks email every morning"
-        assert data["frequency"] == 0.95
-        assert data["confidence"] == 0.92
-        assert len(data["examples"]) == 1
+        assert data["pattern_type"] == "daily"  # nosec B101
+        assert data["description"] == "User checks email every morning"  # nosec B101
+        assert data["frequency"] == 0.95  # nosec B101
+        assert data["confidence"] == 0.92  # nosec B101
+        assert len(data["examples"]) == 1  # nosec B101
 
 
 class TestKnowledgeAnswer:
@@ -367,12 +367,12 @@ class TestKnowledgeAnswer:
             visualization_data={"type": "timeline", "data": []},
         )
 
-        assert answer.summary == "You last called John 3 days ago on January 15th at 2:30pm"
-        assert answer.confidence == 0.98
-        assert len(answer.supporting_memories) == 2
-        assert len(answer.patterns) == 1
-        assert answer.statistics["total_calls"] == 15
-        assert answer.visualization_data is not None
+        assert answer.summary == "You last called John 3 days ago on January 15th at 2:30pm"  # nosec B101
+        assert answer.confidence == 0.98  # nosec B101
+        assert len(answer.supporting_memories) == 2  # nosec B101
+        assert len(answer.patterns) == 1  # nosec B101
+        assert answer.statistics["total_calls"] == 15  # nosec B101
+        assert answer.visualization_data is not None  # nosec B101
 
     def test_knowledge_answer_empty_summary_fails(self):
         """Test that empty summary raises validation error."""
@@ -431,12 +431,12 @@ class TestKnowledgeAnswer:
             confidence=0.98,
         )
 
-        assert answer.summary == "Test answer"
-        assert answer.confidence == 0.98
-        assert answer.supporting_memories == []
-        assert answer.patterns == []
-        assert answer.statistics == {}
-        assert answer.visualization_data is None
+        assert answer.summary == "Test answer"  # nosec B101
+        assert answer.confidence == 0.98  # nosec B101
+        assert answer.supporting_memories == []  # nosec B101
+        assert answer.patterns == []  # nosec B101
+        assert answer.statistics == {}  # nosec B101
+        assert answer.visualization_data is None  # nosec B101
 
     def test_knowledge_answer_json_serialization(self):
         """Test JSON serialization of knowledge answer."""
@@ -449,10 +449,10 @@ class TestKnowledgeAnswer:
         json_str = answer.model_dump_json()
         data = json.loads(json_str)
 
-        assert data["summary"] == "You last called John 3 days ago"
-        assert data["confidence"] == 0.98
-        assert len(data["supporting_memories"]) == 1
-        assert data["statistics"]["total_calls"] == 15
+        assert data["summary"] == "You last called John 3 days ago"  # nosec B101
+        assert data["confidence"] == 0.98  # nosec B101
+        assert len(data["supporting_memories"]) == 1  # nosec B101
+        assert data["statistics"]["total_calls"] == 15  # nosec B101
 
 
 class TestKnowledgeQueryType:
@@ -460,14 +460,14 @@ class TestKnowledgeQueryType:
 
     def test_all_query_types_exist(self):
         """Test that all expected query types exist."""
-        assert KnowledgeQueryType.TEMPORAL == "temporal"
-        assert KnowledgeQueryType.AGGREGATION == "aggregation"
-        assert KnowledgeQueryType.PATTERN == "pattern"
-        assert KnowledgeQueryType.FACTUAL == "factual"
+        assert KnowledgeQueryType.TEMPORAL == "temporal"  # nosec B101
+        assert KnowledgeQueryType.AGGREGATION == "aggregation"  # nosec B101
+        assert KnowledgeQueryType.PATTERN == "pattern"  # nosec B101
+        assert KnowledgeQueryType.FACTUAL == "factual"  # nosec B101
 
     def test_query_type_count(self):
         """Test that we have exactly 4 query types."""
-        assert len(list(KnowledgeQueryType)) == 4
+        assert len(list(KnowledgeQueryType)) == 4  # nosec B101
 
 
 class TestIntegration:
@@ -504,11 +504,11 @@ class TestIntegration:
         )
 
         # Verify all components work together
-        assert query.query_type == KnowledgeQueryType.TEMPORAL
-        assert query.time_range is not None
-        assert len(answer.patterns) == 1
-        assert answer.patterns[0].pattern_type == "weekly"
-        assert answer.confidence > query.confidence * 0.9  # Answer confidence should be high
+        assert query.query_type == KnowledgeQueryType.TEMPORAL  # nosec B101
+        assert query.time_range is not None  # nosec B101
+        assert len(answer.patterns) == 1  # nosec B101
+        assert answer.patterns[0].pattern_type == "weekly"  # nosec B101
+        assert answer.confidence > query.confidence * 0.9  # Answer confidence should be high  # nosec B101
 
     def test_json_round_trip(self):
         """Test JSON serialization and deserialization."""
@@ -537,7 +537,7 @@ class TestIntegration:
         restored = KnowledgeAnswer(**data)
 
         # Verify round trip
-        assert restored.summary == answer.summary
-        assert restored.confidence == answer.confidence
-        assert len(restored.patterns) == len(answer.patterns)
-        assert restored.patterns[0].pattern_type == answer.patterns[0].pattern_type
+        assert restored.summary == answer.summary  # nosec B101
+        assert restored.confidence == answer.confidence  # nosec B101
+        assert len(restored.patterns) == len(answer.patterns)  # nosec B101
+        assert restored.patterns[0].pattern_type == answer.patterns[0].pattern_type  # nosec B101

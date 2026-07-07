@@ -143,25 +143,25 @@ class TestReasoningPlanProperties:
 
         Validates: Requirements 4.3, 11.4
         """
-        assert len(plan.steps) <= 5, f"Plan has {len(plan.steps)} steps, maximum is 5"
-        assert len(plan.steps) >= 1, "Plan must have at least 1 step"
+        assert len(plan.steps) <= 5, f"Plan has {len(plan.steps)} steps, maximum is 5"  # nosec B101
+        assert len(plan.steps) >= 1, "Plan must have at least 1 step"  # nosec B101
 
     @given(plan=reasoning_plan_strategy())
     @settings(max_examples=100, deadline=None)
     def test_property_reasoning_plan_has_valid_fields(self, plan):
         """Property: All reasoning plans have valid required fields."""
-        assert plan.goal, "Plan must have a goal"
-        assert plan.steps, "Plan must have steps"
-        assert plan.reasoning, "Plan must have reasoning"
-        assert 0.0 <= plan.confidence <= 1.0, "Confidence must be 0.0-1.0"
-        assert plan.estimated_duration_seconds >= 0, "Duration must be non-negative"
+        assert plan.goal, "Plan must have a goal"  # nosec B101
+        assert plan.steps, "Plan must have steps"  # nosec B101
+        assert plan.reasoning, "Plan must have reasoning"  # nosec B101
+        assert 0.0 <= plan.confidence <= 1.0, "Confidence must be 0.0-1.0"  # nosec B101
+        assert plan.estimated_duration_seconds >= 0, "Duration must be non-negative"  # nosec B101
 
     @given(plan=reasoning_plan_strategy())
     @settings(max_examples=100, deadline=None)
     def test_property_plan_duration_is_sum_of_steps(self, plan):
         """Property: Plan duration equals sum of step durations."""
         expected_duration = sum(step.estimated_duration_seconds for step in plan.steps)
-        assert (
+        assert (  # nosec B101
             abs(plan.estimated_duration_seconds - expected_duration) < 0.01
         ), f"Plan duration {plan.estimated_duration_seconds} != sum of steps {expected_duration}"
 
@@ -171,7 +171,7 @@ class TestReasoningPlanProperties:
         """Property: Plan requires confirmation if any step does."""
         any_step_requires_confirmation = any(step.requires_confirmation for step in plan.steps)
         if any_step_requires_confirmation:
-            assert plan.requires_confirmation, "Plan should require confirmation if any step does"
+            assert plan.requires_confirmation, "Plan should require confirmation if any step does"  # nosec B101
 
 
 class TestReasoningStepProperties:
@@ -181,19 +181,19 @@ class TestReasoningStepProperties:
     @settings(max_examples=100, deadline=None)
     def test_property_step_has_valid_fields(self, step):
         """Property: All reasoning steps have valid required fields."""
-        assert step.step_id >= 1, "Step ID must be >= 1"
-        assert step.description, "Step must have description"
-        assert step.tool_id, "Step must have tool_id"
-        assert step.estimated_duration_seconds > 0, "Duration must be positive"
-        assert isinstance(step.parameters, dict), "Parameters must be dict"
-        assert isinstance(step.depends_on, list), "depends_on must be list"
+        assert step.step_id >= 1, "Step ID must be >= 1"  # nosec B101
+        assert step.description, "Step must have description"  # nosec B101
+        assert step.tool_id, "Step must have tool_id"  # nosec B101
+        assert step.estimated_duration_seconds > 0, "Duration must be positive"  # nosec B101
+        assert isinstance(step.parameters, dict), "Parameters must be dict"  # nosec B101
+        assert isinstance(step.depends_on, list), "depends_on must be list"  # nosec B101
 
     @given(step=reasoning_step_strategy())
     @settings(max_examples=100, deadline=None)
     def test_property_step_dependencies_are_earlier(self, step):
         """Property: Step dependencies must reference earlier steps."""
         for dep_id in step.depends_on:
-            assert (
+            assert (  # nosec B101
                 dep_id < step.step_id
             ), f"Step {step.step_id} cannot depend on step {dep_id} (must be earlier)"
 
@@ -216,15 +216,15 @@ class TestConversationContextProperties:
         formatted = context.format_for_prompt()
 
         # Check that context is included
-        assert isinstance(formatted, str), "Formatted context must be string"
+        assert isinstance(formatted, str), "Formatted context must be string"  # nosec B101
 
         # If context has data, it should be in the formatted output
         if context.recent_turns:
-            assert "Recent conversation" in formatted or len(formatted) > 0
+            assert "Recent conversation" in formatted or len(formatted) > 0  # nosec B101
 
         if context.tracked_entities:
             # At least some entities should be mentioned
-            assert len(formatted) > 0
+            assert len(formatted) > 0  # nosec B101
 
     @given(context=conversation_context_strategy())
     @settings(max_examples=100, deadline=None)
@@ -234,7 +234,7 @@ class TestConversationContextProperties:
         formatted = context.format_for_prompt(max_turns=max_turns)
 
         # Just verify it's a valid string
-        assert isinstance(formatted, str)
+        assert isinstance(formatted, str)  # nosec B101
 
     @given(context=conversation_context_strategy())
     @settings(max_examples=100, deadline=None)
@@ -245,7 +245,7 @@ class TestConversationContextProperties:
         compressed_formatted = compressed_context.format_for_prompt()
 
         # Compressed should be <= original
-        assert (
+        assert (  # nosec B101
             len(compressed_formatted) <= len(original_formatted) or len(original_formatted) <= 200
         )
 
@@ -288,7 +288,7 @@ class TestReasoningPlanValidatorProperties:
         is_valid, error = validator.validate(plan)
 
         # Plan should be valid with matching tool registry
-        assert is_valid, f"Plan should be valid: {error}"
+        assert is_valid, f"Plan should be valid: {error}"  # nosec B101
 
     @given(plan=reasoning_plan_strategy())
     @settings(max_examples=100, deadline=None)
@@ -301,9 +301,9 @@ class TestReasoningPlanValidatorProperties:
         is_valid, error = validator.validate(plan)
 
         # Plan should be invalid (unknown tools)
-        assert is_valid is False
-        assert error is not None
-        assert "Unknown tool" in error
+        assert is_valid is False  # nosec B101
+        assert error is not None  # nosec B101
+        assert "Unknown tool" in error  # nosec B101
 
     @given(plan=reasoning_plan_strategy())
     @settings(max_examples=100, deadline=None)
@@ -324,5 +324,5 @@ class TestReasoningPlanValidatorProperties:
 
         # If plan duration exceeds limit, should be invalid
         if plan.estimated_duration_seconds > 0.1:
-            assert is_valid is False
-            assert "exceeds limit" in error
+            assert is_valid is False  # nosec B101
+            assert "exceeds limit" in error  # nosec B101

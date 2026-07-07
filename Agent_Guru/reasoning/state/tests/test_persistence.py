@@ -60,16 +60,16 @@ class TestPersistence:
         await persistence.save(sample_state)
 
         loaded = await persistence.load("conv_123")
-        assert loaded is not None
-        assert loaded.conversation_id == "conv_123"
-        assert loaded.user_id == "user_456"
-        assert len(loaded.turns) == 1
+        assert loaded is not None  # nosec B101
+        assert loaded.conversation_id == "conv_123"  # nosec B101
+        assert loaded.user_id == "user_456"  # nosec B101
+        assert len(loaded.turns) == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_load_nonexistent(self, persistence):
         """Test loading nonexistent conversation."""
         loaded = await persistence.load("nonexistent")
-        assert loaded is None
+        assert loaded is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_delete(self, persistence, sample_state):
@@ -77,16 +77,16 @@ class TestPersistence:
         await persistence.save(sample_state)
 
         deleted = await persistence.delete("conv_123")
-        assert deleted is True
+        assert deleted is True  # nosec B101
 
         loaded = await persistence.load("conv_123")
-        assert loaded is None
+        assert loaded is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_delete_nonexistent(self, persistence):
         """Test deleting nonexistent conversation."""
         deleted = await persistence.delete("nonexistent")
-        assert deleted is False
+        assert deleted is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_list_by_user(self, persistence):
@@ -102,8 +102,8 @@ class TestPersistence:
             await persistence.save(state)
 
         conv_ids = await persistence.list_by_user("user_456")
-        assert len(conv_ids) == 3
-        assert "conv_0" in conv_ids
+        assert len(conv_ids) == 3  # nosec B101
+        assert "conv_0" in conv_ids  # nosec B101
 
     @pytest.mark.asyncio
     async def test_update_existing(self, persistence, sample_state):
@@ -122,4 +122,4 @@ class TestPersistence:
         await persistence.save(sample_state)
 
         loaded = await persistence.load("conv_123")
-        assert len(loaded.turns) == 2
+        assert len(loaded.turns) == 2  # nosec B101

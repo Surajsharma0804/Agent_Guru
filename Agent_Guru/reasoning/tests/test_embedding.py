@@ -38,28 +38,28 @@ class TestEmbeddingGenerator:
 
     def test_initialization(self, generator):
         """Test that generator initializes correctly."""
-        assert generator.model is not None
-        assert generator.device in ["cuda", "cpu"]
-        assert generator.model_name == "sentence-transformers/all-MiniLM-L6-v2"
+        assert generator.model is not None  # nosec B101
+        assert generator.device in ["cuda", "cpu"]  # nosec B101
+        assert generator.model_name == "sentence-transformers/all-MiniLM-L6-v2"  # nosec B101
 
     def test_initialization_with_custom_model(self):
         """Test initialization with custom model name."""
         generator = EmbeddingGenerator(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        assert generator.model_name == "sentence-transformers/all-MiniLM-L6-v2"
+        assert generator.model_name == "sentence-transformers/all-MiniLM-L6-v2"  # nosec B101
 
     def test_initialization_with_device(self):
         """Test initialization with specific device."""
         generator = EmbeddingGenerator(device="cpu")
-        assert generator.device == "cpu"
+        assert generator.device == "cpu"  # nosec B101
 
     def test_generate_single_text(self, generator):
         """Test generating embedding for single text."""
         text = "User set a timer for 5 minutes"
         embedding = generator.generate(text)
 
-        assert isinstance(embedding, list)
-        assert len(embedding) == 384  # all-MiniLM-L6-v2 dimension
-        assert all(isinstance(x, float) for x in embedding)
+        assert isinstance(embedding, list)  # nosec B101
+        assert len(embedding) == 384  # all-MiniLM-L6-v2 dimension  # nosec B101
+        assert all(isinstance(x, float) for x in embedding)  # nosec B101
 
     def test_generate_empty_text_raises_error(self, generator):
         """Test that empty text raises ValueError."""
@@ -76,17 +76,17 @@ class TestEmbeddingGenerator:
         embedding2 = generator.generate("Hello world")
 
         # Should produce same embedding
-        assert np.allclose(embedding1, embedding2, atol=1e-6)
+        assert np.allclose(embedding1, embedding2, atol=1e-6)  # nosec B101
 
     def test_generate_batch(self, generator):
         """Test generating embeddings for multiple texts."""
         texts = ["First text", "Second text", "Third text"]
         embeddings = generator.generate_batch(texts)
 
-        assert isinstance(embeddings, list)
-        assert len(embeddings) == 3
-        assert all(len(emb) == 384 for emb in embeddings)
-        assert all(isinstance(x, float) for emb in embeddings for x in emb)
+        assert isinstance(embeddings, list)  # nosec B101
+        assert len(embeddings) == 3  # nosec B101
+        assert all(len(emb) == 384 for emb in embeddings)  # nosec B101
+        assert all(isinstance(x, float) for emb in embeddings for x in emb)  # nosec B101
 
     def test_generate_batch_empty_list_raises_error(self, generator):
         """Test that empty list raises ValueError."""
@@ -103,13 +103,13 @@ class TestEmbeddingGenerator:
         texts = ["Text " + str(i) for i in range(10)]
         embeddings = generator.generate_batch(texts, batch_size=5)
 
-        assert len(embeddings) == 10
-        assert all(len(emb) == 384 for emb in embeddings)
+        assert len(embeddings) == 10  # nosec B101
+        assert all(len(emb) == 384 for emb in embeddings)  # nosec B101
 
     def test_get_embedding_dimension(self, generator):
         """Test getting embedding dimension."""
         dimension = generator.get_embedding_dimension()
-        assert dimension == 384
+        assert dimension == 384  # nosec B101
 
     def test_compute_similarity_identical_embeddings(self, generator):
         """Test similarity of identical embeddings is 1.0."""
@@ -117,7 +117,7 @@ class TestEmbeddingGenerator:
         embedding = generator.generate(text)
 
         similarity = generator.compute_similarity(embedding, embedding)
-        assert 0.99 <= similarity <= 1.0  # Allow small floating point error
+        assert 0.99 <= similarity <= 1.0  # Allow small floating point error  # nosec B101
 
     def test_compute_similarity_similar_texts(self, generator):
         """Test similarity of similar texts is high."""
@@ -125,7 +125,7 @@ class TestEmbeddingGenerator:
         emb2 = generator.generate("A cat was sitting on a mat")
 
         similarity = generator.compute_similarity(emb1, emb2)
-        assert similarity > 0.7  # Should be quite similar
+        assert similarity > 0.7  # Should be quite similar  # nosec B101
 
     def test_compute_similarity_different_texts(self, generator):
         """Test similarity of different texts is lower."""
@@ -133,7 +133,7 @@ class TestEmbeddingGenerator:
         emb2 = generator.generate("I love eating pizza")
 
         similarity = generator.compute_similarity(emb1, emb2)
-        assert similarity < 0.5  # Should be less similar
+        assert similarity < 0.5  # Should be less similar  # nosec B101
 
     def test_compute_similarity_different_dimensions_raises_error(self, generator):
         """Test that different dimensions raise ValueError."""
@@ -153,7 +153,7 @@ class TestEmbeddingGenerator:
         emb2 = emb2 / np.linalg.norm(emb2)
 
         similarity = generator.compute_similarity(emb1, emb2)
-        assert -1.0 <= similarity <= 1.0
+        assert -1.0 <= similarity <= 1.0  # nosec B101
 
     def test_embeddings_are_normalized(self, generator):
         """Test that generated embeddings are normalized."""
@@ -162,7 +162,7 @@ class TestEmbeddingGenerator:
 
         # Compute L2 norm
         norm = np.linalg.norm(embedding)
-        assert 0.99 <= norm <= 1.01  # Should be approximately 1.0
+        assert 0.99 <= norm <= 1.01  # Should be approximately 1.0  # nosec B101
 
     def test_batch_embeddings_are_normalized(self, generator):
         """Test that batch embeddings are normalized."""
@@ -171,7 +171,7 @@ class TestEmbeddingGenerator:
 
         for embedding in embeddings:
             norm = np.linalg.norm(embedding)
-            assert 0.99 <= norm <= 1.01
+            assert 0.99 <= norm <= 1.01  # nosec B101
 
 
 class TestEmbeddingGeneratorProperties:
@@ -208,7 +208,7 @@ class TestEmbeddingGeneratorProperties:
             return
 
         embedding = shared_generator.generate(text)
-        assert len(embedding) == 384
+        assert len(embedding) == 384  # nosec B101
 
     @given(
         texts=st.lists(
@@ -237,7 +237,7 @@ class TestEmbeddingGeneratorProperties:
             return
 
         embeddings = shared_generator.generate_batch(texts)
-        assert len(embeddings) == len(texts)
+        assert len(embeddings) == len(texts)  # nosec B101
 
     @given(
         text=st.text(
@@ -262,7 +262,7 @@ class TestEmbeddingGeneratorProperties:
         embedding1 = shared_generator.generate(text)
         embedding2 = shared_generator.generate(text)
 
-        assert np.allclose(embedding1, embedding2, atol=1e-6)
+        assert np.allclose(embedding1, embedding2, atol=1e-6)  # nosec B101
 
     @given(
         text=st.text(
@@ -287,7 +287,7 @@ class TestEmbeddingGeneratorProperties:
         embedding = shared_generator.generate(text)
         norm = np.linalg.norm(embedding)
 
-        assert 0.99 <= norm <= 1.01
+        assert 0.99 <= norm <= 1.01  # nosec B101
 
     @given(
         text1=st.text(
@@ -320,7 +320,7 @@ class TestEmbeddingGeneratorProperties:
         sim1 = shared_generator.compute_similarity(emb1, emb2)
         sim2 = shared_generator.compute_similarity(emb2, emb1)
 
-        assert abs(sim1 - sim2) < 1e-6
+        assert abs(sim1 - sim2) < 1e-6  # nosec B101
 
     @given(
         text=st.text(
@@ -345,7 +345,7 @@ class TestEmbeddingGeneratorProperties:
         embedding = shared_generator.generate(text)
         similarity = shared_generator.compute_similarity(embedding, embedding)
 
-        assert 0.99 <= similarity <= 1.0
+        assert 0.99 <= similarity <= 1.0  # nosec B101
 
 
 class TestEmbeddingGeneratorIntegration:
@@ -385,8 +385,8 @@ class TestEmbeddingGeneratorIntegration:
         cross_sim = next(s for i, j, s in similarities if (i, j) == (0, 2))
 
         # Related texts should be more similar than unrelated
-        assert prog_sim > cross_sim
-        assert weather_sim > cross_sim
+        assert prog_sim > cross_sim  # nosec B101
+        assert weather_sim > cross_sim  # nosec B101
 
     def test_batch_vs_individual_consistency(self, generator):
         """Test that batch and individual generation produce same results."""
@@ -400,7 +400,7 @@ class TestEmbeddingGeneratorIntegration:
 
         # Should be identical (or very close due to floating point)
         for ind, batch in zip(individual_embeddings, batch_embeddings, strict=False):
-            assert np.allclose(ind, batch, atol=1e-5)
+            assert np.allclose(ind, batch, atol=1e-5)  # nosec B101
 
     def test_large_batch_processing(self, generator):
         """Test processing large batch of texts."""
@@ -410,8 +410,8 @@ class TestEmbeddingGeneratorIntegration:
         # Should handle large batch without errors
         embeddings = generator.generate_batch(texts, batch_size=32)
 
-        assert len(embeddings) == 100
-        assert all(len(emb) == 384 for emb in embeddings)
+        assert len(embeddings) == 100  # nosec B101
+        assert all(len(emb) == 384 for emb in embeddings)  # nosec B101
 
     def test_multilingual_support(self, generator):
         """Test that generator handles different languages."""
@@ -425,10 +425,10 @@ class TestEmbeddingGeneratorIntegration:
         # Should generate embeddings for all languages
         embeddings = generator.generate_batch(texts)
 
-        assert len(embeddings) == 4
-        assert all(len(emb) == 384 for emb in embeddings)
+        assert len(embeddings) == 4  # nosec B101
+        assert all(len(emb) == 384 for emb in embeddings)  # nosec B101
 
         # Similar phrases in different languages should have some similarity
         # (multilingual models capture cross-lingual semantics)
         sim_en_fr = generator.compute_similarity(embeddings[0], embeddings[1])
-        assert sim_en_fr > 0.15  # Lowered threshold - multilingual models vary
+        assert sim_en_fr > 0.15  # Lowered threshold - multilingual models vary  # nosec B101

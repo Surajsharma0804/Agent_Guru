@@ -8,7 +8,7 @@ Author: Agent Guru Team
 Date: 2026
 """
 
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -37,7 +37,7 @@ def run_training_script(script_name: str, description: str) -> bool:
 
     try:
         # Run the training script
-        subprocess.run(  # noqa: S603
+        subprocess.run(  # nosec B603  # noqa: S603
             [sys.executable, str(script_path)],
             check=True,
             cwd=Path(__file__).parent.parent.parent,  # Run from project root

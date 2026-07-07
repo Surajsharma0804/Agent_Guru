@@ -27,8 +27,8 @@ class TestWorldStateEngine:
         engine = WorldStateEngine()
 
         state = await engine.get_state()
-        assert state is not None
-        assert engine.get_subscriber_count() == 0
+        assert state is not None  # nosec B101
+        assert engine.get_subscriber_count() == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_state_returns_copy(self):
@@ -39,7 +39,7 @@ class TestWorldStateEngine:
         state2 = await engine.get_state()
 
         # Should be different objects
-        assert state1 is not state2
+        assert state1 is not state2  # nosec B101
 
     @pytest.mark.asyncio
     async def test_update_device_status(self):
@@ -57,8 +57,8 @@ class TestWorldStateEngine:
         await engine.update_state(device_status=device_status)
 
         state = await engine.get_state()
-        assert state.device_status.battery_level == 75
-        assert state.device_status.charging is True
+        assert state.device_status.battery_level == 75  # nosec B101
+        assert state.device_status.charging is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_update_system_resources(self):
@@ -74,8 +74,8 @@ class TestWorldStateEngine:
         await engine.update_state(system_resources=resources)
 
         state = await engine.get_state()
-        assert state.system_resources.cpu_usage == 45.5
-        assert state.system_resources.memory_usage == 60.0
+        assert state.system_resources.cpu_usage == 45.5  # nosec B101
+        assert state.system_resources.memory_usage == 60.0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_query_state_simple_field(self):
@@ -86,8 +86,8 @@ class TestWorldStateEngine:
         await engine.update_state(device_status=device_status)
 
         result = await engine.query_state("device_status")
-        assert result is not None
-        assert result.battery_level == 80
+        assert result is not None  # nosec B101
+        assert result.battery_level == 80  # nosec B101
 
     @pytest.mark.asyncio
     async def test_query_state_nested_field(self):
@@ -98,7 +98,7 @@ class TestWorldStateEngine:
         await engine.update_state(device_status=device_status)
 
         result = await engine.query_state("device_status.battery_level")
-        assert result == 80
+        assert result == 80  # nosec B101
 
     @pytest.mark.asyncio
     async def test_query_state_invalid_field(self):
@@ -106,7 +106,7 @@ class TestWorldStateEngine:
         engine = WorldStateEngine()
 
         result = await engine.query_state("invalid_field")
-        assert result is None
+        assert result is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_subscribe_to_updates(self):
@@ -118,8 +118,8 @@ class TestWorldStateEngine:
             events_received.append(event)
 
         sub_id = engine.subscribe_to_updates(callback)
-        assert sub_id is not None
-        assert engine.get_subscriber_count() == 1
+        assert sub_id is not None  # nosec B101
+        assert engine.get_subscriber_count() == 1  # nosec B101
 
         # Trigger update
         device_status = DeviceStatus(battery_level=50)
@@ -128,9 +128,9 @@ class TestWorldStateEngine:
         # Give callbacks time to execute
         await asyncio.sleep(0.1)
 
-        assert len(events_received) == 1
-        assert events_received[0].field_path == "device_status"
-        assert events_received[0].new_value.battery_level == 50
+        assert len(events_received) == 1  # nosec B101
+        assert events_received[0].field_path == "device_status"  # nosec B101
+        assert events_received[0].new_value.battery_level == 50  # nosec B101
 
     @pytest.mark.asyncio
     async def test_subscribe_async_callback(self):
@@ -151,7 +151,7 @@ class TestWorldStateEngine:
         # Give callbacks time to execute
         await asyncio.sleep(0.1)
 
-        assert len(events_received) == 1
+        assert len(events_received) == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_unsubscribe(self):
@@ -163,19 +163,19 @@ class TestWorldStateEngine:
             events_received.append(event)
 
         sub_id = engine.subscribe_to_updates(callback)
-        assert engine.get_subscriber_count() == 1
+        assert engine.get_subscriber_count() == 1  # nosec B101
 
         # Unsubscribe
         result = engine.unsubscribe(sub_id)
-        assert result is True
-        assert engine.get_subscriber_count() == 0
+        assert result is True  # nosec B101
+        assert engine.get_subscriber_count() == 0  # nosec B101
 
         # Trigger update - should not receive event
         device_status = DeviceStatus(battery_level=40)
         await engine.update_state(device_status=device_status)
 
         await asyncio.sleep(0.1)
-        assert len(events_received) == 0
+        assert len(events_received) == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_unsubscribe_invalid_id(self):
@@ -183,7 +183,7 @@ class TestWorldStateEngine:
         engine = WorldStateEngine()
 
         result = engine.unsubscribe("invalid_id")
-        assert result is False
+        assert result is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_multiple_subscribers(self):
@@ -200,7 +200,7 @@ class TestWorldStateEngine:
 
         engine.subscribe_to_updates(callback1)
         engine.subscribe_to_updates(callback2)
-        assert engine.get_subscriber_count() == 2
+        assert engine.get_subscriber_count() == 2  # nosec B101
 
         # Trigger update
         device_status = DeviceStatus(battery_level=30)
@@ -208,8 +208,8 @@ class TestWorldStateEngine:
 
         await asyncio.sleep(0.1)
 
-        assert len(events1) == 1
-        assert len(events2) == 1
+        assert len(events1) == 1  # nosec B101
+        assert len(events2) == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_persist_and_restore_state(self):
@@ -226,9 +226,9 @@ class TestWorldStateEngine:
 
         # Persist state
         state_dict = await engine.persist_state()
-        assert state_dict is not None
-        assert "device_status" in state_dict
-        assert "system_resources" in state_dict
+        assert state_dict is not None  # nosec B101
+        assert "device_status" in state_dict  # nosec B101
+        assert "system_resources" in state_dict  # nosec B101
 
         # Create new engine and restore
         new_engine = WorldStateEngine()
@@ -236,9 +236,9 @@ class TestWorldStateEngine:
 
         # Verify restored state
         restored_state = await new_engine.get_state()
-        assert restored_state.device_status.battery_level == 85
-        assert restored_state.device_status.charging is True
-        assert restored_state.system_resources.cpu_usage == 50.0
+        assert restored_state.device_status.battery_level == 85  # nosec B101
+        assert restored_state.device_status.charging is True  # nosec B101
+        assert restored_state.system_resources.cpu_usage == 50.0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_change_history(self):
@@ -252,12 +252,12 @@ class TestWorldStateEngine:
 
         # Get history
         history = engine.get_change_history()
-        assert (
+        assert (  # nosec B101
             len(history) >= 2
         )  # At least 2 changes (100->90 and 90->80, first one might be same as default)
 
         # Most recent should be first
-        assert history[0].new_value.battery_level == 80
+        assert history[0].new_value.battery_level == 80  # nosec B101
 
     @pytest.mark.asyncio
     async def test_change_history_filtered(self):
@@ -273,8 +273,8 @@ class TestWorldStateEngine:
 
         # Get filtered history
         history = engine.get_change_history(field_path="device_status")
-        assert len(history) >= 1  # At least one device_status change
-        assert all(e.field_path == "device_status" for e in history)
+        assert len(history) >= 1  # At least one device_status change  # nosec B101
+        assert all(e.field_path == "device_status" for e in history)  # nosec B101
 
     @pytest.mark.asyncio
     async def test_change_history_limit(self):
@@ -287,7 +287,7 @@ class TestWorldStateEngine:
 
         # Get limited history
         history = engine.get_change_history(limit=5)
-        assert len(history) == 5
+        assert len(history) == 5  # nosec B101
 
     @pytest.mark.asyncio
     async def test_no_update_if_value_unchanged(self):
@@ -306,14 +306,14 @@ class TestWorldStateEngine:
 
         await asyncio.sleep(0.1)
         initial_count = len(events_received)
-        assert initial_count >= 1
+        assert initial_count >= 1  # nosec B101
 
         # Update with same value
         await engine.update_state(device_status=device_status)
 
         await asyncio.sleep(0.1)
         # Should still be same count (no new event)
-        assert len(events_received) == initial_count
+        assert len(events_received) == initial_count  # nosec B101
 
     @pytest.mark.asyncio
     async def test_invalid_field_update(self):
@@ -325,7 +325,7 @@ class TestWorldStateEngine:
 
         # Should not raise error, just log warning
         state = await engine.get_state()
-        assert not hasattr(state, "invalid_field")
+        assert not hasattr(state, "invalid_field")  # nosec B101
 
     @pytest.mark.asyncio
     async def test_subscriber_callback_error_handling(self):
@@ -349,7 +349,7 @@ class TestWorldStateEngine:
         await asyncio.sleep(0.1)
 
         # Good callback should still receive event
-        assert len(events_received) == 1
+        assert len(events_received) == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_concurrent_updates(self):
@@ -367,4 +367,4 @@ class TestWorldStateEngine:
 
         # State should be consistent
         state = await engine.get_state()
-        assert state.device_status.battery_level >= 90
+        assert state.device_status.battery_level >= 90  # nosec B101

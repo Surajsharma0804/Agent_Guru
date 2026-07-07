@@ -87,11 +87,11 @@ class TestHandleTemporalQuery:
 
         answer = synthesizer.handle_temporal_query(query, sample_memories, statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
-        assert answer.confidence > 0.8  # Should boost confidence for recent data
-        assert "John" in answer.summary
-        assert len(answer.supporting_memories) <= 5
-        assert answer.patterns == []  # Temporal queries don't include patterns
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert answer.confidence > 0.8  # Should boost confidence for recent data  # nosec B101
+        assert "John" in answer.summary  # nosec B101
+        assert len(answer.supporting_memories) <= 5  # nosec B101
+        assert answer.patterns == []  # Temporal queries don't include patterns  # nosec B101
 
     def test_handle_temporal_query_with_old_memory(self, synthesizer):
         """Test temporal query with old memory."""
@@ -124,10 +124,10 @@ class TestHandleTemporalQuery:
 
         answer = synthesizer.handle_temporal_query(query, [old_memory], statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
         # Old data should not boost confidence as much
-        assert answer.confidence <= 0.9
-        assert "month" in answer.summary.lower()
+        assert answer.confidence <= 0.9  # nosec B101
+        assert "month" in answer.summary.lower()  # nosec B101
 
     def test_handle_temporal_query_no_memories(self, synthesizer):
         """Test temporal query with no memories."""
@@ -143,10 +143,10 @@ class TestHandleTemporalQuery:
 
         answer = synthesizer.handle_temporal_query(query, [], statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
-        assert answer.confidence == 0.1  # Very low confidence
-        assert "don't have" in answer.summary.lower()
-        assert len(answer.supporting_memories) == 0
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert answer.confidence == 0.1  # Very low confidence  # nosec B101
+        assert "don't have" in answer.summary.lower()  # nosec B101
+        assert len(answer.supporting_memories) == 0  # nosec B101
 
     def test_handle_temporal_query_low_confidence_indicator(self, synthesizer):
         """Test that low confidence adds indicator to summary."""
@@ -175,7 +175,7 @@ class TestHandleTemporalQuery:
         answer = synthesizer.handle_temporal_query(query, [memory], statistics)
 
         # Low confidence should add indicator
-        assert "not very confident" in answer.summary.lower()
+        assert "not very confident" in answer.summary.lower()  # nosec B101
 
 
 class TestHandleAggregationQuery:
@@ -219,10 +219,10 @@ class TestHandleAggregationQuery:
 
         answer = synthesizer.handle_aggregation_query(query, memories, statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
-        assert answer.confidence > 0.9  # High confidence with clear winner
-        assert "John" in answer.summary
-        assert "15" in answer.summary or "most" in answer.summary.lower()
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert answer.confidence > 0.9  # High confidence with clear winner  # nosec B101
+        assert "John" in answer.summary  # nosec B101
+        assert "15" in answer.summary or "most" in answer.summary.lower()  # nosec B101
 
     def test_handle_aggregation_query_close_race(self, synthesizer):
         """Test aggregation query with close race."""
@@ -262,9 +262,9 @@ class TestHandleAggregationQuery:
 
         answer = synthesizer.handle_aggregation_query(query, memories, statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
         # Close race should not boost confidence as much
-        assert answer.confidence < 1.0
+        assert answer.confidence < 1.0  # nosec B101
 
     def test_handle_aggregation_query_small_sample(self, synthesizer):
         """Test aggregation query with small sample size."""
@@ -299,9 +299,9 @@ class TestHandleAggregationQuery:
 
         answer = synthesizer.handle_aggregation_query(query, memories, statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
         # Small sample should reduce confidence
-        assert answer.confidence < 0.9
+        assert answer.confidence < 0.9  # nosec B101
 
 
 class TestHandlePatternQuery:
@@ -349,11 +349,11 @@ class TestHandlePatternQuery:
 
         answer = synthesizer.handle_pattern_query(query, memories, patterns, statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
-        assert answer.confidence > 0.9  # High confidence with strong pattern
-        assert "09:00" in answer.summary or "9" in answer.summary
-        assert len(answer.patterns) == 1
-        assert len(answer.supporting_memories) > 0
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert answer.confidence > 0.9  # High confidence with strong pattern  # nosec B101
+        assert "09:00" in answer.summary or "9" in answer.summary  # nosec B101
+        assert len(answer.patterns) == 1  # nosec B101
+        assert len(answer.supporting_memories) > 0  # nosec B101
 
     def test_handle_pattern_query_multiple_patterns(self, synthesizer):
         """Test pattern query with multiple patterns."""
@@ -402,10 +402,10 @@ class TestHandlePatternQuery:
 
         answer = synthesizer.handle_pattern_query(query, memories, patterns, statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
         # Multiple patterns should boost confidence
-        assert answer.confidence > 0.8
-        assert len(answer.patterns) == 2
+        assert answer.confidence > 0.8  # nosec B101
+        assert len(answer.patterns) == 2  # nosec B101
 
     def test_handle_pattern_query_no_patterns(self, synthesizer):
         """Test pattern query with no patterns detected."""
@@ -437,9 +437,9 @@ class TestHandlePatternQuery:
 
         answer = synthesizer.handle_pattern_query(query, memories, [], statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
-        assert answer.confidence == 0.2  # Low confidence with no patterns
-        assert "haven't detected" in answer.summary.lower()
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert answer.confidence == 0.2  # Low confidence with no patterns  # nosec B101
+        assert "haven't detected" in answer.summary.lower()  # nosec B101
 
 
 class TestHandleFactualQuery:
@@ -470,10 +470,10 @@ class TestHandleFactualQuery:
 
         answer = synthesizer.handle_factual_query(query, [memory], statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
-        assert answer.confidence > 0.9  # High confidence with high relevance
-        assert "555-1234" in answer.summary
-        assert len(answer.supporting_memories) == 1
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert answer.confidence > 0.9  # High confidence with high relevance  # nosec B101
+        assert "555-1234" in answer.summary  # nosec B101
+        assert len(answer.supporting_memories) == 1  # nosec B101
 
     def test_handle_factual_query_trusted_source(self, synthesizer):
         """Test factual query with trusted source."""
@@ -500,10 +500,10 @@ class TestHandleFactualQuery:
 
         answer = synthesizer.handle_factual_query(query, [memory], statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
         # Trusted source should boost confidence
-        assert answer.confidence > 0.9
-        assert "Paris" in answer.summary
+        assert answer.confidence > 0.9  # nosec B101
+        assert "Paris" in answer.summary  # nosec B101
 
     def test_handle_factual_query_multiple_sources(self, synthesizer):
         """Test factual query with multiple corroborating sources."""
@@ -533,10 +533,10 @@ class TestHandleFactualQuery:
 
         answer = synthesizer.handle_factual_query(query, memories, statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
         # Multiple sources should boost confidence
-        assert answer.confidence > 0.9
-        assert len(answer.supporting_memories) == 3
+        assert answer.confidence > 0.9  # nosec B101
+        assert len(answer.supporting_memories) == 3  # nosec B101
 
     def test_handle_factual_query_low_relevance(self, synthesizer):
         """Test factual query with low relevance memory."""
@@ -563,9 +563,9 @@ class TestHandleFactualQuery:
 
         answer = synthesizer.handle_factual_query(query, [memory], statistics)
 
-        assert isinstance(answer, KnowledgeAnswer)
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
         # Low relevance should not boost confidence
-        assert answer.confidence <= 0.6
+        assert answer.confidence <= 0.6  # nosec B101
 
 
 class TestConfidenceCalculations:
@@ -601,7 +601,7 @@ class TestConfidenceCalculations:
         confidence = synthesizer._calculate_temporal_confidence(query, memories, statistics)
 
         # Recent data + good sample size should boost confidence
-        assert confidence > 0.8
+        assert confidence > 0.8  # nosec B101
 
     def test_aggregation_confidence_large_sample(self, synthesizer):
         """Test aggregation confidence with large sample."""
@@ -637,7 +637,7 @@ class TestConfidenceCalculations:
         confidence = synthesizer._calculate_aggregation_confidence(query, memories, statistics)
 
         # Large sample + clear winner should boost confidence
-        assert confidence > 0.9
+        assert confidence > 0.9  # nosec B101
 
     def test_pattern_confidence_strong_pattern(self, synthesizer):
         """Test pattern confidence with strong pattern."""
@@ -680,7 +680,7 @@ class TestConfidenceCalculations:
         )
 
         # Strong pattern + good sample should boost confidence
-        assert confidence > 0.9
+        assert confidence > 0.9  # nosec B101
 
     def test_factual_confidence_high_relevance_trusted_source(self, synthesizer):
         """Test factual confidence with high relevance and trusted source."""
@@ -711,4 +711,4 @@ class TestConfidenceCalculations:
         confidence = synthesizer._calculate_factual_confidence(query, memories, statistics)
 
         # High relevance + trusted source + corroboration should boost confidence
-        assert confidence > 0.9
+        assert confidence > 0.9  # nosec B101

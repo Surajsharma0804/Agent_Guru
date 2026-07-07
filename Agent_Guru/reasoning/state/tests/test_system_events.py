@@ -25,7 +25,7 @@ class TestSystemEventIntegration:
         engine = WorldStateEngine()
         integration = SystemEventIntegration(engine)
 
-        assert integration is not None
+        assert integration is not None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_app_opened_event(self):
@@ -42,9 +42,9 @@ class TestSystemEventIntegration:
         await integration.process_event(event)
 
         state = await engine.get_state()
-        assert "com.example.app" in state.active_apps
-        assert "com.example.app" in state.app_states
-        assert state.app_states["com.example.app"].is_active is True
+        assert "com.example.app" in state.active_apps  # nosec B101
+        assert "com.example.app" in state.app_states  # nosec B101
+        assert state.app_states["com.example.app"].is_active is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_app_closed_event(self):
@@ -69,8 +69,8 @@ class TestSystemEventIntegration:
         await integration.process_event(close_event)
 
         state = await engine.get_state()
-        assert "com.example.app" not in state.active_apps
-        assert state.app_states["com.example.app"].is_active is False
+        assert "com.example.app" not in state.active_apps  # nosec B101
+        assert state.app_states["com.example.app"].is_active is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_battery_changed_event(self):
@@ -87,8 +87,8 @@ class TestSystemEventIntegration:
         await integration.process_event(event)
 
         state = await engine.get_state()
-        assert state.device_status.battery_level == 75.0
-        assert state.device_status.charging is True
+        assert state.device_status.battery_level == 75.0  # nosec B101
+        assert state.device_status.charging is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_network_changed_event(self):
@@ -105,7 +105,7 @@ class TestSystemEventIntegration:
         await integration.process_event(event)
 
         state = await engine.get_state()
-        assert state.device_status.network_type == "cellular"
+        assert state.device_status.network_type == "cellular"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_location_changed_event(self):
@@ -126,9 +126,9 @@ class TestSystemEventIntegration:
         await integration.process_event(event)
 
         state = await engine.get_state()
-        assert state.location_context is not None
-        assert state.location_context.latitude == 37.7749
-        assert state.location_context.longitude == -122.4194
+        assert state.location_context is not None  # nosec B101
+        assert state.location_context.latitude == 37.7749  # nosec B101
+        assert state.location_context.longitude == -122.4194  # nosec B101
 
     @pytest.mark.asyncio
     async def test_calendar_event_added(self):
@@ -153,8 +153,8 @@ class TestSystemEventIntegration:
         await integration.process_event(event)
 
         state = await engine.get_state()
-        assert len(state.calendar_events) == 1
-        assert state.calendar_events[0].event_id == "event1"
+        assert len(state.calendar_events) == 1  # nosec B101
+        assert state.calendar_events[0].event_id == "event1"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_contact_added(self):
@@ -177,8 +177,8 @@ class TestSystemEventIntegration:
         await integration.process_event(event)
 
         state = await engine.get_state()
-        assert "John Doe" in state.contacts
-        assert state.contacts["John Doe"].phone_numbers == ["+1234567890"]
+        assert "John Doe" in state.contacts  # nosec B101
+        assert state.contacts["John Doe"].phone_numbers == ["+1234567890"]  # nosec B101
 
     @pytest.mark.asyncio
     async def test_task_started_event(self):
@@ -195,7 +195,7 @@ class TestSystemEventIntegration:
         await integration.process_event(event)
 
         state = await engine.get_state()
-        assert "task123" in state.active_tasks
+        assert "task123" in state.active_tasks  # nosec B101
 
     @pytest.mark.asyncio
     async def test_task_completed_event(self):
@@ -220,8 +220,8 @@ class TestSystemEventIntegration:
         await integration.process_event(complete_event)
 
         state = await engine.get_state()
-        assert "task123" not in state.active_tasks
-        assert len(state.recent_activities) > 0
+        assert "task123" not in state.active_tasks  # nosec B101
+        assert len(state.recent_activities) > 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_user_action_event(self):
@@ -242,8 +242,8 @@ class TestSystemEventIntegration:
         await integration.process_event(event)
 
         state = await engine.get_state()
-        assert len(state.recent_activities) > 0
-        assert state.recent_activities[0].activity_type == "manual_update"
+        assert len(state.recent_activities) > 0  # nosec B101
+        assert state.recent_activities[0].activity_type == "manual_update"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_invalid_event_data(self):
@@ -262,7 +262,7 @@ class TestSystemEventIntegration:
         await integration.process_event(event)
 
         state = await engine.get_state()
-        assert len(state.active_apps) == 0
+        assert len(state.active_apps) == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_multiple_events_sequence(self):
@@ -292,7 +292,7 @@ class TestSystemEventIntegration:
             await integration.process_event(event)
 
         state = await engine.get_state()
-        assert state.device_status.battery_level == 100.0
-        assert len(state.active_apps) == 2
-        assert "app1" in state.active_apps
-        assert "app2" in state.active_apps
+        assert state.device_status.battery_level == 100.0  # nosec B101
+        assert len(state.active_apps) == 2  # nosec B101
+        assert "app1" in state.active_apps  # nosec B101
+        assert "app2" in state.active_apps  # nosec B101

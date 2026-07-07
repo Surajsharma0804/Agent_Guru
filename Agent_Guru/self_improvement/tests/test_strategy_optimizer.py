@@ -58,15 +58,15 @@ class TestStrategyOptimizerInitialization:
         """Test basic initialization."""
         optimizer = StrategyOptimizer(connection_pool)
 
-        assert optimizer.pool == connection_pool
-        assert optimizer.epsilon == 0.1  # Default
-        assert optimizer.min_executions_for_confidence == 10  # Default
+        assert optimizer.pool == connection_pool  # nosec B101
+        assert optimizer.epsilon == 0.1  # Default  # nosec B101
+        assert optimizer.min_executions_for_confidence == 10  # Default  # nosec B101
 
     def test_initialization_with_custom_epsilon(self, connection_pool):
         """Test initialization with custom epsilon."""
         optimizer = StrategyOptimizer(connection_pool, epsilon=0.2)
 
-        assert optimizer.epsilon == 0.2
+        assert optimizer.epsilon == 0.2  # nosec B101
 
     def test_initialization_with_invalid_epsilon(self, connection_pool):
         """Test initialization with invalid epsilon."""
@@ -88,7 +88,7 @@ class TestStrategyOptimizerInitialization:
                 WHERE type='table' AND name='strategies'
             """
             )
-            assert cursor.fetchone() is not None
+            assert cursor.fetchone() is not None  # nosec B101
 
     def test_initialization_without_schema_fails(self):
         """Test that initialization fails if schema not created."""
@@ -130,14 +130,14 @@ class TestStrategyRegistration:
 
         # Verify strategy was registered
         strategy = optimizer.get_strategy("chain_of_thought")
-        assert strategy is not None
-        assert strategy.strategy_id == "chain_of_thought"
-        assert strategy.name == "Chain of Thought"
-        assert strategy.description == "Step-by-step reasoning"
-        assert strategy.task_types == ["analysis", "problem_solving"]
-        assert strategy.parameters == {"max_steps": 5}
-        assert strategy.success_rate == 0.0
-        assert strategy.total_executions == 0
+        assert strategy is not None  # nosec B101
+        assert strategy.strategy_id == "chain_of_thought"  # nosec B101
+        assert strategy.name == "Chain of Thought"  # nosec B101
+        assert strategy.description == "Step-by-step reasoning"  # nosec B101
+        assert strategy.task_types == ["analysis", "problem_solving"]  # nosec B101
+        assert strategy.parameters == {"max_steps": 5}  # nosec B101
+        assert strategy.success_rate == 0.0  # nosec B101
+        assert strategy.total_executions == 0  # nosec B101
 
     def test_register_duplicate_strategy(self, optimizer):
         """Test registering duplicate strategy raises error."""
@@ -176,7 +176,7 @@ class TestStrategyRegistration:
             parameters={},
         )
 
-        assert optimizer.get_strategy_count() == 2
+        assert optimizer.get_strategy_count() == 2  # nosec B101
 
 
 # ============================================================================
@@ -200,11 +200,11 @@ class TestPerformanceTracking:
         optimizer.update_strategy_performance("test_strategy", True, 100.0)
 
         strategy = optimizer.get_strategy("test_strategy")
-        assert strategy.total_executions == 1
-        assert strategy.success_count == 1
-        assert strategy.failure_count == 0
-        assert strategy.success_rate == 1.0
-        assert strategy.avg_execution_time_ms == 100.0
+        assert strategy.total_executions == 1  # nosec B101
+        assert strategy.success_count == 1  # nosec B101
+        assert strategy.failure_count == 0  # nosec B101
+        assert strategy.success_rate == 1.0  # nosec B101
+        assert strategy.avg_execution_time_ms == 100.0  # nosec B101
 
     def test_update_performance_failure(self, optimizer):
         """Test updating performance after failed execution."""
@@ -219,11 +219,11 @@ class TestPerformanceTracking:
         optimizer.update_strategy_performance("test_strategy", False, 50.0)
 
         strategy = optimizer.get_strategy("test_strategy")
-        assert strategy.total_executions == 1
-        assert strategy.success_count == 0
-        assert strategy.failure_count == 1
-        assert strategy.success_rate == 0.0
-        assert strategy.avg_execution_time_ms == 50.0
+        assert strategy.total_executions == 1  # nosec B101
+        assert strategy.success_count == 0  # nosec B101
+        assert strategy.failure_count == 1  # nosec B101
+        assert strategy.success_rate == 0.0  # nosec B101
+        assert strategy.avg_execution_time_ms == 50.0  # nosec B101
 
     def test_update_performance_multiple_times(self, optimizer):
         """Test updating performance multiple times."""
@@ -242,11 +242,11 @@ class TestPerformanceTracking:
         optimizer.update_strategy_performance("test_strategy", True, 50.0)
 
         strategy = optimizer.get_strategy("test_strategy")
-        assert strategy.total_executions == 4
-        assert strategy.success_count == 3
-        assert strategy.failure_count == 1
-        assert strategy.success_rate == 0.75  # 3/4
-        assert strategy.avg_execution_time_ms == 125.0  # (100+150+200+50)/4
+        assert strategy.total_executions == 4  # nosec B101
+        assert strategy.success_count == 3  # nosec B101
+        assert strategy.failure_count == 1  # nosec B101
+        assert strategy.success_rate == 0.75  # 3/4  # nosec B101
+        assert strategy.avg_execution_time_ms == 125.0  # (100+150+200+50)/4  # nosec B101
 
     def test_update_performance_nonexistent_strategy(self, optimizer):
         """Test updating performance for nonexistent strategy."""
@@ -288,13 +288,13 @@ class TestStrategySelection:
 
         # strategy1 has 100% success rate, strategy2 has 50%
         best = optimizer.get_best_strategy("analysis")
-        assert best.strategy_id == "strategy1"
-        assert best.success_rate == 1.0
+        assert best.strategy_id == "strategy1"  # nosec B101
+        assert best.success_rate == 1.0  # nosec B101
 
     def test_get_best_strategy_no_strategies(self, optimizer):
         """Test getting best strategy when none exist."""
         best = optimizer.get_best_strategy("nonexistent_type")
-        assert best is None
+        assert best is None  # nosec B101
 
     def test_get_best_strategy_with_min_success_rate(self, optimizer):
         """Test getting best strategy with minimum success rate."""
@@ -312,12 +312,12 @@ class TestStrategySelection:
 
         # Should return None with min_success_rate=0.8
         best = optimizer.get_best_strategy("analysis", min_success_rate=0.8)
-        assert best is None
+        assert best is None  # nosec B101
 
         # Should return strategy with min_success_rate=0.4
         best = optimizer.get_best_strategy("analysis", min_success_rate=0.4)
-        assert best is not None
-        assert best.strategy_id == "strategy1"
+        assert best is not None  # nosec B101
+        assert best.strategy_id == "strategy1"  # nosec B101
 
     def test_select_strategy_with_exploration(self, optimizer):
         """Test epsilon-greedy strategy selection."""
@@ -351,13 +351,13 @@ class TestStrategySelection:
         strategy1_count = selections.count("strategy1")
         strategy2_count = selections.count("strategy2")
 
-        assert strategy1_count > strategy2_count
-        assert strategy2_count > 0  # Some exploration should happen
+        assert strategy1_count > strategy2_count  # nosec B101
+        assert strategy2_count > 0  # Some exploration should happen  # nosec B101
 
     def test_select_strategy_with_exploration_no_strategies(self, optimizer):
         """Test selection when no strategies exist."""
         result = optimizer.select_strategy_with_exploration("nonexistent")
-        assert result is None
+        assert result is None  # nosec B101
 
 
 # ============================================================================
@@ -387,13 +387,13 @@ class TestStrategyRetrieval:
 
         # Get strategies for "analysis"
         strategies = optimizer.get_strategies_for_task_type("analysis")
-        assert len(strategies) == 1
-        assert strategies[0].strategy_id == "strategy1"
+        assert len(strategies) == 1  # nosec B101
+        assert strategies[0].strategy_id == "strategy1"  # nosec B101
 
         # Get strategies for "coding"
         strategies = optimizer.get_strategies_for_task_type("coding")
-        assert len(strategies) == 1
-        assert strategies[0].strategy_id == "strategy2"
+        assert len(strategies) == 1  # nosec B101
+        assert strategies[0].strategy_id == "strategy2"  # nosec B101
 
     def test_get_strategies_wildcard_task_type(self, optimizer):
         """Test getting strategies with wildcard task type."""
@@ -414,12 +414,12 @@ class TestStrategyRetrieval:
 
         # Universal strategy should match any task type
         strategies = optimizer.get_strategies_for_task_type("anything")
-        assert len(strategies) == 1
-        assert strategies[0].strategy_id == "universal"
+        assert len(strategies) == 1  # nosec B101
+        assert strategies[0].strategy_id == "universal"  # nosec B101
 
         # Analysis should match both
         strategies = optimizer.get_strategies_for_task_type("analysis")
-        assert len(strategies) == 2
+        assert len(strategies) == 2  # nosec B101
 
     def test_get_all_strategies(self, optimizer):
         """Test getting all strategies."""
@@ -439,13 +439,13 @@ class TestStrategyRetrieval:
         )
 
         strategies = optimizer.get_all_strategies()
-        assert len(strategies) == 2
-        assert {s.strategy_id for s in strategies} == {"strategy1", "strategy2"}
+        assert len(strategies) == 2  # nosec B101
+        assert {s.strategy_id for s in strategies} == {"strategy1", "strategy2"}  # nosec B101
 
     def test_get_strategy_nonexistent(self, optimizer):
         """Test getting nonexistent strategy returns None."""
         result = optimizer.get_strategy("nonexistent")
-        assert result is None
+        assert result is None  # nosec B101
 
 
 # ============================================================================
@@ -485,9 +485,9 @@ class TestStrategyRanking:
             optimizer.update_strategy_performance("strategy2", False, 100.0)
 
         ranked = optimizer.rank_strategies("analysis")
-        assert len(ranked) == 2
+        assert len(ranked) == 2  # nosec B101
         # strategy1 should rank higher due to better success rate
-        assert ranked[0].strategy_id == "strategy1"
+        assert ranked[0].strategy_id == "strategy1"  # nosec B101
 
     def test_rank_strategies_with_low_executions(self, optimizer):
         """Test ranking gives priority to unexplored strategies."""
@@ -515,7 +515,7 @@ class TestStrategyRanking:
 
         ranked = optimizer.rank_strategies("analysis")
         # Unexplored should rank higher due to exploration bonus
-        assert ranked[0].strategy_id == "unexplored"
+        assert ranked[0].strategy_id == "unexplored"  # nosec B101
 
     def test_rank_strategies_with_filter(self, optimizer):
         """Test ranking with strategy ID filter."""
@@ -544,13 +544,13 @@ class TestStrategyRanking:
         # Rank only strategy1 and strategy3
         ranked = optimizer.rank_strategies("analysis", strategy_ids=["strategy1", "strategy3"])
 
-        assert len(ranked) == 2
-        assert {s.strategy_id for s in ranked} == {"strategy1", "strategy3"}
+        assert len(ranked) == 2  # nosec B101
+        assert {s.strategy_id for s in ranked} == {"strategy1", "strategy3"}  # nosec B101
 
     def test_rank_strategies_no_strategies(self, optimizer):
         """Test ranking when no strategies exist."""
         ranked = optimizer.rank_strategies("nonexistent")
-        assert ranked == []
+        assert ranked == []  # nosec B101
 
 
 # ============================================================================
@@ -581,8 +581,8 @@ class TestPerformance:
         result = benchmark(optimizer.get_best_strategy, "analysis")
 
         # Should complete in <10ms
-        assert benchmark.stats["mean"] < 0.01  # 10ms
-        assert result is not None
+        assert benchmark.stats["mean"] < 0.01  # 10ms  # nosec B101
+        assert result is not None  # nosec B101
 
 
 # ============================================================================
@@ -615,8 +615,8 @@ class TestAdversarialScenarios:
 
         strategy = optimizer.get_strategy("oscillating")
         # Should converge to 50% success rate
-        assert 0.45 <= strategy.success_rate <= 0.55
-        assert strategy.total_executions == 100
+        assert 0.45 <= strategy.success_rate <= 0.55  # nosec B101
+        assert strategy.total_executions == 100  # nosec B101
 
     def test_zero_epsilon_pure_exploitation(self, connection_pool):
         """
@@ -649,7 +649,7 @@ class TestAdversarialScenarios:
         # With epsilon=0, should ALWAYS select best
         for _ in range(50):
             selected = optimizer.select_strategy_with_exploration("test")
-            assert selected.strategy_id == "best", "Pure exploitation should always select best"
+            assert selected.strategy_id == "best", "Pure exploitation should always select best"  # nosec B101
 
     def test_one_epsilon_pure_exploration(self, connection_pool):
         """
@@ -683,8 +683,8 @@ class TestAdversarialScenarios:
         # Should have roughly equal distribution (within 30% tolerance)
         count1 = selections.count("strategy1")
         count2 = selections.count("strategy2")
-        assert 30 <= count1 <= 70, "Pure exploration should distribute roughly equally"
-        assert 30 <= count2 <= 70, "Pure exploration should distribute roughly equally"
+        assert 30 <= count1 <= 70, "Pure exploration should distribute roughly equally"  # nosec B101
+        assert 30 <= count2 <= 70, "Pure exploration should distribute roughly equally"  # nosec B101
 
     def test_massive_strategy_count(self, optimizer):
         """
@@ -716,8 +716,8 @@ class TestAdversarialScenarios:
         ranked = optimizer.rank_strategies("test")
         elapsed = time.time() - start
 
-        assert len(ranked) == 1000
-        assert elapsed < 1.0, f"Ranking 1000 strategies took {elapsed:.3f}s, should be <1s"
+        assert len(ranked) == 1000  # nosec B101
+        assert elapsed < 1.0, f"Ranking 1000 strategies took {elapsed:.3f}s, should be <1s"  # nosec B101
 
     def test_extreme_execution_counts(self, optimizer):
         """
@@ -748,14 +748,14 @@ class TestAdversarialScenarios:
         strategy = optimizer.get_strategy("high_volume")
 
         # Verify counts are accurate
-        assert strategy.total_executions == 1_000_000
+        assert strategy.total_executions == 1_000_000  # nosec B101
 
         # Verify success rate is approximately 66%
-        assert 0.65 <= strategy.success_rate <= 0.67
+        assert 0.65 <= strategy.success_rate <= 0.67  # nosec B101
 
         # Verify average execution time is accurate
         expected_avg = total_time / total_executions
-        assert abs(strategy.avg_execution_time_ms - expected_avg) < 1.0
+        assert abs(strategy.avg_execution_time_ms - expected_avg) < 1.0  # nosec B101
 
     def test_concurrent_strategy_updates(self, optimizer):
         """
@@ -791,7 +791,7 @@ class TestAdversarialScenarios:
 
         # Verify total count is correct
         strategy = optimizer.get_strategy("concurrent")
-        assert (
+        assert (  # nosec B101
             strategy.total_executions == 1000
         ), f"Expected 1000 executions, got {strategy.total_executions}"
 
@@ -812,9 +812,9 @@ class TestAdversarialScenarios:
         strategy = optimizer.get_strategy("unused")
 
         # Should have zero success rate, not NaN or error
-        assert strategy.success_rate == 0.0
-        assert strategy.total_executions == 0
-        assert strategy.avg_execution_time_ms == 0.0
+        assert strategy.success_rate == 0.0  # nosec B101
+        assert strategy.total_executions == 0  # nosec B101
+        assert strategy.avg_execution_time_ms == 0.0  # nosec B101
 
     def test_negative_execution_time_rejected(self, optimizer):
         """
@@ -836,7 +836,7 @@ class TestAdversarialScenarios:
 
         # Strategy should remain unchanged
         strategy = optimizer.get_strategy("test")
-        assert strategy.total_executions == 0
+        assert strategy.total_executions == 0  # nosec B101
 
     def test_extremely_long_strategy_id(self, optimizer):
         """
@@ -856,8 +856,8 @@ class TestAdversarialScenarios:
 
         # Should be able to retrieve it
         strategy = optimizer.get_strategy(long_id)
-        assert strategy is not None
-        assert strategy.strategy_id == long_id
+        assert strategy is not None  # nosec B101
+        assert strategy.strategy_id == long_id  # nosec B101
 
     def test_unicode_in_strategy_names(self, optimizer):
         """
@@ -874,8 +874,8 @@ class TestAdversarialScenarios:
         )
 
         strategy = optimizer.get_strategy("unicode_test")
-        assert strategy.name == "策略 🚀 Стратегия"
-        assert "العربية" in strategy.description
+        assert strategy.name == "策略 🚀 Стратегия"  # nosec B101
+        assert "العربية" in strategy.description  # nosec B101
 
     def test_json_injection_in_parameters(self, optimizer):
         """
@@ -898,10 +898,10 @@ class TestAdversarialScenarios:
 
         # Should store and retrieve safely
         strategy = optimizer.get_strategy("injection_test")
-        assert strategy.parameters == malicious_params
+        assert strategy.parameters == malicious_params  # nosec B101
 
         # Table should still exist
-        assert optimizer.get_strategy_count() >= 1
+        assert optimizer.get_strategy_count() >= 1  # nosec B101
 
 
 @pytest.mark.hardest
@@ -931,7 +931,7 @@ class TestStatisticalProperties:
         random.seed(42)  # For reproducibility
 
         for _ in range(num_trials):
-            success = random.random() < true_rate
+            success = random.random() < true_rate  # nosec B311
             optimizer.update_strategy_performance("statistical", success, 100.0)
 
         strategy = optimizer.get_strategy("statistical")
@@ -943,7 +943,7 @@ class TestStatisticalProperties:
 
         margin = 1.96 * math.sqrt(true_rate * (1 - true_rate) / num_trials)
 
-        assert (
+        assert (  # nosec B101
             true_rate - margin <= measured_rate <= true_rate + margin
         ), f"Measured rate {measured_rate:.3f} outside 95% CI [{true_rate-margin:.3f}, {true_rate+margin:.3f}]"
 
@@ -969,8 +969,8 @@ class TestStatisticalProperties:
         ranked = optimizer.rank_strategies("test")
 
         # Verify ranking logic is applied
-        assert len(ranked) >= 1
-        assert ranked[0].strategy_id == "ucb_test"
+        assert len(ranked) >= 1  # nosec B101
+        assert ranked[0].strategy_id == "ucb_test"  # nosec B101
 
 
 # ============================================================================
@@ -993,17 +993,17 @@ class TestStrategyDiscovery:
             task_type="analysis", execution_context=context, success=True, execution_time_ms=150.0
         )
 
-        assert strategy_id is not None
-        assert "discovered" in strategy_id
-        assert "chain_of_thought" in strategy_id
+        assert strategy_id is not None  # nosec B101
+        assert "discovered" in strategy_id  # nosec B101
+        assert "chain_of_thought" in strategy_id  # nosec B101
 
         # Verify strategy was registered
         strategy = optimizer.get_strategy(strategy_id)
-        assert strategy is not None
-        assert strategy.task_types == ["analysis"]
-        assert strategy.parameters["approach"] == "chain_of_thought"
-        assert strategy.total_executions == 1
-        assert strategy.success_rate == 1.0
+        assert strategy is not None  # nosec B101
+        assert strategy.task_types == ["analysis"]  # nosec B101
+        assert strategy.parameters["approach"] == "chain_of_thought"  # nosec B101
+        assert strategy.total_executions == 1  # nosec B101
+        assert strategy.success_rate == 1.0  # nosec B101
 
     def test_discover_strategy_from_failed_execution(self, optimizer):
         """Test that failed executions don't create new strategies."""
@@ -1013,7 +1013,7 @@ class TestStrategyDiscovery:
             task_type="analysis", execution_context=context, success=False, execution_time_ms=150.0
         )
 
-        assert strategy_id is None
+        assert strategy_id is None  # nosec B101
 
     def test_discover_strategy_without_approach(self, optimizer):
         """Test that executions without approach don't create strategies."""
@@ -1023,7 +1023,7 @@ class TestStrategyDiscovery:
             task_type="analysis", execution_context=context, success=True, execution_time_ms=150.0
         )
 
-        assert strategy_id is None
+        assert strategy_id is None  # nosec B101
 
     def test_discover_existing_strategy_updates_performance(self, optimizer):
         """Test that discovering existing strategy just updates performance."""
@@ -1044,11 +1044,11 @@ class TestStrategyDiscovery:
         )
 
         # Should return None (not discovered, just updated)
-        assert strategy_id is None
+        assert strategy_id is None  # nosec B101
 
         # But performance should be updated
         strategy = optimizer.get_strategy("existing")
-        assert strategy.total_executions == 1
+        assert strategy.total_executions == 1  # nosec B101
 
 
 class TestStrategyValidation:
@@ -1072,7 +1072,7 @@ class TestStrategyValidation:
         ]
 
         is_valid = optimizer.validate_strategy("test_strategy", validation_tasks)
-        assert is_valid is True  # 75% success rate
+        assert is_valid is True  # 75% success rate  # nosec B101
 
     def test_validate_strategy_with_poor_performance(self, optimizer):
         """Test validating strategy with <50% success rate."""
@@ -1091,7 +1091,7 @@ class TestStrategyValidation:
         ]
 
         is_valid = optimizer.validate_strategy("test_strategy", validation_tasks)
-        assert is_valid is False  # 33% success rate
+        assert is_valid is False  # 33% success rate  # nosec B101
 
     def test_validate_nonexistent_strategy(self, optimizer):
         """Test validating nonexistent strategy raises error."""
@@ -1109,7 +1109,7 @@ class TestStrategyValidation:
         )
 
         is_valid = optimizer.validate_strategy("test_strategy", [])
-        assert is_valid is False
+        assert is_valid is False  # nosec B101
 
 
 class TestStrategyMerging:
@@ -1143,15 +1143,15 @@ class TestStrategyMerging:
             ["strategy1", "strategy2"], similarity_threshold=0.7
         )
 
-        assert merged_id is not None
-        assert "merged" in merged_id
+        assert merged_id is not None  # nosec B101
+        assert "merged" in merged_id  # nosec B101
 
         # Verify merged strategy exists
         merged = optimizer.get_strategy(merged_id)
-        assert merged is not None
-        assert merged.total_executions == 20
-        assert merged.success_rate == 1.0
-        assert "analysis" in merged.task_types
+        assert merged is not None  # nosec B101
+        assert merged.total_executions == 20  # nosec B101
+        assert merged.success_rate == 1.0  # nosec B101
+        assert "analysis" in merged.task_types  # nosec B101
 
     def test_merge_dissimilar_strategies(self, optimizer):
         """Test that dissimilar strategies are not merged."""
@@ -1174,7 +1174,7 @@ class TestStrategyMerging:
             ["strategy1", "strategy2"], similarity_threshold=0.8
         )
 
-        assert merged_id is None
+        assert merged_id is None  # nosec B101
 
     def test_merge_single_strategy(self, optimizer):
         """Test that merging single strategy returns None."""
@@ -1187,7 +1187,7 @@ class TestStrategyMerging:
         )
 
         merged_id = optimizer.merge_similar_strategies(["strategy1"])
-        assert merged_id is None
+        assert merged_id is None  # nosec B101
 
     def test_merge_nonexistent_strategy(self, optimizer):
         """Test merging nonexistent strategy raises error."""
@@ -1231,14 +1231,14 @@ class TestStrategyPruning:
         # Prune poor performers (>80% failure rate)
         pruned = optimizer.prune_poor_performers(min_executions=20, max_failure_rate=0.8)
 
-        assert len(pruned) == 1
-        assert "bad_strategy" in pruned
+        assert len(pruned) == 1  # nosec B101
+        assert "bad_strategy" in pruned  # nosec B101
 
         # Verify bad strategy was deleted
-        assert optimizer.get_strategy("bad_strategy") is None
+        assert optimizer.get_strategy("bad_strategy") is None  # nosec B101
 
         # Verify good strategy still exists
-        assert optimizer.get_strategy("good_strategy") is not None
+        assert optimizer.get_strategy("good_strategy") is not None  # nosec B101
 
     def test_prune_with_insufficient_executions(self, optimizer):
         """Test that strategies with few executions are not pruned."""
@@ -1258,8 +1258,8 @@ class TestStrategyPruning:
         pruned = optimizer.prune_poor_performers(min_executions=20, max_failure_rate=0.8)
 
         # Should not be pruned (not enough data)
-        assert len(pruned) == 0
-        assert optimizer.get_strategy("new_strategy") is not None
+        assert len(pruned) == 0  # nosec B101
+        assert optimizer.get_strategy("new_strategy") is not None  # nosec B101
 
     def test_prune_no_poor_performers(self, optimizer):
         """Test pruning when all strategies perform well."""
@@ -1279,7 +1279,7 @@ class TestStrategyPruning:
 
         pruned = optimizer.prune_poor_performers(min_executions=20, max_failure_rate=0.8)
 
-        assert len(pruned) == 0
+        assert len(pruned) == 0  # nosec B101
 
 
 # ============================================================================
@@ -1327,16 +1327,16 @@ class TestStrategyLearningProperties:
 
         for _ in range(100):
             # Poor: 30% success
-            optimizer.update_strategy_performance("poor", random.random() < 0.3, 100.0)
+            optimizer.update_strategy_performance("poor", random.random() < 0.3, 100.0)  # nosec B311
             # Medium: 60% success
-            optimizer.update_strategy_performance("medium", random.random() < 0.6, 100.0)
+            optimizer.update_strategy_performance("medium", random.random() < 0.6, 100.0)  # nosec B311
             # Best: 90% success
-            optimizer.update_strategy_performance("best", random.random() < 0.9, 100.0)
+            optimizer.update_strategy_performance("best", random.random() < 0.9, 100.0)  # nosec B311
 
         # After sufficient trials, best strategy should be selected
         best_strategy = optimizer.get_best_strategy("test")
-        assert best_strategy.strategy_id == "best"
-        assert best_strategy.success_rate > 0.8
+        assert best_strategy.strategy_id == "best"  # nosec B101
+        assert best_strategy.success_rate > 0.8  # nosec B101
 
     def test_strategy_selection_under_noisy_feedback(self, optimizer):
         """
@@ -1365,7 +1365,7 @@ class TestStrategyLearningProperties:
 
         # Stable strategy: consistent 70% success
         for _ in range(100):
-            optimizer.update_strategy_performance("stable", random.random() < 0.7, 100.0)
+            optimizer.update_strategy_performance("stable", random.random() < 0.7, 100.0)  # nosec B311
 
         # Noisy strategy: oscillates between 0% and 100%
         for i in range(100):
@@ -1377,14 +1377,14 @@ class TestStrategyLearningProperties:
         noisy = optimizer.get_strategy("noisy")
 
         # Stable should be around 70%
-        assert 0.65 <= stable.success_rate <= 0.75
+        assert 0.65 <= stable.success_rate <= 0.75  # nosec B101
 
         # Noisy should converge to 50% (average of oscillation)
-        assert 0.45 <= noisy.success_rate <= 0.55
+        assert 0.45 <= noisy.success_rate <= 0.55  # nosec B101
 
         # Stable should be selected as best
         best = optimizer.get_best_strategy("test")
-        assert best.strategy_id == "stable"
+        assert best.strategy_id == "stable"  # nosec B101
 
 
 # ============================================================================
@@ -1449,7 +1449,7 @@ class TestStrategySuccessRateConvergence:
         
         # Simulate trials with true success rate
         for _ in range(num_trials):
-            success = random.random() < true_rate
+            success = random.random() < true_rate  # nosec B311
             optimizer.update_strategy_performance(strategy_id, success, 100.0)
         
         # Get tracked success rate
@@ -1464,7 +1464,7 @@ class TestStrategySuccessRateConvergence:
         # Use max of 5% or statistical tolerance
         tolerance = max(0.05, statistical_tolerance)
         
-        assert (
+        assert (  # nosec B101
             abs(tracked_rate - true_rate) <= tolerance
         ), (
             f"Success rate did not converge: "
@@ -1476,7 +1476,7 @@ class TestStrategySuccessRateConvergence:
         )
         
         # Verify execution count is correct
-        assert strategy.total_executions == num_trials
+        assert strategy.total_executions == num_trials  # nosec B101
         
         # Verify success count is approximately correct
         expected_successes = int(true_rate * num_trials)
@@ -1486,7 +1486,7 @@ class TestStrategySuccessRateConvergence:
         std_dev = math.sqrt(num_trials * true_rate * (1 - true_rate))
         max_deviation = 2 * std_dev
         
-        assert (
+        assert (  # nosec B101
             abs(actual_successes - expected_successes) <= max_deviation
         ), (
             f"Success count outside expected range: "
@@ -1526,7 +1526,7 @@ class TestStrategySuccessRateConvergence:
             import random
             
             # Use unique strategy ID with timestamp to avoid collisions
-            strategy_id = f"hyp_{int(time.time() * 1000000)}_{random.randint(0, 999999)}"
+            strategy_id = f"hyp_{int(time.time() * 1000000)}_{random.randint(0, 999999)}"  # nosec B311
             
             # Register strategy
             optimizer.register_strategy(
@@ -1542,7 +1542,7 @@ class TestStrategySuccessRateConvergence:
             random.seed(seed)
             
             for _ in range(num_trials):
-                success = random.random() < true_rate
+                success = random.random() < true_rate  # nosec B311
                 optimizer.update_strategy_performance(strategy_id, success, 100.0)
             
             # Get tracked rate
@@ -1558,7 +1558,7 @@ class TestStrategySuccessRateConvergence:
             tolerance = max(0.10, statistical_tolerance)
             
             # Verify convergence
-            assert (
+            assert (  # nosec B101
                 abs(tracked_rate - true_rate) <= tolerance
             ), (
                 f"Hypothesis test failed: "
@@ -1603,7 +1603,7 @@ class TestStrategySuccessRateConvergence:
             
             # Simulate trials
             for _ in range(sample_size):
-                success = random.random() < true_rate
+                success = random.random() < true_rate  # nosec B311
                 optimizer.update_strategy_performance(strategy_id, success, 100.0)
             
             # Calculate variance from true rate
@@ -1614,7 +1614,7 @@ class TestStrategySuccessRateConvergence:
         # Verify that variance generally decreases with sample size
         # (allowing for some statistical noise)
         # Check that the largest sample has smaller variance than smallest
-        assert variances[-1] < variances[0] * 1.5, (
+        assert variances[-1] < variances[0] * 1.5, (  # nosec B101
             f"Convergence did not improve with sample size: "
             f"variances={variances}"
         )
@@ -1655,7 +1655,7 @@ class TestStrategySuccessRateConvergence:
         num_trials = 150
         for _ in range(num_trials):
             for strategy_id, true_rate in strategies_config:
-                success = random.random() < true_rate
+                success = random.random() < true_rate  # nosec B311
                 optimizer.update_strategy_performance(strategy_id, success, 100.0)
         
         # Verify each strategy converged to its own true rate
@@ -1664,7 +1664,7 @@ class TestStrategySuccessRateConvergence:
             strategy = optimizer.get_strategy(strategy_id)
             tracked_rate = strategy.success_rate
             
-            assert (
+            assert (  # nosec B101
                 abs(tracked_rate - true_rate) <= tolerance
             ), (
                 f"Strategy {strategy_id} did not converge independently: "
@@ -1703,7 +1703,7 @@ class TestStrategySuccessRateConvergence:
             
             # Simulate trials
             for _ in range(num_trials):
-                success = random.random() < true_rate
+                success = random.random() < true_rate  # nosec B311
                 optimizer.update_strategy_performance(strategy_id, success, 100.0)
             
             # Verify convergence (slightly larger tolerance for extreme rates)
@@ -1711,7 +1711,7 @@ class TestStrategySuccessRateConvergence:
             tracked_rate = strategy.success_rate
             
             tolerance = 0.05
-            assert (
+            assert (  # nosec B101
                 abs(tracked_rate - true_rate) <= tolerance
             ), (
                 f"Extreme rate strategy {strategy_id} did not converge: "
@@ -1746,7 +1746,7 @@ class TestStrategySuccessRateConvergence:
         
         # Initial convergence phase (100 trials)
         for _ in range(100):
-            success = random.random() < true_rate
+            success = random.random() < true_rate  # nosec B311
             optimizer.update_strategy_performance(strategy_id, success, 100.0)
         
         strategy = optimizer.get_strategy(strategy_id)
@@ -1754,21 +1754,21 @@ class TestStrategySuccessRateConvergence:
         
         # Verify initial convergence
         tolerance = 0.05
-        assert abs(initial_rate - true_rate) <= tolerance
+        assert abs(initial_rate - true_rate) <= tolerance  # nosec B101
         
         # Continue with 100 more trials
         for _ in range(100):
-            success = random.random() < true_rate
+            success = random.random() < true_rate  # nosec B311
             optimizer.update_strategy_performance(strategy_id, success, 100.0)
         
         strategy = optimizer.get_strategy(strategy_id)
         final_rate = strategy.success_rate
         
         # Verify still converged
-        assert abs(final_rate - true_rate) <= tolerance
+        assert abs(final_rate - true_rate) <= tolerance  # nosec B101
         
         # Verify rate didn't change dramatically
-        assert abs(final_rate - initial_rate) <= 0.03, (
+        assert abs(final_rate - initial_rate) <= 0.03, (  # nosec B101
             f"Success rate changed too much after convergence: "
             f"initial={initial_rate:.3f}, "
             f"final={final_rate:.3f}, "

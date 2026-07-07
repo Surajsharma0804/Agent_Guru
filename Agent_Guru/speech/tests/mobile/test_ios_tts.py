@@ -99,9 +99,9 @@ def ios_tts(mock_ios_modules):
 
 def test_ios_tts_initialization(ios_tts):
     """Test iOS TTS initializes correctly."""
-    assert ios_tts.is_available()
-    assert ios_tts._initialized
-    assert ios_tts._synthesizer is not None
+    assert ios_tts.is_available()  # nosec B101
+    assert ios_tts._initialized  # nosec B101
+    assert ios_tts._synthesizer is not None  # nosec B101
 
 
 def test_ios_tts_male_voice_synthesis(ios_tts):
@@ -109,13 +109,13 @@ def test_ios_tts_male_voice_synthesis(ios_tts):
     text = "Hello, I am Guru."
     audio = ios_tts.synthesize(text, personality=PersonalityType.GURU)
     
-    assert len(audio) > 0
-    assert isinstance(audio, bytes)
+    assert len(audio) > 0  # nosec B101
+    assert isinstance(audio, bytes)  # nosec B101
     
     # Verify it's a valid WAV file
     with wave.open(io.BytesIO(audio), 'rb') as wav:
-        assert wav.getnchannels() >= 1
-        assert wav.getframerate() > 0
+        assert wav.getnchannels() >= 1  # nosec B101
+        assert wav.getframerate() > 0  # nosec B101
 
 
 def test_ios_tts_female_voice_synthesis(ios_tts):
@@ -123,8 +123,8 @@ def test_ios_tts_female_voice_synthesis(ios_tts):
     text = "Hello, I am Maya."
     audio = ios_tts.synthesize(text, personality=PersonalityType.MAYA)
     
-    assert len(audio) > 0
-    assert isinstance(audio, bytes)
+    assert len(audio) > 0  # nosec B101
+    assert isinstance(audio, bytes)  # nosec B101
 
 
 def test_ios_tts_all_emotions(ios_tts):
@@ -137,7 +137,7 @@ def test_ios_tts_all_emotions(ios_tts):
             personality=PersonalityType.GURU,
             emotion=emotion
         )
-        assert len(audio) > 0, f"Failed for emotion: {emotion}"
+        assert len(audio) > 0, f"Failed for emotion: {emotion}"  # nosec B101
 
 
 def test_ios_tts_speech_rate_variations(ios_tts):
@@ -150,7 +150,7 @@ def test_ios_tts_speech_rate_variations(ios_tts):
             personality=PersonalityType.GURU,
             speech_rate=rate
         )
-        assert len(audio) > 0
+        assert len(audio) > 0  # nosec B101
 
 
 def test_ios_tts_volume_variations(ios_tts):
@@ -163,7 +163,7 @@ def test_ios_tts_volume_variations(ios_tts):
             personality=PersonalityType.GURU,
             volume=volume
         )
-        assert len(audio) > 0
+        assert len(audio) > 0  # nosec B101
 
 
 def test_ios_tts_empty_text_error(ios_tts):
@@ -197,20 +197,20 @@ def test_ios_tts_get_voice_info_guru(ios_tts):
     """Test getting voice info for Guru personality."""
     info = ios_tts.get_voice_info(PersonalityType.GURU)
     
-    assert "identifier" in info
-    assert "gender" in info
-    assert info["gender"] == "male"
-    assert info["personality"] == "guru"
+    assert "identifier" in info  # nosec B101
+    assert "gender" in info  # nosec B101
+    assert info["gender"] == "male"  # nosec B101
+    assert info["personality"] == "guru"  # nosec B101
 
 
 def test_ios_tts_get_voice_info_maya(ios_tts):
     """Test getting voice info for Maya personality."""
     info = ios_tts.get_voice_info(PersonalityType.MAYA)
     
-    assert "identifier" in info
-    assert "gender" in info
-    assert info["gender"] == "female"
-    assert info["personality"] == "maya"
+    assert "identifier" in info  # nosec B101
+    assert "gender" in info  # nosec B101
+    assert info["gender"] == "female"  # nosec B101
+    assert info["personality"] == "maya"  # nosec B101
 
 
 def test_ios_tts_long_text(ios_tts):
@@ -218,7 +218,7 @@ def test_ios_tts_long_text(ios_tts):
     text = "This is a very long text for testing iOS TTS. " * 20
     audio = ios_tts.synthesize(text, personality=PersonalityType.GURU)
     
-    assert len(audio) > 0
+    assert len(audio) > 0  # nosec B101
 
 
 def test_ios_tts_special_characters(ios_tts):
@@ -226,15 +226,15 @@ def test_ios_tts_special_characters(ios_tts):
     text = "Hello! How are you? I'm fine, thanks. 123 test."
     audio = ios_tts.synthesize(text, personality=PersonalityType.GURU)
     
-    assert len(audio) > 0
+    assert len(audio) > 0  # nosec B101
 
 
 def test_ios_tts_shutdown(ios_tts):
     """Test TTS shutdown."""
     ios_tts.shutdown()
     
-    assert not ios_tts.is_available()
-    assert not ios_tts._initialized
+    assert not ios_tts.is_available()  # nosec B101
+    assert not ios_tts._initialized  # nosec B101
 
 
 def test_ios_tts_emotion_pitch_adjustments(ios_tts):
@@ -255,8 +255,8 @@ def test_ios_tts_emotion_pitch_adjustments(ios_tts):
         emotion=EmotionType.SAD
     )
     
-    assert len(audio_happy) > 0
-    assert len(audio_sad) > 0
+    assert len(audio_happy) > 0  # nosec B101
+    assert len(audio_sad) > 0  # nosec B101
 
 
 def test_ios_tts_personality_pitch_difference(ios_tts):
@@ -266,15 +266,15 @@ def test_ios_tts_personality_pitch_difference(ios_tts):
     audio_guru = ios_tts.synthesize(text, personality=PersonalityType.GURU)
     audio_maya = ios_tts.synthesize(text, personality=PersonalityType.MAYA)
     
-    assert len(audio_guru) > 0
-    assert len(audio_maya) > 0
+    assert len(audio_guru) > 0  # nosec B101
+    assert len(audio_maya) > 0  # nosec B101
     
     # Both should produce valid audio
     with wave.open(io.BytesIO(audio_guru), 'rb') as wav:
-        assert wav.getframerate() > 0
+        assert wav.getframerate() > 0  # nosec B101
     
     with wave.open(io.BytesIO(audio_maya), 'rb') as wav:
-        assert wav.getframerate() > 0
+        assert wav.getframerate() > 0  # nosec B101
 
 
 def test_ios_tts_concurrent_synthesis(ios_tts):
@@ -290,8 +290,8 @@ def test_ios_tts_concurrent_synthesis(ios_tts):
         futures = [executor.submit(synthesize_text, i) for i in range(20)]
         results = [f.result() for f in concurrent.futures.as_completed(futures)]
     
-    assert all(results)
-    assert len(results) == 20
+    assert all(results)  # nosec B101
+    assert len(results) == 20  # nosec B101
 
 
 def test_ios_tts_stress_test(ios_tts):
@@ -301,7 +301,7 @@ def test_ios_tts_stress_test(ios_tts):
             f"Stress test {i}",
             personality=PersonalityType.GURU
         )
-        assert len(audio) > 0
+        assert len(audio) > 0  # nosec B101
 
 
 def test_ios_tts_all_parameter_combinations(ios_tts):
@@ -319,7 +319,7 @@ def test_ios_tts_all_parameter_combinations(ios_tts):
                         speech_rate=rate,
                         volume=volume
                     )
-                    assert len(audio) > 0
+                    assert len(audio) > 0  # nosec B101
 
 
 def test_ios_tts_neural_voice_quality(ios_tts):
@@ -328,9 +328,9 @@ def test_ios_tts_neural_voice_quality(ios_tts):
     info_maya = ios_tts.get_voice_info(PersonalityType.MAYA)
     
     # Both should have voice info
-    assert len(info_guru) > 0
-    assert len(info_maya) > 0
+    assert len(info_guru) > 0  # nosec B101
+    assert len(info_maya) > 0  # nosec B101
     
     # Should have quality information
-    assert "quality" in info_guru
-    assert "quality" in info_maya
+    assert "quality" in info_guru  # nosec B101
+    assert "quality" in info_maya  # nosec B101

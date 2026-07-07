@@ -45,7 +45,7 @@ class TestBackgroundServiceProperties:
                 elapsed = time.time() - start_time
                 
                 # PROPERTY ASSERTION: Transition must be <500ms
-                assert elapsed < 0.5, f"Wake transition took {elapsed:.3f}s (target: <0.5s)"
+                assert elapsed < 0.5, f"Wake transition took {elapsed:.3f}s (target: <0.5s)"  # nosec B101
                 
                 # Return to sleep for next iteration
                 service._transition_to_sleep()
@@ -72,15 +72,15 @@ class TestBackgroundServiceProperties:
         try:
             for _ in range(num_cycles):
                 # Should start in sleep
-                assert service.get_state() == ServiceState.SLEEP
+                assert service.get_state() == ServiceState.SLEEP  # nosec B101
                 
                 # Transition to wake
                 service.handle_wake_word_detected()
-                assert service.get_state() == ServiceState.WAKE
+                assert service.get_state() == ServiceState.WAKE  # nosec B101
                 
                 # Return to sleep
                 service._transition_to_sleep()
-                assert service.get_state() == ServiceState.SLEEP
+                assert service.get_state() == ServiceState.SLEEP  # nosec B101
         finally:
             service.stop()
     
@@ -110,7 +110,7 @@ class TestBackgroundServiceProperties:
                 service.handle_error(Exception(f"Test error {i}"))
                 
                 # PROPERTY ASSERTION: Should recover to sleep
-                assert service.get_state() == ServiceState.SLEEP
+                assert service.get_state() == ServiceState.SLEEP  # nosec B101
         finally:
             service.stop()
     
@@ -140,7 +140,7 @@ class TestBackgroundServiceProperties:
             metrics = service.get_metrics()
             
             # PROPERTY ASSERTION: Count should match
-            assert metrics.wake_word_detections == num_wake_words
+            assert metrics.wake_word_detections == num_wake_words  # nosec B101
         finally:
             service.stop()
     
@@ -165,7 +165,7 @@ class TestBackgroundServiceProperties:
             metrics = service.get_metrics()
             
             # PROPERTY ASSERTION: Count should match
-            assert metrics.commands_processed == num_commands
+            assert metrics.commands_processed == num_commands  # nosec B101
         finally:
             service.stop()
     
@@ -196,7 +196,7 @@ class TestBackgroundServiceProperties:
             # PROPERTY ASSERTION: Count should match
             # 1 (start) + num_transitions * 2 (wake + sleep)
             expected = 1 + (num_transitions * 2)
-            assert metrics.state_transitions == expected
+            assert metrics.state_transitions == expected  # nosec B101
         finally:
             service.stop()
     
@@ -223,7 +223,7 @@ class TestBackgroundServiceProperties:
             metrics = service.get_metrics()
             
             # PROPERTY ASSERTION: Uptime should be approximately correct
-            assert metrics.uptime_seconds >= sleep_seconds
-            assert metrics.uptime_seconds < sleep_seconds + 0.5  # Allow 500ms tolerance
+            assert metrics.uptime_seconds >= sleep_seconds  # nosec B101
+            assert metrics.uptime_seconds < sleep_seconds + 0.5  # Allow 500ms tolerance  # nosec B101
         finally:
             service.stop()

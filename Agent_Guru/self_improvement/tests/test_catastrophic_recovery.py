@@ -129,14 +129,14 @@ def create_baseline_performance(
     import random
     
     for i in range(num_tasks):
-        success = random.random() < success_rate
+        success = random.random() < success_rate  # nosec B311
         performance_tracker.record_task_metrics(
             task_id=f"baseline_task_{i}",
             task_type="test_task",
             strategy_id="baseline_strategy",
             success=success,
-            execution_time_ms=100.0 + random.uniform(-10, 10),
-            reasoning_quality=0.9 + random.uniform(-0.05, 0.05),
+            execution_time_ms=100.0 + random.uniform(-10, 10),  # nosec B311
+            reasoning_quality=0.9 + random.uniform(-0.05, 0.05),  # nosec B311
             tool_selection_correct=success,
             hallucination_detected=False,
             task_sequence_number=i + 1,  # Start from 1, not 0
@@ -155,7 +155,7 @@ def inject_catastrophic_strategy(
     """
     import random
     # Register a strategy with unique ID
-    strategy_id = f"catastrophic_strategy_{datetime.now(tz=timezone.utc).timestamp()}_{random.randint(1000, 9999)}"
+    strategy_id = f"catastrophic_strategy_{datetime.now(tz=timezone.utc).timestamp()}_{random.randint(1000, 9999)}"  # nosec B311
     strategy_optimizer.register_strategy(
         strategy_id=strategy_id,
         name="catastrophic_strategy",
@@ -205,9 +205,9 @@ def inject_catastrophic_prompt(
     import random
     # Register a prompt (it returns the prompt_id)
     # Use unique version to avoid conflicts
-    version = random.randint(1, 10000)
+    version = random.randint(1, 10000)  # nosec B311
     prompt_id = prompt_evolution.register_prompt(
-        prompt_type=f"test_prompt_{random.randint(1000, 9999)}",
+        prompt_type=f"test_prompt_{random.randint(1000, 9999)}",  # nosec B311
         content="This prompt causes hallucinations",
         version=version,
     )
@@ -307,9 +307,9 @@ class TestCatastrophicStrategyFailure:
         detection_time = time.time() - start_time
         
         # Verify detection
-        assert alert is not None, "Catastrophic degradation should be detected"
-        assert alert.severity == DegradationSeverity.SEVERE, "Should be SEVERE degradation"
-        assert detection_time < 1.0, f"Detection took {detection_time:.3f}s, should be <1s"
+        assert alert is not None, "Catastrophic degradation should be detected"  # nosec B101
+        assert alert.severity == DegradationSeverity.SEVERE, "Should be SEVERE degradation"  # nosec B101
+        assert detection_time < 1.0, f"Detection took {detection_time:.3f}s, should be <1s"  # nosec B101
         
         # Step 5: Trigger rollback
         start_time = time.time()
@@ -317,10 +317,10 @@ class TestCatastrophicStrategyFailure:
         rollback_time = time.time() - start_time
         
         # Verify rollback
-        assert rollback_result.success, "Rollback should succeed"
-        assert rollback_result.changes_rolled_back > 0, "Should rollback changes"
-        assert catastrophic_strategy_id in rollback_result.components_affected
-        assert rollback_time < 5.0, f"Rollback took {rollback_time:.3f}s, should be <5s"
+        assert rollback_result.success, "Rollback should succeed"  # nosec B101
+        assert rollback_result.changes_rolled_back > 0, "Should rollback changes"  # nosec B101
+        assert catastrophic_strategy_id in rollback_result.components_affected  # nosec B101
+        assert rollback_time < 5.0, f"Rollback took {rollback_time:.3f}s, should be <5s"  # nosec B101
         
         # Step 6: Verify recovery
         # After rollback, system should be functional
@@ -345,7 +345,7 @@ class TestCatastrophicStrategyFailure:
         )
         
         # Should not detect degradation after recovery
-        assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE
+        assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE  # nosec B101
 
 
 
@@ -398,9 +398,9 @@ class TestCatastrophicPromptFailure:
             historical_window_size=50,
         )
         
-        assert alert is not None
-        assert alert.severity == DegradationSeverity.SEVERE
-        assert any(
+        assert alert is not None  # nosec B101
+        assert alert.severity == DegradationSeverity.SEVERE  # nosec B101
+        assert any(  # nosec B101
             "hallucination" in metric.value.lower()
             for metric in alert.degraded_metrics
         )
@@ -408,8 +408,8 @@ class TestCatastrophicPromptFailure:
         # Step 5: Rollback
         rollback_result, _ = rollback_manager.rollback_on_degradation(alert)
         
-        assert rollback_result.success
-        assert catastrophic_prompt_id in rollback_result.components_affected
+        assert rollback_result.success  # nosec B101
+        assert catastrophic_prompt_id in rollback_result.components_affected  # nosec B101
         
         # Step 6: Verify recovery
         for i in range(10):
@@ -430,7 +430,7 @@ class TestCatastrophicPromptFailure:
             historical_window_size=50,
         )
         
-        assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE
+        assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE  # nosec B101
 
 
 
@@ -498,19 +498,19 @@ class TestMultipleCatastrophicFailures:
             historical_window_size=100,
         )
         
-        assert alert is not None
-        assert alert.severity == DegradationSeverity.SEVERE
-        assert len(alert.degraded_metrics) >= 3, "Multiple metrics should be degraded"
+        assert alert is not None  # nosec B101
+        assert alert.severity == DegradationSeverity.SEVERE  # nosec B101
+        assert len(alert.degraded_metrics) >= 3, "Multiple metrics should be degraded"  # nosec B101
         
         # Rollback all changes
         rollback_result, investigation = rollback_manager.rollback_on_degradation(alert)
         
-        assert rollback_result.success
+        assert rollback_result.success  # nosec B101
         # Should rollback at least the catastrophic strategy and prompt
         # Configuration rollback might not be implemented yet
-        assert rollback_result.changes_rolled_back >= 2, "Should rollback catastrophic changes"
-        assert catastrophic_strategy in rollback_result.components_affected
-        assert catastrophic_prompt in rollback_result.components_affected
+        assert rollback_result.changes_rolled_back >= 2, "Should rollback catastrophic changes"  # nosec B101
+        assert catastrophic_strategy in rollback_result.components_affected  # nosec B101
+        assert catastrophic_prompt in rollback_result.components_affected  # nosec B101
         
         # Verify complete recovery
         for i in range(20):
@@ -531,11 +531,11 @@ class TestMultipleCatastrophicFailures:
             historical_window_size=100,
         )
         
-        assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE
+        assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE  # nosec B101
         
         # Verify investigation report exists
-        assert investigation is not None
-        assert investigation.diagnostic_summary is not None
+        assert investigation is not None  # nosec B101
+        assert investigation.diagnostic_summary is not None  # nosec B101
 
 
 
@@ -641,18 +641,18 @@ class TestCascadingFailures:
             historical_window_size=100,
         )
         
-        assert alert is not None
-        assert alert.severity == DegradationSeverity.SEVERE
+        assert alert is not None  # nosec B101
+        assert alert.severity == DegradationSeverity.SEVERE  # nosec B101
         
         # Rollback should revert all three updates
         rollback_result, _ = rollback_manager.rollback_on_degradation(alert)
         
-        assert rollback_result.success
+        assert rollback_result.success  # nosec B101
         # Should rollback 48 hours for severe degradation, catching all three updates
-        assert rollback_result.changes_rolled_back >= 3
-        assert strategy_1 in rollback_result.components_affected
-        assert strategy_2 in rollback_result.components_affected
-        assert strategy_3 in rollback_result.components_affected
+        assert rollback_result.changes_rolled_back >= 3  # nosec B101
+        assert strategy_1 in rollback_result.components_affected  # nosec B101
+        assert strategy_2 in rollback_result.components_affected  # nosec B101
+        assert strategy_3 in rollback_result.components_affected  # nosec B101
         
         # Verify recovery to baseline
         for i in range(20):
@@ -673,7 +673,7 @@ class TestCascadingFailures:
             historical_window_size=100,
         )
         
-        assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE
+        assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE  # nosec B101
 
 
 
@@ -761,8 +761,8 @@ class TestCorruptedData:
             historical_window_size=50,
         )
         
-        assert alert is not None
-        assert alert.severity == DegradationSeverity.SEVERE
+        assert alert is not None  # nosec B101
+        assert alert.severity == DegradationSeverity.SEVERE  # nosec B101
         
         # Rollback corrupted data
         rollback_result, _ = rollback_manager.rollback_on_degradation(alert)
@@ -794,7 +794,7 @@ class TestCorruptedData:
         
         # System should recover by using good strategies
         # Minor degradation in execution time is acceptable after corruption recovery
-        assert recovery_alert is None or recovery_alert.severity in [DegradationSeverity.NONE, DegradationSeverity.MINOR]
+        assert recovery_alert is None or recovery_alert.severity in [DegradationSeverity.NONE, DegradationSeverity.MINOR]  # nosec B101
 
 
 
@@ -834,8 +834,8 @@ class TestRecoveryUnderResourceConstraints:
             historical_window_size=50,
         )
         
-        assert alert is not None
-        assert alert.severity == DegradationSeverity.SEVERE
+        assert alert is not None  # nosec B101
+        assert alert.severity == DegradationSeverity.SEVERE  # nosec B101
         
         # Rollback under time pressure
         start_time = time.time()
@@ -843,8 +843,8 @@ class TestRecoveryUnderResourceConstraints:
         rollback_time = time.time() - start_time
         
         # Even under constraints, should complete within 5 seconds
-        assert rollback_result.success
-        assert rollback_time < 5.0, f"Rollback took {rollback_time:.3f}s under constraints"
+        assert rollback_result.success  # nosec B101
+        assert rollback_time < 5.0, f"Rollback took {rollback_time:.3f}s under constraints"  # nosec B101
         
         # Verify recovery
         for i in range(10):
@@ -865,7 +865,7 @@ class TestRecoveryUnderResourceConstraints:
             historical_window_size=50,
         )
         
-        assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE
+        assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE  # nosec B101
 
 
 class TestPartialDataCorruption:
@@ -950,15 +950,15 @@ class TestPartialDataCorruption:
             historical_window_size=50,
         )
         
-        assert alert is not None
+        assert alert is not None  # nosec B101
         
         # Rollback
         rollback_result, _ = rollback_manager.rollback_on_degradation(alert)
         
-        assert rollback_result.success
+        assert rollback_result.success  # nosec B101
         
         # Corrupted strategy should be rolled back
-        assert corrupted_strategy in rollback_result.components_affected
+        assert corrupted_strategy in rollback_result.components_affected  # nosec B101
         
         # Good strategy might or might not be rolled back depending on time window
         # But system should still function
@@ -982,7 +982,7 @@ class TestPartialDataCorruption:
             historical_window_size=50,
         )
         
-        assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE
+        assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE  # nosec B101
 
 
 
@@ -1100,10 +1100,10 @@ class TestUltimateStressTest:
         detection_time = time.time() - detection_start
         
         # MUST detect catastrophic failure
-        assert alert is not None, "CRITICAL: Failed to detect total system catastrophe"
-        assert alert.severity == DegradationSeverity.SEVERE, "CRITICAL: Severity not SEVERE"
-        assert len(alert.degraded_metrics) >= 4, "CRITICAL: Not all metrics degraded"
-        assert detection_time < 1.0, f"CRITICAL: Detection too slow ({detection_time:.3f}s)"
+        assert alert is not None, "CRITICAL: Failed to detect total system catastrophe"  # nosec B101
+        assert alert.severity == DegradationSeverity.SEVERE, "CRITICAL: Severity not SEVERE"  # nosec B101
+        assert len(alert.degraded_metrics) >= 4, "CRITICAL: Not all metrics degraded"  # nosec B101
+        assert detection_time < 1.0, f"CRITICAL: Detection too slow ({detection_time:.3f}s)"  # nosec B101
         
         # Rollback phase
         rollback_start = time.time()
@@ -1113,20 +1113,20 @@ class TestUltimateStressTest:
         rollback_time = time.time() - rollback_start
         
         # MUST successfully rollback
-        assert rollback_result.success, "CRITICAL: Rollback failed"
-        assert rollback_result.changes_rolled_back >= 6, "CRITICAL: Not all changes rolled back"
-        assert rollback_time < 5.0, f"CRITICAL: Rollback too slow ({rollback_time:.3f}s)"
+        assert rollback_result.success, "CRITICAL: Rollback failed"  # nosec B101
+        assert rollback_result.changes_rolled_back >= 6, "CRITICAL: Not all changes rolled back"  # nosec B101
+        assert rollback_time < 5.0, f"CRITICAL: Rollback too slow ({rollback_time:.3f}s)"  # nosec B101
         
         # Verify all catastrophic components were rolled back
         # Note: Configuration rollback might not be implemented yet
         for component in catastrophic_components:
             if component != "system_config":  # Config rollback not yet implemented
                 assert component in rollback_result.components_affected, \
-                    f"CRITICAL: {component} not rolled back"
+                    f"CRITICAL: {component} not rolled back"  # nosec B101
         
         # Verify investigation report
-        assert investigation is not None, "CRITICAL: No investigation report"
-        assert investigation.diagnostic_summary is not None
+        assert investigation is not None, "CRITICAL: No investigation report"  # nosec B101
+        assert investigation.diagnostic_summary is not None  # nosec B101
         
         # Recovery phase
         recovery_start = time.time()
@@ -1154,15 +1154,15 @@ class TestUltimateStressTest:
         )
         
         assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE, \
-            "CRITICAL: System did not recover"
+            "CRITICAL: System did not recover"  # nosec B101
         
         # Final verification: System is fully functional
         # Check recent performance (last 30 tasks) rather than overall
         recent_metrics = performance_tracker.get_recent_metrics(window_size=30)
         
-        assert recent_metrics is not None, "CRITICAL: Could not get recent metrics"
+        assert recent_metrics is not None, "CRITICAL: Could not get recent metrics"  # nosec B101
         assert recent_metrics.success_rate > 0.80, \
-            f"CRITICAL: Recent success rate not recovered ({recent_metrics.success_rate:.2%})"
+            f"CRITICAL: Recent success rate not recovered ({recent_metrics.success_rate:.2%})"  # nosec B101
         
         # Print success message
         print("\n" + "=" * 80)

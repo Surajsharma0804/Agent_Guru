@@ -39,8 +39,8 @@ class TestBackgroundServiceManager:
         service.start()
         
         # Should be in sleep mode
-        assert service.get_state() == ServiceState.SLEEP
-        assert service._start_time is not None
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
+        assert service._start_time is not None  # nosec B101
     
     def test_stop_service(self, service: BackgroundServiceManager):
         """Test stopping service."""
@@ -48,7 +48,7 @@ class TestBackgroundServiceManager:
         service.stop()
         
         # Should be stopped
-        assert service.get_state() == ServiceState.STOPPED
+        assert service.get_state() == ServiceState.STOPPED  # nosec B101
     
     def test_start_already_running(self, service: BackgroundServiceManager):
         """Test starting service when already running."""
@@ -68,7 +68,7 @@ class TestBackgroundServiceManager:
         service.start()
         service.pause()
         
-        assert service.get_state() == ServiceState.PAUSED
+        assert service.get_state() == ServiceState.PAUSED  # nosec B101
         
         service.stop()
     
@@ -79,7 +79,7 @@ class TestBackgroundServiceManager:
         service.resume()
         
         # Should be back in sleep mode
-        assert service.get_state() == ServiceState.SLEEP
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         service.stop()
     
@@ -106,8 +106,8 @@ class TestBackgroundServiceManager:
         elapsed = time.time() - start_time
         
         # Should transition to wake mode within 500ms
-        assert service.get_state() == ServiceState.WAKE
-        assert elapsed < 0.5
+        assert service.get_state() == ServiceState.WAKE  # nosec B101
+        assert elapsed < 0.5  # nosec B101
         
         service.stop()
     
@@ -123,7 +123,7 @@ class TestBackgroundServiceManager:
         service.handle_wake_word_detected()
         
         # Callback should be called
-        assert callback_called.wait(timeout=1.0)
+        assert callback_called.wait(timeout=1.0)  # nosec B101
         
         service.stop()
     
@@ -139,7 +139,7 @@ class TestBackgroundServiceManager:
             time.sleep(0.05)
         
         metrics = service.get_metrics()
-        assert metrics.wake_word_detections == 5
+        assert metrics.wake_word_detections == 5  # nosec B101
         
         service.stop()
     
@@ -155,7 +155,7 @@ class TestBackgroundServiceManager:
         service.handle_command_received("test command")
         
         metrics = service.get_metrics()
-        assert metrics.commands_processed == 1
+        assert metrics.commands_processed == 1  # nosec B101
         
         service.stop()
     
@@ -174,8 +174,8 @@ class TestBackgroundServiceManager:
         service.handle_command_received("test command")
         
         # Callback should be called
-        assert callback_called.wait(timeout=1.0)
-        assert received_command[0] == "test command"
+        assert callback_called.wait(timeout=1.0)  # nosec B101
+        assert received_command[0] == "test command"  # nosec B101
         
         service.stop()
     
@@ -192,7 +192,7 @@ class TestBackgroundServiceManager:
         service.handle_silence_detected()
         
         # Should still be in wake mode (timeout not expired)
-        assert service.get_state() == ServiceState.WAKE
+        assert service.get_state() == ServiceState.WAKE  # nosec B101
         
         service.stop()
     
@@ -206,7 +206,7 @@ class TestBackgroundServiceManager:
         time.sleep(0.3)
         
         # Should have returned to sleep
-        assert service.get_state() == ServiceState.SLEEP
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         service.stop()
     
@@ -223,10 +223,10 @@ class TestBackgroundServiceManager:
         service.handle_error(Exception("Test error"))
         
         # Should return to sleep mode
-        assert service.get_state() == ServiceState.SLEEP
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         metrics = service.get_metrics()
-        assert metrics.errors == 1
+        assert metrics.errors == 1  # nosec B101
         
         service.stop()
     
@@ -242,10 +242,10 @@ class TestBackgroundServiceManager:
         service.handle_wake_word_detected()
         
         # Service should still be running
-        assert service.get_state() == ServiceState.WAKE
+        assert service.get_state() == ServiceState.WAKE  # nosec B101
         
         metrics = service.get_metrics()
-        assert metrics.errors == 1
+        assert metrics.errors == 1  # nosec B101
         
         service.stop()
     
@@ -261,7 +261,7 @@ class TestBackgroundServiceManager:
         service.handle_low_battery()
         
         # Service should still be running (unless critical)
-        assert service.get_state() in [ServiceState.SLEEP, ServiceState.PAUSED]
+        assert service.get_state() in [ServiceState.SLEEP, ServiceState.PAUSED]  # nosec B101
         
         service.stop()
     
@@ -276,10 +276,10 @@ class TestBackgroundServiceManager:
         
         metrics = service.get_metrics()
         
-        assert isinstance(metrics, ServiceMetrics)
-        assert metrics.uptime_seconds > 0
-        assert metrics.cpu_percent >= 0
-        assert metrics.memory_mb > 0
+        assert isinstance(metrics, ServiceMetrics)  # nosec B101
+        assert metrics.uptime_seconds > 0  # nosec B101
+        assert metrics.cpu_percent >= 0  # nosec B101
+        assert metrics.memory_mb > 0  # nosec B101
         
         service.stop()
     
@@ -291,7 +291,7 @@ class TestBackgroundServiceManager:
         service.resume()  # PAUSED -> SLEEP (4)
         
         metrics = service.get_metrics()
-        assert metrics.state_transitions == 4
+        assert metrics.state_transitions == 4  # nosec B101
         
         service.stop()
     
@@ -308,8 +308,8 @@ class TestBackgroundServiceManager:
         
         # Sleep mode should use <5% CPU, <100MB RAM
         # Note: In real implementation with actual wake word detection
-        assert metrics.cpu_percent < 30  # Relaxed for testing
-        assert metrics.memory_mb < 500  # Relaxed for testing
+        assert metrics.cpu_percent < 30  # Relaxed for testing  # nosec B101
+        assert metrics.memory_mb < 500  # Relaxed for testing  # nosec B101
         
         service.stop()
     
@@ -319,16 +319,16 @@ class TestBackgroundServiceManager:
     
     def test_get_state(self, service: BackgroundServiceManager):
         """Test getting service state."""
-        assert service.get_state() == ServiceState.STOPPED
+        assert service.get_state() == ServiceState.STOPPED  # nosec B101
         
         service.start()
-        assert service.get_state() == ServiceState.SLEEP
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         service.handle_wake_word_detected()
-        assert service.get_state() == ServiceState.WAKE
+        assert service.get_state() == ServiceState.WAKE  # nosec B101
         
         service.stop()
-        assert service.get_state() == ServiceState.STOPPED
+        assert service.get_state() == ServiceState.STOPPED  # nosec B101
     
     # ========================================================================
     # THREAD SAFETY
@@ -349,7 +349,7 @@ class TestBackgroundServiceManager:
             t.join()
         
         # Should handle gracefully
-        assert service.get_state() == ServiceState.WAKE
+        assert service.get_state() == ServiceState.WAKE  # nosec B101
         
         service.stop()
 
@@ -367,8 +367,8 @@ class TestBackgroundServiceManager:
             service._transition_to_sleep()
         
         metrics = service.get_metrics()
-        assert metrics.wake_word_detections == 1000
-        assert metrics.errors == 0
+        assert metrics.wake_word_detections == 1000  # nosec B101
+        assert metrics.errors == 0  # nosec B101
         
         service.stop()
     
@@ -384,9 +384,9 @@ class TestBackgroundServiceManager:
             service._transition_to_sleep()
         
         metrics = service.get_metrics()
-        assert metrics.wake_word_detections == 100
-        assert metrics.commands_processed == 100
-        assert service.get_state() == ServiceState.SLEEP
+        assert metrics.wake_word_detections == 100  # nosec B101
+        assert metrics.commands_processed == 100  # nosec B101
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         service.stop()
     
@@ -399,7 +399,7 @@ class TestBackgroundServiceManager:
             service._transition_to_sleep()
         
         # Should handle gracefully
-        assert service.get_state() == ServiceState.SLEEP
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         service.stop()
     
@@ -419,7 +419,7 @@ class TestBackgroundServiceManager:
         
         # If we got here without crashing, no obvious memory leak
         metrics = service.get_metrics()
-        assert metrics.wake_word_detections == 1000
+        assert metrics.wake_word_detections == 1000  # nosec B101
         
         service.stop()
     
@@ -444,8 +444,8 @@ class TestBackgroundServiceManager:
         service.handle_command_received("test")
         
         metrics = service.get_metrics()
-        assert metrics.errors == 2
-        assert service.get_state() == ServiceState.WAKE
+        assert metrics.errors == 2  # nosec B101
+        assert service.get_state() == ServiceState.WAKE  # nosec B101
         
         service.stop()
     
@@ -458,7 +458,7 @@ class TestBackgroundServiceManager:
             service.resume()
         
         # Should still be functional
-        assert service.get_state() == ServiceState.SLEEP
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         service.stop()
     
@@ -478,7 +478,7 @@ class TestBackgroundServiceManager:
             t.join()
         
         metrics = service.get_metrics()
-        assert metrics.commands_processed == 50
+        assert metrics.commands_processed == 50  # nosec B101
         
         service.stop()
     
@@ -491,7 +491,7 @@ class TestBackgroundServiceManager:
         service.handle_error(Exception("Transition error"))
         
         # Should recover to sleep
-        assert service.get_state() == ServiceState.SLEEP
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         service.stop()
     
@@ -503,7 +503,7 @@ class TestBackgroundServiceManager:
         """ZERO COMPROMISE: Stop without starting."""
         # Should handle gracefully
         service.stop()
-        assert service.get_state() == ServiceState.STOPPED
+        assert service.get_state() == ServiceState.STOPPED  # nosec B101
     
     def test_edge_case_multiple_stops(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Multiple stop calls."""
@@ -511,7 +511,7 @@ class TestBackgroundServiceManager:
         service.stop()
         service.stop()  # Second stop
         
-        assert service.get_state() == ServiceState.STOPPED
+        assert service.get_state() == ServiceState.STOPPED  # nosec B101
     
     def test_edge_case_wake_word_when_stopped(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Wake word when service stopped."""
@@ -519,7 +519,7 @@ class TestBackgroundServiceManager:
         service.handle_wake_word_detected()
         
         # Should not crash
-        assert service.get_state() == ServiceState.STOPPED
+        assert service.get_state() == ServiceState.STOPPED  # nosec B101
     
     def test_edge_case_command_when_stopped(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Command when service stopped."""
@@ -527,7 +527,7 @@ class TestBackgroundServiceManager:
         service.handle_command_received("test")
         
         # Should not crash
-        assert service.get_state() == ServiceState.STOPPED
+        assert service.get_state() == ServiceState.STOPPED  # nosec B101
     
     def test_edge_case_very_long_command(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Very long command text."""
@@ -539,7 +539,7 @@ class TestBackgroundServiceManager:
         service.handle_command_received(long_command)
         
         metrics = service.get_metrics()
-        assert metrics.commands_processed == 1
+        assert metrics.commands_processed == 1  # nosec B101
         
         service.stop()
     
@@ -551,7 +551,7 @@ class TestBackgroundServiceManager:
         service.handle_command_received("")
         
         metrics = service.get_metrics()
-        assert metrics.commands_processed == 1
+        assert metrics.commands_processed == 1  # nosec B101
         
         service.stop()
     
@@ -563,7 +563,7 @@ class TestBackgroundServiceManager:
         service.handle_command_received("测试命令 🎤 مرحبا")
         
         metrics = service.get_metrics()
-        assert metrics.commands_processed == 1
+        assert metrics.commands_processed == 1  # nosec B101
         
         service.stop()
     
@@ -600,7 +600,7 @@ class TestBackgroundServiceManager:
         service.stop()  # Stop to finalize tracking
         
         stats = service.battery_monitor.get_usage_stats()
-        assert stats.sleep_time_seconds > 0
+        assert stats.sleep_time_seconds > 0  # nosec B101
     
     def test_battery_tracking_wake_mode(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Battery tracking in wake mode."""
@@ -610,7 +610,7 @@ class TestBackgroundServiceManager:
         service.stop()  # Stop to finalize tracking
         
         stats = service.battery_monitor.get_usage_stats()
-        assert stats.wake_time_seconds > 0
+        assert stats.wake_time_seconds > 0  # nosec B101
     
     def test_battery_tracking_mixed_modes(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Battery tracking across modes."""
@@ -624,8 +624,8 @@ class TestBackgroundServiceManager:
         time.sleep(0.1)
         
         stats = service.battery_monitor.get_usage_stats()
-        assert stats.sleep_time_seconds > 0
-        assert stats.wake_time_seconds > 0
+        assert stats.sleep_time_seconds > 0  # nosec B101
+        assert stats.wake_time_seconds > 0  # nosec B101
         
         service.stop()
     
@@ -643,7 +643,7 @@ class TestBackgroundServiceManager:
             service.handle_wake_word_detected()
             elapsed = time.time() - start_time
             
-            assert elapsed < 0.5, f"Wake transition took {elapsed:.3f}s (target: <0.5s)"
+            assert elapsed < 0.5, f"Wake transition took {elapsed:.3f}s (target: <0.5s)"  # nosec B101
             
             service._transition_to_sleep()
         
@@ -655,7 +655,7 @@ class TestBackgroundServiceManager:
         time.sleep(0.5)
         
         metrics = service.get_metrics()
-        assert 0.4 < metrics.uptime_seconds < 0.7
+        assert 0.4 < metrics.uptime_seconds < 0.7  # nosec B101
         
         service.stop()
 
@@ -673,8 +673,8 @@ class TestBackgroundServiceManager:
             service._transition_to_sleep()
         
         metrics = service.get_metrics()
-        assert metrics.wake_word_detections == 1000
-        assert metrics.errors == 0
+        assert metrics.wake_word_detections == 1000  # nosec B101
+        assert metrics.errors == 0  # nosec B101
         
         service.stop()
     
@@ -691,8 +691,8 @@ class TestBackgroundServiceManager:
             time.sleep(0.01)
         
         metrics = service.get_metrics()
-        assert metrics.wake_word_detections == 100
-        assert service.get_state() == ServiceState.SLEEP
+        assert metrics.wake_word_detections == 100  # nosec B101
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         service.stop()
     
@@ -705,7 +705,7 @@ class TestBackgroundServiceManager:
             service._transition_to_sleep()
         
         metrics = service.get_metrics()
-        assert metrics.state_transitions >= 1000  # 1 start + 500*2 transitions
+        assert metrics.state_transitions >= 1000  # 1 start + 500*2 transitions  # nosec B101
         
         service.stop()
     
@@ -726,7 +726,7 @@ class TestBackgroundServiceManager:
         
         # If we got here without crashing, no obvious memory leak
         metrics = service.get_metrics()
-        assert metrics.commands_processed == 1000
+        assert metrics.commands_processed == 1000  # nosec B101
         
         service.stop()
     
@@ -747,7 +747,7 @@ class TestBackgroundServiceManager:
         
         # Should handle all commands
         metrics = service.get_metrics()
-        assert metrics.commands_processed == 100
+        assert metrics.commands_processed == 100  # nosec B101
         
         service.stop()
     
@@ -769,14 +769,14 @@ class TestBackgroundServiceManager:
         ]
         
         for _ in range(100):
-            action = random.choice(actions)
+            action = random.choice(actions)  # nosec B311
             try:
                 action()
             except Exception as e:
-                pass  # Some actions may fail in wrong state
+                pass  # nosec B110
         
         # Service should still be running
-        assert service.get_state() in [ServiceState.SLEEP, ServiceState.WAKE]
+        assert service.get_state() in [ServiceState.SLEEP, ServiceState.WAKE]  # nosec B101
         
         service.stop()
     
@@ -803,9 +803,9 @@ class TestBackgroundServiceManager:
             service.handle_command_received("test")  # 10 errors (command callback)
         
         # Service should still be running despite exceptions
-        assert service.get_state() == ServiceState.WAKE
+        assert service.get_state() == ServiceState.WAKE  # nosec B101
         metrics = service.get_metrics()
-        assert metrics.errors == 11  # 1 wake + 10 command errors
+        assert metrics.errors == 11  # 1 wake + 10 command errors  # nosec B101
         
         service.stop()
     
@@ -818,7 +818,7 @@ class TestBackgroundServiceManager:
             service.resume()
         
         # Should still be functional
-        assert service.get_state() == ServiceState.SLEEP
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         service.stop()
     
@@ -830,7 +830,7 @@ class TestBackgroundServiceManager:
         # Stop immediately during wake
         service.stop()
         
-        assert service.get_state() == ServiceState.STOPPED
+        assert service.get_state() == ServiceState.STOPPED  # nosec B101
     
     def test_chaos_multiple_errors_in_sequence(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Chaos test with multiple errors."""
@@ -841,9 +841,9 @@ class TestBackgroundServiceManager:
             service.handle_error(Exception(f"Error {i}"))
         
         # Should recover from all errors
-        assert service.get_state() == ServiceState.SLEEP
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         metrics = service.get_metrics()
-        assert metrics.errors == 50
+        assert metrics.errors == 50  # nosec B101
         
         service.stop()
     
@@ -860,7 +860,7 @@ class TestBackgroundServiceManager:
         service.handle_wake_word_detected()
         
         # Should handle gracefully
-        assert service.get_state() == ServiceState.WAKE
+        assert service.get_state() == ServiceState.WAKE  # nosec B101
         
         service.stop()
     
@@ -872,7 +872,7 @@ class TestBackgroundServiceManager:
         service.handle_command_received("test command")
         
         # Should handle gracefully (log warning but not crash)
-        assert service.get_state() == ServiceState.SLEEP
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         service.stop()
     
@@ -884,7 +884,7 @@ class TestBackgroundServiceManager:
         service.handle_silence_detected()
         
         # Should handle gracefully
-        assert service.get_state() == ServiceState.SLEEP
+        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         service.stop()
     
@@ -906,7 +906,7 @@ class TestBackgroundServiceManager:
         service.handle_wake_word_detected()
         
         # Should set timeout without issues
-        assert service._wake_timeout_timer is not None
+        assert service._wake_timeout_timer is not None  # nosec B101
         
         service.stop()
     
@@ -915,7 +915,7 @@ class TestBackgroundServiceManager:
         # Should handle gracefully
         service.stop()
         
-        assert service.get_state() == ServiceState.STOPPED
+        assert service.get_state() == ServiceState.STOPPED  # nosec B101
     
     def test_edge_case_pause_without_start(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Edge case - pause without start."""
@@ -939,7 +939,7 @@ class TestBackgroundServiceManager:
         # Second stop should be safe
         service.stop()
         
-        assert service.get_state() == ServiceState.STOPPED
+        assert service.get_state() == ServiceState.STOPPED  # nosec B101
     
     # ========================================================================
     # ZERO COMPROMISE - BATTERY INTEGRATION
@@ -954,7 +954,7 @@ class TestBackgroundServiceManager:
         stats = service.battery_monitor.get_usage_stats()
         
         # Should have tracked sleep time
-        assert stats.sleep_time_seconds > 0
+        assert stats.sleep_time_seconds > 0  # nosec B101
     
     def test_battery_tracking_wake_mode(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Test battery tracking in wake mode."""
@@ -966,7 +966,7 @@ class TestBackgroundServiceManager:
         stats = service.battery_monitor.get_usage_stats()
         
         # Should have tracked wake time
-        assert stats.wake_time_seconds > 0
+        assert stats.wake_time_seconds > 0  # nosec B101
     
     def test_battery_tracking_mixed_modes(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Test battery tracking with mixed modes."""
@@ -982,8 +982,8 @@ class TestBackgroundServiceManager:
         stats = service.battery_monitor.get_usage_stats()
         
         # Should have tracked both modes
-        assert stats.sleep_time_seconds > 0
-        assert stats.wake_time_seconds > 0
+        assert stats.sleep_time_seconds > 0  # nosec B101
+        assert stats.wake_time_seconds > 0  # nosec B101
         
         service.stop()
     
@@ -1007,11 +1007,11 @@ class TestBackgroundServiceManager:
         
         # All transitions should be <500ms
         for latency in latencies:
-            assert latency < 0.5, f"Transition took {latency:.3f}s (target: <0.5s)"
+            assert latency < 0.5, f"Transition took {latency:.3f}s (target: <0.5s)"  # nosec B101
         
         # Average should be well below target
         avg_latency = sum(latencies) / len(latencies)
-        assert avg_latency < 0.3
+        assert avg_latency < 0.3  # nosec B101
         
         service.stop()
     
@@ -1027,6 +1027,6 @@ class TestBackgroundServiceManager:
         
         # Should be reasonably fast (<100ms per call on average)
         # Note: psutil.cpu_percent() has overhead on Windows
-        assert elapsed < 15.0  # 100 calls in <15s = <150ms per call
+        assert elapsed < 15.0  # 100 calls in <15s = <150ms per call  # nosec B101
         
         service.stop()

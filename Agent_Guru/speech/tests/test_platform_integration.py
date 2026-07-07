@@ -46,12 +46,12 @@ class TestPlatformIntegrationAudioDevices:
                 devices = integration.list_audio_devices()
                 
                 # Should only return input devices (max_input_channels > 0)
-                assert len(devices) == 2
-                assert devices[0].name == 'Microphone 1'
-                assert devices[0].channels == 2
-                assert devices[0].is_default is True
-                assert devices[1].name == 'Microphone 2'
-                assert devices[1].is_default is False
+                assert len(devices) == 2  # nosec B101
+                assert devices[0].name == 'Microphone 1'  # nosec B101
+                assert devices[0].channels == 2  # nosec B101
+                assert devices[0].is_default is True  # nosec B101
+                assert devices[1].name == 'Microphone 2'  # nosec B101
+                assert devices[1].is_default is False  # nosec B101
     
     def test_list_audio_devices_error(self):
         """Test error handling when listing devices fails."""
@@ -78,9 +78,9 @@ class TestPlatformIntegrationAudioDevices:
                 
                 device = integration.get_default_audio_device()
                 
-                assert device is not None
-                assert device.name == 'Default Mic'
-                assert device.is_default is True
+                assert device is not None  # nosec B101
+                assert device.name == 'Default Mic'  # nosec B101
+                assert device.is_default is True  # nosec B101
     
     def test_get_default_audio_device_none(self):
         """Test when no default device is available."""
@@ -91,7 +91,7 @@ class TestPlatformIntegrationAudioDevices:
                 mock_default.device = [None, None]
                 
                 device = integration.get_default_audio_device()
-                assert device is None
+                assert device is None  # nosec B101
     
     def test_validate_audio_device_valid(self):
         """Test validating a valid audio device."""
@@ -108,7 +108,7 @@ class TestPlatformIntegrationAudioDevices:
                 ]
                 mock_default.device = [0, None]
                 
-                assert integration.validate_audio_device(0) is True
+                assert integration.validate_audio_device(0) is True  # nosec B101
     
     def test_validate_audio_device_invalid(self):
         """Test validating an invalid audio device."""
@@ -118,7 +118,7 @@ class TestPlatformIntegrationAudioDevices:
             with patch('sounddevice.default') as mock_default:
                 mock_default.device = [None, None]
                 
-                assert integration.validate_audio_device(999) is False
+                assert integration.validate_audio_device(999) is False  # nosec B101
 
 
 class TestPlatformIntegrationSystemControl:
@@ -138,7 +138,7 @@ class TestPlatformIntegrationSystemControl:
             
             result = integration.set_system_volume(50)
             
-            assert result.success is True
+            assert result.success is True  # nosec B101
             mock_set.assert_called_once_with(50)
     
     def test_set_system_volume_failure(self):
@@ -170,7 +170,7 @@ class TestPlatformIntegrationSystemControl:
             
             result = integration.set_system_brightness(75)
             
-            assert result.success is True
+            assert result.success is True  # nosec B101
             mock_set.assert_called_once_with(75)
     
     def test_open_application_success(self):
@@ -187,7 +187,7 @@ class TestPlatformIntegrationSystemControl:
             
             result = integration.open_application("notepad")
             
-            assert result.success is True
+            assert result.success is True  # nosec B101
             mock_open.assert_called_once_with("notepad")
     
     def test_type_text_success(self):
@@ -204,7 +204,7 @@ class TestPlatformIntegrationSystemControl:
             
             result = integration.type_text("Hello World", typing_speed=0.05)
             
-            assert result.success is True
+            assert result.success is True  # nosec B101
             mock_type.assert_called_once_with("Hello World", 0.05)
     
     def test_play_media_success(self):
@@ -221,7 +221,7 @@ class TestPlatformIntegrationSystemControl:
             
             result = integration.play_media()
             
-            assert result.success is True
+            assert result.success is True  # nosec B101
             mock_play.assert_called_once()
     
     def test_pause_media_success(self):
@@ -238,7 +238,7 @@ class TestPlatformIntegrationSystemControl:
             
             result = integration.pause_media()
             
-            assert result.success is True
+            assert result.success is True  # nosec B101
             mock_pause.assert_called_once()
     
     def test_take_screenshot_success(self):
@@ -256,8 +256,8 @@ class TestPlatformIntegrationSystemControl:
             
             result = integration.take_screenshot('/tmp/screenshot.png')  # nosec B108
             
-            assert result.success is True
-            assert result.metadata['path'] == '/tmp/screenshot.png'  # nosec B108
+            assert result.success is True  # nosec B101
+            assert result.metadata['path'] == '/tmp/screenshot.png'  # nosec B108 B101
             mock_screenshot.assert_called_once_with('/tmp/screenshot.png')  # nosec B108
 
 
@@ -289,11 +289,11 @@ class TestPlatformIntegrationHardwareMonitoring:
                         
                         info = integration.get_system_info()
                         
-                        assert 'platform' in info
-                        assert 'cpu' in info
-                        assert 'memory' in info
-                        assert 'battery' in info
-                        assert info['cpu']['usage_percent'] == 25.5
+                        assert 'platform' in info  # nosec B101
+                        assert 'cpu' in info  # nosec B101
+                        assert 'memory' in info  # nosec B101
+                        assert 'battery' in info  # nosec B101
+                        assert info['cpu']['usage_percent'] == 25.5  # nosec B101
     
     def test_get_cpu_usage(self):
         """Test getting CPU usage."""
@@ -306,7 +306,7 @@ class TestPlatformIntegrationHardwareMonitoring:
             
             usage = integration.get_cpu_usage()
             
-            assert usage == 42.5
+            assert usage == 42.5  # nosec B101
     
     def test_get_memory_usage(self):
         """Test getting memory usage."""
@@ -323,7 +323,7 @@ class TestPlatformIntegrationHardwareMonitoring:
             
             usage = integration.get_memory_usage()
             
-            assert usage['used_percent'] == 50.0
+            assert usage['used_percent'] == 50.0  # nosec B101
     
     def test_get_battery_status_available(self):
         """Test getting battery status when available."""
@@ -339,9 +339,9 @@ class TestPlatformIntegrationHardwareMonitoring:
             
             status = integration.get_battery_status()
             
-            assert status is not None
-            assert status['percent'] == 75.0
-            assert status['is_charging'] is True
+            assert status is not None  # nosec B101
+            assert status['percent'] == 75.0  # nosec B101
+            assert status['is_charging'] is True  # nosec B101
     
     def test_get_battery_status_unavailable(self):
         """Test getting battery status when unavailable (desktop)."""
@@ -350,7 +350,7 @@ class TestPlatformIntegrationHardwareMonitoring:
         with patch.object(integration.hardware_monitor, 'get_battery_info', return_value=None):
             status = integration.get_battery_status()
             
-            assert status is None
+            assert status is None  # nosec B101
 
 
 class TestPlatformIntegrationFileOperations:
@@ -370,7 +370,7 @@ class TestPlatformIntegrationFileOperations:
             
             result = integration.create_file("test.txt", "Hello World")
             
-            assert result.success is True
+            assert result.success is True  # nosec B101
             mock_create.assert_called_once_with("test.txt", "Hello World")
     
     def test_create_file_failure(self):
@@ -403,7 +403,7 @@ class TestPlatformIntegrationFileOperations:
             
             content = integration.read_file("test.txt")
             
-            assert content == 'Hello World'
+            assert content == 'Hello World'  # nosec B101
             mock_read.assert_called_once_with("test.txt")
     
     def test_read_file_failure(self):
@@ -443,14 +443,14 @@ class TestPlatformIntegrationEndToEnd:
                 
                 # List devices
                 devices = integration.list_audio_devices()
-                assert len(devices) > 0
+                assert len(devices) > 0  # nosec B101
                 
                 # Get default device
                 default = integration.get_default_audio_device()
-                assert default is not None
+                assert default is not None  # nosec B101
                 
                 # Validate device
-                assert integration.validate_audio_device(default.device_id)
+                assert integration.validate_audio_device(default.device_id)  # nosec B101
     
     def test_system_control_workflow(self):
         """Test complete system control workflow."""
@@ -495,5 +495,5 @@ def test_platform_integration_repr():
     integration = PlatformIntegration()
     repr_str = repr(integration)
     
-    assert "PlatformIntegration" in repr_str
-    assert "os=" in repr_str
+    assert "PlatformIntegration" in repr_str  # nosec B101
+    assert "os=" in repr_str  # nosec B101

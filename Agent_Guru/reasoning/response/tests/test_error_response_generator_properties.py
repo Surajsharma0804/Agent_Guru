@@ -94,18 +94,18 @@ class TestErrorResponseGeneratorProperties:
         response = generator.generate_error_response(error, modality)
 
         # Response is valid
-        assert response is not None
-        assert response.text
-        assert len(response.text) > 0
+        assert response is not None  # nosec B101
+        assert response.text  # nosec B101
+        assert len(response.text) > 0  # nosec B101
 
         # Metadata is present
-        assert "error_type" in response.metadata
-        assert "error_code" in response.metadata
-        assert "recoverable" in response.metadata
-        assert "generation_method" in response.metadata
+        assert "error_type" in response.metadata  # nosec B101
+        assert "error_code" in response.metadata  # nosec B101
+        assert "recoverable" in response.metadata  # nosec B101
+        assert "generation_method" in response.metadata  # nosec B101
 
         # Modality matches
-        assert response.modality == modality
+        assert response.modality == modality  # nosec B101
 
     @given(error=error_strategy())
     def test_property_voice_responses_are_concise(self, error: Error):
@@ -121,7 +121,7 @@ class TestErrorResponseGeneratorProperties:
         voice_response = generator.generate_error_response(error, ResponseModality.VOICE)
 
         # Voice should be shorter or equal
-        assert len(voice_response.text) <= len(text_response.text)
+        assert len(voice_response.text) <= len(text_response.text)  # nosec B101
 
     @given(error=error_strategy())
     def test_property_no_technical_jargon(self, error: Error):
@@ -151,7 +151,7 @@ class TestErrorResponseGeneratorProperties:
 
         text_lower = response.text.lower()
         for term in forbidden_terms:
-            assert term not in text_lower, f"Technical term '{term}' found in user message"
+            assert term not in text_lower, f"Technical term '{term}' found in user message"  # nosec B101
 
     @given(error=error_strategy())
     def test_property_recoverable_errors_have_suggestions(self, error: Error):
@@ -167,7 +167,7 @@ class TestErrorResponseGeneratorProperties:
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
         # Should have suggestions
-        assert len(response.suggestions) > 0
+        assert len(response.suggestions) > 0  # nosec B101
 
     @given(error=error_strategy(), modality=st.sampled_from(list(ResponseModality)))
     def test_property_suggestions_are_limited(self, error: Error, modality: ResponseModality):
@@ -181,7 +181,7 @@ class TestErrorResponseGeneratorProperties:
         response = generator.generate_error_response(error, modality)
 
         # Suggestions limited to 3
-        assert len(response.suggestions) <= 3
+        assert len(response.suggestions) <= 3  # nosec B101
 
     @given(
         error=error_strategy(),
@@ -202,12 +202,12 @@ class TestErrorResponseGeneratorProperties:
         response = generator.generate_error_response(error, modality, intent=intent)
 
         # Response is valid
-        assert response is not None
-        assert response.text
-        assert len(response.text) > 0
+        assert response is not None  # nosec B101
+        assert response.text  # nosec B101
+        assert len(response.text) > 0  # nosec B101
 
         # May have intent-specific suggestions
-        assert isinstance(response.suggestions, list)
+        assert isinstance(response.suggestions, list)  # nosec B101
 
     @given(error=error_strategy())
     def test_property_metadata_completeness(self, error: Error):
@@ -234,7 +234,7 @@ class TestErrorResponseGeneratorProperties:
         ]
 
         for field in required_fields:
-            assert field in response.metadata, f"Missing metadata field: {field}"
+            assert field in response.metadata, f"Missing metadata field: {field}"  # nosec B101
 
     @given(error=error_strategy())
     def test_property_error_type_consistency(self, error: Error):
@@ -247,9 +247,9 @@ class TestErrorResponseGeneratorProperties:
         generator = ErrorResponseGenerator()
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
-        assert response.metadata["error_type"] == error.error_type.value
-        assert response.metadata["error_code"] == error.error_code
-        assert response.metadata["recoverable"] == error.recoverable
+        assert response.metadata["error_type"] == error.error_type.value  # nosec B101
+        assert response.metadata["error_code"] == error.error_code  # nosec B101
+        assert response.metadata["recoverable"] == error.recoverable  # nosec B101
 
     @given(error=error_strategy(), modality=st.sampled_from(list(ResponseModality)))
     def test_property_non_empty_messages(self, error: Error, modality: ResponseModality):
@@ -263,11 +263,11 @@ class TestErrorResponseGeneratorProperties:
         response = generator.generate_error_response(error, modality)
 
         # Text is non-empty
-        assert response.text
-        assert len(response.text.strip()) > 0
+        assert response.text  # nosec B101
+        assert len(response.text.strip()) > 0  # nosec B101
 
         # Contains at least one word
-        assert len(response.text.split()) > 0
+        assert len(response.text.split()) > 0  # nosec B101
 
     @given(error=error_strategy())
     def test_property_user_friendly_language(self, error: Error):
@@ -305,7 +305,7 @@ class TestErrorResponseGeneratorProperties:
             (".", "?", "!")
         )
 
-        assert (
+        assert (  # nosec B101
             has_helpful_language or is_complete_sentence
         ), f"No helpful language found in: {response.text}"
 
@@ -320,7 +320,7 @@ class TestErrorResponseGeneratorProperties:
         generator = ErrorResponseGenerator()
         response = generator.generate_error_response(error, modality)
 
-        assert response.metadata["generation_method"] == "error_response"
+        assert response.metadata["generation_method"] == "error_response"  # nosec B101
 
     @given(error=error_strategy())
     def test_property_clarification_flag_consistency(self, error: Error):
@@ -335,7 +335,7 @@ class TestErrorResponseGeneratorProperties:
         response = generator.generate_error_response(error, ResponseModality.TEXT)
 
         # Clarification flag should be boolean
-        assert isinstance(response.metadata["requires_clarification"], bool)
+        assert isinstance(response.metadata["requires_clarification"], bool)  # nosec B101
 
         # Certain error types should require clarification
         clarification_errors = {
@@ -346,4 +346,4 @@ class TestErrorResponseGeneratorProperties:
         }
 
         if error.error_type in clarification_errors:
-            assert response.metadata["requires_clarification"] is True
+            assert response.metadata["requires_clarification"] is True  # nosec B101

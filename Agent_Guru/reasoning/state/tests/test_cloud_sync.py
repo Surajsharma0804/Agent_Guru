@@ -58,9 +58,9 @@ class TestCloudSyncService:
         """Test service initialization."""
         service = CloudSyncService(sync_config)
 
-        assert service.config == sync_config
-        assert service._pool is None
-        assert not service._initialized
+        assert service.config == sync_config  # nosec B101
+        assert service._pool is None  # nosec B101
+        assert not service._initialized  # nosec B101
 
     @pytest.mark.asyncio
     async def test_initialize_without_asyncpg(self, sync_config):
@@ -134,8 +134,8 @@ class TestCloudSyncService:
 
         await service.close()
 
-        assert service._pool is None
-        assert not service._initialized
+        assert service._pool is None  # nosec B101
+        assert not service._initialized  # nosec B101
 
 
 class TestCloudSyncServiceMocked:
@@ -179,8 +179,8 @@ class TestCloudSyncServiceMocked:
 
         result = await service.sync_to_cloud(sample_state)
 
-        assert result is True
-        assert mock_conn.execute.called
+        assert result is True  # nosec B101
+        assert mock_conn.execute.called  # nosec B101
 
     @pytest.mark.asyncio
     async def test_sync_to_cloud_failure(self, mock_service, sample_state):
@@ -190,7 +190,7 @@ class TestCloudSyncServiceMocked:
 
         result = await service.sync_to_cloud(sample_state)
 
-        assert result is False
+        assert result is False  # nosec B101
 
     @pytest.mark.skip(reason="Requires real PostgreSQL connection for integration testing")
     @pytest.mark.asyncio
@@ -204,10 +204,10 @@ class TestCloudSyncServiceMocked:
 
         result = await service.sync_from_cloud("conv_123", "user_456")
 
-        assert result is not None
-        assert result.conversation_id == "conv_123"
-        assert result.user_id == "user_456"
-        assert mock_conn.fetchrow.called
+        assert result is not None  # nosec B101
+        assert result.conversation_id == "conv_123"  # nosec B101
+        assert result.user_id == "user_456"  # nosec B101
+        assert mock_conn.fetchrow.called  # nosec B101
 
     @pytest.mark.asyncio
     async def test_sync_from_cloud_not_found(self, mock_service):
@@ -217,7 +217,7 @@ class TestCloudSyncServiceMocked:
 
         result = await service.sync_from_cloud("conv_123", "user_456")
 
-        assert result is None
+        assert result is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_sync_from_cloud_error(self, mock_service):
@@ -227,7 +227,7 @@ class TestCloudSyncServiceMocked:
 
         result = await service.sync_from_cloud("conv_123", "user_456")
 
-        assert result is None
+        assert result is None  # nosec B101
 
     @pytest.mark.skip(reason="Requires real PostgreSQL connection for integration testing")
     @pytest.mark.asyncio
@@ -245,9 +245,9 @@ class TestCloudSyncServiceMocked:
 
         result = await service.list_user_conversations("user_456")
 
-        assert len(result) == 3
-        assert result == ["conv_1", "conv_2", "conv_3"]
-        assert mock_conn.fetch.called
+        assert len(result) == 3  # nosec B101
+        assert result == ["conv_1", "conv_2", "conv_3"]  # nosec B101
+        assert mock_conn.fetch.called  # nosec B101
 
     @pytest.mark.asyncio
     async def test_list_user_conversations_empty(self, mock_service):
@@ -257,7 +257,7 @@ class TestCloudSyncServiceMocked:
 
         result = await service.list_user_conversations("user_456")
 
-        assert result == []
+        assert result == []  # nosec B101
 
     @pytest.mark.asyncio
     async def test_list_user_conversations_error(self, mock_service):
@@ -267,7 +267,7 @@ class TestCloudSyncServiceMocked:
 
         result = await service.list_user_conversations("user_456")
 
-        assert result == []
+        assert result == []  # nosec B101
 
     @pytest.mark.skip(reason="Requires real PostgreSQL connection for integration testing")
     @pytest.mark.asyncio
@@ -278,8 +278,8 @@ class TestCloudSyncServiceMocked:
 
         result = await service.delete_conversation("conv_123", "user_456")
 
-        assert result is True
-        assert mock_conn.execute.called
+        assert result is True  # nosec B101
+        assert mock_conn.execute.called  # nosec B101
 
     @pytest.mark.asyncio
     async def test_delete_conversation_not_found(self, mock_service):
@@ -289,7 +289,7 @@ class TestCloudSyncServiceMocked:
 
         result = await service.delete_conversation("conv_123", "user_456")
 
-        assert result is False
+        assert result is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_delete_conversation_error(self, mock_service):
@@ -299,7 +299,7 @@ class TestCloudSyncServiceMocked:
 
         result = await service.delete_conversation("conv_123", "user_456")
 
-        assert result is False
+        assert result is False  # nosec B101
 
     @pytest.mark.skip(reason="Requires real PostgreSQL connection for integration testing")
     @pytest.mark.asyncio
@@ -312,10 +312,10 @@ class TestCloudSyncServiceMocked:
 
         result = await service.get_sync_status("conv_123", "user_456")
 
-        assert result is not None
-        assert result["version"] == 5
-        assert "updated_at" in result
-        assert mock_conn.fetchrow.called
+        assert result is not None  # nosec B101
+        assert result["version"] == 5  # nosec B101
+        assert "updated_at" in result  # nosec B101
+        assert mock_conn.fetchrow.called  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_sync_status_not_found(self, mock_service):
@@ -325,7 +325,7 @@ class TestCloudSyncServiceMocked:
 
         result = await service.get_sync_status("conv_123", "user_456")
 
-        assert result is None
+        assert result is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_sync_status_error(self, mock_service):
@@ -335,4 +335,4 @@ class TestCloudSyncServiceMocked:
 
         result = await service.get_sync_status("conv_123", "user_456")
 
-        assert result is None
+        assert result is None  # nosec B101

@@ -77,27 +77,27 @@ class TestPlatformDetectionProperties:
             info = PlatformDetector.detect()
             
             # Property: Result should be a PlatformInfo object
-            assert isinstance(info, PlatformInfo)
+            assert isinstance(info, PlatformInfo)  # nosec B101
             
             # Property: OS name should be correctly mapped
             if os_name == "Windows":
-                assert info.os_name == "Windows"
+                assert info.os_name == "Windows"  # nosec B101
             elif os_name == "Darwin":
-                assert info.os_name == "macOS"
+                assert info.os_name == "macOS"  # nosec B101
             elif os_name == "Linux":
-                assert info.os_name == "Linux"
+                assert info.os_name == "Linux"  # nosec B101
             
             # Property: OS version should match input
-            assert info.os_version == os_version
+            assert info.os_version == os_version  # nosec B101
             
             # Property: Architecture should be normalized
-            assert info.architecture in ["x64", "x86", "ARM64", "ARM", architecture.lower()]
+            assert info.architecture in ["x64", "x86", "ARM64", "ARM", architecture.lower()]  # nosec B101
             
             # Property: Python version should match input
-            assert info.python_version == python_version
+            assert info.python_version == python_version  # nosec B101
             
             # Property: Python implementation should match input
-            assert info.python_implementation == python_implementation
+            assert info.python_implementation == python_implementation  # nosec B101
     
     @given(os_name=st.sampled_from(["Windows", "Darwin", "Linux"]))
     @settings(max_examples=100)
@@ -134,7 +134,7 @@ class TestPlatformDetectionProperties:
             info = PlatformDetector.detect()
             
             # Property: OS name must be one of the valid values
-            assert info.os_name in ["Windows", "macOS", "Linux", "Android", "iOS"]
+            assert info.os_name in ["Windows", "macOS", "Linux", "Android", "iOS"]  # nosec B101
     
     @given(architecture=valid_architectures)
     @settings(max_examples=100)
@@ -173,15 +173,15 @@ class TestPlatformDetectionProperties:
             # Property: Architecture should be normalized or raw value
             arch_lower = architecture.lower()
             if arch_lower in ("x86_64", "amd64"):
-                assert info.architecture == "x64"
+                assert info.architecture == "x64"  # nosec B101
             elif arch_lower in ("i386", "i686", "x86"):
-                assert info.architecture == "x86"
+                assert info.architecture == "x86"  # nosec B101
             elif arch_lower in ("arm64", "aarch64"):
-                assert info.architecture == "ARM64"
+                assert info.architecture == "ARM64"  # nosec B101
             elif arch_lower.startswith("arm"):
-                assert info.architecture == "ARM"
+                assert info.architecture == "ARM"  # nosec B101
             else:
-                assert info.architecture == arch_lower
+                assert info.architecture == arch_lower  # nosec B101
     
     @given(unsupported_os=st.text(min_size=1, max_size=20).filter(
         lambda x: x not in ["Windows", "Darwin", "Linux", "Java"]
@@ -206,7 +206,7 @@ class TestPlatformDetectionProperties:
                 PlatformDetector.detect()
             
             # Property: Error message should contain platform name
-            assert unsupported_os in str(exc_info.value) or "Unsupported platform" in str(exc_info.value)
+            assert unsupported_os in str(exc_info.value) or "Unsupported platform" in str(exc_info.value)  # nosec B101
     
     @given(os_name=st.sampled_from(["Windows", "Darwin", "Linux"]))
     @settings(max_examples=100)
@@ -247,7 +247,7 @@ class TestPlatformDetectionProperties:
             info2 = PlatformDetector.detect()
             
             # Property: Should be the same object (cached)
-            assert info1 is info2
+            assert info1 is info2  # nosec B101
     
     @given(os_name=st.sampled_from(["Windows", "Darwin", "Linux"]))
     @settings(max_examples=100)
@@ -285,17 +285,17 @@ class TestPlatformDetectionProperties:
             
             # Property: is_* methods should match os_name
             if info.os_name == "Windows":
-                assert PlatformDetector.is_windows() is True
-                assert PlatformDetector.is_macos() is False
-                assert PlatformDetector.is_linux() is False
+                assert PlatformDetector.is_windows() is True  # nosec B101
+                assert PlatformDetector.is_macos() is False  # nosec B101
+                assert PlatformDetector.is_linux() is False  # nosec B101
             elif info.os_name == "macOS":
-                assert PlatformDetector.is_windows() is False
-                assert PlatformDetector.is_macos() is True
-                assert PlatformDetector.is_linux() is False
+                assert PlatformDetector.is_windows() is False  # nosec B101
+                assert PlatformDetector.is_macos() is True  # nosec B101
+                assert PlatformDetector.is_linux() is False  # nosec B101
             elif info.os_name == "Linux":
-                assert PlatformDetector.is_windows() is False
-                assert PlatformDetector.is_macos() is False
-                assert PlatformDetector.is_linux() is True
+                assert PlatformDetector.is_windows() is False  # nosec B101
+                assert PlatformDetector.is_macos() is False  # nosec B101
+                assert PlatformDetector.is_linux() is True  # nosec B101
     
     @given(os_name=st.sampled_from(["Windows", "Darwin", "Linux"]))
     @settings(max_examples=100)
@@ -333,5 +333,5 @@ class TestPlatformDetectionProperties:
             is_mobile = PlatformDetector.is_mobile()
             
             # Property: Exactly one should be True (XOR)
-            assert is_desktop != is_mobile
-            assert (is_desktop and not is_mobile) or (not is_desktop and is_mobile)
+            assert is_desktop != is_mobile  # nosec B101
+            assert (is_desktop and not is_mobile) or (not is_desktop and is_mobile)  # nosec B101

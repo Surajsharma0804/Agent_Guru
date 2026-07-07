@@ -42,15 +42,15 @@ class TestConversationContextProperties:
         context = manager.get_context(context_id)
         
         # PROPERTY ASSERTIONS
-        assert len(context.turns) > 0, "Context should have turns"
-        assert len(context.turns) <= 10, "Context should respect max history"
+        assert len(context.turns) > 0, "Context should have turns"  # nosec B101
+        assert len(context.turns) <= 10, "Context should respect max history"  # nosec B101
         
         # If more than 10 turns, should keep last 10
         if num_turns > 10:
-            assert len(context.turns) == 10
-            assert context.turns[0].text == f"Message {num_turns - 10}"
+            assert len(context.turns) == 10  # nosec B101
+            assert context.turns[0].text == f"Message {num_turns - 10}"  # nosec B101
         else:
-            assert len(context.turns) == num_turns
+            assert len(context.turns) == num_turns  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=200, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs', 'P'))),
@@ -74,7 +74,7 @@ class TestConversationContextProperties:
         resolved = manager.resolve_reference(context_id, text)
         
         # PROPERTY ASSERTION: Should either resolve or return None
-        assert resolved is None or isinstance(resolved, str)
+        assert resolved is None or isinstance(resolved, str)  # nosec B101
     
     @given(
         topic1_word=st.sampled_from(["weather", "email", "calendar", "file", "system", "web"]),
@@ -101,7 +101,7 @@ class TestConversationContextProperties:
         # PROPERTY ASSERTION
         # Topic shift detection is best-effort based on keywords
         # Should return boolean without crashing
-        assert isinstance(shift, bool)
+        assert isinstance(shift, bool)  # nosec B101
     
     @given(
         user_id=st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=('L', 'N'))),
@@ -121,12 +121,12 @@ class TestConversationContextProperties:
         context_id, context = manager.create_context(user_id, personality)
         
         # PROPERTY ASSERTIONS
-        assert context_id is not None
-        assert user_id in context_id
-        assert personality.value in context_id
-        assert context.personality == personality
-        assert len(context.turns) == 0
-        assert context.created_at > 0
+        assert context_id is not None  # nosec B101
+        assert user_id in context_id  # nosec B101
+        assert personality.value in context_id  # nosec B101
+        assert context.personality == personality  # nosec B101
+        assert len(context.turns) == 0  # nosec B101
+        assert context.created_at > 0  # nosec B101
     
     @given(
         speaker=st.sampled_from(["user", "agent"]),
@@ -148,11 +148,11 @@ class TestConversationContextProperties:
         context = manager.add_turn(context_id, speaker, text, emotion)
         
         # PROPERTY ASSERTIONS
-        assert len(context.turns) == 1
-        assert context.turns[0].speaker == speaker
-        assert context.turns[0].text == text
-        assert context.turns[0].emotion == emotion
-        assert context.turns[0].timestamp > 0
+        assert len(context.turns) == 1  # nosec B101
+        assert context.turns[0].speaker == speaker  # nosec B101
+        assert context.turns[0].text == text  # nosec B101
+        assert context.turns[0].emotion == emotion  # nosec B101
+        assert context.turns[0].timestamp > 0  # nosec B101
     
     # ========================================================================
     # PROPERTY: CONSISTENCY
@@ -178,7 +178,7 @@ class TestConversationContextProperties:
         context = manager.get_context(context_id)
         
         # PROPERTY ASSERTION: All turns should have same text
-        assert all(turn.text == text for turn in context.turns)
+        assert all(turn.text == text for turn in context.turns)  # nosec B101
     
     # ========================================================================
     # PROPERTY: ROBUSTNESS
@@ -201,8 +201,8 @@ class TestConversationContextProperties:
         context = manager.add_turn(context_id, "user", text)
         
         # PROPERTY ASSERTION
-        assert len(context.turns) == 1
-        assert context.turns[0].text == text
+        assert len(context.turns) == 1  # nosec B101
+        assert context.turns[0].text == text  # nosec B101
     
     @given(
         max_history=st.integers(min_value=1, max_value=100),
@@ -225,13 +225,13 @@ class TestConversationContextProperties:
         context = manager.get_context(context_id)
         
         # PROPERTY ASSERTION: Should never exceed max_history
-        assert len(context.turns) <= max_history
+        assert len(context.turns) <= max_history  # nosec B101
         
         # If more turns than max, should keep most recent
         if num_turns > max_history:
-            assert len(context.turns) == max_history
+            assert len(context.turns) == max_history  # nosec B101
             # First turn should be from (num_turns - max_history)
-            assert context.turns[0].text == f"Message {num_turns - max_history}"
+            assert context.turns[0].text == f"Message {num_turns - max_history}"  # nosec B101
     
     # ========================================================================
     # PROPERTY: PREFERENCE EXTRACTION
@@ -267,4 +267,4 @@ class TestConversationContextProperties:
         
         # PROPERTY ASSERTION: Should extract preferences or return empty dict
         # Preference extraction is best-effort based on regex patterns
-        assert isinstance(prefs, dict)
+        assert isinstance(prefs, dict)  # nosec B101

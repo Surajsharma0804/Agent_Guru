@@ -33,24 +33,24 @@ class TestLoggingConfig:
         event_dict = {}
         result = add_app_context(None, "test_method", event_dict)
         
-        assert result["app"] == "agent_guru"
-        assert result["component"] == "reasoning_engine"
+        assert result["app"] == "agent_guru"  # nosec B101
+        assert result["component"] == "reasoning_engine"  # nosec B101
     
     def test_add_trace_context_no_existing(self):
         """Test adding trace context when not present."""
         event_dict = {}
         result = add_trace_context(None, "test_method", event_dict)
         
-        assert result["trace_id"] is None
-        assert result["span_id"] is None
+        assert result["trace_id"] is None  # nosec B101
+        assert result["span_id"] is None  # nosec B101
     
     def test_add_trace_context_existing(self):
         """Test adding trace context when already present."""
         event_dict = {"trace_id": "test123", "span_id": "span456"}
         result = add_trace_context(None, "test_method", event_dict)
         
-        assert result["trace_id"] == "test123"
-        assert result["span_id"] == "span456"
+        assert result["trace_id"] == "test123"  # nosec B101
+        assert result["span_id"] == "span456"  # nosec B101
     
     def test_configure_logging_json_format(self):
         """Test configuring logging with JSON format."""
@@ -58,14 +58,14 @@ class TestLoggingConfig:
         
         # Verify logging is configured
         logger = logging.getLogger()
-        assert logger.level == logging.INFO
+        assert logger.level == logging.INFO  # nosec B101
     
     def test_configure_logging_console_format(self):
         """Test configuring logging with console format."""
         configure_logging(log_level="DEBUG", json_format=False)
         
         logger = logging.getLogger()
-        assert logger.level == logging.DEBUG
+        assert logger.level == logging.DEBUG  # nosec B101
     
     def test_configure_logging_with_file(self):
         """Test configuring logging with file rotation."""
@@ -81,7 +81,7 @@ class TestLoggingConfig:
             logger = logging.getLogger()
             file_handlers = [h for h in logger.handlers 
                            if isinstance(h, logging.handlers.RotatingFileHandler)]
-            assert len(file_handlers) > 0
+            assert len(file_handlers) > 0  # nosec B101
             
             # Close file handlers to release file locks
             for handler in file_handlers:
@@ -93,16 +93,16 @@ class TestLoggingConfig:
         configure_logging(log_level="INVALID")
         
         logger = logging.getLogger()
-        assert logger.level == logging.INFO
+        assert logger.level == logging.INFO  # nosec B101
     
     def test_get_logger(self):
         """Test getting a structured logger."""
         configure_logging()
         logger = get_logger("test_module")
         
-        assert logger is not None
-        assert hasattr(logger, "info")
-        assert hasattr(logger, "error")
+        assert logger is not None  # nosec B101
+        assert hasattr(logger, "info")  # nosec B101
+        assert hasattr(logger, "error")  # nosec B101
     
     def test_bind_context(self):
         """Test binding context variables."""
@@ -110,7 +110,7 @@ class TestLoggingConfig:
         
         # Context should be bound (we can't easily verify without logging)
         # Just ensure no errors
-        assert True
+        assert True  # nosec B101
     
     def test_unbind_context(self):
         """Test unbinding specific context variables."""
@@ -118,7 +118,7 @@ class TestLoggingConfig:
         unbind_context("user_id")
         
         # Context should be unbound
-        assert True
+        assert True  # nosec B101
     
     def test_clear_context(self):
         """Test clearing all context variables."""
@@ -126,7 +126,7 @@ class TestLoggingConfig:
         clear_context()
         
         # All context should be cleared
-        assert True
+        assert True  # nosec B101
     
     def test_logging_levels(self):
         """Test all logging levels."""
@@ -134,4 +134,4 @@ class TestLoggingConfig:
             configure_logging(log_level=level)
             logger = logging.getLogger()
             expected_level = getattr(logging, level if level != "WARN" else "WARNING")
-            assert logger.level == expected_level
+            assert logger.level == expected_level  # nosec B101

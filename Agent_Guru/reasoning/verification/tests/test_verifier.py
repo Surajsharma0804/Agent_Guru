@@ -138,16 +138,16 @@ class TestReasoningVerifier:
             llm_client=mock_llm_client, tool_registry=mock_tool_registry, confidence_threshold=0.8
         )
 
-        assert verifier.llm_client == mock_llm_client
-        assert verifier.tool_registry == mock_tool_registry
-        assert verifier.confidence_threshold == 0.8
+        assert verifier.llm_client == mock_llm_client  # nosec B101
+        assert verifier.tool_registry == mock_tool_registry  # nosec B101
+        assert verifier.confidence_threshold == 0.8  # nosec B101
 
     @pytest.mark.asyncio
     async def test_verify_tool_compatibility_valid(self, verifier, sample_task):
         """Test tool compatibility verification with valid tools."""
         issues = await verifier._verify_tool_compatibility(sample_task)
 
-        assert len(issues) == 0
+        assert len(issues) == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_verify_tool_compatibility_missing_tool(self, verifier):
@@ -176,10 +176,10 @@ class TestReasoningVerifier:
 
         issues = await verifier._verify_tool_compatibility(task)
 
-        assert len(issues) == 1
-        assert issues[0].issue_type == IssueType.TOOL_COMPATIBILITY
-        assert issues[0].severity == IssueSeverity.CRITICAL
-        assert "does not exist" in issues[0].description
+        assert len(issues) == 1  # nosec B101
+        assert issues[0].issue_type == IssueType.TOOL_COMPATIBILITY  # nosec B101
+        assert issues[0].severity == IssueSeverity.CRITICAL  # nosec B101
+        assert "does not exist" in issues[0].description  # nosec B101
 
     @pytest.mark.asyncio
     async def test_verify_tool_compatibility_missing_parameters(self, verifier):
@@ -208,11 +208,11 @@ class TestReasoningVerifier:
 
         issues = await verifier._verify_tool_compatibility(task)
 
-        assert len(issues) == 1
-        assert issues[0].issue_type == IssueType.TOOL_COMPATIBILITY
-        assert issues[0].severity == IssueSeverity.CRITICAL
-        assert "missing required parameters" in issues[0].description
-        assert "recipient" in issues[0].description
+        assert len(issues) == 1  # nosec B101
+        assert issues[0].issue_type == IssueType.TOOL_COMPATIBILITY  # nosec B101
+        assert issues[0].severity == IssueSeverity.CRITICAL  # nosec B101
+        assert "missing required parameters" in issues[0].description  # nosec B101
+        assert "recipient" in issues[0].description  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_circular_dependencies_none(self, verifier):
@@ -240,7 +240,7 @@ class TestReasoningVerifier:
 
         result = verifier._detect_circular_dependencies(steps)
 
-        assert result is None
+        assert result is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_circular_dependencies_exists(self, verifier):
@@ -279,7 +279,7 @@ class TestReasoningVerifier:
 
         conflicts = verifier._detect_conflicting_actions(steps)
 
-        assert len(conflicts) == 0
+        assert len(conflicts) == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_conflicting_actions_open_close(self, verifier):
@@ -307,9 +307,9 @@ class TestReasoningVerifier:
 
         conflicts = verifier._detect_conflicting_actions(steps)
 
-        assert len(conflicts) == 1
-        assert "closes" in conflicts[0]["description"]
-        assert "opened" in conflicts[0]["description"]
+        assert len(conflicts) == 1  # nosec B101
+        assert "closes" in conflicts[0]["description"]  # nosec B101
+        assert "opened" in conflicts[0]["description"]  # nosec B101
 
     @pytest.mark.asyncio
     async def test_parse_llm_verification_valid_json(self, verifier):
@@ -328,9 +328,9 @@ class TestReasoningVerifier:
 
         result = verifier._parse_llm_verification(llm_response)
 
-        assert result["is_correct"] is True
-        assert result["confidence"] == 0.95
-        assert len(result["issues"]) == 0
+        assert result["is_correct"] is True  # nosec B101
+        assert result["confidence"] == 0.95  # nosec B101
+        assert len(result["issues"]) == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_parse_llm_verification_with_issues(self, verifier):
@@ -354,9 +354,9 @@ class TestReasoningVerifier:
 
         result = verifier._parse_llm_verification(llm_response)
 
-        assert result["is_correct"] is False
-        assert len(result["issues"]) == 1
-        assert result["issues"][0]["type"] == "completeness"
+        assert result["is_correct"] is False  # nosec B101
+        assert len(result["issues"]) == 1  # nosec B101
+        assert result["issues"][0]["type"] == "completeness"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_calculate_confidence_no_issues(self, verifier, sample_task):
@@ -365,7 +365,7 @@ class TestReasoningVerifier:
 
         confidence = verifier._calculate_confidence(issues, sample_task)
 
-        assert confidence >= 0.9  # High confidence with no issues
+        assert confidence >= 0.9  # High confidence with no issues  # nosec B101
 
     @pytest.mark.asyncio
     async def test_calculate_confidence_with_critical_issues(self, verifier, sample_task):
@@ -380,7 +380,7 @@ class TestReasoningVerifier:
 
         confidence = verifier._calculate_confidence(issues, sample_task)
 
-        assert confidence < 0.9  # Lower confidence with critical issues
+        assert confidence < 0.9  # Lower confidence with critical issues  # nosec B101
 
     @pytest.mark.asyncio
     async def test_determine_recommendation_proceed(self, verifier):
@@ -389,7 +389,7 @@ class TestReasoningVerifier:
             is_valid=True, confidence=0.9, issues=[]
         )
 
-        assert recommendation == VerificationAction.PROCEED
+        assert recommendation == VerificationAction.PROCEED  # nosec B101
 
     @pytest.mark.asyncio
     async def test_determine_recommendation_clarify(self, verifier):
@@ -398,7 +398,7 @@ class TestReasoningVerifier:
             is_valid=True, confidence=0.6, issues=[]  # Below threshold
         )
 
-        assert recommendation == VerificationAction.CLARIFY
+        assert recommendation == VerificationAction.CLARIFY  # nosec B101
 
     @pytest.mark.asyncio
     async def test_determine_recommendation_replan(self, verifier):
@@ -415,7 +415,7 @@ class TestReasoningVerifier:
             is_valid=False, confidence=0.8, issues=issues
         )
 
-        assert recommendation == VerificationAction.REPLAN
+        assert recommendation == VerificationAction.REPLAN  # nosec B101
 
     @pytest.mark.asyncio
     async def test_verify_plan_integration(self, verifier, sample_task, mock_llm_client):
@@ -442,11 +442,11 @@ class TestReasoningVerifier:
 
         result = await verifier.verify_plan(sample_task, "Set a 5 minute timer")
 
-        assert isinstance(result, VerificationResult)
-        assert result.is_valid is True
-        assert result.confidence > 0.0
-        assert result.recommendation == VerificationAction.PROCEED
-        assert result.verification_time_ms > 0
+        assert isinstance(result, VerificationResult)  # nosec B101
+        assert result.is_valid is True  # nosec B101
+        assert result.confidence > 0.0  # nosec B101
+        assert result.recommendation == VerificationAction.PROCEED  # nosec B101
+        assert result.verification_time_ms > 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_schema_validate_valid(self, verifier):
@@ -456,7 +456,7 @@ class TestReasoningVerifier:
 
         is_valid = await verifier.schema_validate(data, schema)
 
-        assert is_valid is True
+        assert is_valid is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_schema_validate_missing_field(self, verifier):
@@ -466,7 +466,7 @@ class TestReasoningVerifier:
 
         is_valid = await verifier.schema_validate(data, schema)
 
-        assert is_valid is False
+        assert is_valid is False  # nosec B101
 
 
 class TestVerificationIntegration:
@@ -497,9 +497,9 @@ class TestVerificationIntegration:
 
         result = await verifier.verify_plan(sample_task, "Set a 5 minute timer")
 
-        assert result.is_valid is True
-        assert result.recommendation == VerificationAction.PROCEED
-        assert result.verification_time_ms < 200  # Within latency budget
+        assert result.is_valid is True  # nosec B101
+        assert result.recommendation == VerificationAction.PROCEED  # nosec B101
+        assert result.verification_time_ms < 200  # Within latency budget  # nosec B101
 
     @pytest.mark.asyncio
     async def test_full_verification_workflow_with_issues(self, verifier, mock_llm_client):
@@ -549,6 +549,6 @@ class TestVerificationIntegration:
 
         result = await verifier.verify_plan(task, "Send a message to John")
 
-        assert result.is_valid is False  # Tool compatibility issue
-        assert len(result.issues) > 0
-        assert result.recommendation in [VerificationAction.REPLAN, VerificationAction.ABORT]
+        assert result.is_valid is False  # Tool compatibility issue  # nosec B101
+        assert len(result.issues) > 0  # nosec B101
+        assert result.recommendation in [VerificationAction.REPLAN, VerificationAction.ABORT]  # nosec B101

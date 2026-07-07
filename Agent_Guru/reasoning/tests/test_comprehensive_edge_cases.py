@@ -100,10 +100,10 @@ class TestVerificationLayerEdgeCases:
         result = await verifier.verify_plan(task, "test input")
         
         # Should be valid (no circular dependencies possible with current model)
-        assert result.is_valid or not result.has_critical_issues()
+        assert result.is_valid or not result.has_critical_issues()  # nosec B101
         # If there are any issues, they should not be about circular dependencies
         circular_issues = [i for i in result.issues if "circular" in i.description.lower()]
-        assert len(circular_issues) == 0
+        assert len(circular_issues) == 0  # nosec B101
     
     @pytest.mark.asyncio
     async def test_conflicting_actions_same_resource(self):
@@ -152,4 +152,4 @@ class TestVerificationLayerEdgeCases:
         result = await verifier.verify_plan(task, "test input")
         
         # The verifier should at least complete without errors
-        assert result is not None
+        assert result is not None  # nosec B101

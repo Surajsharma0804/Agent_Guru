@@ -118,11 +118,11 @@ class TestClassifierConfig:
         """Test default configuration values."""
         config = ClassifierConfig()
 
-        assert config.confidence_threshold == 0.8
-        assert config.max_length == 256
-        assert config.batch_size == 32
-        assert config.use_gpu is True
-        assert config.warmup_iterations == 10
+        assert config.confidence_threshold == 0.8  # nosec B101
+        assert config.max_length == 256  # nosec B101
+        assert config.batch_size == 32  # nosec B101
+        assert config.use_gpu is True  # nosec B101
+        assert config.warmup_iterations == 10  # nosec B101
 
     def test_custom_config(self):
         """Test custom configuration values."""
@@ -134,11 +134,11 @@ class TestClassifierConfig:
             warmup_iterations=5,
         )
 
-        assert config.confidence_threshold == 0.9
-        assert config.max_length == 128
-        assert config.batch_size == 16
-        assert config.use_gpu is False
-        assert config.warmup_iterations == 5
+        assert config.confidence_threshold == 0.9  # nosec B101
+        assert config.max_length == 128  # nosec B101
+        assert config.batch_size == 16  # nosec B101
+        assert config.use_gpu is False  # nosec B101
+        assert config.warmup_iterations == 5  # nosec B101
 
 
 # ============================================================================
@@ -159,11 +159,11 @@ class TestClassificationResult:
             used_gpu=True,
         )
 
-        assert result.intent_type == "set_timer"
-        assert result.confidence == 0.95
-        assert len(result.alternative_intents) == 2
-        assert result.inference_time_ms == 25.5
-        assert result.used_gpu is True
+        assert result.intent_type == "set_timer"  # nosec B101
+        assert result.confidence == 0.95  # nosec B101
+        assert len(result.alternative_intents) == 2  # nosec B101
+        assert result.inference_time_ms == 25.5  # nosec B101
+        assert result.used_gpu is True  # nosec B101
 
 
 # ============================================================================
@@ -179,11 +179,11 @@ class TestNeuralIntentClassifierInit:
         """Test initialization with default config."""
         classifier = NeuralIntentClassifier()
 
-        assert classifier.config is not None
-        assert classifier.session is None
-        assert classifier.tokenizer is None
-        assert classifier.total_inferences == 0
-        assert classifier.total_latency_ms == 0.0
+        assert classifier.config is not None  # nosec B101
+        assert classifier.session is None  # nosec B101
+        assert classifier.tokenizer is None  # nosec B101
+        assert classifier.total_inferences == 0  # nosec B101
+        assert classifier.total_latency_ms == 0.0  # nosec B101
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX Runtime not available")
     def test_init_custom_config(self):
@@ -191,7 +191,7 @@ class TestNeuralIntentClassifierInit:
         config = ClassifierConfig(confidence_threshold=0.9)
         classifier = NeuralIntentClassifier(config)
 
-        assert classifier.config.confidence_threshold == 0.9
+        assert classifier.config.confidence_threshold == 0.9  # nosec B101
 
     @patch("Agent_Guru.reasoning.intent.neural_classifier.ONNX_AVAILABLE", False)
     def test_init_without_onnx(self):
@@ -228,7 +228,7 @@ class TestNeuralIntentClassifierInit:
                         # This should trigger the except ImportError block
                         pass
                     except Exception as e:
-                        pass  # Expected to fail during import
+                        pass  # nosec B110
         finally:
             # Restore original module
             if original_ort is not None:
@@ -306,10 +306,10 @@ class TestModelLoading:
         classifier.load_model()
 
         # Verify
-        assert classifier.tokenizer is not None
-        assert classifier.session is not None
-        assert len(classifier.id_to_label) == 3
-        assert len(classifier.label_to_id) == 3
+        assert classifier.tokenizer is not None  # nosec B101
+        assert classifier.session is not None  # nosec B101
+        assert len(classifier.id_to_label) == 3  # nosec B101
+        assert len(classifier.label_to_id) == 3  # nosec B101
 
 
 # ============================================================================
@@ -331,7 +331,7 @@ class TestExecutionProviders:
 
         providers = classifier._get_execution_providers()
 
-        assert providers == ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        assert providers == ["CUDAExecutionProvider", "CPUExecutionProvider"]  # nosec B101
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX Runtime not available")
     @patch("Agent_Guru.reasoning.intent.neural_classifier.ort.get_available_providers")
@@ -344,7 +344,7 @@ class TestExecutionProviders:
 
         providers = classifier._get_execution_providers()
 
-        assert providers == ["ROCMExecutionProvider", "CPUExecutionProvider"]
+        assert providers == ["ROCMExecutionProvider", "CPUExecutionProvider"]  # nosec B101
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX Runtime not available")
     @patch("Agent_Guru.reasoning.intent.neural_classifier.ort.get_available_providers")
@@ -357,7 +357,7 @@ class TestExecutionProviders:
 
         providers = classifier._get_execution_providers()
 
-        assert providers == ["CPUExecutionProvider"]
+        assert providers == ["CPUExecutionProvider"]  # nosec B101
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX Runtime not available")
     def test_get_execution_providers_gpu_disabled(self):
@@ -367,7 +367,7 @@ class TestExecutionProviders:
 
         providers = classifier._get_execution_providers()
 
-        assert providers == ["CPUExecutionProvider"]
+        assert providers == ["CPUExecutionProvider"]  # nosec B101
 
 
 # ============================================================================
@@ -415,11 +415,11 @@ class TestClassification:
         result = classifier.classify("set timer for 5 minutes")
 
         # Verify
-        assert result.intent_type == "set_timer"
-        assert 0.0 <= result.confidence <= 1.0
-        assert len(result.alternative_intents) == 2
-        assert result.inference_time_ms > 0
-        assert isinstance(result.used_gpu, bool)
+        assert result.intent_type == "set_timer"  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
+        assert len(result.alternative_intents) == 2  # nosec B101
+        assert result.inference_time_ms > 0  # nosec B101
+        assert isinstance(result.used_gpu, bool)  # nosec B101
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX Runtime not available")
     @patch("Agent_Guru.reasoning.intent.neural_classifier.ort.InferenceSession")
@@ -451,8 +451,8 @@ class TestClassification:
         result = await classifier.classify_async("set timer for 5 minutes")
 
         # Verify
-        assert result.intent_type == "set_timer"
-        assert 0.0 <= result.confidence <= 1.0
+        assert result.intent_type == "set_timer"  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
 
 
 # ============================================================================
@@ -469,10 +469,10 @@ class TestSoftmax:
         probs = NeuralIntentClassifier._softmax(logits)
 
         # Verify probabilities sum to 1
-        assert np.isclose(np.sum(probs), 1.0)
+        assert np.isclose(np.sum(probs), 1.0)  # nosec B101
 
         # Verify highest logit has highest probability
-        assert np.argmax(probs) == 2
+        assert np.argmax(probs) == 2  # nosec B101
 
     def test_softmax_numerical_stability(self):
         """Test softmax numerical stability with large values."""
@@ -480,17 +480,17 @@ class TestSoftmax:
         probs = NeuralIntentClassifier._softmax(logits)
 
         # Should not overflow
-        assert not np.any(np.isnan(probs))
-        assert not np.any(np.isinf(probs))
-        assert np.isclose(np.sum(probs), 1.0)
+        assert not np.any(np.isnan(probs))  # nosec B101
+        assert not np.any(np.isinf(probs))  # nosec B101
+        assert np.isclose(np.sum(probs), 1.0)  # nosec B101
 
     def test_softmax_negative_values(self):
         """Test softmax with negative values."""
         logits = np.array([-1.0, -2.0, -3.0])
         probs = NeuralIntentClassifier._softmax(logits)
 
-        assert np.isclose(np.sum(probs), 1.0)
-        assert np.argmax(probs) == 0  # Least negative
+        assert np.isclose(np.sum(probs), 1.0)  # nosec B101
+        assert np.argmax(probs) == 0  # Least negative  # nosec B101
 
 
 # ============================================================================
@@ -507,10 +507,10 @@ class TestMetrics:
         classifier = NeuralIntentClassifier()
         metrics = classifier.get_metrics()
 
-        assert metrics["total_inferences"] == 0
-        assert metrics["average_latency_ms"] == 0.0
-        assert metrics["gpu_usage_percent"] == 0.0
-        assert metrics["high_confidence_percent"] == 0.0
+        assert metrics["total_inferences"] == 0  # nosec B101
+        assert metrics["average_latency_ms"] == 0.0  # nosec B101
+        assert metrics["gpu_usage_percent"] == 0.0  # nosec B101
+        assert metrics["high_confidence_percent"] == 0.0  # nosec B101
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX Runtime not available")
     @patch("Agent_Guru.reasoning.intent.neural_classifier.ort.InferenceSession")
@@ -544,10 +544,10 @@ class TestMetrics:
 
         metrics = classifier.get_metrics()
 
-        assert metrics["total_inferences"] == 5
-        assert metrics["average_latency_ms"] > 0
-        assert 0 <= metrics["gpu_usage_percent"] <= 100
-        assert 0 <= metrics["high_confidence_percent"] <= 100
+        assert metrics["total_inferences"] == 5  # nosec B101
+        assert metrics["average_latency_ms"] > 0  # nosec B101
+        assert 0 <= metrics["gpu_usage_percent"] <= 100  # nosec B101
+        assert 0 <= metrics["high_confidence_percent"] <= 100  # nosec B101
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX Runtime not available")
     def test_update_metrics_high_confidence(self):
@@ -567,9 +567,9 @@ class TestMetrics:
         classifier._update_metrics(result)
 
         # Verify high confidence was counted
-        assert classifier.high_confidence_count == 1
-        assert classifier.total_inferences == 1
-        assert classifier.gpu_inferences == 1
+        assert classifier.high_confidence_count == 1  # nosec B101
+        assert classifier.total_inferences == 1  # nosec B101
+        assert classifier.gpu_inferences == 1  # nosec B101
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX Runtime not available")
     def test_update_metrics_low_confidence(self):
@@ -590,9 +590,9 @@ class TestMetrics:
         classifier._update_metrics(result)
 
         # Verify high confidence was NOT counted
-        assert classifier.high_confidence_count == 0
-        assert classifier.total_inferences == 1
-        assert classifier.gpu_inferences == 0
+        assert classifier.high_confidence_count == 0  # nosec B101
+        assert classifier.total_inferences == 1  # nosec B101
+        assert classifier.gpu_inferences == 0  # nosec B101
 
 
 # ============================================================================
@@ -617,7 +617,7 @@ class TestFallbackLogic:
             used_gpu=True,
         )
 
-        assert not classifier.should_fallback_to_llm(result)
+        assert not classifier.should_fallback_to_llm(result)  # nosec B101
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX Runtime not available")
     def test_should_fallback_low_confidence(self):
@@ -633,7 +633,7 @@ class TestFallbackLogic:
             used_gpu=True,
         )
 
-        assert classifier.should_fallback_to_llm(result)
+        assert classifier.should_fallback_to_llm(result)  # nosec B101
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX Runtime not available")
     def test_should_fallback_threshold_boundary(self):
@@ -650,7 +650,7 @@ class TestFallbackLogic:
             used_gpu=True,
         )
 
-        assert not classifier.should_fallback_to_llm(result)
+        assert not classifier.should_fallback_to_llm(result)  # nosec B101
 
 
 # ============================================================================
@@ -677,9 +677,9 @@ class TestNeuralClassifierProperties:
         )
         classifier = NeuralIntentClassifier(config)
 
-        assert classifier.config.confidence_threshold == confidence_threshold
-        assert classifier.config.max_length == max_length
-        assert classifier.config.batch_size == batch_size
+        assert classifier.config.confidence_threshold == confidence_threshold  # nosec B101
+        assert classifier.config.max_length == max_length  # nosec B101
+        assert classifier.config.batch_size == batch_size  # nosec B101
 
     @given(logits=st.lists(st.floats(min_value=-10.0, max_value=10.0), min_size=2, max_size=100))
     @settings(max_examples=100, deadline=500)
@@ -688,9 +688,9 @@ class TestNeuralClassifierProperties:
         logits_array = np.array(logits)
         probs = NeuralIntentClassifier._softmax(logits_array)
 
-        assert np.isclose(np.sum(probs), 1.0, atol=1e-6)
-        assert np.all(probs >= 0.0)
-        assert np.all(probs <= 1.0)
+        assert np.isclose(np.sum(probs), 1.0, atol=1e-6)  # nosec B101
+        assert np.all(probs >= 0.0)  # nosec B101
+        assert np.all(probs <= 1.0)  # nosec B101
 
 
 # ============================================================================
@@ -739,15 +739,15 @@ class TestNeuralClassifierIntegration:
         results = [classifier.classify(text) for text in inputs]
 
         # Verify all results
-        assert len(results) == 3
+        assert len(results) == 3  # nosec B101
         for result in results:
-            assert result.intent_type in ["set_timer", "query_weather", "send_message"]
-            assert 0.0 <= result.confidence <= 1.0
-            assert len(result.alternative_intents) == 2
+            assert result.intent_type in ["set_timer", "query_weather", "send_message"]  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
+            assert len(result.alternative_intents) == 2  # nosec B101
 
         # Verify metrics
         metrics = classifier.get_metrics()
-        assert metrics["total_inferences"] == 3
+        assert metrics["total_inferences"] == 3  # nosec B101
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX Runtime not available")
     def test_batch_queue_initialization(self):
@@ -755,13 +755,13 @@ class TestNeuralClassifierIntegration:
         classifier = NeuralIntentClassifier()
 
         # Verify batch processing attributes exist
-        assert hasattr(classifier, "_batch_queue")
-        assert hasattr(classifier, "_batch_lock")
-        assert hasattr(classifier, "_batch_task")
+        assert hasattr(classifier, "_batch_queue")  # nosec B101
+        assert hasattr(classifier, "_batch_lock")  # nosec B101
+        assert hasattr(classifier, "_batch_task")  # nosec B101
 
         # Verify initial state
-        assert classifier._batch_queue == []
-        assert classifier._batch_task is None
+        assert classifier._batch_queue == []  # nosec B101
+        assert classifier._batch_task is None  # nosec B101
 
 
 # ============================================================================
@@ -809,4 +809,4 @@ class TestNeuralClassifierPerformance:
 
         # Note: With mocks, latency will be very low
         # In real GPU inference, target is <50ms
-        assert avg_latency >= 0  # Sanity check
+        assert avg_latency >= 0  # Sanity check  # nosec B101

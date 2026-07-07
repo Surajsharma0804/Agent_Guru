@@ -28,16 +28,16 @@ class TestInitialization:
         """Test initialization with default parameters."""
         manager = ConversationStateManager()
 
-        assert manager.max_conversations == 10000
-        assert manager.inactivity_timeout == 3600.0
-        assert len(manager._cache) == 0
+        assert manager.max_conversations == 10000  # nosec B101
+        assert manager.inactivity_timeout == 3600.0  # nosec B101
+        assert len(manager._cache) == 0  # nosec B101
 
     def test_init_with_custom_params(self):
         """Test initialization with custom parameters."""
         manager = ConversationStateManager(max_conversations=100, inactivity_timeout=600.0)
 
-        assert manager.max_conversations == 100
-        assert manager.inactivity_timeout == 600.0
+        assert manager.max_conversations == 100  # nosec B101
+        assert manager.inactivity_timeout == 600.0  # nosec B101
 
     def test_init_with_invalid_max_conversations(self):
         """Test initialization with invalid max_conversations."""
@@ -78,7 +78,7 @@ class TestStateOperations:
     async def test_get_nonexistent_state(self, manager):
         """Test getting nonexistent state returns None."""
         state = await manager.get_state("nonexistent")
-        assert state is None
+        assert state is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_set_and_get_state(self, manager, sample_state):
@@ -86,9 +86,9 @@ class TestStateOperations:
         await manager.set_state("conv_123", sample_state)
 
         retrieved = await manager.get_state("conv_123")
-        assert retrieved is not None
-        assert retrieved.conversation_id == "conv_123"
-        assert retrieved.user_id == "user_456"
+        assert retrieved is not None  # nosec B101
+        assert retrieved.conversation_id == "conv_123"  # nosec B101
+        assert retrieved.user_id == "user_456"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_update_existing_state(self, manager, sample_state):
@@ -106,7 +106,7 @@ class TestStateOperations:
         await manager.set_state("conv_123", sample_state)
 
         retrieved = await manager.get_state("conv_123")
-        assert len(retrieved.turns) == 1
+        assert len(retrieved.turns) == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_delete_state(self, manager, sample_state):
@@ -114,16 +114,16 @@ class TestStateOperations:
         await manager.set_state("conv_123", sample_state)
 
         deleted = await manager.delete_state("conv_123")
-        assert deleted is True
+        assert deleted is True  # nosec B101
 
         state = await manager.get_state("conv_123")
-        assert state is None
+        assert state is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_delete_nonexistent_state(self, manager):
         """Test deleting nonexistent state."""
         deleted = await manager.delete_state("nonexistent")
-        assert deleted is False
+        assert deleted is False  # nosec B101
 
 
 class TestLRUEviction:
@@ -157,10 +157,10 @@ class TestLRUEviction:
         await manager.set_state("conv_3", state)
 
         # conv_0 should be evicted
-        assert await manager.get_state("conv_0") is None
-        assert await manager.get_state("conv_1") is not None
-        assert await manager.get_state("conv_2") is not None
-        assert await manager.get_state("conv_3") is not None
+        assert await manager.get_state("conv_0") is None  # nosec B101
+        assert await manager.get_state("conv_1") is not None  # nosec B101
+        assert await manager.get_state("conv_2") is not None  # nosec B101
+        assert await manager.get_state("conv_3") is not None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_access_updates_lru_order(self, manager):
@@ -188,10 +188,10 @@ class TestLRUEviction:
         await manager.set_state("conv_3", state)
 
         # conv_1 should be evicted, conv_0 should still exist
-        assert await manager.get_state("conv_0") is not None
-        assert await manager.get_state("conv_1") is None
-        assert await manager.get_state("conv_2") is not None
-        assert await manager.get_state("conv_3") is not None
+        assert await manager.get_state("conv_0") is not None  # nosec B101
+        assert await manager.get_state("conv_1") is None  # nosec B101
+        assert await manager.get_state("conv_2") is not None  # nosec B101
+        assert await manager.get_state("conv_3") is not None  # nosec B101
 
 
 class TestTimeoutEviction:
@@ -217,7 +217,7 @@ class TestTimeoutEviction:
         await asyncio.sleep(0.15)
 
         retrieved = await manager.get_state("conv_123")
-        assert retrieved is None
+        assert retrieved is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_non_expired_state_returns_value(self, manager):
@@ -234,7 +234,7 @@ class TestTimeoutEviction:
         await asyncio.sleep(0.05)
 
         retrieved = await manager.get_state("conv_123")
-        assert retrieved is not None
+        assert retrieved is not None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_evict_expired_removes_old_conversations(self, manager):
@@ -254,11 +254,11 @@ class TestTimeoutEviction:
 
         # Evict expired
         evicted = await manager.evict_expired()
-        assert evicted == 3
+        assert evicted == 3  # nosec B101
 
         # All should be gone
         for i in range(3):
-            assert await manager.get_state(f"conv_{i}") is None
+            assert await manager.get_state(f"conv_{i}") is None  # nosec B101
 
 
 class TestTurnManagement:
@@ -285,9 +285,9 @@ class TestTurnManagement:
         await manager.add_turn("conv_123", sample_turn)
 
         state = await manager.get_state("conv_123")
-        assert state is not None
-        assert len(state.turns) == 1
-        assert state.turns[0].user_input == "Hello"
+        assert state is not None  # nosec B101
+        assert len(state.turns) == 1  # nosec B101
+        assert state.turns[0].user_input == "Hello"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_add_turn_to_existing_state(self, manager, sample_turn):
@@ -305,7 +305,7 @@ class TestTurnManagement:
         await manager.add_turn("conv_123", sample_turn)
 
         retrieved = await manager.get_state("conv_123")
-        assert len(retrieved.turns) == 1
+        assert len(retrieved.turns) == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_recent_turns(self, manager):
@@ -322,15 +322,15 @@ class TestTurnManagement:
 
         # Get recent turns
         turns = await manager.get_recent_turns("conv_123", max_turns=3)
-        assert len(turns) == 3
-        assert turns[0].user_input == "Message 2"
-        assert turns[2].user_input == "Message 4"
+        assert len(turns) == 3  # nosec B101
+        assert turns[0].user_input == "Message 2"  # nosec B101
+        assert turns[2].user_input == "Message 4"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_recent_turns_nonexistent(self, manager):
         """Test getting turns from nonexistent conversation."""
         turns = await manager.get_recent_turns("nonexistent")
-        assert turns == []
+        assert turns == []  # nosec B101
 
 
 class TestEntityTracking:
@@ -368,8 +368,8 @@ class TestEntityTracking:
         await manager.track_entity("conv_123", sample_entity)
 
         entities = await manager.get_tracked_entities("conv_123")
-        assert "person:John" in entities
-        assert entities["person:John"].value == "John"
+        assert "person:John" in entities  # nosec B101
+        assert entities["person:John"].value == "John"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_track_entity_nonexistent_conversation(self, manager, sample_entity):
@@ -378,7 +378,7 @@ class TestEntityTracking:
         await manager.track_entity("nonexistent", sample_entity)
 
         entities = await manager.get_tracked_entities("nonexistent")
-        assert entities == {}
+        assert entities == {}  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_tracked_entities_empty(self, manager):
@@ -392,7 +392,7 @@ class TestEntityTracking:
         await manager.set_state("conv_123", state)
 
         entities = await manager.get_tracked_entities("conv_123")
-        assert entities == {}
+        assert entities == {}  # nosec B101
 
 
 class TestUtilityMethods:
@@ -406,7 +406,7 @@ class TestUtilityMethods:
     @pytest.mark.asyncio
     async def test_get_active_count(self, manager):
         """Test getting active conversation count."""
-        assert await manager.get_active_count() == 0
+        assert await manager.get_active_count() == 0  # nosec B101
 
         # Add conversations
         for i in range(3):
@@ -418,7 +418,7 @@ class TestUtilityMethods:
             )
             await manager.set_state(f"conv_{i}", state)
 
-        assert await manager.get_active_count() == 3
+        assert await manager.get_active_count() == 3  # nosec B101
 
     @pytest.mark.asyncio
     async def test_clear(self, manager):
@@ -435,7 +435,7 @@ class TestUtilityMethods:
 
         await manager.clear()
 
-        assert await manager.get_active_count() == 0
+        assert await manager.get_active_count() == 0  # nosec B101
 
 
 class TestConcurrency:
@@ -461,8 +461,8 @@ class TestConcurrency:
         tasks = [manager.get_state("conv_123") for _ in range(10)]
         results = await asyncio.gather(*tasks)
 
-        assert all(r is not None for r in results)
-        assert all(r.conversation_id == "conv_123" for r in results)
+        assert all(r is not None for r in results)  # nosec B101
+        assert all(r.conversation_id == "conv_123" for r in results)  # nosec B101
 
     @pytest.mark.asyncio
     async def test_concurrent_writes(self, manager):
@@ -480,7 +480,7 @@ class TestConcurrency:
 
         await asyncio.gather(*tasks)
 
-        assert await manager.get_active_count() == 10
+        assert await manager.get_active_count() == 10  # nosec B101
 
 
 class TestConversationStateManagerProperties:
@@ -499,8 +499,8 @@ class TestConversationStateManagerProperties:
             inactivity_timeout=inactivity_timeout,
         )
 
-        assert manager.max_conversations == max_conversations
-        assert manager.inactivity_timeout == inactivity_timeout
+        assert manager.max_conversations == max_conversations  # nosec B101
+        assert manager.inactivity_timeout == inactivity_timeout  # nosec B101
 
     @pytest.mark.asyncio
     @given(
@@ -522,9 +522,9 @@ class TestConversationStateManagerProperties:
         await manager.set_state(conversation_id, state)
         retrieved = await manager.get_state(conversation_id)
 
-        assert retrieved is not None
-        assert retrieved.conversation_id == conversation_id
-        assert retrieved.user_id == user_id
+        assert retrieved is not None  # nosec B101
+        assert retrieved.conversation_id == conversation_id  # nosec B101
+        assert retrieved.user_id == user_id  # nosec B101
 
     @pytest.mark.asyncio
     @given(
@@ -546,7 +546,7 @@ class TestConversationStateManagerProperties:
             await manager.set_state(f"conv_{i}", state)
 
         count = await manager.get_active_count()
-        assert count == num_conversations
+        assert count == num_conversations  # nosec B101
 
 
 class TestHistoryManagement:
@@ -603,11 +603,11 @@ class TestHistoryManagement:
 
         # Prune with max_turns=20 (no pruning needed)
         pruned = await manager.prune_turns("conv_123", max_turns=20)
-        assert pruned == 0
+        assert pruned == 0  # nosec B101
 
         # Verify turns unchanged
         retrieved = await manager.get_state("conv_123")
-        assert len(retrieved.turns) == 10
+        assert len(retrieved.turns) == 10  # nosec B101
 
     @pytest.mark.asyncio
     async def test_prune_turns_removes_old_turns(self, manager, state_with_many_turns):
@@ -616,19 +616,19 @@ class TestHistoryManagement:
 
         # Prune to 20 turns
         pruned = await manager.prune_turns("conv_123", max_turns=20)
-        assert pruned == 10
+        assert pruned == 10  # nosec B101
 
         # Verify only 20 most recent turns remain
         retrieved = await manager.get_state("conv_123")
-        assert len(retrieved.turns) == 20
-        assert retrieved.turns[0].user_input == "Message 10"
-        assert retrieved.turns[-1].user_input == "Message 29"
+        assert len(retrieved.turns) == 20  # nosec B101
+        assert retrieved.turns[0].user_input == "Message 10"  # nosec B101
+        assert retrieved.turns[-1].user_input == "Message 29"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_prune_turns_nonexistent_conversation(self, manager):
         """Test pruning nonexistent conversation."""
         pruned = await manager.prune_turns("nonexistent", max_turns=20)
-        assert pruned == 0
+        assert pruned == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_summary(self, manager, state_with_many_turns):
@@ -640,11 +640,11 @@ class TestHistoryManagement:
             return f"Summary of {len(turns)} turns"
 
         summary = await manager.generate_summary("conv_123", mock_llm_generate)
-        assert summary == "Summary of 30 turns"
+        assert summary == "Summary of 30 turns"  # nosec B101
 
         # Verify summary stored in state
         retrieved = await manager.get_state("conv_123")
-        assert retrieved.context_summary == "Summary of 30 turns"
+        assert retrieved.context_summary == "Summary of 30 turns"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_summary_nonexistent_conversation(self, manager):
@@ -654,7 +654,7 @@ class TestHistoryManagement:
             return "Summary"
 
         summary = await manager.generate_summary("nonexistent", mock_llm_generate)
-        assert summary is None
+        assert summary is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_compress_context_no_compression_needed(self, manager):
@@ -680,11 +680,11 @@ class TestHistoryManagement:
 
         # Compress with max_turns=20 (no compression needed)
         compressed = await manager.compress_context("conv_123", max_turns=20)
-        assert compressed is False
+        assert compressed is False  # nosec B101
 
         # Verify turns unchanged
         retrieved = await manager.get_state("conv_123")
-        assert len(retrieved.turns) == 10
+        assert len(retrieved.turns) == 10  # nosec B101
 
     @pytest.mark.asyncio
     async def test_compress_context_with_summary(self, manager, state_with_many_turns):
@@ -699,13 +699,13 @@ class TestHistoryManagement:
         compressed = await manager.compress_context(
             "conv_123", max_turns=20, llm_generate_fn=mock_llm_generate
         )
-        assert compressed is True
+        assert compressed is True  # nosec B101
 
         # Verify compression
         retrieved = await manager.get_state("conv_123")
-        assert len(retrieved.turns) == 20
-        assert retrieved.context_summary == "Summary of 10 old turns"
-        assert retrieved.turns[0].user_input == "Message 10"
+        assert len(retrieved.turns) == 20  # nosec B101
+        assert retrieved.context_summary == "Summary of 10 old turns"  # nosec B101
+        assert retrieved.turns[0].user_input == "Message 10"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_compress_context_without_summary(self, manager, state_with_many_turns):
@@ -714,18 +714,18 @@ class TestHistoryManagement:
 
         # Compress without LLM function
         compressed = await manager.compress_context("conv_123", max_turns=20)
-        assert compressed is True
+        assert compressed is True  # nosec B101
 
         # Verify compression without summary
         retrieved = await manager.get_state("conv_123")
-        assert len(retrieved.turns) == 20
-        assert retrieved.context_summary is None
+        assert len(retrieved.turns) == 20  # nosec B101
+        assert retrieved.context_summary is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_compress_context_nonexistent_conversation(self, manager):
         """Test compressing nonexistent conversation."""
         compressed = await manager.compress_context("nonexistent", max_turns=20)
-        assert compressed is False
+        assert compressed is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_fixed_size_deque_behavior(self, manager):
@@ -763,14 +763,14 @@ class TestHistoryManagement:
 
         # Should have 25 turns now
         retrieved = await manager.get_state("conv_123")
-        assert len(retrieved.turns) == 25
+        assert len(retrieved.turns) == 25  # nosec B101
 
         # Prune again
         await manager.prune_turns("conv_123", max_turns=20)
         retrieved = await manager.get_state("conv_123")
-        assert len(retrieved.turns) == 20
-        assert retrieved.turns[0].user_input == "Message 10"
-        assert retrieved.turns[-1].user_input == "Message 29"
+        assert len(retrieved.turns) == 20  # nosec B101
+        assert retrieved.turns[0].user_input == "Message 10"  # nosec B101
+        assert retrieved.turns[-1].user_input == "Message 29"  # nosec B101
 
 
 class TestHistoryManagementProperties:
@@ -810,7 +810,7 @@ class TestHistoryManagementProperties:
 
         # Verify
         retrieved = await manager.get_state("conv_123")
-        assert len(retrieved.turns) <= max_turns
+        assert len(retrieved.turns) <= max_turns  # nosec B101
 
     @pytest.mark.asyncio
     @given(
@@ -842,11 +842,11 @@ class TestHistoryManagementProperties:
 
         # Compress to 20 turns
         compressed = await manager.compress_context("conv_123", max_turns=20)
-        assert compressed is True
+        assert compressed is True  # nosec B101
 
         # Verify size reduced
         retrieved = await manager.get_state("conv_123")
-        assert len(retrieved.turns) == 20
+        assert len(retrieved.turns) == 20  # nosec B101
 
 
 class TestEntityTrackingAcrossTurns:
@@ -879,12 +879,12 @@ class TestEntityTrackingAcrossTurns:
 
         # Verify entities tracked
         tracked = await manager.get_tracked_entities("conv_123")
-        assert "person:John" in tracked
-        assert "location:Seattle" in tracked
-        assert "time:3pm" in tracked
-        assert tracked["person:John"].first_mentioned == 0
-        assert tracked["person:John"].last_mentioned == 0
-        assert tracked["person:John"].mention_count == 1
+        assert "person:John" in tracked  # nosec B101
+        assert "location:Seattle" in tracked  # nosec B101
+        assert "time:3pm" in tracked  # nosec B101
+        assert tracked["person:John"].first_mentioned == 0  # nosec B101
+        assert tracked["person:John"].last_mentioned == 0  # nosec B101
+        assert tracked["person:John"].mention_count == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_entity_mention_count_updates(self, manager):
@@ -906,9 +906,9 @@ class TestEntityTrackingAcrossTurns:
         # Verify mention tracking
         tracked = await manager.get_tracked_entities("conv_123")
         john = tracked["person:John"]
-        assert john.first_mentioned == 0
-        assert john.last_mentioned == 2
-        assert john.mention_count == 2
+        assert john.first_mentioned == 0  # nosec B101
+        assert john.last_mentioned == 2  # nosec B101
+        assert john.mention_count == 2  # nosec B101
 
     @pytest.mark.asyncio
     async def test_resolve_coreference_by_type(self, manager):
@@ -928,9 +928,9 @@ class TestEntityTrackingAcrossTurns:
 
         # Resolve "he" to most recent person
         resolved = await manager.resolve_coreference("conv_123", "he", "person")
-        assert resolved is not None
-        assert resolved.value == "Bob"
-        assert resolved.last_mentioned == 2
+        assert resolved is not None  # nosec B101
+        assert resolved.value == "Bob"  # nosec B101
+        assert resolved.last_mentioned == 2  # nosec B101
 
     @pytest.mark.asyncio
     async def test_resolve_coreference_any_type(self, manager):
@@ -950,9 +950,9 @@ class TestEntityTrackingAcrossTurns:
 
         # Resolve "it" to most recent entity (any type)
         resolved = await manager.resolve_coreference("conv_123", "it")
-        assert resolved is not None
-        assert resolved.value == "Spotify"
-        assert resolved.last_mentioned == 2
+        assert resolved is not None  # nosec B101
+        assert resolved.value == "Spotify"  # nosec B101
+        assert resolved.last_mentioned == 2  # nosec B101
 
     @pytest.mark.asyncio
     async def test_resolve_coreference_no_entities(self, manager):
@@ -967,7 +967,7 @@ class TestEntityTrackingAcrossTurns:
 
         # Resolve with no entities
         resolved = await manager.resolve_coreference("conv_123", "he", "person")
-        assert resolved is None
+        assert resolved is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_expire_old_entities(self, manager):
@@ -987,12 +987,12 @@ class TestEntityTrackingAcrossTurns:
 
         # Expire entities not mentioned in last 10 turns (current turn = 20)
         expired = await manager.expire_old_entities("conv_123", 20, max_turns_without_mention=10)
-        assert expired == 2  # John and Mary expired
+        assert expired == 2  # John and Mary expired  # nosec B101
 
         # Verify only Bob remains
         tracked = await manager.get_tracked_entities("conv_123")
-        assert len(tracked) == 1
-        assert "person:Bob" in tracked
+        assert len(tracked) == 1  # nosec B101
+        assert "person:Bob" in tracked  # nosec B101
 
     @pytest.mark.asyncio
     async def test_expire_old_entities_none_expired(self, manager):
@@ -1011,11 +1011,11 @@ class TestEntityTrackingAcrossTurns:
 
         # Expire with current turn = 20 (all within 10 turns)
         expired = await manager.expire_old_entities("conv_123", 20, max_turns_without_mention=10)
-        assert expired == 0
+        assert expired == 0  # nosec B101
 
         # Verify all entities remain
         tracked = await manager.get_tracked_entities("conv_123")
-        assert len(tracked) == 2
+        assert len(tracked) == 2  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_entity_by_type(self, manager):
@@ -1034,9 +1034,9 @@ class TestEntityTrackingAcrossTurns:
 
         # Get most recent person
         entity = await manager.get_entity_by_type("conv_123", "person")
-        assert entity is not None
-        assert entity.value == "Mary"
-        assert entity.last_mentioned == 2
+        assert entity is not None  # nosec B101
+        assert entity.value == "Mary"  # nosec B101
+        assert entity.last_mentioned == 2  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_entity_by_type_not_found(self, manager):
@@ -1051,7 +1051,7 @@ class TestEntityTrackingAcrossTurns:
 
         # Get non-existent type
         entity = await manager.get_entity_by_type("conv_123", "location")
-        assert entity is None
+        assert entity is None  # nosec B101
 
 
 class TestEntityTrackingProperties:
@@ -1089,7 +1089,7 @@ class TestEntityTrackingProperties:
         # Verify remaining entities are within threshold
         tracked = await manager.get_tracked_entities("conv_123")
         for entity in tracked.values():
-            assert current_turn - entity.last_mentioned <= max_turns
+            assert current_turn - entity.last_mentioned <= max_turns  # nosec B101
 
 
 class TestReferenceResolution:
@@ -1116,8 +1116,8 @@ class TestReferenceResolution:
 
         # Resolve "he"
         resolved = await manager.resolve_pronoun("conv_123", "he")
-        assert resolved is not None
-        assert resolved.value == "John"
+        assert resolved is not None  # nosec B101
+        assert resolved.value == "John"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_resolve_pronoun_it(self, manager):
@@ -1136,8 +1136,8 @@ class TestReferenceResolution:
 
         # Resolve "it" should get Spotify (non-person)
         resolved = await manager.resolve_pronoun("conv_123", "it")
-        assert resolved is not None
-        assert resolved.value == "Spotify"
+        assert resolved is not None  # nosec B101
+        assert resolved.value == "Spotify"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_resolve_pronoun_case_insensitive(self, manager):
@@ -1155,8 +1155,8 @@ class TestReferenceResolution:
         # Test various cases
         for pronoun in ["She", "SHE", "she", "HER", "her"]:
             resolved = await manager.resolve_pronoun("conv_123", pronoun)
-            assert resolved is not None
-            assert resolved.value == "Mary"
+            assert resolved is not None  # nosec B101
+            assert resolved.value == "Mary"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_resolve_implicit_reference(self, manager):
@@ -1182,9 +1182,9 @@ class TestReferenceResolution:
 
         # Resolve "what about tomorrow?"
         resolved = await manager.resolve_implicit_reference("conv_123", "what about tomorrow?")
-        assert resolved is not None
-        assert resolved["intent_type"] == IntentType.QUERY_WEATHER
-        assert "location" in resolved["entities"]
+        assert resolved is not None  # nosec B101
+        assert resolved["intent_type"] == IntentType.QUERY_WEATHER  # nosec B101
+        assert "location" in resolved["entities"]  # nosec B101
 
     @pytest.mark.asyncio
     async def test_resolve_implicit_reference_no_context(self, manager):
@@ -1199,7 +1199,7 @@ class TestReferenceResolution:
 
         # No last intent
         resolved = await manager.resolve_implicit_reference("conv_123", "what about tomorrow?")
-        assert resolved is None
+        assert resolved is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_complete_incomplete_request_time(self, manager):
@@ -1224,9 +1224,9 @@ class TestReferenceResolution:
 
         # Complete "tomorrow"
         completed = await manager.complete_incomplete_request("conv_123", "tomorrow")
-        assert completed is not None
-        assert "query_weather" in completed.lower()
-        assert "tomorrow" in completed.lower()
+        assert completed is not None  # nosec B101
+        assert "query_weather" in completed.lower()  # nosec B101
+        assert "tomorrow" in completed.lower()  # nosec B101
 
     @pytest.mark.asyncio
     async def test_complete_incomplete_request_duration(self, manager):
@@ -1251,9 +1251,9 @@ class TestReferenceResolution:
 
         # Complete "5 minutes"
         completed = await manager.complete_incomplete_request("conv_123", "5 minutes")
-        assert completed is not None
-        assert "set_timer" in completed.lower()
-        assert "5 minutes" in completed.lower()
+        assert completed is not None  # nosec B101
+        assert "set_timer" in completed.lower()  # nosec B101
+        assert "5 minutes" in completed.lower()  # nosec B101
 
     @pytest.mark.asyncio
     async def test_complete_incomplete_request_location(self, manager):
@@ -1278,9 +1278,9 @@ class TestReferenceResolution:
 
         # Complete "Seattle" (capitalized single word)
         completed = await manager.complete_incomplete_request("conv_123", "Seattle")
-        assert completed is not None
-        assert "query_weather" in completed.lower()
-        assert "Seattle" in completed
+        assert completed is not None  # nosec B101
+        assert "query_weather" in completed.lower()  # nosec B101
+        assert "Seattle" in completed  # nosec B101
 
     @pytest.mark.asyncio
     async def test_complete_incomplete_request_no_context(self, manager):
@@ -1295,7 +1295,7 @@ class TestReferenceResolution:
 
         # No last intent
         completed = await manager.complete_incomplete_request("conv_123", "tomorrow")
-        assert completed is None
+        assert completed is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_ambiguous_reference_multiple_people(self, manager):
@@ -1314,8 +1314,8 @@ class TestReferenceResolution:
 
         # "they" is ambiguous
         ambiguous = await manager.detect_ambiguous_reference("conv_123", "they")
-        assert ambiguous is not None
-        assert len(ambiguous) == 2
+        assert ambiguous is not None  # nosec B101
+        assert len(ambiguous) == 2  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_ambiguous_reference_single_person(self, manager):
@@ -1333,7 +1333,7 @@ class TestReferenceResolution:
 
         # "they" is not ambiguous with single person
         ambiguous = await manager.detect_ambiguous_reference("conv_123", "they")
-        assert ambiguous is None
+        assert ambiguous is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_ambiguous_reference_old_mentions(self, manager):
@@ -1362,4 +1362,4 @@ class TestReferenceResolution:
 
         # "they" should not be ambiguous (John is too old)
         ambiguous = await manager.detect_ambiguous_reference("conv_123", "they")
-        assert ambiguous is None or len(ambiguous) <= 1
+        assert ambiguous is None or len(ambiguous) <= 1  # nosec B101

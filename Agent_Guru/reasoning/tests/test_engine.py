@@ -37,14 +37,14 @@ class TestReasoningEngine:
         """Test engine initializes all required components."""
         engine = make_engine_fast()
 
-        assert engine.input_normalizer is not None
-        assert engine.intent_engine is not None
-        assert engine.tool_selector is not None
-        assert engine.safety_gate is not None
-        assert engine.response_generator is not None
-        assert engine.latency_controller is not None
-        assert engine.enable_fast_path is True
-        assert engine.enable_tracing is True
+        assert engine.input_normalizer is not None  # nosec B101
+        assert engine.intent_engine is not None  # nosec B101
+        assert engine.tool_selector is not None  # nosec B101
+        assert engine.safety_gate is not None  # nosec B101
+        assert engine.response_generator is not None  # nosec B101
+        assert engine.latency_controller is not None  # nosec B101
+        assert engine.enable_fast_path is True  # nosec B101
+        assert engine.enable_tracing is True  # nosec B101
 
     def test_initialization_with_custom_components(self, make_engine_fast):
         """Test engine accepts custom component injection."""
@@ -61,10 +61,10 @@ class TestReasoningEngine:
             enable_tracing=False,
         )
 
-        assert engine.input_normalizer is normalizer
-        assert engine.latency_controller is controller
-        assert engine.enable_fast_path is False
-        assert engine.enable_tracing is False
+        assert engine.input_normalizer is normalizer  # nosec B101
+        assert engine.latency_controller is controller  # nosec B101
+        assert engine.enable_fast_path is False  # nosec B101
+        assert engine.enable_tracing is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_process_basic(self, make_engine_fast, register_example_tools):
@@ -78,10 +78,10 @@ class TestReasoningEngine:
         )
         result = await engine.process(raw)
 
-        assert isinstance(result, ReasoningResult)
-        assert result.response is not None
-        assert result.success is True
-        assert result.total_latency_ms > 0
+        assert isinstance(result, ReasoningResult)  # nosec B101
+        assert result.response is not None  # nosec B101
+        assert result.success is True  # nosec B101
+        assert result.total_latency_ms > 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_process_with_invalid_input(self, make_engine_fast):
@@ -91,9 +91,9 @@ class TestReasoningEngine:
         raw = RawInput(content="", source=InputSource.TEXT, user_id="user_123")
         result = await engine.process(raw)
 
-        assert result.success is False
-        assert result.error is not None
-        assert "didn't understand" in result.response.lower()
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert "didn't understand" in result.response.lower()  # nosec B101
 
     @pytest.mark.asyncio
     async def test_normalize_input(self, make_engine_fast):
@@ -107,9 +107,9 @@ class TestReasoningEngine:
         )
         normalized = await engine._normalize_input(raw, None)
 
-        assert normalized.text == "hello world"
-        assert normalized.source == InputSource.TEXT
-        assert normalized.user_id == "user_123"
+        assert normalized.text == "hello world"  # nosec B101
+        assert normalized.source == InputSource.TEXT  # nosec B101
+        assert normalized.user_id == "user_123"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_intent(self, make_engine):
@@ -125,9 +125,9 @@ class TestReasoningEngine:
         )
         intent = await engine._detect_intent(normalized, None)
 
-        assert isinstance(intent, Intent)
-        assert intent.intent_type is not None
-        assert 0.0 <= intent.confidence <= 1.0
+        assert isinstance(intent, Intent)  # nosec B101
+        assert intent.intent_type is not None  # nosec B101
+        assert 0.0 <= intent.confidence <= 1.0  # nosec B101
 
     def test_is_fast_path_eligible_high_confidence(self, make_engine_fast):
         """High-confidence timer intent is fast-path eligible."""
@@ -138,7 +138,7 @@ class TestReasoningEngine:
             requires_reasoning=False,
             original_input="set a timer for 5 minutes",
         )
-        assert engine._is_fast_path_eligible(intent) is True
+        assert engine._is_fast_path_eligible(intent) is True  # nosec B101
 
     def test_is_fast_path_eligible_low_confidence(self, make_engine_fast):
         """Low-confidence intent is NOT fast-path eligible."""
@@ -149,7 +149,7 @@ class TestReasoningEngine:
             requires_reasoning=False,
             original_input="set a timer for 5 minutes",
         )
-        assert engine._is_fast_path_eligible(intent) is False
+        assert engine._is_fast_path_eligible(intent) is False  # nosec B101
 
     def test_is_fast_path_eligible_requires_reasoning(self, make_engine_fast):
         """Intent that requires reasoning is NOT fast-path eligible."""
@@ -160,7 +160,7 @@ class TestReasoningEngine:
             requires_reasoning=True,
             original_input="set a timer for 5 minutes",
         )
-        assert engine._is_fast_path_eligible(intent) is False
+        assert engine._is_fast_path_eligible(intent) is False  # nosec B101
 
     def test_is_fast_path_eligible_complex_intent(self, make_engine_fast):
         """SEND_MESSAGE is not in the fast-path set."""
@@ -171,7 +171,7 @@ class TestReasoningEngine:
             requires_reasoning=False,
             original_input="send a message to John",
         )
-        assert engine._is_fast_path_eligible(intent) is False
+        assert engine._is_fast_path_eligible(intent) is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_process_fast_path(self, make_engine_fast):
@@ -238,12 +238,12 @@ class TestReasoningEngine:
 
         result = await engine._process_fast_path(normalized, intent, None)
 
-        assert isinstance(result, ReasoningResult)
-        assert result.response is not None
-        assert result.success is True
-        assert "tool_selection" in result.stage_latencies
-        assert "safety_validation" in result.stage_latencies
-        assert "response_generation" in result.stage_latencies
+        assert isinstance(result, ReasoningResult)  # nosec B101
+        assert result.response is not None  # nosec B101
+        assert result.success is True  # nosec B101
+        assert "tool_selection" in result.stage_latencies  # nosec B101
+        assert "safety_validation" in result.stage_latencies  # nosec B101
+        assert "response_generation" in result.stage_latencies  # nosec B101
 
     @pytest.mark.asyncio
     async def test_process_full_pipeline(self, make_engine_fast, register_example_tools, mock_llm_reasoning):
@@ -266,35 +266,35 @@ class TestReasoningEngine:
 
         result = await engine._process_full_pipeline(normalized, intent, None)
 
-        assert isinstance(result, ReasoningResult)
-        assert result.response is not None
-        assert result.success is True
+        assert isinstance(result, ReasoningResult)  # nosec B101
+        assert result.response is not None  # nosec B101
+        assert result.success is True  # nosec B101
 
     def test_generate_error_response_value_error(self, make_engine_fast):
         """ValueError maps to 'didn't understand' message."""
         engine = make_engine_fast()
-        assert "didn't understand" in engine._generate_error_response(ValueError("x")).lower()
+        assert "didn't understand" in engine._generate_error_response(ValueError("x")).lower()  # nosec B101
 
     def test_generate_error_response_timeout(self, make_engine_fast):
         """TimeoutError maps to 'taking too long' message."""
         engine = make_engine_fast()
-        assert "taking too long" in engine._generate_error_response(TimeoutError("x")).lower()
+        assert "taking too long" in engine._generate_error_response(TimeoutError("x")).lower()  # nosec B101
 
     def test_generate_error_response_generic(self, make_engine_fast):
         """Generic exception maps to 'encountered an error' message."""
         engine = make_engine_fast()
-        assert "encountered an error" in engine._generate_error_response(RuntimeError("x")).lower()
+        assert "encountered an error" in engine._generate_error_response(RuntimeError("x")).lower()  # nosec B101
 
     def test_get_statistics_initial(self, make_engine_fast):
         """Fresh engine has zero statistics."""
         engine = make_engine_fast()
         stats = engine.get_statistics()
 
-        assert stats["total_requests"] == 0
-        assert stats["fast_path_requests"] == 0
-        assert stats["fast_path_rate"] == 0.0
-        assert stats["failed_requests"] == 0
-        assert stats["error_rate"] == 0.0
+        assert stats["total_requests"] == 0  # nosec B101
+        assert stats["fast_path_requests"] == 0  # nosec B101
+        assert stats["fast_path_rate"] == 0.0  # nosec B101
+        assert stats["failed_requests"] == 0  # nosec B101
+        assert stats["error_rate"] == 0.0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_statistics_after_requests(self, make_engine_fast):
@@ -311,9 +311,9 @@ class TestReasoningEngine:
             )
 
         stats = engine.get_statistics()
-        assert stats["total_requests"] == 3
-        assert stats["fast_path_requests"] >= 0
-        assert 0.0 <= stats["fast_path_rate"] <= 1.0
+        assert stats["total_requests"] == 3  # nosec B101
+        assert stats["fast_path_requests"] >= 0  # nosec B101
+        assert 0.0 <= stats["fast_path_rate"] <= 1.0  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -332,11 +332,11 @@ class TestReasoningResult:
             fast_path=True,
             total_latency_ms=450.0,
         )
-        assert result.response == "Timer set for 5 minutes"
-        assert result.confidence == 0.95
-        assert result.success is True
-        assert result.fast_path is True
-        assert result.total_latency_ms == 450.0
+        assert result.response == "Timer set for 5 minutes"  # nosec B101
+        assert result.confidence == 0.95  # nosec B101
+        assert result.success is True  # nosec B101
+        assert result.fast_path is True  # nosec B101
+        assert result.total_latency_ms == 450.0  # nosec B101
 
     def test_reasoning_result_to_dict(self):
         """to_dict() serialises all fields correctly."""
@@ -357,13 +357,13 @@ class TestReasoningResult:
         )
         d = result.to_dict()
 
-        assert d["response"] == "Timer set"
-        assert d["confidence"] == 0.95
-        assert d["intent"] == "set_timer"
-        assert d["success"] is True
-        assert d["fast_path"] is True
-        assert d["total_latency_ms"] == 450.0
-        assert d["trace_id"] == "abc123"
+        assert d["response"] == "Timer set"  # nosec B101
+        assert d["confidence"] == 0.95  # nosec B101
+        assert d["intent"] == "set_timer"  # nosec B101
+        assert d["success"] is True  # nosec B101
+        assert d["fast_path"] is True  # nosec B101
+        assert d["total_latency_ms"] == 450.0  # nosec B101
+        assert d["trace_id"] == "abc123"  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -375,7 +375,7 @@ class TestGlobalEngine:
 
     def test_get_reasoning_engine_returns_same_instance(self):
         """get_reasoning_engine() is a singleton."""
-        assert get_reasoning_engine() is get_reasoning_engine()
+        assert get_reasoning_engine() is get_reasoning_engine()  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -399,12 +399,12 @@ class TestReasoningEngineIntegration:
             )
         )
 
-        assert result.success is True
-        assert result.response is not None
-        assert result.total_latency_ms > 0
-        assert result.intent is not None
-        assert result.trace_id is not None
-        assert engine.get_statistics()["total_requests"] == 1
+        assert result.success is True  # nosec B101
+        assert result.response is not None  # nosec B101
+        assert result.total_latency_ms > 0  # nosec B101
+        assert result.intent is not None  # nosec B101
+        assert result.trace_id is not None  # nosec B101
+        assert engine.get_statistics()["total_requests"] == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_end_to_end_error_handling(self, make_engine_fast):
@@ -415,12 +415,12 @@ class TestReasoningEngineIntegration:
             RawInput(content="", source=InputSource.TEXT, user_id="user_123")
         )
 
-        assert result.success is False
-        assert result.error is not None
-        assert result.response is not None
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.response is not None  # nosec B101
         stats = engine.get_statistics()
-        assert stats["total_requests"] == 1
-        assert stats["failed_requests"] == 1
+        assert stats["total_requests"] == 1  # nosec B101
+        assert stats["failed_requests"] == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_concurrent_requests(self, make_engine_fast, register_example_tools):
@@ -440,6 +440,6 @@ class TestReasoningEngineIntegration:
             ]
         )
 
-        assert len(results) == 5
-        assert all(r.success for r in results)
-        assert engine.get_statistics()["total_requests"] == 5
+        assert len(results) == 5  # nosec B101
+        assert all(r.success for r in results)  # nosec B101
+        assert engine.get_statistics()["total_requests"] == 5  # nosec B101

@@ -29,25 +29,25 @@ class TestTracingConfig:
             sample_rate_error=0.9,
         )
         
-        assert config.service_name == "test-service"
-        assert config.service_version == "1.0.0"
-        assert config.exporter_type == "zipkin"
-        assert config.jaeger_endpoint == "http://jaeger:14268/api/traces"
-        assert config.zipkin_endpoint == "http://zipkin:9411/api/v2/spans"
-        assert config.sample_rate_success == 0.2
-        assert config.sample_rate_error == 0.9
+        assert config.service_name == "test-service"  # nosec B101
+        assert config.service_version == "1.0.0"  # nosec B101
+        assert config.exporter_type == "zipkin"  # nosec B101
+        assert config.jaeger_endpoint == "http://jaeger:14268/api/traces"  # nosec B101
+        assert config.zipkin_endpoint == "http://zipkin:9411/api/v2/spans"  # nosec B101
+        assert config.sample_rate_success == 0.2  # nosec B101
+        assert config.sample_rate_error == 0.9  # nosec B101
     
     def test_init_with_defaults(self):
         """Test initialization with default values."""
         config = TracingConfig()
         
-        assert config.service_name == "agent-guru-reasoning"
-        assert config.service_version == "0.1.0"
-        assert config.exporter_type == "jaeger"
-        assert config.jaeger_endpoint == "http://localhost:14268/api/traces"
-        assert config.zipkin_endpoint == "http://localhost:9411/api/v2/spans"
-        assert config.sample_rate_success == 0.1
-        assert config.sample_rate_error == 1.0
+        assert config.service_name == "agent-guru-reasoning"  # nosec B101
+        assert config.service_version == "0.1.0"  # nosec B101
+        assert config.exporter_type == "jaeger"  # nosec B101
+        assert config.jaeger_endpoint == "http://localhost:14268/api/traces"  # nosec B101
+        assert config.zipkin_endpoint == "http://localhost:9411/api/v2/spans"  # nosec B101
+        assert config.sample_rate_success == 0.1  # nosec B101
+        assert config.sample_rate_error == 1.0  # nosec B101
 
 
 class TestConfigureTracing:
@@ -66,7 +66,7 @@ class TestConfigureTracing:
         mock_exporter.assert_called_once()
         mock_provider.assert_called_once()
         mock_trace.set_tracer_provider.assert_called_once()
-        assert tracer is not None
+        assert tracer is not None  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.tracing.trace")
     @patch("Agent_Guru.reasoning.config.tracing.TracerProvider")
@@ -80,7 +80,7 @@ class TestConfigureTracing:
         
         mock_exporter.assert_called_once()
         mock_provider.assert_called_once()
-        assert tracer is not None
+        assert tracer is not None  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.tracing.trace")
     @patch("Agent_Guru.reasoning.config.tracing.TracerProvider")
@@ -94,7 +94,7 @@ class TestConfigureTracing:
         
         mock_exporter.assert_called_once()
         mock_provider.assert_called_once()
-        assert tracer is not None
+        assert tracer is not None  # nosec B101
 
 
 class TestErrorAwareSampler:
@@ -104,8 +104,8 @@ class TestErrorAwareSampler:
         """Test sampler initialization."""
         sampler = ErrorAwareSampler(success_rate=0.2, error_rate=0.8)
         
-        assert sampler.success_sampler is not None
-        assert sampler.error_sampler is not None
+        assert sampler.success_sampler is not None  # nosec B101
+        assert sampler.error_sampler is not None  # nosec B101
     
     def test_should_sample_error(self):
         """Test sampling decision for error spans."""
@@ -118,7 +118,7 @@ class TestErrorAwareSampler:
             attributes={"error": True},
         )
         
-        assert result is not None
+        assert result is not None  # nosec B101
     
     def test_should_sample_success(self):
         """Test sampling decision for success spans."""
@@ -131,7 +131,7 @@ class TestErrorAwareSampler:
             attributes={},
         )
         
-        assert result is not None
+        assert result is not None  # nosec B101
     
     def test_get_description(self):
         """Test getting sampler description."""
@@ -139,7 +139,7 @@ class TestErrorAwareSampler:
         
         description = sampler.get_description()
         
-        assert description == "ErrorAwareSampler"
+        assert description == "ErrorAwareSampler"  # nosec B101
 
 
 class TestTracingManager:
@@ -159,8 +159,8 @@ class TestTracingManager:
         """Test manager initialization."""
         manager = TracingManager(mock_tracer)
         
-        assert manager.tracer == mock_tracer
-        assert manager.propagator is not None
+        assert manager.tracer == mock_tracer  # nosec B101
+        assert manager.propagator is not None  # nosec B101
     
     def test_start_span(self, manager, mock_tracer):
         """Test starting a span."""
@@ -168,7 +168,7 @@ class TestTracingManager:
         mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
         
         with manager.start_span("test_span", attributes={"key": "value"}) as span:
-            assert span == mock_span
+            assert span == mock_span  # nosec B101
         
         mock_tracer.start_as_current_span.assert_called_once()
     
@@ -206,7 +206,7 @@ class TestTracingManager:
         manager.inject_context(carrier)
         
         # Context should be injected (we can't easily verify without real tracer)
-        assert True
+        assert True  # nosec B101
     
     def test_extract_context(self, manager):
         """Test extracting trace context."""
@@ -215,7 +215,7 @@ class TestTracingManager:
         context = manager.extract_context(carrier)
         
         # Context should be extracted
-        assert context is not None
+        assert context is not None  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.tracing.trace")
     def test_get_current_span(self, mock_trace, manager):
@@ -225,7 +225,7 @@ class TestTracingManager:
         
         span = manager.get_current_span()
         
-        assert span == mock_span
+        assert span == mock_span  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.tracing.trace")
     def test_get_trace_id(self, mock_trace, manager):
@@ -239,8 +239,8 @@ class TestTracingManager:
         
         trace_id = manager.get_trace_id()
         
-        assert trace_id is not None
-        assert isinstance(trace_id, str)
+        assert trace_id is not None  # nosec B101
+        assert isinstance(trace_id, str)  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.tracing.trace")
     def test_get_trace_id_no_span(self, mock_trace, manager):
@@ -253,7 +253,7 @@ class TestTracingManager:
         
         trace_id = manager.get_trace_id()
         
-        assert trace_id is None
+        assert trace_id is None  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.tracing.trace")
     def test_get_span_id(self, mock_trace, manager):
@@ -267,8 +267,8 @@ class TestTracingManager:
         
         span_id = manager.get_span_id()
         
-        assert span_id is not None
-        assert isinstance(span_id, str)
+        assert span_id is not None  # nosec B101
+        assert isinstance(span_id, str)  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.tracing.trace")
     def test_get_span_id_no_span(self, mock_trace, manager):
@@ -281,7 +281,7 @@ class TestTracingManager:
         
         span_id = manager.get_span_id()
         
-        assert span_id is None
+        assert span_id is None  # nosec B101
 
 
 class TestGlobalTracingManager:
@@ -293,7 +293,7 @@ class TestGlobalTracingManager:
         
         manager = get_tracing_manager()
         
-        assert manager is None
+        assert manager is None  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.tracing.configure_tracing")
     def test_initialize_tracing(self, mock_configure):
@@ -304,8 +304,8 @@ class TestGlobalTracingManager:
         config = TracingConfig()
         manager = initialize_tracing(config)
         
-        assert manager is not None
-        assert isinstance(manager, TracingManager)
+        assert manager is not None  # nosec B101
+        assert isinstance(manager, TracingManager)  # nosec B101
         mock_configure.assert_called_once_with(config)
     
     @patch("Agent_Guru.reasoning.config.tracing.configure_tracing")
@@ -318,7 +318,7 @@ class TestGlobalTracingManager:
         manager1 = initialize_tracing(config)
         manager2 = get_tracing_manager()
         
-        assert manager1 is manager2
+        assert manager1 is manager2  # nosec B101
     
     @patch("Agent_Guru.reasoning.config.tracing.configure_tracing")
     def test_reset_tracing(self, mock_configure):
@@ -331,4 +331,4 @@ class TestGlobalTracingManager:
         reset_tracing()
         manager2 = get_tracing_manager()
         
-        assert manager2 is None
+        assert manager2 is None  # nosec B101

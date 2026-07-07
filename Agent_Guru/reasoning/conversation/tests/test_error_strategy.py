@@ -27,7 +27,7 @@ class TestErrorClassifier:
 
         category = ErrorClassifier.classify_error(error)
 
-        assert category == ErrorCategory.USER_ERROR
+        assert category == ErrorCategory.USER_ERROR  # nosec B101
 
     def test_classify_system_error(self):
         """Test classifying system error."""
@@ -40,7 +40,7 @@ class TestErrorClassifier:
 
         category = ErrorClassifier.classify_error(error)
 
-        assert category == ErrorCategory.SYSTEM_ERROR
+        assert category == ErrorCategory.SYSTEM_ERROR  # nosec B101
 
     def test_classify_external_error(self):
         """Test classifying external error."""
@@ -53,7 +53,7 @@ class TestErrorClassifier:
 
         category = ErrorClassifier.classify_error(error)
 
-        assert category == ErrorCategory.EXTERNAL_ERROR
+        assert category == ErrorCategory.EXTERNAL_ERROR  # nosec B101
 
     def test_classify_timeout(self):
         """Test classifying timeout error."""
@@ -66,7 +66,7 @@ class TestErrorClassifier:
 
         category = ErrorClassifier.classify_error(error)
 
-        assert category == ErrorCategory.EXTERNAL_ERROR
+        assert category == ErrorCategory.EXTERNAL_ERROR  # nosec B101
 
     def test_is_recoverable_invalid_params(self):
         """Test checking if error is recoverable."""
@@ -79,7 +79,7 @@ class TestErrorClassifier:
 
         is_recoverable = ErrorClassifier.is_recoverable(error)
 
-        assert is_recoverable is True
+        assert is_recoverable is True  # nosec B101
 
     def test_is_not_recoverable_system_error(self):
         """Test checking if system error is not recoverable."""
@@ -93,19 +93,19 @@ class TestErrorClassifier:
 
         is_recoverable = ErrorClassifier.is_recoverable(error)
 
-        assert is_recoverable is False
+        assert is_recoverable is False  # nosec B101
 
     def test_get_empathy_level_user_error(self):
         """Test empathy level for user error."""
         empathy = ErrorClassifier.get_empathy_level(ErrorCategory.USER_ERROR)
 
-        assert empathy == 0.8
+        assert empathy == 0.8  # nosec B101
 
     def test_get_empathy_level_system_error(self):
         """Test empathy level for system error."""
         empathy = ErrorClassifier.get_empathy_level(ErrorCategory.SYSTEM_ERROR)
 
-        assert empathy == 0.4
+        assert empathy == 0.4  # nosec B101
 
 
 class TestErrorResponseStrategy:
@@ -124,11 +124,11 @@ class TestErrorResponseStrategy:
 
         response = strategy.generate_error_response(error)
 
-        assert response is not None
-        assert response.category == ErrorCategory.USER_ERROR
-        assert len(response.message) > 0
-        assert response.is_recoverable is True
-        assert response.empathy_level == 0.8
+        assert response is not None  # nosec B101
+        assert response.category == ErrorCategory.USER_ERROR  # nosec B101
+        assert len(response.message) > 0  # nosec B101
+        assert response.is_recoverable is True  # nosec B101
+        assert response.empathy_level == 0.8  # nosec B101
 
     def test_generate_response_system_error(self):
         """Test generating response for system error."""
@@ -144,11 +144,11 @@ class TestErrorResponseStrategy:
 
         response = strategy.generate_error_response(error)
 
-        assert response is not None
-        assert response.category == ErrorCategory.SYSTEM_ERROR
-        assert len(response.message) > 0
-        assert response.is_recoverable is False
-        assert "sorry" in response.message.lower() or "error" in response.message.lower()
+        assert response is not None  # nosec B101
+        assert response.category == ErrorCategory.SYSTEM_ERROR  # nosec B101
+        assert len(response.message) > 0  # nosec B101
+        assert response.is_recoverable is False  # nosec B101
+        assert "sorry" in response.message.lower() or "error" in response.message.lower()  # nosec B101
 
     def test_generate_response_with_suggestions(self):
         """Test generating response with suggestions."""
@@ -163,9 +163,9 @@ class TestErrorResponseStrategy:
 
         response = strategy.generate_error_response(error)
 
-        assert response is not None
-        assert len(response.suggestions) > 0
-        assert response.is_recoverable is True
+        assert response is not None  # nosec B101
+        assert len(response.suggestions) > 0  # nosec B101
+        assert response.is_recoverable is True  # nosec B101
 
     def test_adapt_for_tone_high_empathy(self):
         """Test adapting response for high empathy."""
@@ -181,8 +181,8 @@ class TestErrorResponseStrategy:
 
         adapted = strategy.adapt_for_tone(original_response, empathy_multiplier=1.5)
 
-        assert adapted.empathy_level > original_response.empathy_level
-        assert "sorry" in adapted.message.lower() or "apologize" in adapted.message.lower()
+        assert adapted.empathy_level > original_response.empathy_level  # nosec B101
+        assert "sorry" in adapted.message.lower() or "apologize" in adapted.message.lower()  # nosec B101
 
     def test_adapt_for_tone_low_empathy(self):
         """Test adapting response for low empathy."""
@@ -198,8 +198,8 @@ class TestErrorResponseStrategy:
 
         adapted = strategy.adapt_for_tone(original_response, empathy_multiplier=0.3)
 
-        assert adapted.empathy_level < original_response.empathy_level
-        assert "sorry" not in adapted.message.lower()
+        assert adapted.empathy_level < original_response.empathy_level  # nosec B101
+        assert "sorry" not in adapted.message.lower()  # nosec B101
 
 
 if __name__ == "__main__":

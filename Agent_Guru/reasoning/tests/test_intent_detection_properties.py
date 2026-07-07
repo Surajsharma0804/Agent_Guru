@@ -186,31 +186,31 @@ class TestIntentDetectionProperties:
         **Validates: Requirements 2.1, 2.2**
         """
         # Verify all required fields are present and have correct types
-        assert hasattr(intent, "intent_type"), "Intent missing intent_type field"
-        assert hasattr(intent, "entities"), "Intent missing entities field"
-        assert hasattr(intent, "confidence"), "Intent missing confidence field"
-        assert hasattr(intent, "requires_reasoning"), "Intent missing requires_reasoning field"
-        assert hasattr(intent, "original_input"), "Intent missing original_input field"
+        assert hasattr(intent, "intent_type"), "Intent missing intent_type field"  # nosec B101
+        assert hasattr(intent, "entities"), "Intent missing entities field"  # nosec B101
+        assert hasattr(intent, "confidence"), "Intent missing confidence field"  # nosec B101
+        assert hasattr(intent, "requires_reasoning"), "Intent missing requires_reasoning field"  # nosec B101
+        assert hasattr(intent, "original_input"), "Intent missing original_input field"  # nosec B101
 
         # Verify field types
-        assert isinstance(
+        assert isinstance(  # nosec B101
             intent.intent_type, IntentType
         ), f"intent_type must be IntentType, got {type(intent.intent_type)}"
-        assert isinstance(
+        assert isinstance(  # nosec B101
             intent.entities, dict
         ), f"entities must be dict, got {type(intent.entities)}"
-        assert isinstance(
+        assert isinstance(  # nosec B101
             intent.confidence, float
         ), f"confidence must be float, got {type(intent.confidence)}"
-        assert isinstance(
+        assert isinstance(  # nosec B101
             intent.requires_reasoning, bool
         ), f"requires_reasoning must be bool, got {type(intent.requires_reasoning)}"
-        assert isinstance(
+        assert isinstance(  # nosec B101
             intent.original_input, str
         ), f"original_input must be str, got {type(intent.original_input)}"
 
         # Verify original_input is not empty
-        assert len(intent.original_input) > 0, "original_input must not be empty"
+        assert len(intent.original_input) > 0, "original_input must not be empty"  # nosec B101
 
     @settings(max_examples=50, deadline=None)
     @given(intent=intent_strategy())
@@ -223,7 +223,7 @@ class TestIntentDetectionProperties:
 
         **Validates: Requirements 2.1**
         """
-        assert (
+        assert (  # nosec B101
             0.0 <= intent.confidence <= 1.0
         ), f"Confidence must be between 0.0 and 1.0, got {intent.confidence}"
 
@@ -242,30 +242,30 @@ class TestIntentDetectionProperties:
         """
         for entity_name, entity in intent.entities.items():
             # Verify entity is Entity object
-            assert isinstance(
+            assert isinstance(  # nosec B101
                 entity, Entity
             ), f"Entity '{entity_name}' must be Entity object, got {type(entity)}"
 
             # Verify entity has required fields
-            assert hasattr(entity, "entity_type"), f"Entity '{entity_name}' missing entity_type"
-            assert hasattr(entity, "value"), f"Entity '{entity_name}' missing value"
-            assert hasattr(entity, "raw_text"), f"Entity '{entity_name}' missing raw_text"
-            assert hasattr(entity, "confidence"), f"Entity '{entity_name}' missing confidence"
+            assert hasattr(entity, "entity_type"), f"Entity '{entity_name}' missing entity_type"  # nosec B101
+            assert hasattr(entity, "value"), f"Entity '{entity_name}' missing value"  # nosec B101
+            assert hasattr(entity, "raw_text"), f"Entity '{entity_name}' missing raw_text"  # nosec B101
+            assert hasattr(entity, "confidence"), f"Entity '{entity_name}' missing confidence"  # nosec B101
 
             # Verify entity_type is valid
             valid_types = [et.value for et in EntityType]
-            assert (
+            assert (  # nosec B101
                 entity.entity_type in valid_types
             ), f"Entity '{entity_name}' has invalid entity_type: {entity.entity_type}"
 
             # Verify entity confidence is in valid range
-            assert 0.0 <= entity.confidence <= 1.0, (
+            assert 0.0 <= entity.confidence <= 1.0, (  # nosec B101
                 f"Entity '{entity_name}' confidence must be between 0.0 and 1.0, "
                 f"got {entity.confidence}"
             )
 
             # Verify raw_text is not empty
-            assert len(entity.raw_text) > 0, f"Entity '{entity_name}' raw_text must not be empty"
+            assert len(entity.raw_text) > 0, f"Entity '{entity_name}' raw_text must not be empty"  # nosec B101
 
     @settings(max_examples=50, deadline=None)
     @given(intent=intent_strategy())
@@ -281,27 +281,27 @@ class TestIntentDetectionProperties:
         """
         for i, alternative in enumerate(intent.alternative_intents):
             # Verify alternative is tuple
-            assert isinstance(
+            assert isinstance(  # nosec B101
                 alternative, tuple
             ), f"Alternative intent {i} must be tuple, got {type(alternative)}"
 
             # Verify tuple has 2 elements
-            assert (
+            assert (  # nosec B101
                 len(alternative) == 2
             ), f"Alternative intent {i} must have 2 elements, got {len(alternative)}"
 
             intent_type, confidence = alternative
 
             # Verify intent_type is IntentType
-            assert isinstance(
+            assert isinstance(  # nosec B101
                 intent_type, IntentType
             ), f"Alternative intent {i} type must be IntentType, got {type(intent_type)}"
 
             # Verify confidence is float in valid range
-            assert isinstance(
+            assert isinstance(  # nosec B101
                 confidence, float
             ), f"Alternative intent {i} confidence must be float, got {type(confidence)}"
-            assert 0.0 <= confidence <= 1.0, (
+            assert 0.0 <= confidence <= 1.0, (  # nosec B101
                 f"Alternative intent {i} confidence must be between 0.0 and 1.0, "
                 f"got {confidence}"
             )
@@ -321,7 +321,7 @@ class TestIntentDetectionProperties:
         **Validates: Requirements 2.1**
         """
         valid_methods = {"rule", "neural", "llm", "hybrid"}
-        assert intent.detection_method in valid_methods, (
+        assert intent.detection_method in valid_methods, (  # nosec B101
             f"Detection method must be one of {valid_methods}, " f"got '{intent.detection_method}'"
         )
 
@@ -335,7 +335,7 @@ class TestIntentDetectionProperties:
 
         **Validates: Requirements 2.1**
         """
-        assert isinstance(
+        assert isinstance(  # nosec B101
             intent.detected_at, datetime
         ), f"detected_at must be datetime, got {type(intent.detected_at)}"
 
@@ -364,7 +364,7 @@ class TestIntentDetectionProperties:
             "detected_at",
             "detection_method",
         }
-        assert required_keys.issubset(intent_dict.keys()), (
+        assert required_keys.issubset(intent_dict.keys()), (  # nosec B101
             f"Serialized intent missing required keys: "
             f"{required_keys - set(intent_dict.keys())}"
         )
@@ -373,13 +373,13 @@ class TestIntentDetectionProperties:
         reconstructed = Intent(**intent_dict)
 
         # Verify key fields match
-        assert reconstructed.intent_type == intent.intent_type
-        assert reconstructed.confidence == intent.confidence
-        assert reconstructed.requires_reasoning == intent.requires_reasoning
-        assert reconstructed.original_input == intent.original_input
-        assert reconstructed.detection_method == intent.detection_method
-        assert len(reconstructed.entities) == len(intent.entities)
-        assert len(reconstructed.alternative_intents) == len(intent.alternative_intents)
+        assert reconstructed.intent_type == intent.intent_type  # nosec B101
+        assert reconstructed.confidence == intent.confidence  # nosec B101
+        assert reconstructed.requires_reasoning == intent.requires_reasoning  # nosec B101
+        assert reconstructed.original_input == intent.original_input  # nosec B101
+        assert reconstructed.detection_method == intent.detection_method  # nosec B101
+        assert len(reconstructed.entities) == len(intent.entities)  # nosec B101
+        assert len(reconstructed.alternative_intents) == len(intent.alternative_intents)  # nosec B101
 
 
 # ============================================================================
@@ -404,8 +404,8 @@ class TestIntentDetectionEdgeCases:
             detection_method="rule",
         )
 
-        assert len(intent.entities) == 0
-        assert intent.confidence == 0.95
+        assert len(intent.entities) == 0  # nosec B101
+        assert intent.confidence == 0.95  # nosec B101
 
     def test_intent_with_maximum_entities(self) -> None:
         """Test Intent with many entities (stress test - REDUCED for safety)."""
@@ -428,8 +428,8 @@ class TestIntentDetectionEdgeCases:
             detection_method="llm",
         )
 
-        assert len(intent.entities) == 10
-        assert all(isinstance(e, Entity) for e in intent.entities.values())
+        assert len(intent.entities) == 10  # nosec B101
+        assert all(isinstance(e, Entity) for e in intent.entities.values())  # nosec B101
 
     def test_intent_with_minimum_confidence(self) -> None:
         """Test Intent with minimum valid confidence (0.0)."""
@@ -442,8 +442,8 @@ class TestIntentDetectionEdgeCases:
             detection_method="llm",
         )
 
-        assert intent.confidence == 0.0
-        assert intent.intent_type == IntentType.UNKNOWN
+        assert intent.confidence == 0.0  # nosec B101
+        assert intent.intent_type == IntentType.UNKNOWN  # nosec B101
 
     def test_intent_with_maximum_confidence(self) -> None:
         """Test Intent with maximum valid confidence (1.0)."""
@@ -463,8 +463,8 @@ class TestIntentDetectionEdgeCases:
             detection_method="rule",
         )
 
-        assert intent.confidence == 1.0
-        assert intent.entities["duration"].confidence == 1.0
+        assert intent.confidence == 1.0  # nosec B101
+        assert intent.entities["duration"].confidence == 1.0  # nosec B101
 
     def test_intent_with_many_alternatives(self) -> None:
         """Test Intent with many alternative intents."""
@@ -486,8 +486,8 @@ class TestIntentDetectionEdgeCases:
             detection_method="neural",
         )
 
-        assert len(intent.alternative_intents) == 5
-        assert all(0.0 <= conf <= 1.0 for _, conf in intent.alternative_intents)
+        assert len(intent.alternative_intents) == 5  # nosec B101
+        assert all(0.0 <= conf <= 1.0 for _, conf in intent.alternative_intents)  # nosec B101
 
     def test_intent_with_long_input(self) -> None:
         """Test Intent with very long original input (REDUCED for safety)."""
@@ -502,8 +502,8 @@ class TestIntentDetectionEdgeCases:
             detection_method="neural",
         )
 
-        assert len(intent.original_input) > 200  # Adjusted threshold
-        assert intent.intent_type == IntentType.SET_TIMER
+        assert len(intent.original_input) > 200  # Adjusted threshold  # nosec B101
+        assert intent.intent_type == IntentType.SET_TIMER  # nosec B101
 
     def test_intent_ambiguity_detection(self) -> None:
         """Test Intent.is_ambiguous() method with various scenarios."""
@@ -516,7 +516,7 @@ class TestIntentDetectionEdgeCases:
             original_input="set timer",
             detection_method="rule",
         )
-        assert not intent1.is_ambiguous()
+        assert not intent1.is_ambiguous()  # nosec B101
 
         # Low confidence - ambiguous
         intent2 = Intent(
@@ -527,7 +527,7 @@ class TestIntentDetectionEdgeCases:
             original_input="unclear command",
             detection_method="llm",
         )
-        assert intent2.is_ambiguous()
+        assert intent2.is_ambiguous()  # nosec B101
 
         # Close alternatives - ambiguous
         intent3 = Intent(
@@ -542,7 +542,7 @@ class TestIntentDetectionEdgeCases:
             ],
             detection_method="neural",
         )
-        assert intent3.is_ambiguous()
+        assert intent3.is_ambiguous()  # nosec B101
 
 
 # ============================================================================

@@ -64,9 +64,9 @@ class TestOrchestratorIntegration:
     
     def test_orchestrator_initialization(self, orchestrator, engine):
         """Test that orchestrator initializes with engine."""
-        assert orchestrator.self_improvement_engine is engine
-        assert orchestrator.enable_learning is True
-        assert len(orchestrator.active_tasks) == 0
+        assert orchestrator.self_improvement_engine is engine  # nosec B101
+        assert orchestrator.enable_learning is True  # nosec B101
+        assert len(orchestrator.active_tasks) == 0  # nosec B101
     
     def test_execute_task_without_learning(self):
         """Test task execution without learning enabled."""
@@ -89,11 +89,11 @@ class TestOrchestratorIntegration:
         )
         
         # Verify result
-        assert result.success is True
-        assert result.result == 8
-        assert result.error is None
-        assert result.execution_time_ms > 0
-        assert result.strategy_used == "default_strategy"
+        assert result.success is True  # nosec B101
+        assert result.result == 8  # nosec B101
+        assert result.error is None  # nosec B101
+        assert result.execution_time_ms > 0  # nosec B101
+        assert result.strategy_used == "default_strategy"  # nosec B101
     
     def test_execute_task_with_learning(self, orchestrator, engine):
         """Test task execution with learning integration."""
@@ -120,15 +120,15 @@ class TestOrchestratorIntegration:
         )
         
         # Verify result
-        assert result.success is True
-        assert result.result == 28
-        assert result.error is None
-        assert result.execution_time_ms > 0
+        assert result.success is True  # nosec B101
+        assert result.result == 28  # nosec B101
+        assert result.error is None  # nosec B101
+        assert result.execution_time_ms > 0  # nosec B101
         
         # Verify learning recorded
         metrics = engine.get_improvement_metrics()
-        assert metrics["total_tasks"] == 1
-        assert metrics["success_rate"] == 1.0
+        assert metrics["total_tasks"] == 1  # nosec B101
+        assert metrics["success_rate"] == 1.0  # nosec B101
     
     def test_execute_failing_task(self, orchestrator, engine):
         """Test task execution that fails."""
@@ -155,21 +155,21 @@ class TestOrchestratorIntegration:
         )
         
         # Verify failure
-        assert result.success is False
-        assert result.result is None
-        assert result.error is not None
-        assert "division by zero" in result.error.lower()
-        assert result.execution_time_ms > 0
+        assert result.success is False  # nosec B101
+        assert result.result is None  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert "division by zero" in result.error.lower()  # nosec B101
+        assert result.execution_time_ms > 0  # nosec B101
         
         # Verify failure recorded
         metrics = engine.get_improvement_metrics()
-        assert metrics["total_tasks"] == 1
-        assert metrics["success_rate"] == 0.0
+        assert metrics["total_tasks"] == 1  # nosec B101
+        assert metrics["success_rate"] == 0.0  # nosec B101
         
         # Verify failure analyzed
         failures = engine.failure_analyzer.get_recent_failures(limit=1)
-        assert len(failures) == 1
-        assert failures[0]["task_id"] == "task_fail"
+        assert len(failures) == 1  # nosec B101
+        assert failures[0]["task_id"] == "task_fail"  # nosec B101
     
     def test_strategy_selection_integration(self, orchestrator, engine):
         """Test that orchestrator uses optimal strategy from engine."""
@@ -228,7 +228,7 @@ class TestOrchestratorIntegration:
                 good_count += 1
         
         # Should select good strategy most of the time
-        assert good_count > 10, f"Good strategy selected only {good_count}/20 times"
+        assert good_count > 10, f"Good strategy selected only {good_count}/20 times"  # nosec B101
     
     def test_outcome_recording_integration(self, orchestrator, engine):
         """Test that outcomes are properly recorded in engine."""
@@ -254,18 +254,18 @@ class TestOrchestratorIntegration:
                 executor=task_executor
             )
             
-            assert result.success is True
+            assert result.success is True  # nosec B101
         
         # Verify all recorded
         metrics = engine.get_improvement_metrics()
-        assert metrics["total_tasks"] == 5
-        assert metrics["success_rate"] == 1.0
+        assert metrics["total_tasks"] == 5  # nosec B101
+        assert metrics["success_rate"] == 1.0  # nosec B101
         
         # Verify strategy performance updated
         strategy = engine.strategy_optimizer.get_strategy("record_strategy")
-        assert strategy is not None
-        assert strategy.total_executions == 5
-        assert strategy.success_rate == 1.0
+        assert strategy is not None  # nosec B101
+        assert strategy.total_executions == 5  # nosec B101
+        assert strategy.success_rate == 1.0  # nosec B101
     
     def test_active_tasks_tracking(self, orchestrator):
         """Test that active tasks are tracked correctly."""
@@ -284,8 +284,8 @@ class TestOrchestratorIntegration:
         )
         
         # After completion, should not be in active tasks
-        assert "slow_task" not in orchestrator.active_tasks
-        assert result.success is True
+        assert "slow_task" not in orchestrator.active_tasks  # nosec B101
+        assert result.success is True  # nosec B101
     
     def test_create_orchestrator_with_learning(self, temp_db):
         """Test convenience function for creating orchestrator."""
@@ -295,9 +295,9 @@ class TestOrchestratorIntegration:
             measurement_window=100
         )
         
-        assert orchestrator is not None
-        assert orchestrator.self_improvement_engine is not None
-        assert orchestrator.enable_learning is True
+        assert orchestrator is not None  # nosec B101
+        assert orchestrator.self_improvement_engine is not None  # nosec B101
+        assert orchestrator.enable_learning is True  # nosec B101
         
         # Test it works
         def simple_task(params: Dict[str, Any]) -> int:
@@ -311,8 +311,8 @@ class TestOrchestratorIntegration:
             executor=simple_task
         )
         
-        assert result.success is True
-        assert result.result == 42
+        assert result.success is True  # nosec B101
+        assert result.result == 42  # nosec B101
         
         # Cleanup
         orchestrator.self_improvement_engine.close()
@@ -387,7 +387,7 @@ class TestOrchestratorPerformance:
         
         # Average time per task should be reasonable (<100ms)
         # This includes strategy selection, execution, and outcome recording
-        assert avg_time_per_task_ms < 100, f"Average time {avg_time_per_task_ms:.2f}ms exceeds 100ms threshold"
+        assert avg_time_per_task_ms < 100, f"Average time {avg_time_per_task_ms:.2f}ms exceeds 100ms threshold"  # nosec B101
     
     def test_concurrent_task_execution(self, orchestrator):
         """Test that multiple tasks can be tracked concurrently."""
@@ -424,9 +424,9 @@ class TestOrchestratorPerformance:
             thread.join()
         
         # Verify all succeeded
-        assert len(results) == 10
-        assert all(r.success for r in results)
+        assert len(results) == 10  # nosec B101
+        assert all(r.success for r in results)  # nosec B101
         
         # Verify all recorded
         metrics = orchestrator.self_improvement_engine.get_improvement_metrics()
-        assert metrics["total_tasks"] >= 10
+        assert metrics["total_tasks"] >= 10  # nosec B101

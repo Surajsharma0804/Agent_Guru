@@ -97,30 +97,30 @@ class TestStreamingAudioProperties:
         
         # 1. Requirement 16.1: Process audio in chunks of 100-500ms
         assert 100 <= chunk_duration_ms <= 500, \
-            f"Chunk duration {chunk_duration_ms}ms outside 100-500ms range"
+            f"Chunk duration {chunk_duration_ms}ms outside 100-500ms range"  # nosec B101
         
         # 2. Requirement 16.2: Maintain end-to-end latency below 500ms
         assert metrics.latency_ms < 500, \
-            f"End-to-end latency {metrics.latency_ms}ms exceeds 500ms target"
+            f"End-to-end latency {metrics.latency_ms}ms exceeds 500ms target"  # nosec B101
         
         # 3. Requirement 16.3: Provide incremental results
         assert len(chunks_received) == num_chunks, \
-            f"Expected {num_chunks} incremental chunks, got {len(chunks_received)}"
+            f"Expected {num_chunks} incremental chunks, got {len(chunks_received)}"  # nosec B101
         
         # 4. All chunks should be the correct size
         for chunk in chunks_received:
             assert len(chunk) == chunk_samples, \
-                f"Chunk size {len(chunk)} doesn't match expected {chunk_samples}"
+                f"Chunk size {len(chunk)} doesn't match expected {chunk_samples}"  # nosec B101
         
         # 5. Chunks should be delivered incrementally (not all at once)
-        assert len(chunks_received) > 0, "No chunks received"
+        assert len(chunks_received) > 0, "No chunks received"  # nosec B101
         
         # 6. Latency should be reasonable for each chunk
         if chunk_latencies:
             avg_chunk_latency = sum(chunk_latencies) / len(chunk_latencies)
             # Average chunk latency should be less than max latency
             assert avg_chunk_latency < 1000, \
-                f"Average chunk latency {avg_chunk_latency}ms too high"
+                f"Average chunk latency {avg_chunk_latency}ms too high"  # nosec B101
     
     @pytest.mark.asyncio
     @pytest.mark.timeout(300)
@@ -178,21 +178,21 @@ class TestStreamingAudioProperties:
         # PROPERTY ASSERTIONS
         
         # 1. All chunks should be received
-        assert len(chunks_received) == num_chunks
+        assert len(chunks_received) == num_chunks  # nosec B101
         
         # 2. Buffer size should be within configured range
-        assert manager._buffer_size_samples > 0
+        assert manager._buffer_size_samples > 0  # nosec B101
         
         # 3. Adaptive buffering should keep latency reasonable
         # (may be higher than 500ms due to configured max_latency)
         assert metrics.latency_ms < max_latency_ms * 2, \
-            f"Latency {metrics.latency_ms}ms exceeds 2x max latency {max_latency_ms}ms"
+            f"Latency {metrics.latency_ms}ms exceeds 2x max latency {max_latency_ms}ms"  # nosec B101
         
         # 4. System should track jitter
-        assert metrics.jitter_ms >= 0
+        assert metrics.jitter_ms >= 0  # nosec B101
         
         # 5. No packet loss in controlled test
-        assert metrics.packet_loss_percent == 0.0
+        assert metrics.packet_loss_percent == 0.0  # nosec B101
     
     @pytest.mark.asyncio
     @pytest.mark.timeout(300)
@@ -245,22 +245,22 @@ class TestStreamingAudioProperties:
         # PROPERTY ASSERTIONS
         
         # 1. All chunks should be received regardless of codec
-        assert len(chunks_received) == num_chunks
+        assert len(chunks_received) == num_chunks  # nosec B101
         
         # 2. Latency should be <500ms for all codecs
         assert metrics.latency_ms < 500, \
-            f"Codec {codec.value} latency {metrics.latency_ms}ms exceeds 500ms"
+            f"Codec {codec.value} latency {metrics.latency_ms}ms exceeds 500ms"  # nosec B101
         
         # 3. All chunks should be valid numpy arrays
         for chunk in chunks_received:
-            assert isinstance(chunk, np.ndarray)
-            assert chunk.dtype == np.float32
-            assert len(chunk) == chunk_size
+            assert isinstance(chunk, np.ndarray)  # nosec B101
+            assert chunk.dtype == np.float32  # nosec B101
+            assert len(chunk) == chunk_size  # nosec B101
         
         # 4. Audio should be in valid range [-1, 1]
         for chunk in chunks_received:
             assert np.all(chunk >= -1.0) and np.all(chunk <= 1.0), \
-                "Audio values outside valid range [-1, 1]"
+                "Audio values outside valid range [-1, 1]"  # nosec B101
     
     @pytest.mark.asyncio
     @pytest.mark.timeout(300)
@@ -335,24 +335,24 @@ class TestStreamingAudioProperties:
         # PROPERTY ASSERTIONS
         
         # 1. Both streams should receive all chunks
-        assert len(input_chunks) == num_chunks
-        assert len(output_chunks) == num_chunks
+        assert len(input_chunks) == num_chunks  # nosec B101
+        assert len(output_chunks) == num_chunks  # nosec B101
         
         # 2. Both streams should meet latency requirements
         assert input_metrics.latency_ms < 500, \
-            f"Input latency {input_metrics.latency_ms}ms exceeds 500ms"
+            f"Input latency {input_metrics.latency_ms}ms exceeds 500ms"  # nosec B101
         assert output_metrics.latency_ms < 500, \
-            f"Output latency {output_metrics.latency_ms}ms exceeds 500ms"
+            f"Output latency {output_metrics.latency_ms}ms exceeds 500ms"  # nosec B101
         
         # 3. No packet loss in either stream
-        assert input_metrics.packet_loss_percent == 0.0
-        assert output_metrics.packet_loss_percent == 0.0
+        assert input_metrics.packet_loss_percent == 0.0  # nosec B101
+        assert output_metrics.packet_loss_percent == 0.0  # nosec B101
         
         # 4. Chunks should be correct size
         for chunk in input_chunks:
-            assert len(chunk) == chunk_samples
+            assert len(chunk) == chunk_samples  # nosec B101
         for chunk in output_chunks:
-            assert isinstance(chunk, bytes)
+            assert isinstance(chunk, bytes)  # nosec B101
     
     @pytest.mark.asyncio
     @pytest.mark.timeout(300)
@@ -405,17 +405,17 @@ class TestStreamingAudioProperties:
         # PROPERTY ASSERTIONS
         
         # 1. All chunks should be received
-        assert len(chunks_received) == num_chunks
+        assert len(chunks_received) == num_chunks  # nosec B101
         
         # 2. Latency should still be reasonable after many chunks
         assert metrics.latency_ms < 1000, \
-            f"Latency {metrics.latency_ms}ms too high after {num_chunks} chunks"
+            f"Latency {metrics.latency_ms}ms too high after {num_chunks} chunks"  # nosec B101
         
         # 3. Metrics should be valid
-        assert metrics.jitter_ms >= 0
-        assert metrics.packet_loss_percent >= 0
-        assert metrics.buffer_size > 0
+        assert metrics.jitter_ms >= 0  # nosec B101
+        assert metrics.packet_loss_percent >= 0  # nosec B101
+        assert metrics.buffer_size > 0  # nosec B101
         
         # 4. No excessive buffer overruns (some are acceptable under stress)
         assert metrics.buffer_overruns < num_chunks * 0.1, \
-            f"Too many buffer overruns: {metrics.buffer_overruns}"
+            f"Too many buffer overruns: {metrics.buffer_overruns}"  # nosec B101

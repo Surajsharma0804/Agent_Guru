@@ -58,12 +58,12 @@ class TestDegradationDetectorInitialization:
         """Test initialization with default thresholds."""
         detector = DegradationDetector(pool)
 
-        assert detector.success_rate_threshold == 0.10
-        assert detector.execution_time_threshold == 0.20
-        assert detector.reasoning_quality_threshold == 0.10
-        assert detector.tool_selection_threshold == 0.10
-        assert detector.hallucination_threshold == 0.10
-        assert detector.significance_level == 0.05
+        assert detector.success_rate_threshold == 0.10  # nosec B101
+        assert detector.execution_time_threshold == 0.20  # nosec B101
+        assert detector.reasoning_quality_threshold == 0.10  # nosec B101
+        assert detector.tool_selection_threshold == 0.10  # nosec B101
+        assert detector.hallucination_threshold == 0.10  # nosec B101
+        assert detector.significance_level == 0.05  # nosec B101
 
     def test_initialization_with_custom_thresholds(self, pool):
         """Test initialization with custom thresholds."""
@@ -77,12 +77,12 @@ class TestDegradationDetectorInitialization:
             significance_level=0.01,
         )
 
-        assert detector.success_rate_threshold == 0.15
-        assert detector.execution_time_threshold == 0.25
-        assert detector.reasoning_quality_threshold == 0.12
-        assert detector.tool_selection_threshold == 0.08
-        assert detector.hallucination_threshold == 0.15
-        assert detector.significance_level == 0.01
+        assert detector.success_rate_threshold == 0.15  # nosec B101
+        assert detector.execution_time_threshold == 0.25  # nosec B101
+        assert detector.reasoning_quality_threshold == 0.12  # nosec B101
+        assert detector.tool_selection_threshold == 0.08  # nosec B101
+        assert detector.hallucination_threshold == 0.15  # nosec B101
+        assert detector.significance_level == 0.01  # nosec B101
 
     def test_invalid_threshold_raises_error(self, pool):
         """Test that invalid thresholds raise ValueError."""
@@ -102,7 +102,7 @@ class TestDegradationDetection:
     def test_no_degradation_with_insufficient_data(self, detector):
         """Test that no alert is returned with insufficient data."""
         alert = detector.check_for_degradation()
-        assert alert is None
+        assert alert is None  # nosec B101
 
     def test_no_degradation_with_stable_performance(self, detector, tracker):
         """Test that no alert is returned when performance is stable."""
@@ -123,7 +123,7 @@ class TestDegradationDetection:
         alert = detector.check_for_degradation(
             recent_window_size=20, historical_window_size=100
         )
-        assert alert is None
+        assert alert is None  # nosec B101
 
     def test_success_rate_degradation_detected(self, detector, tracker):
         """Test detection of success rate degradation."""
@@ -159,14 +159,14 @@ class TestDegradationDetection:
             recent_window_size=20, historical_window_size=100
         )
 
-        assert alert is not None
-        assert DegradationMetric.SUCCESS_RATE in alert.degraded_metrics
-        assert alert.severity in [
+        assert alert is not None  # nosec B101
+        assert DegradationMetric.SUCCESS_RATE in alert.degraded_metrics  # nosec B101
+        assert alert.severity in [  # nosec B101
             DegradationSeverity.MODERATE,
             DegradationSeverity.SEVERE,
         ]
-        assert "success_rate" in alert.metric_changes
-        assert alert.metric_changes["success_rate"] < 0  # Negative change
+        assert "success_rate" in alert.metric_changes  # nosec B101
+        assert alert.metric_changes["success_rate"] < 0  # Negative change  # nosec B101
 
     def test_execution_time_degradation_detected(self, detector, tracker):
         """Test detection of execution time degradation."""
@@ -202,10 +202,10 @@ class TestDegradationDetection:
             recent_window_size=20, historical_window_size=100
         )
 
-        assert alert is not None
-        assert DegradationMetric.EXECUTION_TIME in alert.degraded_metrics
-        assert "execution_time_change_pct" in alert.metric_changes
-        assert alert.metric_changes["execution_time_change_pct"] > 0  # Positive change
+        assert alert is not None  # nosec B101
+        assert DegradationMetric.EXECUTION_TIME in alert.degraded_metrics  # nosec B101
+        assert "execution_time_change_pct" in alert.metric_changes  # nosec B101
+        assert alert.metric_changes["execution_time_change_pct"] > 0  # Positive change  # nosec B101
 
     def test_reasoning_quality_degradation_detected(self, detector, tracker):
         """Test detection of reasoning quality degradation."""
@@ -241,10 +241,10 @@ class TestDegradationDetection:
             recent_window_size=20, historical_window_size=100
         )
 
-        assert alert is not None
-        assert DegradationMetric.REASONING_QUALITY in alert.degraded_metrics
-        assert "reasoning_quality" in alert.metric_changes
-        assert alert.metric_changes["reasoning_quality"] < 0  # Negative change
+        assert alert is not None  # nosec B101
+        assert DegradationMetric.REASONING_QUALITY in alert.degraded_metrics  # nosec B101
+        assert "reasoning_quality" in alert.metric_changes  # nosec B101
+        assert alert.metric_changes["reasoning_quality"] < 0  # Negative change  # nosec B101
 
     def test_hallucination_rate_degradation_detected(self, detector, tracker):
         """Test detection of increased hallucination rate."""
@@ -280,10 +280,10 @@ class TestDegradationDetection:
             recent_window_size=20, historical_window_size=100
         )
 
-        assert alert is not None
-        assert DegradationMetric.HALLUCINATION_RATE in alert.degraded_metrics
-        assert "hallucination_rate" in alert.metric_changes
-        assert alert.metric_changes["hallucination_rate"] > 0  # Positive change (bad)
+        assert alert is not None  # nosec B101
+        assert DegradationMetric.HALLUCINATION_RATE in alert.degraded_metrics  # nosec B101
+        assert "hallucination_rate" in alert.metric_changes  # nosec B101
+        assert alert.metric_changes["hallucination_rate"] > 0  # Positive change (bad)  # nosec B101
 
     def test_multiple_metrics_degradation(self, detector, tracker):
         """Test detection when multiple metrics degrade simultaneously."""
@@ -319,9 +319,9 @@ class TestDegradationDetection:
             recent_window_size=20, historical_window_size=100
         )
 
-        assert alert is not None
-        assert len(alert.degraded_metrics) >= 2  # Multiple metrics degraded
-        assert alert.severity in [
+        assert alert is not None  # nosec B101
+        assert len(alert.degraded_metrics) >= 2  # Multiple metrics degraded  # nosec B101
+        assert alert.severity in [  # nosec B101
             DegradationSeverity.MODERATE,
             DegradationSeverity.SEVERE,
         ]
@@ -364,10 +364,10 @@ class TestSeverityDetermination:
             recent_window_size=20, historical_window_size=100
         )
 
-        assert alert is not None
-        assert alert.severity == DegradationSeverity.SEVERE
-        assert "CRITICAL" in alert.recommended_action
-        assert "rollback" in alert.recommended_action.lower()
+        assert alert is not None  # nosec B101
+        assert alert.severity == DegradationSeverity.SEVERE  # nosec B101
+        assert "CRITICAL" in alert.recommended_action  # nosec B101
+        assert "rollback" in alert.recommended_action.lower()  # nosec B101
 
 
 class TestStatisticalSignificance:
@@ -407,12 +407,12 @@ class TestStatisticalSignificance:
             recent_window_size=20, historical_window_size=100
         )
 
-        assert alert is not None
-        assert "t_statistic" in alert.statistical_significance
-        assert "p_value" in alert.statistical_significance
-        assert "is_significant" in alert.statistical_significance
-        assert "cohens_d" in alert.statistical_significance
-        assert "effect_size" in alert.statistical_significance
+        assert alert is not None  # nosec B101
+        assert "t_statistic" in alert.statistical_significance  # nosec B101
+        assert "p_value" in alert.statistical_significance  # nosec B101
+        assert "is_significant" in alert.statistical_significance  # nosec B101
+        assert "cohens_d" in alert.statistical_significance  # nosec B101
+        assert "effect_size" in alert.statistical_significance  # nosec B101
 
 
 class TestDiagnosticInfo:
@@ -452,17 +452,17 @@ class TestDiagnosticInfo:
             recent_window_size=20, historical_window_size=100
         )
 
-        assert alert is not None
-        assert "recent_performance" in alert.diagnostic_info
-        assert "historical_performance" in alert.diagnostic_info
-        assert "degraded_metrics_list" in alert.diagnostic_info
-        assert "time_range" in alert.diagnostic_info
+        assert alert is not None  # nosec B101
+        assert "recent_performance" in alert.diagnostic_info  # nosec B101
+        assert "historical_performance" in alert.diagnostic_info  # nosec B101
+        assert "degraded_metrics_list" in alert.diagnostic_info  # nosec B101
+        assert "time_range" in alert.diagnostic_info  # nosec B101
 
         # Verify structure
         recent_perf = alert.diagnostic_info["recent_performance"]
-        assert "success_rate" in recent_perf
-        assert "avg_execution_time_ms" in recent_perf
-        assert "total_tasks" in recent_perf
+        assert "success_rate" in recent_perf  # nosec B101
+        assert "avg_execution_time_ms" in recent_perf  # nosec B101
+        assert "total_tasks" in recent_perf  # nosec B101
 
 
 class TestEdgeCases:
@@ -489,7 +489,7 @@ class TestEdgeCases:
         )
 
         # Should work with exactly minimum tasks
-        assert alert is not None or alert is None  # Either is valid
+        assert alert is not None or alert is None  # Either is valid  # nosec B101
 
     def test_degradation_at_threshold_boundary(self, detector, tracker):
         """Test degradation exactly at threshold boundary."""
@@ -528,8 +528,8 @@ class TestEdgeCases:
         )
 
         # Above threshold, should trigger alert
-        assert alert is not None
-        assert DegradationMetric.SUCCESS_RATE in alert.degraded_metrics
+        assert alert is not None  # nosec B101
+        assert DegradationMetric.SUCCESS_RATE in alert.degraded_metrics  # nosec B101
 
 
 class TestCustomThresholds:
@@ -578,5 +578,5 @@ class TestCustomThresholds:
         )
 
         # Strict detector should catch this
-        assert alert is not None
-        assert DegradationMetric.SUCCESS_RATE in alert.degraded_metrics
+        assert alert is not None  # nosec B101
+        assert DegradationMetric.SUCCESS_RATE in alert.degraded_metrics  # nosec B101

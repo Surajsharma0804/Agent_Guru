@@ -42,10 +42,10 @@ class TestKnowledgeSynthesizerInitialization:
         memory_retriever = Mock(spec=MemoryRetriever)
         synthesizer = KnowledgeSynthesizer(memory_retriever)
 
-        assert synthesizer.memory_retriever == memory_retriever
-        assert synthesizer.max_memories == 50
-        assert synthesizer.pattern_min_frequency == 0.3
-        assert synthesizer.confidence_threshold == 0.6
+        assert synthesizer.memory_retriever == memory_retriever  # nosec B101
+        assert synthesizer.max_memories == 50  # nosec B101
+        assert synthesizer.pattern_min_frequency == 0.3  # nosec B101
+        assert synthesizer.confidence_threshold == 0.6  # nosec B101
 
     def test_initialization_with_custom_params(self):
         """Test initialization with custom parameters."""
@@ -57,9 +57,9 @@ class TestKnowledgeSynthesizerInitialization:
             confidence_threshold=0.7,
         )
 
-        assert synthesizer.max_memories == 100
-        assert synthesizer.pattern_min_frequency == 0.5
-        assert synthesizer.confidence_threshold == 0.7
+        assert synthesizer.max_memories == 100  # nosec B101
+        assert synthesizer.pattern_min_frequency == 0.5  # nosec B101
+        assert synthesizer.confidence_threshold == 0.7  # nosec B101
 
     def test_initialization_invalid_max_memories(self):
         """Test initialization with invalid max_memories."""
@@ -126,8 +126,8 @@ class TestRetrieveRelevantData:
             top_k=50,
         )
 
-        assert len(memories) == 1
-        assert memories[0].content == "Called John"
+        assert len(memories) == 1  # nosec B101
+        assert memories[0].content == "Called John"  # nosec B101
 
     def test_retrieve_factual_query(self):
         """Test data retrieval for factual query."""
@@ -164,7 +164,7 @@ class TestRetrieveRelevantData:
             top_k=50,
         )
 
-        assert len(memories) == 1
+        assert len(memories) == 1  # nosec B101
 
     def test_retrieve_with_time_range_filtering(self):
         """Test data retrieval with time range filtering."""
@@ -206,8 +206,8 @@ class TestRetrieveRelevantData:
         memories = synthesizer.retrieve_relevant_data(query, "user_123")
 
         # Should filter to only memories within time range
-        assert len(memories) == 1
-        assert memories[0].content == "Recent action"
+        assert len(memories) == 1  # nosec B101
+        assert memories[0].content == "Recent action"  # nosec B101
 
 
 class TestDetectPatterns:
@@ -241,11 +241,11 @@ class TestDetectPatterns:
         patterns = synthesizer.detect_patterns(memories, query)
 
         # Should detect daily pattern at 9am
-        assert len(patterns) >= 1
+        assert len(patterns) >= 1  # nosec B101
         daily_patterns = [p for p in patterns if p.pattern_type == "daily"]
-        assert len(daily_patterns) == 1
-        assert "09:00" in daily_patterns[0].description
-        assert daily_patterns[0].frequency == 1.0  # All at same hour
+        assert len(daily_patterns) == 1  # nosec B101
+        assert "09:00" in daily_patterns[0].description  # nosec B101
+        assert daily_patterns[0].frequency == 1.0  # All at same hour  # nosec B101
 
     def test_detect_weekly_pattern(self):
         """Test detection of weekly patterns."""
@@ -280,9 +280,9 @@ class TestDetectPatterns:
 
         # Should detect weekly pattern on Mondays
         weekly_patterns = [p for p in patterns if p.pattern_type == "weekly"]
-        assert len(weekly_patterns) == 1
-        assert "Monday" in weekly_patterns[0].description
-        assert weekly_patterns[0].frequency == 1.0
+        assert len(weekly_patterns) == 1  # nosec B101
+        assert "Monday" in weekly_patterns[0].description  # nosec B101
+        assert weekly_patterns[0].frequency == 1.0  # nosec B101
 
     def test_detect_monthly_pattern(self):
         """Test detection of monthly patterns."""
@@ -314,10 +314,10 @@ class TestDetectPatterns:
 
         # Should detect monthly pattern on 15th
         monthly_patterns = [p for p in patterns if p.pattern_type == "monthly"]
-        assert len(monthly_patterns) == 1
+        assert len(monthly_patterns) == 1  # nosec B101
         # Check that the pattern mentions the day
-        assert "15th" in monthly_patterns[0].description
-        assert monthly_patterns[0].frequency == 1.0
+        assert "15th" in monthly_patterns[0].description  # nosec B101
+        assert monthly_patterns[0].frequency == 1.0  # nosec B101
 
     def test_no_pattern_insufficient_data(self):
         """Test no pattern detection with insufficient data."""
@@ -351,7 +351,7 @@ class TestDetectPatterns:
         patterns = synthesizer.detect_patterns(memories, query)
 
         # Should not detect any patterns
-        assert len(patterns) == 0
+        assert len(patterns) == 0  # nosec B101
 
     def test_no_pattern_low_frequency(self):
         """Test no pattern detection with low frequency."""
@@ -383,7 +383,7 @@ class TestDetectPatterns:
         patterns = synthesizer.detect_patterns(memories, query)
 
         # Should not detect pattern (frequency 0.4 or 0.6 < 0.7 threshold)
-        assert len(patterns) == 0
+        assert len(patterns) == 0  # nosec B101
 
 
 class TestAggregateStatistics:
@@ -417,10 +417,10 @@ class TestAggregateStatistics:
 
         statistics = synthesizer.aggregate_statistics(memories, query)
 
-        assert statistics["total_count"] == 5
-        assert "most_recent" in statistics
-        assert "oldest" in statistics
-        assert "time_span_days" in statistics
+        assert statistics["total_count"] == 5  # nosec B101
+        assert "most_recent" in statistics  # nosec B101
+        assert "oldest" in statistics  # nosec B101
+        assert "time_span_days" in statistics  # nosec B101
 
     def test_aggregate_empty_memories(self):
         """Test statistics aggregation with no memories."""
@@ -435,7 +435,7 @@ class TestAggregateStatistics:
 
         statistics = synthesizer.aggregate_statistics([], query)
 
-        assert statistics["total_count"] == 0
+        assert statistics["total_count"] == 0  # nosec B101
 
     def test_aggregate_entity_counts(self):
         """Test entity counting in aggregation."""
@@ -476,9 +476,9 @@ class TestAggregateStatistics:
 
         statistics = synthesizer.aggregate_statistics(memories, query)
 
-        assert statistics["total_count"] == 3
-        assert "person_count" in statistics
-        assert statistics["person_count"]["John"] == 2
+        assert statistics["total_count"] == 3  # nosec B101
+        assert "person_count" in statistics  # nosec B101
+        assert statistics["person_count"]["John"] == 2  # nosec B101
 
 
 class TestGenerateAnswer:
@@ -514,11 +514,11 @@ class TestGenerateAnswer:
 
         answer = synthesizer.generate_answer(query, memories, patterns, statistics)
 
-        assert "John" in answer.summary
-        assert "call" in answer.summary
-        assert "3 days ago" in answer.summary
-        assert answer.confidence > 0.0
-        assert len(answer.supporting_memories) == 1
+        assert "John" in answer.summary  # nosec B101
+        assert "call" in answer.summary  # nosec B101
+        assert "3 days ago" in answer.summary  # nosec B101
+        assert answer.confidence > 0.0  # nosec B101
+        assert len(answer.supporting_memories) == 1  # nosec B101
 
     def test_generate_aggregation_answer(self):
         """Test aggregation answer generation."""
@@ -552,8 +552,8 @@ class TestGenerateAnswer:
 
         answer = synthesizer.generate_answer(query, memories, patterns, statistics)
 
-        assert "5" in answer.summary or "John" in answer.summary
-        assert answer.confidence > 0.0
+        assert "5" in answer.summary or "John" in answer.summary  # nosec B101
+        assert answer.confidence > 0.0  # nosec B101
 
     def test_generate_pattern_answer(self):
         """Test pattern answer generation."""
@@ -582,9 +582,9 @@ class TestGenerateAnswer:
 
         answer = synthesizer.generate_answer(query, memories, patterns, statistics)
 
-        assert "09:00" in answer.summary
-        assert "85%" in answer.summary
-        assert len(answer.patterns) == 1
+        assert "09:00" in answer.summary  # nosec B101
+        assert "85%" in answer.summary  # nosec B101
+        assert len(answer.patterns) == 1  # nosec B101
 
     def test_generate_factual_answer(self):
         """Test factual answer generation."""
@@ -613,8 +613,8 @@ class TestGenerateAnswer:
 
         answer = synthesizer.generate_answer(query, memories, patterns, statistics)
 
-        assert "john@example.com" in answer.summary
-        assert answer.confidence > 0.0
+        assert "john@example.com" in answer.summary  # nosec B101
+        assert answer.confidence > 0.0  # nosec B101
 
     def test_generate_answer_low_confidence(self):
         """Test answer generation with low confidence."""
@@ -645,8 +645,8 @@ class TestGenerateAnswer:
         answer = synthesizer.generate_answer(query, memories, patterns, statistics)
 
         # Should indicate low confidence
-        assert "not very confident" in answer.summary.lower()
-        assert answer.confidence < 0.7
+        assert "not very confident" in answer.summary.lower()  # nosec B101
+        assert answer.confidence < 0.7  # nosec B101
 
     def test_generate_answer_no_data(self):
         """Test answer generation with no data."""
@@ -664,8 +664,8 @@ class TestGenerateAnswer:
 
         answer = synthesizer.generate_answer(query, [], patterns, statistics)
 
-        assert "don't have" in answer.summary.lower()
-        assert answer.confidence > 0.0
+        assert "don't have" in answer.summary.lower()  # nosec B101
+        assert answer.confidence > 0.0  # nosec B101
 
 
 class TestSynthesizeAnswer:
@@ -703,11 +703,11 @@ class TestSynthesizeAnswer:
         answer = synthesizer.synthesize_answer(query, "user_123")
 
         # Verify answer
-        assert isinstance(answer.summary, str)
-        assert len(answer.summary) > 0
-        assert answer.confidence > 0.0
-        assert len(answer.supporting_memories) > 0
-        assert isinstance(answer.statistics, dict)
+        assert isinstance(answer.summary, str)  # nosec B101
+        assert len(answer.summary) > 0  # nosec B101
+        assert answer.confidence > 0.0  # nosec B101
+        assert len(answer.supporting_memories) > 0  # nosec B101
+        assert isinstance(answer.statistics, dict)  # nosec B101
 
     def test_synthesize_aggregation_query(self):
         """Test complete synthesis for aggregation query."""
@@ -738,10 +738,10 @@ class TestSynthesizeAnswer:
         answer = synthesizer.synthesize_answer(query, "user_123")
 
         # Verify answer
-        assert isinstance(answer.summary, str)
-        assert len(answer.summary) > 0
-        assert answer.confidence > 0.0
-        assert answer.statistics["total_count"] == 5
+        assert isinstance(answer.summary, str)  # nosec B101
+        assert len(answer.summary) > 0  # nosec B101
+        assert answer.confidence > 0.0  # nosec B101
+        assert answer.statistics["total_count"] == 5  # nosec B101
 
     def test_synthesize_pattern_query(self):
         """Test complete synthesis for pattern query."""
@@ -774,10 +774,10 @@ class TestSynthesizeAnswer:
         answer = synthesizer.synthesize_answer(query, "user_123")
 
         # Verify answer
-        assert isinstance(answer.summary, str)
-        assert len(answer.summary) > 0
-        assert answer.confidence > 0.0
-        assert len(answer.patterns) > 0
+        assert isinstance(answer.summary, str)  # nosec B101
+        assert len(answer.summary) > 0  # nosec B101
+        assert answer.confidence > 0.0  # nosec B101
+        assert len(answer.patterns) > 0  # nosec B101
 
     def test_synthesize_factual_query(self):
         """Test complete synthesis for factual query."""
@@ -807,9 +807,9 @@ class TestSynthesizeAnswer:
         answer = synthesizer.synthesize_answer(query, "user_123")
 
         # Verify answer
-        assert isinstance(answer.summary, str)
-        assert "john@example.com" in answer.summary
-        assert answer.confidence > 0.0
+        assert isinstance(answer.summary, str)  # nosec B101
+        assert "john@example.com" in answer.summary  # nosec B101
+        assert answer.confidence > 0.0  # nosec B101
 
 
 class TestLatencyRequirements:
@@ -848,5 +848,5 @@ class TestLatencyRequirements:
         elapsed_ms = (time.perf_counter() - start) * 1000
 
         # Should complete within 1.5s budget (with generous margin for test environment)
-        assert elapsed_ms < 2000  # 2s max for test environment
-        assert isinstance(answer, type(answer))  # Verify it completed
+        assert elapsed_ms < 2000  # 2s max for test environment  # nosec B101
+        assert isinstance(answer, type(answer))  # Verify it completed  # nosec B101

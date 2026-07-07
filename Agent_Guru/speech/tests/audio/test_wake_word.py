@@ -18,12 +18,12 @@ class TestWakeWordDetector:
         """Test detector initialization with default config."""
         detector = WakeWordDetector()
         
-        assert detector.config is not None
-        assert len(detector.config.wake_words) == 4
-        assert "hey guru" in detector.config.wake_words
-        assert "guru" in detector.config.wake_words
-        assert "hey maya" in detector.config.wake_words
-        assert "maya" in detector.config.wake_words
+        assert detector.config is not None  # nosec B101
+        assert len(detector.config.wake_words) == 4  # nosec B101
+        assert "hey guru" in detector.config.wake_words  # nosec B101
+        assert "guru" in detector.config.wake_words  # nosec B101
+        assert "hey maya" in detector.config.wake_words  # nosec B101
+        assert "maya" in detector.config.wake_words  # nosec B101
     
     def test_initialization_custom_config(self):
         """Test detector initialization with custom config."""
@@ -34,19 +34,19 @@ class TestWakeWordDetector:
         )
         detector = WakeWordDetector(config)
         
-        assert detector.config.sensitivity == 0.7
-        assert len(detector.config.wake_words) == 1
-        assert "test" in detector.config.wake_words
+        assert detector.config.sensitivity == 0.7  # nosec B101
+        assert len(detector.config.wake_words) == 1  # nosec B101
+        assert "test" in detector.config.wake_words  # nosec B101
     
     def test_get_wake_words(self):
         """Test getting list of wake words."""
         detector = WakeWordDetector()
         wake_words = detector.get_wake_words()
         
-        assert isinstance(wake_words, list)
-        assert len(wake_words) == 4
-        assert "hey guru" in wake_words
-        assert "hey maya" in wake_words
+        assert isinstance(wake_words, list)  # nosec B101
+        assert len(wake_words) == 4  # nosec B101
+        assert "hey guru" in wake_words  # nosec B101
+        assert "hey maya" in wake_words  # nosec B101
     
     @pytest.mark.asyncio
     async def test_add_wake_word(self):
@@ -56,9 +56,9 @@ class TestWakeWordDetector:
         
         await detector.add_wake_word("hello agent", PersonalityType.GURU)
         
-        assert len(detector.get_wake_words()) == initial_count + 1
-        assert "hello agent" in detector.get_wake_words()
-        assert detector.config.wake_words["hello agent"] == PersonalityType.GURU
+        assert len(detector.get_wake_words()) == initial_count + 1  # nosec B101
+        assert "hello agent" in detector.get_wake_words()  # nosec B101
+        assert detector.config.wake_words["hello agent"] == PersonalityType.GURU  # nosec B101
     
     @pytest.mark.asyncio
     async def test_remove_wake_word(self):
@@ -68,18 +68,18 @@ class TestWakeWordDetector:
         
         await detector.remove_wake_word("guru")
         
-        assert len(detector.get_wake_words()) == initial_count - 1
-        assert "guru" not in detector.get_wake_words()
+        assert len(detector.get_wake_words()) == initial_count - 1  # nosec B101
+        assert "guru" not in detector.get_wake_words()  # nosec B101
     
     def test_set_sensitivity(self):
         """Test setting detection sensitivity."""
         detector = WakeWordDetector()
         
         detector.set_sensitivity(0.8)
-        assert detector.config.sensitivity == 0.8
+        assert detector.config.sensitivity == 0.8  # nosec B101
         
         detector.set_sensitivity(0.2)
-        assert detector.config.sensitivity == 0.2
+        assert detector.config.sensitivity == 0.2  # nosec B101
     
     def test_set_sensitivity_invalid(self):
         """Test setting invalid sensitivity values."""
@@ -98,7 +98,7 @@ class TestWakeWordDetector:
         audio = np.array([], dtype=np.float32)
         
         result = await detector.detect(audio)
-        assert result is None
+        assert result is None  # nosec B101
     
     @pytest.mark.asyncio
     async def test_detect_silence(self):
@@ -109,7 +109,7 @@ class TestWakeWordDetector:
         
         result = await detector.detect(audio)
         # Should not detect wake word in silence
-        assert result is None or result.confidence < 0.5
+        assert result is None or result.confidence < 0.5  # nosec B101
     
     @pytest.mark.asyncio
     async def test_detect_random_noise(self):
@@ -122,7 +122,7 @@ class TestWakeWordDetector:
         # Should not reliably detect wake word in random noise
         # (may occasionally trigger due to random patterns)
         if result is not None:
-            assert 0.0 <= result.confidence <= 1.0
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     @pytest.mark.asyncio
     async def test_detect_returns_correct_structure(self):
@@ -135,12 +135,12 @@ class TestWakeWordDetector:
         result = await detector.detect(audio)
         
         if result is not None:
-            assert isinstance(result, WakeWordDetection)
-            assert isinstance(result.wake_word, str)
-            assert isinstance(result.personality, PersonalityType)
-            assert 0.0 <= result.confidence <= 1.0
-            assert result.timestamp > 0
-            assert isinstance(result.audio_chunk, np.ndarray)
+            assert isinstance(result, WakeWordDetection)  # nosec B101
+            assert isinstance(result.wake_word, str)  # nosec B101
+            assert isinstance(result.personality, PersonalityType)  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
+            assert result.timestamp > 0  # nosec B101
+            assert isinstance(result.audio_chunk, np.ndarray)  # nosec B101
     
     @pytest.mark.asyncio
     async def test_detect_personality_mapping(self):
@@ -162,7 +162,7 @@ class TestWakeWordDetector:
         if result is not None:
             # Verify personality matches wake word
             expected_personality = config.wake_words[result.wake_word]
-            assert result.personality == expected_personality
+            assert result.personality == expected_personality  # nosec B101
     
     def test_detect_sync(self):
         """Test synchronous detection method."""
@@ -173,7 +173,7 @@ class TestWakeWordDetector:
         
         # Should return None or valid detection
         if result is not None:
-            assert isinstance(result, WakeWordDetection)
+            assert isinstance(result, WakeWordDetection)  # nosec B101
     
     @pytest.mark.asyncio
     async def test_mfcc_extraction(self):
@@ -188,11 +188,11 @@ class TestWakeWordDetector:
         features = detector._extract_mfcc(audio)
         
         # Verify feature shape
-        assert features.shape[0] == detector.config.n_mfcc
-        assert features.shape[1] > 0
+        assert features.shape[0] == detector.config.n_mfcc  # nosec B101
+        assert features.shape[1] > 0  # nosec B101
         
         # Verify features are not all zeros
-        assert np.any(features != 0)
+        assert np.any(features != 0)  # nosec B101
     
     @pytest.mark.asyncio
     async def test_sensitivity_affects_detection(self):
@@ -213,10 +213,10 @@ class TestWakeWordDetector:
         # High sensitivity should be more likely to detect
         # (though not guaranteed with random audio)
         if result_low is None and result_high is not None:
-            assert True  # Expected behavior
+            assert True  # Expected behavior  # nosec B101
         elif result_low is not None and result_high is not None:
             # Both detected, high sensitivity should have higher confidence
-            assert result_high.confidence >= result_low.confidence - 0.1
+            assert result_high.confidence >= result_low.confidence - 0.1  # nosec B101
 
 
 class TestWakeWordDetectorProperties:
@@ -245,9 +245,9 @@ class TestWakeWordDetectorProperties:
         
         # If detection occurs, verify structure
         if result is not None:
-            assert isinstance(result, WakeWordDetection)
-            assert 0.0 <= result.confidence <= 1.0
-            assert result.timestamp > 0
+            assert isinstance(result, WakeWordDetection)  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
+            assert result.timestamp > 0  # nosec B101
     
     @given(
         sensitivity=st.floats(min_value=0.0, max_value=1.0)
@@ -263,7 +263,7 @@ class TestWakeWordDetectorProperties:
         
         # Should not raise exception
         detector.set_sensitivity(sensitivity)
-        assert detector.config.sensitivity == sensitivity
+        assert detector.config.sensitivity == sensitivity  # nosec B101
     
     @given(
         n_detections=st.integers(min_value=1, max_value=10)
@@ -284,8 +284,8 @@ class TestWakeWordDetectorProperties:
         guru_words = [w for w in wake_words if detector.config.wake_words[w] == PersonalityType.GURU]
         maya_words = [w for w in wake_words if detector.config.wake_words[w] == PersonalityType.MAYA]
         
-        assert len(guru_words) > 0, "Should have at least one Guru wake word"
-        assert len(maya_words) > 0, "Should have at least one Maya wake word"
+        assert len(guru_words) > 0, "Should have at least one Guru wake word"  # nosec B101
+        assert len(maya_words) > 0, "Should have at least one Maya wake word"  # nosec B101
         
         # Test detection multiple times
         for _ in range(n_detections):
@@ -294,7 +294,7 @@ class TestWakeWordDetectorProperties:
             
             if result is not None:
                 # Verify personality is one of the two
-                assert result.personality in [PersonalityType.GURU, PersonalityType.MAYA]
+                assert result.personality in [PersonalityType.GURU, PersonalityType.MAYA]  # nosec B101
     
     @given(
         audio_length=st.integers(min_value=8000, max_value=32000)
@@ -317,7 +317,7 @@ class TestWakeWordDetectorProperties:
         
         # Should complete within 200ms (being generous for test environment)
         # In production with optimized code, this should be much faster
-        assert elapsed_ms < 500, f"Detection took {elapsed_ms:.2f}ms, expected <500ms"
+        assert elapsed_ms < 500, f"Detection took {elapsed_ms:.2f}ms, expected <500ms"  # nosec B101
     
     @given(
         n_iterations=st.integers(min_value=5, max_value=20)
@@ -352,7 +352,7 @@ class TestWakeWordDetectorProperties:
         
         # Should have less than 50% false positives with random noise
         assert false_positive_rate < 0.5, \
-            f"False positive rate {false_positive_rate:.2%} too high"
+            f"False positive rate {false_positive_rate:.2%} too high"  # nosec B101
     
     @given(
         wake_word=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=('Ll', 'Lu', 'Nd', 'Zs')))
@@ -375,13 +375,13 @@ class TestWakeWordDetectorProperties:
         
         # Add wake word
         await detector.add_wake_word(wake_word, PersonalityType.GURU)
-        assert wake_word in detector.get_wake_words()
-        assert len(detector.get_wake_words()) == initial_count + 1
+        assert wake_word in detector.get_wake_words()  # nosec B101
+        assert len(detector.get_wake_words()) == initial_count + 1  # nosec B101
         
         # Remove wake word
         await detector.remove_wake_word(wake_word)
-        assert wake_word not in detector.get_wake_words()
-        assert len(detector.get_wake_words()) == initial_count
+        assert wake_word not in detector.get_wake_words()  # nosec B101
+        assert len(detector.get_wake_words()) == initial_count  # nosec B101
 
 
 class TestWakeWordConfig:
@@ -393,11 +393,11 @@ class TestWakeWordConfig:
             wake_words={"test": PersonalityType.GURU}
         )
         
-        assert config.sensitivity == 0.5
-        assert config.sample_rate == 16000
-        assert config.n_mfcc == 13
-        assert config.hop_length == 512
-        assert config.n_fft == 2048
+        assert config.sensitivity == 0.5  # nosec B101
+        assert config.sample_rate == 16000  # nosec B101
+        assert config.n_mfcc == 13  # nosec B101
+        assert config.hop_length == 512  # nosec B101
+        assert config.n_fft == 2048  # nosec B101
     
     def test_config_custom_values(self):
         """Test custom configuration values."""
@@ -408,6 +408,6 @@ class TestWakeWordConfig:
             n_mfcc=20
         )
         
-        assert config.sensitivity == 0.7
-        assert config.sample_rate == 22050
-        assert config.n_mfcc == 20
+        assert config.sensitivity == 0.7  # nosec B101
+        assert config.sample_rate == 22050  # nosec B101
+        assert config.n_mfcc == 20  # nosec B101

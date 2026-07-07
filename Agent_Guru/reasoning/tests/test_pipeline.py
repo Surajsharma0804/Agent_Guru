@@ -44,13 +44,13 @@ class TestPipelineMetrics:
         """Test metrics initialization with defaults."""
         metrics = PipelineMetrics()
 
-        assert metrics.total_latency_ms == 0.0
-        assert metrics.stage_latencies == {}
-        assert metrics.knowledge_query_detected is False
-        assert metrics.knowledge_query_type is None
-        assert metrics.knowledge_confidence is None
-        assert metrics.error is None
-        assert isinstance(metrics.timestamp, datetime)
+        assert metrics.total_latency_ms == 0.0  # nosec B101
+        assert metrics.stage_latencies == {}  # nosec B101
+        assert metrics.knowledge_query_detected is False  # nosec B101
+        assert metrics.knowledge_query_type is None  # nosec B101
+        assert metrics.knowledge_confidence is None  # nosec B101
+        assert metrics.error is None  # nosec B101
+        assert isinstance(metrics.timestamp, datetime)  # nosec B101
 
     def test_add_stage_latency(self):
         """Test adding stage latency."""
@@ -59,8 +59,8 @@ class TestPipelineMetrics:
         metrics.add_stage_latency(PipelineStage.INPUT_NORMALIZATION, 25.5)
         metrics.add_stage_latency(PipelineStage.KNOWLEDGE_DETECTION, 45.2)
 
-        assert metrics.stage_latencies["input_normalization"] == 25.5
-        assert metrics.stage_latencies["knowledge_detection"] == 45.2
+        assert metrics.stage_latencies["input_normalization"] == 25.5  # nosec B101
+        assert metrics.stage_latencies["knowledge_detection"] == 45.2  # nosec B101
 
     def test_to_dict(self):
         """Test converting metrics to dictionary."""
@@ -73,13 +73,13 @@ class TestPipelineMetrics:
 
         result = metrics.to_dict()
 
-        assert result["total_latency_ms"] == 150.5
-        assert result["stage_latencies"]["input_normalization"] == 25.5
-        assert result["knowledge_query_detected"] is True
-        assert result["knowledge_query_type"] == "temporal"
-        assert result["knowledge_confidence"] == 0.95
-        assert result["error"] is None
-        assert "timestamp" in result
+        assert result["total_latency_ms"] == 150.5  # nosec B101
+        assert result["stage_latencies"]["input_normalization"] == 25.5  # nosec B101
+        assert result["knowledge_query_detected"] is True  # nosec B101
+        assert result["knowledge_query_type"] == "temporal"  # nosec B101
+        assert result["knowledge_confidence"] == 0.95  # nosec B101
+        assert result["error"] is None  # nosec B101
+        assert "timestamp" in result  # nosec B101
 
 
 class TestPipelineResult:
@@ -92,11 +92,11 @@ class TestPipelineResult:
             confidence=0.95,
         )
 
-        assert result.response == "Test response"
-        assert result.confidence == 0.95
-        assert result.knowledge_answer is None
-        assert isinstance(result.metrics, PipelineMetrics)
-        assert result.success is True
+        assert result.response == "Test response"  # nosec B101
+        assert result.confidence == 0.95  # nosec B101
+        assert result.knowledge_answer is None  # nosec B101
+        assert isinstance(result.metrics, PipelineMetrics)  # nosec B101
+        assert result.success is True  # nosec B101
 
     def test_result_with_knowledge_answer(self):
         """Test result with knowledge answer."""
@@ -114,8 +114,8 @@ class TestPipelineResult:
             knowledge_answer=knowledge_answer,
         )
 
-        assert result.knowledge_answer == knowledge_answer
-        assert result.response == knowledge_answer.summary
+        assert result.knowledge_answer == knowledge_answer  # nosec B101
+        assert result.response == knowledge_answer.summary  # nosec B101
 
 
 class TestReasoningPipelineInitialization:
@@ -127,11 +127,11 @@ class TestReasoningPipelineInitialization:
 
         pipeline = ReasoningPipeline(memory_retriever=memory_retriever)
 
-        assert pipeline.memory_retriever == memory_retriever
-        assert pipeline.enable_knowledge_synthesis is True
-        assert pipeline.metrics_enabled is True
-        assert pipeline.knowledge_detector is not None
-        assert pipeline.knowledge_synthesizer is not None
+        assert pipeline.memory_retriever == memory_retriever  # nosec B101
+        assert pipeline.enable_knowledge_synthesis is True  # nosec B101
+        assert pipeline.metrics_enabled is True  # nosec B101
+        assert pipeline.knowledge_detector is not None  # nosec B101
+        assert pipeline.knowledge_synthesizer is not None  # nosec B101
 
     def test_initialization_without_memory_retriever(self):
         """Test initialization fails without memory retriever."""
@@ -150,8 +150,8 @@ class TestReasoningPipelineInitialization:
             knowledge_synthesizer=knowledge_synthesizer,
         )
 
-        assert pipeline.knowledge_detector == knowledge_detector
-        assert pipeline.knowledge_synthesizer == knowledge_synthesizer
+        assert pipeline.knowledge_detector == knowledge_detector  # nosec B101
+        assert pipeline.knowledge_synthesizer == knowledge_synthesizer  # nosec B101
 
     def test_initialization_with_knowledge_synthesis_disabled(self):
         """Test initialization with knowledge synthesis disabled."""
@@ -162,9 +162,9 @@ class TestReasoningPipelineInitialization:
             enable_knowledge_synthesis=False,
         )
 
-        assert pipeline.enable_knowledge_synthesis is False
-        assert pipeline.knowledge_detector is None
-        assert pipeline.knowledge_synthesizer is None
+        assert pipeline.enable_knowledge_synthesis is False  # nosec B101
+        assert pipeline.knowledge_detector is None  # nosec B101
+        assert pipeline.knowledge_synthesizer is None  # nosec B101
 
 
 class TestReasoningPipelineInputNormalization:
@@ -177,7 +177,7 @@ class TestReasoningPipelineInputNormalization:
 
         normalized = pipeline._normalize_input("  when did I last call John?  ")
 
-        assert normalized == "when did I last call John?"
+        assert normalized == "when did I last call John?"  # nosec B101
 
     def test_normalize_input_with_extra_whitespace(self):
         """Test normalizing input with extra whitespace."""
@@ -186,7 +186,7 @@ class TestReasoningPipelineInputNormalization:
 
         normalized = pipeline._normalize_input("when   did   I   last   call   John?")
 
-        assert normalized == "when did I last call John?"
+        assert normalized == "when did I last call John?"  # nosec B101
 
     def test_normalize_empty_input(self):
         """Test normalizing empty input raises error."""
@@ -246,22 +246,22 @@ class TestReasoningPipelineKnowledgeQueryRouting:
         result = pipeline.process("when did I last call John?", user_id="user_123")
 
         # Verify result
-        assert result.success is True
-        assert result.response == "You last called John 3 days ago"
-        assert result.confidence == 0.95
-        assert result.knowledge_answer == knowledge_answer
+        assert result.success is True  # nosec B101
+        assert result.response == "You last called John 3 days ago"  # nosec B101
+        assert result.confidence == 0.95  # nosec B101
+        assert result.knowledge_answer == knowledge_answer  # nosec B101
 
         # Verify metrics
-        assert result.metrics.knowledge_query_detected is True
-        assert result.metrics.knowledge_query_type == "temporal"
-        assert result.metrics.knowledge_confidence == 0.95
-        assert result.metrics.total_latency_ms > 0
+        assert result.metrics.knowledge_query_detected is True  # nosec B101
+        assert result.metrics.knowledge_query_type == "temporal"  # nosec B101
+        assert result.metrics.knowledge_confidence == 0.95  # nosec B101
+        assert result.metrics.total_latency_ms > 0  # nosec B101
 
         # Verify stage latencies
-        assert "input_normalization" in result.metrics.stage_latencies
-        assert "knowledge_detection" in result.metrics.stage_latencies
-        assert "knowledge_synthesis" in result.metrics.stage_latencies
-        assert "response_generation" in result.metrics.stage_latencies
+        assert "input_normalization" in result.metrics.stage_latencies  # nosec B101
+        assert "knowledge_detection" in result.metrics.stage_latencies  # nosec B101
+        assert "knowledge_synthesis" in result.metrics.stage_latencies  # nosec B101
+        assert "response_generation" in result.metrics.stage_latencies  # nosec B101
 
         # Verify calls
         knowledge_detector.detect_knowledge_query.assert_called_once()
@@ -304,10 +304,10 @@ class TestReasoningPipelineKnowledgeQueryRouting:
         result = pipeline.process("who do I message most?", user_id="user_123")
 
         # Verify result
-        assert result.success is True
-        assert "Alice" in result.response
-        assert result.confidence == 0.92
-        assert result.metrics.knowledge_query_type == "aggregation"
+        assert result.success is True  # nosec B101
+        assert "Alice" in result.response  # nosec B101
+        assert result.confidence == 0.92  # nosec B101
+        assert result.metrics.knowledge_query_type == "aggregation"  # nosec B101
 
     def test_process_knowledge_query_pattern(self):
         """Test processing pattern knowledge query."""
@@ -353,10 +353,10 @@ class TestReasoningPipelineKnowledgeQueryRouting:
         result = pipeline.process("what do I usually do in the morning?", user_id="user_123")
 
         # Verify result
-        assert result.success is True
-        assert "email" in result.response
-        assert result.knowledge_answer.patterns == [pattern]
-        assert result.metrics.knowledge_query_type == "pattern"
+        assert result.success is True  # nosec B101
+        assert "email" in result.response  # nosec B101
+        assert result.knowledge_answer.patterns == [pattern]  # nosec B101
+        assert result.metrics.knowledge_query_type == "pattern"  # nosec B101
 
 
 class TestReasoningPipelineNonKnowledgeQueries:
@@ -381,16 +381,16 @@ class TestReasoningPipelineNonKnowledgeQueries:
         result = pipeline.process("set a timer for 5 minutes", user_id="user_123")
 
         # Verify fallback response
-        assert result.success is True
-        assert "still learning" in result.response.lower()
-        assert result.confidence == 0.5  # Low confidence for fallback
-        assert result.knowledge_answer is None
-        assert result.metrics.knowledge_query_detected is False
+        assert result.success is True  # nosec B101
+        assert "still learning" in result.response.lower()  # nosec B101
+        assert result.confidence == 0.5  # Low confidence for fallback  # nosec B101
+        assert result.knowledge_answer is None  # nosec B101
+        assert result.metrics.knowledge_query_detected is False  # nosec B101
 
         # Verify stage latencies
-        assert "input_normalization" in result.metrics.stage_latencies
-        assert "knowledge_detection" in result.metrics.stage_latencies
-        assert "normal_reasoning" in result.metrics.stage_latencies
+        assert "input_normalization" in result.metrics.stage_latencies  # nosec B101
+        assert "knowledge_detection" in result.metrics.stage_latencies  # nosec B101
+        assert "normal_reasoning" in result.metrics.stage_latencies  # nosec B101
 
     def test_process_with_knowledge_synthesis_disabled(self):
         """Test processing with knowledge synthesis disabled."""
@@ -407,10 +407,10 @@ class TestReasoningPipelineNonKnowledgeQueries:
         result = pipeline.process("when did I last call John?", user_id="user_123")
 
         # Verify fallback response (knowledge synthesis disabled)
-        assert result.success is True
-        assert result.confidence == 0.5
-        assert result.knowledge_answer is None
-        assert result.metrics.knowledge_query_detected is False
+        assert result.success is True  # nosec B101
+        assert result.confidence == 0.5  # nosec B101
+        assert result.knowledge_answer is None  # nosec B101
+        assert result.metrics.knowledge_query_detected is False  # nosec B101
 
 
 class TestReasoningPipelineErrorHandling:
@@ -435,11 +435,11 @@ class TestReasoningPipelineErrorHandling:
         result = pipeline.process("when did I last call John?", user_id="user_123")
 
         # Verify error handling
-        assert result.success is False
-        assert "error" in result.response.lower()
-        assert result.confidence == 0.0
-        assert result.metrics.error == "Detector error"
-        assert result.metrics.total_latency_ms > 0
+        assert result.success is False  # nosec B101
+        assert "error" in result.response.lower()  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
+        assert result.metrics.error == "Detector error"  # nosec B101
+        assert result.metrics.total_latency_ms > 0  # nosec B101
 
     def test_process_with_synthesizer_error(self):
         """Test processing when synthesizer raises error."""
@@ -472,10 +472,10 @@ class TestReasoningPipelineErrorHandling:
         result = pipeline.process("when did I last call John?", user_id="user_123")
 
         # Verify error handling
-        assert result.success is False
-        assert "error" in result.response.lower()
-        assert result.confidence == 0.0
-        assert result.metrics.error == "Synthesis error"
+        assert result.success is False  # nosec B101
+        assert "error" in result.response.lower()  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
+        assert result.metrics.error == "Synthesis error"  # nosec B101
 
 
 class TestReasoningPipelineMetricsTracking:
@@ -523,28 +523,28 @@ class TestReasoningPipelineMetricsTracking:
         metrics = result.metrics
 
         # Check all stages are tracked
-        assert "input_normalization" in metrics.stage_latencies
-        assert "memory_retrieval" in metrics.stage_latencies
-        assert "knowledge_detection" in metrics.stage_latencies
-        assert "knowledge_synthesis" in metrics.stage_latencies
-        assert "response_generation" in metrics.stage_latencies
+        assert "input_normalization" in metrics.stage_latencies  # nosec B101
+        assert "memory_retrieval" in metrics.stage_latencies  # nosec B101
+        assert "knowledge_detection" in metrics.stage_latencies  # nosec B101
+        assert "knowledge_synthesis" in metrics.stage_latencies  # nosec B101
+        assert "response_generation" in metrics.stage_latencies  # nosec B101
 
         # Check all latencies are positive
         for stage, latency in metrics.stage_latencies.items():
-            assert latency >= 0, f"Stage {stage} has negative latency"
+            assert latency >= 0, f"Stage {stage} has negative latency"  # nosec B101
 
         # Check total latency is sum of stages (approximately)
         total_stage_latency = sum(metrics.stage_latencies.values())
-        assert abs(metrics.total_latency_ms - total_stage_latency) < 10  # Allow 10ms tolerance
+        assert abs(metrics.total_latency_ms - total_stage_latency) < 10  # Allow 10ms tolerance  # nosec B101
 
         # Check knowledge query metrics
-        assert metrics.knowledge_query_detected is True
-        assert metrics.knowledge_query_type == "temporal"
-        assert metrics.knowledge_confidence == 0.95
+        assert metrics.knowledge_query_detected is True  # nosec B101
+        assert metrics.knowledge_query_type == "temporal"  # nosec B101
+        assert metrics.knowledge_confidence == 0.95  # nosec B101
 
         # Check timestamp
-        assert isinstance(metrics.timestamp, datetime)
-        assert (datetime.now(tz=timezone.utc) - metrics.timestamp).total_seconds() < 1
+        assert isinstance(metrics.timestamp, datetime)  # nosec B101
+        assert (datetime.now(tz=timezone.utc) - metrics.timestamp).total_seconds() < 1  # nosec B101
 
     def test_metrics_to_dict_conversion(self):
         """Test converting metrics to dictionary for logging."""
@@ -587,19 +587,19 @@ class TestReasoningPipelineMetricsTracking:
         metrics_dict = result.metrics.to_dict()
 
         # Verify dict structure
-        assert "total_latency_ms" in metrics_dict
-        assert "stage_latencies" in metrics_dict
-        assert "knowledge_query_detected" in metrics_dict
-        assert "knowledge_query_type" in metrics_dict
-        assert "knowledge_confidence" in metrics_dict
-        assert "error" in metrics_dict
-        assert "timestamp" in metrics_dict
+        assert "total_latency_ms" in metrics_dict  # nosec B101
+        assert "stage_latencies" in metrics_dict  # nosec B101
+        assert "knowledge_query_detected" in metrics_dict  # nosec B101
+        assert "knowledge_query_type" in metrics_dict  # nosec B101
+        assert "knowledge_confidence" in metrics_dict  # nosec B101
+        assert "error" in metrics_dict  # nosec B101
+        assert "timestamp" in metrics_dict  # nosec B101
 
         # Verify values
-        assert metrics_dict["knowledge_query_detected"] is True
-        assert metrics_dict["knowledge_query_type"] == "temporal"
-        assert metrics_dict["knowledge_confidence"] == 0.95
-        assert metrics_dict["error"] is None
+        assert metrics_dict["knowledge_query_detected"] is True  # nosec B101
+        assert metrics_dict["knowledge_query_type"] == "temporal"  # nosec B101
+        assert metrics_dict["knowledge_confidence"] == 0.95  # nosec B101
+        assert metrics_dict["error"] is None  # nosec B101
 
 
 class TestReasoningPipelineResponseGeneration:
@@ -620,7 +620,7 @@ class TestReasoningPipelineResponseGeneration:
 
         response = pipeline._generate_response_from_knowledge_answer(knowledge_answer)
 
-        assert response == "You last called John 3 days ago"
+        assert response == "You last called John 3 days ago"  # nosec B101
 
     def test_fallback_response(self):
         """Test fallback response for non-knowledge queries."""
@@ -629,8 +629,8 @@ class TestReasoningPipelineResponseGeneration:
 
         response = pipeline._fallback_response("set a timer for 5 minutes")
 
-        assert "still learning" in response.lower()
-        assert "when did i last..." in response.lower()  # Fixed: use exact text from response
+        assert "still learning" in response.lower()  # nosec B101
+        assert "when did i last..." in response.lower()  # Fixed: use exact text from response  # nosec B101
 
 
 class TestReasoningPipelineIntegration:
@@ -674,11 +674,11 @@ class TestReasoningPipelineIntegration:
         result = pipeline.process("when did I last call John?", user_id="user_123")
 
         # Verify result
-        assert result.success is True
-        assert result.confidence == 0.95
-        assert result.metrics.knowledge_query_detected is True
-        assert result.metrics.total_latency_ms > 0
-        assert result.response == "You last called John 3 days ago"
+        assert result.success is True  # nosec B101
+        assert result.confidence == 0.95  # nosec B101
+        assert result.metrics.knowledge_query_detected is True  # nosec B101
+        assert result.metrics.total_latency_ms > 0  # nosec B101
+        assert result.response == "You last called John 3 days ago"  # nosec B101
 
     def test_get_metrics_summary(self):
         """Test getting metrics summary."""
@@ -688,8 +688,8 @@ class TestReasoningPipelineIntegration:
         summary = pipeline.get_metrics_summary()
 
         # Verify summary structure (placeholder for now)
-        assert "knowledge_queries_processed" in summary
-        assert "normal_queries_processed" in summary
-        assert "average_latency_ms" in summary
-        assert "average_confidence" in summary
-        assert "error_rate" in summary
+        assert "knowledge_queries_processed" in summary  # nosec B101
+        assert "normal_queries_processed" in summary  # nosec B101
+        assert "average_latency_ms" in summary  # nosec B101
+        assert "average_confidence" in summary  # nosec B101
+        assert "error_rate" in summary  # nosec B101

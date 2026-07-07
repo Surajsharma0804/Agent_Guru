@@ -157,17 +157,17 @@ def test_property_9_tts_personality_voice_mapping(tts_engine, text, personality)
     audio1 = tts_engine.synthesize(text, personality=personality)
     audio2 = tts_engine.synthesize(text, personality=personality)
     
-    assert len(audio1) > 0, "Audio output should not be empty"
-    assert len(audio2) > 0, "Audio output should not be empty"
+    assert len(audio1) > 0, "Audio output should not be empty"  # nosec B101
+    assert len(audio2) > 0, "Audio output should not be empty"  # nosec B101
     
     voice_gender = analyze_voice_gender(audio1)
     voice_gender2 = analyze_voice_gender(audio2)
     assert voice_gender == voice_gender2, \
-        f"Voice gender should be consistent across sessions (got {voice_gender} and {voice_gender2})"
+        f"Voice gender should be consistent across sessions (got {voice_gender} and {voice_gender2})"  # nosec B101
     
     similarity = compute_audio_similarity(audio1, audio2)
     assert similarity > 0.7, \
-        f"Voice characteristics should be consistent across sessions (similarity={similarity:.3f})"
+        f"Voice characteristics should be consistent across sessions (similarity={similarity:.3f})"  # nosec B101
 
 
 @given(
@@ -199,7 +199,7 @@ def test_property_10_tts_real_time_performance(tts_engine, text, personality):
         real_time_factor = synthesis_time / audio_duration
         assert real_time_factor < 1.0, \
             f"Real-time factor {real_time_factor:.3f} should be below 1.0 " \
-            f"(synthesis_time={synthesis_time:.3f}s, audio_duration={audio_duration:.3f}s)"
+            f"(synthesis_time={synthesis_time:.3f}s, audio_duration={audio_duration:.3f}s)"  # nosec B101
 
 
 @given(
@@ -228,11 +228,11 @@ def test_property_11_tts_output_format(tts_engine, text, personality, speech_rat
         speech_rate=speech_rate
     )
     
-    assert len(audio) > 0, "Audio output should not be empty"
+    assert len(audio) > 0, "Audio output should not be empty"  # nosec B101
     
     sample_rate = get_sample_rate(audio)
     assert sample_rate >= 16000, \
-        f"Sample rate {sample_rate} Hz should be at least 16000 Hz"
+        f"Sample rate {sample_rate} Hz should be at least 16000 Hz"  # nosec B101
     
     audio_normal = tts_engine.synthesize(text, personality=personality, speech_rate=1.0)
     
@@ -245,7 +245,7 @@ def test_property_11_tts_output_format(tts_engine, text, personality, speech_rat
         
         assert 0.3 < actual_ratio < 3.0, \
             f"Duration ratio {actual_ratio:.3f} should be reasonable " \
-            f"(expected ~{expected_ratio:.3f} for rate {speech_rate:.2f})"
+            f"(expected ~{expected_ratio:.3f} for rate {speech_rate:.2f})"  # nosec B101
 
 
 # Unit tests - COMPREHENSIVE
@@ -255,11 +255,11 @@ def test_tts_guru_male_voice(tts_engine):
     text = "Hello, I am Guru, your AI assistant."
     audio = tts_engine.synthesize(text, personality=PersonalityType.GURU)
     
-    assert len(audio) > 0
+    assert len(audio) > 0  # nosec B101
     
     voice_info = tts_engine.get_voice_info(PersonalityType.GURU)
-    assert voice_info["gender"] == "male"
-    assert voice_info["personality"] == "guru"
+    assert voice_info["gender"] == "male"  # nosec B101
+    assert voice_info["personality"] == "guru"  # nosec B101
 
 
 def test_tts_maya_female_voice(tts_engine):
@@ -267,11 +267,11 @@ def test_tts_maya_female_voice(tts_engine):
     text = "Hello, I am Maya, your AI assistant."
     audio = tts_engine.synthesize(text, personality=PersonalityType.MAYA)
     
-    assert len(audio) > 0
+    assert len(audio) > 0  # nosec B101
     
     voice_info = tts_engine.get_voice_info(PersonalityType.MAYA)
-    assert voice_info["gender"] == "female"
-    assert voice_info["personality"] == "maya"
+    assert voice_info["gender"] == "female"  # nosec B101
+    assert voice_info["personality"] == "maya"  # nosec B101
 
 
 def test_tts_all_emotions(tts_engine):
@@ -284,7 +284,7 @@ def test_tts_all_emotions(tts_engine):
             personality=PersonalityType.GURU,
             emotion=emotion
         )
-        assert len(audio) > 0, f"Failed to synthesize with emotion {emotion}"
+        assert len(audio) > 0, f"Failed to synthesize with emotion {emotion}"  # nosec B101
 
 
 def test_tts_speech_rate_bounds(tts_engine):
@@ -298,7 +298,7 @@ def test_tts_speech_rate_bounds(tts_engine):
             personality=PersonalityType.GURU,
             speech_rate=rate
         )
-        assert len(audio) > 0
+        assert len(audio) > 0  # nosec B101
     
     # Invalid rates
     with pytest.raises(Exception):
@@ -315,7 +315,7 @@ def test_tts_volume_bounds(tts_engine):
     # Valid volumes
     for vol in [0.0, 0.5, 1.0]:
         audio = tts_engine.synthesize(text, volume=vol)
-        assert len(audio) > 0
+        assert len(audio) > 0  # nosec B101
     
     # Invalid volumes
     with pytest.raises(Exception):
@@ -342,27 +342,27 @@ def test_tts_synthesize_to_array(tts_engine):
         personality=PersonalityType.GURU
     )
     
-    assert isinstance(audio_array, np.ndarray)
-    assert audio_array.dtype == np.float32
-    assert len(audio_array) > 0
-    assert sample_rate >= 16000
+    assert isinstance(audio_array, np.ndarray)  # nosec B101
+    assert audio_array.dtype == np.float32  # nosec B101
+    assert len(audio_array) > 0  # nosec B101
+    assert sample_rate >= 16000  # nosec B101
     
-    assert np.all(audio_array >= -1.0)
-    assert np.all(audio_array <= 1.0)
+    assert np.all(audio_array >= -1.0)  # nosec B101
+    assert np.all(audio_array <= 1.0)  # nosec B101
 
 
 def test_tts_long_text(tts_engine):
     """Test TTS with long text."""
     text = "This is a very long text. " * 50
     audio = tts_engine.synthesize(text, personality=PersonalityType.GURU)
-    assert len(audio) > 0
+    assert len(audio) > 0  # nosec B101
 
 
 def test_tts_special_characters(tts_engine):
     """Test TTS with special characters."""
     text = "Hello! How are you? I'm fine, thanks. 123 test."
     audio = tts_engine.synthesize(text, personality=PersonalityType.GURU)
-    assert len(audio) > 0
+    assert len(audio) > 0  # nosec B101
 
 
 def test_tts_concurrent_synthesis(tts_engine):
@@ -378,9 +378,9 @@ def test_tts_concurrent_synthesis(tts_engine):
         futures = [executor.submit(synthesize_text, text) for text in texts]
         results = [f.result() for f in concurrent.futures.as_completed(futures)]
     
-    assert len(results) == 5
+    assert len(results) == 5  # nosec B101
     for audio in results:
-        assert len(audio) > 0
+        assert len(audio) > 0  # nosec B101
 
 
 # EXTREME STRESS TESTS - ZERO COMPROMISE
@@ -389,8 +389,8 @@ def test_tts_extreme_long_text(tts_engine):
     """Test TTS with EXTREMELY long text - production stress test."""
     text = "This is an extremely long text for production stress testing. " * 200  # 12,600+ chars
     audio = tts_engine.synthesize(text, personality=PersonalityType.GURU)
-    assert len(audio) > 0
-    assert get_audio_duration(audio) > 10.0  # Should be at least 10 seconds
+    assert len(audio) > 0  # nosec B101
+    assert get_audio_duration(audio) > 10.0  # Should be at least 10 seconds  # nosec B101
 
 
 def test_tts_rapid_fire_synthesis(tts_engine):
@@ -400,13 +400,13 @@ def test_tts_rapid_fire_synthesis(tts_engine):
     start_time = time.time()
     for text in texts:
         audio = tts_engine.synthesize(text, personality=PersonalityType.GURU)
-        assert len(audio) > 0
+        assert len(audio) > 0  # nosec B101
     
     total_time = time.time() - start_time
     avg_time = total_time / 100
     
     # Should handle 100 requests efficiently
-    assert avg_time < 5.0, f"Average synthesis time {avg_time:.3f}s too slow for production"
+    assert avg_time < 5.0, f"Average synthesis time {avg_time:.3f}s too slow for production"  # nosec B101
 
 
 def test_tts_all_emotion_combinations(tts_engine):
@@ -425,7 +425,7 @@ def test_tts_all_emotion_combinations(tts_engine):
                         volume=volume
                     )
                     assert len(audio) > 0, \
-                        f"Failed: personality={personality}, emotion={emotion}, rate={rate}, vol={volume}"
+                        f"Failed: personality={personality}, emotion={emotion}, rate={rate}, vol={volume}"  # nosec B101
 
 
 def test_tts_unicode_and_special_chars(tts_engine):
@@ -443,7 +443,7 @@ def test_tts_unicode_and_special_chars(tts_engine):
     
     for text in test_cases:
         audio = tts_engine.synthesize(text, personality=PersonalityType.GURU)
-        assert len(audio) > 0, f"Failed for text: {text}"
+        assert len(audio) > 0, f"Failed for text: {text}"  # nosec B101
 
 
 def test_tts_memory_efficiency(tts_engine):
@@ -464,7 +464,7 @@ def test_tts_memory_efficiency(tts_engine):
             f"Memory test iteration {i}",
             personality=PersonalityType.GURU
         )
-        assert len(audio) > 0
+        assert len(audio) > 0  # nosec B101
         
         # Force cleanup every 100 iterations
         if i % 100 == 0:
@@ -478,7 +478,7 @@ def test_tts_memory_efficiency(tts_engine):
     
     # Memory increase should be minimal (< 100MB for 1000 syntheses)
     assert mem_increase < 100, \
-        f"Memory leak detected: {mem_increase:.2f}MB increase over 1000 syntheses"
+        f"Memory leak detected: {mem_increase:.2f}MB increase over 1000 syntheses"  # nosec B101
 
 
 def test_tts_concurrent_stress(tts_engine):
@@ -504,8 +504,8 @@ def test_tts_concurrent_stress(tts_engine):
         futures = [executor.submit(synthesize_with_all_params, i) for i in range(200)]
         results = [f.result() for f in concurrent.futures.as_completed(futures)]
     
-    assert all(results), "Some concurrent syntheses failed"
-    assert len(results) == 200
+    assert all(results), "Some concurrent syntheses failed"  # nosec B101
+    assert len(results) == 200  # nosec B101
 
 
 def test_tts_audio_quality_metrics(tts_engine):
@@ -528,9 +528,9 @@ def test_tts_audio_quality_metrics(tts_engine):
                 frames = wav.readframes(wav.getnframes())
             
             # Quality checks
-            assert sample_rate >= 16000, f"Sample rate {sample_rate} too low for production"
-            assert sample_width >= 2, f"Sample width {sample_width} too low (need 16-bit minimum)"
-            assert n_channels >= 1, "Must have at least 1 channel"
+            assert sample_rate >= 16000, f"Sample rate {sample_rate} too low for production"  # nosec B101
+            assert sample_width >= 2, f"Sample width {sample_width} too low (need 16-bit minimum)"  # nosec B101
+            assert n_channels >= 1, "Must have at least 1 channel"  # nosec B101
             
             # Convert to array for analysis
             if sample_width == 2:
@@ -540,17 +540,17 @@ def test_tts_audio_quality_metrics(tts_engine):
             
             # Check for clipping (should be minimal)
             clipping_ratio = np.sum(np.abs(audio_array) > 0.99) / len(audio_array)
-            assert clipping_ratio < 0.01, f"Too much clipping: {clipping_ratio*100:.2f}%"
+            assert clipping_ratio < 0.01, f"Too much clipping: {clipping_ratio*100:.2f}%"  # nosec B101
             
             # Check for silence (should not be all silent)
             rms = np.sqrt(np.mean(audio_array**2))
-            assert rms > 0.01, f"Audio too quiet (RMS={rms:.4f})"
+            assert rms > 0.01, f"Audio too quiet (RMS={rms:.4f})"  # nosec B101
             
             # Check dynamic range
             max_abs = np.max(np.abs(audio_array))
             if max_abs > 0 and rms > 0:
                 dynamic_range = 20 * np.log10(max_abs / (rms + 1e-10))
-                assert dynamic_range > 6, f"Dynamic range too low: {dynamic_range:.2f} dB"
+                assert dynamic_range > 6, f"Dynamic range too low: {dynamic_range:.2f} dB"  # nosec B101
 
 
 def test_tts_error_recovery(tts_engine):
@@ -558,26 +558,26 @@ def test_tts_error_recovery(tts_engine):
     # Test empty text handling
     try:
         tts_engine.synthesize("", personality=PersonalityType.GURU)
-        assert False, "Should raise error for empty text"
+        assert False, "Should raise error for empty text"  # nosec B101
     except OSError as exc:
         logger.debug("Cleanup skipped: %s", exc)  # Expected
     
     # Test invalid parameters
     try:
         tts_engine.synthesize("test", speech_rate=10.0)
-        assert False, "Should raise error for invalid speech rate"
+        assert False, "Should raise error for invalid speech rate"  # nosec B101
     except OSError as exc:
         logger.debug("Cleanup skipped: %s", exc)  # Expected
     
     try:
         tts_engine.synthesize("test", volume=5.0)
-        assert False, "Should raise error for invalid volume"
+        assert False, "Should raise error for invalid volume"  # nosec B101
     except OSError as exc:
         logger.debug("Cleanup skipped: %s", exc)  # Expected
     
     # Engine should still work after errors
     audio = tts_engine.synthesize("Recovery test", personality=PersonalityType.GURU)
-    assert len(audio) > 0
+    assert len(audio) > 0  # nosec B101
 
 
 def test_tts_performance_consistency(tts_engine):
@@ -590,14 +590,14 @@ def test_tts_performance_consistency(tts_engine):
         audio = tts_engine.synthesize(text, personality=PersonalityType.GURU)
         elapsed = time.time() - start
         times.append(elapsed)
-        assert len(audio) > 0
+        assert len(audio) > 0  # nosec B101
     
     avg_time = np.mean(times)
     std_time = np.std(times)
     
     # Coefficient of variation should be low (< 50%)
     cv = (std_time / avg_time) * 100
-    assert cv < 50, f"Performance too inconsistent: CV={cv:.2f}%"
+    assert cv < 50, f"Performance too inconsistent: CV={cv:.2f}%"  # nosec B101
 
 
 def test_tts_gpu_availability_check(tts_engine):
@@ -616,4 +616,4 @@ def test_tts_gpu_availability_check(tts_engine):
         print("⚠ For maximum performance, install CUDA and PyTorch with GPU support")
     
     # Test should pass regardless, but log GPU status
-    assert True, "GPU check complete"
+    assert True, "GPU check complete"  # nosec B101

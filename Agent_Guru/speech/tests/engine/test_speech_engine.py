@@ -54,32 +54,32 @@ class TestSpeechEngine:
     
     def test_engine_creation(self, engine: SpeechEngine):
         """Test engine creation."""
-        assert engine is not None
-        assert engine.get_state() == EngineState.UNINITIALIZED
+        assert engine is not None  # nosec B101
+        assert engine.get_state() == EngineState.UNINITIALIZED  # nosec B101
     
     def test_engine_initialization(self, engine: SpeechEngine):
         """Test engine initialization."""
         engine.initialize()
         
         # Should be ready
-        assert engine.get_state() == EngineState.READY
+        assert engine.get_state() == EngineState.READY  # nosec B101
         
         # All components should be initialized
-        assert engine.audio_capture is not None
-        assert engine.audio_processor is not None
-        assert engine.wake_word_detector is not None
-        assert engine.noise_cancellation is not None
-        assert engine.streaming_manager is not None
-        assert engine.stt_transcriber is not None
-        assert engine.language_detector is not None
-        assert engine.tts_engine is not None
-        assert engine.voice_cloner is not None
-        assert engine.emotion_detector is not None
-        assert engine.voice_feature_extractor is not None
-        assert engine.command_parser is not None
-        assert engine.context_manager is not None
-        assert engine.background_service is not None
-        assert engine.model_router is not None
+        assert engine.audio_capture is not None  # nosec B101
+        assert engine.audio_processor is not None  # nosec B101
+        assert engine.wake_word_detector is not None  # nosec B101
+        assert engine.noise_cancellation is not None  # nosec B101
+        assert engine.streaming_manager is not None  # nosec B101
+        assert engine.stt_transcriber is not None  # nosec B101
+        assert engine.language_detector is not None  # nosec B101
+        assert engine.tts_engine is not None  # nosec B101
+        assert engine.voice_cloner is not None  # nosec B101
+        assert engine.emotion_detector is not None  # nosec B101
+        assert engine.voice_feature_extractor is not None  # nosec B101
+        assert engine.command_parser is not None  # nosec B101
+        assert engine.context_manager is not None  # nosec B101
+        assert engine.background_service is not None  # nosec B101
+        assert engine.model_router is not None  # nosec B101
     
     def test_engine_initialization_with_config(self):
         """Test engine initialization with custom config."""
@@ -87,8 +87,8 @@ class TestSpeechEngine:
         engine = SpeechEngine(config=config)
         engine.initialize()
         
-        assert engine.get_state() == EngineState.READY
-        assert engine.config == config
+        assert engine.get_state() == EngineState.READY  # nosec B101
+        assert engine.config == config  # nosec B101
     
     # ========================================================================
     # VOICE PROCESSING PIPELINE
@@ -104,12 +104,12 @@ class TestSpeechEngine:
         ))
         
         # Should return complete result
-        assert isinstance(result, VoiceInteractionResult)
-        assert result.transcription is not None
-        assert result.emotion is not None
-        assert result.personality == PersonalityType.GURU
-        assert result.context_id is not None
-        assert result.processing_time_ms > 0
+        assert isinstance(result, VoiceInteractionResult)  # nosec B101
+        assert result.transcription is not None  # nosec B101
+        assert result.emotion is not None  # nosec B101
+        assert result.personality == PersonalityType.GURU  # nosec B101
+        assert result.context_id is not None  # nosec B101
+        assert result.processing_time_ms > 0  # nosec B101
     
     def test_process_voice_input_auto_personality(
         self,
@@ -122,7 +122,7 @@ class TestSpeechEngine:
         result = asyncio.run(initialized_engine.process_voice_input(audio=sample_audio))
         
         # Should detect personality automatically
-        assert result.personality in [PersonalityType.GURU, PersonalityType.MAYA]
+        assert result.personality in [PersonalityType.GURU, PersonalityType.MAYA]  # nosec B101
     
     def test_process_voice_input_preserves_context(
         self,
@@ -145,7 +145,7 @@ class TestSpeechEngine:
         ))
         
         # Should use same context
-        assert result1.context_id == result2.context_id
+        assert result1.context_id == result2.context_id  # nosec B101
     
     # ========================================================================
     # TRANSCRIPTION
@@ -162,8 +162,8 @@ class TestSpeechEngine:
             personality=PersonalityType.GURU
         )
         
-        assert result is not None
-        assert result.text is not None
+        assert result is not None  # nosec B101
+        assert result.text is not None  # nosec B101
     
     def test_transcribe_with_maya_personality(
         self,
@@ -176,8 +176,8 @@ class TestSpeechEngine:
             personality=PersonalityType.MAYA
         )
         
-        assert result is not None
-        assert result.text is not None
+        assert result is not None  # nosec B101
+        assert result.text is not None  # nosec B101
     
     # ========================================================================
     # SYNTHESIS
@@ -191,9 +191,9 @@ class TestSpeechEngine:
             emotion=EmotionType.HAPPY
         )
         
-        assert audio is not None
-        assert isinstance(audio, np.ndarray)
-        assert len(audio) > 0
+        assert audio is not None  # nosec B101
+        assert isinstance(audio, np.ndarray)  # nosec B101
+        assert len(audio) > 0  # nosec B101
     
     def test_synthesize_response_with_emotion(self, initialized_engine: SpeechEngine):
         """Test response synthesis with different emotions."""
@@ -211,8 +211,8 @@ class TestSpeechEngine:
                 emotion=emotion
             )
             
-            assert audio is not None
-            assert len(audio) > 0
+            assert audio is not None  # nosec B101
+            assert len(audio) > 0  # nosec B101
     
     # ========================================================================
     # EMOTION DETECTION
@@ -226,9 +226,9 @@ class TestSpeechEngine:
         """Test emotion detection."""
         result = initialized_engine.detect_emotion(sample_audio)
         
-        assert result is not None
-        assert result.primary_emotion in EmotionType
-        assert 0.0 <= result.confidence <= 1.0
+        assert result is not None  # nosec B101
+        assert result.primary_emotion in EmotionType  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     # ========================================================================
     # VOICE BIOMETRICS
@@ -242,9 +242,9 @@ class TestSpeechEngine:
         """Test voice feature extraction."""
         features = initialized_engine.extract_voice_features(sample_audio)
         
-        assert features is not None
-        assert features.feature_vector is not None
-        assert len(features.feature_vector) > 0
+        assert features is not None  # nosec B101
+        assert features.feature_vector is not None  # nosec B101
+        assert len(features.feature_vector) > 0  # nosec B101
     
     # ========================================================================
     # VOICE CLONING
@@ -264,7 +264,7 @@ class TestSpeechEngine:
         initialized_engine.clone_voice(samples, "test_voice_001")
         
         # Should not raise exception
-        assert True
+        assert True  # nosec B101
     
     # ========================================================================
     # BACKGROUND SERVICE
@@ -275,7 +275,7 @@ class TestSpeechEngine:
         initialized_engine.start_background_service()
         
         # Service should be running
-        assert initialized_engine.background_service.get_state().value in ["sleep", "wake"]
+        assert initialized_engine.background_service.get_state().value in ["sleep", "wake"]  # nosec B101
         
         # Cleanup
         initialized_engine.stop_background_service()
@@ -286,7 +286,7 @@ class TestSpeechEngine:
         initialized_engine.stop_background_service()
         
         # Service should be stopped
-        assert initialized_engine.background_service.get_state().value == "stopped"
+        assert initialized_engine.background_service.get_state().value == "stopped"  # nosec B101
     
     # ========================================================================
     # STATE MANAGEMENT
@@ -294,25 +294,25 @@ class TestSpeechEngine:
     
     def test_get_state(self, engine: SpeechEngine):
         """Test getting engine state."""
-        assert engine.get_state() == EngineState.UNINITIALIZED
+        assert engine.get_state() == EngineState.UNINITIALIZED  # nosec B101
         
         engine.initialize()
-        assert engine.get_state() == EngineState.READY
+        assert engine.get_state() == EngineState.READY  # nosec B101
     
     def test_state_transitions(self, engine: SpeechEngine, sample_audio: np.ndarray):
         """Test state transitions."""
         import asyncio
         
         # Uninitialized
-        assert engine.get_state() == EngineState.UNINITIALIZED
+        assert engine.get_state() == EngineState.UNINITIALIZED  # nosec B101
         
         # Initialize
         engine.initialize()
-        assert engine.get_state() == EngineState.READY
+        assert engine.get_state() == EngineState.READY  # nosec B101
         
         # Process (briefly goes to PROCESSING, then back to READY)
         asyncio.run(engine.process_voice_input(sample_audio, PersonalityType.GURU))
-        assert engine.get_state() == EngineState.READY
+        assert engine.get_state() == EngineState.READY  # nosec B101
     
     # ========================================================================
     # ERROR HANDLING
@@ -343,7 +343,7 @@ class TestSpeechEngine:
             _logger.warning("Suppressed exception: %s", e)
         
         # Context should still exist
-        assert initialized_engine._current_context_id == context_id
+        assert initialized_engine._current_context_id == context_id  # nosec B101
     
     def test_initialization_error_handling(self):
         """Test error handling during initialization."""
@@ -370,7 +370,7 @@ class TestSpeechEngine:
         initialized_engine.shutdown()
         
         # Should be uninitialized
-        assert initialized_engine.get_state() == EngineState.UNINITIALIZED
+        assert initialized_engine.get_state() == EngineState.UNINITIALIZED  # nosec B101
     
     def test_shutdown_with_background_service(self, initialized_engine: SpeechEngine):
         """Test shutdown with running background service."""
@@ -382,8 +382,8 @@ class TestSpeechEngine:
         initialized_engine.shutdown()
         
         # Service should be stopped (check the stored reference)
-        assert bg_service.get_state().value == "stopped"
-        assert initialized_engine.get_state() == EngineState.UNINITIALIZED
+        assert bg_service.get_state().value == "stopped"  # nosec B101
+        assert initialized_engine.get_state() == EngineState.UNINITIALIZED  # nosec B101
     
     # ========================================================================
     # PERSONALITY SWITCHING
@@ -402,14 +402,14 @@ class TestSpeechEngine:
             audio=sample_audio,
             personality=PersonalityType.GURU
         ))
-        assert result1.personality == PersonalityType.GURU
+        assert result1.personality == PersonalityType.GURU  # nosec B101
         
         # Process with Maya
         result2 = asyncio.run(initialized_engine.process_voice_input(
             audio=sample_audio,
             personality=PersonalityType.MAYA
         ))
-        assert result2.personality == PersonalityType.MAYA
+        assert result2.personality == PersonalityType.MAYA  # nosec B101
     
     # ========================================================================
     # CALLBACKS
@@ -419,13 +419,13 @@ class TestSpeechEngine:
         """Test wake word callback."""
         # Should not raise exception
         initialized_engine._on_wake_word_detected()
-        assert True
+        assert True  # nosec B101
     
     def test_command_callback(self, initialized_engine: SpeechEngine):
         """Test command callback."""
         # Should not raise exception
         initialized_engine._on_command_received("test command")
-        assert True
+        assert True  # nosec B101
 
 
     # ========================================================================
@@ -447,10 +447,10 @@ class TestSpeechEngine:
         ))
         
         # Verify all components worked
-        assert result.transcription is not None
-        assert result.emotion is not None
-        assert result.personality == PersonalityType.GURU
-        assert result.context_id is not None
+        assert result.transcription is not None  # nosec B101
+        assert result.emotion is not None  # nosec B101
+        assert result.personality == PersonalityType.GURU  # nosec B101
+        assert result.context_id is not None  # nosec B101
         
         # Synthesize response
         response_audio = initialized_engine.synthesize_response(
@@ -459,8 +459,8 @@ class TestSpeechEngine:
             emotion=result.emotion.primary_emotion
         )
         
-        assert response_audio is not None
-        assert len(response_audio) > 0
+        assert response_audio is not None  # nosec B101
+        assert len(response_audio) > 0  # nosec B101
     
     def test_integration_multi_turn_conversation(
         self,
@@ -482,7 +482,7 @@ class TestSpeechEngine:
         
         # All should use same context
         context_ids = [r.context_id for r in results]
-        assert len(set(context_ids)) == 1
+        assert len(set(context_ids)) == 1  # nosec B101
     
     def test_integration_emotion_aware_response(
         self,
@@ -505,7 +505,7 @@ class TestSpeechEngine:
             emotion=result.emotion.primary_emotion
         )
         
-        assert response_audio is not None
+        assert response_audio is not None  # nosec B101
     
     # ========================================================================
     # ZERO COMPROMISE - STRESS TESTS
@@ -524,7 +524,7 @@ class TestSpeechEngine:
                 audio=sample_audio,
                 personality=PersonalityType.GURU
             ))
-            assert result is not None
+            assert result is not None  # nosec B101
     
     def test_stress_long_audio(self, initialized_engine: SpeechEngine):
         """ZERO COMPROMISE: Stress test with long audio."""
@@ -538,7 +538,7 @@ class TestSpeechEngine:
             personality=PersonalityType.GURU
         ))
         
-        assert result is not None
+        assert result is not None  # nosec B101
     
     # ========================================================================
     # ZERO COMPROMISE - EDGE CASES
@@ -566,7 +566,7 @@ class TestSpeechEngine:
                 audio=short_audio,
                 personality=PersonalityType.GURU
             ))
-            assert result is not None
+            assert result is not None  # nosec B101
         except GuruSpeechError:
             # Expected for very short audio
             pass
@@ -575,7 +575,7 @@ class TestSpeechEngine:
         """ZERO COMPROMISE: Test shutdown before initialization."""
         # Should handle gracefully
         engine.shutdown()
-        assert engine.get_state() == EngineState.UNINITIALIZED
+        assert engine.get_state() == EngineState.UNINITIALIZED  # nosec B101
     
     def test_edge_case_double_initialization(self, engine: SpeechEngine):
         """ZERO COMPROMISE: Test double initialization."""
@@ -583,7 +583,7 @@ class TestSpeechEngine:
         
         # Second initialization should work
         engine.initialize()
-        assert engine.get_state() == EngineState.READY
+        assert engine.get_state() == EngineState.READY  # nosec B101
     
 
     # ========================================================================
@@ -601,8 +601,8 @@ class TestSpeechEngine:
                 with pytest.raises(GuruSpeechError) as exc_info:
                     engine.initialize()
                 
-                assert "Initialization failed" in str(exc_info.value)
-                assert engine.get_state() == EngineState.ERROR
+                assert "Initialization failed" in str(exc_info.value)  # nosec B101
+                assert engine.get_state() == EngineState.ERROR  # nosec B101
     
     def test_wake_word_detection_with_result(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
         """ZERO COMPROMISE: Test wake word detection returns personality - COMPREHENSIVE."""
@@ -631,10 +631,10 @@ class TestSpeechEngine:
             ))
             
             # Verify wake word detection was called
-            assert mock_detect.called
+            assert mock_detect.called  # nosec B101
             # Verify personality was set from wake word result (covers line 234)
-            assert result.personality == PersonalityType.MAYA
-            assert initialized_engine._current_personality == PersonalityType.MAYA
+            assert result.personality == PersonalityType.MAYA  # nosec B101
+            assert initialized_engine._current_personality == PersonalityType.MAYA  # nosec B101
         finally:
             initialized_engine.wake_word_detector.detect = original_detect
     
@@ -655,7 +655,7 @@ class TestSpeechEngine:
             ))
             
             # Command should be None for empty transcription
-            assert result.command is None
+            assert result.command is None  # nosec B101
     
     def test_context_preservation_error_handling(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
         """ZERO COMPROMISE: Test error in context preservation is handled gracefully."""
@@ -678,7 +678,7 @@ class TestSpeechEngine:
                 ))
             
             # Context ID should still be preserved
-            assert initialized_engine._current_context_id == result1.context_id
+            assert initialized_engine._current_context_id == result1.context_id  # nosec B101
     
     def test_shutdown_error_handling(self, initialized_engine: SpeechEngine):
         """ZERO COMPROMISE: Test shutdown handles errors gracefully."""
@@ -690,7 +690,7 @@ class TestSpeechEngine:
             initialized_engine.shutdown()
             
             # Should ALWAYS set state to UNINITIALIZED, even on error (ZERO COMPROMISE)
-            assert initialized_engine.get_state() == EngineState.UNINITIALIZED
+            assert initialized_engine.get_state() == EngineState.UNINITIALIZED  # nosec B101
 
 
     # ========================================================================
@@ -733,9 +733,9 @@ class TestSpeechEngine:
             ))
             
             # Verify command was interpreted
-            assert result.command is not None
-            assert result.command.is_command is True
-            assert result.command.action_id == "turn_on_lights"
+            assert result.command is not None  # nosec B101
+            assert result.command.is_command is True  # nosec B101
+            assert result.command.action_id == "turn_on_lights"  # nosec B101
         finally:
             initialized_engine.stt_transcriber.transcribe = original_transcribe
             initialized_engine.command_parser.interpret = original_interpret
@@ -758,7 +758,7 @@ class TestSpeechEngine:
             ))
             
             # Should default to GURU on exception
-            assert result.personality == PersonalityType.GURU
-            assert initialized_engine._current_personality == PersonalityType.GURU
+            assert result.personality == PersonalityType.GURU  # nosec B101
+            assert initialized_engine._current_personality == PersonalityType.GURU  # nosec B101
         finally:
             initialized_engine.wake_word_detector.detect = original_detect

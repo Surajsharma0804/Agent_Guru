@@ -57,12 +57,12 @@ class TestMemoryStoragePipelineInitialization:
         """Test initialization with default parameters."""
         pipeline = MemoryStoragePipeline()
 
-        assert pipeline.vector_db is not None
-        assert pipeline.embedding_generator is not None
-        assert pipeline.deduplication_threshold == 0.95
-        assert pipeline.deduplication_window_hours == 24
-        assert pipeline.min_content_length == 10
-        assert pipeline.max_memories_per_user == 10000
+        assert pipeline.vector_db is not None  # nosec B101
+        assert pipeline.embedding_generator is not None  # nosec B101
+        assert pipeline.deduplication_threshold == 0.95  # nosec B101
+        assert pipeline.deduplication_window_hours == 24  # nosec B101
+        assert pipeline.min_content_length == 10  # nosec B101
+        assert pipeline.max_memories_per_user == 10000  # nosec B101
 
     def test_initialization_with_custom_params(self, vector_db, embedding_generator):
         """Test initialization with custom parameters."""
@@ -75,12 +75,12 @@ class TestMemoryStoragePipelineInitialization:
             max_memories_per_user=5000,
         )
 
-        assert pipeline.vector_db is vector_db
-        assert pipeline.embedding_generator is embedding_generator
-        assert pipeline.deduplication_threshold == 0.9
-        assert pipeline.deduplication_window_hours == 48
-        assert pipeline.min_content_length == 20
-        assert pipeline.max_memories_per_user == 5000
+        assert pipeline.vector_db is vector_db  # nosec B101
+        assert pipeline.embedding_generator is embedding_generator  # nosec B101
+        assert pipeline.deduplication_threshold == 0.9  # nosec B101
+        assert pipeline.deduplication_window_hours == 48  # nosec B101
+        assert pipeline.min_content_length == 20  # nosec B101
+        assert pipeline.max_memories_per_user == 5000  # nosec B101
 
     def test_initialization_invalid_dedup_threshold(self):
         """Test initialization with invalid deduplication threshold."""
@@ -118,12 +118,12 @@ class TestEpisodicMemoryStorage:
             context={"duration": "5 minutes"},
         )
 
-        assert memory_id is not None
-        assert isinstance(memory_id, UUID)
+        assert memory_id is not None  # nosec B101
+        assert isinstance(memory_id, UUID)  # nosec B101
 
         # Verify storage
         stats = pipeline.get_storage_stats()
-        assert stats["episodic"] == 1
+        assert stats["episodic"] == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_episodic_short_content(self, pipeline):
@@ -136,11 +136,11 @@ class TestEpisodicMemoryStorage:
             success=True,
         )
 
-        assert memory_id is None
+        assert memory_id is None  # nosec B101
 
         # Verify not stored
         stats = pipeline.get_storage_stats()
-        assert stats["episodic"] == 0
+        assert stats["episodic"] == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_episodic_duplicate(self, pipeline):
@@ -154,7 +154,7 @@ class TestEpisodicMemoryStorage:
             success=True,
         )
 
-        assert memory_id1 is not None
+        assert memory_id1 is not None  # nosec B101
 
         # Try to store duplicate (same content)
         memory_id2 = await pipeline.store_episodic(
@@ -165,11 +165,11 @@ class TestEpisodicMemoryStorage:
             success=True,
         )
 
-        assert memory_id2 is None  # Deduplicated
+        assert memory_id2 is None  # Deduplicated  # nosec B101
 
         # Verify only one stored
         stats = pipeline.get_storage_stats()
-        assert stats["episodic"] == 1
+        assert stats["episodic"] == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_episodic_different_users(self, pipeline):
@@ -192,13 +192,13 @@ class TestEpisodicMemoryStorage:
             success=True,
         )
 
-        assert memory_id1 is not None
-        assert memory_id2 is not None
-        assert memory_id1 != memory_id2
+        assert memory_id1 is not None  # nosec B101
+        assert memory_id2 is not None  # nosec B101
+        assert memory_id1 != memory_id2  # nosec B101
 
         # Verify both stored
         stats = pipeline.get_storage_stats()
-        assert stats["episodic"] == 2
+        assert stats["episodic"] == 2  # nosec B101
 
 
 class TestSemanticMemoryStorage:
@@ -215,12 +215,12 @@ class TestSemanticMemoryStorage:
             confidence=1.0,
         )
 
-        assert memory_id is not None
-        assert isinstance(memory_id, UUID)
+        assert memory_id is not None  # nosec B101
+        assert isinstance(memory_id, UUID)  # nosec B101
 
         # Verify storage
         stats = pipeline.get_storage_stats()
-        assert stats["semantic"] == 1
+        assert stats["semantic"] == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_semantic_short_content(self, pipeline):
@@ -233,11 +233,11 @@ class TestSemanticMemoryStorage:
             confidence=1.0,
         )
 
-        assert memory_id is None
+        assert memory_id is None  # nosec B101
 
         # Verify not stored
         stats = pipeline.get_storage_stats()
-        assert stats["semantic"] == 0
+        assert stats["semantic"] == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_semantic_duplicate(self, pipeline):
@@ -251,7 +251,7 @@ class TestSemanticMemoryStorage:
             confidence=1.0,
         )
 
-        assert memory_id1 is not None
+        assert memory_id1 is not None  # nosec B101
 
         # Try to store duplicate
         memory_id2 = await pipeline.store_semantic(
@@ -262,11 +262,11 @@ class TestSemanticMemoryStorage:
             confidence=1.0,
         )
 
-        assert memory_id2 is None  # Deduplicated
+        assert memory_id2 is None  # Deduplicated  # nosec B101
 
         # Verify only one stored
         stats = pipeline.get_storage_stats()
-        assert stats["semantic"] == 1
+        assert stats["semantic"] == 1  # nosec B101
 
 
 class TestPreferenceMemoryStorage:
@@ -283,12 +283,12 @@ class TestPreferenceMemoryStorage:
             learned_from="explicit",
         )
 
-        assert memory_id is not None
-        assert isinstance(memory_id, UUID)
+        assert memory_id is not None  # nosec B101
+        assert isinstance(memory_id, UUID)  # nosec B101
 
         # Verify storage
         stats = pipeline.get_storage_stats()
-        assert stats["preference"] == 1
+        assert stats["preference"] == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_preference_short_content(self, pipeline):
@@ -301,11 +301,11 @@ class TestPreferenceMemoryStorage:
             learned_from="explicit",
         )
 
-        assert memory_id is None
+        assert memory_id is None  # nosec B101
 
         # Verify not stored
         stats = pipeline.get_storage_stats()
-        assert stats["preference"] == 0
+        assert stats["preference"] == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_preference_duplicate(self, pipeline):
@@ -319,7 +319,7 @@ class TestPreferenceMemoryStorage:
             learned_from="explicit",
         )
 
-        assert memory_id1 is not None
+        assert memory_id1 is not None  # nosec B101
 
         # Try to store duplicate
         memory_id2 = await pipeline.store_preference(
@@ -330,11 +330,11 @@ class TestPreferenceMemoryStorage:
             learned_from="explicit",
         )
 
-        assert memory_id2 is None  # Deduplicated
+        assert memory_id2 is None  # Deduplicated  # nosec B101
 
         # Verify only one stored
         stats = pipeline.get_storage_stats()
-        assert stats["preference"] == 1
+        assert stats["preference"] == 1  # nosec B101
 
 
 class TestTaskMemoryStorage:
@@ -352,12 +352,12 @@ class TestTaskMemoryStorage:
             lessons_learned=["User prefers Italian restaurants"],
         )
 
-        assert memory_id is not None
-        assert isinstance(memory_id, UUID)
+        assert memory_id is not None  # nosec B101
+        assert isinstance(memory_id, UUID)  # nosec B101
 
         # Verify storage
         stats = pipeline.get_storage_stats()
-        assert stats["task"] == 1
+        assert stats["task"] == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_task_short_content(self, pipeline):
@@ -370,11 +370,11 @@ class TestTaskMemoryStorage:
             outcome="success",
         )
 
-        assert memory_id is None
+        assert memory_id is None  # nosec B101
 
         # Verify not stored
         stats = pipeline.get_storage_stats()
-        assert stats["task"] == 0
+        assert stats["task"] == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_task_duplicate(self, pipeline):
@@ -389,7 +389,7 @@ class TestTaskMemoryStorage:
             lessons_learned=["User prefers Italian"],
         )
 
-        assert memory_id1 is not None
+        assert memory_id1 is not None  # nosec B101
 
         # Try to store duplicate
         memory_id2 = await pipeline.store_task(
@@ -401,11 +401,11 @@ class TestTaskMemoryStorage:
             lessons_learned=["User prefers Italian"],
         )
 
-        assert memory_id2 is None  # Deduplicated
+        assert memory_id2 is None  # Deduplicated  # nosec B101
 
         # Verify only one stored
         stats = pipeline.get_storage_stats()
-        assert stats["task"] == 1
+        assert stats["task"] == 1  # nosec B101
 
 
 class TestMemoryDeduplication:
@@ -423,7 +423,7 @@ class TestMemoryDeduplication:
             success=True,
         )
 
-        assert memory_id1 is not None
+        assert memory_id1 is not None  # nosec B101
 
         # Try to store very similar memory (should be deduplicated)
         memory_id2 = await pipeline.store_episodic(
@@ -437,7 +437,7 @@ class TestMemoryDeduplication:
         # Should be deduplicated if similarity >= 0.95
         # Note: This depends on the embedding model's similarity
         # For testing, we just verify the deduplication logic runs
-        assert memory_id2 is None or memory_id2 is not None  # Either outcome is valid
+        assert memory_id2 is None or memory_id2 is not None  # Either outcome is valid  # nosec B101
 
     @pytest.mark.asyncio
     async def test_deduplication_different_content(self, pipeline):
@@ -451,7 +451,7 @@ class TestMemoryDeduplication:
             success=True,
         )
 
-        assert memory_id1 is not None
+        assert memory_id1 is not None  # nosec B101
 
         # Store different memory (should not be deduplicated)
         memory_id2 = await pipeline.store_episodic(
@@ -462,12 +462,12 @@ class TestMemoryDeduplication:
             success=True,
         )
 
-        assert memory_id2 is not None
-        assert memory_id1 != memory_id2
+        assert memory_id2 is not None  # nosec B101
+        assert memory_id1 != memory_id2  # nosec B101
 
         # Verify both stored
         stats = pipeline.get_storage_stats()
-        assert stats["episodic"] == 2
+        assert stats["episodic"] == 2  # nosec B101
 
 
 class TestStorageStatistics:
@@ -478,10 +478,10 @@ class TestStorageStatistics:
         """Test getting storage stats when empty."""
         stats = pipeline.get_storage_stats()
 
-        assert stats["episodic"] == 0
-        assert stats["semantic"] == 0
-        assert stats["preference"] == 0
-        assert stats["task"] == 0
+        assert stats["episodic"] == 0  # nosec B101
+        assert stats["semantic"] == 0  # nosec B101
+        assert stats["preference"] == 0  # nosec B101
+        assert stats["task"] == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_storage_stats_with_memories(self, pipeline):
@@ -522,10 +522,10 @@ class TestStorageStatistics:
         # Get stats
         stats = pipeline.get_storage_stats()
 
-        assert stats["episodic"] == 1
-        assert stats["semantic"] == 1
-        assert stats["preference"] == 1
-        assert stats["task"] == 1
+        assert stats["episodic"] == 1  # nosec B101
+        assert stats["semantic"] == 1  # nosec B101
+        assert stats["preference"] == 1  # nosec B101
+        assert stats["task"] == 1  # nosec B101
 
     def test_clear_cache(self, pipeline):
         """Test clearing the recent memory ID cache."""
@@ -534,12 +534,12 @@ class TestStorageStatistics:
             UUID("12345678-1234-5678-1234-567812345678")
         }
 
-        assert len(pipeline._recent_memory_ids) == 1
+        assert len(pipeline._recent_memory_ids) == 1  # nosec B101
 
         # Clear cache
         pipeline.clear_cache()
 
-        assert len(pipeline._recent_memory_ids) == 0
+        assert len(pipeline._recent_memory_ids) == 0  # nosec B101
 
 
 class TestConcurrentStorage:
@@ -564,12 +564,12 @@ class TestConcurrentStorage:
         memory_ids = await asyncio.gather(*tasks)
 
         # Verify all stored
-        assert all(mid is not None for mid in memory_ids)
-        assert len(set(memory_ids)) == 10  # All unique
+        assert all(mid is not None for mid in memory_ids)  # nosec B101
+        assert len(set(memory_ids)) == 10  # All unique  # nosec B101
 
         # Verify storage
         stats = pipeline.get_storage_stats()
-        assert stats["episodic"] == 10
+        assert stats["episodic"] == 10  # nosec B101
 
 
 class TestEdgeCases:
@@ -587,7 +587,7 @@ class TestEdgeCases:
             context=None,  # Empty context
         )
 
-        assert memory_id is not None
+        assert memory_id is not None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_with_empty_lessons(self, pipeline):
@@ -601,7 +601,7 @@ class TestEdgeCases:
             lessons_learned=None,  # Empty lessons
         )
 
-        assert memory_id is not None
+        assert memory_id is not None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_store_with_whitespace_content(self, pipeline):
@@ -614,4 +614,4 @@ class TestEdgeCases:
             success=True,
         )
 
-        assert memory_id is not None
+        assert memory_id is not None  # nosec B101

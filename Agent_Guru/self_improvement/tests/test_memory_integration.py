@@ -63,17 +63,17 @@ class TestMemoryIntegration:
     
     def test_memory_integration_initialization(self, memory_integration, engine):
         """Test that memory integration initializes correctly."""
-        assert memory_integration.engine is engine
-        assert memory_integration.memory_system is None
-        assert memory_integration.last_sync_time is None
+        assert memory_integration.engine is engine  # nosec B101
+        assert memory_integration.memory_system is None  # nosec B101
+        assert memory_integration.last_sync_time is None  # nosec B101
     
     def test_sync_learning_data_without_memory_system(self, memory_integration):
         """Test syncing without memory system connected."""
         stats = memory_integration.sync_learning_data()
         
-        assert stats["synced"] is False
-        assert "No memory system connected" in stats["reason"]
-        assert "timestamp" in stats
+        assert stats["synced"] is False  # nosec B101
+        assert "No memory system connected" in stats["reason"]  # nosec B101
+        assert "timestamp" in stats  # nosec B101
     
     def test_get_historical_patterns_without_memory_system(self, memory_integration, engine):
         """Test retrieving patterns without memory system."""
@@ -91,7 +91,7 @@ class TestMemoryIntegration:
         patterns = memory_integration.get_historical_patterns(limit=10)
         
         # Should return patterns from engine
-        assert isinstance(patterns, list)
+        assert isinstance(patterns, list)  # nosec B101
         # Patterns may be empty if failure analyzer doesn't return them in expected format
     
     def test_get_historical_patterns_with_task_type_filter(self, memory_integration, engine):
@@ -117,30 +117,30 @@ class TestMemoryIntegration:
             limit=10
         )
         
-        assert isinstance(patterns, list)
+        assert isinstance(patterns, list)  # nosec B101
     
     def test_get_sync_status(self, memory_integration):
         """Test getting sync status."""
         status = memory_integration.get_sync_status()
         
-        assert "memory_system_connected" in status
-        assert status["memory_system_connected"] is False
-        assert "last_sync_time" in status
-        assert status["last_sync_time"] is None
-        assert "engine_metrics" in status
-        assert isinstance(status["engine_metrics"], dict)
+        assert "memory_system_connected" in status  # nosec B101
+        assert status["memory_system_connected"] is False  # nosec B101
+        assert "last_sync_time" in status  # nosec B101
+        assert status["last_sync_time"] is None  # nosec B101
+        assert "engine_metrics" in status  # nosec B101
+        assert isinstance(status["engine_metrics"], dict)  # nosec B101
     
     def test_create_memory_integration(self, engine):
         """Test convenience function for creating integration."""
         integration = create_memory_integration(engine)
         
-        assert integration is not None
-        assert integration.engine is engine
-        assert integration.memory_system is None
+        assert integration is not None  # nosec B101
+        assert integration.engine is engine  # nosec B101
+        assert integration.memory_system is None  # nosec B101
         
         # Test it works
         status = integration.get_sync_status()
-        assert status["memory_system_connected"] is False
+        assert status["memory_system_connected"] is False  # nosec B101
 
 
 @pytest.mark.integration
@@ -199,9 +199,9 @@ class TestMemoryIntegrationWithMockSystem:
         """Test syncing with memory system connected."""
         stats = memory_integration.sync_learning_data()
         
-        assert stats["synced"] is True
-        assert "timestamp" in stats
-        assert memory_integration.last_sync_time is not None
+        assert stats["synced"] is True  # nosec B101
+        assert "timestamp" in stats  # nosec B101
+        assert memory_integration.last_sync_time is not None  # nosec B101
     
     def test_multiple_syncs(self, memory_integration):
         """Test multiple sync operations."""
@@ -216,6 +216,6 @@ class TestMemoryIntegrationWithMockSystem:
         stats2 = memory_integration.sync_learning_data()
         time2 = memory_integration.last_sync_time
         
-        assert stats1["synced"] is True
-        assert stats2["synced"] is True
-        assert time2 > time1
+        assert stats1["synced"] is True  # nosec B101
+        assert stats2["synced"] is True  # nosec B101
+        assert time2 > time1  # nosec B101

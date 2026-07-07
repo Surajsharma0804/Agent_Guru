@@ -95,11 +95,11 @@ def test_property_17_voice_cloning_quality(voice_cloner, num_samples, voice_id):
             sample_rate=sample_rate
         )
         
-        assert voice_model is not None, "Voice model should be created"
-        assert voice_model.model_id == voice_id, "Voice ID should match"
-        assert voice_model.voice_characteristics["sample_count"] == num_samples, "Sample count should match"
-        assert voice_model.training_duration_seconds >= 300.0, "Training duration should be >= 5 minutes"
-        assert 0.0 <= voice_model.voice_characteristics["quality_score"] <= 1.0, "Quality score should be in [0, 1]"
+        assert voice_model is not None, "Voice model should be created"  # nosec B101
+        assert voice_model.model_id == voice_id, "Voice ID should match"  # nosec B101
+        assert voice_model.voice_characteristics["sample_count"] == num_samples, "Sample count should match"  # nosec B101
+        assert voice_model.training_duration_seconds >= 300.0, "Training duration should be >= 5 minutes"  # nosec B101
+        assert 0.0 <= voice_model.voice_characteristics["quality_score"] <= 1.0, "Quality score should be in [0, 1]"  # nosec B101
         
         # Test 2: Voice similarity
         # Generate new audio with same characteristics
@@ -112,9 +112,9 @@ def test_property_17_voice_cloning_quality(voice_cloner, num_samples, voice_id):
             sample_rate=sample_rate
         )
         
-        assert 0.0 <= similarity <= 1.0, "Similarity should be in [0, 1]"
+        assert 0.0 <= similarity <= 1.0, "Similarity should be in [0, 1]"  # nosec B101
         # Similar audio from same voice should have high similarity
-        assert similarity > 0.7, f"Similarity {similarity:.3f} should be >0.7 for same voice"
+        assert similarity > 0.7, f"Similarity {similarity:.3f} should be >0.7 for same voice"  # nosec B101
         
         # Test 3: Incremental learning
         if len(audio_samples) > 10:
@@ -126,11 +126,11 @@ def test_property_17_voice_cloning_quality(voice_cloner, num_samples, voice_id):
             )
             
             assert updated_model.voice_characteristics["sample_count"] > voice_model.voice_characteristics["sample_count"], \
-                "Sample count should increase after update"
+                "Sample count should increase after update"  # nosec B101
             assert updated_model.training_duration_seconds > voice_model.training_duration_seconds, \
-                "Training duration should increase after update"
+                "Training duration should increase after update"  # nosec B101
             assert 0.0 <= updated_model.voice_characteristics["quality_score"] <= 1.0, \
-                "Updated quality score should be in [0, 1]"
+                "Updated quality score should be in [0, 1]"  # nosec B101
         
         # Cleanup
         voice_cloner.delete_voice(voice_id)
@@ -182,18 +182,18 @@ def test_voice_similarity_consistency(voice_cloner, audio_duration, base_freq):
     
     # Test identity: similarity(A, A) should be very high
     sim_aa = voice_cloner.compute_similarity(audio_a, audio_a, sample_rate)
-    assert sim_aa > 0.95, f"Self-similarity {sim_aa:.3f} should be >0.95"
+    assert sim_aa > 0.95, f"Self-similarity {sim_aa:.3f} should be >0.95"  # nosec B101
     
     # Test symmetry: similarity(A, B) = similarity(B, A)
     sim_ab = voice_cloner.compute_similarity(audio_a, audio_b, sample_rate)
     sim_ba = voice_cloner.compute_similarity(audio_b, audio_a, sample_rate)
     
     assert abs(sim_ab - sim_ba) < 0.01, \
-        f"Similarity should be symmetric: {sim_ab:.3f} vs {sim_ba:.3f}"
+        f"Similarity should be symmetric: {sim_ab:.3f} vs {sim_ba:.3f}"  # nosec B101
     
     # Test bounds
-    assert 0.0 <= sim_ab <= 1.0, f"Similarity {sim_ab:.3f} should be in [0, 1]"
-    assert 0.0 <= sim_ba <= 1.0, f"Similarity {sim_ba:.3f} should be in [0, 1]"
+    assert 0.0 <= sim_ab <= 1.0, f"Similarity {sim_ab:.3f} should be in [0, 1]"  # nosec B101
+    assert 0.0 <= sim_ba <= 1.0, f"Similarity {sim_ba:.3f} should be in [0, 1]"  # nosec B101
 
 
 @given(
@@ -255,11 +255,11 @@ def test_incremental_learning_stability(voice_cloner, num_updates):
             # Check quality doesn't degrade significantly
             quality_change = updated_model.voice_characteristics["quality_score"] - initial_quality
             assert quality_change > -0.2, \
-                f"Quality degraded too much: {initial_quality:.3f} -> {updated_model.voice_characteristics['quality_score']:.3f}"
+                f"Quality degraded too much: {initial_quality:.3f} -> {updated_model.voice_characteristics['quality_score']:.3f}"  # nosec B101
             
             # Check sample count increases
             assert updated_model.voice_characteristics["sample_count"] == initial_sample_count + i + 1, \
-                "Sample count should increase by 1 per update"
+                "Sample count should increase by 1 per update"  # nosec B101
         
         # Cleanup
         voice_cloner.delete_voice(voice_id)
@@ -302,17 +302,17 @@ def test_voice_cloning_different_sample_rates(voice_cloner, sample_rate):
     
     # Test feature extraction
     features = voice_cloner._extract_voice_features(audio, sample_rate)
-    assert features is not None, "Features should be extracted"
-    assert len(features) > 0, "Features should not be empty"
-    assert features.dtype == np.float32, "Features should be float32"
+    assert features is not None, "Features should be extracted"  # nosec B101
+    assert len(features) > 0, "Features should not be empty"  # nosec B101
+    assert features.dtype == np.float32, "Features should be float32"  # nosec B101
     
     # Test quality computation
     quality = voice_cloner._compute_audio_quality(audio, sample_rate)
-    assert 0.0 <= quality <= 1.0, f"Quality {quality:.3f} should be in [0, 1]"
+    assert 0.0 <= quality <= 1.0, f"Quality {quality:.3f} should be in [0, 1]"  # nosec B101
     
     # Test similarity computation
     similarity = voice_cloner.compute_similarity(audio, audio, sample_rate)
-    assert similarity > 0.95, f"Self-similarity {similarity:.3f} should be >0.95"
+    assert similarity > 0.95, f"Self-similarity {similarity:.3f} should be >0.95"  # nosec B101
 
 
 # Unit tests for edge cases
@@ -323,7 +323,7 @@ def test_voice_cloning_empty_audio(voice_cloner):
     
     # Should handle gracefully
     features = voice_cloner._extract_voice_features(empty_audio, 16000)
-    assert features is not None
+    assert features is not None  # nosec B101
 
 
 def test_voice_cloning_silent_audio(voice_cloner):
@@ -331,10 +331,10 @@ def test_voice_cloning_silent_audio(voice_cloner):
     silent_audio = np.zeros(16000, dtype=np.float32)
     
     features = voice_cloner._extract_voice_features(silent_audio, 16000)
-    assert features is not None
+    assert features is not None  # nosec B101
     
     quality = voice_cloner._compute_audio_quality(silent_audio, 16000)
-    assert quality < 0.5  # Silent audio should have low quality
+    assert quality < 0.5  # Silent audio should have low quality  # nosec B101
 
 
 def test_voice_cloning_clipped_audio(voice_cloner):
@@ -343,7 +343,7 @@ def test_voice_cloning_clipped_audio(voice_cloner):
     clipped_audio = np.ones(16000, dtype=np.float32)
     
     quality = voice_cloner._compute_audio_quality(clipped_audio, 16000)
-    assert quality < 0.8  # Clipped audio should have reduced quality
+    assert quality < 0.8  # Clipped audio should have reduced quality  # nosec B101
 
 
 def test_voice_cloning_very_short_audio(voice_cloner):
@@ -352,10 +352,10 @@ def test_voice_cloning_very_short_audio(voice_cloner):
     short_audio = np.random.randn(160).astype(np.float32)
     
     features = voice_cloner._extract_voice_features(short_audio, 16000)
-    assert features is not None
+    assert features is not None  # nosec B101
     
     quality = voice_cloner._compute_audio_quality(short_audio, 16000)
-    assert 0.0 <= quality <= 1.0
+    assert 0.0 <= quality <= 1.0  # nosec B101
 
 
 def test_voice_cloning_very_long_audio(voice_cloner):
@@ -364,10 +364,10 @@ def test_voice_cloning_very_long_audio(voice_cloner):
     long_audio = np.random.randn(16000 * 60).astype(np.float32) * 0.5
     
     features = voice_cloner._extract_voice_features(long_audio, 16000)
-    assert features is not None
+    assert features is not None  # nosec B101
     
     quality = voice_cloner._compute_audio_quality(long_audio, 16000)
-    assert 0.0 <= quality <= 1.0
+    assert 0.0 <= quality <= 1.0  # nosec B101
 
 
 def test_voice_cloning_feature_consistency(voice_cloner):
@@ -385,7 +385,7 @@ def test_voice_cloning_feature_consistency(voice_cloner):
     features2 = voice_cloner._extract_voice_features(audio, sample_rate)
     
     # Should be identical
-    assert np.allclose(features1, features2), "Features should be consistent"
+    assert np.allclose(features1, features2), "Features should be consistent"  # nosec B101
 
 
 def test_voice_cloning_quality_consistency(voice_cloner):
@@ -402,4 +402,4 @@ def test_voice_cloning_quality_consistency(voice_cloner):
     quality2 = voice_cloner._compute_audio_quality(audio, sample_rate)
     
     # Should be identical
-    assert quality1 == quality2, "Quality should be consistent"
+    assert quality1 == quality2, "Quality should be consistent"  # nosec B101

@@ -69,7 +69,7 @@ def bright_frame(draw: st.DrawFn) -> np.ndarray:
 def test_is_low_light_matches_threshold(frame: np.ndarray) -> None:
     """is_low_light() must agree with mean < LOW_LIGHT_THRESHOLD."""
     expected = float(np.mean(frame)) < LOW_LIGHT_THRESHOLD
-    assert is_low_light(frame) == expected
+    assert is_low_light(frame) == expected  # nosec B101
 
 
 @pytest.mark.property
@@ -77,7 +77,7 @@ def test_is_low_light_matches_threshold(frame: np.ndarray) -> None:
 @settings(max_examples=100)
 def test_is_low_light_true_for_dark_frames(frame: np.ndarray) -> None:
     """Dark frames (all pixels < threshold) must always be flagged."""
-    assert is_low_light(frame) is True
+    assert is_low_light(frame) is True  # nosec B101
 
 
 @pytest.mark.property
@@ -85,7 +85,7 @@ def test_is_low_light_true_for_dark_frames(frame: np.ndarray) -> None:
 @settings(max_examples=100)
 def test_is_low_light_false_for_bright_frames(frame: np.ndarray) -> None:
     """Bright frames (all pixels >= threshold) must never be flagged."""
-    assert is_low_light(frame) is False
+    assert is_low_light(frame) is False  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -98,8 +98,8 @@ def test_is_low_light_false_for_bright_frames(frame: np.ndarray) -> None:
 def test_enhance_preserves_shape_and_dtype(frame: np.ndarray) -> None:
     """Output must have the same shape and dtype as the input."""
     result = enhance_low_light(frame)
-    assert result.shape == frame.shape
-    assert result.dtype == frame.dtype
+    assert result.shape == frame.shape  # nosec B101
+    assert result.dtype == frame.dtype  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -127,7 +127,7 @@ def test_enhance_dark_frame_increases_mean(frame: np.ndarray) -> None:
     original_mean = float(np.mean(frame))
     result = enhance_low_light(frame)
     enhanced_mean = float(np.mean(result))
-    assert enhanced_mean >= original_mean - 1e-6
+    assert enhanced_mean >= original_mean - 1e-6  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -141,5 +141,5 @@ def test_enhance_idempotent_shape(frame: np.ndarray) -> None:
     """Applying enhancement twice must still preserve shape and dtype."""
     once = enhance_low_light(frame)
     twice = enhance_low_light(once)
-    assert twice.shape == frame.shape
-    assert twice.dtype == frame.dtype
+    assert twice.shape == frame.shape  # nosec B101
+    assert twice.dtype == frame.dtype  # nosec B101

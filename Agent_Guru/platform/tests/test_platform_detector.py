@@ -44,11 +44,11 @@ class TestPlatformDetector:
         
         info = PlatformDetector.detect()
         
-        assert info.os_name == "Windows"
-        assert info.os_version == "10.0.19041"
-        assert info.architecture == "x64"
-        assert info.python_version == "3.11.5"
-        assert info.python_implementation == "CPython"
+        assert info.os_name == "Windows"  # nosec B101
+        assert info.os_version == "10.0.19041"  # nosec B101
+        assert info.architecture == "x64"  # nosec B101
+        assert info.python_version == "3.11.5"  # nosec B101
+        assert info.python_implementation == "CPython"  # nosec B101
     
     @patch('platform.system')
     @patch('platform.release')
@@ -65,11 +65,11 @@ class TestPlatformDetector:
         
         info = PlatformDetector.detect()
         
-        assert info.os_name == "macOS"
-        assert info.os_version == "21.6.0"
-        assert info.architecture == "ARM64"
-        assert info.python_version == "3.11.5"
-        assert info.python_implementation == "CPython"
+        assert info.os_name == "macOS"  # nosec B101
+        assert info.os_version == "21.6.0"  # nosec B101
+        assert info.architecture == "ARM64"  # nosec B101
+        assert info.python_version == "3.11.5"  # nosec B101
+        assert info.python_implementation == "CPython"  # nosec B101
     
     @patch('platform.system')
     @patch('platform.release')
@@ -88,11 +88,11 @@ class TestPlatformDetector:
         
         info = PlatformDetector.detect()
         
-        assert info.os_name == "Linux"
-        assert info.os_version == "5.15.0"
-        assert info.architecture == "x64"
-        assert info.python_version == "3.11.5"
-        assert info.python_implementation == "CPython"
+        assert info.os_name == "Linux"  # nosec B101
+        assert info.os_version == "5.15.0"  # nosec B101
+        assert info.architecture == "x64"  # nosec B101
+        assert info.python_version == "3.11.5"  # nosec B101
+        assert info.python_implementation == "CPython"  # nosec B101
     
     @patch('platform.system')
     @patch('platform.release')
@@ -111,9 +111,9 @@ class TestPlatformDetector:
         
         info = PlatformDetector.detect()
         
-        assert info.os_name == "Android"
-        assert info.os_version == "5.10.0"
-        assert info.architecture == "ARM64"
+        assert info.os_name == "Android"  # nosec B101
+        assert info.os_version == "5.10.0"  # nosec B101
+        assert info.architecture == "ARM64"  # nosec B101
     
     @patch('platform.system')
     def test_detect_unsupported_platform(self, mock_system):
@@ -123,8 +123,8 @@ class TestPlatformDetector:
         with pytest.raises(UnsupportedPlatformError) as exc_info:
             PlatformDetector.detect()
         
-        assert "Unsupported platform: FreeBSD" in str(exc_info.value)
-        assert "Supported platforms: Windows, macOS, Linux, Android, iOS" in str(exc_info.value)
+        assert "Unsupported platform: FreeBSD" in str(exc_info.value)  # nosec B101
+        assert "Supported platforms: Windows, macOS, Linux, Android, iOS" in str(exc_info.value)  # nosec B101
     
     @patch('platform.system')
     @patch('platform.release')
@@ -146,10 +146,10 @@ class TestPlatformDetector:
         info2 = PlatformDetector.detect()
         
         # Should be the same object (cached)
-        assert info1 is info2
+        assert info1 is info2  # nosec B101
         
         # platform.system() should only be called once
-        assert mock_system.call_count == 1
+        assert mock_system.call_count == 1  # nosec B101
     
     @patch('platform.system')
     @patch('platform.release')
@@ -164,9 +164,9 @@ class TestPlatformDetector:
         mock_py_ver.return_value = "3.11.5"
         mock_impl.return_value = "CPython"
         
-        assert PlatformDetector.is_windows() is True
-        assert PlatformDetector.is_macos() is False
-        assert PlatformDetector.is_linux() is False
+        assert PlatformDetector.is_windows() is True  # nosec B101
+        assert PlatformDetector.is_macos() is False  # nosec B101
+        assert PlatformDetector.is_linux() is False  # nosec B101
     
     @patch('platform.system')
     @patch('platform.release')
@@ -181,9 +181,9 @@ class TestPlatformDetector:
         mock_py_ver.return_value = "3.11.5"
         mock_impl.return_value = "CPython"
         
-        assert PlatformDetector.is_windows() is False
-        assert PlatformDetector.is_macos() is True
-        assert PlatformDetector.is_linux() is False
+        assert PlatformDetector.is_windows() is False  # nosec B101
+        assert PlatformDetector.is_macos() is True  # nosec B101
+        assert PlatformDetector.is_linux() is False  # nosec B101
     
     @patch('platform.system')
     @patch('platform.release')
@@ -200,18 +200,18 @@ class TestPlatformDetector:
         mock_impl.return_value = "CPython"
         mock_is_android.return_value = False
         
-        assert PlatformDetector.is_windows() is False
-        assert PlatformDetector.is_macos() is False
-        assert PlatformDetector.is_linux() is True
+        assert PlatformDetector.is_windows() is False  # nosec B101
+        assert PlatformDetector.is_macos() is False  # nosec B101
+        assert PlatformDetector.is_linux() is True  # nosec B101
     
     @patch('platform.system')
     def test_is_methods_return_false_on_unsupported(self, mock_system):
         """Test that is_* methods return False for unsupported platforms."""
         mock_system.return_value = "FreeBSD"
         
-        assert PlatformDetector.is_windows() is False
-        assert PlatformDetector.is_macos() is False
-        assert PlatformDetector.is_linux() is False
+        assert PlatformDetector.is_windows() is False  # nosec B101
+        assert PlatformDetector.is_macos() is False  # nosec B101
+        assert PlatformDetector.is_linux() is False  # nosec B101
     
     @patch('platform.system')
     @patch('platform.release')
@@ -228,8 +228,8 @@ class TestPlatformDetector:
         mock_impl.return_value = "CPython"
         mock_is_android.return_value = True
         
-        assert PlatformDetector.is_mobile() is True
-        assert PlatformDetector.is_desktop() is False
+        assert PlatformDetector.is_mobile() is True  # nosec B101
+        assert PlatformDetector.is_desktop() is False  # nosec B101
     
     @patch('platform.system')
     @patch('platform.release')
@@ -244,8 +244,8 @@ class TestPlatformDetector:
         mock_py_ver.return_value = "3.11.5"
         mock_impl.return_value = "CPython"
         
-        assert PlatformDetector.is_desktop() is True
-        assert PlatformDetector.is_mobile() is False
+        assert PlatformDetector.is_desktop() is True  # nosec B101
+        assert PlatformDetector.is_mobile() is False  # nosec B101
     
     @patch('platform.system')
     @patch('platform.release')
@@ -261,7 +261,7 @@ class TestPlatformDetector:
         mock_impl.return_value = "CPython"
         
         info = PlatformDetector.detect()
-        assert info.architecture == "x86"
+        assert info.architecture == "x86"  # nosec B101
     
     @patch('platform.system')
     @patch('platform.release')
@@ -277,7 +277,7 @@ class TestPlatformDetector:
         mock_impl.return_value = "CPython"
         
         info = PlatformDetector.detect()
-        assert info.architecture == "ARM"
+        assert info.architecture == "ARM"  # nosec B101
     
     @patch('platform.system')
     @patch('platform.release')
@@ -293,7 +293,7 @@ class TestPlatformDetector:
         mock_impl.return_value = "CPython"
         
         info = PlatformDetector.detect()
-        assert info.architecture == "riscv64"  # Should use raw value
+        assert info.architecture == "riscv64"  # Should use raw value  # nosec B101
 
 
 class TestAndroidDetection:
@@ -302,21 +302,21 @@ class TestAndroidDetection:
     @patch('sys.platform', 'linux-android')
     def test_is_android_sys_platform(self):
         """Test Android detection via sys.platform."""
-        assert _is_android() is True
+        assert _is_android() is True  # nosec B101
     
     @patch('sys.platform', 'linux')
     @patch('os.path.exists')
     def test_is_android_build_prop(self, mock_exists):
         """Test Android detection via build.prop file."""
         mock_exists.return_value = True
-        assert _is_android() is True
+        assert _is_android() is True  # nosec B101
     
     @patch('sys.platform', 'linux')
     @patch('os.path.exists')
     def test_is_not_android(self, mock_exists):
         """Test non-Android Linux detection."""
         mock_exists.return_value = False
-        assert _is_android() is False
+        assert _is_android() is False  # nosec B101
 
 
 class TestIOSDetection:
@@ -328,7 +328,7 @@ class TestIOSDetection:
         # In real iOS environment, sys.platform would contain 'ios'
         # For testing, we verify the function doesn't crash
         result = _is_ios()
-        assert isinstance(result, bool)
+        assert isinstance(result, bool)  # nosec B101
     
     @patch('os.path.exists')
     def test_is_ios_mobile_dir(self, mock_exists):
@@ -337,14 +337,14 @@ class TestIOSDetection:
         # This would return True if sys.platform contains 'darwin' or 'ios'
         # For testing, we just verify it doesn't crash
         result = _is_ios()
-        assert isinstance(result, bool)
+        assert isinstance(result, bool)  # nosec B101
     
     def test_is_not_ios_on_current_platform(self):
         """Test non-iOS detection on current platform."""
         # On Windows/Linux/macOS, this should return False
         result = _is_ios()
         # On non-iOS platforms, should return False
-        assert isinstance(result, bool)
+        assert isinstance(result, bool)  # nosec B101
 
 
 class TestPlatformInfo:
@@ -360,11 +360,11 @@ class TestPlatformInfo:
             python_implementation="CPython"
         )
         
-        assert info.os_name == "Windows"
-        assert info.os_version == "10.0.19041"
-        assert info.architecture == "x64"
-        assert info.python_version == "3.11.5"
-        assert info.python_implementation == "CPython"
+        assert info.os_name == "Windows"  # nosec B101
+        assert info.os_version == "10.0.19041"  # nosec B101
+        assert info.architecture == "x64"  # nosec B101
+        assert info.python_version == "3.11.5"  # nosec B101
+        assert info.python_implementation == "CPython"  # nosec B101
     
     def test_platform_info_equality(self):
         """Test equality comparison of PlatformInfo objects."""
@@ -383,7 +383,7 @@ class TestPlatformInfo:
             python_implementation="CPython"
         )
         
-        assert info1 == info2
+        assert info1 == info2  # nosec B101
 
 
 class TestUnsupportedPlatformError:
@@ -392,9 +392,9 @@ class TestUnsupportedPlatformError:
     def test_exception_message(self):
         """Test exception message formatting."""
         error = UnsupportedPlatformError("Test error message")
-        assert str(error) == "Test error message"
+        assert str(error) == "Test error message"  # nosec B101
     
     def test_exception_inheritance(self):
         """Test that UnsupportedPlatformError inherits from Exception."""
         error = UnsupportedPlatformError("Test")
-        assert isinstance(error, Exception)
+        assert isinstance(error, Exception)  # nosec B101

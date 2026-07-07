@@ -105,19 +105,19 @@ class TestMemoryLLMIntegrationProperties:
         context = integration.retrieve_for_reasoning(intent, user_id)
 
         # Verify MemoryContext structure
-        assert isinstance(context, MemoryContext)
-        assert isinstance(context.memories, list)
-        assert isinstance(context.formatted_prompt, str)
-        assert isinstance(context.retrieval_time_ms, float)
-        assert isinstance(context.memory_ids, list)
-        assert isinstance(context.query, str)
+        assert isinstance(context, MemoryContext)  # nosec B101
+        assert isinstance(context.memories, list)  # nosec B101
+        assert isinstance(context.formatted_prompt, str)  # nosec B101
+        assert isinstance(context.retrieval_time_ms, float)  # nosec B101
+        assert isinstance(context.memory_ids, list)  # nosec B101
+        assert isinstance(context.query, str)  # nosec B101
 
         # Verify constraints
-        assert context.retrieval_time_ms >= 0
-        assert len(context.memories) <= integration.max_memories
-        assert len(context.memory_ids) == len(context.memories)
-        assert len(context.formatted_prompt) > 0
-        assert len(context.query) > 0
+        assert context.retrieval_time_ms >= 0  # nosec B101
+        assert len(context.memories) <= integration.max_memories  # nosec B101
+        assert len(context.memory_ids) == len(context.memories)  # nosec B101
+        assert len(context.formatted_prompt) > 0  # nosec B101
+        assert len(context.query) > 0  # nosec B101
 
     @given(
         max_memories=st.integers(min_value=1, max_value=20),
@@ -149,8 +149,8 @@ class TestMemoryLLMIntegrationProperties:
 
         context = integration.retrieve_for_reasoning(intent, user_id)
 
-        assert len(context.memories) <= max_memories
-        assert len(context.memory_ids) <= max_memories
+        assert len(context.memories) <= max_memories  # nosec B101
+        assert len(context.memory_ids) <= max_memories  # nosec B101
 
     @given(memories_count=st.integers(min_value=0, max_value=10), user_id=user_id_strategy)
     @settings(deadline=None, max_examples=50)  # Disable deadline, reduce examples
@@ -179,14 +179,14 @@ class TestMemoryLLMIntegrationProperties:
 
         formatted = integration.format_memories_for_prompt(memories)
 
-        assert isinstance(formatted, str)
-        assert len(formatted) > 0
+        assert isinstance(formatted, str)  # nosec B101
+        assert len(formatted) > 0  # nosec B101
 
         if memories_count == 0:
-            assert formatted == "No relevant memories found."
+            assert formatted == "No relevant memories found."  # nosec B101
         else:
-            assert "## Relevant Memories" in formatted
-            assert "Memory 1" in formatted
+            assert "## Relevant Memories" in formatted  # nosec B101
+            assert "Memory 1" in formatted  # nosec B101
 
     @given(
         memory_ids_count=st.integers(min_value=1, max_value=20),
@@ -214,19 +214,19 @@ class TestMemoryLLMIntegrationProperties:
             integration.track_memory_usage(memory_ids)
 
         # Verify consistency
-        assert len(integration.usage_stats) == memory_ids_count
+        assert len(integration.usage_stats) == memory_ids_count  # nosec B101
 
         for memory_id in memory_ids:
             stats = integration.usage_stats[memory_id]
 
             # Usage count should match track_count
-            assert stats.usage_count == track_count
+            assert stats.usage_count == track_count  # nosec B101
 
             # Relevance boost should be bounded
-            assert 0.0 <= stats.relevance_boost <= 0.5
+            assert 0.0 <= stats.relevance_boost <= 0.5  # nosec B101
 
             # Last used should be recent
-            assert isinstance(stats.last_used, datetime)
+            assert isinstance(stats.last_used, datetime)  # nosec B101
 
     @given(
         initial_score=st.floats(
@@ -267,7 +267,7 @@ class TestMemoryLLMIntegrationProperties:
 
         # Verify bounds
         final_score = retriever.memories[memory.memory_id].relevance_score
-        assert 0.0 <= final_score <= 1.0
+        assert 0.0 <= final_score <= 1.0  # nosec B101
 
     @given(intent=intent_strategy)
     @settings(deadline=None, max_examples=50)  # Disable deadline, reduce examples
@@ -284,12 +284,12 @@ class TestMemoryLLMIntegrationProperties:
 
         query = integration._build_query_from_intent(intent)
 
-        assert isinstance(query, str)
-        assert len(query) > 0
+        assert isinstance(query, str)  # nosec B101
+        assert len(query) > 0  # nosec B101
 
         # Query should contain intent type
         intent_type_str = intent.intent_type.value.replace("_", " ")
-        assert intent_type_str in query.lower()
+        assert intent_type_str in query.lower()  # nosec B101
 
     @given(
         memory_type=memory_type_strategy,
@@ -345,11 +345,11 @@ class TestMemoryLLMIntegrationProperties:
 
         formatted = integration.format_memories_for_prompt([memory])
 
-        assert isinstance(formatted, str)
-        assert len(formatted) > 0
-        assert "## Relevant Memories" in formatted
-        assert memory_type.value in formatted.lower()
-        assert content in formatted
+        assert isinstance(formatted, str)  # nosec B101
+        assert len(formatted) > 0  # nosec B101
+        assert "## Relevant Memories" in formatted  # nosec B101
+        assert memory_type.value in formatted.lower()  # nosec B101
+        assert content in formatted  # nosec B101
 
     @given(
         retrieval_count=st.integers(min_value=1, max_value=10),
@@ -387,10 +387,10 @@ class TestMemoryLLMIntegrationProperties:
 
         # Verify all contexts are valid
         for context in contexts:
-            assert isinstance(context, MemoryContext)
-            assert len(context.memories) <= integration.max_memories
-            assert context.retrieval_time_ms >= 0
-            assert len(context.formatted_prompt) > 0
+            assert isinstance(context, MemoryContext)  # nosec B101
+            assert len(context.memories) <= integration.max_memories  # nosec B101
+            assert context.retrieval_time_ms >= 0  # nosec B101
+            assert len(context.formatted_prompt) > 0  # nosec B101
 
     @given(
         boost_factor=st.floats(min_value=0.0, max_value=0.5, allow_nan=False, allow_infinity=False)
@@ -425,7 +425,7 @@ class TestMemoryLLMIntegrationProperties:
             last_increment = boosts[-1] - boosts[-2]
 
             # Allow for floating point precision
-            assert first_increment >= last_increment - 1e-6
+            assert first_increment >= last_increment - 1e-6  # nosec B101
 
             # Boost should be capped at 0.5
-            assert boosts[-1] <= 0.5
+            assert boosts[-1] <= 0.5  # nosec B101

@@ -81,10 +81,10 @@ class TestMultiStepExecutor:
             max_retries=2,
         )
 
-        assert executor.max_steps == 3
-        assert executor.default_step_timeout == 2.0
-        assert executor.total_timeout == 10.0
-        assert executor.sync_executor.max_retries == 2
+        assert executor.max_steps == 3  # nosec B101
+        assert executor.default_step_timeout == 2.0  # nosec B101
+        assert executor.total_timeout == 10.0  # nosec B101
+        assert executor.sync_executor.max_retries == 2  # nosec B101
 
     def test_invalid_initialization(self):
         """Test validation of invalid initialization parameters."""
@@ -112,14 +112,14 @@ class TestMultiStepExecutor:
 
         result = executor.execute_plan("plan_1", steps)
 
-        assert result.success is True
-        assert result.completed_steps == 1
-        assert result.total_steps == 1
-        assert len(result.step_results) == 1
-        assert result.step_results[0].success is True
-        assert result.step_results[0].result_data == 20  # 10 * 2
-        assert result.failed_at_step is None
-        assert result.error is None
+        assert result.success is True  # nosec B101
+        assert result.completed_steps == 1  # nosec B101
+        assert result.total_steps == 1  # nosec B101
+        assert len(result.step_results) == 1  # nosec B101
+        assert result.step_results[0].success is True  # nosec B101
+        assert result.step_results[0].result_data == 20  # 10 * 2  # nosec B101
+        assert result.failed_at_step is None  # nosec B101
+        assert result.error is None  # nosec B101
 
     def test_multi_step_execution(self, executor: MultiStepExecutor):
         """Test execution of multi-step plan."""
@@ -135,13 +135,13 @@ class TestMultiStepExecutor:
 
         result = executor.execute_plan("plan_multi", steps)
 
-        assert result.success is True
-        assert result.completed_steps == 3
-        assert result.total_steps == 3
-        assert len(result.step_results) == 3
-        assert result.step_results[0].result_data == 10  # 5 * 2
-        assert result.step_results[1].result_data == 6  # 3 * 2
-        assert result.step_results[2].result_data == 4  # 2 * 2
+        assert result.success is True  # nosec B101
+        assert result.completed_steps == 3  # nosec B101
+        assert result.total_steps == 3  # nosec B101
+        assert len(result.step_results) == 3  # nosec B101
+        assert result.step_results[0].result_data == 10  # 5 * 2  # nosec B101
+        assert result.step_results[1].result_data == 6  # 3 * 2  # nosec B101
+        assert result.step_results[2].result_data == 4  # 2 * 2  # nosec B101
 
     def test_parameter_binding(self, executor: MultiStepExecutor):
         """Test parameter binding from previous step results."""
@@ -169,10 +169,10 @@ class TestMultiStepExecutor:
 
         result = executor.execute_plan("plan_binding", steps)
 
-        assert result.success is True
-        assert result.completed_steps == 2
-        assert result.step_results[0].result_data == 10  # 5 * 2
-        assert result.step_results[1].result_data == 10  # Bound from step 1
+        assert result.success is True  # nosec B101
+        assert result.completed_steps == 2  # nosec B101
+        assert result.step_results[0].result_data == 10  # 5 * 2  # nosec B101
+        assert result.step_results[1].result_data == 10  # Bound from step 1  # nosec B101
 
     def test_fail_fast_on_step_failure(self, executor: MultiStepExecutor):
         """Test that execution stops on first step failure."""
@@ -186,22 +186,22 @@ class TestMultiStepExecutor:
 
         result = executor.execute_plan("plan_fail", steps)
 
-        assert result.success is False
-        assert result.completed_steps == 1
-        assert result.total_steps == 2
-        assert result.failed_at_step == 1
-        assert result.error is not None
-        assert result.error["error_code"] == "STEP_FAILED"
-        assert result.step_results[0].success is False
+        assert result.success is False  # nosec B101
+        assert result.completed_steps == 1  # nosec B101
+        assert result.total_steps == 2  # nosec B101
+        assert result.failed_at_step == 1  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "STEP_FAILED"  # nosec B101
+        assert result.step_results[0].success is False  # nosec B101
 
     def test_empty_plan_validation(self, executor: MultiStepExecutor):
         """Test validation of empty plan."""
         result = executor.execute_plan("plan_empty", [])
 
-        assert result.success is False
-        assert result.completed_steps == 0
-        assert result.error is not None
-        assert result.error["error_code"] == "EMPTY_PLAN"
+        assert result.success is False  # nosec B101
+        assert result.completed_steps == 0  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "EMPTY_PLAN"  # nosec B101
 
     def test_too_many_steps_validation(self, executor: MultiStepExecutor):
         """Test validation of plan with too many steps."""
@@ -217,9 +217,9 @@ class TestMultiStepExecutor:
 
         result = executor.execute_plan("plan_too_many", steps)
 
-        assert result.success is False
-        assert result.error is not None
-        assert result.error["error_code"] == "TOO_MANY_STEPS"
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "TOO_MANY_STEPS"  # nosec B101
 
     def test_invalid_step_numbers(self, executor: MultiStepExecutor):
         """Test validation of non-sequential step numbers."""
@@ -233,9 +233,9 @@ class TestMultiStepExecutor:
 
         result = executor.execute_plan("plan_invalid_nums", steps)
 
-        assert result.success is False
-        assert result.error is not None
-        assert result.error["error_code"] == "INVALID_STEP_NUMBER"
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "INVALID_STEP_NUMBER"  # nosec B101
 
     def test_invalid_parameter_binding(self, executor: MultiStepExecutor):
         """Test validation of invalid parameter bindings."""
@@ -252,9 +252,9 @@ class TestMultiStepExecutor:
 
         result = executor.execute_plan("plan_invalid_binding", steps)
 
-        assert result.success is False
-        assert result.error is not None
-        assert result.error["error_code"] == "INVALID_BINDING"
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "INVALID_BINDING"  # nosec B101
 
     def test_step_timeout(self, executor: MultiStepExecutor):
         """Test step-level timeout enforcement."""
@@ -271,11 +271,11 @@ class TestMultiStepExecutor:
 
         result = executor.execute_plan("plan_step_timeout", steps)
 
-        assert result.success is False
-        assert result.completed_steps == 1
-        assert result.step_results[0].success is False
-        assert result.step_results[0].error is not None
-        assert "TIMEOUT" in result.step_results[0].error["error_code"]
+        assert result.success is False  # nosec B101
+        assert result.completed_steps == 1  # nosec B101
+        assert result.step_results[0].success is False  # nosec B101
+        assert result.step_results[0].error is not None  # nosec B101
+        assert "TIMEOUT" in result.step_results[0].error["error_code"]  # nosec B101
 
     def test_total_timeout(self):
         """Test total plan timeout enforcement."""
@@ -301,10 +301,10 @@ class TestMultiStepExecutor:
 
         result = executor.execute_plan("plan_total_timeout", steps)
 
-        assert result.success is False
-        assert result.error is not None
-        assert result.error["error_code"] == "PLAN_TIMEOUT"
-        assert result.completed_steps < result.total_steps
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "PLAN_TIMEOUT"  # nosec B101
+        assert result.completed_steps < result.total_steps  # nosec B101
 
     def test_cancellation(self, executor: MultiStepExecutor):
         """Test plan cancellation."""
@@ -338,10 +338,10 @@ class TestMultiStepExecutor:
 
         result = executor.execute_plan("plan_cancel", steps)
 
-        assert result.success is False
-        assert result.error is not None
-        assert result.error["error_code"] == "PLAN_CANCELLED"
-        assert result.completed_steps == 1  # First step completed before cancellation
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "PLAN_CANCELLED"  # nosec B101
+        assert result.completed_steps == 1  # First step completed before cancellation  # nosec B101
 
     def test_cancellation_during_step_execution(self, executor: MultiStepExecutor):
         """Test cancellation during step execution with graceful shutdown."""
@@ -391,27 +391,27 @@ class TestMultiStepExecutor:
         thread.join(timeout=5.0)
 
         # Check result
-        assert len(result_container) == 1
+        assert len(result_container) == 1  # nosec B101
         result = result_container[0]
 
         # Should have been cancelled
-        assert result.success is False
+        assert result.success is False  # nosec B101
 
         # Should have completed first step with cancellation error
-        assert result.completed_steps == 1
-        assert result.step_results[0].success is False
-        assert result.step_results[0].error is not None
-        assert "CANCELLED" in result.step_results[0].error["error_code"]
+        assert result.completed_steps == 1  # nosec B101
+        assert result.step_results[0].success is False  # nosec B101
+        assert result.step_results[0].error is not None  # nosec B101
+        assert "CANCELLED" in result.step_results[0].error["error_code"]  # nosec B101
 
     def test_is_cancelled_method(self, executor: MultiStepExecutor):
         """Test is_cancelled method."""
-        assert executor.is_cancelled() is False
+        assert executor.is_cancelled() is False  # nosec B101
 
         executor.cancel_execution()
-        assert executor.is_cancelled() is True
+        assert executor.is_cancelled() is True  # nosec B101
 
         executor.clear_execution_context()
-        assert executor.is_cancelled() is False
+        assert executor.is_cancelled() is False  # nosec B101
 
     def test_cancellation_prevents_subsequent_steps(self, executor: MultiStepExecutor):
         """Test that cancellation prevents subsequent steps from executing."""
@@ -441,10 +441,10 @@ class TestMultiStepExecutor:
         result = executor.execute_plan("plan_prevent_subsequent", steps)
 
         # Only first step should have executed
-        assert executed_steps == [1]
-        assert result.completed_steps == 1
-        assert result.success is False
-        assert result.error["error_code"] == "PLAN_CANCELLED"
+        assert executed_steps == [1]  # nosec B101
+        assert result.completed_steps == 1  # nosec B101
+        assert result.success is False  # nosec B101
+        assert result.error["error_code"] == "PLAN_CANCELLED"  # nosec B101
 
     def test_execution_context(self, executor: MultiStepExecutor):
         """Test execution context management."""
@@ -468,14 +468,14 @@ class TestMultiStepExecutor:
 
         result = executor.execute_plan("plan_context", steps)
 
-        assert result.success is True
+        assert result.success is True  # nosec B101
 
         # Check execution context
         context = executor.get_execution_context()
-        assert "result1" in context
-        assert "result2" in context
-        assert context["result1"] == 10  # 5 * 2
-        assert context["result2"] == 20  # 10 * 2
+        assert "result1" in context  # nosec B101
+        assert "result2" in context  # nosec B101
+        assert context["result1"] == 10  # 5 * 2  # nosec B101
+        assert context["result2"] == 20  # 10 * 2  # nosec B101
 
     def test_clear_execution_context(self, executor: MultiStepExecutor):
         """Test clearing execution context."""
@@ -491,10 +491,10 @@ class TestMultiStepExecutor:
         ]
 
         executor.execute_plan("plan_clear", steps)
-        assert len(executor.get_execution_context()) > 0
+        assert len(executor.get_execution_context()) > 0  # nosec B101
 
         executor.clear_execution_context()
-        assert len(executor.get_execution_context()) == 0
+        assert len(executor.get_execution_context()) == 0  # nosec B101
 
     def test_result_to_dict(self, executor: MultiStepExecutor, simple_action: Action):
         """Test conversion of results to dictionary."""
@@ -503,13 +503,13 @@ class TestMultiStepExecutor:
         result = executor.execute_plan("plan_dict", steps)
         result_dict = result.to_dict()
 
-        assert isinstance(result_dict, dict)
-        assert "plan_id" in result_dict
-        assert "success" in result_dict
-        assert "completed_steps" in result_dict
-        assert "total_steps" in result_dict
-        assert "step_results" in result_dict
-        assert isinstance(result_dict["step_results"], list)
+        assert isinstance(result_dict, dict)  # nosec B101
+        assert "plan_id" in result_dict  # nosec B101
+        assert "success" in result_dict  # nosec B101
+        assert "completed_steps" in result_dict  # nosec B101
+        assert "total_steps" in result_dict  # nosec B101
+        assert "step_results" in result_dict  # nosec B101
+        assert isinstance(result_dict["step_results"], list)  # nosec B101
 
     def test_partial_results_on_failure(self, executor: MultiStepExecutor):
         """Test that partial results are returned on failure."""
@@ -525,13 +525,13 @@ class TestMultiStepExecutor:
 
         result = executor.execute_plan("plan_partial", steps)
 
-        assert result.success is False
-        assert result.completed_steps == 2
-        assert result.total_steps == 3
-        assert len(result.step_results) == 2
-        assert result.step_results[0].success is True
-        assert result.step_results[1].success is False
-        assert result.failed_at_step == 2
+        assert result.success is False  # nosec B101
+        assert result.completed_steps == 2  # nosec B101
+        assert result.total_steps == 3  # nosec B101
+        assert len(result.step_results) == 2  # nosec B101
+        assert result.step_results[0].success is True  # nosec B101
+        assert result.step_results[1].success is False  # nosec B101
+        assert result.failed_at_step == 2  # nosec B101
 
 
 # Property-Based Tests
@@ -561,10 +561,10 @@ class TestMultiStepExecutorProperties:
             total_timeout=total_timeout,
         )
 
-        assert executor is not None
-        assert executor.max_steps == max_steps
-        assert executor.default_step_timeout == default_step_timeout
-        assert executor.total_timeout == total_timeout
+        assert executor is not None  # nosec B101
+        assert executor.max_steps == max_steps  # nosec B101
+        assert executor.default_step_timeout == default_step_timeout  # nosec B101
+        assert executor.total_timeout == total_timeout  # nosec B101
 
     @given(
         num_steps=st.integers(min_value=1, max_value=5),
@@ -589,10 +589,10 @@ class TestMultiStepExecutorProperties:
 
         result = executor.execute_plan("plan_prop", steps)
 
-        assert result.success is True
-        assert result.completed_steps == num_steps
-        assert result.total_steps == num_steps
-        assert len(result.step_results) == num_steps
+        assert result.success is True  # nosec B101
+        assert result.completed_steps == num_steps  # nosec B101
+        assert result.total_steps == num_steps  # nosec B101
+        assert len(result.step_results) == num_steps  # nosec B101
 
     @given(
         num_steps=st.integers(min_value=2, max_value=5),
@@ -626,10 +626,10 @@ class TestMultiStepExecutorProperties:
 
         result = executor.execute_plan("plan_fail_prop", steps)
 
-        assert result.success is False
-        assert result.completed_steps == fail_at
-        assert result.failed_at_step == fail_at
-        assert len(result.step_results) == fail_at
+        assert result.success is False  # nosec B101
+        assert result.completed_steps == fail_at  # nosec B101
+        assert result.failed_at_step == fail_at  # nosec B101
+        assert len(result.step_results) == fail_at  # nosec B101
 
     @given(num_steps=st.integers(min_value=1, max_value=5))
     def test_result_has_correct_structure(self, num_steps: int):
@@ -652,21 +652,21 @@ class TestMultiStepExecutorProperties:
         result = executor.execute_plan("plan_struct", steps)
 
         # Check structure
-        assert isinstance(result, MultiStepResult)
-        assert isinstance(result.plan_id, str)
-        assert isinstance(result.success, bool)
-        assert isinstance(result.completed_steps, int)
-        assert isinstance(result.total_steps, int)
-        assert isinstance(result.step_results, list)
-        assert isinstance(result.total_execution_time, float)
+        assert isinstance(result, MultiStepResult)  # nosec B101
+        assert isinstance(result.plan_id, str)  # nosec B101
+        assert isinstance(result.success, bool)  # nosec B101
+        assert isinstance(result.completed_steps, int)  # nosec B101
+        assert isinstance(result.total_steps, int)  # nosec B101
+        assert isinstance(result.step_results, list)  # nosec B101
+        assert isinstance(result.total_execution_time, float)  # nosec B101
 
         # Check step results structure
         for step_result in result.step_results:
-            assert isinstance(step_result, StepResult)
-            assert isinstance(step_result.step_number, int)
-            assert isinstance(step_result.action_id, str)
-            assert isinstance(step_result.success, bool)
-            assert isinstance(step_result.execution_time, float)
+            assert isinstance(step_result, StepResult)  # nosec B101
+            assert isinstance(step_result.step_number, int)  # nosec B101
+            assert isinstance(step_result.action_id, str)  # nosec B101
+            assert isinstance(step_result.success, bool)  # nosec B101
+            assert isinstance(step_result.execution_time, float)  # nosec B101
 
     @given(
         num_steps=st.integers(min_value=2, max_value=5),
@@ -712,20 +712,20 @@ class TestMultiStepExecutorProperties:
         result = executor.execute_plan("plan_step_timeout_prop", steps)
 
         # Should fail due to step timeout
-        assert result.success is False
+        assert result.success is False  # nosec B101
 
         # Should have completed at least the first step and the timeout step
-        assert result.completed_steps >= 2
-        assert result.completed_steps <= num_steps
+        assert result.completed_steps >= 2  # nosec B101
+        assert result.completed_steps <= num_steps  # nosec B101
 
         # Should have step results for completed steps
-        assert len(result.step_results) == result.completed_steps
+        assert len(result.step_results) == result.completed_steps  # nosec B101
 
         # Failed step (step 2) should have timeout error
         failed_step = result.step_results[1]  # Second step (index 1)
-        assert failed_step.success is False
-        assert failed_step.error is not None
-        assert "TIMEOUT" in failed_step.error["error_code"]
+        assert failed_step.success is False  # nosec B101
+        assert failed_step.error is not None  # nosec B101
+        assert "TIMEOUT" in failed_step.error["error_code"]  # nosec B101
 
     @given(
         num_steps=st.integers(min_value=4, max_value=5),
@@ -766,25 +766,25 @@ class TestMultiStepExecutorProperties:
         result = executor.execute_plan("plan_total_timeout_prop", steps)
 
         # Should fail due to plan timeout
-        assert result.success is False
-        assert result.error is not None
-        assert result.error["error_code"] == "PLAN_TIMEOUT"
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "PLAN_TIMEOUT"  # nosec B101
 
         # Should have completed some steps before timeout
-        assert result.completed_steps >= 2
-        assert result.completed_steps < result.total_steps
+        assert result.completed_steps >= 2  # nosec B101
+        assert result.completed_steps < result.total_steps  # nosec B101
 
         # Should have step results for completed steps
-        assert len(result.step_results) == result.completed_steps
+        assert len(result.step_results) == result.completed_steps  # nosec B101
 
         # All completed steps should be successful
         for step_result in result.step_results:
-            assert step_result.success is True
+            assert step_result.success is True  # nosec B101
 
         # Error should indicate timeout details
-        assert "details" in result.error
-        assert "completed_steps" in result.error["details"]
-        assert result.error["details"]["completed_steps"] == result.completed_steps
+        assert "details" in result.error  # nosec B101
+        assert "completed_steps" in result.error["details"]  # nosec B101
+        assert result.error["details"]["completed_steps"] == result.completed_steps  # nosec B101
 
     @given(
         num_steps=st.integers(min_value=1, max_value=3),
@@ -829,16 +829,16 @@ class TestMultiStepExecutorProperties:
         result2 = executor.execute_plan("plan_timeout_2", steps)
 
         # Both should fail
-        assert result1.success is False
-        assert result2.success is False
+        assert result1.success is False  # nosec B101
+        assert result2.success is False  # nosec B101
 
         # Both should have timeout-related errors
-        assert result1.error is not None
-        assert result2.error is not None
-        assert (
+        assert result1.error is not None  # nosec B101
+        assert result2.error is not None  # nosec B101
+        assert (  # nosec B101
             "TIMEOUT" in result1.error["error_code"] or "STEP_FAILED" in result1.error["error_code"]
         )
-        assert (
+        assert (  # nosec B101
             "TIMEOUT" in result2.error["error_code"] or "STEP_FAILED" in result2.error["error_code"]
         )
 
@@ -869,11 +869,11 @@ class TestMultiStepExecutorProperties:
         result = executor.execute_plan("plan_bounds", steps)
 
         # Completed steps should never exceed total
-        assert result.completed_steps <= result.total_steps
-        assert result.completed_steps >= 0
+        assert result.completed_steps <= result.total_steps  # nosec B101
+        assert result.completed_steps >= 0  # nosec B101
 
         # Number of step results should match completed steps
-        assert len(result.step_results) == result.completed_steps
+        assert len(result.step_results) == result.completed_steps  # nosec B101
 
     @given(
         num_steps=st.integers(min_value=2, max_value=4),
@@ -922,18 +922,18 @@ class TestMultiStepExecutorProperties:
         result = executor.execute_plan("plan_timeout_at_step", steps)
 
         # Should fail
-        assert result.success is False
+        assert result.success is False  # nosec B101
 
         # Should have completed steps up to and including the timeout step
-        assert result.completed_steps == timeout_at_step
-        assert len(result.step_results) == timeout_at_step
+        assert result.completed_steps == timeout_at_step  # nosec B101
+        assert len(result.step_results) == timeout_at_step  # nosec B101
 
         # All steps before timeout should be successful
         for i in range(timeout_at_step - 1):
-            assert result.step_results[i].success is True
+            assert result.step_results[i].success is True  # nosec B101
 
         # Timeout step should have failed
-        assert result.step_results[timeout_at_step - 1].success is False
+        assert result.step_results[timeout_at_step - 1].success is False  # nosec B101
 
     @given(
         num_steps=st.integers(min_value=2, max_value=5),
@@ -978,17 +978,17 @@ class TestMultiStepExecutorProperties:
         result = executor.execute_plan("plan_cancel_prop", steps)
 
         # Should have failed due to cancellation
-        assert result.success is False
-        assert result.error is not None
-        assert result.error["error_code"] == "PLAN_CANCELLED"
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "PLAN_CANCELLED"  # nosec B101
 
         # Should have executed only up to cancellation point
-        assert len(executed_steps) == cancel_at_step
-        assert executed_steps == list(range(1, cancel_at_step + 1))
+        assert len(executed_steps) == cancel_at_step  # nosec B101
+        assert executed_steps == list(range(1, cancel_at_step + 1))  # nosec B101
 
         # Should have completed steps up to cancellation
-        assert result.completed_steps == cancel_at_step
-        assert len(result.step_results) == cancel_at_step
+        assert result.completed_steps == cancel_at_step  # nosec B101
+        assert len(result.step_results) == cancel_at_step  # nosec B101
 
     @given(num_steps=st.integers(min_value=1, max_value=5))
     def test_cancellation_is_idempotent(self, num_steps: int):
@@ -1022,13 +1022,13 @@ class TestMultiStepExecutorProperties:
         result = executor.execute_plan("plan_idempotent", steps)
 
         # Should be cancelled
-        assert result.success is False
-        assert result.error is not None
-        assert result.error["error_code"] == "PLAN_CANCELLED"
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "PLAN_CANCELLED"  # nosec B101
 
         # Should not have executed any steps
-        assert result.completed_steps == 0
-        assert len(result.step_results) == 0
+        assert result.completed_steps == 0  # nosec B101
+        assert len(result.step_results) == 0  # nosec B101
 
     @given(num_steps=st.integers(min_value=2, max_value=5))
     def test_clear_context_resets_cancellation(self, num_steps: int):
@@ -1043,11 +1043,11 @@ class TestMultiStepExecutorProperties:
 
         # Cancel execution
         executor.cancel_execution()
-        assert executor.is_cancelled() is True
+        assert executor.is_cancelled() is True  # nosec B101
 
         # Clear context
         executor.clear_execution_context()
-        assert executor.is_cancelled() is False
+        assert executor.is_cancelled() is False  # nosec B101
 
         # Should be able to execute normally now
         steps = [
@@ -1066,9 +1066,9 @@ class TestMultiStepExecutorProperties:
         result = executor.execute_plan("plan_after_clear", steps)
 
         # Should succeed
-        assert result.success is True
-        assert result.completed_steps == num_steps
-        assert len(result.step_results) == num_steps
+        assert result.success is True  # nosec B101
+        assert result.completed_steps == num_steps  # nosec B101
+        assert len(result.step_results) == num_steps  # nosec B101
 
     @given(
         num_steps=st.integers(min_value=2, max_value=5),
@@ -1149,12 +1149,12 @@ class TestMultiStepExecutorProperties:
         result = executor.execute_plan("plan_sequential", steps)
 
         # Verify execution succeeded
-        assert result.success is True
-        assert result.completed_steps == num_steps
-        assert len(result.step_results) == num_steps
+        assert result.success is True  # nosec B101
+        assert result.completed_steps == num_steps  # nosec B101
+        assert len(result.step_results) == num_steps  # nosec B101
 
         # Property 1: Steps executed in sequential order
-        assert execution_order == list(range(1, num_steps + 1)), (
+        assert execution_order == list(range(1, num_steps + 1)), (  # nosec B101
             f"Steps did not execute in sequential order. "
             f"Expected {list(range(1, num_steps + 1))}, got {execution_order}"
         )
@@ -1162,7 +1162,7 @@ class TestMultiStepExecutorProperties:
         # Property 2: Each step completed before next began
         # (verified by execution_order being sequential)
         for i, step_num in enumerate(execution_order):
-            assert step_num == i + 1, f"Step {step_num} executed out of order at position {i}"
+            assert step_num == i + 1, f"Step {step_num} executed out of order at position {i}"  # nosec B101
 
         # Property 3: Output from step N available to step N+1
         # Verify by checking the computed values form a chain
@@ -1174,7 +1174,7 @@ class TestMultiStepExecutorProperties:
             # Each step multiplies input by step number
             expected_value = expected_value * step_num
 
-            assert step_result.result_data == expected_value, (
+            assert step_result.result_data == expected_value, (  # nosec B101
                 f"Step {step_num} result incorrect. "
                 f"Expected {expected_value}, got {step_result.result_data}"
             )
@@ -1185,7 +1185,7 @@ class TestMultiStepExecutorProperties:
         # Verify all output bindings are in context
         for i in range(1, num_steps + 1):
             binding_key = f"result_{i}"
-            assert (
+            assert (  # nosec B101
                 binding_key in context
             ), f"Output binding '{binding_key}' not found in execution context"
 
@@ -1195,7 +1195,7 @@ class TestMultiStepExecutorProperties:
             step_result_value = result.step_results[i].result_data
             context_value = context[binding_key]
 
-            assert context_value == step_result_value, (
+            assert context_value == step_result_value, (  # nosec B101
                 f"Context value for '{binding_key}' does not match step result. "
                 f"Context: {context_value}, Step result: {step_result_value}"
             )
@@ -1207,7 +1207,7 @@ class TestMultiStepExecutorProperties:
             curr_step = result.step_results[i]
 
             # Current step timestamp should be after previous
-            assert curr_step.timestamp >= prev_step.timestamp, (
+            assert curr_step.timestamp >= prev_step.timestamp, (  # nosec B101
                 f"Step {i+1} timestamp ({curr_step.timestamp}) is before "
                 f"step {i} timestamp ({prev_step.timestamp})"
             )
@@ -1273,17 +1273,17 @@ class TestMultiStepExecutorIntegration:
 
         result = executor.execute_plan("complex_workflow", steps)
 
-        assert result.success is True
-        assert result.completed_steps == 3
-        assert result.step_results[0].result_data == 10  # 5 * 2
-        assert result.step_results[1].result_data == 10  # Bound from step 1
-        assert result.step_results[2].result_data == 20  # 10 + 10
+        assert result.success is True  # nosec B101
+        assert result.completed_steps == 3  # nosec B101
+        assert result.step_results[0].result_data == 10  # 5 * 2  # nosec B101
+        assert result.step_results[1].result_data == 10  # Bound from step 1  # nosec B101
+        assert result.step_results[2].result_data == 20  # 10 + 10  # nosec B101
 
         # Check final context
         context = executor.get_execution_context()
-        assert context["initial"] == 10
-        assert context["doubled"] == 10
-        assert context["final"] == 20
+        assert context["initial"] == 10  # nosec B101
+        assert context["doubled"] == 10  # nosec B101
+        assert context["final"] == 20  # nosec B101
 
     def test_performance_within_budget(self):
         """Test that multi-step execution meets performance budget."""
@@ -1307,6 +1307,6 @@ class TestMultiStepExecutorIntegration:
         result = executor.execute_plan("perf_test", steps)
         elapsed = time.perf_counter() - start_time
 
-        assert result.success is True
-        assert elapsed < 1.0  # Should complete in under 1 second
-        assert result.total_execution_time < 1.0
+        assert result.success is True  # nosec B101
+        assert elapsed < 1.0  # Should complete in under 1 second  # nosec B101
+        assert result.total_execution_time < 1.0  # nosec B101

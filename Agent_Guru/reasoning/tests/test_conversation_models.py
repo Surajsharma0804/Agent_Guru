@@ -24,12 +24,12 @@ class TestTrackedEntity:
             confidence=0.95,
         )
         
-        assert entity.entity_type == "location"
-        assert entity.value == "New York"
-        assert entity.first_mentioned == 0
-        assert entity.last_mentioned == 2
-        assert entity.mention_count == 3
-        assert entity.confidence == 0.95
+        assert entity.entity_type == "location"  # nosec B101
+        assert entity.value == "New York"  # nosec B101
+        assert entity.first_mentioned == 0  # nosec B101
+        assert entity.last_mentioned == 2  # nosec B101
+        assert entity.mention_count == 3  # nosec B101
+        assert entity.confidence == 0.95  # nosec B101
     
     def test_tracked_entity_confidence_validation_invalid(self):
         """Test confidence validation fails for invalid values."""
@@ -74,9 +74,9 @@ class TestTrackedEntity:
             last_mentioned=0,
         )
         
-        assert entity1 == entity2
-        assert entity1 != entity3
-        assert entity1 != "not an entity"
+        assert entity1 == entity2  # nosec B101
+        assert entity1 != entity3  # nosec B101
+        assert entity1 != "not an entity"  # nosec B101
     
     def test_tracked_entity_hash(self):
         """Test tracked entity hashing."""
@@ -93,7 +93,7 @@ class TestTrackedEntity:
             last_mentioned=0,
         )
         
-        assert hash(entity1) == hash(entity2)
+        assert hash(entity1) == hash(entity2)  # nosec B101
 
 
 class TestConversationTurn:
@@ -110,12 +110,12 @@ class TestConversationTurn:
             user_feedback="helpful",
         )
         
-        assert turn.turn_id == "turn_123"
-        assert turn.turn_number == 0
-        assert turn.user_input == "set a timer for 5 minutes"
-        assert turn.response == "Timer set for 5 minutes"
-        assert turn.execution_time == 0.234
-        assert turn.user_feedback == "helpful"
+        assert turn.turn_id == "turn_123"  # nosec B101
+        assert turn.turn_number == 0  # nosec B101
+        assert turn.user_input == "set a timer for 5 minutes"  # nosec B101
+        assert turn.response == "Timer set for 5 minutes"  # nosec B101
+        assert turn.execution_time == 0.234  # nosec B101
+        assert turn.user_feedback == "helpful"  # nosec B101
     
     def test_conversation_turn_id_validation_invalid_empty(self):
         """Test turn ID validation fails for empty ID."""
@@ -180,16 +180,16 @@ class TestConversationTurn:
         turn2 = ConversationTurn(turn_id="turn_123", turn_number=0, user_input="test")
         turn3 = ConversationTurn(turn_id="turn_456", turn_number=0, user_input="test")
         
-        assert turn1 == turn2
-        assert turn1 != turn3
-        assert turn1 != "not a turn"
+        assert turn1 == turn2  # nosec B101
+        assert turn1 != turn3  # nosec B101
+        assert turn1 != "not a turn"  # nosec B101
     
     def test_conversation_turn_hash(self):
         """Test conversation turn hashing."""
         turn1 = ConversationTurn(turn_id="turn_123", turn_number=0, user_input="test")
         turn2 = ConversationTurn(turn_id="turn_123", turn_number=0, user_input="test")
         
-        assert hash(turn1) == hash(turn2)
+        assert hash(turn1) == hash(turn2)  # nosec B101
 
 
 class TestConversationState:
@@ -203,11 +203,11 @@ class TestConversationState:
             user_preferences={"voice_speed": "normal"},
         )
         
-        assert state.conversation_id == "conv_123"
-        assert state.user_id == "user_456"
-        assert state.user_preferences == {"voice_speed": "normal"}
-        assert len(state.turns) == 0
-        assert len(state.entities) == 0
+        assert state.conversation_id == "conv_123"  # nosec B101
+        assert state.user_id == "user_456"  # nosec B101
+        assert state.user_preferences == {"voice_speed": "normal"}  # nosec B101
+        assert len(state.turns) == 0  # nosec B101
+        assert len(state.entities) == 0  # nosec B101
     
     def test_conversation_id_validation_invalid_empty(self):
         """Test conversation ID validation fails for empty ID."""
@@ -275,9 +275,9 @@ class TestConversationState:
         
         state.add_turn(turn)
         
-        assert len(state.turns) == 1
-        assert state.turns[0] == turn
-        assert state.last_intent == intent
+        assert len(state.turns) == 1  # nosec B101
+        assert state.turns[0] == turn  # nosec B101
+        assert state.last_intent == intent  # nosec B101
     
     def test_get_recent_turns_less_than_count(self):
         """Test getting recent turns when total is less than count."""
@@ -291,7 +291,7 @@ class TestConversationState:
         state.turns = [turn1, turn2]
         
         recent = state.get_recent_turns(count=5)
-        assert len(recent) == 2
+        assert len(recent) == 2  # nosec B101
     
     def test_get_recent_turns_more_than_count(self):
         """Test getting recent turns when total is more than count."""
@@ -307,9 +307,9 @@ class TestConversationState:
         state.turns = turns
         
         recent = state.get_recent_turns(count=3)
-        assert len(recent) == 3
-        assert recent[0].turn_number == 7
-        assert recent[2].turn_number == 9
+        assert len(recent) == 3  # nosec B101
+        assert recent[0].turn_number == 7  # nosec B101
+        assert recent[2].turn_number == 9  # nosec B101
     
     def test_get_turn_count(self):
         """Test getting turn count."""
@@ -322,7 +322,7 @@ class TestConversationState:
         turn2 = ConversationTurn(turn_id="turn_2", turn_number=1, user_input="test2")
         state.turns = [turn1, turn2]
         
-        assert state.get_turn_count() == 2
+        assert state.get_turn_count() == 2  # nosec B101
     
     def test_track_entity_new(self):
         """Test tracking a new entity."""
@@ -333,13 +333,13 @@ class TestConversationState:
         
         state.track_entity("location", "New York", turn_number=0, confidence=0.95)
         
-        assert "location:New York" in state.entities
+        assert "location:New York" in state.entities  # nosec B101
         entity = state.entities["location:New York"]
-        assert entity.entity_type == "location"
-        assert entity.value == "New York"
-        assert entity.first_mentioned == 0
-        assert entity.last_mentioned == 0
-        assert entity.mention_count == 1
+        assert entity.entity_type == "location"  # nosec B101
+        assert entity.value == "New York"  # nosec B101
+        assert entity.first_mentioned == 0  # nosec B101
+        assert entity.last_mentioned == 0  # nosec B101
+        assert entity.mention_count == 1  # nosec B101
     
     def test_track_entity_existing(self):
         """Test tracking an existing entity updates it."""
@@ -352,10 +352,10 @@ class TestConversationState:
         state.track_entity("location", "New York", turn_number=2, confidence=0.95)
         
         entity = state.entities["location:New York"]
-        assert entity.first_mentioned == 0
-        assert entity.last_mentioned == 2
-        assert entity.mention_count == 2
-        assert entity.confidence == 0.95
+        assert entity.first_mentioned == 0  # nosec B101
+        assert entity.last_mentioned == 2  # nosec B101
+        assert entity.mention_count == 2  # nosec B101
+        assert entity.confidence == 0.95  # nosec B101
     
     def test_get_entity_exists(self):
         """Test getting an existing entity."""
@@ -367,8 +367,8 @@ class TestConversationState:
         state.track_entity("location", "New York", turn_number=0)
         
         entity = state.get_entity("location")
-        assert entity is not None
-        assert entity.value == "New York"
+        assert entity is not None  # nosec B101
+        assert entity.value == "New York"  # nosec B101
     
     def test_get_entity_not_exists(self):
         """Test getting a non-existing entity returns None."""
@@ -378,7 +378,7 @@ class TestConversationState:
         )
         
         entity = state.get_entity("location")
-        assert entity is None
+        assert entity is None  # nosec B101
     
     def test_get_entity_most_recent(self):
         """Test getting entity returns most recently mentioned."""
@@ -391,7 +391,7 @@ class TestConversationState:
         state.track_entity("location", "Boston", turn_number=2)
         
         entity = state.get_entity("location")
-        assert entity.value == "Boston"
+        assert entity.value == "Boston"  # nosec B101
     
     def test_prune_old_turns_no_pruning_needed(self):
         """Test pruning when no pruning is needed."""
@@ -407,8 +407,8 @@ class TestConversationState:
         state.turns = turns
         
         pruned = state.prune_old_turns(max_turns=10)
-        assert pruned == 0
-        assert len(state.turns) == 5
+        assert pruned == 0  # nosec B101
+        assert len(state.turns) == 5  # nosec B101
     
     def test_prune_old_turns_pruning_needed(self):
         """Test pruning when pruning is needed."""
@@ -424,10 +424,10 @@ class TestConversationState:
         state.turns = turns
         
         pruned = state.prune_old_turns(max_turns=20)
-        assert pruned == 5
-        assert len(state.turns) == 20
-        assert state.turns[0].turn_number == 5
-        assert state.turns[-1].turn_number == 24
+        assert pruned == 5  # nosec B101
+        assert len(state.turns) == 20  # nosec B101
+        assert state.turns[0].turn_number == 5  # nosec B101
+        assert state.turns[-1].turn_number == 24  # nosec B101
     
     def test_conversation_state_equality(self):
         """Test conversation state equality comparison."""
@@ -435,16 +435,16 @@ class TestConversationState:
         state2 = ConversationState(conversation_id="conv_123", user_id="user_456")
         state3 = ConversationState(conversation_id="conv_789", user_id="user_456")
         
-        assert state1 == state2
-        assert state1 != state3
-        assert state1 != "not a state"
+        assert state1 == state2  # nosec B101
+        assert state1 != state3  # nosec B101
+        assert state1 != "not a state"  # nosec B101
     
     def test_conversation_state_hash(self):
         """Test conversation state hashing."""
         state1 = ConversationState(conversation_id="conv_123", user_id="user_456")
         state2 = ConversationState(conversation_id="conv_123", user_id="user_456")
         
-        assert hash(state1) == hash(state2)
+        assert hash(state1) == hash(state2)  # nosec B101
 
 
     def test_tracked_entity_validate_confidence_valid(self):
@@ -456,7 +456,7 @@ class TestConversationState:
             last_mentioned=0,
             confidence=0.95,
         )
-        assert entity.confidence == 0.95
+        assert entity.confidence == 0.95  # nosec B101
     
     def test_conversation_turn_validate_turn_number_valid(self):
         """Test turn number validation passes for valid positive value."""
@@ -465,7 +465,7 @@ class TestConversationState:
             turn_number=5,
             user_input="test",
         )
-        assert turn.turn_number == 5
+        assert turn.turn_number == 5  # nosec B101
     
     def test_conversation_turn_validate_execution_time_valid(self):
         """Test execution time validation passes for valid positive value."""
@@ -475,4 +475,4 @@ class TestConversationState:
             user_input="test",
             execution_time=0.5,
         )
-        assert turn.execution_time == 0.5
+        assert turn.execution_time == 0.5  # nosec B101

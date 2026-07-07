@@ -50,8 +50,8 @@ class TestPromptEvolutionSystemInitialization:
 
     def test_initialization(self, system):
         """Test system initialization."""
-        assert system is not None
-        assert system.pool is not None
+        assert system is not None  # nosec B101
+        assert system.pool is not None  # nosec B101
 
     def test_initialization_without_schema_fails(self):
         """Test initialization fails without schema."""
@@ -76,15 +76,15 @@ class TestPromptRegistration:
             version=1,
         )
 
-        assert prompt_id is not None
-        assert "task_analysis_v1" in prompt_id
+        assert prompt_id is not None  # nosec B101
+        assert "task_analysis_v1" in prompt_id  # nosec B101
 
         # Verify it's stored
         prompt = system.get_active_prompt("task_analysis")
-        assert prompt is not None
-        assert prompt.prompt_type == "task_analysis"
-        assert prompt.version == 1
-        assert prompt.is_active is True
+        assert prompt is not None  # nosec B101
+        assert prompt.prompt_type == "task_analysis"  # nosec B101
+        assert prompt.version == 1  # nosec B101
+        assert prompt.is_active is True  # nosec B101
 
     def test_register_prompt_with_empty_type_fails(self, system):
         """Test registering prompt with empty type fails."""
@@ -120,14 +120,14 @@ class TestPromptRegistration:
 
         # Version 2 should be active
         active = system.get_active_prompt("task_analysis")
-        assert active is not None
-        assert active.prompt_id == v2_id
-        assert active.version == 2
+        assert active is not None  # nosec B101
+        assert active.prompt_id == v2_id  # nosec B101
+        assert active.version == 2  # nosec B101
 
         # Version 1 should be inactive
         v1 = system.get_prompt_version(v1_id)
-        assert v1 is not None
-        assert v1.is_active is False
+        assert v1 is not None  # nosec B101
+        assert v1.is_active is False  # nosec B101
 
 
 class TestPromptOutcomeRecording:
@@ -147,12 +147,12 @@ class TestPromptOutcomeRecording:
         )
 
         prompt = system.get_prompt_version(prompt_id)
-        assert prompt is not None
-        assert prompt.total_uses == 1
-        assert prompt.success_count == 1
-        assert prompt.failure_count == 0
-        assert prompt.hallucination_count == 0
-        assert prompt.success_rate == 1.0
+        assert prompt is not None  # nosec B101
+        assert prompt.total_uses == 1  # nosec B101
+        assert prompt.success_count == 1  # nosec B101
+        assert prompt.failure_count == 0  # nosec B101
+        assert prompt.hallucination_count == 0  # nosec B101
+        assert prompt.success_rate == 1.0  # nosec B101
 
     def test_record_failed_outcome(self, system):
         """Test recording failed outcome."""
@@ -168,11 +168,11 @@ class TestPromptOutcomeRecording:
         )
 
         prompt = system.get_prompt_version(prompt_id)
-        assert prompt is not None
-        assert prompt.total_uses == 1
-        assert prompt.success_count == 0
-        assert prompt.failure_count == 1
-        assert prompt.success_rate == 0.0
+        assert prompt is not None  # nosec B101
+        assert prompt.total_uses == 1  # nosec B101
+        assert prompt.success_count == 0  # nosec B101
+        assert prompt.failure_count == 1  # nosec B101
+        assert prompt.success_rate == 0.0  # nosec B101
 
     def test_record_outcome_with_hallucination(self, system):
         """Test recording outcome with hallucination."""
@@ -188,9 +188,9 @@ class TestPromptOutcomeRecording:
         )
 
         prompt = system.get_prompt_version(prompt_id)
-        assert prompt is not None
-        assert prompt.hallucination_count == 1
-        assert prompt.failure_count == 1
+        assert prompt is not None  # nosec B101
+        assert prompt.hallucination_count == 1  # nosec B101
+        assert prompt.failure_count == 1  # nosec B101
 
     def test_record_multiple_outcomes_updates_stats(self, system):
         """Test recording multiple outcomes updates statistics."""
@@ -206,11 +206,11 @@ class TestPromptOutcomeRecording:
         system.record_prompt_outcome(prompt_id, False, False)
 
         prompt = system.get_prompt_version(prompt_id)
-        assert prompt is not None
-        assert prompt.total_uses == 4
-        assert prompt.success_count == 3
-        assert prompt.failure_count == 1
-        assert prompt.success_rate == 0.75
+        assert prompt is not None  # nosec B101
+        assert prompt.total_uses == 4  # nosec B101
+        assert prompt.success_count == 3  # nosec B101
+        assert prompt.failure_count == 1  # nosec B101
+        assert prompt.success_rate == 0.75  # nosec B101
 
     def test_record_outcome_for_nonexistent_prompt_fails(self, system):
         """Test recording outcome for nonexistent prompt fails."""
@@ -233,14 +233,14 @@ class TestPromptRetrieval:
         )
 
         active = system.get_active_prompt("task_analysis")
-        assert active is not None
-        assert active.prompt_id == prompt_id
-        assert active.is_active is True
+        assert active is not None  # nosec B101
+        assert active.prompt_id == prompt_id  # nosec B101
+        assert active.is_active is True  # nosec B101
 
     def test_get_active_prompt_nonexistent_returns_none(self, system):
         """Test getting nonexistent active prompt returns None."""
         active = system.get_active_prompt("nonexistent")
-        assert active is None
+        assert active is None  # nosec B101
 
     def test_get_prompt_version(self, system):
         """Test getting specific prompt version."""
@@ -250,13 +250,13 @@ class TestPromptRetrieval:
         )
 
         prompt = system.get_prompt_version(prompt_id)
-        assert prompt is not None
-        assert prompt.prompt_id == prompt_id
+        assert prompt is not None  # nosec B101
+        assert prompt.prompt_id == prompt_id  # nosec B101
 
     def test_get_prompt_version_nonexistent_returns_none(self, system):
         """Test getting nonexistent version returns None."""
         prompt = system.get_prompt_version("nonexistent")
-        assert prompt is None
+        assert prompt is None  # nosec B101
 
     def test_get_prompt_history(self, system):
         """Test getting prompt version history."""
@@ -266,11 +266,11 @@ class TestPromptRetrieval:
         system.register_prompt("task_analysis", "Version 3", 3)
 
         history = system.get_prompt_history("task_analysis")
-        assert len(history) == 3
+        assert len(history) == 3  # nosec B101
         # Should be newest first
-        assert history[0].version == 3
-        assert history[1].version == 2
-        assert history[2].version == 1
+        assert history[0].version == 3  # nosec B101
+        assert history[1].version == 2  # nosec B101
+        assert history[2].version == 1  # nosec B101
 
     def test_get_prompt_history_with_limit(self, system):
         """Test getting prompt history with limit."""
@@ -279,34 +279,34 @@ class TestPromptRetrieval:
             system.register_prompt("task_analysis", f"Version {i}", i)
 
         history = system.get_prompt_history("task_analysis", limit=3)
-        assert len(history) == 3
-        assert history[0].version == 5
-        assert history[1].version == 4
-        assert history[2].version == 3
+        assert len(history) == 3  # nosec B101
+        assert history[0].version == 5  # nosec B101
+        assert history[1].version == 4  # nosec B101
+        assert history[2].version == 3  # nosec B101
 
     def test_get_prompt_count(self, system):
         """Test getting total prompt count."""
-        assert system.get_prompt_count() == 0
+        assert system.get_prompt_count() == 0  # nosec B101
 
         system.register_prompt("type1", "Text 1")
-        assert system.get_prompt_count() == 1
+        assert system.get_prompt_count() == 1  # nosec B101
 
         system.register_prompt("type2", "Text 2")
-        assert system.get_prompt_count() == 2
+        assert system.get_prompt_count() == 2  # nosec B101
 
     def test_get_all_prompt_types(self, system):
         """Test getting all prompt types."""
-        assert system.get_all_prompt_types() == []
+        assert system.get_all_prompt_types() == []  # nosec B101
 
         system.register_prompt("task_analysis", "Text 1")
         system.register_prompt("tool_selection", "Text 2")
         system.register_prompt("reasoning", "Text 3")
 
         types = system.get_all_prompt_types()
-        assert len(types) == 3
-        assert "task_analysis" in types
-        assert "tool_selection" in types
-        assert "reasoning" in types
+        assert len(types) == 3  # nosec B101
+        assert "task_analysis" in types  # nosec B101
+        assert "tool_selection" in types  # nosec B101
+        assert "reasoning" in types  # nosec B101
 
 
 class TestPromptVersionManagement:
@@ -322,9 +322,9 @@ class TestPromptVersionManagement:
         p2 = system.get_prompt_version(v2)
         p3 = system.get_prompt_version(v3)
 
-        assert p1.version == 1
-        assert p2.version == 2
-        assert p3.version == 3
+        assert p1.version == 1  # nosec B101
+        assert p2.version == 2  # nosec B101
+        assert p3.version == 3  # nosec B101
 
     def test_only_latest_version_is_active(self, system):
         """Test only the latest version is active."""
@@ -336,9 +336,9 @@ class TestPromptVersionManagement:
         p2 = system.get_prompt_version(v2)
         p3 = system.get_prompt_version(v3)
 
-        assert p1.is_active is False
-        assert p2.is_active is False
-        assert p3.is_active is True
+        assert p1.is_active is False  # nosec B101
+        assert p2.is_active is False  # nosec B101
+        assert p3.is_active is True  # nosec B101
 
     def test_different_prompt_types_independent(self, system):
         """Test different prompt types are independent."""
@@ -348,12 +348,12 @@ class TestPromptVersionManagement:
         p1 = system.get_active_prompt("task_analysis")
         p2 = system.get_active_prompt("tool_selection")
 
-        assert p1 is not None
-        assert p2 is not None
-        assert p1.prompt_id == v1
-        assert p2.prompt_id == v2
-        assert p1.is_active is True
-        assert p2.is_active is True
+        assert p1 is not None  # nosec B101
+        assert p2 is not None  # nosec B101
+        assert p1.prompt_id == v1  # nosec B101
+        assert p2.prompt_id == v2  # nosec B101
+        assert p1.is_active is True  # nosec B101
+        assert p2.is_active is True  # nosec B101
 
 
 class TestPromptPerformanceTracking:
@@ -370,8 +370,8 @@ class TestPromptPerformanceTracking:
             system.record_prompt_outcome(prompt_id, False, False)
 
         prompt = system.get_prompt_version(prompt_id)
-        assert prompt is not None
-        assert prompt.success_rate == 0.7
+        assert prompt is not None  # nosec B101
+        assert prompt.success_rate == 0.7  # nosec B101
 
     def test_hallucination_tracking(self, system):
         """Test hallucination count is tracked."""
@@ -382,9 +382,9 @@ class TestPromptPerformanceTracking:
         system.record_prompt_outcome(prompt_id, True, False)
 
         prompt = system.get_prompt_version(prompt_id)
-        assert prompt is not None
-        assert prompt.hallucination_count == 2
-        assert prompt.total_uses == 3
+        assert prompt is not None  # nosec B101
+        assert prompt.hallucination_count == 2  # nosec B101
+        assert prompt.total_uses == 3  # nosec B101
 
 
 if __name__ == "__main__":
@@ -413,9 +413,9 @@ class TestPromptWeaknessIdentification:
         # Identify weak prompts
         weak_prompts = system.identify_weak_prompts(min_uses=10, max_success_rate=0.7)
 
-        assert len(weak_prompts) == 1
-        assert weak_prompts[0].prompt_id == weak_prompt
-        assert weak_prompts[0].success_rate < 0.7
+        assert len(weak_prompts) == 1  # nosec B101
+        assert weak_prompts[0].prompt_id == weak_prompt  # nosec B101
+        assert weak_prompts[0].success_rate < 0.7  # nosec B101
 
     def test_identify_weak_prompts_empty(self, system):
         """Test identifying weak prompts when none exist."""
@@ -426,7 +426,7 @@ class TestPromptWeaknessIdentification:
             system.record_prompt_outcome(prompt_id, True, False)
 
         weak_prompts = system.identify_weak_prompts(min_uses=10, max_success_rate=0.7)
-        assert len(weak_prompts) == 0
+        assert len(weak_prompts) == 0  # nosec B101
 
     def test_identify_weak_prompts_insufficient_data(self, system):
         """Test that prompts with insufficient data are not identified as weak."""
@@ -437,7 +437,7 @@ class TestPromptWeaknessIdentification:
             system.record_prompt_outcome(prompt_id, False, False)
 
         weak_prompts = system.identify_weak_prompts(min_uses=10, max_success_rate=0.7)
-        assert len(weak_prompts) == 0
+        assert len(weak_prompts) == 0  # nosec B101
 
     def test_get_prompt_weaknesses(self, system):
         """Test analyzing specific prompt weaknesses."""
@@ -453,12 +453,12 @@ class TestPromptWeaknessIdentification:
 
         weaknesses = system.get_prompt_weaknesses(prompt_id)
 
-        assert weaknesses["failure_rate"] == 0.3  # 3 failures out of 10
-        assert weaknesses["hallucination_rate"] == 0.2  # 2 hallucinations out of 10
-        assert weaknesses["success_rate"] == 0.7  # 7 successes out of 10
-        assert weaknesses["total_uses"] == 10
-        assert weaknesses["failure_count"] == 3
-        assert weaknesses["hallucination_count"] == 2
+        assert weaknesses["failure_rate"] == 0.3  # 3 failures out of 10  # nosec B101
+        assert weaknesses["hallucination_rate"] == 0.2  # 2 hallucinations out of 10  # nosec B101
+        assert weaknesses["success_rate"] == 0.7  # 7 successes out of 10  # nosec B101
+        assert weaknesses["total_uses"] == 10  # nosec B101
+        assert weaknesses["failure_count"] == 3  # nosec B101
+        assert weaknesses["hallucination_count"] == 2  # nosec B101
 
     def test_get_prompt_weaknesses_nonexistent(self, system):
         """Test getting weaknesses for nonexistent prompt fails."""
@@ -487,13 +487,13 @@ class TestPromptWeaknessIdentification:
 
         comparison = system.compare_prompt_versions("type1", 1, 2)
 
-        assert comparison["version1_success_rate"] == 0.6
-        assert comparison["version2_success_rate"] == 0.9
-        assert comparison["success_rate_diff"] == 0.3
-        assert comparison["version1_hallucination_rate"] == 0.4
-        assert comparison["version2_hallucination_rate"] == 0.0
-        assert comparison["hallucination_diff"] == -0.4
-        assert comparison["improvement_percentage"] == 50.0  # 50% improvement
+        assert comparison["version1_success_rate"] == 0.6  # nosec B101
+        assert comparison["version2_success_rate"] == 0.9  # nosec B101
+        assert comparison["success_rate_diff"] == 0.3  # nosec B101
+        assert comparison["version1_hallucination_rate"] == 0.4  # nosec B101
+        assert comparison["version2_hallucination_rate"] == 0.0  # nosec B101
+        assert comparison["hallucination_diff"] == -0.4  # nosec B101
+        assert comparison["improvement_percentage"] == 50.0  # 50% improvement  # nosec B101
 
     def test_compare_prompt_versions_nonexistent_v1(self, system):
         """Test comparing versions when v1 doesn't exist."""
@@ -525,7 +525,7 @@ class TestPromptWeaknessIdentification:
         for _ in range(3):
             system.record_prompt_outcome(prompt_id, True, False)
 
-        assert system.should_replace_prompt(prompt_id, min_uses=20, min_failure_rate=0.3)
+        assert system.should_replace_prompt(prompt_id, min_uses=20, min_failure_rate=0.3)  # nosec B101
 
     def test_should_replace_prompt_high_hallucination_rate(self, system):
         """Test that prompts with high hallucination rate should be replaced."""
@@ -538,7 +538,7 @@ class TestPromptWeaknessIdentification:
             system.record_prompt_outcome(prompt_id, False, True)
 
         # Hallucination rate is 25% (>20% threshold)
-        assert system.should_replace_prompt(prompt_id, min_uses=20, min_failure_rate=0.3)
+        assert system.should_replace_prompt(prompt_id, min_uses=20, min_failure_rate=0.3)  # nosec B101
 
     def test_should_replace_prompt_good_performance(self, system):
         """Test that prompts with good performance should not be replaced."""
@@ -550,7 +550,7 @@ class TestPromptWeaknessIdentification:
         for _ in range(2):
             system.record_prompt_outcome(prompt_id, False, False)
 
-        assert not system.should_replace_prompt(prompt_id, min_uses=20, min_failure_rate=0.3)
+        assert not system.should_replace_prompt(prompt_id, min_uses=20, min_failure_rate=0.3)  # nosec B101
 
     def test_should_replace_prompt_insufficient_data(self, system):
         """Test that prompts with insufficient data should not be replaced."""
@@ -560,11 +560,11 @@ class TestPromptWeaknessIdentification:
         for _ in range(10):
             system.record_prompt_outcome(prompt_id, False, False)
 
-        assert not system.should_replace_prompt(prompt_id, min_uses=20, min_failure_rate=0.3)
+        assert not system.should_replace_prompt(prompt_id, min_uses=20, min_failure_rate=0.3)  # nosec B101
 
     def test_should_replace_prompt_nonexistent(self, system):
         """Test that nonexistent prompts return False."""
-        assert not system.should_replace_prompt("nonexistent")
+        assert not system.should_replace_prompt("nonexistent")  # nosec B101
 
 
 class TestPromptImprovement:
@@ -584,12 +584,12 @@ class TestPromptImprovement:
         meta_prompt = system.generate_improved_prompt(prompt_id)
 
         # Verify meta-prompt contains key elements
-        assert "Original prompt text" in meta_prompt
-        assert "PERFORMANCE ANALYSIS" in meta_prompt
-        assert "Success Rate" in meta_prompt
-        assert "Failure Rate" in meta_prompt
-        assert "IMPROVEMENT GUIDELINES" in meta_prompt
-        assert "IMPROVED PROMPT:" in meta_prompt
+        assert "Original prompt text" in meta_prompt  # nosec B101
+        assert "PERFORMANCE ANALYSIS" in meta_prompt  # nosec B101
+        assert "Success Rate" in meta_prompt  # nosec B101
+        assert "Failure Rate" in meta_prompt  # nosec B101
+        assert "IMPROVEMENT GUIDELINES" in meta_prompt  # nosec B101
+        assert "IMPROVED PROMPT:" in meta_prompt  # nosec B101
 
     def test_generate_improved_prompt_with_llm(self, system):
         """Test generating improved prompt with LLM callable."""
@@ -606,7 +606,7 @@ class TestPromptImprovement:
         # Generate improved prompt
         improved = system.generate_improved_prompt(prompt_id, mock_llm)
 
-        assert improved == "Improved prompt based on analysis"
+        assert improved == "Improved prompt based on analysis"  # nosec B101
 
     def test_generate_improved_prompt_llm_failure(self, system):
         """Test handling of LLM generation failure."""
@@ -642,8 +642,8 @@ class TestPromptImprovement:
         meta_prompt = system.generate_improved_prompt(prompt_id)
 
         # Should identify hallucinations as primary issue
-        assert "hallucinations" in meta_prompt.lower()
-        assert "fabricat" in meta_prompt.lower()
+        assert "hallucinations" in meta_prompt.lower()  # nosec B101
+        assert "fabricat" in meta_prompt.lower()  # nosec B101
 
     def test_generate_improved_prompt_high_failure(self, system):
         """Test meta-prompt focuses on failures when rate is high."""
@@ -658,7 +658,7 @@ class TestPromptImprovement:
         meta_prompt = system.generate_improved_prompt(prompt_id)
 
         # Should identify task failures as primary issue
-        assert "task failures" in meta_prompt.lower()
+        assert "task failures" in meta_prompt.lower()  # nosec B101
 
     def test_generate_improved_prompt_low_success(self, system):
         """Test meta-prompt focuses on low success rate."""
@@ -673,7 +673,7 @@ class TestPromptImprovement:
         meta_prompt = system.generate_improved_prompt(prompt_id)
 
         # Should identify low success rate as issue
-        assert "success rate" in meta_prompt.lower()
+        assert "success rate" in meta_prompt.lower()  # nosec B101
 
     def test_generate_improved_prompt_strips_whitespace(self, system):
         """Test that improved prompt strips leading/trailing whitespace."""
@@ -689,9 +689,9 @@ class TestPromptImprovement:
 
         improved = system.generate_improved_prompt(prompt_id, mock_llm)
 
-        assert improved == "Improved prompt"
-        assert not improved.startswith(" ")
-        assert not improved.endswith(" ")
+        assert improved == "Improved prompt"  # nosec B101
+        assert not improved.startswith(" ")  # nosec B101
+        assert not improved.endswith(" ")  # nosec B101
 
     def test_meta_prompt_includes_all_metrics(self, system):
         """Test that meta-prompt includes all performance metrics."""
@@ -708,12 +708,12 @@ class TestPromptImprovement:
         meta_prompt = system.generate_improved_prompt(prompt_id)
 
         # Verify all metrics are included
-        assert "Total Uses: 10" in meta_prompt
-        assert "Success Rate:" in meta_prompt
-        assert "Failure Rate:" in meta_prompt
-        assert "Hallucination Rate:" in meta_prompt
-        assert "Prompt Type: type1" in meta_prompt
-        assert "Version: 1" in meta_prompt
+        assert "Total Uses: 10" in meta_prompt  # nosec B101
+        assert "Success Rate:" in meta_prompt  # nosec B101
+        assert "Failure Rate:" in meta_prompt  # nosec B101
+        assert "Hallucination Rate:" in meta_prompt  # nosec B101
+        assert "Prompt Type: type1" in meta_prompt  # nosec B101
+        assert "Version: 1" in meta_prompt  # nosec B101
 
     def test_meta_prompt_includes_improvement_guidelines(self, system):
         """Test that meta-prompt includes comprehensive improvement guidelines."""
@@ -726,12 +726,12 @@ class TestPromptImprovement:
         meta_prompt = system.generate_improved_prompt(prompt_id)
 
         # Verify guidelines are included
-        assert "IMPROVEMENT GUIDELINES" in meta_prompt
-        assert "hallucination rate is high" in meta_prompt
-        assert "failure rate is high" in meta_prompt
-        assert "success rate is low" in meta_prompt
-        assert "REQUIREMENTS" in meta_prompt
-        assert "OUTPUT FORMAT" in meta_prompt
+        assert "IMPROVEMENT GUIDELINES" in meta_prompt  # nosec B101
+        assert "hallucination rate is high" in meta_prompt  # nosec B101
+        assert "failure rate is high" in meta_prompt  # nosec B101
+        assert "success rate is low" in meta_prompt  # nosec B101
+        assert "REQUIREMENTS" in meta_prompt  # nosec B101
+        assert "OUTPUT FORMAT" in meta_prompt  # nosec B101
 
 
 class TestPromptValidation:
@@ -752,11 +752,11 @@ class TestPromptValidation:
             prompt_id, "Improved prompt", mock_validate, min_validation_tasks=5
         )
 
-        assert should_adopt is True
-        assert metrics["improved_success_rate"] == 1.0
-        assert metrics["original_success_rate"] == 0.0
-        assert metrics["improvement"] == 1.0
-        assert metrics["validation_tasks"] == 5
+        assert should_adopt is True  # nosec B101
+        assert metrics["improved_success_rate"] == 1.0  # nosec B101
+        assert metrics["original_success_rate"] == 0.0  # nosec B101
+        assert metrics["improvement"] == 1.0  # nosec B101
+        assert metrics["validation_tasks"] == 5  # nosec B101
 
     def test_validate_improved_prompt_worse_performance(self, system):
         """Test validation when improved prompt performs worse."""
@@ -773,10 +773,10 @@ class TestPromptValidation:
             prompt_id, "Improved prompt", mock_validate, min_validation_tasks=5
         )
 
-        assert should_adopt is False
-        assert metrics["improved_success_rate"] == 0.0
-        assert metrics["original_success_rate"] == 1.0
-        assert metrics["improvement"] == -1.0
+        assert should_adopt is False  # nosec B101
+        assert metrics["improved_success_rate"] == 0.0  # nosec B101
+        assert metrics["original_success_rate"] == 1.0  # nosec B101
+        assert metrics["improvement"] == -1.0  # nosec B101
 
     def test_validate_improved_prompt_high_hallucination(self, system):
         """Test validation rejects prompts with high hallucination rate."""
@@ -794,8 +794,8 @@ class TestPromptValidation:
         )
 
         # Should reject due to high hallucination rate
-        assert should_adopt is False
-        assert metrics["improved_hallucination_rate"] == 1.0
+        assert should_adopt is False  # nosec B101
+        assert metrics["improved_hallucination_rate"] == 1.0  # nosec B101
 
     def test_validate_improved_prompt_nonexistent(self, system):
         """Test validation fails for nonexistent prompt."""
@@ -838,8 +838,8 @@ class TestPromptValidation:
         )
 
         # Should adopt even with marginal improvement
-        assert should_adopt is True
-        assert metrics["improvement"] > 0.0
+        assert should_adopt is True  # nosec B101
+        assert metrics["improvement"] > 0.0  # nosec B101
 
     def test_validate_improved_prompt_equal_performance(self, system):
         """Test validation when performance is equal."""
@@ -854,8 +854,8 @@ class TestPromptValidation:
         )
 
         # Should not adopt if no improvement
-        assert should_adopt is False
-        assert metrics["improvement"] == 0.0
+        assert should_adopt is False  # nosec B101
+        assert metrics["improvement"] == 0.0  # nosec B101
 
     def test_validate_improved_prompt_metrics_rounded(self, system):
         """Test that validation metrics are rounded to 2 decimals."""
@@ -876,11 +876,11 @@ class TestPromptValidation:
         )
 
         # Check all metrics are rounded
-        assert isinstance(metrics["improved_success_rate"], float)
-        assert isinstance(metrics["original_success_rate"], float)
-        assert isinstance(metrics["improvement"], float)
+        assert isinstance(metrics["improved_success_rate"], float)  # nosec B101
+        assert isinstance(metrics["original_success_rate"], float)  # nosec B101
+        assert isinstance(metrics["improvement"], float)  # nosec B101
         # Verify rounding (should have at most 2 decimal places)
-        assert len(str(metrics["improved_success_rate"]).split(".")[-1]) <= 2
+        assert len(str(metrics["improved_success_rate"]).split(".")[-1]) <= 2  # nosec B101
 
 
 class TestPromptEvolutionProperties:
@@ -913,8 +913,8 @@ class TestPromptEvolutionProperties:
                 system.record_prompt_outcome(prompt_id, False, False)
 
             prompt = system.get_prompt_version(prompt_id)
-            assert prompt is not None
-            assert 0.0 <= prompt.success_rate <= 1.0
+            assert prompt is not None  # nosec B101
+            assert 0.0 <= prompt.success_rate <= 1.0  # nosec B101
 
             # Explicitly close pool before cleanup
             pool.close_all()
@@ -976,8 +976,8 @@ class TestPromptEvolutionProperties:
 
                 # Verify improvement
                 new_prompt = system.get_prompt_version(new_prompt_id)
-                assert new_prompt is not None
-                assert new_prompt.success_rate >= previous_rate
+                assert new_prompt is not None  # nosec B101
+                assert new_prompt.success_rate >= previous_rate  # nosec B101
 
                 previous_rate = current_success_rate
 
@@ -1026,7 +1026,7 @@ class TestPromptEvolutionProperties:
             # Should be identified as weak if success rate <= 0.7
             prompt = system.get_prompt_version(prompt_id)
             if prompt and prompt.success_rate <= 0.7:
-                assert any(p.prompt_id == prompt_id for p in weak_prompts)
+                assert any(p.prompt_id == prompt_id for p in weak_prompts)  # nosec B101
 
             # Explicitly close pool before cleanup
             pool.close_all()
@@ -1076,9 +1076,9 @@ class TestPromptEvolutionProperties:
             v2_rate = v2_success / 20
             expected_diff = round(v2_rate - v1_rate, 2)
 
-            assert comparison["success_rate_diff"] == expected_diff
-            assert comparison["version1_success_rate"] == round(v1_rate, 2)
-            assert comparison["version2_success_rate"] == round(v2_rate, 2)
+            assert comparison["success_rate_diff"] == expected_diff  # nosec B101
+            assert comparison["version1_success_rate"] == round(v1_rate, 2)  # nosec B101
+            assert comparison["version2_success_rate"] == round(v2_rate, 2)  # nosec B101
 
             # Explicitly close pool before cleanup
             pool.close_all()
@@ -1114,9 +1114,9 @@ class TestPromptEvolutionProperties:
 
             # Verify registration
             prompt = system.get_prompt_version(prompt_id)
-            assert prompt is not None
-            assert prompt.content == prompt_text
-            assert prompt.is_active is True
+            assert prompt is not None  # nosec B101
+            assert prompt.content == prompt_text  # nosec B101
+            assert prompt.is_active is True  # nosec B101
 
             # Record some outcomes
             for i in range(total_uses):
@@ -1124,8 +1124,8 @@ class TestPromptEvolutionProperties:
 
             # Verify stats updated
             prompt = system.get_prompt_version(prompt_id)
-            assert prompt is not None
-            assert prompt.total_uses == total_uses
+            assert prompt is not None  # nosec B101
+            assert prompt.total_uses == total_uses  # nosec B101
 
             # Explicitly close pool before cleanup
             pool.close_all()
@@ -1172,7 +1172,7 @@ class TestPromptEvolutionProperties:
 
             # Should recommend replacement if hallucination rate >= 20%
             if hallucination_rate >= 0.2:
-                assert should_replace is True
+                assert should_replace is True  # nosec B101
 
             # Explicitly close pool before cleanup
             pool.close_all()
@@ -1199,15 +1199,15 @@ class TestPromptRollback:
 
         # Version 3 should be active
         active = system.get_active_prompt("type1")
-        assert active.version == 3
+        assert active.version == 3  # nosec B101
 
         # Rollback to previous version (2) - use force to bypass oscillation check
         _ = system.rollback_prompt("type1", force=True)
 
         # Version 2 should now be active
         active = system.get_active_prompt("type1")
-        assert active.version == 2
-        assert active.prompt_id == v2
+        assert active.version == 2  # nosec B101
+        assert active.prompt_id == v2  # nosec B101
 
     def test_rollback_to_specific_version(self, system):
         """Test rolling back to specific version."""
@@ -1221,8 +1221,8 @@ class TestPromptRollback:
 
         # Version 1 should now be active
         active = system.get_active_prompt("type1")
-        assert active.version == 1
-        assert active.prompt_id == v1
+        assert active.version == 1  # nosec B101
+        assert active.prompt_id == v1  # nosec B101
 
     def test_rollback_nonexistent_type_fails(self, system):
         """Test rollback fails for nonexistent prompt type."""
@@ -1264,9 +1264,9 @@ class TestPerformanceDegradationDetection:
             "type1", degradation_threshold=0.15
         )
 
-        assert is_degraded is True
-        assert metrics["degradation"] >= 0.15
-        assert metrics["current_success_rate"] < metrics["previous_success_rate"]
+        assert is_degraded is True  # nosec B101
+        assert metrics["degradation"] >= 0.15  # nosec B101
+        assert metrics["current_success_rate"] < metrics["previous_success_rate"]  # nosec B101
 
     def test_no_degradation_when_performance_stable(self, system):
         """Test no degradation when performance is stable."""
@@ -1285,7 +1285,7 @@ class TestPerformanceDegradationDetection:
             "type1", degradation_threshold=0.15
         )
 
-        assert is_degraded is False
+        assert is_degraded is False  # nosec B101
 
     def test_degradation_detection_insufficient_data(self, system):
         """Test degradation detection with insufficient data."""
@@ -1297,8 +1297,8 @@ class TestPerformanceDegradationDetection:
         # Should return False with empty metrics
         is_degraded, metrics = system.detect_performance_degradation("type1")
 
-        assert is_degraded is False
-        assert metrics == {}
+        assert is_degraded is False  # nosec B101
+        assert metrics == {}  # nosec B101
 
     def test_degradation_detection_no_previous_version(self, system):
         """Test degradation detection with no previous version."""
@@ -1310,8 +1310,8 @@ class TestPerformanceDegradationDetection:
         # Should return False (no previous version to compare)
         is_degraded, metrics = system.detect_performance_degradation("type1")
 
-        assert is_degraded is False
-        assert metrics == {}
+        assert is_degraded is False  # nosec B101
+        assert metrics == {}  # nosec B101
 
 
 class TestPromptReplacementProperties:
@@ -1353,7 +1353,7 @@ class TestPromptReplacementProperties:
 
             # Verify it should be replaced
             should_replace = system.should_replace_prompt(v1_id, min_uses=20, min_failure_rate=0.3)
-            assert should_replace is True
+            assert should_replace is True  # nosec B101
 
             # Register improved version (version 2) with better performance
             v2_id = system.register_prompt("type1", "Improved prompt", version=2)
@@ -1371,19 +1371,19 @@ class TestPromptReplacementProperties:
 
             # Verify version 2 is now active
             active = system.get_active_prompt("type1")
-            assert active is not None
-            assert active.version == 2
+            assert active is not None  # nosec B101
+            assert active.version == 2  # nosec B101
 
             # Verify version 2 performs better than version 1
             v1 = system.get_prompt_version(v1_id)
             v2 = system.get_prompt_version(v2_id)
-            assert v2.success_rate > v1.success_rate
+            assert v2.success_rate > v1.success_rate  # nosec B101
 
             # Verify version 2 should not be replaced (success rate >= 80%)
             should_replace_v2 = system.should_replace_prompt(
                 v2_id, min_uses=20, min_failure_rate=0.3
             )
-            assert should_replace_v2 is False
+            assert should_replace_v2 is False  # nosec B101
 
             # Explicitly close pool before cleanup
             pool.close_all()
@@ -1417,7 +1417,7 @@ class TestPromptStabilityAdversarial:
 
         v1 = system.get_prompt_version(v1_id)
         phase1_success_rate = v1.success_rate
-        assert phase1_success_rate >= 0.75  # Should be around 80%
+        assert phase1_success_rate >= 0.75  # Should be around 80%  # nosec B101
 
         # Register version 2
         v2_id = system.register_prompt("type1", "Version 2", version=2)
@@ -1434,21 +1434,21 @@ class TestPromptStabilityAdversarial:
 
         # After oscillation, success rate should stabilize around 50%
         v2 = system.get_prompt_version(v2_id)
-        assert 0.45 <= v2.success_rate <= 0.55  # Should be around 50%
+        assert 0.45 <= v2.success_rate <= 0.55  # Should be around 50%  # nosec B101
 
         # System should detect degradation (50% < 80%)
         is_degraded, metrics = system.detect_performance_degradation(
             "type1", degradation_threshold=0.15
         )
-        assert is_degraded is True
+        assert is_degraded is True  # nosec B101
 
         # Rollback should work correctly
         rolled_back_id = system.rollback_prompt("type1")
-        assert rolled_back_id == v1_id
+        assert rolled_back_id == v1_id  # nosec B101
 
         # Version 1 should be active again
         active = system.get_active_prompt("type1")
-        assert active.version == 1
+        assert active.version == 1  # nosec B101
 
         # Register version 3 with more oscillation
         v3_id = system.register_prompt("type1", "Version 3", version=3)
@@ -1459,18 +1459,18 @@ class TestPromptStabilityAdversarial:
 
         # Success rate should still be around 50%
         v3 = system.get_prompt_version(v3_id)
-        assert 0.45 <= v3.success_rate <= 0.55
+        assert 0.45 <= v3.success_rate <= 0.55  # nosec B101
 
         # System should remain stable - no crashes, no infinite loops
         # Verify we can still query and operate normally
         history = system.get_prompt_history("type1")
-        assert len(history) == 3
-        assert all(p.total_uses > 0 for p in history)
+        assert len(history) == 3  # nosec B101
+        assert all(p.total_uses > 0 for p in history)  # nosec B101
 
         # Verify degradation detection still works
         is_degraded, metrics = system.detect_performance_degradation("type1")
-        assert isinstance(is_degraded, bool)
-        assert isinstance(metrics, dict)
+        assert isinstance(is_degraded, bool)  # nosec B101
+        assert isinstance(metrics, dict)  # nosec B101
 
     def test_adversarial_rapid_version_changes(self, system):
         """Adversarial: System must handle rapid version changes without corruption."""
@@ -1484,26 +1484,26 @@ class TestPromptStabilityAdversarial:
 
         # Verify all versions are stored correctly
         history = system.get_prompt_history("type1", limit=20)
-        assert len(history) == 20
+        assert len(history) == 20  # nosec B101
 
         # Verify only the latest is active
         active_count = sum(1 for p in history if p.is_active)
-        assert active_count == 1
-        assert history[0].version == 20
-        assert history[0].is_active is True
+        assert active_count == 1  # nosec B101
+        assert history[0].version == 20  # nosec B101
+        assert history[0].is_active is True  # nosec B101
 
         # Verify we can rollback through multiple versions
         system.rollback_prompt("type1", target_version=15)
         active = system.get_active_prompt("type1")
-        assert active.version == 15
+        assert active.version == 15  # nosec B101
 
         system.rollback_prompt("type1", target_version=10)
         active = system.get_active_prompt("type1")
-        assert active.version == 10
+        assert active.version == 10  # nosec B101
 
         system.rollback_prompt("type1", target_version=1)
         active = system.get_active_prompt("type1")
-        assert active.version == 1
+        assert active.version == 1  # nosec B101
 
     def test_adversarial_extreme_hallucination_rates(self, system):
         """Adversarial: System must handle extreme hallucination rates correctly."""
@@ -1516,16 +1516,16 @@ class TestPromptStabilityAdversarial:
 
         # Verify hallucination tracking is correct
         prompt = system.get_prompt_version(prompt_id)
-        assert prompt.hallucination_count == 50
-        assert prompt.total_uses == 50
+        assert prompt.hallucination_count == 50  # nosec B101
+        assert prompt.total_uses == 50  # nosec B101
 
         weaknesses = system.get_prompt_weaknesses(prompt_id)
-        assert weaknesses["hallucination_rate"] == 1.0
-        assert weaknesses["failure_rate"] == 1.0
+        assert weaknesses["hallucination_rate"] == 1.0  # nosec B101
+        assert weaknesses["failure_rate"] == 1.0  # nosec B101
 
         # Should definitely recommend replacement
         should_replace = system.should_replace_prompt(prompt_id, min_uses=20)
-        assert should_replace is True
+        assert should_replace is True  # nosec B101
 
     def test_adversarial_concurrent_outcome_recording(self, system):
         """Adversarial: System must handle concurrent outcome recording correctly."""
@@ -1544,16 +1544,16 @@ class TestPromptStabilityAdversarial:
 
         # Verify final statistics are correct
         prompt = system.get_prompt_version(prompt_id)
-        assert prompt.total_uses == 100
+        assert prompt.total_uses == 100  # nosec B101
 
         expected_successes = sum(1 for s, _ in outcomes if s)
         expected_failures = sum(1 for s, _ in outcomes if not s)
         expected_hallucinations = sum(1 for _, h in outcomes if h)
 
-        assert prompt.success_count == expected_successes
-        assert prompt.failure_count == expected_failures
-        assert prompt.hallucination_count == expected_hallucinations
-        assert abs(prompt.success_rate - (expected_successes / 100)) < 0.01
+        assert prompt.success_count == expected_successes  # nosec B101
+        assert prompt.failure_count == expected_failures  # nosec B101
+        assert prompt.hallucination_count == expected_hallucinations  # nosec B101
+        assert abs(prompt.success_rate - (expected_successes / 100)) < 0.01  # nosec B101
 
     def test_adversarial_degradation_detection_edge_cases(self, system):
         """Adversarial: Degradation detection must handle edge cases correctly."""
@@ -1567,8 +1567,8 @@ class TestPromptStabilityAdversarial:
             system.record_prompt_outcome(v2_id, False, False)
 
         is_degraded, metrics = system.detect_performance_degradation("type1")
-        assert is_degraded is False  # No degradation if both are equally bad
-        assert metrics["degradation"] == 0.0
+        assert is_degraded is False  # No degradation if both are equally bad  # nosec B101
+        assert metrics["degradation"] == 0.0  # nosec B101
 
         # Edge case 2: Both versions have 100% success rate
         v3_id = system.register_prompt("type2", "Version 1", version=1)
@@ -1580,8 +1580,8 @@ class TestPromptStabilityAdversarial:
             system.record_prompt_outcome(v4_id, True, False)
 
         is_degraded, metrics = system.detect_performance_degradation("type2")
-        assert is_degraded is False  # No degradation if both are perfect
-        assert metrics["degradation"] == 0.0
+        assert is_degraded is False  # No degradation if both are perfect  # nosec B101
+        assert metrics["degradation"] == 0.0  # nosec B101
 
         # Edge case 3: Exactly at threshold
         v5_id = system.register_prompt("type3", "Version 1", version=1)
@@ -1596,8 +1596,8 @@ class TestPromptStabilityAdversarial:
             "type3", degradation_threshold=0.15
         )
         # 80% - 65% = 15% degradation, exactly at threshold
-        assert is_degraded is True
-        assert metrics["degradation"] == 0.15
+        assert is_degraded is True  # nosec B101
+        assert metrics["degradation"] == 0.15  # nosec B101
 
 
 class TestABTesting:
@@ -1624,10 +1624,10 @@ class TestABTesting:
             traffic_split=0.5,
         )
 
-        assert results["candidate_success_rate"] == 1.0
-        assert results["active_success_rate"] == 0.0
-        assert results["improvement"] == 1.0
-        assert results["recommendation"] == "adopt"
+        assert results["candidate_success_rate"] == 1.0  # nosec B101
+        assert results["active_success_rate"] == 0.0  # nosec B101
+        assert results["improvement"] == 1.0  # nosec B101
+        assert results["recommendation"] == "adopt"  # nosec B101
 
     def test_ab_test_worse_candidate(self, system):
         """Test A/B testing when candidate performs worse."""
@@ -1650,10 +1650,10 @@ class TestABTesting:
             traffic_split=0.5,
         )
 
-        assert results["candidate_success_rate"] == 0.0
-        assert results["active_success_rate"] == 1.0
-        assert results["improvement"] == -1.0
-        assert results["recommendation"] == "reject"
+        assert results["candidate_success_rate"] == 0.0  # nosec B101
+        assert results["active_success_rate"] == 1.0  # nosec B101
+        assert results["improvement"] == -1.0  # nosec B101
+        assert results["recommendation"] == "reject"  # nosec B101
 
     def test_ab_test_marginal_improvement(self, system):
         """Test A/B testing with marginal improvement (not significant)."""
@@ -1682,8 +1682,8 @@ class TestABTesting:
         )
 
         # Improvement is less than or equal to 10%, should reject
-        assert results["improvement"] <= 0.10
-        assert results["recommendation"] == "reject"
+        assert results["improvement"] <= 0.10  # nosec B101
+        assert results["recommendation"] == "reject"  # nosec B101
 
     def test_ab_test_nonexistent_prompt_fails(self, system):
         """Test A/B testing fails for nonexistent prompt type."""
@@ -1726,10 +1726,10 @@ class TestABTesting:
             traffic_split=0.7,
         )
 
-        assert results["candidate_tests"] == 70
-        assert results["active_tests"] == 30
-        assert test_calls["candidate"] == 70
-        assert test_calls["active"] == 30
+        assert results["candidate_tests"] == 70  # nosec B101
+        assert results["active_tests"] == 30  # nosec B101
+        assert test_calls["candidate"] == 70  # nosec B101
+        assert test_calls["active"] == 30  # nosec B101
 
 
 
@@ -1798,20 +1798,20 @@ class TestMonotonicPromptQualityImprovement:
                 
                 # Get actual success rate
                 prompt = system.get_prompt_version(prompt_id)
-                assert prompt is not None
+                assert prompt is not None  # nosec B101
                 success_rates.append(prompt.success_rate)
             
             # CRITICAL PROPERTY: Success rates must be monotonically non-decreasing
             for i in range(1, len(success_rates)):
-                assert success_rates[i] >= success_rates[i-1], (
+                assert success_rates[i] >= success_rates[i-1], (  # nosec B101
                     f"Quality degraded: version {i} has success rate {success_rates[i]:.2f} "
                     f"which is less than version {i-1} with {success_rates[i-1]:.2f}"
                 )
             
             # Verify the active prompt is the best performing one
             active = system.get_active_prompt(prompt_type)
-            assert active is not None
-            assert active.success_rate == max(success_rates)
+            assert active is not None  # nosec B101
+            assert active.success_rate == max(success_rates)  # nosec B101
 
             pool.close_all()
             del system
@@ -1871,7 +1871,7 @@ class TestMonotonicPromptQualityImprovement:
             
             # Get the best success rate before degradation
             best_prompt = system.get_active_prompt(prompt_type)
-            assert best_prompt is not None
+            assert best_prompt is not None  # nosec B101
             best_success_rate = best_prompt.success_rate
             
             # Register a version with degraded performance
@@ -1896,7 +1896,7 @@ class TestMonotonicPromptQualityImprovement:
             
             # Should detect degradation if drop is significant
             if degradation_amount >= 0.15:
-                assert is_degraded is True, (
+                assert is_degraded is True, (  # nosec B101
                     f"Failed to detect degradation: "
                     f"previous={metrics.get('previous_success_rate')}, "
                     f"current={metrics.get('current_success_rate')}"
@@ -1907,9 +1907,9 @@ class TestMonotonicPromptQualityImprovement:
                 
                 # Verify rollback restored better performance
                 active = system.get_active_prompt(prompt_type)
-                assert active is not None
-                assert active.success_rate >= best_success_rate * 0.95  # Allow 5% tolerance
-                assert active.version < degradation_version
+                assert active is not None  # nosec B101
+                assert active.success_rate >= best_success_rate * 0.95  # Allow 5% tolerance  # nosec B101
+                assert active.version < degradation_version  # nosec B101
             
             # Continue with more versions - quality should improve again
             for version in range(degradation_version + 1, num_versions + 1):
@@ -1927,8 +1927,8 @@ class TestMonotonicPromptQualityImprovement:
             
             # Final active prompt should have good performance
             final_active = system.get_active_prompt(prompt_type)
-            assert final_active is not None
-            assert final_active.success_rate >= best_success_rate * 0.9
+            assert final_active is not None  # nosec B101
+            assert final_active.success_rate >= best_success_rate * 0.9  # nosec B101
 
             pool.close_all()
             del system
@@ -2013,13 +2013,13 @@ class TestMonotonicPromptQualityImprovement:
             if metric_type == "success_rate":
                 # Success rate should increase monotonically
                 for i in range(1, len(metric_values)):
-                    assert metric_values[i] >= metric_values[i-1] * 0.95, (
+                    assert metric_values[i] >= metric_values[i-1] * 0.95, (  # nosec B101
                         f"Success rate degraded at version {i+1}"
                     )
             else:
                 # Hallucination and failure rates should decrease monotonically
                 for i in range(1, len(metric_values)):
-                    assert metric_values[i] <= metric_values[i-1] * 1.05, (
+                    assert metric_values[i] <= metric_values[i-1] * 1.05, (  # nosec B101
                         f"{metric_type} increased at version {i+1}"
                     )
 
@@ -2088,7 +2088,7 @@ class TestMonotonicPromptQualityImprovement:
                     min_uses=20,
                     min_failure_rate=0.3
                 )
-                assert should_replace is True, (
+                assert should_replace is True, (  # nosec B101
                     f"Poor prompt {i+1} not identified for replacement"
                 )
             
@@ -2110,15 +2110,15 @@ class TestMonotonicPromptQualityImprovement:
             
             # Verify improved prompt is active
             active = system.get_active_prompt(prompt_type)
-            assert active is not None
-            assert active.prompt_id == improved_prompt_id
-            assert active.version == improved_version
+            assert active is not None  # nosec B101
+            assert active.prompt_id == improved_prompt_id  # nosec B101
+            assert active.version == improved_version  # nosec B101
             
             # Verify improved prompt performs better than all poor prompts
             improved_prompt = system.get_prompt_version(improved_prompt_id)
             for poor_id in poor_prompt_ids:
                 poor_prompt = system.get_prompt_version(poor_id)
-                assert improved_prompt.success_rate > poor_prompt.success_rate, (
+                assert improved_prompt.success_rate > poor_prompt.success_rate, (  # nosec B101
                     f"Improved prompt does not outperform poor prompt {poor_id}"
                 )
             
@@ -2133,7 +2133,7 @@ class TestMonotonicPromptQualityImprovement:
             # Only assert if improved success rate is high enough (>= 0.75)
             # to ensure failure rate is definitely < 0.3
             if improved_success_rate >= 0.75:
-                assert should_replace_improved is False, (
+                assert should_replace_improved is False, (  # nosec B101
                     f"Improved prompt incorrectly marked for replacement "
                     f"(success_rate={improved_success_rate:.2f})"
                 )
@@ -2186,7 +2186,7 @@ class TestMonotonicPromptQualityImprovement:
                 target_rate = min(0.95, base_rate + (version - 1) * improvement_per_version)
                 
                 # Add noise to simulate real-world measurement variation
-                noise = random.uniform(-noise_level, noise_level)
+                noise = random.uniform(-noise_level, noise_level)  # nosec B311
                 actual_rate = max(0.1, min(0.99, target_rate + noise))
                 
                 prompt_id = system.register_prompt(
@@ -2208,7 +2208,7 @@ class TestMonotonicPromptQualityImprovement:
             
             # With noise, we allow small temporary decreases but overall trend must improve
             # Check that the last version is better than the first
-            assert success_rates[-1] >= success_rates[0], (
+            assert success_rates[-1] >= success_rates[0], (  # nosec B101
                 f"Overall quality degraded: started at {success_rates[0]:.2f}, "
                 f"ended at {success_rates[-1]:.2f}"
             )
@@ -2221,18 +2221,18 @@ class TestMonotonicPromptQualityImprovement:
             improvement_ratio = improvements / (len(success_rates) - 1)
             
             # At least 65% of transitions should be improvements (relaxed from 70% for noise)
-            assert improvement_ratio >= 0.65, (
+            assert improvement_ratio >= 0.65, (  # nosec B101
                 f"Too many quality degradations: only {improvement_ratio:.1%} "
                 f"of transitions were improvements"
             )
             
             # Verify active prompt is among the best performing
             active = system.get_active_prompt(prompt_type)
-            assert active is not None
+            assert active is not None  # nosec B101
             # Active should be in top 30% of performers
             sorted_rates = sorted(success_rates, reverse=True)
             top_30_percent_threshold = sorted_rates[int(len(sorted_rates) * 0.3)]
-            assert active.success_rate >= top_30_percent_threshold
+            assert active.success_rate >= top_30_percent_threshold  # nosec B101
 
             pool.close_all()
             del system

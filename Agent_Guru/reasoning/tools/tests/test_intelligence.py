@@ -22,18 +22,18 @@ class TestToolStats:
         """Test ToolStats initialization with defaults."""
         stats = ToolStats(tool_id="test.tool")
 
-        assert stats.tool_id == "test.tool"
-        assert stats.success_rate == 1.0
-        assert stats.avg_latency == 0.0
-        assert stats.total_executions == 0
-        assert stats.successful_executions == 0
-        assert stats.failed_executions == 0
-        assert stats.failure_patterns == {}
-        assert stats.user_rating == 0.0
-        assert stats.user_feedback_count == 0
-        assert stats.is_degraded is False
-        assert stats.degradation_reason is None
-        assert stats.consecutive_failures == 0
+        assert stats.tool_id == "test.tool"  # nosec B101
+        assert stats.success_rate == 1.0  # nosec B101
+        assert stats.avg_latency == 0.0  # nosec B101
+        assert stats.total_executions == 0  # nosec B101
+        assert stats.successful_executions == 0  # nosec B101
+        assert stats.failed_executions == 0  # nosec B101
+        assert stats.failure_patterns == {}  # nosec B101
+        assert stats.user_rating == 0.0  # nosec B101
+        assert stats.user_feedback_count == 0  # nosec B101
+        assert stats.is_degraded is False  # nosec B101
+        assert stats.degradation_reason is None  # nosec B101
+        assert stats.consecutive_failures == 0  # nosec B101
 
     def test_initialization_with_values(self) -> None:
         """Test ToolStats initialization with custom values."""
@@ -46,9 +46,9 @@ class TestToolStats:
             failed_executions=5,
         )
 
-        assert stats.success_rate == 0.95
-        assert stats.avg_latency == 150.0
-        assert stats.total_executions == 100
+        assert stats.success_rate == 0.95  # nosec B101
+        assert stats.avg_latency == 150.0  # nosec B101
+        assert stats.total_executions == 100  # nosec B101
 
     def test_validation_total_executions(self) -> None:
         """Test validation of total_executions."""
@@ -59,7 +59,7 @@ class TestToolStats:
             successful_executions=95,
             failed_executions=5,
         )
-        assert stats.total_executions == 100
+        assert stats.total_executions == 100  # nosec B101
 
         # Invalid: total != successful + failed
         with pytest.raises(ValueError, match="total_executions"):
@@ -74,7 +74,7 @@ class TestToolStats:
         """Test validation of success_rate range."""
         # Valid range
         stats = ToolStats(tool_id="test.tool", success_rate=0.5)
-        assert stats.success_rate == 0.5
+        assert stats.success_rate == 0.5  # nosec B101
 
         # Invalid: below 0.0
         with pytest.raises(ValueError):
@@ -88,7 +88,7 @@ class TestToolStats:
         """Test validation of user_rating range."""
         # Valid range
         stats = ToolStats(tool_id="test.tool", user_rating=4.5)
-        assert stats.user_rating == 4.5
+        assert stats.user_rating == 4.5  # nosec B101
 
         # Invalid: below 0.0
         with pytest.raises(ValueError):
@@ -101,7 +101,7 @@ class TestToolStats:
     def test_calculate_success_rate_no_executions(self) -> None:
         """Test success rate calculation with no executions."""
         stats = ToolStats(tool_id="test.tool")
-        assert stats.calculate_success_rate() == 1.0
+        assert stats.calculate_success_rate() == 1.0  # nosec B101
 
     def test_calculate_success_rate_with_executions(self) -> None:
         """Test success rate calculation with executions."""
@@ -111,21 +111,21 @@ class TestToolStats:
             successful_executions=95,
             failed_executions=5,
         )
-        assert stats.calculate_success_rate() == 0.95
+        assert stats.calculate_success_rate() == 0.95  # nosec B101
 
     def test_record_success_first_execution(self) -> None:
         """Test recording first successful execution."""
         stats = ToolStats(tool_id="test.tool")
         stats.record_success(latency_ms=100.0)
 
-        assert stats.successful_executions == 1
-        assert stats.total_executions == 1
-        assert stats.failed_executions == 0
-        assert stats.success_rate == 1.0
-        assert stats.avg_latency == 100.0
-        assert stats.consecutive_failures == 0
-        assert stats.last_execution_time is not None
-        assert stats.last_success_time is not None
+        assert stats.successful_executions == 1  # nosec B101
+        assert stats.total_executions == 1  # nosec B101
+        assert stats.failed_executions == 0  # nosec B101
+        assert stats.success_rate == 1.0  # nosec B101
+        assert stats.avg_latency == 100.0  # nosec B101
+        assert stats.consecutive_failures == 0  # nosec B101
+        assert stats.last_execution_time is not None  # nosec B101
+        assert stats.last_success_time is not None  # nosec B101
 
     def test_record_success_multiple_executions(self) -> None:
         """Test recording multiple successful executions."""
@@ -135,18 +135,18 @@ class TestToolStats:
         stats.record_success(latency_ms=200.0)
         stats.record_success(latency_ms=150.0)
 
-        assert stats.successful_executions == 3
-        assert stats.total_executions == 3
-        assert stats.success_rate == 1.0
+        assert stats.successful_executions == 3  # nosec B101
+        assert stats.total_executions == 3  # nosec B101
+        assert stats.success_rate == 1.0  # nosec B101
         # Average should be weighted towards recent values (EMA)
-        assert 100.0 < stats.avg_latency < 200.0
+        assert 100.0 < stats.avg_latency < 200.0  # nosec B101
 
     def test_record_success_resets_consecutive_failures(self) -> None:
         """Test that success resets consecutive failures."""
         stats = ToolStats(tool_id="test.tool", consecutive_failures=5)
         stats.record_success(latency_ms=100.0)
 
-        assert stats.consecutive_failures == 0
+        assert stats.consecutive_failures == 0  # nosec B101
 
     def test_record_success_clears_degradation(self) -> None:
         """Test that success clears degradation status."""
@@ -157,21 +157,21 @@ class TestToolStats:
         )
         stats.record_success(latency_ms=100.0)
 
-        assert stats.is_degraded is False
-        assert stats.degradation_reason is None
+        assert stats.is_degraded is False  # nosec B101
+        assert stats.degradation_reason is None  # nosec B101
 
     def test_record_failure_first_failure(self) -> None:
         """Test recording first failure."""
         stats = ToolStats(tool_id="test.tool")
         stats.record_failure(FailurePattern.TIMEOUT)
 
-        assert stats.failed_executions == 1
-        assert stats.total_executions == 1
-        assert stats.successful_executions == 0
-        assert stats.success_rate == 0.0
-        assert stats.consecutive_failures == 1
-        assert stats.failure_patterns["timeout"] == 1
-        assert stats.last_execution_time is not None
+        assert stats.failed_executions == 1  # nosec B101
+        assert stats.total_executions == 1  # nosec B101
+        assert stats.successful_executions == 0  # nosec B101
+        assert stats.success_rate == 0.0  # nosec B101
+        assert stats.consecutive_failures == 1  # nosec B101
+        assert stats.failure_patterns["timeout"] == 1  # nosec B101
+        assert stats.last_execution_time is not None  # nosec B101
 
     def test_record_failure_tracks_patterns(self) -> None:
         """Test that failures track patterns correctly."""
@@ -181,9 +181,9 @@ class TestToolStats:
         stats.record_failure(FailurePattern.TIMEOUT)
         stats.record_failure(FailurePattern.NETWORK_ERROR)
 
-        assert stats.failure_patterns["timeout"] == 2
-        assert stats.failure_patterns["network_error"] == 1
-        assert stats.consecutive_failures == 3
+        assert stats.failure_patterns["timeout"] == 2  # nosec B101
+        assert stats.failure_patterns["network_error"] == 1  # nosec B101
+        assert stats.consecutive_failures == 3  # nosec B101
 
     def test_record_failure_marks_degraded_low_success_rate(self) -> None:
         """Test that low success rate marks tool as degraded."""
@@ -198,8 +198,8 @@ class TestToolStats:
         # One more failure should drop below 0.7 threshold
         stats.record_failure(FailurePattern.TIMEOUT)
 
-        assert stats.is_degraded is True
-        assert "Success rate below threshold" in stats.degradation_reason
+        assert stats.is_degraded is True  # nosec B101
+        assert "Success rate below threshold" in stats.degradation_reason  # nosec B101
 
     def test_record_failure_marks_degraded_consecutive_failures(self) -> None:
         """Test that 3 consecutive failures mark tool as degraded."""
@@ -213,22 +213,22 @@ class TestToolStats:
         )
 
         stats.record_failure(FailurePattern.TIMEOUT)
-        assert stats.is_degraded is False
+        assert stats.is_degraded is False  # nosec B101
 
         stats.record_failure(FailurePattern.TIMEOUT)
-        assert stats.is_degraded is False
+        assert stats.is_degraded is False  # nosec B101
 
         stats.record_failure(FailurePattern.TIMEOUT)
-        assert stats.is_degraded is True
-        assert "Consecutive failures: 3" in stats.degradation_reason
+        assert stats.is_degraded is True  # nosec B101
+        assert "Consecutive failures: 3" in stats.degradation_reason  # nosec B101
 
     def test_record_user_feedback_first_rating(self) -> None:
         """Test recording first user feedback."""
         stats = ToolStats(tool_id="test.tool")
         stats.record_user_feedback(rating=4.5)
 
-        assert stats.user_rating == 4.5
-        assert stats.user_feedback_count == 1
+        assert stats.user_rating == 4.5  # nosec B101
+        assert stats.user_feedback_count == 1  # nosec B101
 
     def test_record_user_feedback_multiple_ratings(self) -> None:
         """Test recording multiple user feedback ratings."""
@@ -238,9 +238,9 @@ class TestToolStats:
         stats.record_user_feedback(rating=4.0)
         stats.record_user_feedback(rating=3.0)
 
-        assert stats.user_feedback_count == 3
+        assert stats.user_feedback_count == 3  # nosec B101
         # Rating should be weighted average (EMA)
-        assert 3.0 < stats.user_rating < 5.0
+        assert 3.0 < stats.user_rating < 5.0  # nosec B101
 
     def test_record_user_feedback_invalid_rating(self) -> None:
         """Test that invalid ratings are rejected."""
@@ -255,7 +255,7 @@ class TestToolStats:
     def test_get_most_common_failure_no_failures(self) -> None:
         """Test getting most common failure with no failures."""
         stats = ToolStats(tool_id="test.tool")
-        assert stats.get_most_common_failure() is None
+        assert stats.get_most_common_failure() is None  # nosec B101
 
     def test_get_most_common_failure_with_failures(self) -> None:
         """Test getting most common failure pattern."""
@@ -266,7 +266,7 @@ class TestToolStats:
         stats.record_failure(FailurePattern.TIMEOUT)
         stats.record_failure(FailurePattern.NETWORK_ERROR)
 
-        assert stats.get_most_common_failure() == "timeout"
+        assert stats.get_most_common_failure() == "timeout"  # nosec B101
 
     def test_get_reliability_score_normal(self) -> None:
         """Test reliability score for normal tool."""
@@ -278,7 +278,7 @@ class TestToolStats:
             success_rate=0.95,
         )
 
-        assert stats.get_reliability_score() == 0.95
+        assert stats.get_reliability_score() == 0.95  # nosec B101
 
     def test_get_reliability_score_degraded(self) -> None:
         """Test reliability score for degraded tool."""
@@ -292,12 +292,12 @@ class TestToolStats:
         )
 
         # Degraded tools get 50% penalty
-        assert stats.get_reliability_score() == 0.3
+        assert stats.get_reliability_score() == 0.3  # nosec B101
 
     def test_get_speed_score_no_executions(self) -> None:
         """Test speed score with no executions."""
         stats = ToolStats(tool_id="test.tool")
-        assert stats.get_speed_score() == 1.0
+        assert stats.get_speed_score() == 1.0  # nosec B101
 
     def test_get_speed_score_fast_tool(self) -> None:
         """Test speed score for fast tool."""
@@ -305,7 +305,7 @@ class TestToolStats:
         score = stats.get_speed_score(max_latency=5000.0)
 
         # 100ms out of 5000ms max = 0.98 score
-        assert score > 0.95
+        assert score > 0.95  # nosec B101
 
     def test_get_speed_score_slow_tool(self) -> None:
         """Test speed score for slow tool."""
@@ -313,7 +313,7 @@ class TestToolStats:
         score = stats.get_speed_score(max_latency=5000.0)
 
         # 4500ms out of 5000ms max = 0.1 score
-        assert 0.0 < score < 0.2
+        assert 0.0 < score < 0.2  # nosec B101
 
     def test_get_speed_score_very_slow_tool(self) -> None:
         """Test speed score for very slow tool (clamped to 0.0)."""
@@ -321,7 +321,7 @@ class TestToolStats:
         score = stats.get_speed_score(max_latency=5000.0)
 
         # Exceeds max, should be clamped to 0.0
-        assert score == 0.0
+        assert score == 0.0  # nosec B101
 
     def test_update_success_rate(self) -> None:
         """Test updating success rate."""
@@ -334,7 +334,7 @@ class TestToolStats:
         )
 
         stats.update_success_rate()
-        assert stats.success_rate == 0.95
+        assert stats.success_rate == 0.95  # nosec B101
 
     def test_timestamps_updated(self) -> None:
         """Test that timestamps are updated correctly."""
@@ -348,9 +348,9 @@ class TestToolStats:
 
         # Record success
         stats.record_success(latency_ms=100.0)
-        assert stats.updated_at >= initial_updated_at
-        assert stats.last_execution_time is not None
-        assert stats.last_success_time is not None
+        assert stats.updated_at >= initial_updated_at  # nosec B101
+        assert stats.last_execution_time is not None  # nosec B101
+        assert stats.last_success_time is not None  # nosec B101
 
         # Record failure
         updated_at_after_success = stats.updated_at
@@ -359,8 +359,8 @@ class TestToolStats:
         time.sleep(0.01)
 
         stats.record_failure(FailurePattern.TIMEOUT)
-        assert stats.updated_at >= updated_at_after_success
-        assert stats.last_execution_time >= last_success_time
+        assert stats.updated_at >= updated_at_after_success  # nosec B101
+        assert stats.last_execution_time >= last_success_time  # nosec B101
 
     def test_json_serialization(self) -> None:
         """Test JSON serialization/deserialization."""
@@ -375,13 +375,13 @@ class TestToolStats:
 
         # Serialize to JSON
         json_data = stats.model_dump_json()
-        assert isinstance(json_data, str)
+        assert isinstance(json_data, str)  # nosec B101
 
         # Deserialize from JSON
         restored = ToolStats.model_validate_json(json_data)
-        assert restored.tool_id == stats.tool_id
-        assert restored.success_rate == stats.success_rate
-        assert restored.avg_latency == stats.avg_latency
+        assert restored.tool_id == stats.tool_id  # nosec B101
+        assert restored.success_rate == stats.success_rate  # nosec B101
+        assert restored.avg_latency == stats.avg_latency  # nosec B101
 
 
 class TestFailurePattern:
@@ -399,16 +399,16 @@ class TestFailurePattern:
         }
 
         actual_patterns = {pattern.value for pattern in FailurePattern}
-        assert actual_patterns == expected_patterns
+        assert actual_patterns == expected_patterns  # nosec B101
 
     def test_pattern_values(self) -> None:
         """Test failure pattern values."""
-        assert FailurePattern.TIMEOUT.value == "timeout"
-        assert FailurePattern.NETWORK_ERROR.value == "network_error"
-        assert FailurePattern.PERMISSION_DENIED.value == "permission_denied"
-        assert FailurePattern.INVALID_PARAMETERS.value == "invalid_parameters"
-        assert FailurePattern.RESOURCE_UNAVAILABLE.value == "resource_unavailable"
-        assert FailurePattern.UNKNOWN.value == "unknown"
+        assert FailurePattern.TIMEOUT.value == "timeout"  # nosec B101
+        assert FailurePattern.NETWORK_ERROR.value == "network_error"  # nosec B101
+        assert FailurePattern.PERMISSION_DENIED.value == "permission_denied"  # nosec B101
+        assert FailurePattern.INVALID_PARAMETERS.value == "invalid_parameters"  # nosec B101
+        assert FailurePattern.RESOURCE_UNAVAILABLE.value == "resource_unavailable"  # nosec B101
+        assert FailurePattern.UNKNOWN.value == "unknown"  # nosec B101
 
 
 class TestUserToolPreference:
@@ -418,12 +418,12 @@ class TestUserToolPreference:
         """Test UserToolPreference initialization."""
         pref = UserToolPreference(user_id="user1", tool_id="tool1")
 
-        assert pref.user_id == "user1"
-        assert pref.tool_id == "tool1"
-        assert pref.preference_score == 0.5
-        assert pref.selection_count == 0
-        assert pref.feedback_count == 0
-        assert pref.last_selected is None
+        assert pref.user_id == "user1"  # nosec B101
+        assert pref.tool_id == "tool1"  # nosec B101
+        assert pref.preference_score == 0.5  # nosec B101
+        assert pref.selection_count == 0  # nosec B101
+        assert pref.feedback_count == 0  # nosec B101
+        assert pref.last_selected is None  # nosec B101
 
     def test_record_selection(self) -> None:
         """Test recording tool selection."""
@@ -431,9 +431,9 @@ class TestUserToolPreference:
 
         pref.record_selection()
 
-        assert pref.selection_count == 1
-        assert pref.last_selected is not None
-        assert pref.preference_score > 0.5  # Should increase
+        assert pref.selection_count == 1  # nosec B101
+        assert pref.last_selected is not None  # nosec B101
+        assert pref.preference_score > 0.5  # Should increase  # nosec B101
 
     def test_record_selection_multiple(self) -> None:
         """Test recording multiple selections."""
@@ -442,8 +442,8 @@ class TestUserToolPreference:
         for _ in range(5):
             pref.record_selection()
 
-        assert pref.selection_count == 5
-        assert pref.preference_score > 0.5
+        assert pref.selection_count == 5  # nosec B101
+        assert pref.preference_score > 0.5  # nosec B101
 
     def test_record_positive_feedback(self) -> None:
         """Test recording positive feedback."""
@@ -451,8 +451,8 @@ class TestUserToolPreference:
 
         pref.record_feedback(positive=True)
 
-        assert pref.feedback_count == 1
-        assert pref.preference_score > 0.5
+        assert pref.feedback_count == 1  # nosec B101
+        assert pref.preference_score > 0.5  # nosec B101
 
     def test_record_negative_feedback(self) -> None:
         """Test recording negative feedback."""
@@ -460,8 +460,8 @@ class TestUserToolPreference:
 
         pref.record_feedback(positive=False)
 
-        assert pref.feedback_count == 1
-        assert pref.preference_score < 0.5
+        assert pref.feedback_count == 1  # nosec B101
+        assert pref.preference_score < 0.5  # nosec B101
 
 
 class TestToolIntelligenceEngine:
@@ -478,7 +478,7 @@ class TestToolIntelligenceEngine:
     async def test_initialization(self, engine: "ToolIntelligenceEngine") -> None:
         """Test engine initialization."""
         stats = await engine.get_all_stats()
-        assert stats == {}
+        assert stats == {}  # nosec B101
 
     @pytest.mark.asyncio
     async def test_record_successful_execution(self, engine: "ToolIntelligenceEngine") -> None:
@@ -486,10 +486,10 @@ class TestToolIntelligenceEngine:
         await engine.record_execution(tool_id="test.tool", success=True, latency_ms=100.0)
 
         stats = await engine.get_tool_stats("test.tool")
-        assert stats is not None
-        assert stats.successful_executions == 1
-        assert stats.total_executions == 1
-        assert stats.success_rate == 1.0
+        assert stats is not None  # nosec B101
+        assert stats.successful_executions == 1  # nosec B101
+        assert stats.total_executions == 1  # nosec B101
+        assert stats.success_rate == 1.0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_record_failed_execution(self, engine: "ToolIntelligenceEngine") -> None:
@@ -502,10 +502,10 @@ class TestToolIntelligenceEngine:
         )
 
         stats = await engine.get_tool_stats("test.tool")
-        assert stats is not None
-        assert stats.failed_executions == 1
-        assert stats.total_executions == 1
-        assert stats.failure_patterns["timeout"] == 1
+        assert stats is not None  # nosec B101
+        assert stats.failed_executions == 1  # nosec B101
+        assert stats.total_executions == 1  # nosec B101
+        assert stats.failure_patterns["timeout"] == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_record_multiple_executions(self, engine: "ToolIntelligenceEngine") -> None:
@@ -523,11 +523,11 @@ class TestToolIntelligenceEngine:
             )
 
         stats = await engine.get_tool_stats("test.tool")
-        assert stats is not None
-        assert stats.total_executions == 12
-        assert stats.successful_executions == 10
-        assert stats.failed_executions == 2
-        assert abs(stats.success_rate - 10 / 12) < 0.01
+        assert stats is not None  # nosec B101
+        assert stats.total_executions == 12  # nosec B101
+        assert stats.successful_executions == 10  # nosec B101
+        assert stats.failed_executions == 2  # nosec B101
+        assert abs(stats.success_rate - 10 / 12) < 0.01  # nosec B101
 
     @pytest.mark.asyncio
     async def test_record_user_feedback_rating(self, engine: "ToolIntelligenceEngine") -> None:
@@ -535,9 +535,9 @@ class TestToolIntelligenceEngine:
         await engine.record_user_feedback(tool_id="test.tool", user_id="user1", rating=4.5)
 
         stats = await engine.get_tool_stats("test.tool")
-        assert stats is not None
-        assert stats.user_rating == 4.5
-        assert stats.user_feedback_count == 1
+        assert stats is not None  # nosec B101
+        assert stats.user_rating == 4.5  # nosec B101
+        assert stats.user_feedback_count == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_record_user_feedback_positive(self, engine: "ToolIntelligenceEngine") -> None:
@@ -545,8 +545,8 @@ class TestToolIntelligenceEngine:
         await engine.record_user_feedback(tool_id="test.tool", user_id="user1", positive=True)
 
         prefs = await engine.get_user_tool_preferences("user1")
-        assert "test.tool" in prefs
-        assert prefs["test.tool"] > 0.5
+        assert "test.tool" in prefs  # nosec B101
+        assert prefs["test.tool"] > 0.5  # nosec B101
 
     @pytest.mark.asyncio
     async def test_record_user_feedback_negative(self, engine: "ToolIntelligenceEngine") -> None:
@@ -554,14 +554,14 @@ class TestToolIntelligenceEngine:
         await engine.record_user_feedback(tool_id="test.tool", user_id="user1", positive=False)
 
         prefs = await engine.get_user_tool_preferences("user1")
-        assert "test.tool" in prefs
-        assert prefs["test.tool"] < 0.5
+        assert "test.tool" in prefs  # nosec B101
+        assert prefs["test.tool"] < 0.5  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_tool_stats_nonexistent(self, engine: "ToolIntelligenceEngine") -> None:
         """Test getting stats for nonexistent tool."""
         stats = await engine.get_tool_stats("nonexistent.tool")
-        assert stats is None
+        assert stats is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_all_stats(self, engine: "ToolIntelligenceEngine") -> None:
@@ -570,19 +570,19 @@ class TestToolIntelligenceEngine:
         await engine.record_execution(tool_id="tool2", success=True, latency_ms=200.0)
 
         all_stats = await engine.get_all_stats()
-        assert len(all_stats) == 2
-        assert "tool1" in all_stats
-        assert "tool2" in all_stats
+        assert len(all_stats) == 2  # nosec B101
+        assert "tool1" in all_stats  # nosec B101
+        assert "tool2" in all_stats  # nosec B101
 
     @pytest.mark.asyncio
     async def test_rank_tools_no_data(self, engine: "ToolIntelligenceEngine") -> None:
         """Test ranking tools with no execution data."""
         ranked = await engine.rank_tools(["tool1", "tool2", "tool3"])
 
-        assert len(ranked) == 3
+        assert len(ranked) == 3  # nosec B101
         # All should have same score (no data)
         scores = [score for _, score in ranked]
-        assert all(abs(s - scores[0]) < 0.01 for s in scores)
+        assert all(abs(s - scores[0]) < 0.01 for s in scores)  # nosec B101
 
     @pytest.mark.asyncio
     async def test_rank_tools_with_stats(self, engine: "ToolIntelligenceEngine") -> None:
@@ -605,8 +605,8 @@ class TestToolIntelligenceEngine:
         ranked = await engine.rank_tools(["tool1", "tool2"])
 
         # Tool1 should rank higher
-        assert ranked[0][0] == "tool1"
-        assert ranked[0][1] > ranked[1][1]
+        assert ranked[0][0] == "tool1"  # nosec B101
+        assert ranked[0][1] > ranked[1][1]  # nosec B101
 
     @pytest.mark.asyncio
     async def test_rank_tools_with_user_preference(self, engine: "ToolIntelligenceEngine") -> None:
@@ -620,13 +620,13 @@ class TestToolIntelligenceEngine:
         # Tool2 should have higher score due to user preference
         tool2_score = next(score for tid, score in ranked if tid == "tool2")
         tool1_score = next(score for tid, score in ranked if tid == "tool1")
-        assert tool2_score > tool1_score
+        assert tool2_score > tool1_score  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_degraded_tools_none(self, engine: "ToolIntelligenceEngine") -> None:
         """Test detecting degraded tools when none exist."""
         degraded = await engine.detect_degraded_tools()
-        assert degraded == []
+        assert degraded == []  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_degraded_tools_with_degraded(
@@ -645,13 +645,13 @@ class TestToolIntelligenceEngine:
             )
 
         degraded = await engine.detect_degraded_tools()
-        assert "bad.tool" in degraded
+        assert "bad.tool" in degraded  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_user_tool_preferences_empty(self, engine: "ToolIntelligenceEngine") -> None:
         """Test getting user preferences when none exist."""
         prefs = await engine.get_user_tool_preferences("user1")
-        assert prefs == {}
+        assert prefs == {}  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_user_tool_preferences_with_data(
@@ -662,9 +662,9 @@ class TestToolIntelligenceEngine:
         await engine.learn_tool_preference(user_id="user1", tool_id="tool2", selected=True)
 
         prefs = await engine.get_user_tool_preferences("user1")
-        assert len(prefs) == 2
-        assert "tool1" in prefs
-        assert "tool2" in prefs
+        assert len(prefs) == 2  # nosec B101
+        assert "tool1" in prefs  # nosec B101
+        assert "tool2" in prefs  # nosec B101
 
     @pytest.mark.asyncio
     async def test_learn_tool_preference_selected(self, engine: "ToolIntelligenceEngine") -> None:
@@ -672,7 +672,7 @@ class TestToolIntelligenceEngine:
         await engine.learn_tool_preference(user_id="user1", tool_id="tool1", selected=True)
 
         prefs = await engine.get_user_tool_preferences("user1")
-        assert prefs["tool1"] > 0.5
+        assert prefs["tool1"] > 0.5  # nosec B101
 
     @pytest.mark.asyncio
     async def test_learn_tool_preference_not_selected(
@@ -683,7 +683,7 @@ class TestToolIntelligenceEngine:
 
         prefs = await engine.get_user_tool_preferences("user1")
         # Should still create preference entry but not increase score
-        assert "tool1" in prefs
+        assert "tool1" in prefs  # nosec B101
 
     @pytest.mark.asyncio
     async def test_persistence_stats(self, tmp_path: Path) -> None:
@@ -699,8 +699,8 @@ class TestToolIntelligenceEngine:
         # Create new engine and verify data loaded
         engine2 = ToolIntelligenceEngine(stats_file=stats_file)
         stats = await engine2.get_tool_stats("test.tool")
-        assert stats is not None
-        assert stats.successful_executions == 1
+        assert stats is not None  # nosec B101
+        assert stats.successful_executions == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_persistence_preferences(self, tmp_path: Path) -> None:
@@ -716,7 +716,7 @@ class TestToolIntelligenceEngine:
         # Create new engine and verify data loaded
         engine2 = ToolIntelligenceEngine(preferences_file=prefs_file)
         prefs = await engine2.get_user_tool_preferences("user1")
-        assert "tool1" in prefs
+        assert "tool1" in prefs  # nosec B101
 
     @pytest.mark.asyncio
     async def test_concurrent_access(self, engine: "ToolIntelligenceEngine") -> None:
@@ -732,8 +732,8 @@ class TestToolIntelligenceEngine:
         await asyncio.gather(*tasks)
 
         stats = await engine.get_tool_stats("test.tool")
-        assert stats is not None
-        assert stats.total_executions == 10
+        assert stats is not None  # nosec B101
+        assert stats.total_executions == 10  # nosec B101
 
 
 class TestToolRankingAlgorithm:
@@ -819,9 +819,9 @@ class TestToolRankingAlgorithm:
 
         # Expected score: 0.5*1.0 + 0.2*1.0 + 0.2*0.98 + 0.1*0.5
         # = 0.5 + 0.2 + 0.196 + 0.05 = 0.946
-        assert len(ranked) == 1
-        assert ranked[0][0] == "test.tool"
-        assert 0.94 < ranked[0][1] < 0.95
+        assert len(ranked) == 1  # nosec B101
+        assert ranked[0][0] == "test.tool"  # nosec B101
+        assert 0.94 < ranked[0][1] < 0.95  # nosec B101
 
     @pytest.mark.asyncio
     async def test_relevance_score_calculation(
@@ -836,8 +836,8 @@ class TestToolRankingAlgorithm:
         ranked = await engine.rank_tools(["timer.set"], context=context)
 
         # Should have high relevance due to good intent match
-        assert len(ranked) == 1
-        assert ranked[0][1] > 0.7  # High score
+        assert len(ranked) == 1  # nosec B101
+        assert ranked[0][1] > 0.7  # High score  # nosec B101
 
     @pytest.mark.asyncio
     async def test_reliability_score_impact(self, engine: "ToolIntelligenceEngine") -> None:
@@ -866,8 +866,8 @@ class TestToolRankingAlgorithm:
         ranked = await engine.rank_tools(["tool1", "tool2"])
 
         # Tool1 should rank higher due to better reliability
-        assert ranked[0][0] == "tool1"
-        assert ranked[0][1] > ranked[1][1]
+        assert ranked[0][0] == "tool1"  # nosec B101
+        assert ranked[0][1] > ranked[1][1]  # nosec B101
 
     @pytest.mark.asyncio
     async def test_speed_score_impact(self, engine: "ToolIntelligenceEngine") -> None:
@@ -883,8 +883,8 @@ class TestToolRankingAlgorithm:
         ranked = await engine.rank_tools(["tool1", "tool2"])
 
         # Tool1 should rank higher due to better speed
-        assert ranked[0][0] == "tool1"
-        assert ranked[0][1] > ranked[1][1]
+        assert ranked[0][0] == "tool1"  # nosec B101
+        assert ranked[0][1] > ranked[1][1]  # nosec B101
 
     @pytest.mark.asyncio
     async def test_user_preference_impact(self, engine: "ToolIntelligenceEngine") -> None:
@@ -898,7 +898,7 @@ class TestToolRankingAlgorithm:
         # Tool2 should rank higher due to user preference
         tool2_score = next(score for tid, score in ranked if tid == "tool2")
         tool1_score = next(score for tid, score in ranked if tid == "tool1")
-        assert tool2_score > tool1_score
+        assert tool2_score > tool1_score  # nosec B101
 
     @pytest.mark.asyncio
     async def test_ranking_latency_budget(self, engine: "ToolIntelligenceEngine") -> None:
@@ -917,8 +917,8 @@ class TestToolRankingAlgorithm:
         elapsed_ms = (time.perf_counter() - start) * 1000
 
         # Should complete within 50ms budget
-        assert elapsed_ms < 50.0
-        assert len(ranked) == 100
+        assert elapsed_ms < 50.0  # nosec B101
+        assert len(ranked) == 100  # nosec B101
 
     @pytest.mark.asyncio
     async def test_pre_calculated_relevance_scores(self, engine: "ToolIntelligenceEngine") -> None:
@@ -934,9 +934,9 @@ class TestToolRankingAlgorithm:
         ranked = await engine.rank_tools(["tool1", "tool2", "tool3"], context=context)
 
         # Should rank by relevance scores
-        assert ranked[0][0] == "tool1"  # Highest relevance
-        assert ranked[1][0] == "tool3"  # Medium relevance
-        assert ranked[2][0] == "tool2"  # Lowest relevance
+        assert ranked[0][0] == "tool1"  # Highest relevance  # nosec B101
+        assert ranked[1][0] == "tool3"  # Medium relevance  # nosec B101
+        assert ranked[2][0] == "tool2"  # Lowest relevance  # nosec B101
 
     @pytest.mark.asyncio
     async def test_intent_match_capability_overlap(
@@ -952,7 +952,7 @@ class TestToolRankingAlgorithm:
         relevance = engine._calculate_relevance_score("timer.set", context)
 
         # Should have high relevance due to capability match
-        assert relevance > 0.5
+        assert relevance > 0.5  # nosec B101
 
     @pytest.mark.asyncio
     async def test_intent_match_parameter_coverage(self, engine: "ToolIntelligenceEngine") -> None:
@@ -1003,7 +1003,7 @@ class TestToolRankingAlgorithm:
         relevance = engine._calculate_relevance_score("timer.set", context)
 
         # Should have relevance due to parameter coverage (30% of score)
-        assert relevance >= 0.3
+        assert relevance >= 0.3  # nosec B101
 
     @pytest.mark.asyncio
     async def test_intent_match_description_similarity(
@@ -1038,7 +1038,7 @@ class TestToolRankingAlgorithm:
         relevance = engine._calculate_relevance_score("timer.set", context)
 
         # Should have relevance due to description match
-        assert relevance > 0.0
+        assert relevance > 0.0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_ranking_with_degraded_tools(self, engine: "ToolIntelligenceEngine") -> None:
@@ -1061,27 +1061,27 @@ class TestToolRankingAlgorithm:
         ranked = await engine.rank_tools(["tool1", "tool2"])
 
         # Tool1 should rank higher (tool2 is degraded)
-        assert ranked[0][0] == "tool1"
-        assert ranked[0][1] > ranked[1][1]
+        assert ranked[0][0] == "tool1"  # nosec B101
+        assert ranked[0][1] > ranked[1][1]  # nosec B101
 
         # Verify tool2 is degraded
         stats2 = await engine.get_tool_stats("tool2")
-        assert stats2.is_degraded is True
+        assert stats2.is_degraded is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_ranking_empty_list(self, engine: "ToolIntelligenceEngine") -> None:
         """Test ranking with empty tool list."""
         ranked = await engine.rank_tools([])
-        assert ranked == []
+        assert ranked == []  # nosec B101
 
     @pytest.mark.asyncio
     async def test_ranking_single_tool(self, engine: "ToolIntelligenceEngine") -> None:
         """Test ranking with single tool."""
         ranked = await engine.rank_tools(["tool1"])
 
-        assert len(ranked) == 1
-        assert ranked[0][0] == "tool1"
-        assert 0.0 <= ranked[0][1] <= 1.0
+        assert len(ranked) == 1  # nosec B101
+        assert ranked[0][0] == "tool1"  # nosec B101
+        assert 0.0 <= ranked[0][1] <= 1.0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_ranking_score_range(self, engine: "ToolIntelligenceEngine") -> None:
@@ -1107,7 +1107,7 @@ class TestToolRankingAlgorithm:
 
         # All scores should be in valid range
         for tool_id, score in ranked:
-            assert 0.0 <= score <= 1.0
+            assert 0.0 <= score <= 1.0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_ranking_deterministic(self, engine: "ToolIntelligenceEngine") -> None:
@@ -1124,7 +1124,7 @@ class TestToolRankingAlgorithm:
         ranked3 = await engine.rank_tools(tool_ids)
 
         # Should produce same results
-        assert ranked1 == ranked2 == ranked3
+        assert ranked1 == ranked2 == ranked3  # nosec B101
 
 
 class TestDegradedToolDetection:
@@ -1179,7 +1179,7 @@ class TestDegradedToolDetection:
         await asyncio.sleep(0.1)
 
         # Verify severity levels
-        assert len(alerts_received) >= 2
+        assert len(alerts_received) >= 2  # nosec B101
         # Note: Some alerts may be deduplicated
 
     @pytest.mark.asyncio
@@ -1208,11 +1208,11 @@ class TestDegradedToolDetection:
 
         # Send first alert
         sent1 = await _alert_manager.send_alert(alert1)
-        assert sent1 is True
+        assert sent1 is True  # nosec B101
 
         # Send duplicate alert (should be deduplicated)
         sent2 = await _alert_manager.send_alert(alert2)
-        assert sent2 is False
+        assert sent2 is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_alert_throttling(self) -> None:
@@ -1235,7 +1235,7 @@ class TestDegradedToolDetection:
                 metrics={},
             )
             sent = await mgr.send_alert(alert)
-            assert sent is True
+            assert sent is True  # nosec B101
 
         # 4th alert should be throttled
         alert4 = DegradationAlert(
@@ -1245,7 +1245,7 @@ class TestDegradedToolDetection:
             metrics={},
         )
         sent4 = await mgr.send_alert(alert4)
-        assert sent4 is False
+        assert sent4 is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_custom_alert_handlers(self) -> None:
@@ -1281,8 +1281,8 @@ class TestDegradedToolDetection:
         await mgr.send_alert(alert)
 
         # Both handlers should be called
-        assert "test.tool" in handler1_called
-        assert "test.tool" in handler2_called
+        assert "test.tool" in handler1_called  # nosec B101
+        assert "test.tool" in handler2_called  # nosec B101
 
     @pytest.mark.asyncio
     async def test_alert_includes_comprehensive_metrics(self) -> None:
@@ -1311,15 +1311,15 @@ class TestDegradedToolDetection:
         await asyncio.sleep(0.1)
 
         # Verify alert contains comprehensive metrics
-        assert len(alerts_received) > 0
+        assert len(alerts_received) > 0  # nosec B101
         alert = alerts_received[-1]
-        assert "success_rate" in alert.metrics
-        assert "consecutive_failures" in alert.metrics
-        assert "total_executions" in alert.metrics
-        assert "failed_executions" in alert.metrics
-        assert "avg_latency_ms" in alert.metrics
-        assert "most_common_failure" in alert.metrics
-        assert "failure_patterns" in alert.metrics
+        assert "success_rate" in alert.metrics  # nosec B101
+        assert "consecutive_failures" in alert.metrics  # nosec B101
+        assert "total_executions" in alert.metrics  # nosec B101
+        assert "failed_executions" in alert.metrics  # nosec B101
+        assert "avg_latency_ms" in alert.metrics  # nosec B101
+        assert "most_common_failure" in alert.metrics  # nosec B101
+        assert "failure_patterns" in alert.metrics  # nosec B101
 
     @pytest.mark.asyncio
     async def test_recovery_alert_sent(self) -> None:
@@ -1350,8 +1350,8 @@ class TestDegradedToolDetection:
 
         # Verify recovery alert sent
         recovery_alerts = [a for a in alerts_received if a.severity == AlertSeverity.INFO]
-        assert len(recovery_alerts) > 0
-        assert "recovered" in recovery_alerts[0].reason.lower()
+        assert len(recovery_alerts) > 0  # nosec B101
+        assert "recovered" in recovery_alerts[0].reason.lower()  # nosec B101
 
     def test_degraded_tools_deprioritized_in_ranking(self) -> None:
         """Test that degraded tools get 50% penalty in reliability score."""
@@ -1379,9 +1379,9 @@ class TestDegradedToolDetection:
         normal_score = normal_stats.get_reliability_score()
         degraded_score = degraded_stats.get_reliability_score()
 
-        assert normal_score == 0.8
-        assert degraded_score == 0.4  # 50% penalty
-        assert normal_score > degraded_score
+        assert normal_score == 0.8  # nosec B101
+        assert degraded_score == 0.4  # 50% penalty  # nosec B101
+        assert normal_score > degraded_score  # nosec B101
 
     def test_no_degradation_with_insufficient_data(self) -> None:
         """Test that tool is not marked degraded with < 5 executions."""
@@ -1392,8 +1392,8 @@ class TestDegradedToolDetection:
             stats.record_failure(FailurePattern.TIMEOUT)
 
         # Should NOT be marked as degraded (insufficient data)
-        assert stats.is_degraded is False
-        assert stats.consecutive_failures == 4
+        assert stats.is_degraded is False  # nosec B101
+        assert stats.consecutive_failures == 4  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_degraded_tools_method(self) -> None:
@@ -1421,8 +1421,8 @@ class TestDegradedToolDetection:
         degraded = await engine.detect_degraded_tools()
 
         # Should only include degraded tool
-        assert "degraded.tool" in degraded
-        assert "normal.tool" not in degraded
+        assert "degraded.tool" in degraded  # nosec B101
+        assert "normal.tool" not in degraded  # nosec B101
 
     @pytest.mark.asyncio
     async def test_alert_manager_cleanup(self) -> None:
@@ -1455,7 +1455,7 @@ class TestDegradedToolDetection:
             metrics={},
         )
         sent = await mgr.send_alert(alert2)
-        assert sent is True
+        assert sent is True  # nosec B101
 
     def test_get_alert_manager(self) -> None:
         """Test that alert manager can be retrieved for configuration."""
@@ -1464,6 +1464,6 @@ class TestDegradedToolDetection:
         engine = ToolIntelligenceEngine()
         alert_mgr = engine.get_alert_manager()
 
-        assert alert_mgr is not None
+        assert alert_mgr is not None  # nosec B101
         # Should be able to register handlers
         alert_mgr.register_handler(lambda alert: None)

@@ -70,11 +70,11 @@ class TestStreamingAudioManager:
             chunks.append(chunk)
         
         # Verify
-        assert len(chunks) == 10
+        assert len(chunks) == 10  # nosec B101
         for chunk in chunks:
-            assert isinstance(chunk, np.ndarray)
-            assert chunk.dtype == np.float32
-            assert len(chunk) == 1600
+            assert isinstance(chunk, np.ndarray)  # nosec B101
+            assert chunk.dtype == np.float32  # nosec B101
+            assert len(chunk) == 1600  # nosec B101
     
     @pytest.mark.asyncio
     async def test_stream_output_basic(self, manager: StreamingAudioManager):
@@ -92,10 +92,10 @@ class TestStreamingAudioManager:
             chunks.append(chunk_bytes)
         
         # Verify
-        assert len(chunks) == 10
+        assert len(chunks) == 10  # nosec B101
         for chunk_bytes in chunks:
-            assert isinstance(chunk_bytes, bytes)
-            assert len(chunk_bytes) == 1600 * 2  # int16 = 2 bytes per sample
+            assert isinstance(chunk_bytes, bytes)  # nosec B101
+            assert len(chunk_bytes) == 1600 * 2  # int16 = 2 bytes per sample  # nosec B101
     
     @pytest.mark.asyncio
     async def test_get_metrics_basic(self, manager: StreamingAudioManager):
@@ -115,12 +115,12 @@ class TestStreamingAudioManager:
         metrics = await manager.get_metrics()
         
         # Verify
-        assert metrics.latency_ms >= 0
-        assert metrics.jitter_ms >= 0
-        assert metrics.packet_loss_percent >= 0
-        assert metrics.buffer_size > 0
-        assert metrics.buffer_underruns >= 0
-        assert metrics.buffer_overruns >= 0
+        assert metrics.latency_ms >= 0  # nosec B101
+        assert metrics.jitter_ms >= 0  # nosec B101
+        assert metrics.packet_loss_percent >= 0  # nosec B101
+        assert metrics.buffer_size > 0  # nosec B101
+        assert metrics.buffer_underruns >= 0  # nosec B101
+        assert metrics.buffer_overruns >= 0  # nosec B101
     
     # ========================================================================
     # CODEC TESTS - COMPREHENSIVE COVERAGE
@@ -144,14 +144,14 @@ class TestStreamingAudioManager:
         for original_audio in test_cases:
             # Encode
             encoded = manager._encode_pcm(original_audio, 16000)
-            assert isinstance(encoded, bytes)
-            assert len(encoded) == 1600 * 2
+            assert isinstance(encoded, bytes)  # nosec B101
+            assert len(encoded) == 1600 * 2  # nosec B101
             
             # Decode
             decoded = manager._decode_pcm(encoded)
-            assert isinstance(decoded, np.ndarray)
-            assert decoded.dtype == np.float32
-            assert len(decoded) == 1600
+            assert isinstance(decoded, np.ndarray)  # nosec B101
+            assert decoded.dtype == np.float32  # nosec B101
+            assert len(decoded) == 1600  # nosec B101
             
             # Verify round-trip (with tolerance for int16 quantization)
             np.testing.assert_allclose(original_audio, decoded, atol=1/32767)
@@ -167,12 +167,12 @@ class TestStreamingAudioManager:
         
         # Encode
         encoded = manager._encode_opus(original_audio, 16000)
-        assert isinstance(encoded, bytes)
+        assert isinstance(encoded, bytes)  # nosec B101
         
         # Decode
         decoded = manager._decode_opus(encoded)
-        assert isinstance(decoded, np.ndarray)
-        assert decoded.dtype == np.float32
+        assert isinstance(decoded, np.ndarray)  # nosec B101
+        assert decoded.dtype == np.float32  # nosec B101
         
         # Verify round-trip works (even if it's PCM fallback)
         np.testing.assert_allclose(original_audio, decoded, atol=1/32767)
@@ -188,12 +188,12 @@ class TestStreamingAudioManager:
         
         # Encode
         encoded = manager._encode_aac(original_audio, 16000)
-        assert isinstance(encoded, bytes)
+        assert isinstance(encoded, bytes)  # nosec B101
         
         # Decode
         decoded = manager._decode_aac(encoded)
-        assert isinstance(decoded, np.ndarray)
-        assert decoded.dtype == np.float32
+        assert isinstance(decoded, np.ndarray)  # nosec B101
+        assert decoded.dtype == np.float32  # nosec B101
         
         # Verify round-trip works (even if it's PCM fallback)
         np.testing.assert_allclose(original_audio, decoded, atol=1/32767)
@@ -214,8 +214,8 @@ class TestStreamingAudioManager:
             decoded = codec_handler["decode"](encoded)
             
             # Verify
-            assert isinstance(encoded, bytes)
-            assert isinstance(decoded, np.ndarray)
+            assert isinstance(encoded, bytes)  # nosec B101
+            assert isinstance(decoded, np.ndarray)  # nosec B101
             np.testing.assert_allclose(original_audio, decoded, atol=1/32767)
     
     # ========================================================================
@@ -239,7 +239,7 @@ class TestStreamingAudioManager:
         
         # Check metrics
         metrics = await manager.get_metrics()
-        assert metrics.latency_ms < 500, f"Latency {metrics.latency_ms}ms exceeds 500ms target"
+        assert metrics.latency_ms < 500, f"Latency {metrics.latency_ms}ms exceeds 500ms target"  # nosec B101
     
     @pytest.mark.asyncio
     async def test_latency_tracking_accuracy(self, manager: StreamingAudioManager):
@@ -262,8 +262,8 @@ class TestStreamingAudioManager:
         metrics = await manager.get_metrics()
         
         # Reported latency should be reasonable compared to measured
-        assert metrics.latency_ms >= 0
-        assert metrics.latency_ms < 1000  # Sanity check
+        assert metrics.latency_ms >= 0  # nosec B101
+        assert metrics.latency_ms < 1000  # Sanity check  # nosec B101
     
     @pytest.mark.asyncio
     async def test_output_latency_tracking(self, manager: StreamingAudioManager):
@@ -278,8 +278,8 @@ class TestStreamingAudioManager:
             pass
         
         metrics = await manager.get_metrics()
-        assert metrics.latency_ms >= 0
-        assert metrics.latency_ms < 500
+        assert metrics.latency_ms >= 0  # nosec B101
+        assert metrics.latency_ms < 500  # nosec B101
     
     # ========================================================================
     # JITTER TESTS
@@ -300,9 +300,9 @@ class TestStreamingAudioManager:
             pass
         
         metrics = await manager.get_metrics()
-        assert metrics.jitter_ms >= 0
+        assert metrics.jitter_ms >= 0  # nosec B101
         # With varying timing, we should see some jitter
-        assert metrics.jitter_ms > 0
+        assert metrics.jitter_ms > 0  # nosec B101
     
     @pytest.mark.asyncio
     async def test_low_jitter_stable_stream(self, manager: StreamingAudioManager):
@@ -319,7 +319,7 @@ class TestStreamingAudioManager:
         
         metrics = await manager.get_metrics()
         # Stable stream should have reasonable jitter (relaxed for test environment)
-        assert metrics.jitter_ms < 200  # Relaxed from 50ms for test environment variability
+        assert metrics.jitter_ms < 200  # Relaxed from 50ms for test environment variability  # nosec B101
     
     # ========================================================================
     # BUFFER MANAGEMENT TESTS - CRITICAL FOR RELIABILITY
@@ -347,8 +347,8 @@ class TestStreamingAudioManager:
         metrics = await manager.get_metrics()
         # With slow consumer and fast producer, should detect buffer overruns
         # Note: This is timing-dependent, so we check that the system handles it gracefully
-        assert metrics.buffer_overruns >= 0  # System should track overruns
-        assert chunks_received > 0  # Should still receive some chunks
+        assert metrics.buffer_overruns >= 0  # System should track overruns  # nosec B101
+        assert chunks_received > 0  # Should still receive some chunks  # nosec B101
     
     @pytest.mark.asyncio
     async def test_buffer_underrun_handling(self, config: StreamConfig):
@@ -372,7 +372,7 @@ class TestStreamingAudioManager:
             chunks.append(chunk)
         
         # Should still receive all chunks
-        assert len(chunks) == 10
+        assert len(chunks) == 10  # nosec B101
     
     @pytest.mark.asyncio
     async def test_buffer_size_configuration(self, config: StreamConfig):
@@ -385,7 +385,7 @@ class TestStreamingAudioManager:
             
             # Verify buffer size is set correctly
             expected_samples = int(buffer_ms * config.sample_rate / 1000)
-            assert manager._buffer_size_samples == expected_samples
+            assert manager._buffer_size_samples == expected_samples  # nosec B101
     
     # ========================================================================
     # ADAPTIVE BUFFERING TESTS
@@ -403,7 +403,7 @@ class TestStreamingAudioManager:
         await manager.adapt_buffer_size(400.0)
         
         # Buffer should increase
-        assert manager.config.buffer_size_ms >= initial_buffer_size
+        assert manager.config.buffer_size_ms >= initial_buffer_size  # nosec B101
     
     @pytest.mark.asyncio
     async def test_adaptive_buffering_disabled(self, config: StreamConfig):
@@ -417,7 +417,7 @@ class TestStreamingAudioManager:
         await manager.adapt_buffer_size(400.0)
         
         # Buffer should not change
-        assert manager.config.buffer_size_ms == initial_buffer_size
+        assert manager.config.buffer_size_ms == initial_buffer_size  # nosec B101
     
     @pytest.mark.asyncio
     async def test_adaptive_buffering_respects_max_latency(self, config: StreamConfig):
@@ -430,7 +430,7 @@ class TestStreamingAudioManager:
         await manager.adapt_buffer_size(1000.0)
         
         # Buffer should not exceed max latency
-        assert manager.config.buffer_size_ms <= config.max_latency_ms
+        assert manager.config.buffer_size_ms <= config.max_latency_ms  # nosec B101
     
     @pytest.mark.asyncio
     async def test_adaptive_buffering_minimum_buffer(self, config: StreamConfig):
@@ -442,7 +442,7 @@ class TestStreamingAudioManager:
         await manager.adapt_buffer_size(10.0)
         
         # Buffer should not go below minimum (100ms)
-        assert manager.config.buffer_size_ms >= 100
+        assert manager.config.buffer_size_ms >= 100  # nosec B101
     
     # ========================================================================
     # ERROR HANDLING TESTS
@@ -494,7 +494,7 @@ class TestStreamingAudioManager:
                 await manager.stop()
         
         # Should stop early
-        assert len(chunks) < 100
+        assert len(chunks) < 100  # nosec B101
     
     # ========================================================================
     # EDGE CASES AND STRESS TESTS
@@ -510,7 +510,7 @@ class TestStreamingAudioManager:
         async for chunk in manager.stream_input(empty_source()):
             chunks.append(chunk)
         
-        assert len(chunks) == 0
+        assert len(chunks) == 0  # nosec B101
     
     @pytest.mark.asyncio
     async def test_single_chunk_stream(self, manager: StreamingAudioManager):
@@ -524,7 +524,7 @@ class TestStreamingAudioManager:
         async for chunk in manager.stream_input(single_chunk_source()):
             chunks.append(chunk)
         
-        assert len(chunks) == 1
+        assert len(chunks) == 1  # nosec B101
     
     @pytest.mark.asyncio
     async def test_large_audio_stream(self, manager: StreamingAudioManager):
@@ -539,11 +539,11 @@ class TestStreamingAudioManager:
         async for _ in manager.stream_input(large_source()):
             chunk_count += 1
         
-        assert chunk_count == 1000
+        assert chunk_count == 1000  # nosec B101
         
         # Verify metrics are still valid
         metrics = await manager.get_metrics()
-        assert metrics.latency_ms < 500
+        assert metrics.latency_ms < 500  # nosec B101
     
     @pytest.mark.asyncio
     async def test_variable_chunk_sizes(self, config: StreamConfig):
@@ -562,7 +562,7 @@ class TestStreamingAudioManager:
             chunks.append(chunk)
         
         # Should handle all chunks
-        assert len(chunks) == 5
+        assert len(chunks) == 5  # nosec B101
     
     @pytest.mark.asyncio
     async def test_zero_audio_samples(self, manager: StreamingAudioManager):
@@ -577,10 +577,10 @@ class TestStreamingAudioManager:
         async for chunk in manager.stream_input(silence_source()):
             chunks.append(chunk)
         
-        assert len(chunks) == 10
+        assert len(chunks) == 10  # nosec B101
         # Verify silence is preserved
         for chunk in chunks:
-            assert np.allclose(chunk, 0.0)
+            assert np.allclose(chunk, 0.0)  # nosec B101
     
     @pytest.mark.asyncio
     async def test_max_amplitude_audio(self, manager: StreamingAudioManager):
@@ -595,10 +595,10 @@ class TestStreamingAudioManager:
         async for chunk in manager.stream_input(max_amp_source()):
             chunks.append(chunk)
         
-        assert len(chunks) == 5
+        assert len(chunks) == 5  # nosec B101
         # Verify max amplitude is preserved (with quantization tolerance)
         for chunk in chunks:
-            assert np.allclose(chunk, 1.0, atol=1/32767)
+            assert np.allclose(chunk, 1.0, atol=1/32767)  # nosec B101
     
     @pytest.mark.asyncio
     async def test_concurrent_input_output_streams(self, config: StreamConfig):
@@ -634,8 +634,8 @@ class TestStreamingAudioManager:
         await asyncio.gather(collect_input(), collect_output())
         
         # Both should complete successfully
-        assert len(input_chunks) == 10
-        assert len(output_chunks) == 10
+        assert len(input_chunks) == 10  # nosec B101
+        assert len(output_chunks) == 10  # nosec B101
     
     @pytest.mark.asyncio
     async def test_metrics_reset_between_streams(self, manager: StreamingAudioManager):
@@ -665,8 +665,8 @@ class TestStreamingAudioManager:
         metrics2 = await manager.get_metrics()
         
         # Metrics should reflect both streams
-        assert metrics2.latency_ms >= 0
-        assert metrics2.jitter_ms >= 0
+        assert metrics2.latency_ms >= 0  # nosec B101
+        assert metrics2.jitter_ms >= 0  # nosec B101
     
     # ========================================================================
     # CONFIGURATION TESTS
@@ -693,8 +693,8 @@ class TestStreamingAudioManager:
             async for chunk in manager.stream_input(audio_source()):
                 chunks.append(chunk)
             
-            assert len(chunks) == 1
-            assert len(chunks[0]) == chunk_samples
+            assert len(chunks) == 1  # nosec B101
+            assert len(chunks[0]) == chunk_samples  # nosec B101
     
     @pytest.mark.asyncio
     async def test_different_chunk_durations(self):
@@ -707,4 +707,4 @@ class TestStreamingAudioManager:
             
             # Verify chunk size calculation
             expected_samples = int(duration_ms * config.sample_rate / 1000)
-            assert manager._chunk_size_samples == expected_samples
+            assert manager._chunk_size_samples == expected_samples  # nosec B101

@@ -36,11 +36,11 @@ def sample_audio():
 
 def test_voice_cloner_initialization(voice_cloner):
     """Test voice cloner initialization."""
-    assert voice_cloner is not None
-    assert voice_cloner.n_mfcc == 40
-    assert voice_cloner.sample_rate == 16000
-    assert voice_cloner.min_enrollment_duration == 300.0
-    assert len(voice_cloner.list_voices()) == 0
+    assert voice_cloner is not None  # nosec B101
+    assert voice_cloner.n_mfcc == 40  # nosec B101
+    assert voice_cloner.sample_rate == 16000  # nosec B101
+    assert voice_cloner.min_enrollment_duration == 300.0  # nosec B101
+    assert len(voice_cloner.list_voices()) == 0  # nosec B101
 
 
 def test_enroll_voice_success(voice_cloner, sample_audio):
@@ -55,14 +55,14 @@ def test_enroll_voice_success(voice_cloner, sample_audio):
         metadata={"name": "Test User"}
     )
     
-    assert voice_model is not None
-    assert voice_model.model_id == "test_voice_1"
-    assert voice_model.voice_characteristics["sample_count"] == 30
-    assert voice_model.training_duration_seconds >= 300.0
-    assert voice_model.voice_characteristics["quality_score"] > 0.0
+    assert voice_model is not None  # nosec B101
+    assert voice_model.model_id == "test_voice_1"  # nosec B101
+    assert voice_model.voice_characteristics["sample_count"] == 30  # nosec B101
+    assert voice_model.training_duration_seconds >= 300.0  # nosec B101
+    assert voice_model.voice_characteristics["quality_score"] > 0.0  # nosec B101
     
     # Check voice is in list
-    assert "test_voice_1" in voice_cloner.list_voices()
+    assert "test_voice_1" in voice_cloner.list_voices()  # nosec B101
 
 
 def test_enroll_voice_insufficient_audio(voice_cloner, sample_audio):
@@ -114,8 +114,8 @@ def test_enroll_voice_low_quality(voice_cloner):
     )
     
     # Check that it enrolled successfully
-    assert voice_model is not None
-    assert voice_model.model_id == "test_voice_low_quality"
+    assert voice_model is not None  # nosec B101
+    assert voice_model.model_id == "test_voice_low_quality"  # nosec B101
 
 
 def test_update_voice_model(voice_cloner, sample_audio):
@@ -139,9 +139,9 @@ def test_update_voice_model(voice_cloner, sample_audio):
         sample_rate=16000
     )
     
-    assert updated_model.voice_characteristics["sample_count"] == initial_sample_count + 10
-    assert updated_model.training_duration_seconds > initial_duration
-    assert updated_model.model_id == "test_voice_update"
+    assert updated_model.voice_characteristics["sample_count"] == initial_sample_count + 10  # nosec B101
+    assert updated_model.training_duration_seconds > initial_duration  # nosec B101
+    assert updated_model.model_id == "test_voice_update"  # nosec B101
 
 
 def test_update_voice_model_not_found(voice_cloner, sample_audio):
@@ -171,10 +171,10 @@ def test_synthesize_with_cloned_voice(voice_cloner, sample_audio):
         voice_id="test_voice_synth"
     )
     
-    assert synthesized is not None
-    assert len(synthesized) > 0
-    assert synthesized.dtype == np.float32
-    assert np.max(np.abs(synthesized)) <= 1.0
+    assert synthesized is not None  # nosec B101
+    assert len(synthesized) > 0  # nosec B101
+    assert synthesized.dtype == np.float32  # nosec B101
+    assert np.max(np.abs(synthesized)) <= 1.0  # nosec B101
 
 
 def test_synthesize_voice_not_found(voice_cloner):
@@ -195,7 +195,7 @@ def test_compute_similarity_identical(voice_cloner, sample_audio):
     )
     
     # Identical audio should have very high similarity
-    assert similarity > 0.95
+    assert similarity > 0.95  # nosec B101
 
 
 def test_compute_similarity_different(voice_cloner, sample_audio):
@@ -215,8 +215,8 @@ def test_compute_similarity_different(voice_cloner, sample_audio):
     )
     
     # Different audio should have lower similarity
-    assert 0.0 <= similarity <= 1.0
-    assert similarity < 0.95  # Should be less than identical
+    assert 0.0 <= similarity <= 1.0  # nosec B101
+    assert similarity < 0.95  # Should be less than identical  # nosec B101
 
 
 def test_compute_similarity_similar(voice_cloner, sample_audio):
@@ -232,7 +232,7 @@ def test_compute_similarity_similar(voice_cloner, sample_audio):
     )
     
     # Similar audio should have high similarity
-    assert similarity > 0.7
+    assert similarity > 0.7  # nosec B101
 
 
 def test_get_voice_model(voice_cloner, sample_audio):
@@ -248,21 +248,21 @@ def test_get_voice_model(voice_cloner, sample_audio):
     # Get model
     model = voice_cloner.get_voice_model("test_voice_get")
     
-    assert model is not None
-    assert model.model_id == "test_voice_get"
-    assert model.voice_characteristics["sample_count"] == 30
+    assert model is not None  # nosec B101
+    assert model.model_id == "test_voice_get"  # nosec B101
+    assert model.voice_characteristics["sample_count"] == 30  # nosec B101
 
 
 def test_get_voice_model_not_found(voice_cloner):
     """Test get_voice_model returns None for non-existent voice."""
     model = voice_cloner.get_voice_model("nonexistent_voice")
-    assert model is None
+    assert model is None  # nosec B101
 
 
 def test_list_voices(voice_cloner, sample_audio):
     """Test listing enrolled voices."""
     # Initially empty
-    assert len(voice_cloner.list_voices()) == 0
+    assert len(voice_cloner.list_voices()) == 0  # nosec B101
     
     # Enroll multiple voices
     audio_samples = [sample_audio for _ in range(30)]
@@ -272,10 +272,10 @@ def test_list_voices(voice_cloner, sample_audio):
     voice_cloner.enroll_voice(audio_samples, "voice3", 16000)
     
     voices = voice_cloner.list_voices()
-    assert len(voices) == 3
-    assert "voice1" in voices
-    assert "voice2" in voices
-    assert "voice3" in voices
+    assert len(voices) == 3  # nosec B101
+    assert "voice1" in voices  # nosec B101
+    assert "voice2" in voices  # nosec B101
+    assert "voice3" in voices  # nosec B101
 
 
 def test_delete_voice(voice_cloner, sample_audio):
@@ -284,19 +284,19 @@ def test_delete_voice(voice_cloner, sample_audio):
     audio_samples = [sample_audio for _ in range(30)]
     voice_cloner.enroll_voice(audio_samples, "test_voice_delete", 16000)
     
-    assert "test_voice_delete" in voice_cloner.list_voices()
+    assert "test_voice_delete" in voice_cloner.list_voices()  # nosec B101
     
     # Delete voice
     result = voice_cloner.delete_voice("test_voice_delete")
     
-    assert result is True
-    assert "test_voice_delete" not in voice_cloner.list_voices()
+    assert result is True  # nosec B101
+    assert "test_voice_delete" not in voice_cloner.list_voices()  # nosec B101
 
 
 def test_delete_voice_not_found(voice_cloner):
     """Test deleting non-existent voice returns False."""
     result = voice_cloner.delete_voice("nonexistent_voice")
-    assert result is False
+    assert result is False  # nosec B101
 
 
 def test_save_and_load_voice_profile(voice_cloner, sample_audio):
@@ -321,14 +321,14 @@ def test_save_and_load_voice_profile(voice_cloner, sample_audio):
         new_cloner = VoiceCloner()
         loaded_voice_id = new_cloner.load_voice_profile(filepath)
         
-        assert loaded_voice_id == "test_voice_save"
+        assert loaded_voice_id == "test_voice_save"  # nosec B101
         
         # Get loaded model
         loaded_model = new_cloner.get_voice_model("test_voice_save")
         
-        assert loaded_model is not None
-        assert loaded_model.model_id == original_model.model_id
-        assert loaded_model.voice_characteristics["sample_count"] == original_model.voice_characteristics["sample_count"]
+        assert loaded_model is not None  # nosec B101
+        assert loaded_model.model_id == original_model.model_id  # nosec B101
+        assert loaded_model.voice_characteristics["sample_count"] == original_model.voice_characteristics["sample_count"]  # nosec B101
     finally:
         if os.path.exists(filepath):
             os.unlink(filepath)
@@ -378,8 +378,8 @@ def test_enroll_voice_with_metadata(voice_cloner, sample_audio):
         metadata=metadata
     )
     
-    assert voice_model is not None
-    assert voice_model.model_id == "test_voice_metadata"
+    assert voice_model is not None  # nosec B101
+    assert voice_model.model_id == "test_voice_metadata"  # nosec B101
 
 
 def test_multiple_voice_enrollment(voice_cloner, sample_audio):
@@ -393,34 +393,34 @@ def test_multiple_voice_enrollment(voice_cloner, sample_audio):
             voice_id=f"voice_{i}",
             sample_rate=16000
         )
-        assert voice_model.model_id == f"voice_{i}"
+        assert voice_model.model_id == f"voice_{i}"  # nosec B101
     
     # Check all voices are enrolled
     voices = voice_cloner.list_voices()
-    assert len(voices) == 5
+    assert len(voices) == 5  # nosec B101
     for i in range(5):
-        assert f"voice_{i}" in voices
+        assert f"voice_{i}" in voices  # nosec B101
 
 
 def test_voice_cloner_feature_extraction(voice_cloner, sample_audio):
     """Test feature extraction."""
     features = voice_cloner._extract_voice_features(sample_audio, 16000)
     
-    assert features is not None
-    assert len(features) > 0
-    assert features.dtype == np.float32
+    assert features is not None  # nosec B101
+    assert len(features) > 0  # nosec B101
+    assert features.dtype == np.float32  # nosec B101
     
     # Should have MFCC features (40 mean + 40 std) + pitch + spectral
     expected_size = 40 * 2 + 5  # 85 features
-    assert len(features) == expected_size
+    assert len(features) == expected_size  # nosec B101
 
 
 def test_voice_cloner_audio_quality(voice_cloner, sample_audio):
     """Test audio quality computation."""
     quality = voice_cloner._compute_audio_quality(sample_audio, 16000)
     
-    assert 0.0 <= quality <= 1.0
-    assert quality > 0.5  # Sample audio should have decent quality
+    assert 0.0 <= quality <= 1.0  # nosec B101
+    assert quality > 0.5  # Sample audio should have decent quality  # nosec B101
 
 
 def test_voice_cloner_short_audio_handling(voice_cloner):
@@ -430,10 +430,10 @@ def test_voice_cloner_short_audio_handling(voice_cloner):
     
     # Should not crash
     features = voice_cloner._extract_voice_features(short_audio, 16000)
-    assert features is not None
+    assert features is not None  # nosec B101
     
     quality = voice_cloner._compute_audio_quality(short_audio, 16000)
-    assert 0.0 <= quality <= 1.0
+    assert 0.0 <= quality <= 1.0  # nosec B101
 
 
 def test_voice_cloner_different_sample_rates(voice_cloner):
@@ -444,8 +444,8 @@ def test_voice_cloner_different_sample_rates(voice_cloner):
         audio = np.random.randn(num_samples).astype(np.float32) * 0.5
         
         features = voice_cloner._extract_voice_features(audio, sample_rate)
-        assert features is not None
-        assert len(features) > 0
+        assert features is not None  # nosec B101
+        assert len(features) > 0  # nosec B101
 
 
 def test_enroll_voice_various_audio_types(voice_cloner):
@@ -484,8 +484,8 @@ def test_enroll_voice_various_audio_types(voice_cloner):
             sample_rate=sample_rate
         )
         
-        assert voice_model is not None
-        assert voice_model.model_id == f"voice_type_{i}"
+        assert voice_model is not None  # nosec B101
+        assert voice_model.model_id == f"voice_type_{i}"  # nosec B101
 
 
 def test_incremental_learning_convergence(voice_cloner, sample_audio):
@@ -519,7 +519,7 @@ def test_incremental_learning_convergence(voice_cloner, sample_audio):
         np.linalg.norm(initial_features) * np.linalg.norm(final_features)
     )
     
-    assert similarity > 0.9  # Should be very similar
+    assert similarity > 0.9  # Should be very similar  # nosec B101
 
 
 def test_voice_cloner_memory_efficiency(voice_cloner, sample_audio):
@@ -540,14 +540,14 @@ def test_voice_cloner_memory_efficiency(voice_cloner, sample_audio):
     gc.collect()
     
     # Should have 10 voices
-    assert len(voice_cloner.list_voices()) == 10
+    assert len(voice_cloner.list_voices()) == 10  # nosec B101
     
     # Delete all voices
     for i in range(10):
         voice_cloner.delete_voice(f"memory_test_{i}")
     
     # Should be empty
-    assert len(voice_cloner.list_voices()) == 0
+    assert len(voice_cloner.list_voices()) == 0  # nosec B101
 
 
 
@@ -590,9 +590,9 @@ def test_voice_cloner_extreme_enrollment_1000_samples(voice_cloner):
     print(f"  [OK] Enrollment completed in {elapsed:.2f}s")
     print(f"  [OK] Quality score: {voice_model.voice_characteristics['quality_score']:.3f}")
     
-    assert voice_model is not None
-    assert voice_model.voice_characteristics["sample_count"] == 1000
-    assert voice_model.training_duration_seconds >= 10000.0
+    assert voice_model is not None  # nosec B101
+    assert voice_model.voice_characteristics["sample_count"] == 1000  # nosec B101
+    assert voice_model.training_duration_seconds >= 10000.0  # nosec B101
     
     # Cleanup
     voice_cloner.delete_voice("extreme_test_1000")
@@ -638,8 +638,8 @@ def test_voice_cloner_extreme_incremental_updates_500_times(voice_cloner, sample
     print(f"  [OK] Quality: {initial_quality:.3f} → {final_quality:.3f}")
     print(f"  [OK] Total samples: {final_model.voice_characteristics['sample_count']}")
     
-    assert final_model.voice_characteristics["sample_count"] == 30 + 500
-    assert abs(final_quality - initial_quality) < 0.3  # Quality should remain stable
+    assert final_model.voice_characteristics["sample_count"] == 30 + 500  # nosec B101
+    assert abs(final_quality - initial_quality) < 0.3  # Quality should remain stable  # nosec B101
     
     # Cleanup
     voice_cloner.delete_voice("extreme_incremental")
@@ -681,8 +681,8 @@ def test_voice_cloner_extreme_concurrent_enrollments(voice_cloner, sample_audio)
     print(f"  [OK] {successes}/100 enrollments succeeded in {elapsed:.2f}s")
     print(f"  [OK] Average time per enrollment: {elapsed/100:.2f}s")
     
-    assert successes == 100, f"Expected 100 successes, got {successes}"
-    assert len(voice_cloner.list_voices()) == 100
+    assert successes == 100, f"Expected 100 successes, got {successes}"  # nosec B101
+    assert len(voice_cloner.list_voices()) == 100  # nosec B101
     
     # Cleanup
     for i in range(100):
@@ -736,8 +736,8 @@ def test_voice_cloner_extreme_similarity_matrix_1000_comparisons(voice_cloner):
     print(f"  [OK] Mean similarity: {np.mean(similarities):.3f}")
     print(f"  [OK] Std similarity: {np.std(similarities):.3f}")
     
-    assert len(similarities) >= 810, f"Expected at least 810 comparisons, got {len(similarities)}"
-    assert all(0.0 <= s <= 1.0 for s in similarities)
+    assert len(similarities) >= 810, f"Expected at least 810 comparisons, got {len(similarities)}"  # nosec B101
+    assert all(0.0 <= s <= 1.0 for s in similarities)  # nosec B101
     
     gc.collect()
 
@@ -789,7 +789,7 @@ def test_voice_cloner_extreme_memory_stress_10000_features(voice_cloner):
     print(f"  [OK] Average time per extraction: {elapsed/10000*1000:.2f}ms")
     print(f"  [OK] Memory increase: {mem_increase:.2f}MB")
     
-    assert mem_increase < 500, f"Memory leak detected: {mem_increase:.2f}MB increase"
+    assert mem_increase < 500, f"Memory leak detected: {mem_increase:.2f}MB increase"  # nosec B101
 
 
 def test_voice_cloner_extreme_quality_all_edge_cases(voice_cloner):
@@ -842,7 +842,7 @@ def test_voice_cloner_extreme_quality_all_edge_cases(voice_cloner):
     
     # All quality scores should be in valid range
     for name, quality in results:
-        assert 0.0 <= quality <= 1.0, f"{name} quality {quality} out of range"
+        assert 0.0 <= quality <= 1.0, f"{name} quality {quality} out of range"  # nosec B101
     
     print(f"  [OK] All {len(test_cases)} edge cases handled correctly")
 
@@ -889,7 +889,7 @@ def test_voice_cloner_extreme_save_load_100_profiles(voice_cloner, sample_audio)
         for i in range(100):
             voice_cloner.delete_voice(f"profile_{i}")
         
-        assert len(voice_cloner.list_voices()) == 0
+        assert len(voice_cloner.list_voices()) == 0  # nosec B101
         
         # Load all profiles
         start = time.time()
@@ -903,7 +903,7 @@ def test_voice_cloner_extreme_save_load_100_profiles(voice_cloner, sample_audio)
         print(f"  [OK] Save: {save_time:.2f}s ({save_time/100*1000:.2f}ms per profile)")
         print(f"  [OK] Load: {load_time:.2f}s ({load_time/100*1000:.2f}ms per profile)")
         
-        assert len(voice_cloner.list_voices()) == 100
+        assert len(voice_cloner.list_voices()) == 100  # nosec B101
         
         # Cleanup
         for i in range(100):
@@ -940,8 +940,8 @@ def test_voice_cloner_extreme_synthesis_1000_texts(voice_cloner, sample_audio):
             voice_id="synthesis_test"
         )
         
-        assert len(synthesized) > 0
-        assert synthesized.dtype == np.float32
+        assert len(synthesized) > 0  # nosec B101
+        assert synthesized.dtype == np.float32  # nosec B101
         
         if (i + 1) % 200 == 0:
             print(f"  Synthesized {i + 1}/1000 texts")
@@ -975,16 +975,16 @@ def test_voice_cloner_extreme_all_sample_rates(voice_cloner):
         
         # Extract features
         features = voice_cloner._extract_voice_features(audio, sr)
-        assert features is not None
-        assert len(features) > 0
+        assert features is not None  # nosec B101
+        assert len(features) > 0  # nosec B101
         
         # Compute quality
         quality = voice_cloner._compute_audio_quality(audio, sr)
-        assert 0.0 <= quality <= 1.0
+        assert 0.0 <= quality <= 1.0  # nosec B101
         
         # Compute similarity
         similarity = voice_cloner.compute_similarity(audio, audio, sr)
-        assert similarity > 0.95
+        assert similarity > 0.95  # nosec B101
         
         print(f"  [OK] {sr:6d} Hz: features={len(features)}, quality={quality:.3f}, similarity={similarity:.3f}")
     

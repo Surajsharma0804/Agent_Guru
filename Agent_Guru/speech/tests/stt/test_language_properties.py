@@ -39,7 +39,7 @@ class TestLanguageDetectorProperties:
         
         # PROPERTY ASSERTION: Confidence must be in valid range
         assert 0.0 <= result.confidence <= 1.0, \
-            f"Confidence {result.confidence} outside [0.0, 1.0] for text: {text}"
+            f"Confidence {result.confidence} outside [0.0, 1.0] for text: {text}"  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=200),
@@ -58,8 +58,8 @@ class TestLanguageDetectorProperties:
         result = detector.detect_language(text)
         
         # PROPERTY ASSERTION: Should return valid Language
-        assert isinstance(result.language, Language)
-        assert result.language in Language
+        assert isinstance(result.language, Language)  # nosec B101
+        assert result.language in Language  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -78,12 +78,12 @@ class TestLanguageDetectorProperties:
         segments = detector.detect_code_switching(text)
         
         # PROPERTY ASSERTION: Should return list
-        assert isinstance(segments, list)
+        assert isinstance(segments, list)  # nosec B101
         
         # Each segment should have text and language
         for segment_text, language in segments:
-            assert isinstance(segment_text, str)
-            assert isinstance(language, Language)
+            assert isinstance(segment_text, str)  # nosec B101
+            assert isinstance(language, Language)  # nosec B101
     
     @given(
         min_confidence=st.floats(min_value=0.0, max_value=1.0),
@@ -104,7 +104,7 @@ class TestLanguageDetectorProperties:
         
         # PROPERTY ASSERTION: If confidence below threshold, should return UNKNOWN
         if result.confidence < min_confidence:
-            assert result.language == Language.UNKNOWN
+            assert result.language == Language.UNKNOWN  # nosec B101
     
     # ========================================================================
     # PROPERTY: CONSISTENCY
@@ -127,8 +127,8 @@ class TestLanguageDetectorProperties:
         
         # PROPERTY ASSERTION: Results should be consistent
         for i in range(1, len(results)):
-            assert results[i].language == results[0].language
-            assert results[i].confidence == results[0].confidence
+            assert results[i].language == results[0].language  # nosec B101
+            assert results[i].confidence == results[0].confidence  # nosec B101
     
     # ========================================================================
     # PROPERTY: ROBUSTNESS
@@ -150,9 +150,9 @@ class TestLanguageDetectorProperties:
         result = detector.detect_language(text)
         
         # PROPERTY ASSERTION
-        assert result is not None
-        assert isinstance(result.language, Language)
-        assert 0.0 <= result.confidence <= 1.0
+        assert result is not None  # nosec B101
+        assert isinstance(result.language, Language)  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     @given(
         language=st.sampled_from([
@@ -172,7 +172,7 @@ class TestLanguageDetectorProperties:
         supported = detector.get_supported_languages()
         
         # PROPERTY ASSERTION
-        assert language in supported
+        assert language in supported  # nosec B101
 
 
     # ========================================================================
@@ -196,7 +196,7 @@ class TestLanguageDetectorProperties:
         result = detector.detect_language(combined)
         
         # PROPERTY ASSERTION: Confidence must stay in bounds
-        assert 0.0 <= result.confidence <= 1.0
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     @given(
         text=st.text(min_size=5, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -215,8 +215,8 @@ class TestLanguageDetectorProperties:
         result = detector.detect_language(repeated)
         
         # PROPERTY ASSERTION: Should handle repetition gracefully
-        assert result is not None
-        assert 0.0 <= result.confidence <= 1.0
+        assert result is not None  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -235,8 +235,8 @@ class TestLanguageDetectorProperties:
         result = detector.detect_language(noisy_text)
         
         # PROPERTY ASSERTION: Should handle noise gracefully
-        assert result is not None
-        assert 0.0 <= result.confidence <= 1.0
+        assert result is not None  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -258,12 +258,12 @@ class TestLanguageDetectorProperties:
         # Note: Some special characters (ß, ç, etc.) change when uppercased,
         # which can affect pattern matching. We allow for this.
         # The key is that all results should be valid.
-        assert result_lower.language in Language
-        assert result_upper.language in Language
-        assert result_original.language in Language
-        assert 0.0 <= result_lower.confidence <= 1.0
-        assert 0.0 <= result_upper.confidence <= 1.0
-        assert 0.0 <= result_original.confidence <= 1.0
+        assert result_lower.language in Language  # nosec B101
+        assert result_upper.language in Language  # nosec B101
+        assert result_original.language in Language  # nosec B101
+        assert 0.0 <= result_lower.confidence <= 1.0  # nosec B101
+        assert 0.0 <= result_upper.confidence <= 1.0  # nosec B101
+        assert 0.0 <= result_original.confidence <= 1.0  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -283,8 +283,8 @@ class TestLanguageDetectorProperties:
         result = detector.detect_language(text_with_ws)
         
         # PROPERTY ASSERTION: Should handle whitespace gracefully
-        assert result is not None
-        assert 0.0 <= result.confidence <= 1.0
+        assert result is not None  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     @given(
         segments=st.lists(
@@ -307,9 +307,9 @@ class TestLanguageDetectorProperties:
         result_segments = detector.detect_code_switching(text)
         
         # PROPERTY ASSERTION: Should return segments
-        assert isinstance(result_segments, list)
+        assert isinstance(result_segments, list)  # nosec B101
         # Should have at least some segments (may merge similar ones)
-        assert len(result_segments) >= 0
+        assert len(result_segments) >= 0  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -326,17 +326,17 @@ class TestLanguageDetectorProperties:
         result = detector.detect_language(text)
         
         # PROPERTY ASSERTION: Alternatives should be valid
-        assert isinstance(result.alternative_languages, list)
+        assert isinstance(result.alternative_languages, list)  # nosec B101
         
         # Each alternative should be valid
         for lang, conf in result.alternative_languages:
-            assert isinstance(lang, Language)
-            assert 0.0 <= conf <= 1.0
+            assert isinstance(lang, Language)  # nosec B101
+            assert 0.0 <= conf <= 1.0  # nosec B101
         
         # Alternatives should be sorted by confidence (descending)
         if len(result.alternative_languages) > 1:
             for i in range(len(result.alternative_languages) - 1):
-                assert result.alternative_languages[i][1] >= result.alternative_languages[i+1][1]
+                assert result.alternative_languages[i][1] >= result.alternative_languages[i+1][1]  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -355,7 +355,7 @@ class TestLanguageDetectorProperties:
         # PROPERTY ASSERTION: Main language should have highest confidence
         for alt_lang, alt_conf in result.alternative_languages:
             assert result.confidence >= alt_conf, \
-                f"Alternative {alt_lang} has higher confidence {alt_conf} than main {result.language} {result.confidence}"
+                f"Alternative {alt_lang} has higher confidence {alt_conf} than main {result.language} {result.confidence}"  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=1000, alphabet=st.characters(min_codepoint=0x0000, max_codepoint=0xFFFF)),
@@ -373,9 +373,9 @@ class TestLanguageDetectorProperties:
         result = detector.detect_language(text)
         
         # PROPERTY ASSERTION
-        assert result is not None
-        assert isinstance(result.language, Language)
-        assert 0.0 <= result.confidence <= 1.0
+        assert result is not None  # nosec B101
+        assert isinstance(result.language, Language)  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -397,7 +397,7 @@ class TestLanguageDetectorProperties:
         # PROPERTY ASSERTION: Higher threshold should be more restrictive
         if result1.language == Language.UNKNOWN:
             # If lower threshold gives UNKNOWN, higher should too
-            assert result2.language == Language.UNKNOWN
+            assert result2.language == Language.UNKNOWN  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -416,9 +416,9 @@ class TestLanguageDetectorProperties:
         
         # PROPERTY ASSERTION: All results should be identical
         for i in range(1, len(results)):
-            assert results[i].language == results[0].language
-            assert results[i].confidence == results[0].confidence
-            assert len(results[i].alternative_languages) == len(results[0].alternative_languages)
+            assert results[i].language == results[0].language  # nosec B101
+            assert results[i].confidence == results[0].confidence  # nosec B101
+            assert len(results[i].alternative_languages) == len(results[0].alternative_languages)  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -435,7 +435,7 @@ class TestLanguageDetectorProperties:
         # Detect many times (should not accumulate state)
         for _ in range(100):
             result = detector.detect_language(text)
-            assert result is not None
+            assert result is not None  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -453,7 +453,7 @@ class TestLanguageDetectorProperties:
         supported = detector.get_supported_languages()
         
         # PROPERTY ASSERTION: Detected language should be supported or UNKNOWN
-        assert result.language == Language.UNKNOWN or result.language in supported
+        assert result.language == Language.UNKNOWN or result.language in supported  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -471,7 +471,7 @@ class TestLanguageDetectorProperties:
         
         # PROPERTY ASSERTION
         if result.confidence == 0.0:
-            assert result.language == Language.UNKNOWN
+            assert result.language == Language.UNKNOWN  # nosec B101
     
     @given(
         text=st.text(min_size=1, max_size=100, alphabet=st.characters(whitelist_categories=('L', 'N', 'Zs'))),
@@ -490,4 +490,4 @@ class TestLanguageDetectorProperties:
         # PROPERTY ASSERTION
         if result.language == Language.UNKNOWN:
             # Unknown should have low confidence (below default threshold)
-            assert result.confidence < 0.2 or result.confidence == 0.0
+            assert result.confidence < 0.2 or result.confidence == 0.0  # nosec B101

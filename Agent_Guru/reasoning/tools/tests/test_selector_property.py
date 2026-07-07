@@ -143,7 +143,7 @@ class TestToolSelectionProperties:
 
             # Assert: All required parameters must be present
             missing_params = required_params - provided_params
-            assert len(missing_params) == 0, (
+            assert len(missing_params) == 0, (  # nosec B101
                 f"Selected tool '{tool.metadata.tool_id}' is missing required parameters: "
                 f"{missing_params}. Required: {required_params}, Provided: {provided_params}"
             )
@@ -166,7 +166,7 @@ class TestToolSelectionProperties:
         result = await selector.select_tool(intent)
 
         if result is not None:
-            assert (
+            assert (  # nosec B101
                 0.0 <= result.confidence <= 1.0
             ), f"Selection confidence {result.confidence} is out of range [0.0, 1.0]"
 
@@ -188,7 +188,7 @@ class TestToolSelectionProperties:
         result = await selector.select_tool(intent)
 
         if result is not None:
-            assert result.tier in [
+            assert result.tier in [  # nosec B101
                 1,
                 2,
                 3,
@@ -212,7 +212,7 @@ class TestToolSelectionProperties:
         result = await selector.select_tool(intent)
 
         if result is not None:
-            assert (
+            assert (  # nosec B101
                 result.selection_time_ms >= 0
             ), f"Selection time {result.selection_time_ms}ms is negative"
 
@@ -238,7 +238,7 @@ class TestToolSelectionProperties:
 
             # Verify tool is in registry
             registered_tool = registry.get_tool(tool_id)
-            assert (
+            assert (  # nosec B101
                 registered_tool is not None
             ), f"Selected tool '{tool_id}' is not registered in the registry"
 
@@ -277,13 +277,13 @@ class TestToolSelectionProperties:
                     # Type validation (lenient - allows convertible types)
                     if expected_type.value == "string":
                         # Strings or anything that can be stringified
-                        assert param_value is None or isinstance(
+                        assert param_value is None or isinstance(  # nosec B101
                             param_value, (str, int, float, bool)
                         )
                     elif expected_type.value == "integer":
                         # Integers or strings that represent integers
                         if param_value is not None:
-                            assert isinstance(param_value, (int, str))
+                            assert isinstance(param_value, (int, str))  # nosec B101
                             if isinstance(param_value, str):
                                 # Should be convertible to int
                                 # Skip validation if string is clearly not a number
@@ -298,20 +298,20 @@ class TestToolSelectionProperties:
                     elif expected_type.value == "float":
                         # Floats, ints, or strings that represent numbers
                         if param_value is not None:
-                            assert isinstance(param_value, (int, float, str))
+                            assert isinstance(param_value, (int, float, str))  # nosec B101
                             if isinstance(param_value, str):
                                 try:
                                     float(param_value)
                                 except ValueError:
-                                    assert (
+                                    assert (  # nosec B101
                                         False
                                     ), f"Parameter '{param_name}' has string value '{param_value}' that cannot be converted to float"
                     elif expected_type.value == "boolean":
-                        assert isinstance(param_value, (bool, int, str)) or param_value is None
+                        assert isinstance(param_value, (bool, int, str)) or param_value is None  # nosec B101
                     elif expected_type.value == "array":
-                        assert isinstance(param_value, list) or param_value is None
+                        assert isinstance(param_value, list) or param_value is None  # nosec B101
                     elif expected_type.value == "object":
-                        assert isinstance(param_value, dict) or param_value is None
+                        assert isinstance(param_value, dict) or param_value is None  # nosec B101
 
 
 class TestToolSelectionEdgeCases:
@@ -337,7 +337,7 @@ class TestToolSelectionEdgeCases:
         )
 
         result = await selector.select_tool(intent)
-        assert result is None
+        assert result is None  # nosec B101
 
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(
@@ -371,7 +371,7 @@ class TestToolSelectionEdgeCases:
         # Either returns None or returns tool with no required parameters
         if result is not None:
             required_params = {p.name for p in result.tool.metadata.parameters if p.required}
-            assert (
+            assert (  # nosec B101
                 len(required_params) == 0
             ), "Tool with required parameters selected despite no entities provided"
 
@@ -420,8 +420,8 @@ class TestToolSelectionEdgeCases:
         result = await selector.select_tool(intent)
 
         # Should always select timer tool
-        assert result is not None, "Timer intent with duration should select a tool"
-        assert (
+        assert result is not None, "Timer intent with duration should select a tool"  # nosec B101
+        assert (  # nosec B101
             "timer" in result.tool.metadata.tool_id.lower()
         ), f"Expected timer tool, got {result.tool.metadata.tool_id}"
-        assert result.parameters["duration_seconds"] == duration
+        assert result.parameters["duration_seconds"] == duration  # nosec B101

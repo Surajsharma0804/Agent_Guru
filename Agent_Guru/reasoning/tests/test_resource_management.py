@@ -34,10 +34,10 @@ class TestMemoryMonitor:
         """Test monitor initialization."""
         monitor = MemoryMonitor(max_memory_mb=2048, check_interval=10.0)
         
-        assert monitor.max_memory_mb == 2048
-        assert monitor.check_interval == 10.0
-        assert monitor.gc_threshold_percent == 0.8
-        assert len(monitor.component_stats) == 0
+        assert monitor.max_memory_mb == 2048  # nosec B101
+        assert monitor.check_interval == 10.0  # nosec B101
+        assert monitor.gc_threshold_percent == 0.8  # nosec B101
+        assert len(monitor.component_stats) == 0  # nosec B101
     
     def test_track_component(self):
         """Test component memory tracking."""
@@ -47,32 +47,32 @@ class TestMemoryMonitor:
         monitor.track_component("test_component", 150.0)
         
         stats = monitor.get_stats()
-        assert "test_component" in stats
-        assert stats["test_component"].current_mb == 150.0
-        assert stats["test_component"].peak_mb == 150.0
-        assert stats["test_component"].samples == 2
+        assert "test_component" in stats  # nosec B101
+        assert stats["test_component"].current_mb == 150.0  # nosec B101
+        assert stats["test_component"].peak_mb == 150.0  # nosec B101
+        assert stats["test_component"].samples == 2  # nosec B101
     
     def test_get_current_usage(self):
         """Test getting current memory usage."""
         monitor = MemoryMonitor()
         
         usage = monitor.get_current_usage()
-        assert usage > 0  # Should have some memory usage
-        assert isinstance(usage, float)
+        assert usage > 0  # Should have some memory usage  # nosec B101
+        assert isinstance(usage, float)  # nosec B101
     
     def test_get_usage_percent(self):
         """Test getting usage percentage."""
         monitor = MemoryMonitor(max_memory_mb=1000)
         
         percent = monitor.get_usage_percent()
-        assert 0 <= percent <= 100
+        assert 0 <= percent <= 100  # nosec B101
     
     def test_is_over_limit(self):
         """Test limit checking."""
         monitor = MemoryMonitor(max_memory_mb=1.0)  # 1MB limit (will be over)
         
         # Should be over limit with normal program memory
-        assert monitor.is_over_limit()
+        assert monitor.is_over_limit()  # nosec B101
     
     def test_get_summary(self):
         """Test getting summary."""
@@ -82,40 +82,40 @@ class TestMemoryMonitor:
         
         summary = monitor.get_summary()
         
-        assert "current_mb" in summary
-        assert "max_mb" in summary
-        assert "percent" in summary
-        assert "components" in summary
-        assert len(summary["components"]) == 2
+        assert "current_mb" in summary  # nosec B101
+        assert "max_mb" in summary  # nosec B101
+        assert "percent" in summary  # nosec B101
+        assert "components" in summary  # nosec B101
+        assert len(summary["components"]) == 2  # nosec B101
     
     def test_start_stop(self):
         """Test starting and stopping monitor."""
         monitor = MemoryMonitor(check_interval=0.1)
         
         monitor.start()
-        assert monitor._monitor_thread is not None
-        assert monitor._monitor_thread.is_alive()
+        assert monitor._monitor_thread is not None  # nosec B101
+        assert monitor._monitor_thread.is_alive()  # nosec B101
         
         time.sleep(0.2)  # Let it run a bit
         
         monitor.stop()
-        assert not monitor._monitor_thread.is_alive()
+        assert not monitor._monitor_thread.is_alive()  # nosec B101
     
     def test_component_stats_update(self):
         """Test ComponentMemoryStats update."""
         stats = ComponentMemoryStats("test")
         
         stats.update(100.0)
-        assert stats.current_mb == 100.0
-        assert stats.peak_mb == 100.0
-        assert stats.avg_mb == 100.0
-        assert stats.samples == 1
+        assert stats.current_mb == 100.0  # nosec B101
+        assert stats.peak_mb == 100.0  # nosec B101
+        assert stats.avg_mb == 100.0  # nosec B101
+        assert stats.samples == 1  # nosec B101
         
         stats.update(150.0)
-        assert stats.current_mb == 150.0
-        assert stats.peak_mb == 150.0
-        assert stats.avg_mb == 125.0
-        assert stats.samples == 2
+        assert stats.current_mb == 150.0  # nosec B101
+        assert stats.peak_mb == 150.0  # nosec B101
+        assert stats.avg_mb == 125.0  # nosec B101
+        assert stats.samples == 2  # nosec B101
 
 
 class TestDatabasePool:
@@ -127,8 +127,8 @@ class TestDatabasePool:
         pool = DatabasePool(":memory:", min_size=2, max_size=5)
         await pool.initialize()
         
-        assert pool._initialized
-        assert len(pool._pool) == 2
+        assert pool._initialized  # nosec B101
+        assert len(pool._pool) == 2  # nosec B101
         
         await pool.close()
     
@@ -139,12 +139,12 @@ class TestDatabasePool:
         await pool.initialize()
         
         async with pool.acquire() as conn:
-            assert conn is not None
+            assert conn is not None  # nosec B101
             # Connection should be in use
-            assert conn in pool._in_use
+            assert conn in pool._in_use  # nosec B101
         
         # Connection should be back in pool
-        assert conn not in pool._in_use
+        assert conn not in pool._in_use  # nosec B101
         
         await pool.close()
     
@@ -162,8 +162,8 @@ class TestDatabasePool:
         # Acquire multiple connections concurrently
         results = await asyncio.gather(*[use_connection() for _ in range(3)])
         
-        assert len(results) == 3
-        assert all(r is not None for r in results)
+        assert len(results) == 3  # nosec B101
+        assert all(r is not None for r in results)  # nosec B101
         
         await pool.close()
     
@@ -175,9 +175,9 @@ class TestDatabasePool:
         
         stats = pool.stats()
         
-        assert stats['pool_size'] == 2
-        assert stats['in_use'] == 0
-        assert stats['max_size'] == 5
+        assert stats['pool_size'] == 2  # nosec B101
+        assert stats['in_use'] == 0  # nosec B101
+        assert stats['max_size'] == 5  # nosec B101
         
         await pool.close()
 
@@ -191,8 +191,8 @@ class TestHTTPPool:
         pool = HTTPPool(max_connections=50, max_connections_per_host=10)
         await pool.initialize()
         
-        assert pool._initialized
-        assert pool._session is not None
+        assert pool._initialized  # nosec B101
+        assert pool._session is not None  # nosec B101
         
         await pool.close()
     
@@ -204,9 +204,9 @@ class TestHTTPPool:
         
         stats = pool.stats()
         
-        assert 'request_count' in stats
-        assert 'error_count' in stats
-        assert 'max_connections' in stats
+        assert 'request_count' in stats  # nosec B101
+        assert 'error_count' in stats  # nosec B101
+        assert 'max_connections' in stats  # nosec B101
         
         await pool.close()
     
@@ -216,8 +216,8 @@ class TestHTTPPool:
         pool = get_http_pool()
         await pool.initialize()
         
-        assert pool is not None
-        assert pool._initialized
+        assert pool is not None  # nosec B101
+        assert pool._initialized  # nosec B101
         
         await pool.close()
 
@@ -230,9 +230,9 @@ class TestRequestQueue:
         """Test queue initialization."""
         queue = RequestQueue(max_depth=100, worker_count=2)
         
-        assert queue.max_depth == 100
-        assert queue.worker_count == 2
-        assert len(queue._queue) == 0
+        assert queue.max_depth == 100  # nosec B101
+        assert queue.worker_count == 2  # nosec B101
+        assert len(queue._queue) == 0  # nosec B101
     
     @pytest.mark.asyncio
     async def test_enqueue_dequeue(self):
@@ -246,7 +246,7 @@ class TestRequestQueue:
         
         result = await queue.enqueue(test_handler, Priority.NORMAL, 5)
         
-        assert result == 10
+        assert result == 10  # nosec B101
         
         await queue.stop()
     
@@ -273,7 +273,7 @@ class TestRequestQueue:
         await asyncio.gather(*tasks)
         
         # High priority should be processed first
-        assert results[0] == 1
+        assert results[0] == 1  # nosec B101
         
         await queue.stop()
     
@@ -303,7 +303,7 @@ class TestRequestQueue:
                 queue._queue.append(request)
         
         # Now queue should be full
-        assert queue.is_full()
+        assert queue.is_full()  # nosec B101
         
         # This should fail (queue full)
         with pytest.raises(RuntimeError, match="queue full"):
@@ -360,9 +360,9 @@ class TestRequestQueue:
         """Test getting queue depth."""
         queue = RequestQueue(max_depth=10, worker_count=1)
         
-        assert queue.get_depth() == 0
-        assert not queue.is_full()
-        assert not queue.is_under_pressure()
+        assert queue.get_depth() == 0  # nosec B101
+        assert not queue.is_full()  # nosec B101
+        assert not queue.is_under_pressure()  # nosec B101
     
     @pytest.mark.asyncio
     async def test_get_metrics(self):
@@ -381,11 +381,11 @@ class TestRequestQueue:
         
         metrics = await queue.get_metrics()
         
-        assert metrics.total_enqueued == 3
-        assert metrics.total_dequeued == 3
-        assert metrics.high_priority_count == 1
-        assert metrics.normal_priority_count == 1
-        assert metrics.low_priority_count == 1
+        assert metrics.total_enqueued == 3  # nosec B101
+        assert metrics.total_dequeued == 3  # nosec B101
+        assert metrics.high_priority_count == 1  # nosec B101
+        assert metrics.normal_priority_count == 1  # nosec B101
+        assert metrics.low_priority_count == 1  # nosec B101
         
         await queue.stop()
     
@@ -397,11 +397,11 @@ class TestRequestQueue:
         
         summary = await queue.get_summary()
         
-        assert "current_depth" in summary
-        assert "max_depth" in summary
-        assert "utilization_percent" in summary
-        assert "total_enqueued" in summary
-        assert "priority_distribution" in summary
+        assert "current_depth" in summary  # nosec B101
+        assert "max_depth" in summary  # nosec B101
+        assert "utilization_percent" in summary  # nosec B101
+        assert "total_enqueued" in summary  # nosec B101
+        assert "priority_distribution" in summary  # nosec B101
         
         await queue.stop()
 
@@ -431,12 +431,12 @@ class TestIntegration:
             for i in range(5)
         ])
         
-        assert len(results) == 5
+        assert len(results) == 5  # nosec B101
         
         # Check memory was tracked
         stats = monitor.get_stats()
-        assert "test_handler" in stats
-        assert stats["test_handler"].samples >= 5
+        assert "test_handler" in stats  # nosec B101
+        assert stats["test_handler"].samples >= 5  # nosec B101
         
         await queue.stop()
         monitor.stop()
@@ -462,7 +462,7 @@ class TestIntegration:
             for i in range(5)
         ])
         
-        assert results == [0, 1, 2, 3, 4]
+        assert results == [0, 1, 2, 3, 4]  # nosec B101
         
         await queue.stop()
         await db_pool.close()

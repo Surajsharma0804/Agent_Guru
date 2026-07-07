@@ -29,11 +29,11 @@ class TestIntentDetectionEngine:
         """Test engine initialization with default config."""
         engine = IntentDetectionEngine()
 
-        assert engine.config is not None
-        assert engine.config.enable_fast_path is True
-        assert engine.config.enable_neural is True
-        assert engine.config.enable_llm_fallback is True
-        assert engine._initialized is False
+        assert engine.config is not None  # nosec B101
+        assert engine.config.enable_fast_path is True  # nosec B101
+        assert engine.config.enable_neural is True  # nosec B101
+        assert engine.config.enable_llm_fallback is True  # nosec B101
+        assert engine._initialized is False  # nosec B101
 
     def test_initialization_custom_config(self):
         """Test engine initialization with custom config."""
@@ -44,9 +44,9 @@ class TestIntentDetectionEngine:
         )
         engine = IntentDetectionEngine(config)
 
-        assert engine.config.enable_fast_path is False
-        assert engine.config.enable_neural is True
-        assert engine.config.enable_llm_fallback is False
+        assert engine.config.enable_fast_path is False  # nosec B101
+        assert engine.config.enable_neural is True  # nosec B101
+        assert engine.config.enable_llm_fallback is False  # nosec B101
 
     @patch("Agent_Guru.reasoning.intent.engine.FastIntentRouter")
     @patch("Agent_Guru.reasoning.intent.engine.NeuralIntentClassifier")
@@ -74,11 +74,11 @@ class TestIntentDetectionEngine:
         with patch("pathlib.Path.exists", return_value=True):
             engine.initialize()
 
-        assert engine._initialized is True
-        assert engine.fast_router is not None
-        assert engine.neural_classifier is not None
-        assert engine.ner_extractor is not None
-        assert engine.llm_fallback is not None
+        assert engine._initialized is True  # nosec B101
+        assert engine.fast_router is not None  # nosec B101
+        assert engine.neural_classifier is not None  # nosec B101
+        assert engine.ner_extractor is not None  # nosec B101
+        assert engine.llm_fallback is not None  # nosec B101
 
     @patch("Agent_Guru.reasoning.intent.engine.FastIntentRouter")
     def test_initialize_fast_path_only(self, mock_fast_router):
@@ -97,10 +97,10 @@ class TestIntentDetectionEngine:
         with patch("pathlib.Path.exists", return_value=True):
             engine.initialize()
 
-        assert engine._initialized is True
-        assert engine.fast_router is not None
-        assert engine.neural_classifier is None
-        assert engine.llm_fallback is None
+        assert engine._initialized is True  # nosec B101
+        assert engine.fast_router is not None  # nosec B101
+        assert engine.neural_classifier is None  # nosec B101
+        assert engine.llm_fallback is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_intent_not_initialized(self):
@@ -139,13 +139,13 @@ class TestIntentDetectionEngine:
         # Detect intent
         result = await engine.detect_intent_async("set timer for 5 minutes")
 
-        assert result.detection_method == "rule"  # Fast-path uses rule-based matching
-        assert result.intent.intent_type == "set_timer"
-        assert result.confidence == 0.98
-        assert result.fast_path_attempted is True
-        assert result.neural_attempted is False
-        assert result.llm_attempted is False
-        assert "duration" in result.intent.entities
+        assert result.detection_method == "rule"  # Fast-path uses rule-based matching  # nosec B101
+        assert result.intent.intent_type == "set_timer"  # nosec B101
+        assert result.confidence == 0.98  # nosec B101
+        assert result.fast_path_attempted is True  # nosec B101
+        assert result.neural_attempted is False  # nosec B101
+        assert result.llm_attempted is False  # nosec B101
+        assert "duration" in result.intent.entities  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_intent_fast_path_low_confidence(self):
@@ -199,12 +199,12 @@ class TestIntentDetectionEngine:
         # Detect intent
         result = await engine.detect_intent_async("set timer for 5 minutes")
 
-        assert result.detection_method == "neural"
-        assert result.intent.intent_type == "set_timer"
-        assert result.confidence == 0.92
-        assert result.fast_path_attempted is True
-        assert result.neural_attempted is True
-        assert result.llm_attempted is False
+        assert result.detection_method == "neural"  # nosec B101
+        assert result.intent.intent_type == "set_timer"  # nosec B101
+        assert result.confidence == 0.92  # nosec B101
+        assert result.fast_path_attempted is True  # nosec B101
+        assert result.neural_attempted is True  # nosec B101
+        assert result.llm_attempted is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_intent_neural_low_confidence_llm_fallback(self):
@@ -253,12 +253,12 @@ class TestIntentDetectionEngine:
         # Detect intent
         result = await engine.detect_intent_async("remind me to call mom")
 
-        assert result.detection_method == "llm"  # LLM fallback uses 'llm' method
-        assert result.intent.intent_type == "set_reminder"
-        assert result.confidence == 0.95
-        assert result.fast_path_attempted is True
-        assert result.neural_attempted is True
-        assert result.llm_attempted is True
+        assert result.detection_method == "llm"  # LLM fallback uses 'llm' method  # nosec B101
+        assert result.intent.intent_type == "set_reminder"  # nosec B101
+        assert result.confidence == 0.95  # nosec B101
+        assert result.fast_path_attempted is True  # nosec B101
+        assert result.neural_attempted is True  # nosec B101
+        assert result.llm_attempted is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_detect_intent_all_fail_unknown(self):
@@ -274,9 +274,9 @@ class TestIntentDetectionEngine:
         # Detect intent
         result = await engine.detect_intent_async("completely unknown input")
 
-        assert result.detection_method == "rule"  # Fallback uses 'rule' method
-        assert result.intent.intent_type == "unknown"
-        assert result.confidence == 0.0
+        assert result.detection_method == "rule"  # Fallback uses 'rule' method  # nosec B101
+        assert result.intent.intent_type == "unknown"  # nosec B101
+        assert result.confidence == 0.0  # nosec B101
 
     def test_detect_intent_sync_wrapper(self):
         """Test synchronous detect_intent wrapper."""
@@ -299,8 +299,8 @@ class TestIntentDetectionEngine:
         # Detect intent synchronously
         result = engine.detect_intent("what time is it")
 
-        assert result.detection_method == "rule"  # Fast-path uses rule-based matching
-        assert result.intent.intent_type == "query_time"
+        assert result.detection_method == "rule"  # Fast-path uses rule-based matching  # nosec B101
+        assert result.intent.intent_type == "query_time"  # nosec B101
 
     def test_create_intent_from_fast_path(self):
         """Test creating Intent from fast-path match."""
@@ -324,11 +324,11 @@ class TestIntentDetectionEngine:
 
         intent = engine._create_intent_from_fast_path(match, "set timer for 5 minutes")
 
-        assert intent.intent_type == "set_timer"
-        assert intent.confidence == 0.98
-        assert intent.requires_reasoning is False
-        assert intent.detection_method == "rule"  # Fast-path uses rule-based matching
-        assert "duration" in intent.entities
+        assert intent.intent_type == "set_timer"  # nosec B101
+        assert intent.confidence == 0.98  # nosec B101
+        assert intent.requires_reasoning is False  # nosec B101
+        assert intent.detection_method == "rule"  # Fast-path uses rule-based matching  # nosec B101
+        assert "duration" in intent.entities  # nosec B101
 
     def test_create_intent_from_neural(self):
         """Test creating Intent from neural classifier result."""
@@ -355,12 +355,12 @@ class TestIntentDetectionEngine:
             neural_result, "what's the weather in Seattle", entities
         )
 
-        assert intent.intent_type == "query_weather"
-        assert intent.confidence == 0.92
-        assert intent.detection_method == "neural"
-        assert "location" in intent.entities
-        assert len(intent.alternative_intents) == 1
-        assert intent.alternative_intents[0][0] == IntentType.QUERY_TIME
+        assert intent.intent_type == "query_weather"  # nosec B101
+        assert intent.confidence == 0.92  # nosec B101
+        assert intent.detection_method == "neural"  # nosec B101
+        assert "location" in intent.entities  # nosec B101
+        assert len(intent.alternative_intents) == 1  # nosec B101
+        assert intent.alternative_intents[0][0] == IntentType.QUERY_TIME  # nosec B101
 
     def test_create_intent_from_llm(self):
         """Test creating Intent from LLM fallback result."""
@@ -385,10 +385,10 @@ class TestIntentDetectionEngine:
 
         intent = engine._create_intent_from_llm(llm_result, "send message to John")
 
-        assert intent.intent_type == "send_message"
-        assert intent.confidence == 0.95
-        assert intent.detection_method == "llm"  # LLM fallback uses 'llm' method
-        assert "contact" in intent.entities
+        assert intent.intent_type == "send_message"  # nosec B101
+        assert intent.confidence == 0.95  # nosec B101
+        assert intent.detection_method == "llm"  # LLM fallback uses 'llm' method  # nosec B101
+        assert "contact" in intent.entities  # nosec B101
 
     def test_requires_reasoning_simple_intents(self):
         """Test simple intents don't require reasoning."""
@@ -403,7 +403,7 @@ class TestIntentDetectionEngine:
         ]
 
         for intent_type in simple_intents:
-            assert engine._requires_reasoning(intent_type) is False
+            assert engine._requires_reasoning(intent_type) is False  # nosec B101
 
     def test_requires_reasoning_complex_intents(self):
         """Test complex intents require reasoning."""
@@ -418,7 +418,7 @@ class TestIntentDetectionEngine:
         ]
 
         for intent_type in complex_intents:
-            assert engine._requires_reasoning(intent_type) is True
+            assert engine._requires_reasoning(intent_type) is True  # nosec B101
 
     def test_record_feedback(self):
         """Test recording user feedback."""
@@ -468,11 +468,11 @@ class TestIntentDetectionEngine:
         engine._update_metrics("neural", 50.0)
         engine._update_metrics("llm_fallback", 250.0)
 
-        assert engine.total_detections == 4
-        assert engine.fast_path_hits == 2
-        assert engine.neural_hits == 1
-        assert engine.llm_hits == 1
-        assert engine.total_latency_ms == 335.0
+        assert engine.total_detections == 4  # nosec B101
+        assert engine.fast_path_hits == 2  # nosec B101
+        assert engine.neural_hits == 1  # nosec B101
+        assert engine.llm_hits == 1  # nosec B101
+        assert engine.total_latency_ms == 335.0  # nosec B101
 
     def test_get_metrics(self):
         """Test getting metrics."""
@@ -485,11 +485,11 @@ class TestIntentDetectionEngine:
 
         metrics = engine.get_metrics()
 
-        assert metrics["total_detections"] == 3
-        assert metrics["average_latency_ms"] == pytest.approx(105.0, rel=0.01)
-        assert metrics["fast_path_percent"] == pytest.approx(33.33, rel=0.01)
-        assert metrics["neural_percent"] == pytest.approx(33.33, rel=0.01)
-        assert metrics["llm_percent"] == pytest.approx(33.33, rel=0.01)
+        assert metrics["total_detections"] == 3  # nosec B101
+        assert metrics["average_latency_ms"] == pytest.approx(105.0, rel=0.01)  # nosec B101
+        assert metrics["fast_path_percent"] == pytest.approx(33.33, rel=0.01)  # nosec B101
+        assert metrics["neural_percent"] == pytest.approx(33.33, rel=0.01)  # nosec B101
+        assert metrics["llm_percent"] == pytest.approx(33.33, rel=0.01)  # nosec B101
 
     def test_get_metrics_no_detections(self):
         """Test getting metrics with no detections."""
@@ -497,9 +497,9 @@ class TestIntentDetectionEngine:
 
         metrics = engine.get_metrics()
 
-        assert metrics["total_detections"] == 0
-        assert metrics["average_latency_ms"] == 0.0
-        assert metrics["fast_path_percent"] == 0.0
+        assert metrics["total_detections"] == 0  # nosec B101
+        assert metrics["average_latency_ms"] == 0.0  # nosec B101
+        assert metrics["fast_path_percent"] == 0.0  # nosec B101
 
     def test_get_routing_stats(self):
         """Test getting routing statistics."""
@@ -515,10 +515,10 @@ class TestIntentDetectionEngine:
 
         stats = engine.get_routing_stats()
 
-        assert stats["total_detections"] == 100
-        assert stats["actual_fast_path_percent"] == 80.0
-        assert stats["target_fast_path_percent"] == 80.0
-        assert "✓ Meeting target" in stats["performance_vs_target"]
+        assert stats["total_detections"] == 100  # nosec B101
+        assert stats["actual_fast_path_percent"] == 80.0  # nosec B101
+        assert stats["target_fast_path_percent"] == 80.0  # nosec B101
+        assert "✓ Meeting target" in stats["performance_vs_target"]  # nosec B101
 
     def test_get_routing_stats_below_target(self):
         """Test routing stats when below target."""
@@ -532,8 +532,8 @@ class TestIntentDetectionEngine:
 
         stats = engine.get_routing_stats()
 
-        assert stats["actual_fast_path_percent"] == 60.0
-        assert "⚠ Below target" in stats["performance_vs_target"]
+        assert stats["actual_fast_path_percent"] == 60.0  # nosec B101
+        assert "⚠ Below target" in stats["performance_vs_target"]  # nosec B101
 
     def test_get_routing_stats_no_detections(self):
         """Test routing stats with no detections."""
@@ -541,8 +541,8 @@ class TestIntentDetectionEngine:
 
         stats = engine.get_routing_stats()
 
-        assert stats["total_detections"] == 0
-        assert stats["performance_vs_target"] == "N/A"
+        assert stats["total_detections"] == 0  # nosec B101
+        assert stats["performance_vs_target"] == "N/A"  # nosec B101
 
 
 class TestIntentEngineConfig:
@@ -552,12 +552,12 @@ class TestIntentEngineConfig:
         """Test default configuration values."""
         config = IntentEngineConfig()
 
-        assert config.enable_fast_path is True
-        assert config.enable_neural is True
-        assert config.enable_llm_fallback is True
-        assert config.enable_online_learning is True
-        assert "intent_patterns.yaml" in config.patterns_file
-        assert "feedback.db" in config.feedback_db_path
+        assert config.enable_fast_path is True  # nosec B101
+        assert config.enable_neural is True  # nosec B101
+        assert config.enable_llm_fallback is True  # nosec B101
+        assert config.enable_online_learning is True  # nosec B101
+        assert "intent_patterns.yaml" in config.patterns_file  # nosec B101
+        assert "feedback.db" in config.feedback_db_path  # nosec B101
 
     def test_custom_config(self):
         """Test custom configuration values."""
@@ -570,12 +570,12 @@ class TestIntentEngineConfig:
             feedback_db_path="/custom/feedback.db",
         )
 
-        assert config.patterns_file == "/custom/patterns.yaml"
-        assert config.enable_fast_path is False
-        assert config.enable_neural is True
-        assert config.enable_llm_fallback is False
-        assert config.enable_online_learning is False
-        assert config.feedback_db_path == "/custom/feedback.db"
+        assert config.patterns_file == "/custom/patterns.yaml"  # nosec B101
+        assert config.enable_fast_path is False  # nosec B101
+        assert config.enable_neural is True  # nosec B101
+        assert config.enable_llm_fallback is False  # nosec B101
+        assert config.enable_online_learning is False  # nosec B101
+        assert config.feedback_db_path == "/custom/feedback.db"  # nosec B101
 
 
 class TestDetectionResult:
@@ -603,10 +603,10 @@ class TestDetectionResult:
             confidence=0.95,
         )
 
-        assert result.intent.intent_type == "set_timer"
-        assert result.detection_method == "rule"  # Fast-path uses rule-based matching
-        assert result.latency_ms == 15.0
-        assert result.fast_path_attempted is True
-        assert result.neural_attempted is False
-        assert result.llm_attempted is False
-        assert result.confidence == 0.95
+        assert result.intent.intent_type == "set_timer"  # nosec B101
+        assert result.detection_method == "rule"  # Fast-path uses rule-based matching  # nosec B101
+        assert result.latency_ms == 15.0  # nosec B101
+        assert result.fast_path_attempted is True  # nosec B101
+        assert result.neural_attempted is False  # nosec B101
+        assert result.llm_attempted is False  # nosec B101
+        assert result.confidence == 0.95  # nosec B101

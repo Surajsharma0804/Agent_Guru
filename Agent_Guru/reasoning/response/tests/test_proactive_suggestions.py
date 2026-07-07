@@ -36,11 +36,11 @@ class TestSuggestion:
             priority=3,
         )
 
-        assert suggestion.text == "Set another timer"
-        assert suggestion.suggestion_type == SuggestionType.FOLLOW_UP
-        assert suggestion.intent_type == "set_timer"
-        assert suggestion.confidence == 0.9
-        assert suggestion.priority == 3
+        assert suggestion.text == "Set another timer"  # nosec B101
+        assert suggestion.suggestion_type == SuggestionType.FOLLOW_UP  # nosec B101
+        assert suggestion.intent_type == "set_timer"  # nosec B101
+        assert suggestion.confidence == 0.9  # nosec B101
+        assert suggestion.priority == 3  # nosec B101
 
     def test_suggestion_validation_confidence(self):
         """Test suggestion confidence validation."""
@@ -66,9 +66,9 @@ class TestSuggestionAcceptance:
             timestamp=time.time(),
         )
 
-        assert acceptance.suggestion_text == "Set another timer"
-        assert acceptance.was_accepted is True
-        assert acceptance.suggestion_type == SuggestionType.FOLLOW_UP
+        assert acceptance.suggestion_text == "Set another timer"  # nosec B101
+        assert acceptance.was_accepted is True  # nosec B101
+        assert acceptance.suggestion_type == SuggestionType.FOLLOW_UP  # nosec B101
 
 
 class TestProactiveSuggestionGenerator:
@@ -118,30 +118,30 @@ class TestProactiveSuggestionGenerator:
 
     def test_generator_initialization(self, generator):
         """Test generator initialization."""
-        assert generator.max_suggestions == 3
-        assert len(generator._suggestion_registry) > 0
-        assert len(generator._related_capabilities) > 0
+        assert generator.max_suggestions == 3  # nosec B101
+        assert len(generator._suggestion_registry) > 0  # nosec B101
+        assert len(generator._related_capabilities) > 0  # nosec B101
 
     def test_generate_suggestions_success(self, generator, timer_intent, success_result):
         """Test generating suggestions for successful execution."""
         suggestions = generator.generate_suggestions(timer_intent, success_result)
 
-        assert isinstance(suggestions, list)
-        assert len(suggestions) <= 3
-        assert all(isinstance(s, str) for s in suggestions)
+        assert isinstance(suggestions, list)  # nosec B101
+        assert len(suggestions) <= 3  # nosec B101
+        assert all(isinstance(s, str) for s in suggestions)  # nosec B101
 
         # Should include timer-related suggestions
-        assert any("timer" in s.lower() for s in suggestions)
+        assert any("timer" in s.lower() for s in suggestions)  # nosec B101
 
     def test_generate_suggestions_error(self, generator, timer_intent, error_result):
         """Test generating suggestions for error execution."""
         suggestions = generator.generate_suggestions(timer_intent, error_result)
 
-        assert isinstance(suggestions, list)
-        assert len(suggestions) <= 3
+        assert isinstance(suggestions, list)  # nosec B101
+        assert len(suggestions) <= 3  # nosec B101
 
         # Should include error recovery suggestions
-        assert any("try again" in s.lower() or "retry" in s.lower() for s in suggestions)
+        assert any("try again" in s.lower() or "retry" in s.lower() for s in suggestions)  # nosec B101
 
     def test_generate_suggestions_with_conversation_state(
         self, generator, timer_intent, success_result
@@ -156,8 +156,8 @@ class TestProactiveSuggestionGenerator:
             timer_intent, success_result, conversation_state=state
         )
 
-        assert isinstance(suggestions, list)
-        assert len(suggestions) <= 3
+        assert isinstance(suggestions, list)  # nosec B101
+        assert len(suggestions) <= 3  # nosec B101
 
     def test_generate_suggestions_with_user_preferences(
         self, generator, timer_intent, success_result
@@ -169,8 +169,8 @@ class TestProactiveSuggestionGenerator:
             timer_intent, success_result, user_preferences=user_prefs
         )
 
-        assert isinstance(suggestions, list)
-        assert len(suggestions) <= 3
+        assert isinstance(suggestions, list)  # nosec B101
+        assert len(suggestions) <= 3  # nosec B101
 
     def test_track_acceptance(self, generator):
         """Test tracking suggestion acceptance."""
@@ -185,9 +185,9 @@ class TestProactiveSuggestionGenerator:
         )
 
         # Check acceptance was recorded
-        assert suggestion_text in generator._acceptance_history
-        assert len(generator._acceptance_history[suggestion_text]) == 1
-        assert generator._acceptance_history[suggestion_text][0].was_accepted is True
+        assert suggestion_text in generator._acceptance_history  # nosec B101
+        assert len(generator._acceptance_history[suggestion_text]) == 1  # nosec B101
+        assert generator._acceptance_history[suggestion_text][0].was_accepted is True  # nosec B101
 
     def test_track_rejection(self, generator):
         """Test tracking suggestion rejection."""
@@ -202,8 +202,8 @@ class TestProactiveSuggestionGenerator:
         )
 
         # Check rejection was recorded
-        assert suggestion_text in generator._acceptance_history
-        assert generator._acceptance_history[suggestion_text][0].was_accepted is False
+        assert suggestion_text in generator._acceptance_history  # nosec B101
+        assert generator._acceptance_history[suggestion_text][0].was_accepted is False  # nosec B101
 
     def test_get_acceptance_rate(self, generator):
         """Test getting acceptance rate."""
@@ -227,12 +227,12 @@ class TestProactiveSuggestionGenerator:
 
         # Check acceptance rate
         rate = generator.get_acceptance_rate(suggestion_text)
-        assert rate == 0.7  # 7 out of 10
+        assert rate == 0.7  # 7 out of 10  # nosec B101
 
     def test_get_acceptance_rate_unknown_suggestion(self, generator):
         """Test getting acceptance rate for unknown suggestion."""
         rate = generator.get_acceptance_rate("Unknown suggestion")
-        assert rate == 0.5  # Default
+        assert rate == 0.5  # Default  # nosec B101
 
     def test_get_acceptance_stats(self, generator):
         """Test getting overall acceptance statistics."""
@@ -243,31 +243,31 @@ class TestProactiveSuggestionGenerator:
 
         stats = generator.get_acceptance_stats()
 
-        assert "overall" in stats
-        assert "by_type" in stats
-        assert "top_suggestions" in stats
+        assert "overall" in stats  # nosec B101
+        assert "by_type" in stats  # nosec B101
+        assert "top_suggestions" in stats  # nosec B101
 
-        assert stats["overall"]["total_shown"] == 3
-        assert stats["overall"]["total_accepted"] == 2
-        assert stats["overall"]["acceptance_rate"] == pytest.approx(0.666, rel=0.01)
+        assert stats["overall"]["total_shown"] == 3  # nosec B101
+        assert stats["overall"]["total_accepted"] == 2  # nosec B101
+        assert stats["overall"]["acceptance_rate"] == pytest.approx(0.666, rel=0.01)  # nosec B101
 
     def test_follow_up_suggestions(self, generator, timer_intent, success_result):
         """Test follow-up suggestion generation."""
         suggestions = generator._generate_follow_up_suggestions(timer_intent, success_result)
 
-        assert isinstance(suggestions, list)
-        assert all(isinstance(s, Suggestion) for s in suggestions)
-        assert all(s.suggestion_type == SuggestionType.FOLLOW_UP for s in suggestions)
+        assert isinstance(suggestions, list)  # nosec B101
+        assert all(isinstance(s, Suggestion) for s in suggestions)  # nosec B101
+        assert all(s.suggestion_type == SuggestionType.FOLLOW_UP for s in suggestions)  # nosec B101
 
     def test_related_suggestions(self, generator, timer_intent):
         """Test related capability suggestion generation."""
         suggestions = generator._generate_related_suggestions(timer_intent)
 
-        assert isinstance(suggestions, list)
+        assert isinstance(suggestions, list)  # nosec B101
         # Timer is related to alarm and reminder
         if suggestions:
-            assert all(isinstance(s, Suggestion) for s in suggestions)
-            assert all(s.suggestion_type == SuggestionType.RELATED for s in suggestions)
+            assert all(isinstance(s, Suggestion) for s in suggestions)  # nosec B101
+            assert all(s.suggestion_type == SuggestionType.RELATED for s in suggestions)  # nosec B101
 
     def test_contextual_suggestions(self, generator, timer_intent):
         """Test contextual suggestion generation."""
@@ -298,10 +298,10 @@ class TestProactiveSuggestionGenerator:
 
         suggestions = generator._generate_contextual_suggestions(timer_intent, state)
 
-        assert isinstance(suggestions, list)
+        assert isinstance(suggestions, list)  # nosec B101
         if suggestions:
-            assert all(isinstance(s, Suggestion) for s in suggestions)
-            assert all(s.suggestion_type == SuggestionType.CONTEXTUAL for s in suggestions)
+            assert all(isinstance(s, Suggestion) for s in suggestions)  # nosec B101
+            assert all(s.suggestion_type == SuggestionType.CONTEXTUAL for s in suggestions)  # nosec B101
 
     def test_behavioral_suggestions(self, generator, timer_intent):
         """Test behavioral suggestion generation."""
@@ -315,21 +315,21 @@ class TestProactiveSuggestionGenerator:
 
         suggestions = generator._generate_behavioral_suggestions(timer_intent, state)
 
-        assert isinstance(suggestions, list)
+        assert isinstance(suggestions, list)  # nosec B101
         if suggestions:
-            assert all(isinstance(s, Suggestion) for s in suggestions)
-            assert all(s.suggestion_type == SuggestionType.BEHAVIORAL for s in suggestions)
+            assert all(isinstance(s, Suggestion) for s in suggestions)  # nosec B101
+            assert all(s.suggestion_type == SuggestionType.BEHAVIORAL for s in suggestions)  # nosec B101
 
     def test_error_recovery_suggestions(self, generator, timer_intent, error_result):
         """Test error recovery suggestion generation."""
         suggestions = generator._generate_error_recovery_suggestions(timer_intent, error_result)
 
-        assert isinstance(suggestions, list)
-        assert len(suggestions) > 0
-        assert all(isinstance(s, Suggestion) for s in suggestions)
+        assert isinstance(suggestions, list)  # nosec B101
+        assert len(suggestions) > 0  # nosec B101
+        assert all(isinstance(s, Suggestion) for s in suggestions)  # nosec B101
 
         # Should include retry suggestion
-        assert any("try again" in s.text.lower() for s in suggestions)
+        assert any("try again" in s.text.lower() for s in suggestions)  # nosec B101
 
     def test_suggestion_ranking(self, generator, timer_intent):
         """Test suggestion ranking."""
@@ -341,10 +341,10 @@ class TestProactiveSuggestionGenerator:
 
         ranked = generator._rank_suggestions(candidates, timer_intent, {})
 
-        assert len(ranked) == 3
+        assert len(ranked) == 3  # nosec B101
         # High priority should be first
-        assert ranked[0].text == "High priority"
-        assert ranked[2].text == "Low priority"
+        assert ranked[0].text == "High priority"  # nosec B101
+        assert ranked[2].text == "Low priority"  # nosec B101
 
     def test_suggestion_score_calculation(self, generator, timer_intent):
         """Test suggestion score calculation."""
@@ -357,14 +357,14 @@ class TestProactiveSuggestionGenerator:
 
         score = generator._calculate_suggestion_score(suggestion, timer_intent, {})
 
-        assert isinstance(score, float)
-        assert score > 0
+        assert isinstance(score, float)  # nosec B101
+        assert score > 0  # nosec B101
 
     def test_max_suggestions_limit(self, generator, timer_intent, success_result):
         """Test that max suggestions limit is respected."""
         suggestions = generator.generate_suggestions(timer_intent, success_result)
 
-        assert len(suggestions) <= generator.max_suggestions
+        assert len(suggestions) <= generator.max_suggestions  # nosec B101
 
     def test_empty_suggestions_on_error(self, generator):
         """Test that empty list is returned on error."""
@@ -389,7 +389,7 @@ class TestProactiveSuggestionGenerator:
         suggestions = generator.generate_suggestions(invalid_intent, result)
 
         # Should return empty list or handle gracefully
-        assert isinstance(suggestions, list)
+        assert isinstance(suggestions, list)  # nosec B101
 
     def test_suggestion_types_coverage(self, generator):
         """Test that all suggestion types are covered."""
@@ -401,14 +401,14 @@ class TestProactiveSuggestionGenerator:
         types_present = {s.suggestion_type for s in all_suggestions}
 
         # Should have at least FOLLOW_UP and ALTERNATIVE
-        assert SuggestionType.FOLLOW_UP in types_present
-        assert SuggestionType.ALTERNATIVE in types_present
+        assert SuggestionType.FOLLOW_UP in types_present  # nosec B101
+        assert SuggestionType.ALTERNATIVE in types_present  # nosec B101
 
     def test_related_capabilities_mapping(self, generator):
         """Test related capabilities are properly mapped."""
         # Timer should be related to alarm and reminder
         timer_related = generator._related_capabilities.get("set_timer", set())
-        assert "set_alarm" in timer_related or "create_reminder" in timer_related
+        assert "set_alarm" in timer_related or "create_reminder" in timer_related  # nosec B101
 
     def test_acceptance_tracking_with_context(self, generator):
         """Test acceptance tracking with context."""
@@ -419,7 +419,7 @@ class TestProactiveSuggestionGenerator:
         )
 
         acceptance = generator._acceptance_history["Test suggestion"][0]
-        assert acceptance.context == context
+        assert acceptance.context == context  # nosec B101
 
     def test_preference_score_update(self, generator):
         """Test preference score updates correctly."""
@@ -433,7 +433,7 @@ class TestProactiveSuggestionGenerator:
 
         # Check preference score
         score = generator._preference_scores[suggestion_text]
-        assert score == 0.8  # 8/10
+        assert score == 0.8  # 8/10  # nosec B101
 
     def test_top_suggestions(self, generator):
         """Test getting top suggestions."""
@@ -446,11 +446,11 @@ class TestProactiveSuggestionGenerator:
 
         top = generator._get_top_suggestions(2)
 
-        assert len(top) <= 2
-        assert all("text" in s and "acceptance_rate" in s for s in top)
+        assert len(top) <= 2  # nosec B101
+        assert all("text" in s and "acceptance_rate" in s for s in top)  # nosec B101
         # Suggestion A should be first (100% acceptance)
         if top:
-            assert top[0]["text"] == "Suggestion A"
+            assert top[0]["text"] == "Suggestion A"  # nosec B101
 
 
 class TestProactiveSuggestionsIntegration:
@@ -486,7 +486,7 @@ class TestProactiveSuggestionsIntegration:
         # Generate suggestions
         suggestions = generator.generate_suggestions(intent, result)
 
-        assert len(suggestions) > 0
+        assert len(suggestions) > 0  # nosec B101
 
         # Track acceptance for first suggestion
         generator.track_acceptance(
@@ -496,8 +496,8 @@ class TestProactiveSuggestionsIntegration:
         # Get stats
         stats = generator.get_acceptance_stats()
 
-        assert stats["overall"]["total_shown"] == 1
-        assert stats["overall"]["total_accepted"] == 1
+        assert stats["overall"]["total_shown"] == 1  # nosec B101
+        assert stats["overall"]["total_accepted"] == 1  # nosec B101
 
     def test_learning_from_feedback(self, generator):
         """Test that generator learns from user feedback."""
@@ -530,4 +530,4 @@ class TestProactiveSuggestionsIntegration:
         # Check that acceptance rate is tracked
         if suggestions:
             rate = generator.get_acceptance_rate(suggestions[0])
-            assert rate > 0.5  # Should have high acceptance rate
+            assert rate > 0.5  # Should have high acceptance rate  # nosec B101

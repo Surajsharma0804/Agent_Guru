@@ -73,9 +73,9 @@ class TestTemplateGenerator:
 
     def test_initialization(self, generator: TemplateGenerator):
         """Test generator initializes with default templates."""
-        assert len(generator.list_templates()) > 0
-        assert "generic_success" in generator.list_templates()
-        assert "generic_error" in generator.list_templates()
+        assert len(generator.list_templates()) > 0  # nosec B101
+        assert "generic_success" in generator.list_templates()  # nosec B101
+        assert "generic_error" in generator.list_templates()  # nosec B101
 
     def test_generate_success_response(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
@@ -85,12 +85,12 @@ class TestTemplateGenerator:
             result=success_result, intent=timer_intent, modality=ResponseModality.TEXT
         )
 
-        assert isinstance(response, Response)
-        assert response.text
-        assert "5 minutes" in response.text
-        assert response.modality == ResponseModality.TEXT
-        assert response.metadata["generation_method"] == "template"
-        assert response.metadata["latency_ms"] < 100  # Latency requirement
+        assert isinstance(response, Response)  # nosec B101
+        assert response.text  # nosec B101
+        assert "5 minutes" in response.text  # nosec B101
+        assert response.modality == ResponseModality.TEXT  # nosec B101
+        assert response.metadata["generation_method"] == "template"  # nosec B101
+        assert response.metadata["latency_ms"] < 100  # Latency requirement  # nosec B101
 
     def test_generate_error_response(
         self, generator: TemplateGenerator, error_result: ExecutionResult, timer_intent: Intent
@@ -100,10 +100,10 @@ class TestTemplateGenerator:
             result=error_result, intent=timer_intent, modality=ResponseModality.TEXT
         )
 
-        assert isinstance(response, Response)
-        assert response.text
-        assert "timed out" in response.text.lower() or "too long" in response.text.lower()
-        assert response.metadata["generation_method"] == "template"
+        assert isinstance(response, Response)  # nosec B101
+        assert response.text  # nosec B101
+        assert "timed out" in response.text.lower() or "too long" in response.text.lower()  # nosec B101
+        assert response.metadata["generation_method"] == "template"  # nosec B101
 
     def test_voice_modality_uses_concise_template(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
@@ -118,7 +118,7 @@ class TestTemplateGenerator:
         )
 
         # Voice responses should be shorter or equal
-        assert len(voice_response.text) <= len(text_response.text)
+        assert len(voice_response.text) <= len(text_response.text)  # nosec B101
 
     def test_personalization_concise(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
@@ -132,8 +132,8 @@ class TestTemplateGenerator:
         )
 
         # Concise responses should not have filler phrases
-        assert "I've successfully" not in response.text
-        assert "for you" not in response.text
+        assert "I've successfully" not in response.text  # nosec B101
+        assert "for you" not in response.text  # nosec B101
 
     def test_personalization_formal(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
@@ -156,7 +156,7 @@ class TestTemplateGenerator:
         )
 
         # Formal responses should not have contractions
-        assert "I've" not in response.text or "I have" in response.text
+        assert "I've" not in response.text or "I have" in response.text  # nosec B101
 
     def test_personalization_casual(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
@@ -180,7 +180,7 @@ class TestTemplateGenerator:
 
         # Casual responses may use contractions
         # Just verify it doesn't crash
-        assert response.text
+        assert response.text  # nosec B101
 
     def test_suggestions_included(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
@@ -190,8 +190,8 @@ class TestTemplateGenerator:
             result=success_result, intent=timer_intent, modality=ResponseModality.TEXT
         )
 
-        assert response.suggestions
-        assert len(response.suggestions) <= 3  # Max 3 suggestions
+        assert response.suggestions  # nosec B101
+        assert len(response.suggestions) <= 3  # Max 3 suggestions  # nosec B101
 
     def test_intent_specific_suggestions(
         self, generator: TemplateGenerator, success_result: ExecutionResult
@@ -211,7 +211,7 @@ class TestTemplateGenerator:
 
         # Weather intent should have weather-related suggestions
         suggestions_text = " ".join(response.suggestions).lower()
-        assert any(word in suggestions_text for word in ["weather", "forecast", "tomorrow"])
+        assert any(word in suggestions_text for word in ["weather", "forecast", "tomorrow"])  # nosec B101
 
     def test_template_selection_intent_specific(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
@@ -221,7 +221,7 @@ class TestTemplateGenerator:
             result=success_result, intent=timer_intent, modality=ResponseModality.TEXT
         )
 
-        assert response.metadata["template_id"] == "set_timer_success"
+        assert response.metadata["template_id"] == "set_timer_success"  # nosec B101
 
     def test_template_selection_generic_fallback(
         self, generator: TemplateGenerator, success_result: ExecutionResult
@@ -239,7 +239,7 @@ class TestTemplateGenerator:
             result=success_result, intent=unknown_intent, modality=ResponseModality.TEXT
         )
 
-        assert response.metadata["template_id"] == "generic_success"
+        assert response.metadata["template_id"] == "generic_success"  # nosec B101
 
     def test_error_template_selection_by_type(
         self, generator: TemplateGenerator, timer_intent: Intent
@@ -262,7 +262,7 @@ class TestTemplateGenerator:
             result=timeout_result, intent=timer_intent, modality=ResponseModality.TEXT
         )
 
-        assert response.metadata["template_id"] == "error_timeout"
+        assert response.metadata["template_id"] == "error_timeout"  # nosec B101
 
     def test_variable_extraction_from_entities(
         self, generator: TemplateGenerator, success_result: ExecutionResult
@@ -280,7 +280,7 @@ class TestTemplateGenerator:
             result=success_result, intent=intent, modality=ResponseModality.TEXT
         )
 
-        assert "John" in response.text
+        assert "John" in response.text  # nosec B101
 
     def test_variable_extraction_from_result_data(
         self, generator: TemplateGenerator, timer_intent: Intent
@@ -306,7 +306,7 @@ class TestTemplateGenerator:
             result=result, intent=music_intent, modality=ResponseModality.TEXT
         )
 
-        assert "Bohemian Rhapsody" in response.text
+        assert "Bohemian Rhapsody" in response.text  # nosec B101
 
     def test_variable_extraction_from_context(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
@@ -322,7 +322,7 @@ class TestTemplateGenerator:
         )
 
         # Context variables should be available for substitution
-        assert response.text  # Just verify it doesn't crash
+        assert response.text  # Just verify it doesn't crash  # nosec B101
 
     def test_missing_required_variables_raises_error(
         self, generator: TemplateGenerator, timer_intent: Intent
@@ -352,7 +352,7 @@ class TestTemplateGenerator:
         response = generator.generate(
             result=result, intent=timer_intent, modality=ResponseModality.TEXT
         )
-        assert response.text  # Should not crash
+        assert response.text  # Should not crash  # nosec B101
 
     def test_add_custom_template(self, generator: TemplateGenerator):
         """Test adding custom template."""
@@ -366,31 +366,31 @@ class TestTemplateGenerator:
 
         generator.add_template(custom_template)
 
-        assert "custom_test" in generator.list_templates()
-        assert generator.get_template("custom_test") == custom_template
+        assert "custom_test" in generator.list_templates()  # nosec B101
+        assert generator.get_template("custom_test") == custom_template  # nosec B101
 
     def test_get_template(self, generator: TemplateGenerator):
         """Test getting template by ID."""
         template = generator.get_template("generic_success")
 
-        assert template is not None
-        assert template.template_id == "generic_success"
-        assert template.template_type == TemplateType.SUCCESS
+        assert template is not None  # nosec B101
+        assert template.template_id == "generic_success"  # nosec B101
+        assert template.template_type == TemplateType.SUCCESS  # nosec B101
 
     def test_get_nonexistent_template(self, generator: TemplateGenerator):
         """Test getting nonexistent template returns None."""
         template = generator.get_template("nonexistent_template")
 
-        assert template is None
+        assert template is None  # nosec B101
 
     def test_list_templates(self, generator: TemplateGenerator):
         """Test listing all templates."""
         templates = generator.list_templates()
 
-        assert isinstance(templates, list)
-        assert len(templates) > 0
-        assert "generic_success" in templates
-        assert "generic_error" in templates
+        assert isinstance(templates, list)  # nosec B101
+        assert len(templates) > 0  # nosec B101
+        assert "generic_success" in templates  # nosec B101
+        assert "generic_error" in templates  # nosec B101
 
     def test_latency_requirement(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
@@ -405,8 +405,8 @@ class TestTemplateGenerator:
         latency_ms = (time.perf_counter() - start) * 1000
 
         # Should be well under 100ms
-        assert latency_ms < 100
-        assert response.metadata["latency_ms"] < 100
+        assert latency_ms < 100  # nosec B101
+        assert response.metadata["latency_ms"] < 100  # nosec B101
 
     def test_weather_template(self, generator: TemplateGenerator):
         """Test weather-specific template."""
@@ -428,9 +428,9 @@ class TestTemplateGenerator:
 
         response = generator.generate(result=result, intent=intent, modality=ResponseModality.TEXT)
 
-        assert "Seattle" in response.text
-        assert "Cloudy" in response.text
-        assert "65°F" in response.text
+        assert "Seattle" in response.text  # nosec B101
+        assert "Cloudy" in response.text  # nosec B101
+        assert "65°F" in response.text  # nosec B101
 
     def test_smart_home_template(self, generator: TemplateGenerator):
         """Test smart home control template."""
@@ -452,8 +452,8 @@ class TestTemplateGenerator:
 
         response = generator.generate(result=result, intent=intent, modality=ResponseModality.TEXT)
 
-        assert "Living room lights" in response.text
-        assert "turned on" in response.text
+        assert "Living room lights" in response.text  # nosec B101
+        assert "turned on" in response.text  # nosec B101
 
     def test_permission_denied_error(self, generator: TemplateGenerator):
         """Test permission denied error template."""
@@ -481,8 +481,8 @@ class TestTemplateGenerator:
 
         response = generator.generate(result=result, intent=intent, modality=ResponseModality.TEXT)
 
-        assert "permission" in response.text.lower()
-        assert "Grant permission in settings" in response.text
+        assert "permission" in response.text.lower()  # nosec B101
+        assert "Grant permission in settings" in response.text  # nosec B101
 
     def test_network_error(self, generator: TemplateGenerator):
         """Test network error template."""
@@ -509,7 +509,7 @@ class TestTemplateGenerator:
 
         response = generator.generate(result=result, intent=intent, modality=ResponseModality.TEXT)
 
-        assert "network" in response.text.lower() or "connection" in response.text.lower()
+        assert "network" in response.text.lower() or "connection" in response.text.lower()  # nosec B101
 
     def test_metadata_includes_template_info(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
@@ -519,11 +519,11 @@ class TestTemplateGenerator:
             result=success_result, intent=timer_intent, modality=ResponseModality.TEXT
         )
 
-        assert "template_id" in response.metadata
-        assert "template_type" in response.metadata
-        assert "generation_method" in response.metadata
-        assert "latency_ms" in response.metadata
-        assert response.metadata["generation_method"] == "template"
+        assert "template_id" in response.metadata  # nosec B101
+        assert "template_type" in response.metadata  # nosec B101
+        assert "generation_method" in response.metadata  # nosec B101
+        assert "latency_ms" in response.metadata  # nosec B101
+        assert response.metadata["generation_method"] == "template"  # nosec B101
 
     def test_both_modality(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
@@ -533,8 +533,8 @@ class TestTemplateGenerator:
             result=success_result, intent=timer_intent, modality=ResponseModality.BOTH
         )
 
-        assert response.text
-        assert response.modality == ResponseModality.BOTH
+        assert response.text  # nosec B101
+        assert response.modality == ResponseModality.BOTH  # nosec B101
 
 
 class TestResponseTemplate:
@@ -550,12 +550,12 @@ class TestResponseTemplate:
             variables=["value"],
         )
 
-        assert template.template_id == "test"
-        assert template.template_type == TemplateType.SUCCESS
-        assert template.text_template == "Test {value}"
-        assert template.voice_template == "Test"
-        assert template.variables == ["value"]
-        assert template.suggestions is None
+        assert template.template_id == "test"  # nosec B101
+        assert template.template_type == TemplateType.SUCCESS  # nosec B101
+        assert template.text_template == "Test {value}"  # nosec B101
+        assert template.voice_template == "Test"  # nosec B101
+        assert template.variables == ["value"]  # nosec B101
+        assert template.suggestions is None  # nosec B101
 
     def test_template_with_suggestions(self):
         """Test template with suggestions."""
@@ -568,7 +568,7 @@ class TestResponseTemplate:
             suggestions=["Try again", "Cancel"],
         )
 
-        assert template.suggestions == ["Try again", "Cancel"]
+        assert template.suggestions == ["Try again", "Cancel"]  # nosec B101
 
 
 class TestTemplateType:
@@ -576,9 +576,9 @@ class TestTemplateType:
 
     def test_template_types(self):
         """Test all template types are defined."""
-        assert TemplateType.SUCCESS == "success"
-        assert TemplateType.ERROR == "error"
-        assert TemplateType.CONFIRMATION == "confirmation"
-        assert TemplateType.CLARIFICATION == "clarification"
-        assert TemplateType.PARTIAL_SUCCESS == "partial_success"
-        assert TemplateType.PROGRESS == "progress"
+        assert TemplateType.SUCCESS == "success"  # nosec B101
+        assert TemplateType.ERROR == "error"  # nosec B101
+        assert TemplateType.CONFIRMATION == "confirmation"  # nosec B101
+        assert TemplateType.CLARIFICATION == "clarification"  # nosec B101
+        assert TemplateType.PARTIAL_SUCCESS == "partial_success"  # nosec B101
+        assert TemplateType.PROGRESS == "progress"  # nosec B101

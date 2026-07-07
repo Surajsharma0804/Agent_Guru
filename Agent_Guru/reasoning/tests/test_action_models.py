@@ -23,11 +23,11 @@ class TestParameter:
             validation_rules={"min": 1, "max": 86400},
         )
         
-        assert param.name == "duration"
-        assert param.param_type == "int"
-        assert param.required
-        assert param.description == "Duration in seconds"
-        assert param.validation_rules == {"min": 1, "max": 86400}
+        assert param.name == "duration"  # nosec B101
+        assert param.param_type == "int"  # nosec B101
+        assert param.required  # nosec B101
+        assert param.description == "Duration in seconds"  # nosec B101
+        assert param.validation_rules == {"min": 1, "max": 86400}  # nosec B101
     
     def test_parameter_param_type_validation_invalid(self):
         """Test parameter type validation fails for invalid type."""
@@ -43,16 +43,16 @@ class TestParameter:
         param2 = Parameter(name="duration", param_type="int")
         param3 = Parameter(name="duration", param_type="str")
         
-        assert param1 == param2
-        assert param1 != param3
-        assert param1 != "not a parameter"
+        assert param1 == param2  # nosec B101
+        assert param1 != param3  # nosec B101
+        assert param1 != "not a parameter"  # nosec B101
     
     def test_parameter_hash(self):
         """Test parameter hashing."""
         param1 = Parameter(name="duration", param_type="int")
         param2 = Parameter(name="duration", param_type="int")
         
-        assert hash(param1) == hash(param2)
+        assert hash(param1) == hash(param2)  # nosec B101
 
 
 class TestTool:
@@ -72,13 +72,13 @@ class TestTool:
             tags=["time", "scheduling"],
         )
         
-        assert tool.tool_id == "set_timer"
-        assert tool.name == "Set Timer"
-        assert len(tool.parameters) == 1
-        assert tool.sensitivity == ActionSensitivity.SAFE
-        assert tool.estimated_latency == 0.05
-        assert not tool.requires_permission
-        assert "time" in tool.tags
+        assert tool.tool_id == "set_timer"  # nosec B101
+        assert tool.name == "Set Timer"  # nosec B101
+        assert len(tool.parameters) == 1  # nosec B101
+        assert tool.sensitivity == ActionSensitivity.SAFE  # nosec B101
+        assert tool.estimated_latency == 0.05  # nosec B101
+        assert not tool.requires_permission  # nosec B101
+        assert "time" in tool.tags  # nosec B101
     
     def test_tool_id_validation_invalid(self):
         """Test tool ID validation fails for invalid ID."""
@@ -112,8 +112,8 @@ class TestTool:
         )
         
         required = tool.get_required_parameters()
-        assert len(required) == 1
-        assert required[0].name == "duration"
+        assert len(required) == 1  # nosec B101
+        assert required[0].name == "duration"  # nosec B101
     
     def test_tool_get_optional_parameters(self):
         """Test getting optional parameters."""
@@ -127,8 +127,8 @@ class TestTool:
         )
         
         optional = tool.get_optional_parameters()
-        assert len(optional) == 1
-        assert optional[0].name == "label"
+        assert len(optional) == 1  # nosec B101
+        assert optional[0].name == "label"  # nosec B101
     
     def test_tool_validate_parameters_valid(self):
         """Test parameter validation with valid parameters."""
@@ -141,8 +141,8 @@ class TestTool:
         )
         
         is_valid, errors = tool.validate_parameters({"duration": 300})
-        assert is_valid
-        assert len(errors) == 0
+        assert is_valid  # nosec B101
+        assert len(errors) == 0  # nosec B101
     
     def test_tool_validate_parameters_missing_required(self):
         """Test parameter validation fails for missing required parameter."""
@@ -155,8 +155,8 @@ class TestTool:
         )
         
         is_valid, errors = tool.validate_parameters({})
-        assert not is_valid
-        assert "Missing required parameter: duration" in errors
+        assert not is_valid  # nosec B101
+        assert "Missing required parameter: duration" in errors  # nosec B101
     
     def test_tool_validate_parameters_unknown(self):
         """Test parameter validation fails for unknown parameter."""
@@ -168,8 +168,8 @@ class TestTool:
         )
         
         is_valid, errors = tool.validate_parameters({"unknown": 123})
-        assert not is_valid
-        assert "Unknown parameter: unknown" in errors
+        assert not is_valid  # nosec B101
+        assert "Unknown parameter: unknown" in errors  # nosec B101
     
     def test_tool_validate_parameters_wrong_type(self):
         """Test parameter validation fails for wrong type."""
@@ -182,8 +182,8 @@ class TestTool:
         )
         
         is_valid, errors = tool.validate_parameters({"duration": "not an int"})
-        assert not is_valid
-        assert "must be int" in errors[0]
+        assert not is_valid  # nosec B101
+        assert "must be int" in errors[0]  # nosec B101
     
     def test_tool_validate_parameters_str_type(self):
         """Test parameter validation for str type."""
@@ -196,8 +196,8 @@ class TestTool:
         )
         
         is_valid, errors = tool.validate_parameters({"message": 123})
-        assert not is_valid
-        assert "must be str" in errors[0]
+        assert not is_valid  # nosec B101
+        assert "must be str" in errors[0]  # nosec B101
     
     def test_tool_validate_parameters_bool_type(self):
         """Test parameter validation for bool type."""
@@ -210,8 +210,8 @@ class TestTool:
         )
         
         is_valid, errors = tool.validate_parameters({"enabled": "yes"})
-        assert not is_valid
-        assert "must be bool" in errors[0]
+        assert not is_valid  # nosec B101
+        assert "must be bool" in errors[0]  # nosec B101
     
     def test_tool_equality(self):
         """Test tool equality comparison."""
@@ -219,16 +219,16 @@ class TestTool:
         tool2 = Tool(tool_id="set_timer", name="Timer", description="Test")
         tool3 = Tool(tool_id="set_alarm", name="Alarm", description="Test")
         
-        assert tool1 == tool2
-        assert tool1 != tool3
-        assert tool1 != "not a tool"
+        assert tool1 == tool2  # nosec B101
+        assert tool1 != tool3  # nosec B101
+        assert tool1 != "not a tool"  # nosec B101
     
     def test_tool_hash(self):
         """Test tool hashing."""
         tool1 = Tool(tool_id="set_timer", name="Timer", description="Test")
         tool2 = Tool(tool_id="set_timer", name="Timer", description="Test")
         
-        assert hash(tool1) == hash(tool2)
+        assert hash(tool1) == hash(tool2)  # nosec B101
 
 
 class TestAction:
@@ -245,12 +245,12 @@ class TestAction:
             requires_confirmation=False,
         )
         
-        assert action.action_id == "action_123"
-        assert action.tool_id == "set_timer"
-        assert action.parameters == {"duration": 300}
-        assert not action.is_sensitive
-        assert action.estimated_duration == 0.05
-        assert not action.requires_confirmation
+        assert action.action_id == "action_123"  # nosec B101
+        assert action.tool_id == "set_timer"  # nosec B101
+        assert action.parameters == {"duration": 300}  # nosec B101
+        assert not action.is_sensitive  # nosec B101
+        assert action.estimated_duration == 0.05  # nosec B101
+        assert not action.requires_confirmation  # nosec B101
     
     def test_action_id_validation_invalid(self):
         """Test action ID validation fails for empty ID."""
@@ -284,22 +284,22 @@ class TestAction:
         action2 = Action(action_id="action_123", tool_id="test")
         action3 = Action(action_id="action_456", tool_id="test")
         
-        assert action1 == action2
-        assert action1 != action3
-        assert action1 != "not an action"
+        assert action1 == action2  # nosec B101
+        assert action1 != action3  # nosec B101
+        assert action1 != "not an action"  # nosec B101
     
     def test_action_hash(self):
         """Test action hashing."""
         action1 = Action(action_id="action_123", tool_id="test")
         action2 = Action(action_id="action_123", tool_id="test")
         
-        assert hash(action1) == hash(action2)
+        assert hash(action1) == hash(action2)  # nosec B101
     
     def test_action_sensitivity_enum(self):
         """Test action sensitivity enum values."""
-        assert ActionSensitivity.SAFE == "safe"
-        assert ActionSensitivity.SENSITIVE == "sensitive"
-        assert ActionSensitivity.DANGEROUS == "dangerous"
+        assert ActionSensitivity.SAFE == "safe"  # nosec B101
+        assert ActionSensitivity.SENSITIVE == "sensitive"  # nosec B101
+        assert ActionSensitivity.DANGEROUS == "dangerous"  # nosec B101
 
 
     def test_tool_validate_latency_valid(self):
@@ -310,7 +310,7 @@ class TestAction:
             description="Test",
             estimated_latency=0.5,
         )
-        assert tool.estimated_latency == 0.5
+        assert tool.estimated_latency == 0.5  # nosec B101
     
     def test_action_validate_duration_valid(self):
         """Test duration validation passes for valid positive value."""
@@ -319,4 +319,4 @@ class TestAction:
             tool_id="test",
             estimated_duration=0.5,
         )
-        assert action.estimated_duration == 0.5
+        assert action.estimated_duration == 0.5  # nosec B101

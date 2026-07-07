@@ -82,9 +82,9 @@ class TestAdvancedNoiseCancellation:
     
     def test_initialization(self, noise_canceller):
         """Test noise canceller initialization."""
-        assert noise_canceller.sample_rate == 16000
-        assert noise_canceller.get_noise_profile() is None
-        assert noise_canceller.get_noise_type() == NoiseType.UNKNOWN
+        assert noise_canceller.sample_rate == 16000  # nosec B101
+        assert noise_canceller.get_noise_profile() is None  # nosec B101
+        assert noise_canceller.get_noise_type() == NoiseType.UNKNOWN  # nosec B101
     
     @pytest.mark.asyncio
     async def test_reduce_noise_basic(self, noise_canceller, clean_speech, white_noise):
@@ -96,8 +96,8 @@ class TestAdvancedNoiseCancellation:
         reduced = await noise_canceller.reduce_noise(noisy, noise_level="medium")
         
         # Check output properties
-        assert reduced.shape == noisy.shape
-        assert reduced.dtype == np.float32
+        assert reduced.shape == noisy.shape  # nosec B101
+        assert reduced.dtype == np.float32  # nosec B101
         
         # Reduced signal should have lower noise energy
         # (comparing to the noise component, not the clean speech)
@@ -108,7 +108,7 @@ class TestAdvancedNoiseCancellation:
         
         # Noise energy should be reduced (may not always be perfect)
         # Just verify the function runs and produces reasonable output
-        assert noise_energy_after >= 0
+        assert noise_energy_after >= 0  # nosec B101
     
     @pytest.mark.asyncio
     async def test_reduce_noise_levels(self, noise_canceller, clean_speech, white_noise):
@@ -121,9 +121,9 @@ class TestAdvancedNoiseCancellation:
         aggressive = await noise_canceller.reduce_noise(noisy, noise_level="aggressive")
         
         # All should reduce noise
-        assert light.shape == noisy.shape
-        assert medium.shape == noisy.shape
-        assert aggressive.shape == noisy.shape
+        assert light.shape == noisy.shape  # nosec B101
+        assert medium.shape == noisy.shape  # nosec B101
+        assert aggressive.shape == noisy.shape  # nosec B101
         
         # Aggressive should reduce more than medium, medium more than light
         np.mean(light ** 2)
@@ -131,18 +131,18 @@ class TestAdvancedNoiseCancellation:
         aggressive_energy = np.mean(aggressive ** 2)
         
         # Note: More aggressive reduction typically results in lower energy
-        assert aggressive_energy <= medium_energy
+        assert aggressive_energy <= medium_energy  # nosec B101
     
     def test_detect_noise_type_white(self, noise_canceller, white_noise):
         """Test white noise detection."""
         noise_type = noise_canceller.detect_noise_type(white_noise)
-        assert noise_type == NoiseType.WHITE
+        assert noise_type == NoiseType.WHITE  # nosec B101
     
     def test_detect_noise_type_pink(self, noise_canceller, pink_noise):
         """Test pink noise detection."""
         noise_type = noise_canceller.detect_noise_type(pink_noise)
         # Pink noise should be detected (may also be UNKNOWN, WIND, or TRAFFIC due to spectral characteristics)
-        assert noise_type in [NoiseType.PINK, NoiseType.UNKNOWN, NoiseType.TRAFFIC, NoiseType.WIND]
+        assert noise_type in [NoiseType.PINK, NoiseType.UNKNOWN, NoiseType.TRAFFIC, NoiseType.WIND]  # nosec B101
     
     def test_detect_noise_type_traffic(self, noise_canceller):
         """Test traffic noise detection (low frequency dominant)."""
@@ -160,7 +160,7 @@ class TestAdvancedNoiseCancellation:
         traffic = traffic.astype(np.float32)
         
         noise_type = noise_canceller.detect_noise_type(traffic)
-        assert noise_type in [NoiseType.TRAFFIC, NoiseType.WIND, NoiseType.UNKNOWN]
+        assert noise_type in [NoiseType.TRAFFIC, NoiseType.WIND, NoiseType.UNKNOWN]  # nosec B101
     
     def test_detect_noise_type_music(self, noise_canceller):
         """Test music noise detection (mid frequency with variation)."""
@@ -182,13 +182,13 @@ class TestAdvancedNoiseCancellation:
         
         noise_type = noise_canceller.detect_noise_type(music)
         # Music detection is challenging - accept various classifications
-        assert noise_type in [NoiseType.MUSIC, NoiseType.BABBLE, NoiseType.UNKNOWN, NoiseType.TRAFFIC, NoiseType.WIND]
+        assert noise_type in [NoiseType.MUSIC, NoiseType.BABBLE, NoiseType.UNKNOWN, NoiseType.TRAFFIC, NoiseType.WIND]  # nosec B101
     
     def test_compute_snr_clean(self, noise_canceller, clean_speech):
         """Test SNR computation with clean signal."""
         snr = noise_canceller.compute_snr(clean_speech)
         # Clean signal should have high SNR
-        assert snr > 10.0
+        assert snr > 10.0  # nosec B101
     
     def test_compute_snr_noisy(self, noise_canceller, clean_speech, white_noise):
         """Test SNR computation with noisy signal."""
@@ -196,14 +196,14 @@ class TestAdvancedNoiseCancellation:
         noisy = clean_speech + white_noise * 2
         snr = noise_canceller.compute_snr(noisy)
         # Noisy signal should have lower SNR
-        assert snr < 20.0
+        assert snr < 20.0  # nosec B101
     
     def test_compute_snr_with_noise_reference(self, noise_canceller, clean_speech, white_noise):
         """Test SNR computation with noise reference."""
         snr = noise_canceller.compute_snr(clean_speech, white_noise)
         # Should compute SNR based on provided noise
-        assert isinstance(snr, float)
-        assert snr > 0.0
+        assert isinstance(snr, float)  # nosec B101
+        assert snr > 0.0  # nosec B101
     
     @pytest.mark.asyncio
     async def test_adapt_to_noise(self, noise_canceller, clean_speech, white_noise):
@@ -214,14 +214,14 @@ class TestAdvancedNoiseCancellation:
         reduced = await noise_canceller.adapt_to_noise(noisy, update_profile=True)
         
         # Check output
-        assert reduced.shape == noisy.shape
+        assert reduced.shape == noisy.shape  # nosec B101
         
         # Noise profile should be updated
-        assert noise_canceller.get_noise_profile() is not None
+        assert noise_canceller.get_noise_profile() is not None  # nosec B101
         
         # Noise type should be detected (may be UNKNOWN for mixed signals)
         detected_type = noise_canceller.get_noise_type()
-        assert isinstance(detected_type, NoiseType)
+        assert isinstance(detected_type, NoiseType)  # nosec B101
     
     @pytest.mark.asyncio
     async def test_adapt_to_noise_without_update(self, noise_canceller, clean_speech, white_noise):
@@ -232,10 +232,10 @@ class TestAdvancedNoiseCancellation:
         reduced = await noise_canceller.adapt_to_noise(noisy, update_profile=False)
         
         # Check output
-        assert reduced.shape == noisy.shape
+        assert reduced.shape == noisy.shape  # nosec B101
         
         # Noise profile should not be updated
-        assert noise_canceller.get_noise_profile() is None
+        assert noise_canceller.get_noise_profile() is None  # nosec B101
     
     @pytest.mark.asyncio
     async def test_adapt_to_noise_low_snr(self, noise_canceller, clean_speech, white_noise):
@@ -247,7 +247,7 @@ class TestAdvancedNoiseCancellation:
         reduced = await noise_canceller.adapt_to_noise(noisy)
         
         # Should still produce output
-        assert reduced.shape == noisy.shape
+        assert reduced.shape == noisy.shape  # nosec B101
     
     def test_reset(self, noise_canceller, white_noise):
         """Test reset functionality."""
@@ -259,8 +259,8 @@ class TestAdvancedNoiseCancellation:
         noise_canceller.reset()
         
         # State should be cleared
-        assert noise_canceller.get_noise_profile() is None
-        assert noise_canceller.get_noise_type() == NoiseType.UNKNOWN
+        assert noise_canceller.get_noise_profile() is None  # nosec B101
+        assert noise_canceller.get_noise_type() == NoiseType.UNKNOWN  # nosec B101
     
     @pytest.mark.asyncio
     async def test_reduce_noise_empty_audio(self, noise_canceller):
@@ -276,7 +276,7 @@ class TestAdvancedNoiseCancellation:
         zero_signal = np.zeros(1000, dtype=np.float32)
         snr = noise_canceller.compute_snr(zero_signal)
         # Should handle gracefully
-        assert isinstance(snr, float)
+        assert isinstance(snr, float)  # nosec B101
 
 
 # Property-Based Tests
@@ -321,11 +321,11 @@ class TestNoiseReductionProperties:
         reduced = await canceller.reduce_noise(noisy, noise_level="aggressive")
         
         # Verify output shape preserved
-        assert reduced.shape == noisy.shape
+        assert reduced.shape == noisy.shape  # nosec B101
         
         # Verify output is valid (no NaN or Inf)
-        assert not np.any(np.isnan(reduced))
-        assert not np.any(np.isinf(reduced))
+        assert not np.any(np.isnan(reduced))  # nosec B101
+        assert not np.any(np.isinf(reduced))  # nosec B101
         
         # Verify noise reduction improves SNR
         # Compute SNR before and after
@@ -335,8 +335,8 @@ class TestNoiseReductionProperties:
         # SNR should improve or stay similar (allowing for some variance)
         # The goal is >20dB reduction, but this depends on the noise characteristics
         # We just verify the function works correctly
-        assert isinstance(snr_after, float)
-        assert not np.isnan(snr_after)
+        assert isinstance(snr_after, float)  # nosec B101
+        assert not np.isnan(snr_after)  # nosec B101
         
         # Verify processing time (should complete within 50ms per chunk)
         # This is implicitly tested by the deadline setting
@@ -389,8 +389,8 @@ class TestNoiseReductionProperties:
         detected = canceller.detect_noise_type(noise)
         
         # Should return a valid noise type
-        assert isinstance(detected, NoiseType)
-        assert detected in NoiseType
+        assert isinstance(detected, NoiseType)  # nosec B101
+        assert detected in NoiseType  # nosec B101
 
 
 class TestSNRComputation:
@@ -423,14 +423,14 @@ class TestSNRComputation:
         snr = canceller.compute_snr(signal, noise)
         
         # SNR should be a valid number
-        assert isinstance(snr, float)
-        assert not np.isnan(snr)
-        assert not np.isinf(snr)
+        assert isinstance(snr, float)  # nosec B101
+        assert not np.isnan(snr)  # nosec B101
+        assert not np.isinf(snr)  # nosec B101
         
         # Higher signal amplitude should generally give higher SNR
         # (when noise amplitude is constant)
         if signal_amplitude > noise_amplitude * 2:
-            assert snr > 0.0
+            assert snr > 0.0  # nosec B101
 
 
 class TestAdaptiveReduction:
@@ -449,13 +449,13 @@ class TestAdaptiveReduction:
         signal = np.random.normal(0, 0.5, samples).astype(np.float32)
         
         # Initial profile should be None
-        assert canceller.get_noise_profile() is None
+        assert canceller.get_noise_profile() is None  # nosec B101
         
         # Apply adaptive reduction
         await canceller.adapt_to_noise(signal, update_profile=True)
         
         # Profile should be updated
-        assert canceller.get_noise_profile() is not None
+        assert canceller.get_noise_profile() is not None  # nosec B101
     
     @pytest.mark.asyncio
     async def test_adaptive_reduction_multiple_updates(self):
@@ -472,7 +472,7 @@ class TestAdaptiveReduction:
             await canceller.adapt_to_noise(signal, update_profile=True)
         
         # Profile should be updated
-        assert canceller.get_noise_profile() is not None
+        assert canceller.get_noise_profile() is not None  # nosec B101
         
         # Noise type should be detected
-        assert canceller.get_noise_type() != NoiseType.UNKNOWN
+        assert canceller.get_noise_type() != NoiseType.UNKNOWN  # nosec B101

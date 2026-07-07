@@ -71,7 +71,7 @@ class TestLLMClientInitialization:
             use_llm_synthesis=True,
         )
 
-        assert synthesizer.llm_client is not None
+        assert synthesizer.llm_client is not None  # nosec B101
         mock_openai.OpenAI.assert_called_once_with(api_key="test-key")
 
     @patch("Agent_Guru.reasoning.knowledge.synthesizer.ANTHROPIC_AVAILABLE", True)
@@ -88,7 +88,7 @@ class TestLLMClientInitialization:
             use_llm_synthesis=True,
         )
 
-        assert synthesizer.llm_client is not None
+        assert synthesizer.llm_client is not None  # nosec B101
         mock_anthropic.Anthropic.assert_called_once_with(api_key="test-key")
 
     def test_initialize_without_llm(self):
@@ -99,7 +99,7 @@ class TestLLMClientInitialization:
             memory_retriever=memory_retriever, use_llm_synthesis=False
         )
 
-        assert synthesizer.llm_client is None
+        assert synthesizer.llm_client is None  # nosec B101
 
     @patch("Agent_Guru.reasoning.knowledge.synthesizer.OPENAI_AVAILABLE", False)
     def test_initialize_openai_not_available(self):
@@ -159,11 +159,11 @@ class TestPromptGeneration:
 
         prompt = synthesizer._build_synthesis_prompt(query, memories, patterns, statistics)
 
-        assert "when did I last call John?" in prompt
-        assert "temporal" in prompt.lower()
-        assert "Called John about project" in prompt
-        assert "person" in prompt
-        assert "John" in prompt
+        assert "when did I last call John?" in prompt  # nosec B101
+        assert "temporal" in prompt.lower()  # nosec B101
+        assert "Called John about project" in prompt  # nosec B101
+        assert "person" in prompt  # nosec B101
+        assert "John" in prompt  # nosec B101
 
     def test_build_synthesis_prompt_with_patterns(self):
         """Test prompt generation with patterns."""
@@ -192,10 +192,10 @@ class TestPromptGeneration:
 
         prompt = synthesizer._build_synthesis_prompt(query, memories, patterns, statistics)
 
-        assert "pattern" in prompt.lower()
-        assert "daily" in prompt
-        assert "Usually exercises in the morning" in prompt
-        assert "0.8" in prompt  # frequency
+        assert "pattern" in prompt.lower()  # nosec B101
+        assert "daily" in prompt  # nosec B101
+        assert "Usually exercises in the morning" in prompt  # nosec B101
+        assert "0.8" in prompt  # frequency  # nosec B101
 
     def test_build_synthesis_prompt_limits_memories(self):
         """Test that prompt limits memories to top 10."""
@@ -225,7 +225,7 @@ class TestPromptGeneration:
 
         # Count how many memories appear in prompt
         memory_count = sum(1 for i in range(20) if f"Memory {i}" in prompt)
-        assert memory_count <= 10  # Should limit to 10
+        assert memory_count <= 10  # Should limit to 10  # nosec B101
 
 
 class TestLLMResponseParsing:
@@ -249,11 +249,11 @@ class TestLLMResponseParsing:
 
         parsed = synthesizer._parse_llm_synthesis_response(response_text)
 
-        assert isinstance(parsed, LLMSynthesisResponse)
-        assert parsed.summary == "You last called John 2 days ago"
-        assert parsed.confidence == 0.85
-        assert parsed.reasoning == "Based on recent call history"
-        assert len(parsed.key_insights) == 2
+        assert isinstance(parsed, LLMSynthesisResponse)  # nosec B101
+        assert parsed.summary == "You last called John 2 days ago"  # nosec B101
+        assert parsed.confidence == 0.85  # nosec B101
+        assert parsed.reasoning == "Based on recent call history"  # nosec B101
+        assert len(parsed.key_insights) == 2  # nosec B101
 
     def test_parse_minimal_response(self):
         """Test parsing minimal valid response."""
@@ -266,10 +266,10 @@ class TestLLMResponseParsing:
 
         parsed = synthesizer._parse_llm_synthesis_response(response_text)
 
-        assert parsed.summary == "Test answer"
-        assert parsed.confidence == 0.7
-        assert parsed.reasoning == ""
-        assert parsed.key_insights == []
+        assert parsed.summary == "Test answer"  # nosec B101
+        assert parsed.confidence == 0.7  # nosec B101
+        assert parsed.reasoning == ""  # nosec B101
+        assert parsed.key_insights == []  # nosec B101
 
     def test_parse_invalid_json(self):
         """Test error on invalid JSON."""
@@ -363,10 +363,10 @@ class TestLLMSynthesis:
 
         answer = await synthesizer.synthesize_answer_with_llm(query, memories, [], {})
 
-        assert isinstance(answer, KnowledgeAnswer)
-        assert "You last called John 2 days ago" in answer.summary
-        assert 0.0 <= answer.confidence <= 1.0
-        assert len(answer.supporting_memories) > 0
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert "You last called John 2 days ago" in answer.summary  # nosec B101
+        assert 0.0 <= answer.confidence <= 1.0  # nosec B101
+        assert len(answer.supporting_memories) > 0  # nosec B101
 
     @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.knowledge.synthesizer.OPENAI_AVAILABLE", True)
@@ -423,8 +423,8 @@ class TestLLMSynthesis:
         # Should fall back to template-based generation after timeout
         answer = await synthesizer.synthesize_answer_with_llm(query, memories, [], {})
 
-        assert isinstance(answer, KnowledgeAnswer)
-        assert answer.summary == "Fallback answer"  # Should use mocked fallback
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert answer.summary == "Fallback answer"  # Should use mocked fallback  # nosec B101
 
     @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.knowledge.synthesizer.OPENAI_AVAILABLE", True)
@@ -477,8 +477,8 @@ class TestLLMSynthesis:
         # Should fall back to template-based generation after retries
         answer = await synthesizer.synthesize_answer_with_llm(query, memories, [], {})
 
-        assert isinstance(answer, KnowledgeAnswer)
-        assert "Fallback answer" in answer.summary  # Should use mocked fallback
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert "Fallback answer" in answer.summary  # Should use mocked fallback  # nosec B101
 
 
 class TestSupportingMemories:
@@ -514,9 +514,9 @@ class TestSupportingMemories:
 
         answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
-        assert len(answer.supporting_memories) == 5  # Top 5
-        assert answer.supporting_memories[0] == memory_ids[0]  # Most relevant first
-        assert answer.supporting_memories[4] == memory_ids[4]
+        assert len(answer.supporting_memories) == 5  # Top 5  # nosec B101
+        assert answer.supporting_memories[0] == memory_ids[0]  # Most relevant first  # nosec B101
+        assert answer.supporting_memories[4] == memory_ids[4]  # nosec B101
 
     def test_create_answer_adjusts_confidence_no_memories(self):
         """Test confidence adjustment when no memories."""
@@ -536,8 +536,8 @@ class TestSupportingMemories:
         answer = synthesizer._create_answer_from_llm_response(llm_response, query, [], [], {})
 
         # Confidence should be reduced (0.9 * 0.5 = 0.45)
-        assert answer.confidence < 0.9
-        assert answer.confidence == 0.45
+        assert answer.confidence < 0.9  # nosec B101
+        assert answer.confidence == 0.45  # nosec B101
 
     def test_create_answer_adjusts_confidence_few_memories(self):
         """Test confidence adjustment with few memories."""
@@ -576,8 +576,8 @@ class TestSupportingMemories:
         answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         # Confidence should be reduced (0.9 * 0.8 = 0.72)
-        assert answer.confidence < 0.9
-        assert answer.confidence == 0.72
+        assert answer.confidence < 0.9  # nosec B101
+        assert answer.confidence == 0.72  # nosec B101
 
 
 class TestConfidenceIndicator:
@@ -611,8 +611,8 @@ class TestConfidenceIndicator:
 
         answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
-        assert "I'm not very confident" in answer.summary
-        assert "you called john yesterday" in answer.summary.lower()
+        assert "I'm not very confident" in answer.summary  # nosec B101
+        assert "you called john yesterday" in answer.summary.lower()  # nosec B101
 
     def test_high_confidence_no_indicator(self):
         """Test that high confidence doesn't add indicator."""
@@ -642,5 +642,5 @@ class TestConfidenceIndicator:
 
         answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
-        assert "I'm not very confident" not in answer.summary
-        assert answer.summary == "You called John yesterday"
+        assert "I'm not very confident" not in answer.summary  # nosec B101
+        assert answer.summary == "You called John yesterday"  # nosec B101

@@ -38,7 +38,7 @@ class TestImportanceScoring:
         )
 
         score = retriever.compute_importance_score(memory)
-        assert 0.0 <= score <= 1.0
+        assert 0.0 <= score <= 1.0  # nosec B101
 
     def test_importance_score_recent_memory(self):
         """Test that recent memories have higher importance."""
@@ -67,7 +67,7 @@ class TestImportanceScoring:
         recent_score = retriever.compute_importance_score(recent)
         old_score = retriever.compute_importance_score(old)
 
-        assert recent_score > old_score
+        assert recent_score > old_score  # nosec B101
 
     def test_importance_score_high_relevance(self):
         """Test that high relevance increases importance."""
@@ -94,7 +94,7 @@ class TestImportanceScoring:
         high_score = retriever.compute_importance_score(high_relevance)
         low_score = retriever.compute_importance_score(low_relevance)
 
-        assert high_score > low_score
+        assert high_score > low_score  # nosec B101
 
     def test_importance_score_usage_tracking(self):
         """Test that retrieval count increases importance."""
@@ -123,7 +123,7 @@ class TestImportanceScoring:
         high_score = retriever.compute_importance_score(high_usage)
         low_score = retriever.compute_importance_score(low_usage)
 
-        assert high_score > low_score
+        assert high_score > low_score  # nosec B101
 
     def test_importance_score_memory_type_weights(self):
         """Test that different memory types have different importance."""
@@ -178,7 +178,7 @@ class TestImportanceScoring:
         episodic_score = retriever.compute_importance_score(episodic)
 
         # Semantic should be highest, episodic lowest
-        assert semantic_score > preference_score > task_score > episodic_score
+        assert semantic_score > preference_score > task_score > episodic_score  # nosec B101
 
 
 class TestMemoryPruning:
@@ -217,10 +217,10 @@ class TestMemoryPruning:
             user_id="user_123", importance_threshold=0.3, keep_minimum=0
         )
 
-        assert pruned == 1
-        assert retriever.get_memory_count("user_123") == 1
-        assert high_importance.memory_id in retriever.memories
-        assert low_importance.memory_id not in retriever.memories
+        assert pruned == 1  # nosec B101
+        assert retriever.get_memory_count("user_123") == 1  # nosec B101
+        assert high_importance.memory_id in retriever.memories  # nosec B101
+        assert low_importance.memory_id not in retriever.memories  # nosec B101
 
     def test_prune_respects_minimum_count(self):
         """Test that pruning respects keep_minimum parameter."""
@@ -245,8 +245,8 @@ class TestMemoryPruning:
         )
 
         # Should keep 3 memories even though all are below threshold
-        assert retriever.get_memory_count("user_123") == 3
-        assert pruned == 2
+        assert retriever.get_memory_count("user_123") == 3  # nosec B101
+        assert pruned == 2  # nosec B101
 
     def test_prune_protects_high_importance(self):
         """Test that high-importance memories are protected from pruning."""
@@ -280,8 +280,8 @@ class TestMemoryPruning:
         # Verify importance scores
         high_score = retriever.compute_importance_score(high_importance)
         low_score = retriever.compute_importance_score(low_importance)
-        assert high_score >= 0.7  # Should be protected
-        assert low_score < 0.7  # Should not be protected
+        assert high_score >= 0.7  # Should be protected  # nosec B101
+        assert low_score < 0.7  # Should not be protected  # nosec B101
 
         # Prune with age limit
         pruned = retriever.prune_memories(
@@ -289,9 +289,9 @@ class TestMemoryPruning:
         )
 
         # High-importance memory should be protected
-        assert high_importance.memory_id in retriever.memories
-        assert low_importance.memory_id not in retriever.memories
-        assert pruned == 1
+        assert high_importance.memory_id in retriever.memories  # nosec B101
+        assert low_importance.memory_id not in retriever.memories  # nosec B101
+        assert pruned == 1  # nosec B101
 
     def test_prune_by_age_limit(self):
         """Test that memories older than max_age_days are pruned."""
@@ -322,9 +322,9 @@ class TestMemoryPruning:
         # Prune with age limit
         pruned = retriever.prune_memories(user_id="user_123", max_age_days=90, keep_minimum=0)
 
-        assert pruned == 1
-        assert recent.memory_id in retriever.memories
-        assert old.memory_id not in retriever.memories
+        assert pruned == 1  # nosec B101
+        assert recent.memory_id in retriever.memories  # nosec B101
+        assert old.memory_id not in retriever.memories  # nosec B101
 
     def test_prune_only_user_memories(self):
         """Test that pruning only affects specified user's memories."""
@@ -360,9 +360,9 @@ class TestMemoryPruning:
         )
 
         # Only user1's memory should be pruned
-        assert pruned == 1
-        assert user1_memory.memory_id not in retriever.memories
-        assert user2_memory.memory_id in retriever.memories
+        assert pruned == 1  # nosec B101
+        assert user1_memory.memory_id not in retriever.memories  # nosec B101
+        assert user2_memory.memory_id in retriever.memories  # nosec B101
 
     def test_prune_invalid_parameters(self):
         """Test that invalid parameters raise ValueError."""
@@ -398,8 +398,8 @@ class TestMemoryPruning:
         # Try to prune with keep_minimum=100
         pruned = retriever.prune_memories(user_id="user_123", keep_minimum=100)
 
-        assert pruned == 0
-        assert retriever.get_memory_count("user_123") == 2
+        assert pruned == 0  # nosec B101
+        assert retriever.get_memory_count("user_123") == 2  # nosec B101
 
 
 class TestUserMemoryControl:
@@ -421,9 +421,9 @@ class TestUserMemoryControl:
         # Delete the memory
         deleted = retriever.delete_memory(memory.memory_id, "user_123")
 
-        assert deleted is True
-        assert memory.memory_id not in retriever.memories
-        assert retriever.get_memory_count("user_123") == 0
+        assert deleted is True  # nosec B101
+        assert memory.memory_id not in retriever.memories  # nosec B101
+        assert retriever.get_memory_count("user_123") == 0  # nosec B101
 
     def test_delete_memory_not_found(self):
         """Test deletion of non-existent memory returns False."""
@@ -431,7 +431,7 @@ class TestUserMemoryControl:
 
         deleted = retriever.delete_memory(uuid4(), "user_123")
 
-        assert deleted is False
+        assert deleted is False  # nosec B101
 
     def test_delete_memory_unauthorized(self):
         """Test that users can only delete their own memories."""
@@ -449,8 +449,8 @@ class TestUserMemoryControl:
         # Try to delete as different user
         deleted = retriever.delete_memory(memory.memory_id, "user_2")
 
-        assert deleted is False
-        assert memory.memory_id in retriever.memories
+        assert deleted is False  # nosec B101
+        assert memory.memory_id in retriever.memories  # nosec B101
 
     def test_delete_memories_by_type(self):
         """Test deletion of all memories of a specific type."""
@@ -480,9 +480,9 @@ class TestUserMemoryControl:
         # Delete all episodic memories
         deleted = retriever.delete_memories_by_type("user_123", MemoryType.EPISODIC)
 
-        assert deleted == 3
-        assert retriever.get_memory_count("user_123") == 1
-        assert semantic.memory_id in retriever.memories
+        assert deleted == 3  # nosec B101
+        assert retriever.get_memory_count("user_123") == 1  # nosec B101
+        assert semantic.memory_id in retriever.memories  # nosec B101
 
     def test_delete_memories_by_type_only_user(self):
         """Test that deletion by type only affects specified user."""
@@ -511,9 +511,9 @@ class TestUserMemoryControl:
         # Delete user1's episodic memories
         deleted = retriever.delete_memories_by_type("user_1", MemoryType.EPISODIC)
 
-        assert deleted == 1
-        assert user1_memory.memory_id not in retriever.memories
-        assert user2_memory.memory_id in retriever.memories
+        assert deleted == 1  # nosec B101
+        assert user1_memory.memory_id not in retriever.memories  # nosec B101
+        assert user2_memory.memory_id in retriever.memories  # nosec B101
 
 
 class TestRetrievalCountTracking:
@@ -535,12 +535,12 @@ class TestRetrievalCountTracking:
         # Retrieve the memory
         results = retriever.retrieve("test", "user_123")
 
-        assert len(results) == 1
-        assert results[0].metadata.get("retrieval_count", 0) == 1
+        assert len(results) == 1  # nosec B101
+        assert results[0].metadata.get("retrieval_count", 0) == 1  # nosec B101
 
         # Retrieve again
         results = retriever.retrieve("test", "user_123")
-        assert results[0].metadata.get("retrieval_count", 0) == 2
+        assert results[0].metadata.get("retrieval_count", 0) == 2  # nosec B101
 
     def test_retrieval_count_affects_importance(self):
         """Test that retrieval count affects importance scoring."""
@@ -578,7 +578,7 @@ class TestRetrievalCountTracking:
         score2 = retriever.compute_importance_score(memory2)
 
         # Memory1 should have higher importance due to usage
-        assert score1 > score2
+        assert score1 > score2  # nosec B101
 
 
 class TestEmbeddingsRebuild:
@@ -602,14 +602,14 @@ class TestEmbeddingsRebuild:
             memories.append(memory)
 
         initial_shape = retriever.embeddings.shape
-        assert initial_shape[0] == 5
+        assert initial_shape[0] == 5  # nosec B101
 
         # Delete one memory
         retriever.delete_memory(memories[2].memory_id, "user_123")
 
         # Check embeddings shape
-        assert retriever.embeddings.shape[0] == 4
-        assert retriever.embeddings.shape[1] == 768
+        assert retriever.embeddings.shape[0] == 4  # nosec B101
+        assert retriever.embeddings.shape[1] == 768  # nosec B101
 
     def test_embeddings_none_after_delete_all(self):
         """Test that embeddings is None after deleting all memories."""
@@ -627,5 +627,5 @@ class TestEmbeddingsRebuild:
         # Delete the memory
         retriever.delete_memory(memory.memory_id, "user_123")
 
-        assert retriever.embeddings is None
-        assert len(retriever.memory_ids) == 0
+        assert retriever.embeddings is None  # nosec B101
+        assert len(retriever.memory_ids) == 0  # nosec B101

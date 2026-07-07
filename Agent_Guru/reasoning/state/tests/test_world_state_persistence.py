@@ -42,7 +42,7 @@ class TestWorldStatePersistence:
         await persistence.initialize()
 
         # Database file should exist
-        assert os.path.exists(temp_db)
+        assert os.path.exists(temp_db)  # nosec B101
 
     @pytest.mark.asyncio
     async def test_save_and_restore_state(self, persistence):
@@ -60,12 +60,12 @@ class TestWorldStatePersistence:
         new_engine = WorldStateEngine()
         restored = await persistence.restore_state(new_engine)
 
-        assert restored is True
+        assert restored is True  # nosec B101
 
         # Verify restored state
         state = await new_engine.get_state()
-        assert state.device_status.battery_level == 75
-        assert state.device_status.charging is True
+        assert state.device_status.battery_level == 75  # nosec B101
+        assert state.device_status.charging is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_restore_nonexistent_state(self, persistence):
@@ -73,7 +73,7 @@ class TestWorldStatePersistence:
         engine = WorldStateEngine()
 
         restored = await persistence.restore_state(engine)
-        assert restored is False
+        assert restored is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_save_with_backup(self, persistence):
@@ -88,7 +88,7 @@ class TestWorldStatePersistence:
 
         # Check backup count
         count = await persistence.get_backup_count()
-        assert count == 1
+        assert count == 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_save_without_backup(self, persistence):
@@ -103,7 +103,7 @@ class TestWorldStatePersistence:
 
         # Check backup count
         count = await persistence.get_backup_count()
-        assert count == 0
+        assert count == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_multiple_saves_create_backups(self, persistence):
@@ -118,14 +118,14 @@ class TestWorldStatePersistence:
 
         # Check backup count
         count = await persistence.get_backup_count()
-        assert count == 5
+        assert count == 5  # nosec B101
 
     @pytest.mark.asyncio
     async def test_get_version(self, persistence):
         """Test getting state version."""
         # No state yet
         version = await persistence.get_version()
-        assert version is None
+        assert version is None  # nosec B101
 
         # Save state
         engine = WorldStateEngine()
@@ -133,7 +133,7 @@ class TestWorldStatePersistence:
 
         # Check version
         version = await persistence.get_version()
-        assert version == WorldStatePersistence.CURRENT_VERSION
+        assert version == WorldStatePersistence.CURRENT_VERSION  # nosec B101
 
     @pytest.mark.asyncio
     async def test_restore_from_backup(self, persistence):
@@ -150,10 +150,10 @@ class TestWorldStatePersistence:
         new_engine = WorldStateEngine()
         restored = await persistence.restore_from_backup(new_engine, backup_id=1)
 
-        assert restored is True
+        assert restored is True  # nosec B101
 
         state = await new_engine.get_state()
-        assert state.device_status.battery_level == 100
+        assert state.device_status.battery_level == 100  # nosec B101
 
     @pytest.mark.asyncio
     async def test_restore_from_nonexistent_backup(self, persistence):
@@ -161,7 +161,7 @@ class TestWorldStatePersistence:
         engine = WorldStateEngine()
 
         restored = await persistence.restore_from_backup(engine, backup_id=999)
-        assert restored is False
+        assert restored is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_cleanup_old_backups(self, persistence):
@@ -178,11 +178,11 @@ class TestWorldStatePersistence:
         # Cleanup, keeping only 10
         deleted = await persistence.cleanup_old_backups(keep_count=10)
 
-        assert deleted == 5
+        assert deleted == 5  # nosec B101
 
         # Check remaining count
         count = await persistence.get_backup_count()
-        assert count == 10
+        assert count == 10  # nosec B101
 
     @pytest.mark.asyncio
     async def test_cleanup_with_fewer_backups(self, persistence):
@@ -198,11 +198,11 @@ class TestWorldStatePersistence:
         # Cleanup, keeping 10 (more than we have)
         deleted = await persistence.cleanup_old_backups(keep_count=10)
 
-        assert deleted == 0
+        assert deleted == 0  # nosec B101
 
         # All backups should remain
         count = await persistence.get_backup_count()
-        assert count == 5
+        assert count == 5  # nosec B101
 
     @pytest.mark.asyncio
     async def test_concurrent_saves(self, persistence):
@@ -222,7 +222,7 @@ class TestWorldStatePersistence:
 
         # All saves should succeed
         count = await persistence.get_backup_count()
-        assert count == 10
+        assert count == 10  # nosec B101
 
     @pytest.mark.asyncio
     async def test_state_with_complex_data(self, persistence):
@@ -257,10 +257,10 @@ class TestWorldStatePersistence:
 
         # Verify all fields
         state = await new_engine.get_state()
-        assert state.device_status.battery_level == 85
-        assert state.device_status.charging is True
-        assert state.device_status.network_type == "cellular"
-        assert state.system_resources.cpu_usage == 45.5
-        assert state.system_resources.memory_usage == 60.0
-        assert len(state.active_apps) == 3
-        assert len(state.active_tasks) == 2
+        assert state.device_status.battery_level == 85  # nosec B101
+        assert state.device_status.charging is True  # nosec B101
+        assert state.device_status.network_type == "cellular"  # nosec B101
+        assert state.system_resources.cpu_usage == 45.5  # nosec B101
+        assert state.system_resources.memory_usage == 60.0  # nosec B101
+        assert len(state.active_apps) == 3  # nosec B101
+        assert len(state.active_tasks) == 2  # nosec B101

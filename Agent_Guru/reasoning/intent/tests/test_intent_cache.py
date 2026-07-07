@@ -51,10 +51,10 @@ class TestIntentDetectionCache:
         """Test cache initialization."""
         cache = IntentDetectionCache(max_size=1000, ttl_seconds=300)
 
-        assert cache.max_size == 1000
-        assert cache.ttl_seconds == 300
-        assert cache.get_size() == 0
-        assert cache.stats.total_requests == 0
+        assert cache.max_size == 1000  # nosec B101
+        assert cache.ttl_seconds == 300  # nosec B101
+        assert cache.get_size() == 0  # nosec B101
+        assert cache.stats.total_requests == 0  # nosec B101
 
     def test_initialization_invalid_params(self):
         """Test initialization with invalid parameters."""
@@ -81,10 +81,10 @@ class TestIntentDetectionCache:
         # Get intent
         cached_intent = cache.get(text, context)
 
-        assert cached_intent is not None
-        assert cached_intent.intent_type == "set_timer"
-        assert cached_intent.confidence == 0.98
-        assert cache.get_size() == 1
+        assert cached_intent is not None  # nosec B101
+        assert cached_intent.intent_type == "set_timer"  # nosec B101
+        assert cached_intent.confidence == 0.98  # nosec B101
+        assert cache.get_size() == 1  # nosec B101
 
     def test_cache_hit(self, cache, sample_intent):
         """Test cache hit tracking."""
@@ -93,10 +93,10 @@ class TestIntentDetectionCache:
         cache.set(text, None, sample_intent)
         cached_intent = cache.get(text, None)
 
-        assert cached_intent is not None
-        assert cache.stats.cache_hits == 1
-        assert cache.stats.cache_misses == 0
-        assert cache.stats.get_hit_rate() == 100.0
+        assert cached_intent is not None  # nosec B101
+        assert cache.stats.cache_hits == 1  # nosec B101
+        assert cache.stats.cache_misses == 0  # nosec B101
+        assert cache.stats.get_hit_rate() == 100.0  # nosec B101
 
     def test_cache_miss(self, cache):
         """Test cache miss tracking."""
@@ -104,10 +104,10 @@ class TestIntentDetectionCache:
 
         cached_intent = cache.get(text, None)
 
-        assert cached_intent is None
-        assert cache.stats.cache_hits == 0
-        assert cache.stats.cache_misses == 1
-        assert cache.stats.get_hit_rate() == 0.0
+        assert cached_intent is None  # nosec B101
+        assert cache.stats.cache_hits == 0  # nosec B101
+        assert cache.stats.cache_misses == 1  # nosec B101
+        assert cache.stats.get_hit_rate() == 0.0  # nosec B101
 
     def test_cache_with_context(self, cache, sample_intent):
         """Test caching with different contexts."""
@@ -120,15 +120,15 @@ class TestIntentDetectionCache:
 
         # Get with context1 - should hit
         cached1 = cache.get(text, context1)
-        assert cached1 is not None
+        assert cached1 is not None  # nosec B101
 
         # Get with context2 - should miss (different context)
         cached2 = cache.get(text, context2)
-        assert cached2 is None
+        assert cached2 is None  # nosec B101
 
         # Get with no context - should miss
         cached3 = cache.get(text, None)
-        assert cached3 is None
+        assert cached3 is None  # nosec B101
 
     def test_ttl_expiration(self, cache, sample_intent):
         """Test TTL-based expiration."""
@@ -140,15 +140,15 @@ class TestIntentDetectionCache:
 
         # Should hit immediately
         cached = short_ttl_cache.get(text, None)
-        assert cached is not None
+        assert cached is not None  # nosec B101
 
         # Wait for TTL to expire
         time.sleep(1.1)
 
         # Should miss after expiration
         cached = short_ttl_cache.get(text, None)
-        assert cached is None
-        assert short_ttl_cache.stats.ttl_expirations == 1
+        assert cached is None  # nosec B101
+        assert short_ttl_cache.stats.ttl_expirations == 1  # nosec B101
 
     def test_lru_eviction(self, sample_intent):
         """Test LRU eviction when cache is full."""
@@ -159,19 +159,19 @@ class TestIntentDetectionCache:
         for i in range(3):
             small_cache.set(f"text{i}", None, sample_intent)
 
-        assert small_cache.get_size() == 3
+        assert small_cache.get_size() == 3  # nosec B101
 
         # Add one more - should evict oldest
         small_cache.set("text3", None, sample_intent)
 
-        assert small_cache.get_size() == 3
-        assert small_cache.stats.evictions == 1
+        assert small_cache.get_size() == 3  # nosec B101
+        assert small_cache.stats.evictions == 1  # nosec B101
 
         # Oldest entry (text0) should be evicted
-        assert small_cache.get("text0", None) is None
-        assert small_cache.get("text1", None) is not None
-        assert small_cache.get("text2", None) is not None
-        assert small_cache.get("text3", None) is not None
+        assert small_cache.get("text0", None) is None  # nosec B101
+        assert small_cache.get("text1", None) is not None  # nosec B101
+        assert small_cache.get("text2", None) is not None  # nosec B101
+        assert small_cache.get("text3", None) is not None  # nosec B101
 
     def test_context_invalidation(self, cache, sample_intent):
         """Test context-based invalidation."""
@@ -183,21 +183,21 @@ class TestIntentDetectionCache:
         cache.set("text2", context1, sample_intent)
         cache.set("text3", context2, sample_intent)
 
-        assert cache.get_size() == 3
+        assert cache.get_size() == 3  # nosec B101
 
         # Invalidate context1
         invalidated = cache.invalidate_by_context(context1)
 
-        assert invalidated == 2
-        assert cache.get_size() == 1
-        assert cache.stats.context_invalidations == 2
+        assert invalidated == 2  # nosec B101
+        assert cache.get_size() == 1  # nosec B101
+        assert cache.stats.context_invalidations == 2  # nosec B101
 
         # context1 entries should be gone
-        assert cache.get("text1", context1) is None
-        assert cache.get("text2", context1) is None
+        assert cache.get("text1", context1) is None  # nosec B101
+        assert cache.get("text2", context1) is None  # nosec B101
 
         # context2 entry should remain
-        assert cache.get("text3", context2) is not None
+        assert cache.get("text3", context2) is not None  # nosec B101
 
     def test_invalidate_all(self, cache, sample_intent):
         """Test invalidating all entries."""
@@ -205,13 +205,13 @@ class TestIntentDetectionCache:
         for i in range(5):
             cache.set(f"text{i}", None, sample_intent)
 
-        assert cache.get_size() == 5
+        assert cache.get_size() == 5  # nosec B101
 
         # Invalidate all
         cache.invalidate_all()
 
-        assert cache.get_size() == 0
-        assert cache.stats.context_invalidations == 5
+        assert cache.get_size() == 0  # nosec B101
+        assert cache.stats.context_invalidations == 5  # nosec B101
 
     def test_clear(self, cache, sample_intent):
         """Test clearing cache."""
@@ -219,12 +219,12 @@ class TestIntentDetectionCache:
         for i in range(5):
             cache.set(f"text{i}", None, sample_intent)
 
-        assert cache.get_size() == 5
+        assert cache.get_size() == 5  # nosec B101
 
         # Clear
         cache.clear()
 
-        assert cache.get_size() == 0
+        assert cache.get_size() == 0  # nosec B101
 
     def test_access_count_tracking(self, cache, sample_intent):
         """Test access count tracking."""
@@ -239,9 +239,9 @@ class TestIntentDetectionCache:
         # Check most accessed
         most_accessed = cache.get_most_accessed(limit=1)
 
-        assert len(most_accessed) == 1
-        assert most_accessed[0]["access_count"] == 5
-        assert most_accessed[0]["intent_type"] == "set_timer"
+        assert len(most_accessed) == 1  # nosec B101
+        assert most_accessed[0]["access_count"] == 5  # nosec B101
+        assert most_accessed[0]["intent_type"] == "set_timer"  # nosec B101
 
     def test_cache_stats(self, cache, sample_intent):
         """Test cache statistics."""
@@ -252,13 +252,13 @@ class TestIntentDetectionCache:
 
         stats = cache.get_stats()
 
-        assert stats["total_requests"] == 2
-        assert stats["cache_hits"] == 1
-        assert stats["cache_misses"] == 1
-        assert stats["hit_rate_percent"] == 50.0
-        assert stats["current_size"] == 1
-        assert stats["max_size"] == 100
-        assert stats["utilization_percent"] == 1.0
+        assert stats["total_requests"] == 2  # nosec B101
+        assert stats["cache_hits"] == 1  # nosec B101
+        assert stats["cache_misses"] == 1  # nosec B101
+        assert stats["hit_rate_percent"] == 50.0  # nosec B101
+        assert stats["current_size"] == 1  # nosec B101
+        assert stats["max_size"] == 100  # nosec B101
+        assert stats["utilization_percent"] == 1.0  # nosec B101
 
     def test_reset_stats(self, cache, sample_intent):
         """Test resetting statistics."""
@@ -266,14 +266,14 @@ class TestIntentDetectionCache:
         cache.set("text1", None, sample_intent)
         cache.get("text1", None)
 
-        assert cache.stats.total_requests > 0
+        assert cache.stats.total_requests > 0  # nosec B101
 
         # Reset
         cache.reset_stats()
 
-        assert cache.stats.total_requests == 0
-        assert cache.stats.cache_hits == 0
-        assert cache.stats.cache_misses == 0
+        assert cache.stats.total_requests == 0  # nosec B101
+        assert cache.stats.cache_hits == 0  # nosec B101
+        assert cache.stats.cache_misses == 0  # nosec B101
 
     def test_cache_key_consistency(self, cache, sample_intent):
         """Test cache key generation is consistent."""
@@ -287,7 +287,7 @@ class TestIntentDetectionCache:
         context_copy = {"user_id": "user123", "conversation_id": "conv456"}
         cached = cache.get(text, context_copy)
 
-        assert cached is not None
+        assert cached is not None  # nosec B101
 
     def test_cache_key_order_independence(self, cache, sample_intent):
         """Test cache key is independent of context key order."""
@@ -301,7 +301,7 @@ class TestIntentDetectionCache:
         # Get with context2 (different order) - should hit
         cached = cache.get(text, context2)
 
-        assert cached is not None
+        assert cached is not None  # nosec B101
 
     def test_performance_target(self, cache, sample_intent):
         """Test cache lookup performance (<1ms target)."""
@@ -319,7 +319,7 @@ class TestIntentDetectionCache:
         avg_latency_ms = ((end - start) / 1000) * 1000
 
         # Should be <1ms per lookup
-        assert avg_latency_ms < 1.0, f"Cache lookup too slow: {avg_latency_ms:.3f}ms"
+        assert avg_latency_ms < 1.0, f"Cache lookup too slow: {avg_latency_ms:.3f}ms"  # nosec B101
 
     def test_hit_rate_target(self, cache, sample_intent):
         """Test cache hit rate meets >60% target."""
@@ -348,7 +348,7 @@ class TestIntentDetectionCache:
         hit_rate = cache.stats.get_hit_rate()
 
         # Should meet >60% target
-        assert hit_rate > 60.0, f"Hit rate below target: {hit_rate:.1f}%"
+        assert hit_rate > 60.0, f"Hit rate below target: {hit_rate:.1f}%"  # nosec B101
 
 
 class TestCachedIntent:
@@ -364,9 +364,9 @@ class TestCachedIntent:
             context_hash="context_hash",
         )
 
-        assert entry.intent == sample_intent
-        assert entry.cache_key == "test_key"
-        assert entry.access_count == 0
+        assert entry.intent == sample_intent  # nosec B101
+        assert entry.cache_key == "test_key"  # nosec B101
+        assert entry.access_count == 0  # nosec B101
 
     def test_update_access(self, sample_intent):
         """Test access tracking."""
@@ -385,8 +385,8 @@ class TestCachedIntent:
         # Update access
         entry.update_access()
 
-        assert entry.access_count == 1
-        assert entry.last_accessed > initial_time
+        assert entry.access_count == 1  # nosec B101
+        assert entry.last_accessed > initial_time  # nosec B101
 
 
 class TestIntentCacheStats:
@@ -396,10 +396,10 @@ class TestIntentCacheStats:
         """Test stats initialization."""
         stats = IntentCacheStats()
 
-        assert stats.total_requests == 0
-        assert stats.cache_hits == 0
-        assert stats.cache_misses == 0
-        assert stats.get_hit_rate() == 0.0
+        assert stats.total_requests == 0  # nosec B101
+        assert stats.cache_hits == 0  # nosec B101
+        assert stats.cache_misses == 0  # nosec B101
+        assert stats.get_hit_rate() == 0.0  # nosec B101
 
     def test_record_hit(self):
         """Test recording cache hit."""
@@ -407,9 +407,9 @@ class TestIntentCacheStats:
 
         stats.record_hit()
 
-        assert stats.total_requests == 1
-        assert stats.cache_hits == 1
-        assert stats.get_hit_rate() == 100.0
+        assert stats.total_requests == 1  # nosec B101
+        assert stats.cache_hits == 1  # nosec B101
+        assert stats.get_hit_rate() == 100.0  # nosec B101
 
     def test_record_miss(self):
         """Test recording cache miss."""
@@ -417,9 +417,9 @@ class TestIntentCacheStats:
 
         stats.record_miss()
 
-        assert stats.total_requests == 1
-        assert stats.cache_misses == 1
-        assert stats.get_hit_rate() == 0.0
+        assert stats.total_requests == 1  # nosec B101
+        assert stats.cache_misses == 1  # nosec B101
+        assert stats.get_hit_rate() == 0.0  # nosec B101
 
     def test_hit_rate_calculation(self):
         """Test hit rate calculation."""
@@ -431,7 +431,7 @@ class TestIntentCacheStats:
         for _ in range(3):
             stats.record_miss()
 
-        assert stats.get_hit_rate() == 70.0
+        assert stats.get_hit_rate() == 70.0  # nosec B101
 
     def test_get_stats(self):
         """Test getting statistics dictionary."""
@@ -445,11 +445,11 @@ class TestIntentCacheStats:
 
         stats_dict = stats.get_stats()
 
-        assert stats_dict["total_requests"] == 2
-        assert stats_dict["cache_hits"] == 1
-        assert stats_dict["cache_misses"] == 1
-        assert stats_dict["hit_rate_percent"] == 50.0
-        assert stats_dict["context_invalidations"] == 1
-        assert stats_dict["ttl_expirations"] == 1
-        assert stats_dict["evictions"] == 1
-        assert "last_reset" in stats_dict
+        assert stats_dict["total_requests"] == 2  # nosec B101
+        assert stats_dict["cache_hits"] == 1  # nosec B101
+        assert stats_dict["cache_misses"] == 1  # nosec B101
+        assert stats_dict["hit_rate_percent"] == 50.0  # nosec B101
+        assert stats_dict["context_invalidations"] == 1  # nosec B101
+        assert stats_dict["ttl_expirations"] == 1  # nosec B101
+        assert stats_dict["evictions"] == 1  # nosec B101
+        assert "last_reset" in stats_dict  # nosec B101

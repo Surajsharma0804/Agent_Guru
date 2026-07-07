@@ -31,8 +31,8 @@ def sample_state():
 class TestRedisCache:
     def test_init(self):
         cache = RedisCache()
-        assert cache.url == "redis://localhost:6379"
-        assert cache.ttl == 3600
+        assert cache.url == "redis://localhost:6379"  # nosec B101
+        assert cache.ttl == 3600  # nosec B101
 
     @pytest.mark.asyncio
     async def test_initialize_without_redis(self):
@@ -45,16 +45,16 @@ class TestRedisCache:
     async def test_get_not_initialized(self, sample_state):
         cache = RedisCache()
         result = await cache.get("conv_123")
-        assert result is None
+        assert result is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_set_not_initialized(self, sample_state):
         cache = RedisCache()
         result = await cache.set(sample_state)
-        assert result is False
+        assert result is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_delete_not_initialized(self):
         cache = RedisCache()
         result = await cache.delete("conv_123")
-        assert result is False
+        assert result is False  # nosec B101

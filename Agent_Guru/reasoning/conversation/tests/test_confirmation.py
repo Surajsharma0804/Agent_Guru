@@ -40,8 +40,8 @@ class TestConfirmationRules:
 
         requires, category = ConfirmationRules.requires_confirmation(task)
 
-        assert requires is True
-        assert category == SensitiveActionCategory.MESSAGING
+        assert requires is True  # nosec B101
+        assert category == SensitiveActionCategory.MESSAGING  # nosec B101
 
     def test_no_confirmation_safe_tool(self):
         """Test no confirmation for safe tool."""
@@ -67,8 +67,8 @@ class TestConfirmationRules:
 
         requires, category = ConfirmationRules.requires_confirmation(task)
 
-        assert requires is False
-        assert category is None
+        assert requires is False  # nosec B101
+        assert category is None  # nosec B101
 
     def test_batch_confirmation_multi_step(self):
         """Test batch confirmation for multi-step task."""
@@ -101,7 +101,7 @@ class TestConfirmationRules:
 
         should_batch = ConfirmationRules.should_batch_confirm(task)
 
-        assert should_batch is True
+        assert should_batch is True  # nosec B101
 
     def test_risk_level_high(self):
         """Test high risk level for dangerous actions."""
@@ -128,7 +128,7 @@ class TestConfirmationRules:
             ),
         )
 
-        assert risk == "high"
+        assert risk == "high"  # nosec B101
 
 
 class TestConfirmationGenerator:
@@ -160,10 +160,10 @@ class TestConfirmationGenerator:
 
         confirmation = generator.generate_confirmation(task)
 
-        assert confirmation is not None
-        assert confirmation.category == SensitiveActionCategory.MESSAGING
-        assert "John" in confirmation.action_description
-        assert confirmation.is_batch is False
+        assert confirmation is not None  # nosec B101
+        assert confirmation.category == SensitiveActionCategory.MESSAGING  # nosec B101
+        assert "John" in confirmation.action_description  # nosec B101
+        assert confirmation.is_batch is False  # nosec B101
 
     def test_generate_batch_confirmation(self):
         """Test generating batch confirmation."""
@@ -198,9 +198,9 @@ class TestConfirmationGenerator:
 
         confirmation = generator.generate_confirmation(task)
 
-        assert confirmation is not None
-        assert confirmation.is_batch is True
-        assert len(confirmation.batch_items) == 2
+        assert confirmation is not None  # nosec B101
+        assert confirmation.is_batch is True  # nosec B101
+        assert len(confirmation.batch_items) == 2  # nosec B101
 
 
 class TestConfirmationParser:
@@ -210,22 +210,22 @@ class TestConfirmationParser:
         """Test parsing positive confirmation."""
         response = ConfirmationParser.parse_confirmation("yes")
 
-        assert response.confirmed is True
-        assert response.confidence > 0.8
+        assert response.confirmed is True  # nosec B101
+        assert response.confidence > 0.8  # nosec B101
 
     def test_parse_negative_confirmation(self):
         """Test parsing negative confirmation."""
         response = ConfirmationParser.parse_confirmation("no")
 
-        assert response.confirmed is False
-        assert response.confidence > 0.8
+        assert response.confirmed is False  # nosec B101
+        assert response.confidence > 0.8  # nosec B101
 
     def test_parse_ambiguous_response(self):
         """Test parsing ambiguous response."""
         response = ConfirmationParser.parse_confirmation("maybe later")
 
-        assert response.confirmed is False
-        assert response.confidence < 0.5
+        assert response.confirmed is False  # nosec B101
+        assert response.confidence < 0.5  # nosec B101
 
 
 if __name__ == "__main__":

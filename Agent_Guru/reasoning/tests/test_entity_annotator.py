@@ -26,15 +26,15 @@ class TestEntityAnnotator:
     
     def test_load_intents(self, annotator):
         """Test loading intents from YAML file."""
-        assert 'intents' in annotator.intents_data
-        assert len(annotator.intents_data['intents']) > 0
+        assert 'intents' in annotator.intents_data  # nosec B101
+        assert len(annotator.intents_data['intents']) > 0  # nosec B101
     
     def test_build_entity_patterns(self, annotator):
         """Test entity patterns are built."""
-        assert len(annotator.entity_patterns) > 0
-        assert 'duration' in annotator.entity_patterns
-        assert 'time' in annotator.entity_patterns
-        assert 'date' in annotator.entity_patterns
+        assert len(annotator.entity_patterns) > 0  # nosec B101
+        assert 'duration' in annotator.entity_patterns  # nosec B101
+        assert 'time' in annotator.entity_patterns  # nosec B101
+        assert 'date' in annotator.entity_patterns  # nosec B101
     
     def test_extract_entities_duration(self, annotator):
         """Test extracting duration entities."""
@@ -42,9 +42,9 @@ class TestEntityAnnotator:
         entities = annotator.extract_entities(utterance, "set_timer")
         
         # Should find duration
-        assert len(entities) > 0
-        assert any(e[3] == 'duration' for e in entities)
-        assert any('5 minutes' in e[0].lower() for e in entities)
+        assert len(entities) > 0  # nosec B101
+        assert any(e[3] == 'duration' for e in entities)  # nosec B101
+        assert any('5 minutes' in e[0].lower() for e in entities)  # nosec B101
     
     def test_extract_entities_time(self, annotator):
         """Test extracting time entities."""
@@ -52,9 +52,9 @@ class TestEntityAnnotator:
         entities = annotator.extract_entities(utterance, "set_alarm")
         
         # Should find time
-        assert len(entities) > 0
-        assert any(e[3] == 'time' for e in entities)
-        assert any('7:30' in e[0] for e in entities)
+        assert len(entities) > 0  # nosec B101
+        assert any(e[3] == 'time' for e in entities)  # nosec B101
+        assert any('7:30' in e[0] for e in entities)  # nosec B101
     
     def test_extract_entities_date(self, annotator):
         """Test extracting date entities."""
@@ -62,9 +62,9 @@ class TestEntityAnnotator:
         entities = annotator.extract_entities(utterance, "set_reminder")
         
         # Should find date
-        assert len(entities) > 0
-        assert any(e[3] == 'date' for e in entities)
-        assert any('tomorrow' in e[0].lower() for e in entities)
+        assert len(entities) > 0  # nosec B101
+        assert any(e[3] == 'date' for e in entities)  # nosec B101
+        assert any('tomorrow' in e[0].lower() for e in entities)  # nosec B101
     
     def test_extract_entities_temperature(self, annotator):
         """Test extracting temperature entities."""
@@ -72,8 +72,8 @@ class TestEntityAnnotator:
         entities = annotator.extract_entities(utterance, "control_thermostat")
         
         # Should find temperature
-        assert len(entities) > 0
-        assert any(e[3] == 'temperature' for e in entities)
+        assert len(entities) > 0  # nosec B101
+        assert any(e[3] == 'temperature' for e in entities)  # nosec B101
     
     def test_extract_entities_phone_number(self, annotator):
         """Test extracting phone number entities."""
@@ -81,8 +81,8 @@ class TestEntityAnnotator:
         entities = annotator.extract_entities(utterance, "make_call")
         
         # Should find phone number
-        assert len(entities) > 0
-        assert any(e[3] == 'phone_number' for e in entities)
+        assert len(entities) > 0  # nosec B101
+        assert any(e[3] == 'phone_number' for e in entities)  # nosec B101
     
     def test_extract_entities_recipient(self, annotator):
         """Test extracting recipient entities."""
@@ -90,9 +90,9 @@ class TestEntityAnnotator:
         entities = annotator.extract_entities(utterance, "send_message")
         
         # Should find recipient
-        assert len(entities) > 0
-        assert any(e[3] == 'recipient' for e in entities)
-        assert any('John' in e[0] for e in entities)
+        assert len(entities) > 0  # nosec B101
+        assert any(e[3] == 'recipient' for e in entities)  # nosec B101
+        assert any('John' in e[0] for e in entities)  # nosec B101
     
     def test_extract_entities_recipient_common_names(self, annotator):
         """Test extracting common recipient names."""
@@ -100,9 +100,9 @@ class TestEntityAnnotator:
         entities = annotator.extract_entities(utterance, "make_call")
         
         # Should find recipient
-        assert len(entities) > 0
-        assert any(e[3] == 'recipient' for e in entities)
-        assert any('mom' in e[0].lower() for e in entities)
+        assert len(entities) > 0  # nosec B101
+        assert any(e[3] == 'recipient' for e in entities)  # nosec B101
+        assert any('mom' in e[0].lower() for e in entities)  # nosec B101
     
     def test_extract_entities_location(self, annotator):
         """Test extracting location entities."""
@@ -110,8 +110,8 @@ class TestEntityAnnotator:
         entities = annotator.extract_entities(utterance, "query_weather")
         
         # Should find location
-        assert len(entities) > 0
-        assert any(e[3] == 'location' for e in entities)
+        assert len(entities) > 0  # nosec B101
+        assert any(e[3] == 'location' for e in entities)  # nosec B101
     
     def test_extract_entities_app_name(self, annotator):
         """Test extracting app name entities."""
@@ -119,9 +119,9 @@ class TestEntityAnnotator:
         entities = annotator.extract_entities(utterance, "open_app")
         
         # Should find app name
-        assert len(entities) > 0
-        assert any(e[3] == 'app_name' for e in entities)
-        assert any('Spotify' in e[0] for e in entities)
+        assert len(entities) > 0  # nosec B101
+        assert any(e[3] == 'app_name' for e in entities)  # nosec B101
+        assert any('Spotify' in e[0] for e in entities)  # nosec B101
     
     def test_extract_entities_no_entities(self, annotator):
         """Test extracting from utterance with no entities."""
@@ -129,7 +129,7 @@ class TestEntityAnnotator:
         entities = annotator.extract_entities(utterance, "help_request")
         
         # May or may not find entities
-        assert isinstance(entities, list)
+        assert isinstance(entities, list)  # nosec B101
     
     def test_extract_entities_multiple(self, annotator):
         """Test extracting multiple entities."""
@@ -138,7 +138,7 @@ class TestEntityAnnotator:
         
         # Should find both time and date
         entity_types = [e[3] for e in entities]
-        assert 'time' in entity_types or 'date' in entity_types
+        assert 'time' in entity_types or 'date' in entity_types  # nosec B101
     
     def test_remove_overlaps_no_overlap(self, annotator):
         """Test removing overlaps with no overlapping entities."""
@@ -148,7 +148,7 @@ class TestEntityAnnotator:
         ]
         result = annotator._remove_overlaps(entities)
         
-        assert len(result) == 2
+        assert len(result) == 2  # nosec B101
     
     def test_remove_overlaps_with_overlap(self, annotator):
         """Test removing overlapping entities."""
@@ -159,13 +159,13 @@ class TestEntityAnnotator:
         result = annotator._remove_overlaps(entities)
         
         # Should keep only the longer one
-        assert len(result) == 1
-        assert result[0][0] == "5 minutes"
+        assert len(result) == 1  # nosec B101
+        assert result[0][0] == "5 minutes"  # nosec B101
     
     def test_remove_overlaps_empty(self, annotator):
         """Test removing overlaps with empty list."""
         result = annotator._remove_overlaps([])
-        assert result == []
+        assert result == []  # nosec B101
     
     def test_annotate_dataset(self, annotator, temp_dir):
         """Test annotating dataset."""
@@ -179,15 +179,15 @@ class TestEntityAnnotator:
         annotator.annotate_dataset(str(input_file), str(output_file))
         
         # Check output file exists
-        assert output_file.exists()
+        assert output_file.exists()  # nosec B101
         
         # Check content
         with open(output_file, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
-            assert len(data) == 2
-            assert data[0]['intent'] == 'set_timer'
-            assert data[0]['utterance'] == 'set a timer for 5 minutes'
-            assert 'entities' in data[0]
+            assert len(data) == 2  # nosec B101
+            assert data[0]['intent'] == 'set_timer'  # nosec B101
+            assert data[0]['utterance'] == 'set a timer for 5 minutes'  # nosec B101
+            assert 'entities' in data[0]  # nosec B101
     
     def test_annotate_dataset_empty_lines(self, annotator, temp_dir):
         """Test annotating dataset with empty lines."""
@@ -204,7 +204,7 @@ class TestEntityAnnotator:
         # Should skip empty lines
         with open(output_file, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
-            assert len(data) == 2
+            assert len(data) == 2  # nosec B101
     
     def test_annotate_dataset_malformed_lines(self, annotator, temp_dir):
         """Test annotating dataset with malformed lines."""
@@ -221,7 +221,7 @@ class TestEntityAnnotator:
         # Should skip malformed lines
         with open(output_file, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
-            assert len(data) == 2
+            assert len(data) == 2  # nosec B101
     
     def test_validate_annotations(self, annotator, temp_dir):
         """Test validating annotations."""
@@ -246,12 +246,12 @@ class TestEntityAnnotator:
         
         metrics = annotator.validate_annotations(str(annotated_file))
         
-        assert metrics['total_examples'] == 2
-        assert metrics['examples_with_entities'] == 1
-        assert metrics['coverage'] == 0.5
-        assert metrics['total_entities'] == 1
-        assert metrics['avg_entities_per_example'] == 0.5
-        assert 'duration' in metrics['entity_type_distribution']
+        assert metrics['total_examples'] == 2  # nosec B101
+        assert metrics['examples_with_entities'] == 1  # nosec B101
+        assert metrics['coverage'] == 0.5  # nosec B101
+        assert metrics['total_entities'] == 1  # nosec B101
+        assert metrics['avg_entities_per_example'] == 0.5  # nosec B101
+        assert 'duration' in metrics['entity_type_distribution']  # nosec B101
     
     def test_validate_annotations_empty(self, annotator, temp_dir):
         """Test validating empty annotations."""
@@ -262,9 +262,9 @@ class TestEntityAnnotator:
         
         metrics = annotator.validate_annotations(str(annotated_file))
         
-        assert metrics['total_examples'] == 0
-        assert metrics['coverage'] == 0
-        assert metrics['avg_entities_per_example'] == 0
+        assert metrics['total_examples'] == 0  # nosec B101
+        assert metrics['coverage'] == 0  # nosec B101
+        assert metrics['avg_entities_per_example'] == 0  # nosec B101
     
     def test_entity_patterns_duration_formats(self, annotator):
         """Test duration pattern matches various formats."""
@@ -278,7 +278,7 @@ class TestEntityAnnotator:
         for test_case in test_cases:
             utterance = f"set timer for {test_case}"
             entities = annotator.extract_entities(utterance, "set_timer")
-            assert any(e[3] == 'duration' for e in entities), f"Failed for: {test_case}"
+            assert any(e[3] == 'duration' for e in entities), f"Failed for: {test_case}"  # nosec B101
     
     def test_entity_patterns_time_formats(self, annotator):
         """Test time pattern matches various formats."""
@@ -292,7 +292,7 @@ class TestEntityAnnotator:
         for test_case in test_cases:
             utterance = f"set alarm for {test_case}"
             entities = annotator.extract_entities(utterance, "set_alarm")
-            assert any(e[3] == 'time' for e in entities), f"Failed for: {test_case}"
+            assert any(e[3] == 'time' for e in entities), f"Failed for: {test_case}"  # nosec B101
     
     def test_entity_patterns_date_formats(self, annotator):
         """Test date pattern matches various formats."""
@@ -306,7 +306,7 @@ class TestEntityAnnotator:
         for test_case in test_cases:
             utterance = f"remind me {test_case}"
             entities = annotator.extract_entities(utterance, "set_reminder")
-            assert any(e[3] == 'date' for e in entities), f"Failed for: {test_case}"
+            assert any(e[3] == 'date' for e in entities), f"Failed for: {test_case}"  # nosec B101
 
 
     def test_main_function_execution(self, annotator, temp_dir, capsys, monkeypatch):
@@ -341,7 +341,7 @@ class TestEntityAnnotator:
         # Check output was printed
         capsys.readouterr()
         # Main function should execute without errors
-        assert True  # If we get here, main() executed successfully
+        assert True  # If we get here, main() executed successfully  # nosec B101
     
     def test_validate_annotations_with_multiple_entity_types(self, annotator, temp_dir):
         """Test validation with multiple entity types."""
@@ -361,6 +361,6 @@ class TestEntityAnnotator:
         
         metrics = annotator.validate_annotations(str(annotated_file))
         
-        assert metrics['total_entities'] == 2
-        assert 'time' in metrics['entity_type_distribution']
-        assert 'date' in metrics['entity_type_distribution']
+        assert metrics['total_entities'] == 2  # nosec B101
+        assert 'time' in metrics['entity_type_distribution']  # nosec B101
+        assert 'date' in metrics['entity_type_distribution']  # nosec B101

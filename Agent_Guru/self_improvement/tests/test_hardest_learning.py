@@ -39,7 +39,7 @@ class TestHardestLearningConvergence:
                 try:
                     os.unlink(path)
                 except Exception as e:
-                    pass  # Give up if still can't delete
+                    pass  # nosec B110
     
     @pytest.fixture
     def engine(self, temp_db):
@@ -159,7 +159,7 @@ class TestHardestLearningConvergence:
         
         # Verify failures were recorded
         failures = engine.failure_analyzer.get_recent_failures(limit=60)
-        assert len(failures) >= 50, f"Only {len(failures)} failures recorded"
+        assert len(failures) >= 50, f"Only {len(failures)} failures recorded"  # nosec B101
         print(f"✓ Verified {len(failures)} failures recorded in database")
         
         # Phase 3: Identify patterns
@@ -178,7 +178,7 @@ class TestHardestLearningConvergence:
         print(f"✓ Identified {total_patterns} failure patterns across {len(patterns_by_type)} failure types")
         
         # Must identify at least 5 patterns
-        assert total_patterns >= 5, f"Only {total_patterns} patterns identified, expected >= 5"
+        assert total_patterns >= 5, f"Only {total_patterns} patterns identified, expected >= 5"  # nosec B101
         
         # Phase 4: Record improved performance (after learning)
         print("\nPhase 4: Recording improved performance after learning...")
@@ -237,7 +237,7 @@ class TestHardestLearningConvergence:
             
             # Must show significant improvement (>15%)
             assert improvement["relative_improvement"] > 15, \
-                f"Improvement {improvement['relative_improvement']:.1f}% below 15% threshold"
+                f"Improvement {improvement['relative_improvement']:.1f}% below 15% threshold"  # nosec B101
             
             print(f"✓ Improvement {improvement['relative_improvement']:.1f}% exceeds 15% threshold")
         
@@ -308,7 +308,7 @@ class TestHardestLearningConvergence:
         print(f"✓ Stability check: {stability_rate:.1%} success rate over last 20 tasks")
         
         # System should maintain high performance
-        assert stability_rate >= 0.7, f"Stability rate {stability_rate:.1%} below 70% threshold"
+        assert stability_rate >= 0.7, f"Stability rate {stability_rate:.1%} below 70% threshold"  # nosec B101
         
         # Final summary
         print("\n" + "="*80)
@@ -389,7 +389,7 @@ class TestHardestLearningConvergence:
             total_patterns += len(patterns)
         
         print(f"✓ Identified {total_patterns} patterns across diverse scenarios")
-        assert total_patterns >= 3, f"Only {total_patterns} patterns identified"
+        assert total_patterns >= 3, f"Only {total_patterns} patterns identified"  # nosec B101
         
         # Verify all strategies tracked
         tracked_strategies = 0
@@ -399,7 +399,7 @@ class TestHardestLearningConvergence:
                 tracked_strategies += 1
         
         print(f"✓ Tracked performance for {tracked_strategies}/5 strategies")
-        assert tracked_strategies >= 3, f"Only {tracked_strategies} strategies tracked"
+        assert tracked_strategies >= 3, f"Only {tracked_strategies} strategies tracked"  # nosec B101
         
         print("\n" + "="*80)
         print("DIVERSE SCENARIOS TEST PASSED ✓")

@@ -77,17 +77,17 @@ class TestWhisperSTTProperties:
         result = transcriber.transcribe(audio, sample_rate)
         
         # Verify result is complete
-        assert isinstance(result, TranscriptionResult)
-        assert result.text is not None
-        assert isinstance(result.text, str)
-        assert result.language is not None
-        assert isinstance(result.language, str)
-        assert result.confidence is not None
-        assert isinstance(result.confidence, float)
-        assert 0.0 <= result.confidence <= 1.0
-        assert result.segments is not None
-        assert isinstance(result.segments, list)
-        assert result.duration >= 0.0
+        assert isinstance(result, TranscriptionResult)  # nosec B101
+        assert result.text is not None  # nosec B101
+        assert isinstance(result.text, str)  # nosec B101
+        assert result.language is not None  # nosec B101
+        assert isinstance(result.language, str)  # nosec B101
+        assert result.confidence is not None  # nosec B101
+        assert isinstance(result.confidence, float)  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
+        assert result.segments is not None  # nosec B101
+        assert isinstance(result.segments, list)  # nosec B101
+        assert result.duration >= 0.0  # nosec B101
     
     @PERFORMANCE_SETTINGS
     @given(
@@ -116,11 +116,11 @@ class TestWhisperSTTProperties:
         rtf = processing_time / duration
         
         # Verify transcription completed
-        assert isinstance(result, TranscriptionResult)
+        assert isinstance(result, TranscriptionResult)  # nosec B101
         
         # Real-time factor should be < 0.5 on production hardware
         # Using lenient threshold for CI (< 5.0)
-        assert rtf < 5.0, f"RTF {rtf:.2f} exceeds threshold (target: <0.5 on production)"
+        assert rtf < 5.0, f"RTF {rtf:.2f} exceeds threshold (target: <0.5 on production)"  # nosec B101
     
     @COMMON_SETTINGS
     @given(audio_data=audio_array())
@@ -137,15 +137,15 @@ class TestWhisperSTTProperties:
         result = transcriber.transcribe(audio, sample_rate)
         
         # Verify output format
-        assert isinstance(result, TranscriptionResult)
-        assert isinstance(result.text, str)
+        assert isinstance(result, TranscriptionResult)  # nosec B101
+        assert isinstance(result.text, str)  # nosec B101
         
         # If text is not empty, verify it's properly formatted
         if result.text.strip():
             # Text should not have excessive whitespace
-            assert not result.text.startswith(" ")
-            assert not result.text.endswith(" ")
-            assert "  " not in result.text  # No double spaces
+            assert not result.text.startswith(" ")  # nosec B101
+            assert not result.text.endswith(" ")  # nosec B101
+            assert "  " not in result.text  # No double spaces  # nosec B101
     
     @COMMON_SETTINGS
     @given(audio_data=audio_array())
@@ -162,14 +162,14 @@ class TestWhisperSTTProperties:
         result = transcriber.transcribe_with_diarization(audio, sample_rate)
         
         # Verify diarization result structure
-        assert isinstance(result, TranscriptionResult)
-        assert isinstance(result.segments, list)
+        assert isinstance(result, TranscriptionResult)  # nosec B101
+        assert isinstance(result.segments, list)  # nosec B101
         
         # All segments should have speaker_id field (even if None)
         for segment in result.segments:
-            assert hasattr(segment, 'speaker_id')
+            assert hasattr(segment, 'speaker_id')  # nosec B101
             # speaker_id can be None, int, or any valid identifier
-            assert segment.speaker_id is None or isinstance(segment.speaker_id, (int, str))
+            assert segment.speaker_id is None or isinstance(segment.speaker_id, (int, str))  # nosec B101
     
     @COMMON_SETTINGS
     @given(
@@ -186,8 +186,8 @@ class TestWhisperSTTProperties:
         
         result = transcriber.transcribe(audio, sample_rate, language=lang)
         
-        assert isinstance(result, TranscriptionResult)
-        assert result.language == lang
+        assert isinstance(result, TranscriptionResult)  # nosec B101
+        assert result.language == lang  # nosec B101
     
     @COMMON_SETTINGS
     @given(audio_data=audio_array())
@@ -202,16 +202,16 @@ class TestWhisperSTTProperties:
         
         result = transcriber.transcribe(audio, sample_rate)
         
-        assert isinstance(result, TranscriptionResult)
+        assert isinstance(result, TranscriptionResult)  # nosec B101
         
         # Check each segment's temporal consistency
         for segment in result.segments:
-            assert segment.start_time <= segment.end_time
-            assert segment.start_time >= 0.0
+            assert segment.start_time <= segment.end_time  # nosec B101
+            assert segment.start_time >= 0.0  # nosec B101
         
         # Check segments are ordered chronologically
         for i in range(len(result.segments) - 1):
-            assert result.segments[i].end_time <= result.segments[i + 1].start_time
+            assert result.segments[i].end_time <= result.segments[i + 1].start_time  # nosec B101
     
     @COMMON_SETTINGS
     @given(
@@ -237,9 +237,9 @@ class TestWhisperSTTProperties:
         
         result = transcriber.transcribe(audio_converted, sample_rate)
         
-        assert isinstance(result, TranscriptionResult)
-        assert result.text is not None
-        assert result.language is not None
+        assert isinstance(result, TranscriptionResult)  # nosec B101
+        assert result.text is not None  # nosec B101
+        assert result.language is not None  # nosec B101
     
     @COMMON_SETTINGS
     @given(
@@ -257,8 +257,8 @@ class TestWhisperSTTProperties:
         
         result = transcriber.transcribe(audio, sample_rate)
         
-        assert isinstance(result, TranscriptionResult)
-        assert result.duration > 0
+        assert isinstance(result, TranscriptionResult)  # nosec B101
+        assert result.duration > 0  # nosec B101
     
     @COMMON_SETTINGS
     @given(audio_data=audio_array())
@@ -272,12 +272,12 @@ class TestWhisperSTTProperties:
         
         result = transcriber.transcribe(audio, sample_rate)
         
-        assert isinstance(result, TranscriptionResult)
-        assert 0.0 <= result.confidence <= 1.0
+        assert isinstance(result, TranscriptionResult)  # nosec B101
+        assert 0.0 <= result.confidence <= 1.0  # nosec B101
         
         # Check segment confidences
         for segment in result.segments:
-            assert 0.0 <= segment.confidence <= 1.0
+            assert 0.0 <= segment.confidence <= 1.0  # nosec B101
     
     @COMMON_SETTINGS
     @given(audio_data=audio_array())
@@ -293,6 +293,6 @@ class TestWhisperSTTProperties:
         result2 = transcriber.transcribe(audio, sample_rate)
         
         # Results should be identical
-        assert result1.text == result2.text
-        assert result1.language == result2.language
-        assert len(result1.segments) == len(result2.segments)
+        assert result1.text == result2.text  # nosec B101
+        assert result1.language == result2.language  # nosec B101
+        assert len(result1.segments) == len(result2.segments)  # nosec B101

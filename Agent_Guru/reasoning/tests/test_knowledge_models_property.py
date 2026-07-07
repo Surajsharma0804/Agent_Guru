@@ -126,13 +126,13 @@ class TestTimeRangeProperties:
     @given(time_range_strategy())
     def test_time_range_start_before_end(self, time_range):
         """Property: Start time is always before or equal to end time."""
-        assert time_range.start <= time_range.end
+        assert time_range.start <= time_range.end  # nosec B101
 
     @given(time_range_strategy())
     def test_time_range_description_not_empty(self, time_range):
         """Property: Description is never empty after validation."""
-        assert time_range.description.strip()
-        assert len(time_range.description) > 0
+        assert time_range.description.strip()  # nosec B101
+        assert len(time_range.description) > 0  # nosec B101
 
     @given(time_range_strategy())
     def test_time_range_json_round_trip(self, time_range):
@@ -141,18 +141,18 @@ class TestTimeRangeProperties:
         data = time_range.model_dump()
         restored = TimeRange(**data)
 
-        assert restored.start == time_range.start
-        assert restored.end == time_range.end
-        assert restored.description == time_range.description
+        assert restored.start == time_range.start  # nosec B101
+        assert restored.end == time_range.end  # nosec B101
+        assert restored.description == time_range.description  # nosec B101
 
     @given(st.integers(min_value=1, max_value=365))
     def test_last_n_days_creates_valid_range(self, n):
         """Property: last_n_days always creates valid time range."""
         time_range = TimeRange.last_n_days(n)
 
-        assert time_range.start <= time_range.end
-        assert (time_range.end - time_range.start).days == n
-        assert time_range.description == f"last {n} days"
+        assert time_range.start <= time_range.end  # nosec B101
+        assert (time_range.end - time_range.start).days == n  # nosec B101
+        assert time_range.description == f"last {n} days"  # nosec B101
 
 
 @pytest.mark.property
@@ -162,31 +162,31 @@ class TestPatternProperties:
     @given(pattern_strategy())
     def test_pattern_frequency_in_range(self, pattern):
         """Property: Frequency is always between 0.0 and 1.0."""
-        assert 0.0 <= pattern.frequency <= 1.0
+        assert 0.0 <= pattern.frequency <= 1.0  # nosec B101
 
     @given(pattern_strategy())
     def test_pattern_confidence_in_range(self, pattern):
         """Property: Confidence is always between 0.0 and 1.0."""
-        assert 0.0 <= pattern.confidence <= 1.0
+        assert 0.0 <= pattern.confidence <= 1.0  # nosec B101
 
     @given(pattern_strategy())
     def test_pattern_description_not_empty(self, pattern):
         """Property: Description is never empty after validation."""
-        assert pattern.description.strip()
-        assert len(pattern.description) > 0
+        assert pattern.description.strip()  # nosec B101
+        assert len(pattern.description) > 0  # nosec B101
 
     @given(pattern_strategy())
     def test_pattern_type_is_valid(self, pattern):
         """Property: Pattern type is always one of the valid types."""
         valid_types = {"daily", "weekly", "monthly", "situational", "temporal", "contextual"}
-        assert pattern.pattern_type in valid_types
+        assert pattern.pattern_type in valid_types  # nosec B101
 
     @given(pattern_strategy())
     def test_pattern_examples_not_empty_strings(self, pattern):
         """Property: Examples never contain empty strings."""
         for example in pattern.examples:
-            assert example.strip()
-            assert len(example) > 0
+            assert example.strip()  # nosec B101
+            assert len(example) > 0  # nosec B101
 
     @given(pattern_strategy())
     def test_pattern_json_round_trip(self, pattern):
@@ -194,11 +194,11 @@ class TestPatternProperties:
         data = pattern.model_dump()
         restored = Pattern(**data)
 
-        assert restored.pattern_type == pattern.pattern_type
-        assert restored.description == pattern.description
-        assert restored.frequency == pattern.frequency
-        assert restored.confidence == pattern.confidence
-        assert restored.examples == pattern.examples
+        assert restored.pattern_type == pattern.pattern_type  # nosec B101
+        assert restored.description == pattern.description  # nosec B101
+        assert restored.frequency == pattern.frequency  # nosec B101
+        assert restored.confidence == pattern.confidence  # nosec B101
+        assert restored.examples == pattern.examples  # nosec B101
 
 
 @pytest.mark.property
@@ -208,32 +208,32 @@ class TestKnowledgeQueryProperties:
     @given(knowledge_query_strategy())
     def test_query_text_not_empty(self, query):
         """Property: Query text is never empty after validation."""
-        assert query.query_text.strip()
-        assert len(query.query_text) > 0
+        assert query.query_text.strip()  # nosec B101
+        assert len(query.query_text) > 0  # nosec B101
 
     @given(knowledge_query_strategy())
     def test_query_confidence_in_range(self, query):
         """Property: Confidence is always between 0.0 and 1.0."""
-        assert 0.0 <= query.confidence <= 1.0
+        assert 0.0 <= query.confidence <= 1.0  # nosec B101
 
     @given(knowledge_query_strategy())
     def test_temporal_query_has_time_range(self, query):
         """Property: Temporal queries always have a time range."""
         if query.query_type == KnowledgeQueryType.TEMPORAL:
-            assert query.time_range is not None
-            assert query.time_range.start <= query.time_range.end
+            assert query.time_range is not None  # nosec B101
+            assert query.time_range.start <= query.time_range.end  # nosec B101
 
     @given(knowledge_query_strategy())
     def test_query_type_is_valid(self, query):
         """Property: Query type is always one of the valid types."""
-        assert query.query_type in list(KnowledgeQueryType)
+        assert query.query_type in list(KnowledgeQueryType)  # nosec B101
 
     @given(knowledge_query_strategy())
     def test_query_entities_keys_not_empty(self, query):
         """Property: Entity keys are never empty strings."""
         for key in query.entities.keys():
-            assert key.strip()
-            assert len(key) > 0
+            assert key.strip()  # nosec B101
+            assert len(key) > 0  # nosec B101
 
     @given(knowledge_query_strategy())
     def test_query_json_round_trip(self, query):
@@ -241,10 +241,10 @@ class TestKnowledgeQueryProperties:
         data = query.model_dump()
         restored = KnowledgeQuery(**data)
 
-        assert restored.query_text == query.query_text
-        assert restored.query_type == query.query_type
-        assert restored.confidence == query.confidence
-        assert restored.entities == query.entities
+        assert restored.query_text == query.query_text  # nosec B101
+        assert restored.query_type == query.query_type  # nosec B101
+        assert restored.confidence == query.confidence  # nosec B101
+        assert restored.entities == query.entities  # nosec B101
 
 
 @pytest.mark.property
@@ -254,40 +254,40 @@ class TestKnowledgeAnswerProperties:
     @given(knowledge_answer_strategy())
     def test_answer_summary_not_empty(self, answer):
         """Property: Summary is never empty after validation."""
-        assert answer.summary.strip()
-        assert len(answer.summary) > 0
+        assert answer.summary.strip()  # nosec B101
+        assert len(answer.summary) > 0  # nosec B101
 
     @given(knowledge_answer_strategy())
     def test_answer_confidence_in_range(self, answer):
         """Property: Confidence is always between 0.0 and 1.0."""
-        assert 0.0 <= answer.confidence <= 1.0
+        assert 0.0 <= answer.confidence <= 1.0  # nosec B101
 
     @given(knowledge_answer_strategy())
     def test_answer_memory_ids_not_empty(self, answer):
         """Property: Memory IDs are never empty strings."""
         for mem_id in answer.supporting_memories:
-            assert mem_id.strip()
-            assert len(mem_id) > 0
+            assert mem_id.strip()  # nosec B101
+            assert len(mem_id) > 0  # nosec B101
 
     @given(knowledge_answer_strategy())
     def test_answer_patterns_count_limited(self, answer):
         """Property: Patterns list never exceeds 10 items."""
-        assert len(answer.patterns) <= 10
+        assert len(answer.patterns) <= 10  # nosec B101
 
     @given(knowledge_answer_strategy())
     def test_answer_patterns_valid(self, answer):
         """Property: All patterns in answer are valid."""
         for pattern in answer.patterns:
-            assert 0.0 <= pattern.frequency <= 1.0
-            assert 0.0 <= pattern.confidence <= 1.0
-            assert pattern.description.strip()
+            assert 0.0 <= pattern.frequency <= 1.0  # nosec B101
+            assert 0.0 <= pattern.confidence <= 1.0  # nosec B101
+            assert pattern.description.strip()  # nosec B101
 
     @given(knowledge_answer_strategy())
     def test_answer_statistics_keys_not_empty(self, answer):
         """Property: Statistics keys are never empty strings."""
         for key in answer.statistics.keys():
-            assert key.strip()
-            assert len(key) > 0
+            assert key.strip()  # nosec B101
+            assert len(key) > 0  # nosec B101
 
     @given(knowledge_answer_strategy())
     def test_answer_json_round_trip(self, answer):
@@ -295,11 +295,11 @@ class TestKnowledgeAnswerProperties:
         data = answer.model_dump()
         restored = KnowledgeAnswer(**data)
 
-        assert restored.summary == answer.summary
-        assert restored.confidence == answer.confidence
-        assert restored.supporting_memories == answer.supporting_memories
-        assert len(restored.patterns) == len(answer.patterns)
-        assert restored.statistics == answer.statistics
+        assert restored.summary == answer.summary  # nosec B101
+        assert restored.confidence == answer.confidence  # nosec B101
+        assert restored.supporting_memories == answer.supporting_memories  # nosec B101
+        assert len(restored.patterns) == len(answer.patterns)  # nosec B101
+        assert restored.statistics == answer.statistics  # nosec B101
 
 
 @pytest.mark.property
@@ -311,8 +311,8 @@ class TestCrossModelProperties:
         """Property: Answer confidence should be reasonable relative to query confidence."""
         # This is a soft property - answer confidence can be higher or lower
         # but should generally be in a reasonable range
-        assert 0.0 <= answer.confidence <= 1.0
-        assert 0.0 <= query.confidence <= 1.0
+        assert 0.0 <= answer.confidence <= 1.0  # nosec B101
+        assert 0.0 <= query.confidence <= 1.0  # nosec B101
 
     @given(time_range_strategy(), pattern_strategy())
     def test_pattern_can_reference_time_range(self, time_range, pattern):
@@ -324,8 +324,8 @@ class TestCrossModelProperties:
             patterns=[pattern],
         )
 
-        assert len(answer.patterns) == 1
-        assert answer.patterns[0].pattern_type == pattern.pattern_type
+        assert len(answer.patterns) == 1  # nosec B101
+        assert answer.patterns[0].pattern_type == pattern.pattern_type  # nosec B101
 
     @given(
         st.lists(pattern_strategy(), min_size=1, max_size=5),
@@ -339,6 +339,6 @@ class TestCrossModelProperties:
             patterns=patterns,
         )
 
-        assert 0.0 <= answer.confidence <= 1.0
-        assert len(answer.patterns) == len(patterns)
-        assert all(0.0 <= p.confidence <= 1.0 for p in answer.patterns)
+        assert 0.0 <= answer.confidence <= 1.0  # nosec B101
+        assert len(answer.patterns) == len(patterns)  # nosec B101
+        assert all(0.0 <= p.confidence <= 1.0 for p in answer.patterns)  # nosec B101

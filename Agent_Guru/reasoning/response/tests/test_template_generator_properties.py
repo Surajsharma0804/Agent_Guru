@@ -67,11 +67,11 @@ class TestTemplateGeneratorProperties:
 
         response = generator.generate(result=result, intent=intent, modality=modality)
 
-        assert isinstance(response, Response)
-        assert isinstance(response.text, str)
-        assert len(response.text) > 0
-        assert response.modality == modality
-        assert response.metadata["generation_method"] == "template"
+        assert isinstance(response, Response)  # nosec B101
+        assert isinstance(response.text, str)  # nosec B101
+        assert len(response.text) > 0  # nosec B101
+        assert response.modality == modality  # nosec B101
+        assert response.metadata["generation_method"] == "template"  # nosec B101
 
     @given(intent_type=intent_types, modality=modalities)
     @settings(max_examples=100)
@@ -108,8 +108,8 @@ class TestTemplateGeneratorProperties:
         response = generator.generate(result=result, intent=intent, modality=modality)
         latency_ms = (time.perf_counter() - start) * 1000
 
-        assert latency_ms < 100
-        assert response.metadata["latency_ms"] < 100
+        assert latency_ms < 100  # nosec B101
+        assert response.metadata["latency_ms"] < 100  # nosec B101
 
     @given(intent_type=intent_types, modality=modalities)
     @settings(max_examples=100)
@@ -144,7 +144,7 @@ class TestTemplateGeneratorProperties:
 
         response2 = generator.generate(result=result, intent=intent, modality=modality)
 
-        assert response1.metadata["template_id"] == response2.metadata["template_id"]
+        assert response1.metadata["template_id"] == response2.metadata["template_id"]  # nosec B101
 
     @given(intent_type=intent_types, modality=modalities)
     @settings(max_examples=100)
@@ -177,7 +177,7 @@ class TestTemplateGeneratorProperties:
 
         response = generator.generate(result=result, intent=intent, modality=modality)
 
-        assert len(response.suggestions) <= 3
+        assert len(response.suggestions) <= 3  # nosec B101
 
     @given(intent_type=intent_types, modality=modalities)
     @settings(max_examples=100)
@@ -210,9 +210,9 @@ class TestTemplateGeneratorProperties:
 
         response = generator.generate(result=result, intent=intent, modality=modality)
 
-        assert "template_id" in response.metadata
-        assert "template_type" in response.metadata
-        assert "generation_method" in response.metadata
-        assert "latency_ms" in response.metadata
-        assert response.metadata["generation_method"] == "template"
-        assert response.metadata["latency_ms"] >= 0
+        assert "template_id" in response.metadata  # nosec B101
+        assert "template_type" in response.metadata  # nosec B101
+        assert "generation_method" in response.metadata  # nosec B101
+        assert "latency_ms" in response.metadata  # nosec B101
+        assert response.metadata["generation_method"] == "template"  # nosec B101
+        assert response.metadata["latency_ms"] >= 0  # nosec B101

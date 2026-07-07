@@ -30,16 +30,16 @@ class TestHistoricalAccuracy:
         """Test HistoricalAccuracy initialization."""
         history = HistoricalAccuracy(task_type="single_step")
 
-        assert history.task_type == "single_step"
-        assert history.total_attempts == 0
-        assert history.successful_attempts == 0
-        assert history.confidence_sum == 0.0
-        assert isinstance(history.last_updated, datetime)
+        assert history.task_type == "single_step"  # nosec B101
+        assert history.total_attempts == 0  # nosec B101
+        assert history.successful_attempts == 0  # nosec B101
+        assert history.confidence_sum == 0.0  # nosec B101
+        assert isinstance(history.last_updated, datetime)  # nosec B101
 
     def test_success_rate_no_attempts(self):
         """Test success rate with no attempts returns neutral."""
         history = HistoricalAccuracy(task_type="single_step")
-        assert history.success_rate == 0.5
+        assert history.success_rate == 0.5  # nosec B101
 
     def test_success_rate_with_attempts(self):
         """Test success rate calculation."""
@@ -47,12 +47,12 @@ class TestHistoricalAccuracy:
         history.total_attempts = 10
         history.successful_attempts = 8
 
-        assert history.success_rate == 0.8
+        assert history.success_rate == 0.8  # nosec B101
 
     def test_average_confidence_no_attempts(self):
         """Test average confidence with no attempts returns neutral."""
         history = HistoricalAccuracy(task_type="single_step")
-        assert history.average_confidence == 0.5
+        assert history.average_confidence == 0.5  # nosec B101
 
     def test_average_confidence_with_attempts(self):
         """Test average confidence calculation."""
@@ -60,14 +60,14 @@ class TestHistoricalAccuracy:
         history.total_attempts = 10
         history.confidence_sum = 7.5
 
-        assert history.average_confidence == 0.75
+        assert history.average_confidence == 0.75  # nosec B101
 
     def test_calibration_factor_insufficient_data(self):
         """Test calibration factor with insufficient data returns 1.0."""
         history = HistoricalAccuracy(task_type="single_step")
         history.total_attempts = 5
 
-        assert history.calibration_factor == 1.0
+        assert history.calibration_factor == 1.0  # nosec B101
 
     def test_calibration_factor_overconfident(self):
         """Test calibration factor when model is overconfident."""
@@ -77,8 +77,8 @@ class TestHistoricalAccuracy:
         history.confidence_sum = 16.0  # 80% average confidence
 
         # Should reduce confidence (0.5 / 0.8 = 0.625)
-        assert history.calibration_factor < 1.0
-        assert history.calibration_factor == pytest.approx(0.625, abs=0.01)
+        assert history.calibration_factor < 1.0  # nosec B101
+        assert history.calibration_factor == pytest.approx(0.625, abs=0.01)  # nosec B101
 
     def test_calibration_factor_underconfident(self):
         """Test calibration factor when model is underconfident."""
@@ -88,8 +88,8 @@ class TestHistoricalAccuracy:
         history.confidence_sum = 10.0  # 50% average confidence
 
         # Should increase confidence (0.8 / 0.5 = 1.6, clamped to 1.5)
-        assert history.calibration_factor > 1.0
-        assert history.calibration_factor == 1.5  # Clamped
+        assert history.calibration_factor > 1.0  # nosec B101
+        assert history.calibration_factor == 1.5  # Clamped  # nosec B101
 
     def test_calibration_factor_clamping(self):
         """Test calibration factor is clamped to [0.5, 1.5]."""
@@ -99,12 +99,12 @@ class TestHistoricalAccuracy:
         # Test lower bound
         history.successful_attempts = 2  # 10% success
         history.confidence_sum = 18.0  # 90% confidence
-        assert history.calibration_factor >= 0.5
+        assert history.calibration_factor >= 0.5  # nosec B101
 
         # Test upper bound
         history.successful_attempts = 18  # 90% success
         history.confidence_sum = 2.0  # 10% confidence
-        assert history.calibration_factor <= 1.5
+        assert history.calibration_factor <= 1.5  # nosec B101
 
 
 class TestConfidenceScorer:
@@ -159,30 +159,30 @@ class TestConfidenceScorer:
 
     def test_initialization(self, scorer):
         """Test scorer initialization."""
-        assert len(scorer._history) == 0
-        assert scorer.weights["llm_confidence"] == 0.35
-        assert scorer.weights["completeness"] == 0.25
-        assert scorer.weights["consistency"] == 0.20
-        assert scorer.weights["quality"] == 0.10
-        assert scorer.weights["historical"] == 0.10
-        assert sum(scorer.weights.values()) == pytest.approx(1.0)
+        assert len(scorer._history) == 0  # nosec B101
+        assert scorer.weights["llm_confidence"] == 0.35  # nosec B101
+        assert scorer.weights["completeness"] == 0.25  # nosec B101
+        assert scorer.weights["consistency"] == 0.20  # nosec B101
+        assert scorer.weights["quality"] == 0.10  # nosec B101
+        assert scorer.weights["historical"] == 0.10  # nosec B101
+        assert sum(scorer.weights.values()) == pytest.approx(1.0)  # nosec B101
 
     def test_score_simple_task(self, scorer, simple_task, simple_task_dict):
         """Test scoring a simple valid task."""
         confidence = scorer.score(simple_task, simple_task_dict)
 
-        assert 0.0 <= confidence <= 1.0
-        assert confidence > 0.7  # Should be high for valid task
+        assert 0.0 <= confidence <= 1.0  # nosec B101
+        assert confidence > 0.7  # Should be high for valid task  # nosec B101
 
     def test_score_llm_confidence(self, scorer, simple_task):
         """Test LLM confidence scoring."""
         score = scorer._score_llm_confidence(simple_task)
-        assert score == simple_task.confidence
+        assert score == simple_task.confidence  # nosec B101
 
     def test_score_completeness_full(self, scorer, simple_task, simple_task_dict):
         """Test completeness scoring for complete task."""
         score = scorer._score_completeness(simple_task, simple_task_dict)
-        assert score >= 0.8  # Should be high for complete task
+        assert score >= 0.8  # Should be high for complete task  # nosec B101
 
     def test_score_completeness_missing_entities(self, scorer, simple_task_dict):
         """Test completeness penalty for missing entities."""
@@ -205,7 +205,7 @@ class TestConfidenceScorer:
         )
 
         score = scorer._score_completeness(task, simple_task_dict)
-        assert score < 1.0  # Should be penalized
+        assert score < 1.0  # Should be penalized  # nosec B101
 
     def test_score_completeness_empty_parameters(self, scorer, simple_task_dict):
         """Test completeness penalty for empty parameters."""
@@ -228,7 +228,7 @@ class TestConfidenceScorer:
         )
 
         score = scorer._score_completeness(task, simple_task_dict)
-        assert score < 1.0  # Should be penalized
+        assert score < 1.0  # Should be penalized  # nosec B101
 
     def test_score_completeness_short_description(self, scorer, simple_task_dict):
         """Test completeness penalty for short descriptions."""
@@ -251,7 +251,7 @@ class TestConfidenceScorer:
         )
 
         score = scorer._score_completeness(task, simple_task_dict)
-        assert score < 0.85  # Should be penalized
+        assert score < 0.85  # Should be penalized  # nosec B101
 
     def test_score_completeness_placeholder_text(self, scorer, simple_task_dict):
         """Test completeness penalty for placeholder text."""
@@ -274,12 +274,12 @@ class TestConfidenceScorer:
         )
 
         score = scorer._score_completeness(task, simple_task_dict)
-        assert score < 0.85  # Should be penalized
+        assert score < 0.85  # Should be penalized  # nosec B101
 
     def test_score_consistency_valid(self, scorer, simple_task):
         """Test consistency scoring for valid task."""
         score = scorer._score_consistency(simple_task, None)
-        assert score >= 0.9  # Should be high for consistent task
+        assert score >= 0.9  # Should be high for consistent task  # nosec B101
 
     def test_score_consistency_wrong_task_type(self, scorer):
         """Test consistency penalty for wrong task type."""
@@ -314,7 +314,7 @@ class TestConfidenceScorer:
         task.task_type = TaskType.SINGLE_STEP  # Wrong type
 
         score = scorer._score_consistency(task, None)
-        assert score < 0.8  # Should be penalized
+        assert score < 0.8  # Should be penalized  # nosec B101
 
     def test_score_consistency_duration_mismatch(self, scorer):
         """Test consistency penalty for duration mismatch."""
@@ -341,7 +341,7 @@ class TestConfidenceScorer:
         task.estimated_duration = 5.0  # Doesn't match step duration
 
         score = scorer._score_consistency(task, None)
-        assert score < 1.0  # Should be penalized
+        assert score < 1.0  # Should be penalized  # nosec B101
 
     def test_score_consistency_invalid_dependencies(self, scorer):
         """Test consistency penalty for invalid dependencies."""
@@ -377,12 +377,12 @@ class TestConfidenceScorer:
         task.steps[0].depends_on = [2]  # Invalid: depends on later step
 
         score = scorer._score_consistency(task, None)
-        assert score < 0.9  # Should be penalized
+        assert score < 0.9  # Should be penalized  # nosec B101
 
     def test_score_quality_valid(self, scorer, simple_task):
         """Test quality scoring for valid task."""
         score = scorer._score_quality(simple_task)
-        assert score >= 0.8  # Should be high for quality task
+        assert score >= 0.8  # Should be high for quality task  # nosec B101
 
     def test_score_quality_no_capitalization(self, scorer):
         """Test quality penalty for missing capitalization."""
@@ -405,7 +405,7 @@ class TestConfidenceScorer:
         )
 
         score = scorer._score_quality(task)
-        assert score < 0.9  # Should be penalized
+        assert score < 0.9  # Should be penalized  # nosec B101
 
     def test_score_quality_too_short(self, scorer):
         """Test quality penalty for too short descriptions."""
@@ -428,7 +428,7 @@ class TestConfidenceScorer:
         )
 
         score = scorer._score_quality(task)
-        assert score < 0.8  # Should be penalized
+        assert score < 0.8  # Should be penalized  # nosec B101
 
     def test_score_quality_repetition(self, scorer):
         """Test quality penalty for repeated descriptions."""
@@ -458,12 +458,12 @@ class TestConfidenceScorer:
         )
 
         score = scorer._score_quality(task)
-        assert score < 0.9  # Should be penalized
+        assert score < 0.9  # Should be penalized  # nosec B101
 
     def test_score_historical_no_data(self, scorer, simple_task):
         """Test historical scoring with no data returns neutral."""
         score = scorer._score_historical(simple_task)
-        assert score == 0.5  # Neutral
+        assert score == 0.5  # Neutral  # nosec B101
 
     def test_score_historical_insufficient_data(self, scorer, simple_task):
         """Test historical scoring with insufficient data returns neutral."""
@@ -472,7 +472,7 @@ class TestConfidenceScorer:
         scorer._history[simple_task.task_type].successful_attempts = 2
 
         score = scorer._score_historical(simple_task)
-        assert score == 0.5  # Still neutral
+        assert score == 0.5  # Still neutral  # nosec B101
 
     def test_score_historical_with_data(self, scorer, simple_task):
         """Test historical scoring with sufficient data."""
@@ -482,17 +482,17 @@ class TestConfidenceScorer:
         history.successful_attempts = 8
 
         score = scorer._score_historical(simple_task)
-        assert score == 0.8  # Should match success rate
+        assert score == 0.8  # Should match success rate  # nosec B101
 
     def test_update_history(self, scorer, simple_task):
         """Test updating historical accuracy."""
         scorer.update_history(simple_task, success=True, confidence=0.85)
 
         history = scorer.get_history(simple_task.task_type)
-        assert history is not None
-        assert history.total_attempts == 1
-        assert history.successful_attempts == 1
-        assert history.confidence_sum == 0.85
+        assert history is not None  # nosec B101
+        assert history.total_attempts == 1  # nosec B101
+        assert history.successful_attempts == 1  # nosec B101
+        assert history.confidence_sum == 0.85  # nosec B101
 
     def test_update_history_multiple(self, scorer, simple_task):
         """Test updating history multiple times."""
@@ -501,42 +501,42 @@ class TestConfidenceScorer:
         scorer.update_history(simple_task, success=False, confidence=0.7)
 
         history = scorer.get_history(simple_task.task_type)
-        assert history.total_attempts == 3
-        assert history.successful_attempts == 2
-        assert history.confidence_sum == pytest.approx(2.4, abs=0.01)
-        assert history.success_rate == pytest.approx(0.667, abs=0.01)
+        assert history.total_attempts == 3  # nosec B101
+        assert history.successful_attempts == 2  # nosec B101
+        assert history.confidence_sum == pytest.approx(2.4, abs=0.01)  # nosec B101
+        assert history.success_rate == pytest.approx(0.667, abs=0.01)  # nosec B101
 
     def test_get_history_nonexistent(self, scorer):
         """Test getting history for nonexistent task type."""
         history = scorer.get_history("nonexistent")
-        assert history is None
+        assert history is None  # nosec B101
 
     def test_get_all_history(self, scorer, simple_task):
         """Test getting all history."""
         scorer.update_history(simple_task, success=True, confidence=0.9)
 
         all_history = scorer.get_all_history()
-        assert len(all_history) == 1
-        assert simple_task.task_type in all_history
+        assert len(all_history) == 1  # nosec B101
+        assert simple_task.task_type in all_history  # nosec B101
 
     def test_clear_history(self, scorer, simple_task):
         """Test clearing history."""
         scorer.update_history(simple_task, success=True, confidence=0.9)
-        assert len(scorer._history) > 0
+        assert len(scorer._history) > 0  # nosec B101
 
         scorer.clear_history()
-        assert len(scorer._history) == 0
+        assert len(scorer._history) == 0  # nosec B101
 
     def test_apply_calibration_no_data(self, scorer, simple_task):
         """Test calibration with no data returns unchanged."""
         calibrated = scorer._apply_calibration(simple_task, 0.8)
-        assert calibrated == 0.8
+        assert calibrated == 0.8  # nosec B101
 
     def test_apply_calibration_insufficient_data(self, scorer, simple_task):
         """Test calibration with insufficient data returns unchanged."""
         scorer._history[simple_task.task_type].total_attempts = 5
         calibrated = scorer._apply_calibration(simple_task, 0.8)
-        assert calibrated == 0.8
+        assert calibrated == 0.8  # nosec B101
 
     def test_apply_calibration_with_data(self, scorer, simple_task):
         """Test calibration with sufficient data."""
@@ -548,8 +548,8 @@ class TestConfidenceScorer:
         # Calibration factor = 0.5 / 0.8 = 0.625
 
         calibrated = scorer._apply_calibration(simple_task, 0.8)
-        assert calibrated < 0.8  # Should be reduced
-        assert calibrated == pytest.approx(0.5, abs=0.01)
+        assert calibrated < 0.8  # Should be reduced  # nosec B101
+        assert calibrated == pytest.approx(0.5, abs=0.01)  # nosec B101
 
     def test_apply_calibration_clamping(self, scorer, simple_task):
         """Test calibration clamping to [0.1, 0.95]."""
@@ -560,32 +560,32 @@ class TestConfidenceScorer:
         history.successful_attempts = 2
         history.confidence_sum = 18.0
         calibrated = scorer._apply_calibration(simple_task, 0.8)
-        assert calibrated >= 0.1
+        assert calibrated >= 0.1  # nosec B101
 
         # Test upper bound
         history.successful_attempts = 18
         history.confidence_sum = 2.0
         calibrated = scorer._apply_calibration(simple_task, 0.8)
-        assert calibrated <= 0.95
+        assert calibrated <= 0.95  # nosec B101
 
     def test_check_context_consistency_no_context(self, scorer, simple_task):
         """Test context consistency with no context returns 1.0."""
         multiplier = scorer._check_context_consistency(simple_task, {})
-        assert multiplier == 1.0
+        assert multiplier == 1.0  # nosec B101
 
     def test_check_context_consistency_matching_entities(self, scorer, simple_task):
         """Test context consistency with matching entities."""
         context = {"entities": {"duration": "5 minutes", "extra": "value"}}
 
         multiplier = scorer._check_context_consistency(simple_task, context)
-        assert multiplier == 1.0  # Task entities are subset
+        assert multiplier == 1.0  # Task entities are subset  # nosec B101
 
     def test_check_context_consistency_extra_entities(self, scorer, simple_task):
         """Test context consistency penalty for extra entities."""
         context = {"entities": {"other": "value"}}
 
         multiplier = scorer._check_context_consistency(simple_task, context)
-        assert multiplier < 1.0  # Should be penalized
+        assert multiplier < 1.0  # Should be penalized  # nosec B101
 
 
 class TestGlobalScorer:
@@ -596,8 +596,8 @@ class TestGlobalScorer:
         scorer1 = get_confidence_scorer()
         scorer2 = get_confidence_scorer()
 
-        assert scorer1 is scorer2  # Should be same instance
-        assert isinstance(scorer1, ConfidenceScorer)
+        assert scorer1 is scorer2  # Should be same instance  # nosec B101
+        assert isinstance(scorer1, ConfidenceScorer)  # nosec B101
 
     def test_score_task_confidence(self):
         """Test convenience function."""
@@ -638,7 +638,7 @@ class TestGlobalScorer:
         }
 
         confidence = score_task_confidence(task, task_dict)
-        assert 0.0 <= confidence <= 1.0
+        assert 0.0 <= confidence <= 1.0  # nosec B101
 
 
 class TestIntegration:
@@ -687,7 +687,7 @@ class TestIntegration:
 
         # Score task (no history yet)
         confidence1 = scorer.score(task, task_dict)
-        assert 0.7 <= confidence1 <= 1.0
+        assert 0.7 <= confidence1 <= 1.0  # nosec B101
 
         # Update history with successes
         for _ in range(15):
@@ -695,7 +695,7 @@ class TestIntegration:
 
         # Score again (should be similar or higher due to good history)
         confidence2 = scorer.score(task, task_dict)
-        assert confidence2 >= confidence1 * 0.9  # Allow small variation
+        assert confidence2 >= confidence1 * 0.9  # Allow small variation  # nosec B101
 
         # Update history with failures
         for _ in range(10):
@@ -704,4 +704,4 @@ class TestIntegration:
         # Score again (should be lower due to poor recent history)
         confidence3 = scorer.score(task, task_dict)
         # Success rate is now 15/25 = 0.6, so historical score should reflect this
-        assert confidence3 < confidence2
+        assert confidence3 < confidence2  # nosec B101

@@ -70,8 +70,8 @@ class TestToolRegistry:
         tool = MockTool()
         await registry.register(tool, sample_metadata)
 
-        assert registry.get_tool("test.tool") is tool
-        assert registry.get_metadata("test.tool") == sample_metadata
+        assert registry.get_tool("test.tool") is tool  # nosec B101
+        assert registry.get_metadata("test.tool") == sample_metadata  # nosec B101
 
     async def test_register_duplicate_tool_id(
         self, registry: ToolRegistry, sample_metadata: ToolMetadata
@@ -94,8 +94,8 @@ class TestToolRegistry:
 
         await registry.unregister("test.tool")
 
-        assert registry.get_tool("test.tool") is None
-        assert registry.get_metadata("test.tool") is None
+        assert registry.get_tool("test.tool") is None  # nosec B101
+        assert registry.get_metadata("test.tool") is None  # nosec B101
 
     async def test_unregister_nonexistent_tool(self, registry: ToolRegistry) -> None:
         """Test unregistering a nonexistent tool does not raise error."""
@@ -114,9 +114,9 @@ class TestToolRegistry:
         await registry.register(MockTool(), metadata2)
 
         tools = registry.list_tools()
-        assert len(tools) == 2
-        assert metadata1 in tools
-        assert metadata2 in tools
+        assert len(tools) == 2  # nosec B101
+        assert metadata1 in tools  # nosec B101
+        assert metadata2 in tools  # nosec B101
 
     async def test_find_by_capability(self, registry: ToolRegistry) -> None:
         """Test finding tools by capability."""
@@ -139,19 +139,19 @@ class TestToolRegistry:
 
         # Find by "text" capability
         text_tools = registry.find_by_capability("text")
-        assert len(text_tools) == 2
+        assert len(text_tools) == 2  # nosec B101
         tool_ids = {t.tool_id for t in text_tools}
-        assert "tool1" in tool_ids
-        assert "tool2" in tool_ids
+        assert "tool1" in tool_ids  # nosec B101
+        assert "tool2" in tool_ids  # nosec B101
 
         # Find by "image" capability
         image_tools = registry.find_by_capability("image")
-        assert len(image_tools) == 1
-        assert image_tools[0].tool_id == "tool3"
+        assert len(image_tools) == 1  # nosec B101
+        assert image_tools[0].tool_id == "tool3"  # nosec B101
 
         # Find by nonexistent capability
         none_tools = registry.find_by_capability("nonexistent")
-        assert len(none_tools) == 0
+        assert len(none_tools) == 0  # nosec B101
 
     async def test_find_by_capabilities(self, registry: ToolRegistry) -> None:
         """Test finding tools by multiple capabilities."""
@@ -177,15 +177,15 @@ class TestToolRegistry:
 
         # Find by multiple capabilities - should rank by match count
         tools = registry.find_by_capabilities(["text", "nlp", "search"])
-        assert len(tools) == 3
+        assert len(tools) == 3  # nosec B101
 
         # tool3 should be first (matches all 3)
-        assert tools[0].tool_id == "tool3"
+        assert tools[0].tool_id == "tool3"  # nosec B101
 
         # tool1 and tool2 should follow (each matches 2)
         tool_ids = {tools[1].tool_id, tools[2].tool_id}
-        assert "tool1" in tool_ids
-        assert "tool2" in tool_ids
+        assert "tool1" in tool_ids  # nosec B101
+        assert "tool2" in tool_ids  # nosec B101
 
     async def test_execute_tool_success(
         self, registry: ToolRegistry, sample_metadata: ToolMetadata
@@ -196,10 +196,10 @@ class TestToolRegistry:
 
         result = await registry.execute("test.tool", input="hello")
 
-        assert result["success"] is True
-        assert result["result"]["input"] == "hello"
-        assert "execution_time_ms" in result
-        assert tool.execution_count == 1
+        assert result["success"] is True  # nosec B101
+        assert result["result"]["input"] == "hello"  # nosec B101
+        assert "execution_time_ms" in result  # nosec B101
+        assert tool.execution_count == 1  # nosec B101
 
     async def test_execute_tool_not_found(self, registry: ToolRegistry) -> None:
         """Test executing nonexistent tool raises error."""
@@ -230,9 +230,9 @@ class TestToolRegistry:
         # Execute with 100ms timeout - should timeout
         result = await registry.execute("slow.tool", timeout_ms=100)
 
-        assert result["success"] is False
-        assert "timed out" in result["error"]
-        assert result["execution_time_ms"] >= 100
+        assert result["success"] is False  # nosec B101
+        assert "timed out" in result["error"]  # nosec B101
+        assert result["execution_time_ms"] >= 100  # nosec B101
 
     async def test_execute_tool_failure(self, registry: ToolRegistry) -> None:
         """Test tool execution failure is handled."""
@@ -245,9 +245,9 @@ class TestToolRegistry:
 
         result = await registry.execute("fail.tool")
 
-        assert result["success"] is False
-        assert "Mock tool failure" in result["error"]
-        assert "execution_time_ms" in result
+        assert result["success"] is False  # nosec B101
+        assert "Mock tool failure" in result["error"]  # nosec B101
+        assert "execution_time_ms" in result  # nosec B101
 
     async def test_capability_index_updated_on_unregister(self, registry: ToolRegistry) -> None:
         """Test that capability index is updated when tool is unregistered."""
@@ -261,15 +261,15 @@ class TestToolRegistry:
         await registry.register(MockTool(), metadata)
 
         # Verify capabilities are indexed
-        assert len(registry.find_by_capability("test")) == 1
-        assert len(registry.find_by_capability("mock")) == 1
+        assert len(registry.find_by_capability("test")) == 1  # nosec B101
+        assert len(registry.find_by_capability("mock")) == 1  # nosec B101
 
         # Unregister tool
         await registry.unregister("test.tool")
 
         # Verify capabilities are removed from index
-        assert len(registry.find_by_capability("test")) == 0
-        assert len(registry.find_by_capability("mock")) == 0
+        assert len(registry.find_by_capability("test")) == 0  # nosec B101
+        assert len(registry.find_by_capability("mock")) == 0  # nosec B101
 
     async def test_concurrent_registration(self, registry: ToolRegistry) -> None:
         """Test concurrent tool registration is thread-safe."""
@@ -285,7 +285,7 @@ class TestToolRegistry:
 
         # All tools should be registered
         tools = registry.list_tools()
-        assert len(tools) == 10
+        assert len(tools) == 10  # nosec B101
 
 
 class TestGetRegistry:
@@ -296,4 +296,4 @@ class TestGetRegistry:
         registry1 = get_registry()
         registry2 = get_registry()
 
-        assert registry1 is registry2
+        assert registry1 is registry2  # nosec B101

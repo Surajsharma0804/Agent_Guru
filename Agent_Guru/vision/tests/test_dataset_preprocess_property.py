@@ -142,15 +142,15 @@ def test_valid_dataset_structure_accepted(
         identities = [(f"person_{i}", images_per_identity) for i in range(n_identities)]
         dataset_root = _make_dataset(tmp, identities)
         is_valid, errors = validate_dataset_structure(dataset_root)
-        assert is_valid, f"Expected valid dataset, got errors: {errors}"
+        assert is_valid, f"Expected valid dataset, got errors: {errors}"  # nosec B101
 
 
 @pytest.mark.property
 def test_missing_dataset_dir_rejected() -> None:
     """validate_dataset_structure() must reject a non-existent path."""
     is_valid, errors = validate_dataset_structure("/nonexistent/path/xyz")
-    assert not is_valid
-    assert len(errors) > 0
+    assert not is_valid  # nosec B101
+    assert len(errors) > 0  # nosec B101
 
 
 @pytest.mark.property
@@ -158,7 +158,7 @@ def test_empty_dataset_dir_rejected() -> None:
     """validate_dataset_structure() must reject a directory with no sub-dirs."""
     with tempfile.TemporaryDirectory() as tmp:
         is_valid, errors = validate_dataset_structure(tmp)
-        assert not is_valid
+        assert not is_valid  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -179,9 +179,9 @@ def test_check_minimum_images_counts_correctly(
         identities = [(f"id_{i}", images_per_identity) for i in range(n_identities)]
         dataset_root = _make_dataset(tmp, identities)
         counts = check_minimum_images(dataset_root)
-        assert len(counts) == n_identities
+        assert len(counts) == n_identities  # nosec B101
         for name, count in counts.items():
-            assert count == images_per_identity, (
+            assert count == images_per_identity, (  # nosec B101
                 f"Expected {images_per_identity} for {name}, got {count}"
             )
 
@@ -205,10 +205,10 @@ def test_no_face_images_are_skipped(n_images: int) -> None:
             aligner=_IdentityAligner(),
         )
         stats = report.per_identity.get("person_a")
-        assert stats is not None
+        assert stats is not None  # nosec B101
         # All images that were loadable should be in skipped_no_face or skipped_error
-        assert stats.processed == 0
-        assert stats.skipped_no_face + stats.skipped_error == stats.total_images
+        assert stats.processed == 0  # nosec B101
+        assert stats.skipped_no_face + stats.skipped_error == stats.total_images  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -224,7 +224,7 @@ def test_largest_face_selected(n_faces: int) -> None:
     selected = _select_largest(detections)
     expected_area = (10 * n_faces) ** 2
     _, _, w, h = selected.bbox
-    assert w * h == expected_area
+    assert w * h == expected_area  # nosec B101
 
 
 # ---------------------------------------------------------------------------
@@ -252,22 +252,22 @@ def test_preprocessing_report_totals_consistent(
             aligner=_IdentityAligner(),
         )
         # Totals must be consistent with per-identity breakdown
-        assert report.total_identities == n_identities
-        assert report.total_images_found == sum(
+        assert report.total_identities == n_identities  # nosec B101
+        assert report.total_images_found == sum(  # nosec B101
             s.total_images for s in report.per_identity.values()
         )
-        assert report.total_images_processed == sum(
+        assert report.total_images_processed == sum(  # nosec B101
             s.processed for s in report.per_identity.values()
         )
-        assert report.total_skipped_no_face == sum(
+        assert report.total_skipped_no_face == sum(  # nosec B101
             s.skipped_no_face for s in report.per_identity.values()
         )
-        assert report.total_skipped_error == sum(
+        assert report.total_skipped_error == sum(  # nosec B101
             s.skipped_error for s in report.per_identity.values()
         )
         # processed + skipped_no_face + skipped_error == total_images (per identity)
         for stats in report.per_identity.values():
-            assert (
+            assert (  # nosec B101
                 stats.processed + stats.skipped_no_face + stats.skipped_error
                 == stats.total_images
             )

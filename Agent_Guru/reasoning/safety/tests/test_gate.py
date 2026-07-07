@@ -19,10 +19,10 @@ class TestSafetyDecision:
             validation_time=0.001,
         )
 
-        assert decision.allowed
-        assert not decision.requires_confirmation
-        assert decision.sensitivity == ActionSensitivity.SAFE
-        assert decision.validation_time > 0
+        assert decision.allowed  # nosec B101
+        assert not decision.requires_confirmation  # nosec B101
+        assert decision.sensitivity == ActionSensitivity.SAFE  # nosec B101
+        assert decision.validation_time > 0  # nosec B101
 
 
 class TestSafetyGate:
@@ -32,15 +32,15 @@ class TestSafetyGate:
         """Test safety gate initialization."""
         gate = SafetyGate()
 
-        assert gate is not None
-        assert len(gate.get_sensitive_categories()) > 0
+        assert gate is not None  # nosec B101
+        assert len(gate.get_sensitive_categories()) > 0  # nosec B101
 
     def test_gate_with_custom_classifier(self):
         """Test safety gate with custom classifier."""
         classifier = ActionSensitivityClassifier()
         gate = SafetyGate(classifier=classifier)
 
-        assert gate is not None
+        assert gate is not None  # nosec B101
 
     def test_validate_safe_action(self):
         """Test validating a safe action."""
@@ -55,10 +55,10 @@ class TestSafetyGate:
 
         decision = gate.validate_action(tool, {}, "user123")
 
-        assert decision.allowed
-        assert not decision.requires_confirmation
-        assert decision.sensitivity == ActionSensitivity.SAFE
-        assert decision.validation_time > 0
+        assert decision.allowed  # nosec B101
+        assert not decision.requires_confirmation  # nosec B101
+        assert decision.sensitivity == ActionSensitivity.SAFE  # nosec B101
+        assert decision.validation_time > 0  # nosec B101
 
     def test_validate_sensitive_action_requires_confirmation(self):
         """Test that sensitive actions require confirmation."""
@@ -73,9 +73,9 @@ class TestSafetyGate:
 
         decision = gate.validate_action(tool, {"recipient": "+1234567890"}, "user123")
 
-        assert decision.allowed
-        assert decision.requires_confirmation
-        assert decision.sensitivity == ActionSensitivity.SENSITIVE
+        assert decision.allowed  # nosec B101
+        assert decision.requires_confirmation  # nosec B101
+        assert decision.sensitivity == ActionSensitivity.SENSITIVE  # nosec B101
 
     def test_validate_dangerous_action_without_permission(self):
         """Test that dangerous actions are blocked without permission."""
@@ -90,10 +90,10 @@ class TestSafetyGate:
 
         decision = gate.validate_action(tool, {"path": "/important/file.txt"}, "user123")
 
-        assert not decision.allowed
-        assert not decision.requires_confirmation  # Blocked, not just requiring confirmation
-        assert decision.sensitivity == ActionSensitivity.DANGEROUS
-        assert "blocked" in decision.reason.lower()
+        assert not decision.allowed  # nosec B101
+        assert not decision.requires_confirmation  # Blocked, not just requiring confirmation  # nosec B101
+        assert decision.sensitivity == ActionSensitivity.DANGEROUS  # nosec B101
+        assert "blocked" in decision.reason.lower()  # nosec B101
 
     def test_validate_dangerous_action_with_permission(self):
         """Test that dangerous actions are allowed with permission."""
@@ -113,9 +113,9 @@ class TestSafetyGate:
 
         decision = gate.validate_action(tool, {"path": "/important/file.txt"}, "user123")
 
-        assert decision.allowed
-        assert decision.requires_confirmation  # Still requires confirmation
-        assert decision.sensitivity == ActionSensitivity.DANGEROUS
+        assert decision.allowed  # nosec B101
+        assert decision.requires_confirmation  # Still requires confirmation  # nosec B101
+        assert decision.sensitivity == ActionSensitivity.DANGEROUS  # nosec B101
 
     def test_validate_action_without_required_permission(self):
         """Test that actions requiring permissions are blocked without them."""
@@ -132,8 +132,8 @@ class TestSafetyGate:
 
         decision = gate.validate_action(tool, {"to": "user@example.com"}, "user123")
 
-        assert not decision.allowed
-        assert "permission" in decision.reason.lower()
+        assert not decision.allowed  # nosec B101
+        assert "permission" in decision.reason.lower()  # nosec B101
 
     def test_validate_action_with_required_permission(self):
         """Test that actions with required permissions are allowed."""
@@ -153,8 +153,8 @@ class TestSafetyGate:
 
         decision = gate.validate_action(tool, {"to": "user@example.com"}, "user123")
 
-        assert decision.allowed
-        assert decision.requires_confirmation
+        assert decision.allowed  # nosec B101
+        assert decision.requires_confirmation  # nosec B101
 
     def test_grant_permission(self):
         """Test granting permission to user."""
@@ -163,7 +163,7 @@ class TestSafetyGate:
         gate.grant_permission("user123", "messaging")
 
         perms = gate.get_user_permissions("user123")
-        assert "messaging" in perms
+        assert "messaging" in perms  # nosec B101
 
     def test_grant_multiple_permissions(self):
         """Test granting multiple permissions."""
@@ -173,8 +173,8 @@ class TestSafetyGate:
         gate.grant_permission("user123", "file_deletion")
 
         perms = gate.get_user_permissions("user123")
-        assert "messaging" in perms
-        assert "file_deletion" in perms
+        assert "messaging" in perms  # nosec B101
+        assert "file_deletion" in perms  # nosec B101
 
     def test_revoke_permission(self):
         """Test revoking permission from user."""
@@ -183,9 +183,9 @@ class TestSafetyGate:
         gate.grant_permission("user123", "messaging")
         revoked = gate.revoke_permission("user123", "messaging")
 
-        assert revoked
+        assert revoked  # nosec B101
         perms = gate.get_user_permissions("user123")
-        assert "messaging" not in perms
+        assert "messaging" not in perms  # nosec B101
 
     def test_revoke_nonexistent_permission(self):
         """Test revoking permission user doesn't have."""
@@ -193,7 +193,7 @@ class TestSafetyGate:
 
         revoked = gate.revoke_permission("user123", "messaging")
 
-        assert not revoked
+        assert not revoked  # nosec B101
 
     def test_get_user_permissions_empty(self):
         """Test getting permissions for user with none."""
@@ -201,7 +201,7 @@ class TestSafetyGate:
 
         perms = gate.get_user_permissions("user123")
 
-        assert len(perms) == 0
+        assert len(perms) == 0  # nosec B101
 
     def test_get_user_permissions_returns_copy(self):
         """Test that get_user_permissions returns a copy."""
@@ -212,8 +212,8 @@ class TestSafetyGate:
         perms1 = gate.get_user_permissions("user123")
         perms2 = gate.get_user_permissions("user123")
 
-        assert perms1 is not perms2
-        assert perms1 == perms2
+        assert perms1 is not perms2  # nosec B101
+        assert perms1 == perms2  # nosec B101
 
     def test_check_permissions_no_requirement(self):
         """Test checking permissions for tool without requirements."""
@@ -228,7 +228,7 @@ class TestSafetyGate:
 
         has_permission = gate.check_permissions("user123", tool)
 
-        assert has_permission
+        assert has_permission  # nosec B101
 
     def test_check_permissions_with_requirement(self):
         """Test checking permissions for tool with requirements."""
@@ -243,11 +243,11 @@ class TestSafetyGate:
         )
 
         # Without permission
-        assert not gate.check_permissions("user123", tool)
+        assert not gate.check_permissions("user123", tool)  # nosec B101
 
         # With permission
         gate.grant_permission("user123", "messaging")
-        assert gate.check_permissions("user123", tool)
+        assert gate.check_permissions("user123", tool)  # nosec B101
 
     def test_add_sensitive_category(self):
         """Test adding a sensitive category."""
@@ -256,7 +256,7 @@ class TestSafetyGate:
         gate.add_sensitive_category("custom_category")
 
         categories = gate.get_sensitive_categories()
-        assert "custom_category" in categories
+        assert "custom_category" in categories  # nosec B101
 
     def test_remove_sensitive_category(self):
         """Test removing a sensitive category."""
@@ -265,9 +265,9 @@ class TestSafetyGate:
         gate.add_sensitive_category("custom_category")
         removed = gate.remove_sensitive_category("custom_category")
 
-        assert removed
+        assert removed  # nosec B101
         categories = gate.get_sensitive_categories()
-        assert "custom_category" not in categories
+        assert "custom_category" not in categories  # nosec B101
 
     def test_remove_nonexistent_category(self):
         """Test removing nonexistent category."""
@@ -275,7 +275,7 @@ class TestSafetyGate:
 
         removed = gate.remove_sensitive_category("nonexistent")
 
-        assert not removed
+        assert not removed  # nosec B101
 
     def test_get_sensitive_categories_returns_copy(self):
         """Test that get_sensitive_categories returns a copy."""
@@ -284,8 +284,8 @@ class TestSafetyGate:
         cats1 = gate.get_sensitive_categories()
         cats2 = gate.get_sensitive_categories()
 
-        assert cats1 is not cats2
-        assert cats1 == cats2
+        assert cats1 is not cats2  # nosec B101
+        assert cats1 == cats2  # nosec B101
 
     def test_blocked_actions_logged(self):
         """Test that blocked actions are logged."""
@@ -302,12 +302,12 @@ class TestSafetyGate:
         gate.validate_action(tool, {"path": "/file.txt"}, "user123")
 
         blocked = gate.get_blocked_actions()
-        assert len(blocked) > 0
+        assert len(blocked) > 0  # nosec B101
 
         # Check last blocked action
         timestamp, user_id, tool_id, reason = blocked[-1]
-        assert user_id == "user123"
-        assert tool_id == "delete_file"
+        assert user_id == "user123"  # nosec B101
+        assert tool_id == "delete_file"  # nosec B101
 
     def test_blocked_actions_filtered_by_user(self):
         """Test filtering blocked actions by user."""
@@ -328,8 +328,8 @@ class TestSafetyGate:
         # Get blocked actions for user1
         blocked = gate.get_blocked_actions(user_id="user1")
 
-        assert len(blocked) == 2
-        assert all(entry[1] == "user1" for entry in blocked)
+        assert len(blocked) == 2  # nosec B101
+        assert all(entry[1] == "user1" for entry in blocked)  # nosec B101
 
     def test_blocked_actions_limit(self):
         """Test limiting blocked actions returned."""
@@ -349,7 +349,7 @@ class TestSafetyGate:
         # Get limited results
         blocked = gate.get_blocked_actions(limit=5)
 
-        assert len(blocked) == 5
+        assert len(blocked) == 5  # nosec B101
 
     def test_clear_blocked_actions_log(self):
         """Test clearing blocked actions log."""
@@ -364,11 +364,11 @@ class TestSafetyGate:
 
         gate.validate_action(tool, {}, "user123")
 
-        assert len(gate.get_blocked_actions()) > 0
+        assert len(gate.get_blocked_actions()) > 0  # nosec B101
 
         gate.clear_blocked_actions_log()
 
-        assert len(gate.get_blocked_actions()) == 0
+        assert len(gate.get_blocked_actions()) == 0  # nosec B101
 
     def test_validation_time_measured(self):
         """Test that validation time is measured."""
@@ -383,8 +383,8 @@ class TestSafetyGate:
 
         decision = gate.validate_action(tool, {}, "user123")
 
-        assert decision.validation_time > 0
-        assert decision.validation_time < 1.0  # Should be fast
+        assert decision.validation_time > 0  # nosec B101
+        assert decision.validation_time < 1.0  # Should be fast  # nosec B101
 
     def test_sensitive_category_requires_confirmation(self):
         """Test that tools in sensitive categories require confirmation."""
@@ -400,5 +400,5 @@ class TestSafetyGate:
 
         decision = gate.validate_action(tool, {}, "user123")
 
-        assert decision.allowed
-        assert decision.requires_confirmation
+        assert decision.allowed  # nosec B101
+        assert decision.requires_confirmation  # nosec B101

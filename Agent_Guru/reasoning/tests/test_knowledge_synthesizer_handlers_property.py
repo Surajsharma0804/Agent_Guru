@@ -134,13 +134,13 @@ class TestTemporalQueryProperties:
         answer = synthesizer.handle_temporal_query(query, memories, statistics)
 
         # Invariant: Always returns KnowledgeAnswer
-        assert isinstance(answer, KnowledgeAnswer)
-        assert isinstance(answer.summary, str)
-        assert len(answer.summary) > 0
-        assert 0.0 <= answer.confidence <= 1.0
-        assert isinstance(answer.supporting_memories, list)
-        assert isinstance(answer.patterns, list)
-        assert isinstance(answer.statistics, dict)
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert isinstance(answer.summary, str)  # nosec B101
+        assert len(answer.summary) > 0  # nosec B101
+        assert 0.0 <= answer.confidence <= 1.0  # nosec B101
+        assert isinstance(answer.supporting_memories, list)  # nosec B101
+        assert isinstance(answer.patterns, list)  # nosec B101
+        assert isinstance(answer.statistics, dict)  # nosec B101
 
     @given(
         query=query_strategy(query_type=KnowledgeQueryType.TEMPORAL),
@@ -159,8 +159,8 @@ class TestTemporalQueryProperties:
         confidence = synthesizer._calculate_temporal_confidence(query, memories, statistics)
 
         # Invariant: Confidence is bounded
-        assert 0.0 <= confidence <= 1.0
-        assert isinstance(confidence, float)
+        assert 0.0 <= confidence <= 1.0  # nosec B101
+        assert isinstance(confidence, float)  # nosec B101
 
     @given(
         query=query_strategy(query_type=KnowledgeQueryType.TEMPORAL),
@@ -179,7 +179,7 @@ class TestTemporalQueryProperties:
         answer = synthesizer.handle_temporal_query(query, memories, statistics)
 
         # Invariant: Supporting memories limited to 5
-        assert len(answer.supporting_memories) <= 5
+        assert len(answer.supporting_memories) <= 5  # nosec B101
 
 
 class TestAggregationQueryProperties:
@@ -205,11 +205,11 @@ class TestAggregationQueryProperties:
         answer = synthesizer.handle_aggregation_query(query, memories, statistics)
 
         # Invariant: Always returns KnowledgeAnswer
-        assert isinstance(answer, KnowledgeAnswer)
-        assert isinstance(answer.summary, str)
-        assert len(answer.summary) > 0
-        assert 0.0 <= answer.confidence <= 1.0
-        assert isinstance(answer.supporting_memories, list)
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert isinstance(answer.summary, str)  # nosec B101
+        assert len(answer.summary) > 0  # nosec B101
+        assert 0.0 <= answer.confidence <= 1.0  # nosec B101
+        assert isinstance(answer.supporting_memories, list)  # nosec B101
 
     @given(
         query=query_strategy(query_type=KnowledgeQueryType.AGGREGATION),
@@ -239,7 +239,7 @@ class TestAggregationQueryProperties:
             )
 
             # Invariant: Larger sample should have higher or equal confidence
-            assert large_confidence >= small_confidence
+            assert large_confidence >= small_confidence  # nosec B101
 
     @given(
         query=query_strategy(query_type=KnowledgeQueryType.AGGREGATION),
@@ -258,7 +258,7 @@ class TestAggregationQueryProperties:
         confidence = synthesizer._calculate_aggregation_confidence(query, memories, statistics)
 
         # Invariant: Confidence is bounded
-        assert 0.0 <= confidence <= 1.0
+        assert 0.0 <= confidence <= 1.0  # nosec B101
 
 
 class TestPatternQueryProperties:
@@ -282,12 +282,12 @@ class TestPatternQueryProperties:
         answer = synthesizer.handle_pattern_query(query, memories, patterns, statistics)
 
         # Invariant: Always returns KnowledgeAnswer
-        assert isinstance(answer, KnowledgeAnswer)
-        assert isinstance(answer.summary, str)
-        assert len(answer.summary) > 0
-        assert 0.0 <= answer.confidence <= 1.0
-        assert isinstance(answer.patterns, list)
-        assert answer.patterns == patterns  # Patterns preserved
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert isinstance(answer.summary, str)  # nosec B101
+        assert len(answer.summary) > 0  # nosec B101
+        assert 0.0 <= answer.confidence <= 1.0  # nosec B101
+        assert isinstance(answer.patterns, list)  # nosec B101
+        assert answer.patterns == patterns  # Patterns preserved  # nosec B101
 
     @given(
         query=query_strategy(query_type=KnowledgeQueryType.PATTERN),
@@ -333,7 +333,7 @@ class TestPatternQueryProperties:
         )
 
         # Invariant: Stronger pattern should have higher confidence
-        assert strong_confidence >= weak_confidence
+        assert strong_confidence >= weak_confidence  # nosec B101
 
     @given(
         query=query_strategy(query_type=KnowledgeQueryType.PATTERN),
@@ -355,7 +355,7 @@ class TestPatternQueryProperties:
         )
 
         # Invariant: Confidence is bounded
-        assert 0.0 <= confidence <= 1.0
+        assert 0.0 <= confidence <= 1.0  # nosec B101
 
 
 class TestFactualQueryProperties:
@@ -378,11 +378,11 @@ class TestFactualQueryProperties:
         answer = synthesizer.handle_factual_query(query, memories, statistics)
 
         # Invariant: Always returns KnowledgeAnswer
-        assert isinstance(answer, KnowledgeAnswer)
-        assert isinstance(answer.summary, str)
-        assert len(answer.summary) > 0
-        assert 0.0 <= answer.confidence <= 1.0
-        assert isinstance(answer.supporting_memories, list)
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert isinstance(answer.summary, str)  # nosec B101
+        assert len(answer.summary) > 0  # nosec B101
+        assert 0.0 <= answer.confidence <= 1.0  # nosec B101
+        assert isinstance(answer.supporting_memories, list)  # nosec B101
 
     @given(
         query=query_strategy(query_type=KnowledgeQueryType.FACTUAL),
@@ -433,7 +433,7 @@ class TestFactualQueryProperties:
         )
 
         # Invariant: Higher relevance should have higher confidence
-        assert high_confidence >= low_confidence
+        assert high_confidence >= low_confidence  # nosec B101
 
     @given(
         query=query_strategy(query_type=KnowledgeQueryType.FACTUAL),
@@ -452,7 +452,7 @@ class TestFactualQueryProperties:
         answer = synthesizer.handle_factual_query(query, memories, statistics)
 
         # Invariant: Supporting memories limited to 3 for factual queries
-        assert len(answer.supporting_memories) <= 3
+        assert len(answer.supporting_memories) <= 3  # nosec B101
 
 
 class TestConfidenceInvariants:
@@ -485,7 +485,7 @@ class TestConfidenceInvariants:
             confidence = synthesizer._calculate_factual_confidence(query, memories, statistics)
 
         # Invariant: Confidence never exceeds 1.0
-        assert confidence <= 1.0
+        assert confidence <= 1.0  # nosec B101
 
     @given(
         query=query_strategy(),
@@ -514,4 +514,4 @@ class TestConfidenceInvariants:
             confidence = synthesizer._calculate_factual_confidence(query, memories, statistics)
 
         # Invariant: Confidence is never negative
-        assert confidence >= 0.0
+        assert confidence >= 0.0  # nosec B101

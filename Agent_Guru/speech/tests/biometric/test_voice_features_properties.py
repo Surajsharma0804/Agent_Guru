@@ -76,7 +76,7 @@ class TestVoiceBiometricConfidenceBounds:
         features = await extractor.extract_features(audio, sample_rate)
         
         # Property: Quality score (confidence) must be between 0.0 and 1.0
-        assert 0.0 <= features.quality_score <= 1.0, (
+        assert 0.0 <= features.quality_score <= 1.0, (  # nosec B101
             f"Quality score {features.quality_score} is outside [0.0, 1.0] range"
         )
     
@@ -96,10 +96,10 @@ class TestVoiceBiometricConfidenceBounds:
         features = await extractor.extract_features(audio, sample_rate)
         
         # Property: Feature vector must be non-empty
-        assert len(features.feature_vector) > 0, "Feature vector is empty"
+        assert len(features.feature_vector) > 0, "Feature vector is empty"  # nosec B101
         
         # Property: All feature values must be finite
-        assert np.all(np.isfinite(features.feature_vector)), (
+        assert np.all(np.isfinite(features.feature_vector)), (  # nosec B101
             "Feature vector contains non-finite values"
         )
         
@@ -107,7 +107,7 @@ class TestVoiceBiometricConfidenceBounds:
         # Based on implementation: 20 MFCC mean + 20 MFCC std + 4 pitch + 
         # 4 spectral + 2 zcr + 2 energy = 52 features
         expected_size = 52
-        assert len(features.feature_vector) == expected_size, (
+        assert len(features.feature_vector) == expected_size, (  # nosec B101
             f"Feature vector size {len(features.feature_vector)} != {expected_size}"
         )
     
@@ -127,17 +127,17 @@ class TestVoiceBiometricConfidenceBounds:
         features = await extractor.extract_features(audio, sample_rate)
         
         # Property: Sample rate must match input
-        assert features.sample_rate == sample_rate, (
+        assert features.sample_rate == sample_rate, (  # nosec B101
             f"Sample rate mismatch: {features.sample_rate} != {sample_rate}"
         )
         
         # Property: Duration must be positive
-        assert features.duration > 0, f"Duration {features.duration} is not positive"
+        assert features.duration > 0, f"Duration {features.duration} is not positive"  # nosec B101
         
         # Property: Duration must be approximately correct
         expected_duration = len(audio) / sample_rate
         duration_error = abs(features.duration - expected_duration)
-        assert duration_error < 0.01, (
+        assert duration_error < 0.01, (  # nosec B101
             f"Duration error {duration_error} too large "
             f"(expected {expected_duration}, got {features.duration})"
         )
@@ -167,13 +167,13 @@ class TestVoiceBiometricConfidenceBounds:
         features2 = await extractor.extract_features(audio, sample_rate)
         
         # Property: Results should be identical
-        assert np.allclose(features1.feature_vector, features2.feature_vector), (
+        assert np.allclose(features1.feature_vector, features2.feature_vector), (  # nosec B101
             "Feature extraction is not deterministic"
         )
-        assert features1.quality_score == features2.quality_score, (
+        assert features1.quality_score == features2.quality_score, (  # nosec B101
             "Quality score is not deterministic"
         )
-        assert features1.duration == features2.duration, (
+        assert features1.duration == features2.duration, (  # nosec B101
             "Duration is not deterministic"
         )
     
@@ -209,13 +209,13 @@ class TestVoiceBiometricConfidenceBounds:
         features = await extractor.extract_features(noisy_audio, sample_rate)
         
         # Property: Quality score should still be in valid range
-        assert 0.0 <= features.quality_score <= 1.0, (
+        assert 0.0 <= features.quality_score <= 1.0, (  # nosec B101
             f"Quality score {features.quality_score} outside valid range"
         )
         
         # Property: Very noisy audio should have lower quality
         if noise_level > 0.7:
-            assert features.quality_score < 0.9, (
+            assert features.quality_score < 0.9, (  # nosec B101
                 f"Quality score {features.quality_score} too high for noise level {noise_level}"
             )
     
@@ -241,7 +241,7 @@ class TestVoiceBiometricConfidenceBounds:
             quality = extractor.compute_quality_score(audio, sample_rate)
             
             # Property: Quality score must be in [0.0, 1.0]
-            assert 0.0 <= quality <= 1.0, (
+            assert 0.0 <= quality <= 1.0, (  # nosec B101
                 f"Quality score {quality} outside [0.0, 1.0] for audio type"
             )
     

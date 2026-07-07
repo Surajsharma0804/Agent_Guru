@@ -128,11 +128,11 @@ class TestLLMResponseGenerator:
             timeout_seconds=2.0,
         )
 
-        assert generator.llm_router == mock_llm_router
-        assert generator.template_generator == template_generator
-        assert generator.enable_streaming is True
-        assert generator.fallback_on_error is True
-        assert generator.timeout_seconds == 2.0
+        assert generator.llm_router == mock_llm_router  # nosec B101
+        assert generator.template_generator == template_generator  # nosec B101
+        assert generator.enable_streaming is True  # nosec B101
+        assert generator.fallback_on_error is True  # nosec B101
+        assert generator.timeout_seconds == 2.0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_success(
@@ -154,19 +154,19 @@ class TestLLMResponseGenerator:
         )
 
         # Verify response
-        assert response.text == "I've set a timer for 5 minutes"
-        assert response.modality == ResponseModality.VOICE
-        assert response.metadata["generation_method"] == "llm"
-        assert response.metadata["llm_provider"] == "local"
-        assert "llm_latency_ms" in response.metadata
+        assert response.text == "I've set a timer for 5 minutes"  # nosec B101
+        assert response.modality == ResponseModality.VOICE  # nosec B101
+        assert response.metadata["generation_method"] == "llm"  # nosec B101
+        assert response.metadata["llm_provider"] == "local"  # nosec B101
+        assert "llm_latency_ms" in response.metadata  # nosec B101
 
         # Verify LLM was called
         mock_llm_router.generate.assert_called_once()
         call_args = mock_llm_router.generate.call_args[0][0]
-        assert isinstance(call_args, LLMRequest)
-        assert "Set a timer for 5 minutes" in call_args.prompt
-        assert call_args.max_tokens == 200
-        assert call_args.temperature == 0.7
+        assert isinstance(call_args, LLMRequest)  # nosec B101
+        assert "Set a timer for 5 minutes" in call_args.prompt  # nosec B101
+        assert call_args.max_tokens == 200  # nosec B101
+        assert call_args.temperature == 0.7  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_with_conversation_context(
@@ -196,12 +196,12 @@ class TestLLMResponseGenerator:
         )
 
         # Verify response
-        assert response.text == "Timer set for 5 minutes"
-        assert response.modality == ResponseModality.TEXT
+        assert response.text == "Timer set for 5 minutes"  # nosec B101
+        assert response.modality == ResponseModality.TEXT  # nosec B101
 
         # Verify context was included in prompt
         call_args = mock_llm_router.generate.call_args[0][0]
-        assert "Recent conversation" in call_args.prompt or "context" in call_args.prompt.lower()
+        assert "Recent conversation" in call_args.prompt or "context" in call_args.prompt.lower()  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_with_user_preferences(
@@ -227,7 +227,7 @@ class TestLLMResponseGenerator:
         )
 
         # Verify response
-        assert response.text == "Timer set"
+        assert response.text == "Timer set"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_error_result(self, llm_generator, mock_llm_router, sample_intent):
@@ -257,8 +257,8 @@ class TestLLMResponseGenerator:
         )
 
         # Verify error response
-        assert "couldn't" in response.text.lower() or "unavailable" in response.text.lower()
-        assert response.metadata["generation_method"] == "llm"
+        assert "couldn't" in response.text.lower() or "unavailable" in response.text.lower()  # nosec B101
+        assert response.metadata["generation_method"] == "llm"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_fallback_on_llm_error(
@@ -274,10 +274,10 @@ class TestLLMResponseGenerator:
         )
 
         # Verify fallback response
-        assert response.text  # Should have some text
-        assert response.metadata["generation_method"] == "template_fallback"
-        assert "llm_error" in response.metadata
-        assert "LLM unavailable" in response.metadata["llm_error"]
+        assert response.text  # Should have some text  # nosec B101
+        assert response.metadata["generation_method"] == "template_fallback"  # nosec B101
+        assert "llm_error" in response.metadata  # nosec B101
+        assert "LLM unavailable" in response.metadata["llm_error"]  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_fallback_disabled(
@@ -325,8 +325,8 @@ class TestLLMResponseGenerator:
         )
 
         # Verify fallback response
-        assert response.text
-        assert response.metadata["generation_method"] == "template_fallback"
+        assert response.text  # nosec B101
+        assert response.metadata["generation_method"] == "template_fallback"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_voice_modality(
@@ -349,8 +349,8 @@ class TestLLMResponseGenerator:
 
         # Verify prompt includes voice instructions
         call_args = mock_llm_router.generate.call_args[0][0]
-        assert "voice" in call_args.prompt.lower()
-        assert "concise" in call_args.prompt.lower()
+        assert "voice" in call_args.prompt.lower()  # nosec B101
+        assert "concise" in call_args.prompt.lower()  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_text_modality(
@@ -373,7 +373,7 @@ class TestLLMResponseGenerator:
 
         # Verify prompt includes text instructions
         call_args = mock_llm_router.generate.call_args[0][0]
-        assert "text" in call_args.prompt.lower()
+        assert "text" in call_args.prompt.lower()  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_includes_suggestions(
@@ -395,10 +395,10 @@ class TestLLMResponseGenerator:
         )
 
         # Verify suggestions
-        assert response.suggestions
-        assert len(response.suggestions) > 0
+        assert response.suggestions  # nosec B101
+        assert len(response.suggestions) > 0  # nosec B101
         # Timer-related suggestions
-        assert any("timer" in s.lower() for s in response.suggestions)
+        assert any("timer" in s.lower() for s in response.suggestions)  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_streaming_enabled(
@@ -422,9 +422,9 @@ class TestLLMResponseGenerator:
             chunks.append(chunk)
 
         # Verify chunks
-        assert len(chunks) > 0
+        assert len(chunks) > 0  # nosec B101
         full_text = "".join(chunks)
-        assert "Timer" in full_text or "timer" in full_text
+        assert "Timer" in full_text or "timer" in full_text  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_streaming_disabled(
@@ -455,8 +455,8 @@ class TestLLMResponseGenerator:
             chunks.append(chunk)
 
         # Should return full response in one chunk
-        assert len(chunks) == 1
-        assert "Timer" in chunks[0] or "timer" in chunks[0]
+        assert len(chunks) == 1  # nosec B101
+        assert "Timer" in chunks[0] or "timer" in chunks[0]  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_streaming_fallback(
@@ -474,9 +474,9 @@ class TestLLMResponseGenerator:
             chunks.append(chunk)
 
         # Verify fallback response
-        assert len(chunks) > 0
+        assert len(chunks) > 0  # nosec B101
         full_text = "".join(chunks)
-        assert full_text  # Should have some text from template
+        assert full_text  # Should have some text from template  # nosec B101
 
     @pytest.mark.asyncio
     async def test_create_response_prompt(
@@ -491,11 +491,11 @@ class TestLLMResponseGenerator:
         )
 
         # Verify prompt contains key information
-        assert "Set a timer for 5 minutes" in prompt
-        assert "set_timer" in prompt
-        assert "5 minutes" in prompt
-        assert "Success: True" in prompt
-        assert "voice" in prompt.lower()
+        assert "Set a timer for 5 minutes" in prompt  # nosec B101
+        assert "set_timer" in prompt  # nosec B101
+        assert "5 minutes" in prompt  # nosec B101
+        assert "Success: True" in prompt  # nosec B101
+        assert "voice" in prompt.lower()  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_conversation_context(self, llm_generator, sample_conversation_state):
@@ -503,17 +503,17 @@ class TestLLMResponseGenerator:
         context = llm_generator._extract_conversation_context(sample_conversation_state)
 
         # Verify context
-        assert context is not None
-        assert len(context.recent_turns) > 0
-        assert "What's the weather?" in context.recent_turns[0]
-        assert "location" in context.tracked_entities
-        assert context.tracked_entities["location"] == "San Francisco"
+        assert context is not None  # nosec B101
+        assert len(context.recent_turns) > 0  # nosec B101
+        assert "What's the weather?" in context.recent_turns[0]  # nosec B101
+        assert "location" in context.tracked_entities  # nosec B101
+        assert context.tracked_entities["location"] == "San Francisco"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_conversation_context_none(self, llm_generator):
         """Test context extraction with no state."""
         context = llm_generator._extract_conversation_context(None)
-        assert context is None
+        assert context is None  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_context_dict(self, llm_generator, sample_conversation_state):
@@ -521,15 +521,15 @@ class TestLLMResponseGenerator:
         context_dict = llm_generator._extract_context_dict(sample_conversation_state)
 
         # Verify context dict
-        assert isinstance(context_dict, dict)
-        assert "location" in context_dict
-        assert context_dict["location"] == "San Francisco"
+        assert isinstance(context_dict, dict)  # nosec B101
+        assert "location" in context_dict  # nosec B101
+        assert context_dict["location"] == "San Francisco"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_context_dict_none(self, llm_generator):
         """Test context dict extraction with no state."""
         context_dict = llm_generator._extract_context_dict(None)
-        assert context_dict == {}
+        assert context_dict == {}  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_suggestions(self, llm_generator, sample_intent, sample_result):
@@ -537,10 +537,10 @@ class TestLLMResponseGenerator:
         suggestions = llm_generator._generate_suggestions(sample_intent, sample_result)
 
         # Verify suggestions
-        assert isinstance(suggestions, list)
-        assert len(suggestions) > 0
+        assert isinstance(suggestions, list)  # nosec B101
+        assert len(suggestions) > 0  # nosec B101
         # Should have timer-related suggestions
-        assert any("timer" in s.lower() for s in suggestions)
+        assert any("timer" in s.lower() for s in suggestions)  # nosec B101
 
 
 class TestLLMResponseGeneratorIntegration:
@@ -566,12 +566,12 @@ class TestLLMResponseGeneratorIntegration:
         )
 
         # Verify complete response
-        assert response.text
-        assert response.modality == ResponseModality.TEXT
-        assert response.metadata["generation_method"] == "llm"
-        assert response.metadata["llm_provider"] == "cloud"
-        assert response.suggestions
-        assert len(response.suggestions) > 0
+        assert response.text  # nosec B101
+        assert response.modality == ResponseModality.TEXT  # nosec B101
+        assert response.metadata["generation_method"] == "llm"  # nosec B101
+        assert response.metadata["llm_provider"] == "cloud"  # nosec B101
+        assert response.suggestions  # nosec B101
+        assert len(response.suggestions) > 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_end_to_end_error_flow(self, llm_generator, mock_llm_router, sample_intent):
@@ -595,6 +595,6 @@ class TestLLMResponseGeneratorIntegration:
         )
 
         # Verify fallback response
-        assert response.text
-        assert response.metadata["generation_method"] == "template_fallback"
-        assert "llm_error" in response.metadata
+        assert response.text  # nosec B101
+        assert response.metadata["generation_method"] == "template_fallback"  # nosec B101
+        assert "llm_error" in response.metadata  # nosec B101

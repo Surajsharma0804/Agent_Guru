@@ -11,21 +11,21 @@ class TestProjectStructure:
     def test_speech_package_exists(self):
         """Test that the speech package can be imported."""
         import Agent_Guru.speech
-        assert Agent_Guru.speech is not None
+        assert Agent_Guru.speech is not None  # nosec B101
     
     def test_core_modules_exist(self):
         """Test that core modules exist and can be imported."""
         # Test models module
         from Agent_Guru.speech import models
-        assert models is not None
+        assert models is not None  # nosec B101
         
         # Test exceptions module
         from Agent_Guru.speech import exceptions
-        assert exceptions is not None
+        assert exceptions is not None  # nosec B101
         
         # Test config module
         from Agent_Guru.speech import config
-        assert config is not None
+        assert config is not None  # nosec B101
     
     def test_subdirectories_exist(self):
         """Test that all required subdirectories exist."""
@@ -45,8 +45,8 @@ class TestProjectStructure:
         
         for dir_name in required_dirs:
             dir_path = speech_dir / dir_name
-            assert dir_path.exists(), f"Directory {dir_name} does not exist"
-            assert dir_path.is_dir(), f"{dir_name} is not a directory"
+            assert dir_path.exists(), f"Directory {dir_name} does not exist"  # nosec B101
+            assert dir_path.is_dir(), f"{dir_name} is not a directory"  # nosec B101
     
     def test_subdirectory_packages(self):
         """Test that all subdirectories are valid Python packages."""
@@ -65,7 +65,7 @@ class TestProjectStructure:
             module_name = f"Agent_Guru.speech.{subdir}"
             try:
                 module = importlib.import_module(module_name)
-                assert module is not None
+                assert module is not None  # nosec B101
             except ImportError as e:
                 pytest.fail(f"Failed to import {module_name}: {e}")
     
@@ -86,16 +86,16 @@ class TestProjectStructure:
         
         for dir_name in required_test_dirs:
             dir_path = tests_dir / dir_name
-            assert dir_path.exists(), f"Test directory {dir_name} does not exist"
-            assert dir_path.is_dir(), f"Test {dir_name} is not a directory"
+            assert dir_path.exists(), f"Test directory {dir_name} does not exist"  # nosec B101
+            assert dir_path.is_dir(), f"Test {dir_name} is not a directory"  # nosec B101
     
     def test_requirements_file_exists(self):
         """Test that requirements.txt exists."""
         speech_dir = Path(__file__).parent.parent
         requirements_file = speech_dir / "requirements.txt"
         
-        assert requirements_file.exists(), "requirements.txt does not exist"
-        assert requirements_file.is_file(), "requirements.txt is not a file"
+        assert requirements_file.exists(), "requirements.txt does not exist"  # nosec B101
+        assert requirements_file.is_file(), "requirements.txt is not a file"  # nosec B101
     
     def test_requirements_file_content(self):
         """Test that requirements.txt contains expected dependencies."""
@@ -122,7 +122,7 @@ class TestProjectStructure:
         ]
         
         for dep in expected_deps:
-            assert dep in content, f"Dependency {dep} not found in requirements.txt"
+            assert dep in content, f"Dependency {dep} not found in requirements.txt"  # nosec B101
 
 
 class TestModelsModule:
@@ -131,19 +131,19 @@ class TestModelsModule:
     def test_personality_type_enum(self):
         """Test PersonalityType enum is defined."""
         from Agent_Guru.speech.models import PersonalityType
-        assert hasattr(PersonalityType, "GURU")
-        assert hasattr(PersonalityType, "MAYA")
+        assert hasattr(PersonalityType, "GURU")  # nosec B101
+        assert hasattr(PersonalityType, "MAYA")  # nosec B101
     
     def test_emotion_type_enum(self):
         """Test EmotionType enum is defined."""
         from Agent_Guru.speech.models import EmotionType
-        assert hasattr(EmotionType, "HAPPY")
-        assert hasattr(EmotionType, "SAD")
-        assert hasattr(EmotionType, "ANGRY")
-        assert hasattr(EmotionType, "NEUTRAL")
-        assert hasattr(EmotionType, "SURPRISED")
-        assert hasattr(EmotionType, "FEARFUL")
-        assert hasattr(EmotionType, "DISGUSTED")
+        assert hasattr(EmotionType, "HAPPY")  # nosec B101
+        assert hasattr(EmotionType, "SAD")  # nosec B101
+        assert hasattr(EmotionType, "ANGRY")  # nosec B101
+        assert hasattr(EmotionType, "NEUTRAL")  # nosec B101
+        assert hasattr(EmotionType, "SURPRISED")  # nosec B101
+        assert hasattr(EmotionType, "FEARFUL")  # nosec B101
+        assert hasattr(EmotionType, "DISGUSTED")  # nosec B101
     
     def test_dataclasses_defined(self):
         """Test that all required dataclasses are defined."""
@@ -166,7 +166,7 @@ class TestModelsModule:
         ]
         
         for class_name in required_classes:
-            assert hasattr(models, class_name), f"Class {class_name} not found in models"
+            assert hasattr(models, class_name), f"Class {class_name} not found in models"  # nosec B101
 
 
 class TestExceptionsModule:
@@ -175,7 +175,7 @@ class TestExceptionsModule:
     def test_base_exception(self):
         """Test base exception is defined."""
         from Agent_Guru.speech.exceptions import GuruSpeechError
-        assert issubclass(GuruSpeechError, Exception)
+        assert issubclass(GuruSpeechError, Exception)  # nosec B101
     
     def test_specific_exceptions(self):
         """Test that all specific exceptions are defined."""
@@ -198,9 +198,9 @@ class TestExceptionsModule:
         ]
         
         for exc_name in required_exceptions:
-            assert hasattr(exceptions, exc_name), f"Exception {exc_name} not found"
+            assert hasattr(exceptions, exc_name), f"Exception {exc_name} not found"  # nosec B101
             exc_class = getattr(exceptions, exc_name)
-            assert issubclass(exc_class, exceptions.GuruSpeechError)
+            assert issubclass(exc_class, exceptions.GuruSpeechError)  # nosec B101
 
 
 class TestConfigModule:
@@ -231,7 +231,7 @@ class TestConfigModule:
         ]
         
         for config_name in required_configs:
-            assert hasattr(config, config_name), f"Config {config_name} not found"
+            assert hasattr(config, config_name), f"Config {config_name} not found"  # nosec B101
     
     def test_speech_engine_config_factory_methods(self):
         """Test SpeechEngineConfig factory methods."""
@@ -239,8 +239,8 @@ class TestConfigModule:
         
         # Test Guru personality config
         guru_config = SpeechEngineConfig.for_guru_personality()
-        assert guru_config is not None
+        assert guru_config is not None  # nosec B101
         
         # Test Maya personality config
         maya_config = SpeechEngineConfig.for_maya_personality()
-        assert maya_config is not None
+        assert maya_config is not None  # nosec B101
