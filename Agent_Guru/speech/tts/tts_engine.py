@@ -27,6 +27,7 @@ Version: 2.0.0  (replaces Coqui VCTK implementation)
 
 from __future__ import annotations
 
+import hashlib
 import io
 import logging
 import os
@@ -58,6 +59,12 @@ _MODEL_URL = (
 _VOICES_URL = (
     "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
 )
+
+# SHA-256 hashes for integrity verification.
+# To update after a legitimate upstream release:
+#   python -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('kokoro-v1.0.onnx').read_bytes()).hexdigest())"
+_MODEL_SHA256: str | None = None   # TODO: pin after first verified download
+_VOICES_SHA256: str | None = None  # TODO: pin after first verified download
 
 # ---------------------------------------------------------------------------
 # Voice configuration
@@ -111,10 +118,48 @@ class TTSError(GuruSpeechError):
         super().__init__(message, "KokoroTTSEngine", original_error)
 
 # ---------------------------------------------------------------------------
+# Integrity verification
+# ---------------------------------------------------------------------------
+
+def _sha256_file(path: Path) -> str:
+    """Return hex SHA-256 digest of *path* (streams in 8 KB chunks)."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while chunk := f.read(8192):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _verify_hash(path: Path, expected: str | None) -> None:
+    """Verify *path* against *expected* SHA-256. Delete and raise on mismatch.
+
+    If *expected* is ``None`` the check is skipped (hash not yet pinned).
+    """
+    if expected is None:
+        actual = _sha256_file(path)
+        logger.warning(
+            "No pinned SHA-256 for %s — actual hash is %s. "
+            "Pin this value in _MODEL_SHA256 / _VOICES_SHA256 for production.",
+            path.name, actual,
+        )
+        return
+    actual = _sha256_file(path)
+    if actual != expected:
+        path.unlink(missing_ok=True)
+        msg = (
+            f"Integrity check FAILED for {path.name}: "
+            f"expected {expected[:16]}…, got {actual[:16]}…. "
+            f"File deleted. Re-run to re-download."
+        )
+        raise TTSError(msg)
+    logger.debug("Integrity OK: %s (%s…)", path.name, actual[:16])
+
+
+# ---------------------------------------------------------------------------
 # Download helper
 # ---------------------------------------------------------------------------
 
-def _download(url: str, dest: Path) -> None:
+def _download(url: str, dest: Path, expected_hash: str | None = None) -> None:
     """Download *url* to *dest* with a progress bar. Raises on failure."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(".tmp")
@@ -124,14 +169,17 @@ def _download(url: str, dest: Path) -> None:
             min(100, block * block_size * 100 // total)
 
     try:
-        urllib.request.urlretrieve(url, tmp, reporthook=_progress)
+        urllib.request.urlretrieve(url, tmp, reporthook=_progress)  # nosec B310
         tmp.rename(dest)
-        _logger.info("Downloaded %s → %s", url, dest)
+        logger.info("Downloaded %s → %s", url, dest)
     except Exception as exc:
         if tmp.exists():
             tmp.unlink(missing_ok=True)
         msg = f"Failed to download {dest.name}: {exc}"
         raise TTSError(msg, exc) from exc
+
+    # Verify integrity immediately after download
+    _verify_hash(dest, expected_hash)
 
 # ---------------------------------------------------------------------------
 # KokoroTTSEngine  (primary engine)
@@ -303,11 +351,16 @@ class KokoroTTSEngine:
         # Auto-download model files if missing
         if not _MODEL_PATH.exists():
             logger.info("Kokoro model not found — downloading (~83 MB, one-time)...")
-            _download(_MODEL_URL, _MODEL_PATH)
+            _download(_MODEL_URL, _MODEL_PATH, _MODEL_SHA256)
+        else:
+            # Verify cached file hasn't been tampered with
+            _verify_hash(_MODEL_PATH, _MODEL_SHA256)
 
         if not _VOICES_PATH.exists():
             logger.info("Kokoro voices not found — downloading (~3 MB, one-time)...")
-            _download(_VOICES_URL, _VOICES_PATH)
+            _download(_VOICES_URL, _VOICES_PATH, _VOICES_SHA256)
+        else:
+            _verify_hash(_VOICES_PATH, _VOICES_SHA256)
 
         try:
             from kokoro_onnx import Kokoro  # type: ignore[import]
