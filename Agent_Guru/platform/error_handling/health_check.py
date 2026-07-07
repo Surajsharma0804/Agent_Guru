@@ -301,7 +301,7 @@ class HealthCheckManager:
 
             return result
 
-        except TimeoutError as e:
+        except TimeoutError:
             end_time = time.perf_counter()
             response_time_ms = (end_time - start_time) * 1000
             logger.exception(

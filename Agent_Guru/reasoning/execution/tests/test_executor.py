@@ -27,12 +27,12 @@ class TestExecutionResult:
             action_id="test_1",
         )
 
-        assert result.success is True
-        assert result.result_data == {"value": 42}
-        assert result.error is None
-        assert result.execution_time == 0.5
-        assert result.action_id == "test_1"
-        assert result.retries == 0
+        assert result.success is True  # nosec B101
+        assert result.result_data == {"value": 42}  # nosec B101
+        assert result.error is None  # nosec B101
+        assert result.execution_time == 0.5  # nosec B101
+        assert result.action_id == "test_1"  # nosec B101
+        assert result.retries == 0  # nosec B101
 
     def test_result_creation_failure(self):
         """Test creating failed result."""
@@ -51,12 +51,12 @@ class TestExecutionResult:
             retries=2,
         )
 
-        assert result.success is False
-        assert result.result_data is None
-        assert result.error == error
-        assert result.execution_time == 0.1
-        assert result.action_id == "test_2"
-        assert result.retries == 2
+        assert result.success is False  # nosec B101
+        assert result.result_data is None  # nosec B101
+        assert result.error == error  # nosec B101
+        assert result.execution_time == 0.1  # nosec B101
+        assert result.action_id == "test_2"  # nosec B101
+        assert result.retries == 2  # nosec B101
 
     def test_result_to_dict(self):
         """Test converting result to dictionary."""
@@ -69,13 +69,13 @@ class TestExecutionResult:
 
         result_dict = result.to_dict()
 
-        assert result_dict["success"] is True
-        assert result_dict["result_data"] == {"value": 42}
-        assert result_dict["error"] is None
-        assert result_dict["execution_time"] == 0.5
-        assert result_dict["action_id"] == "test_1"
-        assert result_dict["retries"] == 0
-        assert "timestamp" in result_dict
+        assert result_dict["success"] is True  # nosec B101
+        assert result_dict["result_data"] == {"value": 42}  # nosec B101
+        assert result_dict["error"] is None  # nosec B101
+        assert result_dict["execution_time"] == 0.5  # nosec B101
+        assert result_dict["action_id"] == "test_1"  # nosec B101
+        assert result_dict["retries"] == 0  # nosec B101
+        assert "timestamp" in result_dict  # nosec B101
 
 
 class TestSyncExecutor:
@@ -89,9 +89,9 @@ class TestSyncExecutor:
             retry_delay=1.0,
         )
 
-        assert executor.default_timeout == 5.0
-        assert executor.max_retries == 2
-        assert executor.retry_delay == 1.0
+        assert executor.default_timeout == 5.0  # nosec B101
+        assert executor.max_retries == 2  # nosec B101
+        assert executor.retry_delay == 1.0  # nosec B101
 
     def test_executor_invalid_timeout(self):
         """Test executor with invalid timeout."""
@@ -123,12 +123,12 @@ class TestSyncExecutor:
 
         result = executor.execute(action, tool_function)
 
-        assert result.success is True
-        assert result.result_data == {"result": 84}
-        assert result.error is None
-        assert result.execution_time > 0
-        assert result.action_id == "test_1"
-        assert result.retries == 0
+        assert result.success is True  # nosec B101
+        assert result.result_data == {"result": 84}  # nosec B101
+        assert result.error is None  # nosec B101
+        assert result.execution_time > 0  # nosec B101
+        assert result.action_id == "test_1"  # nosec B101
+        assert result.retries == 0  # nosec B101
 
     def test_execute_action_with_error(self):
         """Test executing action that raises error."""
@@ -145,12 +145,12 @@ class TestSyncExecutor:
 
         result = executor.execute(action, tool_function)
 
-        assert result.success is False
-        assert result.result_data is None
-        assert result.error is not None
-        assert result.error["error_code"] == "ValueError"
-        assert "Test error" in result.error["message"]
-        assert result.action_id == "test_2"
+        assert result.success is False  # nosec B101
+        assert result.result_data is None  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "ValueError"  # nosec B101
+        assert "Test error" in result.error["message"]  # nosec B101
+        assert result.action_id == "test_2"  # nosec B101
 
     def test_execute_action_with_timeout(self):
         """Test executing action that times out."""
@@ -168,10 +168,10 @@ class TestSyncExecutor:
 
         result = executor.execute(action, tool_function)
 
-        assert result.success is False
-        assert result.error is not None
-        assert result.error["error_code"] == "TIMEOUT"
-        assert result.action_id == "test_3"
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "TIMEOUT"  # nosec B101
+        assert result.action_id == "test_3"  # nosec B101
 
     def test_execute_with_custom_timeout(self):
         """Test executing with custom timeout."""
@@ -189,8 +189,8 @@ class TestSyncExecutor:
 
         result = executor.execute(action, tool_function, timeout=0.5)
 
-        assert result.success is True
-        assert result.result_data == {"result": "done"}
+        assert result.success is True  # nosec B101
+        assert result.result_data == {"result": "done"}  # nosec B101
 
     def test_execute_with_transient_error_retry(self):
         """Test retry on transient error."""
@@ -213,10 +213,10 @@ class TestSyncExecutor:
 
         result = executor.execute(action, tool_function)
 
-        assert result.success is True
-        assert result.result_data == {"result": "success"}
-        assert result.retries == 1  # One retry
-        assert call_count == 2
+        assert result.success is True  # nosec B101
+        assert result.result_data == {"result": "success"}  # nosec B101
+        assert result.retries == 1  # One retry  # nosec B101
+        assert call_count == 2  # nosec B101
 
     def test_execute_max_retries_exceeded(self):
         """Test max retries exceeded."""
@@ -233,9 +233,9 @@ class TestSyncExecutor:
 
         result = executor.execute(action, tool_function)
 
-        assert result.success is False
-        assert result.error is not None
-        assert result.retries == 2  # Max retries
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.retries == 2  # Max retries  # nosec B101
 
     def test_execute_non_transient_error_no_retry(self):
         """Test non-transient error doesn't retry."""
@@ -256,9 +256,9 @@ class TestSyncExecutor:
 
         result = executor.execute(action, tool_function)
 
-        assert result.success is False
-        assert result.retries == 0  # No retries
-        assert call_count == 1  # Only called once
+        assert result.success is False  # nosec B101
+        assert result.retries == 0  # No retries  # nosec B101
+        assert call_count == 1  # Only called once  # nosec B101
 
     def test_latency_tracking(self):
         """Test latency tracking."""
@@ -280,11 +280,11 @@ class TestSyncExecutor:
 
         stats = executor.get_latency_stats("test_tool")
 
-        assert stats["count"] == 5
-        assert stats["min"] > 0
-        assert stats["max"] > 0
-        assert stats["avg"] > 0
-        assert stats["p95"] > 0
+        assert stats["count"] == 5  # nosec B101
+        assert stats["min"] > 0  # nosec B101
+        assert stats["max"] > 0  # nosec B101
+        assert stats["avg"] > 0  # nosec B101
+        assert stats["p95"] > 0  # nosec B101
 
     def test_latency_stats_empty(self):
         """Test latency stats for unknown tool."""
@@ -292,11 +292,11 @@ class TestSyncExecutor:
 
         stats = executor.get_latency_stats("unknown_tool")
 
-        assert stats["count"] == 0
-        assert stats["min"] == 0.0
-        assert stats["max"] == 0.0
-        assert stats["avg"] == 0.0
-        assert stats["p95"] == 0.0
+        assert stats["count"] == 0  # nosec B101
+        assert stats["min"] == 0.0  # nosec B101
+        assert stats["max"] == 0.0  # nosec B101
+        assert stats["avg"] == 0.0  # nosec B101
+        assert stats["p95"] == 0.0  # nosec B101
 
     def test_latency_stats_limit(self):
         """Test latency stats limited to 100 entries."""
@@ -318,7 +318,7 @@ class TestSyncExecutor:
         stats = executor.get_latency_stats("test_tool")
 
         # Should only keep last 100
-        assert stats["count"] == 100
+        assert stats["count"] == 100  # nosec B101
 
     def test_clear_latency_stats_specific(self):
         """Test clearing latency stats for specific tool."""
@@ -338,8 +338,8 @@ class TestSyncExecutor:
         stats1 = executor.get_latency_stats("tool1")
         stats2 = executor.get_latency_stats("tool2")
 
-        assert stats1["count"] == 0
-        assert stats2["count"] == 1
+        assert stats1["count"] == 0  # nosec B101
+        assert stats2["count"] == 1  # nosec B101
 
     def test_clear_latency_stats_all(self):
         """Test clearing all latency stats."""
@@ -359,8 +359,8 @@ class TestSyncExecutor:
         stats1 = executor.get_latency_stats("tool1")
         stats2 = executor.get_latency_stats("tool2")
 
-        assert stats1["count"] == 0
-        assert stats2["count"] == 0
+        assert stats1["count"] == 0  # nosec B101
+        assert stats2["count"] == 0  # nosec B101
 
 
 class TestExecutionController:
@@ -373,8 +373,8 @@ class TestExecutionController:
             max_retries=2,
         )
 
-        assert controller.sync_executor.default_timeout == 5.0
-        assert controller.sync_executor.max_retries == 2
+        assert controller.sync_executor.default_timeout == 5.0  # nosec B101
+        assert controller.sync_executor.max_retries == 2  # nosec B101
 
     def test_controller_execute_sync(self):
         """Test synchronous execution through controller."""
@@ -391,8 +391,8 @@ class TestExecutionController:
 
         result = controller.execute_sync(action, tool_function)
 
-        assert result.success is True
-        assert result.result_data == {"result": 84}
+        assert result.success is True  # nosec B101
+        assert result.result_data == {"result": 84}  # nosec B101
 
     def test_controller_get_latency_stats(self):
         """Test getting latency stats through controller."""
@@ -411,8 +411,8 @@ class TestExecutionController:
 
         stats = controller.get_latency_stats("test_tool")
 
-        assert stats["count"] == 1
-        assert stats["avg"] > 0
+        assert stats["count"] == 1  # nosec B101
+        assert stats["avg"] > 0  # nosec B101
 
 
 # ============================================================================
@@ -482,20 +482,20 @@ class TestExecutionTimeoutProperties:
         result = executor.execute(action, slow_tool_function)
 
         # Property assertions
-        assert (
+        assert (  # nosec B101
             result.success is False
         ), f"Expected failure for timeout={timeout}s, duration={execution_duration}s"
-        assert result.error is not None, "Expected error information for timeout"
-        assert (
+        assert result.error is not None, "Expected error information for timeout"  # nosec B101
+        assert (  # nosec B101
             result.error["error_code"] == "TIMEOUT"
         ), f"Expected TIMEOUT error code, got {result.error['error_code']}"
-        assert result.timed_out is True, "Expected timed_out flag to be True"
-        assert result.action_id == action_id, "Action ID should be preserved"
-        assert (
+        assert result.timed_out is True, "Expected timed_out flag to be True"  # nosec B101
+        assert result.action_id == action_id, "Action ID should be preserved"  # nosec B101
+        assert (  # nosec B101
             result.execution_time >= timeout
         ), f"Execution time {result.execution_time}s should be >= timeout {timeout}s"
-        assert "timeout" in result.error["message"].lower(), "Error message should mention timeout"
-        assert result.error["recoverable"] is False, "Timeout errors should not be recoverable"
+        assert "timeout" in result.error["message"].lower(), "Error message should mention timeout"  # nosec B101
+        assert result.error["recoverable"] is False, "Timeout errors should not be recoverable"  # nosec B101
 
     @settings(max_examples=100, deadline=None)
     @given(
@@ -534,15 +534,15 @@ class TestExecutionTimeoutProperties:
         result = executor.execute(action, fast_tool_function)
 
         # Property assertions
-        assert (
+        assert (  # nosec B101
             result.success is True
         ), f"Expected success for timeout={timeout}s, duration={execution_duration}s"
-        assert result.error is None, "Expected no error for successful execution"
-        assert result.timed_out is False, "Expected timed_out flag to be False"
-        assert result.result_data == {
+        assert result.error is None, "Expected no error for successful execution"  # nosec B101
+        assert result.timed_out is False, "Expected timed_out flag to be False"  # nosec B101
+        assert result.result_data == {  # nosec B101
             "result": result_value * 2
         }, "Result data should match expected computation"
-        assert (
+        assert (  # nosec B101
             result.execution_time < timeout
         ), f"Execution time {result.execution_time}s should be < timeout {timeout}s"
 
@@ -582,20 +582,20 @@ class TestExecutionTimeoutProperties:
         result = executor.execute(action, tool_function, timeout=custom_timeout)
 
         # Property assertions
-        assert result.success is False, (
+        assert result.success is False, (  # nosec B101
             f"Expected timeout with custom_timeout={custom_timeout}s, "
             f"duration={execution_duration}s"
         )
-        assert result.error is not None, "Expected timeout error"
-        assert result.error["error_code"] == "TIMEOUT", "Expected TIMEOUT error code"
-        assert result.timed_out is True, "Expected timed_out flag to be True"
+        assert result.error is not None, "Expected timeout error"  # nosec B101
+        assert result.error["error_code"] == "TIMEOUT", "Expected TIMEOUT error code"  # nosec B101
+        assert result.timed_out is True, "Expected timed_out flag to be True"  # nosec B101
         # Execution time should be close to custom timeout, not default
-        assert result.execution_time >= custom_timeout, (
+        assert result.execution_time >= custom_timeout, (  # nosec B101
             f"Execution time {result.execution_time}s should be >= "
             f"custom timeout {custom_timeout}s"
         )
         # Allow some tolerance for execution time measurement
-        assert result.execution_time < default_timeout + 0.1, (
+        assert result.execution_time < default_timeout + 0.1, (  # nosec B101
             f"Execution time {result.execution_time}s should be < "
             f"default timeout {default_timeout}s + tolerance (proving custom timeout was used)"
         )
@@ -638,18 +638,18 @@ class TestExecutionTimeoutProperties:
             results.append(result)
 
         # Property assertions - all should timeout independently
-        assert len(results) == num_actions, "Should have result for each action"
+        assert len(results) == num_actions, "Should have result for each action"  # nosec B101
 
         for i, result in enumerate(results):
-            assert result.success is False, (
+            assert result.success is False, (  # nosec B101
                 f"Action {i} should timeout with timeout={timeout}s, "
                 f"duration={execution_duration}s"
             )
-            assert result.error is not None, f"Action {i} should have error"
-            assert result.error["error_code"] == "TIMEOUT", f"Action {i} should have TIMEOUT error"
-            assert result.timed_out is True, f"Action {i} should have timed_out flag set"
+            assert result.error is not None, f"Action {i} should have error"  # nosec B101
+            assert result.error["error_code"] == "TIMEOUT", f"Action {i} should have TIMEOUT error"  # nosec B101
+            assert result.timed_out is True, f"Action {i} should have timed_out flag set"  # nosec B101
             # Each execution should timeout around the same time
-            assert result.execution_time >= timeout, (
+            assert result.execution_time >= timeout, (  # nosec B101
                 f"Action {i} execution time {result.execution_time}s "
                 f"should be >= timeout {timeout}s"
             )
@@ -693,19 +693,19 @@ class TestExecutionTimeoutProperties:
         result = executor.execute(action, slow_tool_function)
 
         # Property assertions - metadata should be preserved
-        assert result.success is False, "Expected timeout"
-        assert result.error is not None, "Expected error information"
-        assert result.error["error_code"] == "TIMEOUT", "Expected TIMEOUT error"
-        assert result.timed_out is True, "Expected timed_out flag"
+        assert result.success is False, "Expected timeout"  # nosec B101
+        assert result.error is not None, "Expected error information"  # nosec B101
+        assert result.error["error_code"] == "TIMEOUT", "Expected TIMEOUT error"  # nosec B101
+        assert result.timed_out is True, "Expected timed_out flag"  # nosec B101
 
         # Verify metadata preservation
-        assert result.action_id == action_id, (
+        assert result.action_id == action_id, (  # nosec B101
             f"Action ID should be preserved: expected {action_id}, " f"got {result.action_id}"
         )
-        assert result.execution_time > 0, "Execution time should be recorded"
-        assert result.retries == 0, "No retries should occur for timeout"
-        assert "timeout" in result.error["details"], "Error details should include timeout value"
-        assert result.error["details"]["timeout"] == timeout, (
+        assert result.execution_time > 0, "Execution time should be recorded"  # nosec B101
+        assert result.retries == 0, "No retries should occur for timeout"  # nosec B101
+        assert "timeout" in result.error["details"], "Error details should include timeout value"  # nosec B101
+        assert result.error["details"]["timeout"] == timeout, (  # nosec B101
             f"Error details should record timeout value: expected {timeout}, "
             f"got {result.error['details']['timeout']}"
         )
@@ -744,27 +744,27 @@ class TestExecutionTimeoutProperties:
         result = executor.execute(action, slow_tool_function)
 
         # Property assertions - error structure
-        assert result.success is False, "Expected timeout failure"
-        assert result.error is not None, "Expected error object"
+        assert result.success is False, "Expected timeout failure"  # nosec B101
+        assert result.error is not None, "Expected error object"  # nosec B101
 
         # Verify required error fields
         required_fields = ["error_code", "message", "details", "recoverable"]
         for field in required_fields:
-            assert field in result.error, f"Error should contain required field: {field}"
+            assert field in result.error, f"Error should contain required field: {field}"  # nosec B101
 
         # Verify error field values
-        assert result.error["error_code"] == "TIMEOUT", "Error code should be TIMEOUT"
-        assert isinstance(result.error["message"], str), "Error message should be a string"
-        assert len(result.error["message"]) > 0, "Error message should not be empty"
-        assert isinstance(result.error["details"], dict), "Error details should be a dictionary"
-        assert isinstance(
+        assert result.error["error_code"] == "TIMEOUT", "Error code should be TIMEOUT"  # nosec B101
+        assert isinstance(result.error["message"], str), "Error message should be a string"  # nosec B101
+        assert len(result.error["message"]) > 0, "Error message should not be empty"  # nosec B101
+        assert isinstance(result.error["details"], dict), "Error details should be a dictionary"  # nosec B101
+        assert isinstance(  # nosec B101
             result.error["recoverable"], bool
         ), "Error recoverable should be a boolean"
-        assert result.error["recoverable"] is False, "Timeout errors should not be recoverable"
+        assert result.error["recoverable"] is False, "Timeout errors should not be recoverable"  # nosec B101
 
         # Verify timeout value in details
-        assert "timeout" in result.error["details"], "Error details should include timeout value"
-        assert result.error["details"]["timeout"] == timeout, (
+        assert "timeout" in result.error["details"], "Error details should include timeout value"  # nosec B101
+        assert result.error["details"]["timeout"] == timeout, (  # nosec B101
             f"Error details timeout should match: expected {timeout}, "
             f"got {result.error['details']['timeout']}"
         )
@@ -844,36 +844,36 @@ class TestExecutionResultStructureProperties:
         result = executor.execute(action, successful_tool_function)
 
         # Property assertions - required fields present
-        assert hasattr(result, "success"), "Result must have 'success' field"
-        assert hasattr(result, "result_data"), "Result must have 'result_data' field"
-        assert hasattr(result, "error"), "Result must have 'error' field"
-        assert hasattr(result, "execution_time"), "Result must have 'execution_time' field"
-        assert hasattr(result, "action_id"), "Result must have 'action_id' field"
+        assert hasattr(result, "success"), "Result must have 'success' field"  # nosec B101
+        assert hasattr(result, "result_data"), "Result must have 'result_data' field"  # nosec B101
+        assert hasattr(result, "error"), "Result must have 'error' field"  # nosec B101
+        assert hasattr(result, "execution_time"), "Result must have 'execution_time' field"  # nosec B101
+        assert hasattr(result, "action_id"), "Result must have 'action_id' field"  # nosec B101
 
         # Property assertions - field types
-        assert isinstance(result.success, bool), f"success must be bool, got {type(result.success)}"
-        assert isinstance(
+        assert isinstance(result.success, bool), f"success must be bool, got {type(result.success)}"  # nosec B101
+        assert isinstance(  # nosec B101
             result.execution_time, (int, float)
         ), f"execution_time must be numeric, got {type(result.execution_time)}"
-        assert isinstance(
+        assert isinstance(  # nosec B101
             result.action_id, str
         ), f"action_id must be str, got {type(result.action_id)}"
 
         # Property assertions - success case values
-        assert result.success is True, "Successful execution should have success=True"
-        assert result.result_data == result_value, (
+        assert result.success is True, "Successful execution should have success=True"  # nosec B101
+        assert result.result_data == result_value, (  # nosec B101
             f"result_data should match returned value: expected {result_value}, "
             f"got {result.result_data}"
         )
-        assert result.error is None, "Successful execution should have error=None"
-        assert (
+        assert result.error is None, "Successful execution should have error=None"  # nosec B101
+        assert (  # nosec B101
             result.execution_time > 0
         ), f"execution_time should be positive, got {result.execution_time}"
-        assert result.execution_time >= execution_duration, (
+        assert result.execution_time >= execution_duration, (  # nosec B101
             f"execution_time {result.execution_time}s should be >= "
             f"actual duration {execution_duration}s"
         )
-        assert (
+        assert (  # nosec B101
             result.action_id == action_id
         ), f"action_id should be preserved: expected {action_id}, got {result.action_id}"
 
@@ -938,56 +938,56 @@ class TestExecutionResultStructureProperties:
         result = executor.execute(action, failing_tool_function)
 
         # Property assertions - required fields present
-        assert hasattr(result, "success"), "Result must have 'success' field"
-        assert hasattr(result, "result_data"), "Result must have 'result_data' field"
-        assert hasattr(result, "error"), "Result must have 'error' field"
-        assert hasattr(result, "execution_time"), "Result must have 'execution_time' field"
-        assert hasattr(result, "action_id"), "Result must have 'action_id' field"
+        assert hasattr(result, "success"), "Result must have 'success' field"  # nosec B101
+        assert hasattr(result, "result_data"), "Result must have 'result_data' field"  # nosec B101
+        assert hasattr(result, "error"), "Result must have 'error' field"  # nosec B101
+        assert hasattr(result, "execution_time"), "Result must have 'execution_time' field"  # nosec B101
+        assert hasattr(result, "action_id"), "Result must have 'action_id' field"  # nosec B101
 
         # Property assertions - field types
-        assert isinstance(result.success, bool), f"success must be bool, got {type(result.success)}"
-        assert isinstance(
+        assert isinstance(result.success, bool), f"success must be bool, got {type(result.success)}"  # nosec B101
+        assert isinstance(  # nosec B101
             result.execution_time, (int, float)
         ), f"execution_time must be numeric, got {type(result.execution_time)}"
-        assert isinstance(
+        assert isinstance(  # nosec B101
             result.action_id, str
         ), f"action_id must be str, got {type(result.action_id)}"
 
         # Property assertions - failure case values
-        assert result.success is False, "Failed execution should have success=False"
-        assert result.result_data is None, "Failed execution should have result_data=None"
-        assert result.error is not None, "Failed execution must have error information"
-        assert isinstance(result.error, dict), f"error must be dict, got {type(result.error)}"
+        assert result.success is False, "Failed execution should have success=False"  # nosec B101
+        assert result.result_data is None, "Failed execution should have result_data=None"  # nosec B101
+        assert result.error is not None, "Failed execution must have error information"  # nosec B101
+        assert isinstance(result.error, dict), f"error must be dict, got {type(result.error)}"  # nosec B101
 
         # Property assertions - error structure
         required_error_fields = ["error_code", "message", "details", "recoverable"]
         for field in required_error_fields:
-            assert field in result.error, f"error must contain required field: {field}"
+            assert field in result.error, f"error must contain required field: {field}"  # nosec B101
 
         # Property assertions - error field types
-        assert isinstance(
+        assert isinstance(  # nosec B101
             result.error["error_code"], str
         ), f"error_code must be str, got {type(result.error['error_code'])}"
-        assert isinstance(
+        assert isinstance(  # nosec B101
             result.error["message"], str
         ), f"error message must be str, got {type(result.error['message'])}"
-        assert isinstance(
+        assert isinstance(  # nosec B101
             result.error["details"], dict
         ), f"error details must be dict, got {type(result.error['details'])}"
-        assert isinstance(
+        assert isinstance(  # nosec B101
             result.error["recoverable"], bool
         ), f"error recoverable must be bool, got {type(result.error['recoverable'])}"
 
         # Property assertions - error field values
-        assert result.error["error_code"] == error_type.__name__, (
+        assert result.error["error_code"] == error_type.__name__, (  # nosec B101
             f"error_code should match exception type: expected {error_type.__name__}, "
             f"got {result.error['error_code']}"
         )
-        assert len(result.error["message"]) > 0, "error message should not be empty"
-        assert (
+        assert len(result.error["message"]) > 0, "error message should not be empty"  # nosec B101
+        assert (  # nosec B101
             result.execution_time > 0
         ), f"execution_time should be positive, got {result.execution_time}"
-        assert (
+        assert (  # nosec B101
             result.action_id == action_id
         ), f"action_id should be preserved: expected {action_id}, got {result.action_id}"
 
@@ -1033,25 +1033,25 @@ class TestExecutionResultStructureProperties:
         result = executor.execute(action, slow_tool_function)
 
         # Property assertions - all required fields present
-        assert hasattr(result, "success"), "Result must have 'success' field"
-        assert hasattr(result, "result_data"), "Result must have 'result_data' field"
-        assert hasattr(result, "error"), "Result must have 'error' field"
-        assert hasattr(result, "execution_time"), "Result must have 'execution_time' field"
-        assert hasattr(result, "action_id"), "Result must have 'action_id' field"
-        assert hasattr(result, "timed_out"), "Result must have 'timed_out' field"
+        assert hasattr(result, "success"), "Result must have 'success' field"  # nosec B101
+        assert hasattr(result, "result_data"), "Result must have 'result_data' field"  # nosec B101
+        assert hasattr(result, "error"), "Result must have 'error' field"  # nosec B101
+        assert hasattr(result, "execution_time"), "Result must have 'execution_time' field"  # nosec B101
+        assert hasattr(result, "action_id"), "Result must have 'action_id' field"  # nosec B101
+        assert hasattr(result, "timed_out"), "Result must have 'timed_out' field"  # nosec B101
 
         # Property assertions - timeout case values
-        assert result.success is False, "Timeout should have success=False"
-        assert result.result_data is None, "Timeout should have result_data=None"
-        assert result.error is not None, "Timeout must have error information"
-        assert result.timed_out is True, "Timeout should have timed_out=True"
-        assert (
+        assert result.success is False, "Timeout should have success=False"  # nosec B101
+        assert result.result_data is None, "Timeout should have result_data=None"  # nosec B101
+        assert result.error is not None, "Timeout must have error information"  # nosec B101
+        assert result.timed_out is True, "Timeout should have timed_out=True"  # nosec B101
+        assert (  # nosec B101
             result.error["error_code"] == "TIMEOUT"
         ), f"Timeout error_code should be TIMEOUT, got {result.error['error_code']}"
-        assert (
+        assert (  # nosec B101
             result.execution_time >= timeout
         ), f"execution_time {result.execution_time}s should be >= timeout {timeout}s"
-        assert (
+        assert (  # nosec B101
             result.action_id == action_id
         ), f"action_id should be preserved: expected {action_id}, got {result.action_id}"
 
@@ -1093,7 +1093,7 @@ class TestExecutionResultStructureProperties:
             results.append(result)
 
         # Property assertions - all results have consistent structure
-        assert (
+        assert (  # nosec B101
             len(results) == num_executions
         ), f"Should have {num_executions} results, got {len(results)}"
 
@@ -1102,23 +1102,23 @@ class TestExecutionResultStructureProperties:
         for i, result in enumerate(results):
             # Check all required fields present
             for field in required_fields:
-                assert hasattr(result, field), f"Result {i} missing required field: {field}"
+                assert hasattr(result, field), f"Result {i} missing required field: {field}"  # nosec B101
 
             # Check field types
-            assert isinstance(result.success, bool), f"Result {i} success must be bool"
-            assert isinstance(
+            assert isinstance(result.success, bool), f"Result {i} success must be bool"  # nosec B101
+            assert isinstance(  # nosec B101
                 result.execution_time, (int, float)
             ), f"Result {i} execution_time must be numeric"
-            assert isinstance(result.action_id, str), f"Result {i} action_id must be str"
+            assert isinstance(result.action_id, str), f"Result {i} action_id must be str"  # nosec B101
 
             # Check success case values
-            assert result.success is True, f"Result {i} should succeed"
-            assert (
+            assert result.success is True, f"Result {i} should succeed"  # nosec B101
+            assert (  # nosec B101
                 result.result_data == (result_value + i) * 2
             ), f"Result {i} data should match computation"
-            assert result.error is None, f"Result {i} should have no error"
-            assert result.execution_time > 0, f"Result {i} execution_time should be positive"
-            assert result.action_id == f"action_{i}", f"Result {i} action_id should match"
+            assert result.error is None, f"Result {i} should have no error"  # nosec B101
+            assert result.execution_time > 0, f"Result {i} execution_time should be positive"  # nosec B101
+            assert result.action_id == f"action_{i}", f"Result {i} action_id should match"  # nosec B101
 
     @settings(max_examples=100, deadline=None)
     @given(
@@ -1162,7 +1162,7 @@ class TestExecutionResultStructureProperties:
         # Property assertions - serialization
         result_dict = result.to_dict()
 
-        assert isinstance(result_dict, dict), f"to_dict() must return dict, got {type(result_dict)}"
+        assert isinstance(result_dict, dict), f"to_dict() must return dict, got {type(result_dict)}"  # nosec B101
 
         # Check all required fields in serialized form
         required_fields = [
@@ -1177,19 +1177,19 @@ class TestExecutionResultStructureProperties:
         ]
 
         for field in required_fields:
-            assert field in result_dict, f"Serialized result missing required field: {field}"
+            assert field in result_dict, f"Serialized result missing required field: {field}"  # nosec B101
 
         # Verify serialized values match original
-        assert result_dict["success"] == result.success
-        assert result_dict["result_data"] == result.result_data
-        assert result_dict["error"] == result.error
-        assert result_dict["execution_time"] == result.execution_time
-        assert result_dict["action_id"] == result.action_id
-        assert result_dict["retries"] == result.retries
-        assert result_dict["timed_out"] == result.timed_out
+        assert result_dict["success"] == result.success  # nosec B101
+        assert result_dict["result_data"] == result.result_data  # nosec B101
+        assert result_dict["error"] == result.error  # nosec B101
+        assert result_dict["execution_time"] == result.execution_time  # nosec B101
+        assert result_dict["action_id"] == result.action_id  # nosec B101
+        assert result_dict["retries"] == result.retries  # nosec B101
+        assert result_dict["timed_out"] == result.timed_out  # nosec B101
 
         # Verify timestamp is ISO format string
-        assert isinstance(result_dict["timestamp"], str), "timestamp must be serialized as string"
+        assert isinstance(result_dict["timestamp"], str), "timestamp must be serialized as string"  # nosec B101
         # Should be parseable as ISO format
         from datetime import datetime
 

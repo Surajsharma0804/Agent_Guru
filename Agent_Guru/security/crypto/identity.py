@@ -23,7 +23,6 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from Agent_Guru.security.crypto.errors import (
     IdentityNotFoundError,
     KeyGenerationError,
-    SignatureError,
 )
 
 @dataclass
@@ -257,7 +256,7 @@ class IdentityManager:
             active_key = self._active_keys.get(profile_id, profile.key_pair)
             private_key_obj = Ed25519PrivateKey.from_private_bytes(active_key.private_key)
             return private_key_obj.sign(message)
-        except IdentityNotFoundError as exc:
+        except IdentityNotFoundError:
             raise
 
     def verify(self, public_key: bytes, message: bytes, signature: bytes) -> bool:

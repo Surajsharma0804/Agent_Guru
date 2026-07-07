@@ -308,7 +308,7 @@ class AgentStorage:
         # via the parameterized execute() call below (CWE-89 safe).
         placeholders = ",".join(["?"] * len(agent_ids))
         query = (
-            "SELECT agent_id, task_id, task_type, success,"  # noqa: S608 - SQL parameterization reviewed
+            "SELECT agent_id, task_id, task_type, success,"  # noqa: S608 - SQL parameterization reviewed  # nosec B608
             " completion_time_ms, resource_usage, timestamp"
             " FROM performance_records"
             f" WHERE agent_id IN ({placeholders})"

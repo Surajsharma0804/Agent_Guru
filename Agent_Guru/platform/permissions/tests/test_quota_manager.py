@@ -26,8 +26,8 @@ class TestQuotaConfig:
     def test_valid_config(self):
         """Test valid quota configuration."""
         config = QuotaConfig(per_hour=100, per_day=1000)
-        assert config.per_hour == 100
-        assert config.per_day == 1000
+        assert config.per_hour == 100  # nosec B101
+        assert config.per_day == 1000  # nosec B101
     
     def test_invalid_per_hour(self):
         """Test invalid per_hour value."""
@@ -66,7 +66,7 @@ class TestQuotaStatus:
             reset_hour_at=datetime.now(tz=timezone.utc) + timedelta(hours=1),
             reset_day_at=datetime.now(tz=timezone.utc) + timedelta(days=1)
         )
-        assert status.hour_remaining == 50
+        assert status.hour_remaining == 50  # nosec B101
     
     def test_day_remaining(self):
         """Test day_remaining calculation."""
@@ -80,7 +80,7 @@ class TestQuotaStatus:
             reset_hour_at=datetime.now(tz=timezone.utc) + timedelta(hours=1),
             reset_day_at=datetime.now(tz=timezone.utc) + timedelta(days=1)
         )
-        assert status.day_remaining == 500
+        assert status.day_remaining == 500  # nosec B101
     
     def test_hour_exceeded(self):
         """Test hour_exceeded property."""
@@ -94,7 +94,7 @@ class TestQuotaStatus:
             reset_hour_at=datetime.now(tz=timezone.utc) + timedelta(hours=1),
             reset_day_at=datetime.now(tz=timezone.utc) + timedelta(days=1)
         )
-        assert status.hour_exceeded is True
+        assert status.hour_exceeded is True  # nosec B101
     
     def test_day_exceeded(self):
         """Test day_exceeded property."""
@@ -108,7 +108,7 @@ class TestQuotaStatus:
             reset_hour_at=datetime.now(tz=timezone.utc) + timedelta(hours=1),
             reset_day_at=datetime.now(tz=timezone.utc) + timedelta(days=1)
         )
-        assert status.day_exceeded is True
+        assert status.day_exceeded is True  # nosec B101
     
     def test_to_dict(self):
         """Test to_dict serialization."""
@@ -125,12 +125,12 @@ class TestQuotaStatus:
         )
         
         data = status.to_dict()
-        assert data["operation_type"] == "file_operation"
-        assert data["current_hour"] == 50
-        assert data["current_day"] == 500
-        assert data["hour_remaining"] == 50
-        assert data["day_remaining"] == 500
-        assert data["available"] is True
+        assert data["operation_type"] == "file_operation"  # nosec B101
+        assert data["current_hour"] == 50  # nosec B101
+        assert data["current_day"] == 500  # nosec B101
+        assert data["hour_remaining"] == 50  # nosec B101
+        assert data["day_remaining"] == 500  # nosec B101
+        assert data["available"] is True  # nosec B101
 
 
 class TestUserQuotaCounters:
@@ -141,20 +141,20 @@ class TestUserQuotaCounters:
         counters = UserQuotaCounters()
         
         for op_type in OperationType:
-            assert counters.get_hour_count(op_type) == 0
-            assert counters.get_day_count(op_type) == 0
+            assert counters.get_hour_count(op_type) == 0  # nosec B101
+            assert counters.get_day_count(op_type) == 0  # nosec B101
     
     def test_increment(self):
         """Test counter increment."""
         counters = UserQuotaCounters()
         
         counters.increment(OperationType.FILE_OPERATION)
-        assert counters.get_hour_count(OperationType.FILE_OPERATION) == 1
-        assert counters.get_day_count(OperationType.FILE_OPERATION) == 1
+        assert counters.get_hour_count(OperationType.FILE_OPERATION) == 1  # nosec B101
+        assert counters.get_day_count(OperationType.FILE_OPERATION) == 1  # nosec B101
         
         counters.increment(OperationType.FILE_OPERATION)
-        assert counters.get_hour_count(OperationType.FILE_OPERATION) == 2
-        assert counters.get_day_count(OperationType.FILE_OPERATION) == 2
+        assert counters.get_hour_count(OperationType.FILE_OPERATION) == 2  # nosec B101
+        assert counters.get_day_count(OperationType.FILE_OPERATION) == 2  # nosec B101
     
     def test_reset_hour(self):
         """Test hourly reset."""
@@ -165,10 +165,10 @@ class TestUserQuotaCounters:
         
         counters.reset_hour()
         
-        assert counters.get_hour_count(OperationType.FILE_OPERATION) == 0
-        assert counters.get_day_count(OperationType.FILE_OPERATION) == 1
-        assert counters.get_hour_count(OperationType.COMMAND_EXECUTION) == 0
-        assert counters.get_day_count(OperationType.COMMAND_EXECUTION) == 1
+        assert counters.get_hour_count(OperationType.FILE_OPERATION) == 0  # nosec B101
+        assert counters.get_day_count(OperationType.FILE_OPERATION) == 1  # nosec B101
+        assert counters.get_hour_count(OperationType.COMMAND_EXECUTION) == 0  # nosec B101
+        assert counters.get_day_count(OperationType.COMMAND_EXECUTION) == 1  # nosec B101
     
     def test_reset_day(self):
         """Test daily reset."""
@@ -179,10 +179,10 @@ class TestUserQuotaCounters:
         
         counters.reset_day()
         
-        assert counters.get_hour_count(OperationType.FILE_OPERATION) == 0
-        assert counters.get_day_count(OperationType.FILE_OPERATION) == 0
-        assert counters.get_hour_count(OperationType.COMMAND_EXECUTION) == 0
-        assert counters.get_day_count(OperationType.COMMAND_EXECUTION) == 0
+        assert counters.get_hour_count(OperationType.FILE_OPERATION) == 0  # nosec B101
+        assert counters.get_day_count(OperationType.FILE_OPERATION) == 0  # nosec B101
+        assert counters.get_hour_count(OperationType.COMMAND_EXECUTION) == 0  # nosec B101
+        assert counters.get_day_count(OperationType.COMMAND_EXECUTION) == 0  # nosec B101
 
 
 class TestQuotaManager:
@@ -205,8 +205,8 @@ class TestQuotaManager:
     def test_initialization(self, quota_configs):
         """Test manager initialization."""
         manager = QuotaManager(quota_configs)
-        assert manager.quota_configs == quota_configs
-        assert len(manager._user_quotas) == 0
+        assert manager.quota_configs == quota_configs  # nosec B101
+        assert len(manager._user_quotas) == 0  # nosec B101
     
     def test_initialization_empty_config(self):
         """Test initialization with empty config."""
@@ -217,32 +217,32 @@ class TestQuotaManager:
         """Test first operation consumes quota."""
         status = manager.check_and_consume("user123", OperationType.FILE_OPERATION)
         
-        assert status.available is True
-        assert status.current_hour == 1
-        assert status.current_day == 1
-        assert status.hour_remaining == 99
-        assert status.day_remaining == 999
+        assert status.available is True  # nosec B101
+        assert status.current_hour == 1  # nosec B101
+        assert status.current_day == 1  # nosec B101
+        assert status.hour_remaining == 99  # nosec B101
+        assert status.day_remaining == 999  # nosec B101
     
     def test_check_and_consume_multiple_operations(self, manager):
         """Test multiple operations consume quota."""
         for i in range(5):
             status = manager.check_and_consume("user123", OperationType.FILE_OPERATION)
-            assert status.available is True
-            assert status.current_hour == i + 1
-            assert status.current_day == i + 1
+            assert status.available is True  # nosec B101
+            assert status.current_hour == i + 1  # nosec B101
+            assert status.current_day == i + 1  # nosec B101
     
     def test_check_and_consume_hour_limit(self, manager):
         """Test hourly limit enforcement."""
         # Consume up to limit
         for i in range(100):
             status = manager.check_and_consume("user123", OperationType.FILE_OPERATION)
-            assert status.available is True
+            assert status.available is True  # nosec B101
         
         # Next operation should fail
         status = manager.check_and_consume("user123", OperationType.FILE_OPERATION)
-        assert status.available is False
-        assert status.hour_exceeded is True
-        assert status.current_hour == 100
+        assert status.available is False  # nosec B101
+        assert status.hour_exceeded is True  # nosec B101
+        assert status.current_hour == 100  # nosec B101
     
     def test_check_and_consume_day_limit(self, manager):
         """Test daily limit enforcement."""
@@ -254,7 +254,7 @@ class TestQuotaManager:
             # Consume 100 operations (hourly limit)
             for i in range(100):
                 status = manager.check_and_consume("user123", OperationType.FILE_OPERATION)
-                assert status.available is True
+                assert status.available is True  # nosec B101
             
             # Simulate hour passing - manually reset hourly counter
             if hour < 9:  # Don't reset after last hour
@@ -263,9 +263,9 @@ class TestQuotaManager:
         
         # Next operation should fail (daily limit reached)
         status = manager.check_and_consume("user123", OperationType.FILE_OPERATION)
-        assert status.available is False
-        assert status.day_exceeded is True
-        assert status.current_day == 1000
+        assert status.available is False  # nosec B101
+        assert status.day_exceeded is True  # nosec B101
+        assert status.current_day == 1000  # nosec B101
     
     def test_check_and_consume_raise_on_exceeded(self, manager):
         """Test exception raising when quota exceeded."""
@@ -281,7 +281,7 @@ class TestQuotaManager:
                 raise_on_exceeded=True
             )
         
-        assert exc_info.value.status.hour_exceeded is True
+        assert exc_info.value.status.hour_exceeded is True  # nosec B101
     
     def test_get_status_without_consuming(self, manager):
         """Test getting status without consuming quota."""
@@ -291,13 +291,13 @@ class TestQuotaManager:
         
         # Get status without consuming
         status = manager.get_status("user123", OperationType.FILE_OPERATION)
-        assert status.current_hour == 2
-        assert status.current_day == 2
+        assert status.current_hour == 2  # nosec B101
+        assert status.current_day == 2  # nosec B101
         
         # Verify quota not consumed
         status2 = manager.get_status("user123", OperationType.FILE_OPERATION)
-        assert status2.current_hour == 2
-        assert status2.current_day == 2
+        assert status2.current_hour == 2  # nosec B101
+        assert status2.current_day == 2  # nosec B101
     
     def test_get_all_statuses(self, manager):
         """Test getting all statuses for a user."""
@@ -308,10 +308,10 @@ class TestQuotaManager:
         
         statuses = manager.get_all_statuses("user123")
         
-        assert len(statuses) == 3
-        assert statuses[OperationType.FILE_OPERATION].current_hour == 2
-        assert statuses[OperationType.COMMAND_EXECUTION].current_hour == 1
-        assert statuses[OperationType.NETWORK_REQUEST].current_hour == 0
+        assert len(statuses) == 3  # nosec B101
+        assert statuses[OperationType.FILE_OPERATION].current_hour == 2  # nosec B101
+        assert statuses[OperationType.COMMAND_EXECUTION].current_hour == 1  # nosec B101
+        assert statuses[OperationType.NETWORK_REQUEST].current_hour == 0  # nosec B101
     
     def test_reset_user_quotas(self, manager):
         """Test resetting user quotas."""
@@ -326,10 +326,10 @@ class TestQuotaManager:
         status1 = manager.get_status("user123", OperationType.FILE_OPERATION)
         status2 = manager.get_status("user123", OperationType.COMMAND_EXECUTION)
         
-        assert status1.current_hour == 0
-        assert status1.current_day == 0
-        assert status2.current_hour == 0
-        assert status2.current_day == 0
+        assert status1.current_hour == 0  # nosec B101
+        assert status1.current_day == 0  # nosec B101
+        assert status2.current_hour == 0  # nosec B101
+        assert status2.current_day == 0  # nosec B101
     
     def test_multiple_users(self, manager):
         """Test quota tracking for multiple users."""
@@ -344,8 +344,8 @@ class TestQuotaManager:
         status1 = manager.get_status("user1", OperationType.FILE_OPERATION)
         status2 = manager.get_status("user2", OperationType.FILE_OPERATION)
         
-        assert status1.current_hour == 2
-        assert status2.current_hour == 1
+        assert status1.current_hour == 2  # nosec B101
+        assert status2.current_hour == 1  # nosec B101
     
     def test_get_statistics(self, manager):
         """Test statistics generation."""
@@ -357,9 +357,9 @@ class TestQuotaManager:
         
         stats = manager.get_statistics()
         
-        assert stats["total_users"] == 2
-        assert stats["per_operation_stats"]["file_operation"]["total_hour"] == 3
-        assert stats["per_operation_stats"]["command_execution"]["total_hour"] == 1
+        assert stats["total_users"] == 2  # nosec B101
+        assert stats["per_operation_stats"]["file_operation"]["total_hour"] == 3  # nosec B101
+        assert stats["per_operation_stats"]["command_execution"]["total_hour"] == 1  # nosec B101
 
 
 class TestQuotaManagerPersistence:
@@ -398,10 +398,10 @@ class TestQuotaManagerPersistence:
         status1 = manager2.get_status("user123", OperationType.FILE_OPERATION)
         status2 = manager2.get_status("user123", OperationType.COMMAND_EXECUTION)
         
-        assert status1.current_hour == 2
-        assert status1.current_day == 2
-        assert status2.current_hour == 1
-        assert status2.current_day == 1
+        assert status1.current_hour == 2  # nosec B101
+        assert status1.current_day == 2  # nosec B101
+        assert status2.current_hour == 1  # nosec B101
+        assert status2.current_day == 1  # nosec B101
     
     def test_storage_format(self, quota_configs, storage_path):
         """Test storage file format."""
@@ -412,11 +412,11 @@ class TestQuotaManagerPersistence:
         with open(storage_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
-        assert "last_hour_reset" in data
-        assert "last_day_reset" in data
-        assert "user_quotas" in data
-        assert "user123" in data["user_quotas"]
-        assert "file_operation" in data["user_quotas"]["user123"]
+        assert "last_hour_reset" in data  # nosec B101
+        assert "last_day_reset" in data  # nosec B101
+        assert "user_quotas" in data  # nosec B101
+        assert "user123" in data["user_quotas"]  # nosec B101
+        assert "file_operation" in data["user_quotas"]["user123"]  # nosec B101
 
 
 class TestQuotaManagerProperties:
@@ -437,7 +437,7 @@ class TestQuotaManagerProperties:
         }
         manager = QuotaManager(config)
         
-        assert manager is not None
+        assert manager is not None  # nosec B101
     
     @given(
         operations=st.integers(min_value=1, max_value=100)
@@ -452,8 +452,8 @@ class TestQuotaManagerProperties:
         prev_count = 0
         for i in range(operations):
             status = manager.check_and_consume("user123", OperationType.FILE_OPERATION)
-            assert status.current_hour == prev_count + 1
-            assert status.current_day == prev_count + 1
+            assert status.current_hour == prev_count + 1  # nosec B101
+            assert status.current_day == prev_count + 1  # nosec B101
             prev_count = status.current_hour
     
     @given(
@@ -471,8 +471,8 @@ class TestQuotaManagerProperties:
         
         # Verify other users unaffected
         status_other = manager.get_status("other_user", OperationType.FILE_OPERATION)
-        assert status_other.current_hour == 0
-        assert status_other.current_day == 0
+        assert status_other.current_hour == 0  # nosec B101
+        assert status_other.current_day == 0  # nosec B101
 
 
 @pytest.mark.integration
@@ -489,11 +489,11 @@ class TestQuotaManagerIntegration:
         # Consume quota
         for i in range(10):
             status = manager.check_and_consume("user123", OperationType.FILE_OPERATION)
-            assert status.available is True
+            assert status.available is True  # nosec B101
         
         # Quota should be exhausted
         status = manager.check_and_consume("user123", OperationType.FILE_OPERATION)
-        assert status.available is False
+        assert status.available is False  # nosec B101
         
         # Simulate hour passing (manually reset for testing)
         manager._last_hour_reset = datetime.now(tz=timezone.utc) - timedelta(hours=1)
@@ -501,8 +501,8 @@ class TestQuotaManagerIntegration:
         
         # Quota should be available again
         status = manager.check_and_consume("user123", OperationType.FILE_OPERATION)
-        assert status.available is True
-        assert status.current_hour == 1
+        assert status.available is True  # nosec B101
+        assert status.current_hour == 1  # nosec B101
     
     def test_concurrent_users_integration(self):
         """Test multiple users consuming quota concurrently."""
@@ -524,7 +524,7 @@ class TestQuotaManagerIntegration:
         
         # Verify statistics
         stats = manager.get_statistics()
-        assert stats["total_users"] == 10
-        assert stats["per_operation_stats"]["file_operation"]["total_hour"] == 50
-        assert stats["per_operation_stats"]["command_execution"]["total_hour"] == 50
-        assert stats["per_operation_stats"]["network_request"]["total_hour"] == 50
+        assert stats["total_users"] == 10  # nosec B101
+        assert stats["per_operation_stats"]["file_operation"]["total_hour"] == 50  # nosec B101
+        assert stats["per_operation_stats"]["command_execution"]["total_hour"] == 50  # nosec B101
+        assert stats["per_operation_stats"]["network_request"]["total_hour"] == 50  # nosec B101

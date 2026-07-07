@@ -405,7 +405,7 @@ class FileOperationsController:
 
             return content
 
-        except PermissionError as e:
+        except PermissionError:
             # Re-raise PermissionError so callers can detect path traversal violations
             raise
 

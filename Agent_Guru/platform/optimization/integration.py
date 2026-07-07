@@ -544,7 +544,7 @@ class DuplicateAwareCommandExecutor:
         """
         # Placeholder implementation
         # In production, this would use subprocess or platform-specific executor
-        import subprocess
+        import subprocess  # nosec B404
 
         try:
             start_time = time.perf_counter()
@@ -553,7 +553,7 @@ class DuplicateAwareCommandExecutor:
             cmd_list = [command] + (args or [])
 
             # Execute command
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603  # noqa: S603
                 cmd_list,
                 check=False,
                 capture_output=True,
@@ -735,20 +735,20 @@ class DuplicateAwareGitOperations:
         """
         # Placeholder implementation
         # In production, this would use GitPython or subprocess
-        import subprocess
+        import subprocess  # nosec B404
 
         try:
             start_time = time.perf_counter()
 
             # Stage files
-            subprocess.run(["git", "add", *files], check=True, capture_output=True)  # noqa: S603
+            subprocess.run(["git", "add", *files], check=True, capture_output=True)  # nosec B603 B607  # noqa: S603
 
             # Commit
             cmd = ["git", "commit", "-m", message]
             if author:
                 cmd.extend(["--author", author])
 
-            result = subprocess.run(cmd, check=False, capture_output=True, text=True)  # noqa: S603
+            result = subprocess.run(cmd, check=False, capture_output=True, text=True)  # nosec B603  # noqa: S603
 
             exec_time = (time.perf_counter() - start_time) * 1000
 

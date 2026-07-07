@@ -14,7 +14,7 @@ Date: 2026-02-22
 
 import asyncio
 import os
-import subprocess
+import subprocess  # nosec B404
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -361,7 +361,7 @@ class RollbackMonitor:
 
         """
         try:
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 [
                     "kubectl",
                     "get",
@@ -408,7 +408,7 @@ class RollbackMonitor:
             )
 
             # Scale up target deployment
-            subprocess.run(  # noqa: S603
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 [
                     "kubectl",
                     "scale",
@@ -421,7 +421,7 @@ class RollbackMonitor:
             )
 
             # Wait for target deployment to be ready
-            subprocess.run(  # noqa: S603
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 [
                     "kubectl",
                     "rollout",
@@ -435,7 +435,7 @@ class RollbackMonitor:
             )
 
             # Switch service to target color
-            subprocess.run(  # noqa: S603
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 [
                     "kubectl",
                     "patch",
@@ -450,7 +450,7 @@ class RollbackMonitor:
             )
 
             # Scale down failed deployment
-            subprocess.run(  # noqa: S603
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 [
                     "kubectl",
                     "scale",

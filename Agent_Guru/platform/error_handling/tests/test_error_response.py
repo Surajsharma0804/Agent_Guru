@@ -35,12 +35,12 @@ class TestErrorResponse:
             remediation_steps=["Step 1", "Step 2"]
         )
         
-        assert error.error_code == "TEST_ERROR"
-        assert error.message == "Test error message"
-        assert error.category == ErrorCategory.RECOVERABLE
-        assert error.context == {"key": "value"}
-        assert error.remediation_steps == ["Step 1", "Step 2"]
-        assert error.timestamp > 0
+        assert error.error_code == "TEST_ERROR"  # nosec B101
+        assert error.message == "Test error message"  # nosec B101
+        assert error.category == ErrorCategory.RECOVERABLE  # nosec B101
+        assert error.context == {"key": "value"}  # nosec B101
+        assert error.remediation_steps == ["Step 1", "Step 2"]  # nosec B101
+        assert error.timestamp > 0  # nosec B101
     
     def test_error_response_immutability(self):
         """Test that error response is immutable (frozen)."""
@@ -72,9 +72,9 @@ class TestErrorResponse:
             category=ErrorCategory.CRITICAL
         )
         
-        assert recoverable.is_recoverable() is True
-        assert non_recoverable.is_recoverable() is False
-        assert critical.is_recoverable() is False
+        assert recoverable.is_recoverable() is True  # nosec B101
+        assert non_recoverable.is_recoverable() is False  # nosec B101
+        assert critical.is_recoverable() is False  # nosec B101
     
     def test_is_critical(self):
         """Test is_critical method."""
@@ -94,9 +94,9 @@ class TestErrorResponse:
             category=ErrorCategory.CRITICAL
         )
         
-        assert recoverable.is_critical() is False
-        assert non_recoverable.is_critical() is False
-        assert critical.is_critical() is True
+        assert recoverable.is_critical() is False  # nosec B101
+        assert non_recoverable.is_critical() is False  # nosec B101
+        assert critical.is_critical() is True  # nosec B101
     
     def test_to_dict(self):
         """Test conversion to dictionary."""
@@ -112,13 +112,13 @@ class TestErrorResponse:
         
         error_dict = error.to_dict()
         
-        assert error_dict["error_code"] == "TEST_ERROR"
-        assert error_dict["message"] == "Test message"
-        assert error_dict["category"] == "recoverable"
-        assert error_dict["context"] == {"key": "value"}
-        assert error_dict["remediation_steps"] == ["Step 1"]
-        assert error_dict["exception_type"] == "ValueError"
-        assert error_dict["exception_message"] == "Invalid value"
+        assert error_dict["error_code"] == "TEST_ERROR"  # nosec B101
+        assert error_dict["message"] == "Test message"  # nosec B101
+        assert error_dict["category"] == "recoverable"  # nosec B101
+        assert error_dict["context"] == {"key": "value"}  # nosec B101
+        assert error_dict["remediation_steps"] == ["Step 1"]  # nosec B101
+        assert error_dict["exception_type"] == "ValueError"  # nosec B101
+        assert error_dict["exception_message"] == "Invalid value"  # nosec B101
     
     def test_str_representation(self):
         """Test string representation."""
@@ -129,9 +129,9 @@ class TestErrorResponse:
         )
         
         error_str = str(error)
-        assert "RECOVERABLE" in error_str
-        assert "TEST_ERROR" in error_str
-        assert "Test message" in error_str
+        assert "RECOVERABLE" in error_str  # nosec B101
+        assert "TEST_ERROR" in error_str  # nosec B101
+        assert "Test message" in error_str  # nosec B101
     
     def test_default_values(self):
         """Test default values for optional fields."""
@@ -141,12 +141,12 @@ class TestErrorResponse:
             category=ErrorCategory.RECOVERABLE
         )
         
-        assert error.context == {}
-        assert error.remediation_steps == []
-        assert error.exception_type is None
-        assert error.exception_message is None
-        assert error.stack_trace is None
-        assert error.metadata == {}
+        assert error.context == {}  # nosec B101
+        assert error.remediation_steps == []  # nosec B101
+        assert error.exception_type is None  # nosec B101
+        assert error.exception_message is None  # nosec B101
+        assert error.stack_trace is None  # nosec B101
+        assert error.metadata == {}  # nosec B101
 
 
 class TestCreateErrorResponse:
@@ -161,12 +161,12 @@ class TestCreateErrorResponse:
             context={"key": "value"}
         )
         
-        assert error.error_code == "TEST_ERROR"
-        assert error.message == "Test message"
-        assert error.category == ErrorCategory.RECOVERABLE
-        assert error.context == {"key": "value"}
-        assert len(error.remediation_steps) > 0
-        assert error.exception_type is None
+        assert error.error_code == "TEST_ERROR"  # nosec B101
+        assert error.message == "Test message"  # nosec B101
+        assert error.category == ErrorCategory.RECOVERABLE  # nosec B101
+        assert error.context == {"key": "value"}  # nosec B101
+        assert len(error.remediation_steps) > 0  # nosec B101
+        assert error.exception_type is None  # nosec B101
     
     def test_create_with_exception(self):
         """Test creating error response with exception."""
@@ -180,11 +180,11 @@ class TestCreateErrorResponse:
                 exception=e
             )
         
-        assert error.error_code == "VALIDATION_ERROR"
-        assert error.exception_type == "ValueError"
-        assert error.exception_message == "Invalid value"
-        assert error.stack_trace is not None
-        assert "ValueError" in error.stack_trace
+        assert error.error_code == "VALIDATION_ERROR"  # nosec B101
+        assert error.exception_type == "ValueError"  # nosec B101
+        assert error.exception_message == "Invalid value"  # nosec B101
+        assert error.stack_trace is not None  # nosec B101
+        assert "ValueError" in error.stack_trace  # nosec B101
     
     def test_create_with_metadata(self):
         """Test creating error response with metadata."""
@@ -195,7 +195,7 @@ class TestCreateErrorResponse:
             metadata={"user_id": "123", "request_id": "abc"}
         )
         
-        assert error.metadata == {"user_id": "123", "request_id": "abc"}
+        assert error.metadata == {"user_id": "123", "request_id": "abc"}  # nosec B101
     
     def test_automatic_remediation_generation(self):
         """Test that remediation steps are automatically generated."""
@@ -205,8 +205,8 @@ class TestCreateErrorResponse:
             category=ErrorCategory.RECOVERABLE
         )
         
-        assert len(error.remediation_steps) > 0
-        assert any("retry" in step.lower() for step in error.remediation_steps)
+        assert len(error.remediation_steps) > 0  # nosec B101
+        assert any("retry" in step.lower() for step in error.remediation_steps)  # nosec B101
 
 
 class TestGenerateRemediationSteps:
@@ -221,9 +221,9 @@ class TestGenerateRemediationSteps:
             context={}
         )
         
-        assert len(steps) > 0
-        assert any("retry" in step.lower() for step in steps)
-        assert any("network" in step.lower() for step in steps)
+        assert len(steps) > 0  # nosec B101
+        assert any("retry" in step.lower() for step in steps)  # nosec B101
+        assert any("network" in step.lower() for step in steps)  # nosec B101
     
     def test_non_recoverable_error_remediation(self):
         """Test remediation for non-recoverable errors."""
@@ -234,8 +234,8 @@ class TestGenerateRemediationSteps:
             context={}
         )
         
-        assert len(steps) > 0
-        assert any("configuration" in step.lower() or "input" in step.lower() 
+        assert len(steps) > 0  # nosec B101
+        assert any("configuration" in step.lower() or "input" in step.lower()   # nosec B101
                    for step in steps)
     
     def test_critical_error_remediation(self):
@@ -247,8 +247,8 @@ class TestGenerateRemediationSteps:
             context={}
         )
         
-        assert len(steps) > 0
-        assert any("administrator" in step.lower() or "memory" in step.lower() 
+        assert len(steps) > 0  # nosec B101
+        assert any("administrator" in step.lower() or "memory" in step.lower()   # nosec B101
                    for step in steps)
     
     def test_file_not_found_remediation(self):
@@ -260,9 +260,9 @@ class TestGenerateRemediationSteps:
             context={"file_path": "/etc/config.yaml"}
         )
         
-        assert len(steps) > 0
-        assert any("file" in step.lower() for step in steps)
-        assert any("/etc/config.yaml" in step for step in steps)
+        assert len(steps) > 0  # nosec B101
+        assert any("file" in step.lower() for step in steps)  # nosec B101
+        assert any("/etc/config.yaml" in step for step in steps)  # nosec B101
     
     def test_permission_error_remediation(self):
         """Test remediation for permission errors."""
@@ -273,8 +273,8 @@ class TestGenerateRemediationSteps:
             context={}
         )
         
-        assert len(steps) > 0
-        assert any("permission" in step.lower() for step in steps)
+        assert len(steps) > 0  # nosec B101
+        assert any("permission" in step.lower() for step in steps)  # nosec B101
     
     def test_network_error_remediation(self):
         """Test remediation for network errors."""
@@ -285,8 +285,8 @@ class TestGenerateRemediationSteps:
             context={"url": "https://api.example.com"}
         )
         
-        assert len(steps) > 0
-        assert any("network" in step.lower() for step in steps)
+        assert len(steps) > 0  # nosec B101
+        assert any("network" in step.lower() for step in steps)  # nosec B101
     
     def test_timeout_error_remediation(self):
         """Test remediation for timeout errors."""
@@ -297,8 +297,8 @@ class TestGenerateRemediationSteps:
             context={}
         )
         
-        assert len(steps) > 0
-        assert any("timeout" in step.lower() for step in steps)
+        assert len(steps) > 0  # nosec B101
+        assert any("timeout" in step.lower() for step in steps)  # nosec B101
     
     def test_validation_error_remediation(self):
         """Test remediation for validation errors."""
@@ -309,8 +309,8 @@ class TestGenerateRemediationSteps:
             context={}
         )
         
-        assert len(steps) > 0
-        assert any("validation" in step.lower() or "input" in step.lower() 
+        assert len(steps) > 0  # nosec B101
+        assert any("validation" in step.lower() or "input" in step.lower()   # nosec B101
                    for step in steps)
     
     def test_always_has_remediation_steps(self):
@@ -323,7 +323,7 @@ class TestGenerateRemediationSteps:
         )
         
         # Should always have at least one step
-        assert len(steps) > 0
+        assert len(steps) > 0  # nosec B101
 
 
 class TestCategorizeException:
@@ -332,52 +332,52 @@ class TestCategorizeException:
     def test_categorize_timeout_error(self):
         """Test categorization of timeout errors."""
         category = categorize_exception(TimeoutError("Request timed out"))
-        assert category == ErrorCategory.RECOVERABLE
+        assert category == ErrorCategory.RECOVERABLE  # nosec B101
     
     def test_categorize_connection_error(self):
         """Test categorization of connection errors."""
         category = categorize_exception(ConnectionError("Connection failed"))
-        assert category == ErrorCategory.RECOVERABLE
+        assert category == ErrorCategory.RECOVERABLE  # nosec B101
     
     def test_categorize_memory_error(self):
         """Test categorization of memory errors."""
         category = categorize_exception(MemoryError("Out of memory"))
-        assert category == ErrorCategory.CRITICAL
+        assert category == ErrorCategory.CRITICAL  # nosec B101
     
     def test_categorize_value_error(self):
         """Test categorization of value errors."""
         category = categorize_exception(ValueError("Invalid value"))
-        assert category == ErrorCategory.NON_RECOVERABLE
+        assert category == ErrorCategory.NON_RECOVERABLE  # nosec B101
     
     def test_categorize_file_not_found(self):
         """Test categorization of file not found errors."""
         category = categorize_exception(FileNotFoundError("File not found"))
-        assert category == ErrorCategory.NON_RECOVERABLE
+        assert category == ErrorCategory.NON_RECOVERABLE  # nosec B101
     
     def test_categorize_permission_error(self):
         """Test categorization of permission errors."""
         category = categorize_exception(PermissionError("Permission denied"))
-        assert category == ErrorCategory.NON_RECOVERABLE
+        assert category == ErrorCategory.NON_RECOVERABLE  # nosec B101
     
     def test_categorize_system_error(self):
         """Test categorization of system errors."""
         category = categorize_exception(SystemError("System error"))
-        assert category == ErrorCategory.CRITICAL
+        assert category == ErrorCategory.CRITICAL  # nosec B101
     
     def test_categorize_os_error(self):
         """Test categorization of OS errors."""
         category = categorize_exception(OSError("OS error"))
-        assert category == ErrorCategory.CRITICAL
+        assert category == ErrorCategory.CRITICAL  # nosec B101
     
     def test_categorize_runtime_error(self):
         """Test categorization of runtime errors."""
         category = categorize_exception(RuntimeError("Runtime error"))
-        assert category == ErrorCategory.CRITICAL
+        assert category == ErrorCategory.CRITICAL  # nosec B101
     
     def test_categorize_generic_exception(self):
         """Test categorization of generic exceptions."""
         category = categorize_exception(Exception("Generic error"))
-        assert category == ErrorCategory.NON_RECOVERABLE
+        assert category == ErrorCategory.NON_RECOVERABLE  # nosec B101
 
 
 class TestErrorCode:
@@ -385,11 +385,11 @@ class TestErrorCode:
     
     def test_error_code_constants(self):
         """Test that error code constants are defined."""
-        assert ErrorCode.FILE_NOT_FOUND == "FILE_NOT_FOUND"
-        assert ErrorCode.NETWORK_TIMEOUT == "NETWORK_TIMEOUT"
-        assert ErrorCode.PERMISSION_DENIED == "PERMISSION_DENIED"
-        assert ErrorCode.SYSTEM_OUT_OF_MEMORY == "SYSTEM_OUT_OF_MEMORY"
-        assert ErrorCode.OPERATION_FAILED == "OPERATION_FAILED"
+        assert ErrorCode.FILE_NOT_FOUND == "FILE_NOT_FOUND"  # nosec B101
+        assert ErrorCode.NETWORK_TIMEOUT == "NETWORK_TIMEOUT"  # nosec B101
+        assert ErrorCode.PERMISSION_DENIED == "PERMISSION_DENIED"  # nosec B101
+        assert ErrorCode.SYSTEM_OUT_OF_MEMORY == "SYSTEM_OUT_OF_MEMORY"  # nosec B101
+        assert ErrorCode.OPERATION_FAILED == "OPERATION_FAILED"  # nosec B101
 
 
 class TestErrorResponseProperties:
@@ -413,9 +413,9 @@ class TestErrorResponseProperties:
             category=category
         )
         
-        assert error.error_code == error_code
-        assert error.message == message
-        assert error.category == category
+        assert error.error_code == error_code  # nosec B101
+        assert error.message == message  # nosec B101
+        assert error.category == category  # nosec B101
     
     @given(
         error_code=st.text(min_size=1, max_size=50, alphabet=st.characters(blacklist_categories=('Cs', 'Cc'))),
@@ -437,9 +437,9 @@ class TestErrorResponseProperties:
         
         error_dict = error.to_dict()
         
-        assert error_dict["error_code"] == error_code
-        assert error_dict["message"] == message
-        assert error_dict["category"] == category.value
+        assert error_dict["error_code"] == error_code  # nosec B101
+        assert error_dict["message"] == message  # nosec B101
+        assert error_dict["category"] == category.value  # nosec B101
     
     @given(
         category=st.sampled_from(list(ErrorCategory))
@@ -453,9 +453,9 @@ class TestErrorResponseProperties:
         )
         
         if category == ErrorCategory.RECOVERABLE:
-            assert error.is_recoverable() is True
+            assert error.is_recoverable() is True  # nosec B101
         else:
-            assert error.is_recoverable() is False
+            assert error.is_recoverable() is False  # nosec B101
     
     @given(
         category=st.sampled_from(list(ErrorCategory))
@@ -469,9 +469,9 @@ class TestErrorResponseProperties:
         )
         
         if category == ErrorCategory.CRITICAL:
-            assert error.is_critical() is True
+            assert error.is_critical() is True  # nosec B101
         else:
-            assert error.is_critical() is False
+            assert error.is_critical() is False  # nosec B101
     
     @given(
         error_code=st.text(min_size=1, max_size=50, alphabet=st.characters(blacklist_categories=('Cs', 'Cc'))),
@@ -490,7 +490,7 @@ class TestErrorResponseProperties:
         )
         
         # Should always have at least one remediation step
-        assert len(error.remediation_steps) > 0
+        assert len(error.remediation_steps) > 0  # nosec B101
     
     @given(
         exception_type=st.sampled_from([
@@ -507,8 +507,8 @@ class TestErrorResponseProperties:
         exception = exception_type("Test error")
         category = categorize_exception(exception)
         
-        assert isinstance(category, ErrorCategory)
-        assert category in [
+        assert isinstance(category, ErrorCategory)  # nosec B101
+        assert category in [  # nosec B101
             ErrorCategory.RECOVERABLE,
             ErrorCategory.NON_RECOVERABLE,
             ErrorCategory.CRITICAL
@@ -536,17 +536,17 @@ class TestErrorResponseIntegration:
             )
         
         # Verify error response
-        assert error.error_code == ErrorCode.FILE_NOT_FOUND
-        assert error.category == ErrorCategory.NON_RECOVERABLE
-        assert not error.is_recoverable()
-        assert not error.is_critical()
-        assert error.exception_type == "FileNotFoundError"
-        assert len(error.remediation_steps) > 0
+        assert error.error_code == ErrorCode.FILE_NOT_FOUND  # nosec B101
+        assert error.category == ErrorCategory.NON_RECOVERABLE  # nosec B101
+        assert not error.is_recoverable()  # nosec B101
+        assert not error.is_critical()  # nosec B101
+        assert error.exception_type == "FileNotFoundError"  # nosec B101
+        assert len(error.remediation_steps) > 0  # nosec B101
         
         # Verify serialization
         error_dict = error.to_dict()
-        assert "error_code" in error_dict
-        assert "remediation_steps" in error_dict
+        assert "error_code" in error_dict  # nosec B101
+        assert "remediation_steps" in error_dict  # nosec B101
     
     def test_error_with_retry_strategy(self):
         """Test error response integration with retry strategy."""
@@ -576,9 +576,9 @@ class TestErrorResponseIntegration:
                 }
             )
             
-            assert error.is_recoverable()
-            assert error.context["attempts"] == 3
-            assert any("retry" in step.lower() for step in error.remediation_steps)
+            assert error.is_recoverable()  # nosec B101
+            assert error.context["attempts"] == 3  # nosec B101
+            assert any("retry" in step.lower() for step in error.remediation_steps)  # nosec B101
     
     def test_error_with_circuit_breaker(self):
         """Test error response integration with circuit breaker."""
@@ -608,6 +608,6 @@ class TestErrorResponseIntegration:
                 context={"breaker_state": breaker.state.value}
             )
             
-            assert error.is_recoverable()
-            assert error.exception_type == "CircuitBreakerOpenError"
-            assert len(error.remediation_steps) > 0
+            assert error.is_recoverable()  # nosec B101
+            assert error.exception_type == "CircuitBreakerOpenError"  # nosec B101
+            assert len(error.remediation_steps) > 0  # nosec B101

@@ -177,7 +177,7 @@ class SyncExecutor:
                     retries=retries,
                 )
 
-            except TimeoutError as e:
+            except TimeoutError:
                 # Actual timeout - don't retry
                 execution_time = time.perf_counter() - start_time
                 return ExecutionResult(

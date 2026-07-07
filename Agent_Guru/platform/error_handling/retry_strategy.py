@@ -41,7 +41,6 @@ Version: 1.0.0
 
 import logging
 import random
-import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -171,7 +170,7 @@ class RetryStrategy:
 
         # Apply jitter: randomize ±jitter_factor
         jitter_range = capped_delay * self.config.jitter_factor
-        jitter = random.uniform(-jitter_range, jitter_range)
+        jitter = random.uniform(-jitter_range, jitter_range)  # nosec B311
         final_delay = capped_delay + jitter
 
         # Ensure non-negative delay
@@ -321,7 +320,6 @@ class RetryStrategy:
             >>> result = asyncio.run(strategy.execute_async(async_operation))
 
         """
-        import asyncio
 
         attempt = 0
         total_delay = 0.0

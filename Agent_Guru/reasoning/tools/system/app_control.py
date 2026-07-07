@@ -5,7 +5,7 @@ Platform-specific implementations for Windows, macOS, and Linux.
 
 import logging
 import platform
-import subprocess
+import subprocess  # nosec B404
 from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
@@ -69,7 +69,7 @@ class PlatformAppController:
                 "platform": system,
                 "message": f"Opened {app_name}",
             }
-            logger.info("App open result: %s", redact(result_data))  # nosec B200 — redacted before logging
+            logger.info("App open result: %s", redact(result_data))  # nosec B200
             return {
                 "success": True,
                 "result": result_data,
@@ -146,7 +146,7 @@ class PlatformAppController:
                 "platform": system,
                 "message": f"Closed {app_name}",
             }
-            logger.info("App close result: %s", redact(result_data))  # nosec B200 — redacted before logging
+            logger.info("App close result: %s", redact(result_data))  # nosec B200
             return {
                 "success": True,
                 "result": result_data,

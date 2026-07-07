@@ -13,7 +13,7 @@ Requirements: 4.2, 4.5
 """
 
 import asyncio
-import subprocess
+import subprocess  # nosec B404
 import time
 from pathlib import Path
 
@@ -90,7 +90,7 @@ class LocalLLMServer:
         cmd = self._build_server_command()
 
         # Start server process
-        self.process = subprocess.Popen(  # noqa: S603
+        self.process = subprocess.Popen(  # nosec B603  # noqa: S603
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -188,7 +188,7 @@ class LocalLLMServer:
     def _is_command_available(command: str) -> bool:
         """Check if command is available in PATH."""
         try:
-            subprocess.run(  # noqa: S603
+            subprocess.run(  # nosec B603  # noqa: S603
                 [command, "--version"],
                 check=False,
                 stdout=subprocess.DEVNULL,

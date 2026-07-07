@@ -30,7 +30,7 @@ class TestWindowsIntegration:
     def test_initialization(self):
         """Test Windows integration initialization."""
         integration = WindowsIntegration()
-        assert integration is not None
+        assert integration is not None  # nosec B101
     
     def test_initialization_on_non_windows_raises_error(self):
         """Test that initialization fails on non-Windows platforms."""
@@ -51,9 +51,9 @@ class TestWindowsIntegration:
                 r"SOFTWARE\Microsoft\Windows NT\CurrentVersion",
                 "ProductName"
             )
-            assert value is not None
-            assert isinstance(value, str)
-            assert len(value) > 0
+            assert value is not None  # nosec B101
+            assert isinstance(value, str)  # nosec B101
+            assert len(value) > 0  # nosec B101
         except PermissionError:
             pytest.skip("Insufficient permissions to read registry")
     
@@ -92,7 +92,7 @@ class TestWindowsIntegration:
                 test_key,
                 test_value
             )
-            assert read_value == test_data
+            assert read_value == test_data  # nosec B101
             
         finally:
             # Cleanup
@@ -169,10 +169,10 @@ class TestWindowsIntegration:
             # Query a common Windows service (Windows Update)
             status = integration.get_service_status("wuauserv")
             
-            assert isinstance(status, ServiceStatus)
-            assert status.name == "wuauserv"
-            assert status.status in ["running", "stopped", "paused", "starting", "stopping"]
-            assert status.startup_type in ["automatic", "manual", "disabled", "unknown"]
+            assert isinstance(status, ServiceStatus)  # nosec B101
+            assert status.name == "wuauserv"  # nosec B101
+            assert status.status in ["running", "stopped", "paused", "starting", "stopping"]  # nosec B101
+            assert status.startup_type in ["automatic", "manual", "disabled", "unknown"]  # nosec B101
             
         except RuntimeError as e:
             if "pywin32 required" in str(e):
@@ -203,18 +203,18 @@ class TestWindowsIntegration:
         
         processes = integration.get_process_list()
         
-        assert isinstance(processes, list)
-        assert len(processes) > 0
+        assert isinstance(processes, list)  # nosec B101
+        assert len(processes) > 0  # nosec B101
         
         # Check first process has valid data
         proc = processes[0]
-        assert isinstance(proc, ProcessInfo)
-        assert proc.pid >= 0  # PID 0 is valid on Windows (System Idle Process)
-        assert len(proc.name) > 0
-        assert proc.status in ["running", "sleeping", "stopped", "zombie", "disk-sleep"]
-        assert proc.cpu_percent >= 0.0
-        assert proc.memory_percent >= 0.0
-        assert proc.create_time >= 0  # Can be 0 for system processes
+        assert isinstance(proc, ProcessInfo)  # nosec B101
+        assert proc.pid >= 0  # PID 0 is valid on Windows (System Idle Process)  # nosec B101
+        assert len(proc.name) > 0  # nosec B101
+        assert proc.status in ["running", "sleeping", "stopped", "zombie", "disk-sleep"]  # nosec B101
+        assert proc.cpu_percent >= 0.0  # nosec B101
+        assert proc.memory_percent >= 0.0  # nosec B101
+        assert proc.create_time >= 0  # Can be 0 for system processes  # nosec B101
     
     def test_start_process_success(self):
         """Test starting a process."""
@@ -223,8 +223,8 @@ class TestWindowsIntegration:
         # Start a simple process (cmd /c echo test)
         pid = integration.start_process("cmd.exe", ["/c", "echo", "test"])
         
-        assert isinstance(pid, int)
-        assert pid > 0
+        assert isinstance(pid, int)  # nosec B101
+        assert pid > 0  # nosec B101
     
     def test_start_process_not_found(self):
         """Test starting non-existent executable."""
@@ -248,13 +248,13 @@ class TestWindowsIntegration:
         try:
             import psutil
             proc = psutil.Process(pid)
-            assert proc.is_running()
+            assert proc.is_running()  # nosec B101
         except psutil.NoSuchProcess:
             pytest.skip("Process terminated too quickly")
         
         # Terminate it
         result = integration.terminate_process(pid, force=False)
-        assert result is True
+        assert result is True  # nosec B101
     
     def test_terminate_process_not_found(self):
         """Test terminating non-existent process."""
@@ -279,13 +279,13 @@ class TestWindowsIntegration:
         try:
             import psutil
             proc = psutil.Process(pid)
-            assert proc.is_running()
+            assert proc.is_running()  # nosec B101
         except psutil.NoSuchProcess:
             pytest.skip("Process terminated too quickly")
         
         # Force kill it
         result = integration.terminate_process(pid, force=True)
-        assert result is True
+        assert result is True  # nosec B101
     
     # Command Execution Tests
     
@@ -295,10 +295,10 @@ class TestWindowsIntegration:
         
         result = integration.execute_command("cmd", ["/c", "echo", "Hello"])
         
-        assert isinstance(result, CommandResult)
-        assert "Hello" in result.stdout
-        assert result.return_code == 0
-        assert result.execution_time >= 0
+        assert isinstance(result, CommandResult)  # nosec B101
+        assert "Hello" in result.stdout  # nosec B101
+        assert result.return_code == 0  # nosec B101
+        assert result.execution_time >= 0  # nosec B101
     
     def test_execute_command_with_error(self):
         """Test executing a command that fails."""
@@ -306,8 +306,8 @@ class TestWindowsIntegration:
         
         result = integration.execute_command("cmd", ["/c", "exit", "1"])
         
-        assert isinstance(result, CommandResult)
-        assert result.return_code == 1
+        assert isinstance(result, CommandResult)  # nosec B101
+        assert result.return_code == 1  # nosec B101
     
     def test_execute_command_not_found(self):
         """Test executing non-existent command."""
@@ -324,14 +324,14 @@ class TestWindowsIntegration:
         
         info = integration.get_system_info()
         
-        assert isinstance(info, SystemInfo)
-        assert len(info.hostname) > 0
-        assert info.platform == "Windows"
-        assert len(info.platform_version) > 0
-        assert len(info.architecture) > 0
-        assert info.cpu_count_physical > 0
-        assert info.cpu_count_logical > 0
-        assert info.boot_time > 0
+        assert isinstance(info, SystemInfo)  # nosec B101
+        assert len(info.hostname) > 0  # nosec B101
+        assert info.platform == "Windows"  # nosec B101
+        assert len(info.platform_version) > 0  # nosec B101
+        assert len(info.architecture) > 0  # nosec B101
+        assert info.cpu_count_physical > 0  # nosec B101
+        assert info.cpu_count_logical > 0  # nosec B101
+        assert info.boot_time > 0  # nosec B101
     
     # Permission Tests
     
@@ -341,7 +341,7 @@ class TestWindowsIntegration:
         
         is_admin = integration.is_admin()
         
-        assert isinstance(is_admin, bool)
+        assert isinstance(is_admin, bool)  # nosec B101
         # We can't assert the value since it depends on how tests are run
 
 
@@ -359,7 +359,7 @@ class TestWindowsIntegrationEdgeCases:
                 r"SOFTWARE\Microsoft\Windows NT\CurrentVersion",
                 "ProductName"
             )
-            assert value is not None
+            assert value is not None  # nosec B101
         except PermissionError as e:
             pytest.skip("Insufficient permissions")
     
@@ -369,15 +369,15 @@ class TestWindowsIntegrationEdgeCases:
         
         # This should not raise even if processes terminate during iteration
         processes = integration.get_process_list()
-        assert isinstance(processes, list)
+        assert isinstance(processes, list)  # nosec B101
     
     def test_command_execution_with_empty_args(self):
         """Test command execution with empty arguments."""
         integration = WindowsIntegration()
         
         result = integration.execute_command("cmd", ["/c", "echo"])
-        assert isinstance(result, CommandResult)
-        assert result.return_code == 0
+        assert isinstance(result, CommandResult)  # nosec B101
+        assert result.return_code == 0  # nosec B101
 
 
 class TestWindowsIntegrationIntegration:
@@ -406,7 +406,7 @@ class TestWindowsIntegrationIntegration:
                 test_key,
                 test_value
             )
-            assert read_data == test_data
+            assert read_data == test_data  # nosec B101
             
             # Delete
             integration.delete_registry_key(
@@ -436,7 +436,7 @@ class TestWindowsIntegrationIntegration:
         
         # Start process using ping (more reliable)
         pid = integration.start_process("ping", ["127.0.0.1", "-n", "100"])
-        assert pid > 0
+        assert pid > 0  # nosec B101
         
         # Give it time to start
         import time
@@ -446,18 +446,18 @@ class TestWindowsIntegrationIntegration:
         try:
             import psutil
             proc = psutil.Process(pid)
-            assert proc.is_running()
+            assert proc.is_running()  # nosec B101
         except psutil.NoSuchProcess:
             pytest.skip("Process terminated too quickly")
         
         # Verify it's in process list
         processes = integration.get_process_list()
         process_pids = [p.pid for p in processes]
-        assert pid in process_pids
+        assert pid in process_pids  # nosec B101
         
         # Terminate
         result = integration.terminate_process(pid, force=True)
-        assert result is True
+        assert result is True  # nosec B101
         
         # Give it time to terminate
         time.sleep(1.0)
@@ -465,4 +465,4 @@ class TestWindowsIntegrationIntegration:
         # Verify it's gone (or zombie)
         processes = integration.get_process_list()
         process_pids = [p.pid for p in processes if p.status != "zombie"]
-        assert pid not in process_pids
+        assert pid not in process_pids  # nosec B101

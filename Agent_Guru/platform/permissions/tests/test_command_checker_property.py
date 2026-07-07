@@ -76,8 +76,8 @@ class TestCommandValidationProperties:
         checker = CommandPermissionChecker()
         result = checker.validate_command(command)
         
-        assert not result.allowed
-        assert result.reason == "Empty command"
+        assert not result.allowed  # nosec B101
+        assert result.reason == "Empty command"  # nosec B101
     
     def test_property_long_commands_rejected(self):
         """
@@ -92,15 +92,15 @@ class TestCommandValidationProperties:
         long_command = "a" * (checker._max_command_length + 1)
         result = checker.validate_command(long_command)
         
-        assert not result.allowed
-        assert "too long" in result.reason.lower()
+        assert not result.allowed  # nosec B101
+        assert "too long" in result.reason.lower()  # nosec B101
         
         # Test with much longer command
         very_long_command = "b" * (checker._max_command_length * 2)
         result = checker.validate_command(very_long_command)
         
-        assert not result.allowed
-        assert "too long" in result.reason.lower()
+        assert not result.allowed  # nosec B101
+        assert "too long" in result.reason.lower()  # nosec B101
     
     @given(safe_command_string())
     @settings(max_examples=100)
@@ -118,8 +118,8 @@ class TestCommandValidationProperties:
         
         # Should be allowed unless it's dangerous
         if not is_dangerous_command(command):
-            assert result.allowed
-            assert result.matched_pattern is not None
+            assert result.allowed  # nosec B101
+            assert result.matched_pattern is not None  # nosec B101
     
     @given(st.text(min_size=1, max_size=100))
     @settings(max_examples=100)
@@ -140,10 +140,10 @@ class TestCommandValidationProperties:
             result = checker.validate_command(command)
             
             # Should be blocked (either by pattern or parsing failure)
-            assert not result.allowed
+            assert not result.allowed  # nosec B101
             # Danger level should be high or critical if successfully parsed
             if result.parsed_args:
-                assert result.danger_level in [DangerLevel.HIGH, DangerLevel.CRITICAL]
+                assert result.danger_level in [DangerLevel.HIGH, DangerLevel.CRITICAL]  # nosec B101
     
     @given(command_with_args())
     @settings(max_examples=100)
@@ -160,13 +160,13 @@ class TestCommandValidationProperties:
         result = checker.validate_command(command)
         
         # Check all required fields exist
-        assert isinstance(result.allowed, bool)
-        assert isinstance(result.command, str)
-        assert isinstance(result.parsed_args, list)
-        assert isinstance(result.reason, str)
-        assert isinstance(result.category, CommandCategory)
-        assert isinstance(result.danger_level, DangerLevel)
-        assert isinstance(result.warnings, list)
+        assert isinstance(result.allowed, bool)  # nosec B101
+        assert isinstance(result.command, str)  # nosec B101
+        assert isinstance(result.parsed_args, list)  # nosec B101
+        assert isinstance(result.reason, str)  # nosec B101
+        assert isinstance(result.category, CommandCategory)  # nosec B101
+        assert isinstance(result.danger_level, DangerLevel)  # nosec B101
+        assert isinstance(result.warnings, list)  # nosec B101
     
     @given(st.lists(
         st.text(
@@ -193,7 +193,7 @@ class TestCommandValidationProperties:
         
         if result.allowed and result.parsed_args:
             # Parsed args should have same count as input args (no quotes in input)
-            assert len(result.parsed_args) == len(args)
+            assert len(result.parsed_args) == len(args)  # nosec B101
     
     @given(st.text(min_size=1, max_size=50, alphabet=st.characters(
         whitelist_categories=("Lu", "Ll", "Nd"),
@@ -213,8 +213,8 @@ class TestCommandValidationProperties:
         
         result = checker.validate_command(command)
         
-        assert not result.allowed
-        assert result.blocked_pattern is not None
+        assert not result.allowed  # nosec B101
+        assert result.blocked_pattern is not None  # nosec B101
     
     @given(safe_command_string())
     @settings(max_examples=100)
@@ -235,8 +235,8 @@ class TestCommandValidationProperties:
         
         if result.allowed and result.sanitized_command:
             # Sanitized should not have trailing semicolons or spaces
-            assert not result.sanitized_command.endswith(";")
-            assert not result.sanitized_command.endswith(" ")
+            assert not result.sanitized_command.endswith(";")  # nosec B101
+            assert not result.sanitized_command.endswith(" ")  # nosec B101
     
     @given(st.text(min_size=1, max_size=50))
     @settings(max_examples=100)
@@ -253,7 +253,7 @@ class TestCommandValidationProperties:
         quick_result = checker.is_command_allowed(command)
         full_result = checker.validate_command(command)
         
-        assert quick_result == full_result.allowed
+        assert quick_result == full_result.allowed  # nosec B101
     
     @given(st.lists(st.text(min_size=1, max_size=20), min_size=1, max_size=5))
     @settings(max_examples=100)
@@ -271,11 +271,11 @@ class TestCommandValidationProperties:
         
         # Check dangerous characters removed
         for sanitized_arg in sanitized:
-            assert ";" not in sanitized_arg
-            assert "|" not in sanitized_arg
-            assert "&" not in sanitized_arg
-            assert "`" not in sanitized_arg
-            assert "$" not in sanitized_arg
+            assert ";" not in sanitized_arg  # nosec B101
+            assert "|" not in sanitized_arg  # nosec B101
+            assert "&" not in sanitized_arg  # nosec B101
+            assert "`" not in sanitized_arg  # nosec B101
+            assert "$" not in sanitized_arg  # nosec B101
 
 
 class TestCommandCategorizationProperties:
@@ -296,7 +296,7 @@ class TestCommandCategorizationProperties:
         result = checker.validate_command(f"{base_command} test.txt")
         
         if result.allowed:
-            assert result.category == CommandCategory.FILE_OPERATION
+            assert result.category == CommandCategory.FILE_OPERATION  # nosec B101
     
     @given(st.sampled_from(["git", "svn", "hg"]))
     @settings(max_examples=100)
@@ -313,7 +313,7 @@ class TestCommandCategorizationProperties:
         result = checker.validate_command(f"{base_command} status")
         
         if result.allowed:
-            assert result.category == CommandCategory.VERSION_CONTROL
+            assert result.category == CommandCategory.VERSION_CONTROL  # nosec B101
     
     @given(st.sampled_from(["npm", "pip", "apt", "yum", "brew"]))
     @settings(max_examples=100)
@@ -330,7 +330,7 @@ class TestCommandCategorizationProperties:
         result = checker.validate_command(f"{base_command} install test")
         
         if result.allowed:
-            assert result.category == CommandCategory.PACKAGE_MANAGEMENT
+            assert result.category == CommandCategory.PACKAGE_MANAGEMENT  # nosec B101
 
 
 class TestDangerLevelProperties:
@@ -350,7 +350,7 @@ class TestDangerLevelProperties:
         result = checker.validate_command(base_command)
         
         if result.allowed:
-            assert result.danger_level in [DangerLevel.SAFE, DangerLevel.LOW]
+            assert result.danger_level in [DangerLevel.SAFE, DangerLevel.LOW]  # nosec B101
     
     @given(st.sampled_from(["chmod", "chown", "kill"]))
     @settings(max_examples=100)
@@ -366,7 +366,7 @@ class TestDangerLevelProperties:
         result = checker.validate_command(f"{base_command} test")
         
         if result.allowed:
-            assert result.danger_level in [DangerLevel.HIGH, DangerLevel.CRITICAL]
+            assert result.danger_level in [DangerLevel.HIGH, DangerLevel.CRITICAL]  # nosec B101
 
 
 class TestPatternMatchingProperties:
@@ -392,11 +392,11 @@ class TestPatternMatchingProperties:
         
         # Exact match should be allowed
         result = checker.validate_command(command)
-        assert result.allowed
+        assert result.allowed  # nosec B101
         
         # With suffix should not match
         result = checker.validate_command(f"{command} extra")
-        assert not result.allowed
+        assert not result.allowed  # nosec B101
     
     @given(
         st.text(min_size=1, max_size=20, alphabet=st.characters(
@@ -418,10 +418,10 @@ class TestPatternMatchingProperties:
         
         # Should match with any suffix
         result = checker.validate_command(f"{prefix} anything")
-        assert result.allowed
+        assert result.allowed  # nosec B101
         
         result = checker.validate_command(f"{prefix} something else")
-        assert result.allowed
+        assert result.allowed  # nosec B101
 
 
 if __name__ == "__main__":

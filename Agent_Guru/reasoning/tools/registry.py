@@ -188,7 +188,7 @@ class ToolRegistry:
             result["execution_time_ms"] = execution_time_ms
             return result
 
-        except TimeoutError as e:
+        except TimeoutError:
             execution_time_ms = int((time.perf_counter() - start_time) * 1000)
             return {
                 "success": False,

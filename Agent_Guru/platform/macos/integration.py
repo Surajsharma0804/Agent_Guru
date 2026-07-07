@@ -34,7 +34,7 @@ Design Decisions:
 
 import asyncio
 import logging
-import subprocess
+import subprocess  # nosec B404
 import threading
 import time
 from collections import defaultdict

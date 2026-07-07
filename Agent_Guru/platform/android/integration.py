@@ -189,7 +189,7 @@ class AndroidIntegration:
             logger.info("Launched app: %s", package_name)
             return True
 
-        except AppNotFoundError as e:
+        except AppNotFoundError:
             raise
 
     def send_intent(
@@ -301,7 +301,7 @@ class AndroidIntegration:
                 technology=technology,
             )
 
-        except AndroidIntegrationError as e:
+        except AndroidIntegrationError:
             raise
 
     # ========== Permission Management ==========

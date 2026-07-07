@@ -203,7 +203,7 @@ class ContextManager:
         """
         if session_id not in self.sessions:
             return {
-                "token_count": 0,
+                "token_count": 0,  # nosec B105
                 "message_count": 0,
                 "context_limit": self._get_context_limit(model),
                 "usage_percentage": 0.0,

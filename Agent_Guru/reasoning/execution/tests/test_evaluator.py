@@ -24,18 +24,18 @@ class TestResultValidator:
     def test_initialization(self):
         """Test validator initialization."""
         validator = ResultValidator()
-        assert validator is not None
-        assert validator._validation_rules == {}
+        assert validator is not None  # nosec B101
+        assert validator._validation_rules == {}  # nosec B101
 
     def test_validate_none_result(self):
         """Test validation of None result."""
         validator = ResultValidator()
         result = validator.validate(None)
 
-        assert not result.is_valid
-        assert result.validation_result == ValidationResult.INCOMPLETE
-        assert len(result.issues) == 1
-        assert result.issues[0].field == "result_data"
+        assert not result.is_valid  # nosec B101
+        assert result.validation_result == ValidationResult.INCOMPLETE  # nosec B101
+        assert len(result.issues) == 1  # nosec B101
+        assert result.issues[0].field == "result_data"  # nosec B101
 
     def test_validate_valid_result(self):
         """Test validation of valid result."""
@@ -45,9 +45,9 @@ class TestResultValidator:
 
         result = validator.validate(result_data, schema)
 
-        assert result.is_valid
-        assert result.validation_result == ValidationResult.VALID
-        assert len(result.issues) == 0
+        assert result.is_valid  # nosec B101
+        assert result.validation_result == ValidationResult.VALID  # nosec B101
+        assert len(result.issues) == 0  # nosec B101
 
     def test_validate_missing_field(self):
         """Test validation with missing required field."""
@@ -57,10 +57,10 @@ class TestResultValidator:
 
         result = validator.validate(result_data, schema)
 
-        assert not result.is_valid
-        assert result.validation_result == ValidationResult.INCOMPLETE
-        assert len(result.issues) == 1
-        assert result.issues[0].field == "duration"
+        assert not result.is_valid  # nosec B101
+        assert result.validation_result == ValidationResult.INCOMPLETE  # nosec B101
+        assert len(result.issues) == 1  # nosec B101
+        assert result.issues[0].field == "duration"  # nosec B101
 
     def test_validate_wrong_type(self):
         """Test validation with wrong field type."""
@@ -70,10 +70,10 @@ class TestResultValidator:
 
         result = validator.validate(result_data, schema)
 
-        assert not result.is_valid
-        assert result.validation_result == ValidationResult.INVALID
-        assert len(result.issues) == 1
-        assert result.issues[0].field == "duration"
+        assert not result.is_valid  # nosec B101
+        assert result.validation_result == ValidationResult.INVALID  # nosec B101
+        assert len(result.issues) == 1  # nosec B101
+        assert result.issues[0].field == "duration"  # nosec B101
 
     def test_validate_business_rules(self):
         """Test validation with business rules."""
@@ -84,10 +84,10 @@ class TestResultValidator:
 
         result = validator.validate(result_data, schema, business_rules)
 
-        assert not result.is_valid
-        assert len(result.issues) >= 1
+        assert not result.is_valid  # nosec B101
+        assert len(result.issues) >= 1  # nosec B101
         # Should have business rule violation
-        assert any(issue.field == "duration" for issue in result.issues)
+        assert any(issue.field == "duration" for issue in result.issues)  # nosec B101
 
     def test_validate_sanity_negative_duration(self):
         """Test sanity check for negative duration."""
@@ -97,7 +97,7 @@ class TestResultValidator:
         result = validator.validate(result_data)
 
         # Should have warning about negative duration
-        assert any(
+        assert any(  # nosec B101
             issue.field == "duration" and "negative" in issue.message.lower()
             for issue in result.issues
         )
@@ -110,7 +110,7 @@ class TestResultValidator:
         result = validator.validate(result_data)
 
         # Should have warning about large value
-        assert any(
+        assert any(  # nosec B101
             issue.field == "count" and "large" in issue.message.lower() for issue in result.issues
         )
 
@@ -122,7 +122,7 @@ class TestResultValidator:
         result = validator.validate(result_data)
 
         # Should have warning about empty string
-        assert any(
+        assert any(  # nosec B101
             issue.field == "name" and "empty" in issue.message.lower() for issue in result.issues
         )
 
@@ -134,16 +134,16 @@ class TestResultValidator:
 
         result = validator.validate(result_data, schema)
 
-        assert not result.is_valid
-        assert result.validation_result == ValidationResult.UNEXPECTED
-        assert len(result.issues) == 1
+        assert not result.is_valid  # nosec B101
+        assert result.validation_result == ValidationResult.UNEXPECTED  # nosec B101
+        assert len(result.issues) == 1  # nosec B101
 
     def test_add_validation_rule(self):
         """Test adding custom validation rule."""
         validator = ResultValidator()
         validator.add_validation_rule("positive", lambda x: x > 0)
 
-        assert "positive" in validator._validation_rules
+        assert "positive" in validator._validation_rules  # nosec B101
 
     def test_remove_validation_rule(self):
         """Test removing validation rule."""
@@ -151,7 +151,7 @@ class TestResultValidator:
         validator.add_validation_rule("positive", lambda x: x > 0)
         validator.remove_validation_rule("positive")
 
-        assert "positive" not in validator._validation_rules
+        assert "positive" not in validator._validation_rules  # nosec B101
 
     def test_validate_with_warnings_only(self):
         """Test validation with only warnings (should be valid)."""
@@ -161,9 +161,9 @@ class TestResultValidator:
         result = validator.validate(result_data)
 
         # Should be valid but with warnings
-        assert result.is_valid
-        assert len(result.issues) > 0
-        assert all(issue.severity == "warning" for issue in result.issues)
+        assert result.is_valid  # nosec B101
+        assert len(result.issues) > 0  # nosec B101
+        assert all(issue.severity == "warning" for issue in result.issues)  # nosec B101
 
 
 class TestExecutionEvaluator:
@@ -173,9 +173,9 @@ class TestExecutionEvaluator:
         """Test evaluator initialization."""
         evaluator = ExecutionEvaluator(max_retries=3, base_retry_delay=1.0)
 
-        assert evaluator.max_retries == 3
-        assert evaluator.base_retry_delay == 1.0
-        assert evaluator.validator is not None
+        assert evaluator.max_retries == 3  # nosec B101
+        assert evaluator.base_retry_delay == 1.0  # nosec B101
+        assert evaluator.validator is not None  # nosec B101
 
     def test_initialization_invalid_params(self):
         """Test initialization with invalid parameters."""
@@ -199,9 +199,9 @@ class TestExecutionEvaluator:
 
         evaluation = evaluator.evaluate(result, expected_schema=schema)
 
-        assert evaluation.is_valid
-        assert evaluation.validation_result == ValidationResult.VALID
-        assert evaluation.retry_decision == RetryDecision.NO_RETRY
+        assert evaluation.is_valid  # nosec B101
+        assert evaluation.validation_result == ValidationResult.VALID  # nosec B101
+        assert evaluation.retry_decision == RetryDecision.NO_RETRY  # nosec B101
 
     def test_evaluate_failed_result_transient_error(self):
         """Test evaluation of failed result with transient error."""
@@ -215,9 +215,9 @@ class TestExecutionEvaluator:
         result = MockResult()
         evaluation = evaluator.evaluate(result, retry_count=0)
 
-        assert not evaluation.is_valid
-        assert evaluation.retry_decision == RetryDecision.RETRY
-        assert evaluation.retry_delay == 1.0  # First retry
+        assert not evaluation.is_valid  # nosec B101
+        assert evaluation.retry_decision == RetryDecision.RETRY  # nosec B101
+        assert evaluation.retry_delay == 1.0  # First retry  # nosec B101
 
     def test_evaluate_failed_result_max_retries(self):
         """Test evaluation when max retries exceeded."""
@@ -231,10 +231,10 @@ class TestExecutionEvaluator:
         result = MockResult()
         evaluation = evaluator.evaluate(result, retry_count=3)
 
-        assert not evaluation.is_valid
-        assert evaluation.retry_decision == RetryDecision.ABANDON
-        assert evaluation.should_abandon
-        assert "Max retries" in evaluation.abandonment_reason
+        assert not evaluation.is_valid  # nosec B101
+        assert evaluation.retry_decision == RetryDecision.ABANDON  # nosec B101
+        assert evaluation.should_abandon  # nosec B101
+        assert "Max retries" in evaluation.abandonment_reason  # nosec B101
 
     def test_evaluate_user_cancelled(self):
         """Test evaluation of user cancelled error."""
@@ -248,10 +248,10 @@ class TestExecutionEvaluator:
         result = MockResult()
         evaluation = evaluator.evaluate(result, retry_count=0)
 
-        assert not evaluation.is_valid
-        assert evaluation.retry_decision == RetryDecision.ABANDON
-        assert evaluation.should_abandon
-        assert "cancelled" in evaluation.abandonment_reason.lower()
+        assert not evaluation.is_valid  # nosec B101
+        assert evaluation.retry_decision == RetryDecision.ABANDON  # nosec B101
+        assert evaluation.should_abandon  # nosec B101
+        assert "cancelled" in evaluation.abandonment_reason.lower()  # nosec B101
 
     def test_evaluate_unrecoverable_error(self):
         """Test evaluation of unrecoverable error."""
@@ -265,9 +265,9 @@ class TestExecutionEvaluator:
         result = MockResult()
         evaluation = evaluator.evaluate(result, retry_count=0)
 
-        assert not evaluation.is_valid
-        assert evaluation.retry_decision == RetryDecision.ABANDON
-        assert evaluation.should_abandon
+        assert not evaluation.is_valid  # nosec B101
+        assert evaluation.retry_decision == RetryDecision.ABANDON  # nosec B101
+        assert evaluation.should_abandon  # nosec B101
 
     def test_evaluate_recoverable_error(self):
         """Test evaluation of recoverable error."""
@@ -281,8 +281,8 @@ class TestExecutionEvaluator:
         result = MockResult()
         evaluation = evaluator.evaluate(result, retry_count=0)
 
-        assert not evaluation.is_valid
-        assert evaluation.retry_decision == RetryDecision.CLARIFY
+        assert not evaluation.is_valid  # nosec B101
+        assert evaluation.retry_decision == RetryDecision.CLARIFY  # nosec B101
 
     def test_evaluate_incomplete_result(self):
         """Test evaluation of incomplete successful result."""
@@ -298,10 +298,10 @@ class TestExecutionEvaluator:
 
         evaluation = evaluator.evaluate(result, expected_schema=schema)
 
-        assert not evaluation.is_valid
-        assert evaluation.validation_result == ValidationResult.INCOMPLETE
-        assert evaluation.clarification_needed
-        assert evaluation.clarification_question is not None
+        assert not evaluation.is_valid  # nosec B101
+        assert evaluation.validation_result == ValidationResult.INCOMPLETE  # nosec B101
+        assert evaluation.clarification_needed  # nosec B101
+        assert evaluation.clarification_question is not None  # nosec B101
 
     def test_classify_error_transient(self):
         """Test error classification for transient errors."""
@@ -310,7 +310,7 @@ class TestExecutionEvaluator:
         error = {"error_code": "NETWORK_ERROR", "message": "Connection failed"}
         error_type = evaluator._classify_error(error)
 
-        assert error_type == ErrorType.TRANSIENT
+        assert error_type == ErrorType.TRANSIENT  # nosec B101
 
     def test_classify_error_timeout(self):
         """Test error classification for timeout."""
@@ -319,7 +319,7 @@ class TestExecutionEvaluator:
         error = {"error_code": "TIMEOUT", "message": "Operation timed out"}
         error_type = evaluator._classify_error(error)
 
-        assert error_type == ErrorType.TIMEOUT
+        assert error_type == ErrorType.TIMEOUT  # nosec B101
 
     def test_classify_error_unavailable(self):
         """Test error classification for service unavailable."""
@@ -328,7 +328,7 @@ class TestExecutionEvaluator:
         error = {"error_code": "SERVICE_DOWN", "message": "Service temporarily unavailable"}
         error_type = evaluator._classify_error(error)
 
-        assert error_type == ErrorType.TEMPORARY_UNAVAILABLE
+        assert error_type == ErrorType.TEMPORARY_UNAVAILABLE  # nosec B101
 
     def test_classify_error_recoverable(self):
         """Test error classification for recoverable errors."""
@@ -337,7 +337,7 @@ class TestExecutionEvaluator:
         error = {"error_code": "BAD_REQUEST", "message": "Invalid parameter"}
         error_type = evaluator._classify_error(error)
 
-        assert error_type == ErrorType.RECOVERABLE
+        assert error_type == ErrorType.RECOVERABLE  # nosec B101
 
     def test_classify_error_cancelled(self):
         """Test error classification for user cancellation."""
@@ -346,15 +346,15 @@ class TestExecutionEvaluator:
         error = {"error_code": "CANCELLED", "message": "User cancelled"}
         error_type = evaluator._classify_error(error)
 
-        assert error_type == ErrorType.USER_CANCELLED
+        assert error_type == ErrorType.USER_CANCELLED  # nosec B101
 
     def test_calculate_retry_delay_exponential_backoff(self):
         """Test exponential backoff calculation."""
         evaluator = ExecutionEvaluator(base_retry_delay=1.0)
 
-        assert evaluator._calculate_retry_delay(0) == 1.0  # 1 * 2^0
-        assert evaluator._calculate_retry_delay(1) == 2.0  # 1 * 2^1
-        assert evaluator._calculate_retry_delay(2) == 4.0  # 1 * 2^2
+        assert evaluator._calculate_retry_delay(0) == 1.0  # 1 * 2^0  # nosec B101
+        assert evaluator._calculate_retry_delay(1) == 2.0  # 1 * 2^1  # nosec B101
+        assert evaluator._calculate_retry_delay(2) == 4.0  # 1 * 2^2  # nosec B101
 
     def test_track_retry_result(self):
         """Test tracking retry results."""
@@ -366,9 +366,9 @@ class TestExecutionEvaluator:
 
         stats = evaluator.get_retry_stats("NETWORK_ERROR")
 
-        assert stats["total_retries"] == 3
-        assert stats["successful_retries"] == 2
-        assert stats["success_rate"] == pytest.approx(2 / 3)
+        assert stats["total_retries"] == 3  # nosec B101
+        assert stats["successful_retries"] == 2  # nosec B101
+        assert stats["success_rate"] == pytest.approx(2 / 3)  # nosec B101
 
     def test_get_retry_stats_no_data(self):
         """Test getting retry stats with no data."""
@@ -376,9 +376,9 @@ class TestExecutionEvaluator:
 
         stats = evaluator.get_retry_stats("UNKNOWN_ERROR")
 
-        assert stats["total_retries"] == 0
-        assert stats["successful_retries"] == 0
-        assert stats["success_rate"] == 0.0
+        assert stats["total_retries"] == 0  # nosec B101
+        assert stats["successful_retries"] == 0  # nosec B101
+        assert stats["success_rate"] == 0.0  # nosec B101
 
     def test_clear_retry_stats(self):
         """Test clearing retry statistics."""
@@ -388,7 +388,7 @@ class TestExecutionEvaluator:
         evaluator.clear_retry_stats("NETWORK_ERROR")
 
         stats = evaluator.get_retry_stats("NETWORK_ERROR")
-        assert stats["total_retries"] == 0
+        assert stats["total_retries"] == 0  # nosec B101
 
     def test_clear_all_retry_stats(self):
         """Test clearing all retry statistics."""
@@ -398,8 +398,8 @@ class TestExecutionEvaluator:
         evaluator.track_retry_result("TIMEOUT", False)
         evaluator.clear_retry_stats()
 
-        assert evaluator.get_retry_stats("NETWORK_ERROR")["total_retries"] == 0
-        assert evaluator.get_retry_stats("TIMEOUT")["total_retries"] == 0
+        assert evaluator.get_retry_stats("NETWORK_ERROR")["total_retries"] == 0  # nosec B101
+        assert evaluator.get_retry_stats("TIMEOUT")["total_retries"] == 0  # nosec B101
 
     def test_generate_clarification_question_incomplete(self):
         """Test clarification question generation for incomplete result."""
@@ -416,8 +416,8 @@ class TestExecutionEvaluator:
 
         question = evaluator._generate_clarification_question(issues)
 
-        assert "duration" in question.lower()
-        assert "missing" in question.lower()
+        assert "duration" in question.lower()  # nosec B101
+        assert "missing" in question.lower()  # nosec B101
 
     def test_generate_clarification_question_ambiguous(self):
         """Test clarification question generation for ambiguous result."""
@@ -434,8 +434,8 @@ class TestExecutionEvaluator:
 
         question = evaluator._generate_clarification_question(issues)
 
-        assert "location" in question.lower()
-        assert "ambiguous" in question.lower() or "clarify" in question.lower()
+        assert "location" in question.lower()  # nosec B101
+        assert "ambiguous" in question.lower() or "clarify" in question.lower()  # nosec B101
 
     def test_check_abandonment_timeout(self):
         """Test abandonment check for timeout."""
@@ -454,8 +454,8 @@ class TestExecutionEvaluator:
             result,
         )
 
-        assert should_abandon
-        assert "timeout" in reason.lower()
+        assert should_abandon  # nosec B101
+        assert "timeout" in reason.lower()  # nosec B101
 
     def test_evaluate_with_business_rules(self):
         """Test evaluation with business rules."""
@@ -474,8 +474,8 @@ class TestExecutionEvaluator:
             result, expected_schema=schema, business_rules=business_rules
         )
 
-        assert not evaluation.is_valid
-        assert len(evaluation.issues) > 0
+        assert not evaluation.is_valid  # nosec B101
+        assert len(evaluation.issues) > 0  # nosec B101
 
 
 class TestValidationIssue:
@@ -491,11 +491,11 @@ class TestValidationIssue:
             details={"key": "value"},
         )
 
-        assert issue.issue_type == ValidationResult.INVALID
-        assert issue.field == "test_field"
-        assert issue.message == "Test message"
-        assert issue.severity == "error"
-        assert issue.details == {"key": "value"}
+        assert issue.issue_type == ValidationResult.INVALID  # nosec B101
+        assert issue.field == "test_field"  # nosec B101
+        assert issue.message == "Test message"  # nosec B101
+        assert issue.severity == "error"  # nosec B101
+        assert issue.details == {"key": "value"}  # nosec B101
 
 
 class TestEvaluationResult:
@@ -508,9 +508,9 @@ class TestEvaluationResult:
             validation_result=ValidationResult.VALID,
         )
 
-        assert result.is_valid
-        assert result.validation_result == ValidationResult.VALID
-        assert result.issues == []
-        assert result.retry_decision == RetryDecision.NO_RETRY
-        assert not result.clarification_needed
-        assert not result.should_abandon
+        assert result.is_valid  # nosec B101
+        assert result.validation_result == ValidationResult.VALID  # nosec B101
+        assert result.issues == []  # nosec B101
+        assert result.retry_decision == RetryDecision.NO_RETRY  # nosec B101
+        assert not result.clarification_needed  # nosec B101
+        assert not result.should_abandon  # nosec B101

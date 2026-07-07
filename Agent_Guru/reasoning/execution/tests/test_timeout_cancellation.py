@@ -39,10 +39,10 @@ class TestSyncExecutorTimeout:
 
         result = executor.execute(action, fast_function, timeout=2.0)
 
-        assert result.success is True
-        assert result.result_data == 84
-        assert result.execution_time < 2.0
-        assert result.timed_out is False if hasattr(result, "timed_out") else True
+        assert result.success is True  # nosec B101
+        assert result.result_data == 84  # nosec B101
+        assert result.execution_time < 2.0  # nosec B101
+        assert result.timed_out is False if hasattr(result, "timed_out") else True  # nosec B101
 
     def test_execution_exceeds_timeout(self):
         """Test that execution exceeding timeout is cancelled."""
@@ -55,10 +55,10 @@ class TestSyncExecutorTimeout:
 
         result = executor.execute(action, slow_function, timeout=0.5)
 
-        assert result.success is False
-        assert result.error is not None
-        assert result.error["error_code"] == "TIMEOUT"
-        assert "timeout" in result.error["message"].lower()
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "TIMEOUT"  # nosec B101
+        assert "timeout" in result.error["message"].lower()  # nosec B101
 
     def test_timeout_with_custom_value(self):
         """Test that custom timeout value is respected."""
@@ -71,12 +71,12 @@ class TestSyncExecutorTimeout:
 
         # Should succeed with 1s timeout
         result = executor.execute(action, medium_function, timeout=1.0)
-        assert result.success is True
+        assert result.success is True  # nosec B101
 
         # Should fail with 0.1s timeout
         result = executor.execute(action, medium_function, timeout=0.1)
-        assert result.success is False
-        assert result.error["error_code"] == "TIMEOUT"
+        assert result.success is False  # nosec B101
+        assert result.error["error_code"] == "TIMEOUT"  # nosec B101
 
     def test_timeout_error_contains_details(self):
         """Test that timeout error contains useful details."""
@@ -89,9 +89,9 @@ class TestSyncExecutorTimeout:
 
         result = executor.execute(action, slow_function)
 
-        assert result.error is not None
-        assert "timeout" in result.error["details"]
-        assert result.error["recoverable"] is False
+        assert result.error is not None  # nosec B101
+        assert "timeout" in result.error["details"]  # nosec B101
+        assert result.error["recoverable"] is False  # nosec B101
 
 
 # ============================================================================
@@ -114,10 +114,10 @@ class TestAsyncTimeoutExecutor:
 
         result = await executor.execute_async(action, fast_async_function, timeout=2.0)
 
-        assert result.success is True
-        assert result.result_data == 84
-        assert result.execution_time < 2.0
-        assert result.timed_out is False
+        assert result.success is True  # nosec B101
+        assert result.result_data == 84  # nosec B101
+        assert result.execution_time < 2.0  # nosec B101
+        assert result.timed_out is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_async_execution_exceeds_timeout(self):
@@ -131,10 +131,10 @@ class TestAsyncTimeoutExecutor:
 
         result = await executor.execute_async(action, slow_async_function, timeout=0.5)
 
-        assert result.success is False
-        assert result.error is not None
-        assert result.error["error_code"] == "TIMEOUT"
-        assert result.timed_out is True
+        assert result.success is False  # nosec B101
+        assert result.error is not None  # nosec B101
+        assert result.error["error_code"] == "TIMEOUT"  # nosec B101
+        assert result.timed_out is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_async_timeout_with_partial_results(self):
@@ -150,8 +150,8 @@ class TestAsyncTimeoutExecutor:
 
         result = await executor.execute_async(action, partial_function, timeout=0.5)
 
-        assert result.success is False
-        assert result.timed_out is True
+        assert result.success is False  # nosec B101
+        assert result.timed_out is True  # nosec B101
         # Note: partial_result tracking needs task_id, not action_id
         # This test demonstrates the API, actual implementation may vary
 
@@ -167,8 +167,8 @@ class TestAsyncTimeoutExecutor:
 
         result = await executor.execute_async(action, slow_function, timeout=0.5)
 
-        assert result.success is False
-        assert result.partial_result is None
+        assert result.success is False  # nosec B101
+        assert result.partial_result is None  # nosec B101
 
 
 # ============================================================================
@@ -199,17 +199,17 @@ class TestAsyncCancellation:
 
         # Get task ID from in-flight tasks
         in_flight = executor.get_in_flight_tasks()
-        assert len(in_flight) == 1
+        assert len(in_flight) == 1  # nosec B101
 
         cancelled = await executor.cancel_task(in_flight[0])
-        assert cancelled is True
+        assert cancelled is True  # nosec B101
 
         # Wait for task to complete
         result = await task
 
-        assert result.success is False
-        assert result.cancelled is True
-        assert result.error["error_code"] == "CANCELLED"
+        assert result.success is False  # nosec B101
+        assert result.cancelled is True  # nosec B101
+        assert result.error["error_code"] == "CANCELLED"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_cancel_nonexistent_task(self):
@@ -217,7 +217,7 @@ class TestAsyncCancellation:
         executor = AsyncTimeoutExecutor(default_timeout=5.0)
 
         cancelled = await executor.cancel_task("nonexistent-task-id")
-        assert cancelled is False
+        assert cancelled is False  # nosec B101
 
     @pytest.mark.asyncio
     async def test_cancel_all_tasks(self):
@@ -242,7 +242,7 @@ class TestAsyncCancellation:
 
         # Cancel all
         count = await executor.cancel_all_tasks()
-        assert count == 3
+        assert count == 3  # nosec B101
 
         # Wait for all tasks to complete
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -250,8 +250,8 @@ class TestAsyncCancellation:
         # All should be cancelled
         for result in results:
             if isinstance(result, AsyncExecutionResult):
-                assert result.success is False
-                assert result.cancelled is True
+                assert result.success is False  # nosec B101
+                assert result.cancelled is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_in_flight_tasks_tracking(self):
@@ -263,7 +263,7 @@ class TestAsyncCancellation:
             return 42
 
         # Initially no tasks
-        assert len(executor.get_in_flight_tasks()) == 0
+        assert len(executor.get_in_flight_tasks()) == 0  # nosec B101
 
         # Start task
         action = Action(action_id="1", tool_id="test", parameters={})
@@ -275,13 +275,13 @@ class TestAsyncCancellation:
         await asyncio.sleep(0.1)
 
         # Should have 1 in-flight task
-        assert len(executor.get_in_flight_tasks()) == 1
+        assert len(executor.get_in_flight_tasks()) == 1  # nosec B101
 
         # Wait for completion
         await task
 
         # Should have 0 in-flight tasks
-        assert len(executor.get_in_flight_tasks()) == 0
+        assert len(executor.get_in_flight_tasks()) == 0  # nosec B101
 
 
 # ============================================================================
@@ -303,8 +303,8 @@ class TestAsyncExecutionController:
 
         result = await controller.execute_async(action, test_function)
 
-        assert result.success is True
-        assert result.result_data == 84
+        assert result.success is True  # nosec B101
+        assert result.result_data == 84  # nosec B101
 
     @pytest.mark.asyncio
     async def test_controller_execute_with_retry(self):
@@ -325,7 +325,7 @@ class TestAsyncExecutionController:
 
         # Note: Current implementation doesn't mark errors as recoverable
         # This test demonstrates the API
-        assert attempt_count >= 1
+        assert attempt_count >= 1  # nosec B101
 
     @pytest.mark.asyncio
     async def test_controller_cancel_task(self):
@@ -347,11 +347,11 @@ class TestAsyncExecutionController:
         in_flight = controller.get_in_flight_tasks()
         if in_flight:
             cancelled = await controller.cancel_task(in_flight[0])
-            assert cancelled is True
+            assert cancelled is True  # nosec B101
 
         # Wait for completion
         result = await task
-        assert result.success is False
+        assert result.success is False  # nosec B101
 
 
 # ============================================================================
@@ -383,12 +383,12 @@ class TestTimeoutProperties:
 
         # If execution time exceeds timeout, should fail with TIMEOUT
         if execution_time > timeout:
-            assert result.success is False
-            assert result.error is not None
-            assert result.error["error_code"] == "TIMEOUT"
+            assert result.success is False  # nosec B101
+            assert result.error is not None  # nosec B101
+            assert result.error["error_code"] == "TIMEOUT"  # nosec B101
         else:
             # Should succeed
-            assert result.success is True
+            assert result.success is True  # nosec B101
 
     @pytest.mark.asyncio
     @given(
@@ -412,14 +412,14 @@ class TestTimeoutProperties:
 
         # If execution time exceeds timeout (with small margin for timing precision)
         if execution_time > timeout + 0.05:  # Add 50ms margin for timing precision
-            assert result.success is False
-            assert result.error is not None
-            assert result.error["error_code"] == "TIMEOUT"
-            assert result.timed_out is True
+            assert result.success is False  # nosec B101
+            assert result.error is not None  # nosec B101
+            assert result.error["error_code"] == "TIMEOUT"  # nosec B101
+            assert result.timed_out is True  # nosec B101
         elif execution_time < timeout - 0.05:  # Clear success case
             # Should succeed
-            assert result.success is True
-            assert result.timed_out is False
+            assert result.success is True  # nosec B101
+            assert result.timed_out is False  # nosec B101
         # else: boundary case, either outcome is acceptable
 
     @given(
@@ -450,7 +450,7 @@ class TestTimeoutProperties:
 
         # Cancel all
         count = await executor.cancel_all_tasks()
-        assert count == num_tasks
+        assert count == num_tasks  # nosec B101
 
         # Wait for all to complete
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -459,7 +459,7 @@ class TestTimeoutProperties:
         cancelled_count = sum(
             1 for r in results if isinstance(r, AsyncExecutionResult) and r.cancelled
         )
-        assert cancelled_count == num_tasks
+        assert cancelled_count == num_tasks  # nosec B101
 
 
 # ============================================================================
@@ -495,9 +495,9 @@ class TestTimeoutCancellationIntegration:
 
         result = await controller.execute_async(action, multi_step_function, timeout=0.5)
 
-        assert result.success is False
-        assert result.timed_out is True
-        assert result.error["error_code"] == "TIMEOUT"
+        assert result.success is False  # nosec B101
+        assert result.timed_out is True  # nosec B101
+        assert result.error["error_code"] == "TIMEOUT"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_graceful_shutdown_with_cancellation(self):
@@ -520,7 +520,7 @@ class TestTimeoutCancellationIntegration:
 
         # Graceful shutdown - cancel all
         count = await controller.cancel_all_tasks()
-        assert count == 3
+        assert count == 3  # nosec B101
 
         # Wait for all to complete
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -528,8 +528,8 @@ class TestTimeoutCancellationIntegration:
         # All should be cancelled
         for result in results:
             if isinstance(result, AsyncExecutionResult):
-                assert result.success is False
-                assert result.cancelled is True
+                assert result.success is False  # nosec B101
+                assert result.cancelled is True  # nosec B101
 
     def test_sync_and_async_timeout_consistency(self):
         """Test that sync and async timeouts behave consistently."""
@@ -542,8 +542,8 @@ class TestTimeoutCancellationIntegration:
 
         sync_result = sync_executor.execute(action, slow_sync_function, timeout=0.5)
 
-        assert sync_result.success is False
-        assert sync_result.error["error_code"] == "TIMEOUT"
+        assert sync_result.success is False  # nosec B101
+        assert sync_result.error["error_code"] == "TIMEOUT"  # nosec B101
 
         # Async version should behave the same
         async def test_async():
@@ -557,7 +557,7 @@ class TestTimeoutCancellationIntegration:
                 action, slow_async_function, timeout=0.5
             )
 
-            assert async_result.success is False
-            assert async_result.error["error_code"] == "TIMEOUT"
+            assert async_result.success is False  # nosec B101
+            assert async_result.error["error_code"] == "TIMEOUT"  # nosec B101
 
         asyncio.run(test_async())

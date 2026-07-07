@@ -76,7 +76,7 @@ Version: 1.0.0
 """
 
 import logging
-import subprocess
+import subprocess  # nosec B404
 import time
 from dataclasses import dataclass
 
@@ -287,7 +287,7 @@ class ProcessManager:
             logger.info("Starting process: %s", " ".join(command))
 
             # Start process using subprocess
-            process = subprocess.Popen(  # noqa: S603
+            process = subprocess.Popen(  # nosec B603  # noqa: S603
                 command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

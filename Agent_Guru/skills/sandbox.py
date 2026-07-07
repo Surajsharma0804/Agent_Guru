@@ -36,8 +36,8 @@ def _worker(
     try:
         import importlib
 
-        mod = importlib.import_module(func_module)  # nosec B302,B307 — trusted internal use only
-        func = getattr(mod, func_name)  # nosec B307 — trusted internal use only
+        mod = importlib.import_module(func_module)  # nosec B302 B307
+        func = getattr(mod, func_name)  # nosec B307
         result = func(**kwargs)
         result_queue.put(("ok", result))
     except Exception as exc:

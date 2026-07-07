@@ -45,7 +45,7 @@ def read_screen_text(max_chars: int = 2000) -> str | None:
 def _read_via_uia(max_chars: int) -> str | None:
     """Read text from the focused window using Windows UI Automation."""
     try:
-        import subprocess
+        import subprocess  # nosec B404
 
         # Use PowerShell to get the focused window title and text via UIA
         # This is the same approach Windows Narrator uses
@@ -66,7 +66,7 @@ foreach ($el in $elements) {
 }
 $texts | Select-Object -First 100 | Out-String
 """
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(  # nosec B603 B607  # noqa: S603
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script],
             check=False,
             capture_output=True,

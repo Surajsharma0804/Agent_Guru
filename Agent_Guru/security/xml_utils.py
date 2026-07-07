@@ -19,7 +19,7 @@ Requirements: 2.18
 
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
 from typing import IO
 

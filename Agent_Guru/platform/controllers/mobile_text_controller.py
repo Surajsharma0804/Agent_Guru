@@ -103,7 +103,7 @@ def _detect_platform() -> str:
         result = "macos"
     elif system == "linux":
         try:
-            import subprocess
+            import subprocess  # nosec B404
 
             out = subprocess.run(
                 ["uname", "-o"],

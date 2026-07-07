@@ -235,7 +235,7 @@ class CalculateTool(Tool):
                 },
             }
 
-        except ZeroDivisionError as e:
+        except ZeroDivisionError:
             return {
                 "success": False,
                 "error": "Division by zero",

@@ -12,7 +12,7 @@ This test suite provides comprehensive coverage including:
 
 import pytest
 import sys
-import subprocess
+import subprocess  # nosec B404
 from unittest.mock import Mock, patch
 from hypothesis import given, strategies as st
 
@@ -32,21 +32,21 @@ class TestWindowManager:
         """Test window manager initialization."""
         manager = WindowManager()
 
-        assert manager.platform == sys.platform
-        assert manager._platform_integration is not None
-        assert manager._screen_cache is None
-        assert manager._cache_ttl == 5.0
+        assert manager.platform == sys.platform  # nosec B101
+        assert manager._platform_integration is not None  # nosec B101
+        assert manager._screen_cache is None  # nosec B101
+        assert manager._cache_ttl == 5.0  # nosec B101
 
     def test_get_fallback_screen(self):
         """Test fallback screen information."""
         manager = WindowManager()
         screens = manager._get_fallback_screen()
 
-        assert len(screens) == 1
-        assert screens[0].index == 0
-        assert screens[0].width == 1920
-        assert screens[0].height == 1080
-        assert screens[0].is_primary is True
+        assert len(screens) == 1  # nosec B101
+        assert screens[0].index == 0  # nosec B101
+        assert screens[0].width == 1920  # nosec B101
+        assert screens[0].height == 1080  # nosec B101
+        assert screens[0].is_primary is True  # nosec B101
 
     def test_calculate_snap_position_left_half(self):
         """Test snap position calculation for left half."""
@@ -65,10 +65,10 @@ class TestWindowManager:
             SnapPosition.LEFT_HALF
         )
 
-        assert x == 0
-        assert y == 0
-        assert width == 960
-        assert height == 1080
+        assert x == 0  # nosec B101
+        assert y == 0  # nosec B101
+        assert width == 960  # nosec B101
+        assert height == 1080  # nosec B101
 
     def test_calculate_snap_position_right_half(self):
         """Test snap position calculation for right half."""
@@ -87,10 +87,10 @@ class TestWindowManager:
             SnapPosition.RIGHT_HALF
         )
 
-        assert x == 960
-        assert y == 0
-        assert width == 960
-        assert height == 1080
+        assert x == 960  # nosec B101
+        assert y == 0  # nosec B101
+        assert width == 960  # nosec B101
+        assert height == 1080  # nosec B101
 
     def test_calculate_snap_position_top_left(self):
         """Test snap position calculation for top left corner."""
@@ -109,10 +109,10 @@ class TestWindowManager:
             SnapPosition.TOP_LEFT
         )
 
-        assert x == 0
-        assert y == 0
-        assert width == 960
-        assert height == 540
+        assert x == 0  # nosec B101
+        assert y == 0  # nosec B101
+        assert width == 960  # nosec B101
+        assert height == 540  # nosec B101
 
     def test_calculate_snap_position_center(self):
         """Test snap position calculation for center."""
@@ -137,10 +137,10 @@ class TestWindowManager:
         expected_x = (1920 - expected_width) // 2
         expected_y = (1080 - expected_height) // 2
 
-        assert x == expected_x
-        assert y == expected_y
-        assert width == expected_width
-        assert height == expected_height
+        assert x == expected_x  # nosec B101
+        assert y == expected_y  # nosec B101
+        assert width == expected_width  # nosec B101
+        assert height == expected_height  # nosec B101
 
     @patch('Agent_Guru.platform.controllers.window_management.time.time')
     def test_get_screens_uses_cache(self, mock_time):
@@ -163,8 +163,8 @@ class TestWindowManager:
         mock_time.return_value = 102.0  # Within TTL
         screens = manager.get_screens(use_cache=True)
 
-        assert len(screens) == 1
-        assert screens[0].width == 1920
+        assert len(screens) == 1  # nosec B101
+        assert screens[0].width == 1920  # nosec B101
 
     def test_snap_window_invalid_screen_index(self):
         """Test snap window with invalid screen index."""
@@ -180,7 +180,7 @@ class TestWindowManager:
         with patch.object(manager, 'snap_window', return_value=True) as mock_snap:
             result = manager.snap_window_left("Test Window")
 
-            assert result is True
+            assert result is True  # nosec B101
             mock_snap.assert_called_once_with("Test Window", SnapPosition.LEFT_HALF)
 
     def test_snap_window_right_convenience_method(self):
@@ -190,7 +190,7 @@ class TestWindowManager:
         with patch.object(manager, 'snap_window', return_value=True) as mock_snap:
             result = manager.snap_window_right("Test Window")
 
-            assert result is True
+            assert result is True  # nosec B101
             mock_snap.assert_called_once_with("Test Window", SnapPosition.RIGHT_HALF)
 
     def test_tile_windows_convenience_method(self):
@@ -200,7 +200,7 @@ class TestWindowManager:
         with patch.object(manager, 'arrange_windows', return_value=True) as mock_arrange:
             result = manager.tile_windows(["Window1", "Window2"])
 
-            assert result is True
+            assert result is True  # nosec B101
             mock_arrange.assert_called_once_with(
                 ArrangementStyle.TILE,
                 ["Window1", "Window2"]
@@ -213,7 +213,7 @@ class TestWindowManager:
         with patch.object(manager, 'arrange_windows', return_value=True) as mock_arrange:
             result = manager.cascade_windows()
 
-            assert result is True
+            assert result is True  # nosec B101
             mock_arrange.assert_called_once_with(ArrangementStyle.CASCADE, None)
 
     def test_arrange_windows_no_windows(self):
@@ -223,7 +223,7 @@ class TestWindowManager:
         with patch.object(manager, '_get_all_visible_windows', return_value=[]):
             result = manager.arrange_windows(ArrangementStyle.TILE)
 
-            assert result is False
+            assert result is False  # nosec B101
 
     def test_arrange_windows_unknown_style(self):
         """Test arrange windows with unknown style."""
@@ -236,7 +236,7 @@ class TestWindowManager:
                 # We can't actually create an invalid enum, so we test that valid enums work
                 result = manager.arrange_windows(ArrangementStyle.TILE, ["Window1"])
                 # Should work with valid style
-                assert isinstance(result, bool)
+                assert isinstance(result, bool)  # nosec B101
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific tests")
@@ -261,7 +261,7 @@ class TestWindowManagerWindows:
 
             screens = manager._get_screens_windows()
 
-            assert len(screens) >= 1
+            assert len(screens) >= 1  # nosec B101
             # Should either parse successfully or return fallback
 
     def test_snap_window_windows(self):
@@ -279,7 +279,7 @@ class TestWindowManagerWindows:
             result = manager._snap_window_windows("Test Window", 0, 0, 960, 1080)
 
             # Should attempt to set window position
-            assert isinstance(result, bool)
+            assert isinstance(result, bool)  # nosec B101
 
     def test_get_visible_windows_windows(self):
         """Test get visible windows on Windows."""
@@ -302,7 +302,7 @@ class TestWindowManagerWindows:
             windows = manager._get_visible_windows_windows()
 
             # Should return list of windows
-            assert isinstance(windows, list)
+            assert isinstance(windows, list)  # nosec B101
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="macOS-specific tests")
@@ -322,7 +322,7 @@ class TestWindowManagerMacOS:
 
         screens = manager._get_screens_macos()
 
-        assert len(screens) >= 1
+        assert len(screens) >= 1  # nosec B101
         # Should either parse successfully or return fallback
 
     @patch('Agent_Guru.platform.controllers.window_management.subprocess.run')
@@ -335,7 +335,7 @@ class TestWindowManagerMacOS:
 
         result = manager._snap_window_macos("Test Window", 0, 0, 960, 1080)
 
-        assert result is True
+        assert result is True  # nosec B101
         mock_run.assert_called_once()
 
     @patch('Agent_Guru.platform.controllers.window_management.subprocess.run')
@@ -351,8 +351,8 @@ class TestWindowManagerMacOS:
 
         windows = manager._get_visible_windows_macos()
 
-        assert len(windows) == 3
-        assert "Window1" in windows
+        assert len(windows) == 3  # nosec B101
+        assert "Window1" in windows  # nosec B101
 
 
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux-specific tests")
@@ -372,7 +372,7 @@ class TestWindowManagerLinux:
 
         screens = manager._get_screens_linux()
 
-        assert len(screens) >= 1
+        assert len(screens) >= 1  # nosec B101
 
     @patch('Agent_Guru.platform.controllers.window_management.subprocess.run')
     def test_snap_window_linux(self, mock_run):
@@ -387,8 +387,8 @@ class TestWindowManagerLinux:
 
         result = manager._snap_window_linux("Test Window", 0, 0, 960, 1080)
 
-        assert result is True
-        assert mock_run.call_count == 2
+        assert result is True  # nosec B101
+        assert mock_run.call_count == 2  # nosec B101
 
     @patch('Agent_Guru.platform.controllers.window_management.subprocess.run')
     def test_get_visible_windows_linux(self, mock_run):
@@ -403,9 +403,9 @@ class TestWindowManagerLinux:
 
         windows = manager._get_visible_windows_linux()
 
-        assert len(windows) == 2
-        assert "Window1" in windows
-        assert "Window2" in windows
+        assert len(windows) == 2  # nosec B101
+        assert "Window1" in windows  # nosec B101
+        assert "Window2" in windows  # nosec B101
 
 
 class TestVirtualDesktopManagement:
@@ -419,7 +419,7 @@ class TestVirtualDesktopManagement:
             desktop_id = manager.create_virtual_desktop()
 
             # Should return a desktop ID or None
-            assert desktop_id is None or isinstance(desktop_id, str)
+            assert desktop_id is None or isinstance(desktop_id, str)  # nosec B101
 
     def test_switch_virtual_desktop(self):
         """Test switch virtual desktop."""
@@ -429,7 +429,7 @@ class TestVirtualDesktopManagement:
             result = manager.switch_virtual_desktop("desktop_1")
 
             # Should return boolean
-            assert isinstance(result, bool)
+            assert isinstance(result, bool)  # nosec B101
 
     def test_close_virtual_desktop(self):
         """Test close virtual desktop."""
@@ -439,7 +439,7 @@ class TestVirtualDesktopManagement:
             result = manager.close_virtual_desktop("desktop_1")
 
             # Should return boolean
-            assert isinstance(result, bool)
+            assert isinstance(result, bool)  # nosec B101
 
     def test_list_virtual_desktops(self):
         """Test list virtual desktops."""
@@ -448,9 +448,9 @@ class TestVirtualDesktopManagement:
         desktops = manager.list_virtual_desktops()
 
         # Should return list
-        assert isinstance(desktops, list)
+        assert isinstance(desktops, list)  # nosec B101
         if desktops:
-            assert isinstance(desktops[0], VirtualDesktopInfo)
+            assert isinstance(desktops[0], VirtualDesktopInfo)  # nosec B101
 
 
 @pytest.mark.integration
@@ -463,11 +463,11 @@ class TestWindowManagerIntegration:
 
         screens = manager.get_screens()
 
-        assert len(screens) >= 1
-        assert all(isinstance(s, ScreenInfo) for s in screens)
-        assert all(s.width > 0 for s in screens)
-        assert all(s.height > 0 for s in screens)
-        assert any(s.is_primary for s in screens)
+        assert len(screens) >= 1  # nosec B101
+        assert all(isinstance(s, ScreenInfo) for s in screens)  # nosec B101
+        assert all(s.width > 0 for s in screens)  # nosec B101
+        assert all(s.height > 0 for s in screens)  # nosec B101
+        assert any(s.is_primary for s in screens)  # nosec B101
 
     def test_screen_cache_works(self):
         """Test that screen caching works correctly."""
@@ -480,7 +480,7 @@ class TestWindowManagerIntegration:
         screens2 = manager.get_screens()
 
         # Should be same object (cached)
-        assert screens1 is screens2
+        assert screens1 is screens2  # nosec B101
 
     def test_calculate_all_snap_positions(self):
         """Test calculating all snap positions."""
@@ -511,14 +511,14 @@ class TestWindowManagerIntegration:
             x, y, width, height = manager._calculate_snap_position(screen, position)
 
             # All values should be non-negative
-            assert x >= 0
-            assert y >= 0
-            assert width > 0
-            assert height > 0
+            assert x >= 0  # nosec B101
+            assert y >= 0  # nosec B101
+            assert width > 0  # nosec B101
+            assert height > 0  # nosec B101
 
             # Should be within screen bounds
-            assert x + width <= screen.x + screen.width + 1  # +1 for rounding
-            assert y + height <= screen.y + screen.height + 1
+            assert x + width <= screen.x + screen.width + 1  # +1 for rounding  # nosec B101
+            assert y + height <= screen.y + screen.height + 1  # nosec B101
 
 
 
@@ -549,14 +549,14 @@ class TestWindowManagerProperties:
             x, y, w, h = manager._calculate_snap_position(screen, position)
 
             # All values must be non-negative
-            assert x >= 0, f"X position negative for {position}"
-            assert y >= 0, f"Y position negative for {position}"
-            assert w > 0, f"Width non-positive for {position}"
-            assert h > 0, f"Height non-positive for {position}"
+            assert x >= 0, f"X position negative for {position}"  # nosec B101
+            assert y >= 0, f"Y position negative for {position}"  # nosec B101
+            assert w > 0, f"Width non-positive for {position}"  # nosec B101
+            assert h > 0, f"Height non-positive for {position}"  # nosec B101
 
             # Must be within screen bounds (with 1px tolerance for rounding)
-            assert x + w <= screen.x + screen.width + 1, f"Exceeds width for {position}"
-            assert y + h <= screen.y + screen.height + 1, f"Exceeds height for {position}"
+            assert x + w <= screen.x + screen.width + 1, f"Exceeds width for {position}"  # nosec B101
+            assert y + h <= screen.y + screen.height + 1, f"Exceeds height for {position}"  # nosec B101
 
     @given(
         x=st.integers(min_value=-1000, max_value=1000),
@@ -575,10 +575,10 @@ class TestWindowManagerProperties:
             is_primary=True
         )
 
-        assert screen.x == x
-        assert screen.y == y
-        assert screen.width == width
-        assert screen.height == height
+        assert screen.x == x  # nosec B101
+        assert screen.y == y  # nosec B101
+        assert screen.width == width  # nosec B101
+        assert screen.height == height  # nosec B101
 
     @given(
         num_windows=st.integers(min_value=1, max_value=20)
@@ -604,12 +604,12 @@ class TestWindowManagerProperties:
         window_height = screen.height // rows
 
         # Verify each window has positive dimensions
-        assert window_width > 0, "Window width must be positive"
-        assert window_height > 0, "Window height must be positive"
+        assert window_width > 0, "Window width must be positive"  # nosec B101
+        assert window_height > 0, "Window height must be positive"  # nosec B101
         
         # Verify windows fit within screen
-        assert window_width * cols <= screen.width + cols, "Windows exceed screen width"
-        assert window_height * rows <= screen.height + rows, "Windows exceed screen height"
+        assert window_width * cols <= screen.width + cols, "Windows exceed screen width"  # nosec B101
+        assert window_height * rows <= screen.height + rows, "Windows exceed screen height"  # nosec B101
 
     @given(
         cache_ttl=st.floats(min_value=0.1, max_value=60.0)
@@ -628,7 +628,7 @@ class TestWindowManagerProperties:
             # Within TTL
             mock_time.return_value = 100.0 + cache_ttl - 0.1
             screens = manager.get_screens(use_cache=True)
-            assert screens is manager._screen_cache, "Cache not used within TTL"
+            assert screens is manager._screen_cache, "Cache not used within TTL"  # nosec B101
 
     @given(
         window_title=st.text(min_size=1, max_size=100, alphabet=st.characters(blacklist_categories=('Cs', 'Cc')))
@@ -643,7 +643,7 @@ class TestWindowManagerProperties:
                 # Should not raise for valid input
                 if window_title.strip():
                     result = manager.snap_window(window_title, SnapPosition.LEFT_HALF)
-                    assert isinstance(result, bool)
+                    assert isinstance(result, bool)  # nosec B101
 
 
 # ============================================================================
@@ -687,7 +687,7 @@ class TestWindowManagerEdgeCases:
         manager = WindowManager()
 
         result = manager.arrange_windows(ArrangementStyle.TILE, [])
-        assert result is False
+        assert result is False  # nosec B101
 
     def test_arrange_windows_single_window(self):
         """Test arrange windows with single window."""
@@ -696,7 +696,7 @@ class TestWindowManagerEdgeCases:
         with patch.object(manager, 'get_screens', return_value=[ScreenInfo(0, 0, 0, 1920, 1080, True)]):
             with patch.object(manager, '_snap_window_platform_specific', return_value=True):
                 result = manager.arrange_windows(ArrangementStyle.TILE, ["Window1"])
-                assert result is True
+                assert result is True  # nosec B101
 
     def test_get_screens_cache_expired(self):
         """Test get_screens when cache is expired."""
@@ -714,7 +714,7 @@ class TestWindowManagerEdgeCases:
                 screens = manager.get_screens(use_cache=True)
 
                 # Should get new screens, not cached
-                assert screens[0].width == 1920  # New value
+                assert screens[0].width == 1920  # New value  # nosec B101
 
     def test_get_screens_no_cache(self):
         """Test get_screens with cache disabled."""
@@ -728,7 +728,7 @@ class TestWindowManagerEdgeCases:
             screens = manager.get_screens(use_cache=False)
 
             # Should get new screens
-            assert screens[0].width == 1920
+            assert screens[0].width == 1920  # nosec B101
 
     def test_calculate_snap_position_all_positions(self):
         """Test calculate snap position for all enum values."""
@@ -742,10 +742,10 @@ class TestWindowManagerEdgeCases:
             positions_tested.add(position)
 
             # Verify valid dimensions
-            assert w > 0 and h > 0
+            assert w > 0 and h > 0  # nosec B101
 
         # Ensure all positions tested
-        assert len(positions_tested) == len(SnapPosition)
+        assert len(positions_tested) == len(SnapPosition)  # nosec B101
 
     def test_virtual_desktop_info_creation(self):
         """Test VirtualDesktopInfo dataclass creation."""
@@ -756,10 +756,10 @@ class TestWindowManagerEdgeCases:
             window_count=5
         )
 
-        assert info.id == "test_id"
-        assert info.name == "Test Desktop"
-        assert info.is_active is True
-        assert info.window_count == 5
+        assert info.id == "test_id"  # nosec B101
+        assert info.name == "Test Desktop"  # nosec B101
+        assert info.is_active is True  # nosec B101
+        assert info.window_count == 5  # nosec B101
 
     def test_screen_info_creation(self):
         """Test ScreenInfo dataclass creation."""
@@ -772,12 +772,12 @@ class TestWindowManagerEdgeCases:
             is_primary=False
         )
 
-        assert info.index == 1
-        assert info.x == 1920
-        assert info.y == 0
-        assert info.width == 1920
-        assert info.height == 1080
-        assert info.is_primary is False
+        assert info.index == 1  # nosec B101
+        assert info.x == 1920  # nosec B101
+        assert info.y == 0  # nosec B101
+        assert info.width == 1920  # nosec B101
+        assert info.height == 1080  # nosec B101
+        assert info.is_primary is False  # nosec B101
 
 
 # ============================================================================
@@ -817,7 +817,7 @@ class TestWindowManagerErrorHandling:
             mock_run.side_effect = subprocess.TimeoutExpired('osascript', 5)
 
             result = manager._snap_window_macos("Test", 0, 0, 960, 1080)
-            assert result is False
+            assert result is False  # nosec B101
 
     def test_snap_window_linux_wmctrl_not_found(self):
         """Test snap window on Linux without wmctrl."""
@@ -827,7 +827,7 @@ class TestWindowManagerErrorHandling:
             mock_run.side_effect = FileNotFoundError("wmctrl not found")
 
             result = manager._snap_window_linux("Test", 0, 0, 960, 1080)
-            assert result is False
+            assert result is False  # nosec B101
 
     def test_get_screens_windows_fallback(self):
         """Test get_screens_windows falls back on error."""
@@ -837,8 +837,8 @@ class TestWindowManagerErrorHandling:
             screens = manager._get_screens_windows()
 
             # Should return fallback
-            assert len(screens) == 1
-            assert screens[0].width == 1920
+            assert len(screens) == 1  # nosec B101
+            assert screens[0].width == 1920  # nosec B101
 
     def test_get_screens_macos_fallback(self):
         """Test get_screens_macos falls back on error."""
@@ -850,8 +850,8 @@ class TestWindowManagerErrorHandling:
             screens = manager._get_screens_macos()
 
             # Should return fallback
-            assert len(screens) == 1
-            assert screens[0].width == 1920
+            assert len(screens) == 1  # nosec B101
+            assert screens[0].width == 1920  # nosec B101
 
     def test_get_screens_linux_fallback(self):
         """Test get_screens_linux falls back on error."""
@@ -863,8 +863,8 @@ class TestWindowManagerErrorHandling:
             screens = manager._get_screens_linux()
 
             # Should return fallback
-            assert len(screens) == 1
-            assert screens[0].width == 1920
+            assert len(screens) == 1  # nosec B101
+            assert screens[0].width == 1920  # nosec B101
 
 
 # ============================================================================
@@ -883,11 +883,11 @@ class TestWindowManagerComprehensiveIntegration:
             with patch.object(manager, '_snap_window_platform_specific', return_value=True):
                 # Snap window
                 result1 = manager.snap_window("Window1", SnapPosition.LEFT_HALF)
-                assert result1 is True
+                assert result1 is True  # nosec B101
 
                 # Arrange windows
                 result2 = manager.arrange_windows(ArrangementStyle.TILE, ["Window1", "Window2"])
-                assert result2 is True
+                assert result2 is True  # nosec B101
 
     def test_virtual_desktop_lifecycle(self):
         """Test virtual desktop create, switch, close lifecycle."""
@@ -898,15 +898,15 @@ class TestWindowManagerComprehensiveIntegration:
                 with patch.object(manager, f'_close_virtual_desktop_{manager.platform.replace("darwin", "macos").replace("win32", "windows")}', return_value=True):
                     # Create
                     desktop_id = manager.create_virtual_desktop()
-                    assert desktop_id == "desktop_123"
+                    assert desktop_id == "desktop_123"  # nosec B101
 
                     # Switch
                     result = manager.switch_virtual_desktop(desktop_id)
-                    assert result is True
+                    assert result is True  # nosec B101
 
                     # Close
                     result = manager.close_virtual_desktop(desktop_id)
-                    assert result is True
+                    assert result is True  # nosec B101
 
     def test_multi_screen_snap(self):
         """Test snapping windows across multiple screens."""
@@ -921,11 +921,11 @@ class TestWindowManagerComprehensiveIntegration:
             with patch.object(manager, '_snap_window_platform_specific', return_value=True):
                 # Snap to primary screen
                 result1 = manager.snap_window("Window1", SnapPosition.LEFT_HALF, screen_index=0)
-                assert result1 is True
+                assert result1 is True  # nosec B101
 
                 # Snap to secondary screen
                 result2 = manager.snap_window("Window2", SnapPosition.RIGHT_HALF, screen_index=1)
-                assert result2 is True
+                assert result2 is True  # nosec B101
 
     def test_all_arrangement_styles(self):
         """Test all arrangement styles work."""
@@ -937,7 +937,7 @@ class TestWindowManagerComprehensiveIntegration:
             with patch.object(manager, '_snap_window_platform_specific', return_value=True):
                 for style in ArrangementStyle:
                     result = manager.arrange_windows(style, windows)
-                    assert result is True, f"Failed for style {style}"
+                    assert result is True, f"Failed for style {style}"  # nosec B101
 
     def test_cache_invalidation_on_ttl_expiry(self):
         """Test cache is invalidated after TTL expires."""
@@ -948,17 +948,17 @@ class TestWindowManagerComprehensiveIntegration:
                 # First call
                 mock_time.return_value = 100.0
                 manager.get_screens()
-                assert mock_get.call_count == 1
+                assert mock_get.call_count == 1  # nosec B101
 
                 # Second call within TTL
                 mock_time.return_value = 102.0
                 manager.get_screens()
-                assert mock_get.call_count == 1  # Still cached
+                assert mock_get.call_count == 1  # Still cached  # nosec B101
 
                 # Third call after TTL
                 mock_time.return_value = 110.0
                 manager.get_screens()
-                assert mock_get.call_count == 2  # Cache refreshed
+                assert mock_get.call_count == 2  # Cache refreshed  # nosec B101
 
 
 # ============================================================================
@@ -976,7 +976,7 @@ class TestWindowManagerAdditionalCoverage:
             with patch.object(manager, 'get_screens', return_value=[ScreenInfo(0, 0, 0, 1920, 1080, True)]):
                 with patch.object(manager, '_snap_window_platform_specific', return_value=True):
                     result = manager.arrange_windows(ArrangementStyle.TILE, None)
-                    assert result is True
+                    assert result is True  # nosec B101
 
     def test_snap_window_platform_specific_all_platforms(self):
         """Test _snap_window_platform_specific for all platforms."""
@@ -988,7 +988,7 @@ class TestWindowManagerAdditionalCoverage:
 
             with patch.object(manager, f'_snap_window_{platform.replace("darwin", "macos").replace("win32", "windows")}', return_value=True) as mock_snap:
                 result = manager._snap_window_platform_specific("Test", 0, 0, 960, 1080)
-                assert result is True
+                assert result is True  # nosec B101
                 mock_snap.assert_called_once()
 
     def test_get_visible_windows_all_platforms(self):
@@ -1001,7 +1001,7 @@ class TestWindowManagerAdditionalCoverage:
 
             with patch.object(manager, f'_get_visible_windows_{platform.replace("darwin", "macos").replace("win32", "windows")}', return_value=["W1"]) as mock_get:
                 windows = manager._get_all_visible_windows()
-                assert windows == ["W1"]
+                assert windows == ["W1"]  # nosec B101
                 mock_get.assert_called_once()
 
     def test_create_virtual_desktop_all_platforms(self):
@@ -1014,7 +1014,7 @@ class TestWindowManagerAdditionalCoverage:
 
             with patch.object(manager, f'_create_virtual_desktop_{platform.replace("darwin", "macos").replace("win32", "windows")}', return_value="desktop_123") as mock_create:
                 desktop_id = manager.create_virtual_desktop()
-                assert desktop_id == "desktop_123"
+                assert desktop_id == "desktop_123"  # nosec B101
                 mock_create.assert_called_once()
 
     def test_switch_virtual_desktop_all_platforms(self):
@@ -1027,7 +1027,7 @@ class TestWindowManagerAdditionalCoverage:
 
             with patch.object(manager, f'_switch_virtual_desktop_{platform.replace("darwin", "macos").replace("win32", "windows")}', return_value=True) as mock_switch:
                 result = manager.switch_virtual_desktop("desktop_1")
-                assert result is True
+                assert result is True  # nosec B101
                 mock_switch.assert_called_once()
 
     def test_close_virtual_desktop_all_platforms(self):
@@ -1040,7 +1040,7 @@ class TestWindowManagerAdditionalCoverage:
 
             with patch.object(manager, f'_close_virtual_desktop_{platform.replace("darwin", "macos").replace("win32", "windows")}', return_value=True) as mock_close:
                 result = manager.close_virtual_desktop("desktop_1")
-                assert result is True
+                assert result is True  # nosec B101
                 mock_close.assert_called_once()
 
     def test_list_virtual_desktops_all_platforms(self):
@@ -1053,7 +1053,7 @@ class TestWindowManagerAdditionalCoverage:
 
             with patch.object(manager, f'_list_virtual_desktops_{platform.replace("darwin", "macos").replace("win32", "windows")}', return_value=[]) as mock_list:
                 desktops = manager.list_virtual_desktops()
-                assert desktops == []
+                assert desktops == []  # nosec B101
                 mock_list.assert_called_once()
 
     def test_arrange_horizontal_multiple_windows(self):
@@ -1065,7 +1065,7 @@ class TestWindowManagerAdditionalCoverage:
                 ["W1", "W2", "W3"],
                 ScreenInfo(0, 0, 0, 1920, 1080, True)
             )
-            assert result is True
+            assert result is True  # nosec B101
 
     def test_arrange_vertical_multiple_windows(self):
         """Test vertical arrangement with multiple windows."""
@@ -1076,7 +1076,7 @@ class TestWindowManagerAdditionalCoverage:
                 ["W1", "W2", "W3"],
                 ScreenInfo(0, 0, 0, 1920, 1080, True)
             )
-            assert result is True
+            assert result is True  # nosec B101
 
     def test_arrange_cascade_wraps_around(self):
         """Test cascade arrangement wraps around screen bounds."""
@@ -1090,7 +1090,7 @@ class TestWindowManagerAdditionalCoverage:
                 windows,
                 ScreenInfo(0, 0, 0, 1920, 1080, True)
             )
-            assert result is True
+            assert result is True  # nosec B101
 
     def test_snap_window_windows_partial_title_match(self):
         """Test Windows snap with partial title match."""
@@ -1110,7 +1110,7 @@ class TestWindowManagerAdditionalCoverage:
                                 mock_enum.side_effect = enum_callback
 
                                 result = manager._snap_window_windows("Chrome", 0, 0, 960, 1080)
-                                assert result is True
+                                assert result is True  # nosec B101
 
     def test_snap_window_windows_restore_minimized(self):
         """Test Windows snap restores minimized window."""
@@ -1122,7 +1122,7 @@ class TestWindowManagerAdditionalCoverage:
                     with patch('win32gui.SetWindowPos'):
                         with patch('Agent_Guru.platform.controllers.window_management.time.sleep'):
                             result = manager._snap_window_windows("Test", 0, 0, 960, 1080)
-                            assert result is True
+                            assert result is True  # nosec B101
                             mock_show.assert_called_once()
 
     def test_get_screens_linux_xrandr_parsing(self):
@@ -1140,7 +1140,7 @@ DP-1 connected 1920x1080+1920+0 (normal left inverted right x axis y axis) 527mm
 
             screens = manager._get_screens_linux()
 
-            assert len(screens) >= 1
+            assert len(screens) >= 1  # nosec B101
             # Should parse at least one screen
 
     def test_list_virtual_desktops_linux_parsing(self):
@@ -1155,6 +1155,6 @@ DP-1 connected 1920x1080+1920+0 (normal left inverted right x axis y axis) 527mm
 
             desktops = manager._list_virtual_desktops_linux()
 
-            assert len(desktops) == 2
-            assert desktops[0].is_active is True
-            assert desktops[1].is_active is False
+            assert len(desktops) == 2  # nosec B101
+            assert desktops[0].is_active is True  # nosec B101
+            assert desktops[1].is_active is False  # nosec B101

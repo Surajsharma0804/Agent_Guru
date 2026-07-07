@@ -5,7 +5,7 @@ Platform-specific implementations for Windows, macOS, and Linux.
 
 import logging
 import platform
-import subprocess
+import subprocess  # nosec B404
 from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (

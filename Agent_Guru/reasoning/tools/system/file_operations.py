@@ -103,7 +103,7 @@ class FileReadTool(Tool):
                 },
             }
 
-        except UnicodeDecodeError as e:
+        except UnicodeDecodeError:
             return {
                 "success": False,
                 "error": f"Failed to decode file with encoding {encoding}",

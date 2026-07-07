@@ -619,7 +619,7 @@ if __name__ == "__main__":
         start = time.perf_counter()
         for i in range(100):
             async with pool.acquire() as conn:
-                conn.execute("INSERT INTO test (value) VALUES (?)", (f"value_{i}",))  # nosec B608 — parameterized query, no injection risk
+                conn.execute("INSERT INTO test (value) VALUES (?)", (f"value_{i}",))  # nosec B608
                 conn.commit()
         time.perf_counter() - start
 

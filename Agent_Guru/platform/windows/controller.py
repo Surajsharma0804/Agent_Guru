@@ -19,7 +19,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import os
-import subprocess
+import subprocess  # nosec B404
 import sys
 import time
 from dataclasses import dataclass, field
@@ -215,7 +215,7 @@ class WindowsController:
         try:
             # URL → open in default browser
             if resolved.startswith(("http://", "https://")):
-                os.startfile(resolved)  # type: ignore[attr-defined]
+                os.startfile(resolved)  # type: ignore[attr-defined]  # nosec B606
                 latency_ms = (time.perf_counter() - start) * 1000
                 logger.info("Opened URL: %s", resolved)
                 return WindowsControllerResult(
@@ -228,7 +228,7 @@ class WindowsController:
 
             # Try subprocess with full args
             cmd = [resolved, *args]
-            proc = subprocess.Popen(  # noqa: S603
+            proc = subprocess.Popen(  # nosec B603  # noqa: S603
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -247,7 +247,7 @@ class WindowsController:
         except (FileNotFoundError, OSError) as e:
             # Fallback: os.startfile (uses Windows shell association)
             try:
-                os.startfile(resolved)  # type: ignore[attr-defined]
+                os.startfile(resolved)  # type: ignore[attr-defined]  # nosec B606
                 latency_ms = (time.perf_counter() - start) * 1000
                 logger.info("Launched via shell: %s", resolved)
                 return WindowsControllerResult(

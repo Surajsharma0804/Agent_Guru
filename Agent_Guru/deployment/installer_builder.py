@@ -14,7 +14,7 @@ This module generates the configuration files and build scripts.
 from __future__ import annotations
 
 import platform
-import subprocess
+import subprocess  # nosec B404
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -192,13 +192,13 @@ class InstallerBuilder:
             # shell=False (explicit) with a list — no shell interpolation possible.
             # All paths are resolved under self._output_dir; no user-controlled
             # shell expansion.  nosec B603: shell=False, args are internally built.
-            subprocess.run(  # nosec B603  # noqa: S603
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["candle.exe", str(wxs_path), "-o", str(wixobj)],
                 check=True,
                 capture_output=True,
                 shell=False,  # explicit — never allow shell=True here
             )
-            subprocess.run(  # nosec B603  # noqa: S603
+            subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["light.exe", str(wixobj), "-o", str(msi_path)],
                 check=True,
                 capture_output=True,

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import re
-import xml.etree.ElementTree as ET  # nosec B405 — used only for ET.ParseError type; defusedxml used for all parsing
+import xml.etree.ElementTree as ET  # nosec B405
 from typing import Any
 
 try:

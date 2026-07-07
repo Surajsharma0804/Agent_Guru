@@ -107,40 +107,40 @@ class TestAsyncExecutionImmediateReturnProperties:
             submission_time = time.perf_counter() - start_time
 
             # Property assertions - immediate return
-            assert submission_time < 0.1, (
+            assert submission_time < 0.1, (  # nosec B101
                 f"Async execution should return within 100ms, "
                 f"but took {submission_time * 1000:.2f}ms for action "
                 f"with duration {action_duration}s"
             )
 
             # Property assertions - result structure
-            assert isinstance(result, AsyncExecutionResult), (
+            assert isinstance(result, AsyncExecutionResult), (  # nosec B101
                 f"execute_async must return AsyncExecutionResult, " f"got {type(result)}"
             )
 
             # Property assertions - initial state
-            assert result.task_id is not None, "Task ID must be assigned"
-            assert isinstance(
+            assert result.task_id is not None, "Task ID must be assigned"  # nosec B101
+            assert isinstance(  # nosec B101
                 result.task_id, str
             ), f"Task ID must be string, got {type(result.task_id)}"
-            assert len(result.task_id) > 0, "Task ID must not be empty"
+            assert len(result.task_id) > 0, "Task ID must not be empty"  # nosec B101
 
-            assert result.status in [
+            assert result.status in [  # nosec B101
                 TaskStatus.PENDING,
                 TaskStatus.RUNNING,
             ], f"Initial status should be PENDING or RUNNING, got {result.status}"
 
-            assert result.action_id == action_id, (
+            assert result.action_id == action_id, (  # nosec B101
                 f"Action ID should be preserved: expected {action_id}, " f"got {result.action_id}"
             )
 
-            assert result.started_at is not None, "Started timestamp must be set"
+            assert result.started_at is not None, "Started timestamp must be set"  # nosec B101
 
             # Property assertions - task not completed yet
-            assert result.progress < 100.0, (
+            assert result.progress < 100.0, (  # nosec B101
                 f"Task should not be completed immediately, " f"but progress is {result.progress}%"
             )
-            assert (
+            assert (  # nosec B101
                 result.completed_at is None
             ), "Task should not have completion timestamp immediately"
 
@@ -219,11 +219,11 @@ class TestAsyncExecutionImmediateReturnProperties:
             long_submission_time = time.perf_counter() - start_time
 
             # Property assertions - both submit quickly
-            assert short_submission_time < 0.1, (
+            assert short_submission_time < 0.1, (  # nosec B101
                 f"Short task submission should be <100ms, "
                 f"took {short_submission_time * 1000:.2f}ms"
             )
-            assert long_submission_time < 0.1, (
+            assert long_submission_time < 0.1, (  # nosec B101
                 f"Long task submission should be <100ms, "
                 f"took {long_submission_time * 1000:.2f}ms"
             )
@@ -231,7 +231,7 @@ class TestAsyncExecutionImmediateReturnProperties:
             # Property assertions - submission times similar
             # Allow 50ms difference (generous tolerance for system variance)
             time_difference = abs(short_submission_time - long_submission_time)
-            assert time_difference < 0.05, (
+            assert time_difference < 0.05, (  # nosec B101
                 f"Submission times should be similar regardless of duration: "
                 f"short={short_submission_time * 1000:.2f}ms, "
                 f"long={long_submission_time * 1000:.2f}ms, "
@@ -239,11 +239,11 @@ class TestAsyncExecutionImmediateReturnProperties:
             )
 
             # Property assertions - both tasks submitted successfully
-            assert (
+            assert (  # nosec B101
                 short_result.task_id != long_result.task_id
             ), "Each task should have unique task ID"
-            assert short_result.action_id == f"{action_id_prefix}_short"
-            assert long_result.action_id == f"{action_id_prefix}_long"
+            assert short_result.action_id == f"{action_id_prefix}_short"  # nosec B101
+            assert long_result.action_id == f"{action_id_prefix}_long"  # nosec B101
 
     @settings(max_examples=100, deadline=None)
     @given(
@@ -315,14 +315,14 @@ class TestAsyncExecutionImmediateReturnProperties:
 
             # Property assertions - each submission immediate
             for i, submission_time in enumerate(submission_times):
-                assert submission_time < 0.1, (
+                assert submission_time < 0.1, (  # nosec B101
                     f"Task {i} submission should be <100ms, " f"took {submission_time * 1000:.2f}ms"
                 )
 
             # Property assertions - total time reasonable
             # Total should be < (num_tasks * 100ms) + overhead
             max_expected_time = (num_tasks * 0.1) + 0.1  # 100ms per task + 100ms overhead
-            assert total_submission_time < max_expected_time, (
+            assert total_submission_time < max_expected_time, (  # nosec B101
                 f"Total submission time for {num_tasks} tasks should be "
                 f"<{max_expected_time}s, took {total_submission_time}s"
             )
@@ -330,23 +330,23 @@ class TestAsyncExecutionImmediateReturnProperties:
             # Property assertions - NOT waiting for task completion
             # If we were waiting, total time would be >= num_tasks * task_duration
             min_completion_time = num_tasks * task_duration
-            assert total_submission_time < min_completion_time, (
+            assert total_submission_time < min_completion_time, (  # nosec B101
                 f"Total submission time {total_submission_time}s should be much less "
                 f"than sequential completion time {min_completion_time}s, "
                 f"proving tasks are async"
             )
 
             # Property assertions - all tasks submitted successfully
-            assert len(results) == num_tasks, f"Should have {num_tasks} results, got {len(results)}"
+            assert len(results) == num_tasks, f"Should have {num_tasks} results, got {len(results)}"  # nosec B101
 
             task_ids = [r.task_id for r in results]
-            assert len(set(task_ids)) == num_tasks, "All tasks should have unique task IDs"
+            assert len(set(task_ids)) == num_tasks, "All tasks should have unique task IDs"  # nosec B101
 
             for i, result in enumerate(results):
-                assert (
+                assert (  # nosec B101
                     result.action_id == f"{action_id_prefix}_{i}"
                 ), f"Task {i} action_id should match"
-                assert result.status in [
+                assert result.status in [  # nosec B101
                     TaskStatus.PENDING,
                     TaskStatus.RUNNING,
                 ], f"Task {i} should not be completed immediately"
@@ -407,30 +407,30 @@ class TestAsyncExecutionImmediateReturnProperties:
             submission_time = time.perf_counter() - start_time
 
             # Property assertions - immediate return
-            assert (
+            assert (  # nosec B101
                 submission_time < 0.1
             ), f"Submission should be <100ms, took {submission_time * 1000:.2f}ms"
 
             # Property assertions - metadata preserved
-            assert result.action_id == "test_action_metadata", (
+            assert result.action_id == "test_action_metadata", (  # nosec B101
                 f"Action ID should be preserved: expected test_action_metadata, "
                 f"got {result.action_id}"
             )
 
-            assert result.task_id is not None, "Task ID must be assigned"
-            assert isinstance(result.task_id, str), "Task ID must be string"
+            assert result.task_id is not None, "Task ID must be assigned"  # nosec B101
+            assert isinstance(result.task_id, str), "Task ID must be string"  # nosec B101
 
-            assert result.started_at is not None, "Started timestamp must be set"
+            assert result.started_at is not None, "Started timestamp must be set"  # nosec B101
 
             # Property assertions - initial state correct
-            assert result.status in [
+            assert result.status in [  # nosec B101
                 TaskStatus.PENDING,
                 TaskStatus.RUNNING,
             ], f"Initial status should be PENDING or RUNNING, got {result.status}"
-            assert result.progress >= 0.0, "Progress should be non-negative"
-            assert result.progress < 100.0, "Progress should not be 100% immediately"
-            assert result.completed_at is None, "Should not be completed immediately"
-            assert result.result_data is None, "Should not have result data immediately"
+            assert result.progress >= 0.0, "Progress should be non-negative"  # nosec B101
+            assert result.progress < 100.0, "Progress should not be 100% immediately"  # nosec B101
+            assert result.completed_at is None, "Should not be completed immediately"  # nosec B101
+            assert result.result_data is None, "Should not have result data immediately"  # nosec B101
 
     @settings(max_examples=100, deadline=None)
     @given(
@@ -484,20 +484,20 @@ class TestAsyncExecutionImmediateReturnProperties:
             submission_time = time.perf_counter() - start_time
 
             # Property assertions - immediate return
-            assert submission_time < 0.1, (
+            assert submission_time < 0.1, (  # nosec B101
                 f"Controller async execution should return within 100ms, "
                 f"but took {submission_time * 1000:.2f}ms for action "
                 f"with duration {action_duration}s"
             )
 
             # Property assertions - result structure
-            assert isinstance(
+            assert isinstance(  # nosec B101
                 result, AsyncExecutionResult
             ), f"Controller must return AsyncExecutionResult, got {type(result)}"
 
-            assert result.task_id is not None, "Task ID must be assigned"
-            assert result.action_id == action_id, "Action ID should be preserved"
-            assert result.status in [
+            assert result.task_id is not None, "Task ID must be assigned"  # nosec B101
+            assert result.action_id == action_id, "Action ID should be preserved"  # nosec B101
+            assert result.status in [  # nosec B101
                 TaskStatus.PENDING,
                 TaskStatus.RUNNING,
             ], f"Initial status should be PENDING or RUNNING, got {result.status}"
@@ -554,7 +554,7 @@ class TestAsyncExecutionImmediateReturnProperties:
             submission_time = time.perf_counter() - start_time
 
             # Property assertions - immediate return
-            assert (
+            assert (  # nosec B101
                 submission_time < 0.1
             ), f"Submission should be <100ms, took {submission_time * 1000:.2f}ms"
 
@@ -563,12 +563,12 @@ class TestAsyncExecutionImmediateReturnProperties:
             result_dict = result.to_dict()
             serialize_time = time.perf_counter() - serialize_start
 
-            assert (
+            assert (  # nosec B101
                 serialize_time < 0.01
             ), f"Serialization should be <10ms, took {serialize_time * 1000:.2f}ms"
 
             # Property assertions - serialized structure
-            assert isinstance(
+            assert isinstance(  # nosec B101
                 result_dict, dict
             ), f"to_dict() must return dict, got {type(result_dict)}"
 
@@ -586,11 +586,11 @@ class TestAsyncExecutionImmediateReturnProperties:
             ]
 
             for field in required_fields:
-                assert field in result_dict, f"Serialized result missing required field: {field}"
+                assert field in result_dict, f"Serialized result missing required field: {field}"  # nosec B101
 
             # Property assertions - serialized values
-            assert result_dict["task_id"] == result.task_id
-            assert result_dict["status"] == result.status.value
-            assert result_dict["action_id"] == action_id
-            assert result_dict["progress"] < 100.0, "Progress should not be 100% immediately"
-            assert result_dict["completed_at"] is None, "Should not be completed immediately"
+            assert result_dict["task_id"] == result.task_id  # nosec B101
+            assert result_dict["status"] == result.status.value  # nosec B101
+            assert result_dict["action_id"] == action_id  # nosec B101
+            assert result_dict["progress"] < 100.0, "Progress should not be 100% immediately"  # nosec B101
+            assert result_dict["completed_at"] is None, "Should not be completed immediately"  # nosec B101

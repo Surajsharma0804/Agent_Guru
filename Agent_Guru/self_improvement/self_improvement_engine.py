@@ -681,7 +681,7 @@ class SelfImprovementEngine:
         Validates: Requirements 7.5
 
         """
-        _logger.warning(
+        logger.warning(
             "Improvement target not met! Target: %.1f%%, Actual: %.1f%%, Tasks: %d",
             self.improvement_threshold * 100,
             report["improvement"]["relative_improvement"],

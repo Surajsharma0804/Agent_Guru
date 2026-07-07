@@ -271,7 +271,7 @@ class PermissionModelManager:
                 logger.info("Configuration loaded successfully (hash: %s...)", new_hash[:8])
                 return model
 
-            except FileNotFoundError as e:
+            except FileNotFoundError:
                 logger.exception("Configuration file not found: %s", self.config_path)
                 raise
 

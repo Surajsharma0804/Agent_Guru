@@ -419,7 +419,7 @@ class DesktopTextController:
 
     def _clipboard_copy_macos(self, text: str) -> None:
         """Copy to macOS clipboard via pbcopy."""
-        import subprocess
+        import subprocess  # nosec B404
 
         proc = subprocess.run(
             ["pbcopy"],  # nosec B603 B607
@@ -459,7 +459,7 @@ class DesktopTextController:
 
     def _clipboard_copy_linux(self, text: str) -> None:
         """Copy to Linux clipboard via xclip or xdotool."""
-        import subprocess
+        import subprocess  # nosec B404
 
         for cmd in (["xclip", "-selection", "clipboard"], ["xdotool", "type", "--clearmodifiers"]):
             try:
@@ -472,7 +472,7 @@ class DesktopTextController:
                 )
                 if proc.returncode == 0:
                     return
-            except FileNotFoundError as exc:
+            except FileNotFoundError:
                 continue
         msg = "No clipboard tool available on Linux (install xclip or pyperclip)"
         raise RuntimeError(msg)

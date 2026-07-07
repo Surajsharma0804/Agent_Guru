@@ -268,7 +268,7 @@ class TaskExecutor:
                 started_at=started_at,
                 finished_at=finished_at,
             )
-        except TimeoutError as exc:
+        except TimeoutError:
             finished_at = datetime.now(tz=UTC)
             return ExecutionResult(
                 task_id=task.id,

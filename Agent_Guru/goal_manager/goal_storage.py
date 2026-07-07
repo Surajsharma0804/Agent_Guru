@@ -197,7 +197,7 @@ class GoalStorage:
                     raise _StorageError(msg)
                 conn.commit()
                 self._close(conn)
-        except _StorageError as e:
+        except _StorageError:
             raise
 
     def _connect(self) -> sqlite3.Connection:
@@ -397,7 +397,7 @@ class GoalStorage:
 
                 conn.commit()
 
-        except StorageError as e:
+        except StorageError:
             raise
         finally:
             self._close(conn)

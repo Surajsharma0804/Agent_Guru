@@ -170,7 +170,7 @@ class ReasoningPlanGenerator:
         full_prompt = f"{ReasoningPrompts.SYSTEM_PROMPT}\n\n{prompt}"
 
         # Generate plan with retry logic
-        for attempt in range(self.MAX_RETRIES):
+        for _attempt in range(self.MAX_RETRIES):
             try:
                 # Call LLM with timeout — single wait_for here; _call_llm must NOT
                 # add its own wait_for so the cancellation propagates cleanly.

@@ -320,7 +320,7 @@ class ParallelExecutor:
                 action_id=step.step_id,
             )
 
-        except TimeoutError as e:
+        except TimeoutError:
             execution_time = time.perf_counter() - start_time
             return ExecutionResult(
                 success=False,

@@ -45,7 +45,7 @@ Version: 1.0.0
 
 import logging
 import os
-import subprocess
+import subprocess  # nosec B404
 import sys
 import time
 from dataclasses import dataclass
@@ -237,7 +237,7 @@ class ApplicationController:
             logger.info("Successfully launched %s with PID %s", app_name, pid)
             return pid
 
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             logger.exception("Application not found")
             raise
 
@@ -588,7 +588,7 @@ class ApplicationController:
 
             return success
 
-        except ProcessLookupError as e:
+        except ProcessLookupError:
             logger.exception("Application not found")
             raise
 
@@ -607,7 +607,7 @@ class ApplicationController:
             True if taskkill succeeded
 
         """
-        import subprocess as _sp
+        import subprocess as _sp  # nosec B404
 
         name_lower = app_name.strip().lower()
         aliases = self._PROCESS_NAME_ALIASES.get(name_lower, [])
@@ -620,7 +620,7 @@ class ApplicationController:
                 cmd = ["taskkill", "/IM", exe_name]
                 if force:
                     cmd.append("/F")
-                result = _sp.run(  # noqa: S603
+                result = _sp.run(  # nosec B603  # noqa: S603
                     cmd,
                     check=False,
                     stdout=_sp.DEVNULL,
@@ -843,7 +843,7 @@ class ApplicationController:
             return false
             """
 
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
@@ -875,7 +875,7 @@ class ApplicationController:
             safe_identifier = self._sanitize_window_identifier(window_identifier)
 
             # Use wmctrl if available
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["wmctrl", "-r", safe_identifier, "-b", "add,hidden"],
                 check=False,
                 capture_output=True,
@@ -893,7 +893,7 @@ class ApplicationController:
                 # Sanitize input for xdotool
                 safe_identifier = self._sanitize_window_identifier(window_identifier)
                 # Try xdotool as fallback
-                result = subprocess.run(  # noqa: S603
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["xdotool", "search", "--name", safe_identifier, "windowminimize"],
                     check=False,
                     capture_output=True,
@@ -989,7 +989,7 @@ class ApplicationController:
             return false
             """
 
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
@@ -1012,7 +1012,7 @@ class ApplicationController:
             # Sanitize input to prevent injection
             safe_identifier = self._sanitize_window_identifier(window_identifier)
 
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["wmctrl", "-r", safe_identifier, "-b", "add,maximized_vert,maximized_horz"],
                 check=False,
                 capture_output=True,
@@ -1104,7 +1104,7 @@ class ApplicationController:
             return false
             """
 
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
@@ -1127,7 +1127,7 @@ class ApplicationController:
             # Sanitize input to prevent injection
             safe_identifier = self._sanitize_window_identifier(window_identifier)
 
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 [
                     "wmctrl",
                     "-r",
@@ -1229,7 +1229,7 @@ class ApplicationController:
             return false
             """
 
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["osascript", "-e", script],
                 check=False,
                 capture_output=True,
@@ -1252,7 +1252,7 @@ class ApplicationController:
             # Sanitize input to prevent injection
             safe_identifier = self._sanitize_window_identifier(window_identifier)
 
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["wmctrl", "-a", safe_identifier],
                 check=False,
                 capture_output=True,

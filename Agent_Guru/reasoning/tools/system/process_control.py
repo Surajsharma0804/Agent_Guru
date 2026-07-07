@@ -5,7 +5,7 @@ Platform-specific implementations for Windows, macOS, and Linux.
 
 import logging
 import platform
-import subprocess
+import subprocess  # nosec B404
 from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
@@ -41,7 +41,7 @@ class PlatformProcessController:
         try:
             if system == "windows":
                 # Windows: use tasklist
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["tasklist", "/FO", "CSV", "/NH"],
                     check=False,
                     capture_output=True,
@@ -68,7 +68,7 @@ class PlatformProcessController:
 
             elif system in {"darwin", "linux"}:
                 # macOS/Linux: use ps
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["ps", "aux"],
                     check=False,
                     capture_output=True,
@@ -141,7 +141,7 @@ class PlatformProcessController:
                 if force:
                     cmd.append("/F")
 
-                result = subprocess.run(  # noqa: S603
+                result = subprocess.run(  # nosec B603  # noqa: S603
                     cmd,
                     check=False,
                     capture_output=True,
@@ -156,7 +156,7 @@ class PlatformProcessController:
             elif system in {"darwin", "linux"}:
                 # macOS/Linux: use kill
                 signal = "-9" if force else "-15"
-                result = subprocess.run(  # noqa: S603
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["kill", signal, str(pid)],
                     check=False,
                     capture_output=True,

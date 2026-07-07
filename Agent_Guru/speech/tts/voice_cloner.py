@@ -373,7 +373,7 @@ class VoiceCloner:
             )
             return audio
 
-        except VoiceCloningError as exc:
+        except VoiceCloningError:
             raise
 
     def compute_similarity(

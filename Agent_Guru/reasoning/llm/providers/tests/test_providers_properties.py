@@ -62,11 +62,11 @@ class TestConfigurationProperties:
             rate_limit_tpm=rate_limit_tpm,
         )
 
-        assert config.api_key == api_key
-        assert config.max_retries == max_retries
-        assert config.timeout_seconds == timeout_seconds
-        assert config.rate_limit_rpm == rate_limit_rpm
-        assert config.rate_limit_tpm == rate_limit_tpm
+        assert config.api_key == api_key  # nosec B101
+        assert config.max_retries == max_retries  # nosec B101
+        assert config.timeout_seconds == timeout_seconds  # nosec B101
+        assert config.rate_limit_rpm == rate_limit_rpm  # nosec B101
+        assert config.rate_limit_tpm == rate_limit_tpm  # nosec B101
 
     @given(
         max_retries=st.integers(max_value=-1),
@@ -115,8 +115,8 @@ class TestRateLimitingProperties:
             state.record_request(tokens)
 
         # Verify tracking
-        assert state.requests_this_minute == requests
-        assert state.tokens_this_minute == requests * tokens
+        assert state.requests_this_minute == requests  # nosec B101
+        assert state.tokens_this_minute == requests * tokens  # nosec B101
 
     @given(
         rpm_limit=st.integers(min_value=1, max_value=100),
@@ -141,8 +141,8 @@ class TestRateLimitingProperties:
                 allowed_requests += 1
 
         # Verify limits enforced
-        assert allowed_requests <= rpm_limit
-        assert state.tokens_this_minute <= tpm_limit
+        assert allowed_requests <= rpm_limit  # nosec B101
+        assert state.tokens_this_minute <= tpm_limit  # nosec B101
 
     def test_rate_limit_reset_after_minute(self):
         """Property: Rate limits reset after minute boundary."""
@@ -154,8 +154,8 @@ class TestRateLimitingProperties:
         # Reset should occur
         state.reset_if_needed()
 
-        assert state.requests_this_minute == 0
-        assert state.tokens_this_minute == 0
+        assert state.requests_this_minute == 0  # nosec B101
+        assert state.tokens_this_minute == 0  # nosec B101
 
 
 # ============================================================================
@@ -185,9 +185,9 @@ class TestCircuitBreakerProperties:
 
         # Verify state
         if failures >= threshold:
-            assert breaker.state == CircuitState.OPEN
+            assert breaker.state == CircuitState.OPEN  # nosec B101
         else:
-            assert breaker.state == CircuitState.CLOSED
+            assert breaker.state == CircuitState.CLOSED  # nosec B101
 
     def test_circuit_closes_on_success(self):
         """Property: Circuit closes on successful request."""
@@ -198,8 +198,8 @@ class TestCircuitBreakerProperties:
         # Record success
         breaker.record_success()
 
-        assert breaker.state == CircuitState.CLOSED
-        assert breaker.failure_count == 0
+        assert breaker.state == CircuitState.CLOSED  # nosec B101
+        assert breaker.failure_count == 0  # nosec B101
 
     @given(
         timeout=st.floats(min_value=1.0, max_value=300.0),
@@ -221,11 +221,11 @@ class TestCircuitBreakerProperties:
         can_attempt = breaker.can_attempt(config)
 
         if elapsed >= timeout:
-            assert can_attempt
-            assert breaker.state == CircuitState.HALF_OPEN
+            assert can_attempt  # nosec B101
+            assert breaker.state == CircuitState.HALF_OPEN  # nosec B101
         else:
-            assert not can_attempt
-            assert breaker.state == CircuitState.OPEN
+            assert not can_attempt  # nosec B101
+            assert breaker.state == CircuitState.OPEN  # nosec B101
 
 
 # ============================================================================
@@ -258,10 +258,10 @@ class TestRequestResponseProperties:
             max_tokens=max_tokens,
         )
 
-        assert request.prompt == prompt
-        assert request.temperature == temperature
-        assert request.top_p == top_p
-        assert request.max_tokens == max_tokens
+        assert request.prompt == prompt  # nosec B101
+        assert request.temperature == temperature  # nosec B101
+        assert request.top_p == top_p  # nosec B101
+        assert request.max_tokens == max_tokens  # nosec B101
 
     @given(
         temperature=st.floats(min_value=2.1, max_value=10.0)
@@ -311,10 +311,10 @@ class TestRequestResponseProperties:
             finish_reason=finish_reason,
         )
 
-        assert response.text == text
-        assert response.latency_ms == latency_ms
-        assert response.tokens_generated == tokens_generated
-        assert response.finish_reason == finish_reason
+        assert response.text == text  # nosec B101
+        assert response.latency_ms == latency_ms  # nosec B101
+        assert response.tokens_generated == tokens_generated  # nosec B101
+        assert response.finish_reason == finish_reason  # nosec B101
 
 
 # ============================================================================
@@ -377,10 +377,10 @@ class TestProviderBehaviorProperties:
         response = await provider.generate(request)
 
         # Verify
-        assert isinstance(response, LLMResponse)
-        assert response.text == "Test response"
-        assert response.latency_ms > 0
-        assert response.tokens_generated > 0
+        assert isinstance(response, LLMResponse)  # nosec B101
+        assert response.text == "Test response"  # nosec B101
+        assert response.latency_ms > 0  # nosec B101
+        assert response.tokens_generated > 0  # nosec B101
 
     @pytest.mark.asyncio
     @given(
@@ -395,9 +395,9 @@ class TestProviderBehaviorProperties:
         health = provider.get_health()
 
         # Verify required fields
-        assert isinstance(health, dict)
-        assert "provider" in health
-        assert "circuit_state" in health
-        assert "failure_count" in health
-        assert "requests_this_minute" in health
-        assert "tokens_this_minute" in health
+        assert isinstance(health, dict)  # nosec B101
+        assert "provider" in health  # nosec B101
+        assert "circuit_state" in health  # nosec B101
+        assert "failure_count" in health  # nosec B101
+        assert "requests_this_minute" in health  # nosec B101
+        assert "tokens_this_minute" in health  # nosec B101

@@ -30,13 +30,13 @@ class TestAsyncExecutionResult:
             action_id="action_1",
         )
 
-        assert result.task_id == "task_123"
-        assert result.status == TaskStatus.PENDING
-        assert result.progress == 0.0
-        assert result.result_data is None
-        assert result.error is None
-        assert result.action_id == "action_1"
-        assert result.cancellable is True
+        assert result.task_id == "task_123"  # nosec B101
+        assert result.status == TaskStatus.PENDING  # nosec B101
+        assert result.progress == 0.0  # nosec B101
+        assert result.result_data is None  # nosec B101
+        assert result.error is None  # nosec B101
+        assert result.action_id == "action_1"  # nosec B101
+        assert result.cancellable is True  # nosec B101
 
     def test_to_dict(self):
         """Test conversion to dictionary."""
@@ -50,11 +50,11 @@ class TestAsyncExecutionResult:
 
         result_dict = result.to_dict()
 
-        assert result_dict["task_id"] == "task_123"
-        assert result_dict["status"] == "success"
-        assert result_dict["progress"] == 100.0
-        assert result_dict["result_data"] == {"output": "test"}
-        assert result_dict["action_id"] == "action_1"
+        assert result_dict["task_id"] == "task_123"  # nosec B101
+        assert result_dict["status"] == "success"  # nosec B101
+        assert result_dict["progress"] == 100.0  # nosec B101
+        assert result_dict["result_data"] == {"output": "test"}  # nosec B101
+        assert result_dict["action_id"] == "action_1"  # nosec B101
 
 
 class TestTaskStatus:
@@ -62,11 +62,11 @@ class TestTaskStatus:
 
     def test_task_status_values(self):
         """Test TaskStatus enum values."""
-        assert TaskStatus.PENDING.value == "pending"
-        assert TaskStatus.RUNNING.value == "running"
-        assert TaskStatus.SUCCESS.value == "success"
-        assert TaskStatus.FAILURE.value == "failure"
-        assert TaskStatus.CANCELLED.value == "cancelled"
+        assert TaskStatus.PENDING.value == "pending"  # nosec B101
+        assert TaskStatus.RUNNING.value == "running"  # nosec B101
+        assert TaskStatus.SUCCESS.value == "success"  # nosec B101
+        assert TaskStatus.FAILURE.value == "failure"  # nosec B101
+        assert TaskStatus.CANCELLED.value == "cancelled"  # nosec B101
 
 
 @pytest.mark.skipif(
@@ -96,10 +96,10 @@ class TestExecuteActionTask:
 
             result = execute_action_task(action_dict, "test_module", "mock_tool")
 
-        assert result["success"] is True
-        assert result["result_data"] == {"result": "success"}
-        assert result["action_id"] == "action_1"
-        assert result["execution_time"] > 0
+        assert result["success"] is True  # nosec B101
+        assert result["result_data"] == {"result": "success"}  # nosec B101
+        assert result["action_id"] == "action_1"  # nosec B101
+        assert result["execution_time"] > 0  # nosec B101
 
     def test_execute_action_task_failure(self):
         """Test task execution with error."""
@@ -120,9 +120,9 @@ class TestExecuteActionTask:
 
             result = execute_action_task(action_dict, "test_module", "mock_tool")
 
-        assert result["success"] is False
-        assert result["error"]["error_code"] == "ValueError"
-        assert "Test error" in result["error"]["message"]
+        assert result["success"] is False  # nosec B101
+        assert result["error"]["error_code"] == "ValueError"  # nosec B101
+        assert "Test error" in result["error"]["message"]  # nosec B101
 
 
 class TestAsyncExecutor:
@@ -145,10 +145,10 @@ class TestAsyncExecutor:
 
         result = executor.execute_async(action, "test_module", "test_function")
 
-        assert result.task_id == "task_123"
-        assert result.status == TaskStatus.PENDING
-        assert result.action_id == "action_1"
-        assert result.started_at is not None
+        assert result.task_id == "task_123"  # nosec B101
+        assert result.status == TaskStatus.PENDING  # nosec B101
+        assert result.action_id == "action_1"  # nosec B101
+        assert result.started_at is not None  # nosec B101
 
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
     def test_get_task_status_pending(self, mock_async_result):
@@ -161,9 +161,9 @@ class TestAsyncExecutor:
         executor = AsyncExecutor()
         status = executor.get_task_status("task_123")
 
-        assert status.task_id == "task_123"
-        assert status.status == TaskStatus.PENDING
-        assert status.progress == 0.0
+        assert status.task_id == "task_123"  # nosec B101
+        assert status.status == TaskStatus.PENDING  # nosec B101
+        assert status.progress == 0.0  # nosec B101
 
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
     def test_get_task_status_running(self, mock_async_result):
@@ -176,8 +176,8 @@ class TestAsyncExecutor:
         executor = AsyncExecutor()
         status = executor.get_task_status("task_123")
 
-        assert status.status == TaskStatus.RUNNING
-        assert status.progress == 50.0
+        assert status.status == TaskStatus.RUNNING  # nosec B101
+        assert status.progress == 50.0  # nosec B101
 
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
     def test_get_task_status_success(self, mock_async_result):
@@ -195,11 +195,11 @@ class TestAsyncExecutor:
         executor = AsyncExecutor()
         status = executor.get_task_status("task_123")
 
-        assert status.status == TaskStatus.SUCCESS
-        assert status.progress == 100.0
-        assert status.result_data == {"output": "test"}
-        assert status.execution_time == 1.5
-        assert status.completed_at is not None
+        assert status.status == TaskStatus.SUCCESS  # nosec B101
+        assert status.progress == 100.0  # nosec B101
+        assert status.result_data == {"output": "test"}  # nosec B101
+        assert status.execution_time == 1.5  # nosec B101
+        assert status.completed_at is not None  # nosec B101
 
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
     def test_get_task_status_failure(self, mock_async_result):
@@ -212,9 +212,9 @@ class TestAsyncExecutor:
         executor = AsyncExecutor()
         status = executor.get_task_status("task_123")
 
-        assert status.status == TaskStatus.FAILURE
-        assert status.error is not None
-        assert "Test error" in status.error["message"]
+        assert status.status == TaskStatus.FAILURE  # nosec B101
+        assert status.error is not None  # nosec B101
+        assert "Test error" in status.error["message"]  # nosec B101
 
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
     def test_cancel_task(self, mock_async_result):
@@ -225,7 +225,7 @@ class TestAsyncExecutor:
         executor = AsyncExecutor()
         success = executor.cancel_task("task_123")
 
-        assert success is True
+        assert success is True  # nosec B101
         mock_result.revoke.assert_called_once_with(terminate=True)
 
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
@@ -245,8 +245,8 @@ class TestAsyncExecutor:
         executor = AsyncExecutor()
         result = executor.wait_for_task("task_123", timeout=5.0, poll_interval=0.1)
 
-        assert result.status == TaskStatus.SUCCESS
-        assert result.result_data == {"output": "test"}
+        assert result.status == TaskStatus.SUCCESS  # nosec B101
+        assert result.result_data == {"output": "test"}  # nosec B101
 
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
     def test_wait_for_task_timeout(self, mock_async_result):
@@ -261,7 +261,7 @@ class TestAsyncExecutor:
         with pytest.raises(TimeoutError) as exc_info:
             executor.wait_for_task("task_123", timeout=0.2, poll_interval=0.1)
 
-        assert "did not complete" in str(exc_info.value)
+        assert "did not complete" in str(exc_info.value)  # nosec B101
 
 
 class TestAsyncExecutionController:
@@ -283,8 +283,8 @@ class TestAsyncExecutionController:
 
         result = controller.execute_async(action, "test_module", "test_function")
 
-        assert result.task_id == "task_123"
-        assert result.status == TaskStatus.PENDING
+        assert result.task_id == "task_123"  # nosec B101
+        assert result.status == TaskStatus.PENDING  # nosec B101
 
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
     def test_get_status(self, mock_async_result):
@@ -302,8 +302,8 @@ class TestAsyncExecutionController:
         controller = AsyncExecutionController()
         status = controller.get_status("task_123")
 
-        assert status.status == TaskStatus.SUCCESS
-        assert status.result_data == {"output": "test"}
+        assert status.status == TaskStatus.SUCCESS  # nosec B101
+        assert status.result_data == {"output": "test"}  # nosec B101
 
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
     def test_cancel(self, mock_async_result):
@@ -314,7 +314,7 @@ class TestAsyncExecutionController:
         controller = AsyncExecutionController()
         success = controller.cancel("task_123")
 
-        assert success is True
+        assert success is True  # nosec B101
         mock_result.revoke.assert_called_once()
 
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
@@ -333,7 +333,7 @@ class TestAsyncExecutionController:
         controller = AsyncExecutionController()
         result = controller.wait("task_123", timeout=5.0)
 
-        assert result.status == TaskStatus.SUCCESS
+        assert result.status == TaskStatus.SUCCESS  # nosec B101
 
 
 class TestIntegration:
@@ -385,7 +385,7 @@ class TestIntegration:
 
         # Submit task
         result = controller.execute_async(action, "test_module", "test_function")
-        assert result.status == TaskStatus.PENDING
+        assert result.status == TaskStatus.PENDING  # nosec B101
 
         # Check status multiple times to simulate progression
         for _ in range(3):
@@ -394,4 +394,4 @@ class TestIntegration:
 
         # Final status should be success
         final_status = controller.get_status(result.task_id)
-        assert final_status.status == TaskStatus.SUCCESS
+        assert final_status.status == TaskStatus.SUCCESS  # nosec B101

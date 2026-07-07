@@ -359,7 +359,7 @@ class DesktopApplicationController:
         except ImportError as e:
             logger.debug("win32gui not available — skipping graceful close: %s", e)
             return False
-        except Exception:
+        except Exception as e:
             logger.debug("win32 close failed: %s", e)
             return False
 

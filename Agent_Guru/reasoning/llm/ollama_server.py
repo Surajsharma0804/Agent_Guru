@@ -16,6 +16,7 @@ Requirements: 4.2, 4.5
 """
 
 import asyncio
+import logging
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -392,7 +393,8 @@ class OllamaServer:
             try:
                 response = await self.generate(request, model=model)
                 latencies.append(response.latency_ms)
-            except Exception:
+            except Exception:  # nosec B112
+                logging.getLogger(__name__).debug("Benchmark sample failed", exc_info=True)
                 continue
 
         if not latencies:

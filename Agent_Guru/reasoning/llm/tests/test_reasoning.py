@@ -33,13 +33,13 @@ class TestReasoningStep:
             estimated_duration_seconds=1.0,
         )
 
-        assert step.step_id == 1
-        assert step.description == "Set a timer"
-        assert step.tool_id == "timer_tool"
-        assert step.parameters == {"duration": 300}
-        assert step.estimated_duration_seconds == 1.0
-        assert step.requires_confirmation is False
-        assert step.depends_on == []
+        assert step.step_id == 1  # nosec B101
+        assert step.description == "Set a timer"  # nosec B101
+        assert step.tool_id == "timer_tool"  # nosec B101
+        assert step.parameters == {"duration": 300}  # nosec B101
+        assert step.estimated_duration_seconds == 1.0  # nosec B101
+        assert step.requires_confirmation is False  # nosec B101
+        assert step.depends_on == []  # nosec B101
 
     def test_step_with_dependencies(self):
         """Test step with dependencies."""
@@ -52,7 +52,7 @@ class TestReasoningStep:
             depends_on=[1],
         )
 
-        assert step.depends_on == [1]
+        assert step.depends_on == [1]  # nosec B101
 
     def test_invalid_step_id(self):
         """Test that step_id must be >= 1."""
@@ -133,12 +133,12 @@ class TestReasoningPlan:
             confidence=0.95,
         )
 
-        assert plan.goal == "Complete task"
-        assert len(plan.steps) == 1
-        assert plan.reasoning == "This is the best approach"
-        assert plan.confidence == 0.95
-        assert plan.estimated_duration_seconds == 1.0
-        assert plan.requires_confirmation is False
+        assert plan.goal == "Complete task"  # nosec B101
+        assert len(plan.steps) == 1  # nosec B101
+        assert plan.reasoning == "This is the best approach"  # nosec B101
+        assert plan.confidence == 0.95  # nosec B101
+        assert plan.estimated_duration_seconds == 1.0  # nosec B101
+        assert plan.requires_confirmation is False  # nosec B101
 
     def test_plan_with_confirmation(self):
         """Test plan with confirmation requirement."""
@@ -160,7 +160,7 @@ class TestReasoningPlan:
             confidence=0.95,
         )
 
-        assert plan.requires_confirmation is True
+        assert plan.requires_confirmation is True  # nosec B101
 
     def test_plan_duration_calculation(self):
         """Test automatic duration calculation."""
@@ -188,7 +188,7 @@ class TestReasoningPlan:
             confidence=0.90,
         )
 
-        assert plan.estimated_duration_seconds == 3.0
+        assert plan.estimated_duration_seconds == 3.0  # nosec B101
 
     def test_empty_goal(self):
         """Test that goal cannot be empty."""
@@ -325,10 +325,10 @@ class TestReasoningPlanGenerator:
         )
 
         # Verify plan
-        assert plan.goal == "Set a timer for 5 minutes"
-        assert len(plan.steps) == 1
-        assert plan.steps[0].tool_id == "timer_tool"
-        assert plan.confidence == 0.98
+        assert plan.goal == "Set a timer for 5 minutes"  # nosec B101
+        assert len(plan.steps) == 1  # nosec B101
+        assert plan.steps[0].tool_id == "timer_tool"  # nosec B101
+        assert plan.confidence == 0.98  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_multi_step_plan(self, generator, mock_llm_provider):
@@ -376,10 +376,10 @@ class TestReasoningPlanGenerator:
         )
 
         # Verify plan
-        assert plan.goal == "Start workout session"
-        assert len(plan.steps) == 2
-        assert plan.steps[0].tool_id == "music_tool"
-        assert plan.steps[1].tool_id == "timer_tool"
+        assert plan.goal == "Start workout session"  # nosec B101
+        assert len(plan.steps) == 2  # nosec B101
+        assert plan.steps[0].tool_id == "music_tool"  # nosec B101
+        assert plan.steps[1].tool_id == "timer_tool"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_plan_with_context(self, generator, mock_llm_provider):
@@ -426,8 +426,8 @@ class TestReasoningPlanGenerator:
         )
 
         # Verify plan
-        assert plan.goal == "Send message to John"
-        assert plan.requires_confirmation is True
+        assert plan.goal == "Send message to John"  # nosec B101
+        assert plan.requires_confirmation is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_plan_retry_on_invalid_json(self, generator, mock_llm_provider):
@@ -475,8 +475,8 @@ class TestReasoningPlanGenerator:
             available_tools=["test_tool"],
         )
 
-        assert plan.goal == "Test"
-        assert mock_llm_provider.generate.call_count == 2
+        assert plan.goal == "Test"  # nosec B101
+        assert mock_llm_provider.generate.call_count == 2  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_plan_fails_after_max_retries(self, generator, mock_llm_provider):
@@ -500,7 +500,7 @@ class TestReasoningPlanGenerator:
                 available_tools=["test_tool"],
             )
 
-        assert mock_llm_provider.generate.call_count == 3
+        assert mock_llm_provider.generate.call_count == 3  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_plan_enforces_step_limit(self, generator, mock_llm_provider):
@@ -555,21 +555,21 @@ class TestReasoningPlanGenerator:
 
         extracted = generator._extract_json(markdown_json)
         data = json.loads(extracted)
-        assert data["goal"] == "Test"
+        assert data["goal"] == "Test"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_is_multi_step_task(self, generator):
         """Test multi-step task detection."""
         # Explicit multi-step intent
-        assert generator._is_multi_step_task("multi_step_task", {}) is True
+        assert generator._is_multi_step_task("multi_step_task", {}) is True  # nosec B101
 
         # Multiple actions indicated by "and"
-        assert (
+        assert (  # nosec B101
             generator._is_multi_step_task("test", {"actions": "play music and set timer"}) is True
         )
 
         # Single action
-        assert generator._is_multi_step_task("set_timer", {"duration": "5 minutes"}) is False
+        assert generator._is_multi_step_task("set_timer", {"duration": "5 minutes"}) is False  # nosec B101
 
 
 @pytest.mark.asyncio
@@ -640,14 +640,14 @@ class TestReasoningPlanGeneratorIntegration:
         )
 
         # Verify complete plan
-        assert plan.goal == "Complete workout session"
-        assert len(plan.steps) == 2
-        assert plan.steps[0].tool_id == "music_tool"
-        assert plan.steps[0].parameters["playlist"] == "workout"
-        assert plan.steps[1].tool_id == "timer_tool"
-        assert plan.steps[1].parameters["duration_seconds"] == 1800
-        assert plan.estimated_duration_seconds == 3.0
-        assert plan.confidence == 0.96
+        assert plan.goal == "Complete workout session"  # nosec B101
+        assert len(plan.steps) == 2  # nosec B101
+        assert plan.steps[0].tool_id == "music_tool"  # nosec B101
+        assert plan.steps[0].parameters["playlist"] == "workout"  # nosec B101
+        assert plan.steps[1].tool_id == "timer_tool"  # nosec B101
+        assert plan.steps[1].parameters["duration_seconds"] == 1800  # nosec B101
+        assert plan.estimated_duration_seconds == 3.0  # nosec B101
+        assert plan.confidence == 0.96  # nosec B101
 
 
 class TestReasoningPlanValidator:
@@ -698,8 +698,8 @@ class TestReasoningPlanValidator:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is True
-        assert error is None
+        assert is_valid is True  # nosec B101
+        assert error is None  # nosec B101
 
     def test_validate_unknown_tool(self, validator):
         """Test validation fails for unknown tool."""
@@ -721,8 +721,8 @@ class TestReasoningPlanValidator:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is False
-        assert "Unknown tool" in error
+        assert is_valid is False  # nosec B101
+        assert "Unknown tool" in error  # nosec B101
 
     def test_validate_missing_required_parameter(self, validator):
         """Test validation fails for missing required parameter."""
@@ -744,9 +744,9 @@ class TestReasoningPlanValidator:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is False
-        assert "Missing required parameter" in error
-        assert "duration_seconds" in error
+        assert is_valid is False  # nosec B101
+        assert "Missing required parameter" in error  # nosec B101
+        assert "duration_seconds" in error  # nosec B101
 
     def test_validate_duration_exceeds_limit(self, validator):
         """Test validation fails when duration exceeds limit."""
@@ -768,8 +768,8 @@ class TestReasoningPlanValidator:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is False
-        assert "exceeds limit" in error
+        assert is_valid is False  # nosec B101
+        assert "exceeds limit" in error  # nosec B101
 
     def test_validate_circular_dependencies(self, validator):
         """Test validation fails for circular dependencies."""
@@ -808,7 +808,7 @@ class TestReasoningPlanValidator:
 
         # Test circular dependency detection
         has_cycle = validator._has_circular_dependencies([step1, step2, step3])
-        assert has_cycle is True
+        assert has_cycle is True  # nosec B101
 
     def test_validate_valid_dependencies(self, validator):
         """Test validation passes for valid dependencies."""
@@ -838,8 +838,8 @@ class TestReasoningPlanValidator:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is True
-        assert error is None
+        assert is_valid is True  # nosec B101
+        assert error is None  # nosec B101
 
     def test_validate_multiple_steps(self, validator):
         """Test validating multi-step plan."""
@@ -875,8 +875,8 @@ class TestReasoningPlanValidator:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is True
-        assert error is None
+        assert is_valid is True  # nosec B101
+        assert error is None  # nosec B101
 
 
 @pytest.mark.integration
@@ -923,8 +923,8 @@ class TestReasoningPlanValidatorIntegration:
 
         # Validate
         is_valid, error = validator.validate(valid_plan)
-        assert is_valid is True
-        assert error is None
+        assert is_valid is True  # nosec B101
+        assert error is None  # nosec B101
 
         # Create invalid plan (missing parameter)
         invalid_steps = [
@@ -946,8 +946,8 @@ class TestReasoningPlanValidatorIntegration:
 
         # Validate
         is_valid, error = validator.validate(invalid_plan)
-        assert is_valid is False
-        assert "Missing required parameter" in error
+        assert is_valid is False  # nosec B101
+        assert "Missing required parameter" in error  # nosec B101
 
 
 class TestReasoningProperties:
@@ -978,8 +978,8 @@ class TestReasoningProperties:
         )
 
         # Property: Number of steps must be <= 5
-        assert len(plan.steps) <= 5
-        assert len(plan.steps) == num_steps
+        assert len(plan.steps) <= 5  # nosec B101
+        assert len(plan.steps) == num_steps  # nosec B101
 
     @given(
         num_steps=st.integers(min_value=6, max_value=10),
@@ -1020,9 +1020,9 @@ class TestReasoningProperties:
             estimated_duration_seconds=duration,
         )
 
-        assert step.step_id == step_id
-        assert step.estimated_duration_seconds == duration
-        assert step.tool_id == "test_tool"
+        assert step.step_id == step_id  # nosec B101
+        assert step.estimated_duration_seconds == duration  # nosec B101
+        assert step.tool_id == "test_tool"  # nosec B101
 
     @given(
         num_steps=st.integers(min_value=1, max_value=5),
@@ -1051,7 +1051,7 @@ class TestReasoningProperties:
 
         # Property: Total duration = sum of step durations
         expected_duration = sum(step_durations)
-        assert abs(plan.estimated_duration_seconds - expected_duration) < 0.01
+        assert abs(plan.estimated_duration_seconds - expected_duration) < 0.01  # nosec B101
 
     @given(
         confidence=st.floats(min_value=0.0, max_value=1.0),
@@ -1075,8 +1075,8 @@ class TestReasoningProperties:
             confidence=confidence,
         )
 
-        assert 0.0 <= plan.confidence <= 1.0
-        assert plan.confidence == confidence
+        assert 0.0 <= plan.confidence <= 1.0  # nosec B101
+        assert plan.confidence == confidence  # nosec B101
 
 
 class TestReasoningPlanValidationProperties:
@@ -1112,8 +1112,8 @@ class TestReasoningPlanValidationProperties:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is True
-        assert error is None
+        assert is_valid is True  # nosec B101
+        assert error is None  # nosec B101
 
     @given(
         num_steps=st.integers(min_value=1, max_value=5),
@@ -1145,9 +1145,9 @@ class TestReasoningPlanValidationProperties:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is False
-        assert error is not None
-        assert "Unknown tool" in error
+        assert is_valid is False  # nosec B101
+        assert error is not None  # nosec B101
+        assert "Unknown tool" in error  # nosec B101
 
     @given(
         duration=st.floats(min_value=101.0, max_value=1000.0),
@@ -1178,9 +1178,9 @@ class TestReasoningPlanValidationProperties:
         )
 
         is_valid, error = validator.validate(plan)
-        assert is_valid is False
-        assert error is not None
-        assert "exceeds limit" in error
+        assert is_valid is False  # nosec B101
+        assert error is not None  # nosec B101
+        assert "exceeds limit" in error  # nosec B101
 
     @given(
         num_steps=st.integers(min_value=1, max_value=5),
@@ -1215,5 +1215,5 @@ class TestReasoningPlanValidationProperties:
         # Only validate if total duration is within limit
         if plan.estimated_duration_seconds <= 100.0:
             is_valid, error = validator.validate(plan)
-            assert is_valid is True
-            assert error is None
+            assert is_valid is True  # nosec B101
+            assert error is None  # nosec B101

@@ -121,7 +121,7 @@ class RuleEvaluator:
 
         try:
             result = self._evaluate_node(rule, context)
-        except RuleEvaluationError as exc:
+        except RuleEvaluationError:
             raise
         if cache_key is not None and memo_cache is not None:
             memo_cache[cache_key] = result

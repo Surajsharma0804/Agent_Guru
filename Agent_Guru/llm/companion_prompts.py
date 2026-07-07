@@ -531,8 +531,7 @@ def build_companion_prompt(
     # P2-71: 3-tier empathy scaling based on distress level
     emotion_block = ""
     if emotion_hint and emotion_hint != "neutral":
-        # Tier 1: Mild concern (curious, confused, bored)
-        mild = {"curious", "confused", "bored", "tired"}
+        # Tier 1: Mild concern (curious, confused, bored) — handled by the else branch
         # Tier 2: Active support (frustrated, angry, anxious, sad)
         active = {"frustrated", "angry", "anxious", "sad", "stressed"}
         # Tier 3: Crisis response (distressed, crying, desperate, hopeless)

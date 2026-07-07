@@ -280,7 +280,7 @@ class RollbackManager:
                 raise InsufficientSpaceError(
                     msg,
                 )
-        except InsufficientSpaceError as exc:
+        except InsufficientSpaceError:
             raise
 
     def _audit(

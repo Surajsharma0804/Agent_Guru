@@ -323,7 +323,7 @@ def _is_android() -> bool:
 
     # Check for Android-specific system properties
     try:
-        if _os.path.exists("/system/build.prop"):
+        if os.path.exists("/system/build.prop"):
             return True
     except OSError as exc:
         import logging as _logging

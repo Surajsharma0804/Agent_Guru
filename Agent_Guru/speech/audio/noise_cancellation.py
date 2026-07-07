@@ -113,7 +113,7 @@ class AdvancedNoiseCancellation:
 
             return reduced
 
-        except AudioProcessingError as e:
+        except AudioProcessingError:
             raise
 
     def detect_noise_type(self, audio: np.ndarray) -> NoiseType:

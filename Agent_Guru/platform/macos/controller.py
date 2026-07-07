@@ -17,7 +17,7 @@ Version: 1.0.0
 from __future__ import annotations
 
 import logging
-import subprocess
+import subprocess  # nosec B404
 import sys
 import time
 from dataclasses import dataclass, field
@@ -251,7 +251,7 @@ class MacOSController:
                 metadata={"pid": proc.pid, "app": resolved},
             )
 
-        except subprocess.TimeoutExpired as e:
+        except subprocess.TimeoutExpired:
             latency_ms = (time.perf_counter() - start) * 1000
             return MacOSControllerResult(
                 success=False,

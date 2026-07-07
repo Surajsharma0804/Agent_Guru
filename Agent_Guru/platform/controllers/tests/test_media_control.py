@@ -11,7 +11,7 @@ Test Categories:
 
 import pytest
 import platform
-import subprocess
+import subprocess  # nosec B404
 import time
 from unittest.mock import Mock, patch
 from hypothesis import given, strategies as st
@@ -43,11 +43,11 @@ class TestMediaState:
             artist="Test Artist"
         )
         
-        assert state.is_playing is True
-        assert state.volume == 75
-        assert state.is_muted is False
-        assert state.track_title == "Test Track"
-        assert state.artist == "Test Artist"
+        assert state.is_playing is True  # nosec B101
+        assert state.volume == 75  # nosec B101
+        assert state.is_muted is False  # nosec B101
+        assert state.track_title == "Test Track"  # nosec B101
+        assert state.artist == "Test Artist"  # nosec B101
     
     def test_media_state_minimal(self):
         """Test MediaState with minimal required fields."""
@@ -57,11 +57,11 @@ class TestMediaState:
             is_muted=True
         )
         
-        assert state.is_playing is False
-        assert state.volume == 50
-        assert state.is_muted is True
-        assert state.track_title is None
-        assert state.artist is None
+        assert state.is_playing is False  # nosec B101
+        assert state.volume == 50  # nosec B101
+        assert state.is_muted is True  # nosec B101
+        assert state.track_title is None  # nosec B101
+        assert state.artist is None  # nosec B101
 
 
 class TestMediaControllerInitialization:
@@ -74,7 +74,7 @@ class TestMediaControllerInitialization:
         
         with patch('Agent_Guru.platform.controllers.media_control.WindowsMediaBackend'):
             controller = MediaController()
-            assert isinstance(controller._backend, (WindowsMediaBackend, Mock))
+            assert isinstance(controller._backend, (WindowsMediaBackend, Mock))  # nosec B101
     
     @patch('platform.system')
     def test_macos_backend_selection(self, mock_system):
@@ -82,7 +82,7 @@ class TestMediaControllerInitialization:
         mock_system.return_value = "Darwin"
         
         controller = MediaController()
-        assert isinstance(controller._backend, MacOSMediaBackend)
+        assert isinstance(controller._backend, MacOSMediaBackend)  # nosec B101
     
     @patch('platform.system')
     def test_linux_backend_selection(self, mock_system):
@@ -90,7 +90,7 @@ class TestMediaControllerInitialization:
         mock_system.return_value = "Linux"
         
         controller = MediaController()
-        assert isinstance(controller._backend, LinuxMediaBackend)
+        assert isinstance(controller._backend, LinuxMediaBackend)  # nosec B101
     
     @patch('platform.system')
     def test_unsupported_platform(self, mock_system):
@@ -188,7 +188,7 @@ class TestMediaControllerOperations:
         mock_backend.get_state.return_value = expected_state
         
         state = controller_with_mock.get_state()
-        assert state == expected_state
+        assert state == expected_state  # nosec B101
         mock_backend.get_state.assert_called_once()
     
     def test_get_state_none(self, controller_with_mock, mock_backend):
@@ -196,7 +196,7 @@ class TestMediaControllerOperations:
         mock_backend.get_state.return_value = None
         
         state = controller_with_mock.get_state()
-        assert state is None
+        assert state is None  # nosec B101
 
 
 class TestMediaControllerErrorHandling:
@@ -255,8 +255,8 @@ class TestWindowsMediaBackend:
     
     def test_initialization(self, backend):
         """Test Windows backend initialization."""
-        assert backend.win32api is not None
-        assert backend.win32con is not None
+        assert backend.win32api is not None  # nosec B101
+        assert backend.win32con is not None  # nosec B101
     
     def test_play_sends_key(self, backend):
         """Test that play sends correct media key."""
@@ -299,7 +299,7 @@ class TestWindowsMediaBackend:
         with patch.object(backend, '_send_media_key') as mock_send:
             backend.volume_up(10)
             # Should send 5 key presses (10 / 2)
-            assert mock_send.call_count == 5
+            assert mock_send.call_count == 5  # nosec B101
             mock_send.assert_called_with(0xAF)
     
     def test_volume_down_sends_keys(self, backend):
@@ -307,7 +307,7 @@ class TestWindowsMediaBackend:
         with patch.object(backend, '_send_media_key') as mock_send:
             backend.volume_down(10)
             # Should send 5 key presses (10 / 2)
-            assert mock_send.call_count == 5
+            assert mock_send.call_count == 5  # nosec B101
             mock_send.assert_called_with(0xAE)
     
     def test_volume_invalid_amount(self, backend):
@@ -333,7 +333,7 @@ class TestWindowsMediaBackend:
     def test_get_state_returns_none(self, backend):
         """Test that Windows backend returns None for state."""
         state = backend.get_state()
-        assert state is None
+        assert state is None  # nosec B101
     
     def test_send_media_key_success(self, backend):
         """Test successful media key sending."""
@@ -365,7 +365,7 @@ class TestMacOSMediaBackend:
         """Test that play executes AppleScript."""
         with patch.object(backend, '_execute_applescript') as mock_exec:
             backend.play()
-            assert mock_exec.called
+            assert mock_exec.called  # nosec B101
     
     def test_play_fallback_to_media_key(self, backend):
         """Test that play falls back to media key on error."""
@@ -378,7 +378,7 @@ class TestMacOSMediaBackend:
         """Test that pause executes AppleScript."""
         with patch.object(backend, '_execute_applescript') as mock_exec:
             backend.pause()
-            assert mock_exec.called
+            assert mock_exec.called  # nosec B101
     
     def test_pause_fallback_to_media_key(self, backend):
         """Test that pause falls back to media key on error."""
@@ -397,7 +397,7 @@ class TestMacOSMediaBackend:
         """Test that stop executes AppleScript."""
         with patch.object(backend, '_execute_applescript') as mock_exec:
             backend.stop()
-            assert mock_exec.called
+            assert mock_exec.called  # nosec B101
     
     def test_stop_handles_error(self, backend):
         """Test that stop handles errors gracefully."""
@@ -422,7 +422,7 @@ class TestMacOSMediaBackend:
         with patch.object(backend, '_send_media_key') as mock_send:
             backend.volume_up(12)
             # Should send 2 key presses (12 / 6)
-            assert mock_send.call_count == 2
+            assert mock_send.call_count == 2  # nosec B101
             mock_send.assert_called_with(72)
     
     def test_volume_down_sends_keys(self, backend):
@@ -430,7 +430,7 @@ class TestMacOSMediaBackend:
         with patch.object(backend, '_send_media_key') as mock_send:
             backend.volume_down(12)
             # Should send 2 key presses (12 / 6)
-            assert mock_send.call_count == 2
+            assert mock_send.call_count == 2  # nosec B101
             mock_send.assert_called_with(73)
     
     def test_volume_invalid_amount(self, backend):
@@ -458,30 +458,30 @@ class TestMacOSMediaBackend:
         with patch.object(backend, '_execute_applescript', return_value="true|75|Test Song|Test Artist"):
             state = backend.get_state()
             
-            assert state is not None
-            assert state.is_playing is True
-            assert state.volume == 75
-            assert state.track_title == "Test Song"
-            assert state.artist == "Test Artist"
+            assert state is not None  # nosec B101
+            assert state.is_playing is True  # nosec B101
+            assert state.volume == 75  # nosec B101
+            assert state.track_title == "Test Song"  # nosec B101
+            assert state.artist == "Test Artist"  # nosec B101
     
     def test_get_state_music_not_running(self, backend):
         """Test get state when Music app is not running."""
         with patch.object(backend, '_execute_applescript', return_value=""):
             state = backend.get_state()
-            assert state is None
+            assert state is None  # nosec B101
     
     def test_get_state_error(self, backend):
         """Test get state when error occurs."""
         with patch.object(backend, '_execute_applescript', side_effect=Exception("Test error")):
             state = backend.get_state()
-            assert state is None
+            assert state is None  # nosec B101
     
     def test_execute_applescript_success(self, backend):
         """Test successful AppleScript execution."""
         with patch('subprocess.run') as mock_run:
             mock_run.return_value = Mock(stdout="success", stderr="", returncode=0)
             result = backend._execute_applescript("test script")
-            assert result == "success"
+            assert result == "success"  # nosec B101
     
     def test_execute_applescript_failure(self, backend):
         """Test AppleScript execution failure."""
@@ -501,8 +501,8 @@ class TestMacOSMediaBackend:
             backend._send_media_key(16)
             mock_exec.assert_called_once()
             call_args = mock_exec.call_args[0][0]
-            assert "System Events" in call_args
-            assert "key code 16" in call_args
+            assert "System Events" in call_args  # nosec B101
+            assert "key code 16" in call_args  # nosec B101
 
 
 # Linux Backend Tests
@@ -524,24 +524,24 @@ class TestLinuxMediaBackend:
     
     def test_initialization_with_playerctl(self, backend_with_playerctl):
         """Test initialization when playerctl is available."""
-        assert backend_with_playerctl.use_playerctl is True
+        assert backend_with_playerctl.use_playerctl is True  # nosec B101
     
     def test_initialization_without_playerctl(self, backend_without_playerctl):
         """Test initialization when playerctl is not available."""
-        assert backend_without_playerctl.use_playerctl is False
+        assert backend_without_playerctl.use_playerctl is False  # nosec B101
     
     def test_check_playerctl_available(self):
         """Test playerctl availability check when installed."""
         with patch('subprocess.run') as mock_run:
             mock_run.return_value = Mock(returncode=0)
             backend = LinuxMediaBackend()
-            assert backend.use_playerctl is True
+            assert backend.use_playerctl is True  # nosec B101
     
     def test_check_playerctl_not_available(self):
         """Test playerctl availability check when not installed."""
         with patch('subprocess.run', side_effect=FileNotFoundError()):
             backend = LinuxMediaBackend()
-            assert backend.use_playerctl is False
+            assert backend.use_playerctl is False  # nosec B101
     
     def test_play_with_playerctl(self, backend_with_playerctl):
         """Test play with playerctl."""
@@ -626,7 +626,7 @@ class TestLinuxMediaBackend:
         with patch.object(backend_without_playerctl, '_send_xdotool_key') as mock_send:
             backend_without_playerctl.volume_up(10)
             # Should send 2 key presses (10 / 5)
-            assert mock_send.call_count == 2
+            assert mock_send.call_count == 2  # nosec B101
             mock_send.assert_called_with("XF86AudioRaiseVolume")
     
     def test_volume_down_with_playerctl(self, backend_with_playerctl):
@@ -640,7 +640,7 @@ class TestLinuxMediaBackend:
         with patch.object(backend_without_playerctl, '_send_xdotool_key') as mock_send:
             backend_without_playerctl.volume_down(10)
             # Should send 2 key presses (10 / 5)
-            assert mock_send.call_count == 2
+            assert mock_send.call_count == 2  # nosec B101
             mock_send.assert_called_with("XF86AudioLowerVolume")
     
     def test_volume_invalid_amount(self, backend_with_playerctl):
@@ -670,29 +670,29 @@ class TestLinuxMediaBackend:
             
             state = backend_with_playerctl.get_state()
             
-            assert state is not None
-            assert state.is_playing is True
-            assert state.volume == 75
-            assert state.track_title == "Test Song"
-            assert state.artist == "Test Artist"
+            assert state is not None  # nosec B101
+            assert state.is_playing is True  # nosec B101
+            assert state.volume == 75  # nosec B101
+            assert state.track_title == "Test Song"  # nosec B101
+            assert state.artist == "Test Artist"  # nosec B101
     
     def test_get_state_without_playerctl(self, backend_without_playerctl):
         """Test get state without playerctl."""
         state = backend_without_playerctl.get_state()
-        assert state is None
+        assert state is None  # nosec B101
     
     def test_get_state_error(self, backend_with_playerctl):
         """Test get state when error occurs."""
         with patch.object(backend_with_playerctl, '_execute_playerctl', side_effect=Exception("Test error")):
             state = backend_with_playerctl.get_state()
-            assert state is None
+            assert state is None  # nosec B101
     
     def test_execute_playerctl_success(self, backend_with_playerctl):
         """Test successful playerctl execution."""
         with patch('subprocess.run') as mock_run:
             mock_run.return_value = Mock(stdout="success", stderr="", returncode=0)
             result = backend_with_playerctl._execute_playerctl("play")
-            assert result == "success"
+            assert result == "success"  # nosec B101
     
     def test_execute_playerctl_failure(self, backend_with_playerctl):
         """Test playerctl execution failure."""
@@ -766,9 +766,9 @@ class TestMediaControllerProperties:
             is_muted=is_muted
         )
         
-        assert isinstance(state.is_playing, bool)
-        assert 0 <= state.volume <= 100
-        assert isinstance(state.is_muted, bool)
+        assert isinstance(state.is_playing, bool)  # nosec B101
+        assert 0 <= state.volume <= 100  # nosec B101
+        assert isinstance(state.is_muted, bool)  # nosec B101
 
 
 # Integration Tests
@@ -782,8 +782,8 @@ class TestMediaControllerIntegration:
         # This may fail if platform-specific dependencies are missing
         try:
             controller = MediaController()
-            assert controller is not None
-            assert controller._backend is not None
+            assert controller is not None  # nosec B101
+            assert controller._backend is not None  # nosec B101
         except ImportError as e:
             pytest.skip(f"Platform dependencies not available: {e}")
     
@@ -907,7 +907,7 @@ class TestMediaControllerIntegration:
                 
                 # Get new state
                 new_state = controller.get_state()
-                assert new_state is not None
+                assert new_state is not None  # nosec B101
             else:
                 pytest.skip("Spotify not running")
                 
@@ -966,7 +966,7 @@ class TestMediaControllerPerformance:
             elapsed = end - start
             
             # Should complete in <50ms
-            assert elapsed < 0.05
+            assert elapsed < 0.05  # nosec B101
     
     def test_multiple_operations_latency(self):
         """Test that multiple operations complete quickly."""
@@ -986,11 +986,11 @@ class TestMediaControllerPerformance:
             elapsed = end - start
             
             # 100 operations should complete in <1 second
-            assert elapsed < 1.0
+            assert elapsed < 1.0  # nosec B101
             
             # Average per operation should be <10ms
             avg_per_op = elapsed / 200  # 200 total operations
-            assert avg_per_op < 0.01
+            assert avg_per_op < 0.01  # nosec B101
 
 
 # Error Handling Tests

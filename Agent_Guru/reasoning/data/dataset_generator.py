@@ -116,7 +116,7 @@ class DatasetGenerator:
                 # Generate augmented examples
                 augmented = self.augment_utterance(example)
                 # Sample augmentation_factor examples
-                sampled = random.sample(
+                sampled = random.sample(  # nosec B311
                     augmented[1:],  # Exclude original
                     min(augmentation_factor, len(augmented) - 1),
                 )

@@ -118,13 +118,13 @@ def _restrict_file_permissions(path: Path) -> None:
         if os.name != "nt":
             path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
             return
-        import subprocess
+        import subprocess  # nosec B404
 
         user = os.environ.get("USERNAME", "")
         if not user:
             logger.debug("Could not determine USERNAME — skipping Windows ACL restriction")
             return
-        subprocess.run(
+        subprocess.run(  # nosec B603 B607
             ["icacls", str(path), "/inheritance:r", "/grant:r", f"{user}:F"],
             capture_output=True,
             timeout=5,
@@ -422,7 +422,7 @@ def _merge_values(existing: str, new: str) -> str:
     'hiking, photography' + 'hiking' → 'hiking, photography' (no dupe)
     """
     old_parts = [p.strip().lower() for p in _SPLIT_RE.split(str(existing)) if p.strip()]
-    new_parts = [p.strip().lower() for p in _SPLIT_RE.split(str(new)) if p.strip()]
+    # new values are split and deduplicated in the loop below
     # Preserve original case from existing, add new ones
     seen = set(old_parts)
     merged = [p.strip() for p in _SPLIT_RE.split(str(existing)) if p.strip()]

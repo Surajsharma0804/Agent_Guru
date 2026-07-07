@@ -507,7 +507,7 @@ async def websocket_endpoint(
                         message_type=message_type,
                     )
 
-            except WebSocketDisconnect as e:
+            except WebSocketDisconnect:
                 logger.info(
                     "websocket_disconnect_received",
                     user_id=user_id,

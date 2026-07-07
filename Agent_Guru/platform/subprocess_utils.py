@@ -19,7 +19,7 @@ Requirements: 2.7
 
 from __future__ import annotations
 
-import subprocess
+import subprocess  # nosec B404
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -74,7 +74,7 @@ def run_cmd(
 
     return subprocess.run(  # noqa: S603
         args,
-        shell=False,  # unconditional — never allow shell interpretation
+        shell=False,  # unconditional — never allow shell interpretation  # nosec B603
         cwd=cwd,
         timeout=timeout,
         check=check,

@@ -98,7 +98,7 @@ async def _get_weather(location: str) -> str | None:
 async def _get_news_headlines(max_items: int = 3) -> list[str]:
     """Get top news headlines from BBC RSS (no API key needed)."""
     try:
-        import xml.etree.ElementTree as ET
+        from Agent_Guru.security.xml_utils import safe_xml_parse
 
         import aiohttp
 
@@ -116,7 +116,7 @@ async def _get_news_headlines(max_items: int = 3) -> list[str]:
                 return []
             content = await resp.text()
 
-        root = ET.fromstring(content)
+        root = safe_xml_parse(content)
         headlines = []
         for item in root.findall(".//item")[:max_items]:
             title = item.findtext("title", "").strip()

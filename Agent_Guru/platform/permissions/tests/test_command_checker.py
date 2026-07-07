@@ -22,18 +22,18 @@ class TestCommandPermissionChecker:
         """Test checker initialization."""
         checker = CommandPermissionChecker()
         
-        assert checker.allowed_pattern_count == 0
-        assert checker.blocked_pattern_count > 0  # Has dangerous patterns
+        assert checker.allowed_pattern_count == 0  # nosec B101
+        assert checker.blocked_pattern_count > 0  # Has dangerous patterns  # nosec B101
     
     def test_add_allowed_pattern(self):
         """Test adding allowed patterns."""
         checker = CommandPermissionChecker()
         
         checker.add_allowed_pattern(r"^git .*")
-        assert checker.allowed_pattern_count == 1
+        assert checker.allowed_pattern_count == 1  # nosec B101
         
         checker.add_allowed_pattern(r"^npm (install|test)")
-        assert checker.allowed_pattern_count == 2
+        assert checker.allowed_pattern_count == 2  # nosec B101
     
     def test_add_blocked_pattern(self):
         """Test adding blocked patterns."""
@@ -41,7 +41,7 @@ class TestCommandPermissionChecker:
         initial_count = checker.blocked_pattern_count
         
         checker.add_blocked_pattern(r".*dangerous.*")
-        assert checker.blocked_pattern_count == initial_count + 1
+        assert checker.blocked_pattern_count == initial_count + 1  # nosec B101
     
     def test_invalid_regex_pattern(self):
         """Test handling of invalid regex patterns."""
@@ -55,8 +55,8 @@ class TestCommandPermissionChecker:
         checker = CommandPermissionChecker()
         
         result = checker.validate_command("")
-        assert not result.allowed
-        assert result.reason == "Empty command"
+        assert not result.allowed  # nosec B101
+        assert result.reason == "Empty command"  # nosec B101
     
     def test_command_too_long(self):
         """Test validation of excessively long command."""
@@ -65,9 +65,9 @@ class TestCommandPermissionChecker:
         long_command = "a" * 20000
         result = checker.validate_command(long_command)
         
-        assert not result.allowed
-        assert "too long" in result.reason.lower()
-        assert result.danger_level == DangerLevel.HIGH
+        assert not result.allowed  # nosec B101
+        assert "too long" in result.reason.lower()  # nosec B101
+        assert result.danger_level == DangerLevel.HIGH  # nosec B101
     
     def test_too_many_arguments(self):
         """Test validation of command with too many arguments."""
@@ -77,8 +77,8 @@ class TestCommandPermissionChecker:
         many_args = "cmd " + " ".join([f"arg{i}" for i in range(150)])
         result = checker.validate_command(many_args)
         
-        assert not result.allowed
-        assert "too many arguments" in result.reason.lower()
+        assert not result.allowed  # nosec B101
+        assert "too many arguments" in result.reason.lower()  # nosec B101
     
     def test_dangerous_command_blocked(self):
         """Test that dangerous commands are blocked."""
@@ -99,8 +99,8 @@ class TestCommandPermissionChecker:
         
         for cmd in dangerous_commands:
             result = checker.validate_command(cmd)
-            assert not result.allowed, f"Dangerous command not blocked: {cmd}"
-            assert result.danger_level == DangerLevel.CRITICAL
+            assert not result.allowed, f"Dangerous command not blocked: {cmd}"  # nosec B101
+            assert result.danger_level == DangerLevel.CRITICAL  # nosec B101
     
     def test_injection_attack_detection(self):
         """Test detection of injection attacks."""
@@ -117,8 +117,8 @@ class TestCommandPermissionChecker:
         
         for cmd in injection_commands:
             result = checker.validate_command(cmd)
-            assert not result.allowed, f"Injection not detected: {cmd}"
-            assert "injection" in result.reason.lower()
+            assert not result.allowed, f"Injection not detected: {cmd}"  # nosec B101
+            assert "injection" in result.reason.lower()  # nosec B101
     
     def test_allowed_command_validation(self):
         """Test validation of allowed commands."""
@@ -136,8 +136,8 @@ class TestCommandPermissionChecker:
         
         for cmd in allowed_commands:
             result = checker.validate_command(cmd)
-            assert result.allowed, f"Allowed command rejected: {cmd}"
-            assert result.matched_pattern is not None
+            assert result.allowed, f"Allowed command rejected: {cmd}"  # nosec B101
+            assert result.matched_pattern is not None  # nosec B101
     
     def test_blocked_pattern_priority(self):
         """Test that blocked patterns take priority over allowed."""
@@ -146,8 +146,8 @@ class TestCommandPermissionChecker:
         checker.add_blocked_pattern(r".*secret.*")  # Block secret
         
         result = checker.validate_command("cat secret.txt")
-        assert not result.allowed
-        assert result.blocked_pattern is not None
+        assert not result.allowed  # nosec B101
+        assert result.blocked_pattern is not None  # nosec B101
     
     def test_command_parsing(self):
         """Test command argument parsing."""
@@ -156,10 +156,10 @@ class TestCommandPermissionChecker:
         
         result = checker.validate_command("git commit -m 'test message'")
         
-        assert result.allowed
-        assert len(result.parsed_args) == 4
-        assert result.parsed_args[0] == "git"
-        assert result.parsed_args[1] == "commit"
+        assert result.allowed  # nosec B101
+        assert len(result.parsed_args) == 4  # nosec B101
+        assert result.parsed_args[0] == "git"  # nosec B101
+        assert result.parsed_args[1] == "commit"  # nosec B101
     
     def test_command_categorization(self):
         """Test command categorization."""
@@ -178,7 +178,7 @@ class TestCommandPermissionChecker:
         for cmd, expected_category in test_cases:
             result = checker.validate_command(cmd)
             assert result.category == expected_category, \
-                f"Wrong category for {cmd}: {result.category} != {expected_category}"
+                f"Wrong category for {cmd}: {result.category} != {expected_category}"  # nosec B101
     
     def test_danger_level_assessment(self):
         """Test danger level assessment."""
@@ -196,7 +196,7 @@ class TestCommandPermissionChecker:
             result = checker.validate_command(cmd)
             if result.allowed:  # Only check if command is allowed
                 assert result.danger_level == expected_level, \
-                    f"Wrong danger level for {cmd}: {result.danger_level} != {expected_level}"
+                    f"Wrong danger level for {cmd}: {result.danger_level} != {expected_level}"  # nosec B101
     
     def test_argument_validation_warnings(self):
         """Test argument validation warnings."""
@@ -211,7 +211,7 @@ class TestCommandPermissionChecker:
         # Let's test a command that has warnings but is allowed
         result2 = checker.validate_command("cat ../file.txt")
         if result2.allowed:
-            assert len(result2.warnings) > 0  # Should warn about path traversal
+            assert len(result2.warnings) > 0  # Should warn about path traversal  # nosec B101
     
     def test_command_sanitization(self):
         """Test command sanitization."""
@@ -222,15 +222,15 @@ class TestCommandPermissionChecker:
         
         if result.allowed:
             # Sanitization removes trailing semicolons and normalizes spaces
-            assert result.sanitized_command == "git status"
+            assert result.sanitized_command == "git status"  # nosec B101
     
     def test_is_command_allowed_quick_check(self):
         """Test quick command allowed check."""
         checker = CommandPermissionChecker()
         checker.add_allowed_pattern(r"^git .*")
         
-        assert checker.is_command_allowed("git status")
-        assert not checker.is_command_allowed("rm -rf /")
+        assert checker.is_command_allowed("git status")  # nosec B101
+        assert not checker.is_command_allowed("rm -rf /")  # nosec B101
     
     def test_get_command_info(self):
         """Test getting command information."""
@@ -239,23 +239,23 @@ class TestCommandPermissionChecker:
         
         info = checker.get_command_info("git status")
         
-        assert isinstance(info, dict)
-        assert "allowed" in info
-        assert "category" in info
-        assert "danger_level" in info
-        assert info["allowed"] is True
+        assert isinstance(info, dict)  # nosec B101
+        assert "allowed" in info  # nosec B101
+        assert "category" in info  # nosec B101
+        assert "danger_level" in info  # nosec B101
+        assert info["allowed"] is True  # nosec B101
     
     def test_clear_patterns(self):
         """Test clearing patterns."""
         checker = CommandPermissionChecker()
         checker.add_allowed_pattern(r"^git .*")
         
-        assert checker.allowed_pattern_count > 0
+        assert checker.allowed_pattern_count > 0  # nosec B101
         
         checker.clear_patterns()
         
-        assert checker.allowed_pattern_count == 0
-        assert checker.blocked_pattern_count > 0  # Dangerous patterns remain
+        assert checker.allowed_pattern_count == 0  # nosec B101
+        assert checker.blocked_pattern_count > 0  # Dangerous patterns remain  # nosec B101
 
 
 class TestCommandValidationHelpers:
@@ -263,31 +263,31 @@ class TestCommandValidationHelpers:
     
     def test_is_dangerous_command(self):
         """Test dangerous command detection."""
-        assert is_dangerous_command("rm -rf /")
-        assert is_dangerous_command("sudo rm file")
-        assert is_dangerous_command("format C:")
-        assert not is_dangerous_command("ls -la")
-        assert not is_dangerous_command("git status")
+        assert is_dangerous_command("rm -rf /")  # nosec B101
+        assert is_dangerous_command("sudo rm file")  # nosec B101
+        assert is_dangerous_command("format C:")  # nosec B101
+        assert not is_dangerous_command("ls -la")  # nosec B101
+        assert not is_dangerous_command("git status")  # nosec B101
     
     def test_sanitize_command_args(self):
         """Test command argument sanitization."""
         args = ["cat", "file.txt;rm", "test|grep", "echo&ls"]
         sanitized = sanitize_command_args(args)
         
-        assert ";" not in sanitized[1]
-        assert "|" not in sanitized[2]
-        assert "&" not in sanitized[3]
+        assert ";" not in sanitized[1]  # nosec B101
+        assert "|" not in sanitized[2]  # nosec B101
+        assert "&" not in sanitized[3]  # nosec B101
     
     def test_parse_command_safely(self):
         """Test safe command parsing."""
         # Valid command
         result = parse_command_safely("git commit -m 'test'")
-        assert result is not None
-        assert len(result) == 4
+        assert result is not None  # nosec B101
+        assert len(result) == 4  # nosec B101
         
         # Invalid command (unmatched quote)
         result = parse_command_safely("git commit -m 'test")
-        assert result is None
+        assert result is None  # nosec B101
 
 
 class TestCommandPatternMatching:
@@ -298,27 +298,27 @@ class TestCommandPatternMatching:
         checker = CommandPermissionChecker()
         checker.add_allowed_pattern(r"^git status$")
         
-        assert checker.is_command_allowed("git status")
-        assert not checker.is_command_allowed("git status --short")
+        assert checker.is_command_allowed("git status")  # nosec B101
+        assert not checker.is_command_allowed("git status --short")  # nosec B101
     
     def test_wildcard_match(self):
         """Test wildcard pattern matching."""
         checker = CommandPermissionChecker()
         checker.add_allowed_pattern(r"^git .*")
         
-        assert checker.is_command_allowed("git status")
-        assert checker.is_command_allowed("git commit -m 'test'")
-        assert checker.is_command_allowed("git push origin main")
+        assert checker.is_command_allowed("git status")  # nosec B101
+        assert checker.is_command_allowed("git commit -m 'test'")  # nosec B101
+        assert checker.is_command_allowed("git push origin main")  # nosec B101
     
     def test_alternation_match(self):
         """Test alternation pattern matching."""
         checker = CommandPermissionChecker()
         checker.add_allowed_pattern(r"^npm (install|test|build)$")
         
-        assert checker.is_command_allowed("npm install")
-        assert checker.is_command_allowed("npm test")
-        assert checker.is_command_allowed("npm build")
-        assert not checker.is_command_allowed("npm run dev")
+        assert checker.is_command_allowed("npm install")  # nosec B101
+        assert checker.is_command_allowed("npm test")  # nosec B101
+        assert checker.is_command_allowed("npm build")  # nosec B101
+        assert not checker.is_command_allowed("npm run dev")  # nosec B101
     
     def test_case_insensitive_blocking(self):
         """Test case-insensitive blocking."""
@@ -326,9 +326,9 @@ class TestCommandPatternMatching:
         checker.add_allowed_pattern(r".*")
         
         # Dangerous patterns should be case-insensitive
-        assert not checker.is_command_allowed("RM -RF /")
-        assert not checker.is_command_allowed("Sudo rm file")
-        assert not checker.is_command_allowed("SHUTDOWN")
+        assert not checker.is_command_allowed("RM -RF /")  # nosec B101
+        assert not checker.is_command_allowed("Sudo rm file")  # nosec B101
+        assert not checker.is_command_allowed("SHUTDOWN")  # nosec B101
 
 
 class TestCommandSecurityFeatures:
@@ -343,8 +343,8 @@ class TestCommandSecurityFeatures:
         
         # Should have warnings about path traversal
         if result.allowed:
-            assert len(result.warnings) > 0
-            assert any(".." in w for w in result.warnings)
+            assert len(result.warnings) > 0  # nosec B101
+            assert any(".." in w for w in result.warnings)  # nosec B101
     
     def test_environment_variable_detection(self):
         """Test environment variable detection."""
@@ -355,7 +355,7 @@ class TestCommandSecurityFeatures:
         
         # Should have warnings about environment variables
         if result.allowed:
-            assert len(result.warnings) > 0
+            assert len(result.warnings) > 0  # nosec B101
     
     def test_command_substitution_blocked(self):
         """Test command substitution is blocked."""
@@ -364,11 +364,11 @@ class TestCommandSecurityFeatures:
         
         # Backtick substitution
         result = checker.validate_command("echo `whoami`")
-        assert not result.allowed
+        assert not result.allowed  # nosec B101
         
         # Dollar substitution
         result = checker.validate_command("echo $(whoami)")
-        assert not result.allowed
+        assert not result.allowed  # nosec B101
     
     def test_process_substitution_blocked(self):
         """Test process substitution is blocked."""
@@ -376,10 +376,10 @@ class TestCommandSecurityFeatures:
         checker.add_allowed_pattern(r".*")
         
         result = checker.validate_command("cat <(ls)")
-        assert not result.allowed
+        assert not result.allowed  # nosec B101
         
         result = checker.validate_command("ls >(cat)")
-        assert not result.allowed
+        assert not result.allowed  # nosec B101
 
 
 class TestCommandIntegration:
@@ -402,7 +402,7 @@ class TestCommandIntegration:
         
         for cmd in git_commands:
             result = checker.validate_command(cmd)
-            assert result.allowed, f"Git command rejected: {cmd}"
+            assert result.allowed, f"Git command rejected: {cmd}"  # nosec B101
     
     def test_realistic_npm_workflow(self):
         """Test realistic npm command workflow."""
@@ -419,7 +419,7 @@ class TestCommandIntegration:
         
         for cmd in npm_commands:
             result = checker.validate_command(cmd)
-            assert result.allowed, f"NPM command rejected: {cmd}"
+            assert result.allowed, f"NPM command rejected: {cmd}"  # nosec B101
     
     def test_mixed_allowed_blocked(self):
         """Test mix of allowed and blocked commands."""
@@ -438,7 +438,7 @@ class TestCommandIntegration:
         for cmd, should_allow in test_cases:
             result = checker.validate_command(cmd)
             assert result.allowed == should_allow, \
-                f"Command {cmd}: expected {should_allow}, got {result.allowed}"
+                f"Command {cmd}: expected {should_allow}, got {result.allowed}"  # nosec B101
 
 
 if __name__ == "__main__":

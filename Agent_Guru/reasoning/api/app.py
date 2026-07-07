@@ -260,7 +260,7 @@ def create_app(
                 timestamp=result.timestamp,
             )
 
-        except HTTPException as e:
+        except HTTPException:
             raise
             # Track error
             # Log error
@@ -335,7 +335,7 @@ def create_app(
                 updated_at=state.updated_at,
             )
 
-        except HTTPException as e:
+        except HTTPException:
             raise
 
     # List conversations endpoint
@@ -449,7 +449,7 @@ def create_app(
                 updated_at=task_info["updated_at"],
             )
 
-        except HTTPException as e:
+        except HTTPException:
             raise
 
     # Statistics endpoint

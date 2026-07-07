@@ -183,7 +183,7 @@ class TaskExecutor:
         # Simulate execution time (decreases with learning)
         base_time = scenario.difficulty * 100  # Base time in ms
         learning_factor = max(0.5, 1.0 - (task_number / 200))  # Improves over time
-        execution_time_ms = base_time * learning_factor * random.uniform(0.8, 1.2)
+        execution_time_ms = base_time * learning_factor * random.uniform(0.8, 1.2)  # nosec B311
 
         # Simulate reasoning quality (improves with learning)
         reasoning_quality = self._calculate_reasoning_quality(
@@ -276,7 +276,7 @@ class TaskExecutor:
         quality = (base_quality + improvement) * difficulty_factor
 
         # Add noise
-        quality += random.uniform(-0.05, 0.05)
+        quality += random.uniform(-0.05, 0.05)  # nosec B311
 
         return max(0.0, min(1.0, quality))
 

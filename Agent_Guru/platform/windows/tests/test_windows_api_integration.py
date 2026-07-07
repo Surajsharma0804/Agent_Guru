@@ -40,7 +40,7 @@ class TestWindowsAPIIntegration:
                 test_key,
                 "StringValue"
             )
-            assert value == "TestString"
+            assert value == "TestString"  # nosec B101
             
             # Test REG_DWORD (integer)
             integration.write_registry_key(
@@ -55,7 +55,7 @@ class TestWindowsAPIIntegration:
                 test_key,
                 "DWordValue"
             )
-            assert value == 12345
+            assert value == 12345  # nosec B101
             
             # Test REG_BINARY (binary data)
             binary_data = b"\x01\x02\x03\x04"
@@ -71,7 +71,7 @@ class TestWindowsAPIIntegration:
                 test_key,
                 "BinaryValue"
             )
-            assert value == binary_data
+            assert value == binary_data  # nosec B101
             
         finally:
             # Cleanup
@@ -116,7 +116,7 @@ class TestWindowsAPIIntegration:
                 test_key,
                 "NestedValue"
             )
-            assert value == "DeepValue"
+            assert value == "DeepValue"  # nosec B101
             
         finally:
             # Cleanup nested keys
@@ -138,7 +138,7 @@ class TestWindowsAPIIntegration:
         
         # Test with ping (more reliable than notepad)
         pid = integration.start_process("ping", ["127.0.0.1", "-n", "100"])
-        assert pid > 0
+        assert pid > 0  # nosec B101
         
         # Give it time to start
         import time
@@ -148,7 +148,7 @@ class TestWindowsAPIIntegration:
         try:
             import psutil
             proc = psutil.Process(pid)
-            assert proc.is_running()
+            assert proc.is_running()  # nosec B101
         except psutil.NoSuchProcess:
             pytest.skip("Process terminated too quickly")
         
@@ -165,8 +165,8 @@ class TestWindowsAPIIntegration:
             ["-Command", "Write-Output 'Hello from PowerShell'"]
         )
         
-        assert result.return_code == 0
-        assert "Hello from PowerShell" in result.stdout
+        assert result.return_code == 0  # nosec B101
+        assert "Hello from PowerShell" in result.stdout  # nosec B101
     
     def test_system_info_completeness(self):
         """Test that system info contains all required fields."""
@@ -175,15 +175,15 @@ class TestWindowsAPIIntegration:
         info = integration.get_system_info()
         
         # Verify all fields are present and non-empty
-        assert info.hostname
-        assert info.platform == "Windows"
-        assert info.platform_version
-        assert info.architecture
-        assert info.processor
-        assert info.cpu_count_physical > 0
-        assert info.cpu_count_logical > 0
-        assert info.cpu_count_logical >= info.cpu_count_physical
-        assert info.boot_time > 0
+        assert info.hostname  # nosec B101
+        assert info.platform == "Windows"  # nosec B101
+        assert info.platform_version  # nosec B101
+        assert info.architecture  # nosec B101
+        assert info.processor  # nosec B101
+        assert info.cpu_count_physical > 0  # nosec B101
+        assert info.cpu_count_logical > 0  # nosec B101
+        assert info.cpu_count_logical >= info.cpu_count_physical  # nosec B101
+        assert info.boot_time > 0  # nosec B101
     
     def test_process_list_performance(self):
         """Test that process list retrieval is reasonably fast."""
@@ -199,8 +199,8 @@ class TestWindowsAPIIntegration:
         processes = integration.get_process_list()
         elapsed = time.time() - start
         
-        assert len(processes) > 0
-        assert elapsed < 5.0
+        assert len(processes) > 0  # nosec B101
+        assert elapsed < 5.0  # nosec B101
     
     def test_registry_read_performance(self):
         """Test that registry read is fast (<100ms)."""
@@ -217,8 +217,8 @@ class TestWindowsAPIIntegration:
             )
             elapsed = time.time() - start
             
-            assert value is not None
-            assert elapsed < 0.1  # Must complete in <100ms
+            assert value is not None  # nosec B101
+            assert elapsed < 0.1  # Must complete in <100ms  # nosec B101
         except PermissionError:
             pytest.skip("Insufficient permissions")
     
@@ -240,7 +240,7 @@ class TestWindowsAPIIntegration:
         process_pids = [p.pid for p in processes]
         
         for pid in pids:
-            assert pid in process_pids
+            assert pid in process_pids  # nosec B101
         
         # Terminate all
         for pid in pids:
@@ -257,20 +257,20 @@ class TestWindowsAPIIntegration:
                 r"SOFTWARE\NonExistent",
                 "NonExistent"
             )
-            assert False, "Should have raised RegistryKeyNotFoundError"
+            assert False, "Should have raised RegistryKeyNotFoundError"  # nosec B101
         except Exception as e:
             error_msg = str(e)
-            assert "NonExistent" in error_msg
-            assert "not found" in error_msg.lower()
+            assert "NonExistent" in error_msg  # nosec B101
+            assert "not found" in error_msg.lower()  # nosec B101
         
         # Test process error message
         try:
             integration.terminate_process(999999)
-            assert False, "Should have raised ProcessLookupError"
+            assert False, "Should have raised ProcessLookupError"  # nosec B101
         except ProcessLookupError as e:
             error_msg = str(e)
-            assert "999999" in error_msg
-            assert "not found" in error_msg.lower()
+            assert "999999" in error_msg  # nosec B101
+            assert "not found" in error_msg.lower()  # nosec B101
 
 
 class TestWindowsAPIEdgeCases:
@@ -297,7 +297,7 @@ class TestWindowsAPIEdgeCases:
                 "UnicodeValue"
             )
             
-            assert value == unicode_value
+            assert value == unicode_value  # nosec B101
             
         finally:
             try:
@@ -318,7 +318,7 @@ class TestWindowsAPIEdgeCases:
         long_args = ["/c", "echo"] + ["arg" + str(i) for i in range(50)]
         
         pid = integration.start_process("cmd.exe", long_args)
-        assert pid > 0
+        assert pid > 0  # nosec B101
     
     def test_command_execution_timeout(self):
         """Test that command execution respects timeout."""
@@ -336,10 +336,10 @@ class TestWindowsAPIEdgeCases:
             elapsed = time.time() - start
             
             # Should complete within reasonable time
-            assert elapsed < 10  # 3 pings should finish in <10s
+            assert elapsed < 10  # 3 pings should finish in <10s  # nosec B101
         except TimeoutError:
             elapsed = time.time() - start
-            assert elapsed < 35
+            assert elapsed < 35  # nosec B101
 
 
 class TestWindowsAPIPerformance:
@@ -373,12 +373,12 @@ class TestWindowsAPIPerformance:
                     test_key,
                     f"Value{i}"
                 )
-                assert value == f"Data{i}"
+                assert value == f"Data{i}"  # nosec B101
             read_time = time.time() - start
             
             # Performance targets: <10ms per operation
-            assert write_time / 100 < 0.01  # <10ms per write
-            assert read_time / 100 < 0.01   # <10ms per read
+            assert write_time / 100 < 0.01  # <10ms per write  # nosec B101
+            assert read_time / 100 < 0.01   # <10ms per read  # nosec B101
             
         finally:
             # Cleanup

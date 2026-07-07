@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import ast
 import re
-import subprocess
+import subprocess  # nosec B404
 import sys
 from dataclasses import dataclass, field
 from enum import Enum
@@ -161,7 +161,7 @@ def check_no_hardcoded_secrets(root: Path) -> AuditResult:
                 continue
 
             for pattern_name, pattern in _SECRET_PATTERNS:
-                if pattern.search(line):  # nosec B943 — static analysis regex, not a NoSQL query
+                if pattern.search(line):  # nosec B943
                     issues.append(
                         SecurityIssue(
                             severity=Severity.CRITICAL,
@@ -197,7 +197,7 @@ def check_no_dangerous_functions(root: Path) -> AuditResult:
                 continue
 
             for pattern_name, pattern in _DANGEROUS_PATTERNS:
-                if pattern.search(line):  # nosec B943 — static analysis regex, not a NoSQL query
+                if pattern.search(line):  # nosec B943
                     issues.append(
                         SecurityIssue(
                             severity=Severity.HIGH,
@@ -350,7 +350,7 @@ def check_security_imports_correct(root: Path) -> AuditResult:
 def run_bandit(root: Path) -> AuditResult:
     """Run Bandit SAST tool if available."""
     try:
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(  # nosec B603  # noqa: S603
             [sys.executable, "-m", "bandit", "-r", str(root), "-f", "json", "-q"],
             check=False,
             capture_output=True,
@@ -379,7 +379,7 @@ def run_safety(root: Path) -> AuditResult:
         if requirements_file.exists():
             cmd += ["-r", str(requirements_file)]
 
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(  # nosec B603  # noqa: S603
             cmd,
             check=False,
             capture_output=True,

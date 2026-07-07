@@ -40,7 +40,7 @@ Version: 1.0.0
 
 import logging
 import platform
-import subprocess
+import subprocess  # nosec B404
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -341,7 +341,7 @@ class MacOSMediaBackend(MediaBackend):
 
         """
         try:
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["osascript", "-e", script],
                 capture_output=True,
                 text=True,
@@ -521,7 +521,7 @@ class LinuxMediaBackend(MediaBackend):
 
         """
         try:
-            subprocess.run(["playerctl", "--version"], capture_output=True, timeout=1.0, check=True)
+            subprocess.run(["playerctl", "--version"], capture_output=True, timeout=1.0, check=True)  # nosec B603 B607
             return True
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
             return False
@@ -540,7 +540,7 @@ class LinuxMediaBackend(MediaBackend):
 
         """
         try:
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["playerctl", command],
                 capture_output=True,
                 text=True,
@@ -565,7 +565,7 @@ class LinuxMediaBackend(MediaBackend):
 
         """
         try:
-            subprocess.run(["xdotool", "key", key], capture_output=True, timeout=5.0, check=True)  # noqa: S603
+            subprocess.run(["xdotool", "key", key], capture_output=True, timeout=5.0, check=True)  # nosec B603 B607  # noqa: S603
             logger.debug("xdotool key %s sent", key)
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             logger.exception("xdotool key failed")

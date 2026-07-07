@@ -22,7 +22,7 @@ class TestConversationContext:
         context = ConversationContext()
         formatted = context.format_for_prompt()
 
-        assert formatted == "No conversation context available."
+        assert formatted == "No conversation context available."  # nosec B101
 
     def test_recent_turns_formatting(self):
         """Test formatting with recent turns."""
@@ -31,10 +31,10 @@ class TestConversationContext:
         )
         formatted = context.format_for_prompt()
 
-        assert "Recent conversation:" in formatted
-        assert "1. User: Hello" in formatted
-        assert "2. Assistant: Hi there" in formatted
-        assert "3. User: How are you?" in formatted
+        assert "Recent conversation:" in formatted  # nosec B101
+        assert "1. User: Hello" in formatted  # nosec B101
+        assert "2. Assistant: Hi there" in formatted  # nosec B101
+        assert "3. User: How are you?" in formatted  # nosec B101
 
     def test_recent_turns_max_limit(self):
         """Test that only last N turns are included."""
@@ -42,28 +42,28 @@ class TestConversationContext:
         formatted = context.format_for_prompt(max_turns=3)
 
         # Should only include last 3 turns
-        assert "Turn 7" in formatted
-        assert "Turn 8" in formatted
-        assert "Turn 9" in formatted
-        assert "Turn 6" not in formatted
+        assert "Turn 7" in formatted  # nosec B101
+        assert "Turn 8" in formatted  # nosec B101
+        assert "Turn 9" in formatted  # nosec B101
+        assert "Turn 6" not in formatted  # nosec B101
 
     def test_tracked_entities_formatting(self):
         """Test formatting with tracked entities."""
         context = ConversationContext(tracked_entities={"person": "John", "location": "New York"})
         formatted = context.format_for_prompt()
 
-        assert "Tracked entities:" in formatted
-        assert "person: John" in formatted
-        assert "location: New York" in formatted
+        assert "Tracked entities:" in formatted  # nosec B101
+        assert "person: John" in formatted  # nosec B101
+        assert "location: New York" in formatted  # nosec B101
 
     def test_user_preferences_formatting(self):
         """Test formatting with user preferences."""
         context = ConversationContext(user_preferences={"language": "English", "timezone": "UTC"})
         formatted = context.format_for_prompt()
 
-        assert "User preferences:" in formatted
-        assert "language: English" in formatted
-        assert "timezone: UTC" in formatted
+        assert "User preferences:" in formatted  # nosec B101
+        assert "language: English" in formatted  # nosec B101
+        assert "timezone: UTC" in formatted  # nosec B101
 
     def test_past_actions_formatting(self):
         """Test formatting with past actions."""
@@ -73,11 +73,11 @@ class TestConversationContext:
         formatted = context.format_for_prompt()
 
         # Should only include last 3 actions
-        assert "Recent actions:" in formatted
-        assert "Send message" in formatted
-        assert "Play music" in formatted
-        assert "Check weather" in formatted
-        assert "Set timer" not in formatted  # Oldest action excluded
+        assert "Recent actions:" in formatted  # nosec B101
+        assert "Send message" in formatted  # nosec B101
+        assert "Play music" in formatted  # nosec B101
+        assert "Check weather" in formatted  # nosec B101
+        assert "Set timer" not in formatted  # Oldest action excluded  # nosec B101
 
     def test_complete_context_formatting(self):
         """Test formatting with all context fields."""
@@ -89,10 +89,10 @@ class TestConversationContext:
         )
         formatted = context.format_for_prompt()
 
-        assert "Recent conversation:" in formatted
-        assert "Tracked entities:" in formatted
-        assert "User preferences:" in formatted
-        assert "Recent actions:" in formatted
+        assert "Recent conversation:" in formatted  # nosec B101
+        assert "Tracked entities:" in formatted  # nosec B101
+        assert "User preferences:" in formatted  # nosec B101
+        assert "Recent actions:" in formatted  # nosec B101
 
 
 class TestReasoningPrompts:
@@ -100,45 +100,45 @@ class TestReasoningPrompts:
 
     def test_system_prompt_exists(self):
         """Test that system prompt is defined."""
-        assert ReasoningPrompts.SYSTEM_PROMPT
-        assert len(ReasoningPrompts.SYSTEM_PROMPT) > 100
-        assert "Agent_Guru" in ReasoningPrompts.SYSTEM_PROMPT
+        assert ReasoningPrompts.SYSTEM_PROMPT  # nosec B101
+        assert len(ReasoningPrompts.SYSTEM_PROMPT) > 100  # nosec B101
+        assert "Agent_Guru" in ReasoningPrompts.SYSTEM_PROMPT  # nosec B101
 
     def test_single_step_template_exists(self):
         """Test that single-step template is defined."""
-        assert ReasoningPrompts.SINGLE_STEP_TEMPLATE
-        assert "{user_input}" in ReasoningPrompts.SINGLE_STEP_TEMPLATE
-        assert "{intent_type}" in ReasoningPrompts.SINGLE_STEP_TEMPLATE
-        assert "{entities}" in ReasoningPrompts.SINGLE_STEP_TEMPLATE
+        assert ReasoningPrompts.SINGLE_STEP_TEMPLATE  # nosec B101
+        assert "{user_input}" in ReasoningPrompts.SINGLE_STEP_TEMPLATE  # nosec B101
+        assert "{intent_type}" in ReasoningPrompts.SINGLE_STEP_TEMPLATE  # nosec B101
+        assert "{entities}" in ReasoningPrompts.SINGLE_STEP_TEMPLATE  # nosec B101
 
     def test_multi_step_template_exists(self):
         """Test that multi-step template is defined."""
-        assert ReasoningPrompts.MULTI_STEP_TEMPLATE
-        assert "{user_input}" in ReasoningPrompts.MULTI_STEP_TEMPLATE
-        assert "{intent_type}" in ReasoningPrompts.MULTI_STEP_TEMPLATE
-        assert "2-5 steps" in ReasoningPrompts.MULTI_STEP_TEMPLATE
+        assert ReasoningPrompts.MULTI_STEP_TEMPLATE  # nosec B101
+        assert "{user_input}" in ReasoningPrompts.MULTI_STEP_TEMPLATE  # nosec B101
+        assert "{intent_type}" in ReasoningPrompts.MULTI_STEP_TEMPLATE  # nosec B101
+        assert "2-5 steps" in ReasoningPrompts.MULTI_STEP_TEMPLATE  # nosec B101
 
     def test_few_shot_examples_exist(self):
         """Test that few-shot examples are defined."""
-        assert ReasoningPrompts.FEW_SHOT_EXAMPLES
-        assert "set_timer" in ReasoningPrompts.FEW_SHOT_EXAMPLES
-        assert "send_message" in ReasoningPrompts.FEW_SHOT_EXAMPLES
-        assert "multi_step_task" in ReasoningPrompts.FEW_SHOT_EXAMPLES
+        assert ReasoningPrompts.FEW_SHOT_EXAMPLES  # nosec B101
+        assert "set_timer" in ReasoningPrompts.FEW_SHOT_EXAMPLES  # nosec B101
+        assert "send_message" in ReasoningPrompts.FEW_SHOT_EXAMPLES  # nosec B101
+        assert "multi_step_task" in ReasoningPrompts.FEW_SHOT_EXAMPLES  # nosec B101
 
     def test_few_shot_example_structure(self):
         """Test structure of few-shot examples."""
         example = ReasoningPrompts.FEW_SHOT_EXAMPLES["set_timer"]
 
-        assert "user_input" in example
-        assert "intent_type" in example
-        assert "entities" in example
-        assert "plan" in example
+        assert "user_input" in example  # nosec B101
+        assert "intent_type" in example  # nosec B101
+        assert "entities" in example  # nosec B101
+        assert "plan" in example  # nosec B101
 
         plan = example["plan"]
-        assert "goal" in plan
-        assert "steps" in plan
-        assert "reasoning" in plan
-        assert "confidence" in plan
+        assert "goal" in plan  # nosec B101
+        assert "steps" in plan  # nosec B101
+        assert "reasoning" in plan  # nosec B101
+        assert "confidence" in plan  # nosec B101
 
     def test_format_single_step_prompt_basic(self):
         """Test basic single-step prompt formatting."""
@@ -149,10 +149,10 @@ class TestReasoningPrompts:
             available_tools=["timer_tool", "alarm_tool"],
         )
 
-        assert "Set a timer for 5 minutes" in prompt
-        assert "set_timer" in prompt
-        assert "{'duration': '5 minutes'}" in prompt
-        assert "timer_tool, alarm_tool" in prompt
+        assert "Set a timer for 5 minutes" in prompt  # nosec B101
+        assert "set_timer" in prompt  # nosec B101
+        assert "{'duration': '5 minutes'}" in prompt  # nosec B101
+        assert "timer_tool, alarm_tool" in prompt  # nosec B101
 
     def test_format_single_step_prompt_with_context(self):
         """Test single-step prompt with conversation context."""
@@ -169,9 +169,9 @@ class TestReasoningPrompts:
             context=context,
         )
 
-        assert "Recent conversation:" in prompt
-        assert "Tracked entities:" in prompt
-        assert "person: John" in prompt
+        assert "Recent conversation:" in prompt  # nosec B101
+        assert "Tracked entities:" in prompt  # nosec B101
+        assert "person: John" in prompt  # nosec B101
 
     def test_format_single_step_prompt_without_context(self):
         """Test single-step prompt without context."""
@@ -183,7 +183,7 @@ class TestReasoningPrompts:
             context=None,
         )
 
-        assert "No context available." in prompt
+        assert "No context available." in prompt  # nosec B101
 
     def test_format_multi_step_prompt_basic(self):
         """Test basic multi-step prompt formatting."""
@@ -194,10 +194,10 @@ class TestReasoningPrompts:
             available_tools=["music_tool", "timer_tool"],
         )
 
-        assert "Play music and set a timer" in prompt
-        assert "multi_step_task" in prompt
-        assert "music_tool, timer_tool" in prompt
-        assert "2-5 steps" in prompt
+        assert "Play music and set a timer" in prompt  # nosec B101
+        assert "multi_step_task" in prompt  # nosec B101
+        assert "music_tool, timer_tool" in prompt  # nosec B101
+        assert "2-5 steps" in prompt  # nosec B101
 
     def test_format_multi_step_prompt_with_context(self):
         """Test multi-step prompt with conversation context."""
@@ -214,17 +214,17 @@ class TestReasoningPrompts:
             context=context,
         )
 
-        assert "Recent conversation:" in prompt
-        assert "User preferences:" in prompt
-        assert "workout_playlist: Rock" in prompt
+        assert "Recent conversation:" in prompt  # nosec B101
+        assert "User preferences:" in prompt  # nosec B101
+        assert "workout_playlist: Rock" in prompt  # nosec B101
 
     def test_get_few_shot_examples_specific_intent(self):
         """Test getting few-shot examples for specific intent."""
         examples = ReasoningPrompts.get_few_shot_examples("set_timer", count=2)
 
-        assert "set_timer" in examples
-        assert "Example:" in examples
-        assert "Set a timer for 5 minutes" in examples
+        assert "set_timer" in examples  # nosec B101
+        assert "Example:" in examples  # nosec B101
+        assert "Set a timer for 5 minutes" in examples  # nosec B101
 
     def test_get_few_shot_examples_count_limit(self):
         """Test that example count is respected."""
@@ -232,15 +232,15 @@ class TestReasoningPrompts:
 
         # Should return at most 2 examples
         example_count = examples.count("Example:")
-        assert example_count <= 2
+        assert example_count <= 2  # nosec B101
 
     def test_get_few_shot_examples_unknown_intent(self):
         """Test getting examples for unknown intent."""
         examples = ReasoningPrompts.get_few_shot_examples("unknown_intent", count=2)
 
         # Should return general examples
-        assert "Example:" in examples
-        assert len(examples) > 0
+        assert "Example:" in examples  # nosec B101
+        assert len(examples) > 0  # nosec B101
 
     def test_compress_context_basic(self):
         """Test basic context compression."""
@@ -254,15 +254,15 @@ class TestReasoningPrompts:
         compressed = ReasoningPrompts.compress_context(context, max_length=500)
 
         # Should keep only last 2 turns (aggressive compression)
-        assert len(compressed.recent_turns) <= 3
-        assert compressed.recent_turns[-1] == "Turn 9"
+        assert len(compressed.recent_turns) <= 3  # nosec B101
+        assert compressed.recent_turns[-1] == "Turn 9"  # nosec B101
 
         # Should remove past actions first
-        assert len(compressed.past_actions) == 0
+        assert len(compressed.past_actions) == 0  # nosec B101
 
         # Should keep entities (up to 3)
-        assert len(compressed.tracked_entities) <= 3
-        assert len(compressed.user_preferences) >= 0  # May be removed if needed
+        assert len(compressed.tracked_entities) <= 3  # nosec B101
+        assert len(compressed.user_preferences) >= 0  # May be removed if needed  # nosec B101
 
     def test_compress_context_aggressive(self):
         """Test aggressive context compression for very long context."""
@@ -276,9 +276,9 @@ class TestReasoningPrompts:
         compressed = ReasoningPrompts.compress_context(context, max_length=200)
 
         # Should aggressively compress
-        assert len(compressed.recent_turns) <= 3
-        assert len(compressed.past_actions) == 0  # Removed first
-        assert len(compressed.tracked_entities) <= 3  # Reduced if needed
+        assert len(compressed.recent_turns) <= 3  # nosec B101
+        assert len(compressed.past_actions) == 0  # Removed first  # nosec B101
+        assert len(compressed.tracked_entities) <= 3  # Reduced if needed  # nosec B101
 
     def test_compress_context_preserves_structure(self):
         """Test that compression preserves ConversationContext structure."""
@@ -291,11 +291,11 @@ class TestReasoningPrompts:
 
         compressed = ReasoningPrompts.compress_context(context, max_length=1000)
 
-        assert isinstance(compressed, ConversationContext)
-        assert isinstance(compressed.recent_turns, list)
-        assert isinstance(compressed.tracked_entities, dict)
-        assert isinstance(compressed.user_preferences, dict)
-        assert isinstance(compressed.past_actions, list)
+        assert isinstance(compressed, ConversationContext)  # nosec B101
+        assert isinstance(compressed.recent_turns, list)  # nosec B101
+        assert isinstance(compressed.tracked_entities, dict)  # nosec B101
+        assert isinstance(compressed.user_preferences, dict)  # nosec B101
+        assert isinstance(compressed.past_actions, list)  # nosec B101
 
 
 class TestReasoningPromptsProperties:
@@ -320,12 +320,12 @@ class TestReasoningPromptsProperties:
         )
 
         # Should produce non-empty string
-        assert isinstance(prompt, str)
-        assert len(prompt) > 0
+        assert isinstance(prompt, str)  # nosec B101
+        assert len(prompt) > 0  # nosec B101
 
         # Should contain key components
-        assert user_input in prompt
-        assert intent_type in prompt
+        assert user_input in prompt  # nosec B101
+        assert intent_type in prompt  # nosec B101
 
     @given(
         user_input=st.text(min_size=1, max_size=200),
@@ -346,13 +346,13 @@ class TestReasoningPromptsProperties:
         )
 
         # Should produce non-empty string
-        assert isinstance(prompt, str)
-        assert len(prompt) > 0
+        assert isinstance(prompt, str)  # nosec B101
+        assert len(prompt) > 0  # nosec B101
 
         # Should contain key components
-        assert user_input in prompt
-        assert intent_type in prompt
-        assert "2-5 steps" in prompt
+        assert user_input in prompt  # nosec B101
+        assert intent_type in prompt  # nosec B101
+        assert "2-5 steps" in prompt  # nosec B101
 
     @given(
         num_turns=st.integers(min_value=0, max_value=20),
@@ -372,8 +372,8 @@ class TestReasoningPromptsProperties:
         formatted = context.format_for_prompt()
 
         # Should always produce string
-        assert isinstance(formatted, str)
-        assert len(formatted) > 0
+        assert isinstance(formatted, str)  # nosec B101
+        assert len(formatted) > 0  # nosec B101
 
     @given(
         num_turns=st.integers(min_value=1, max_value=20),
@@ -398,12 +398,12 @@ class TestReasoningPromptsProperties:
         compressed_formatted = compressed.format_for_prompt()
 
         # Compressed should be smaller or equal
-        assert len(compressed_formatted) <= len(original_formatted)
+        assert len(compressed_formatted) <= len(original_formatted)  # nosec B101
 
         # Compressed should try to respect max_length (with tolerance for very small limits)
         # We allow 2x overage because compression is done in stages and very small limits may not be achievable
         if max_length >= 200:
-            assert len(compressed_formatted) <= max_length * 2
+            assert len(compressed_formatted) <= max_length * 2  # nosec B101
 
     @given(
         num_turns=st.integers(min_value=0, max_value=20),
@@ -423,12 +423,12 @@ class TestReasoningPromptsProperties:
         turn_count = sum(1 for i in range(num_turns) if f"Turn_{i:03d}" in formatted)
 
         # Should not exceed max_turns
-        assert turn_count <= max_turns
+        assert turn_count <= max_turns  # nosec B101
 
         # Should include the most recent turns
         if num_turns > 0:
             expected_count = min(num_turns, max_turns)
-            assert turn_count == expected_count
+            assert turn_count == expected_count  # nosec B101
 
 
 @pytest.mark.integration
@@ -454,13 +454,13 @@ class TestReasoningPromptsIntegration:
         )
 
         # Verify complete prompt structure
-        assert "Set a focus timer" in prompt
-        assert "set_timer" in prompt
-        assert "25 minutes" in prompt
-        assert "timer_tool" in prompt
-        assert "Recent conversation:" in prompt
-        assert "Tracked entities:" in prompt
-        assert "User preferences:" in prompt
+        assert "Set a focus timer" in prompt  # nosec B101
+        assert "set_timer" in prompt  # nosec B101
+        assert "25 minutes" in prompt  # nosec B101
+        assert "timer_tool" in prompt  # nosec B101
+        assert "Recent conversation:" in prompt  # nosec B101
+        assert "Tracked entities:" in prompt  # nosec B101
+        assert "User preferences:" in prompt  # nosec B101
 
     def test_complete_multi_step_workflow(self):
         """Test complete multi-step prompt generation workflow."""
@@ -481,14 +481,14 @@ class TestReasoningPromptsIntegration:
         )
 
         # Verify complete prompt structure
-        assert "Start workout session" in prompt
-        assert "multi_step_task" in prompt
-        assert "workout" in prompt
-        assert "30 minutes" in prompt
-        assert "music_tool" in prompt
-        assert "timer_tool" in prompt
-        assert "2-5 steps" in prompt
-        assert "Recent conversation:" in prompt
+        assert "Start workout session" in prompt  # nosec B101
+        assert "multi_step_task" in prompt  # nosec B101
+        assert "workout" in prompt  # nosec B101
+        assert "30 minutes" in prompt  # nosec B101
+        assert "music_tool" in prompt  # nosec B101
+        assert "timer_tool" in prompt  # nosec B101
+        assert "2-5 steps" in prompt  # nosec B101
+        assert "Recent conversation:" in prompt  # nosec B101
 
     def test_context_compression_workflow(self):
         """Test context compression in realistic scenario."""
@@ -522,15 +522,15 @@ class TestReasoningPromptsIntegration:
         compressed = ReasoningPrompts.compress_context(context, max_length=300)
 
         # Verify compression worked
-        assert len(compressed.recent_turns) <= 2
-        assert len(compressed.past_actions) == 0  # Removed first in compression
+        assert len(compressed.recent_turns) <= 2  # nosec B101
+        assert len(compressed.past_actions) == 0  # Removed first in compression  # nosec B101
 
         # Verify most recent data is preserved
-        assert (
+        assert (  # nosec B101
             "User: Play music" in compressed.recent_turns
             or "Assistant: Playing music" in compressed.recent_turns
         )
 
         # Format compressed context
         formatted = compressed.format_for_prompt()
-        assert len(formatted) <= 500  # Should fit within reasonable limit
+        assert len(formatted) <= 500  # Should fit within reasonable limit  # nosec B101

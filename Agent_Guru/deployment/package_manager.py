@@ -13,7 +13,7 @@ import asyncio
 import hashlib
 import json
 import sqlite3
-import subprocess
+import subprocess  # nosec B404
 import sys
 import time
 from datetime import UTC, datetime
@@ -120,7 +120,7 @@ class PackageManager:
 
         start = time.monotonic()
         try:
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603  # noqa: S603
                 [str(python), "-m", "pip", "install", str(package_path), "--quiet", "--no-deps"],
                 check=False,
                 capture_output=True,
@@ -162,7 +162,7 @@ class PackageManager:
             raise PackageNotFoundError(msg)
 
         python = self._resolve_python(target_env)
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(  # nosec B603  # noqa: S603
             [str(python), "-m", "pip", "uninstall", package_name, "-y", "--quiet"],
             check=False,
             capture_output=True,

@@ -263,7 +263,7 @@ class FillerResponseCache:
         if not clips:
             return 0.0
 
-        samples, sample_rate = random.choice(clips)  # noqa: S311 — not security-sensitive
+        samples, sample_rate = random.choice(clips)  # noqa: S311 — not security-sensitive  # nosec B311
 
         # Timing instrumentation
         play_start = time.perf_counter()

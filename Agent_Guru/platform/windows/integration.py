@@ -16,7 +16,7 @@ Design Decisions:
 """
 
 import logging
-import subprocess
+import subprocess  # nosec B404
 import sys
 from dataclasses import dataclass
 from typing import Any
@@ -451,7 +451,7 @@ class WindowsIntegration:
             # inherit our stdio handles (avoids the "handle is invalid" error when
             # running without a console).
             try:
-                process = subprocess.Popen(  # noqa: S603
+                process = subprocess.Popen(  # nosec B603  # noqa: S603
                     cmd,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -476,7 +476,7 @@ class WindowsIntegration:
                 try:
                     proc = subprocess.Popen(
                         executable,
-                        shell=True,  # noqa: S602 — validated above
+                        shell=True,  # noqa: S602 — validated above  # nosec B602
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                         stdin=subprocess.DEVNULL,
@@ -490,7 +490,7 @@ class WindowsIntegration:
             msg = f"Executable not found: '{executable}'"
             raise FileNotFoundError(msg)
 
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             logger.exception("Executable not found")
             raise
 
@@ -572,7 +572,7 @@ class WindowsIntegration:
                 )
 
             # Execute command
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603  # noqa: S603
                 cmd,
                 check=False,
                 capture_output=True,

@@ -20,7 +20,7 @@ Version: 1.0.0
 
 import logging
 import platform
-import subprocess
+import subprocess  # nosec B404
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 

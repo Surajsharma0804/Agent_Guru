@@ -46,7 +46,7 @@ Version: 1.0.0
 
 import logging
 import math
-import subprocess
+import subprocess  # nosec B404
 import sys
 import time
 from dataclasses import dataclass

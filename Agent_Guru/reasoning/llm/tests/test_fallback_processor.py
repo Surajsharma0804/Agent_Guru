@@ -36,10 +36,10 @@ class TestFallbackMetrics:
         """Test metrics initialization."""
         metrics = FallbackMetrics()
 
-        assert metrics.total_fallbacks == 0
-        assert metrics.successful_fallbacks == 0
-        assert metrics.failed_fallbacks == 0
-        assert metrics.total_latency_ms == 0.0
+        assert metrics.total_fallbacks == 0  # nosec B101
+        assert metrics.successful_fallbacks == 0  # nosec B101
+        assert metrics.failed_fallbacks == 0  # nosec B101
+        assert metrics.total_latency_ms == 0.0  # nosec B101
 
     def test_record_successful_fallback(self):
         """Test recording successful fallback."""
@@ -47,10 +47,10 @@ class TestFallbackMetrics:
 
         metrics.record_fallback(success=True, latency_ms=15.5)
 
-        assert metrics.total_fallbacks == 1
-        assert metrics.successful_fallbacks == 1
-        assert metrics.failed_fallbacks == 0
-        assert metrics.total_latency_ms == 15.5
+        assert metrics.total_fallbacks == 1  # nosec B101
+        assert metrics.successful_fallbacks == 1  # nosec B101
+        assert metrics.failed_fallbacks == 0  # nosec B101
+        assert metrics.total_latency_ms == 15.5  # nosec B101
 
     def test_record_failed_fallback(self):
         """Test recording failed fallback."""
@@ -58,10 +58,10 @@ class TestFallbackMetrics:
 
         metrics.record_fallback(success=False, latency_ms=10.0)
 
-        assert metrics.total_fallbacks == 1
-        assert metrics.successful_fallbacks == 0
-        assert metrics.failed_fallbacks == 1
-        assert metrics.total_latency_ms == 10.0
+        assert metrics.total_fallbacks == 1  # nosec B101
+        assert metrics.successful_fallbacks == 0  # nosec B101
+        assert metrics.failed_fallbacks == 1  # nosec B101
+        assert metrics.total_latency_ms == 10.0  # nosec B101
 
     def test_record_multiple_fallbacks(self):
         """Test recording multiple fallbacks."""
@@ -71,10 +71,10 @@ class TestFallbackMetrics:
         metrics.record_fallback(success=True, latency_ms=20.0)
         metrics.record_fallback(success=False, latency_ms=5.0)
 
-        assert metrics.total_fallbacks == 3
-        assert metrics.successful_fallbacks == 2
-        assert metrics.failed_fallbacks == 1
-        assert metrics.total_latency_ms == 40.0
+        assert metrics.total_fallbacks == 3  # nosec B101
+        assert metrics.successful_fallbacks == 2  # nosec B101
+        assert metrics.failed_fallbacks == 1  # nosec B101
+        assert metrics.total_latency_ms == 40.0  # nosec B101
 
     def test_get_fallback_rate_with_data(self):
         """Test calculating fallback success rate."""
@@ -86,14 +86,14 @@ class TestFallbackMetrics:
         metrics.record_fallback(success=False, latency_ms=10.0)
 
         rate = metrics.get_fallback_rate()
-        assert rate == 50.0  # 2 out of 4 successful
+        assert rate == 50.0  # 2 out of 4 successful  # nosec B101
 
     def test_get_fallback_rate_no_data(self):
         """Test fallback rate with no data."""
         metrics = FallbackMetrics()
 
         rate = metrics.get_fallback_rate()
-        assert rate == 0.0
+        assert rate == 0.0  # nosec B101
 
     def test_get_average_latency_with_data(self):
         """Test calculating average latency."""
@@ -104,14 +104,14 @@ class TestFallbackMetrics:
         metrics.record_fallback(success=True, latency_ms=30.0)
 
         avg = metrics.get_average_latency()
-        assert avg == 20.0  # (10 + 20 + 30) / 3
+        assert avg == 20.0  # (10 + 20 + 30) / 3  # nosec B101
 
     def test_get_average_latency_no_data(self):
         """Test average latency with no data."""
         metrics = FallbackMetrics()
 
         avg = metrics.get_average_latency()
-        assert avg == 0.0
+        assert avg == 0.0  # nosec B101
 
     def test_reset_metrics(self):
         """Test resetting metrics."""
@@ -122,10 +122,10 @@ class TestFallbackMetrics:
 
         metrics.reset()
 
-        assert metrics.total_fallbacks == 0
-        assert metrics.successful_fallbacks == 0
-        assert metrics.failed_fallbacks == 0
-        assert metrics.total_latency_ms == 0.0
+        assert metrics.total_fallbacks == 0  # nosec B101
+        assert metrics.successful_fallbacks == 0  # nosec B101
+        assert metrics.failed_fallbacks == 0  # nosec B101
+        assert metrics.total_latency_ms == 0.0  # nosec B101
 
 
 # Unit Tests - FallbackProcessor
@@ -138,99 +138,99 @@ class TestFallbackProcessor:
         """Test processor initialization with defaults."""
         processor = FallbackProcessor()
 
-        assert processor.router is not None
-        assert isinstance(processor.router, FastIntentRouter)
-        assert processor.metrics is not None
-        assert isinstance(processor.metrics, FallbackMetrics)
-        assert processor.metrics_collector is None
+        assert processor.router is not None  # nosec B101
+        assert isinstance(processor.router, FastIntentRouter)  # nosec B101
+        assert processor.metrics is not None  # nosec B101
+        assert isinstance(processor.metrics, FallbackMetrics)  # nosec B101
+        assert processor.metrics_collector is None  # nosec B101
 
     def test_initialization_with_router(self):
         """Test processor initialization with custom router."""
         custom_router = FastIntentRouter()
         processor = FallbackProcessor(router=custom_router)
 
-        assert processor.router is custom_router
+        assert processor.router is custom_router  # nosec B101
 
     def test_initialization_with_metrics_collector(self):
         """Test processor initialization with metrics collector."""
         collector = MetricsCollector()
         processor = FallbackProcessor(metrics_collector=collector)
 
-        assert processor.metrics_collector is collector
+        assert processor.metrics_collector is collector  # nosec B101
 
     def test_detect_llm_unavailable_timeout(self):
         """Test detecting timeout errors."""
         processor = FallbackProcessor()
 
         error = TimeoutError("Request timed out after 30 seconds")
-        assert processor.detect_llm_unavailable(error) is True
+        assert processor.detect_llm_unavailable(error) is True  # nosec B101
 
     def test_detect_llm_unavailable_connection(self):
         """Test detecting connection errors."""
         processor = FallbackProcessor()
 
         error = ConnectionError("Connection refused")
-        assert processor.detect_llm_unavailable(error) is True
+        assert processor.detect_llm_unavailable(error) is True  # nosec B101
 
     def test_detect_llm_unavailable_service(self):
         """Test detecting service unavailable errors."""
         processor = FallbackProcessor()
 
         error = Exception("Service unavailable (503)")
-        assert processor.detect_llm_unavailable(error) is True
+        assert processor.detect_llm_unavailable(error) is True  # nosec B101
 
     def test_detect_llm_unavailable_rate_limit(self):
         """Test detecting rate limit errors."""
         processor = FallbackProcessor()
 
         error = Exception("Rate limit exceeded: too many requests")
-        assert processor.detect_llm_unavailable(error) is True
+        assert processor.detect_llm_unavailable(error) is True  # nosec B101
 
     def test_detect_llm_unavailable_other_error(self):
         """Test detecting non-unavailability errors."""
         processor = FallbackProcessor()
 
         error = ValueError("Invalid input format")
-        assert processor.detect_llm_unavailable(error) is False
+        assert processor.detect_llm_unavailable(error) is False  # nosec B101
 
     def test_determine_task_type_conversational(self):
         """Test determining conversational task type."""
         processor = FallbackProcessor()
 
-        assert processor._determine_task_type("greeting") == TaskType.CONVERSATIONAL
-        assert processor._determine_task_type("farewell") == TaskType.CONVERSATIONAL
-        assert processor._determine_task_type("help") == TaskType.CONVERSATIONAL
+        assert processor._determine_task_type("greeting") == TaskType.CONVERSATIONAL  # nosec B101
+        assert processor._determine_task_type("farewell") == TaskType.CONVERSATIONAL  # nosec B101
+        assert processor._determine_task_type("help") == TaskType.CONVERSATIONAL  # nosec B101
 
     def test_determine_task_type_memory_query(self):
         """Test determining memory query task type."""
         processor = FallbackProcessor()
 
-        assert processor._determine_task_type("query_history") == TaskType.MEMORY_QUERY
-        assert processor._determine_task_type("when_did_i") == TaskType.MEMORY_QUERY
+        assert processor._determine_task_type("query_history") == TaskType.MEMORY_QUERY  # nosec B101
+        assert processor._determine_task_type("when_did_i") == TaskType.MEMORY_QUERY  # nosec B101
 
     def test_determine_task_type_single_step(self):
         """Test determining single-step task type."""
         processor = FallbackProcessor()
 
-        assert processor._determine_task_type("set_timer") == TaskType.SINGLE_STEP
-        assert processor._determine_task_type("play_music") == TaskType.SINGLE_STEP
-        assert processor._determine_task_type("query_weather") == TaskType.SINGLE_STEP
+        assert processor._determine_task_type("set_timer") == TaskType.SINGLE_STEP  # nosec B101
+        assert processor._determine_task_type("play_music") == TaskType.SINGLE_STEP  # nosec B101
+        assert processor._determine_task_type("query_weather") == TaskType.SINGLE_STEP  # nosec B101
 
     def test_requires_confirmation_sensitive(self):
         """Test confirmation required for sensitive intents."""
         processor = FallbackProcessor()
 
-        assert processor._requires_confirmation("delete_file") is True
-        assert processor._requires_confirmation("send_message") is True
-        assert processor._requires_confirmation("make_payment") is True
+        assert processor._requires_confirmation("delete_file") is True  # nosec B101
+        assert processor._requires_confirmation("send_message") is True  # nosec B101
+        assert processor._requires_confirmation("make_payment") is True  # nosec B101
 
     def test_requires_confirmation_non_sensitive(self):
         """Test confirmation not required for non-sensitive intents."""
         processor = FallbackProcessor()
 
-        assert processor._requires_confirmation("set_timer") is False
-        assert processor._requires_confirmation("play_music") is False
-        assert processor._requires_confirmation("query_weather") is False
+        assert processor._requires_confirmation("set_timer") is False  # nosec B101
+        assert processor._requires_confirmation("play_music") is False  # nosec B101
+        assert processor._requires_confirmation("query_weather") is False  # nosec B101
 
 
 # Unit Tests - Task Creation
@@ -254,13 +254,13 @@ class TestCreateTaskFromMatch:
 
         task = processor.create_task_from_match(match, "set timer for 5 minutes")
 
-        assert task.goal == "set timer for 5 minutes"
-        assert task.task_type == TaskType.SINGLE_STEP
-        assert task.entities == {"duration": "5 minutes"}
-        assert len(task.steps) == 1
-        assert task.confidence == 0.95
-        assert task.requires_confirmation is False
-        assert task.status == TaskStatus.PENDING
+        assert task.goal == "set timer for 5 minutes"  # nosec B101
+        assert task.task_type == TaskType.SINGLE_STEP  # nosec B101
+        assert task.entities == {"duration": "5 minutes"}  # nosec B101
+        assert len(task.steps) == 1  # nosec B101
+        assert task.confidence == 0.95  # nosec B101
+        assert task.requires_confirmation is False  # nosec B101
+        assert task.status == TaskStatus.PENDING  # nosec B101
 
     def test_create_task_step_details(self):
         """Test task step details."""
@@ -278,13 +278,13 @@ class TestCreateTaskFromMatch:
         task = processor.create_task_from_match(match, "play Yesterday by Beatles")
 
         step = task.steps[0]
-        assert step.step_id == 1
-        assert step.description == "Execute play_music with parameters"
-        assert step.tool_id == "play_music"
-        assert step.parameters == {"artist": "Beatles", "song": "Yesterday"}
-        assert step.depends_on == []
-        assert step.estimated_duration == 1.0
-        assert step.status == TaskStatus.PENDING
+        assert step.step_id == 1  # nosec B101
+        assert step.description == "Execute play_music with parameters"  # nosec B101
+        assert step.tool_id == "play_music"  # nosec B101
+        assert step.parameters == {"artist": "Beatles", "song": "Yesterday"}  # nosec B101
+        assert step.depends_on == []  # nosec B101
+        assert step.estimated_duration == 1.0  # nosec B101
+        assert step.status == TaskStatus.PENDING  # nosec B101
 
     def test_create_task_conversational(self):
         """Test creating conversational task."""
@@ -301,8 +301,8 @@ class TestCreateTaskFromMatch:
 
         task = processor.create_task_from_match(match, "hello")
 
-        assert task.task_type == TaskType.CONVERSATIONAL
-        assert task.requires_confirmation is False
+        assert task.task_type == TaskType.CONVERSATIONAL  # nosec B101
+        assert task.requires_confirmation is False  # nosec B101
 
     def test_create_task_memory_query(self):
         """Test creating memory query task."""
@@ -319,8 +319,8 @@ class TestCreateTaskFromMatch:
 
         task = processor.create_task_from_match(match, "when did I last call John")
 
-        assert task.task_type == TaskType.MEMORY_QUERY
-        assert task.entities == {"action": "call", "person": "John"}
+        assert task.task_type == TaskType.MEMORY_QUERY  # nosec B101
+        assert task.entities == {"action": "call", "person": "John"}  # nosec B101
 
     def test_create_task_requires_confirmation(self):
         """Test creating task that requires confirmation."""
@@ -337,7 +337,7 @@ class TestCreateTaskFromMatch:
 
         task = processor.create_task_from_match(match, "delete file.txt")
 
-        assert task.requires_confirmation is True
+        assert task.requires_confirmation is True  # nosec B101
 
 
 # Unit Tests - Process with Fallback
@@ -365,11 +365,11 @@ class TestProcessWithFallback:
 
         task = processor.process_with_fallback("set timer for 5 minutes")
 
-        assert task is not None
-        assert task.task_type == TaskType.SINGLE_STEP
-        assert task.confidence == 0.95
-        assert processor.metrics.total_fallbacks == 1
-        assert processor.metrics.successful_fallbacks == 1
+        assert task is not None  # nosec B101
+        assert task.task_type == TaskType.SINGLE_STEP  # nosec B101
+        assert task.confidence == 0.95  # nosec B101
+        assert processor.metrics.total_fallbacks == 1  # nosec B101
+        assert processor.metrics.successful_fallbacks == 1  # nosec B101
 
     @patch("Agent_Guru.reasoning.llm.fallback_processor.FastIntentRouter")
     def test_process_no_match(self, mock_router_class):
@@ -382,9 +382,9 @@ class TestProcessWithFallback:
 
         task = processor.process_with_fallback("unknown command")
 
-        assert task is None
-        assert processor.metrics.total_fallbacks == 1
-        assert processor.metrics.failed_fallbacks == 1
+        assert task is None  # nosec B101
+        assert processor.metrics.total_fallbacks == 1  # nosec B101
+        assert processor.metrics.failed_fallbacks == 1  # nosec B101
 
     @patch("Agent_Guru.reasoning.llm.fallback_processor.FastIntentRouter")
     def test_process_with_metrics_collector(self, mock_router_class):
@@ -408,12 +408,12 @@ class TestProcessWithFallback:
 
         task = processor.process_with_fallback("set timer for 5 minutes")
 
-        assert task is not None
+        assert task is not None  # nosec B101
         # Verify metrics collector was called
         mock_collector.record_stage_latency.assert_called_once()
         call_args = mock_collector.record_stage_latency.call_args
-        assert call_args[0][0] == "fallback_processing"
-        assert call_args[0][1] > 0  # Latency should be positive
+        assert call_args[0][0] == "fallback_processing"  # nosec B101
+        assert call_args[0][1] > 0  # Latency should be positive  # nosec B101
 
     @patch("Agent_Guru.reasoning.llm.fallback_processor.FastIntentRouter")
     def test_process_no_match_with_metrics_collector(self, mock_router_class):
@@ -429,7 +429,7 @@ class TestProcessWithFallback:
 
         task = processor.process_with_fallback("unknown command")
 
-        assert task is None
+        assert task is None  # nosec B101
         # Verify error was recorded
         mock_collector.increment_errors.assert_called_once_with("fallback_no_match")
 
@@ -446,8 +446,8 @@ class TestProcessWithFallback:
             processor.process_with_fallback("test input")
 
         # Verify metrics recorded failure
-        assert processor.metrics.total_fallbacks == 1
-        assert processor.metrics.failed_fallbacks == 1
+        assert processor.metrics.total_fallbacks == 1  # nosec B101
+        assert processor.metrics.failed_fallbacks == 1  # nosec B101
 
     @patch("Agent_Guru.reasoning.llm.fallback_processor.FastIntentRouter")
     def test_process_exception_with_metrics_collector(self, mock_router_class):
@@ -480,11 +480,11 @@ class TestFallbackProcessorMetrics:
 
         metrics = processor.get_metrics()
 
-        assert metrics["total_fallbacks"] == 0.0
-        assert metrics["successful_fallbacks"] == 0.0
-        assert metrics["failed_fallbacks"] == 0.0
-        assert metrics["fallback_success_rate"] == 0.0
-        assert metrics["average_latency_ms"] == 0.0
+        assert metrics["total_fallbacks"] == 0.0  # nosec B101
+        assert metrics["successful_fallbacks"] == 0.0  # nosec B101
+        assert metrics["failed_fallbacks"] == 0.0  # nosec B101
+        assert metrics["fallback_success_rate"] == 0.0  # nosec B101
+        assert metrics["average_latency_ms"] == 0.0  # nosec B101
 
     @patch("Agent_Guru.reasoning.llm.fallback_processor.FastIntentRouter")
     def test_get_metrics_with_data(self, mock_router_class):
@@ -513,11 +513,11 @@ class TestFallbackProcessorMetrics:
 
         metrics = processor.get_metrics()
 
-        assert metrics["total_fallbacks"] == 3.0
-        assert metrics["successful_fallbacks"] == 2.0
-        assert metrics["failed_fallbacks"] == 1.0
-        assert metrics["fallback_success_rate"] == pytest.approx(66.67, rel=0.01)
-        assert metrics["average_latency_ms"] > 0.0
+        assert metrics["total_fallbacks"] == 3.0  # nosec B101
+        assert metrics["successful_fallbacks"] == 2.0  # nosec B101
+        assert metrics["failed_fallbacks"] == 1.0  # nosec B101
+        assert metrics["fallback_success_rate"] == pytest.approx(66.67, rel=0.01)  # nosec B101
+        assert metrics["average_latency_ms"] > 0.0  # nosec B101
 
     def test_reset_metrics(self):
         """Test resetting processor metrics."""
@@ -530,9 +530,9 @@ class TestFallbackProcessorMetrics:
         processor.reset_metrics()
 
         metrics = processor.get_metrics()
-        assert metrics["total_fallbacks"] == 0.0
-        assert metrics["successful_fallbacks"] == 0.0
-        assert metrics["failed_fallbacks"] == 0.0
+        assert metrics["total_fallbacks"] == 0.0  # nosec B101
+        assert metrics["successful_fallbacks"] == 0.0  # nosec B101
+        assert metrics["failed_fallbacks"] == 0.0  # nosec B101
 
 
 # Integration Tests
@@ -556,10 +556,10 @@ class TestFallbackProcessorIntegration:
         task = processor.process_with_fallback("set timer for 5 minutes")
 
         if task is not None:
-            assert isinstance(task, Task)
-            assert task.task_type in [TaskType.SINGLE_STEP, TaskType.MULTI_STEP]
-            assert len(task.steps) >= 1
-            assert task.confidence > 0.0
+            assert isinstance(task, Task)  # nosec B101
+            assert task.task_type in [TaskType.SINGLE_STEP, TaskType.MULTI_STEP]  # nosec B101
+            assert len(task.steps) >= 1  # nosec B101
+            assert task.confidence > 0.0  # nosec B101
 
     def test_integration_metrics_tracking(self):
         """Test metrics tracking in integration."""
@@ -586,5 +586,5 @@ class TestFallbackProcessorIntegration:
 
         # Verify metrics were tracked
         metrics = processor.get_metrics()
-        assert metrics["total_fallbacks"] == len(inputs)
-        assert metrics["average_latency_ms"] > 0.0
+        assert metrics["total_fallbacks"] == len(inputs)  # nosec B101
+        assert metrics["average_latency_ms"] > 0.0  # nosec B101

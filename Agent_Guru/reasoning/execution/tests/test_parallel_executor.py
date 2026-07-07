@@ -32,11 +32,11 @@ class TestStepExecution:
             timeout=5.0,
         )
 
-        assert step.step_id == "step1"
-        assert step.tool_function == mock_func
-        assert step.parameters == {"param1": "value1"}
-        assert step.depends_on == ["step0"]
-        assert step.timeout == 5.0
+        assert step.step_id == "step1"  # nosec B101
+        assert step.tool_function == mock_func  # nosec B101
+        assert step.parameters == {"param1": "value1"}  # nosec B101
+        assert step.depends_on == ["step0"]  # nosec B101
+        assert step.timeout == 5.0  # nosec B101
 
 
 class TestParallelExecutor:
@@ -61,12 +61,12 @@ class TestParallelExecutor:
 
         result = await executor.execute_parallel(steps)
 
-        assert result.success is True
-        assert len(result.step_results) == 1
-        assert result.step_results["step1"].success is True
-        assert result.step_results["step1"].result_data == {"result": "success"}
-        assert result.parallel_batches == 1
-        assert result.failed_steps == []
+        assert result.success is True  # nosec B101
+        assert len(result.step_results) == 1  # nosec B101
+        assert result.step_results["step1"].success is True  # nosec B101
+        assert result.step_results["step1"].result_data == {"result": "success"}  # nosec B101
+        assert result.parallel_batches == 1  # nosec B101
+        assert result.failed_steps == []  # nosec B101
 
     @pytest.mark.asyncio
     async def test_execute_independent_steps_parallel(self):
@@ -92,11 +92,11 @@ class TestParallelExecutor:
         result = await executor.execute_parallel(steps)
         elapsed = time.perf_counter() - start_time
 
-        assert result.success is True
-        assert len(result.step_results) == 3
-        assert result.parallel_batches == 1  # All in one batch
+        assert result.success is True  # nosec B101
+        assert len(result.step_results) == 3  # nosec B101
+        assert result.parallel_batches == 1  # All in one batch  # nosec B101
         # Should take ~0.1s (parallel) not ~0.3s (sequential)
-        assert elapsed < 0.25
+        assert elapsed < 0.25  # nosec B101
 
     @pytest.mark.asyncio
     async def test_execute_dependent_steps_sequential(self):
@@ -119,11 +119,11 @@ class TestParallelExecutor:
 
         result = await executor.execute_parallel(steps)
 
-        assert result.success is True
-        assert len(result.step_results) == 3
-        assert result.parallel_batches == 3  # Three sequential batches
+        assert result.success is True  # nosec B101
+        assert len(result.step_results) == 3  # nosec B101
+        assert result.parallel_batches == 3  # Three sequential batches  # nosec B101
         # Verify execution order
-        assert execution_order == ["step1", "step2", "step3"]
+        assert execution_order == ["step1", "step2", "step3"]  # nosec B101
 
     @pytest.mark.asyncio
     async def test_execute_mixed_dependencies(self):
@@ -142,9 +142,9 @@ class TestParallelExecutor:
 
         result = await executor.execute_parallel(steps)
 
-        assert result.success is True
-        assert len(result.step_results) == 4
-        assert result.parallel_batches == 2  # Batch 1: step1,step2; Batch 2: step3,step4
+        assert result.success is True  # nosec B101
+        assert len(result.step_results) == 4  # nosec B101
+        assert result.parallel_batches == 2  # Batch 1: step1,step2; Batch 2: step3,step4  # nosec B101
 
     @pytest.mark.asyncio
     async def test_execute_with_failure_fail_fast(self):
@@ -165,10 +165,10 @@ class TestParallelExecutor:
 
         result = await executor.execute_parallel(steps, fail_fast=True)
 
-        assert result.success is False
-        assert "step1" in result.failed_steps
+        assert result.success is False  # nosec B101
+        assert "step1" in result.failed_steps  # nosec B101
         # step3 should not execute due to fail_fast
-        assert "step3" not in result.step_results or not result.step_results["step3"].success
+        assert "step3" not in result.step_results or not result.step_results["step3"].success  # nosec B101
 
     @pytest.mark.asyncio
     async def test_execute_with_failure_continue(self):
@@ -188,10 +188,10 @@ class TestParallelExecutor:
 
         result = await executor.execute_parallel(steps, fail_fast=False)
 
-        assert result.success is False
-        assert "step1" in result.failed_steps
-        assert result.step_results["step1"].success is False
-        assert result.step_results["step2"].success is True
+        assert result.success is False  # nosec B101
+        assert "step1" in result.failed_steps  # nosec B101
+        assert result.step_results["step1"].success is False  # nosec B101
+        assert result.step_results["step2"].success is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_execute_with_timeout(self):
@@ -208,9 +208,9 @@ class TestParallelExecutor:
 
         result = await executor.execute_parallel(steps)
 
-        assert result.success is False
-        assert "step1" in result.failed_steps
-        assert result.step_results["step1"].error["error_code"] == "TIMEOUT"
+        assert result.success is False  # nosec B101
+        assert "step1" in result.failed_steps  # nosec B101
+        assert result.step_results["step1"].error["error_code"] == "TIMEOUT"  # nosec B101
 
     def test_build_execution_batches_independent(self):
         """Test building batches for independent steps."""
@@ -227,8 +227,8 @@ class TestParallelExecutor:
 
         batches = executor._build_execution_batches(steps)
 
-        assert len(batches) == 1
-        assert len(batches[0]) == 3
+        assert len(batches) == 1  # nosec B101
+        assert len(batches[0]) == 3  # nosec B101
 
     def test_build_execution_batches_sequential(self):
         """Test building batches for sequential steps."""
@@ -245,11 +245,11 @@ class TestParallelExecutor:
 
         batches = executor._build_execution_batches(steps)
 
-        assert len(batches) == 3
-        assert len(batches[0]) == 1
-        assert batches[0][0].step_id == "step1"
-        assert batches[1][0].step_id == "step2"
-        assert batches[2][0].step_id == "step3"
+        assert len(batches) == 3  # nosec B101
+        assert len(batches[0]) == 1  # nosec B101
+        assert batches[0][0].step_id == "step1"  # nosec B101
+        assert batches[1][0].step_id == "step2"  # nosec B101
+        assert batches[2][0].step_id == "step3"  # nosec B101
 
     def test_build_execution_batches_diamond(self):
         """Test building batches for diamond dependency pattern."""
@@ -267,10 +267,10 @@ class TestParallelExecutor:
 
         batches = executor._build_execution_batches(steps)
 
-        assert len(batches) == 3
-        assert len(batches[0]) == 1  # step1
-        assert len(batches[1]) == 2  # step2, step3
-        assert len(batches[2]) == 1  # step4
+        assert len(batches) == 3  # nosec B101
+        assert len(batches[0]) == 1  # step1  # nosec B101
+        assert len(batches[1]) == 2  # step2, step3  # nosec B101
+        assert len(batches[2]) == 1  # step4  # nosec B101
 
     def test_detect_independent_steps(self):
         """Test detecting independent steps."""
@@ -287,9 +287,9 @@ class TestParallelExecutor:
 
         batches = executor.detect_independent_steps(steps)
 
-        assert len(batches) == 2
-        assert set(batches[0]) == {"step1", "step2"}
-        assert batches[1] == ["step3"]
+        assert len(batches) == 2  # nosec B101
+        assert set(batches[0]) == {"step1", "step2"}  # nosec B101
+        assert batches[1] == ["step3"]  # nosec B101
 
 
 class TestParallelExecutionController:
@@ -310,8 +310,8 @@ class TestParallelExecutionController:
 
         result = await controller.execute(steps)
 
-        assert result.success is True
-        assert len(result.step_results) == 2
+        assert result.success is True  # nosec B101
+        assert len(result.step_results) == 2  # nosec B101
 
     def test_analyze_dependencies(self):
         """Test dependency analysis."""
@@ -328,10 +328,10 @@ class TestParallelExecutionController:
 
         analysis = controller.analyze_dependencies(steps)
 
-        assert analysis["total_steps"] == 3
-        assert analysis["parallel_batches"] == 2
-        assert analysis["max_parallelism"] == 2
-        assert len(analysis["batches"]) == 2
+        assert analysis["total_steps"] == 3  # nosec B101
+        assert analysis["parallel_batches"] == 2  # nosec B101
+        assert analysis["max_parallelism"] == 2  # nosec B101
+        assert len(analysis["batches"]) == 2  # nosec B101
 
 
 class TestParallelExecutionResult:
@@ -360,11 +360,11 @@ class TestParallelExecutionResult:
 
         result_dict = parallel_result.to_dict()
 
-        assert result_dict["success"] is True
-        assert "step1" in result_dict["step_results"]
-        assert result_dict["total_time"] == 1.5
-        assert result_dict["parallel_batches"] == 1
-        assert result_dict["failed_steps"] == []
+        assert result_dict["success"] is True  # nosec B101
+        assert "step1" in result_dict["step_results"]  # nosec B101
+        assert result_dict["total_time"] == 1.5  # nosec B101
+        assert result_dict["parallel_batches"] == 1  # nosec B101
+        assert result_dict["failed_steps"] == []  # nosec B101
 
 
 class TestIntegration:
@@ -396,11 +396,11 @@ class TestIntegration:
 
         result = await controller.execute(steps)
 
-        assert result.success is True
-        assert len(result.step_results) == 6
+        assert result.success is True  # nosec B101
+        assert len(result.step_results) == 6  # nosec B101
         # Verify all steps completed
         for step_id in ["A", "B", "C", "D", "E", "F"]:
-            assert result.step_results[step_id].success is True
+            assert result.step_results[step_id].success is True  # nosec B101
 
     @pytest.mark.asyncio
     async def test_partial_failure_handling(self):
@@ -422,10 +422,10 @@ class TestIntegration:
 
         result = await controller.execute(steps, fail_fast=False)
 
-        assert result.success is False
-        assert "step2" in result.failed_steps
+        assert result.success is False  # nosec B101
+        assert "step2" in result.failed_steps  # nosec B101
         # step1 and step3 should succeed
-        assert result.step_results["step1"].success is True
-        assert result.step_results["step3"].success is True
+        assert result.step_results["step1"].success is True  # nosec B101
+        assert result.step_results["step3"].success is True  # nosec B101
         # step4 should succeed (doesn't depend on step2)
-        assert result.step_results["step4"].success is True
+        assert result.step_results["step4"].success is True  # nosec B101

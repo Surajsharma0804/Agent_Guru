@@ -75,23 +75,23 @@ class TestInitialization:
         """Test initialization with explicit config."""
         provider = OpenAIProvider(config)
 
-        assert provider.config == config
-        assert provider.model == "gpt-4-turbo-preview"
-        assert provider.client is not None
-        assert provider.get_provider_type() == LLMProvider.OPENAI
+        assert provider.config == config  # nosec B101
+        assert provider.model == "gpt-4-turbo-preview"  # nosec B101
+        assert provider.client is not None  # nosec B101
+        assert provider.get_provider_type() == LLMProvider.OPENAI  # nosec B101
 
     def test_init_with_custom_model(self, config):
         """Test initialization with custom model."""
         provider = OpenAIProvider(config, model="gpt-4")
 
-        assert provider.model == "gpt-4"
+        assert provider.model == "gpt-4"  # nosec B101
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "sk-env-key"})
     def test_init_from_env(self):
         """Test initialization from environment variable."""
         provider = OpenAIProvider()
 
-        assert provider.config.api_key == "sk-env-key"
+        assert provider.config.api_key == "sk-env-key"  # nosec B101
 
     @patch.dict(os.environ, {}, clear=True)
     def test_init_no_api_key(self):
@@ -101,7 +101,7 @@ class TestInitialization:
 
     def test_get_provider_type(self, provider):
         """Test provider type."""
-        assert provider.get_provider_type() == LLMProvider.OPENAI
+        assert provider.get_provider_type() == LLMProvider.OPENAI  # nosec B101
 
 
 # ============================================================================
@@ -138,15 +138,15 @@ class TestGeneration:
         response = await provider.generate(llm_request)
 
         # Verify
-        assert isinstance(response, LLMResponse)
-        assert response.text == "Hello! How can I help you?"
-        assert response.provider == LLMProvider.OPENAI
-        assert response.latency_ms > 0
-        assert response.tokens_generated == 20
-        assert response.finish_reason == "stop"
-        assert response.metadata["model"] == "gpt-4-turbo-preview"
-        assert response.metadata["prompt_tokens"] == 10
-        assert response.metadata["total_tokens"] == 30
+        assert isinstance(response, LLMResponse)  # nosec B101
+        assert response.text == "Hello! How can I help you?"  # nosec B101
+        assert response.provider == LLMProvider.OPENAI  # nosec B101
+        assert response.latency_ms > 0  # nosec B101
+        assert response.tokens_generated == 20  # nosec B101
+        assert response.finish_reason == "stop"  # nosec B101
+        assert response.metadata["model"] == "gpt-4-turbo-preview"  # nosec B101
+        assert response.metadata["prompt_tokens"] == 10  # nosec B101
+        assert response.metadata["total_tokens"] == 30  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_max_tokens(self, provider, llm_request):
@@ -174,8 +174,8 @@ class TestGeneration:
         response = await provider.generate(llm_request)
 
         # Verify
-        assert response.finish_reason == "length"
-        assert response.tokens_generated == 512
+        assert response.finish_reason == "length"  # nosec B101
+        assert response.tokens_generated == 512  # nosec B101
 
     @pytest.mark.asyncio
     async def test_generate_with_stop_sequences(self, provider):
@@ -208,7 +208,7 @@ class TestGeneration:
 
         # Verify stop sequences were passed
         call_args = provider.client.chat.completions.create.call_args
-        assert call_args.kwargs["stop"] == ["3", "4"]
+        assert call_args.kwargs["stop"] == ["3", "4"]  # nosec B101
 
 
 # ============================================================================
@@ -233,7 +233,7 @@ class TestErrorHandling:
             await provider.generate(llm_request)
 
         # Verify circuit breaker recorded failure
-        assert provider.circuit_breaker.failure_count > 0
+        assert provider.circuit_breaker.failure_count > 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_connection_error(self, provider, llm_request):
@@ -304,10 +304,10 @@ class TestErrorHandling:
 
         # Should succeed after retries
         response = await provider.generate(llm_request)
-        assert response.text == "Success!"
+        assert response.text == "Success!"  # nosec B101
 
         # Verify 3 attempts were made
-        assert provider.client.chat.completions.create.call_count == 3
+        assert provider.client.chat.completions.create.call_count == 3  # nosec B101
 
 
 # ============================================================================
@@ -337,15 +337,15 @@ class TestCircuitBreaker:
         with pytest.raises(RuntimeError):
             await provider.generate(llm_request)
 
-        assert provider.circuit_breaker.state == CircuitState.CLOSED
-        assert provider.circuit_breaker.failure_count == 1
+        assert provider.circuit_breaker.state == CircuitState.CLOSED  # nosec B101
+        assert provider.circuit_breaker.failure_count == 1  # nosec B101
 
         # Second failure - should open circuit
         with pytest.raises(RuntimeError):
             await provider.generate(llm_request)
 
-        assert provider.circuit_breaker.state == CircuitState.OPEN
-        assert provider.circuit_breaker.failure_count == 2
+        assert provider.circuit_breaker.state == CircuitState.OPEN  # nosec B101
+        assert provider.circuit_breaker.failure_count == 2  # nosec B101
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_rejects_requests(self, provider, llm_request):
@@ -387,8 +387,8 @@ class TestCircuitBreaker:
 
         # Should allow test request and close circuit on success
         response = await provider.generate(llm_request)
-        assert response.text == "Success!"
-        assert provider.circuit_breaker.state == CircuitState.CLOSED
+        assert response.text == "Success!"  # nosec B101
+        assert provider.circuit_breaker.state == CircuitState.CLOSED  # nosec B101
 
 
 # ============================================================================
@@ -425,8 +425,8 @@ class TestRateLimiting:
         await provider.generate(llm_request)
 
         # Verify rate limit state updated
-        assert provider.rate_limit_state.requests_this_minute == 1
-        assert provider.rate_limit_state.tokens_this_minute == 20
+        assert provider.rate_limit_state.requests_this_minute == 1  # nosec B101
+        assert provider.rate_limit_state.tokens_this_minute == 20  # nosec B101
 
     @pytest.mark.asyncio
     async def test_rate_limit_reset(self, provider):
@@ -439,8 +439,8 @@ class TestRateLimiting:
         # Reset should occur
         provider.rate_limit_state.reset_if_needed()
 
-        assert provider.rate_limit_state.requests_this_minute == 0
-        assert provider.rate_limit_state.tokens_this_minute == 0
+        assert provider.rate_limit_state.requests_this_minute == 0  # nosec B101
+        assert provider.rate_limit_state.tokens_this_minute == 0  # nosec B101
 
 
 # ============================================================================
@@ -455,13 +455,13 @@ class TestHealthCheck:
         """Test health status retrieval."""
         health = provider.get_health()
 
-        assert health["provider"] == "openai"
-        assert health["circuit_state"] == "closed"
-        assert health["failure_count"] == 0
-        assert health["last_failure"] is None
-        assert health["last_success"] is None
-        assert health["requests_this_minute"] == 0
-        assert health["tokens_this_minute"] == 0
+        assert health["provider"] == "openai"  # nosec B101
+        assert health["circuit_state"] == "closed"  # nosec B101
+        assert health["failure_count"] == 0  # nosec B101
+        assert health["last_failure"] is None  # nosec B101
+        assert health["last_success"] is None  # nosec B101
+        assert health["requests_this_minute"] == 0  # nosec B101
+        assert health["tokens_this_minute"] == 0  # nosec B101
 
     def test_get_health_after_failure(self, provider):
         """Test health status after failure."""
@@ -470,8 +470,8 @@ class TestHealthCheck:
 
         health = provider.get_health()
 
-        assert health["failure_count"] == 1
-        assert health["last_failure"] is not None
+        assert health["failure_count"] == 1  # nosec B101
+        assert health["last_failure"] is not None  # nosec B101
 
     def test_get_health_after_success(self, provider):
         """Test health status after success."""
@@ -480,5 +480,5 @@ class TestHealthCheck:
 
         health = provider.get_health()
 
-        assert health["failure_count"] == 0
-        assert health["last_success"] is not None
+        assert health["failure_count"] == 0  # nosec B101
+        assert health["last_success"] is not None  # nosec B101

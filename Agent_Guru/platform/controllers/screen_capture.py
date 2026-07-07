@@ -17,7 +17,7 @@ Version: 2.0.0 - OPTIMIZED
 import logging
 import os
 import platform
-import subprocess
+import subprocess  # nosec B404
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass

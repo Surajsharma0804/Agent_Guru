@@ -17,7 +17,7 @@ Design Decisions:
 """
 
 import logging
-import subprocess
+import subprocess  # nosec B404
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -226,7 +226,7 @@ class LinuxIntegration:
                 service_name = f"{service_name}.service"
 
             # Query service status using systemctl
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["systemctl", "is-active", service_name],
                 check=False,
                 capture_output=True,
@@ -275,7 +275,7 @@ class LinuxIntegration:
 
         """
         try:
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["systemctl", "is-enabled", service_name],
                 check=False,
                 capture_output=True,
@@ -325,7 +325,7 @@ class LinuxIntegration:
                 service_name = f"{service_name}.service"
 
             # Start service using systemctl
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["systemctl", "start", service_name],
                 check=False,
                 capture_output=True,
@@ -383,7 +383,7 @@ class LinuxIntegration:
                 service_name = f"{service_name}.service"
 
             # Stop service using systemctl
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["systemctl", "stop", service_name],
                 check=False,
                 capture_output=True,
@@ -441,7 +441,7 @@ class LinuxIntegration:
                 service_name = f"{service_name}.service"
 
             # Restart service using systemctl
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["systemctl", "restart", service_name],
                 check=False,
                 capture_output=True,
@@ -540,7 +540,7 @@ class LinuxIntegration:
             cmd = [executable, *args]
 
             # Start process
-            process = subprocess.Popen(  # noqa: S603
+            process = subprocess.Popen(  # nosec B603  # noqa: S603
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -618,7 +618,7 @@ class LinuxIntegration:
             cmd = [command, *args]
 
             # Execute command
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603  # noqa: S603
                 cmd,
                 check=False,
                 capture_output=True,

@@ -15,6 +15,7 @@ Usage:
 """
 
 import asyncio
+import logging
 import os
 import sys
 import time
@@ -111,7 +112,8 @@ async def run_workload(pipeline: ReasoningPipeline, iterations: int = 3) -> dict
                         if stage in stats["stage_times"]:
                             stats["stage_times"][stage].append(duration)
 
-            except Exception:
+            except Exception:  # nosec B112
+                logging.getLogger(__name__).debug("Profile iteration failed", exc_info=True)
                 continue
 
     return stats

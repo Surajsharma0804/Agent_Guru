@@ -33,7 +33,7 @@ def _jittered_delay(base_delay: float) -> float:
     if base_delay <= 0:
         return 0.0
     jitter = base_delay * _JITTER_FACTOR
-    return base_delay + random.uniform(-jitter, jitter)  # noqa: S311
+    return base_delay + random.uniform(-jitter, jitter)  # nosec B311  # noqa: S311
 
 
 async def retry_async(

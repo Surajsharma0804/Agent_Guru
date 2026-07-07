@@ -189,7 +189,7 @@ class GuruVisionEngine:
             self._config = GuruVisionConfig()
 
         # At this point _config is guaranteed non-None (set in all branches above)
-        assert self._config is not None  # noqa: S101 — type narrowing, not runtime check
+        assert self._config is not None  # nosec B101  # noqa: S101 — type narrowing, not runtime check
 
         warnings = self._config.validate()
         for w in warnings:

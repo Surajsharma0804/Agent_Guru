@@ -130,13 +130,13 @@ class TestContextExtractionConfig:
         """Test default configuration."""
         config = ContextExtractionConfig()
 
-        assert config.max_turns == 5
-        assert config.max_entities == 10
-        assert config.max_preferences == 5
-        assert config.max_actions == 3
-        assert config.max_memories == 5
-        assert config.max_tokens == 1000
-        assert config.include_world_state is True
+        assert config.max_turns == 5  # nosec B101
+        assert config.max_entities == 10  # nosec B101
+        assert config.max_preferences == 5  # nosec B101
+        assert config.max_actions == 3  # nosec B101
+        assert config.max_memories == 5  # nosec B101
+        assert config.max_tokens == 1000  # nosec B101
+        assert config.include_world_state is True  # nosec B101
 
     def test_custom_config(self):
         """Test custom configuration."""
@@ -150,13 +150,13 @@ class TestContextExtractionConfig:
             include_world_state=False,
         )
 
-        assert config.max_turns == 3
-        assert config.max_entities == 5
-        assert config.max_preferences == 2
-        assert config.max_actions == 1
-        assert config.max_memories == 3
-        assert config.max_tokens == 500
-        assert config.include_world_state is False
+        assert config.max_turns == 3  # nosec B101
+        assert config.max_entities == 5  # nosec B101
+        assert config.max_preferences == 2  # nosec B101
+        assert config.max_actions == 1  # nosec B101
+        assert config.max_memories == 3  # nosec B101
+        assert config.max_tokens == 500  # nosec B101
+        assert config.include_world_state is False  # nosec B101
 
     def test_invalid_max_turns(self):
         """Test validation of max_turns."""
@@ -182,9 +182,9 @@ class TestContextInjector:
         """Test context injector initialization."""
         injector = ContextInjector(conversation_manager)
 
-        assert injector.conversation_manager is conversation_manager
-        assert injector.config is not None
-        assert injector.config.max_turns == 5
+        assert injector.conversation_manager is conversation_manager  # nosec B101
+        assert injector.config is not None  # nosec B101
+        assert injector.config.max_turns == 5  # nosec B101
 
     @pytest.mark.asyncio
     async def test_initialization_with_custom_config(self, conversation_manager):
@@ -192,18 +192,18 @@ class TestContextInjector:
         config = ContextExtractionConfig(max_turns=3)
         injector = ContextInjector(conversation_manager, config)
 
-        assert injector.config.max_turns == 3
+        assert injector.config.max_turns == 3  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_context_empty_conversation(self, context_injector):
         """Test extracting context from non-existent conversation."""
         context = await context_injector.extract_context("nonexistent_conv")
 
-        assert isinstance(context, PromptContext)
-        assert len(context.recent_turns) == 0
-        assert len(context.tracked_entities) == 0
-        assert len(context.user_preferences) == 0
-        assert len(context.past_actions) == 0
+        assert isinstance(context, PromptContext)  # nosec B101
+        assert len(context.recent_turns) == 0  # nosec B101
+        assert len(context.tracked_entities) == 0  # nosec B101
+        assert len(context.user_preferences) == 0  # nosec B101
+        assert len(context.past_actions) == 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_context_with_conversation(
@@ -217,10 +217,10 @@ class TestContextInjector:
         context = await context_injector.extract_context("test_conv_123")
 
         # Verify context
-        assert isinstance(context, PromptContext)
-        assert len(context.recent_turns) > 0
-        assert len(context.tracked_entities) > 0
-        assert len(context.user_preferences) > 0
+        assert isinstance(context, PromptContext)  # nosec B101
+        assert len(context.recent_turns) > 0  # nosec B101
+        assert len(context.tracked_entities) > 0  # nosec B101
+        assert len(context.user_preferences) > 0  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_recent_turns(
@@ -232,9 +232,9 @@ class TestContextInjector:
         context = await context_injector.extract_context("test_conv_123")
 
         # Should have user and agent turns
-        assert len(context.recent_turns) > 0
-        assert any("User:" in turn for turn in context.recent_turns)
-        assert any("Agent:" in turn for turn in context.recent_turns)
+        assert len(context.recent_turns) > 0  # nosec B101
+        assert any("User:" in turn for turn in context.recent_turns)  # nosec B101
+        assert any("Agent:" in turn for turn in context.recent_turns)  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_recent_turns_respects_max_turns(
@@ -249,7 +249,7 @@ class TestContextInjector:
         context = await injector.extract_context("test_conv_123")
 
         # Should have at most 2 turns * 2 (user + agent) = 4 entries
-        assert len(context.recent_turns) <= 4
+        assert len(context.recent_turns) <= 4  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_tracked_entities(
@@ -261,8 +261,8 @@ class TestContextInjector:
         context = await context_injector.extract_context("test_conv_123")
 
         # Should have entities
-        assert len(context.tracked_entities) > 0
-        assert "location" in context.tracked_entities or "duration" in context.tracked_entities
+        assert len(context.tracked_entities) > 0  # nosec B101
+        assert "location" in context.tracked_entities or "duration" in context.tracked_entities  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_tracked_entities_respects_max_entities(
@@ -287,7 +287,7 @@ class TestContextInjector:
         context = await injector.extract_context("test_conv_123")
 
         # Should have at most 5 entities
-        assert len(context.tracked_entities) <= 5
+        assert len(context.tracked_entities) <= 5  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_user_preferences(
@@ -299,8 +299,8 @@ class TestContextInjector:
         context = await context_injector.extract_context("test_conv_123")
 
         # Should have preferences
-        assert len(context.user_preferences) > 0
-        assert "temperature_unit" in context.user_preferences
+        assert len(context.user_preferences) > 0  # nosec B101
+        assert "temperature_unit" in context.user_preferences  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_user_preferences_respects_max_preferences(
@@ -319,7 +319,7 @@ class TestContextInjector:
         context = await injector.extract_context("test_conv_123")
 
         # Should have at most 3 preferences
-        assert len(context.user_preferences) <= 3
+        assert len(context.user_preferences) <= 3  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_past_actions(
@@ -331,8 +331,8 @@ class TestContextInjector:
         context = await context_injector.extract_context("test_conv_123")
 
         # Should have past actions
-        assert len(context.past_actions) > 0
-        assert any(
+        assert len(context.past_actions) > 0  # nosec B101
+        assert any(  # nosec B101
             "weather_tool" in action or "timer_tool" in action for action in context.past_actions
         )
 
@@ -349,7 +349,7 @@ class TestContextInjector:
         context = await injector.extract_context("test_conv_123")
 
         # Should have at most 2 actions
-        assert len(context.past_actions) <= 2
+        assert len(context.past_actions) <= 2  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_context_with_memories(
@@ -368,8 +368,8 @@ class TestContextInjector:
         )
 
         # Should have memories
-        assert len(context.retrieved_memories) == 2
-        assert context.retrieved_memories == memories
+        assert len(context.retrieved_memories) == 2  # nosec B101
+        assert context.retrieved_memories == memories  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_context_with_world_state(
@@ -385,7 +385,7 @@ class TestContextInjector:
         )
 
         # Should have world state
-        assert context.world_state_summary == world_state
+        assert context.world_state_summary == world_state  # nosec B101
 
     @pytest.mark.asyncio
     async def test_inject_context_alias(
@@ -398,8 +398,8 @@ class TestContextInjector:
         context2 = await context_injector.inject_context("test_conv_123")
 
         # Should produce same results
-        assert len(context1.recent_turns) == len(context2.recent_turns)
-        assert len(context1.tracked_entities) == len(context2.tracked_entities)
+        assert len(context1.recent_turns) == len(context2.recent_turns)  # nosec B101
+        assert len(context1.tracked_entities) == len(context2.tracked_entities)  # nosec B101
 
     def test_format_action_with_dict(self, context_injector):
         """Test formatting action from dictionary."""
@@ -407,9 +407,9 @@ class TestContextInjector:
 
         formatted = context_injector._format_action(action)
 
-        assert "weather_tool" in formatted
-        assert "location=Seattle" in formatted
-        assert "time=now" in formatted
+        assert "weather_tool" in formatted  # nosec B101
+        assert "location=Seattle" in formatted  # nosec B101
+        assert "time=now" in formatted  # nosec B101
 
     def test_format_action_with_object(self, context_injector):
         """Test formatting action from object."""
@@ -422,15 +422,15 @@ class TestContextInjector:
         action = MockAction()
         formatted = context_injector._format_action(action)
 
-        assert "timer_tool" in formatted
-        assert "duration_seconds=300" in formatted
+        assert "timer_tool" in formatted  # nosec B101
+        assert "duration_seconds=300" in formatted  # nosec B101
 
     def test_format_action_fallback(self, context_injector):
         """Test formatting action fallback."""
         action = "some_action"
         formatted = context_injector._format_action(action)
 
-        assert formatted == "some_action"
+        assert formatted == "some_action"  # nosec B101
 
     def test_needs_compression_small_context(self, context_injector):
         """Test that small context doesn't need compression."""
@@ -442,7 +442,7 @@ class TestContextInjector:
 
         needs_compression = context_injector._needs_compression(context)
 
-        assert needs_compression is False
+        assert needs_compression is False  # nosec B101
 
     def test_needs_compression_large_context(self, context_injector):
         """Test that large context needs compression."""
@@ -459,7 +459,7 @@ class TestContextInjector:
 
         needs_compression = context_injector._needs_compression(context)
 
-        assert needs_compression is True
+        assert needs_compression is True  # nosec B101
 
     def test_compress_context(self, context_injector):
         """Test context compression."""
@@ -475,11 +475,11 @@ class TestContextInjector:
         compressed = context_injector._compress_context(context)
 
         # Should be compressed
-        assert len(compressed.recent_turns) <= 2
-        assert len(compressed.tracked_entities) <= 5
-        assert len(compressed.user_preferences) <= 3
-        assert len(compressed.past_actions) == 0  # Removed first
-        assert len(compressed.retrieved_memories) <= 3
+        assert len(compressed.recent_turns) <= 2  # nosec B101
+        assert len(compressed.tracked_entities) <= 5  # nosec B101
+        assert len(compressed.user_preferences) <= 3  # nosec B101
+        assert len(compressed.past_actions) == 0  # Removed first  # nosec B101
+        assert len(compressed.retrieved_memories) <= 3  # nosec B101
 
     @pytest.mark.asyncio
     async def test_extract_context_for_multi_step(
@@ -498,9 +498,9 @@ class TestContextInjector:
         )
 
         # Should have previous step results in past actions
-        assert len(context.past_actions) > 0
-        assert any("Step 1" in action for action in context.past_actions)
-        assert any("Step 2" in action for action in context.past_actions)
+        assert len(context.past_actions) > 0  # nosec B101
+        assert any("Step 1" in action for action in context.past_actions)  # nosec B101
+        assert any("Step 2" in action for action in context.past_actions)  # nosec B101
 
     @pytest.mark.asyncio
     async def test_update_context_with_feedback(
@@ -515,8 +515,8 @@ class TestContextInjector:
 
         # Verify feedback was added
         state = await conversation_manager.get_state("test_conv_123")
-        assert state is not None
-        assert state.turns[-1].user_feedback == "That was helpful"
+        assert state is not None  # nosec B101
+        assert state.turns[-1].user_feedback == "That was helpful"  # nosec B101
 
     @pytest.mark.asyncio
     async def test_update_context_with_feedback_nonexistent_conversation(self, context_injector):
@@ -537,8 +537,8 @@ class TestContextInjector:
         token_count = context_injector.estimate_token_count(context)
 
         # Should be reasonable estimate
-        assert token_count > 0
-        assert token_count < 1000  # Small context
+        assert token_count > 0  # nosec B101
+        assert token_count < 1000  # Small context  # nosec B101
 
     def test_get_compression_stats(self, context_injector):
         """Test getting compression statistics."""
@@ -555,20 +555,20 @@ class TestContextInjector:
         stats = context_injector.get_compression_stats(original, compressed)
 
         # Verify stats
-        assert "original_tokens" in stats
-        assert "compressed_tokens" in stats
-        assert "reduction_tokens" in stats
-        assert "reduction_percent" in stats
-        assert "turns_removed" in stats
-        assert "entities_removed" in stats
-        assert "preferences_removed" in stats
-        assert "actions_removed" in stats
-        assert "memories_removed" in stats
+        assert "original_tokens" in stats  # nosec B101
+        assert "compressed_tokens" in stats  # nosec B101
+        assert "reduction_tokens" in stats  # nosec B101
+        assert "reduction_percent" in stats  # nosec B101
+        assert "turns_removed" in stats  # nosec B101
+        assert "entities_removed" in stats  # nosec B101
+        assert "preferences_removed" in stats  # nosec B101
+        assert "actions_removed" in stats  # nosec B101
+        assert "memories_removed" in stats  # nosec B101
 
         # Should show reduction
-        assert stats["reduction_tokens"] > 0
-        assert stats["reduction_percent"] > 0
-        assert stats["turns_removed"] > 0
+        assert stats["reduction_tokens"] > 0  # nosec B101
+        assert stats["reduction_percent"] > 0  # nosec B101
+        assert stats["turns_removed"] > 0  # nosec B101
 
 
 class TestContextInjectorIntegration:
@@ -607,8 +607,8 @@ class TestContextInjectorIntegration:
         context = await context_injector.extract_context(conversation_id)
 
         # Verify context
-        assert len(context.recent_turns) > 0
-        assert len(context.recent_turns) <= 10  # Max 5 turns * 2 (user + agent)
+        assert len(context.recent_turns) > 0  # nosec B101
+        assert len(context.recent_turns) <= 10  # Max 5 turns * 2 (user + agent)  # nosec B101
 
     @pytest.mark.asyncio
     async def test_context_compression_workflow(self, conversation_manager):
@@ -659,9 +659,9 @@ class TestContextInjectorIntegration:
         context = await injector.extract_context(conversation_id)
 
         # Verify compression occurred
-        assert len(context.recent_turns) <= 4  # Compressed
-        assert len(context.tracked_entities) <= 5  # Compressed
-        assert len(context.user_preferences) <= 3  # Compressed
+        assert len(context.recent_turns) <= 4  # Compressed  # nosec B101
+        assert len(context.tracked_entities) <= 5  # Compressed  # nosec B101
+        assert len(context.user_preferences) <= 3  # Compressed  # nosec B101
 
     @pytest.mark.asyncio
     async def test_context_with_all_components(
@@ -682,18 +682,18 @@ class TestContextInjectorIntegration:
         )
 
         # Verify all components present
-        assert len(context.recent_turns) > 0
-        assert len(context.tracked_entities) > 0
-        assert len(context.user_preferences) > 0
-        assert len(context.past_actions) > 0
-        assert len(context.retrieved_memories) == 2
-        assert context.world_state_summary == world_state
+        assert len(context.recent_turns) > 0  # nosec B101
+        assert len(context.tracked_entities) > 0  # nosec B101
+        assert len(context.user_preferences) > 0  # nosec B101
+        assert len(context.past_actions) > 0  # nosec B101
+        assert len(context.retrieved_memories) == 2  # nosec B101
+        assert context.world_state_summary == world_state  # nosec B101
 
         # Format and verify
         formatted = context.format_for_prompt()
-        assert "Recent conversation:" in formatted
-        assert "Tracked entities:" in formatted
-        assert "User preferences:" in formatted
-        assert "Recent actions:" in formatted
-        assert "Relevant memories:" in formatted
-        assert "World state:" in formatted
+        assert "Recent conversation:" in formatted  # nosec B101
+        assert "Tracked entities:" in formatted  # nosec B101
+        assert "User preferences:" in formatted  # nosec B101
+        assert "Recent actions:" in formatted  # nosec B101
+        assert "Relevant memories:" in formatted  # nosec B101
+        assert "World state:" in formatted  # nosec B101

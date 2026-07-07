@@ -232,7 +232,7 @@ class ConnectionPoolManager:
             try:
                 await asyncio.sleep(self.config.cleanup_interval)
                 await self._cleanup_idle_connections()
-            except asyncio.CancelledError as e:
+            except asyncio.CancelledError:
                 break
         logger.info("Cleanup loop stopped")
 

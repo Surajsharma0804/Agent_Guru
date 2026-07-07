@@ -324,7 +324,7 @@ class LatencyEnforcer:
 
             return result, metrics
 
-        except TimeoutError as e:
+        except TimeoutError:
             # Mark as timeout and log
             self.tracker.end_stage(metrics, timeout=True)
             logger.exception(

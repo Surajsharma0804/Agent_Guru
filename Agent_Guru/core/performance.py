@@ -31,7 +31,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum
-from typing import Self
+from typing import Any, Self
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class PipelineStage(str, Enum):
     WAKE_WORD = "wake_word"
     STT = "stt"
     INTENT = "intent"
-    LLM_FIRST_TOKEN = "llm_first_token"  # BUG-032: removed incorrect nosec B105 — not a password  # noqa: S105 - Not a real secret
+    LLM_FIRST_TOKEN = "llm_first_token"  # nosec B105
     TTS = "tts"
     END_TO_END = "end_to_end"
     STARTUP = "startup"

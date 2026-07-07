@@ -131,13 +131,13 @@ def _restrict_file_permissions(path: Path) -> None:
         if os.name != "nt":
             path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
             return
-        import subprocess
+        import subprocess  # nosec B404
 
         user = os.environ.get("USERNAME", "")
         if not user:
             logger.debug("Could not determine USERNAME — skipping Windows ACL restriction")
             return
-        subprocess.run(
+        subprocess.run(  # nosec B603 B607
             ["icacls", str(path), "/inheritance:r", "/grant:r", f"{user}:F"],
             capture_output=True,
             timeout=5,

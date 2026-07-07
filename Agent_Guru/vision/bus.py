@@ -14,7 +14,6 @@ Design goals:
 from __future__ import annotations
 
 import asyncio
-import logging
 import uuid
 from collections import defaultdict
 from collections.abc import Callable, Coroutine

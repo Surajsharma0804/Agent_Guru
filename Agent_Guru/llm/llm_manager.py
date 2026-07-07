@@ -495,7 +495,7 @@ class LLMManager:
         """Return context window usage statistics for a session."""
         if self._runtime is None or self._runtime.context_manager is None:
             return {
-                "token_count": 0,
+                "token_count": 0,  # nosec B105
                 "message_count": 0,
                 "context_limit": 4096,
                 "usage_percentage": 0.0,

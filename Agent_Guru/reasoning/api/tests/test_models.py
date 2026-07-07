@@ -28,11 +28,11 @@ class TestProcessRequest:
             source="text",
         )
         
-        assert request.text == "set a timer for 5 minutes"
-        assert request.user_id == "user_123"
-        assert request.source == "text"
-        assert request.conversation_id is None
-        assert request.metadata == {}
+        assert request.text == "set a timer for 5 minutes"  # nosec B101
+        assert request.user_id == "user_123"  # nosec B101
+        assert request.source == "text"  # nosec B101
+        assert request.conversation_id is None  # nosec B101
+        assert request.metadata == {}  # nosec B101
     
     def test_request_with_conversation(self):
         """Test request with conversation ID."""
@@ -43,8 +43,8 @@ class TestProcessRequest:
             source="voice",
         )
         
-        assert request.conversation_id == "conv_456"
-        assert request.source == "voice"
+        assert request.conversation_id == "conv_456"  # nosec B101
+        assert request.source == "voice"  # nosec B101
     
     def test_empty_text_fails(self):
         """Test that empty text fails validation."""
@@ -54,7 +54,7 @@ class TestProcessRequest:
                 user_id="user_123",
             )
         
-        assert "text" in str(exc_info.value).lower()
+        assert "text" in str(exc_info.value).lower()  # nosec B101
     
     def test_whitespace_text_fails(self):
         """Test that whitespace-only text fails validation."""
@@ -64,7 +64,7 @@ class TestProcessRequest:
                 user_id="user_123",
             )
         
-        assert "text" in str(exc_info.value).lower()
+        assert "text" in str(exc_info.value).lower()  # nosec B101
     
     def test_invalid_source_fails(self):
         """Test that invalid source fails validation."""
@@ -75,7 +75,7 @@ class TestProcessRequest:
                 source="invalid",
             )
         
-        assert "source" in str(exc_info.value).lower()
+        assert "source" in str(exc_info.value).lower()  # nosec B101
     
     def test_text_stripped(self):
         """Test that text is stripped of whitespace."""
@@ -84,7 +84,7 @@ class TestProcessRequest:
             user_id="user_123",
         )
         
-        assert request.text == "hello world"
+        assert request.text == "hello world"  # nosec B101
 
 
 class TestProcessResponse:
@@ -102,12 +102,12 @@ class TestProcessResponse:
             stage_latencies={"intent_detection": 50.2},
         )
         
-        assert response.response == "Timer set for 5 minutes"
-        assert response.confidence == 0.98
-        assert response.intent_type == "set_timer"
-        assert response.success is True
-        assert response.fast_path is True
-        assert response.latency_ms == 234.5
+        assert response.response == "Timer set for 5 minutes"  # nosec B101
+        assert response.confidence == 0.98  # nosec B101
+        assert response.intent_type == "set_timer"  # nosec B101
+        assert response.success is True  # nosec B101
+        assert response.fast_path is True  # nosec B101
+        assert response.latency_ms == 234.5  # nosec B101
     
     def test_confidence_bounds(self):
         """Test confidence must be between 0 and 1."""
@@ -118,7 +118,7 @@ class TestProcessResponse:
             success=True,
             latency_ms=100.0,
         )
-        assert response.confidence == 0.5
+        assert response.confidence == 0.5  # nosec B101
         
         # Invalid confidence (too low)
         with pytest.raises(ValidationError):
@@ -165,9 +165,9 @@ class TestConversationResponse:
             updated_at=now,
         )
         
-        assert response.conversation_id == "conv_456"
-        assert response.user_id == "user_123"
-        assert response.turn_count == 5
+        assert response.conversation_id == "conv_456"  # nosec B101
+        assert response.user_id == "user_123"  # nosec B101
+        assert response.turn_count == 5  # nosec B101
     
     def test_negative_turn_count_fails(self):
         """Test that negative turn count fails validation."""
@@ -196,9 +196,9 @@ class TestTaskStatusResponse:
             updated_at=now,
         )
         
-        assert response.task_id == "task_789"
-        assert response.status == "running"
-        assert response.progress == 0.65
+        assert response.task_id == "task_789"  # nosec B101
+        assert response.status == "running"  # nosec B101
+        assert response.progress == 0.65  # nosec B101
     
     def test_invalid_status_fails(self):
         """Test that invalid status fails validation."""
@@ -223,7 +223,7 @@ class TestTaskStatusResponse:
             created_at=now,
             updated_at=now,
         )
-        assert response.progress == 0.5
+        assert response.progress == 0.5  # nosec B101
         
         # Invalid progress (too low)
         with pytest.raises(ValidationError):
@@ -257,7 +257,7 @@ class TestErrorResponse:
             details={"field": "text"},
         )
         
-        assert response.error == "Invalid request"
-        assert response.error_code == "VALIDATION_ERROR"
-        assert response.details == {"field": "text"}
-        assert response.trace_id is None
+        assert response.error == "Invalid request"  # nosec B101
+        assert response.error_code == "VALIDATION_ERROR"  # nosec B101
+        assert response.details == {"field": "text"}  # nosec B101
+        assert response.trace_id is None  # nosec B101

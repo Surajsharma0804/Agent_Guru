@@ -83,15 +83,15 @@ lockdown_mode:
         
         # Test allowed command
         allowed = permission_manager.is_command_allowed("git status", context)
-        assert allowed
+        assert allowed  # nosec B101
         
         # Test blocked command
         blocked = permission_manager.is_command_allowed("rm -rf /", context)
-        assert not blocked
+        assert not blocked  # nosec B101
         
         # Test command blocked by pattern (sudo)
         sudo_blocked = permission_manager.is_command_allowed("sudo apt install", context)
-        assert not sudo_blocked
+        assert not sudo_blocked  # nosec B101
     
     def test_command_quota_enforcement(self, permission_manager):
         """Test command execution quota enforcement."""
@@ -103,14 +103,14 @@ lockdown_mode:
                 OperationType.COMMAND_EXECUTION,
                 context
             )
-            assert quota_status.available
+            assert quota_status.available  # nosec B101
         
         # Check quota status
         quota_status = permission_manager.check_quota(
             OperationType.COMMAND_EXECUTION,
             context
         )
-        assert quota_status.current_hour == 6  # 5 + 1 from check
+        assert quota_status.current_hour == 6  # 5 + 1 from check  # nosec B101
     
     def test_lockdown_mode_blocks_commands(self, permission_manager):
         """Test that lockdown mode blocks all commands."""
@@ -120,14 +120,14 @@ lockdown_mode:
         permission_manager.enter_lockdown_mode()
         
         # All commands should be blocked
-        assert not permission_manager.is_command_allowed("git status", context)
-        assert not permission_manager.is_command_allowed("ls -la", context)
+        assert not permission_manager.is_command_allowed("git status", context)  # nosec B101
+        assert not permission_manager.is_command_allowed("ls -la", context)  # nosec B101
         
         # Exit lockdown mode
         permission_manager.exit_lockdown_mode()
         
         # Commands should work again
-        assert permission_manager.is_command_allowed("git status", context)
+        assert permission_manager.is_command_allowed("git status", context)  # nosec B101
 
 
 class TestCommandCheckerWithRealPatterns:
@@ -153,8 +153,8 @@ class TestCommandCheckerWithRealPatterns:
         
         for cmd in git_workflow:
             result = checker.validate_command(cmd)
-            assert result.allowed, f"Git command rejected: {cmd}"
-            assert result.category == CommandCategory.VERSION_CONTROL
+            assert result.allowed, f"Git command rejected: {cmd}"  # nosec B101
+            assert result.category == CommandCategory.VERSION_CONTROL  # nosec B101
     
     def test_npm_workflow_integration(self):
         """Test complete npm workflow."""
@@ -174,8 +174,8 @@ class TestCommandCheckerWithRealPatterns:
         
         for cmd in npm_workflow:
             result = checker.validate_command(cmd)
-            assert result.allowed, f"NPM command rejected: {cmd}"
-            assert result.category == CommandCategory.PACKAGE_MANAGEMENT
+            assert result.allowed, f"NPM command rejected: {cmd}"  # nosec B101
+            assert result.category == CommandCategory.PACKAGE_MANAGEMENT  # nosec B101
     
     def test_python_development_integration(self):
         """Test Python development workflow."""
@@ -194,7 +194,7 @@ class TestCommandCheckerWithRealPatterns:
         
         for cmd in python_workflow:
             result = checker.validate_command(cmd)
-            assert result.allowed, f"Python command rejected: {cmd}"
+            assert result.allowed, f"Python command rejected: {cmd}"  # nosec B101
     
     def test_docker_workflow_integration(self):
         """Test Docker workflow with read-only commands."""
@@ -217,11 +217,11 @@ class TestCommandCheckerWithRealPatterns:
         
         for cmd in allowed_commands:
             result = checker.validate_command(cmd)
-            assert result.allowed, f"Docker command rejected: {cmd}"
+            assert result.allowed, f"Docker command rejected: {cmd}"  # nosec B101
         
         for cmd in blocked_commands:
             result = checker.validate_command(cmd)
-            assert not result.allowed, f"Docker command should be blocked: {cmd}"
+            assert not result.allowed, f"Docker command should be blocked: {cmd}"  # nosec B101
     
     def test_kubernetes_workflow_integration(self):
         """Test Kubernetes workflow with read-only commands."""
@@ -245,11 +245,11 @@ class TestCommandCheckerWithRealPatterns:
         
         for cmd in allowed_commands:
             result = checker.validate_command(cmd)
-            assert result.allowed, f"Kubectl command rejected: {cmd}"
+            assert result.allowed, f"Kubectl command rejected: {cmd}"  # nosec B101
         
         for cmd in blocked_commands:
             result = checker.validate_command(cmd)
-            assert not result.allowed, f"Kubectl command should be blocked: {cmd}"
+            assert not result.allowed, f"Kubectl command should be blocked: {cmd}"  # nosec B101
 
 
 class TestCommandSecurityIntegration:
@@ -272,7 +272,7 @@ class TestCommandSecurityIntegration:
         for cmd, should_allow, reason in test_cases:
             result = checker.validate_command(cmd)
             assert result.allowed == should_allow, \
-                f"{reason}: {cmd} (expected {should_allow}, got {result.allowed})"
+                f"{reason}: {cmd} (expected {should_allow}, got {result.allowed})"  # nosec B101
     
     def test_comprehensive_injection_prevention(self):
         """Test comprehensive injection attack prevention."""
@@ -291,9 +291,9 @@ class TestCommandSecurityIntegration:
         
         for attack in injection_attacks:
             result = checker.validate_command(attack)
-            assert not result.allowed, f"Injection not prevented: {attack}"
+            assert not result.allowed, f"Injection not prevented: {attack}"  # nosec B101
             assert "injection" in result.reason.lower() or \
-                   result.danger_level == DangerLevel.CRITICAL
+                   result.danger_level == DangerLevel.CRITICAL  # nosec B101
     
     def test_argument_validation_integration(self):
         """Test argument validation with real commands."""
@@ -312,7 +312,7 @@ class TestCommandSecurityIntegration:
             # Should either be blocked or have warnings
             if result.allowed:
                 assert len(result.warnings) > 0, \
-                    f"No warnings for suspicious command: {cmd}"
+                    f"No warnings for suspicious command: {cmd}"  # nosec B101
 
 
 class TestCommandPerformanceIntegration:
@@ -336,7 +336,7 @@ class TestCommandPerformanceIntegration:
         elapsed = time.time() - start
         
         # Should complete in reasonable time (< 1 second for 100 validations)
-        assert elapsed < 1.0, f"Validation too slow: {elapsed}s"
+        assert elapsed < 1.0, f"Validation too slow: {elapsed}s"  # nosec B101
     
     def test_complex_pattern_performance(self):
         """Test performance with complex regex patterns."""
@@ -371,7 +371,7 @@ class TestCommandPerformanceIntegration:
         elapsed = time.time() - start
         
         # Should complete in reasonable time
-        assert elapsed < 2.0, f"Complex pattern validation too slow: {elapsed}s"
+        assert elapsed < 2.0, f"Complex pattern validation too slow: {elapsed}s"  # nosec B101
 
 
 if __name__ == "__main__":

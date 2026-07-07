@@ -278,7 +278,7 @@ class TimeRestriction:
             from zoneinfo import ZoneInfo
 
             return ZoneInfo(tz_name)
-        except ImportError as e:
+        except ImportError:
             # Fallback for Python < 3.9
             logger.exception(
                 "zoneinfo not available. Using UTC offset for %s. "

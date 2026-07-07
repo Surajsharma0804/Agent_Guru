@@ -28,7 +28,7 @@ Version: 1.0.0
 
 import contextlib
 import logging
-import subprocess
+import subprocess  # nosec B404
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -527,7 +527,7 @@ class GitHubIntegrator:
             msg = f"Push failed after {self.max_retries} attempts: {last_error}"
             raise GitRemoteError(msg)
 
-        except (GitAuthenticationError, GitConflictError, GitRemoteError) as e:
+        except (GitAuthenticationError, GitConflictError, GitRemoteError):
             raise
 
     def pull(self, branch: str | None = None, rebase: bool = True) -> GitOperationResult:
@@ -586,7 +586,7 @@ class GitHubIntegrator:
             msg = f"Pull failed: {result.stderr}"
             raise GitRemoteError(msg)
 
-        except (GitConflictError, GitRemoteError) as e:
+        except (GitConflictError, GitRemoteError):
             raise
 
     def commit_and_push(
@@ -676,7 +676,7 @@ class GitHubIntegrator:
         cmd = ["git", *args]
 
         try:
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603  # noqa: S603
                 cmd,
                 cwd=str(self.repo_path),
                 capture_output=True,
@@ -693,7 +693,7 @@ class GitHubIntegrator:
                 return_code=result.returncode,
             )
 
-        except subprocess.TimeoutExpired as e:
+        except subprocess.TimeoutExpired:
             return GitOperationResult(
                 success=False,
                 message=f"Command timed out after {self.timeout}s",
@@ -1170,7 +1170,7 @@ class GitHubIntegrator:
 
             raise GitConflictError(error_message)
 
-        except GitConflictError as e:
+        except GitConflictError:
             raise
             # Notify Goal Manager
 
@@ -1268,7 +1268,7 @@ class GitHubIntegrator:
                     last_error = push_result.message
                     logger.warning("Push failed on attempt %d: %s", attempt, last_error)
 
-                except GitAuthenticationError as e:
+                except GitAuthenticationError:
                     # Don't retry authentication errors
                     logger.exception("Authentication error")
                     raise
@@ -1300,7 +1300,7 @@ class GitHubIntegrator:
                 duration_ms=duration_ms,
             )
 
-        except GitAuthenticationError as e:
+        except GitAuthenticationError:
             raise
             # Notify Goal Manager
 
@@ -1637,7 +1637,7 @@ class GitHubIntegrator:
                     )
 
             # Check if GitHub CLI is available
-            gh_check = subprocess.run(
+            gh_check = subprocess.run(  # nosec B603 B607
                 ["gh", "--version"],
                 check=False,
                 capture_output=True,
@@ -1675,7 +1675,7 @@ class GitHubIntegrator:
                 cmd.append("--draft")
 
             # Create PR
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(  # nosec B603  # noqa: S603
                 cmd,
                 check=False,
                 cwd=str(self.repo_path),
@@ -1715,7 +1715,7 @@ class GitHubIntegrator:
                 error=error_msg,
             )
 
-        except subprocess.TimeoutExpired as e:
+        except subprocess.TimeoutExpired:
             return PullRequestResult(
                 success=False,
                 message=f"PR creation timed out after {self.timeout}s",

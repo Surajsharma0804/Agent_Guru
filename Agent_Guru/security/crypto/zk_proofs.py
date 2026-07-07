@@ -116,7 +116,7 @@ class ZKProofSystem:
                 nonce=nonce,
             )
 
-        except ZKProofError as exc:
+        except ZKProofError:
             raise
 
     def verify_proof(self, proof: ZKProof, expected_claim_type: str) -> bool:
@@ -181,7 +181,7 @@ class ZKProofSystem:
 
             return valid
 
-        except (ReplayAttackError, ZKProofError) as exc:
+        except (ReplayAttackError, ZKProofError):
             raise
 
     def _check_replay(self, proof: ZKProof) -> bool:

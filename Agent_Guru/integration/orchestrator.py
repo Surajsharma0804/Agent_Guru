@@ -330,7 +330,7 @@ class IntegrationOrchestrator:
         results = await asyncio.gather(*coros, return_exceptions=True)
 
         # P2-47: Log any subsystem startup failures instead of silently swallowing
-        for name_coro, result in zip(coros, results, strict=False):
+        for _, result in zip(coros, results, strict=False):
             if isinstance(result, Exception):
                 logger.error("Subsystem startup exception: %s", result)
 
@@ -2114,9 +2114,9 @@ class IntegrationOrchestrator:
                         "current_project": f"Nice — {_sval} sounds interesting. Keep me posted on how it goes.",
                         "current_goal": f"Love that. I'll remember you're working toward {_sval}.",
                         "hobbies": f"Good taste! I'll remember you're into {_sval}.",
-                        "interests": f"That's interesting! I'll keep that in mind.",
-                        "friends": f"Cool, I'll remember that.",
-                        "family": f"Got it, thanks for sharing that.",
+                        "interests": "That's interesting! I'll keep that in mind.",
+                        "friends": "Cool, I'll remember that.",
+                        "family": "Got it, thanks for sharing that.",
                         "preferred_language": f"{_sval} — got it, I'll keep that in mind.",
                         "communication_style": f"Understood — I'll adjust to a {_sval} style.",
                         "code_mixing": "Switched! I'll talk to you in English only from now on." if value == "english" else "Chal done! Hinglish mein baat karenge ab.",
@@ -2696,7 +2696,6 @@ class IntegrationOrchestrator:
         if not text or not text.strip():
             return text
         try:
-            import numpy as np
 
             # Convert orchestrator Personality → speech engine PersonalityType
             try:

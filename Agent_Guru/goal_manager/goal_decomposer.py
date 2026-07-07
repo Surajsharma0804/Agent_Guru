@@ -198,7 +198,7 @@ class GoalDecomposer:
         for attempt in range(max_retries):
             try:
                 return await self.llm_runtime.generate(
-                    prompt=prompt,  # nosec B703 — prompt is HTML-escaped in _build_prompt
+                    prompt=prompt,  # nosec B703
                     max_tokens=2000,
                     temperature=0.7,
                 )

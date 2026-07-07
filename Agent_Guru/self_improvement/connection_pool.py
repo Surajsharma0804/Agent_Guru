@@ -285,7 +285,7 @@ class ConnectionPool:
             conn.execute("PRAGMA foreign_keys=ON")
 
             # Set busy timeout
-            conn.execute(f"PRAGMA busy_timeout={int(self.timeout * 1000)}")  # nosec B608 — integer value, no injection risk
+            conn.execute(f"PRAGMA busy_timeout={int(self.timeout * 1000)}")  # nosec B608
         except Exception:
             conn.close()
             raise
@@ -432,7 +432,7 @@ class ConnectionPool:
                     raise ValueError(
                         msg,
                     )
-                conn.connection.execute(f"BEGIN {level_upper}")  # nosec B608 — allowlist validated
+                conn.connection.execute(f"BEGIN {level_upper}")  # nosec B608
             else:
                 conn.connection.execute("BEGIN")
 
@@ -488,7 +488,7 @@ class ConnectionPool:
             msg = f"Invalid savepoint name {name!r}: must be a valid SQL identifier"
             raise ValueError(msg)
         try:
-            conn.execute(f"SAVEPOINT {name}")  # nosec B608 — identifier validated above
+            conn.execute(f"SAVEPOINT {name}")  # nosec B608
             yield
             conn.execute(f"RELEASE SAVEPOINT {name}")  # nosec B608
         except Exception:

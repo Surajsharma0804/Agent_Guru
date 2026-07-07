@@ -1643,11 +1643,11 @@ class OSController:
                 metadata={"requires_confirmation": True, "app_name": app_name},
             )
         try:
-            import subprocess
+            import subprocess  # nosec B404
 
             if self.platform == "win32":
                 # Use winget if available, else warn
-                result = subprocess.run(  # noqa: S603
+                result = subprocess.run(  # nosec B603 B607  # noqa: S603
                     ["winget", "uninstall", "--name", app_name, "--silent"],
                     check=False,
                     capture_output=True,
@@ -1704,16 +1704,16 @@ class OSController:
                 metadata={"requires_confirmation": True},
             )
         try:
-            import subprocess
+            import subprocess  # nosec B404
 
             if self.platform == "win32":
-                subprocess.Popen(["shutdown", "/r", "/t", "5"])
+                subprocess.Popen(["shutdown", "/r", "/t", "5"])  # nosec B603 B607
                 msg = "PC will restart in 5 seconds"
             elif self.platform == "darwin":
-                subprocess.Popen(["sudo", "shutdown", "-r", "now"])
+                subprocess.Popen(["sudo", "shutdown", "-r", "now"])  # nosec B603 B607
                 msg = "PC restarting now"
             else:
-                subprocess.Popen(["sudo", "reboot"])
+                subprocess.Popen(["sudo", "reboot"])  # nosec B603 B607
                 msg = "PC restarting now"
 
             self._log_operation(
@@ -1759,16 +1759,16 @@ class OSController:
                 metadata={"requires_confirmation": True},
             )
         try:
-            import subprocess
+            import subprocess  # nosec B404
 
             if self.platform == "win32":
-                subprocess.Popen(["shutdown", "/s", "/t", "5"])
+                subprocess.Popen(["shutdown", "/s", "/t", "5"])  # nosec B603 B607
                 msg = "PC will shut down in 5 seconds"
             elif self.platform == "darwin":
-                subprocess.Popen(["sudo", "shutdown", "-h", "now"])
+                subprocess.Popen(["sudo", "shutdown", "-h", "now"])  # nosec B603 B607
                 msg = "PC shutting down now"
             else:
-                subprocess.Popen(["sudo", "poweroff"])
+                subprocess.Popen(["sudo", "poweroff"])  # nosec B603 B607
                 msg = "PC shutting down now"
 
             self._log_operation(

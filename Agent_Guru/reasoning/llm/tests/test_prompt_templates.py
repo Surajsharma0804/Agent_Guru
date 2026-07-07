@@ -32,17 +32,17 @@ class TestPromptContext:
         """Test formatting empty context."""
         context = PromptContext()
         formatted = context.format_for_prompt()
-        assert formatted == "No context available."
+        assert formatted == "No context available."  # nosec B101
 
     def test_context_with_recent_turns(self):
         """Test formatting context with recent turns."""
         context = PromptContext(recent_turns=["User: Hello", "Agent: Hi there!", "User: Set timer"])
         formatted = context.format_for_prompt()
 
-        assert "Recent conversation:" in formatted
-        assert "1. User: Hello" in formatted
-        assert "2. Agent: Hi there!" in formatted
-        assert "3. User: Set timer" in formatted
+        assert "Recent conversation:" in formatted  # nosec B101
+        assert "1. User: Hello" in formatted  # nosec B101
+        assert "2. Agent: Hi there!" in formatted  # nosec B101
+        assert "3. User: Set timer" in formatted  # nosec B101
 
     def test_context_respects_max_turns(self):
         """Test that context respects max_turns limit."""
@@ -50,29 +50,29 @@ class TestPromptContext:
         formatted = context.format_for_prompt(max_turns=3)
 
         # Should only include last 3 turns
-        assert "Turn 7" in formatted
-        assert "Turn 8" in formatted
-        assert "Turn 9" in formatted
-        assert "Turn 0" not in formatted
-        assert "Turn 6" not in formatted
+        assert "Turn 7" in formatted  # nosec B101
+        assert "Turn 8" in formatted  # nosec B101
+        assert "Turn 9" in formatted  # nosec B101
+        assert "Turn 0" not in formatted  # nosec B101
+        assert "Turn 6" not in formatted  # nosec B101
 
     def test_context_with_tracked_entities(self):
         """Test formatting context with tracked entities."""
         context = PromptContext(tracked_entities={"person": "John", "location": "Seattle"})
         formatted = context.format_for_prompt()
 
-        assert "Tracked entities:" in formatted
-        assert "person: John" in formatted
-        assert "location: Seattle" in formatted
+        assert "Tracked entities:" in formatted  # nosec B101
+        assert "person: John" in formatted  # nosec B101
+        assert "location: Seattle" in formatted  # nosec B101
 
     def test_context_with_user_preferences(self):
         """Test formatting context with user preferences."""
         context = PromptContext(user_preferences={"timer_sound": "bell", "language": "en"})
         formatted = context.format_for_prompt()
 
-        assert "User preferences:" in formatted
-        assert "timer_sound: bell" in formatted
-        assert "language: en" in formatted
+        assert "User preferences:" in formatted  # nosec B101
+        assert "timer_sound: bell" in formatted  # nosec B101
+        assert "language: en" in formatted  # nosec B101
 
     def test_context_with_past_actions(self):
         """Test formatting context with past actions."""
@@ -81,11 +81,11 @@ class TestPromptContext:
         )
         formatted = context.format_for_prompt()
 
-        assert "Recent actions:" in formatted
+        assert "Recent actions:" in formatted  # nosec B101
         # Should only show last 3 actions
-        assert "set_timer(300)" in formatted
-        assert "play_music('workout')" in formatted
-        assert "send_message('John', 'Hi')" in formatted
+        assert "set_timer(300)" in formatted  # nosec B101
+        assert "play_music('workout')" in formatted  # nosec B101
+        assert "send_message('John', 'Hi')" in formatted  # nosec B101
 
     def test_context_with_retrieved_memories(self):
         """Test formatting context with retrieved memories."""
@@ -97,18 +97,18 @@ class TestPromptContext:
         )
         formatted = context.format_for_prompt()
 
-        assert "Relevant memories:" in formatted
-        assert "[episodic] User called Mom yesterday" in formatted
-        assert "[preference] User prefers morning workouts" in formatted
+        assert "Relevant memories:" in formatted  # nosec B101
+        assert "[episodic] User called Mom yesterday" in formatted  # nosec B101
+        assert "[preference] User prefers morning workouts" in formatted  # nosec B101
 
     def test_context_with_world_state(self):
         """Test formatting context with world state."""
         context = PromptContext(world_state_summary="Battery: 85%, Network: WiFi, Location: Home")
         formatted = context.format_for_prompt()
 
-        assert "World state:" in formatted
-        assert "Battery: 85%" in formatted
-        assert "Network: WiFi" in formatted
+        assert "World state:" in formatted  # nosec B101
+        assert "Battery: 85%" in formatted  # nosec B101
+        assert "Network: WiFi" in formatted  # nosec B101
 
     def test_context_with_all_fields(self):
         """Test formatting context with all fields populated."""
@@ -122,12 +122,12 @@ class TestPromptContext:
         )
         formatted = context.format_for_prompt()
 
-        assert "Recent conversation:" in formatted
-        assert "Tracked entities:" in formatted
-        assert "User preferences:" in formatted
-        assert "Recent actions:" in formatted
-        assert "Relevant memories:" in formatted
-        assert "World state:" in formatted
+        assert "Recent conversation:" in formatted  # nosec B101
+        assert "Tracked entities:" in formatted  # nosec B101
+        assert "User preferences:" in formatted  # nosec B101
+        assert "Recent actions:" in formatted  # nosec B101
+        assert "Relevant memories:" in formatted  # nosec B101
+        assert "World state:" in formatted  # nosec B101
 
 
 class TestPromptTemplate:
@@ -141,9 +141,9 @@ class TestPromptTemplate:
             few_shot_examples=[{"input": "test", "output": {}}],
         )
 
-        assert template.system_prompt == "System prompt"
-        assert template.user_prompt_template == "User: {user_input}"
-        assert len(template.few_shot_examples) == 1
+        assert template.system_prompt == "System prompt"  # nosec B101
+        assert template.user_prompt_template == "User: {user_input}"  # nosec B101
+        assert len(template.few_shot_examples) == 1  # nosec B101
 
     def test_format_user_prompt_basic(self):
         """Test basic user prompt formatting."""
@@ -160,9 +160,9 @@ class TestPromptTemplate:
             include_examples=False,
         )
 
-        assert "Input: Set timer" in prompt
-        assert "Context: No context available." in prompt
-        assert "Tools: timer_tool" in prompt
+        assert "Input: Set timer" in prompt  # nosec B101
+        assert "Context: No context available." in prompt  # nosec B101
+        assert "Tools: timer_tool" in prompt  # nosec B101
 
     def test_format_user_prompt_with_context(self):
         """Test user prompt formatting with context."""
@@ -177,9 +177,9 @@ class TestPromptTemplate:
             user_input="Set timer", context=context, include_examples=False
         )
 
-        assert "Input: Set timer" in prompt
-        assert "Recent conversation:" in prompt
-        assert "User: Hello" in prompt
+        assert "Input: Set timer" in prompt  # nosec B101
+        assert "Recent conversation:" in prompt  # nosec B101
+        assert "User: Hello" in prompt  # nosec B101
 
     def test_format_user_prompt_with_examples(self):
         """Test user prompt formatting with few-shot examples."""
@@ -196,10 +196,10 @@ class TestPromptTemplate:
             user_input="Set timer", include_examples=True, max_examples=2
         )
 
-        assert "Examples:" in prompt
-        assert "Input: Example 1" in prompt
-        assert "Input: Example 2" in prompt
-        assert "Input: Set timer" in prompt
+        assert "Examples:" in prompt  # nosec B101
+        assert "Input: Example 1" in prompt  # nosec B101
+        assert "Input: Example 2" in prompt  # nosec B101
+        assert "Input: Set timer" in prompt  # nosec B101
 
     def test_format_user_prompt_limits_examples(self):
         """Test that max_examples limits number of examples."""
@@ -214,7 +214,7 @@ class TestPromptTemplate:
         )
 
         # Should only include 2 examples
-        assert prompt.count("Input: Example") == 2
+        assert prompt.count("Input: Example") == 2  # nosec B101
 
 
 class TestSemanticInterpreterTemplate:
@@ -222,31 +222,31 @@ class TestSemanticInterpreterTemplate:
 
     def test_system_prompt_exists(self):
         """Test that system prompt is defined."""
-        assert SEMANTIC_INTERPRETER_SYSTEM_PROMPT
-        assert "Semantic LLM Interpreter" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT
-        assert "Task object" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT
+        assert SEMANTIC_INTERPRETER_SYSTEM_PROMPT  # nosec B101
+        assert "Semantic LLM Interpreter" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT  # nosec B101
+        assert "Task object" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT  # nosec B101
 
     def test_system_prompt_includes_task_structure(self):
         """Test that system prompt includes task structure."""
-        assert "goal" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT
-        assert "task_type" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT
-        assert "entities" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT
-        assert "steps" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT
-        assert "confidence" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT
+        assert "goal" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT  # nosec B101
+        assert "task_type" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT  # nosec B101
+        assert "entities" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT  # nosec B101
+        assert "steps" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT  # nosec B101
+        assert "confidence" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT  # nosec B101
 
     def test_system_prompt_includes_task_types(self):
         """Test that system prompt includes all task types."""
-        assert "single_step" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT
-        assert "multi_step" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT
-        assert "conversational" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT
-        assert "memory_query" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT
+        assert "single_step" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT  # nosec B101
+        assert "multi_step" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT  # nosec B101
+        assert "conversational" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT  # nosec B101
+        assert "memory_query" in SEMANTIC_INTERPRETER_SYSTEM_PROMPT  # nosec B101
 
     def test_user_template_has_placeholders(self):
         """Test that user template has required placeholders."""
-        assert "{user_input}" in SEMANTIC_INTERPRETER_USER_TEMPLATE
-        assert "{context}" in SEMANTIC_INTERPRETER_USER_TEMPLATE
-        assert "{available_tools}" in SEMANTIC_INTERPRETER_USER_TEMPLATE
-        assert "{examples}" in SEMANTIC_INTERPRETER_USER_TEMPLATE
+        assert "{user_input}" in SEMANTIC_INTERPRETER_USER_TEMPLATE  # nosec B101
+        assert "{context}" in SEMANTIC_INTERPRETER_USER_TEMPLATE  # nosec B101
+        assert "{available_tools}" in SEMANTIC_INTERPRETER_USER_TEMPLATE  # nosec B101
+        assert "{examples}" in SEMANTIC_INTERPRETER_USER_TEMPLATE  # nosec B101
 
     def test_examples_cover_all_task_types(self):
         """Test that examples cover all task types."""
@@ -257,41 +257,41 @@ class TestSemanticInterpreterTemplate:
             if task_type:
                 task_types.add(task_type)
 
-        assert "single_step" in task_types
-        assert "multi_step" in task_types
-        assert "conversational" in task_types
-        assert "memory_query" in task_types
+        assert "single_step" in task_types  # nosec B101
+        assert "multi_step" in task_types  # nosec B101
+        assert "conversational" in task_types  # nosec B101
+        assert "memory_query" in task_types  # nosec B101
 
     def test_examples_have_valid_structure(self):
         """Test that all examples have valid structure."""
         for example in SEMANTIC_INTERPRETER_EXAMPLES:
-            assert "input" in example
-            assert "output" in example
+            assert "input" in example  # nosec B101
+            assert "output" in example  # nosec B101
 
             output = example["output"]
-            assert "goal" in output
-            assert "task_type" in output
-            assert "entities" in output
-            assert "steps" in output
-            assert "confidence" in output
-            assert "requires_confirmation" in output
-            assert "estimated_duration" in output
+            assert "goal" in output  # nosec B101
+            assert "task_type" in output  # nosec B101
+            assert "entities" in output  # nosec B101
+            assert "steps" in output  # nosec B101
+            assert "confidence" in output  # nosec B101
+            assert "requires_confirmation" in output  # nosec B101
+            assert "estimated_duration" in output  # nosec B101
 
             # Validate steps
             for step in output["steps"]:
-                assert "step_id" in step
-                assert "description" in step
-                assert "tool_id" in step
-                assert "parameters" in step
-                assert "estimated_duration" in step
-                assert "status" in step
+                assert "step_id" in step  # nosec B101
+                assert "description" in step  # nosec B101
+                assert "tool_id" in step  # nosec B101
+                assert "parameters" in step  # nosec B101
+                assert "estimated_duration" in step  # nosec B101
+                assert "status" in step  # nosec B101
 
     def test_template_object_exists(self):
         """Test that template object is created."""
-        assert SEMANTIC_INTERPRETER_TEMPLATE
-        assert SEMANTIC_INTERPRETER_TEMPLATE.system_prompt
-        assert SEMANTIC_INTERPRETER_TEMPLATE.user_prompt_template
-        assert SEMANTIC_INTERPRETER_TEMPLATE.few_shot_examples
+        assert SEMANTIC_INTERPRETER_TEMPLATE  # nosec B101
+        assert SEMANTIC_INTERPRETER_TEMPLATE.system_prompt  # nosec B101
+        assert SEMANTIC_INTERPRETER_TEMPLATE.user_prompt_template  # nosec B101
+        assert SEMANTIC_INTERPRETER_TEMPLATE.few_shot_examples  # nosec B101
 
 
 class TestCreateSemanticInterpreterPrompt:
@@ -303,9 +303,9 @@ class TestCreateSemanticInterpreterPrompt:
             user_input="Set timer for 5 minutes"
         )
 
-        assert system_prompt
-        assert user_prompt
-        assert "Set timer for 5 minutes" in user_prompt
+        assert system_prompt  # nosec B101
+        assert user_prompt  # nosec B101
+        assert "Set timer for 5 minutes" in user_prompt  # nosec B101
 
     def test_prompt_with_context(self):
         """Test prompt creation with context."""
@@ -317,10 +317,10 @@ class TestCreateSemanticInterpreterPrompt:
             user_input="Set timer", context=context
         )
 
-        assert "Recent conversation:" in user_prompt
-        assert "User: Hello" in user_prompt
-        assert "Tracked entities:" in user_prompt
-        assert "duration: 5 minutes" in user_prompt
+        assert "Recent conversation:" in user_prompt  # nosec B101
+        assert "User: Hello" in user_prompt  # nosec B101
+        assert "Tracked entities:" in user_prompt  # nosec B101
+        assert "duration: 5 minutes" in user_prompt  # nosec B101
 
     def test_prompt_with_available_tools(self):
         """Test prompt creation with available tools."""
@@ -328,9 +328,9 @@ class TestCreateSemanticInterpreterPrompt:
             user_input="Set timer", available_tools=["timer_tool", "music_tool", "weather_tool"]
         )
 
-        assert "timer_tool" in user_prompt
-        assert "music_tool" in user_prompt
-        assert "weather_tool" in user_prompt
+        assert "timer_tool" in user_prompt  # nosec B101
+        assert "music_tool" in user_prompt  # nosec B101
+        assert "weather_tool" in user_prompt  # nosec B101
 
     def test_prompt_with_examples(self):
         """Test prompt creation with examples."""
@@ -338,7 +338,7 @@ class TestCreateSemanticInterpreterPrompt:
             user_input="Set timer", include_examples=True, max_examples=2
         )
 
-        assert "Examples:" in user_prompt
+        assert "Examples:" in user_prompt  # nosec B101
 
     def test_prompt_without_examples(self):
         """Test prompt creation without examples."""
@@ -346,16 +346,16 @@ class TestCreateSemanticInterpreterPrompt:
             user_input="Set timer", include_examples=False
         )
 
-        assert "Examples:" not in user_prompt
+        assert "Examples:" not in user_prompt  # nosec B101
 
     def test_prompt_returns_tuple(self):
         """Test that function returns tuple of two strings."""
         result = create_semantic_interpreter_prompt("Set timer")
 
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-        assert isinstance(result[0], str)
-        assert isinstance(result[1], str)
+        assert isinstance(result, tuple)  # nosec B101
+        assert len(result) == 2  # nosec B101
+        assert isinstance(result[0], str)  # nosec B101
+        assert isinstance(result[1], str)  # nosec B101
 
 
 class TestInjectConversationContext:
@@ -370,11 +370,11 @@ class TestInjectConversationContext:
             past_actions=["set_timer(300)"],
         )
 
-        assert isinstance(context, PromptContext)
-        assert context.recent_turns == ["User: Hello"]
-        assert context.tracked_entities == {"person": "John"}
-        assert context.user_preferences == {"language": "en"}
-        assert context.past_actions == ["set_timer(300)"]
+        assert isinstance(context, PromptContext)  # nosec B101
+        assert context.recent_turns == ["User: Hello"]  # nosec B101
+        assert context.tracked_entities == {"person": "John"}  # nosec B101
+        assert context.user_preferences == {"language": "en"}  # nosec B101
+        assert context.past_actions == ["set_timer(300)"]  # nosec B101
 
     def test_context_injection_with_memories(self):
         """Test context injection with memories."""
@@ -388,7 +388,7 @@ class TestInjectConversationContext:
             retrieved_memories=memories,
         )
 
-        assert context.retrieved_memories == memories
+        assert context.retrieved_memories == memories  # nosec B101
 
     def test_context_injection_with_world_state(self):
         """Test context injection with world state."""
@@ -400,7 +400,7 @@ class TestInjectConversationContext:
             world_state_summary="Battery: 50%",
         )
 
-        assert context.world_state_summary == "Battery: 50%"
+        assert context.world_state_summary == "Battery: 50%"  # nosec B101
 
     def test_context_injection_with_none_memories(self):
         """Test context injection with None memories."""
@@ -412,7 +412,7 @@ class TestInjectConversationContext:
             retrieved_memories=None,
         )
 
-        assert context.retrieved_memories == []
+        assert context.retrieved_memories == []  # nosec B101
 
 
 class TestCompressContextForTokenLimit:
@@ -434,14 +434,14 @@ class TestCompressContextForTokenLimit:
         compressed = compress_context_for_token_limit(context, max_tokens=100)
 
         # Should have fewer items
-        assert len(compressed.recent_turns) <= 2
-        assert len(compressed.tracked_entities) <= 3
-        assert len(compressed.past_actions) == 0  # Removed first
-        assert len(compressed.retrieved_memories) <= 3
+        assert len(compressed.recent_turns) <= 2  # nosec B101
+        assert len(compressed.tracked_entities) <= 3  # nosec B101
+        assert len(compressed.past_actions) == 0  # Removed first  # nosec B101
+        assert len(compressed.retrieved_memories) <= 3  # nosec B101
 
         # Check formatted length
         formatted = compressed.format_for_prompt()
-        assert len(formatted) <= 100 * 4  # Rough approximation
+        assert len(formatted) <= 100 * 4  # Rough approximation  # nosec B101
 
     def test_compress_already_small_context(self):
         """Test compressing already small context."""
@@ -450,8 +450,8 @@ class TestCompressContextForTokenLimit:
         compressed = compress_context_for_token_limit(context, max_tokens=1000)
 
         # Should keep everything
-        assert len(compressed.recent_turns) == 1
-        assert len(compressed.tracked_entities) == 1
+        assert len(compressed.recent_turns) == 1  # nosec B101
+        assert len(compressed.tracked_entities) == 1  # nosec B101
 
     def test_compress_removes_past_actions_first(self):
         """Test that compression removes past actions first."""
@@ -464,7 +464,7 @@ class TestCompressContextForTokenLimit:
         compressed = compress_context_for_token_limit(context, max_tokens=50)
 
         # Past actions should be removed first
-        assert len(compressed.past_actions) == 0
+        assert len(compressed.past_actions) == 0  # nosec B101
 
     def test_compress_aggressive_mode(self):
         """Test aggressive compression for very small token limit."""
@@ -480,10 +480,10 @@ class TestCompressContextForTokenLimit:
         compressed = compress_context_for_token_limit(context, max_tokens=20)
 
         # Should be very aggressive
-        assert len(compressed.recent_turns) <= 1
-        assert len(compressed.tracked_entities) <= 1
-        assert len(compressed.retrieved_memories) <= 2
-        assert len(compressed.user_preferences) == 0  # Removed in last resort
+        assert len(compressed.recent_turns) <= 1  # nosec B101
+        assert len(compressed.tracked_entities) <= 1  # nosec B101
+        assert len(compressed.retrieved_memories) <= 2  # nosec B101
+        assert len(compressed.user_preferences) == 0  # Removed in last resort  # nosec B101
 
 
 class TestPromptTemplateIntegration:
@@ -513,26 +513,26 @@ class TestPromptTemplateIntegration:
         )
 
         # Verify system prompt
-        assert "Semantic LLM Interpreter" in system_prompt
-        assert "Task object" in system_prompt
+        assert "Semantic LLM Interpreter" in system_prompt  # nosec B101
+        assert "Task object" in system_prompt  # nosec B101
 
         # Verify user prompt includes all context
-        assert "What about tomorrow?" in user_prompt
-        assert "Recent conversation:" in user_prompt
-        assert "What's the weather?" in user_prompt
-        assert "Tracked entities:" in user_prompt
-        assert "location: Seattle" in user_prompt
-        assert "User preferences:" in user_prompt
-        assert "temperature_unit: fahrenheit" in user_prompt
-        assert "Recent actions:" in user_prompt
-        assert "query_weather('Seattle')" in user_prompt
-        assert "Relevant memories:" in user_prompt
-        assert "User prefers detailed weather info" in user_prompt
-        assert "World state:" in user_prompt
-        assert "Battery: 85%" in user_prompt
-        assert "weather_tool" in user_prompt
-        assert "calendar_tool" in user_prompt
-        assert "Examples:" in user_prompt
+        assert "What about tomorrow?" in user_prompt  # nosec B101
+        assert "Recent conversation:" in user_prompt  # nosec B101
+        assert "What's the weather?" in user_prompt  # nosec B101
+        assert "Tracked entities:" in user_prompt  # nosec B101
+        assert "location: Seattle" in user_prompt  # nosec B101
+        assert "User preferences:" in user_prompt  # nosec B101
+        assert "temperature_unit: fahrenheit" in user_prompt  # nosec B101
+        assert "Recent actions:" in user_prompt  # nosec B101
+        assert "query_weather('Seattle')" in user_prompt  # nosec B101
+        assert "Relevant memories:" in user_prompt  # nosec B101
+        assert "User prefers detailed weather info" in user_prompt  # nosec B101
+        assert "World state:" in user_prompt  # nosec B101
+        assert "Battery: 85%" in user_prompt  # nosec B101
+        assert "weather_tool" in user_prompt  # nosec B101
+        assert "calendar_tool" in user_prompt  # nosec B101
+        assert "Examples:" in user_prompt  # nosec B101
 
     def test_minimal_prompt_generation(self):
         """Test minimal prompt generation without context."""
@@ -540,9 +540,9 @@ class TestPromptTemplateIntegration:
             user_input="Set timer for 5 minutes", include_examples=False
         )
 
-        assert system_prompt
-        assert "Set timer for 5 minutes" in user_prompt
-        assert "No context available" in user_prompt
+        assert system_prompt  # nosec B101
+        assert "Set timer for 5 minutes" in user_prompt  # nosec B101
+        assert "No context available" in user_prompt  # nosec B101
 
     def test_prompt_with_compressed_context(self):
         """Test prompt generation with compressed context."""
@@ -562,10 +562,10 @@ class TestPromptTemplateIntegration:
             user_input="Set timer", context=compressed, include_examples=False
         )
 
-        assert system_prompt
-        assert "Set timer" in user_prompt
+        assert system_prompt  # nosec B101
+        assert "Set timer" in user_prompt  # nosec B101
         # Should have compressed context
-        assert len(user_prompt) < 2000  # Reasonable size
+        assert len(user_prompt) < 2000  # Reasonable size  # nosec B101
 
 
 # Property-based tests would go here if using Hypothesis

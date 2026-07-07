@@ -71,7 +71,7 @@ def main() -> None:
         if table == "sqlite_sequence":
             continue
 
-        cursor.execute(f"PRAGMA table_info({table})")  # nosec B608 — integer value, no injection risk
+        cursor.execute(f"PRAGMA table_info({table})")  # nosec B608
         columns = cursor.fetchall()
 
         for col in columns:

@@ -24,21 +24,21 @@ class TestInitialization:
         """Test initialization with default parameters."""
         cache = PromptCache()
 
-        assert cache.max_size == 1000
-        assert cache.ttl_seconds == 300.0
-        assert cache.get_size() == 0
+        assert cache.max_size == 1000  # nosec B101
+        assert cache.ttl_seconds == 300.0  # nosec B101
+        assert cache.get_size() == 0  # nosec B101
 
     def test_init_with_custom_size(self):
         """Test initialization with custom max size."""
         cache = PromptCache(max_size=500)
 
-        assert cache.max_size == 500
+        assert cache.max_size == 500  # nosec B101
 
     def test_init_with_no_ttl(self):
         """Test initialization with no TTL."""
         cache = PromptCache(ttl_seconds=None)
 
-        assert cache.ttl_seconds is None
+        assert cache.ttl_seconds is None  # nosec B101
 
     def test_init_with_invalid_size(self):
         """Test initialization with invalid size fails."""
@@ -63,14 +63,14 @@ class TestCacheOperations:
         cache.set("set_timer", "context1", "Timer prompt template")
 
         prompt = cache.get("set_timer", "context1")
-        assert prompt == "Timer prompt template"
+        assert prompt == "Timer prompt template"  # nosec B101
 
     def test_get_nonexistent(self):
         """Test getting nonexistent prompt returns None."""
         cache = PromptCache()
 
         prompt = cache.get("nonexistent", "context")
-        assert prompt is None
+        assert prompt is None  # nosec B101
 
     def test_set_updates_existing(self):
         """Test setting existing key updates the entry."""
@@ -79,7 +79,7 @@ class TestCacheOperations:
         cache.set("set_timer", "context1", "New prompt")
 
         prompt = cache.get("set_timer", "context1")
-        assert prompt == "New prompt"
+        assert prompt == "New prompt"  # nosec B101
 
     def test_different_contexts_different_keys(self):
         """Test different contexts create different cache keys."""
@@ -90,8 +90,8 @@ class TestCacheOperations:
         prompt1 = cache.get("set_timer", "context1")
         prompt2 = cache.get("set_timer", "context2")
 
-        assert prompt1 == "Prompt 1"
-        assert prompt2 == "Prompt 2"
+        assert prompt1 == "Prompt 1"  # nosec B101
+        assert prompt2 == "Prompt 2"  # nosec B101
 
     def test_invalidate_existing(self):
         """Test invalidating existing entry."""
@@ -99,17 +99,17 @@ class TestCacheOperations:
         cache.set("set_timer", "context1", "Prompt")
 
         result = cache.invalidate("set_timer", "context1")
-        assert result is True
+        assert result is True  # nosec B101
 
         prompt = cache.get("set_timer", "context1")
-        assert prompt is None
+        assert prompt is None  # nosec B101
 
     def test_invalidate_nonexistent(self):
         """Test invalidating nonexistent entry."""
         cache = PromptCache()
 
         result = cache.invalidate("nonexistent", "context")
-        assert result is False
+        assert result is False  # nosec B101
 
     def test_clear(self):
         """Test clearing all cache entries."""
@@ -119,21 +119,21 @@ class TestCacheOperations:
 
         cache.clear()
 
-        assert cache.get_size() == 0
-        assert cache.get("intent1", "context1") is None
-        assert cache.get("intent2", "context2") is None
+        assert cache.get_size() == 0  # nosec B101
+        assert cache.get("intent1", "context1") is None  # nosec B101
+        assert cache.get("intent2", "context2") is None  # nosec B101
 
     def test_get_size(self):
         """Test getting cache size."""
         cache = PromptCache()
 
-        assert cache.get_size() == 0
+        assert cache.get_size() == 0  # nosec B101
 
         cache.set("intent1", "context1", "Prompt 1")
-        assert cache.get_size() == 1
+        assert cache.get_size() == 1  # nosec B101
 
         cache.set("intent2", "context2", "Prompt 2")
-        assert cache.get_size() == 2
+        assert cache.get_size() == 2  # nosec B101
 
 
 # ============================================================================
@@ -156,11 +156,11 @@ class TestLRUEviction:
         # Add one more (should evict intent1)
         cache.set("intent4", "context4", "Prompt 4")
 
-        assert cache.get_size() == 3
-        assert cache.get("intent1", "context1") is None  # Evicted
-        assert cache.get("intent2", "context2") == "Prompt 2"
-        assert cache.get("intent3", "context3") == "Prompt 3"
-        assert cache.get("intent4", "context4") == "Prompt 4"
+        assert cache.get_size() == 3  # nosec B101
+        assert cache.get("intent1", "context1") is None  # Evicted  # nosec B101
+        assert cache.get("intent2", "context2") == "Prompt 2"  # nosec B101
+        assert cache.get("intent3", "context3") == "Prompt 3"  # nosec B101
+        assert cache.get("intent4", "context4") == "Prompt 4"  # nosec B101
 
     def test_access_updates_lru_order(self):
         """Test accessing entry updates LRU order."""
@@ -177,10 +177,10 @@ class TestLRUEviction:
         # Add one more (should evict intent2, not intent1)
         cache.set("intent4", "context4", "Prompt 4")
 
-        assert cache.get("intent1", "context1") == "Prompt 1"  # Not evicted
-        assert cache.get("intent2", "context2") is None  # Evicted
-        assert cache.get("intent3", "context3") == "Prompt 3"
-        assert cache.get("intent4", "context4") == "Prompt 4"
+        assert cache.get("intent1", "context1") == "Prompt 1"  # Not evicted  # nosec B101
+        assert cache.get("intent2", "context2") is None  # Evicted  # nosec B101
+        assert cache.get("intent3", "context3") == "Prompt 3"  # nosec B101
+        assert cache.get("intent4", "context4") == "Prompt 4"  # nosec B101
 
 
 # ============================================================================
@@ -200,7 +200,7 @@ class TestTTLExpiration:
         time.sleep(0.15)
 
         prompt = cache.get("intent1", "context1")
-        assert prompt is None
+        assert prompt is None  # nosec B101
 
     def test_non_expired_entry_returns_value(self):
         """Test non-expired entry returns value."""
@@ -209,7 +209,7 @@ class TestTTLExpiration:
 
         # Access immediately
         prompt = cache.get("intent1", "context1")
-        assert prompt == "Prompt 1"
+        assert prompt == "Prompt 1"  # nosec B101
 
     def test_no_ttl_never_expires(self):
         """Test entries never expire when TTL is None."""
@@ -220,7 +220,7 @@ class TestTTLExpiration:
         time.sleep(0.1)
 
         prompt = cache.get("intent1", "context1")
-        assert prompt == "Prompt 1"
+        assert prompt == "Prompt 1"  # nosec B101
 
     def test_expired_entries_evicted_on_set(self):
         """Test expired entries are evicted when setting new entry."""
@@ -237,9 +237,9 @@ class TestTTLExpiration:
         cache.set("intent3", "context3", "Prompt 3")
 
         # Expired entries should be gone
-        assert cache.get("intent1", "context1") is None
-        assert cache.get("intent2", "context2") is None
-        assert cache.get("intent3", "context3") == "Prompt 3"
+        assert cache.get("intent1", "context1") is None  # nosec B101
+        assert cache.get("intent2", "context2") is None  # nosec B101
+        assert cache.get("intent3", "context3") == "Prompt 3"  # nosec B101
 
 
 # ============================================================================
@@ -254,27 +254,27 @@ class TestStatistics:
         """Test statistics initialization."""
         stats = CacheStats()
 
-        assert stats.total_requests == 0
-        assert stats.cache_hits == 0
-        assert stats.cache_misses == 0
-        assert stats.total_tokens_saved == 0
+        assert stats.total_requests == 0  # nosec B101
+        assert stats.cache_hits == 0  # nosec B101
+        assert stats.cache_misses == 0  # nosec B101
+        assert stats.total_tokens_saved == 0  # nosec B101
 
     def test_record_hit(self):
         """Test recording cache hit."""
         stats = CacheStats()
         stats.record_hit(tokens_saved=100)
 
-        assert stats.total_requests == 1
-        assert stats.cache_hits == 1
-        assert stats.total_tokens_saved == 100
+        assert stats.total_requests == 1  # nosec B101
+        assert stats.cache_hits == 1  # nosec B101
+        assert stats.total_tokens_saved == 100  # nosec B101
 
     def test_record_miss(self):
         """Test recording cache miss."""
         stats = CacheStats()
         stats.record_miss()
 
-        assert stats.total_requests == 1
-        assert stats.cache_misses == 1
+        assert stats.total_requests == 1  # nosec B101
+        assert stats.cache_misses == 1  # nosec B101
 
     def test_hit_rate_calculation(self):
         """Test hit rate calculation."""
@@ -284,14 +284,14 @@ class TestStatistics:
         stats.record_miss()
 
         hit_rate = stats.get_hit_rate()
-        assert hit_rate == pytest.approx(2 / 3)
+        assert hit_rate == pytest.approx(2 / 3)  # nosec B101
 
     def test_hit_rate_zero_requests(self):
         """Test hit rate with zero requests."""
         stats = CacheStats()
 
         hit_rate = stats.get_hit_rate()
-        assert hit_rate == 0.0
+        assert hit_rate == 0.0  # nosec B101
 
     def test_cache_tracks_hits_and_misses(self):
         """Test cache tracks hits and misses."""
@@ -305,10 +305,10 @@ class TestStatistics:
         cache.get("intent2", "context2")
 
         stats = cache.get_stats()
-        assert stats["total_requests"] == 2
-        assert stats["cache_hits"] == 1
-        assert stats["cache_misses"] == 1
-        assert stats["hit_rate"] == 0.5
+        assert stats["total_requests"] == 2  # nosec B101
+        assert stats["cache_hits"] == 1  # nosec B101
+        assert stats["cache_misses"] == 1  # nosec B101
+        assert stats["hit_rate"] == 0.5  # nosec B101
 
     def test_token_savings_tracking(self):
         """Test token savings tracking."""
@@ -321,7 +321,7 @@ class TestStatistics:
         cache.get("intent1", "context1")
 
         stats = cache.get_stats()
-        assert stats["total_tokens_saved"] == 300  # 3 hits * 100 tokens
+        assert stats["total_tokens_saved"] == 300  # 3 hits * 100 tokens  # nosec B101
 
     def test_eviction_tracking(self):
         """Test eviction tracking."""
@@ -332,7 +332,7 @@ class TestStatistics:
         cache.set("intent3", "context3", "Prompt 3")  # Evicts intent1
 
         stats = cache.get_stats()
-        assert stats["evictions"] == 1
+        assert stats["evictions"] == 1  # nosec B101
 
     def test_reset_stats(self):
         """Test resetting statistics."""
@@ -343,8 +343,8 @@ class TestStatistics:
         cache.reset_stats()
 
         stats = cache.get_stats()
-        assert stats["total_requests"] == 0
-        assert stats["cache_hits"] == 0
+        assert stats["total_requests"] == 0  # nosec B101
+        assert stats["cache_hits"] == 0  # nosec B101
 
 
 # ============================================================================
@@ -366,8 +366,8 @@ class TestAccessTracking:
         cache.get("intent1", "context1")
 
         most_accessed = cache.get_most_accessed()
-        assert len(most_accessed) == 1
-        assert most_accessed[0]["access_count"] == 3
+        assert len(most_accessed) == 1  # nosec B101
+        assert most_accessed[0]["access_count"] == 3  # nosec B101
 
     def test_get_most_accessed(self):
         """Test getting most accessed entries."""
@@ -386,9 +386,9 @@ class TestAccessTracking:
         cache.get("intent3", "context3")
 
         most_accessed = cache.get_most_accessed(limit=2)
-        assert len(most_accessed) == 2
-        assert most_accessed[0]["access_count"] == 3  # intent3
-        assert most_accessed[1]["access_count"] == 2  # intent2
+        assert len(most_accessed) == 2  # nosec B101
+        assert most_accessed[0]["access_count"] == 3  # intent3  # nosec B101
+        assert most_accessed[1]["access_count"] == 2  # intent2  # nosec B101
 
     def test_metadata_storage(self):
         """Test metadata storage and retrieval."""
@@ -398,7 +398,7 @@ class TestAccessTracking:
         cache.set("intent1", "context1", "Prompt 1", metadata=metadata)
 
         most_accessed = cache.get_most_accessed()
-        assert most_accessed[0]["metadata"] == metadata
+        assert most_accessed[0]["metadata"] == metadata  # nosec B101
 
 
 # ============================================================================
@@ -426,10 +426,10 @@ class TestIntegration:
         stats = cache.get_stats()
 
         # Should have ~80% hit rate
-        assert stats["hit_rate"] >= 0.75
+        assert stats["hit_rate"] >= 0.75  # nosec B101
 
         # Should have significant token savings
-        assert stats["total_tokens_saved"] > 0
+        assert stats["total_tokens_saved"] > 0  # nosec B101
 
     def test_cache_key_consistency(self):
         """Test cache key generation is consistent."""
@@ -442,4 +442,4 @@ class TestIntegration:
         prompt1 = cache.get("intent1", "context1")
         prompt2 = cache.get("intent1", "context1")
 
-        assert prompt1 == prompt2 == "Prompt 1"
+        assert prompt1 == prompt2 == "Prompt 1"  # nosec B101
