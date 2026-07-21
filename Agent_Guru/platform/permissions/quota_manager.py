@@ -477,7 +477,7 @@ class QuotaManager:
             return
 
         try:
-            data = {
+            data: dict[str, Any] = {
                 "last_hour_reset": self._last_hour_reset.isoformat(),
                 "last_day_reset": self._last_day_reset.isoformat(),
                 "user_quotas": {},
@@ -539,7 +539,7 @@ class QuotaManager:
 
         """
         with self._lock:
-            stats = {
+            stats: dict[str, Any] = {
                 "total_users": len(self._user_quotas),
                 "last_hour_reset": self._last_hour_reset.isoformat(),
                 "last_day_reset": self._last_day_reset.isoformat(),

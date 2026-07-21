@@ -20,7 +20,7 @@ Version: 1.0.0
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta, timezone, tzinfo
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -237,7 +237,7 @@ class TimeRestriction:
         return False
 
     @staticmethod
-    def _get_timezone(tz_name: str) -> timezone:
+    def _get_timezone(tz_name: str) -> tzinfo:
         """Get timezone object from name.
 
         Args:

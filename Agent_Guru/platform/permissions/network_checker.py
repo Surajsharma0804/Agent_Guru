@@ -540,7 +540,7 @@ class NetworkPermissionChecker:
         # Remove fragment (not needed for API calls)
         sanitized_parts[5] = ""
 
-        return urlunparse(sanitized_parts)
+        return str(urlunparse(sanitized_parts))
 
     def is_url_allowed(self, url: str, method: HttpMethod) -> bool:
         """Quick check if URL is allowed.
