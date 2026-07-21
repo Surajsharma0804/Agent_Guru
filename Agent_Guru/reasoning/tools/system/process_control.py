@@ -3,9 +3,9 @@
 Platform-specific implementations for Windows, macOS, and Linux.
 """
 
+import asyncio
 import logging
 import platform
-import subprocess  # nosec B404
 from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
@@ -18,6 +18,29 @@ from Agent_Guru.reasoning.tools.registry import tool
 from Agent_Guru.security.redaction import redact
 
 logger = logging.getLogger(__name__)
+
+
+async def _run_cmd_async(args: list[str]) -> tuple[int, str, str]:
+    """Run a subprocess command asynchronously.
+
+    Args:
+        args: Command and arguments to execute.
+
+    Returns:
+        Tuple of (returncode, stdout, stderr).
+
+    """
+    proc = await asyncio.create_subprocess_exec(
+        *args,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout_bytes, stderr_bytes = await proc.communicate()
+    return (
+        proc.returncode or 0,
+        stdout_bytes.decode("utf-8", errors="replace"),
+        stderr_bytes.decode("utf-8", errors="replace"),
+    )
 
 
 class PlatformProcessController:
@@ -41,21 +64,18 @@ class PlatformProcessController:
         try:
             if system == "windows":
                 # Windows: use tasklist
-                result = subprocess.run(  # nosec B603 B607
+                returncode, stdout, stderr = await _run_cmd_async(
                     ["tasklist", "/FO", "CSV", "/NH"],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
+                if returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to list processes: {result.stderr}",
+                        "error": f"Failed to list processes: {stderr}",
                     }
 
                 # Parse CSV output
                 processes = []
-                for line in result.stdout.strip().split("\n"):
+                for line in stdout.strip().split("\n"):
                     if line:
                         parts = line.strip('"').split('","')
                         if len(parts) >= 2:
@@ -68,21 +88,16 @@ class PlatformProcessController:
 
             elif system in {"darwin", "linux"}:
                 # macOS/Linux: use ps
-                result = subprocess.run(  # nosec B603 B607
-                    ["ps", "aux"],
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                )
-                if result.returncode != 0:
+                returncode, stdout, stderr = await _run_cmd_async(["ps", "aux"])
+                if returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to list processes: {result.stderr}",
+                        "error": f"Failed to list processes: {stderr}",
                     }
 
                 # Parse ps output
                 processes = []
-                lines = result.stdout.strip().split("\n")[1:]  # Skip header
+                lines = stdout.strip().split("\n")[1:]  # Skip header
                 for line in lines:
                     parts = line.split(None, 10)
                     if len(parts) >= 11:
@@ -141,31 +156,23 @@ class PlatformProcessController:
                 if force:
                     cmd.append("/F")
 
-                result = subprocess.run(  # nosec B603  # noqa: S603
-                    cmd,
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                )
-                if result.returncode != 0:
+                returncode, _stdout, stderr = await _run_cmd_async(cmd)
+                if returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to kill process {pid}: {result.stderr}",
+                        "error": f"Failed to kill process {pid}: {stderr}",
                     }
 
             elif system in {"darwin", "linux"}:
                 # macOS/Linux: use kill
                 signal = "-9" if force else "-15"
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await _run_cmd_async(
                     ["kill", signal, str(pid)],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
+                if returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to kill process {pid}: {result.stderr}",
+                        "error": f"Failed to kill process {pid}: {stderr}",
                     }
 
             else:
