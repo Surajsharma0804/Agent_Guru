@@ -648,541 +648,689 @@ class EntityAnnotator:
         intent_data = self.intents_data["intents"].get(intent, {})
         expected = set(intent_data.get("entities", []))
 
-        # ---- Regex-based patterns ----
+        # Regex-based patterns
+        self._extract_regex_patterns(utterance, expected, entities)
+
+        # Known-value lookups (dispatch table)
+        _KNOWN_EXTRACTORS: list[tuple[str, set[str], str]] = [
+            ("app_name", self._KNOWN_APPS, "app_name"),
+            ("song_name", self._KNOWN_SONGS, "song_name"),
+            ("artist", self._KNOWN_ARTISTS, "artist"),
+            ("genre", self._KNOWN_GENRES, "genre"),
+            ("device_name", self._KNOWN_DEVICES, "device_name"),
+            ("action", self._KNOWN_ACTIONS, "action"),
+        ]
+        for etype, known_set, label in _KNOWN_EXTRACTORS:
+            if etype in expected or not expected:
+                entities.extend(self._find_known_entity(utterance, known_set, label))
+
+        # Contextual extractors
+        self._extract_recipient(utterance, expected, entities)
+        self._extract_location(utterance, expected, entities)
+        self._extract_task(utterance, expected, entities)
+        self._extract_message_content(utterance, expected, entities)
+        self._extract_event_name(utterance, expected, entities)
+        self._extract_search_query(utterance, expected, entities)
+        self._extract_command_type(utterance, expected, entities)
+        self._extract_value(utterance, expected, entities)
+        self._extract_brightness(utterance, expected, entities)
+        self._extract_color(utterance, expected, entities)
+        self._extract_playlist(utterance, expected, entities)
+        self._extract_video_query(utterance, expected, entities)
+        self._extract_help_topic(utterance, expected, entities)
+
+        # Intent-specific extractors
+        self._extract_query_fact(utterance, intent, expected, entities)
+        self._extract_query_time(utterance, intent, expected, entities)
+        self._extract_query_date(utterance, intent, entities)
+        self._extract_cancel_timer(utterance, intent, entities)
+        self._extract_make_call(utterance, intent, entities)
+        self._extract_delete_event(utterance, intent, entities)
+        self._extract_search_web(utterance, intent, entities)
+        self._extract_help_request(utterance, intent, entities)
+        self._extract_track_nav(utterance, intent, entities)
+        self._extract_system_command(utterance, intent, expected, entities)
+        self._extract_thermostat(utterance, intent, expected, entities)
+        self._extract_query_events(utterance, intent, expected, entities)
+        self._extract_clarification(utterance, intent, entities)
+        self._extract_cancellation(utterance, intent, entities)
+        self._extract_query_weather(utterance, intent, entities)
+        self._extract_set_reminder(utterance, intent, entities)
+        self._extract_play_music(utterance, intent, entities)
+        self._extract_stop_media(utterance, intent, entities)
+
+        return self._remove_overlaps(entities)
+
+    # ------------------------------------------------------------------
+    # Per-entity-type extractors (decomposed from extract_entities)
+    # ------------------------------------------------------------------
+
+    def _extract_regex_patterns(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Apply regex-based entity patterns."""
         for etype, patterns in self.entity_patterns.items():
             if etype in expected or not expected:
                 for pat in patterns:
                     for m in pat.finditer(utterance):
                         entities.append((m.group(), m.start(), m.end(), etype))
 
-        # ---- Known-value lookups ----
-        if "app_name" in expected or not expected:
-            entities.extend(self._find_known_entity(utterance, self._KNOWN_APPS, "app_name"))
+    def _extract_recipient(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract recipient entities."""
+        if "recipient" not in expected and expected:
+            return
+        for pat in [
+            r"(?:to|call|message|text|email|phone|ring|contact|send\s+(?:a\s+)?(?:message|text|email)\s+to)\s+(?!saying\b|that\b)([A-Za-z][a-z]+(?:\s+[A-Za-z][a-z]+)?)\s*(?:saying\b|that\b|$)",
+            r"(?:to|call|message|text|email|phone|ring|contact|send\s+(?:a\s+)?(?:message|text|email)\s+to)\s+(?!saying\b|that\b)([A-Za-z][a-z]+)(?:\s+[A-Za-z][a-z]+)?(?=\s+(?:saying|that)\b|$)",
+            r"(?:call|phone|ring)\s+(mom|dad|wife|husband|boss|sister|brother)",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                name = m.group(1).strip().lower()
+                if name in self._KNOWN_CONTACTS or len(name) >= 3:
+                    entities.append((m.group(1), m.start(1), m.end(1), "recipient"))
+        entities.extend(self._find_known_entity(utterance, self._KNOWN_CONTACTS, "recipient"))
 
-        if "recipient" in expected or not expected:
-            # Pattern: after "to/call/message/text/email/phone/ring/contact"
-            # Negative lookahead prevents matching "message saying/that ..." (that's message_content)
+    _NON_LOCATION_WORDS = {
+        "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+        "january", "february", "march", "april", "june", "july", "august",
+        "september", "october", "november", "december",
+        "please", "quickly", "right", "now", "today", "tomorrow", "yesterday",
+    }
+
+    def _extract_location(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract location entities."""
+        if "location" not in expected and expected:
+            return
+        entities.extend(self._find_known_entity(utterance, self._KNOWN_LOCATIONS, "location"))
+        for m in re.finditer(r"\b([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)\b", utterance):
+            if m.group(1).lower() not in self._NON_LOCATION_WORDS:
+                entities.append((m.group(1), m.start(1), m.end(1), "location"))
+
+    def _extract_task(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract task entities from reminder patterns."""
+        if "task" not in expected and expected:
+            return
+        for pat in [
+            r"remind\s+(?:me\s+)?to\s+(.+?)(?:\s+(?:at|on|by|in|tomorrow|today|tonight|this|next|every).*)?$",
+            r"reminder\s+(?:to\s+|for\s+)(.+?)(?:\s+(?:at|on|by|in|tomorrow|today|tonight|this|next|every).*)?$",
+            r"remember\s+to\s+(.+?)(?:\s+(?:at|on|by|in|tomorrow|today|tonight|this|next|every).*)?$",
+            r"don't\s+forget\s+to\s+(.+?)(?:\s+(?:at|on|by|in|tomorrow|today|tonight|this|next|every).*)?$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                task_text = m.group(1).strip()
+                if task_text:
+                    entities.append((task_text, m.start(1), m.end(1), "task"))
+
+    def _extract_message_content(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract message content entities."""
+        if "message_content" not in expected and expected:
+            return
+        for pat in [
+            r"(?:saying|that)\s+['\"]?(.+?)['\"]?$",
+            r"(?:text|message)\s+\w+\s+(?:saying|that)\s+(.+?)$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                content = m.group(1).strip()
+                if content and len(content) > 2:
+                    entities.append((content, m.start(1), m.end(1), "message_content"))
+
+    def _extract_event_name(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract event name entities."""
+        if "event_name" not in expected and expected:
+            return
+        for pat in [
+            r"(?:event|meeting|appointment|call|session|class|lesson|game|party|dinner|lunch|breakfast)\s+(?:called|named|for|about)?\s*['\"]?([A-Za-z][A-Za-z\s]{2,}?)['\"]?(?:\s+(?:at|on|for|tomorrow|today|next).*)?$",
+            r"(?:schedule|create|add|set up)\s+(?:a\s+)?(?:meeting|appointment|event|call)\s+(?:for\s+)?([A-Za-z][A-Za-z\s]{2,}?)(?:\s+(?:at|on|for|tomorrow|today|next).*)?$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                name = m.group(1).strip()
+                if name and len(name) > 2:
+                    entities.append((name, m.start(1), m.end(1), "event_name"))
+
+    def _extract_search_query(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract search query entities."""
+        if "search_query" not in expected and expected:
+            return
+        for pat in [
+            r"(?:search\s+(?:for|the\s+web\s+for)?|look\s+up|google|find\s+(?:information\s+about)?|search)\s+(.+?)(?:\s+(?:online|on\s+the\s+web|on\s+google))?$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                query = m.group(1).strip()
+                if query and len(query) > 2:
+                    entities.append((query, m.start(1), m.end(1), "search_query"))
+
+    def _extract_command_type(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract command_type entities."""
+        if "command_type" not in expected and expected:
+            return
+        for pat in [
+            r"\b(volume|brightness|wifi|bluetooth|airplane\s+mode|screen|display|sound|audio|notification)\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                entities.append((m.group(1), m.start(), m.end(), "command_type"))
+
+    def _extract_value(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract value entities."""
+        if "value" not in expected and expected:
+            return
+        for pat in [
+            r"\b(\d+)\s*(?:percent|%)\b",
+            r"\b(high|low|medium|max|min|maximum|minimum|full|half|zero)\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                entities.append((m.group(1), m.start(1), m.end(1), "value"))
+
+    def _extract_brightness(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract brightness entities."""
+        if "brightness" not in expected and expected:
+            return
+        for pat in [
+            r"\b(\d+)\s*(?:percent|%)?\b",
+            r"\b(dim|bright|brighter|dimmer|full|half)\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                entities.append((m.group(1), m.start(1), m.end(1), "brightness"))
+
+    def _extract_color(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract color entities."""
+        if "color" not in expected and expected:
+            return
+        for pat in [
+            r"\b(red|blue|green|yellow|white|warm|cool|purple|orange|pink|cyan|teal)\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                entities.append((m.group(), m.start(), m.end(), "color"))
+
+    def _extract_playlist(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract playlist entities."""
+        if "playlist" not in expected and expected:
+            return
+        for pat in [
+            r"\b(?:my\s+)?(\w+\s+playlist)\b",
+            r"\bplaylist\s+(?:called\s+)?['\"]?(\w[\w\s]+?)['\"]?\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                entities.append((m.group(1), m.start(1), m.end(1), "playlist"))
+
+    def _extract_video_query(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract video_query entities."""
+        if "video_query" not in expected and expected:
+            return
+        for pat in [
+            r"(?:play|watch|show)\s+(?:a\s+)?(?:video\s+(?:of|about)\s+)?(.+?)(?:\s+video)?$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                query = m.group(1).strip()
+                if query and len(query) > 2:
+                    entities.append((query, m.start(1), m.end(1), "video_query"))
+
+    def _extract_help_topic(
+        self, utterance: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract help_topic entities."""
+        if "help_topic" not in expected and expected:
+            return
+        for pat in [
+            r"(?:help\s+(?:me\s+)?(?:with|about|on)|how\s+(?:do\s+I|to))\s+(.+?)$",
+            r"(?:what\s+(?:can|are)\s+(?:you|your)\s+(?:do|capabilities|features))",
+            r"(?:show\s+me\s+how|guide\s+me|assist\s+me\s+with)\s+(.+?)$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                if m.lastindex and m.lastindex >= 1:
+                    topic = m.group(1).strip()
+                    if topic and len(topic) > 2:
+                        entities.append((topic, m.start(1), m.end(1), "help_topic"))
+                else:
+                    entities.append((m.group(), m.start(), m.end(), "help_topic"))
+
+    # ------------------------------------------------------------------
+    # Intent-specific extractors
+    # ------------------------------------------------------------------
+
+    def _extract_query_fact(
+        self, utterance: str, intent: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract query_subject for fact queries."""
+        if intent != "query_fact" and "query_subject" not in expected:
+            return
+        for pat in [
+            r"(?:what\s+is|what's|who\s+is|who's|where\s+is|where's|when\s+(?:was|is|did)|how\s+(?:tall|far|old|big|long|much|many|fast))\s+(?:the\s+)?(.+?)(?:\s+(?:please|now|quickly|for\s+me))?$",
+            r"(?:tell\s+me\s+about|information\s+about|details\s+about|facts\s+about)\s+(.+?)(?:\s+(?:please|now|quickly))?$",
+            r"(?:who\s+(?:invented|created|discovered|wrote|founded|built|made))\s+(?:the\s+)?(.+?)(?:\s+(?:please|now|quickly))?$",
+            r"(?:what\s+(?:is|are|was|were)\s+the)\s+(.+?)(?:\s+(?:please|now|quickly))?$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                subj = m.group(1).strip() if m.lastindex else m.group().strip()
+                if subj and len(subj) > 1:
+                    entities.append((
+                        subj,
+                        m.start(1) if m.lastindex else m.start(),
+                        m.end(1) if m.lastindex else m.end(),
+                        "query_subject",
+                    ))
+
+    def _extract_query_time(
+        self, utterance: str, intent: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract location/query_type for time queries."""
+        if intent != "query_time" and "location" not in expected:
+            return
+        for pat in [
+            r"(?:time\s+in|what\s+time\s+is\s+it\s+in|current\s+time\s+in)\s+(.+?)(?:\s+(?:please|now|right\s+now|quickly))?$",
+            r"(?:in|at)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:time|timezone|right\s+now)?",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                loc = m.group(1).strip()
+                if loc and len(loc) > 1:
+                    entities.append((loc, m.start(1), m.end(1), "location"))
+        if intent == "query_time" and not any(e[3] in ("location", "time") for e in entities):
             for pat in [
-                r"(?:to|call|message|text|email|phone|ring|contact|send\s+(?:a\s+)?(?:message|text|email)\s+to)\s+(?!saying\b|that\b)([A-Za-z][a-z]+(?:\s+[A-Za-z][a-z]+)?)\s*(?:saying\b|that\b|$)",
-                r"(?:to|call|message|text|email|phone|ring|contact|send\s+(?:a\s+)?(?:message|text|email)\s+to)\s+(?!saying\b|that\b)([A-Za-z][a-z]+)(?:\s+[A-Za-z][a-z]+)?(?=\s+(?:saying|that)\b|$)",
-                r"(?:call|phone|ring)\s+(mom|dad|wife|husband|boss|sister|brother)",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    name = m.group(1).strip().lower()
-                    if name in self._KNOWN_CONTACTS or len(name) >= 3:
-                        entities.append((m.group(1), m.start(1), m.end(1), "recipient"))
-            # Also match standalone known contacts
-            entities.extend(self._find_known_entity(utterance, self._KNOWN_CONTACTS, "recipient"))
-
-        if "location" in expected or not expected:
-            entities.extend(self._find_known_entity(utterance, self._KNOWN_LOCATIONS, "location"))
-            # Capitalized proper nouns not already matched
-            for m in re.finditer(r"\b([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)\b", utterance):
-                word = m.group(1).lower()
-                if word not in {
-                    "monday",
-                    "tuesday",
-                    "wednesday",
-                    "thursday",
-                    "friday",
-                    "saturday",
-                    "sunday",
-                    "january",
-                    "february",
-                    "march",
-                    "april",
-                    "june",
-                    "july",
-                    "august",
-                    "september",
-                    "october",
-                    "november",
-                    "december",
-                    "please",
-                    "quickly",
-                    "right",
-                    "now",
-                    "today",
-                    "tomorrow",
-                    "yesterday",
-                }:
-                    entities.append((m.group(1), m.start(1), m.end(1), "location"))
-
-        if "song_name" in expected or not expected:
-            entities.extend(self._find_known_entity(utterance, self._KNOWN_SONGS, "song_name"))
-
-        if "artist" in expected or not expected:
-            entities.extend(self._find_known_entity(utterance, self._KNOWN_ARTISTS, "artist"))
-
-        if "genre" in expected or not expected:
-            entities.extend(self._find_known_entity(utterance, self._KNOWN_GENRES, "genre"))
-
-        if "device_name" in expected or not expected:
-            entities.extend(self._find_known_entity(utterance, self._KNOWN_DEVICES, "device_name"))
-
-        if "action" in expected or not expected:
-            entities.extend(self._find_known_entity(utterance, self._KNOWN_ACTIONS, "action"))
-
-        if "task" in expected or not expected:
-            # Extract task after "remind me to", "reminder to", "remember to"
-            for pat in [
-                r"remind\s+(?:me\s+)?to\s+(.+?)(?:\s+(?:at|on|by|in|tomorrow|today|tonight|this|next|every).*)?$",
-                r"reminder\s+(?:to\s+|for\s+)(.+?)(?:\s+(?:at|on|by|in|tomorrow|today|tonight|this|next|every).*)?$",
-                r"remember\s+to\s+(.+?)(?:\s+(?:at|on|by|in|tomorrow|today|tonight|this|next|every).*)?$",
-                r"don't\s+forget\s+to\s+(.+?)(?:\s+(?:at|on|by|in|tomorrow|today|tonight|this|next|every).*)?$",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    task_text = m.group(1).strip()
-                    if task_text:
-                        entities.append((task_text, m.start(1), m.end(1), "task"))
-
-        if "message_content" in expected or not expected:
-            # Extract message content after "saying/that/message" — but NOT when
-            # "message to <name>" pattern is present (that's a recipient, not content)
-            for pat in [
-                r"(?:saying|that)\s+['\"]?(.+?)['\"]?$",
-                r"(?:text|message)\s+\w+\s+(?:saying|that)\s+(.+?)$",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    content = m.group(1).strip()
-                    if content and len(content) > 2:
-                        entities.append((content, m.start(1), m.end(1), "message_content"))
-
-        if "event_name" in expected or not expected:
-            # Extract event names after "event", "meeting", "appointment"
-            for pat in [
-                r"(?:event|meeting|appointment|call|session|class|lesson|game|party|dinner|lunch|breakfast)\s+(?:called|named|for|about)?\s*['\"]?([A-Za-z][A-Za-z\s]{2,}?)['\"]?(?:\s+(?:at|on|for|tomorrow|today|next).*)?$",
-                r"(?:schedule|create|add|set up)\s+(?:a\s+)?(?:meeting|appointment|event|call)\s+(?:for\s+)?([A-Za-z][A-Za-z\s]{2,}?)(?:\s+(?:at|on|for|tomorrow|today|next).*)?$",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    name = m.group(1).strip()
-                    if name and len(name) > 2:
-                        entities.append((name, m.start(1), m.end(1), "event_name"))
-
-        if "search_query" in expected or not expected:
-            # Extract search query after "search for/look up/google/find"
-            for pat in [
-                r"(?:search\s+(?:for|the\s+web\s+for)?|look\s+up|google|find\s+(?:information\s+about)?|search)\s+(.+?)(?:\s+(?:online|on\s+the\s+web|on\s+google))?$",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    query = m.group(1).strip()
-                    if query and len(query) > 2:
-                        entities.append((query, m.start(1), m.end(1), "search_query"))
-
-        if "command_type" in expected or not expected:
-            for pat in [
-                r"\b(volume|brightness|wifi|bluetooth|airplane\s+mode|screen|display|sound|audio|notification)\b",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    entities.append((m.group(1), m.start(), m.end(), "command_type"))
-
-        if "value" in expected or not expected:
-            for pat in [
-                r"\b(\d+)\s*(?:percent|%)\b",
-                r"\b(high|low|medium|max|min|maximum|minimum|full|half|zero)\b",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    entities.append((m.group(1), m.start(1), m.end(1), "value"))
-
-        if "brightness" in expected or not expected:
-            for pat in [
-                r"\b(\d+)\s*(?:percent|%)?\b",
-                r"\b(dim|bright|brighter|dimmer|full|half)\b",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    entities.append((m.group(1), m.start(1), m.end(1), "brightness"))
-
-        if "color" in expected or not expected:
-            for pat in [
-                r"\b(red|blue|green|yellow|white|warm|cool|purple|orange|pink|cyan|teal)\b",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    entities.append((m.group(), m.start(), m.end(), "color"))
-
-        if "playlist" in expected or not expected:
-            for pat in [
-                r"\b(?:my\s+)?(\w+\s+playlist)\b",
-                r"\bplaylist\s+(?:called\s+)?['\"]?(\w[\w\s]+?)['\"]?\b",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    entities.append((m.group(1), m.start(1), m.end(1), "playlist"))
-
-        if "video_query" in expected or not expected:
-            for pat in [
-                r"(?:play|watch|show)\s+(?:a\s+)?(?:video\s+(?:of|about)\s+)?(.+?)(?:\s+video)?$",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    query = m.group(1).strip()
-                    if query and len(query) > 2:
-                        entities.append((query, m.start(1), m.end(1), "video_query"))
-
-        if "help_topic" in expected or not expected:
-            for pat in [
-                r"(?:help\s+(?:me\s+)?(?:with|about|on)|how\s+(?:do\s+I|to))\s+(.+?)$",
-                r"(?:what\s+(?:can|are)\s+(?:you|your)\s+(?:do|capabilities|features))",
-                r"(?:show\s+me\s+how|guide\s+me|assist\s+me\s+with)\s+(.+?)$",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    if m.lastindex and m.lastindex >= 1:
-                        topic = m.group(1).strip()
-                        if topic and len(topic) > 2:
-                            entities.append((topic, m.start(1), m.end(1), "help_topic"))
-                    else:
-                        # Pattern matched but no capture group — use whole match as topic
-                        entities.append((m.group(), m.start(), m.end(), "help_topic"))
-
-        # ---- query_fact: extract the subject of the question ----
-        if intent == "query_fact" or "query_subject" in expected:
-            for pat in [
-                # "what is X", "who is X", "where is X", "when was X", "how X"
-                r"(?:what\s+is|what's|who\s+is|who's|where\s+is|where's|when\s+(?:was|is|did)|how\s+(?:tall|far|old|big|long|much|many|fast))\s+(?:the\s+)?(.+?)(?:\s+(?:please|now|quickly|for\s+me))?$",
-                r"(?:tell\s+me\s+about|information\s+about|details\s+about|facts\s+about)\s+(.+?)(?:\s+(?:please|now|quickly))?$",
-                r"(?:who\s+(?:invented|created|discovered|wrote|founded|built|made))\s+(?:the\s+)?(.+?)(?:\s+(?:please|now|quickly))?$",
-                r"(?:what\s+(?:is|are|was|were)\s+the)\s+(.+?)(?:\s+(?:please|now|quickly))?$",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    subj = m.group(1).strip() if m.lastindex else m.group().strip()
-                    if subj and len(subj) > 1:
-                        entities.append(
-                            (
-                                subj,
-                                m.start(1) if m.lastindex else m.start(),
-                                m.end(1) if m.lastindex else m.end(),
-                                "query_subject",
-                            ),
-                        )
-
-        # ---- query_time: extract location for timezone queries ----
-        if intent == "query_time" or "location" in expected:
-            for pat in [
-                r"(?:time\s+in|what\s+time\s+is\s+it\s+in|current\s+time\s+in)\s+(.+?)(?:\s+(?:please|now|right\s+now|quickly))?$",
-                r"(?:in|at)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:time|timezone|right\s+now)?",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    loc = m.group(1).strip()
-                    if loc and len(loc) > 1:
-                        entities.append((loc, m.start(1), m.end(1), "location"))
-            # For simple "what's the time" queries — add a generic time entity
-            if intent == "query_time" and not any(e[3] in ("location", "time") for e in entities):
-                for pat in [
-                    r"\b(time|clock|hour)\b",
-                    r"(?:what(?:'s|\s+is)\s+(?:the\s+)?(?:current\s+)?)(time|hour)\b",
-                    r"(?:tell\s+me\s+(?:the\s+)?)(time)\b",
-                ]:
-                    for m in re.finditer(pat, utterance, re.IGNORECASE):
-                        val = m.group(1) if m.lastindex else m.group()
-                        entities.append(
-                            (
-                                val,
-                                m.start(1) if m.lastindex else m.start(),
-                                m.end(1) if m.lastindex else m.end(),
-                                "query_type",
-                            ),
-                        )
-                        break  # one is enough
-
-        # ---- query_date: extract date references ----
-        if intent == "query_date":
-            # Already handled by date patterns above, but add specific ones
-            for pat in [
-                r"\b(today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
-                r"\b(this|next|last)\s+(week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    entities.append((m.group(), m.start(), m.end(), "date"))
-            # For simple "what day is it" / "date please" — add generic date entity
-            if not any(e[3] == "date" for e in entities):
-                for pat in [
-                    r"\b(date|day|month|year|week)\b",
-                    r"(?:what\s+(?:day|date|month|year))",
-                    r"(?:tell\s+me\s+(?:the\s+)?(?:date|day))",
-                ]:
-                    for m in re.finditer(pat, utterance, re.IGNORECASE):
-                        val = m.group(1) if m.lastindex else m.group()
-                        entities.append(
-                            (
-                                val,
-                                m.start(1) if m.lastindex else m.start(),
-                                m.end(1) if m.lastindex else m.end(),
-                                "query_type",
-                            ),
-                        )
-                        break
-
-        # ---- cancel_timer: extract what to cancel ----
-        if intent == "cancel_timer":
-            for pat in [
-                r"\b(timer|alarm|countdown|all\s+timers)\b",
-                r"(?:cancel|stop|turn\s+off|delete|remove)\s+(?:the\s+)?(.+?)\s*(?:timer|alarm|countdown)?$",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    val = m.group(1).strip() if m.lastindex else m.group().strip()
-                    if val:
-                        entities.append(
-                            (
-                                val,
-                                m.start(1) if m.lastindex else m.start(),
-                                m.end(1) if m.lastindex else m.end(),
-                                "action",
-                            ),
-                        )
-
-        # ---- make_call: extract phone number or contact ----
-        if intent == "make_call":
-            # Phone numbers including "emergency"
-            for pat in [
-                r"\b(\d{3}[-.\s]?\d{3}[-.\s]?\d{4})\b",
-                r"\b(\d{7,10})\b",
-                r"\b(emergency|911|999|112|000)\b",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    entities.append((m.group(1), m.start(1), m.end(1), "phone_number"))
-            # If no contact/phone found yet, extract from "call X", "phone X", "dial X"
-            if not any(e[3] in ("recipient", "phone_number") for e in entities):
-                for pat in [
-                    r"(?:call|phone|dial|ring|contact)\s+(?:back\s+)?(?:the\s+)?(.+?)(?:\s+(?:please|now|quickly|right\s+now|for\s+me))?$",
-                ]:
-                    for m in re.finditer(pat, utterance, re.IGNORECASE):
-                        val = m.group(1).strip()
-                        if val and len(val) > 1:
-                            etype = (
-                                "phone_number" if re.match(r"^[\d\-\s\+]+$", val) else "recipient"
-                            )
-                            entities.append((val, m.start(1), m.end(1), etype))
-
-        # ---- delete_event: extract event name ----
-        if intent == "delete_event":
-            if not any(e[3] == "event_name" for e in entities):
-                for pat in [
-                    r"(?:delete|cancel|remove)\s+(?:the\s+|my\s+)?(.+?)(?:\s+(?:please|now|quickly|right\s+now|for\s+me|at\s+\d|tomorrow|today|next).*)?$",
-                ]:
-                    for m in re.finditer(pat, utterance, re.IGNORECASE):
-                        val = m.group(1).strip()
-                        if val and len(val) > 1 and val.lower() not in {"the", "my", "a", "an"}:
-                            entities.append((val, m.start(1), m.end(1), "event_name"))
-                            break
-
-        # ---- search_web: broader search query extraction ----
-        if intent == "search_web":
-            if not any(e[3] == "search_query" for e in entities):
-                for pat in [
-                    r"(?:find|look\s+up|search\s+for|google|search)\s+(?:information\s+about\s+|hotels?\s+in\s+|flights?\s+to\s+|restaurants?\s+in\s+)?(.+?)(?:\s+(?:please|now|quickly|right\s+now|for\s+me|online|on\s+the\s+web))?$",
-                    r"(?:find\s+(?:me\s+)?(?:a\s+|some\s+)?)(hotels?|flights?|restaurants?|jobs?|deals?|news|information|reviews?)\s+(?:in\s+|about\s+|for\s+)?(.+?)(?:\s+(?:please|now|quickly))?$",
-                ]:
-                    for m in re.finditer(pat, utterance, re.IGNORECASE):
-                        grp = m.lastindex or 1
-                        val = m.group(grp).strip()
-                        if val and len(val) > 1:
-                            entities.append((val, m.start(grp), m.end(grp), "search_query"))
-                            break
-
-        # ---- help_request: broader help topic extraction ----
-        if intent == "help_request":
-            if not any(e[3] == "help_topic" for e in entities):
-                for pat in [
-                    r"(?:help\s+(?:me\s+)?(?:with|about|on|to)|how\s+(?:do\s+I|to|can\s+I))\s+(.+?)(?:\s+(?:please|now|quickly))?$",
-                    r"(?:what\s+(?:can|are|do)\s+(?:you|your))\s+(.+?)(?:\s+(?:please|now|quickly))?$",
-                    r"(?:show\s+me\s+how|guide\s+me|assist\s+me)\s+(?:to\s+|with\s+)?(.+?)(?:\s+(?:please|now|quickly))?$",
-                    r"(?:I\s+(?:need|want)\s+help)\s+(?:with\s+|on\s+)?(.+?)(?:\s+(?:please|now|quickly))?$",
-                    r"(?:I(?:'m|\s+am)\s+stuck)\s+(?:on\s+|with\s+)?(.+?)(?:\s+(?:please|now|quickly))?$",
-                    # "what would you do" -> "do" as topic
-                    r"(?:what\s+would\s+you\s+)(do|help|say|suggest)\b",
-                    # "how do I" with nothing after -> generic
-                    r"\b(how\s+do\s+I|guide\s+me|assist\s+me)\b",
-                ]:
-                    for m in re.finditer(pat, utterance, re.IGNORECASE):
-                        if m.lastindex:
-                            topic = m.group(m.lastindex).strip()
-                            if topic and len(topic) > 1:
-                                entities.append(
-                                    (topic, m.start(m.lastindex), m.end(m.lastindex), "help_topic"),
-                                )
-                                break
-                # If still no entity, add a generic "help" entity
-                if not any(e[3] == "help_topic" for e in entities):
-                    for pat in [
-                        r"\b(capabilities|features|commands|functions|abilities)\b",
-                        r"(?:what\s+(?:can|do)\s+you\s+)(do|help\s+with|offer)\b",
-                        r"\b(help|stuck|guide)\b",
-                    ]:
-                        for m in re.finditer(pat, utterance, re.IGNORECASE):
-                            val = m.group(1) if m.lastindex else m.group()
-                            entities.append(
-                                (
-                                    val,
-                                    m.start(1) if m.lastindex else m.start(),
-                                    m.end(1) if m.lastindex else m.end(),
-                                    "help_topic",
-                                ),
-                            )
-                            break
-
-        if intent in ("next_track", "previous_track"):
-            for pat in [
-                r"\b(next|previous|skip|go\s+back|forward|backward|last)\b",
-                r"\b(song|track|music|one)\b",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    entities.append((m.group(), m.start(), m.end(), "action"))
-
-        # ---- system_command: extract command type + value ----
-        if intent == "system_command" or "command_type" in expected:
-            entities.extend(self._find_known_entity(utterance, self._COMMAND_TYPES, "command_type"))
-            # Also extract numeric values for system commands
-            for pat in [
-                r"\b(\d+)\s*(?:percent|%)?\b",
-                r"\b(up|down|higher|lower|more|less|louder|quieter|brighter|dimmer)\b",
-                r"\b(on|off|enable|disable|mute|unmute)\b",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    entities.append(
-                        (
-                            m.group(1) if m.lastindex else m.group(),
-                            m.start(1) if m.lastindex else m.start(),
-                            m.end(1) if m.lastindex else m.end(),
-                            "value",
-                        ),
-                    )
-
-        # ---- control_thermostat: extract temperature + action ----
-        if intent == "control_thermostat" or "temperature" in expected:
-            # Temperature words (warmer, cooler, etc.)
-            entities.extend(self._find_known_entity(utterance, self._TEMP_ACTIONS, "action"))
-            # Numeric temperature
-            for pat in [
-                r"\b(\d+)\s*(?:degrees?|°)?\s*(?:fahrenheit|celsius|f|c)?\b",
-                r"\b(warmer|cooler|hotter|colder|higher|lower)\b",
+                r"\b(time|clock|hour)\b",
+                r"(?:what(?:'s|\s+is)\s+(?:the\s+)?(?:current\s+)?)(time|hour)\b",
+                r"(?:tell\s+me\s+(?:the\s+)?)(time)\b",
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
                     val = m.group(1) if m.lastindex else m.group()
-                    entities.append(
-                        (
-                            val,
-                            m.start(1) if m.lastindex else m.start(),
-                            m.end(1) if m.lastindex else m.end(),
-                            "temperature",
-                        ),
-                    )
+                    entities.append((
+                        val,
+                        m.start(1) if m.lastindex else m.start(),
+                        m.end(1) if m.lastindex else m.end(),
+                        "query_type",
+                    ))
+                    break
 
-        # ---- query_events: extract date for calendar queries ----
-        if intent == "query_events" or "date" in expected:
+    def _extract_query_date(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract date entities for date queries."""
+        if intent != "query_date":
+            return
+        for pat in [
+            r"\b(today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
+            r"\b(this|next|last)\s+(week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                entities.append((m.group(), m.start(), m.end(), "date"))
+        if not any(e[3] == "date" for e in entities):
             for pat in [
-                r"\b(today|tomorrow|yesterday|tonight|this\s+week|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
-                r"\b(this|next|last)\s+(week|month|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
-                r"\bfor\s+(today|tomorrow|friday|monday|tuesday|wednesday|thursday|saturday|sunday|next\s+week)\b",
+                r"\b(date|day|month|year|week)\b",
+                r"(?:what\s+(?:day|date|month|year))",
+                r"(?:tell\s+me\s+(?:the\s+)?(?:date|day))",
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    entities.append((m.group(), m.start(), m.end(), "date"))
-            # For "what's on my calendar", "show my events" — add generic calendar entity
-            if intent == "query_events" and not any(e[3] == "date" for e in entities):
-                for pat in [
-                    r"\b(calendar|events?|schedule|appointments?|meetings?)\b",
-                    r"(?:what(?:'s|\s+is)\s+(?:on\s+)?(?:my\s+)?)(calendar|schedule)\b",
-                    r"(?:show\s+(?:me\s+)?(?:my\s+)?)(events?|calendar|schedule)\b",
-                    r"(?:any\s+)(appointments?|meetings?|events?)\b",
-                    r"(?:what(?:'s|\s+is)\s+)(coming\s+up|scheduled|planned)\b",
-                ]:
-                    for m in re.finditer(pat, utterance, re.IGNORECASE):
-                        val = m.group(1) if m.lastindex else m.group()
-                        entities.append(
-                            (
-                                val,
-                                m.start(1) if m.lastindex else m.start(),
-                                m.end(1) if m.lastindex else m.end(),
-                                "query_type",
-                            ),
-                        )
+                    val = m.group(1) if m.lastindex else m.group()
+                    entities.append((
+                        val,
+                        m.start(1) if m.lastindex else m.start(),
+                        m.end(1) if m.lastindex else m.end(),
+                        "query_type",
+                    ))
+                    break
+
+    def _extract_cancel_timer(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract action entities for cancel_timer intent."""
+        if intent != "cancel_timer":
+            return
+        for pat in [
+            r"\b(timer|alarm|countdown|all\s+timers)\b",
+            r"(?:cancel|stop|turn\s+off|delete|remove)\s+(?:the\s+)?(.+?)\s*(?:timer|alarm|countdown)?$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                val = m.group(1).strip() if m.lastindex else m.group().strip()
+                if val:
+                    entities.append((
+                        val,
+                        m.start(1) if m.lastindex else m.start(),
+                        m.end(1) if m.lastindex else m.end(),
+                        "action",
+                    ))
+
+    def _extract_make_call(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract phone_number/recipient for make_call intent."""
+        if intent != "make_call":
+            return
+        for pat in [
+            r"\b(\d{3}[-.\s]?\d{3}[-.\s]?\d{4})\b",
+            r"\b(\d{7,10})\b",
+            r"\b(emergency|911|999|112|000)\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                entities.append((m.group(1), m.start(1), m.end(1), "phone_number"))
+        if not any(e[3] in ("recipient", "phone_number") for e in entities):
+            for pat in [
+                r"(?:call|phone|dial|ring|contact)\s+(?:back\s+)?(?:the\s+)?(.+?)(?:\s+(?:please|now|quickly|right\s+now|for\s+me))?$",
+            ]:
+                for m in re.finditer(pat, utterance, re.IGNORECASE):
+                    val = m.group(1).strip()
+                    if val and len(val) > 1:
+                        etype = "phone_number" if re.match(r"^[\d\-\s\+]+$", val) else "recipient"
+                        entities.append((val, m.start(1), m.end(1), etype))
+
+    def _extract_delete_event(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract event_name for delete_event intent."""
+        if intent != "delete_event":
+            return
+        if any(e[3] == "event_name" for e in entities):
+            return
+        for pat in [
+            r"(?:delete|cancel|remove)\s+(?:the\s+|my\s+)?(.+?)(?:\s+(?:please|now|quickly|right\s+now|for\s+me|at\s+\d|tomorrow|today|next).*)?$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                val = m.group(1).strip()
+                if val and len(val) > 1 and val.lower() not in {"the", "my", "a", "an"}:
+                    entities.append((val, m.start(1), m.end(1), "event_name"))
+                    break
+
+    def _extract_search_web(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract search_query for search_web intent."""
+        if intent != "search_web":
+            return
+        if any(e[3] == "search_query" for e in entities):
+            return
+        for pat in [
+            r"(?:find|look\s+up|search\s+for|google|search)\s+(?:information\s+about\s+|hotels?\s+in\s+|flights?\s+to\s+|restaurants?\s+in\s+)?(.+?)(?:\s+(?:please|now|quickly|right\s+now|for\s+me|online|on\s+the\s+web))?$",
+            r"(?:find\s+(?:me\s+)?(?:a\s+|some\s+)?)(hotels?|flights?|restaurants?|jobs?|deals?|news|information|reviews?)\s+(?:in\s+|about\s+|for\s+)?(.+?)(?:\s+(?:please|now|quickly))?$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                grp = m.lastindex or 1
+                val = m.group(grp).strip()
+                if val and len(val) > 1:
+                    entities.append((val, m.start(grp), m.end(grp), "search_query"))
+                    break
+
+    def _extract_help_request(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract help_topic for help_request intent."""
+        if intent != "help_request":
+            return
+        if any(e[3] == "help_topic" for e in entities):
+            return
+        for pat in [
+            r"(?:help\s+(?:me\s+)?(?:with|about|on|to)|how\s+(?:do\s+I|to|can\s+I))\s+(.+?)(?:\s+(?:please|now|quickly))?$",
+            r"(?:what\s+(?:can|are|do)\s+(?:you|your))\s+(.+?)(?:\s+(?:please|now|quickly))?$",
+            r"(?:show\s+me\s+how|guide\s+me|assist\s+me)\s+(?:to\s+|with\s+)?(.+?)(?:\s+(?:please|now|quickly))?$",
+            r"(?:I\s+(?:need|want)\s+help)\s+(?:with\s+|on\s+)?(.+?)(?:\s+(?:please|now|quickly))?$",
+            r"(?:I(?:'m|\s+am)\s+stuck)\s+(?:on\s+|with\s+)?(.+?)(?:\s+(?:please|now|quickly))?$",
+            r"(?:what\s+would\s+you\s+)(do|help|say|suggest)\b",
+            r"\b(how\s+do\s+I|guide\s+me|assist\s+me)\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                if m.lastindex:
+                    topic = m.group(m.lastindex).strip()
+                    if topic and len(topic) > 1:
+                        entities.append((topic, m.start(m.lastindex), m.end(m.lastindex), "help_topic"))
                         break
-
-        # ---- clarification_request: extract what needs clarification ----
-        if intent == "clarification_request":
+        if not any(e[3] == "help_topic" for e in entities):
             for pat in [
-                r"(?:what\s+did\s+you\s+(?:say|mean)|could\s+you\s+(?:clarify|explain|repeat|rephrase))\s*(.+)?$",
-                r"(?:I\s+(?:don't|didn't)\s+(?:understand|catch|hear))\s*(.+)?$",
+                r"\b(capabilities|features|commands|functions|abilities)\b",
+                r"(?:what\s+(?:can|do)\s+you\s+)(do|help\s+with|offer)\b",
+                r"\b(help|stuck|guide)\b",
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    if m.lastindex and m.group(1):
-                        topic = m.group(1).strip()
-                        if topic and len(topic) > 2:
-                            entities.append((topic, m.start(1), m.end(1), "help_topic"))
+                    val = m.group(1) if m.lastindex else m.group()
+                    entities.append((
+                        val,
+                        m.start(1) if m.lastindex else m.start(),
+                        m.end(1) if m.lastindex else m.end(),
+                        "help_topic",
+                    ))
+                    break
 
-        # ---- cancellation: extract what is being cancelled ----
-        if intent == "cancellation":
+    def _extract_track_nav(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract action entities for next/previous track intents."""
+        if intent not in ("next_track", "previous_track"):
+            return
+        for pat in [
+            r"\b(next|previous|skip|go\s+back|forward|backward|last)\b",
+            r"\b(song|track|music|one)\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                entities.append((m.group(), m.start(), m.end(), "action"))
+
+    def _extract_system_command(
+        self, utterance: str, intent: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract command_type + value for system_command intent."""
+        if intent != "system_command" and "command_type" not in expected:
+            return
+        entities.extend(self._find_known_entity(utterance, self._COMMAND_TYPES, "command_type"))
+        for pat in [
+            r"\b(\d+)\s*(?:percent|%)?\b",
+            r"\b(up|down|higher|lower|more|less|louder|quieter|brighter|dimmer)\b",
+            r"\b(on|off|enable|disable|mute|unmute)\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                entities.append((
+                    m.group(1) if m.lastindex else m.group(),
+                    m.start(1) if m.lastindex else m.start(),
+                    m.end(1) if m.lastindex else m.end(),
+                    "value",
+                ))
+
+    def _extract_thermostat(
+        self, utterance: str, intent: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract temperature + action for thermostat control."""
+        if intent != "control_thermostat" and "temperature" not in expected:
+            return
+        entities.extend(self._find_known_entity(utterance, self._TEMP_ACTIONS, "action"))
+        for pat in [
+            r"\b(\d+)\s*(?:degrees?|°)?\s*(?:fahrenheit|celsius|f|c)?\b",
+            r"\b(warmer|cooler|hotter|colder|higher|lower)\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                val = m.group(1) if m.lastindex else m.group()
+                entities.append((
+                    val,
+                    m.start(1) if m.lastindex else m.start(),
+                    m.end(1) if m.lastindex else m.end(),
+                    "temperature",
+                ))
+
+    def _extract_query_events(
+        self, utterance: str, intent: str, expected: set[str],
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract date entities for calendar event queries."""
+        if intent != "query_events" and "date" not in expected:
+            return
+        for pat in [
+            r"\b(today|tomorrow|yesterday|tonight|this\s+week|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
+            r"\b(this|next|last)\s+(week|month|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
+            r"\bfor\s+(today|tomorrow|friday|monday|tuesday|wednesday|thursday|saturday|sunday|next\s+week)\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                entities.append((m.group(), m.start(), m.end(), "date"))
+        if intent == "query_events" and not any(e[3] == "date" for e in entities):
             for pat in [
-                r"(?:cancel|stop|abort|never\s+mind|forget\s+it|don't)\s+(?:that|it|this|doing)?\s*(.+)?$",
+                r"\b(calendar|events?|schedule|appointments?|meetings?)\b",
+                r"(?:what(?:'s|\s+is)\s+(?:on\s+)?(?:my\s+)?)(calendar|schedule)\b",
+                r"(?:show\s+(?:me\s+)?(?:my\s+)?)(events?|calendar|schedule)\b",
+                r"(?:any\s+)(appointments?|meetings?|events?)\b",
+                r"(?:what(?:'s|\s+is)\s+)(coming\s+up|scheduled|planned)\b",
             ]:
                 for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    if m.lastindex and m.group(1):
-                        action = m.group(1).strip()
-                        if action and len(action) > 2:
-                            entities.append((action, m.start(1), m.end(1), "action"))
+                    val = m.group(1) if m.lastindex else m.group()
+                    entities.append((
+                        val,
+                        m.start(1) if m.lastindex else m.start(),
+                        m.end(1) if m.lastindex else m.end(),
+                        "query_type",
+                    ))
+                    break
 
-        # ---- query_weather: extract location + weather condition ----
-        if intent == "query_weather":
-            if not any(e[3] in ("location", "date") for e in entities):
-                # "do I need an umbrella" -> umbrella = weather condition
-                for pat in [
-                    r"\b(umbrella|raincoat|jacket|coat|sunscreen|sunglasses)\b",
-                    r"(?:weather|temperature|forecast|rain|snow|sunny|cloudy|hot|cold|warm|cool)\b",
-                    r"(?:what(?:'s|\s+is)\s+(?:the\s+)?)(weather|temperature|forecast)\b",
-                    r"(?:will\s+it\s+)(rain|snow|be\s+sunny|be\s+cloudy|be\s+hot|be\s+cold)\b",
-                    r"(?:is\s+it\s+going\s+to\s+)(rain|snow|be\s+sunny|be\s+hot|be\s+cold)\b",
-                    r"\b(weather)\b",
-                ]:
-                    for m in re.finditer(pat, utterance, re.IGNORECASE):
-                        val = m.group(1) if m.lastindex else m.group()
-                        entities.append(
-                            (
-                                val,
-                                m.start(1) if m.lastindex else m.start(),
-                                m.end(1) if m.lastindex else m.end(),
-                                "weather_condition",
-                            ),
-                        )
-                        break
+    def _extract_clarification(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract help_topic for clarification_request intent."""
+        if intent != "clarification_request":
+            return
+        for pat in [
+            r"(?:what\s+did\s+you\s+(?:say|mean)|could\s+you\s+(?:clarify|explain|repeat|rephrase))\s*(.+)?$",
+            r"(?:I\s+(?:don't|didn't)\s+(?:understand|catch|hear))\s*(.+)?$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                if m.lastindex and m.group(1):
+                    topic = m.group(1).strip()
+                    if topic and len(topic) > 2:
+                        entities.append((topic, m.start(1), m.end(1), "help_topic"))
 
-        # ---- set_reminder: extract task from "remind me about X" ----
-        if intent == "set_reminder":
-            if not any(e[3] == "task" for e in entities):
-                for pat in [
-                    r"remind\s+(?:me\s+)?about\s+(.+?)(?:\s+(?:at|on|by|in|tomorrow|today|tonight|this|next|every|in\s+\d).*)?$",
-                    r"reminder\s+(?:about\s+|for\s+)(.+?)(?:\s+(?:at|on|by|in|tomorrow|today|tonight|this|next|every).*)?$",
-                ]:
-                    for m in re.finditer(pat, utterance, re.IGNORECASE):
-                        task_text = m.group(1).strip()
-                        if task_text and len(task_text) > 1:
-                            entities.append((task_text, m.start(1), m.end(1), "task"))
-                            break
+    def _extract_cancellation(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract action for cancellation intent."""
+        if intent != "cancellation":
+            return
+        for pat in [
+            r"(?:cancel|stop|abort|never\s+mind|forget\s+it|don't)\s+(?:that|it|this|doing)?\s*(.+)?$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                if m.lastindex and m.group(1):
+                    action = m.group(1).strip()
+                    if action and len(action) > 2:
+                        entities.append((action, m.start(1), m.end(1), "action"))
 
-        # ---- play_music: ensure genre/artist/song are always extracted ----
-        if intent == "play_music":
-            # If no genre found yet, try broader patterns
-            if not any(e[3] == "genre" for e in entities):
-                for pat in [
-                    r"(?:play|listen\s+to|put\s+on)\s+(?:some\s+)?(.+?)\s+(?:music|songs?|tracks?)\b",
-                    r"(?:play|listen\s+to)\s+(.+?)(?:\s+(?:please|now|for\s+me))?$",
-                ]:
-                    for m in re.finditer(pat, utterance, re.IGNORECASE):
-                        val = m.group(1).strip()
-                        if val and len(val) > 1 and val.lower() not in {"some", "my", "the", "a"}:
-                            # Determine if it's genre, artist, or song
-                            if val.lower() in self._KNOWN_GENRES:
-                                entities.append((val, m.start(1), m.end(1), "genre"))
-                            elif val.lower() in self._KNOWN_ARTISTS:
-                                entities.append((val, m.start(1), m.end(1), "artist"))
-                            else:
-                                entities.append((val, m.start(1), m.end(1), "genre"))
+    def _extract_query_weather(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract weather_condition for weather queries."""
+        if intent != "query_weather":
+            return
+        if any(e[3] in ("location", "date") for e in entities):
+            return
+        for pat in [
+            r"\b(umbrella|raincoat|jacket|coat|sunscreen|sunglasses)\b",
+            r"(?:weather|temperature|forecast|rain|snow|sunny|cloudy|hot|cold|warm|cool)\b",
+            r"(?:what(?:'s|\s+is)\s+(?:the\s+)?)(weather|temperature|forecast)\b",
+            r"(?:will\s+it\s+)(rain|snow|be\s+sunny|be\s+cloudy|be\s+hot|be\s+cold)\b",
+            r"(?:is\s+it\s+going\s+to\s+)(rain|snow|be\s+sunny|be\s+hot|be\s+cold)\b",
+            r"\b(weather)\b",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                val = m.group(1) if m.lastindex else m.group()
+                entities.append((
+                    val,
+                    m.start(1) if m.lastindex else m.start(),
+                    m.end(1) if m.lastindex else m.end(),
+                    "weather_condition",
+                ))
+                break
 
-        # ---- stop_media / pause_media: extract what is being stopped ----
-        if intent in ("stop_media", "pause_media"):
-            for pat in [
-                r"\b(music|song|video|playback|audio|this|it)\b",
-            ]:
-                for m in re.finditer(pat, utterance, re.IGNORECASE):
-                    entities.append((m.group(), m.start(), m.end(), "action"))
+    def _extract_set_reminder(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract task for set_reminder intent."""
+        if intent != "set_reminder":
+            return
+        if any(e[3] == "task" for e in entities):
+            return
+        for pat in [
+            r"remind\s+(?:me\s+)?about\s+(.+?)(?:\s+(?:at|on|by|in|tomorrow|today|tonight|this|next|every|in\s+\d).*)?$",
+            r"reminder\s+(?:about\s+|for\s+)(.+?)(?:\s+(?:at|on|by|in|tomorrow|today|tonight|this|next|every).*)?$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                task_text = m.group(1).strip()
+                if task_text and len(task_text) > 1:
+                    entities.append((task_text, m.start(1), m.end(1), "task"))
+                    break
 
-        # Remove overlapping entities (keep longest)
-        return self._remove_overlaps(entities)
+    def _extract_play_music(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract genre/artist/song for play_music intent."""
+        if intent != "play_music":
+            return
+        if any(e[3] == "genre" for e in entities):
+            return
+        for pat in [
+            r"(?:play|listen\s+to|put\s+on)\s+(?:some\s+)?(.+?)\s+(?:music|songs?|tracks?)\b",
+            r"(?:play|listen\s+to)\s+(.+?)(?:\s+(?:please|now|for\s+me))?$",
+        ]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                val = m.group(1).strip()
+                if val and len(val) > 1 and val.lower() not in {"some", "my", "the", "a"}:
+                    if val.lower() in self._KNOWN_GENRES:
+                        entities.append((val, m.start(1), m.end(1), "genre"))
+                    elif val.lower() in self._KNOWN_ARTISTS:
+                        entities.append((val, m.start(1), m.end(1), "artist"))
+                    else:
+                        entities.append((val, m.start(1), m.end(1), "genre"))
+
+    def _extract_stop_media(
+        self, utterance: str, intent: str,
+        entities: list[tuple[str, int, int, str]],
+    ) -> None:
+        """Extract action for stop/pause media intents."""
+        if intent not in ("stop_media", "pause_media"):
+            return
+        for pat in [r"\b(music|song|video|playback|audio|this|it)\b"]:
+            for m in re.finditer(pat, utterance, re.IGNORECASE):
+                entities.append((m.group(), m.start(), m.end(), "action"))
 
     def _remove_overlaps(
         self,
