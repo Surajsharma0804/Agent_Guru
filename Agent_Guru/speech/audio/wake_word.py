@@ -30,14 +30,14 @@ logger = logging.getLogger(__name__)
 # Optional heavy imports
 # ---------------------------------------------------------------------------
 try:
-    import pvporcupine  # type: ignore[import]
+    import pvporcupine
 
     _HAS_PORCUPINE = True
 except ImportError:
     _HAS_PORCUPINE = False
 
 try:
-    from vosk import KaldiRecognizer  # type: ignore[import]
+    from vosk import KaldiRecognizer
     from vosk import Model as VoskModel
 
     _HAS_VOSK = True
@@ -45,15 +45,15 @@ except ImportError:
     _HAS_VOSK = False
 
 try:
-    import openwakeword  # type: ignore[import]  # noqa: F401
-    from openwakeword.model import Model as OWWModel  # type: ignore[import]
+    import openwakeword  # noqa: F401
+    from openwakeword.model import Model as OWWModel
 
     _HAS_OWW = True
 except ImportError:
     _HAS_OWW = False
 
 try:
-    import librosa  # type: ignore[import]
+    import librosa
 
     _HAS_LIBROSA = True
 except ImportError:
@@ -147,6 +147,12 @@ class WakeWordDetector:
         # Porcupine handle (lazy-initialised)
         self._porcupine: Any | None = None
 
+        # OpenWakeWord model (lazy-initialised)
+        self._oww_model: Any | None = None
+
+        # Whisper tiny model (lazy-initialised)
+        self._whisper_tiny: Any | None = None
+
         # Determine active backend
         self._backend: str = self._select_backend()
         logger.info("WakeWordDetector initialised — backend=%s", self._backend)
@@ -191,12 +197,12 @@ class WakeWordDetector:
                 raise WakeWordError(
                     msg,
                 )
-            import vosk  # type: ignore[import]
+            import vosk
 
-            vosk.SetLogLevel(-1)  # type: ignore[attr-defined]
+            vosk.SetLogLevel(-1)
             model = VoskModel(self.config.vosk_model_path)
             grammar = json.dumps([*list(self.config.wake_words.keys()), "[unk]"])
-            self._vosk_recognizer = KaldiRecognizer(model, self.config.sample_rate, grammar)  # type: ignore[call-arg]
+            self._vosk_recognizer = KaldiRecognizer(model, self.config.sample_rate, grammar)
             self._vosk_recognizer.SetWords(True)
             logger.info("Vosk recogniser initialised (model=%s)", self.config.vosk_model_path)
         return self._vosk_recognizer
@@ -708,29 +714,13 @@ class WakeWordDetector:
             Tuple of (matched_phrase, PersonalityType).
 
         """
-        # ── Primary: transcribe with Whisper and check for "maya" ────────
+        # ── Primary: transcribe with Whisper and check for keywords ──────
         try:
             transcript = self._transcribe_wake_word(audio)
             if transcript:
-                t_lower = transcript.lower().strip()
-                # Check for Maya keywords
-                if any(kw in t_lower for kw in ("maya", "hey maya", "hi maya")):
-                    maya_phrases = [
-                        p for p, pt in self.config.wake_words.items() if pt.value.lower() == "maya"
-                    ]
-                    if maya_phrases:
-                        phrase = "hey maya" if "hey maya" in maya_phrases else maya_phrases[0]
-                        logger.info("Wake word transcript: %r → MAYA", transcript)
-                        return phrase, self.config.wake_words[phrase]
-                # Check for Guru keywords
-                if any(kw in t_lower for kw in ("guru", "hey guru", "hi guru")):
-                    guru_phrases = [
-                        p for p, pt in self.config.wake_words.items() if pt.value.lower() == "guru"
-                    ]
-                    if guru_phrases:
-                        phrase = "hey guru" if "hey guru" in guru_phrases else guru_phrases[0]
-                        logger.info("Wake word transcript: %r → GURU", transcript)
-                        return phrase, self.config.wake_words[phrase]
+                result = self._match_transcript(transcript)
+                if result is not None:
+                    return result
                 logger.debug(
                     "Wake word transcript %r — no keyword match, using spectral",
                     transcript,
@@ -739,6 +729,32 @@ class WakeWordDetector:
             logger.debug("Wake word transcription failed: %s — using spectral fallback", exc)
 
         # ── Fallback: spectral heuristic ──────────────────────────────────
+        return self._match_spectral_fallback(audio)
+
+    def _match_transcript(self, transcript: str) -> tuple[str, PersonalityType] | None:
+        """Check transcript for wake word keywords."""
+        t_lower = transcript.lower().strip()
+
+        for personality_name, keywords in (
+            ("maya", ("maya", "hey maya", "hi maya")),
+            ("guru", ("guru", "hey guru", "hi guru")),
+        ):
+            if not any(kw in t_lower for kw in keywords):
+                continue
+            phrases = [
+                p for p, pt in self.config.wake_words.items()
+                if pt.value.lower() == personality_name
+            ]
+            if phrases:
+                canonical = f"hey {personality_name}"
+                phrase = canonical if canonical in phrases else phrases[0]
+                logger.info("Wake word transcript: %r → %s", transcript, personality_name.upper())
+                return phrase, self.config.wake_words[phrase]
+
+        return None
+
+    def _match_spectral_fallback(self, audio: np.ndarray) -> tuple[str, PersonalityType]:
+        """Spectral heuristic fallback for wake word matching."""
         spectrum = np.abs(np.fft.rfft(audio.astype(np.float32))) ** 2
         n_bins = len(spectrum)
         mid = n_bins // 2
@@ -779,7 +795,7 @@ class WakeWordDetector:
 
         """
         try:
-            from faster_whisper import WhisperModel  # type: ignore[import]
+            from faster_whisper import WhisperModel
 
             # Use cached instance — injected at startup or loaded on first call
             if not hasattr(self, "_whisper_tiny") or self._whisper_tiny is None:
