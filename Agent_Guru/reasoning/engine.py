@@ -857,19 +857,48 @@ class ReasoningEngine:
             Reasoning result with full pipeline execution
 
         """
-        stage_latencies = {}
+        stage_latencies: dict[str, float] = {}
 
-        # Stage 1: Concurrent memory retrieval and knowledge detection (OPTIMIZED)
+        # Stage 1: Concurrent memory retrieval + knowledge detection
+        memory_context, is_knowledge_query = await self._stage_memory_and_knowledge(
+            normalized_input, intent,
+        )
+
+        # Stage 2: Knowledge synthesis (fast path)
+        knowledge_result = await self._stage_knowledge_synthesis(
+            normalized_input, memory_context, is_knowledge_query, stage_latencies,
+        )
+        if knowledge_result is not None:
+            return knowledge_result
+
+        # Stage 2b: LLM query answering (for simple query types)
+        llm_result = await self._stage_llm_query(
+            normalized_input, intent, stage_latencies,
+        )
+        if llm_result is not None:
+            return llm_result
+
+        # Stage 3-6: Reasoning, tool selection, safety, response
+        return await self._stage_tool_and_response(
+            normalized_input, intent, stage_latencies,
+        )
+
+    # ------------------------------------------------------------------
+    # _execute_full_pipeline helpers (extracted for complexity reduction)
+    # ------------------------------------------------------------------
+
+    async def _stage_memory_and_knowledge(
+        self, normalized_input: NormalizedInput, intent: Intent,
+    ) -> tuple[Any, bool]:
+        """Stage 1: Concurrent memory retrieval and knowledge detection."""
         memory_task = None
         knowledge_task = None
 
         if self.memory_retriever:
             memory_task = self._retrieve_memory(normalized_input, intent)
-
         if self.knowledge_detector:
             knowledge_task = self._detect_knowledge_query(normalized_input)
 
-        # Wait for both concurrently (FAST)
         memory_context = None
         is_knowledge_query = False
 
@@ -880,50 +909,57 @@ class ReasoningEngine:
         elif knowledge_task:
             is_knowledge_query = await knowledge_task
 
-        # Stage 2: Knowledge synthesis if needed OR direct LLM query answering
-        knowledge_response = None
-        if is_knowledge_query and self.knowledge_synthesizer:
+        return memory_context, is_knowledge_query
+
+    async def _stage_knowledge_synthesis(
+        self,
+        normalized_input: NormalizedInput,
+        memory_context: Any,
+        is_knowledge_query: bool,
+        stage_latencies: dict[str, float],
+    ) -> ReasoningResult | None:
+        """Stage 2: Knowledge synthesis fast path."""
+        if not (is_knowledge_query and self.knowledge_synthesizer):
+            return None
+
+        with self.latency_controller.stage_context(PipelineStage.REASONING) as timer:
+            knowledge_response = await self.knowledge_synthesizer.synthesize(
+                normalized_input.text, memory_context,
+            )
+            stage_latencies["knowledge_synthesis"] = timer.elapsed_ms()
+
+        if knowledge_response:
+            return ReasoningResult(
+                response=knowledge_response,
+                confidence=0.95,
+                success=True,
+                stage_latencies=stage_latencies,
+            )
+        return None
+
+    async def _stage_llm_query(
+        self,
+        normalized_input: NormalizedInput,
+        intent: Intent,
+        stage_latencies: dict[str, float],
+    ) -> ReasoningResult | None:
+        """LLM query answering for simple query types (local Ollama)."""
+        simple_intent_types = {
+            "query_time", "query_date", "query_weather",
+            "query_fact", "unknown", "conversation",
+        }
+        if not (self.llm_reasoning and intent.intent_type.value in simple_intent_types):
+            return None
+
+        try:
+            from datetime import datetime
+
             with self.latency_controller.stage_context(PipelineStage.REASONING) as timer:
-                knowledge_response = await self.knowledge_synthesizer.synthesize(
-                    normalized_input.text,
-                    memory_context,
-                )
-                stage_latencies["knowledge_synthesis"] = timer.elapsed_ms()
+                current_time = datetime.now(tz=UTC).strftime("%I:%M %p")
+                current_date = datetime.now(tz=UTC).strftime("%A, %B %d, %Y")
+                personality_name = normalized_input.metadata.get("personality", "guru").capitalize()
 
-            # If knowledge synthesis succeeded, return immediately (FAST PATH)
-            if knowledge_response:
-                return ReasoningResult(
-                    response=knowledge_response,
-                    confidence=0.95,
-                    success=True,
-                    stage_latencies=stage_latencies,
-                )
-
-        # USE CUSTOM REASONING MODEL with LOCAL Ollama (no API keys needed)
-        # This uses YOUR reasoning model from the repo with local LLM
-        if self.llm_reasoning and intent.intent_type.value in [
-            "query_time",
-            "query_date",
-            "query_weather",
-            "query_fact",
-            "unknown",
-            "conversation",
-        ]:
-            try:
-                from datetime import datetime
-
-                with self.latency_controller.stage_context(PipelineStage.REASONING) as timer:
-                    # Build context-aware prompt with dynamic personality
-                    current_time = datetime.now(tz=UTC).strftime("%I:%M %p")
-                    current_date = datetime.now(tz=UTC).strftime("%A, %B %d, %Y")
-
-                    # Get personality from metadata (default to Guru)
-                    personality_name = normalized_input.metadata.get(
-                        "personality",
-                        "guru",
-                    ).capitalize()
-
-                    system_context = f"""You are {personality_name}, a friendly and helpful AI companion - like talking to a smart friend!
+                system_context = f"""You are {personality_name}, a friendly and helpful AI companion - like talking to a smart friend!
 
 Current time: {current_time}
 Current date: {current_date}
@@ -955,101 +991,88 @@ User: "Tell me a joke"
 
 Now respond to the user's message in this friendly, conversational style (NO EMOJIS):"""
 
-                    prompt = (
-                        f"{system_context}\n\nUser: {normalized_input.text}\n{personality_name}:"
-                    )
+                prompt = f"{system_context}\n\nUser: {normalized_input.text}\n{personality_name}:"
 
-                    # Use custom reasoning model's LLM provider (Ollama local)
-                    from Agent_Guru.reasoning.llm.models import LLMRequest
+                from Agent_Guru.reasoning.llm.models import LLMRequest
 
-                    llm_request = LLMRequest(
-                        prompt=prompt,
-                        temperature=0.7,
-                        top_p=0.9,
-                        max_tokens=2048,
-                        stop_sequences=["\nUser:", "\n\n"],
-                    )
+                llm_request = LLMRequest(
+                    prompt=prompt,
+                    temperature=0.7,
+                    top_p=0.9,
+                    max_tokens=2048,
+                    stop_sequences=["\nUser:", "\n\n"],
+                )
 
-                    logger.info(
-                        "Using custom reasoning model (LOCAL Ollama) for query: %s",
-                        normalized_input.text,
-                    )
+                logger.info(
+                    "Using custom reasoning model (LOCAL Ollama) for query: %s",
+                    normalized_input.text,
+                )
 
-                    # Call through custom reasoning model's provider with a hard timeout
-                    # so tests and offline environments fail fast instead of hanging.
-                    llm_response = await asyncio.wait_for(
-                        self.llm_reasoning.llm_provider.generate(llm_request),
-                        timeout=10.0,
-                    )
-                    stage_latencies["custom_reasoning_local"] = timer.elapsed_ms()
+                llm_response = await asyncio.wait_for(
+                    self.llm_reasoning.llm_provider.generate(llm_request),
+                    timeout=10.0,
+                )
+                stage_latencies["custom_reasoning_local"] = timer.elapsed_ms()
 
-                    logger.info(
-                        "Ollama response (%.0fms): %s",
-                        llm_response.latency_ms,
-                        llm_response.text.strip(),
-                    )
+                logger.info(
+                    "Ollama response (%.0fms): %s",
+                    llm_response.latency_ms, llm_response.text.strip(),
+                )
 
-                    return ReasoningResult(
-                        response=llm_response.text.strip(),
-                        confidence=0.90,
-                        success=True,
-                        stage_latencies=stage_latencies,
-                    )
+                return ReasoningResult(
+                    response=llm_response.text.strip(),
+                    confidence=0.90,
+                    success=True,
+                    stage_latencies=stage_latencies,
+                )
 
-            except asyncio.CancelledError:
-                # Re-raise CancelledError -- it must not be swallowed; it signals
-                # task cancellation and must propagate to the event loop.
-                raise
-        # Stage 3: LLM reasoning (if needed) - USE CUSTOM REASONING MODEL
+        except asyncio.CancelledError:
+            raise
+
+        return None
+
+    async def _stage_tool_and_response(
+        self,
+        normalized_input: NormalizedInput,
+        intent: Intent,
+        stage_latencies: dict[str, float],
+    ) -> ReasoningResult:
+        """Stages 3-6: Reasoning plan, tool selection, safety, response generation."""
+        # Stage 3: LLM reasoning plan
         reasoning_plan = None
         if self.llm_reasoning and intent.requires_reasoning:
             with self.latency_controller.stage_context(PipelineStage.REASONING) as timer:
-                # Get available tools
                 available_tools = [
                     tool.tool_id for tool in self.tool_selector.registry.list_tools()
                 ]
-
-                # Generate reasoning plan using YOUR CUSTOM REASONING MODEL
                 reasoning_plan = await self.llm_reasoning.generate_plan(
                     user_input=normalized_input.text,
                     intent_type=intent.intent_type.value,
                     entities=intent.entities,
                     available_tools=available_tools,
-                    context=None,  # TODO: Convert memory_context to ConversationContext
+                    context=None,
                 )
                 stage_latencies["llm_reasoning"] = timer.elapsed_ms()
 
-                # If reasoning plan generated successfully, use it
                 if reasoning_plan and reasoning_plan.steps:
-                    logger.info(
-                        "Custom reasoning plan generated: %s steps",
-                        len(reasoning_plan.steps),
-                    )
-
-                    # Execute the reasoning plan
-                    response_text = f"{reasoning_plan.reasoning}"
-
+                    logger.info("Custom reasoning plan generated: %s steps", len(reasoning_plan.steps))
                     return ReasoningResult(
-                        response=response_text,
+                        response=f"{reasoning_plan.reasoning}",
                         confidence=reasoning_plan.confidence,
                         success=True,
                         stage_latencies=stage_latencies,
                     )
 
-        # Stage 4: Tool selection (OPTIMIZED - use reasoning plan if available)
+        # Stage 4: Tool selection
         with self.latency_controller.stage_context(PipelineStage.TOOL_SELECTION) as timer:
             if reasoning_plan and reasoning_plan.steps:
-                # Use tool from reasoning plan (FAST)
                 selected_tool = await self.tool_selector.select_tool_by_id(
                     reasoning_plan.steps[0].tool_id,
                 )
             else:
-                # Fallback to intent-based selection
                 selected_tool = await self.tool_selector.select_tool(intent)
-
             stage_latencies["tool_selection"] = timer.elapsed_ms()
 
-        # If no tool selected, return error
         if selected_tool is None:
             return ReasoningResult(
                 response="I'm sorry, I couldn't find a suitable tool for that request.",
@@ -1058,18 +1081,14 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                 stage_latencies=stage_latencies,
             )
 
-        # Stage 5: Safety validation (CRITICAL - cannot be skipped)
+        # Stage 5: Safety validation
         with self.latency_controller.stage_context(PipelineStage.SAFETY_VALIDATION) as timer:
-            # Convert BaseTool to ActionTool for safety gate
             action_tool = _convert_tool_to_action_model(selected_tool.tool)
             safety_decision = self.safety_gate.validate_action(
-                action_tool,
-                selected_tool.parameters,
-                normalized_input.user_id,
+                action_tool, selected_tool.parameters, normalized_input.user_id,
             )
             stage_latencies["safety_validation"] = timer.elapsed_ms()
 
-        # If safety check failed, return error
         if not safety_decision.allowed:
             return ReasoningResult(
                 response=f"I cannot do that: {safety_decision.reason}",
@@ -1080,10 +1099,8 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
 
         # Stage 6: Response generation
         with self.latency_controller.stage_context(PipelineStage.RESPONSE_GENERATION) as timer:
-            # Import the correct ExecutionResult from models
             from Agent_Guru.reasoning.models.result import ExecutionResult as ModelExecutionResult
 
-            # Create ExecutionResult
             execution_result = ModelExecutionResult(
                 success=True,
                 action_id=selected_tool.tool.metadata.tool_id,
@@ -1092,12 +1109,10 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
                 execution_time=sum(stage_latencies.values()) / 1000.0,
             )
 
-            # Determine modality
             modality = ResponseModality.TEXT
             if normalized_input.source == InputSource.VOICE:
                 modality = ResponseModality.VOICE
 
-            # Generate response
             response_obj = self.response_generator.generate(
                 result=execution_result,
                 intent=intent,
@@ -1113,7 +1128,6 @@ Now respond to the user's message in this friendly, conversational style (NO EMO
             response = response_obj.text
             stage_latencies["response_generation"] = timer.elapsed_ms()
 
-        # Calculate confidence (weighted average)
         confidence = intent.confidence
         if reasoning_plan:
             confidence = (confidence + reasoning_plan.confidence) / 2.0
