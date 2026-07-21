@@ -19,6 +19,9 @@ from Agent_Guru.self_improvement.memory_integration import (
     create_memory_integration
 )
 from Agent_Guru.self_improvement.self_improvement_engine import SelfImprovementEngine
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TestMemoryIntegration:
@@ -38,7 +41,7 @@ class TestMemoryIntegration:
                 try:
                     os.unlink(path)
                 except Exception as e:
-                    _logger.warning("Suppressed exception: %s", e)
+                    logger.warning("Suppressed exception: %s", e)
     
     @pytest.fixture
     def engine(self, temp_db):
@@ -157,7 +160,7 @@ class TestMemoryIntegrationWithMockSystem:
             try:
                 os.unlink(path)
             except Exception as e:
-                _logger.warning("Suppressed exception: %s", e)
+                logger.warning("Suppressed exception: %s", e)
     
     @pytest.fixture
     def engine(self, temp_db):
