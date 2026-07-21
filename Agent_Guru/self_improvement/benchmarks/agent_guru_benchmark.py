@@ -6,7 +6,7 @@ to measure its performance and learning capabilities.
 
 import os
 import tempfile
-from typing import Any
+from typing import Any, ClassVar
 
 from Agent_Guru.self_improvement.benchmarks.base_benchmark import (
     BaseBenchmark,
@@ -35,6 +35,7 @@ class AgentGuruBenchmark(BaseBenchmark):
         super().__init__("Agent Guru")
 
         # Create temporary storage if not provided
+        self.temp_dir: str | None
         if storage_path is None:
             self.temp_dir = tempfile.mkdtemp()
             storage_path = os.path.join(self.temp_dir, "benchmark.db")
@@ -91,6 +92,51 @@ class AgentGuruBenchmark(BaseBenchmark):
             self.task_count += 1
             return f"Error: {e!s}"
 
+    # Dispatch table for simulated task execution — each entry is
+    # (substring_to_match, response). Checked in order, first match wins.
+    _TASK_DISPATCH: ClassVar[list[tuple[str, str]]] = [
+        # Math questions
+        ("2 + 2", "4"), ("2+2", "4"),
+        ("15 + 27", "42"), ("10 - 3", "7"),
+        ("123 * 456", "56088"), ("789 * 123", "97047"),
+        # String operations
+        ("combine", "Hello World"), ("concatenate", "Hello World"),
+        # Boolean logic
+        ("10 greater than 5", "Yes, 10 is greater than 5"),
+        # Multi-step problems
+        # Patterns (checked on original question, not lowered)
+        # Word problems
+        ("take an umbrella", "Take an umbrella"),
+        # Tool usage
+        ("calculator", "Using calculator tool..."),
+        ("calculate", "Using calculator tool..."),
+        ("database", "Querying database..."),
+        ("query", "Querying database..."),
+        # Error handling
+        ("xyz country", "I don't know the capital of XYZ country"),
+        ("do the thing", "Could you please clarify what you want me to do?"),
+        ("uppercase and lowercase", "Cannot make text both uppercase and lowercase simultaneously"),
+        ("nonexistent", "Error: File not found"),
+    ]
+
+    # Entries that need compound checks (two substrings both required)
+    _TASK_COMPOUND: ClassVar[list[tuple[str, str, str]]] = [
+        ("uppercase", "hello", "HELLO"),
+        ("apples", "give away", "12 apples"),
+        ("fluffy", "cat", "Yes, Fluffy is an animal"),
+        ("rex", "dog", "Yes, Rex is a mammal"),
+        ("train", "60 miles", "150 miles"),
+        ("raining", "umbrella", "Take an umbrella"),
+        ("read", "file", "Reading file contents..."),
+    ]
+
+    # Pattern checks (on original question, not lowered)
+    _TASK_PATTERNS: ClassVar[list[tuple[str, str]]] = [
+        ("2, 4, 6, 8", "10"),
+        ("5, 10, 15, 20", "25"),
+        ("[1, 2, 3, 4, 5]", "5"),
+    ]
+
     def _simulate_task_execution(self, scenario: TestScenario) -> Any:
         """Simulate task execution with Agent Guru.
 
@@ -104,83 +150,36 @@ class AgentGuruBenchmark(BaseBenchmark):
             Simulated result
 
         """
-        # Simulate execution based on scenario type (no engine call needed)
         question = scenario.input_data.get("question", "")
         question_lower = question.lower()
 
-        # Math questions
-        if "2 + 2" in question_lower or "2+2" in question_lower:
-            return "4"
-        if "15 + 27" in question_lower:
-            return "42"
-        if "10 - 3" in question_lower:
-            return "7"
-        if "123 * 456" in question_lower:
-            return "56088"
-        if "789 * 123" in question_lower:
-            return "97047"
+        # Check for division by zero (special logic)
         if "divide" in question_lower and "0" in question_lower:
             return "Error: Cannot divide by zero"
 
-        # String operations
-        if "uppercase" in question_lower and "hello" in question_lower:
-            return "HELLO"
-        if "combine" in question_lower or "concatenate" in question_lower:
-            return "Hello World"
+        # Weather (single keyword, not in compound)
+        if "weather" in question_lower:
+            return "Calling weather API..."
 
-        # List operations
+        # How many + list pattern
         if "how many" in question_lower and "[1, 2, 3, 4, 5]" in question:
             return "5"
 
-        # Boolean logic
-        if "10 greater than 5" in question_lower:
-            return "Yes, 10 is greater than 5"
+        # Compound checks (two substrings required)
+        for kw1, kw2, response in self._TASK_COMPOUND:
+            if kw1 in question_lower and kw2 in question_lower:
+                return response
 
-        # Multi-step problems
-        if "apples" in question_lower and "give away" in question_lower:
-            return "12 apples"
+        # Pattern checks on original question
+        for pattern, response in self._TASK_PATTERNS:
+            if pattern in question:
+                return response
 
-        # Logic puzzles
-        if "fluffy" in question_lower and "cat" in question_lower:
-            return "Yes, Fluffy is an animal"
-        if "rex" in question_lower and "dog" in question_lower:
-            return "Yes, Rex is a mammal"
+        # Simple dispatch
+        for keyword, response in self._TASK_DISPATCH:
+            if keyword in question_lower:
+                return response
 
-        # Patterns
-        if "2, 4, 6, 8" in question:
-            return "10"
-        if "5, 10, 15, 20" in question:
-            return "25"
-
-        # Word problems
-        if "train" in question_lower and "60 miles" in question_lower:
-            return "150 miles"
-
-        # Conditional reasoning
-        if "raining" in question_lower and "umbrella" in question_lower:
-            return "Take an umbrella"
-
-        # Tool usage
-        if "read" in question_lower and "file" in question_lower:
-            return "Reading file contents..."
-        if "weather" in question_lower:
-            return "Calling weather API..."
-        if "calculator" in question_lower or "calculate" in question_lower:
-            return "Using calculator tool..."
-        if "database" in question_lower or "query" in question_lower:
-            return "Querying database..."
-
-        # Error handling
-        if "xyz country" in question_lower:
-            return "I don't know the capital of XYZ country"
-        if "do the thing" in question_lower:
-            return "Could you please clarify what you want me to do?"
-        if "uppercase and lowercase" in question_lower:
-            return "Cannot make text both uppercase and lowercase simultaneously"
-        if "nonexistent" in question_lower:
-            return "Error: File not found"
-
-        # Default response
         return f"Processed: {question[:50]}..."
 
     def run_benchmark(self, scenarios, warmup_runs=0) -> BenchmarkResult:
