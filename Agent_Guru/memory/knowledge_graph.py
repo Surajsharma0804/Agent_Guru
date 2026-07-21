@@ -231,13 +231,7 @@ class KnowledgeGraph:
         visited_rels: set[UUID] = set()
 
         # Seed: all entities if no start given, else just the start
-        seeds: list[UUID]
-        if start_entity_id is not None:
-            seeds = [start_entity_id]
-        else:
-            seeds = [
-                eid for eid, e in self._entities.items() if e.confidence >= query.min_confidence
-            ]
+        seeds = self._resolve_seeds(query, start_entity_id)
 
         queue: deque[tuple[UUID, int, float]] = deque()
         for seed in seeds:
@@ -249,30 +243,14 @@ class KnowledgeGraph:
             if entity_id in visited_entities:
                 continue
             entity = self._entities.get(entity_id)
-            if entity is None:
-                continue
-            if entity.confidence < query.min_confidence:
-                continue
-            # Apply temporal filter
-            if query.temporal_filter and (
-                entity.updated_at < query.temporal_filter.start
-                or entity.updated_at > query.temporal_filter.end
-            ):
+            if not self._should_visit_entity(entity, query):
                 continue
             visited_entities[entity_id] = relevance * entity.confidence
             if depth < query.max_depth:
-                for rel_id in self._adj.get(entity_id, []):
-                    rel = self._relationships.get(rel_id)
-                    if rel is None or rel.confidence < query.min_confidence:
-                        continue
-                    visited_rels.add(rel_id)
-                    neighbor = (
-                        rel.target_entity_id
-                        if rel.source_entity_id == entity_id
-                        else rel.source_entity_id
-                    )
-                    if neighbor not in visited_entities:
-                        queue.append((neighbor, depth + 1, relevance * rel.confidence))
+                self._expand_neighbors(
+                    entity_id, depth, relevance, query,
+                    visited_entities, visited_rels, queue,
+                )
 
         elapsed = int((datetime.now(tz=UTC) - start).total_seconds() * 1000)
         entities = [self._entities[eid].model_copy(deep=True) for eid in visited_entities]
@@ -284,6 +262,54 @@ class KnowledgeGraph:
             relevance_scores=relevance_scores,
             execution_time_ms=elapsed,
         )
+
+    def _resolve_seeds(
+        self, query: SemanticQuery, start_entity_id: UUID | None,
+    ) -> list[UUID]:
+        """Resolve BFS seed entities."""
+        if start_entity_id is not None:
+            return [start_entity_id]
+        return [
+            eid for eid, e in self._entities.items() if e.confidence >= query.min_confidence
+        ]
+
+    @staticmethod
+    def _should_visit_entity(entity: Any, query: SemanticQuery) -> bool:
+        """Check if an entity passes all filters for visitation."""
+        if entity is None:
+            return False
+        if entity.confidence < query.min_confidence:
+            return False
+        if query.temporal_filter and (
+            entity.updated_at < query.temporal_filter.start
+            or entity.updated_at > query.temporal_filter.end
+        ):
+            return False
+        return True
+
+    def _expand_neighbors(
+        self,
+        entity_id: UUID,
+        depth: int,
+        relevance: float,
+        query: SemanticQuery,
+        visited_entities: dict[UUID, float],
+        visited_rels: set[UUID],
+        queue: deque,
+    ) -> None:
+        """Expand BFS to neighbors via relationships."""
+        for rel_id in self._adj.get(entity_id, []):
+            rel = self._relationships.get(rel_id)
+            if rel is None or rel.confidence < query.min_confidence:
+                continue
+            visited_rels.add(rel_id)
+            neighbor = (
+                rel.target_entity_id
+                if rel.source_entity_id == entity_id
+                else rel.source_entity_id
+            )
+            if neighbor not in visited_entities:
+                queue.append((neighbor, depth + 1, relevance * rel.confidence))
 
     # ------------------------------------------------------------------
     # Merge
