@@ -14,7 +14,6 @@ Date: 2026-02-22
 
 import asyncio
 import os
-import subprocess  # nosec B404
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -361,23 +360,19 @@ class RollbackMonitor:
 
         """
         try:
-            result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                [
-                    "kubectl",
-                    "get",
-                    "service",
-                    self.config.service_name,
-                    "-n",
-                    self.config.namespace,
-                    "-o",
-                    "jsonpath={.spec.selector.color}",
-                ],
-                capture_output=True,
-                text=True,
-                check=True,
+            proc = await asyncio.create_subprocess_exec(
+                "kubectl", "get", "service",
+                self.config.service_name,
+                "-n", self.config.namespace,
+                "-o", "jsonpath={.spec.selector.color}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            return result.stdout.strip() or "blue"
-        except subprocess.CalledProcessError as e:
+            stdout_bytes, _ = await proc.communicate()
+            if proc.returncode != 0:
+                return "blue"
+            return stdout_bytes.decode().strip() or "blue"
+        except Exception as e:
             logger.exception("failed_to_get_deployment_color", error=str(e))
             return "blue"
 
@@ -408,58 +403,34 @@ class RollbackMonitor:
             )
 
             # Scale up target deployment
-            subprocess.run(  # nosec B603 B607  # noqa: S603
-                [
-                    "kubectl",
-                    "scale",
-                    f"deployment/agent-guru-reasoning-{target_color}",
-                    "-n",
-                    self.config.namespace,
-                    "--replicas=3",
-                ],
-                check=True,
+            await self._run_kubectl(
+                "scale",
+                f"deployment/agent-guru-reasoning-{target_color}",
+                "-n", self.config.namespace,
+                "--replicas=3",
             )
 
             # Wait for target deployment to be ready
-            subprocess.run(  # nosec B603 B607  # noqa: S603
-                [
-                    "kubectl",
-                    "rollout",
-                    "status",
-                    f"deployment/agent-guru-reasoning-{target_color}",
-                    "-n",
-                    self.config.namespace,
-                    "--timeout=60s",
-                ],
-                check=True,
+            await self._run_kubectl(
+                "rollout", "status",
+                f"deployment/agent-guru-reasoning-{target_color}",
+                "-n", self.config.namespace,
+                "--timeout=60s",
             )
 
             # Switch service to target color
-            subprocess.run(  # nosec B603 B607  # noqa: S603
-                [
-                    "kubectl",
-                    "patch",
-                    "service",
-                    self.config.service_name,
-                    "-n",
-                    self.config.namespace,
-                    "-p",
-                    f'{{"spec":{{"selector":{{"color":"{target_color}"}}}}}}',
-                ],
-                check=True,
+            await self._run_kubectl(
+                "patch", "service", self.config.service_name,
+                "-n", self.config.namespace,
+                "-p", f'{{"spec":{{"selector":{{"color":"{target_color}"}}}}}}',
             )
 
             # Scale down failed deployment
-            subprocess.run(  # nosec B603 B607  # noqa: S603
-                [
-                    "kubectl",
-                    "scale",
-                    f"deployment/agent-guru-reasoning-{self.current_color}",
-                    "-n",
-                    self.config.namespace,
-                    "--replicas=0",
-                ],
-                check=True,
+            await self._run_kubectl(
+                "scale",
+                f"deployment/agent-guru-reasoning-{self.current_color}",
+                "-n", self.config.namespace,
+                "--replicas=0",
             )
 
             elapsed_time = time.time() - start_time
@@ -486,12 +457,37 @@ class RollbackMonitor:
             # Reset failure counters
             self.consecutive_health_failures = 0
 
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             logger.exception("rollback_failed", error=str(e))
             await self._send_notification(
                 f"❌ ROLLBACK FAILED\nError: {e!s}\nManual intervention required!",
             )
             raise
+
+    async def _run_kubectl(self, *args: str) -> None:
+        """Run a kubectl command asynchronously and raise on non-zero exit.
+
+        Args:
+            *args: kubectl subcommand and arguments (without "kubectl" prefix).
+
+        Raises:
+            RuntimeError: If the kubectl command exits with a non-zero code.
+
+        """
+        proc = await asyncio.create_subprocess_exec(
+            "kubectl", *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout_bytes, stderr_bytes = await proc.communicate()
+        if proc.returncode != 0:
+            stderr_text = stderr_bytes.decode("utf-8", errors="replace").strip()
+            stdout_text = stdout_bytes.decode("utf-8", errors="replace").strip()
+            msg = (
+                f"kubectl {' '.join(args)} failed (exit {proc.returncode}): "
+                f"{stderr_text or stdout_text}"
+            )
+            raise RuntimeError(msg)
 
     async def _send_notification(self, message: str) -> None:
         """Send notification to Slack.
