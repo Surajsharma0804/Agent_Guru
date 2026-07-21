@@ -277,6 +277,46 @@ class ApplicationController:
             return self._resolve_macos_application(app_name)
         return self._resolve_linux_application(app_name)
 
+    # Common voice-command names to Windows executable names
+    _COMMON_WINDOWS_APPS: dict[str, str] = {
+        "notepad": "notepad.exe",
+        "calculator": "calc.exe",
+        "calc": "calc.exe",
+        "paint": "mspaint.exe",
+        "mspaint": "mspaint.exe",
+        "wordpad": "wordpad.exe",
+        "explorer": "explorer.exe",
+        "file explorer": "explorer.exe",
+        "cmd": "cmd.exe",
+        "command prompt": "cmd.exe",
+        "powershell": "powershell.exe",
+        "task manager": "taskmgr.exe",
+        "taskmgr": "taskmgr.exe",
+        "control panel": "control.exe",
+        "control": "control.exe",
+        "snipping tool": "SnippingTool.exe",
+        "snip": "SnippingTool.exe",
+        "chrome": "chrome.exe",
+        "google chrome": "chrome.exe",
+        "firefox": "firefox.exe",
+        "mozilla firefox": "firefox.exe",
+        "edge": "msedge.exe",
+        "microsoft edge": "msedge.exe",
+        "word": "WINWORD.EXE",
+        "excel": "EXCEL.EXE",
+        "powerpoint": "POWERPNT.EXE",
+        "outlook": "OUTLOOK.EXE",
+        "teams": "Teams.exe",
+        "microsoft teams": "Teams.exe",
+        "spotify": "Spotify.exe",
+        "discord": "Discord.exe",
+        "vlc": "vlc.exe",
+        "zoom": "Zoom.exe",
+        "vs code": "Code.exe",
+        "vscode": "Code.exe",
+        "visual studio code": "Code.exe",
+    }
+
     def _resolve_windows_application(self, app_name: str) -> str:
         """Resolve Windows application name to path.
 
@@ -292,53 +332,9 @@ class ApplicationController:
         """
         import shutil
 
-        # Normalise: strip whitespace, lowercase for matching
         name_lower = app_name.strip().lower()
-
-        # Map common voice-command names to their Windows executable names
-        COMMON_APPS: dict[str, str] = {
-            "notepad": "notepad.exe",
-            "calculator": "calc.exe",
-            "calc": "calc.exe",
-            "paint": "mspaint.exe",
-            "mspaint": "mspaint.exe",
-            "wordpad": "wordpad.exe",
-            "explorer": "explorer.exe",
-            "file explorer": "explorer.exe",
-            "cmd": "cmd.exe",
-            "command prompt": "cmd.exe",
-            "powershell": "powershell.exe",
-            "task manager": "taskmgr.exe",
-            "taskmgr": "taskmgr.exe",
-            "control panel": "control.exe",
-            "control": "control.exe",
-            "snipping tool": "SnippingTool.exe",
-            "snip": "SnippingTool.exe",
-            "chrome": "chrome.exe",
-            "google chrome": "chrome.exe",
-            "firefox": "firefox.exe",
-            "mozilla firefox": "firefox.exe",
-            "edge": "msedge.exe",
-            "microsoft edge": "msedge.exe",
-            "word": "WINWORD.EXE",
-            "excel": "EXCEL.EXE",
-            "powerpoint": "POWERPNT.EXE",
-            "outlook": "OUTLOOK.EXE",
-            "teams": "Teams.exe",
-            "microsoft teams": "Teams.exe",
-            "spotify": "Spotify.exe",
-            "discord": "Discord.exe",
-            "vlc": "vlc.exe",
-            "zoom": "Zoom.exe",
-            "vs code": "Code.exe",
-            "vscode": "Code.exe",
-            "visual studio code": "Code.exe",
-        }
-
-        # Resolve via common name map
-        exe_name = COMMON_APPS.get(name_lower)
+        exe_name = self._COMMON_WINDOWS_APPS.get(name_lower)
         if exe_name is None:
-            # Add .exe if not present
             exe_name = app_name if app_name.lower().endswith(".exe") else f"{app_name}.exe"
 
         # Security: Validate exe_name doesn't contain path separators or traversal sequences
@@ -352,27 +348,42 @@ class ApplicationController:
             return found
 
         # 2. Check System32 / SysWOW64 explicitly
-        system32 = os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32")
-        syswow64 = os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "SysWOW64")
-        for sys_dir in (system32, syswow64):
-            # Prevent path traversal: validate sys_dir is absolute and normalized
-            sys_dir_real = os.path.realpath(sys_dir)
+        result = self._search_system_dirs(exe_name)
+        if result:
+            return result
+
+        # 3. Check Program Files directories
+        result = self._search_program_dirs(exe_name)
+        if result:
+            return result
+
+        # 4. Last resort: return the bare exe name
+        logger.warning(
+            "Could not resolve full path for '%s', using bare name '%s'",
+            app_name, exe_name,
+        )
+        return exe_name
+
+    @staticmethod
+    def _search_system_dirs(exe_name: str) -> str | None:
+        """Search System32 and SysWOW64 for the executable."""
+        system_root = os.environ.get("SystemRoot", "C:\\Windows")
+        for sub in ("System32", "SysWOW64"):
+            sys_dir_real = os.path.realpath(os.path.join(system_root, sub))
             if not os.path.isabs(sys_dir_real):  # noqa: PTH117
                 continue
-
             candidate = os.path.join(sys_dir_real, exe_name)
-            # Additional validation: ensure candidate starts with sys_dir before checking existence
             if not candidate.startswith(sys_dir_real + os.sep):
                 continue
-
-            # Now safe to check if file exists
             if os.path.exists(candidate):
-                # Final validation: resolve and verify it's still within sys_dir
                 candidate_real = os.path.realpath(candidate)
                 if candidate_real.startswith(sys_dir_real + os.sep):
                     return candidate_real
+        return None
 
-        # 3. Check Program Files directories
+    @staticmethod
+    def _search_program_dirs(exe_name: str) -> str | None:
+        """Search Program Files directories for the executable (up to 2 levels deep)."""
         prog_dirs = [
             os.environ.get("ProgramFiles", r"C:\Program Files"),
             os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"),
@@ -387,14 +398,13 @@ class ApplicationController:
             candidate = os.path.join(prog_dir_real, exe_name)
             if candidate.startswith(prog_dir_real + os.sep) and os.path.exists(candidate):
                 return candidate
-            # One-level subdirectory search (e.g. Program Files\Google\Chrome\Application\chrome.exe)
+            # Subdirectory search (1-2 levels deep)
             try:
                 for sub in os.listdir(prog_dir_real):  # noqa: PTH208
                     sub_dir = os.path.join(prog_dir_real, sub)
                     sub_path = os.path.join(sub_dir, exe_name)
                     if sub_path.startswith(prog_dir_real + os.sep) and os.path.exists(sub_path):
                         return sub_path
-                    # Two levels deep
                     if os.path.isdir(sub_dir):  # noqa: PTH112
                         for sub2 in os.listdir(sub_dir):  # noqa: PTH208
                             deep = os.path.join(sub_dir, sub2, exe_name)
@@ -402,14 +412,7 @@ class ApplicationController:
                                 return deep
             except (PermissionError, OSError):
                 continue
-        # 4. Last resort: return the bare exe name and let the OS find it
-        #    (works for apps registered in App Paths registry key)
-        logger.warning(
-            "Could not resolve full path for '%s', using bare name '%s'",
-            app_name,
-            exe_name,
-        )
-        return exe_name
+        return None
 
     def _resolve_macos_application(self, app_name: str) -> str:
         """Resolve macOS application name to path.
@@ -756,8 +759,8 @@ class ApplicationController:
 
         """
         try:
-            import win32con
-            import win32gui
+            import win32con  # type: ignore[import-untyped]
+            import win32gui  # type: ignore[import-untyped]
 
             # Find window by title
             hwnd = win32gui.FindWindow(None, window_identifier)
@@ -791,7 +794,7 @@ class ApplicationController:
 
         """
         try:
-            import win32gui
+            import win32gui  # type: ignore[import-untyped]
 
             found_hwnd = [0]
             partial_lower = partial_title.lower()
@@ -948,8 +951,8 @@ class ApplicationController:
     def _maximize_window_windows(self, window_identifier: str) -> bool:
         """Maximize window on Windows."""
         try:
-            import win32con
-            import win32gui
+            import win32con  # type: ignore[import-untyped]
+            import win32gui  # type: ignore[import-untyped]
 
             hwnd = win32gui.FindWindow(None, window_identifier)
             if hwnd == 0:
@@ -1062,8 +1065,8 @@ class ApplicationController:
     def _restore_window_windows(self, window_identifier: str) -> bool:
         """Restore window on Windows."""
         try:
-            import win32con
-            import win32gui
+            import win32con  # type: ignore[import-untyped]
+            import win32gui  # type: ignore[import-untyped]
 
             hwnd = win32gui.FindWindow(None, window_identifier)
             if hwnd == 0:
@@ -1186,7 +1189,7 @@ class ApplicationController:
     def _focus_window_windows(self, window_identifier: str) -> bool:
         """Focus window on Windows."""
         try:
-            import win32gui
+            import win32gui  # type: ignore[import-untyped]
 
             hwnd = win32gui.FindWindow(None, window_identifier)
             if hwnd == 0:
@@ -1341,8 +1344,8 @@ class ApplicationController:
     def _list_windows_windows(self) -> list[WindowInfo]:
         """List windows on Windows."""
         try:
-            import win32gui
-            import win32process
+            import win32gui  # type: ignore[import-untyped]
+            import win32process  # type: ignore[import-untyped]
 
             windows = []
 
