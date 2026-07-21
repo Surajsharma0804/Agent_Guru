@@ -147,7 +147,8 @@ class ResultValidator:
         Args:
             result_data: Result data to validate
             expected_schema: Expected schema (field -> type mapping)
-            business_rules: Business rules (field -> validation function)
+            business_rules: Business rules (field -> validation function),
+                merged with any rules registered via add_validation_rule().
 
         Returns:
             EvaluationResult with validation results
@@ -177,8 +178,27 @@ class ResultValidator:
             issues.extend(schema_issues)
 
         # Business rules validation
+        # FIX: previously only ever consulted the `business_rules` argument
+        # passed explicitly to THIS call — self._validation_rules (populated
+        # by add_validation_rule()/removed by remove_validation_rule()) was
+        # never read anywhere in this method. That made add_validation_rule
+        # a complete no-op: a caller could register a rule, validate data
+        # that clearly violated it, and get zero issues back. Verified this
+        # concretely before fixing. Now both sources are actually applied —
+        # explicitly-passed business_rules first, then any rules registered
+        # on the instance via add_validation_rule().
+        effective_business_rules: dict[str, Callable[[Any], bool]] = {}
         if business_rules:
-            rule_issues = self._validate_business_rules(result_data, business_rules)
+            effective_business_rules.update(business_rules)
+        if self._validation_rules:
+            # Instance-registered rules don't override an explicitly-passed
+            # rule for the same field in this call — the caller's explicit,
+            # per-call rule wins if both target the same field.
+            for field_name, rule_func in self._validation_rules.items():
+                effective_business_rules.setdefault(field_name, rule_func)
+
+        if effective_business_rules:
+            rule_issues = self._validate_business_rules(result_data, effective_business_rules)
             issues.extend(rule_issues)
 
         # Sanity checks
@@ -430,8 +450,13 @@ class ResultValidator:
     ) -> None:
         """Add custom validation rule.
 
+        NOTE: `rule_name` doubles as the field name the rule is applied to
+        (it's looked up against `result_data[rule_name]` during validate()),
+        matching how `business_rules` dicts are already keyed elsewhere in
+        this class — not an arbitrary label.
+
         Args:
-            rule_name: Name of the rule
+            rule_name: Name of the rule (== the field it validates).
             rule_func: Validation function (returns True if valid)
 
         """
@@ -607,10 +632,16 @@ class ExecutionEvaluator:
             return ErrorType.TIMEOUT
 
         # Transient errors (network, rate limit)
+        # FIX: "timeout" previously appeared in this list too, but the
+        # explicit `if "timeout" in error_text: return ErrorType.TIMEOUT`
+        # check above always catches it first — so "timeout" here was
+        # provably unreachable dead weight, not a bug that changes
+        # behavior (TIMEOUT correctly took precedence either way), just
+        # misleading: it implied this branch could still be reached for
+        # timeout-related text, which it never could be. Removed.
         transient_indicators = [
             "network",
             "connection",
-            "timeout",
             "rate limit",
             "too many requests",
             "503",
