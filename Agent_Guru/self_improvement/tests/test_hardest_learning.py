@@ -76,14 +76,39 @@ class TestHardestLearningConvergence:
         print("HARDEST TEST: 100 Failures Learning Convergence")
         print("="*80)
         
-        # Register multiple strategies with different characteristics
         strategies = [
-            ("naive_strategy", 0.3),  # 30% success rate
-            ("basic_strategy", 0.5),  # 50% success rate
-            ("improved_strategy", 0.7),  # 70% success rate
-            ("optimal_strategy", 0.9),  # 90% success rate
+            ("naive_strategy", 0.3),
+            ("basic_strategy", 0.5),
+            ("improved_strategy", 0.7),
+            ("optimal_strategy", 0.9),
         ]
         
+        self._register_strategies(engine, strategies)
+        baseline_success_rate = self._run_baseline_phase(engine, strategies)
+        self._run_failure_injection_phase(engine, strategies)
+        total_patterns = self._run_pattern_analysis_phase(engine)
+        improved_success_rate = self._run_improved_phase(engine, strategies)
+        improvement = self._verify_convergence(engine, baseline_success_rate)
+        self._verify_strategy_adaptation(engine, strategies)
+        self._verify_optimal_selection(engine)
+        stability_rate = self._verify_stability(engine)
+        
+        # Final summary
+        print("\n" + "="*80)
+        print("HARDEST TEST PASSED ✓")
+        print("="*80)
+        print(f"✓ Processed 100 tasks (50 baseline + 50 improved)")
+        print(f"✓ Learned from 50 injected failures")
+        print(f"✓ Identified {total_patterns} failure patterns")
+        print(f"✓ Improved from {baseline_success_rate:.1%} to {improved_success_rate:.1%} success rate")
+        if improvement is not None:
+            print(f"✓ Demonstrated {improvement:.1f}% improvement")
+        print(f"✓ Maintained {stability_rate:.1%} stability")
+        print("="*80 + "\n")
+
+    @staticmethod
+    def _register_strategies(engine, strategies):
+        """Register test strategies."""
         for strategy_id, _ in strategies:
             engine.strategy_optimizer.register_strategy(
                 strategy_id=strategy_id,
@@ -92,18 +117,16 @@ class TestHardestLearningConvergence:
                 task_types=["hardest_test"],
                 parameters={}
             )
-        
         print(f"\n✓ Registered {len(strategies)} strategies")
-        
-        # Phase 1: Baseline performance (50% success rate)
+
+    @staticmethod
+    def _run_baseline_phase(engine, strategies):
+        """Phase 1: Establish baseline performance."""
         print("\nPhase 1: Establishing baseline performance...")
-        
         baseline_successes = 0
         for i in range(50):
-            # Use poor strategies initially
-            strategy_id = strategies[0][0]  # naive_strategy (30% success)
-            success = (i % 10) < 3  # 30% success rate
-            
+            strategy_id = strategies[0][0]
+            success = (i % 10) < 3
             engine.record_task_execution(
                 task_id=f"baseline_{i}",
                 task_type="hardest_test",
@@ -114,27 +137,22 @@ class TestHardestLearningConvergence:
                 tool_selection_correct=success,
                 hallucination_detected=not success
             )
-            
             if success:
                 baseline_successes += 1
-            
             if (i + 1) % 10 == 0:
                 print(f"  Recorded {i + 1}/50 baseline executions...")
-        
         baseline_success_rate = baseline_successes / 50
         print(f"✓ Baseline success rate: {baseline_success_rate:.1%}")
-        
-        # Phase 2: Inject failures to learn from
+        return baseline_success_rate
+
+    @staticmethod
+    def _run_failure_injection_phase(engine, strategies):
+        """Phase 2: Inject failures for learning."""
         print("\nPhase 2: Injecting 50 diverse failures for learning...")
-        
         failure_types = list(FailureType)
         failures_injected = 0
-        
         for i in range(50):
-            # Vary failure types
             failure_type = failure_types[i % len(failure_types)]
-            
-            # Inject failure
             engine.inject_test_failure(
                 failure_type=failure_type,
                 task_type="hardest_test",
@@ -144,27 +162,25 @@ class TestHardestLearningConvergence:
                     "reasoning_step": f"step_{i % 5}",
                     "tool_name": f"tool_{i % 3}",
                     "hallucination_content": f"fake_data_{i}",
-                    "pattern_group": i % 10  # Create 10 pattern groups
+                    "pattern_group": i % 10
                 },
                 strategy_id=strategies[0][0],
-                record_in_tracker=False  # Don't affect performance metrics
+                record_in_tracker=False
             )
-            
             failures_injected += 1
-            
             if (i + 1) % 10 == 0:
                 print(f"  Injected {i + 1}/50 failures...")
-        
         print(f"✓ Successfully injected {failures_injected} failures for learning")
         
-        # Verify failures were recorded
         failures = engine.failure_analyzer.get_recent_failures(limit=60)
         assert len(failures) >= 50, f"Only {len(failures)} failures recorded"  # nosec B101
         print(f"✓ Verified {len(failures)} failures recorded in database")
-        
-        # Phase 3: Identify patterns
+
+    @staticmethod
+    def _run_pattern_analysis_phase(engine):
+        """Phase 3: Analyze failure patterns."""
         print("\nPhase 3: Analyzing failure patterns...")
-        
+        failure_types = list(FailureType)
         patterns_by_type = {}
         for failure_type in failure_types:
             patterns = engine.failure_analyzer.get_failure_patterns(
@@ -173,51 +189,43 @@ class TestHardestLearningConvergence:
             )
             if patterns:
                 patterns_by_type[failure_type] = patterns
-        
         total_patterns = sum(len(p) for p in patterns_by_type.values())
         print(f"✓ Identified {total_patterns} failure patterns across {len(patterns_by_type)} failure types")
-        
-        # Must identify at least 5 patterns
         assert total_patterns >= 5, f"Only {total_patterns} patterns identified, expected >= 5"  # nosec B101
-        
-        # Phase 4: Record improved performance (after learning)
+        return total_patterns
+
+    @staticmethod
+    def _run_improved_phase(engine, strategies):
+        """Phase 4: Record improved performance after learning."""
         print("\nPhase 4: Recording improved performance after learning...")
-        
         successes = 0
         for i in range(50):
-            # Use better strategies after learning
-            strategy_id = strategies[3][0]  # optimal_strategy (90% success)
+            strategy_id = strategies[3][0]
             strategies[3][1]
-            
-            # Simulate improved success rate
-            success = (i % 10) < 9  # 90% success rate
-            
+            success = (i % 10) < 9
             engine.record_task_execution(
                 task_id=f"improved_{i}",
                 task_type="hardest_test",
                 strategy_used=strategy_id,
                 success=success,
-                execution_time_ms=70.0,  # Faster execution
+                execution_time_ms=70.0,
                 reasoning_quality=0.95 if success else 0.5,
                 tool_selection_correct=success,
                 hallucination_detected=not success
             )
-            
             if success:
                 successes += 1
-            
             if (i + 1) % 10 == 0:
                 print(f"  Recorded {i + 1}/50 improved executions...")
-        
         improved_success_rate = successes / 50
         print(f"✓ Improved phase success rate: {improved_success_rate:.1%}")
-        
-        # Phase 5: Verify learning convergence
+        return improved_success_rate
+
+    @staticmethod
+    def _verify_convergence(engine, baseline_success_rate):
+        """Phase 5: Verify learning convergence."""
         print("\nPhase 5: Verifying learning convergence...")
-        
-        # Get improvement metrics
         metrics = engine.get_improvement_metrics()
-        
         print(f"\nFinal Metrics:")
         print(f"  Total tasks: {metrics['total_tasks']}")
         print(f"  Success rate: {metrics['success_rate']:.1%}")
@@ -226,24 +234,22 @@ class TestHardestLearningConvergence:
         print(f"  Tool selection rate: {metrics['tool_selection_rate']:.1%}")
         print(f"  Hallucination rate: {metrics['hallucination_rate']:.1%}")
         
-        # Verify improvement
         if "improvement" in metrics:
             improvement = metrics["improvement"]
-            
             print(f"\nImprovement Metrics:")
             print(f"  Success rate improvement: {improvement['success_rate_improvement']:.1%}")
             print(f"  Relative improvement: {improvement['relative_improvement']:.1f}%")
             print(f"  Execution time improvement: {improvement['execution_time_improvement']:.1f}%")
-            
-            # Must show significant improvement (>15%)
             assert improvement["relative_improvement"] > 15, \
                 f"Improvement {improvement['relative_improvement']:.1f}% below 15% threshold"  # nosec B101
-            
             print(f"✓ Improvement {improvement['relative_improvement']:.1f}% exceeds 15% threshold")
-        
-        # Phase 6: Verify strategy adaptation
+            return improvement["relative_improvement"]
+        return None
+
+    @staticmethod
+    def _verify_strategy_adaptation(engine, strategies):
+        """Phase 6: Verify strategy adaptation."""
         print("\nPhase 6: Verifying strategy adaptation...")
-        
         strategy_performances = []
         for strategy_id, expected_rate in strategies:
             strategy = engine.strategy_optimizer.get_strategy(strategy_id)
@@ -255,45 +261,37 @@ class TestHardestLearningConvergence:
                     "executions": strategy.total_executions
                 })
                 print(f"  {strategy_id}: {strategy.success_rate:.1%} success ({strategy.total_executions} executions)")
-        
-        # Verify strategies are ranked correctly
         ranked = sorted(strategy_performances, key=lambda x: x["actual"], reverse=True)
         best_strategy = ranked[0]
-        
         print(f"✓ Best performing strategy: {best_strategy['id']} ({best_strategy['actual']:.1%})")
-        
-        # Phase 7: Verify optimal strategy selection
+
+    @staticmethod
+    def _verify_optimal_selection(engine):
+        """Phase 7: Verify optimal strategy selection."""
         print("\nPhase 7: Verifying optimal strategy selection...")
-        
         selections = []
         for _ in range(30):
             strategy = engine.get_optimal_strategy("hardest_test")
             if strategy:
                 selections.append(strategy.strategy_id)
-        
         if selections:
             from collections import Counter
             selection_counts = Counter(selections)
             most_selected = selection_counts.most_common(1)[0]
-            
             print(f"  Strategy selection distribution:")
             for strategy_id, count in selection_counts.most_common():
                 print(f"    {strategy_id}: {count}/{len(selections)} ({count/len(selections):.1%})")
-            
-            # Best strategy should be selected most often
             print(f"✓ Most selected strategy: {most_selected[0]} ({most_selected[1]}/{len(selections)})")
-        
-        # Phase 8: Verify system stability
+
+    @staticmethod
+    def _verify_stability(engine):
+        """Phase 8: Verify system stability."""
         print("\nPhase 8: Verifying system stability...")
-        
-        # Record 20 more tasks to check for stability
         recent_successes = []
         for i in range(20):
             strategy = engine.get_optimal_strategy("hardest_test")
             if strategy:
-                # Use actual strategy performance
-                success = (i % 10) < 8  # 80% success rate
-                
+                success = (i % 10) < 8
                 engine.record_task_execution(
                     task_id=f"stability_{i}",
                     task_type="hardest_test",
@@ -301,27 +299,11 @@ class TestHardestLearningConvergence:
                     success=success,
                     execution_time_ms=75.0
                 )
-                
                 recent_successes.append(success)
-        
         stability_rate = sum(recent_successes) / len(recent_successes)
         print(f"✓ Stability check: {stability_rate:.1%} success rate over last 20 tasks")
-        
-        # System should maintain high performance
         assert stability_rate >= 0.7, f"Stability rate {stability_rate:.1%} below 70% threshold"  # nosec B101
-        
-        # Final summary
-        print("\n" + "="*80)
-        print("HARDEST TEST PASSED ✓")
-        print("="*80)
-        print(f"✓ Processed 100 tasks (50 baseline + 50 improved)")
-        print(f"✓ Learned from 50 injected failures")
-        print(f"✓ Identified {total_patterns} failure patterns")
-        print(f"✓ Improved from {baseline_success_rate:.1%} to {improved_success_rate:.1%} success rate")
-        if "improvement" in metrics:
-            print(f"✓ Demonstrated {improvement['relative_improvement']:.1f}% improvement")
-        print(f"✓ Maintained {stability_rate:.1%} stability")
-        print("="*80 + "\n")
+        return stability_rate
     
     def test_100_failures_diverse_scenarios(self, engine):
         """
