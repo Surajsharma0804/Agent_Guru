@@ -173,7 +173,7 @@ class FailureAnalyzer:
                     execution.task_id,
                     execution.task_type,
                     execution.strategy_id,
-                    execution.failure_type.value,
+                    execution.failure_type.value if execution.failure_type else "unknown",
                     execution.timestamp.isoformat(),
                     execution.execution_time_ms,
                     json.dumps(execution.context),
@@ -263,14 +263,16 @@ class FailureAnalyzer:
         features = self._extract_failure_features(execution)
 
         # Find matching patterns
-        matching_pattern = self._find_matching_pattern(execution.failure_type, features)
+        matching_pattern = self._find_matching_pattern(
+            execution.failure_type or FailureType.UNKNOWN, features
+        )
 
         if matching_pattern:
             # Update existing pattern
             self._increment_pattern_count(matching_pattern.pattern_id)
         else:
             # Create new pattern
-            self._create_new_pattern(execution.failure_type, features)
+            self._create_new_pattern(execution.failure_type or FailureType.UNKNOWN, features)
 
     def _extract_failure_features(self, execution: TaskExecution) -> dict[str, Any]:
         """Extract features from failure for pattern matching.
@@ -287,7 +289,7 @@ class FailureAnalyzer:
         features = {
             "task_type": execution.task_type,
             "strategy_id": execution.strategy_id,
-            "failure_type": execution.failure_type.value,
+            "failure_type": execution.failure_type.value if execution.failure_type else "unknown",
         }
 
         # Add specific failure details if available
