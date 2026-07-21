@@ -124,7 +124,7 @@ class OrchestrationSystem:
                 return_exceptions=True,
             )
 
-            for task, result in zip(ready, parallel_results, strict=False):
+            for task, result in zip(ready, parallel_results, strict=False):  # type: ignore[assignment]
                 if isinstance(result, BaseException):
                     logger.error(
                         "Task %s failed with %s: %s",
