@@ -19,12 +19,28 @@ Date: 2026-03-13
 Version: 1.0.0
 """
 
+import logging
+from collections import deque
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .agent_lifecycle import Agent
     from .agent_merger import AgentMerger
     from .agent_storage import AgentStorage
+
+logger = logging.getLogger(__name__)
+
+# NOTE (flagged, not fixed here — needs agent_merger.py to fix properly):
+# every method below calls `self.merger._calculate_similarity(...)` — a
+# PRIVATE (underscore-prefixed) method on a DIFFERENT class, reached into
+# from outside. This happens 4 times in this file alone. It strongly
+# suggests AgentMerger should expose a public `calculate_similarity()` and
+# this file should call that instead — reaching into another class's
+# private method from outside is a real encapsulation violation, and
+# means AgentMerger's maintainers have no signal that this "private"
+# method actually has external callers depending on it. Left as-is here
+# since fixing it properly means adding the public method on AgentMerger,
+# which isn't in this file.
 
 
 class DuplicateDetector:
@@ -208,8 +224,28 @@ class DuplicateDetector:
                 merged_ids.add(agent1_id)
                 merged_ids.add(agent2_id)
 
-            except ValueError:
-                # Agent may have been merged by another operation
+            except Exception:
+                # FIX: previously caught only `ValueError` — but this loop's
+                # own intent (documented in the comment below) is "an agent
+                # may have been merged/modified concurrently by another
+                # operation, skip and keep going". Any other exception type
+                # from merge_agents() (a storage error, a KeyError from a
+                # concurrently-deleted agent, etc.) previously propagated
+                # straight out of this method, silently discarding every
+                # merge already completed in this call (merged_agents /
+                # merged_ids built so far were never returned — the whole
+                # batch was lost on the first unexpected error type).
+                # Also previously logged NOTHING on failure — a silent
+                # `continue` — making merge failures completely invisible.
+                # PopulationManager.trigger_aggressive_merging (a sibling
+                # "merge in a loop, keep going" function calling the same
+                # merger.merge_agents()) already caught broadly AND logged;
+                # this brings auto_merge_duplicates in line with that.
+                logger.exception(
+                    "Merge failed for %s + %s — skipping, continuing with remaining duplicates",
+                    agent1_id,
+                    agent2_id,
+                )
                 continue
 
         return merged_agents
@@ -259,7 +295,8 @@ class DuplicateDetector:
             target_agent_id: Agent to find similar agents for
 
         Returns:
-            Tuple of (most_similar_agent_id, similarity_score) or None
+            Tuple of (most_similar_agent_id, similarity_score) or None if
+            there are no other agents to compare against.
 
         Time Complexity: O(n) where n is number of active agents
         Space Complexity: O(1)
@@ -279,7 +316,19 @@ class DuplicateDetector:
             return None
 
         agents = await self.storage.get_active_agents()
-        max_similarity = 0.0
+        # FIX: was initialized to 0.0, which meant that if EVERY other agent
+        # had similarity of exactly 0.0 (completely dissimilar, not merely
+        # "below some threshold"), the strict `similarity > max_similarity`
+        # comparison would never fire even once, and this would silently
+        # return None — even though there WAS another agent to compare
+        # against, and the docstring promises to find "the most similar
+        # agent" unconditionally (no threshold mentioned), not "the most
+        # similar agent, or None if the best match happens to be weak".
+        # -1.0 is below the valid similarity range (validated elsewhere in
+        # this class to be in [0.0, 1.0] via duplication_threshold's own
+        # bounds check), so the first real candidate always wins the
+        # comparison, exactly matching the literal docstring contract.
+        max_similarity = -1.0
         most_similar_id = None
 
         for agent in agents:
@@ -336,6 +385,21 @@ class DuplicateDetector:
             adjacency[agent2_id].append(agent1_id)
 
         # Find connected components (clusters) — iterative BFS to avoid recursion limit
+        #
+        # FIX: this used to be `queue = [start_id]` / `queue.pop()` (pop with
+        # no index pops from the END of a list — LIFO — which is actually
+        # DFS, not BFS, despite the comment). Verified concretely with a
+        # small graph: the old code visited nodes in DFS order (deeper
+        # before wider), not BFS order. For finding connected components
+        # specifically this didn't change WHICH agents end up in the same
+        # cluster (component membership doesn't depend on traversal order)
+        # — so it wasn't a functional bug for this particular use — but the
+        # comment claiming BFS while the code did DFS is exactly the kind
+        # of mismatch that misleads whoever edits this next. Fixed with a
+        # real deque-based FIFO so the code now actually does what it says.
+        # (Using `collections.deque.popleft()` rather than `list.pop(0)` —
+        # `list.pop(0)` is O(n) per call, an anti-pattern already found and
+        # fixed elsewhere in this codebase; deque.popleft() is O(1).)
         visited = set()
         clusters = []
 
@@ -343,9 +407,9 @@ class DuplicateDetector:
             if start_id in visited:
                 continue
             cluster: list[str] = []
-            queue = [start_id]
+            queue: deque[str] = deque([start_id])
             while queue:
-                agent_id = queue.pop()
+                agent_id = queue.popleft()
                 if agent_id in visited:
                     continue
                 visited.add(agent_id)
