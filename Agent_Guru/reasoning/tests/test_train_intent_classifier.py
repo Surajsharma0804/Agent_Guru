@@ -53,52 +53,64 @@ def _set_seeds() -> None:
 class TestTrainingConfig:
     """Test TrainingConfig dataclass - 100% coverage."""
 
-    def test_default_config(self):
-        """Test default configuration values."""
-        config = TrainingConfig()
-
-        # Model settings
+    @staticmethod
+    def _assert_model_defaults(config):
+        """Check model-related defaults."""
         assert config.model_name == "microsoft/deberta-v3-large"  # nosec B101
         assert config.max_length == 256  # nosec B101
 
-        # Training hyperparameters
+    @staticmethod
+    def _assert_training_defaults(config):
+        """Check training hyperparameter defaults."""
         assert config.learning_rate == 8e-6  # nosec B101
         assert config.batch_size == 1  # nosec B101
         assert config.num_epochs == 30  # nosec B101
         assert config.warmup_ratio == 0.1  # nosec B101
         assert config.weight_decay == 0.01  # nosec B101
-
-        # Optimization
         assert config.gradient_clip_val == 1.0  # nosec B101
         assert config.label_smoothing == 0.1  # nosec B101
 
-        # GPU optimization
+    @staticmethod
+    def _assert_gpu_defaults(config):
+        """Check GPU optimization defaults."""
         assert config.mixed_precision is True  # nosec B101
         assert config.gradient_accumulation_steps == 32  # nosec B101
         assert config.num_workers == min(4, __import__("os").cpu_count() or 1)  # nosec B101
 
-        # Data augmentation
+    @staticmethod
+    def _assert_augmentation_defaults(config):
+        """Check data augmentation defaults."""
         assert config.use_augmentation is True  # nosec B101
         assert config.augmentation_factor == 3  # nosec B101
 
-        # Advanced techniques
+    @staticmethod
+    def _assert_advanced_defaults(config):
+        """Check advanced technique defaults."""
         assert config.use_adversarial_training is False  # nosec B101
         assert config.use_focal_loss is False  # nosec B101
         assert config.use_rdrop is False  # nosec B101
         assert config.rdrop_alpha == 5.0  # nosec B101
-
-        # Learning rate scheduling
         assert config.scheduler_type == "cosine_with_restarts"  # nosec B101
         assert config.num_cycles == 0.5  # nosec B101
 
-        # Paths
+    @staticmethod
+    def _assert_path_defaults(config):
+        """Check path defaults."""
         assert config.data_dir == "Agent_Guru/reasoning/data"  # nosec B101
         assert config.output_dir == "Agent_Guru/reasoning/models/intent_classifier"  # nosec B101
         assert config.log_dir == "Agent_Guru/reasoning/logs/intent_classifier"  # nosec B101
-
-        # Early stopping
         assert config.patience == 7  # nosec B101
         assert config.min_delta == 0.001  # nosec B101
+
+    def test_default_config(self):
+        """Test default configuration values."""
+        config = TrainingConfig()
+        self._assert_model_defaults(config)
+        self._assert_training_defaults(config)
+        self._assert_gpu_defaults(config)
+        self._assert_augmentation_defaults(config)
+        self._assert_advanced_defaults(config)
+        self._assert_path_defaults(config)
 
     def test_custom_config(self):
         """Test custom configuration values."""
@@ -130,8 +142,23 @@ class TestTrainingConfig:
             min_delta=0.01,
         )
 
+        self._assert_custom_model(config)
+        self._assert_custom_training(config)
+        self._assert_custom_advanced(config)
+        self._assert_custom_paths(config)
+
+    @staticmethod
+    def _assert_custom_model(config):
+        """Verify custom model settings."""
         assert config.model_name == "custom-model"  # nosec B101
         assert config.max_length == 128  # nosec B101
+        assert config.mixed_precision is False  # nosec B101
+        assert config.gradient_accumulation_steps == 8  # nosec B101
+        assert config.num_workers == 4  # nosec B101
+
+    @staticmethod
+    def _assert_custom_training(config):
+        """Verify custom training hyperparams."""
         assert config.learning_rate == 1e-5  # nosec B101
         assert config.batch_size == 16  # nosec B101
         assert config.num_epochs == 10  # nosec B101
@@ -139,17 +166,22 @@ class TestTrainingConfig:
         assert config.weight_decay == 0.02  # nosec B101
         assert config.gradient_clip_val == 2.0  # nosec B101
         assert config.label_smoothing == 0.2  # nosec B101
-        assert config.mixed_precision is False  # nosec B101
-        assert config.gradient_accumulation_steps == 8  # nosec B101
-        assert config.num_workers == 4  # nosec B101
         assert config.use_augmentation is False  # nosec B101
         assert config.augmentation_factor == 5  # nosec B101
+
+    @staticmethod
+    def _assert_custom_advanced(config):
+        """Verify custom advanced settings."""
         assert config.use_adversarial_training is True  # nosec B101
         assert config.use_focal_loss is True  # nosec B101
         assert config.use_rdrop is True  # nosec B101
         assert config.rdrop_alpha == 3.0  # nosec B101
         assert config.scheduler_type == "linear"  # nosec B101
         assert config.num_cycles == 1.0  # nosec B101
+
+    @staticmethod
+    def _assert_custom_paths(config):
+        """Verify custom path settings."""
         assert config.data_dir == "/custom/data"  # nosec B101
         assert config.output_dir == "/custom/output"  # nosec B101
         assert config.log_dir == "/custom/logs"  # nosec B101
