@@ -498,149 +498,32 @@ class VerificationIntegration:
 
         while attempt <= self.max_replan_attempts:
             try:
-                # Check cache
-                cache_key = self._generate_cache_key(current_task, original_input)
-                cached_result = self._get_cached_result(cache_key)
-
-                if cached_result is not None:
-                    result = cached_result
-                    cache_hit = True
-                    logger.debug(
-                        "verification_cache_hit",
-                        cache_key=cache_key,
-                        task_goal=current_task.goal,
-                    )
-                else:
-                    # Verify the task
-                    result = await self.verifier.verify_plan(current_task, original_input)
-                    cache_hit = False
-
-                    # Cache result
-                    if self.enable_caching:
-                        self._cache_result(cache_key, result)
-
-                # Record success in circuit breaker
-                if self.enable_circuit_breaker:
-                    self.circuit_breaker.record_success()
-
-                # Record metrics
-                verification_time_ms = (time.perf_counter() - start_time) * 1000
-                self.metrics.record_verification(
-                    result.recommendation,
-                    verification_time_ms,
-                    result.confidence,
-                    cache_hit,
+                result, cache_hit = await self._execute_verification(
+                    current_task, original_input,
                 )
 
-                # Audit logging
-                if self.enable_audit_logging:
-                    self._log_audit(
-                        result,
-                        attempt,
-                        user_id or "unknown",
-                        conversation_id or "unknown",
-                        current_task.goal,  # Task has no task_id; use goal as identifier
-                        original_input,
-                        cache_hit,
-                    )
-
-                # Log verification decision
-                logger.info(
-                    "verification_complete",
-                    task_goal=current_task.goal,
-                    attempt=attempt,
-                    is_valid=result.is_valid,
-                    confidence=result.confidence,
-                    recommendation=result.recommendation.value,
-                    num_issues=len(result.issues),
-                    verification_time_ms=result.verification_time_ms,
-                    cache_hit=cache_hit,
+                # Record metrics & audit
+                self._record_verification_metrics(
+                    result, start_time, cache_hit, attempt,
+                    current_task, original_input, user_id, conversation_id,
                 )
 
                 # Handle based on recommendation
-                if result.recommendation == VerificationAction.PROCEED:
-                    return True, current_task, None
+                outcome = await self._handle_recommendation(
+                    result, current_task, attempt,
+                    replan_callback, clarify_callback,
+                )
+                if outcome is not None:
+                    return outcome
 
-                if result.recommendation == VerificationAction.CLARIFY:
-                    if clarify_callback:
-                        # Ask user for clarification
-                        question = self._generate_clarification_question(result)
-                        logger.info(
-                            "verification_requesting_clarification",
-                            task_goal=current_task.goal,
-                            question=question,
-                        )
-
-                        user_response = await clarify_callback(question)
-
-                        # If user provides clarification, replan with it
-                        if replan_callback and user_response:
-                            feedback = f"User clarification: {user_response}"
-                            logger.info(
-                                "verification_replanning_with_clarification",
-                                task_goal=current_task.goal,
-                                feedback=feedback,
-                            )
-                            current_task = await replan_callback(current_task, feedback)
-                            attempt += 1
-                            self.metrics.retry_count += 1
-
-                            # Exponential backoff before retry
-                            await asyncio.sleep(min(2**attempt, 10))
-                            continue
-
-                    # No callback or no response - abort
-                    logger.warning(
-                        "verification_clarification_failed",
-                        task_goal=current_task.goal,
-                        reason="no_callback_or_response",
-                    )
-                    return False, None, "Clarification needed but not provided"
-
-                if result.recommendation == VerificationAction.REPLAN:
-                    if replan_callback and attempt < self.max_replan_attempts:
-                        # Generate feedback from issues
-                        feedback = self._generate_replan_feedback(result)
-                        logger.info(
-                            "verification_replanning",
-                            task_goal=current_task.goal,
-                            attempt=attempt,
-                            feedback=feedback,
-                        )
-                        current_task = await replan_callback(current_task, feedback)
-                        attempt += 1
-                        self.metrics.retry_count += 1
-
-                        # Exponential backoff before retry
-                        await asyncio.sleep(min(2**attempt, 10))
-                        continue
-                    # Max attempts reached or no callback
-                    logger.warning(
-                        "verification_max_attempts_reached",
-                        task_goal=current_task.goal,
-                        attempt=attempt,
-                        max_attempts=self.max_replan_attempts,
-                    )
-                    return (
-                        False,
-                        None,
-                        f"Failed to generate valid plan after {attempt} attempts",
-                    )
-
-                if result.recommendation == VerificationAction.ABORT:
-                    error_msg = self._generate_abort_message(result)
-                    logger.warning(
-                        "verification_aborted",
-                        task_goal=current_task.goal,
-                        error=error_msg,
-                    )
-                    return False, None, error_msg
+                # If _handle_recommendation returned None, it means "retry"
+                attempt += 1
+                self.metrics.retry_count += 1
+                await asyncio.sleep(min(2**attempt, 10))
 
             except Exception as e:
-                # Record failure in circuit breaker
                 if self.enable_circuit_breaker:
                     self.circuit_breaker.record_failure()
-
                 logger.exception(
                     "verification_error",
                     task_goal=current_task.goal,
@@ -648,8 +531,6 @@ class VerificationIntegration:
                     error=str(e),
                     exc_info=True,
                 )
-
-                # Retry with exponential backoff
                 if attempt < self.max_replan_attempts:
                     attempt += 1
                     self.metrics.retry_count += 1
@@ -657,9 +538,153 @@ class VerificationIntegration:
                     continue
                 return False, None, f"Verification failed: {e!s}"
 
-        # Should not reach here
         logger.error("verification_unexpected_exit", task_goal=current_task.goal, attempt=attempt)
         return False, None, "Verification failed unexpectedly"
+
+    # ------------------------------------------------------------------
+    # verify_and_handle helpers (extracted for complexity reduction)
+    # ------------------------------------------------------------------
+
+    async def _execute_verification(
+        self, task: Task, original_input: str,
+    ) -> tuple[Any, bool]:
+        """Execute verification with caching support."""
+        cache_key = self._generate_cache_key(task, original_input)
+        cached_result = self._get_cached_result(cache_key)
+
+        if cached_result is not None:
+            logger.debug("verification_cache_hit", cache_key=cache_key, task_goal=task.goal)
+            return cached_result, True
+
+        result = await self.verifier.verify_plan(task, original_input)
+        if self.enable_caching:
+            self._cache_result(cache_key, result)
+
+        if self.enable_circuit_breaker:
+            self.circuit_breaker.record_success()
+
+        return result, False
+
+    def _record_verification_metrics(
+        self,
+        result: Any,
+        start_time: float,
+        cache_hit: bool,
+        attempt: int,
+        task: Task,
+        original_input: str,
+        user_id: str | None,
+        conversation_id: str | None,
+    ) -> None:
+        """Record metrics and audit log for a verification result."""
+        verification_time_ms = (time.perf_counter() - start_time) * 1000
+        self.metrics.record_verification(
+            result.recommendation, verification_time_ms,
+            result.confidence, cache_hit,
+        )
+
+        if self.enable_audit_logging:
+            self._log_audit(
+                result, attempt,
+                user_id or "unknown",
+                conversation_id or "unknown",
+                task.goal,
+                original_input,
+                cache_hit,
+            )
+
+        logger.info(
+            "verification_complete",
+            task_goal=task.goal,
+            attempt=attempt,
+            is_valid=result.is_valid,
+            confidence=result.confidence,
+            recommendation=result.recommendation.value,
+            num_issues=len(result.issues),
+            verification_time_ms=result.verification_time_ms,
+            cache_hit=cache_hit,
+        )
+
+    async def _handle_recommendation(
+        self,
+        result: Any,
+        current_task: Task,
+        attempt: int,
+        replan_callback: Callable[[Task, str], Awaitable[Task]] | None,
+        clarify_callback: Callable[[str], Awaitable[str]] | None,
+    ) -> tuple[bool, Task | None, str | None] | None:
+        """Handle verification recommendation. Returns outcome tuple, or None to retry."""
+        if result.recommendation == VerificationAction.PROCEED:
+            return True, current_task, None
+
+        if result.recommendation == VerificationAction.CLARIFY:
+            return await self._handle_clarify(
+                result, current_task, replan_callback, clarify_callback,
+            )
+
+        if result.recommendation == VerificationAction.REPLAN:
+            if replan_callback and attempt < self.max_replan_attempts:
+                feedback = self._generate_replan_feedback(result)
+                logger.info(
+                    "verification_replanning",
+                    task_goal=current_task.goal, attempt=attempt, feedback=feedback,
+                )
+                await replan_callback(current_task, feedback)
+                return None  # Signal: retry
+
+            logger.warning(
+                "verification_max_attempts_reached",
+                task_goal=current_task.goal,
+                attempt=attempt,
+                max_attempts=self.max_replan_attempts,
+            )
+            return False, None, f"Failed to generate valid plan after {attempt} attempts"
+
+        if result.recommendation == VerificationAction.ABORT:
+            error_msg = self._generate_abort_message(result)
+            logger.warning(
+                "verification_aborted", task_goal=current_task.goal, error=error_msg,
+            )
+            return False, None, error_msg
+
+        return None  # Unknown recommendation — retry
+
+    async def _handle_clarify(
+        self,
+        result: Any,
+        current_task: Task,
+        replan_callback: Callable[[Task, str], Awaitable[Task]] | None,
+        clarify_callback: Callable[[str], Awaitable[str]] | None,
+    ) -> tuple[bool, Task | None, str | None] | None:
+        """Handle CLARIFY recommendation."""
+        if not clarify_callback:
+            logger.warning(
+                "verification_clarification_failed",
+                task_goal=current_task.goal, reason="no_callback_or_response",
+            )
+            return False, None, "Clarification needed but not provided"
+
+        question = self._generate_clarification_question(result)
+        logger.info(
+            "verification_requesting_clarification",
+            task_goal=current_task.goal, question=question,
+        )
+        user_response = await clarify_callback(question)
+
+        if replan_callback and user_response:
+            feedback = f"User clarification: {user_response}"
+            logger.info(
+                "verification_replanning_with_clarification",
+                task_goal=current_task.goal, feedback=feedback,
+            )
+            await replan_callback(current_task, feedback)
+            return None  # Signal: retry
+
+        logger.warning(
+            "verification_clarification_failed",
+            task_goal=current_task.goal, reason="no_callback_or_response",
+        )
+        return False, None, "Clarification needed but not provided"
 
     def _generate_cache_key(self, task: Task, original_input: str) -> str:
         """Generate cache key for verification result.
