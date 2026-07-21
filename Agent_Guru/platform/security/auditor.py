@@ -414,7 +414,7 @@ class SecurityAuditor:
         error_message: str | None = None,
         ip_address: str | None = None,
         user_agent: str | None = None,
-    ) -> str:
+    ) -> AuditLogEntry:
         """Log completed operation to immutable audit trail.
 
         Time Complexity: O(1) - constant time per entry
@@ -557,7 +557,7 @@ class SecurityAuditor:
 
         return entry
 
-    def redact_sensitive_data(self, data: dict[str, Any]) -> dict[str, Any]:
+    def redact_sensitive_data(self, data: Any) -> dict[str, Any]:
         """Redact sensitive data from dictionary.
 
         Time Complexity: O(n) where n is number of keys
@@ -591,10 +591,10 @@ class SecurityAuditor:
 
         """
         if not isinstance(data, dict):
-            return data
+            return data  # type: ignore[no-any-return]  # defensive guard for non-dict input
 
         # Create deep copy to avoid modifying original
-        redacted = {}
+        redacted: dict[str, Any] = {}
 
         for key, value in data.items():
             # Recursively redact nested dictionaries
@@ -679,7 +679,7 @@ class SecurityAuditor:
 
             # Check file modification time
             try:
-                mtime = datetime.utcfromtimestamp(log_file.stat().st_mtime)
+                mtime = datetime.fromtimestamp(log_file.stat().st_mtime, tz=UTC)
             except OSError:
                 continue
 
@@ -944,7 +944,7 @@ class SecurityAuditor:
             severity_order = {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}
             highest_severity = max(
                 (t.get("severity", "LOW") for t in threats),
-                key=severity_order.get,
+                key=lambda s: severity_order.get(s, 0),
             )
             recommendation = f"BLOCK: {highest_severity} threat detected. Do not execute."
         else:
@@ -1502,23 +1502,8 @@ class SecurityAuditor:
             },
         )
 
-    def _get_threat_description(self, pattern: str, severity: str) -> str:
-        """Get human-readable threat description."""
-        descriptions = {
-            r"rm\s+-rf\s+/": "Attempts to delete entire root filesystem",
-            r":\(\)\{\s*:\|:\&\s*\};:": "Fork bomb - creates infinite processes to crash system",
-            r"mkfs\.": "Attempts to format filesystem - destroys all data",
-            r"dd\s+if=.*of=/dev/sd[a-z]": "Direct disk write - can corrupt filesystem",
-            r"format\s+[A-Z]:": "Windows format command - destroys all data",
-            r"del\s+/[fqs]": "Windows forced delete - removes files without confirmation",
-            r"chmod\s+777": "Sets insecure file permissions - security risk",
-            r"curl.*\|\s*(bash|sh)": "Downloads and executes remote code - RCE risk",
-            r"sudo\s+": "Privilege escalation attempt",
-            r"shutdown": "System shutdown command",
-            r"reboot": "System reboot command",
-        }
-
-        return descriptions.get(pattern, f"{severity} severity command detected")
+    # NOTE: _get_threat_description is defined earlier (~line 960).
+    # Duplicate definition removed to fix mypy no-redef error.
 
     def get_statistics(self) -> dict[str, Any]:
         """Get audit statistics.
@@ -1662,7 +1647,7 @@ class SecurityAuditor:
         # Fast path: check cheapest filters first (O(1) comparisons)
 
         # Operation type filter (O(1) set membership)
-        if filters.operation_types and entry.operation_type not in filters.operation_types:
+        if filters.operation_types and entry.operation_type not in {ot.value for ot in filters.operation_types}:
             return False
 
         # User ID filter (O(1) set membership)
@@ -1670,7 +1655,7 @@ class SecurityAuditor:
             return False
 
         # Result status filter (O(1) set membership)
-        if filters.result_statuses and entry.result_status not in filters.result_statuses:
+        if filters.result_statuses and entry.result_status not in {rs.value for rs in filters.result_statuses}:
             return False
 
         # Execution time filter (O(1) comparison)
