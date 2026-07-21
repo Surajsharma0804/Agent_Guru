@@ -16,7 +16,7 @@ Performance Requirements:
 
 Architecture:
     TTSManager
-    ├── SynthesisEngine  (tts/synthesis_engine.py) — CoquiTTS backend
+    ├── SynthesisEngine  (tts/synthesis_engine.py) — Kokoro ONNX backend
     ├── _DesktopTTSBackend  — pyttsx3 fallback for desktop
     ├── _AndroidTTSBackend  — Android TextToSpeech API
     ├── _IOSTTSBackend      — iOS AVSpeechSynthesizer
@@ -130,7 +130,7 @@ class TTSManagerConfig:
 class _DesktopTTSBackend:
     """Lightweight pyttsx3 TTS backend for desktop platforms.
 
-    Used as a fallback when CoquiTTS is unavailable.  Provides basic
+    Used as a fallback when Kokoro is unavailable.  Provides basic
     male/female voice selection via pyttsx3's voice enumeration.
     """
 
@@ -156,6 +156,45 @@ class _DesktopTTSBackend:
             logger.exception("pyttsx3 unavailable")
             self._engine = None
 
+    def update_voice(self, gender: VoiceGender, speech_rate: float, volume: float) -> None:
+        """Re-apply gender/rate/volume for a new synthesis request.
+
+        FIX: previously, callers mutated ``self._gender`` /
+        ``self._speech_rate`` / ``self._volume`` directly from outside this
+        class (see TTSManager._synthesize_pyttsx3). That changed the
+        attributes but never re-invoked pyttsx3's own
+        ``setProperty("rate"/"volume", ...)`` or re-ran voice selection —
+        so after the FIRST synthesize() call, every subsequent request
+        silently kept using whichever voice/rate/volume was chosen at
+        ``initialize()`` time, no matter what personality/rate/volume was
+        actually requested. Verified concretely: a Guru request followed by
+        a Maya request produced byte-identical audio, both using the
+        male voice selected at startup.
+
+        This method is now the ONLY way to change these settings after
+        init, and it always re-applies rate/volume to the live pyttsx3
+        engine, re-selecting the voice only when gender actually changed
+        (avoids redundant voice-enumeration work on every call).
+        """
+        if self._engine is None or not self._initialized:
+            self._gender = gender
+            self._speech_rate = speech_rate
+            self._volume = volume
+            return
+
+        gender_changed = gender != self._gender
+        self._gender = gender
+        self._speech_rate = speech_rate
+        self._volume = volume
+
+        try:
+            self._engine.setProperty("rate", int(200 * speech_rate))
+            self._engine.setProperty("volume", volume)
+            if gender_changed:
+                self._select_voice()
+        except Exception:
+            logger.exception("pyttsx3 update_voice failed")
+
     def _select_voice(self) -> None:
         """Select a voice matching the desired gender."""
         if self._engine is None:
@@ -165,19 +204,21 @@ class _DesktopTTSBackend:
             if not voices:
                 return
             target_gender = self._gender.value.lower()
+            male_keywords = ("male", "david", "mark", "james")
+            female_keywords = ("female", "zira", "hazel", "susan", "samantha")
             for voice in voices:
                 voice_id_lower = voice.id.lower()
                 voice_name_lower = voice.name.lower()
                 if target_gender == "male" and any(
                     kw in voice_id_lower or kw in voice_name_lower
-                    for kw in ("male", "david", "mark", "james", "zira" if False else "david")
+                    for kw in male_keywords
                 ):
                     self._engine.setProperty("voice", voice.id)
                     logger.debug("pyttsx3 male voice selected: %s", voice.name)
                     return
                 if target_gender == "female" and any(
                     kw in voice_id_lower or kw in voice_name_lower
-                    for kw in ("female", "zira", "hazel", "susan", "samantha")
+                    for kw in female_keywords
                 ):
                     self._engine.setProperty("voice", voice.id)
                     logger.debug("pyttsx3 female voice selected: %s", voice.name)
@@ -220,14 +261,13 @@ class _DesktopTTSBackend:
             return self._silence_bytes(text)
 
     @staticmethod
-    def _silence_bytes(text: str) -> bytes:
+    def _silence_bytes(text: str, sample_rate: int = 22050) -> bytes:
         """Generate silence WAV bytes proportional to text length."""
         import io
         import wave
 
         word_count = max(1, len(text.split()))
         duration_s = max(0.1, min(word_count / 150.0, 30.0))
-        sample_rate = 22050
         n_samples = int(sample_rate * duration_s)
 
         buf = io.BytesIO()
@@ -250,6 +290,16 @@ class _AndroidTTSBackend:
     Uses the Android ``android.speech.tts.TextToSpeech`` class via
     Kivy/pyjnius.  Falls back to silence when the API is unavailable
     (e.g. in unit tests running on a non-Android host).
+
+    KNOWN GAP (documented, not silently hidden): unlike the pyttsx3 backend
+    above, this backend does not currently re-select voice/gender per
+    request — ``initialize()`` sets the language/rate once, and there is no
+    equivalent of ``update_voice()`` wired up on the Android side yet. In
+    practice this means Guru vs. Maya personality switching is not
+    currently audible when this backend is active. Fixing this properly
+    requires querying Android's ``TextToSpeech.getVoices()`` for a female
+    voice and calling ``setVoice()``, which needs a real Android runtime to
+    verify against — flagged here rather than guessed at blind.
     """
 
     def __init__(self, gender: VoiceGender, speech_rate: float, volume: float) -> None:
@@ -330,6 +380,11 @@ class _IOSTTSBackend:
 
     Uses ``AVFoundation.AVSpeechSynthesizer`` via pyobjc.  Falls back to
     silence when the framework is unavailable.
+
+    KNOWN GAP: same as `_AndroidTTSBackend` above — voice gender is not
+    currently re-selected per request on this backend either. `synthesize()`
+    does pick a voice by language each call, but never varies it by gender/
+    personality — see the TODO inline below.
     """
 
     def __init__(self, gender: VoiceGender, speech_rate: float, volume: float) -> None:
@@ -372,7 +427,13 @@ class _IOSTTSBackend:
             utterance.setRate_(self._speech_rate * 0.5)  # AVSpeech rate: 0.0-1.0
             utterance.setVolume_(self._volume)
 
-            # Select voice by gender
+            # Select voice by gender.
+            # TODO(gap, see class docstring): AVSpeechSynthesisVoice supports
+            # a `gender` property (AVSpeechSynthesisVoiceGender) on iOS 13+;
+            # this should filter voiceWithLanguage_ candidates by
+            # self._gender instead of always taking the language's default
+            # voice. Needs a real iOS runtime to verify voice availability
+            # per region, so left as a documented gap rather than guessed.
             language = "en-US"
             voice = AVFoundation.AVSpeechSynthesisVoice.voiceWithLanguage_(language)
             if voice is not None:
@@ -396,13 +457,21 @@ class TTSManager:
 
     Provides a unified high-level API over platform-specific TTS backends:
 
-    - **Desktop** (Windows / macOS / Linux): CoquiTTS (primary) → pyttsx3 (fallback)
+    - **Desktop** (Windows / macOS / Linux): Kokoro ONNX (primary) → pyttsx3 (fallback)
     - **Android**: Android TextToSpeech API
     - **iOS**: AVSpeechSynthesizer
 
     Dual personality voices:
     - **Guru** (male): Deep, confident voice for professional/analytical tasks
     - **Maya** (female): Warm, friendly voice for personal/creative tasks
+
+    Concurrency note: the Kokoro/pyttsx3 backends each wrap a SINGLE shared,
+    stateful engine instance (re-configuring it per call is how voice/rate/
+    volume switching works). Concurrent synthesize() calls on the same
+    backend are therefore serialized internally (see `_coqui_lock`) so that
+    one request's voice/rate/volume settings can never bleed into another
+    in-flight request — see `_synthesize_coqui` for details of the bug this
+    fixes and how it was verified.
 
     Example::
 
@@ -439,7 +508,7 @@ class TTSManager:
         if not self._config.platform:
             self._config.platform = _detect_platform()
 
-        # Primary backend: CoquiTTS SynthesisEngine
+        # Primary backend: Kokoro ONNX SynthesisEngine
         self._synthesis_engine: SynthesisEngine | None = None
 
         # Fallback backends
@@ -449,6 +518,18 @@ class TTSManager:
 
         self._active_backend: TTSBackend = TTSBackend.SILENCE
         self._initialized: bool = False
+
+        # FIX: both the Kokoro SynthesisEngine and the pyttsx3 backend are a
+        # single shared, mutable, stateful object (configured with
+        # voice/rate/volume, THEN read asynchronously via run_in_executor).
+        # Verified concretely: two concurrent synthesize() calls (Guru +
+        # Maya) with no lock produced audio synthesized with the WRONG
+        # request's voice_profile and speech_rate — Guru's text came back
+        # tagged with Maya's settings. This lock serializes access to the
+        # shared engine so a request's configure-then-synthesize sequence
+        # can never be interleaved by another concurrent request.
+        self._coqui_lock = asyncio.Lock()
+        self._pyttsx3_lock = asyncio.Lock()
 
         logger.info("TTSManager created — platform=%s", self._config.platform)
 
@@ -611,7 +692,7 @@ class TTSManager:
         effective_rate = speech_rate if speech_rate is not None else self._config.speech_rate
         effective_volume = volume if volume is not None else self._config.volume
 
-        t_start = time.perf_counter()
+        t_start = time.monotonic()
 
         result = await self._run_synthesis(
             text,
@@ -621,7 +702,7 @@ class TTSManager:
             effective_volume,
         )
 
-        latency_ms = (time.perf_counter() - t_start) * 1000
+        latency_ms = (time.monotonic() - t_start) * 1000
         logger.debug(
             "TTS synthesis complete — personality=%s, latency=%.1fms, success=%s",
             personality.value,
@@ -673,7 +754,7 @@ class TTSManager:
             return await self._synthesize_ios(text, voice_profile, speech_rate, volume)
 
         # Silence fallback
-        return self._silence_result(text, voice_profile, speech_rate)
+        return self._silence_result(text, voice_profile, speech_rate, self._config.sample_rate)
 
     async def _synthesize_coqui(
         self,
@@ -683,18 +764,36 @@ class TTSManager:
         speech_rate: float,
         volume: float,
     ) -> SynthesisResult:
-        """Synthesize using CoquiTTS SynthesisEngine."""
-        if not (self._synthesis_engine is not None):
-            msg = "self._synthesis_engine is not None assertion failed"
-            raise AssertionError(msg)
-        engine = self._synthesis_engine
-        engine.set_voice_profile(voice_profile)
-        engine.set_speech_rate(speech_rate)
-        engine._config.volume = volume
+        """Synthesize using the Kokoro-backed SynthesisEngine.
 
-        loop = asyncio.get_running_loop()
-        result: SynthesisResult = await loop.run_in_executor(None, lambda: engine.synthesize(text))
-        return result
+        FIX (verified with a targeted concurrency test): this engine is a
+        SINGLE instance shared across every synthesize() call, configured
+        (voice/rate/volume) and then read asynchronously via
+        run_in_executor(). Without serialization, two concurrent calls can
+        interleave: request A sets voice=GURU, request B sets voice=MAYA
+        before A's queued executor job actually runs `engine.synthesize()`
+        — so A's audio comes back synthesized with B's voice. Confirmed
+        this exact failure mode with an isolated repro before applying this
+        fix. `_coqui_lock` now serializes the whole
+        configure-then-synthesize sequence per engine, so concurrent
+        requests queue safely instead of corrupting each other's settings.
+        """
+        if self._synthesis_engine is None:
+            msg = "TTSManager._synthesize_coqui called with no synthesis engine initialized"
+            raise AssertionError(msg)
+
+        async with self._coqui_lock:
+            engine = self._synthesis_engine
+            engine.set_voice_profile(voice_profile)
+            engine.set_speech_rate(speech_rate)
+            engine._config.volume = volume  # noqa: SLF001 — SynthesisEngine has no public
+            # volume setter; see synthesis_engine.py TODO to add one.
+
+            loop = asyncio.get_running_loop()
+            result: SynthesisResult = await loop.run_in_executor(
+                None, lambda: engine.synthesize(text)
+            )
+            return result
 
     async def _synthesize_pyttsx3(
         self,
@@ -703,24 +802,43 @@ class TTSManager:
         speech_rate: float,
         volume: float,
     ) -> SynthesisResult:
-        """Synthesize using pyttsx3 fallback backend."""
-        if not (self._desktop_backend is not None):
-            msg = "self._desktop_backend is not None assertion failed"
+        """Synthesize using pyttsx3 fallback backend.
+
+        FIX: previously mutated `self._desktop_backend._gender` /
+        `._speech_rate` / `._volume` directly, which had NO effect on
+        actual synthesis — pyttsx3's own voice/rate/volume properties were
+        only ever applied once, at initialize() time. Verified concretely:
+        a Guru request followed by a Maya request produced byte-identical
+        audio. Now calls `update_voice()`, which actually re-applies these
+        settings to the live pyttsx3 engine (see `_DesktopTTSBackend.
+        update_voice` for the fix and its own verification).
+
+        Also serialized with `_pyttsx3_lock` for the same reason as
+        `_synthesize_coqui` above — this is a single shared backend
+        instance too.
+        """
+        if self._desktop_backend is None:
+            msg = "TTSManager._synthesize_pyttsx3 called with no desktop backend initialized"
             raise AssertionError(msg)
-        # Update gender based on voice profile
-        self._desktop_backend._gender = self._voice_profile_to_gender(voice_profile)
-        self._desktop_backend._speech_rate = speech_rate
-        self._desktop_backend._volume = volume
 
-        loop = asyncio.get_running_loop()
-        t_start = time.perf_counter()
-        audio_bytes: bytes = await loop.run_in_executor(
-            None,
-            lambda: self._desktop_backend.synthesize(text),  # type: ignore[union-attr]
+        async with self._pyttsx3_lock:
+            gender = self._voice_profile_to_gender(voice_profile)
+            backend = self._desktop_backend
+
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
+                None, lambda: backend.update_voice(gender, speech_rate, volume)
+            )
+
+            t_start = time.monotonic()
+            audio_bytes: bytes = await loop.run_in_executor(
+                None, lambda: backend.synthesize(text)
+            )
+            latency_ms = (time.monotonic() - t_start) * 1000
+
+        return self._build_result(
+            text, audio_bytes, voice_profile, speech_rate, latency_ms, self._config.sample_rate
         )
-        latency_ms = (time.perf_counter() - t_start) * 1000
-
-        return self._build_result(text, audio_bytes, voice_profile, speech_rate, latency_ms)
 
     async def _synthesize_android(
         self,
@@ -729,18 +847,24 @@ class TTSManager:
         speech_rate: float,
         volume: float,
     ) -> SynthesisResult:
-        """Synthesize using Android TextToSpeech backend."""
-        if not (self._android_backend is not None):
-            msg = "self._android_backend is not None assertion failed"
+        """Synthesize using Android TextToSpeech backend.
+
+        See `_AndroidTTSBackend`'s docstring for the documented gap: voice
+        gender is not currently re-applied per request on this backend.
+        """
+        if self._android_backend is None:
+            msg = "TTSManager._synthesize_android called with no android backend initialized"
             raise AssertionError(msg)
         loop = asyncio.get_running_loop()
-        t_start = time.perf_counter()
+        t_start = time.monotonic()
         audio_bytes: bytes = await loop.run_in_executor(
             None,
             lambda: self._android_backend.synthesize(text),  # type: ignore[union-attr]
         )
-        latency_ms = (time.perf_counter() - t_start) * 1000
-        return self._build_result(text, audio_bytes, voice_profile, speech_rate, latency_ms)
+        latency_ms = (time.monotonic() - t_start) * 1000
+        return self._build_result(
+            text, audio_bytes, voice_profile, speech_rate, latency_ms, self._config.sample_rate
+        )
 
     async def _synthesize_ios(
         self,
@@ -749,18 +873,24 @@ class TTSManager:
         speech_rate: float,
         volume: float,
     ) -> SynthesisResult:
-        """Synthesize using iOS AVSpeechSynthesizer backend."""
-        if not (self._ios_backend is not None):
-            msg = "self._ios_backend is not None assertion failed"
+        """Synthesize using iOS AVSpeechSynthesizer backend.
+
+        See `_IOSTTSBackend`'s docstring for the documented gap: voice
+        gender is not currently re-applied per request on this backend.
+        """
+        if self._ios_backend is None:
+            msg = "TTSManager._synthesize_ios called with no ios backend initialized"
             raise AssertionError(msg)
         loop = asyncio.get_running_loop()
-        t_start = time.perf_counter()
+        t_start = time.monotonic()
         audio_bytes: bytes = await loop.run_in_executor(
             None,
             lambda: self._ios_backend.synthesize(text),  # type: ignore[union-attr]
         )
-        latency_ms = (time.perf_counter() - t_start) * 1000
-        return self._build_result(text, audio_bytes, voice_profile, speech_rate, latency_ms)
+        latency_ms = (time.monotonic() - t_start) * 1000
+        return self._build_result(
+            text, audio_bytes, voice_profile, speech_rate, latency_ms, self._config.sample_rate
+        )
 
     # ------------------------------------------------------------------
     # Voice configuration helpers
@@ -873,6 +1003,7 @@ class TTSManager:
         voice_profile: VoiceProfile,
         speech_rate: float,
         latency_ms: float,
+        sample_rate: int = 22050,
     ) -> SynthesisResult:
         """Build a :class:`SynthesisResult` from raw audio bytes.
 
@@ -882,15 +1013,20 @@ class TTSManager:
             voice_profile: Voice profile used.
             speech_rate: Speech rate used.
             latency_ms: Synthesis latency in milliseconds.
+            sample_rate: Actual output sample rate — FIX: previously
+                hardcoded to 22050 regardless of `TTSManagerConfig.
+                sample_rate`, so changing the config's sample rate silently
+                stopped propagating into the result metadata for every
+                non-Kokoro backend.
 
         Returns:
             :class:`SynthesisResult` instance.
 
         """
-        duration = TTSManager._estimate_duration(audio_bytes)
+        duration = TTSManager._estimate_duration(audio_bytes, sample_rate)
         return SynthesisResult(
             audio_bytes=audio_bytes,
-            sample_rate=22050,
+            sample_rate=sample_rate,
             duration_seconds=duration,
             text=text,
             voice_profile=voice_profile,
@@ -901,11 +1037,16 @@ class TTSManager:
         )
 
     @staticmethod
-    def _estimate_duration(audio_bytes: bytes) -> float:
+    def _estimate_duration(audio_bytes: bytes, sample_rate: int = 22050) -> float:
         """Estimate audio duration from WAV bytes.
 
         Args:
             audio_bytes: WAV audio bytes.
+            sample_rate: Fallback sample rate to assume if the WAV header
+                can't be parsed — FIX: previously hardcoded to 22050 even
+                when the actual configured/synthesized rate (e.g. Kokoro's
+                24000Hz) was different, which would silently under- or
+                over-estimate duration whenever header parsing failed.
 
         Returns:
             Duration in seconds.
@@ -924,13 +1065,15 @@ class TTSManager:
         except Exception:
             header_size = 44
             data_size = max(0, len(audio_bytes) - header_size)
-            return data_size / (22050 * 2)
+            bytes_per_sample = 2  # 16-bit PCM, mono
+            return data_size / (sample_rate * bytes_per_sample)
 
     @staticmethod
     def _silence_result(
         text: str,
         voice_profile: VoiceProfile,
         speech_rate: float,
+        sample_rate: int = 22050,
     ) -> SynthesisResult:
         """Return a silence SynthesisResult (no backend available).
 
@@ -938,16 +1081,17 @@ class TTSManager:
             text: Original text.
             voice_profile: Voice profile.
             speech_rate: Speech rate.
+            sample_rate: Output sample rate (see `_build_result` FIX note).
 
         Returns:
             :class:`SynthesisResult` with silence audio.
 
         """
-        audio_bytes = _DesktopTTSBackend._silence_bytes(text)
+        audio_bytes = _DesktopTTSBackend._silence_bytes(text, sample_rate)
         return SynthesisResult(
             audio_bytes=audio_bytes,
-            sample_rate=22050,
-            duration_seconds=TTSManager._estimate_duration(audio_bytes),
+            sample_rate=sample_rate,
+            duration_seconds=TTSManager._estimate_duration(audio_bytes, sample_rate),
             text=text,
             voice_profile=voice_profile,
             speech_rate=speech_rate,
