@@ -33,10 +33,10 @@ try:
     GIT_AVAILABLE = True
 except ImportError:
     GIT_AVAILABLE = False
-    git = None
-    Repo = None
-    GitCommandError = Exception
-    InvalidGitRepositoryError = Exception
+    git = None  # type: ignore[assignment]
+    Repo = None  # type: ignore[assignment,misc]
+    GitCommandError = Exception  # type: ignore[assignment,misc]
+    InvalidGitRepositoryError = Exception  # type: ignore[assignment,misc]
 
 
 logger = logging.getLogger(__name__)
@@ -142,7 +142,7 @@ class GitIntegration:
 
         # Initialize repository
         try:
-            self.repo = Repo(self.repo_path)
+            self.repo = Repo(self.repo_path)  # type: ignore[misc]  # guarded by GIT_AVAILABLE check above
         except InvalidGitRepositoryError as e:
             msg = f"Path {repo_path} is not a valid Git repository"
             raise InvalidGitRepositoryError(
