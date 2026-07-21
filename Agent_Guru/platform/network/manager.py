@@ -658,80 +658,109 @@ class NetworkManager:
             msg = "NetworkManager not started - call start() first"
             raise NetworkError(msg)
 
-        # Validate URL
         parsed_url = urlparse(url)
         if not parsed_url.scheme or not parsed_url.netloc:
             msg = f"Invalid URL: {url}"
             raise ValueError(msg)
 
-        # Check cache for GET requests (only cacheable method)
-        if use_cache and method == HttpMethod.GET and self._cache is not None:
-            cached = await self._cache.get(url, method.value, headers)
-            if cached is not None:
-                # Return cached response
-                return HttpResponse(
-                    status_code=cached.status_code,
-                    headers=cached.headers,
-                    body=cached.body,
-                    response_time=0.0,  # Instant from cache
-                    from_cache=True,
-                    url=cached.url,
-                    method=cached.method,
-                )
+        # Check cache for GET requests
+        cached = await self._check_cache(method, url, headers, use_cache)
+        if cached is not None:
+            return cached
 
-        # Extract service name for rate limiting
+        # Rate limiting
         service = self._extract_service_name(url)
+        await self._acquire_rate_limit(service, timeout)
 
-        # Check rate limit
-        if self._rate_limiter is not None:
-            try:
-                await self._rate_limiter.acquire(service, timeout=timeout)
-            except RateLimitExceeded as e:
-                # Rate limit exceeded - return 429 error
-                logger.exception(
-                    "Rate limit exceeded",
-                    extra={
-                        "service": service,
-                        "retry_after": e.retry_after,
-                    },
-                )
-                raise RateLimitError(service, e.retry_after) from e
         # Prepare request
         request_timeout = timeout if timeout is not None else self.config.default_timeout
         request_headers = headers.copy() if headers else {}
+        request_body = self._encode_body(body, request_headers)
 
-        # Handle body encoding
-        request_body = None
-        if body is not None:
-            if isinstance(body, dict):
-                # JSON body
-                import json
+        # Retry loop
+        return await self._execute_with_retries(
+            method, url, request_headers, request_body,
+            params, request_timeout, service, use_cache,
+        )
 
-                request_body = json.dumps(body).encode("utf-8")
-                request_headers.setdefault("Content-Type", "application/json")
-            elif isinstance(body, str):
-                request_body = body.encode("utf-8")
-            else:
-                request_body = body
+    # ------------------------------------------------------------------
+    # http_request helpers (extracted for complexity reduction)
+    # ------------------------------------------------------------------
 
-        # Retry loop with exponential backoff
+    async def _check_cache(
+        self, method: HttpMethod, url: str,
+        headers: dict[str, str] | None, use_cache: bool,
+    ) -> HttpResponse | None:
+        """Check cache for GET requests."""
+        if not (use_cache and method == HttpMethod.GET and self._cache is not None):
+            return None
+        cached = await self._cache.get(url, method.value, headers)
+        if cached is None:
+            return None
+        return HttpResponse(
+            status_code=cached.status_code,
+            headers=cached.headers,
+            body=cached.body,
+            response_time=0.0,
+            from_cache=True,
+            url=cached.url,
+            method=cached.method,
+        )
+
+    async def _acquire_rate_limit(self, service: str, timeout: float | None) -> None:
+        """Acquire rate limit slot, raising RateLimitError if exceeded."""
+        if self._rate_limiter is None:
+            return
+        try:
+            await self._rate_limiter.acquire(service, timeout=timeout)
+        except RateLimitExceeded as e:
+            logger.exception(
+                "Rate limit exceeded",
+                extra={"service": service, "retry_after": e.retry_after},
+            )
+            raise RateLimitError(service, e.retry_after) from e
+
+    @staticmethod
+    def _encode_body(
+        body: bytes | str | dict[str, Any] | None,
+        request_headers: dict[str, str],
+    ) -> bytes | None:
+        """Encode request body to bytes."""
+        if body is None:
+            return None
+        if isinstance(body, dict):
+            import json
+            request_headers.setdefault("Content-Type", "application/json")
+            return json.dumps(body).encode("utf-8")
+        if isinstance(body, str):
+            return body.encode("utf-8")
+        return body
+
+    async def _execute_with_retries(
+        self,
+        method: HttpMethod,
+        url: str,
+        request_headers: dict[str, str],
+        request_body: bytes | None,
+        params: dict[str, str] | None,
+        request_timeout: float,
+        service: str,
+        use_cache: bool,
+    ) -> HttpResponse:
+        """Execute HTTP request with exponential backoff retries."""
         last_exception = None
         for attempt in range(self.config.max_retries):
             start_time = time.perf_counter()
 
             try:
-                # Log request
                 logger.debug(
                     "HTTP request",
                     extra={
-                        "method": method.value,
-                        "url": url,
-                        "attempt": attempt + 1,
-                        "timeout": request_timeout,
+                        "method": method.value, "url": url,
+                        "attempt": attempt + 1, "timeout": request_timeout,
                     },
                 )
 
-                # Execute request
                 async with self._session.request(
                     method=method.value,
                     url=url,
@@ -741,19 +770,14 @@ class NetworkManager:
                     timeout=aiohttp.ClientTimeout(total=request_timeout),
                     allow_redirects=True,
                 ) as response:
-                    # Read response body
                     response_body = await response.read()
                     response_time = time.perf_counter() - start_time
 
-                    # Record connection activity
                     if self._pool_manager is not None:
                         await self._pool_manager.record_connection_activity(
-                            service,
-                            is_new=(attempt == 0),  # First attempt is new connection
-                            is_reused=(attempt > 0),  # Subsequent attempts reuse connection
+                            service, is_new=(attempt == 0), is_reused=(attempt > 0),
                         )
 
-                    # Create response object
                     http_response = HttpResponse(
                         status_code=response.status,
                         headers=dict(response.headers),
@@ -764,16 +788,11 @@ class NetworkManager:
                         method=method.value,
                     )
 
-                    # Handle 429 Rate Limit response
                     if response.status == 429:
                         retry_after = float(response.headers.get("Retry-After", 60))
                         logger.warning(
                             "Server returned 429 Rate Limit",
-                            extra={
-                                "service": service,
-                                "retry_after": retry_after,
-                                "url": url,
-                            },
+                            extra={"service": service, "retry_after": retry_after, "url": url},
                         )
                         raise RateLimitError(service, retry_after, status_code=429)
 
@@ -792,12 +811,10 @@ class NetworkManager:
                             method=method.value,
                         )
 
-                    # Log response
                     logger.info(
                         "HTTP response",
                         extra={
-                            "method": method.value,
-                            "url": url,
+                            "method": method.value, "url": url,
                             "status_code": response.status,
                             "response_time": response_time,
                             "body_size": len(response_body),
@@ -812,37 +829,26 @@ class NetworkManager:
                 logger.exception(
                     "Request timeout",
                     extra={
-                        "method": method.value,
-                        "url": url,
-                        "timeout": request_timeout,
-                        "attempt": attempt + 1,
+                        "method": method.value, "url": url,
+                        "timeout": request_timeout, "attempt": attempt + 1,
                     },
                 )
-                # SSL errors are not retryable
                 logger.exception(
                     "SSL validation failed",
-                    extra={
-                        "method": method.value,
-                        "url": url,
-                        "error": str(e),
-                    },
+                    extra={"method": method.value, "url": url, "error": str(e)},
                 )
                 msg = f"SSL certificate validation failed: {url}"
                 raise SSLValidationError(msg) from e
+
             # Exponential backoff before retry
             if attempt < self.config.max_retries - 1:
                 delay = self.config.retry_delay * (2**attempt)
                 logger.debug("Retrying in %ss...", delay)
                 await asyncio.sleep(delay)
 
-        # All retries exhausted
         logger.error(
             "Request failed after all retries",
-            extra={
-                "method": method.value,
-                "url": url,
-                "max_retries": self.config.max_retries,
-            },
+            extra={"method": method.value, "url": url, "max_retries": self.config.max_retries},
         )
         raise last_exception or NetworkError(f"Request failed: {url}")
 
