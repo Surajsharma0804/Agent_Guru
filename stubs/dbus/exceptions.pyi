@@ -1,0 +1,3 @@
+"""Type stubs for dbus.exceptions."""
+
+class DBusException(Exception): ...

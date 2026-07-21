@@ -1,0 +1,19 @@
+"""Type stubs for dbus (Linux-only D-Bus bindings)."""
+from typing import Any
+
+from dbus import exceptions as exceptions
+
+class Interface:
+    def __init__(self, object: Any, dbus_interface: str) -> None: ...
+    def __getattr__(self, name: str) -> Any: ...
+
+class SystemBus:
+    def get_object(self, bus_name: str, object_path: str) -> Any: ...
+
+class SessionBus:
+    def get_object(self, bus_name: str, object_path: str) -> Any: ...
+
+class Bus:
+    def get_object(self, bus_name: str, object_path: str) -> Any: ...
+
+class DBusException(Exception): ...

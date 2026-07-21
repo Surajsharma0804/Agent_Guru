@@ -1,0 +1,3 @@
+"""Type stubs for win32process (pywin32)."""
+
+def GetWindowThreadProcessId(hWnd: int) -> tuple[int, int]: ...
