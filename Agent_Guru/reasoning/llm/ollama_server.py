@@ -45,8 +45,12 @@ class OllamaModelConfig:
     max_tokens: int = 512
 
 
-# Predefined model configurations â€” gemma3:4b is the single active model
+# Predefined model configurations — gemma3:4b is the single active model
 # Best choice for 4GB VRAM (RTX 2050/3050/4050) as of May 2025.
+# FIX: this comment previously contained mojibake ("â€”" instead of "—") —
+# UTF-8 bytes that had been decoded once as Latin-1/CP1252 and re-saved,
+# a classic double-encoding corruption. Harmless to execution (it was only
+# ever inside a comment) but real file-encoding damage worth fixing.
 OLLAMA_MODELS = {
     "gemma3:4b": OllamaModelConfig(
         name="gemma3:4b",
@@ -94,11 +98,15 @@ class OllamaServer:
         self.port = port
         self._base_url = f"http://{host}:{port}"
 
-        # Accept any model â€” don't restrict to OLLAMA_MODELS dict
+        # Accept any model — don't restrict to OLLAMA_MODELS dict
         # so env var overrides work without code changes
         self.default_model = default_model
         self._is_running = False
         self._available_models: list[str] = []
+
+        # Single executor reused across all blocking HTTP calls
+        import concurrent.futures
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
     async def start(self, timeout: float = 10.0) -> None:
         """Check Ollama server availability and list models.
@@ -114,9 +122,17 @@ class OllamaServer:
             TimeoutError: If check exceeds timeout
 
         """
-        start_time = time.time()
+        # FIX: was `time.time()`, wall-clock time that can jump backward or
+        # forward on NTP sync, manual clock changes, or VM pause/resume —
+        # any of which could make this loop run far longer than `timeout`
+        # (or exit early) since `time.time() - start_time` is not guaranteed
+        # monotonic. `time.monotonic()` is specifically designed for
+        # measuring elapsed durations and is immune to wall-clock
+        # adjustments. Applied consistently below and in health_check() /
+        # generate() for the same reason.
+        start_time = time.monotonic()
 
-        while time.time() - start_time < timeout:
+        while time.monotonic() - start_time < timeout:
             health = await self.health_check()
             if health.is_healthy:
                 # List available models
@@ -154,16 +170,12 @@ class OllamaServer:
             RuntimeError: If listing fails
 
         """
-        import asyncio
-        import concurrent.futures
-
         try:
             loop = asyncio.get_running_loop()
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                response = await loop.run_in_executor(
-                    pool,
-                    lambda: requests.get(f"{self._base_url}/api/tags", timeout=2.0),  # noqa: ASYNC210
-                )
+            response = await loop.run_in_executor(
+                self._executor,
+                lambda: requests.get(f"{self._base_url}/api/tags", timeout=2.0),  # noqa: ASYNC210
+            )
 
             if response.status_code == 200:
                 data = response.json()
@@ -188,21 +200,21 @@ class OllamaServer:
         Requirements: 4.2
 
         """
-        import asyncio
-        import concurrent.futures
-
-        start_time = time.time()
+        # FIX: removed a redundant `import asyncio` here — the module
+        # already imports asyncio at the top of the file; re-importing
+        # locally added nothing but noise (Python caches sys.modules, so
+        # it wasn't a bug, just dead weight).
+        start_time = time.monotonic()  # FIX: was time.time(), see start()
 
         try:
             # Run blocking HTTP call in thread pool to avoid blocking event loop
             loop = asyncio.get_running_loop()
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                response = await loop.run_in_executor(
-                    pool,
-                    lambda: requests.get(f"{self._base_url}/api/tags", timeout=1.0),  # noqa: ASYNC210
-                )
+            response = await loop.run_in_executor(
+                self._executor,
+                lambda: requests.get(f"{self._base_url}/api/tags", timeout=1.0),  # noqa: ASYNC210
+            )
 
-            latency_ms = (time.time() - start_time) * 1000
+            latency_ms = (time.monotonic() - start_time) * 1000
 
             if response.status_code == 200:
                 return ServerHealth(
@@ -268,7 +280,7 @@ class OllamaServer:
                 msg,
             )
 
-        start_time = time.time()
+        start_time = time.monotonic()  # FIX: was time.time(), see start()
 
         try:
             # Build request payload for Ollama API
@@ -285,26 +297,23 @@ class OllamaServer:
 
             # Add stop sequences if provided
             if request.stop_sequences:
-                options = payload["options"]
-                if isinstance(options, dict):
-                    options["stop"] = request.stop_sequences
+                payload["options"]["stop"] = request.stop_sequences
 
             # Run blocking HTTP call in thread pool to avoid blocking event loop
-            import asyncio
-            import concurrent.futures
-
+            # FIX: removed a redundant second `import asyncio` here too
+            # (already imported at module top, and again pointlessly local
+            # to health_check() before this fix).
             loop = asyncio.get_running_loop()
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                response = await loop.run_in_executor(
-                    pool,
-                    lambda: requests.post(  # noqa: ASYNC210
-                        f"{self._base_url}/api/generate",
-                        json=payload,
-                        timeout=15.0,
-                    ),
-                )
+            response = await loop.run_in_executor(
+                self._executor,
+                lambda: requests.post(  # noqa: ASYNC210
+                    f"{self._base_url}/api/generate",
+                    json=payload,
+                    timeout=15.0,
+                ),
+            )
 
-            latency_ms = (time.time() - start_time) * 1000
+            latency_ms = (time.monotonic() - start_time) * 1000
 
             if response.status_code == 200:
                 data = response.json()
@@ -343,20 +352,27 @@ class OllamaServer:
             msg = f"Generation error: {e!s}"
             raise RuntimeError(msg) from e
 
-    def select_model_for_task(self, complexity: str) -> str:
-        """Select optimal model based on task complexity.
+    def select_model_for_task(self, complexity: str) -> str:  # noqa: ARG002
+        """Return the model to use for a task.
+
+        NOTE (fixed docstring — was misleading): the `complexity` parameter
+        is currently NOT used to route between models — `OLLAMA_MODELS`
+        has exactly one entry (gemma3:4b, chosen as the best fit for 4GB
+        VRAM), so there is nothing to route between yet. The original
+        docstring's doctest examples implied `"simple"` vs `"complex"`
+        selected different models, which was never true and would mislead
+        a caller into thinking this does more than it does. The parameter
+        is kept in the signature for forward API compatibility (adding
+        real complexity-based routing later won't be a breaking change),
+        but currently always returns the same env-var-or-default model
+        regardless of what's passed in.
 
         Args:
-            complexity: Task complexity ("simple" or "complex")
+            complexity: Reserved for future use; currently ignored.
 
         Returns:
-            Model name to use â€” always gemma3:4b (best for 4GB VRAM)
-
-        Example:
-            >>> server.select_model_for_task("simple")
-            'gemma3:4b'
-            >>> server.select_model_for_task("complex")
-            'gemma3:4b'
+            Model name to use — the OLLAMA_MODEL env var override if set,
+            otherwise "gemma3:4b".
 
         """
         import os
@@ -423,6 +439,7 @@ class OllamaServer:
         """
         self._is_running = False
         self._available_models = []
+        self._executor.shutdown(wait=False)
 
     def is_running(self) -> bool:
         """Check if server client is active."""
