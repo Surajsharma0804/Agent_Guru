@@ -311,7 +311,7 @@ class AgentOrchestrator:
             )
 
             if strategy:
-                return strategy.strategy_id
+                return str(strategy.strategy_id)
             return self.default_strategy
 
         except Exception:
@@ -454,7 +454,7 @@ class AgentOrchestrator:
             return response
         try:
             emotion_state = self.emotion_detector.detect(audio=audio, text=response)
-            return self.empathy_adapter.adapt_response(response, emotion_state)
+            return str(self.empathy_adapter.adapt_response(response, emotion_state))
         except Exception:
             logger.exception("Emotion adaptation failed")
             return response
