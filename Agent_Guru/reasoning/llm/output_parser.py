@@ -487,76 +487,100 @@ Please generate a corrected Task object:
             ['task_type must be one of: single_step, multi_step, conversational, memory_query']
 
         """
-        errors = []
+        errors: list[str] = []
 
-        # Check required fields
-        required_fields = [
-            "goal",
-            "task_type",
-            "steps",
-            "confidence",
-            "requires_confirmation",
-            "estimated_duration",
-        ]
-        for field in required_fields:
-            if field not in task_dict:
-                errors.append(f"Missing required field: {field}")
-
-        # Validate task_type
-        if "task_type" in task_dict:
-            valid_types = [t.value for t in TaskType]
-            if task_dict["task_type"] not in valid_types:
-                errors.append(
-                    f"task_type must be one of: {', '.join(valid_types)}, "
-                    f"got {task_dict['task_type']}",
-                )
-
-        # Validate steps
-        if "steps" in task_dict:
-            steps = task_dict["steps"]
-            if not isinstance(steps, list):
-                errors.append("steps must be a list")
-            elif len(steps) == 0:
-                errors.append("steps must contain at least one step")
-            elif len(steps) > 5:
-                errors.append(f"steps cannot contain more than 5 steps, got {len(steps)}")
-            else:
-                # Validate each step
-                for i, step in enumerate(steps):
-                    if not isinstance(step, dict):
-                        errors.append(f"Step {i + 1} must be a dictionary")
-                        continue
-
-                    # Check required step fields
-                    step_required = ["step_id", "description", "tool_id", "parameters"]
-                    for field in step_required:
-                        if field not in step:
-                            errors.append(f"Step {i + 1} missing required field: {field}")
-
-                    # Validate step_id
-                    if "step_id" in step and step["step_id"] != i + 1:
-                        errors.append(
-                            f"Step {i + 1} has incorrect step_id: {step['step_id']} "
-                            f"(expected {i + 1})",
-                        )
-
-        # Validate confidence
-        if "confidence" in task_dict:
-            conf = task_dict["confidence"]
-            if not isinstance(conf, (int, float)):
-                errors.append("confidence must be a number")
-            elif not 0.0 <= conf <= 1.0:
-                errors.append(f"confidence must be 0.0-1.0, got {conf}")
-
-        # Validate estimated_duration
-        if "estimated_duration" in task_dict:
-            duration = task_dict["estimated_duration"]
-            if not isinstance(duration, (int, float)):
-                errors.append("estimated_duration must be a number")
-            elif duration <= 0:
-                errors.append(f"estimated_duration must be positive, got {duration}")
+        errors.extend(self._validate_required_fields(task_dict))
+        errors.extend(self._validate_task_type(task_dict))
+        errors.extend(self._validate_steps(task_dict))
+        errors.extend(self._validate_confidence(task_dict))
+        errors.extend(self._validate_duration(task_dict))
 
         return errors
+
+    # ------------------------------------------------------------------
+    # validate_schema helpers (extracted for complexity reduction)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _validate_required_fields(task_dict: dict[str, Any]) -> list[str]:
+        """Check that all required fields are present."""
+        required_fields = [
+            "goal", "task_type", "steps",
+            "confidence", "requires_confirmation", "estimated_duration",
+        ]
+        return [
+            f"Missing required field: {field}"
+            for field in required_fields
+            if field not in task_dict
+        ]
+
+    @staticmethod
+    def _validate_task_type(task_dict: dict[str, Any]) -> list[str]:
+        """Validate the task_type value."""
+        if "task_type" not in task_dict:
+            return []
+        valid_types = [t.value for t in TaskType]
+        if task_dict["task_type"] not in valid_types:
+            return [
+                f"task_type must be one of: {', '.join(valid_types)}, "
+                f"got {task_dict['task_type']}",
+            ]
+        return []
+
+    @staticmethod
+    def _validate_steps(task_dict: dict[str, Any]) -> list[str]:
+        """Validate the steps field structure and contents."""
+        if "steps" not in task_dict:
+            return []
+
+        errors: list[str] = []
+        steps = task_dict["steps"]
+        if not isinstance(steps, list):
+            return ["steps must be a list"]
+        if len(steps) == 0:
+            return ["steps must contain at least one step"]
+        if len(steps) > 5:
+            return [f"steps cannot contain more than 5 steps, got {len(steps)}"]
+
+        step_required = ["step_id", "description", "tool_id", "parameters"]
+        for i, step in enumerate(steps):
+            if not isinstance(step, dict):
+                errors.append(f"Step {i + 1} must be a dictionary")
+                continue
+            for field in step_required:
+                if field not in step:
+                    errors.append(f"Step {i + 1} missing required field: {field}")
+            if "step_id" in step and step["step_id"] != i + 1:
+                errors.append(
+                    f"Step {i + 1} has incorrect step_id: {step['step_id']} "
+                    f"(expected {i + 1})",
+                )
+        return errors
+
+    @staticmethod
+    def _validate_confidence(task_dict: dict[str, Any]) -> list[str]:
+        """Validate confidence value."""
+        if "confidence" not in task_dict:
+            return []
+        conf = task_dict["confidence"]
+        if not isinstance(conf, (int, float)):
+            return ["confidence must be a number"]
+        if not 0.0 <= conf <= 1.0:
+            return [f"confidence must be 0.0-1.0, got {conf}"]
+        return []
+
+    @staticmethod
+    def _validate_duration(task_dict: dict[str, Any]) -> list[str]:
+        """Validate estimated_duration value."""
+        if "estimated_duration" not in task_dict:
+            return []
+        duration = task_dict["estimated_duration"]
+        if not isinstance(duration, (int, float)):
+            return ["estimated_duration must be a number"]
+        if duration <= 0:
+            return [f"estimated_duration must be positive, got {duration}"]
+        return []
+
 
 
 # Convenience function for quick parsing
