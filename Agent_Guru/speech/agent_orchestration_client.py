@@ -141,12 +141,15 @@ class AgentOrchestrationClient:
                 id=f"speech_{command.action_id}_{id(command)}",
                 description=f"Voice command: {command.action_id}",
                 task_type=command.action_id or "UNKNOWN",
-                parameters={
+                requirements={
                     "action_id": command.action_id,
                     "parameters": command.parameters,
                     "raw_text": command.raw_text,
                     "user_id": user_id,
                 },
+                success_criteria=["command_executed"],
+                priority=5,
+                dependencies=[],
             )
         except Exception:
             # Fallback: simple namespace
