@@ -32,6 +32,9 @@ from datetime import UTC, datetime
 # Load modules directly
 def load_module(module_path, module_name):
     spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        msg = f"Cannot load module {module_name} from {module_path}"
+        raise ImportError(msg)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -55,6 +58,43 @@ scenarios_path = os.path.join(base_dir, "benchmarks", "test_scenarios.py")
 scenarios_module = load_module(scenarios_path, "test_scenarios")
 get_all_scenarios = scenarios_module.get_all_scenarios
 TestScenario = scenarios_module.TestScenario
+
+
+def _safe_percent_change(baseline: float, final: float, *, higher_is_better: bool = True) -> float:
+    """Percent change from baseline to final — safe when baseline is 0.
+
+    FIX: the original inline formulas (`((final - baseline) / baseline) *
+    100` for success rate and reasoning quality, and the numerator-reversed
+    `((baseline - final) / baseline) * 100` for execution time, since lower
+    time is the improvement) crash with ZeroDivisionError whenever a
+    baseline metric is exactly 0.0. That's not a theoretical edge case
+    here: baseline_success_rate is computed from only the first 10 tasks,
+    and TaskExecutor._calculate_success_probability() clamps per-task
+    success probability to a minimum of 30% — meaning there's a real,
+    non-trivial ~2.8% chance ((1-0.3)^10) that all 10 baseline tasks fail
+    simply by bad luck, which would crash this entire 100-task validation
+    run (and, per this module's own docstring, its automatic GitHub
+    commit) on pure chance. Verified the crash concretely before fixing.
+
+    Args:
+        baseline: Baseline metric value.
+        final: Final metric value.
+        higher_is_better: True for metrics like success rate/reasoning
+            quality (final > baseline = improvement); False for metrics
+            like execution time (final < baseline = improvement), matching
+            the original formula's reversed numerator for that case.
+
+    Convention when baseline is 0: if final also stayed at 0, report 0%
+    change (nothing changed). Otherwise report the maximum-magnitude
+    improvement/regression (+100% or -100%, sign per higher_is_better)
+    rather than a mathematically undefined infinite value.
+    """
+    if baseline == 0:
+        if final == 0:
+            return 0.0
+        return 100.0 if higher_is_better else -100.0
+    change = ((final - baseline) / baseline) * 100
+    return change if higher_is_better else -change
 
 
 @dataclass
@@ -165,9 +205,6 @@ class TaskExecutor:
         scenario = self.scenarios[self.scenario_index % len(self.scenarios)]
         self.scenario_index += 1
 
-        # Simulate task execution
-        start_time = time.time()
-
         # Determine success based on:
         # 1. Task difficulty
         # 2. Strategy effectiveness
@@ -197,8 +234,6 @@ class TaskExecutor:
 
         # Simulate hallucination detection (decreases with learning)
         hallucination_detected = self._calculate_hallucination(task_number, success)
-
-        (time.time() - start_time) * 1000
 
         # Create task result
         task_id = f"task_{task_number:03d}_{int(time.time() * 1000)}"
@@ -335,14 +370,36 @@ def run_100_task_cycle(
         ValidationReport with comprehensive metrics
 
     """
-    # Create output directory
     os.makedirs(output_dir, exist_ok=True)  # noqa: PTH103
 
-    # Create database path
     timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
     db_path = os.path.join(output_dir, f"validation_{timestamp}.db")
 
-    # Initialize self-improvement engine
+    engine = _init_validation_engine(db_path, enable_git)
+    scenarios = get_all_scenarios()
+    executor = TaskExecutor(scenarios)
+
+    print(f"Running 100-task validation cycle -> {db_path}")
+
+    # Run task loop
+    all_results, failure_types, task_types, total_elapsed_time = _run_task_loop(
+        engine, executor,
+    )
+
+    # Compute metrics and build report
+    report = _build_report(
+        all_results, failure_types, task_types, total_elapsed_time, engine, db_path,
+    )
+
+    # Save results
+    _save_reports(output_dir, timestamp, all_results, report)
+
+    engine.close()
+    return report
+
+
+def _init_validation_engine(db_path: str, enable_git: bool) -> SelfImprovementEngine:
+    """Initialize engine and register strategies."""
     engine = SelfImprovementEngine(
         storage_path=db_path,
         improvement_threshold=0.15,
@@ -351,7 +408,6 @@ def run_100_task_cycle(
         git_repo_path="." if enable_git else None,
     )
 
-    # Register strategies
     strategies_to_register = [
         ("chain_of_thought", "Chain of Thought", "Step-by-step reasoning approach"),
         ("react", "ReAct", "Reasoning and acting in interleaved manner"),
@@ -361,7 +417,6 @@ def run_100_task_cycle(
     ]
 
     for strategy_id, name, description in strategies_to_register:
-        # Check if strategy already exists
         existing = engine.strategy_optimizer.get_strategy(strategy_id)
         if not existing:
             engine.strategy_optimizer.register_strategy(
@@ -369,67 +424,48 @@ def run_100_task_cycle(
                 name=name,
                 description=description,
                 task_types=[
-                    "reasoning",
-                    "calculation",
-                    "tool_usage",
-                    "error_recovery",
-                    "pattern_recognition",
+                    "reasoning", "calculation", "tool_usage",
+                    "error_recovery", "pattern_recognition",
                 ],
                 parameters={},
             )
 
-    # Load test scenarios
-    scenarios = get_all_scenarios()
+    return engine
 
-    # Initialize task executor
-    executor = TaskExecutor(scenarios)
 
-    # Track results
+def _run_task_loop(
+    engine: SelfImprovementEngine,
+    executor: TaskExecutor,
+) -> tuple[list[TaskResult], dict[str, int], dict[str, int], float]:
+    """Execute 100 tasks and collect results."""
     all_results: list[TaskResult] = []
     failure_types: dict[str, int] = {}
     task_types: dict[str, int] = {}
 
-    # Run 100 tasks
-
     total_start_time = time.time()
 
     for task_num in range(1, 101):
-        # Get optimal strategy from engine
         task_type = secrets.choice(executor.task_types)
         strategy = engine.get_optimal_strategy(task_type)
+        strategy_id = strategy.strategy_id if strategy else secrets.choice(executor.strategies)
 
-        if strategy:
-            strategy_id = strategy.strategy_id
-        else:
-            # Use random strategy if none recommended yet
-            strategy_id = secrets.choice(executor.strategies)
-
-        # Execute task
         result, success = executor.execute_task(task_num, strategy_id)
 
-        # Record in engine
         error_details = None
         if not success:
-            # Generate error details for failures
-            failure_type = secrets.choice(
-                [
-                    FailureType.REASONING_ERROR,
-                    FailureType.TOOL_ERROR,
-                    FailureType.HALLUCINATION,
-                ],
-            )
+            failure_type = secrets.choice([
+                FailureType.REASONING_ERROR,
+                FailureType.TOOL_ERROR,
+                FailureType.HALLUCINATION,
+            ])
             error_details = {
                 "type": failure_type.value,
                 "description": f"Simulated {failure_type.value}",
             }
-
-            # Track failure types
             failure_types[failure_type.value] = failure_types.get(failure_type.value, 0) + 1
 
-        # Track task types
         task_types[result.task_type] = task_types.get(result.task_type, 0) + 1
 
-        # Record in engine
         engine.record_task_execution(
             task_id=result.task_id,
             task_type=result.task_type,
@@ -446,51 +482,52 @@ def run_100_task_cycle(
             hallucination_detected=result.hallucination_detected,
         )
 
-        # Store result
         all_results.append(result)
 
-        # Progress indicator
         if task_num % 10 == 0:
             success_count = sum(1 for r in all_results if r.success)
-            (success_count / len(all_results)) * 100
+            pct = (success_count / len(all_results)) * 100
+            print(f"  [{task_num:3d}/100] running success rate: {pct:.1f}%")
 
     total_elapsed_time = (time.time() - total_start_time) * 1000
+    return all_results, failure_types, task_types, total_elapsed_time
 
-    # Calculate baseline metrics (first 10 tasks)
+
+def _build_report(
+    all_results: list[TaskResult],
+    failure_types: dict[str, int],
+    task_types: dict[str, int],
+    total_elapsed_time: float,
+    engine: SelfImprovementEngine,
+    db_path: str,
+) -> ValidationReport:
+    """Compute metrics and build the validation report."""
+    # Baseline (first 10) and final (last 10) metrics
     baseline_tasks = all_results[:10]
     baseline_success_rate = sum(1 for r in baseline_tasks if r.success) / len(baseline_tasks)
     baseline_avg_time = sum(r.execution_time_ms for r in baseline_tasks) / len(baseline_tasks)
     baseline_reasoning = sum(r.reasoning_quality for r in baseline_tasks) / len(baseline_tasks)
 
-    # Calculate final metrics (last 10 tasks)
     final_tasks = all_results[-10:]
     final_success_rate = sum(1 for r in final_tasks if r.success) / len(final_tasks)
     final_avg_time = sum(r.execution_time_ms for r in final_tasks) / len(final_tasks)
     final_reasoning = sum(r.reasoning_quality for r in final_tasks) / len(final_tasks)
 
-    # Calculate improvements
-    success_improvement = (
-        (final_success_rate - baseline_success_rate) / baseline_success_rate
-    ) * 100
-    time_improvement = ((baseline_avg_time - final_avg_time) / baseline_avg_time) * 100
-    reasoning_improvement = ((final_reasoning - baseline_reasoning) / baseline_reasoning) * 100
+    success_improvement = _safe_percent_change(baseline_success_rate, final_success_rate)
+    time_improvement = _safe_percent_change(baseline_avg_time, final_avg_time, higher_is_better=False)
+    reasoning_improvement = _safe_percent_change(baseline_reasoning, final_reasoning)
 
-    # Check if 15% target met
     meets_target = success_improvement >= 15.0
-
-    # Overall validation
     validation_passed = (
         meets_target
         and success_improvement > 0
         and (time_improvement > 0 or reasoning_improvement > 0)
     )
 
-    # Get engine metrics for statistical significance
     engine_metrics = engine.get_improvement_metrics()
     improvement_data = engine_metrics.get("improvement", {})
 
-    # Create validation report
-    report = ValidationReport(
+    return ValidationReport(
         total_tasks=len(all_results),
         successful_tasks=sum(1 for r in all_results if r.success),
         failed_tasks=sum(1 for r in all_results if not r.success),
@@ -515,24 +552,24 @@ def run_100_task_cycle(
         database_path=db_path,
     )
 
-    # Save detailed results
+
+def _save_reports(
+    output_dir: str,
+    timestamp: str,
+    all_results: list[TaskResult],
+    report: ValidationReport,
+) -> None:
+    """Save task results and validation report to disk."""
     results_file = os.path.join(output_dir, f"task_results_{timestamp}.json")
     with open(results_file, "w", encoding="utf-8") as f:
         json.dump([asdict(r) for r in all_results], f, indent=2)
 
-    # Save validation report
     report_file = os.path.join(output_dir, f"validation_report_{timestamp}.json")
     with open(report_file, "w", encoding="utf-8") as f:
         json.dump(asdict(report), f, indent=2)
 
-    # Generate markdown report
     markdown_file = os.path.join(output_dir, f"validation_report_{timestamp}.md")
     generate_markdown_report(report, all_results, markdown_file)
-
-    # Close engine
-    engine.close()
-
-    return report
 
 
 def generate_markdown_report(
@@ -682,10 +719,25 @@ def main() -> int:
     # Run validation
     report = run_100_task_cycle(output_dir=args.output_dir, enable_git=args.enable_git)
 
-    # Print final status
-
-    if report.validation_passed or not report.meets_15_percent_target:
-        pass
+    # FIX: this used to be
+    #     if report.validation_passed or not report.meets_15_percent_target:
+    #         pass
+    # — a comment saying "Print final status" followed by a no-op `pass` in
+    # both branches. Running this script produced ZERO console feedback
+    # about the actual validation outcome (only the JSON/markdown files
+    # written to disk carried any information) — a real usability gap for
+    # a script meant to be run interactively or watched in CI. Restored
+    # an actual summary print.
+    print()
+    print("=" * 60)
+    status = "PASSED" if report.validation_passed else "FAILED"
+    print(f"Validation {status}")
+    print(f"  Success rate improvement: {report.success_rate_improvement:+.1f}% "
+          f"(target: >=15.0%, met: {report.meets_15_percent_target})")
+    print(f"  Time improvement:         {report.time_improvement:+.1f}%")
+    print(f"  Reasoning improvement:    {report.reasoning_improvement:+.1f}%")
+    print(f"  Report: {report.database_path}")
+    print("=" * 60)
 
     return 0 if report.validation_passed else 1
 
