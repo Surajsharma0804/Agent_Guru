@@ -590,23 +590,10 @@ class MemoryRetriever:
             >>> print(f"Pruned {pruned} memories")
 
         """
-        # Validate parameters
-        if not 0.0 <= importance_threshold <= 1.0:
-            msg = f"importance_threshold must be 0.0-1.0, got {importance_threshold}"
-            raise ValueError(msg)
-        if not 0.0 <= protect_high_importance <= 1.0:
-            msg = f"protect_high_importance must be 0.0-1.0, got {protect_high_importance}"
-            raise ValueError(
-                msg,
-            )
-        if keep_minimum < 0:
-            msg = f"keep_minimum must be >= 0, got {keep_minimum}"
-            raise ValueError(msg)
-        if max_age_days is not None and max_age_days < 1:
-            msg = f"max_age_days must be >= 1, got {max_age_days}"
-            raise ValueError(msg)
+        self._validate_prune_params(
+            importance_threshold, protect_high_importance, keep_minimum, max_age_days,
+        )
 
-        # Get user's memories
         user_memories = [
             (memory_id, memory)
             for memory_id, memory in self.memories.items()
@@ -614,81 +601,104 @@ class MemoryRetriever:
         ]
 
         if len(user_memories) <= keep_minimum:
-            # Don't prune if below minimum
             return 0
 
-        # Compute importance scores
-        scored_memories: list[tuple[float, UUID, Memory]] = []
-        now = datetime.now(tz=UTC)
-
-        for memory_id, memory in user_memories:
-            importance = self.compute_importance_score(memory)
-            scored_memories.append((importance, memory_id, memory))
-
-        # Sort by importance (descending)
+        # Score and sort by importance
+        scored_memories = [
+            (self.compute_importance_score(m), mid, m) for mid, m in user_memories
+        ]
         scored_memories.sort(reverse=True, key=lambda x: x[0])
 
-        # Determine which memories to keep
-        to_keep: list[UUID] = []
-        to_remove: list[UUID] = []
+        # Apply retention policy
+        to_keep, to_remove = self._apply_retention_policy(
+            scored_memories, importance_threshold, max_age_days, protect_high_importance,
+        )
 
-        for importance, memory_id, memory in scored_memories:
-            # Always protect high-importance memories
-            if importance >= protect_high_importance:
-                to_keep.append(memory_id)
-                continue
+        # Enforce minimum
+        self._enforce_keep_minimum(to_keep, to_remove, keep_minimum)
 
-            # Check importance threshold first (before age)
-            if importance < importance_threshold:
-                to_remove.append(memory_id)
-                continue
-
-            # Check age limit (only for memories that passed importance check)
-            if max_age_days is not None:
-                age_days = (now - memory.timestamp).total_seconds() / 86400
-                if age_days > max_age_days:
-                    to_remove.append(memory_id)
-                    continue
-
-            # Keep this memory
-            to_keep.append(memory_id)
-
-        # Ensure we keep at least keep_minimum memories
-        if len(to_keep) < keep_minimum:
-            # Move some from to_remove back to to_keep (highest importance first)
-            needed = keep_minimum - len(to_keep)
-            if to_remove:
-                # Get importance scores for memories to remove
-                remove_scored = [
-                    (self.compute_importance_score(self.memories[mid]), mid) for mid in to_remove
-                ]
-                remove_scored.sort(reverse=True)
-
-                # Move highest-scoring memories back to keep
-                for _, memory_id in remove_scored[:needed]:
-                    to_keep.append(memory_id)
-                    to_remove.remove(memory_id)
-
-        # Remove memories
+        # Remove and rebuild
         for memory_id in to_remove:
             del self.memories[memory_id]
 
-        # Rebuild memory_ids — O(n) instead of O(n²) from list.remove()
         self.memory_ids = list(self.memories.keys())
 
-        # Rebuild embeddings array
         if self.memory_ids:
             self.embeddings = np.vstack(
                 [
                     np.array(self.memories[mid].embedding, dtype=np.float32)
                     for mid in self.memory_ids
-                    if mid in self.memories  # Safety check
+                    if mid in self.memories
                 ],
             )
         else:
             self.embeddings = None
 
         return len(to_remove)
+
+    @staticmethod
+    def _validate_prune_params(
+        importance_threshold: float,
+        protect_high_importance: float,
+        keep_minimum: int,
+        max_age_days: int | None,
+    ) -> None:
+        """Validate prune_memories parameters."""
+        if not 0.0 <= importance_threshold <= 1.0:
+            msg = f"importance_threshold must be 0.0-1.0, got {importance_threshold}"
+            raise ValueError(msg)
+        if not 0.0 <= protect_high_importance <= 1.0:
+            msg = f"protect_high_importance must be 0.0-1.0, got {protect_high_importance}"
+            raise ValueError(msg)
+        if keep_minimum < 0:
+            msg = f"keep_minimum must be >= 0, got {keep_minimum}"
+            raise ValueError(msg)
+        if max_age_days is not None and max_age_days < 1:
+            msg = f"max_age_days must be >= 1, got {max_age_days}"
+            raise ValueError(msg)
+
+    @staticmethod
+    def _apply_retention_policy(
+        scored_memories: list[tuple],
+        importance_threshold: float,
+        max_age_days: int | None,
+        protect_high_importance: float,
+    ) -> tuple[list, list]:
+        """Apply retention policy to scored memories."""
+        now = datetime.now(tz=UTC)
+        to_keep: list[UUID] = []
+        to_remove: list[UUID] = []
+
+        for importance, memory_id, memory in scored_memories:
+            if importance >= protect_high_importance:
+                to_keep.append(memory_id)
+            elif importance < importance_threshold:
+                to_remove.append(memory_id)
+            elif max_age_days is not None:
+                age_days = (now - memory.timestamp).total_seconds() / 86400
+                if age_days > max_age_days:
+                    to_remove.append(memory_id)
+                else:
+                    to_keep.append(memory_id)
+            else:
+                to_keep.append(memory_id)
+
+        return to_keep, to_remove
+
+    def _enforce_keep_minimum(
+        self, to_keep: list, to_remove: list, keep_minimum: int,
+    ) -> None:
+        """Ensure at least keep_minimum memories are kept."""
+        if len(to_keep) >= keep_minimum or not to_remove:
+            return
+        needed = keep_minimum - len(to_keep)
+        remove_scored = [
+            (self.compute_importance_score(self.memories[mid]), mid) for mid in to_remove
+        ]
+        remove_scored.sort(reverse=True)
+        for _, memory_id in remove_scored[:needed]:
+            to_keep.append(memory_id)
+            to_remove.remove(memory_id)
 
     def delete_memory(self, memory_id: UUID, user_id: str) -> bool:
         """Delete a specific memory (user control).
