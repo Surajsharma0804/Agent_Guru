@@ -13,6 +13,7 @@ Requirements: 4.2, 4.5
 """
 
 import asyncio
+import concurrent.futures
 import subprocess  # nosec B404
 import time
 from pathlib import Path
@@ -64,10 +65,17 @@ class LocalLLMServer:
         self._model_loaded = False
         self._base_url = f"http://{config.host}:{config.port}"
 
-        # Validate model file exists
-        if not Path(config.model_path).exists():
-            msg = f"Model file not found: {config.model_path}"
-            raise FileNotFoundError(msg)
+        # FIX: previously every health_check()/generate() call created a
+        # brand-new `ThreadPoolExecutor(max_workers=1)` via
+        # `with concurrent.futures.ThreadPoolExecutor(...) as pool:` and
+        # tore it down immediately after — real, avoidable thread-spawn
+        # overhead on every single call, including every health-check poll
+        # (this class's own `start()` polls health_check() in a loop every
+        # 0.5s until the server is ready, potentially dozens of times).
+        # One executor, built once, reused for the lifetime of this
+        # instance — same fix already applied to the sibling OllamaServer
+        # class for consistency.
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
     async def start(self, timeout: float = 60.0) -> None:
         """Start llama.cpp server process.
@@ -86,8 +94,16 @@ class LocalLLMServer:
         if self._is_running:
             return
 
-        # Build llama.cpp server command
-        cmd = self._build_server_command()
+        # FIX: _build_server_command() -> _detect_server_binary() ->
+        # _is_command_available() runs up to 3 synchronous
+        # `subprocess.run(..., timeout=1)` calls directly inside this
+        # `async def`, unwrapped — blocking the event loop for up to ~3
+        # seconds while probing for the llama.cpp binary (same bug class
+        # as the subprocess.run-inside-async-def issue already found and
+        # fixed elsewhere in reasoning/tools/system/*.py). Offloaded to a
+        # worker thread so probing for the binary can't stall any other
+        # concurrently-running asyncio task.
+        cmd = await asyncio.to_thread(self._build_server_command)
 
         # Start server process
         self.process = subprocess.Popen(  # nosec B603  # noqa: S603
@@ -97,9 +113,11 @@ class LocalLLMServer:
             text=True,
         )
 
-        # Wait for server to be ready
-        start_time = time.time()
-        while time.time() - start_time < timeout:
+        # FIX: was `time.time()` — see OllamaServer.start() for why
+        # `time.monotonic()` is the correct choice for measuring elapsed
+        # durations against a timeout (immune to wall-clock adjustments).
+        start_time = time.monotonic()
+        while time.monotonic() - start_time < timeout:
             health = await self.health_check()
             if health.is_healthy and health.model_loaded:
                 self._is_running = True
@@ -211,10 +229,8 @@ class LocalLLMServer:
         Requirements: 4.2
 
         """
-        import asyncio
-        import concurrent.futures
-
-        start_time = time.time()
+        # FIX: was time.time() — see start() above.
+        start_time = time.monotonic()
 
         try:
             # Check if process is running
@@ -228,15 +244,17 @@ class LocalLLMServer:
                     error_message="Server process not running",
                 )
 
-            # Run blocking HTTP call in thread pool to avoid blocking event loop
+            # Run blocking HTTP call in thread pool to avoid blocking event loop.
+            # FIX: reuses self._executor (built once in __init__) instead of
+            # creating and tearing down a new ThreadPoolExecutor on every call
+            # — see __init__ FIX note.
             loop = asyncio.get_running_loop()
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                response = await loop.run_in_executor(
-                    pool,
-                    lambda: requests.get(f"{self._base_url}/health", timeout=1.0),  # noqa: ASYNC210
-                )
+            response = await loop.run_in_executor(
+                self._executor,
+                lambda: requests.get(f"{self._base_url}/health", timeout=1.0),  # noqa: ASYNC210
+            )
 
-            latency_ms = (time.time() - start_time) * 1000
+            latency_ms = (time.monotonic() - start_time) * 1000
 
             if response.status_code == 200:
                 data = response.json()
@@ -288,7 +306,8 @@ class LocalLLMServer:
             msg = "Server not running. Call start() first."
             raise RuntimeError(msg)
 
-        start_time = time.time()
+        # FIX: was time.time() — see start() above.
+        start_time = time.monotonic()
 
         try:
             # Build request payload
@@ -301,22 +320,19 @@ class LocalLLMServer:
                 "stream": request.stream,
             }
 
-            # Run blocking HTTP call in thread pool to avoid blocking event loop
-            import asyncio
-            import concurrent.futures
-
+            # Run blocking HTTP call in thread pool to avoid blocking event loop.
+            # FIX: reuses self._executor — see __init__ FIX note.
             loop = asyncio.get_running_loop()
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                response = await loop.run_in_executor(
-                    pool,
-                    lambda: requests.post(  # noqa: ASYNC210
-                        f"{self._base_url}/completion",
-                        json=payload,
-                        timeout=10.0,
-                    ),
-                )
+            response = await loop.run_in_executor(
+                self._executor,
+                lambda: requests.post(  # noqa: ASYNC210
+                    f"{self._base_url}/completion",
+                    json=payload,
+                    timeout=10.0,
+                ),
+            )
 
-            latency_ms = (time.time() - start_time) * 1000
+            latency_ms = (time.monotonic() - start_time) * 1000
 
             if response.status_code == 200:
                 data = response.json()
@@ -347,12 +363,21 @@ class LocalLLMServer:
         if self.process:
             self.process.terminate()
             try:
-                self.process.wait(timeout=5.0)
+                # FIX: `self.process.wait(timeout=5.0)` is a blocking
+                # synchronous call — was executed directly inside this
+                # `async def`, able to stall the event loop for up to 5
+                # seconds waiting for the llama.cpp process to exit. Same
+                # blocking-call-in-async-def bug class as the subprocess
+                # fixes elsewhere in this codebase. Offloaded via
+                # asyncio.to_thread so a slow-to-terminate process can't
+                # freeze anything else running concurrently.
+                await asyncio.to_thread(self.process.wait, timeout=5.0)
             except subprocess.TimeoutExpired:
                 self.process.kill()
 
         self._is_running = False
         self._model_loaded = False
+        self._executor.shutdown(wait=False)
 
     def is_running(self) -> bool:
         """Check if server is running."""
