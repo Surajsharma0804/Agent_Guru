@@ -18,6 +18,7 @@ import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
 import numpy as np
 
@@ -73,7 +74,7 @@ class VoiceInteractionResult:
     response_text: str | None
     response_audio: np.ndarray | None
     personality: PersonalityType
-    context_id: str
+    context_id: str | None
     processing_time_ms: float
 
 
@@ -237,95 +238,21 @@ class SpeechEngine:
                 self._state = EngineState.PROCESSING
 
             # Step 1: Audio processing
-            if self.audio_processor is None:
-                msg = "Audio processor not initialized"
-                raise RuntimeError(msg)
-            if self.noise_cancellation is None:
-                msg = "Noise cancellation not initialized"
-                raise RuntimeError(msg)
-
-            processed_audio = await self.audio_processor.process_chunk(audio)
-            processed_audio = await self.noise_cancellation.reduce_noise(processed_audio)
+            processed_audio = await self._preprocess_audio(audio)
 
             # Step 2: Detect personality from wake word if not provided
-            if personality is None:
-                # Wake word detector has async detect() method
-                if self.wake_word_detector is None:
-                    personality = PersonalityType.GURU  # Default when not initialized
-                else:
-                    try:
-                        wake_word_result = await self.wake_word_detector.detect(processed_audio)
-                        if wake_word_result:
-                            personality = wake_word_result.personality
-                        else:
-                            personality = PersonalityType.GURU  # Default
-                    except Exception:
-                        personality = PersonalityType.GURU  # Default on error
-
+            personality = await self._resolve_personality(processed_audio, personality)
             self._current_personality = personality
 
-            # Step 3: Speech-to-text transcription
+            # Step 3-4: Transcription + emotion
             transcription = self.transcribe_with_personality(processed_audio, personality)
-
-            # Step 4: Emotion detection
             emotion = self.detect_emotion(processed_audio)
 
-            # Step 5: Command recognition
-            command = None
-            if transcription.text:
-                if self.command_parser is None:
-                    msg = "Command parser not initialized"
-                    raise RuntimeError(msg)
-                command = self.command_parser.interpret(transcription.text)
+            # Step 5: Command recognition + routing
+            command = await self._process_command(transcription)
 
-            # Step 5a: Route command to agent orchestration
-            if command and command.is_command and self.agent_orchestration:
-                try:
-                    await self.agent_orchestration.route_command(command)
-                except Exception:
-                    self.logger.exception("Agent orchestration routing failed")
-
-            # Step 6: Context management
-            if self.context_manager is None:
-                msg = "Context manager not initialized"
-                raise RuntimeError(msg)
-
-            if self._current_context_id is None:
-                context_id, _ = self.context_manager.create_context(
-                    user_id="default_user",
-                    personality=personality,
-                )
-                self._current_context_id = context_id
-
-            self.context_manager.add_turn(
-                context_id=self._current_context_id,
-                speaker="user",
-                text=transcription.text,
-                emotion=emotion.primary_emotion,
-            )
-
-            # Step 6a: Store emotion state and conversation turn in memory
-            if self.memory_client:
-                try:
-                    await self.memory_client.store_emotion_state(
-                        user_id="default_user",
-                        emotion=emotion.primary_emotion,
-                        timestamp=datetime.now(tz=UTC),
-                        confidence=emotion.confidence,
-                    )
-                    await self.memory_client.store_conversation_turn(
-                        user_id="default_user",
-                        speaker="user",
-                        text=transcription.text,
-                        emotion=emotion.primary_emotion,
-                        personality=personality.value,
-                    )
-                except Exception:
-                    self.logger.exception("Memory storage failed")
-
-            # Step 7: Generate response (placeholder - would integrate with LLM)
-            response_text = None
-            response_audio = None
+            # Step 6: Context management + memory
+            await self._update_context(transcription, emotion, personality)
 
             processing_time = (time.time() - start_time) * 1000
 
@@ -336,8 +263,8 @@ class SpeechEngine:
                 transcription=transcription,
                 emotion=emotion,
                 command=command,
-                response_text=response_text,
-                response_audio=response_audio,
+                response_text=None,
+                response_audio=None,
                 personality=personality,
                 context_id=self._current_context_id,
                 processing_time_ms=processing_time,
@@ -362,6 +289,91 @@ class SpeechEngine:
 
             msg = f"Voice processing failed: {e}"
             raise GuruSpeechError(msg) from e
+
+    # ------------------------------------------------------------------
+    # process_voice_input helpers (extracted for complexity reduction)
+    # ------------------------------------------------------------------
+
+    async def _preprocess_audio(self, audio: np.ndarray) -> np.ndarray:
+        """Preprocess audio through processor and noise cancellation."""
+        if self.audio_processor is None:
+            msg = "Audio processor not initialized"
+            raise RuntimeError(msg)
+        if self.noise_cancellation is None:
+            msg = "Noise cancellation not initialized"
+            raise RuntimeError(msg)
+        processed = await self.audio_processor.process_chunk(audio)
+        return await self.noise_cancellation.reduce_noise(processed)
+
+    async def _resolve_personality(
+        self, audio: np.ndarray, personality: PersonalityType | None,
+    ) -> PersonalityType:
+        """Resolve personality from wake word detection if not provided."""
+        if personality is not None:
+            return personality
+        if self.wake_word_detector is None:
+            return PersonalityType.GURU
+        try:
+            wake_word_result = await self.wake_word_detector.detect(audio)
+            if wake_word_result:
+                return wake_word_result.personality
+        except Exception:  # nosec B110 — wake word detection failure is non-critical; default to GURU
+            pass
+        return PersonalityType.GURU
+
+    async def _process_command(self, transcription: Any) -> Any:
+        """Parse command from transcription and route to agent orchestration."""
+        if not transcription.text:
+            return None
+        if self.command_parser is None:
+            msg = "Command parser not initialized"
+            raise RuntimeError(msg)
+        command = self.command_parser.interpret(transcription.text)
+        if command and command.is_command and self.agent_orchestration:
+            try:
+                await self.agent_orchestration.route_command(command)
+            except Exception:
+                self.logger.exception("Agent orchestration routing failed")
+        return command
+
+    async def _update_context(
+        self, transcription: Any, emotion: Any, personality: PersonalityType,
+    ) -> None:
+        """Update conversation context and store to memory."""
+        if self.context_manager is None:
+            msg = "Context manager not initialized"
+            raise RuntimeError(msg)
+
+        if self._current_context_id is None:
+            context_id, _ = self.context_manager.create_context(
+                user_id="default_user", personality=personality,
+            )
+            self._current_context_id = context_id
+
+        self.context_manager.add_turn(
+            context_id=self._current_context_id,
+            speaker="user",
+            text=transcription.text,
+            emotion=emotion.primary_emotion,
+        )
+
+        if self.memory_client:
+            try:
+                await self.memory_client.store_emotion_state(
+                    user_id="default_user",
+                    emotion=emotion.primary_emotion,
+                    timestamp=datetime.now(tz=UTC),
+                    confidence=emotion.confidence,
+                )
+                await self.memory_client.store_conversation_turn(
+                    user_id="default_user",
+                    speaker="user",
+                    text=transcription.text,
+                    emotion=emotion.primary_emotion,
+                    personality=personality.value,
+                )
+            except Exception:
+                self.logger.exception("Memory storage failed")
 
     def transcribe(
         self,
