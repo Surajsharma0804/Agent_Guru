@@ -256,64 +256,83 @@ class DuplicateOperationDetector:
 
         """
         hasher = hashlib.sha256()
-
-        # Add operation type to hash
         hasher.update(operation.type.value.encode("utf-8"))
 
-        if operation.type == OperationType.FILE_WRITE:
-            if not operation.path or operation.content is None:
-                msg = "FILE_WRITE requires path and content"
-                raise ValueError(msg)
-            hasher.update(operation.path.encode("utf-8"))
-            hasher.update(operation.content)
+        _HASH_DISPATCH = {
+            OperationType.FILE_WRITE: self._hash_file_write,
+            OperationType.FILE_READ: self._hash_file_read,
+            OperationType.FILE_DELETE: self._hash_file_delete,
+            OperationType.COMMAND_EXECUTE: self._hash_command,
+            OperationType.NETWORK_REQUEST: self._hash_network,
+            OperationType.GIT_COMMIT: self._hash_git_commit,
+        }
 
-        elif operation.type == OperationType.FILE_READ:
-            if not operation.path:
-                msg = "FILE_READ requires path"
-                raise ValueError(msg)
-            hasher.update(operation.path.encode("utf-8"))
-
-        elif operation.type == OperationType.FILE_DELETE:
-            if not operation.path:
-                msg = "FILE_DELETE requires path"
-                raise ValueError(msg)
-            hasher.update(operation.path.encode("utf-8"))
-
-        elif operation.type == OperationType.COMMAND_EXECUTE:
-            if not operation.command:
-                msg = "COMMAND_EXECUTE requires command"
-                raise ValueError(msg)
-            hasher.update(operation.command.encode("utf-8"))
-            if operation.args:
-                for arg in operation.args:
-                    hasher.update(str(arg).encode("utf-8"))
-            if operation.env:
-                # Sort env vars for consistent hashing
-                for key in sorted(operation.env.keys()):
-                    hasher.update(f"{key}={operation.env[key]}".encode())
-
-        elif operation.type == OperationType.NETWORK_REQUEST:
-            if not operation.method or not operation.url:
-                msg = "NETWORK_REQUEST requires method and url"
-                raise ValueError(msg)
-            hasher.update(operation.method.encode("utf-8"))
-            hasher.update(operation.url.encode("utf-8"))
-            if operation.content:
-                hasher.update(operation.content)
-
-        elif operation.type == OperationType.GIT_COMMIT:
-            if not operation.path:  # path contains commit message
-                msg = "GIT_COMMIT requires path (commit message)"
-                raise ValueError(msg)
-            hasher.update(operation.path.encode("utf-8"))
-            if operation.content:  # content contains changed files
-                hasher.update(operation.content)
-
-        else:
+        handler = _HASH_DISPATCH.get(operation.type)
+        if handler is None:
             msg = f"Unknown operation type: {operation.type}"
             raise ValueError(msg)
 
+        handler(hasher, operation)
         return hasher.hexdigest()
+
+    # ------------------------------------------------------------------
+    # compute_fingerprint helpers (one per OperationType)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _hash_file_write(hasher: Any, op: Operation) -> None:
+        if not op.path or op.content is None:
+            msg = "FILE_WRITE requires path and content"
+            raise ValueError(msg)
+        hasher.update(op.path.encode("utf-8"))
+        hasher.update(op.content)
+
+    @staticmethod
+    def _hash_file_read(hasher: Any, op: Operation) -> None:
+        if not op.path:
+            msg = "FILE_READ requires path"
+            raise ValueError(msg)
+        hasher.update(op.path.encode("utf-8"))
+
+    @staticmethod
+    def _hash_file_delete(hasher: Any, op: Operation) -> None:
+        if not op.path:
+            msg = "FILE_DELETE requires path"
+            raise ValueError(msg)
+        hasher.update(op.path.encode("utf-8"))
+
+    @staticmethod
+    def _hash_command(hasher: Any, op: Operation) -> None:
+        if not op.command:
+            msg = "COMMAND_EXECUTE requires command"
+            raise ValueError(msg)
+        hasher.update(op.command.encode("utf-8"))
+        if op.args:
+            for arg in op.args:
+                hasher.update(str(arg).encode("utf-8"))
+        if op.env:
+            for key in sorted(op.env.keys()):
+                hasher.update(f"{key}={op.env[key]}".encode())
+
+    @staticmethod
+    def _hash_network(hasher: Any, op: Operation) -> None:
+        if not op.method or not op.url:
+            msg = "NETWORK_REQUEST requires method and url"
+            raise ValueError(msg)
+        hasher.update(op.method.encode("utf-8"))
+        hasher.update(op.url.encode("utf-8"))
+        if op.content:
+            hasher.update(op.content)
+
+    @staticmethod
+    def _hash_git_commit(hasher: Any, op: Operation) -> None:
+        if not op.path:
+            msg = "GIT_COMMIT requires path (commit message)"
+            raise ValueError(msg)
+        hasher.update(op.path.encode("utf-8"))
+        if op.content:
+            hasher.update(op.content)
+
 
     def is_duplicate(self, operation: Operation, fingerprint: str | None = None) -> bool:
         """Check if operation is duplicate of recent operation.
