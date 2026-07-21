@@ -363,7 +363,7 @@ class KokoroTTSEngine:
             _verify_hash(_VOICES_PATH, _VOICES_SHA256)
 
         try:
-            from kokoro_onnx import Kokoro  # type: ignore[import]
+            from kokoro_onnx import Kokoro
 
             self._kokoro = Kokoro(str(_MODEL_PATH), str(_VOICES_PATH))
             self._loaded = True
@@ -388,10 +388,10 @@ class _Pyttsx3Engine:
     def initialize(self) -> bool:
         """Initialize pyttsx3. Returns True on success."""
         try:
-            import pyttsx3  # type: ignore[import]
+            import pyttsx3
 
             engine = pyttsx3.init()
-            voices = engine.getProperty("voices") or []
+            voices: list[Any] = engine.getProperty("voices") or []
 
             for v in voices:
                 name = (v.name or "").lower()
@@ -623,7 +623,7 @@ def _coerce_personality(p: PersonalityType | str) -> PersonalityType:
     """Convert string ``"guru"``/``"maya"`` to :class:`PersonalityType`."""
     if isinstance(p, PersonalityType):
         return p
-    s = str(p).lower().strip()
+    s = p.lower().strip()
     if s == "guru":
         return PersonalityType.GURU
     if s == "maya":
