@@ -443,49 +443,52 @@ def build_companion_prompt(
         f"\n{user_facts.strip()}" if user_facts and user_facts.strip() else ""
     )
 
-    # FIX: knowledge cutoff used to be hardcoded to "early 2024" regardless
-    # of which model is actually configured (OLLAMA_MODEL can be gemma3:4b,
-    # Sarvam-M, Qwen3, etc., each with a different real cutoff). Asserting a
-    # specific wrong date makes the model either falsely disclaim knowledge
-    # it has, or falsely claim currency it doesn't. Pass the real cutoff for
-    # whichever model is configured; if unknown, hedge honestly instead.
+    context_block = _CONTEXT_BLOCK.format(
+        current_date=current_date or "unknown",
+        user_facts_block=user_facts_block,
+        knowledge_cutoff_line=_build_knowledge_cutoff_line(knowledge_cutoff),
+    )
+
+    return (
+        base
+        + context_block
+        + _build_nickname_block(nickname)
+        + _build_code_mixing_block(code_mixing)
+        + _build_emotion_block(emotion_hint, user_country)
+        + _build_guardrails_block(personality)
+    )
+
+
+def _build_knowledge_cutoff_line(knowledge_cutoff: str) -> str:
+    """Build the knowledge cutoff instruction line."""
     if knowledge_cutoff and knowledge_cutoff.strip():
-        knowledge_cutoff_line = (
+        return (
             f"Your knowledge has a cutoff around {knowledge_cutoff.strip()}. "
             "For questions about current events, recent leaders, or live "
             "information, share what you know and flag that details may "
             "have changed since then."
         )
-    else:
-        knowledge_cutoff_line = (
-            "Your knowledge has a cutoff at some point in the past, though "
-            "you're not certain exactly when. For questions about current "
-            "events, recent leaders, or live information, share what you "
-            "know but flag that it might be outdated rather than stating it "
-            "with full confidence."
-        )
-
-    context_block = _CONTEXT_BLOCK.format(
-        current_date=current_date or "unknown",
-        user_facts_block=user_facts_block,
-        knowledge_cutoff_line=knowledge_cutoff_line,
+    return (
+        "Your knowledge has a cutoff at some point in the past, though "
+        "you're not certain exactly when. For questions about current "
+        "events, recent leaders, or live information, share what you "
+        "know but flag that it might be outdated rather than stating it "
+        "with full confidence."
     )
 
-    # Nickname injection — explicit instruction to use the preferred name
-    nickname_block = ""
+
+def _build_nickname_block(nickname: str) -> str:
+    """Build nickname injection block."""
     if nickname and nickname.strip():
-        nickname_block = (
+        return (
             f"\n\nIMPORTANT: ALWAYS address the user as '{nickname.strip()}', "
             f"not by their full name. Use it naturally — like a friend would."
         )
+    return ""
 
-    # ── Code-mixing instruction — table-driven ────────────────────────────
-    # FIX: previously a single hardcoded if code_mixing == "english" branch.
-    # Now looks up _CODE_MIXING_TABLE so it generalizes to Urdu/Tamil/Telugu/
-    # Kannada/Bhojpuri/Kashmiri without touching this function again. Unknown
-    # values fall back to default Hinglish-on behavior (already in the base
-    # prompt text) rather than silently producing no instruction, or raising.
-    code_mixing_block = ""
+
+def _build_code_mixing_block(code_mixing: str) -> str:
+    """Build code-mixing instruction block (table-driven)."""
     _cm_key = (code_mixing or "hinglish").strip().lower()
     _cm_entry = _CODE_MIXING_TABLE.get(_cm_key)
     if _cm_entry is None:
@@ -493,87 +496,75 @@ def build_companion_prompt(
             "Unknown code_mixing value %r — falling back to default Hinglish behavior",
             code_mixing,
         )
-    elif _cm_entry["instruction"]:
-        code_mixing_block = "\n\n" + str(_cm_entry["instruction"])
+        return ""
+    if _cm_entry["instruction"]:
+        return "\n\n" + str(_cm_entry["instruction"])
+    return ""
 
-    # ── Crisis-tier resource — locale-aware ────────────────────────────────
-    # FIX: previously hardcoded to the US "988 Lifeline" regardless of who
-    # was actually talking. This product defaults to Hinglish-on and ships
-    # with Hindi/Urdu/Tamil/Telugu/Kannada/Bhojpuri support, so its likely
-    # audience skews Indian — a US-only number is actively unhelpful (and
-    # potentially harmful in a genuine crisis) for most of that audience.
-    # Resolved from user_country when known; defaults to India's national
-    # helplines when unknown (matching this product's evident audience,
-    # not a universal assumption); falls back to a country-agnostic
-    # instruction — no specific number asserted — when the country is
-    # neither known nor safely inferable as India/US.
-    #
-    # NOTE: KIRAN (1800-599-0019) and Tele MANAS (14416 / 1800-891-4416) are
-    # both current Indian government mental-health helplines as of this
-    # writing — verify they're still active before relying on them; helpline
-    # numbers do change over time.
+
+def _build_emotion_block(emotion_hint: str, user_country: str) -> str:
+    """Build 3-tier empathy-scaled emotion block with locale-aware crisis resources."""
+    if not emotion_hint or emotion_hint == "neutral":
+        return ""
+
+    hint_lower = emotion_hint.lower()
+
+    # Tier 3: Crisis response
+    crisis = {"distressed", "crying", "desperate", "hopeless", "suicidal"}
+    if hint_lower in crisis:
+        _crisis_resource = _resolve_crisis_resource(user_country)
+        return (
+            f"\n\nCRITICAL EMOTION DETECTED: '{emotion_hint}'. "
+            "The user may be in severe distress. Be DEEPLY present and caring. "
+            "Do NOT minimize or rush. Acknowledge their pain first. "
+            f"If they mention self-harm, gently suggest {_crisis_resource}. "
+            "Your only job right now is to make them feel heard and safe."
+        )
+
+    # Tier 2: Active support
+    active = {"frustrated", "angry", "anxious", "sad", "stressed"}
+    if hint_lower in active:
+        return (
+            f"\n\nEMOTION DETECTED: '{emotion_hint}'. "
+            "The user needs active support. Acknowledge their feeling FIRST "
+            "before addressing anything else. Use a softer, slower pace. "
+            "Don't try to 'fix' things immediately — let them vent."
+        )
+
+    # Tier 1: Mild concern
+    return (
+        f"\n\nEMOTION DETECTED: '{emotion_hint}'. "
+        "Adapt your tone slightly to match — acknowledge their feeling "
+        "naturally before continuing the conversation."
+    )
+
+
+def _resolve_crisis_resource(user_country: str) -> str:
+    """Resolve locale-appropriate crisis helpline resource."""
     _country = (user_country or "").strip().lower()
     if _country in ("us", "usa", "united states"):
-        _crisis_resource = "the 988 Suicide & Crisis Lifeline (call or text 988)"
-    elif _country in ("", "in", "india"):
-        _crisis_resource = (
+        return "the 988 Suicide & Crisis Lifeline (call or text 988)"
+    if _country in ("", "in", "india"):
+        return (
             "India's KIRAN mental health helpline (1800-599-0019, toll-free, "
             "24/7, available in 13 languages) or Tele MANAS (14416 / "
             "1800-891-4416)"
         )
-    else:
-        _crisis_resource = (
-            "a crisis helpline or mental health professional in their "
-            "country — without guessing at a specific number that may not "
-            "be current for where they are"
-        )
+    return (
+        "a crisis helpline or mental health professional in their "
+        "country — without guessing at a specific number that may not "
+        "be current for where they are"
+    )
 
-    # P2-71: 3-tier empathy scaling based on distress level
-    emotion_block = ""
-    if emotion_hint and emotion_hint != "neutral":
-        # Tier 1: Mild concern (curious, confused, bored) — handled by the else branch
-        # Tier 2: Active support (frustrated, angry, anxious, sad)
-        active = {"frustrated", "angry", "anxious", "sad", "stressed"}
-        # Tier 3: Crisis response (distressed, crying, desperate, hopeless)
-        crisis = {"distressed", "crying", "desperate", "hopeless", "suicidal"}
 
-        hint_lower = emotion_hint.lower()
-        if hint_lower in crisis:
-            emotion_block = (
-                f"\n\nCRITICAL EMOTION DETECTED: '{emotion_hint}'. "
-                "The user may be in severe distress. Be DEEPLY present and caring. "
-                "Do NOT minimize or rush. Acknowledge their pain first. "
-                f"If they mention self-harm, gently suggest {_crisis_resource}. "
-                "Your only job right now is to make them feel heard and safe."
-            )
-        elif hint_lower in active:
-            emotion_block = (
-                f"\n\nEMOTION DETECTED: '{emotion_hint}'. "
-                "The user needs active support. Acknowledge their feeling FIRST "
-                "before addressing anything else. Use a softer, slower pace. "
-                "Don't try to 'fix' things immediately — let them vent."
-            )
-        else:
-            emotion_block = (
-                f"\n\nEMOTION DETECTED: '{emotion_hint}'. "
-                "Adapt your tone slightly to match — acknowledge their feeling "
-                "naturally before continuing the conversation."
-            )
-
-    # ── Anti-manipulation guardrails ───────────────────────────────────────
-    # FIX: the exact-phrase blocklist now comes from _IDENTITY_ANCHORS
-    # (single source of truth) instead of being duplicated as a second
-    # hardcoded string here. _IDENTITY_ANCHORS previously defined this data
-    # but nothing ever read it — editing it silently changed nothing.
-    # Also broadened from "never say these 3 exact phrases" to a principle:
-    # a fixed phrase list is trivially worked around by saying the same
-    # manipulative thing in different words.
+def _build_guardrails_block(personality: str) -> str:
+    """Build anti-manipulation guardrails block."""
     _persona_key = personality.lower().strip()
     if _persona_key not in _IDENTITY_ANCHORS:
         _persona_key = "guru"
     _manipulation_phrases = _IDENTITY_ANCHORS[_persona_key]["forbidden_manipulation_phrases"]
     _phrase_list = ", ".join(f"'{p}'" for p in _manipulation_phrases)
-    guardrails = (
+    return (
         "\n\nETHICS: NEVER use guilt-tripping, FOMO, or needy language in ANY "
         f"phrasing — not just the exact examples {_phrase_list}, but the same "
         "sentiment said any other way too (e.g. implying you're lonely "
@@ -584,11 +575,3 @@ def build_companion_prompt(
         "people in their life."
     )
 
-    return (
-        base
-        + context_block
-        + nickname_block
-        + code_mixing_block
-        + emotion_block
-        + guardrails
-    )
