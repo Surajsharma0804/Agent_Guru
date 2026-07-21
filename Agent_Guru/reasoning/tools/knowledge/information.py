@@ -317,6 +317,24 @@ UNIT_CONVERSIONS = {
 class ConvertUnitsTool(Tool):
     """Tool for unit conversion."""
 
+    # Temperature conversion strategies keyed by (from_unit, to_unit)
+    _TEMP_CONVERTERS: dict[tuple[str, str], Any] = {
+        ("c", "f"): lambda v: (v * 9 / 5) + 32,
+        ("f", "c"): lambda v: (v - 32) * 5 / 9,
+        ("c", "k"): lambda v: v + 273.15,
+        ("k", "c"): lambda v: v - 273.15,
+        ("f", "k"): lambda v: (v - 32) * 5 / 9 + 273.15,
+        ("k", "f"): lambda v: (v - 273.15) * 9 / 5 + 32,
+    }
+
+    @staticmethod
+    def _find_unit_category(unit: str) -> str | None:
+        """Find the category for a given unit."""
+        for category, units in UNIT_CONVERSIONS.items():
+            if unit in units:
+                return category
+        return None
+
     async def execute(self, **kwargs: Any) -> dict[str, Any]:
         """Execute unit conversion.
 
@@ -334,55 +352,20 @@ class ConvertUnitsTool(Tool):
         to_unit = kwargs["to_unit"].lower()
 
         try:
-            # Find unit category
-            from_category = None
-            to_category = None
-
-            for category, units in UNIT_CONVERSIONS.items():
-                if from_unit in units:
-                    from_category = category
-                if to_unit in units:
-                    to_category = category
+            from_category = self._find_unit_category(from_unit)
+            to_category = self._find_unit_category(to_unit)
 
             if from_category is None:
-                return {
-                    "success": False,
-                    "error": f"Unknown source unit: {from_unit}",
-                }
-
+                return {"success": False, "error": f"Unknown source unit: {from_unit}"}
             if to_category is None:
-                return {
-                    "success": False,
-                    "error": f"Unknown target unit: {to_unit}",
-                }
-
+                return {"success": False, "error": f"Unknown target unit: {to_unit}"}
             if from_category != to_category:
                 return {
                     "success": False,
                     "error": f"Cannot convert between {from_category} and {to_category}",
                 }
 
-            # Handle temperature conversion (special case)
-            if from_category == "temperature":
-                if from_unit == "c" and to_unit == "f":
-                    result = (value * 9 / 5) + 32
-                elif from_unit == "f" and to_unit == "c":
-                    result = (value - 32) * 5 / 9
-                elif from_unit == "c" and to_unit == "k":
-                    result = value + 273.15
-                elif from_unit == "k" and to_unit == "c":
-                    result = value - 273.15
-                elif from_unit == "f" and to_unit == "k":
-                    result = (value - 32) * 5 / 9 + 273.15
-                elif from_unit == "k" and to_unit == "f":
-                    result = (value - 273.15) * 9 / 5 + 32
-                else:
-                    result = value  # Same unit
-            else:
-                # Standard conversion through base unit
-                from_factor = UNIT_CONVERSIONS[from_category][from_unit]
-                to_factor = UNIT_CONVERSIONS[to_category][to_unit]
-                result = value * from_factor / to_factor
+            result = self._convert(value, from_unit, to_unit, from_category)
 
             return {
                 "success": True,
@@ -396,7 +379,16 @@ class ConvertUnitsTool(Tool):
             }
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to convert units: {e!s}",
-            }
+            return {"success": False, "error": f"Failed to convert units: {e!s}"}
+
+    @classmethod
+    def _convert(cls, value: float, from_unit: str, to_unit: str, category: str) -> float:
+        """Perform the actual unit conversion."""
+        if category == "temperature":
+            converter = cls._TEMP_CONVERTERS.get((from_unit, to_unit))
+            return converter(value) if converter else value
+        # Standard conversion through base unit
+        from_factor = UNIT_CONVERSIONS[category][from_unit]
+        to_factor = UNIT_CONVERSIONS[category][to_unit]
+        return value * from_factor / to_factor
+
