@@ -15,6 +15,7 @@ import logging
 import threading
 import time
 import warnings
+from typing import Any
 
 import numpy as np
 
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 _EXTRACTION_TIMEOUT_S: float = 0.5
 
 try:
-    import cv2  # type: ignore[import-untyped]
+    import cv2
 
     _CV2_AVAILABLE = True
 except ImportError:  # pragma: no cover
@@ -78,7 +79,7 @@ def _decode_image(image_data: bytes) -> np.ndarray:
     if img is None:
         msg = "Failed to decode image — unsupported format or corrupt bytes"
         raise InvalidImageError(msg)
-    return img  # type: ignore[return-value]
+    return img
 
 
 def _stub_embedding(image_data: bytes) -> np.ndarray:
@@ -98,9 +99,9 @@ def _compute_quality(img: np.ndarray) -> FaceQuality:
         return FaceQuality(overall_score=0.8, sharpness=0.8, brightness=0.8, pose_score=0.8)
     grey = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     lap_var = float(cv2.Laplacian(grey, cv2.CV_64F).var())
-    sharpness = float(min(1.0, lap_var / 500.0))
+    sharpness = min(1.0, lap_var / 500.0)
     mean_brightness = float(grey.mean()) / 255.0
-    brightness = float(max(0.0, 1.0 - abs(mean_brightness - 0.5) * 2.0))
+    brightness = max(0.0, 1.0 - abs(mean_brightness - 0.5) * 2.0)
     overall = (sharpness + brightness) / 2.0
     return FaceQuality(
         overall_score=round(overall, 4),
@@ -261,7 +262,7 @@ class FaceFeatureExtractor:
 
         def _init() -> None:
             try:
-                from insightface.app import FaceAnalysis  # type: ignore[import-untyped]
+                from insightface.app import FaceAnalysis
 
                 ctx_id = 0 if self._use_gpu else -1
                 providers = ["CUDAExecutionProvider" if self._use_gpu else "CPUExecutionProvider"]
@@ -306,9 +307,9 @@ class FaceFeatureExtractor:
             detections = [FaceDetection(bounding_box=bbox, detection_confidence=0.5)]
         return detections
 
-    def _insightface_detect(self, img: np.ndarray, app: object) -> list[FaceDetection]:
+    def _insightface_detect(self, img: np.ndarray, app: Any) -> list[FaceDetection]:
         try:
-            faces = app.get(img)  # type: ignore[union-attr]
+            faces = app.get(img)
         except Exception as exc:
             msg = f"InsightFace detection failed: {exc}"
             raise FaceExtractionError(msg) from exc
@@ -317,9 +318,7 @@ class FaceFeatureExtractor:
             box = face.bbox.astype(int)
             x, y, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
             w, h = max(1, x2 - x), max(1, y2 - y)
-            conf = float(
-                max(0.0, min(1.0, float(face.det_score) if hasattr(face, "det_score") else 1.0)),
-            )
+            conf = max(0.0, min(1.0, float(face.det_score) if hasattr(face, "det_score") else 1.0))
             bbox = BoundingBox(x=x, y=y, width=w, height=h, confidence=conf)
             lm = np.array(face.kps, dtype=np.float32) if hasattr(face, "kps") else None
             results.append(
@@ -334,12 +333,12 @@ class FaceFeatureExtractor:
             return [FaceDetection(bounding_box=bbox, detection_confidence=0.5)]
         grey = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + "haarcascade_frontalface_default.xml",
+            str(cv2.data.haarcascades) + "haarcascade_frontalface_default.xml",  # type: ignore[attr-defined]
         )
         faces = cascade.detectMultiScale(grey, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
         results: list[FaceDetection] = []
         for x, y, w, h in faces:
-            bbox = BoundingBox(x=int(x), y=int(y), width=int(w), height=int(h), confidence=0.8)
+            bbox = BoundingBox(x=x, y=y, width=w, height=h, confidence=0.8)
             results.append(FaceDetection(bounding_box=bbox, detection_confidence=0.8))
         return results
 
@@ -356,10 +355,10 @@ class FaceFeatureExtractor:
     def _insightface_extract(
         self,
         img: np.ndarray,
-        app: object,
+        app: Any,
     ) -> tuple[np.ndarray, BoundingBox, bool, float]:
         try:
-            faces = app.get(img)  # type: ignore[union-attr]
+            faces = app.get(img)
         except Exception as exc:
             msg = f"InsightFace extraction failed: {exc}"
             raise FaceExtractionError(msg) from exc
@@ -380,9 +379,7 @@ class FaceFeatureExtractor:
         box = face.bbox.astype(int)
         x, y, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
         w, h = max(1, x2 - x), max(1, y2 - y)
-        conf = float(
-            max(0.0, min(1.0, float(face.det_score) if hasattr(face, "det_score") else 1.0)),
-        )
+        conf = max(0.0, min(1.0, float(face.det_score) if hasattr(face, "det_score") else 1.0))
         bbox = BoundingBox(x=x, y=y, width=w, height=h, confidence=conf)
         is_live, liveness_score = self._liveness_check(img, FaceDetection(bounding_box=bbox))
         return emb, bbox, is_live, liveness_score
@@ -426,7 +423,7 @@ class FaceFeatureExtractor:
                 return False, 0.0
             grey = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
             lap_var = float(cv2.Laplacian(grey, cv2.CV_64F).var())
-            score = float(min(1.0, lap_var / 200.0))
+            score = min(1.0, lap_var / 200.0)
             return score >= self.liveness_threshold, round(score, 4)
         except Exception:
             logger.exception("Liveness check failed — defaulting to not-live")
