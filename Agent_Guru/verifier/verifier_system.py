@@ -344,7 +344,27 @@ class VerifierSystem:
             except Exception:
                 text = ""
 
-        # Build coroutines for parallel execution
+        # Build and execute parallel tasks
+        tasks = self._build_verification_tasks(
+            text, context, expected_facts, expected_format, expected_schema,
+            raw_output, session_id, strategy,
+        )
+        results = await self._execute_tasks_parallel(tasks)
+
+        return self._assemble_verification_result(results, strategy, context_type)
+
+    def _build_verification_tasks(
+        self,
+        text: str,
+        context: dict[str, Any] | None,
+        expected_facts: list[str] | None,
+        expected_format: str | None,
+        expected_schema: dict[str, Any] | None,
+        raw_output: Any,
+        session_id: str | None,
+        strategy: Any,
+    ) -> dict[str, Any]:
+        """Build coroutines for parallel verification execution."""
         tasks: dict[str, Any] = {}
         loop = asyncio.get_running_loop()
 
@@ -356,7 +376,6 @@ class VerifierSystem:
             )
 
         if strategy.use_output_validation and self.config.enable_output_validation:
-            # Use raw_output if provided (e.g. dict/list), otherwise use text
             validate_target = raw_output if raw_output is not None else text
             _vt, _schema, _fmt = validate_target, expected_schema, expected_format
             tasks["validation"] = loop.run_in_executor(
@@ -371,33 +390,47 @@ class VerifierSystem:
                 lambda: self._loop_detector.record_state(_sid, _text2),
             )
 
-        # Await all tasks in parallel with per-task timeout
+        return tasks
+
+    async def _execute_tasks_parallel(self, tasks: dict[str, Any]) -> dict[str, Any]:
+        """Await all verification tasks in parallel with per-task timeout."""
         results: dict[str, Any] = {}
-        if tasks:
-            task_names = list(tasks.keys())
-            task_coros = list(tasks.values())
-            timeout_s = self.config.max_latency_ms / 1000.0
+        if not tasks:
+            return results
 
-            try:
-                completed = await asyncio.wait_for(
-                    asyncio.gather(*task_coros, return_exceptions=True),
-                    timeout=timeout_s,
-                )
-                for name, res in zip(task_names, completed, strict=False):
-                    if not isinstance(res, Exception):
-                        results[name] = res
-                    else:
-                        logger.warning(
-                            "Verification strategy '%s' failed (graceful degradation): %s",
-                            name,
-                            res,
-                        )
-            except TimeoutError:
-                logger.exception(
-                    "Verification timed out after %.0fms — returning degraded result",
-                    self.config.max_latency_ms,
-                )
+        task_names = list(tasks.keys())
+        task_coros = list(tasks.values())
+        timeout_s = self.config.max_latency_ms / 1000.0
 
+        try:
+            completed = await asyncio.wait_for(
+                asyncio.gather(*task_coros, return_exceptions=True),
+                timeout=timeout_s,
+            )
+            for name, res in zip(task_names, completed, strict=False):
+                if not isinstance(res, Exception):
+                    results[name] = res
+                else:
+                    logger.warning(
+                        "Verification strategy '%s' failed (graceful degradation): %s",
+                        name,
+                        res,
+                    )
+        except TimeoutError:
+            logger.exception(
+                "Verification timed out after %.0fms — returning degraded result",
+                self.config.max_latency_ms,
+            )
+
+        return results
+
+    def _assemble_verification_result(
+        self,
+        results: dict[str, Any],
+        strategy: Any,
+        context_type: str,
+    ) -> VerificationResult:
+        """Assemble the final VerificationResult from strategy results."""
         hallucination = results.get("hallucination")
         validation = results.get("validation")
         loop_detection = results.get("loop")
@@ -444,6 +477,7 @@ class VerifierSystem:
             feedback=feedback,
             metadata={"context_type": context_type},
         )
+
 
     def _determine_status(
         self,
