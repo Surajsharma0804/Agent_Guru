@@ -57,6 +57,7 @@ class TranscriptionResult:
     confidence: float
     segments: list[TranscriptionSegment] = field(default_factory=list)
     duration: float = 0.0
+    language_probability: float | None = None
 
 
 @dataclass
