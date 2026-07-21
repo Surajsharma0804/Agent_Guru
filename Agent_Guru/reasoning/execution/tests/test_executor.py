@@ -937,14 +937,20 @@ class TestExecutionResultStructureProperties:
         # Execute action
         result = executor.execute(action, failing_tool_function)
 
-        # Property assertions - required fields present
-        assert hasattr(result, "success"), "Result must have 'success' field"  # nosec B101
-        assert hasattr(result, "result_data"), "Result must have 'result_data' field"  # nosec B101
-        assert hasattr(result, "error"), "Result must have 'error' field"  # nosec B101
-        assert hasattr(result, "execution_time"), "Result must have 'execution_time' field"  # nosec B101
-        assert hasattr(result, "action_id"), "Result must have 'action_id' field"  # nosec B101
+        # Validate structure
+        self._assert_result_has_required_fields(result)
+        self._assert_result_field_types(result)
+        self._assert_failure_values(result, error_type, action_id)
 
-        # Property assertions - field types
+    @staticmethod
+    def _assert_result_has_required_fields(result):
+        """Validate required fields exist on the result."""
+        for field_name in ("success", "result_data", "error", "execution_time", "action_id"):
+            assert hasattr(result, field_name), f"Result must have '{field_name}' field"  # nosec B101
+
+    @staticmethod
+    def _assert_result_field_types(result):
+        """Validate field types on the result."""
         assert isinstance(result.success, bool), f"success must be bool, got {type(result.success)}"  # nosec B101
         assert isinstance(  # nosec B101
             result.execution_time, (int, float)
@@ -953,43 +959,33 @@ class TestExecutionResultStructureProperties:
             result.action_id, str
         ), f"action_id must be str, got {type(result.action_id)}"
 
-        # Property assertions - failure case values
+    @staticmethod
+    def _assert_failure_values(result, error_type, action_id):
+        """Validate failure-specific values and error structure."""
         assert result.success is False, "Failed execution should have success=False"  # nosec B101
         assert result.result_data is None, "Failed execution should have result_data=None"  # nosec B101
         assert result.error is not None, "Failed execution must have error information"  # nosec B101
         assert isinstance(result.error, dict), f"error must be dict, got {type(result.error)}"  # nosec B101
 
-        # Property assertions - error structure
+        # Error structure
         required_error_fields = ["error_code", "message", "details", "recoverable"]
         for field in required_error_fields:
             assert field in result.error, f"error must contain required field: {field}"  # nosec B101
 
-        # Property assertions - error field types
-        assert isinstance(  # nosec B101
-            result.error["error_code"], str
-        ), f"error_code must be str, got {type(result.error['error_code'])}"
-        assert isinstance(  # nosec B101
-            result.error["message"], str
-        ), f"error message must be str, got {type(result.error['message'])}"
-        assert isinstance(  # nosec B101
-            result.error["details"], dict
-        ), f"error details must be dict, got {type(result.error['details'])}"
-        assert isinstance(  # nosec B101
-            result.error["recoverable"], bool
-        ), f"error recoverable must be bool, got {type(result.error['recoverable'])}"
+        # Error field types
+        assert isinstance(result.error["error_code"], str), f"error_code must be str, got {type(result.error['error_code'])}"  # nosec B101
+        assert isinstance(result.error["message"], str), f"error message must be str, got {type(result.error['message'])}"  # nosec B101
+        assert isinstance(result.error["details"], dict), f"error details must be dict, got {type(result.error['details'])}"  # nosec B101
+        assert isinstance(result.error["recoverable"], bool), f"error recoverable must be bool, got {type(result.error['recoverable'])}"  # nosec B101
 
-        # Property assertions - error field values
+        # Error field values
         assert result.error["error_code"] == error_type.__name__, (  # nosec B101
             f"error_code should match exception type: expected {error_type.__name__}, "
             f"got {result.error['error_code']}"
         )
         assert len(result.error["message"]) > 0, "error message should not be empty"  # nosec B101
-        assert (  # nosec B101
-            result.execution_time > 0
-        ), f"execution_time should be positive, got {result.execution_time}"
-        assert (  # nosec B101
-            result.action_id == action_id
-        ), f"action_id should be preserved: expected {action_id}, got {result.action_id}"
+        assert result.execution_time > 0, f"execution_time should be positive, got {result.execution_time}"  # nosec B101
+        assert result.action_id == action_id, f"action_id should be preserved: expected {action_id}, got {result.action_id}"  # nosec B101
 
     @settings(max_examples=100, deadline=None)
     @given(
