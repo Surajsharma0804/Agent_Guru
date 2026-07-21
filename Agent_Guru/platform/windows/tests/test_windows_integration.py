@@ -7,6 +7,10 @@ import pytest
 import sys
 import winreg
 from unittest.mock import patch
+import logging
+
+logger = logging.getLogger(__name__)
+
 from Agent_Guru.platform.windows.integration import (
     WindowsIntegration,
     RegistryKeyNotFoundError,
@@ -103,7 +107,7 @@ class TestWindowsIntegration:
                     test_value
                 )
             except Exception as e:
-                _logger.warning("Suppressed exception: %s", e)
+                logger.warning("Suppressed exception: %s", e)
     
     def test_delete_registry_value_success(self):
         """Test successful registry value deletion."""
@@ -142,7 +146,7 @@ class TestWindowsIntegration:
             try:
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, test_key)
             except Exception as e:
-                _logger.warning("Suppressed exception: %s", e)
+                logger.warning("Suppressed exception: %s", e)
     
     def test_delete_registry_key_not_found(self):
         """Test deleting non-existent registry key."""
@@ -428,7 +432,7 @@ class TestWindowsIntegrationIntegration:
             try:
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, test_key)
             except Exception as e:
-                _logger.warning("Suppressed exception: %s", e)
+                logger.warning("Suppressed exception: %s", e)
     
     def test_process_lifecycle(self):
         """Test complete process lifecycle: start, query, terminate."""

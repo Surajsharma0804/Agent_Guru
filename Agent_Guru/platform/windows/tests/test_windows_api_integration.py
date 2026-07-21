@@ -8,6 +8,9 @@ import pytest
 import sys
 import winreg
 from Agent_Guru.platform.windows.integration import WindowsIntegration
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Skip all tests if not on Windows
@@ -93,7 +96,7 @@ class TestWindowsAPIIntegration:
                 )
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, test_key)
             except Exception as e:
-                _logger.warning("Suppressed exception: %s", e)
+                logger.warning("Suppressed exception: %s", e)
     
     def test_registry_nested_keys(self):
         """Test registry operations with nested keys."""
@@ -130,7 +133,7 @@ class TestWindowsAPIIntegration:
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, r"SOFTWARE\AgentGuruAPITest\Nested")
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, r"SOFTWARE\AgentGuruAPITest")
             except Exception as e:
-                _logger.warning("Suppressed exception: %s", e)
+                logger.warning("Suppressed exception: %s", e)
     
     def test_process_with_different_executables(self):
         """Test process management with different Windows executables."""
@@ -308,7 +311,7 @@ class TestWindowsAPIEdgeCases:
                 )
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, test_key)
             except Exception as e:
-                _logger.warning("Suppressed exception: %s", e)
+                logger.warning("Suppressed exception: %s", e)
     
     def test_process_with_long_arguments(self):
         """Test process creation with long argument lists."""
@@ -391,4 +394,4 @@ class TestWindowsAPIPerformance:
                     )
                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, test_key)
             except Exception as e:
-                _logger.warning("Suppressed exception: %s", e)
+                logger.warning("Suppressed exception: %s", e)
