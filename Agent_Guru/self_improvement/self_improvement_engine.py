@@ -141,6 +141,10 @@ class SelfImprovementEngine:
         self.performance_tracker = PerformanceTracker(self.pool)
         self.meta_learner = MetaLearner(storage_path)
 
+        # Conflict resolution
+        from Agent_Guru.self_improvement.conflict_resolution import ConflictResolver
+        self.conflict_resolver = ConflictResolver(self.pool)
+
         # Git integration (optional)
         self.git_integration = None
         if enable_git_commits and git_repo_path:
@@ -415,7 +419,7 @@ class SelfImprovementEngine:
             )
 
         # Build metrics dictionary
-        metrics = {
+        metrics: dict[str, Any] = {
             "success_rate": current.success_rate,
             "avg_execution_time_ms": current.avg_execution_time_ms,
             "avg_reasoning_quality": current.avg_reasoning_quality,
@@ -465,7 +469,7 @@ class SelfImprovementEngine:
         task_id = f"test_{int(time.time() * 1000000)}_{secrets.randbelow(9999 - 1000 + 1) + 1000}"
 
         # Create appropriate error details based on failure type
-        error_details = {"test": True, "context": context}
+        error_details: dict[str, Any] = {"test": True, "context": context}
 
         if failure_type == FailureType.REASONING_ERROR:
             error_details.update(
@@ -714,9 +718,8 @@ class SelfImprovementEngine:
 
         # Commit to Git
         try:
-            self.git_integration.commit_learning_data(
-                data=commit_data,
-                message=f"Task {execution.task_id}: {'Success' if execution.success else 'Failure'}",
+            self.git_integration.commit_execution_data(
+                execution=commit_data,
             )
         except Exception as e:
             logger.warning("Git commit failed for task %s: %s", execution.task_id, e)
@@ -737,7 +740,6 @@ class SelfImprovementEngine:
         try:
             self.git_integration.commit_improvement_report(
                 report=report,
-                message=f"Improvement Report: {report['total_tasks']} tasks completed",
             )
         except Exception as e:
             logger.warning("Git commit failed for improvement report: %s", e)
@@ -749,12 +751,7 @@ class SelfImprovementEngine:
 
         Time Complexity: O(1)
         """
-        # Close meta-learner first (it has its own connection)
-        if hasattr(self, "meta_learner") and self.meta_learner:
-            try:
-                self.meta_learner.close()
-            except Exception as e:
-                logger.warning("Error closing meta_learner: %s", e)
+        # Meta-learner uses context-managed sqlite3 connections (no close needed)
 
         # Close connection pool
         if hasattr(self, "pool") and self.pool:
