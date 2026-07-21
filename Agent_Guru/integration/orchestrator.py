@@ -50,7 +50,7 @@ from dataclasses import dataclass, field
 from datetime import UTC
 from enum import Enum
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from Agent_Guru.security.audit.logger import AuditLogger, EventType
 
@@ -524,68 +524,23 @@ class IntegrationOrchestrator:
 
         """
         result = PipelineResult()
-
-        # Personality routing — initial assignment from wake word
         result.personality = self._resolve_personality(wake_event.wake_word)
 
-        # ── Timing instrumentation ─────────────────────────────────────
         import time as _time
         _wake_timestamp = _time.perf_counter()
 
-        # FIX: import get_user_memory ONCE, unconditionally, here — rather
-        # than relying on it leaking out of the filler-playback try block
-        # below. If filler playback ever raised before that import line ran,
-        # every later block reusing the same name would NameError straight
-        # into its own broad except-clause: e.g. a taught reaction-rule would
-        # get saved with zero confirmation spoken back, silently.
         from Agent_Guru.platform.features.user_memory import get_user_memory as _get_um
 
-        # ── Filler response — play in the natural post-wake-word pause ──
-        # This is where Alexa/Google put their listening chime.
-        # Fires BEFORE STT starts, in the ~300ms pause after "Hey Guru".
-        #
-        # FIX: previously called `_filler_cache.play_filler(...)` directly —
-        # a BLOCKING call (it does sd.play(); sd.wait()) — straight from this
-        # `async def`, with no await and no thread offload. That froze the
-        # entire event loop, including any concurrently running vision
-        # pipeline task (see handle_concurrent_event's asyncio.gather), for
-        # the full ~300-500ms the filler clip played. Now uses
-        # play_filler_async(), which runs the blocking work in a worker
-        # thread via asyncio.to_thread() and is safe to await here.
-        #
-        # The lazy `_filler_cache.initialize()` call is also offloaded the
-        # same way — it does real model-loading disk I/O — and is kept only
-        # as a safety net; the cache is normally already warmed by
-        # startup()'s concurrent subsystem init (see _init_subsystem calls
-        # in startup()), so this branch should rarely trigger in practice.
-        try:
-            from Agent_Guru.speech.filler_response import get_filler_cache
+        # Filler response in the post-wake-word pause
+        await self._play_filler(result, _wake_timestamp, _get_um)
 
-            _filler_cache = get_filler_cache()
-            if not _filler_cache._initialized:
-                await asyncio.to_thread(_filler_cache.initialize)
-            _lang_pref = _get_um().get("code_mixing", "hinglish")
-            _persona_str = "maya" if result.personality == Personality.MAYA else "guru"
-            await _filler_cache.play_filler_async(
-                personality=_persona_str,
-                language_pref=_lang_pref,
-                wake_timestamp=_wake_timestamp,
-            )
-        except Exception as _filler_exc:
-            logger.debug("Filler playback skipped: %s", _filler_exc)
-
-        # Pipeline mode defaults to "full" until/unless speaker verification
-        # (below) downgrades it for this call. Stored on `result` (a fresh
-        # instance per invocation) — see the module docstring's concurrency
-        # note for why this must never live on `self`.
         _pipeline_mode = "full"
         result.pipeline_mode = _pipeline_mode
 
         try:
-            # Stage 1: STT — pass personality so Whisper uses the right voice profile
+            # Stage 1: STT
             result.transcript, result.detected_language = await self._stage_stt(
-                wake_event.audio,
-                result.personality,
+                wake_event.audio, result.personality,
             )
             result.stages_completed = 1
 
@@ -593,152 +548,24 @@ class IntegrationOrchestrator:
                 result.stages_completed = 8
                 return result
 
-            # ── Re-check personality from transcript (MOVED UP) ───────────
-            # FIX: this used to run AFTER the teaching-intent and reaction-
-            # rule early-return branches below. That meant a misheard wake
-            # word ("Hey Guru" instead of "Hey Maya") could speak an early-
-            # return response in the WRONG voice whenever this correction
-            # would have applied. Running it here means every branch below
-            # sees the corrected personality.
-            transcript_lower = result.transcript.lower().strip()
-            if any(kw in transcript_lower[:30] for kw in ("maya", "hey maya", "hi maya")):
-                if result.personality != Personality.MAYA:
-                    logger.info(
-                        "Personality corrected: transcript starts with 'Maya' — "
-                        "switching from GURU to MAYA",
-                    )
-                    result.personality = Personality.MAYA
-            elif any(kw in transcript_lower[:30] for kw in ("guru", "hey guru", "hi guru")):
-                if result.personality != Personality.GURU:
-                    logger.info(
-                        "Personality corrected: transcript starts with 'Guru' — "
-                        "switching from MAYA to GURU",
-                    )
-                    result.personality = Personality.GURU
+            # Re-check personality from transcript
+            self._correct_personality_from_transcript(result)
 
-            # ── Speaker verification (opt-in) ─────────────────────────────
-            # Only runs if a speaker profile has been enrolled.
-            # No profile → pipeline_mode stays "full" (day-one safe).
-            #
-            # FIX: previously this block set a LOCAL variable and the actual
-            # gates (in _execute_single_action) read getattr(self,
-            # "_pipeline_mode", "full") — but self._pipeline_mode was never
-            # assigned anywhere in this class, so that read always fell back
-            # to "full" regardless of what verification decided here. The
-            # restricted-mode security gate was therefore a no-op end to end.
-            # Now the outcome is written onto `result.pipeline_mode` and
-            # passed explicitly down the call chain instead.
-            try:
-                from Agent_Guru.speech.biometric.speaker_verifier import get_speaker_verifier
+            # Speaker verification (opt-in)
+            _pipeline_mode = self._verify_speaker(wake_event, result)
 
-                _verifier = get_speaker_verifier()
-                if _verifier.is_enrolled() and wake_event.audio is not None:
-                    _verify_result = _verifier.verify(wake_event.audio)
-                    _pipeline_mode = _verify_result.mode
-                    result.pipeline_mode = _pipeline_mode
-                    if _pipeline_mode == "restricted":
-                        logger.info(
-                            "Speaker verification: RESTRICTED mode (similarity=%.3f)",
-                            _verify_result.similarity,
-                        )
-            except Exception as _sv_exc:
-                logger.debug("Speaker verification skipped: %s", _sv_exc)
+            # Reaction-rule early returns
+            early_result = await self._check_reaction_rules(
+                result, _pipeline_mode, _wake_timestamp, _get_um,
+            )
+            if early_result is not None:
+                return early_result
 
-            # ── Reaction-rule teaching detection (anchor + connector) ──────
-            # Checked FIRST (more specific than generic "remember").
-            # Requires anchor phrase ("jab main bolu" / "when I say") + connector.
-            try:
-                from Agent_Guru.platform.features.reaction_rules import (
-                    extract_teaching_intent,
-                    get_reaction_rules,
-                )
-
-                if _pipeline_mode == "full":  # restricted mode: skip teaching
-                    _teaching = extract_teaching_intent(result.transcript)
-                    if _teaching is not None:
-                        _trigger, _response = _teaching
-                        _store = get_reaction_rules()
-
-                        # FIX: previously only intent_recognizer was passed as
-                        # a guard, so a taught rule could silently shadow a
-                        # built-in feature that lives outside
-                        # intent_recognizer._rule_engine entirely (morning
-                        # briefing / system status / reminders / dictation /
-                        # clipboard / screen-reading — see
-                        # reaction_rules.add_rule()'s docstring). Wire all six
-                        # matchers in as extra_guards so add_rule() can reject
-                        # a collision at teach-time instead of the taught rule
-                        # just silently winning later.
-                        _extra_guards: list[Callable[[str], bool]] = []
-                        try:
-                            from Agent_Guru.platform.features.briefing import is_briefing_command
-                            from Agent_Guru.platform.features.system_status import is_system_status_command
-                            from Agent_Guru.platform.features.reminders import parse_reminder_from_transcript
-                            from Agent_Guru.platform.features.dictation import (
-                                is_clipboard_command,
-                                is_dictation_command,
-                            )
-                            from Agent_Guru.platform.features.screen_reader import is_screen_read_command
-
-                            _extra_guards = [
-                                is_briefing_command,
-                                is_system_status_command,
-                                lambda t: bool(parse_reminder_from_transcript(t)),
-                                is_dictation_command,
-                                is_clipboard_command,
-                                is_screen_read_command,
-                            ]
-                        except Exception:
-                            logger.debug(
-                                "Could not import universal-feature matchers for "
-                                "reaction-rule guard — proceeding with "
-                                "intent_recognizer guard only",
-                                exc_info=True,
-                            )
-
-                        _ok, _msg = _store.add_rule(
-                            _trigger, _response,
-                            intent_recognizer=self._intent_recognizer,
-                            extra_guards=_extra_guards,
-                        )
-                        if _ok:
-                            _lang = _get_um().get("code_mixing", "hinglish")
-                            if _lang == "hinglish":
-                                result.llm_response = "done, yaad rakh liya!"
-                            else:
-                                result.llm_response = "got it, I'll remember that!"
-                        else:
-                            result.llm_response = _msg
-                        result.stages_completed = 8
-                        await self._stage_tts(result.llm_response, result.personality)
-                        logger.info(
-                            "TIMING: wake_to_first_tts_ms=%.1f (teaching-intent)",
-                            (_time.perf_counter() - _wake_timestamp) * 1000,
-                        )
-                        return result
-
-                # ── Reaction-rule matching (before intent dispatch) ─────────
-                _rule_response = get_reaction_rules().match(result.transcript)
-                if _rule_response is not None:
-                    result.llm_response = _rule_response
-                    result.stages_completed = 8
-                    await self._stage_tts(result.llm_response, result.personality)
-                    logger.info(
-                        "TIMING: wake_to_first_tts_ms=%.1f (reaction-rule)",
-                        (_time.perf_counter() - _wake_timestamp) * 1000,
-                    )
-                    return result
-            except Exception as _rr_exc:
-                logger.debug("Reaction rule check skipped: %s", _rr_exc)
-
-            # Stage 2: Memory context (fast, <50ms)
+            # Stage 2: Memory context
             result.memory_context = await self._stage_memory(result.transcript)
             result.stages_completed = 2
 
-            # Stage 3: Reasoning — hard 2s timeout guards against ReasoningEngine
-            # calling its own LLM (previously caused 5-25s latency spikes).
-            # If reasoning completes in time it enriches the LLM context;
-            # if it times out the pipeline continues with zero regression.
+            # Stage 3: Reasoning (2s timeout)
             try:
                 result.reasoning_output = await asyncio.wait_for(
                     self._stage_reasoning(result.transcript, result.memory_context),
@@ -752,131 +579,229 @@ class IntegrationOrchestrator:
                 result.reasoning_output = None
             result.stages_completed = 3
 
-            # ── FAST PATH: Detect intent BEFORE calling LLM ──────────────
-            # For system_control commands (open app, volume, screenshot, etc.)
-            # we can execute immediately without any LLM call.
-            # This brings response time from 17s → <1s for 80% of commands.
+            # Stage 5 (before 4): Intent detection — fast path
             result.intent = await self._stage_intent(result.transcript or "")
-            result.stages_completed = 5  # skip stage 4 for now
+            result.stages_completed = 5
 
-            # Determine if this intent needs an LLM response
+            # Stage 4: LLM inference (only if needed)
             needs_llm = self._intent_needs_llm(result.intent, result.transcript or "")
-
             if needs_llm:
-                # Stage 4: LLM inference — only for conversation/questions
                 result.llm_response = await self._stage_llm(
-                    result.transcript,
-                    result.memory_context,
-                    result.reasoning_output,
-                    result.detected_language,
+                    result.transcript, result.memory_context,
+                    result.reasoning_output, result.detected_language,
                     personality=result.personality,
                 )
-                result.stages_completed = 4
             else:
-                # Skip LLM — action confirmation will be the TTS text
                 result.llm_response = None
-                result.stages_completed = 4
+            result.stages_completed = 4
 
             # Stage 6: Policy check
             result.policy_allowed = await self._stage_policy(result.intent)
             result.stages_completed = 6
 
-            # Stage 7: Action execution (only if policy allows)
+            # Stage 7: Action execution
             if result.policy_allowed:
-                # FIX: pipeline_mode is passed explicitly here instead of
-                # being read back off `self` inside _execute_single_action.
                 result.action_result = await self._stage_action(
-                    result.intent,
-                    pipeline_mode=result.pipeline_mode,
+                    result.intent, pipeline_mode=result.pipeline_mode,
                 )
             result.stages_completed = 7
 
-            # Stage 8: TTS — speak action confirmation OR LLM response
-            # Priority: action_result (e.g. "Opening Chrome") > llm_response
-            tts_text = result.action_result or result.llm_response or ""
-            if not tts_text and result.transcript:
-                tts_text = "Done."
-
-            # Clipboard write-back: if user asked to fix/improve clipboard,
-            # write the LLM's corrected text back to clipboard automatically
-            if result.llm_response and result.transcript:
-                from Agent_Guru.platform.features.dictation import (
-                    get_clipboard_action,
-                    is_clipboard_command,
-                    set_clipboard_text,
-                )
-
-                if is_clipboard_command(result.transcript):
-                    action = get_clipboard_action(result.transcript)
-                    if action in ("fix", "summarize"):
-                        set_clipboard_text(result.llm_response)
-                        tts_text = (
-                            result.llm_response + " I've updated your clipboard with the result."
-                        )
-
-            result.tts_response = await self._stage_tts(str(tts_text), result.personality)
+            # Stage 8: TTS
+            tts_text = self._finalize_tts_text(result)
+            result.tts_response = await self._stage_tts(tts_text, result.personality)
             result.stages_completed = 8
 
-            # ── Track ALL interactions in chat history ─────────────────
-            # Commands AND conversations are part of the ongoing chat.
-            # Without this, the LLM forgets what it just did ("Opening Chrome")
-            # and can't follow up naturally.
+            # Track in chat history
             if result.transcript and tts_text:
                 self._chat_history.append({
-                    "role": "user",
-                    "content": result.transcript,
-                    "emotion": "neutral",
+                    "role": "user", "content": result.transcript, "emotion": "neutral",
                 })
                 self._chat_history.append({
-                    "role": "assistant",
-                    "content": str(tts_text),
+                    "role": "assistant", "content": tts_text,
                 })
 
-            # Audit log — record every pipeline execution
-            try:
-                self._audit_logger.log_event(
-                    event_type=EventType.POLICY_ALLOWED
-                    if result.policy_allowed
-                    else EventType.POLICY_VIOLATION,
-                    actor_id="guru_pipeline",
-                    target_id=result.intent or "",
-                    outcome="success",
-                    details={
-                        "stages_completed": result.stages_completed,
-                        "personality": result.personality.value,
-                        "transcript": result.transcript,
-                        "error": None,
-                    },
-                )
-            except Exception:
-                logger.exception("Audit log failed")
+            # Audit log
+            self._log_audit(result, outcome="success", error=None)
         except Exception as exc:
             result.error = str(exc)
             logger.exception("Pipeline error at stage %d", result.stages_completed + 1)
-            try:
-                # BUG-021: general pipeline errors (STT, LLM, network) were
-                # incorrectly logged as POLICY_VIOLATION, polluting security audit
-                # trails. Use POLICY_VIOLATION only for actual policy decisions.
-                # Fall back gracefully when SYSTEM_ERROR event type is not in the enum.
-                try:
-                    error_event = EventType.SYSTEM_ERROR  # type: ignore[attr-defined]
-                except AttributeError:
-                    error_event = EventType.POLICY_VIOLATION  # fallback if enum lacks SYSTEM_ERROR
-                self._audit_logger.log_event(
-                    event_type=error_event,
-                    actor_id="guru_pipeline",
-                    target_id=result.intent or "",
-                    outcome="failure",
-                    details={
-                        "stages_completed": result.stages_completed,
-                        "personality": result.personality.value,
-                        "transcript": result.transcript,
-                        "error": str(exc),
-                    },
-                )
-            except Exception:
-                logger.exception("Audit log failed")
+            self._log_audit(result, outcome="failure", error=str(exc), is_error=True)
         return result
+
+    # ------------------------------------------------------------------
+    # run_pipeline decomposed helpers
+    # ------------------------------------------------------------------
+
+    async def _play_filler(
+        self, result: PipelineResult, wake_timestamp: float, _get_um: Any,
+    ) -> None:
+        """Play filler audio in the post-wake-word pause."""
+        try:
+            from Agent_Guru.speech.filler_response import get_filler_cache
+            _filler_cache = get_filler_cache()
+            if not _filler_cache._initialized:
+                await asyncio.to_thread(_filler_cache.initialize)
+            _lang_pref = _get_um().get("code_mixing", "hinglish")
+            _persona_str = "maya" if result.personality == Personality.MAYA else "guru"
+            await _filler_cache.play_filler_async(
+                personality=_persona_str,
+                language_pref=_lang_pref,
+                wake_timestamp=wake_timestamp,
+            )
+        except Exception as _filler_exc:
+            logger.debug("Filler playback skipped: %s", _filler_exc)
+
+    @staticmethod
+    def _correct_personality_from_transcript(result: PipelineResult) -> None:
+        """Correct personality based on transcript keywords."""
+        if result.transcript is None:
+            return
+        transcript_lower = result.transcript.lower().strip()
+        if any(kw in transcript_lower[:30] for kw in ("maya", "hey maya", "hi maya")):
+            if result.personality != Personality.MAYA:
+                logger.info(
+                    "Personality corrected: transcript starts with 'Maya' — "
+                    "switching from GURU to MAYA",
+                )
+                result.personality = Personality.MAYA
+        elif any(kw in transcript_lower[:30] for kw in ("guru", "hey guru", "hi guru")):
+            if result.personality != Personality.GURU:
+                logger.info(
+                    "Personality corrected: transcript starts with 'Guru' — "
+                    "switching from MAYA to GURU",
+                )
+                result.personality = Personality.GURU
+
+    @staticmethod
+    def _verify_speaker(wake_event: WakeWordEvent, result: PipelineResult) -> str:
+        """Run optional speaker verification. Returns pipeline_mode."""
+        try:
+            from Agent_Guru.speech.biometric.speaker_verifier import get_speaker_verifier
+            _verifier = get_speaker_verifier()
+            if _verifier.is_enrolled() and wake_event.audio is not None:
+                import numpy as np
+                _audio_array = np.frombuffer(wake_event.audio, dtype=np.float32)
+                _verify_result = _verifier.verify(_audio_array)
+                result.pipeline_mode = _verify_result.mode
+                if _verify_result.mode == "restricted":
+                    logger.info(
+                        "Speaker verification: RESTRICTED mode (similarity=%.3f)",
+                        _verify_result.similarity,
+                    )
+                return _verify_result.mode
+        except Exception as _sv_exc:
+            logger.debug("Speaker verification skipped: %s", _sv_exc)
+        return result.pipeline_mode
+
+    async def _check_reaction_rules(
+        self,
+        result: PipelineResult,
+        pipeline_mode: str,
+        wake_timestamp: float,
+        _get_um: Any,
+    ) -> PipelineResult | None:
+        """Check reaction rules and teaching intents. Returns result for early exit, or None."""
+        import time as _time
+        try:
+            from Agent_Guru.platform.features.reaction_rules import (
+                extract_teaching_intent, get_reaction_rules,
+            )
+
+            if pipeline_mode == "full" and result.transcript is not None:
+                _teaching = extract_teaching_intent(result.transcript)
+                if _teaching is not None:
+                    _trigger, _response = _teaching
+                    _store = get_reaction_rules()
+
+                    _ok, _msg = _store.add_rule(
+                        _trigger, _response,
+                        intent_recognizer=self._intent_recognizer,
+                    )
+                    if _ok:
+                        _lang = _get_um().get("code_mixing", "hinglish")
+                        result.llm_response = (
+                            "done, yaad rakh liya!" if _lang == "hinglish"
+                            else "got it, I'll remember that!"
+                        )
+                    else:
+                        result.llm_response = _msg
+                    result.stages_completed = 8
+                    await self._stage_tts(result.llm_response, result.personality)
+                    logger.info(
+                        "TIMING: wake_to_first_tts_ms=%.1f (teaching-intent)",
+                        (_time.perf_counter() - wake_timestamp) * 1000,
+                    )
+                    return result
+
+            # Reaction-rule matching
+            _rule_response = (
+                get_reaction_rules().match(result.transcript)
+                if result.transcript is not None
+                else None
+            )
+            if _rule_response is not None:
+                result.llm_response = _rule_response
+                result.stages_completed = 8
+                await self._stage_tts(result.llm_response, result.personality)
+                logger.info(
+                    "TIMING: wake_to_first_tts_ms=%.1f (reaction-rule)",
+                    (_time.perf_counter() - wake_timestamp) * 1000,
+                )
+                return result
+        except Exception as _rr_exc:
+            logger.debug("Reaction rule check skipped: %s", _rr_exc)
+        return None
+
+    @staticmethod
+    def _finalize_tts_text(result: PipelineResult) -> str:
+        """Determine TTS text and handle clipboard write-back."""
+        tts_text = result.action_result or result.llm_response or ""
+        if not tts_text and result.transcript:
+            tts_text = "Done."
+
+        if result.llm_response and result.transcript:
+            from Agent_Guru.platform.features.dictation import (
+                get_clipboard_action, is_clipboard_command, set_clipboard_text,
+            )
+            if is_clipboard_command(result.transcript):
+                action = get_clipboard_action(result.transcript)
+                if action in ("fix", "summarize"):
+                    set_clipboard_text(result.llm_response)
+                    tts_text = (
+                        result.llm_response + " I've updated your clipboard with the result."
+                    )
+        return tts_text
+
+    def _log_audit(
+        self, result: PipelineResult, *, outcome: str,
+        error: str | None, is_error: bool = False,
+    ) -> None:
+        """Log audit event for pipeline execution."""
+        try:
+            if is_error:
+                try:
+                    event_type = EventType.SYSTEM_ERROR  # type: ignore[attr-defined]
+                except AttributeError:
+                    event_type = EventType.POLICY_VIOLATION
+            else:
+                event_type = (
+                    EventType.POLICY_ALLOWED if result.policy_allowed
+                    else EventType.POLICY_VIOLATION
+                )
+            self._audit_logger.log_event(
+                event_type=event_type,
+                actor_id="guru_pipeline",
+                target_id=result.intent or "",
+                outcome=outcome,
+                details={
+                    "stages_completed": result.stages_completed,
+                    "personality": result.personality.value,
+                    "transcript": result.transcript,
+                    "error": error,
+                },
+            )
+        except Exception:
+            logger.exception("Audit log failed")
 
     # ------------------------------------------------------------------
     # Parallel vision + speech dispatch
@@ -946,116 +871,29 @@ class IntegrationOrchestrator:
         try:
             import numpy as np
 
-            loop = asyncio.get_running_loop()
-
-            # Use cached STT function if available; otherwise probe at call time (fallback)
-            fn = self._stt_fn
-            if fn is None:
-                fn = getattr(self.speech_engine, "transcribe", None) or getattr(
-                    self.speech_engine,
-                    "transcribe_with_personality",
-                    None,
-                )
-                if fn is None:
-                    stt = getattr(self.speech_engine, "stt_transcriber", None)
-                    if stt is not None:
-                        fn = stt.transcribe
-
+            fn = self._resolve_stt_fn()
             if fn is None:
                 logger.warning("STT: no transcription function found on speech engine")
                 return ("", "")
 
-            # If the function is async (e.g. AsyncMock in tests), call it directly
+            # Async STT functions (e.g. AsyncMock in tests) — call directly
             if inspect.iscoroutinefunction(fn):
                 try:
                     result = await fn(audio)
-                    if hasattr(result, "text") and hasattr(result, "language"):
-                        return (result.text or "").strip(), (result.language or "")
-                    if hasattr(result, "text"):
-                        return (result.text or "").strip(), ""
-                    return str(result).strip() if result else "", ""
+                    return self._parse_stt_result(result)
                 except Exception:
                     logger.exception("STT async stage error")
                     return ("", "")
-            # Convert bytes → numpy float32 array that Whisper expects
-            if isinstance(audio, (bytes, bytearray)) and len(audio) > 0:
-                if len(audio) % 4 != 0:
-                    logger.debug(
-                        "STT: audio bytes not float32-aligned (%d bytes), skipping",
-                        len(audio),
-                    )
-                    return ("", "")
-                audio_np = np.frombuffer(audio, dtype=np.float32).copy()
-            elif isinstance(audio, np.ndarray):
-                audio_np = audio.astype(np.float32)
-            else:
+
+            # Convert and validate audio
+            audio_np = self._validate_audio(audio, np)
+            if audio_np is None:
                 return ("", "")
 
-            # Skip if audio is too short or silent
-            if len(audio_np) < 1600:
-                logger.debug("STT: audio too short (%d samples), skipping", len(audio_np))
-                return ("", "")
-            rms = float(np.sqrt(np.mean(audio_np**2)))
-            if rms < 0.0003:
-                logger.debug("STT: audio too quiet (rms=%.5f), skipping", rms)
-                return ("", "")
-
-            logger.debug("STT: processing %.2fs of audio (rms=%.4f)", len(audio_np) / 16000, rms)
-
-            # Resolve PersonalityType from the pipeline Personality enum
-            stt_personality = None
-            if personality is not None:
-                try:
-                    from Agent_Guru.speech.models import PersonalityType
-
-                    stt_personality = (
-                        PersonalityType.MAYA
-                        if personality == Personality.MAYA
-                        else PersonalityType.GURU
-                    )
-                except ImportError:
-                    logger.exception("Operation failed")
-            params = self._stt_params or []
-            try:
-                if "personality" in params and stt_personality is not None:
-                    _pt = stt_personality  # capture for lambda
-                    result = await loop.run_in_executor(None, lambda: fn(audio_np, _pt))
-                elif "sample_rate" in params:
-                    result = await loop.run_in_executor(
-                        None,
-                        lambda: fn(audio_np, sample_rate=16000),
-                    )
-                else:
-                    result = await asyncio.to_thread(fn, audio_np, 16000)
-            except Exception:
-                result = await asyncio.to_thread(fn, audio_np, 16000)
-            if hasattr(result, "text") and hasattr(result, "language"):
-                text = (result.text or "").strip()
-                raw_language = result.language or ""
-                # Language confidence check: Whisper can misidentify English as
-                # Hindi ('hi'), Portuguese, etc. when audio quality is low or
-                # the speaker has an accent. Only trust the detected language
-                # when confidence >= 0.70; otherwise default to 'en' so the LLM
-                # doesn't respond in the wrong language.
-                lang_prob = getattr(result, "language_probability", None)
-                if lang_prob is None:
-                    # Try to get it from the info object if available
-                    lang_prob = getattr(result, "language_confidence", None)
-                if lang_prob is not None and float(lang_prob) < 0.70:
-                    logger.info(
-                        "STT: low language confidence (%.2f) for '%s' — defaulting to 'en'",
-                        float(lang_prob),
-                        raw_language,
-                    )
-                    language = "en"
-                else:
-                    language = raw_language
-            elif hasattr(result, "text"):
-                text = (result.text or "").strip()
-                language = ""
-            else:
-                text = str(result).strip() if result else ""
-                language = ""
+            # Invoke STT in executor thread
+            loop = asyncio.get_running_loop()
+            result = await self._invoke_stt(fn, audio_np, personality, loop)
+            text, language = self._parse_stt_result(result)
 
             if text:
                 logger.info("STT transcript: %r", text)
@@ -1065,6 +903,96 @@ class IntegrationOrchestrator:
         except Exception:
             logger.exception("STT stage error")
             return ("", "")
+
+    def _resolve_stt_fn(self) -> Any | None:
+        """Resolve the STT function from the speech engine."""
+        fn = self._stt_fn
+        if fn is None:
+            fn = getattr(self.speech_engine, "transcribe", None) or getattr(
+                self.speech_engine, "transcribe_with_personality", None,
+            )
+            if fn is None:
+                stt = getattr(self.speech_engine, "stt_transcriber", None)
+                if stt is not None:
+                    fn = stt.transcribe
+        return fn
+
+    @staticmethod
+    def _validate_audio(audio: Any, np: Any) -> Any | None:
+        """Convert raw audio to numpy float32 and validate. Returns None if invalid."""
+        if isinstance(audio, (bytes, bytearray)) and len(audio) > 0:
+            if len(audio) % 4 != 0:
+                logger.debug(
+                    "STT: audio bytes not float32-aligned (%d bytes), skipping", len(audio),
+                )
+                return None
+            audio_np = np.frombuffer(audio, dtype=np.float32).copy()
+        elif isinstance(audio, np.ndarray):
+            audio_np = audio.astype(np.float32)
+        else:
+            return None
+
+        if len(audio_np) < 1600:
+            logger.debug("STT: audio too short (%d samples), skipping", len(audio_np))
+            return None
+        rms = float(np.sqrt(np.mean(audio_np**2)))
+        if rms < 0.0003:
+            logger.debug("STT: audio too quiet (rms=%.5f), skipping", rms)
+            return None
+
+        logger.debug("STT: processing %.2fs of audio (rms=%.4f)", len(audio_np) / 16000, rms)
+        return audio_np
+
+    async def _invoke_stt(
+        self, fn: Any, audio_np: Any, personality: Personality | None, loop: Any,
+    ) -> Any:
+        """Invoke the STT function with appropriate parameters."""
+        stt_personality = None
+        if personality is not None:
+            try:
+                from Agent_Guru.speech.models import PersonalityType
+                stt_personality = (
+                    PersonalityType.MAYA
+                    if personality == Personality.MAYA
+                    else PersonalityType.GURU
+                )
+            except ImportError:
+                logger.exception("Operation failed")
+
+        params = self._stt_params or []
+        try:
+            if "personality" in params and stt_personality is not None:
+                _pt = stt_personality
+                return await loop.run_in_executor(None, lambda: fn(audio_np, _pt))
+            if "sample_rate" in params:
+                return await loop.run_in_executor(
+                    None, lambda: fn(audio_np, sample_rate=16000),
+                )
+            return await asyncio.to_thread(fn, audio_np, 16000)
+        except Exception:
+            return await asyncio.to_thread(fn, audio_np, 16000)
+
+    @staticmethod
+    def _parse_stt_result(result: Any) -> tuple[str, str]:
+        """Parse STT result into (text, language) with confidence check."""
+        if hasattr(result, "text") and hasattr(result, "language"):
+            text = (result.text or "").strip()
+            raw_language = result.language or ""
+            lang_prob = getattr(result, "language_probability", None)
+            if lang_prob is None:
+                lang_prob = getattr(result, "language_confidence", None)
+            if lang_prob is not None and float(lang_prob) < 0.70:
+                logger.info(
+                    "STT: low language confidence (%.2f) for '%s' — defaulting to 'en'",
+                    float(lang_prob), raw_language,
+                )
+                language = "en"
+            else:
+                language = raw_language
+            return text, language
+        if hasattr(result, "text"):
+            return (result.text or "").strip(), ""
+        return (str(result).strip() if result else "", "")
 
     async def _stage_memory(self, transcript: str) -> Any:
         """Stage 2: Retrieve memory context."""
@@ -1128,6 +1056,17 @@ class IntegrationOrchestrator:
             logger.exception("Reasoning stage error")
             return None
 
+    # Known model knowledge cutoffs — class-level constant
+    _KNOWN_CUTOFFS: ClassVar[dict[str, str]] = {
+        "gemma3": "early 2025",
+        "gemma2": "mid 2024",
+        "llama3.1": "late 2023",
+        "llama3.2": "late 2023",
+        "llama3.3": "late 2023",
+        "sarvam-m": "early 2025",
+        "qwen2.5": "late 2024",
+    }
+
     async def _stage_llm(
         self,
         transcript: str,
@@ -1140,9 +1079,7 @@ class IntegrationOrchestrator:
         try:
             # Prefer infer() — used by mocks and simpler subsystems
             fn = getattr(self.llm_runtime, "infer", None) or getattr(
-                self.llm_runtime,
-                "execute",
-                None,
+                self.llm_runtime, "execute", None,
             )
             if fn is not None:
                 if inspect.iscoroutinefunction(fn):
@@ -1150,11 +1087,7 @@ class IntegrationOrchestrator:
                 else:
                     loop = asyncio.get_running_loop()
                     result = await loop.run_in_executor(
-                        None,
-                        fn,
-                        transcript,
-                        memory_context,
-                        reasoning_output,
+                        None, fn, transcript, memory_context, reasoning_output,
                     )
                 if hasattr(result, "content"):
                     return result.content or ""
@@ -1165,291 +1098,262 @@ class IntegrationOrchestrator:
             if complete_fn is None:
                 return ""
 
-            try:
-                from Agent_Guru.llm.models import CompletionRequest, Message
-
-                prompt = transcript or ""
-                if not prompt.strip():
-                    return ""  # No transcript — skip LLM call entirely
-                if memory_context:
-                    prompt = f"[Context: {memory_context}]\n{prompt}"
-                if reasoning_output:
-                    prompt = f"{prompt}\n[Reasoning: {reasoning_output}]"
-
-                # Inject clipboard content if the user is asking about it
-                from Agent_Guru.platform.features.dictation import (
-                    get_clipboard_action,
-                    get_clipboard_text,
-                    is_clipboard_command,
-                )
-
-                if is_clipboard_command(prompt):
-                    clip_text = get_clipboard_text()
-                    if clip_text:
-                        clip_action = get_clipboard_action(prompt)
-                        if clip_action == "summarize":
-                            prompt = f"Summarize this text in 2-3 sentences:\n\n{clip_text[:1000]}"
-                        elif clip_action == "fix":
-                            prompt = f"Fix the grammar and spelling of this text, return only the corrected version:\n\n{clip_text[:1000]}"
-
-                # Inject screen content if the user is asking about the screen
-                from Agent_Guru.platform.features.screen_reader import (
-                    is_screen_read_command,
-                    read_screen_text,
-                )
-
-                if is_screen_read_command(prompt):
-                    screen_text = read_screen_text()
-                    if screen_text:
-                        prompt = f"{prompt}\n\nCurrent screen content:\n{screen_text[:1500]}"
-
-                # ── Personality-aware system prompt ───────────────────────
-                current_date = _dt.datetime.now(tz=UTC).strftime("%B %d, %Y")
-
-                # Inject persistent user memory so the assistant knows who it's talking to
-                from Agent_Guru.platform.features.user_memory import get_user_memory
-
-                user_facts = get_user_memory().get_summary()
-
-                # Build companion-grade system prompt from the centralized module
-                from Agent_Guru.llm.companion_prompts import build_companion_prompt
-                persona_key = "maya" if personality == Personality.MAYA else "guru"
-
-                # ── Emotion detection — feed detected state into the prompt ──
-                # CRITICAL: detect emotion from the RAW transcript, NOT the
-                # enriched prompt. The enriched prompt contains [Context: ...]
-                # and [Reasoning: ...] metadata that poisons keyword matching.
-                emotion_hint = ""
-                try:
-                    if self._emotion_detector is None:
-                        from Agent_Guru.emotion.detector import EmotionDetector
-                        self._emotion_detector = EmotionDetector()
-                    if self._empathy_adapter is None:
-                        from Agent_Guru.emotion.adapter import EmpathyAdapter
-                        self._empathy_adapter = EmpathyAdapter()
-                    _raw_text = transcript or ""
-                    _emo_state = self._emotion_detector.detect(text=_raw_text)
-                    if _emo_state.confidence > 0.4 and _emo_state.emotion != "neutral":
-                        emotion_hint = _emo_state.emotion
-                        logger.info("Emotion detected: %s (%.2f)", _emo_state.emotion, _emo_state.confidence)
-                    # Track for distress support
-                    self._empathy_adapter.adapt_response("", _emo_state)
-                except Exception as _emo_exc:
-                    logger.debug("Emotion detection skipped: %s", _emo_exc)
-
-                # ── Real-time web search ──────────────────────────────────
-                # Trigger for ANY question that might need current data,
-                # not just specific keywords. If it's an information intent
-                # or a question, try web search first.
-                from Agent_Guru.platform.features.web_search import needs_web_search, search_web
-
-                is_question = (
-                    needs_web_search(prompt)
-                    or prompt.strip().endswith("?")
-                    or re.search(
-                        r"^(who|what|when|where|why|how|is|are|was|were|will|can|does|did)\b",
-                        prompt.strip(),
-                        re.IGNORECASE,
-                    )
-                )
-                if is_question:
-                    web_snippet = await search_web(prompt)
-                    if web_snippet:
-                        web_context = f"\n\nLive web search result: {web_snippet}"
-                        logger.info("Web search injected for: %r", prompt[:60])
-                    else:
-                        web_context = ""
-                else:
-                    web_context = ""
-
-                # FIX: previously ollama_model was resolved further down
-                # (right before the CompletionRequest call), which meant this
-                # build_companion_prompt() call had no honest way to report
-                # which model's knowledge_cutoff actually applies. Resolve it
-                # here instead, and reuse the same variable below — one
-                # source of truth, no duplicated env-var read.
-                #
-                # Cutoff hints are best-effort per family and intentionally
-                # coarse (month/quarter, not a specific date). Unknown/custom
-                # models fall through to "" so build_companion_prompt() has
-                # the model hedge honestly instead of citing a wrong date —
-                # see its docstring's knowledge_cutoff note.
-                ollama_model = os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
-                _model_family = ollama_model.split(":", 1)[0].lower()
-                _KNOWN_CUTOFFS = {
-                    "gemma3": "early 2025",
-                    "gemma2": "mid 2024",
-                    "llama3.1": "late 2023",
-                    "llama3.2": "late 2023",
-                    "llama3.3": "late 2023",
-                    "sarvam-m": "early 2025",
-                    "qwen2.5": "late 2024",
-                }
-                knowledge_cutoff = _KNOWN_CUTOFFS.get(_model_family, "")
-
-                # FIX: user_country previously wasn't passed at all, so
-                # build_companion_prompt() always fell back to its India
-                # default regardless of who was actually talking. Pull it
-                # from the same UserMemory location fact the morning-briefing
-                # path already reads (see is_briefing_command handling
-                # below) — "country" is a plain optional fact key, absent
-                # for most users today, which is fine: build_companion_prompt
-                # treats "" the same as "unknown" and defaults to India's
-                # helplines rather than guessing at a country it doesn't know.
-                user_country = get_user_memory().get("country", "")
-
-                system_prompt = build_companion_prompt(
-                    personality=persona_key,
-                    user_facts=user_facts,
-                    current_date=current_date,
-                    emotion_hint=emotion_hint,
-                    nickname=get_user_memory().get("nickname", ""),
-                    code_mixing=get_user_memory().get("code_mixing", "hinglish"),
-                    user_country=user_country,
-                    knowledge_cutoff=knowledge_cutoff,
-                )
-
-                if web_context:
-                    prompt = prompt + web_context
-
-                lang_instruction = ""
-                # Only add language instruction when confident the user spoke non-English.
-                if language_code and language_code not in ("en", "en-US", "en-GB", ""):
-                    lang_instruction = (
-                        f"\n\nIMPORTANT: The user spoke in language code '{language_code}'. "
-                        f"You MUST respond in the same language. Do NOT respond in English."
-                    )
-                system_prompt = system_prompt + lang_instruction
-
-                # ── Distress support — if 3+ consecutive distress turns ──
-                distress_note = ""
-                try:
-                    if self._empathy_adapter and self._empathy_adapter.should_offer_support():
-                        distress_note = (
-                            "\n\nIMPORTANT: The user has been in distress for multiple turns. "
-                            "Gently check in on them — ask how they're really doing. "
-                            "Offer genuine support, not generic platitudes."
-                        )
-                        logger.info("Distress support triggered — 3+ consecutive distress turns")
-                except Exception:
-                    logger.debug("Empathy adapter check failed", exc_info=True)
-
-                if distress_note:
-                    system_prompt = system_prompt + distress_note
-
-                # ── Build message list with conversation history ──────────
-                # The LLM needs recent context to be a real companion.
-                # Without history, it forgets what the user said 10 seconds ago.
-                #
-                # TOKEN BUDGET GUARD: gemma3:4b has a 4096-token context window.
-                # System prompt ~650 tokens, response budget 220 tokens, current
-                # user message ~50-200 tokens. That leaves ~2900 tokens for history.
-                # If we blindly inject all 8 history messages, long conversations
-                # will overflow and silently truncate — the LLM loses all context.
-                # This is how ChatGPT and Gemini Live manage their context windows.
-                _MAX_HISTORY_TOKENS = 2900
-                _system_tokens = len(system_prompt) // 4
-                _user_tokens = len(prompt) // 4
-                _available = _MAX_HISTORY_TOKENS - _user_tokens
-
-                # Build history messages, trimming oldest if over budget
-                history_messages: list[Message] = []
-                _history_tokens = 0
-                # Iterate newest-first so we keep the most recent turns
-                for hist_msg in reversed(list(self._chat_history)):
-                    msg_tokens = len(hist_msg["content"]) // 4
-                    if _history_tokens + msg_tokens > _available:
-                        break  # Budget exhausted — drop older turns
-                    history_messages.insert(0, Message(role=hist_msg["role"], content=hist_msg["content"]))
-                    _history_tokens += msg_tokens
-
-                if _history_tokens > 0 and len(history_messages) < len(self._chat_history):
-                    logger.info(
-                        "Token budget: trimmed history from %d to %d messages (%d tokens)",
-                        len(self._chat_history), len(history_messages), _history_tokens,
-                    )
-
-                # ── Conversation context note ─────────────────────────────
-                # Tell the LLM which turn it's on and the user's recent mood.
-                # "You seemed frustrated earlier" doesn't work without this.
-                _turn_count = len(self._chat_history) // 2 + 1
-                _recent_moods = [
-                    h.get("emotion", "neutral")
-                    for h in list(self._chat_history)[-6:]
-                    if h.get("role") == "user"
-                ]
-                if _turn_count > 1 and _recent_moods:
-                    mood_summary = ", ".join(_recent_moods[-3:])
-                    context_note = (
-                        f"\n\nCONVERSATION STATE: This is turn {_turn_count}. "
-                        f"The user's recent mood: [{mood_summary}]."
-                    )
-                    system_prompt = system_prompt + context_note
-                elif _turn_count == 1:
-                    # First interaction of this session — greet warmly
-                    system_prompt = system_prompt + (
-                        "\n\nSESSION START: This is the FIRST interaction of this session. "
-                        "Greet the user warmly like a friend you haven't talked to in a bit. "
-                        "Ask how they're doing or what's up. Be casual and genuine."
-                    )
-
-                messages = [Message(role="system", content=system_prompt)]
-                messages.extend(history_messages)
-                messages.append(Message(role="user", content=prompt))
-
-                # Default: gemma3:4b — best model for 4GB VRAM (RTX 2050), May 2025.
-                # Falls back to env var OLLAMA_MODEL if set.
-                # NOTE: for the multilingual expansion (Hindi/Tamil/Telugu/Kannada/
-                # Urdu code-mixed conversation), gemma3:4b is a general small model,
-                # not tuned for Indic code-mixing. Sarvam-M is the researched
-                # recommendation there — swap via OLLAMA_MODEL once its hardware
-                # footprint has been checked against this deployment's RAM budget.
-                #
-                # FIX: ollama_model is now resolved earlier (before the
-                # build_companion_prompt() call above), so knowledge_cutoff
-                # can be derived from the same value instead of the prompt
-                # always hedging blind. Reusing that variable here rather
-                # than re-reading the env var a second time.
-                request = CompletionRequest(
-                    model=ollama_model,
-                    messages=messages,
-                    max_tokens=400,  # Conversational responses need room for follow-ups + reactions
-                )
-                response = await complete_fn(request)
-                llm_response = response.content or ""
-
-                # ── Update conversation history ───────────────────────────
-                # Store the raw transcript (not enriched) + the LLM response
-                # + emotion hint for mood tracking across turns
-                if llm_response:
-                    self._chat_history.append({
-                        "role": "user",
-                        "content": transcript or "",
-                        "emotion": emotion_hint or "neutral",
-                    })
-                    self._chat_history.append({
-                        "role": "assistant",
-                        "content": llm_response,
-                    })
-
-                return llm_response
-            except ImportError as e:
-                logger.warning("LLM stage: CompletionRequest import failed: %s", e)
-                return ""
-            except Exception as e:
-                # BUG-FIX: was silently returning "" — now logs the actual error
-                # so the user/developer can see WHY there's no reply (e.g. model
-                # not pulled, Ollama not running, API key missing).
-                logger.error(
-                    "LLM stage: inference failed (model=%s): %s — "
-                    "check Ollama is running and the model is pulled: "
-                    "ollama pull %s",
-                    ollama_model, e, ollama_model,
-                )
-                return ""
+            return await self._llm_complete(
+                complete_fn, transcript, memory_context,
+                reasoning_output, language_code, personality,
+            )
         except Exception:
             logger.exception("LLM stage error")
             return ""
+
+    async def _llm_complete(
+        self,
+        complete_fn: Any,
+        transcript: str,
+        memory_context: Any,
+        reasoning_output: Any,
+        language_code: str,
+        personality: Personality | None,
+    ) -> str:
+        """Build enriched prompt and run LLM completion."""
+        try:
+            from Agent_Guru.llm.models import CompletionRequest, Message
+
+            prompt = self._enrich_prompt(transcript, memory_context, reasoning_output)
+            if not prompt.strip():
+                return ""
+
+            # Emotion detection from RAW transcript (not enriched prompt)
+            emotion_hint = self._detect_emotion(transcript)
+
+            # Web search enrichment
+            web_context = await self._fetch_web_context(prompt)
+            if web_context:
+                prompt = prompt + web_context
+
+            # Resolve model and build system prompt
+            ollama_model = os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
+            system_prompt = self._build_system_prompt(
+                personality, emotion_hint, language_code, ollama_model,
+            )
+
+            # Build message list with token-budgeted history
+            messages = self._build_llm_messages(Message, system_prompt, prompt)
+
+            request = CompletionRequest(
+                model=ollama_model,
+                messages=messages,
+                max_tokens=400,
+            )
+            response = await complete_fn(request)
+            llm_response = response.content or ""
+
+            # Update conversation history
+            if llm_response:
+                self._chat_history.append({
+                    "role": "user",
+                    "content": transcript or "",
+                    "emotion": emotion_hint or "neutral",
+                })
+                self._chat_history.append({
+                    "role": "assistant",
+                    "content": llm_response,
+                })
+
+            return llm_response
+        except ImportError as e:
+            logger.warning("LLM stage: CompletionRequest import failed: %s", e)
+            return ""
+        except Exception as e:
+            ollama_model = os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
+            logger.error(
+                "LLM stage: inference failed (model=%s): %s — "
+                "check Ollama is running and the model is pulled: "
+                "ollama pull %s",
+                ollama_model, e, ollama_model,
+            )
+            return ""
+
+    @staticmethod
+    def _enrich_prompt(
+        transcript: str, memory_context: Any, reasoning_output: Any,
+    ) -> str:
+        """Build the enriched prompt with context, clipboard, and screen content."""
+        prompt = transcript or ""
+        if not prompt.strip():
+            return ""
+        if memory_context:
+            prompt = f"[Context: {memory_context}]\n{prompt}"
+        if reasoning_output:
+            prompt = f"{prompt}\n[Reasoning: {reasoning_output}]"
+
+        # Inject clipboard content if the user is asking about it
+        from Agent_Guru.platform.features.dictation import (
+            get_clipboard_action, get_clipboard_text, is_clipboard_command,
+        )
+        if is_clipboard_command(prompt):
+            clip_text = get_clipboard_text()
+            if clip_text:
+                clip_action = get_clipboard_action(prompt)
+                if clip_action == "summarize":
+                    prompt = f"Summarize this text in 2-3 sentences:\n\n{clip_text[:1000]}"
+                elif clip_action == "fix":
+                    prompt = f"Fix the grammar and spelling of this text, return only the corrected version:\n\n{clip_text[:1000]}"
+
+        # Inject screen content if the user is asking about the screen
+        from Agent_Guru.platform.features.screen_reader import (
+            is_screen_read_command, read_screen_text,
+        )
+        if is_screen_read_command(prompt):
+            screen_text = read_screen_text()
+            if screen_text:
+                prompt = f"{prompt}\n\nCurrent screen content:\n{screen_text[:1500]}"
+
+        return prompt
+
+    def _detect_emotion(self, transcript: str) -> str:
+        """Detect emotion from raw transcript. Returns emotion hint string."""
+        try:
+            if self._emotion_detector is None:
+                from Agent_Guru.emotion.detector import EmotionDetector
+                self._emotion_detector = EmotionDetector()
+            if self._empathy_adapter is None:
+                from Agent_Guru.emotion.adapter import EmpathyAdapter
+                self._empathy_adapter = EmpathyAdapter()
+            _raw_text = transcript or ""
+            _emo_state = self._emotion_detector.detect(text=_raw_text)
+            emotion_hint = ""
+            if _emo_state.confidence > 0.4 and _emo_state.emotion != "neutral":
+                emotion_hint = _emo_state.emotion
+                logger.info("Emotion detected: %s (%.2f)", _emo_state.emotion, _emo_state.confidence)
+            # Track for distress support
+            self._empathy_adapter.adapt_response("", _emo_state)
+            return emotion_hint
+        except Exception as _emo_exc:
+            logger.debug("Emotion detection skipped: %s", _emo_exc)
+            return ""
+
+    async def _fetch_web_context(self, prompt: str) -> str:
+        """Fetch web search context if the prompt looks like a question."""
+        from Agent_Guru.platform.features.web_search import needs_web_search, search_web
+
+        is_question = (
+            needs_web_search(prompt)
+            or prompt.strip().endswith("?")
+            or re.search(
+                r"^(who|what|when|where|why|how|is|are|was|were|will|can|does|did)\b",
+                prompt.strip(),
+                re.IGNORECASE,
+            )
+        )
+        if not is_question:
+            return ""
+        web_snippet = await search_web(prompt)
+        if web_snippet:
+            logger.info("Web search injected for: %r", prompt[:60])
+            return f"\n\nLive web search result: {web_snippet}"
+        return ""
+
+    def _build_system_prompt(
+        self,
+        personality: Personality | None,
+        emotion_hint: str,
+        language_code: str,
+        ollama_model: str,
+    ) -> str:
+        """Build the full system prompt with persona, emotion, distress, and language hints."""
+        from Agent_Guru.llm.companion_prompts import build_companion_prompt
+        from Agent_Guru.platform.features.user_memory import get_user_memory
+
+        current_date = _dt.datetime.now(tz=UTC).strftime("%B %d, %Y")
+        user_facts = get_user_memory().get_summary()
+        persona_key = "maya" if personality == Personality.MAYA else "guru"
+
+        _model_family = ollama_model.split(":", 1)[0].lower()
+        knowledge_cutoff = self._KNOWN_CUTOFFS.get(_model_family, "")
+        user_country = get_user_memory().get("country", "")
+
+        system_prompt = build_companion_prompt(
+            personality=persona_key,
+            user_facts=user_facts,
+            current_date=current_date,
+            emotion_hint=emotion_hint,
+            nickname=get_user_memory().get("nickname", ""),
+            code_mixing=get_user_memory().get("code_mixing", "hinglish"),
+            user_country=user_country,
+            knowledge_cutoff=knowledge_cutoff,
+        )
+
+        # Language instruction
+        if language_code and language_code not in ("en", "en-US", "en-GB", ""):
+            system_prompt += (
+                f"\n\nIMPORTANT: The user spoke in language code '{language_code}'. "
+                f"You MUST respond in the same language. Do NOT respond in English."
+            )
+
+        # Distress support
+        try:
+            if self._empathy_adapter and self._empathy_adapter.should_offer_support():
+                system_prompt += (
+                    "\n\nIMPORTANT: The user has been in distress for multiple turns. "
+                    "Gently check in on them — ask how they're really doing. "
+                    "Offer genuine support, not generic platitudes."
+                )
+                logger.info("Distress support triggered — 3+ consecutive distress turns")
+        except Exception:
+            logger.debug("Empathy adapter check failed", exc_info=True)
+
+        # Conversation context note
+        _turn_count = len(self._chat_history) // 2 + 1
+        _recent_moods = [
+            h.get("emotion", "neutral")
+            for h in list(self._chat_history)[-6:]
+            if h.get("role") == "user"
+        ]
+        if _turn_count > 1 and _recent_moods:
+            mood_summary = ", ".join(_recent_moods[-3:])
+            system_prompt += (
+                f"\n\nCONVERSATION STATE: This is turn {_turn_count}. "
+                f"The user's recent mood: [{mood_summary}]."
+            )
+        elif _turn_count == 1:
+            system_prompt += (
+                "\n\nSESSION START: This is the FIRST interaction of this session. "
+                "Greet the user warmly like a friend you haven't talked to in a bit. "
+                "Ask how they're doing or what's up. Be casual and genuine."
+            )
+
+        return system_prompt
+
+    def _build_llm_messages(
+        self, Message: type, system_prompt: str, prompt: str,
+    ) -> list[Any]:
+        """Build token-budgeted message list with conversation history."""
+        _MAX_HISTORY_TOKENS = 2900
+        _user_tokens = len(prompt) // 4
+        _available = _MAX_HISTORY_TOKENS - _user_tokens
+
+        history_messages: list[Any] = []
+        _history_tokens = 0
+        for hist_msg in reversed(list(self._chat_history)):
+            msg_tokens = len(hist_msg["content"]) // 4
+            if _history_tokens + msg_tokens > _available:
+                break
+            history_messages.insert(
+                0, Message(role=hist_msg["role"], content=hist_msg["content"]),
+            )
+            _history_tokens += msg_tokens
+
+        if _history_tokens > 0 and len(history_messages) < len(self._chat_history):
+            logger.info(
+                "Token budget: trimmed history from %d to %d messages (%d tokens)",
+                len(self._chat_history), len(history_messages), _history_tokens,
+            )
+
+        messages = [Message(role="system", content=system_prompt)]
+        messages.extend(history_messages)
+        messages.append(Message(role="user", content=prompt))
+        return messages
 
     async def _stage_intent(self, llm_response: str) -> str:
         """Stage 5: Extract structured intent from the user's transcript.
@@ -1883,59 +1787,17 @@ class IntegrationOrchestrator:
 
         safe_intent = self._sanitize_output(intent)
 
-        # ── Parse once, up front, so the safety gate below runs BEFORE
-        # dispatch to EITHER the primary (agent_orchestrator.execute) or the
-        # fallback (direct OSController) path.
-        #
-        # FIX: previously this parse only happened inside the fallback
-        # branch, so the destructive-action + restricted-mode gate never ran
-        # at all when agent_orchestrator.execute() handled (and returned
-        # non-None for) the intent — i.e. the gate only protected the path
-        # that usually wasn't the one being used.
+        # Parse once, up front
         parts = safe_intent.split(":", 3)
         intent_type = parts[0] if len(parts) > 0 else ""
         action = parts[1] if len(parts) > 1 else ""
         param = parts[2] if len(parts) > 2 else ""
         level_str = parts[3] if len(parts) > 3 else ""
 
-        # ── Destructive action + restricted-mode gate ──────────────────────
-        # Checks the RESOLVED intent action, not raw transcript text — "don't
-        # shutdown" won't trigger this because it won't resolve to a shutdown
-        # action in the intent recognizer. Runs before ANY execution path.
-        try:
-            from Agent_Guru.platform.features.confirmation import is_destructive_action
-
-            if is_destructive_action(action):
-                if pipeline_mode == "restricted":
-                    logger.info(
-                        "Destructive action '%s' blocked — unverified speaker "
-                        "(restricted mode)",
-                        action,
-                    )
-                    return "Sorry, can't do that without verifying it's you."
-
-                confirmed = await self._confirm_destructive_action(action, safe_intent)
-                if not confirmed:
-                    return "Okay, cancelled — didn't do that."
-        except ImportError:
-            # confirmation module not present at all — fail safe: deny
-            # actions that match a narrow, locally-duplicated destructive
-            # keyword set rather than executing them unchecked. This
-            # duplication is intentional: a missing module must not itself
-            # become a bypass for the safety gate.
-            if action in {
-                "delete_file", "delete_folder", "remove", "shutdown",
-                "restart", "uninstall", "format", "wipe", "empty_trash",
-            }:
-                logger.warning(
-                    "confirmation module unavailable — denying destructive "
-                    "action '%s' for safety",
-                    action,
-                )
-                return "Sorry, I can't confirm that action right now, so I won't do it."
-        except Exception:
-            logger.exception("Destructive-action gate failed — denying for safety")
-            return "Something went wrong checking that — I didn't do it, try again."
+        # Destructive action + restricted-mode gate
+        gate_result = await self._gate_destructive_action(action, pipeline_mode, safe_intent)
+        if gate_result is not None:
+            return gate_result
 
         try:
             loop = asyncio.get_running_loop()
@@ -1957,186 +1819,26 @@ class IntegrationOrchestrator:
                     )
         except Exception:
             logger.exception("Unexpected error in primary action path")
-        # Fallback: direct OSController calls (reuse loop already obtained above)
+
+        # Fallback: direct platform control
         try:
-            loop = asyncio.get_running_loop()  # safe: always inside async context
-
-            # NOTE: intent_type / action / param / level_str were already
-            # parsed once, up front, before the destructive-action gate —
-            # not re-parsed here, so the two copies can't drift apart.
-
-            # The raw text the user actually said — used for feature detection
-            # param holds the extracted parameter, safe_intent holds the full encoded intent
             raw_text = param or safe_intent
 
-            # ── Universal feature detection (runs for ALL intent types) ──
-            # These checks run before intent_type filtering so natural speech
-            # variations always work regardless of how the intent was classified.
-
-            # Morning briefing — "good morning", "brief me", "what's my day"
-            from Agent_Guru.platform.features.briefing import (
-                get_morning_briefing,
-                is_briefing_command,
+            # Universal feature detection (runs for ALL intent types)
+            feature_result = await self._detect_universal_features(
+                raw_text, pipeline_mode,
             )
+            if feature_result is not None:
+                return feature_result
 
-            if is_briefing_command(raw_text):
-                from Agent_Guru.platform.features.user_memory import get_user_memory
-
-                location = get_user_memory().get("location")
-                return await get_morning_briefing(location=location)
-
-            # System status — "what's my CPU", "how much RAM", "battery level"
-            from Agent_Guru.platform.features.system_status import (
-                get_system_status,
-                is_system_status_command,
-            )
-
-            if is_system_status_command(raw_text):
-                return get_system_status(raw_text)
-
-            # Reminder / Timer — "remind me in 10 minutes", "set a timer for 5 min"
-            from Agent_Guru.platform.features.reminders import parse_reminder_from_transcript
-
-            reminder_params = parse_reminder_from_transcript(raw_text)
-            if reminder_params:
-                if self._reminder_mgr is None:
-                    from Agent_Guru.platform.features.reminders import ReminderManager
-
-                    self._reminder_mgr = ReminderManager()
-                    # Wire TTS so reminders speak when they fire
-                    tts_eng = getattr(self.speech_engine, "tts_engine", None)
-                    if tts_eng:
-                        import sounddevice as sd
-                        def _speak_reminder(text: str) -> None:
-                            try:
-                                import numpy as np
-
-                                audio, sr = tts_eng.synthesize_to_array(text)
-                                tail = np.zeros(int(sr * 0.30), dtype=np.float32)
-                                padded = np.concatenate([audio.astype(np.float32), tail])
-                                sd.play(padded, samplerate=sr)  # type: ignore[attr-defined]
-                                sd.wait()  # type: ignore[attr-defined]
-                            except Exception as _e:
-                                logger.exception("Reminder TTS failed")
-
-                        self._reminder_mgr.set_speak_callback(_speak_reminder)
-                msg = reminder_params.get("message", "reminder")
-                mins = reminder_params.get("minutes")
-                secs = reminder_params.get("seconds")
-                at_t = reminder_params.get("at_time")
-                return await self._reminder_mgr.set_reminder(
-                    msg,
-                    minutes=mins,
-                    seconds=secs,
-                    at_time=at_t,
-                )
-
-            # Voice dictation — "dictate: hello world", "type this: ..."
-            from Agent_Guru.platform.features.dictation import (
-                extract_dictation_text,
-                get_clipboard_action,
-                get_clipboard_text,
-                is_clipboard_command,
-                is_dictation_command,
-            )
-
-            if is_dictation_command(raw_text):
-                text_to_type = extract_dictation_text(raw_text)
-                if text_to_type:
-                    ctrl = self.platform_controller
-                    fn = getattr(ctrl, "type_text", None) if ctrl else None
-                    if fn:
-                        await asyncio.to_thread(fn, text_to_type)
-                        return f"Typed: {self._sanitize_output(text_to_type[:60])}"
-                    return "Typing is not available on this platform."
-
-            # Clipboard read — "read my clipboard", "what's in my clipboard"
-            if is_clipboard_command(raw_text):
-                clip_text = get_clipboard_text()
-                if not clip_text:
-                    return "Your clipboard is empty."
-                clip_action = get_clipboard_action(raw_text)
-                if clip_action == "read":
-                    short = clip_text[:300]
-                    return f"Your clipboard contains: {short}"
-                # summarize/fix — return None so LLM handles it
-                # (clipboard text gets injected into LLM prompt in _stage_llm)
-                return None
-
-            # Screen reading — "what's on my screen", "read my screen"
-            from Agent_Guru.platform.features.screen_reader import (
-                is_screen_read_command,
-                read_screen_text,
-            )
-
-            if is_screen_read_command(raw_text):
-                screen_text = read_screen_text()
-                if screen_text:
-                    return None  # LLM answers using screen context injected in _stage_llm
-                return "I couldn't read the screen content right now."
-
-            # User memory extraction — "my name is X", "call me Y", "remember that Z"
-            from Agent_Guru.platform.features.user_memory import extract_user_fact, get_user_memory
-
-            # Skip memory writes in restricted mode (unverified speaker)
-            # FIX: reads the pipeline_mode PARAMETER now, not
-            # getattr(self, "_pipeline_mode", "full") — the latter always
-            # evaluated to "full" since self._pipeline_mode was never set.
-            if pipeline_mode == "full":
-                fact = extract_user_fact(raw_text)
-                if fact:
-                    key, value = fact
-
-                    # Handle "forget" commands
-                    if key == "__forget__":
-                        _mem = get_user_memory()
-                        _all_facts = _mem.get_all()
-                        # Search for a matching custom fact value
-                        for fk, fv in _all_facts.items():
-                            if fk.startswith("custom_fact_") and value.lower() in str(fv).lower():
-                                _mem.delete(fk)
-                                _lang = _mem.get("code_mixing", "hinglish")
-                                if _lang == "hinglish":
-                                    return "done, bhool gaya!"
-                                return "done, forgot that!"
-                        return "hmm, I don't remember that one."
-
-                    get_user_memory().set(key, value)
-                    _sval = self._sanitize_output(value)
-                    # Companion-grade acknowledgments — warm, not robotic.
-                    _lang = get_user_memory().get("code_mixing", "hinglish")
-                    _ack_map = {
-                        "name": f"Nice to meet you, {_sval}! I'll remember that.",
-                        "nickname": f"Alright {_sval}! That's what I'll call you from now on.",
-                        "location": f"{_sval} — cool, I'll keep that in mind.",
-                        "occupation": f"That's awesome. I'll remember you're into {_sval}.",
-                        "age": f"Got it — {_sval}. I'll remember.",
-                        "current_project": f"Nice — {_sval} sounds interesting. Keep me posted on how it goes.",
-                        "current_goal": f"Love that. I'll remember you're working toward {_sval}.",
-                        "hobbies": f"Good taste! I'll remember you're into {_sval}.",
-                        "interests": "That's interesting! I'll keep that in mind.",
-                        "friends": "Cool, I'll remember that.",
-                        "family": "Got it, thanks for sharing that.",
-                        "preferred_language": f"{_sval} — got it, I'll keep that in mind.",
-                        "communication_style": f"Understood — I'll adjust to a {_sval} style.",
-                        "code_mixing": "Switched! I'll talk to you in English only from now on." if value == "english" else "Chal done! Hinglish mein baat karenge ab.",
-                    }
-                    # Generic custom fact acknowledgment
-                    if key.startswith("custom_fact_"):
-                        if _lang == "hinglish":
-                            return f"done, yaad rakh liya — {_sval}"
-                        return f"noted — {_sval}"
-                    return _ack_map.get(key, "Noted — I'll keep that in mind.")
-
-            # ── Conversation → no action, TTS uses LLM response ──────────
+            # Conversation → no action
             if intent_type == "conversation":
                 return None
 
             if intent_type not in ("system_control", "file_ops", "communication", "information"):
                 logger.info(
                     "ACTION SKIPPED — intent_type=%r. Full intent: %r",
-                    intent_type,
-                    safe_intent,
+                    intent_type, safe_intent,
                 )
                 return None
 
@@ -2144,488 +1846,657 @@ class IntegrationOrchestrator:
             if ctrl is None:
                 return None
 
-            # ── Application control ───────────────────────────────────────
-            if (action in {"open_app", "open_file"}) and param:
-                param = param.rstrip(".,!?;:")
-                logger.info("ACTION: open_application('%s')", param)
-                result = await asyncio.to_thread(ctrl.open_application, param)
-                safe_param = self._sanitize_output(param)
-                if getattr(result, "success", False):
-                    return f"Opening {safe_param} for you! What are we doing?"
-                err = getattr(result, "error", "unknown error")
-                logger.error("Failed to open '%s': %s", param, err)
-                return f"Hmm, couldn't open {safe_param} — let me know if you wanna try something else"
-
-            if action == "close_app" and param:
-                param = param.rstrip(".,!?;:")
-                logger.info("ACTION: close_application('%s')", param)
-                result = await asyncio.to_thread(ctrl.close_application, param)
-                safe_param = self._sanitize_output(param)
-                return (
-                    f"Closed {safe_param}"
-                    if getattr(result, "success", True)
-                    else f"Failed to close {safe_param}"
-                )
-
-            # ── Web / URL ─────────────────────────────────────────────────
-            if action == "open_url":
-                # Comprehensive URL map — known sites get direct URLs
-                url_map = {
-                    # Video / Music
-                    "youtube": "https://www.youtube.com",
-                    "spotify": "https://www.spotify.com",
-                    "netflix": "https://www.netflix.com",
-                    "hotstar": "https://www.hotstar.com",
-                    "primevideo": "https://www.primevideo.com",
-                    "jiocinema": "https://www.jiocinema.com",
-                    "zee5": "https://www.zee5.com",
-                    "sonyliv": "https://www.sonyliv.com",
-                    "twitch": "https://www.twitch.tv",
-                    "tiktok": "https://www.tiktok.com",
-                    # Search / Info
-                    "google": "https://www.google.com",
-                    "bing": "https://www.bing.com",
-                    "wikipedia": "https://www.wikipedia.org",
-                    "quora": "https://www.quora.com",
-                    "reddit": "https://www.reddit.com",
-                    "medium": "https://www.medium.com",
-                    "hashnode": "https://hashnode.com",
-                    # Social
-                    "twitter": "https://www.twitter.com",
-                    "facebook": "https://www.facebook.com",
-                    "instagram": "https://www.instagram.com",
-                    "linkedin": "https://www.linkedin.com",
-                    "pinterest": "https://www.pinterest.com",
-                    "tumblr": "https://www.tumblr.com",
-                    # Messaging
-                    "whatsapp": "https://web.whatsapp.com",
-                    "telegram": "https://web.telegram.org",
-                    "discord": "https://discord.com",
-                    "slack": "https://slack.com",
-                    "zoom": "https://zoom.us",
-                    "teams": "https://teams.microsoft.com",
-                    "meet": "https://meet.google.com",
-                    # Dev / Coding
-                    "github": "https://www.github.com",
-                    "stackoverflow": "https://stackoverflow.com",
-                    "leetcode": "https://www.leetcode.com",
-                    "hackerrank": "https://www.hackerrank.com",
-                    "codechef": "https://www.codechef.com",
-                    "codeforces": "https://www.codeforces.com",
-                    "geeksforgeeks": "https://www.geeksforgeeks.org",
-                    "w3schools": "https://www.w3schools.com",
-                    "mdn": "https://developer.mozilla.org",
-                    "openai": "https://www.openai.com",
-                    "huggingface": "https://huggingface.co",
-                    "kaggle": "https://www.kaggle.com",
-                    "dev.to": "https://dev.to",
-                    # Learning
-                    "udemy": "https://www.udemy.com",
-                    "coursera": "https://www.coursera.org",
-                    "edx": "https://www.edx.org",
-                    "khanacademy": "https://www.khanacademy.org",
-                    "khan academy": "https://www.khanacademy.org",
-                    # Shopping / Finance
-                    "amazon": "https://www.amazon.in",
-                    "flipkart": "https://www.flipkart.com",
-                    "myntra": "https://www.myntra.com",
-                    "snapdeal": "https://www.snapdeal.com",
-                    "paytm": "https://www.paytm.com",
-                    "phonepe": "https://www.phonepe.com",
-                    "gpay": "https://pay.google.com",
-                    # Travel
-                    "irctc": "https://www.irctc.co.in",
-                    "makemytrip": "https://www.makemytrip.com",
-                    "goibibo": "https://www.goibibo.com",
-                    "booking": "https://www.booking.com",
-                    "airbnb": "https://www.airbnb.com",
-                    # Jobs
-                    "naukri": "https://www.naukri.com",
-                    "indeed": "https://www.indeed.com",
-                    "glassdoor": "https://www.glassdoor.com",
-                    # Google services
-                    "gmail": "https://mail.google.com",
-                    "maps": "https://maps.google.com",
-                    "translate": "https://translate.google.com",
-                    "drive": "https://drive.google.com",
-                    "docs": "https://docs.google.com",
-                    "sheets": "https://sheets.google.com",
-                    "slides": "https://slides.google.com",
-                    "calendar": "https://calendar.google.com",
-                    "keep": "https://keep.google.com",
-                }
-                param_lower = param.lower().strip()
-
-                # "open edge" / "open microsoft edge" → launch the browser app
-                if param_lower in ("edge", "microsoft edge", "msedge"):
-                    result = await asyncio.to_thread(ctrl.open_application, "msedge")
-                    if not getattr(result, "success", False):
-                        result = await asyncio.to_thread(ctrl.open_application, "microsoft edge")
-                    return "Opening Microsoft Edge"
-
-                # "open chrome" / "open firefox" → launch browser app, not URL
-                if param_lower in ("chrome", "google chrome"):
-                    result = await asyncio.to_thread(ctrl.open_application, "chrome")
-                    return "Opening Chrome"
-                if param_lower in ("firefox", "mozilla firefox"):
-                    result = await asyncio.to_thread(ctrl.open_application, "firefox")
-                    return "Opening Firefox"
-
-                # Check known URL map
-                known_url = url_map.get(param_lower)
-                if known_url:
-                    logger.info("ACTION: open_url('%s') → %s", param, known_url)
-                    fn = getattr(ctrl, "open_url", None)
-                    if fn:
-                        await asyncio.to_thread(fn, known_url)
-                        return f"Opening {self._sanitize_output(param)}"
-
-                # Explicit URL (starts with http/https)
-                if param.startswith("http://") or param.startswith("https://"):
-                    parsed = _up.urlparse(param)
-                    if parsed.scheme not in ("http", "https"):
-                        return "Cannot open URL with unsafe scheme"
-                    fn = getattr(ctrl, "open_url", None)
-                    if fn:
-                        await asyncio.to_thread(fn, param)
-                        return f"Opened {self._sanitize_output(param)}"
-
-                # Domain name (contains a dot like "leetcode.com")
-                if "." in param and " " not in param:
-                    url = param if param.startswith("http") else f"https://{param}"
-                    fn = getattr(ctrl, "open_url", None)
-                    if fn:
-                        await asyncio.to_thread(fn, url)
-                        return f"Opening {self._sanitize_output(param)}"
-
-                # Unknown name → try as direct URL first, then Google search
-                # e.g. "open leetcode" → try https://www.leetcode.com, then Google search
-                # Try direct URL (www.X.com)
-                direct_url = f"https://www.{param_lower.replace(' ', '')}.com"
-                fn = getattr(ctrl, "open_url", None)
-                if fn:
-                    logger.info("ACTION: open_url (unknown site) → %s", direct_url)
-                    await asyncio.to_thread(fn, direct_url)
-                    return f"Opening {self._sanitize_output(param)}"
-                return f"Cannot open {self._sanitize_output(param)} — browser unavailable"
-
-            if action == "web_search":
-                query = param.strip()
-                engine = level_str.strip().lower() if level_str.strip() else "google"
-                if engine not in ("google", "youtube", "bing"):
-                    engine = "google"
-                logger.info("ACTION: web_search('%s', engine='%s')", query, engine)
-
-                if engine == "youtube":
-                    # Use Playwright to find and open the first result so the
-                    # video actually plays — then leave the browser open for the
-                    # user to control with further voice commands.
-                    # NO demo sequence — just open and play.
-                    try:
-                        await self._open_youtube_and_play(query)
-                        return f"Playing {self._sanitize_output(query)} on YouTube"
-                    except Exception as yt_exc:
-                        logger.exception(
-                            "YouTube auto-play failed (%s) — opening search page instead",
-                            yt_exc,
-                        )
-                        search_url = (
-                            "https://www.youtube.com/results?search_query=" + _up.quote_plus(query)
-                        )
-                        fn = getattr(ctrl, "open_url", None)
-                        if fn:
-                            await asyncio.to_thread(fn, search_url)
-                        return f"Opening YouTube search for {self._sanitize_output(query)}"
-                _engines = {
-                    "google": "https://www.google.com/search?q=",
-                    "bing": "https://www.bing.com/search?q=",
-                }
-                search_url = _engines.get(engine, _engines["google"]) + _up.quote_plus(query)
-                fn = getattr(ctrl, "open_url", None)
-                if fn:
-                    await asyncio.to_thread(fn, search_url)
-                    return f"Searching for {self._sanitize_output(query)} on {engine}"
-                return "Cannot search — controller unavailable"
-
-            # ── Volume ────────────────────────────────────────────────────
-            if action == "volume":
-                mgr = getattr(self, "_browser_mgr", None)
-                yt_open = mgr is not None and mgr._page is not None
-                num_match = re.search(r"\d+", param + " " + level_str)
-
-                if num_match:
-                    vol = max(0, min(100, int(num_match.group())))
-                    logger.info("ACTION: set_volume(%d)", vol)
-                    if yt_open and mgr is not None:
-                        try:
-                            return await mgr.set_volume(vol)
-                        except Exception:
-                            logger.exception("Operation failed")
-                    try:
-                        await asyncio.to_thread(ctrl.set_volume, vol)
-                    except Exception:
-                        logger.exception("set_volume failed")
-                    return f"Volume set to {vol}%"
-
-                if "up" in param.lower() or "increase" in param.lower():
-                    if yt_open and mgr is not None:
-                        try:
-                            return await mgr.volume_up()
-                        except Exception:
-                            logger.exception("Operation failed")
-                    fn = getattr(ctrl, "volume_up", None)
-                    try:
-                        if fn:
-                            await loop.run_in_executor(None, fn)
-                    except Exception:
-                        logger.exception("volume_up failed")
-                    return "Volume increased"
-
-                if "down" in param.lower() or "decrease" in param.lower():
-                    if yt_open and mgr is not None:
-                        try:
-                            return await mgr.volume_down()
-                        except Exception:
-                            logger.exception("Operation failed")
-                    fn = getattr(ctrl, "volume_down", None)
-                    try:
-                        if fn:
-                            await loop.run_in_executor(None, fn)
-                    except Exception:
-                        logger.exception("volume_down failed")
-                    return "Volume decreased"
-
-                if re.search(r"\b(mute|unmute)\b", param, re.IGNORECASE):
-                    is_unmute = bool(re.search(r"\bunmute\b", param, re.IGNORECASE))
-                    if yt_open and mgr is not None:
-                        try:
-                            return await (mgr.unmute() if is_unmute else mgr.mute())
-                        except Exception:
-                            logger.exception("Operation failed")
-                    fn = getattr(ctrl, "unmute" if is_unmute else "mute", None)
-                    try:
-                        if fn:
-                            await loop.run_in_executor(None, fn)
-                    except Exception:
-                        logger.exception("mute failed")
-                    return "Unmuted" if is_unmute else "Muted"
-
-            # ── Brightness ────────────────────────────────────────────────
-            if action == "brightness":
-                num_match = re.search(r"\d+", param + " " + level_str)
-                if num_match:
-                    brightness = max(0, min(100, int(num_match.group())))
-                    logger.info("ACTION: set_brightness(%d)", brightness)
-                    await asyncio.to_thread(ctrl.set_brightness, brightness)
-                    return f"Brightness set to {brightness}%"
-                get_fn = getattr(ctrl, "get_brightness", None)
-                current = 50
-                if get_fn:
-                    with contextlib.suppress(Exception):
-                        current = int(await asyncio.to_thread(get_fn))
-                set_fn = getattr(ctrl, "set_brightness", None)
-                if "up" in param.lower() or "increase" in param.lower():
-                    if set_fn:
-                        await asyncio.to_thread(set_fn, min(100, current + 10))
-                    return "Brightness increased"
-                if "down" in param.lower() or "decrease" in param.lower():
-                    if set_fn:
-                        await asyncio.to_thread(set_fn, max(0, current - 10))
-                    return "Brightness decreased"
-
-            # ── Window management ─────────────────────────────────────────
-            if action == "window":
-                window_ctx = (param + " " + level_str).lower()
-                if re.search(r"\bminimize\b|\bminimise\b", window_ctx):
-                    fn = getattr(ctrl, "minimize_window", None)
-                    if fn:
-                        await asyncio.to_thread(fn, "")
-                    return "Window minimized"
-                if re.search(r"\bmaximize\b|\bmaximise\b", window_ctx):
-                    fn = getattr(ctrl, "maximize_window", None)
-                    if fn:
-                        await asyncio.to_thread(fn, "")
-                    return "Window maximized"
-
-            # ── Screenshot ────────────────────────────────────────────────
-            if action == "screenshot":
-                logger.info("ACTION: screenshot")
-                fn = getattr(ctrl, "take_screenshot", None) or getattr(
-                    getattr(ctrl, "_screen_controller", None),
-                    "capture",
-                    None,
-                )
-                if fn:
-                    await loop.run_in_executor(None, fn)
-                    return "Screenshot taken"
-
-            # ── Media controls ────────────────────────────────────────────
-            if action == "next_track":
-                fn = getattr(ctrl, "next_track", None)
-                if fn:
-                    await loop.run_in_executor(None, fn)
-                return "Next track"
-
-            if action == "previous_track":
-                fn = getattr(ctrl, "previous_track", None)
-                if fn:
-                    await loop.run_in_executor(None, fn)
-                return "Previous track"
-
-            if action == "stop_media":
-                fn = getattr(ctrl, "stop_media", None)
-                if fn:
-                    await loop.run_in_executor(None, fn)
-                return "Media stopped"
-
-            if action == "play_pause":
-                # Route to BrowserManager if YouTube is open, else system media keys
-                mgr = getattr(self, "_browser_mgr", None)
-                if mgr and mgr._page is not None:
-                    try:
-                        if re.search(r"\bpause\b", safe_intent, re.IGNORECASE):
-                            return await mgr.pause()
-                        return await mgr.resume()
-                    except Exception:
-                        logger.exception("BrowserManager play_pause failed")
-                if re.search(r"\bpause\b", safe_intent, re.IGNORECASE):
-                    fn = getattr(ctrl, "pause_media", None)
-                    if fn:
-                        await loop.run_in_executor(None, fn)
-                    return "Media paused"
-                fn = getattr(ctrl, "play_media", None)
-                if fn:
-                    await loop.run_in_executor(None, fn)
-                return "Media playing"
-
-            # ── Type text ─────────────────────────────────────────────────
-            if action == "type_text" and param:
-                fn = getattr(ctrl, "type_text", None)
-                if fn:
-                    await asyncio.to_thread(fn, param)
-                    return "Typed text"
-                return "Cannot type — controller unavailable"
-
-            # ── Switch app ────────────────────────────────────────────────
-            if action == "switch_app" and param:
-                switched = False
-                if sys.platform == "win32":
-                    try:
-                        import win32gui as _wg  # type: ignore[import]
-
-                        found: list[int] = []
-
-                        def _cb(hwnd: int, _: object) -> None:
-                            title = _wg.GetWindowText(hwnd)
-                            if param.lower() in title.lower():
-                                found.append(hwnd)
-
-                        _wg.EnumWindows(_cb, None)
-                        if found:
-                            _wg.SetForegroundWindow(found[0])
-                            switched = True
-                    except Exception as exc:
-                        logger.debug("win32 switch_app failed: %s", exc)
-                if not switched:
-                    await asyncio.to_thread(ctrl.open_application, param)
-                return f"Switched to {self._sanitize_output(param)}"
-
-            # ── Shutdown / Restart ────────────────────────────────────────
-            if action in ("shutdown", "restart"):
-                fn = getattr(ctrl, action + "_pc", None)
-                if fn:
-                    await asyncio.to_thread(fn, confirmed=True)
-                    return f"System {action} initiated"
-                return f"Cannot {action} — controller unavailable"
-
-            # ── Settings ──────────────────────────────────────────────────
-            if action == "settings":
-                setting_text = (param + " " + level_str).lower()
-                fn_wifi = getattr(ctrl, "toggle_wifi", None)
-                fn_bt = getattr(ctrl, "toggle_bluetooth", None)
-                if "wifi" in setting_text or "wi-fi" in setting_text:
-                    enable = "off" not in setting_text and "disable" not in setting_text
-                    if fn_wifi:
-                        await asyncio.to_thread(fn_wifi, enable)
-                    return f"WiFi {'enabled' if enable else 'disabled'}"
-                if "bluetooth" in setting_text:
-                    enable = "off" not in setting_text and "disable" not in setting_text
-                    if fn_bt:
-                        await asyncio.to_thread(fn_bt, enable)
-                    return f"Bluetooth {'enabled' if enable else 'disabled'}"
-                return "Settings updated"
-
-            # ── Communication ─────────────────────────────────────────────
-            if intent_type == "communication":
-                if action in ("send_message", "reply"):
-                    contact = param.strip()
-                    app = level_str.strip().lower() if level_str.strip() else "whatsapp"
-                    if app not in ("whatsapp", "telegram", "slack", "sms", "email"):
-                        app = "whatsapp"
-                    fn = getattr(ctrl, "open_url", None)
-                    if fn and contact:
-                        if app == "whatsapp":
-                            digits = contact.replace("+", "").replace("-", "").replace(" ", "")
-                            url = (
-                                f"https://wa.me/{digits}"
-                                if digits.isdigit()
-                                else "https://web.whatsapp.com"
-                            )
-                            await asyncio.to_thread(fn, url)
-                            return f"Opening WhatsApp for {self._sanitize_output(contact)}"
-                        if app == "telegram":
-                            await asyncio.to_thread(fn, f"https://t.me/{contact.lstrip('@')}")
-                            return f"Opening Telegram for {self._sanitize_output(contact)}"
-                        if app == "email":
-                            await asyncio.to_thread(fn, f"mailto:{contact}")
-                            return f"Opening email for {self._sanitize_output(contact)}"
-                    return f"Opening messaging app for {self._sanitize_output(contact)}"
-                if action == "make_call":
-                    contact = param.strip()
-                    fn = getattr(ctrl, "open_url", None)
-                    if fn and contact:
-                        digits = contact.replace("+", "").replace("-", "").replace(" ", "")
-                        url = (
-                            f"tel:{digits}"
-                            if digits.isdigit()
-                            else f"https://wa.me/?phone={contact}"
-                        )
-                        await asyncio.to_thread(fn, url)
-                    return f"Calling {self._sanitize_output(contact)}"
-
-            # ── Information (questions / facts) ───────────────────────────
-            # For factual questions the LLM response IS the answer — return None
-            # so the pipeline uses llm_response for TTS.
-            # Only do a web search for queries that need live/current data.
-            if intent_type == "information":
-                query = param.strip() or safe_intent
-                action_lower = action.lower() if action else ""
-                if action_lower in ("weather", "news", "search"):
-                    fn = getattr(ctrl, "web_search", None)
-                    if fn:
-                        await asyncio.to_thread(fn, query, "google")
-                        return f"Searching for {self._sanitize_output(query)}"
-                # For questions/facts: LLM already answered — just return None
-                return None
-
-            # ── File operations ───────────────────────────────────────────
-            if intent_type == "file_ops":
-                if action == "create" and param:
-                    fn = getattr(ctrl, "create_file", None)
-                    if fn:
-                        await asyncio.to_thread(fn, param)
-                        return f"Created {self._sanitize_output(param)}"
-                if action == "delete" and param:
-                    fn = getattr(ctrl, "delete_file", None)
-                    if fn:
-                        await asyncio.to_thread(fn, param, True)
-                        return f"Deleted {self._sanitize_output(param)}"
-
-            return None
+            # Dispatch to action-specific handlers
+            return await self._dispatch_action(
+                action, intent_type, param, level_str, safe_intent, ctrl,
+            )
 
         except Exception:
             logger.exception("Action stage error")
             return None
+
+    # ------------------------------------------------------------------
+    # _execute_single_action decomposed helpers
+    # ------------------------------------------------------------------
+
+    async def _gate_destructive_action(
+        self, action: str, pipeline_mode: str, safe_intent: str,
+    ) -> str | None:
+        """Check destructive-action gate. Returns response string to block, or None to allow."""
+        try:
+            from Agent_Guru.platform.features.confirmation import is_destructive_action
+
+            if is_destructive_action(action):
+                if pipeline_mode == "restricted":
+                    logger.info(
+                        "Destructive action '%s' blocked — unverified speaker "
+                        "(restricted mode)", action,
+                    )
+                    return "Sorry, can't do that without verifying it's you."
+
+                confirmed = await self._confirm_destructive_action(action, safe_intent)
+                if not confirmed:
+                    return "Okay, cancelled — didn't do that."
+        except ImportError:
+            if action in {
+                "delete_file", "delete_folder", "remove", "shutdown",
+                "restart", "uninstall", "format", "wipe", "empty_trash",
+            }:
+                logger.warning(
+                    "confirmation module unavailable — denying destructive "
+                    "action '%s' for safety", action,
+                )
+                return "Sorry, I can't confirm that action right now, so I won't do it."
+        except Exception:
+            logger.exception("Destructive-action gate failed — denying for safety")
+            return "Something went wrong checking that — I didn't do it, try again."
+        return None
+
+    async def _detect_universal_features(
+        self, raw_text: str, pipeline_mode: str,
+    ) -> Any | None:
+        """Detect universal features (briefing, status, reminders, dictation, etc.)."""
+        # Morning briefing
+        from Agent_Guru.platform.features.briefing import get_morning_briefing, is_briefing_command
+        if is_briefing_command(raw_text):
+            from Agent_Guru.platform.features.user_memory import get_user_memory
+            location = get_user_memory().get("location")
+            return await get_morning_briefing(location=location)
+
+        # System status
+        from Agent_Guru.platform.features.system_status import get_system_status, is_system_status_command
+        if is_system_status_command(raw_text):
+            return get_system_status(raw_text)
+
+        # Reminder / Timer
+        result = await self._handle_reminder(raw_text)
+        if result is not None:
+            return result
+
+        # Voice dictation
+        from Agent_Guru.platform.features.dictation import (
+            extract_dictation_text, get_clipboard_action, get_clipboard_text,
+            is_clipboard_command, is_dictation_command,
+        )
+        if is_dictation_command(raw_text):
+            text_to_type = extract_dictation_text(raw_text)
+            if text_to_type:
+                ctrl = self.platform_controller
+                fn = getattr(ctrl, "type_text", None) if ctrl else None
+                if fn:
+                    await asyncio.to_thread(fn, text_to_type)
+                    return f"Typed: {self._sanitize_output(text_to_type[:60])}"
+                return "Typing is not available on this platform."
+
+        # Clipboard read
+        if is_clipboard_command(raw_text):
+            clip_text = get_clipboard_text()
+            if not clip_text:
+                return "Your clipboard is empty."
+            clip_action = get_clipboard_action(raw_text)
+            if clip_action == "read":
+                return f"Your clipboard contains: {clip_text[:300]}"
+            return None
+
+        # Screen reading
+        from Agent_Guru.platform.features.screen_reader import is_screen_read_command, read_screen_text
+        if is_screen_read_command(raw_text):
+            screen_text = read_screen_text()
+            if screen_text:
+                return None  # LLM answers using screen context
+            return "I couldn't read the screen content right now."
+
+        # User memory extraction
+        result = await self._handle_user_memory(raw_text, pipeline_mode)
+        if result is not None:
+            return result
+
+        return None
+
+    async def _handle_reminder(self, raw_text: str) -> str | None:
+        """Handle reminder/timer commands."""
+        from Agent_Guru.platform.features.reminders import parse_reminder_from_transcript
+        reminder_params = parse_reminder_from_transcript(raw_text)
+        if not reminder_params:
+            return None
+
+        if self._reminder_mgr is None:
+            from Agent_Guru.platform.features.reminders import ReminderManager
+            self._reminder_mgr = ReminderManager()
+            tts_eng = getattr(self.speech_engine, "tts_engine", None)
+            if tts_eng:
+                import sounddevice as sd
+                def _speak_reminder(text: str) -> None:
+                    try:
+                        import numpy as np
+                        audio, sr = tts_eng.synthesize_to_array(text)
+                        tail = np.zeros(int(sr * 0.30), dtype=np.float32)
+                        padded = np.concatenate([audio.astype(np.float32), tail])
+                        sd.play(padded, samplerate=sr)  # type: ignore[attr-defined]
+                        sd.wait()  # type: ignore[attr-defined]
+                    except Exception as _e:
+                        logger.exception("Reminder TTS failed")
+                self._reminder_mgr.set_speak_callback(_speak_reminder)
+
+        msg = reminder_params.get("message", "reminder")
+        mins = reminder_params.get("minutes")
+        secs = reminder_params.get("seconds")
+        at_t = reminder_params.get("at_time")
+        return await self._reminder_mgr.set_reminder(msg, minutes=mins, seconds=secs, at_time=at_t)
+
+    async def _handle_user_memory(self, raw_text: str, pipeline_mode: str) -> str | None:
+        """Handle user memory extraction (remember/forget commands)."""
+        from Agent_Guru.platform.features.user_memory import extract_user_fact, get_user_memory
+        if pipeline_mode != "full":
+            return None
+
+        fact = extract_user_fact(raw_text)
+        if not fact:
+            return None
+
+        key, value = fact
+
+        # Handle "forget" commands
+        if key == "__forget__":
+            _mem = get_user_memory()
+            _all_facts = _mem.get_all()
+            for fk, fv in _all_facts.items():
+                if fk.startswith("custom_fact_") and value.lower() in str(fv).lower():
+                    _mem.delete(fk)
+                    _lang = _mem.get("code_mixing", "hinglish")
+                    if _lang == "hinglish":
+                        return "done, bhool gaya!"
+                    return "done, forgot that!"
+            return "hmm, I don't remember that one."
+
+        get_user_memory().set(key, value)
+        _sval = self._sanitize_output(value)
+        _lang = get_user_memory().get("code_mixing", "hinglish")
+        _ack_map = {
+            "name": f"Nice to meet you, {_sval}! I'll remember that.",
+            "nickname": f"Alright {_sval}! That's what I'll call you from now on.",
+            "location": f"{_sval} — cool, I'll keep that in mind.",
+            "occupation": f"That's awesome. I'll remember you're into {_sval}.",
+            "age": f"Got it — {_sval}. I'll remember.",
+            "current_project": f"Nice — {_sval} sounds interesting. Keep me posted on how it goes.",
+            "current_goal": f"Love that. I'll remember you're working toward {_sval}.",
+            "hobbies": f"Good taste! I'll remember you're into {_sval}.",
+            "interests": "That's interesting! I'll keep that in mind.",
+            "friends": "Cool, I'll remember that.",
+            "family": "Got it, thanks for sharing that.",
+            "preferred_language": f"{_sval} — got it, I'll keep that in mind.",
+            "communication_style": f"Understood — I'll adjust to a {_sval} style.",
+            "code_mixing": "Switched! I'll talk to you in English only from now on." if value == "english" else "Chal done! Hinglish mein baat karenge ab.",
+        }
+        if key.startswith("custom_fact_"):
+            if _lang == "hinglish":
+                return f"done, yaad rakh liya — {_sval}"
+            return f"noted — {_sval}"
+        return _ack_map.get(key, "Noted — I'll keep that in mind.")
+
+    async def _dispatch_action(
+        self, action: str, intent_type: str, param: str, level_str: str,
+        safe_intent: str, ctrl: Any,
+    ) -> str | None:
+        """Dispatch to the appropriate action handler."""
+        loop = asyncio.get_running_loop()
+
+        # Action-based dispatch table (keyed by action string)
+        _action_handlers: dict[str, Any] = {
+            "open_app": lambda: self._action_open_app(ctrl, param) if param else None,
+            "open_file": lambda: self._action_open_app(ctrl, param) if param else None,
+            "close_app": lambda: self._action_close_app(ctrl, param) if param else None,
+            "open_url": lambda: self._action_open_url(ctrl, param),
+            "web_search": lambda: self._action_web_search(ctrl, param, level_str),
+            "volume": lambda: self._action_volume(ctrl, param, level_str, loop),
+            "brightness": lambda: self._action_brightness(ctrl, param, level_str),
+            "window": lambda: self._action_window(ctrl, param, level_str),
+            "screenshot": lambda: self._action_screenshot(ctrl, loop),
+            "next_track": lambda: self._action_media_simple(ctrl, "next_track", loop),
+            "previous_track": lambda: self._action_media_simple(ctrl, "previous_track", loop),
+            "stop_media": lambda: self._action_media_simple(ctrl, "stop_media", loop),
+            "play_pause": lambda: self._action_play_pause(ctrl, safe_intent, loop),
+            "switch_app": lambda: self._action_switch_app(ctrl, param) if param else None,
+            "settings": lambda: self._action_settings(ctrl, param, level_str),
+        }
+
+        handler = _action_handlers.get(action)
+        if handler is not None:
+            return await handler()
+
+        # Type text (needs param guard)
+        if action == "type_text" and param:
+            fn = getattr(ctrl, "type_text", None)
+            if fn:
+                await asyncio.to_thread(fn, param)
+                return "Typed text"
+            return "Cannot type — controller unavailable"
+
+        # Shutdown / Restart
+        if action in ("shutdown", "restart"):
+            fn = getattr(ctrl, action + "_pc", None)
+            if fn:
+                await asyncio.to_thread(fn, confirmed=True)
+                return f"System {action} initiated"
+            return f"Cannot {action} — controller unavailable"
+
+        # Intent-type-based dispatch
+        _type_handlers: dict[str, Any] = {
+            "communication": lambda: self._action_communication(ctrl, action, param, level_str),
+            "information": lambda: self._action_information(ctrl, action, param, safe_intent),
+            "file_ops": lambda: self._action_file_ops(ctrl, action, param),
+        }
+
+        type_handler = _type_handlers.get(intent_type)
+        if type_handler is not None:
+            return await type_handler()
+
+        return None
+
+    # ------------------------------------------------------------------
+    # Individual action handlers
+    # ------------------------------------------------------------------
+
+    async def _action_open_app(self, ctrl: Any, param: str) -> str:
+        param = param.rstrip(".,!?;:")
+        logger.info("ACTION: open_application('%s')", param)
+        result = await asyncio.to_thread(ctrl.open_application, param)
+        safe_param = self._sanitize_output(param)
+        if getattr(result, "success", False):
+            return f"Opening {safe_param} for you! What are we doing?"
+        err = getattr(result, "error", "unknown error")
+        logger.error("Failed to open '%s': %s", param, err)
+        return f"Hmm, couldn't open {safe_param} — let me know if you wanna try something else"
+
+    async def _action_close_app(self, ctrl: Any, param: str) -> str:
+        param = param.rstrip(".,!?;:")
+        logger.info("ACTION: close_application('%s')", param)
+        result = await asyncio.to_thread(ctrl.close_application, param)
+        safe_param = self._sanitize_output(param)
+        return (
+            f"Closed {safe_param}"
+            if getattr(result, "success", True)
+            else f"Failed to close {safe_param}"
+        )
+
+    # Known URL map — class-level to avoid re-creating per call
+    _URL_MAP: ClassVar[dict[str, str]] = {
+        # Video / Music
+        "youtube": "https://www.youtube.com", "spotify": "https://www.spotify.com",
+        "netflix": "https://www.netflix.com", "hotstar": "https://www.hotstar.com",
+        "primevideo": "https://www.primevideo.com", "jiocinema": "https://www.jiocinema.com",
+        "zee5": "https://www.zee5.com", "sonyliv": "https://www.sonyliv.com",
+        "twitch": "https://www.twitch.tv", "tiktok": "https://www.tiktok.com",
+        # Search / Info
+        "google": "https://www.google.com", "bing": "https://www.bing.com",
+        "wikipedia": "https://www.wikipedia.org", "quora": "https://www.quora.com",
+        "reddit": "https://www.reddit.com", "medium": "https://www.medium.com",
+        "hashnode": "https://hashnode.com",
+        # Social
+        "twitter": "https://www.twitter.com", "facebook": "https://www.facebook.com",
+        "instagram": "https://www.instagram.com", "linkedin": "https://www.linkedin.com",
+        "pinterest": "https://www.pinterest.com", "tumblr": "https://www.tumblr.com",
+        # Messaging
+        "whatsapp": "https://web.whatsapp.com", "telegram": "https://web.telegram.org",
+        "discord": "https://discord.com", "slack": "https://slack.com",
+        "zoom": "https://zoom.us", "teams": "https://teams.microsoft.com",
+        "meet": "https://meet.google.com",
+        # Dev / Coding
+        "github": "https://www.github.com", "stackoverflow": "https://stackoverflow.com",
+        "leetcode": "https://www.leetcode.com", "hackerrank": "https://www.hackerrank.com",
+        "codechef": "https://www.codechef.com", "codeforces": "https://www.codeforces.com",
+        "geeksforgeeks": "https://www.geeksforgeeks.org", "w3schools": "https://www.w3schools.com",
+        "mdn": "https://developer.mozilla.org", "openai": "https://www.openai.com",
+        "huggingface": "https://huggingface.co", "kaggle": "https://www.kaggle.com",
+        "dev.to": "https://dev.to",
+        # Learning
+        "udemy": "https://www.udemy.com", "coursera": "https://www.coursera.org",
+        "edx": "https://www.edx.org", "khanacademy": "https://www.khanacademy.org",
+        "khan academy": "https://www.khanacademy.org",
+        # Shopping / Finance
+        "amazon": "https://www.amazon.in", "flipkart": "https://www.flipkart.com",
+        "myntra": "https://www.myntra.com", "snapdeal": "https://www.snapdeal.com",
+        "paytm": "https://www.paytm.com", "phonepe": "https://www.phonepe.com",
+        "gpay": "https://pay.google.com",
+        # Travel
+        "irctc": "https://www.irctc.co.in", "makemytrip": "https://www.makemytrip.com",
+        "goibibo": "https://www.goibibo.com", "booking": "https://www.booking.com",
+        "airbnb": "https://www.airbnb.com",
+        # Jobs
+        "naukri": "https://www.naukri.com", "indeed": "https://www.indeed.com",
+        "glassdoor": "https://www.glassdoor.com",
+        # Google services
+        "gmail": "https://mail.google.com", "maps": "https://maps.google.com",
+        "translate": "https://translate.google.com", "drive": "https://drive.google.com",
+        "docs": "https://docs.google.com", "sheets": "https://sheets.google.com",
+        "slides": "https://slides.google.com", "calendar": "https://calendar.google.com",
+        "keep": "https://keep.google.com",
+    }
+
+    async def _action_open_url(self, ctrl: Any, param: str) -> str:
+        param_lower = param.lower().strip()
+
+        # Browser app launches
+        if param_lower in ("edge", "microsoft edge", "msedge"):
+            await asyncio.to_thread(ctrl.open_application, "msedge")
+            return "Opening Microsoft Edge"
+        if param_lower in ("chrome", "google chrome"):
+            await asyncio.to_thread(ctrl.open_application, "chrome")
+            return "Opening Chrome"
+        if param_lower in ("firefox", "mozilla firefox"):
+            await asyncio.to_thread(ctrl.open_application, "firefox")
+            return "Opening Firefox"
+
+        # Known URL map
+        known_url = self._URL_MAP.get(param_lower)
+        if known_url:
+            logger.info("ACTION: open_url('%s') → %s", param, known_url)
+            fn = getattr(ctrl, "open_url", None)
+            if fn:
+                await asyncio.to_thread(fn, known_url)
+                return f"Opening {self._sanitize_output(param)}"
+
+        # Explicit URL
+        if param.startswith("http://") or param.startswith("https://"):
+            parsed = _up.urlparse(param)
+            if parsed.scheme not in ("http", "https"):
+                return "Cannot open URL with unsafe scheme"
+            fn = getattr(ctrl, "open_url", None)
+            if fn:
+                await asyncio.to_thread(fn, param)
+                return f"Opened {self._sanitize_output(param)}"
+
+        # Domain name
+        if "." in param and " " not in param:
+            url = param if param.startswith("http") else f"https://{param}"
+            fn = getattr(ctrl, "open_url", None)
+            if fn:
+                await asyncio.to_thread(fn, url)
+                return f"Opening {self._sanitize_output(param)}"
+
+        # Unknown → try direct URL
+        direct_url = f"https://www.{param_lower.replace(' ', '')}.com"
+        fn = getattr(ctrl, "open_url", None)
+        if fn:
+            logger.info("ACTION: open_url (unknown site) → %s", direct_url)
+            await asyncio.to_thread(fn, direct_url)
+            return f"Opening {self._sanitize_output(param)}"
+        return f"Cannot open {self._sanitize_output(param)} — browser unavailable"
+
+    async def _action_web_search(self, ctrl: Any, param: str, level_str: str) -> str:
+        query = param.strip()
+        engine = level_str.strip().lower() if level_str.strip() else "google"
+        if engine not in ("google", "youtube", "bing"):
+            engine = "google"
+        logger.info("ACTION: web_search('%s', engine='%s')", query, engine)
+
+        if engine == "youtube":
+            try:
+                await self._open_youtube_and_play(query)
+                return f"Playing {self._sanitize_output(query)} on YouTube"
+            except Exception as yt_exc:
+                logger.exception(
+                    "YouTube auto-play failed (%s) — opening search page instead", yt_exc,
+                )
+                search_url = "https://www.youtube.com/results?search_query=" + _up.quote_plus(query)
+                fn = getattr(ctrl, "open_url", None)
+                if fn:
+                    await asyncio.to_thread(fn, search_url)
+                return f"Opening YouTube search for {self._sanitize_output(query)}"
+
+        _engines = {
+            "google": "https://www.google.com/search?q=",
+            "bing": "https://www.bing.com/search?q=",
+        }
+        search_url = _engines.get(engine, _engines["google"]) + _up.quote_plus(query)
+        fn = getattr(ctrl, "open_url", None)
+        if fn:
+            await asyncio.to_thread(fn, search_url)
+            return f"Searching for {self._sanitize_output(query)} on {engine}"
+        return "Cannot search — controller unavailable"
+
+    async def _action_volume(
+        self, ctrl: Any, param: str, level_str: str, loop: Any,
+    ) -> str | None:
+        mgr = getattr(self, "_browser_mgr", None)
+        yt_open = mgr is not None and mgr._page is not None
+        num_match = re.search(r"\d+", param + " " + level_str)
+
+        if num_match:
+            vol = max(0, min(100, int(num_match.group())))
+            logger.info("ACTION: set_volume(%d)", vol)
+            return await self._set_volume_absolute(ctrl, mgr, yt_open, vol)
+
+        param_lower = param.lower()
+        if "up" in param_lower or "increase" in param_lower:
+            return await self._adjust_volume(ctrl, mgr, yt_open, loop, "up")
+        if "down" in param_lower or "decrease" in param_lower:
+            return await self._adjust_volume(ctrl, mgr, yt_open, loop, "down")
+        if re.search(r"\b(mute|unmute)\b", param, re.IGNORECASE):
+            return await self._toggle_mute(ctrl, mgr, yt_open, param, loop)
+
+        return None
+
+    async def _set_volume_absolute(
+        self, ctrl: Any, mgr: Any, yt_open: bool, vol: int,
+    ) -> str:
+        """Set volume to an absolute level."""
+        if yt_open and mgr is not None:
+            try:
+                return await mgr.set_volume(vol)
+            except Exception:
+                logger.exception("Operation failed")
+        try:
+            await asyncio.to_thread(ctrl.set_volume, vol)
+        except Exception:
+            logger.exception("set_volume failed")
+        return f"Volume set to {vol}%"
+
+    async def _adjust_volume(
+        self, ctrl: Any, mgr: Any, yt_open: bool, loop: Any, direction: str,
+    ) -> str:
+        """Adjust volume up or down."""
+        mgr_fn_name = f"volume_{direction}"
+        ctrl_fn_name = f"volume_{direction}"
+        label = "increased" if direction == "up" else "decreased"
+
+        if yt_open and mgr is not None:
+            try:
+                return await getattr(mgr, mgr_fn_name)()
+            except Exception:
+                logger.exception("Operation failed")
+        fn = getattr(ctrl, ctrl_fn_name, None)
+        try:
+            if fn:
+                await loop.run_in_executor(None, fn)
+        except Exception:
+            logger.exception(f"{ctrl_fn_name} failed")
+        return f"Volume {label}"
+
+    async def _toggle_mute(
+        self, ctrl: Any, mgr: Any, yt_open: bool, param: str, loop: Any,
+    ) -> str:
+        """Toggle mute/unmute."""
+        is_unmute = bool(re.search(r"\bunmute\b", param, re.IGNORECASE))
+        if yt_open and mgr is not None:
+            try:
+                return await (mgr.unmute() if is_unmute else mgr.mute())
+            except Exception:
+                logger.exception("Operation failed")
+        fn = getattr(ctrl, "unmute" if is_unmute else "mute", None)
+        try:
+            if fn:
+                await loop.run_in_executor(None, fn)
+        except Exception:
+            logger.exception("mute failed")
+        return "Unmuted" if is_unmute else "Muted"
+
+    async def _action_brightness(self, ctrl: Any, param: str, level_str: str) -> str | None:
+        num_match = re.search(r"\d+", param + " " + level_str)
+        if num_match:
+            brightness = max(0, min(100, int(num_match.group())))
+            logger.info("ACTION: set_brightness(%d)", brightness)
+            await asyncio.to_thread(ctrl.set_brightness, brightness)
+            return f"Brightness set to {brightness}%"
+        get_fn = getattr(ctrl, "get_brightness", None)
+        current = 50
+        if get_fn:
+            with contextlib.suppress(Exception):
+                current = int(await asyncio.to_thread(get_fn))
+        set_fn = getattr(ctrl, "set_brightness", None)
+        if "up" in param.lower() or "increase" in param.lower():
+            if set_fn:
+                await asyncio.to_thread(set_fn, min(100, current + 10))
+            return "Brightness increased"
+        if "down" in param.lower() or "decrease" in param.lower():
+            if set_fn:
+                await asyncio.to_thread(set_fn, max(0, current - 10))
+            return "Brightness decreased"
+        return None
+
+    async def _action_window(self, ctrl: Any, param: str, level_str: str) -> str | None:
+        window_ctx = (param + " " + level_str).lower()
+        if re.search(r"\bminimize\b|\bminimise\b", window_ctx):
+            fn = getattr(ctrl, "minimize_window", None)
+            if fn:
+                await asyncio.to_thread(fn, "")
+            return "Window minimized"
+        if re.search(r"\bmaximize\b|\bmaximise\b", window_ctx):
+            fn = getattr(ctrl, "maximize_window", None)
+            if fn:
+                await asyncio.to_thread(fn, "")
+            return "Window maximized"
+        return None
+
+    async def _action_screenshot(self, ctrl: Any, loop: Any) -> str | None:
+        logger.info("ACTION: screenshot")
+        fn = getattr(ctrl, "take_screenshot", None) or getattr(
+            getattr(ctrl, "_screen_controller", None), "capture", None,
+        )
+        if fn:
+            await loop.run_in_executor(None, fn)
+            return "Screenshot taken"
+        return None
+
+    async def _action_media_simple(self, ctrl: Any, action: str, loop: Any) -> str:
+        fn = getattr(ctrl, action, None)
+        if fn:
+            await loop.run_in_executor(None, fn)
+        _labels = {"next_track": "Next track", "previous_track": "Previous track", "stop_media": "Media stopped"}
+        return _labels.get(action, "Done")
+
+    async def _action_play_pause(self, ctrl: Any, safe_intent: str, loop: Any) -> str:
+        mgr = getattr(self, "_browser_mgr", None)
+        if mgr and mgr._page is not None:
+            try:
+                if re.search(r"\bpause\b", safe_intent, re.IGNORECASE):
+                    return await mgr.pause()
+                return await mgr.resume()
+            except Exception:
+                logger.exception("BrowserManager play_pause failed")
+        if re.search(r"\bpause\b", safe_intent, re.IGNORECASE):
+            fn = getattr(ctrl, "pause_media", None)
+            if fn:
+                await loop.run_in_executor(None, fn)
+            return "Media paused"
+        fn = getattr(ctrl, "play_media", None)
+        if fn:
+            await loop.run_in_executor(None, fn)
+        return "Media playing"
+
+    async def _action_switch_app(self, ctrl: Any, param: str) -> str:
+        switched = False
+        if sys.platform == "win32":
+            try:
+                import win32gui as _wg  # type: ignore[import]
+                found: list[int] = []
+                def _cb(hwnd: int, _: object) -> bool:
+                    title = _wg.GetWindowText(hwnd)
+                    if param.lower() in title.lower():
+                        found.append(hwnd)
+                    return True
+                _wg.EnumWindows(_cb, None)
+                if found:
+                    _wg.SetForegroundWindow(found[0])
+                    switched = True
+            except Exception as exc:
+                logger.debug("win32 switch_app failed: %s", exc)
+        if not switched:
+            await asyncio.to_thread(ctrl.open_application, param)
+        return f"Switched to {self._sanitize_output(param)}"
+
+    async def _action_settings(self, ctrl: Any, param: str, level_str: str) -> str:
+        setting_text = (param + " " + level_str).lower()
+        fn_wifi = getattr(ctrl, "toggle_wifi", None)
+        fn_bt = getattr(ctrl, "toggle_bluetooth", None)
+        if "wifi" in setting_text or "wi-fi" in setting_text:
+            enable = "off" not in setting_text and "disable" not in setting_text
+            if fn_wifi:
+                await asyncio.to_thread(fn_wifi, enable)
+            return f"WiFi {'enabled' if enable else 'disabled'}"
+        if "bluetooth" in setting_text:
+            enable = "off" not in setting_text and "disable" not in setting_text
+            if fn_bt:
+                await asyncio.to_thread(fn_bt, enable)
+            return f"Bluetooth {'enabled' if enable else 'disabled'}"
+        return "Settings updated"
+
+    async def _action_communication(
+        self, ctrl: Any, action: str, param: str, level_str: str,
+    ) -> str | None:
+        if action in ("send_message", "reply"):
+            contact = param.strip()
+            app = level_str.strip().lower() if level_str.strip() else "whatsapp"
+            if app not in ("whatsapp", "telegram", "slack", "sms", "email"):
+                app = "whatsapp"
+            fn = getattr(ctrl, "open_url", None)
+            if fn and contact:
+                if app == "whatsapp":
+                    digits = contact.replace("+", "").replace("-", "").replace(" ", "")
+                    url = f"https://wa.me/{digits}" if digits.isdigit() else "https://web.whatsapp.com"
+                    await asyncio.to_thread(fn, url)
+                    return f"Opening WhatsApp for {self._sanitize_output(contact)}"
+                if app == "telegram":
+                    await asyncio.to_thread(fn, f"https://t.me/{contact.lstrip('@')}")
+                    return f"Opening Telegram for {self._sanitize_output(contact)}"
+                if app == "email":
+                    await asyncio.to_thread(fn, f"mailto:{contact}")
+                    return f"Opening email for {self._sanitize_output(contact)}"
+            return f"Opening messaging app for {self._sanitize_output(contact)}"
+        if action == "make_call":
+            contact = param.strip()
+            fn = getattr(ctrl, "open_url", None)
+            if fn and contact:
+                digits = contact.replace("+", "").replace("-", "").replace(" ", "")
+                url = f"tel:{digits}" if digits.isdigit() else f"https://wa.me/?phone={contact}"
+                await asyncio.to_thread(fn, url)
+            return f"Calling {self._sanitize_output(contact)}"
+        return None
+
+    async def _action_information(
+        self, ctrl: Any, action: str, param: str, safe_intent: str,
+    ) -> str | None:
+        query = param.strip() or safe_intent
+        action_lower = action.lower() if action else ""
+        if action_lower in ("weather", "news", "search"):
+            fn = getattr(ctrl, "web_search", None)
+            if fn:
+                await asyncio.to_thread(fn, query, "google")
+                return f"Searching for {self._sanitize_output(query)}"
+        return None
+
+    async def _action_file_ops(self, ctrl: Any, action: str, param: str) -> str | None:
+        if action == "create" and param:
+            fn = getattr(ctrl, "create_file", None)
+            if fn:
+                await asyncio.to_thread(fn, param)
+                return f"Created {self._sanitize_output(param)}"
+        if action == "delete" and param:
+            fn = getattr(ctrl, "delete_file", None)
+            if fn:
+                await asyncio.to_thread(fn, param, True)
+                return f"Deleted {self._sanitize_output(param)}"
+        return None
 
     async def _get_browser_mgr(self) -> Any:
         """Return the BrowserManager, starting it on first call."""
@@ -2777,7 +2648,8 @@ class IntegrationOrchestrator:
                         def _play_pyttsx3() -> None:
                             engine = pyttsx3.init()
                             # Match voice gender to personality
-                            voices = engine.getProperty("voices")
+                            _raw_voices = engine.getProperty("voices")
+                            voices: list[Any] = _raw_voices if isinstance(_raw_voices, list) else []
                             if voices:
                                 if personality == Personality.MAYA:
                                     # Pick first female voice if available
