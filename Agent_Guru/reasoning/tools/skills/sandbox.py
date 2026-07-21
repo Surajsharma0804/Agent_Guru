@@ -5,7 +5,6 @@ Provides isolated execution environment with resource limits and security contro
 
 import asyncio
 import os
-import subprocess  # nosec B404
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -213,11 +212,12 @@ class SkillSandbox:
             except TimeoutError:
                 # Kill container on timeout
                 if process.pid:
-                    subprocess.run(  # nosec B603 B607  # noqa: S603
-                        ["docker", "kill", str(process.pid)],
-                        check=False,
-                        capture_output=True,
+                    kill_proc = await asyncio.create_subprocess_exec(
+                        "docker", "kill", str(process.pid),
+                        stdout=asyncio.subprocess.DEVNULL,
+                        stderr=asyncio.subprocess.DEVNULL,
                     )
+                    await kill_proc.wait()
                 process.kill()
                 await process.wait()
                 msg = (
