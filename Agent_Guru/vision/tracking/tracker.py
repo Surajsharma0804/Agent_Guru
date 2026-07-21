@@ -98,55 +98,80 @@ class FaceTracker:
             if not detections:
                 return self._active_tracks()
 
-            track_ids = list(self._tracks.keys())
-            track_bboxes = [self._tracks[tid].bbox for tid in track_ids]
-
             det_bboxes = [self._get_bbox(d) for d in detections]
             det_confs = [self._get_conf(d) for d in detections]
 
-            matched_tracks: set[int] = set()
-            matched_dets: set[int] = set()
-
             # 3. Greedy IoU matching
-            if track_bboxes:
-                iou_matrix = np.zeros((len(track_ids), len(det_bboxes)), dtype=np.float32)
-                for ti, tb in enumerate(track_bboxes):
-                    for di, db in enumerate(det_bboxes):
-                        iou_matrix[ti, di] = self._compute_iou(tb, db)
-
-                flat_order = np.argsort(iou_matrix.ravel())[::-1]
-                for idx in flat_order:
-                    ti, di = divmod(int(idx), len(det_bboxes))
-                    if iou_matrix[ti, di] < self._IOU_THRESHOLD:
-                        break
-                    if ti in matched_tracks or di in matched_dets:
-                        continue
-                    matched_tracks.add(ti)
-                    matched_dets.add(di)
-                    tid = track_ids[ti]
-                    self._tracks[tid].bbox = det_bboxes[di]
-                    self._tracks[tid].age = 0
-                    self._tracks[tid].confidence = det_confs[di]
-                    if embeddings and di < len(embeddings):
-                        self._tracks[tid].embedding = embeddings[di]
+            matched_dets = self._match_detections(det_bboxes, det_confs, embeddings)
 
             # 4. Create new tracks for unmatched detections
-            for di in range(len(detections)):
-                if di in matched_dets:
-                    continue
-                emb = embeddings[di] if embeddings and di < len(embeddings) else None
-                new_track = TrackedFace(
-                    track_id=self._next_id,
-                    bbox=det_bboxes[di],
-                    confidence=det_confs[di],
-                    age=0,
-                    embedding=emb,
-                )
-                self._tracks[self._next_id] = new_track
-                logger.debug("New track created: id=%d bbox=%s", self._next_id, det_bboxes[di])
-                self._next_id += 1
+            self._create_unmatched_tracks(
+                matched_dets, det_bboxes, det_confs, embeddings, detections,
+            )
 
             return self._active_tracks()
+
+    def _match_detections(
+        self,
+        det_bboxes: list[tuple],
+        det_confs: list[float],
+        embeddings: list[np.ndarray] | None,
+    ) -> set[int]:
+        """Greedy IoU matching of detections to existing tracks."""
+        track_ids = list(self._tracks.keys())
+        track_bboxes = [self._tracks[tid].bbox for tid in track_ids]
+        matched_tracks: set[int] = set()
+        matched_dets: set[int] = set()
+
+        if not track_bboxes:
+            return matched_dets
+
+        iou_matrix = np.zeros((len(track_ids), len(det_bboxes)), dtype=np.float32)
+        for ti, tb in enumerate(track_bboxes):
+            for di, db in enumerate(det_bboxes):
+                iou_matrix[ti, di] = self._compute_iou(tb, db)
+
+        flat_order = np.argsort(iou_matrix.ravel())[::-1]
+        for idx in flat_order:
+            ti, di = divmod(int(idx), len(det_bboxes))
+            if iou_matrix[ti, di] < self._IOU_THRESHOLD:
+                break
+            if ti in matched_tracks or di in matched_dets:
+                continue
+            matched_tracks.add(ti)
+            matched_dets.add(di)
+            tid = track_ids[ti]
+            self._tracks[tid].bbox = det_bboxes[di]
+            self._tracks[tid].age = 0
+            self._tracks[tid].confidence = det_confs[di]
+            if embeddings and di < len(embeddings):
+                self._tracks[tid].embedding = embeddings[di]
+
+        return matched_dets
+
+    def _create_unmatched_tracks(
+        self,
+        matched_dets: set[int],
+        det_bboxes: list[tuple],
+        det_confs: list[float],
+        embeddings: list[np.ndarray] | None,
+        detections: list[Detection],
+    ) -> None:
+        """Create new tracks for unmatched detections."""
+        for di in range(len(detections)):
+            if di in matched_dets:
+                continue
+            emb = embeddings[di] if embeddings and di < len(embeddings) else None
+            new_track = TrackedFace(
+                track_id=self._next_id,
+                bbox=det_bboxes[di],
+                confidence=det_confs[di],
+                age=0,
+                embedding=emb,
+            )
+            self._tracks[self._next_id] = new_track
+            logger.debug("New track created: id=%d bbox=%s", self._next_id, det_bboxes[di])
+            self._next_id += 1
 
     def assign_identity(self, track_id: int, identity: str) -> bool:
         """Assign an identity name to a track.
