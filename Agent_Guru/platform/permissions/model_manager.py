@@ -158,7 +158,7 @@ class PermissionModel:
     commands: dict[str, Any]
     network: dict[str, Any]
     resources: dict[str, Any]
-    quotas: dict[str, QuotaConfig]
+    quotas: dict[OperationType, QuotaConfig]
     lockdown_mode: dict[str, Any]
 
     # Parsed structures for fast lookup
@@ -705,21 +705,27 @@ class PermissionModelManager:
 
                 # Log to security audit
                 try:
-                    from Agent_Guru.platform.security.auditor import SecurityAuditor
+                    from Agent_Guru.platform.security.auditor import (
+                        OperationType as AuditOpType,
+                        ResultStatus,
+                        SecurityAuditor,
+                    )
 
                     auditor = SecurityAuditor()
-                    auditor.log_security_event(
-                        event_type="lockdown_activated",
-                        severity="critical",
-                        details={
+                    auditor.log_operation(
+                        operation_type=AuditOpType.SYSTEM_SETTING,
+                        user_id=activated_by,
+                        parameters={
+                            "event_type": "lockdown_activated",
                             "reason": reason,
-                            "activated_by": activated_by,
                             "timestamp": self._lockdown_activated_at.isoformat(),
                             "allowed_operations": self.model.lockdown_mode.get(
                                 "allowed_operations",
                                 [],
                             ),
                         },
+                        result_status=ResultStatus.SUCCESS,
+                        execution_time=0.0,
                     )
                 except Exception:
                     logger.exception("Failed to log lockdown activation to security audit")
@@ -750,20 +756,26 @@ class PermissionModelManager:
 
                 # Log to security audit
                 try:
-                    from Agent_Guru.platform.security.auditor import SecurityAuditor
+                    from Agent_Guru.platform.security.auditor import (
+                        OperationType as AuditOpType,
+                        ResultStatus,
+                        SecurityAuditor,
+                    )
 
                     auditor = SecurityAuditor()
-                    auditor.log_security_event(
-                        event_type="lockdown_deactivated",
-                        severity="warning",
-                        details={
-                            "exited_by": exited_by,
+                    auditor.log_operation(
+                        operation_type=AuditOpType.SYSTEM_SETTING,
+                        user_id=exited_by,
+                        parameters={
+                            "event_type": "lockdown_deactivated",
                             "duration_seconds": duration,
                             "activated_at": self._lockdown_activated_at.isoformat()
                             if self._lockdown_activated_at
                             else None,
                             "reason": self._lockdown_reason,
                         },
+                        result_status=ResultStatus.SUCCESS,
+                        execution_time=0.0,
                     )
                 except Exception:
                     logger.exception("Failed to log lockdown deactivation to security audit")
