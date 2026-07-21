@@ -54,6 +54,7 @@ class DelegationManager:
     Space Complexity: O(V + E) for delegation graph
 
     Example:
+        >>> from datetime import datetime, timezone
         >>> manager = DelegationManager(task_assigner, max_delegation_depth=3)
         >>> request = DelegationRequest(
         ...     requesting_agent_id="agent_a",
