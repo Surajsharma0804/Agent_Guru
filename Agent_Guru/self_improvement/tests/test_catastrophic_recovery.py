@@ -988,45 +988,25 @@ class TestPartialDataCorruption:
 
 class TestUltimateStressTest:
     """The ultimate stress test: everything goes wrong at once."""
-    
-    def test_complete_system_catastrophe(
-        self,
-        pool,
-        performance_tracker,
-        strategy_optimizer,
-        prompt_evolution,
-        rollback_manager,
-        degradation_detector,
+
+    @staticmethod
+    def _inject_catastrophic_changes(
+        pool, strategy_optimizer, prompt_evolution,
+        rollback_manager, performance_tracker,
     ):
-        """
-        The HARDEST test: Complete system catastrophe.
-        
-        Everything that can go wrong, goes wrong:
-        - Multiple strategies fail
-        - Multiple prompts hallucinate
-        - Configuration corrupted
-        - Data partially corrupted
-        - Cascading failures
-        - Resource constraints
-        
-        System MUST detect, rollback, and recover from total failure.
-        """
-        # Establish strong baseline
-        create_baseline_performance(performance_tracker, num_tasks=200, success_rate=0.90)
-        
-        # Inject multiple catastrophic updates
+        """Inject multiple catastrophic updates and return component list."""
         catastrophic_components = []
-        
+
         # 3 failing strategies
         for i in range(3):
             strategy_id = inject_catastrophic_strategy(strategy_optimizer, rollback_manager)
             catastrophic_components.append(strategy_id)
-        
+
         # 2 hallucinating prompts
         for i in range(2):
             prompt_id = inject_catastrophic_prompt(prompt_evolution, rollback_manager)
             catastrophic_components.append(prompt_id)
-        
+
         # Corrupted configuration
         rollback_manager.record_change(
             change_type=ChangeType.CONFIGURATION_UPDATE,
@@ -1037,7 +1017,7 @@ class TestUltimateStressTest:
             performance_after={"success_rate": 0.0},
         )
         catastrophic_components.append("system_config")
-        
+
         # Inject corrupted data
         with pool.connection() as conn:
             cursor = conn.cursor()
@@ -1066,7 +1046,7 @@ class TestUltimateStressTest:
                 ),
             )
             conn.commit()
-        
+
         rollback_manager.record_change(
             change_type=ChangeType.STRATEGY_UPDATE,
             component_id="corrupted_ultimate",
@@ -1076,7 +1056,7 @@ class TestUltimateStressTest:
             performance_after={"success_rate": 0.0},
         )
         catastrophic_components.append("corrupted_ultimate")
-        
+
         # Simulate TOTAL SYSTEM FAILURE
         for i in range(50):
             performance_tracker.record_task_metrics(
@@ -1084,54 +1064,59 @@ class TestUltimateStressTest:
                 task_type="test_task",
                 strategy_id=catastrophic_components[i % len(catastrophic_components)],
                 success=False,
-                execution_time_ms=2000.0,  # Extremely slow
-                reasoning_quality=0.01,  # Essentially zero
+                execution_time_ms=2000.0,
+                reasoning_quality=0.01,
                 tool_selection_correct=False,
                 hallucination_detected=True,
                 task_sequence_number=200 + i,
             )
-        
-        # Detection phase
+
+        return catastrophic_components
+
+    @staticmethod
+    def _assert_detection(degradation_detector):
+        """Detect catastrophic failure and validate alert."""
         detection_start = time.time()
         alert = degradation_detector.check_for_degradation(
             recent_window_size=50,
             historical_window_size=200,
         )
         detection_time = time.time() - detection_start
-        
-        # MUST detect catastrophic failure
+
         assert alert is not None, "CRITICAL: Failed to detect total system catastrophe"  # nosec B101
         assert alert.severity == DegradationSeverity.SEVERE, "CRITICAL: Severity not SEVERE"  # nosec B101
         assert len(alert.degraded_metrics) >= 4, "CRITICAL: Not all metrics degraded"  # nosec B101
         assert detection_time < 1.0, f"CRITICAL: Detection too slow ({detection_time:.3f}s)"  # nosec B101
-        
-        # Rollback phase
+        return alert, detection_time
+
+    @staticmethod
+    def _assert_rollback(rollback_manager, alert, catastrophic_components):
+        """Execute and validate rollback."""
         rollback_start = time.time()
         rollback_result, investigation = rollback_manager.rollback_on_degradation(
             alert, investigate_root_cause=True
         )
         rollback_time = time.time() - rollback_start
-        
-        # MUST successfully rollback
+
         assert rollback_result.success, "CRITICAL: Rollback failed"  # nosec B101
         assert rollback_result.changes_rolled_back >= 6, "CRITICAL: Not all changes rolled back"  # nosec B101
         assert rollback_time < 5.0, f"CRITICAL: Rollback too slow ({rollback_time:.3f}s)"  # nosec B101
-        
-        # Verify all catastrophic components were rolled back
-        # Note: Configuration rollback might not be implemented yet
+
         for component in catastrophic_components:
-            if component != "system_config":  # Config rollback not yet implemented
+            if component != "system_config":
                 assert component in rollback_result.components_affected, \
                     f"CRITICAL: {component} not rolled back"  # nosec B101
-        
-        # Verify investigation report
+
         assert investigation is not None, "CRITICAL: No investigation report"  # nosec B101
         assert investigation.diagnostic_summary is not None  # nosec B101
-        
-        # Recovery phase
+
+        return rollback_result, rollback_time
+
+    @staticmethod
+    def _assert_recovery(performance_tracker, degradation_detector):
+        """Simulate recovery and verify system is functional."""
         recovery_start = time.time()
-        
-        # Simulate recovery with baseline performance
+
         for i in range(30):
             performance_tracker.record_task_metrics(
                 task_id=f"ultimate_recovery_{i}",
@@ -1144,26 +1129,68 @@ class TestUltimateStressTest:
                 hallucination_detected=False,
                 task_sequence_number=250 + i,
             )
-        
+
         recovery_time = time.time() - recovery_start
-        
-        # Verify complete recovery
+
         recovery_alert = degradation_detector.check_for_degradation(
             recent_window_size=30,
             historical_window_size=200,
         )
-        
+
         assert recovery_alert is None or recovery_alert.severity == DegradationSeverity.NONE, \
             "CRITICAL: System did not recover"  # nosec B101
-        
-        # Final verification: System is fully functional
-        # Check recent performance (last 30 tasks) rather than overall
+
         recent_metrics = performance_tracker.get_recent_metrics(window_size=30)
-        
         assert recent_metrics is not None, "CRITICAL: Could not get recent metrics"  # nosec B101
         assert recent_metrics.success_rate > 0.80, \
             f"CRITICAL: Recent success rate not recovered ({recent_metrics.success_rate:.2%})"  # nosec B101
-        
+
+        return recent_metrics, recovery_time
+
+    def test_complete_system_catastrophe(
+        self,
+        pool,
+        performance_tracker,
+        strategy_optimizer,
+        prompt_evolution,
+        rollback_manager,
+        degradation_detector,
+    ):
+        """
+        The HARDEST test: Complete system catastrophe.
+
+        Everything that can go wrong, goes wrong:
+        - Multiple strategies fail
+        - Multiple prompts hallucinate
+        - Configuration corrupted
+        - Data partially corrupted
+        - Cascading failures
+        - Resource constraints
+
+        System MUST detect, rollback, and recover from total failure.
+        """
+        # Establish strong baseline
+        create_baseline_performance(performance_tracker, num_tasks=200, success_rate=0.90)
+
+        # Inject catastrophe
+        catastrophic_components = self._inject_catastrophic_changes(
+            pool, strategy_optimizer, prompt_evolution,
+            rollback_manager, performance_tracker,
+        )
+
+        # Detection
+        alert, detection_time = self._assert_detection(degradation_detector)
+
+        # Rollback
+        rollback_result, rollback_time = self._assert_rollback(
+            rollback_manager, alert, catastrophic_components,
+        )
+
+        # Recovery
+        recent_metrics, recovery_time = self._assert_recovery(
+            performance_tracker, degradation_detector,
+        )
+
         # Print success message
         print("\n" + "=" * 80)
         print("🎉 ULTIMATE STRESS TEST PASSED 🎉")
