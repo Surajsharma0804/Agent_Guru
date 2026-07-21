@@ -86,16 +86,16 @@ async def create_registry() -> ToolRegistry:
 
     # Register example tools
     timer_tool = SetTimerTool()
-    await registry.register(timer_tool, timer_tool._tool_metadata)
+    await registry.register(timer_tool, timer_tool.metadata)
 
     cancel_tool = CancelTimerTool()
-    await registry.register(cancel_tool, cancel_tool._tool_metadata)
+    await registry.register(cancel_tool, cancel_tool.metadata)
 
     weather_tool = WeatherTool()
-    await registry.register(weather_tool, weather_tool._tool_metadata)
+    await registry.register(weather_tool, weather_tool.metadata)
 
     messaging_tool = MessagingTool()
-    await registry.register(messaging_tool, messaging_tool._tool_metadata)
+    await registry.register(messaging_tool, messaging_tool.metadata)
 
     return registry
 
@@ -272,46 +272,76 @@ class TestToolSelectionProperties:
             # Verify each parameter has correct type or can be converted
             for param_name, param_value in parameters.items():
                 if param_name in param_types:
-                    expected_type = param_types[param_name]
+                    self._validate_param_type(
+                        param_name, param_value, param_types[param_name],
+                    )
 
-                    # Type validation (lenient - allows convertible types)
-                    if expected_type.value == "string":
-                        # Strings or anything that can be stringified
-                        assert param_value is None or isinstance(  # nosec B101
-                            param_value, (str, int, float, bool)
-                        )
-                    elif expected_type.value == "integer":
-                        # Integers or strings that represent integers
-                        if param_value is not None:
-                            assert isinstance(param_value, (int, str))  # nosec B101
-                            if isinstance(param_value, str):
-                                # Should be convertible to int
-                                # Skip validation if string is clearly not a number
-                                # (property test generates random strings)
-                                if param_value and not param_value.isspace():
-                                    try:
-                                        int(param_value)
-                                    except ValueError:
-                                        # This is expected for random strings in property tests
-                                        # The actual tool execution will validate and reject these
-                                        pass
-                    elif expected_type.value == "float":
-                        # Floats, ints, or strings that represent numbers
-                        if param_value is not None:
-                            assert isinstance(param_value, (int, float, str))  # nosec B101
-                            if isinstance(param_value, str):
-                                try:
-                                    float(param_value)
-                                except ValueError:
-                                    assert (  # nosec B101
-                                        False
-                                    ), f"Parameter '{param_name}' has string value '{param_value}' that cannot be converted to float"
-                    elif expected_type.value == "boolean":
-                        assert isinstance(param_value, (bool, int, str)) or param_value is None  # nosec B101
-                    elif expected_type.value == "array":
-                        assert isinstance(param_value, list) or param_value is None  # nosec B101
-                    elif expected_type.value == "object":
-                        assert isinstance(param_value, dict) or param_value is None  # nosec B101
+    @staticmethod
+    def _validate_param_type(param_name: str, param_value, expected_type) -> None:
+        """Validate a single parameter value against its expected type."""
+        _validators = {
+            "string": TestToolSelectionProperties._check_string,
+            "integer": TestToolSelectionProperties._check_integer,
+            "float": TestToolSelectionProperties._check_float,
+            "boolean": lambda n, v: (
+                assert_true(isinstance(v, (bool, int, str)) or v is None)  # type: ignore[name-defined]
+            ),
+            "array": lambda n, v: (
+                assert_true(isinstance(v, list) or v is None)  # type: ignore[name-defined]
+            ),
+            "object": lambda n, v: (
+                assert_true(isinstance(v, dict) or v is None)  # type: ignore[name-defined]
+            ),
+        }
+        type_val = expected_type.value
+
+        # Simple types: inline assertion
+        if type_val in ("boolean", "array", "object"):
+            if type_val == "boolean":
+                assert isinstance(param_value, (bool, int, str)) or param_value is None  # nosec B101
+            elif type_val == "array":
+                assert isinstance(param_value, list) or param_value is None  # nosec B101
+            else:
+                assert isinstance(param_value, dict) or param_value is None  # nosec B101
+            return
+
+        validator = _validators.get(type_val)
+        if validator is not None:
+            validator(param_name, param_value)
+
+    @staticmethod
+    def _check_string(_param_name: str, param_value) -> None:
+        """Validate string-type parameter."""
+        assert param_value is None or isinstance(  # nosec B101
+            param_value, (str, int, float, bool)
+        )
+
+    @staticmethod
+    def _check_integer(_param_name: str, param_value) -> None:
+        """Validate integer-type parameter."""
+        if param_value is None:
+            return
+        assert isinstance(param_value, (int, str))  # nosec B101
+        if isinstance(param_value, str) and param_value and not param_value.isspace():
+            try:
+                int(param_value)
+            except ValueError:
+                pass  # Expected for random strings in property tests
+
+    @staticmethod
+    def _check_float(param_name: str, param_value) -> None:
+        """Validate float-type parameter."""
+        if param_value is None:
+            return
+        assert isinstance(param_value, (int, float, str))  # nosec B101
+        if isinstance(param_value, str):
+            try:
+                float(param_value)
+            except ValueError:
+                assert False, (  # nosec B101  # noqa: B011
+                    f"Parameter '{param_name}' has string value "
+                    f"'{param_value}' that cannot be converted to float"
+                )
 
 
 class TestToolSelectionEdgeCases:
