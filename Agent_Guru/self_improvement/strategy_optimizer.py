@@ -328,9 +328,10 @@ class StrategyOptimizer:
             selected = secrets.choice(strategies)
         else:
             # Exploitation: select best strategy
-            selected = self.get_best_strategy(task_type)
-            if selected is None:
+            best = self.get_best_strategy(task_type)
+            if best is None:
                 return None
+            selected = best
 
         # Apply dampening if enabled
         if self.enable_dampening and self.stability_monitor:

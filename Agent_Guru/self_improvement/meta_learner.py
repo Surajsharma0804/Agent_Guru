@@ -466,7 +466,7 @@ class MetaLearner:
             pattern_count = cursor.fetchone()[0]
 
         # Update if no patterns or enough new data
-        return pattern_count == 0 or total_count % 10 == 0
+        return bool(pattern_count == 0 or total_count % 10 == 0)
 
     def update_patterns(self) -> None:
         """Update patterns using clustering on all execution data.
@@ -887,7 +887,7 @@ class MetaLearner:
         # Sort by similarity
         matches.sort(key=lambda x: x[1], reverse=True)
 
-        return matches[:5]  # Return top 5 matches
+        return [(p, float(s)) for p, s in matches[:5]]  # Return top 5 matches
 
     def analyze_feature_correlations(self) -> dict[str, float]:
         """Analyze correlation between task features and success.

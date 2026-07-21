@@ -356,7 +356,7 @@ class RollbackManager:
 
         # Calculate restored performance (average of previous states)
         if changes:
-            avg_performance = {}
+            avg_performance: dict[str, list[float]] = {}
             for change in changes:
                 perf = json.loads(change[6])
                 for key, value in perf.items():
@@ -512,7 +512,7 @@ class RollbackManager:
 
         # If no specific types identified, rollback all types
         if not change_types_to_rollback:
-            change_types_to_rollback = None
+            change_types_to_rollback = None  # type: ignore[assignment]
 
         rollback_result = self.rollback_recent_changes(
             hours=rollback_hours,

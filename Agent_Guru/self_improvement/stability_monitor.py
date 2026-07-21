@@ -194,7 +194,7 @@ class StabilityMonitor:
         for key in self._change_history:
             if key.startswith(f"{component}:"):
                 _, metric = key.split(":", 1)
-                is_stable, metrics = self.check_stability(component, metric)
+                is_stable, metrics = self.check_stability(component, metric)  # type: ignore[assignment]
 
                 if not is_stable:
                     all_stable = False

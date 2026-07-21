@@ -1035,7 +1035,7 @@ IMPROVED PROMPT:"""
             # Record rollback for rate limiting
             self._record_prompt_update(prompt_type, "rollback", current_version, target_version)
 
-            return target_id
+            return str(target_id)
 
         finally:
             self.pool.release(conn)
