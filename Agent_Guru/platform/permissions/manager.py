@@ -248,7 +248,7 @@ class PermissionManager:
 
         """
         try:
-            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            return bool(ctypes.windll.shell32.IsUserAnAdmin() != 0)
         except AttributeError:
             # Not on Windows or ctypes not available
             return False
@@ -262,11 +262,10 @@ class PermissionManager:
             True if running as root (UID 0), False otherwise
 
         """
-        try:
-            return os.geteuid() == 0
-        except AttributeError:
-            # Not on Unix or os.geteuid not available
-            return False
+        geteuid = getattr(os, "geteuid", None)
+        if geteuid is not None:
+            return bool(geteuid() == 0)
+        return False
 
     def _get_user_info(self) -> UserInfo:
         """Get current user information.
