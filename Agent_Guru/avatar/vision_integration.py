@@ -23,6 +23,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("guruvision.avatar.vision_integration")
 
+# Sentinel distinguishing "vision explicitly found zero faces" from "vision
+# unavailable, use the full frame as a fallback" — see _extract_face_region.
+_NO_FACE_DETECTED = object()
+
 
 class VisionAvatarBridge:
     """Bridge between Agent_Guru.vision and the avatar emotion system.
@@ -74,6 +78,25 @@ class VisionAvatarBridge:
         # Try to use vision engine for face detection
         face_frame = self._extract_face_region(frame)
 
+        # FIX: previously, when the vision engine was available and
+        # explicitly reported zero faces in this frame, _extract_face_region
+        # fell through to `return frame` (the same fallback used for "vision
+        # unavailable") — so the full, uncropped frame (background, empty
+        # room, whatever's in view) got fed straight into
+        # detect_emotion_smooth() as if it were a face. Verified this
+        # concretely with an isolated repro before fixing. Contrast with
+        # on_no_face() below, which has always correctly short-circuited to
+        # neutral in this exact situation — process_frame() just never
+        # matched that behavior. Now it does: _extract_face_region returns
+        # the _NO_FACE_DETECTED sentinel specifically for "vision confirmed
+        # there's no face here" (distinct from "vision unavailable, fall
+        # back to full-frame"), and this short-circuits to neutral exactly
+        # like on_no_face() does.
+        if face_frame is _NO_FACE_DETECTED:
+            neutral = EmotionState.neutral()
+            self._emotion_callback(neutral)
+            return neutral
+
         # Run emotion recognition
         if self._emotion_recognizer is not None:
             try:
@@ -102,7 +125,23 @@ class VisionAvatarBridge:
         if self._emotion_recognizer is None:
             return
         try:
+            # NOTE (documented gap, not silently dropped — flagged rather
+            # than guessed at): `face_id` was previously accepted but never
+            # used anywhere in this method (confirmed by vulture as an
+            # unused parameter). If detect_emotion_smooth()'s smoothing
+            # window is keyed globally rather than per-identity, switching
+            # between two different people in view will blend their
+            # emotion history together, producing incorrect/laggy
+            # transitions right after a person-switch. Fixing that
+            # correctly requires knowing EmotionRecognizer's real
+            # signature (does it accept a track/identity key for
+            # per-person smoothing state?), which isn't available in this
+            # file — so rather than guess at an unverified API call, this
+            # at least surfaces the identity in logs so the gap is visible
+            # and traceable instead of silently invisible.
             state = self._emotion_recognizer.detect_emotion_smooth(face_frame)
+            if face_id is not None:
+                logger.debug("Emotion detected for face_id=%s: %s", face_id, state)
             self._emotion_callback(state)
         except Exception:
             logger.exception("Emotion detection on face region failed")
@@ -115,10 +154,23 @@ class VisionAvatarBridge:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _extract_face_region(self, frame: np.ndarray) -> np.ndarray:
+    def _extract_face_region(self, frame: np.ndarray) -> np.ndarray | object:
         """Extract the primary face region from a frame.
 
         Uses Agent_Guru.vision if available, otherwise returns full frame.
+
+        Returns:
+            - The cropped face region, when vision is available and found
+              at least one face.
+            - The full, unmodified frame, when vision is unavailable (the
+              standalone emotion recognizer may do its own face detection
+              internally — this is a legitimate fallback).
+            - The `_NO_FACE_DETECTED` sentinel, when vision IS available
+              and explicitly reported zero faces — FIX: this case used to
+              be indistinguishable from "vision unavailable" and silently
+              fell through to `return frame`, feeding full-frame garbage
+              into emotion recognition. See process_frame()'s FIX note.
+
         """
         if not self._vision_available or self._vision_engine is None:
             return frame
@@ -142,9 +194,18 @@ class VisionAvatarBridge:
                 y2 = min(frame.shape[0], y + h)
                 if x2 > x1 and y2 > y1:
                     return frame[y1:y2, x1:x2]
+                # Degenerate/invalid box after clamping — treat like "no
+                # usable face region" rather than silently falling through
+                # to full-frame (same reasoning as the empty-faces case).
+                return _NO_FACE_DETECTED
+            return _NO_FACE_DETECTED
         except Exception as exc:
             logger.debug("Vision engine face extraction failed: %s", exc)
 
+        # Only reached on an actual exception from the vision engine itself
+        # (e.g. a transient CV backend error) — full-frame fallback remains
+        # correct here, since we don't actually know whether a face was
+        # present or not.
         return frame
 
     def _init_vision_engine(self) -> None:
