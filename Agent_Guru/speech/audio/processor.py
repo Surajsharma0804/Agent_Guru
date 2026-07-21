@@ -117,7 +117,7 @@ class AudioProcessor:
             zcr_threshold = zcr_thresholds[aggressiveness]
 
             # Voice typically has moderate energy and zero crossing rate
-            return bool(energy > energy_threshold and zero_crossings > zcr_threshold)
+            return energy > energy_threshold and zero_crossings > zcr_threshold
 
         except Exception:
             logger.exception("VAD failed, assuming voice present")
@@ -262,7 +262,7 @@ class AudioProcessor:
 
             # Simple linear interpolation
             indices = np.linspace(0, len(audio) - 1, new_length)
-            return np.interp(indices, np.arange(len(audio)), audio)
+            return np.asarray(np.interp(indices, np.arange(len(audio)), audio))
 
         except Exception as e:
             msg = f"Format conversion failed: {e}"
