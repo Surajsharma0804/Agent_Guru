@@ -10,6 +10,7 @@ import pytest
 
 from Agent_Guru.reasoning.tools.intelligence import (
     FailurePattern,
+    ToolIntelligenceEngine,
     ToolStats,
     UserToolPreference,
 )
