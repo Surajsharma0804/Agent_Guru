@@ -195,40 +195,77 @@ class OutputValidator:
         field_path = path or "root"
 
         # Parse output if it's a JSON string representing an object/array
+        output = self._maybe_parse_json(output)
+
+        # Type check (early return if mismatch)
+        type_violations = self._check_type(output, schema, field_path)
+        if type_violations:
+            return type_violations
+
+        # Structural checks
+        violations.extend(self._check_required_fields(output, schema, field_path))
+        violations.extend(self._check_properties(output, schema, field_path))
+        violations.extend(self._check_array_items(output, schema, field_path))
+
+        # Constraint checks
+        violations.extend(self._check_numeric_constraints(output, schema, field_path))
+        violations.extend(self._check_string_constraints(output, schema, field_path))
+
+        return violations
+
+    # ------------------------------------------------------------------
+    # _validate_schema helpers (extracted for complexity reduction)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _maybe_parse_json(output: Any) -> Any:
+        """Parse JSON string to object if it looks like JSON."""
         if isinstance(output, str):
             stripped = output.strip()
             if stripped.startswith(("{", "[")):
                 try:
-                    output = json.loads(stripped)
+                    return json.loads(stripped)
                 except json.JSONDecodeError:
-                    pass  # Will fail type check below if schema expects object
+                    pass
+        return output
 
-        # Type check
+    @staticmethod
+    def _check_type(
+        output: Any, schema: dict[str, Any], field_path: str,
+    ) -> list[ValidationViolation]:
+        """Validate output type against schema. Returns violations if mismatch."""
         expected_type = schema.get("type")
-        if expected_type:
-            type_map = {
-                "object": dict,
-                "array": list,
-                "string": str,
-                "number": (int, float),
-                "integer": int,
-                "boolean": bool,
-                "null": type(None),
-            }
-            expected_py_type = type_map.get(expected_type)
-            if expected_py_type and not isinstance(output, expected_py_type):
-                violations.append(
-                    ValidationViolation(
-                        field=field_path,
-                        failure_type=ValidationFailureType.TYPE_MISMATCH,
-                        message=f"Expected type '{expected_type}'",
-                        expected=expected_type,
-                        actual=type(output).__name__,
-                    ),
-                )
-                return violations  # Can't validate further
+        if not expected_type:
+            return []
 
-        # Required fields
+        type_map = {
+            "object": dict,
+            "array": list,
+            "string": str,
+            "number": (int, float),
+            "integer": int,
+            "boolean": bool,
+            "null": type(None),
+        }
+        expected_py_type = type_map.get(expected_type)
+        if expected_py_type and not isinstance(output, expected_py_type):
+            return [
+                ValidationViolation(
+                    field=field_path,
+                    failure_type=ValidationFailureType.TYPE_MISMATCH,
+                    message=f"Expected type '{expected_type}'",
+                    expected=expected_type,
+                    actual=type(output).__name__,
+                ),
+            ]
+        return []
+
+    @staticmethod
+    def _check_required_fields(
+        output: Any, schema: dict[str, Any], field_path: str,
+    ) -> list[ValidationViolation]:
+        """Validate that all required fields are present."""
+        violations: list[ValidationViolation] = []
         required = schema.get("required", [])
         if isinstance(output, dict):
             for req_field in required:
@@ -242,77 +279,106 @@ class OutputValidator:
                             actual="<missing>",
                         ),
                     )
+        return violations
 
+    def _check_properties(
+        self, output: Any, schema: dict[str, Any], field_path: str,
+    ) -> list[ValidationViolation]:
+        """Recursively validate object properties."""
+        violations: list[ValidationViolation] = []
         properties = schema.get("properties", {})
         if isinstance(output, dict) and properties:
             for prop_name, prop_schema in properties.items():
                 if prop_name in output:
-                    child_violations = self._validate_schema(
-                        output[prop_name],
-                        prop_schema,
-                        path=f"{field_path}.{prop_name}",
+                    violations.extend(
+                        self._validate_schema(
+                            output[prop_name],
+                            prop_schema,
+                            path=f"{field_path}.{prop_name}",
+                        ),
                     )
-                    violations.extend(child_violations)
+        return violations
 
-        # Array items (recursive)
+    def _check_array_items(
+        self, output: Any, schema: dict[str, Any], field_path: str,
+    ) -> list[ValidationViolation]:
+        """Recursively validate array items."""
+        violations: list[ValidationViolation] = []
         items_schema = schema.get("items")
         if isinstance(output, list) and items_schema:
             for i, item in enumerate(output):
-                child_violations = self._validate_schema(
-                    item,
-                    items_schema,
-                    path=f"{field_path}[{i}]",
-                )
-                violations.extend(child_violations)
-
-        # Numeric constraints
-        if isinstance(output, (int, float)):
-            minimum = schema.get("minimum")
-            maximum = schema.get("maximum")
-            if minimum is not None and output < minimum:
-                violations.append(
-                    ValidationViolation(
-                        field=field_path,
-                        failure_type=ValidationFailureType.CONSTRAINT_VIOLATION,
-                        message=f"Value {output} is below minimum {minimum}",
-                        expected=f">= {minimum}",
-                        actual=str(output),
+                violations.extend(
+                    self._validate_schema(
+                        item,
+                        items_schema,
+                        path=f"{field_path}[{i}]",
                     ),
                 )
-            if maximum is not None and output > maximum:
-                violations.append(
-                    ValidationViolation(
-                        field=field_path,
-                        failure_type=ValidationFailureType.CONSTRAINT_VIOLATION,
-                        message=f"Value {output} exceeds maximum {maximum}",
-                        expected=f"<= {maximum}",
-                        actual=str(output),
-                    ),
-                )
-
-        # String length constraints
-        if isinstance(output, str):
-            min_length = schema.get("minLength")
-            max_length = schema.get("maxLength")
-            if min_length is not None and len(output) < min_length:
-                violations.append(
-                    ValidationViolation(
-                        field=field_path,
-                        failure_type=ValidationFailureType.CONSTRAINT_VIOLATION,
-                        message=f"String length {len(output)} below minLength {min_length}",
-                        expected=f"length >= {min_length}",
-                        actual=str(len(output)),
-                    ),
-                )
-            if max_length is not None and len(output) > max_length:
-                violations.append(
-                    ValidationViolation(
-                        field=field_path,
-                        failure_type=ValidationFailureType.CONSTRAINT_VIOLATION,
-                        message=f"String length {len(output)} exceeds maxLength {max_length}",
-                        expected=f"length <= {max_length}",
-                        actual=str(len(output)),
-                    ),
-                )
-
         return violations
+
+    @staticmethod
+    def _check_numeric_constraints(
+        output: Any, schema: dict[str, Any], field_path: str,
+    ) -> list[ValidationViolation]:
+        """Validate numeric minimum/maximum constraints."""
+        violations: list[ValidationViolation] = []
+        if not isinstance(output, (int, float)):
+            return violations
+
+        minimum = schema.get("minimum")
+        maximum = schema.get("maximum")
+        if minimum is not None and output < minimum:
+            violations.append(
+                ValidationViolation(
+                    field=field_path,
+                    failure_type=ValidationFailureType.CONSTRAINT_VIOLATION,
+                    message=f"Value {output} is below minimum {minimum}",
+                    expected=f">= {minimum}",
+                    actual=str(output),
+                ),
+            )
+        if maximum is not None and output > maximum:
+            violations.append(
+                ValidationViolation(
+                    field=field_path,
+                    failure_type=ValidationFailureType.CONSTRAINT_VIOLATION,
+                    message=f"Value {output} exceeds maximum {maximum}",
+                    expected=f"<= {maximum}",
+                    actual=str(output),
+                ),
+            )
+        return violations
+
+    @staticmethod
+    def _check_string_constraints(
+        output: Any, schema: dict[str, Any], field_path: str,
+    ) -> list[ValidationViolation]:
+        """Validate string minLength/maxLength constraints."""
+        violations: list[ValidationViolation] = []
+        if not isinstance(output, str):
+            return violations
+
+        min_length = schema.get("minLength")
+        max_length = schema.get("maxLength")
+        if min_length is not None and len(output) < min_length:
+            violations.append(
+                ValidationViolation(
+                    field=field_path,
+                    failure_type=ValidationFailureType.CONSTRAINT_VIOLATION,
+                    message=f"String length {len(output)} below minLength {min_length}",
+                    expected=f"length >= {min_length}",
+                    actual=str(len(output)),
+                ),
+            )
+        if max_length is not None and len(output) > max_length:
+            violations.append(
+                ValidationViolation(
+                    field=field_path,
+                    failure_type=ValidationFailureType.CONSTRAINT_VIOLATION,
+                    message=f"String length {len(output)} exceeds maxLength {max_length}",
+                    expected=f"length <= {max_length}",
+                    actual=str(len(output)),
+                ),
+            )
+        return violations
+
