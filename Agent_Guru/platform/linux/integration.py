@@ -22,7 +22,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-import psutil
+import psutil  # type: ignore[import-untyped]
 
 # Linux-specific imports (only available on Linux)
 try:
@@ -689,7 +689,10 @@ class LinuxIntegration:
         try:
             import os
 
-            return os.geteuid() == 0
+            geteuid = getattr(os, "geteuid", None)
+            if geteuid is not None:
+                return bool(geteuid() == 0)
+            return False
         except Exception:
             return False
 
