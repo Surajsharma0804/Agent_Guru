@@ -5,9 +5,12 @@ Uses subprocess/os.startfile for app launching, pyautogui for keyboard/mouse,
 and pywin32 for window management and permission checking.
 
 Performance:
-    - Time Complexity: O(1) for all operations
-    - Space Complexity: O(1)
-    - Latency: <100ms for app launch, <10ms for keyboard/mouse
+    - Time Complexity: O(1) for launching, focusing, and single key/click
+      operations; O(n) for type_text where n = len(text) (one keystroke
+      event per character via pyautogui)
+    - Space Complexity: O(1) for all operations except list_windows, which
+      is O(w) where w = number of visible windows
+    - Latency: <100ms for app launch, <10ms for a single keyboard/mouse event
 
 Author: Agent Guru Team
 Date: 2026-03-19
@@ -40,7 +43,11 @@ try:
     pyautogui.FAILSAFE = False  # Disable corner-of-screen failsafe for automation
     _PYAUTOGUI_AVAILABLE = True
 except ImportError:
-    logger.exception("pyautogui not available – keyboard/mouse simulation limited")
+    # Expected on non-Windows dev/CI machines (this import runs unconditionally
+    # at module load, regardless of platform) and whenever the optional
+    # dependency simply isn't installed — not an application error, so this
+    # should not log a full ERROR-level traceback via logger.exception().
+    logger.debug("pyautogui not available – keyboard/mouse simulation limited")
 if sys.platform == "win32":
     try:
         import pywintypes  # type: ignore[import]  # noqa: F401
@@ -51,8 +58,10 @@ if sys.platform == "win32":
 
         _PYWIN32_AVAILABLE = True
     except ImportError:
-        logger.exception("pywin32 not available – window management limited")
+        logger.warning("pywin32 not available – window management limited")
     with contextlib.suppress(ImportError):
+        import ctypes  # noqa: F401
+
         _CTYPES_AVAILABLE = True
 
 
@@ -90,7 +99,6 @@ class WindowInfo:
 # Known application aliases → executable mapping
 # ---------------------------------------------------------------------------
 _APP_ALIASES: dict[str, str] = {
-    # Browsers
     "chrome": "chrome.exe",
     "google chrome": "chrome.exe",
     "firefox": "firefox.exe",
@@ -98,7 +106,6 @@ _APP_ALIASES: dict[str, str] = {
     "edge": "msedge.exe",
     "microsoft edge": "msedge.exe",
     "brave": "brave.exe",
-    # Productivity
     "notepad": "notepad.exe",
     "wordpad": "wordpad.exe",
     "word": "WINWORD.EXE",
@@ -107,7 +114,6 @@ _APP_ALIASES: dict[str, str] = {
     "microsoft excel": "EXCEL.EXE",
     "powerpoint": "POWERPNT.EXE",
     "outlook": "OUTLOOK.EXE",
-    # System tools
     "calculator": "calc.exe",
     "paint": "mspaint.exe",
     "task manager": "taskmgr.exe",
@@ -118,11 +124,9 @@ _APP_ALIASES: dict[str, str] = {
     "powershell": "powershell.exe",
     "terminal": "wt.exe",
     "windows terminal": "wt.exe",
-    # Media
     "vlc": "vlc.exe",
     "media player": "wmplayer.exe",
     "spotify": "Spotify.exe",
-    # Communication
     "whatsapp": "WhatsApp.exe",
     "teams": "Teams.exe",
     "microsoft teams": "Teams.exe",
@@ -130,13 +134,11 @@ _APP_ALIASES: dict[str, str] = {
     "discord": "Discord.exe",
     "zoom": "Zoom.exe",
     "skype": "Skype.exe",
-    # Development
     "vscode": "Code.exe",
     "visual studio code": "Code.exe",
     "vs code": "Code.exe",
     "pycharm": "pycharm64.exe",
     "git bash": "git-bash.exe",
-    # Web (open in default browser)
     "youtube": "https://www.youtube.com",
     "gmail": "https://mail.google.com",
     "google": "https://www.google.com",
@@ -145,31 +147,12 @@ _APP_ALIASES: dict[str, str] = {
 
 
 class WindowsController:
-    """Windows OS Controller for voice-driven automation.
-
-    Provides:
-    - Application launching via subprocess / os.startfile / ShellExecuteW
-    - Keyboard simulation via pyautogui / pywin32 SendInput
-    - Mouse simulation via pyautogui
-    - Window management via pywin32 FindWindow / SetForegroundWindow
-    - Permission checking via ctypes IsUserAnAdmin
-
-    Example:
-        >>> ctrl = WindowsController()
-        >>> ctrl.launch_app("notepad")
-        >>> ctrl.type_text("Hello from Guru!")
-        >>> ctrl.press_key("enter")
-
-    """
+    """Windows OS Controller for voice-driven automation."""
 
     def __init__(self) -> None:
         """Initialize Windows controller."""
         self._validate_platform()
         logger.info("WindowsController initialized")
-
-    # ------------------------------------------------------------------
-    # Platform validation
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _validate_platform() -> None:
@@ -178,42 +161,19 @@ class WindowsController:
             msg = f"WindowsController requires Windows, running on {sys.platform}"
             raise RuntimeError(msg)
 
-    # ------------------------------------------------------------------
-    # Application launching
-    # ------------------------------------------------------------------
-
     def launch_app(
         self,
         app_name: str,
         args: list[str] | None = None,
     ) -> WindowsControllerResult:
-        """Launch an application by name or path.
-
-        Tries in order:
-        1. Known alias → executable name (searched via PATH / registry)
-        2. URL alias → os.startfile (opens in default browser)
-        3. Direct executable path
-        4. ShellExecuteW fallback
-
-        Time Complexity: O(1)
-
-        Args:
-            app_name: Application name, alias, or full path
-            args: Optional command-line arguments
-
-        Returns:
-            WindowsControllerResult with success status and PID if available
-
-        """
+        """Launch an application by name or path."""
         start = time.perf_counter()
         args = args or []
         normalized = app_name.lower().strip()
 
-        # Resolve alias
         resolved = _APP_ALIASES.get(normalized, app_name)
 
         try:
-            # URL → open in default browser
             if resolved.startswith(("http://", "https://")):
                 os.startfile(resolved)  # type: ignore[attr-defined]  # nosec B606
                 latency_ms = (time.perf_counter() - start) * 1000
@@ -226,7 +186,6 @@ class WindowsController:
                     metadata={"url": resolved},
                 )
 
-            # Try subprocess with full args
             cmd = [resolved, *args]
             proc = subprocess.Popen(  # nosec B603  # noqa: S603
                 cmd,
@@ -245,7 +204,17 @@ class WindowsController:
             )
 
         except (FileNotFoundError, OSError) as e:
-            # Fallback: os.startfile (uses Windows shell association)
+            # Log the ORIGINAL failure before attempting the shell fallback —
+            # previously this exception variable was bound but never used
+            # (confirmed by ruff F841) after an earlier dead-code cleanup,
+            # meaning the real reason the primary launch attempt failed was
+            # silently discarded; only the fallback's own exception (e2)
+            # ever reached the logs on ultimate failure.
+            logger.debug(
+                "Primary launch of %s failed (%s) — trying shell fallback",
+                app_name,
+                e,
+            )
             try:
                 os.startfile(resolved)  # type: ignore[attr-defined]  # nosec B606
                 latency_ms = (time.perf_counter() - start) * 1000
@@ -259,7 +228,7 @@ class WindowsController:
                 )
             except Exception as e2:
                 latency_ms = (time.perf_counter() - start) * 1000
-                logger.exception("Failed to launch %s via shell: %s", app_name, e2)
+                logger.exception("Failed to launch %s via shell", app_name)
                 return WindowsControllerResult(
                     success=False,
                     operation="launch_app",
@@ -267,37 +236,13 @@ class WindowsController:
                     error=str(e2),
                     latency_ms=latency_ms,
                 )
-            latency_ms = (time.perf_counter() - start) * 1000
-            logger.exception("Failed to launch %s", app_name)
-            return WindowsControllerResult(
-                success=False,
-                operation="launch_app",
-                message=f"Failed to launch {app_name}",
-                error=str(e),
-                latency_ms=latency_ms,
-            )
-
-    # ------------------------------------------------------------------
-    # Keyboard simulation
-    # ------------------------------------------------------------------
 
     def type_text(
         self,
         text: str,
         interval: float = 0.0,
     ) -> WindowsControllerResult:
-        """Type text into the active window.
-
-        Time Complexity: O(n) where n = len(text)
-
-        Args:
-            text: Text to type
-            interval: Delay between keystrokes in seconds (0 = fastest)
-
-        Returns:
-            WindowsControllerResult
-
-        """
+        """Type text into the active window."""
         start = time.perf_counter()
 
         if not _PYAUTOGUI_AVAILABLE:
@@ -331,15 +276,7 @@ class WindowsController:
             )
 
     def press_key(self, key: str) -> WindowsControllerResult:
-        """Press a single key or key combination.
-
-        Args:
-            key: Key name (e.g. 'enter', 'ctrl+c', 'alt+f4')
-
-        Returns:
-            WindowsControllerResult
-
-        """
+        """Press a single key or key combination."""
         start = time.perf_counter()
 
         if not _PYAUTOGUI_AVAILABLE:
@@ -351,7 +288,6 @@ class WindowsController:
             )
 
         try:
-            # Handle combinations like 'ctrl+c'
             if "+" in key:
                 parts = [p.strip() for p in key.split("+")]
                 pyautogui.hotkey(*parts)
@@ -379,15 +315,7 @@ class WindowsController:
             )
 
     def hotkey(self, *keys: str) -> WindowsControllerResult:
-        """Press a hotkey combination simultaneously.
-
-        Args:
-            *keys: Keys to press together (e.g. 'ctrl', 'c')
-
-        Returns:
-            WindowsControllerResult
-
-        """
+        """Press a hotkey combination simultaneously."""
         start = time.perf_counter()
 
         if not _PYAUTOGUI_AVAILABLE:
@@ -420,10 +348,6 @@ class WindowsController:
                 latency_ms=latency_ms,
             )
 
-    # ------------------------------------------------------------------
-    # Mouse simulation
-    # ------------------------------------------------------------------
-
     def click(
         self,
         x: int,
@@ -431,18 +355,7 @@ class WindowsController:
         button: str = "left",
         clicks: int = 1,
     ) -> WindowsControllerResult:
-        """Click at screen coordinates.
-
-        Args:
-            x: X coordinate
-            y: Y coordinate
-            button: 'left', 'right', or 'middle'
-            clicks: Number of clicks (2 for double-click)
-
-        Returns:
-            WindowsControllerResult
-
-        """
+        """Click at screen coordinates."""
         start = time.perf_counter()
 
         if not _PYAUTOGUI_AVAILABLE:
@@ -474,7 +387,9 @@ class WindowsController:
                 latency_ms=latency_ms,
             )
 
-    def move_mouse(self, x: int, y: int, duration: float = 0.0) -> WindowsControllerResult:
+    def move_mouse(
+        self, x: int, y: int, duration: float = 0.0
+    ) -> WindowsControllerResult:
         """Move mouse to coordinates."""
         start = time.perf_counter()
 
@@ -506,10 +421,6 @@ class WindowsController:
                 latency_ms=latency_ms,
             )
 
-    # ------------------------------------------------------------------
-    # Window management
-    # ------------------------------------------------------------------
-
     def get_active_window_title(self) -> str:
         """Return the title of the currently active window."""
         if _PYWIN32_AVAILABLE:
@@ -527,15 +438,7 @@ class WindowsController:
         return ""
 
     def find_window(self, title: str) -> int | None:
-        """Find a window by title (partial match).
-
-        Args:
-            title: Window title to search for (case-insensitive partial match)
-
-        Returns:
-            Window handle (HWND) or None if not found
-
-        """
+        """Find a window by title (partial match)."""
         if not _PYWIN32_AVAILABLE:
             return None
 
@@ -548,7 +451,7 @@ class WindowsController:
                 window_title = win32gui.GetWindowText(hwnd).lower()
                 if title_lower in window_title and win32gui.IsWindowVisible(hwnd):
                     found_hwnd = hwnd
-                    return False  # Stop enumeration
+                    return False
             except Exception as exc:
                 logger.debug("Window enumeration callback error: %s", exc)
             return True
@@ -560,15 +463,7 @@ class WindowsController:
         return found_hwnd
 
     def focus_window(self, title: str) -> WindowsControllerResult:
-        """Bring a window to the foreground by title.
-
-        Args:
-            title: Window title (partial match)
-
-        Returns:
-            WindowsControllerResult
-
-        """
+        """Bring a window to the foreground by title."""
         start = time.perf_counter()
 
         hwnd = self.find_window(title)
@@ -582,7 +477,6 @@ class WindowsController:
 
         try:
             if _PYWIN32_AVAILABLE:
-                # Restore if minimized
                 placement = win32gui.GetWindowPlacement(hwnd)
                 if placement[1] == win32con.SW_SHOWMINIMIZED:
                     win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
@@ -670,12 +564,7 @@ class WindowsController:
             )
 
     def list_windows(self) -> list[WindowInfo]:
-        """List all visible windows.
-
-        Returns:
-            List of WindowInfo for all visible windows
-
-        """
+        """List all visible windows."""
         windows: list[WindowInfo] = []
 
         if not _PYWIN32_AVAILABLE:
@@ -714,10 +603,6 @@ class WindowsController:
             logger.debug("EnumWindows failed in list_windows: %s", exc)
         return windows
 
-    # ------------------------------------------------------------------
-    # Permission checking
-    # ------------------------------------------------------------------
-
     def is_admin(self) -> bool:
         """Return True if running with administrator privileges."""
         if not _CTYPES_AVAILABLE:
@@ -730,15 +615,7 @@ class WindowsController:
             return False
 
     def check_permission(self, operation: str) -> bool:
-        """Check if the current process has permission for an operation.
-
-        Args:
-            operation: Operation name (e.g. 'registry_write', 'service_control')
-
-        Returns:
-            True if permitted
-
-        """
+        """Check if the current process has permission for an operation."""
         admin_required = {
             "registry_write",
             "service_control",
@@ -748,4 +625,4 @@ class WindowsController:
         }
         if operation in admin_required:
             return self.is_admin()
-        return True  # Non-admin operations always permitted
+        return True
