@@ -194,136 +194,156 @@ class IntentDetectionEngine:
 
         _logger.info("Initializing Intent Detection Engine...")
 
-        # Initialize Fast-Path Router
         if self.config.enable_fast_path:
-            self.fast_router = FastIntentRouter()
-            patterns_path = Path(self.config.patterns_file)
-            if patterns_path.exists():
-                self.fast_router.load_patterns(self.config.patterns_file)
-                _logger.info(
-                    "Fast-Path Router initialized (%d patterns)",
-                    len(self.fast_router._patterns),
-                )
-            else:
-                _logger.warning(
-                    "Patterns file not found: %s â€” Fast-Path Router disabled",
-                    self.config.patterns_file,
-                )
-                self.fast_router = None
+            self._init_fast_router()
 
-        # Initialize Neural Classifier
         if self.config.enable_neural:
-            try:
-                neural_config = self.config.neural_config or ClassifierConfig()
-                self.neural_classifier = NeuralIntentClassifier(neural_config)
-                self.neural_classifier.load_model()
-                _logger.info("Neural Classifier initialized")
-            except Exception as e:
-                _logger.warning("Neural Classifier initialization failed: %s â€” disabled", e)
-                self.neural_classifier = None
+            self._init_neural_classifier()
+            self._init_ner_extractor()
 
-        # Initialize NER Extractor
-        if self.config.enable_neural:  # NER is used with neural classifier
-            try:
-                ner_config = self.config.ner_config or NERConfig()
-                self.ner_extractor = NEREntityExtractor(ner_config)
-                self.ner_extractor.load_model()
-                _logger.info("NER Extractor initialized")
-            except Exception as e:
-                _logger.warning("NER Extractor initialization failed: %s â€” disabled", e)
-                self.ner_extractor = None
-
-        # Initialize LLM Fallback (prefer cloud APIs for speed, fallback to Ollama)
         if self.config.enable_llm_fallback:
-            try:
-                import os
+            self._init_llm_fallback()
 
-                # Try cloud APIs first (MUCH faster: 200-500ms vs Ollama 15-30s)
-
-                # Check which APIs are available â€” only use a key if it's
-                # non-empty and not a placeholder value
-                def _valid_key(k: str | None) -> bool:
-                    return bool(k and k.strip() and "your-" not in k.lower() and len(k) > 8)
-
-                deepseek_key = (
-                    os.environ.get("DEEPSEEK_API_KEY")
-                    if _valid_key(os.environ.get("DEEPSEEK_API_KEY"))
-                    else None
-                )
-                gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-                gemini_key = gemini_key if _valid_key(gemini_key) else None
-                openai_key = (
-                    os.environ.get("OPENAI_API_KEY")
-                    if _valid_key(os.environ.get("OPENAI_API_KEY"))
-                    else None
-                )
-
-                # Use DeepSeek as primary (fastest and cheapest)
-                if deepseek_key:
-                    llm_config = LLMFallbackConfig(
-                        provider="openai",  # DeepSeek uses OpenAI-compatible API
-                        model="deepseek-chat",
-                        api_key=deepseek_key,
-                        timeout_ms=2000.0,  # 2 seconds for cloud
-                    )
-                    self.llm_fallback = LLMFallbackClassifier(llm_config)
-                    if gemini_key:
-                        _logger.info("LLM Fallback: DeepSeek PRIMARY + Gemini BACKUP (MULTI-API)")
-                    else:
-                        _logger.info("LLM Fallback: DeepSeek API (FAST)")
-
-                # Use OpenAI as fallback (only if key is valid â€” not Gemini key)
-                elif openai_key:
-                    llm_config = LLMFallbackConfig(
-                        provider="openai",
-                        model="gpt-4-turbo-preview",
-                        api_key=openai_key,
-                        timeout_ms=2000.0,
-                    )
-                    self.llm_fallback = LLMFallbackClassifier(llm_config)
-                    _logger.info("LLM Fallback: OpenAI API (FAST)")
-
-                # Fallback to Ollama (slow but free, no API key needed)
-                else:
-                    llm_config = LLMFallbackConfig(
-                        provider="ollama",
-                        model=os.environ.get("OLLAMA_MODEL", "gemma3:4b"),
-                        timeout_ms=45000.0,  # 45s for CPU Ollama inference
-                    )
-                    self.llm_fallback = LLMFallbackClassifier(llm_config)
-                    if gemini_key:
-                        _logger.info(
-                            "LLM Fallback: Ollama (GEMINI_API_KEY set but Gemini provider "
-                            "not supported in this classifier â€” using Ollama). "
-                            "Set DEEPSEEK_API_KEY for fast cloud intent classification.",
-                        )
-                    else:
-                        _logger.warning(
-                            "LLM Fallback: Ollama (%s) â€” may be slow on CPU. "
-                            "Set DEEPSEEK_API_KEY for fast cloud responses.",
-                            llm_config.model,
-                        )
-
-            except Exception as e:
-                _logger.warning("LLM Fallback initialization failed: %s â€” disabled", e)
-                self.llm_fallback = None
-
-        # Initialize Online Learning
         if self.config.enable_online_learning:
-            try:
-                self.feedback_store = FeedbackStore(self.config.feedback_db_path)
-                self.online_learner = OnlineLearner(
-                    model_version="v1.0",
-                    db_path=self.config.feedback_db_path,
-                )
-                _logger.info("Online Learning initialized")
-            except Exception as e:
-                _logger.warning("Online Learning initialization failed: %s â€” disabled", e)
-                self.feedback_store = None
-                self.online_learner = None
+            self._init_online_learning()
 
         self._initialized = True
         _logger.info("Intent Detection Engine ready")
+
+    # ------------------------------------------------------------------
+    # Component initializers (extracted for complexity reduction)
+    # ------------------------------------------------------------------
+
+    def _init_fast_router(self) -> None:
+        """Initialize the fast-path intent router."""
+        self.fast_router = FastIntentRouter()
+        patterns_path = Path(self.config.patterns_file)
+        if patterns_path.exists():
+            self.fast_router.load_patterns(self.config.patterns_file)
+            _logger.info(
+                "Fast-Path Router initialized (%d patterns)",
+                len(self.fast_router._patterns),
+            )
+        else:
+            _logger.warning(
+                "Patterns file not found: %s — Fast-Path Router disabled",
+                self.config.patterns_file,
+            )
+            self.fast_router = None
+
+    def _init_neural_classifier(self) -> None:
+        """Initialize the neural intent classifier."""
+        try:
+            neural_config = self.config.neural_config or ClassifierConfig()
+            self.neural_classifier = NeuralIntentClassifier(neural_config)
+            self.neural_classifier.load_model()
+            _logger.info("Neural Classifier initialized")
+        except Exception as e:
+            _logger.warning("Neural Classifier initialization failed: %s — disabled", e)
+            self.neural_classifier = None
+
+    def _init_ner_extractor(self) -> None:
+        """Initialize the NER entity extractor."""
+        try:
+            ner_config = self.config.ner_config or NERConfig()
+            self.ner_extractor = NEREntityExtractor(ner_config)
+            self.ner_extractor.load_model()
+            _logger.info("NER Extractor initialized")
+        except Exception as e:
+            _logger.warning("NER Extractor initialization failed: %s — disabled", e)
+            self.ner_extractor = None
+
+    def _init_llm_fallback(self) -> None:
+        """Initialize LLM fallback classifier (cloud APIs or Ollama)."""
+        try:
+            import os
+
+            def _valid_key(k: str | None) -> bool:
+                return bool(k and k.strip() and "your-" not in k.lower() and len(k) > 8)
+
+            deepseek_key = (
+                os.environ.get("DEEPSEEK_API_KEY")
+                if _valid_key(os.environ.get("DEEPSEEK_API_KEY"))
+                else None
+            )
+            gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+            gemini_key = gemini_key if _valid_key(gemini_key) else None
+            openai_key = (
+                os.environ.get("OPENAI_API_KEY")
+                if _valid_key(os.environ.get("OPENAI_API_KEY"))
+                else None
+            )
+
+            llm_config = self._select_llm_provider(deepseek_key, openai_key, gemini_key)
+            self.llm_fallback = LLMFallbackClassifier(llm_config)
+
+        except Exception as e:
+            _logger.warning("LLM Fallback initialization failed: %s — disabled", e)
+            self.llm_fallback = None
+
+    @staticmethod
+    def _select_llm_provider(
+        deepseek_key: str | None,
+        openai_key: str | None,
+        gemini_key: str | None,
+    ) -> "LLMFallbackConfig":
+        """Select the best available LLM provider."""
+        import os
+
+        if deepseek_key:
+            if gemini_key:
+                _logger.info("LLM Fallback: DeepSeek PRIMARY + Gemini BACKUP (MULTI-API)")
+            else:
+                _logger.info("LLM Fallback: DeepSeek API (FAST)")
+            return LLMFallbackConfig(
+                provider="openai",
+                model="deepseek-chat",
+                api_key=deepseek_key,
+                timeout_ms=2000.0,
+            )
+
+        if openai_key:
+            _logger.info("LLM Fallback: OpenAI API (FAST)")
+            return LLMFallbackConfig(
+                provider="openai",
+                model="gpt-4-turbo-preview",
+                api_key=openai_key,
+                timeout_ms=2000.0,
+            )
+
+        # Fallback to Ollama (slow but free)
+        model = os.environ.get("OLLAMA_MODEL", "gemma3:4b")
+        if gemini_key:
+            _logger.info(
+                "LLM Fallback: Ollama (GEMINI_API_KEY set but Gemini provider "
+                "not supported in this classifier — using Ollama). "
+                "Set DEEPSEEK_API_KEY for fast cloud intent classification.",
+            )
+        else:
+            _logger.warning(
+                "LLM Fallback: Ollama (%s) — may be slow on CPU. "
+                "Set DEEPSEEK_API_KEY for fast cloud responses.",
+                model,
+            )
+        return LLMFallbackConfig(
+            provider="ollama",
+            model=model,
+            timeout_ms=45000.0,
+        )
+
+    def _init_online_learning(self) -> None:
+        """Initialize online learning components."""
+        try:
+            self.feedback_store = FeedbackStore(self.config.feedback_db_path)
+            self.online_learner = OnlineLearner(
+                model_version="v1.0",
+                db_path=self.config.feedback_db_path,
+            )
+            _logger.info("Online Learning initialized")
+        except Exception as e:
+            _logger.warning("Online Learning initialization failed: %s — disabled", e)
+            self.feedback_store = None
+            self.online_learner = None
 
     async def detect_intent_async(
         self,
