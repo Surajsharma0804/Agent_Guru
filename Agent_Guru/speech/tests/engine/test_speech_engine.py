@@ -25,6 +25,9 @@ from Agent_Guru.speech.models import (
 )
 from Agent_Guru.speech.exceptions import GuruSpeechError
 from Agent_Guru.speech.config import SpeechEngineConfig
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TestSpeechEngine:
@@ -340,7 +343,7 @@ class TestSpeechEngine:
                 personality=PersonalityType.GURU
             ))
         except Exception as e:
-            _logger.warning("Suppressed exception: %s", e)
+            logger.warning("Suppressed exception: %s", e)
         
         # Context should still exist
         assert initialized_engine._current_context_id == context_id  # nosec B101
