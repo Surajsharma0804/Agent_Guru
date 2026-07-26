@@ -3,8 +3,24 @@
 from contextlib import contextmanager
 
 from opentelemetry import trace
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.exporter.zipkin.json import ZipkinExporter
+
+# Jaeger exporter was removed in newer OpenTelemetry versions — graceful fallback
+try:
+    from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+except ImportError:
+    JaegerExporter = None  # type: ignore[misc,assignment]
+
+try:
+    from opentelemetry.exporter.zipkin.json import ZipkinExporter
+except ImportError:
+    ZipkinExporter = None  # type: ignore[misc,assignment]
+
+# Try OTLP exporter as modern fallback
+try:
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+except ImportError:
+    OTLPSpanExporter = None  # type: ignore[misc,assignment]
+
 from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
 from opentelemetry.sdk.trace import TracerProvider, sampling
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter

@@ -13,6 +13,7 @@ from Agent_Guru.platform.integration.goal_manager_client import (
     GoalManagerClient,
     NotificationStatus,
     OperationResult,
+    OperationStatus,
     TaskCompletionNotification,
 )
 from Agent_Guru.platform.integration.graceful_shutdown import (
@@ -75,6 +76,7 @@ __all__ = [
     "NotificationStatus",
     "OperationMetadata",
     "OperationResult",
+    "OperationStatus",
     "OperationTracker",
     "PerformanceMetrics",
     # Self-Improvement

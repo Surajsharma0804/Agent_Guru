@@ -1,10 +1,20 @@
 """Whisper-based speech-to-text transcription for desktop platforms."""
 
+import logging
 import time
 from pathlib import Path
 
 import numpy as np
-from faster_whisper import WhisperModel
+
+# faster_whisper depends on ctranslate2 which may be blocked by Windows
+# Application Control policies — graceful fallback
+try:
+    from faster_whisper import WhisperModel
+except (ImportError, OSError) as _fw_err:
+    WhisperModel = None  # type: ignore[misc,assignment]
+    logging.getLogger(__name__).warning(
+        "faster_whisper unavailable (ctranslate2 DLL blocked or missing): %s", _fw_err
+    )
 
 from Agent_Guru.speech.exceptions import GuruSpeechError
 from Agent_Guru.speech.models import TranscriptionResult, TranscriptionSegment
