@@ -461,6 +461,11 @@ _FACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"talk to me in (?:only )?english(?:\s+only)?", re.I), "code_mixing_english"),
     (re.compile(r"(?:talk|speak) (?:to me )?in hinglish", re.I), "code_mixing_hinglish"),
     (re.compile(r"(?:talk|speak) (?:to me )?in hindi", re.I), "code_mixing_hinglish"),
+    # Hindi-phrased code-mixing preferences
+    (re.compile(r"hinglish mein (?:baat|baat kar|bol)", re.I), "code_mixing_hinglish"),
+    (re.compile(r"hindi mein (?:baat|baat kar|bol)", re.I), "code_mixing_hinglish"),
+    (re.compile(r"(?:sirf |only )?english mein (?:baat|baat kar|bol)", re.I), "code_mixing_english"),
+    (re.compile(r"sirf english", re.I), "code_mixing_english"),
     # Goals and projects — BEFORE the generic "I am a ..." occupation pattern
     (re.compile(r"my goal is (?:to )?(.+)", re.I), "current_goal"),
     (re.compile(r"i(?:'m| am) trying to (.+)", re.I), "current_goal"),

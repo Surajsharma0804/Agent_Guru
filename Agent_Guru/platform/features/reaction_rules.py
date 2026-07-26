@@ -242,6 +242,18 @@ class ReactionRuleStore:
                 logger.info("ReactionRule: exact match %r → %r", normalized, response)
                 return response
 
+            # Substring containment — O(k), catches "bro thak gaya yaar"
+            # matching trigger "thak gaya". Most common real-world pattern.
+            for key in self._rules:
+                if key in normalized:
+                    self._rules.move_to_end(key)  # LRU touch
+                    response = self._rules[key]
+                    logger.info(
+                        "ReactionRule: substring match %r ⊂ %r → %r",
+                        key, normalized, response,
+                    )
+                    return response
+
             # Fuzzy match — O(k), k ≤ _MAX_RULES
             best_ratio = 0.0
             best_key: str | None = None
