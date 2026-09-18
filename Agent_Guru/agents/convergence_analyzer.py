@@ -4,6 +4,7 @@ Validates: Requirements 21.1, 21.2, 21.3, 21.4
 """
 
 import statistics
+from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -53,7 +54,17 @@ class ConvergenceAnalyzer:
         self.tracker = tracker
         self.stability_window = stability_window
         self.stability_threshold = stability_threshold
-        self._history: dict[str, list[ConvergenceMetrics]] = {}
+        # BUG FIX: was an unbounded list per task_type, growing
+        # forever for the lifetime of this instance even though only
+        # the most recent `stability_window` snapshots are ever read
+        # from it (see detect_population_stability()). Bounded to a
+        # deque; the two facts that genuinely need the FULL history
+        # (total count, and the very first snapshot) are tracked
+        # separately below so every existing consumer's behavior is
+        # unchanged.
+        self._history: dict[str, deque[ConvergenceMetrics]] = {}
+        self._history_counts: dict[str, int] = {}
+        self._first_snapshots: dict[str, ConvergenceMetrics] = {}
         self._reassignment_counts: dict[str, int] = {}
 
     async def track_success_rates_over_time(
@@ -75,7 +86,9 @@ class ConvergenceAnalyzer:
             specialization_variance=variance,
             reassignment_count=self._reassignment_counts.get(task_type, 0),
         )
-        self._history.setdefault(task_type, []).append(snapshot)
+        self._history.setdefault(task_type, deque(maxlen=self.stability_window)).append(snapshot)
+        self._history_counts[task_type] = self._history_counts.get(task_type, 0) + 1
+        self._first_snapshots.setdefault(task_type, snapshot)
 
     def calculate_specialization_variance(self, agents: list, task_type: str) -> float:
         """Calculate variance of specialization scores across agents for a task type.
@@ -113,10 +126,14 @@ class ConvergenceAnalyzer:
         if not self._history:
             return False
 
-        for snapshots in self._history.values():
-            if len(snapshots) < self.stability_window:
+        for task_type, snapshots in self._history.items():
+            if self._history_counts.get(task_type, 0) < self.stability_window:
                 return False
-            recent_rates = [s.success_rate for s in snapshots[-self.stability_window :]]
+            # snapshots is already bounded to the last stability_window
+            # entries (deque maxlen), equivalent to the old
+            # snapshots[-self.stability_window:] slice of the
+            # unbounded list.
+            recent_rates = [s.success_rate for s in snapshots]
             if statistics.variance(recent_rates) > self.stability_threshold:
                 return False
 
@@ -131,11 +148,24 @@ class ConvergenceAnalyzer:
         for task_type, snapshots in self._history.items():
             if not snapshots:
                 continue
-            rates = [s.success_rate for s in snapshots]
+            total_count = self._history_counts.get(task_type, len(snapshots))
+            first_rate = self._first_snapshots[task_type].success_rate
+            latest_rate = snapshots[-1].success_rate
             report[task_type] = {
-                "snapshots": len(snapshots),
-                "latest_success_rate": rates[-1],
-                "improving": len(rates) >= 2 and rates[-1] > rates[0],
+                # BUG FIX: was len(snapshots) against the (formerly
+                # unbounded) list -- now that self._history is bounded
+                # to a deque(maxlen=stability_window), len(snapshots)
+                # alone would under-report the true total once a
+                # task_type exceeds the window. total_count tracks the
+                # real count ever recorded, matching prior behavior.
+                "snapshots": total_count,
+                "latest_success_rate": latest_rate,
+                # BUG FIX: compares against the true first-ever
+                # snapshot (first_rate), not the oldest snapshot still
+                # in the bounded window -- preserves the original
+                # "improving since the very first recorded rate"
+                # meaning exactly.
+                "improving": total_count >= 2 and latest_rate > first_rate,
                 "latest_variance": snapshots[-1].specialization_variance,
                 "reassignments": self._reassignment_counts.get(task_type, 0),
             }

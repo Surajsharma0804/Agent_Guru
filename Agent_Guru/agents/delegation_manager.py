@@ -46,9 +46,13 @@ class DelegationManager:
 
     Maintains a directed graph of delegation edges.  Before accepting a
     delegation it checks:
-    1. Self-delegation (rejected immediately).
-    2. Depth limit (chain length >= max_delegation_depth → rejected).
-    3. Cycle detection (adding the edge would create a cycle → rejected).
+    1. Depth limit (chain length >= max_delegation_depth → rejected).
+    2. Cycle detection (adding the edge would create a cycle → rejected).
+       True self-delegation (an agent delegating to itself) is prevented
+       structurally: assign_task() is always called with
+       exclude_agent_id=requester, so it can never select the requester
+       as the new assignee, and would_create_cycle()'s own
+       from_agent == to_agent check is a defensive backstop.
 
     Time Complexity: O(V + E) for cycle detection
     Space Complexity: O(V + E) for delegation graph
@@ -103,9 +107,9 @@ class DelegationManager:
         """Attempt to delegate a sub-task to another agent.
 
         Rejects delegation if:
-        - The requesting agent would delegate to itself.
         - The delegation chain for this task already reached max depth.
-        - Adding the delegation edge would create a cycle.
+        - Adding the delegation edge would create a cycle (this also
+          structurally covers true self-delegation -- see would_create_cycle).
 
         Args:
             request: Delegation request.
@@ -119,14 +123,27 @@ class DelegationManager:
         """
         task_id = request.subtask.id
         requester = request.requesting_agent_id
-
-        # Rule 1: reject self-delegation
-        # Validates: Requirement 11.1
         chain = self._chains.get(task_id, [])
-        if requester in chain:
-            return None
 
-        # Rule 2: depth limit
+        # BUG FIX: the check that used to live here ("if requester in
+        # chain: return None") was meant to reject self-delegation, but
+        # `chain` holds every agent that has ever RECEIVED this task via
+        # a prior delegation step. That means the moment any agent
+        # received a delegated task, it was already in `chain` -- so the
+        # very next time that same agent tried to delegate the task
+        # onward (the completely ordinary, expected second hop of any
+        # multi-hop chain), this check incorrectly rejected it every
+        # single time. That silently made every delegation chain longer
+        # than one hop impossible -- max_delegation_depth > 1 could never
+        # actually be exercised, no matter how it was configured. True
+        # self-delegation needs no separate check here at all:
+        # assign_task() below is always called with
+        # exclude_agent_id=requester, so it can structurally never select
+        # the requester as the new assignee, and would_create_cycle()'s
+        # own from_agent == to_agent check remains as a defensive
+        # backstop after assignment.
+
+        # Rule 1: depth limit
         # Validates: Requirements 10.3, 10.4
         if len(chain) >= self.max_depth:
             return None
@@ -137,8 +154,9 @@ class DelegationManager:
             exclude_agent_id=requester,
         )
 
-        # Rule 3: cycle detection – reject if adding requester→assigned creates cycle
-        # Validates: Requirements 10.2, 11.2
+        # Rule 2: cycle detection – reject if adding requester→assigned creates cycle
+        # (also structurally covers self-delegation; see the note above)
+        # Validates: Requirements 10.2, 11.1, 11.2
         if self.would_create_cycle(requester, assigned_id):
             # Undo the workload increment from assign_task
             await self.task_assigner.task_completed(assigned_id)
@@ -172,11 +190,25 @@ class DelegationManager:
         """
         if from_agent == to_agent:
             return True
+
+        # BUG FIX: add_edge() auto-creates any endpoint that isn't
+        # already a node. Track which endpoints are new BEFORE adding,
+        # so they can be cleaned back up below -- previously any newly-
+        # created node was left behind permanently (as an isolated,
+        # edge-less orphan) once the temporary edge was removed, even
+        # though the delegation itself may have been rejected.
+        new_from = from_agent not in self._graph
+        new_to = to_agent not in self._graph
+
         self._graph.add_edge(from_agent, to_agent)
         try:
             has_cycle = not nx.is_directed_acyclic_graph(self._graph)
         finally:
             self._graph.remove_edge(from_agent, to_agent)
+            if new_to:
+                self._graph.remove_node(to_agent)
+            if new_from:
+                self._graph.remove_node(from_agent)
         return has_cycle
 
     def get_delegation_chain(self, task_id: str) -> list[str]:

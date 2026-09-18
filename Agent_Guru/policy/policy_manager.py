@@ -12,8 +12,10 @@ Provides a unified permission + safety API for all platforms.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from datetime import timedelta
+from typing import TYPE_CHECKING, Any
 
+from Agent_Guru.policy.confirmation import ConfirmationHandler, ConfirmationStatus
 from Agent_Guru.policy.engine import PolicyEngine
 from Agent_Guru.policy.models import (
     PolicyEffect,
@@ -21,7 +23,11 @@ from Agent_Guru.policy.models import (
     Resource,
 )
 from Agent_Guru.policy.permissions import PermissionManager
-from Agent_Guru.policy.policy_storage import PolicyStorage
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from Agent_Guru.policy.confirmation import ConfirmationRequest
 
 logger = logging.getLogger(__name__)
 
@@ -51,13 +57,28 @@ class PolicyManager:
         cache_size: int = 10_000,
         default_ttl: int = 300,
         enable_caching: bool = True,
+        on_confirmation_request: Callable[[ConfirmationRequest], None] | None = None,
     ) -> None:
         self._db_path = db_path
         self._cache_size = cache_size
         self._default_ttl = default_ttl
         self._enable_caching = enable_caching
+        # BUG FIX: request_confirmation() used to try `from
+        # Agent_Guru.policy.confirmation import ConfirmationDialog`, a class
+        # that does not exist anywhere in this codebase. That import always
+        # raised ImportError, which the broad `except Exception` swallowed,
+        # so every confirmation request silently and permanently failed
+        # closed (DENY) regardless of what the caller wanted -- it looked
+        # like it delegated to a real UI dialog but could never succeed.
+        # `on_confirmation_request` lets a real UI layer hook into the
+        # confirmation flow (see ConfirmationHandler's on_request callback,
+        # which fires synchronously while the request is still PENDING) so
+        # request_confirmation() can genuinely resolve to True. Without one
+        # registered, behavior is unchanged: fail safe to DENY.
+        self._on_confirmation_request = on_confirmation_request
         self._engine: PolicyEngine | None = None
         self._permissions: PermissionManager | None = None
+        self._confirmation_handler: ConfirmationHandler | None = None
         self._initialized = False
 
         # Operations that always require explicit confirmation
@@ -81,8 +102,21 @@ class PolicyManager:
             default_ttl=self._default_ttl,
             enable_caching=self._enable_caching,
         )
-        storage = PolicyStorage(self._db_path)
-        self._permissions = PermissionManager(storage=storage)
+        # BUG FIX: this used to construct a brand new, independent
+        # PolicyStorage(self._db_path) here for PermissionManager, separate
+        # from the PolicyStorage that PolicyEngine constructs internally for
+        # itself (self._engine.storage). For the default db_path=":memory:"
+        # (i.e. out of the box), each PolicyStorage(":memory:") opens its own
+        # private in-memory SQLite database -- so grant_permission() /
+        # revoke_permission() wrote policies into a database that
+        # check_permission() could never see, making every grant silently
+        # no-op. Reusing self._engine.storage makes both facades operate on
+        # the same underlying storage, as the class docstring's example
+        # (grant then check) actually requires.
+        self._permissions = PermissionManager(storage=self._engine.storage)
+        self._confirmation_handler = ConfirmationHandler(
+            on_request=self._on_confirmation_request,
+        )
         self._initialized = True
         logger.info("PolicyManager initialized")
 
@@ -106,7 +140,13 @@ class PolicyManager:
             resource_id: Target resource identifier.
             action: Requested action (e.g., "read", "delete").
             context: Optional evaluation context (time, location, etc.).
-            roles: Optional list of roles for the principal.
+            roles: Deprecated / currently inert. `Principal` (see models.py)
+                only carries `id` and `attributes` -- there is no per-call
+                roles field. This parameter is accepted so existing call
+                sites keep working, but it has no effect on the decision.
+                To make RBAC roles apply, assign them ahead of time via
+                `PolicyEngine.create_role()` / `assign_role()`, which are
+                looked up from persistent storage during evaluation instead.
             attributes: Optional principal attributes for ABAC.
 
         Returns:
@@ -114,9 +154,18 @@ class PolicyManager:
 
         """
         self._ensure_initialized()
+        if roles:
+            logger.debug(
+                "check_permission(roles=%s) ignored: Principal has no roles field; "
+                "assign roles via PolicyEngine.assign_role() instead.",
+                roles,
+            )
+        # BUG FIX: this used to pass roles=roles or [] into Principal(...),
+        # but Principal only accepts id/attributes -- every call raised
+        # TypeError: __init__() got an unexpected keyword argument 'roles',
+        # meaning check_permission() could never return successfully.
         principal = Principal(
             id=user_id,
-            roles=roles or [],
             attributes=attributes or {},
         )
         resource = Resource(id=resource_id, type="resource", attributes={})
@@ -150,12 +199,20 @@ class PolicyManager:
 
         """
         self._ensure_initialized()
-        return self._permissions.grant(  # type: ignore[union-attr]
+        policy_id = self._permissions.grant(  # type: ignore[union-attr]
             principal_id=user_id,
             resource_id=resource_id,
             actions=actions,
             conditions=conditions,
         )
+        # PermissionManager writes policies straight to storage (it has no
+        # cache reference of its own), which is now the *same* storage
+        # PolicyEngine reads from -- so a stale cached decision for this
+        # user/resource/action must be evicted or check_permission() could
+        # keep returning the pre-grant answer until the cache TTL expires.
+        if self._engine and self._engine.cache:
+            self._engine.cache.invalidate_for_policy(policy_id)
+        return policy_id
 
     def revoke_permission(
         self,
@@ -170,6 +227,10 @@ class PolicyManager:
             resource_id=resource_id,
             actions=actions,
         )
+        # See grant_permission(): same shared-storage cache-invalidation
+        # requirement applies to revocation.
+        if self._engine and self._engine.cache:
+            self._engine.cache.invalidate()
 
     # ------------------------------------------------------------------
     # Confirmation for dangerous operations
@@ -207,15 +268,36 @@ class PolicyManager:
 
         """
         self._ensure_initialized()
-        # Delegate to policy confirmation module if available
+        # BUG FIX: this used to `from Agent_Guru.policy.confirmation import
+        # ConfirmationDialog` -- no such class exists anywhere in the
+        # codebase, so this raised ImportError on every single call. The
+        # broad except below caught it and returned False, so the method
+        # *looked* like a working "ask the user, fail safe on timeout"
+        # dialog but was actually a permanent, silent DENY no matter what.
+        #
+        # ConfirmationHandler (the class that does exist here) invokes its
+        # on_request callback synchronously while the request is still
+        # PENDING, so a real UI layer can resolve it (via .approve()/.deny())
+        # before this method returns just by registering
+        # on_confirmation_request in the PolicyManager constructor. With no
+        # such callback registered, get_status() correctly stays PENDING and
+        # this still fails safe to DENY -- but now because nothing answered,
+        # not because of a broken import to a class that was never written.
         try:
-            from Agent_Guru.policy.confirmation import ConfirmationDialog
-
-            dialog = ConfirmationDialog(timeout_seconds=timeout_seconds)
-            return dialog.ask(message)
+            req = self._confirmation_handler.request_confirmation(  # type: ignore[union-attr]
+                principal_id="system",
+                resource_id="confirmation",
+                action="confirm",
+                description=message,
+            )
+            # Honor this call's timeout override rather than the handler's
+            # own default_timeout_seconds.
+            req.expires_at = req.created_at + timedelta(seconds=timeout_seconds)
+            status = self._confirmation_handler.get_status(req.id)  # type: ignore[union-attr]
         except Exception:
-            logger.exception("Confirmation dialog unavailable — defaulting to DENY")
+            logger.exception("Confirmation request failed — defaulting to DENY")
             return False
+        return status == ConfirmationStatus.APPROVED
 
     # ------------------------------------------------------------------
     # Audit log access

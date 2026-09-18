@@ -226,6 +226,10 @@ class OutputValidator:
                 try:
                     return json.loads(stripped)
                 except json.JSONDecodeError:
+                    # "Looks like JSON but is not" is a legitimate input, not a
+                    # validation failure: the original string is returned
+                    # unchanged and validated as a string. The caller's own
+                    # rules decide whether that is acceptable.
                     pass
         return output
 

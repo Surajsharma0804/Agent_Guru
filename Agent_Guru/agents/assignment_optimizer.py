@@ -4,6 +4,7 @@ Validates: Requirements 24.1, 24.2, 24.3, 24.4, 24.5
 """
 
 import logging
+from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -57,7 +58,13 @@ class AssignmentOptimizer:
         self.baseline_success_rate = baseline_success_rate
         self.degradation_threshold = degradation_threshold
         self.window_size = window_size
-        self._outcomes: list[AssignmentOutcome] = []
+        # BUG FIX: bounded deque instead of an unbounded list. Both
+        # detect_quality_degradation() and maintain_baseline_comparison()
+        # only ever read the most recent `window_size` outcomes -- every
+        # outcome older than that was retained forever for no reason,
+        # growing without bound for the lifetime of a long-running
+        # companion process. maxlen keeps memory use at O(window_size).
+        self._outcomes: deque[AssignmentOutcome] = deque(maxlen=window_size)
 
     async def compute_expected_success_probability(self, agent_id: str, task_type: str) -> float:
         """Compute expected success probability based on agent specialization.
@@ -117,7 +124,9 @@ class AssignmentOptimizer:
         Time Complexity: O(w) where w = window_size
         Validates: Requirement 24.3
         """
-        recent = self._outcomes[-self.window_size :]
+        # _outcomes is already bounded to window_size (deque maxlen), so
+        # the whole deque IS the recent window -- no slicing needed.
+        recent = list(self._outcomes)
         if not recent:
             return False
 
@@ -137,7 +146,7 @@ class AssignmentOptimizer:
                 "outperforming_baseline": None,
             }
 
-        recent = self._outcomes[-self.window_size :]
+        recent = list(self._outcomes)
         spec_rate = sum(1 for o in recent if o.actual_success) / len(recent)
 
         return {

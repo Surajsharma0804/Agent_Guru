@@ -28,8 +28,8 @@ class DependencyResolver:
     """
 
     def __init__(self) -> None:
-        # Cache: (package_name, version) -> DependencyGraph
-        self._cache: dict[tuple[str, str], DependencyGraph] = {}
+        # Cache: (package_name, version, environment_fingerprint) -> DependencyGraph
+        self._cache: dict[tuple[str, str, int], DependencyGraph] = {}
 
     def resolve_dependencies(
         self,
@@ -54,12 +54,28 @@ class DependencyResolver:
             CircularDependencyError: If circular dependency detected.
 
         """
-        cache_key = (package_name, version)
+        available_packages = available_packages or {}
+        installed_map: dict[str, str] = {p.name: p.version for p in installed_packages}
+
+        # BUG FIX (Round 10): the cache was previously keyed on
+        # (package_name, version) alone, but the graph _build_graph()
+        # produces also depends on installed_map and available_packages
+        # (see _get_package_deps: dependency versions are picked from
+        # whichever of those two is available). A resolver instance is
+        # reused across an entire update session (UpdateOrchestrator holds
+        # one long-lived DependencyResolver), so a later call resolving the
+        # SAME package/version after packages were installed or the
+        # available-package registry changed would silently return the
+        # STALE graph computed under the old environment -- producing a
+        # wrong installation order without any error. Folding a fingerprint
+        # of both inputs into the cache key keeps the O(1) cache-hit benefit
+        # for the common case (nothing changed) while correctly forcing a
+        # fresh resolution whenever the environment actually changed.
+        env_fingerprint = self._environment_fingerprint(installed_map, available_packages)
+        cache_key = (package_name, version, env_fingerprint)
         if cache_key in self._cache:
             logger.debug("dependency_cache_hit", package=package_name, version=version)
             return self._cache[cache_key]
-
-        installed_map: dict[str, str] = {p.name: p.version for p in installed_packages}
         graph = DependencyGraph()
         self._build_graph(
             package_name,
@@ -228,6 +244,21 @@ class DependencyResolver:
                 except (KeyError, ValueError):
                     logger.exception("Dependency resolution skipped for entry")
         return deps
+
+    @staticmethod
+    def _environment_fingerprint(
+        installed_map: dict[str, str],
+        available_packages: dict[str, list[str]],
+    ) -> int:
+        """Hash the resolution-relevant environment state for cache keying.
+
+        _get_package_deps() picks dependency versions from installed_map
+        first, falling back to available_packages, so both must be part of
+        the cache key -- see the BUG FIX comment in resolve_dependencies().
+        """
+        installed_items = tuple(sorted(installed_map.items()))
+        available_items = tuple(sorted((k, tuple(v)) for k, v in available_packages.items()))
+        return hash((installed_items, available_items))
 
     @staticmethod
     def _versions_compatible(versions: list[str]) -> bool:

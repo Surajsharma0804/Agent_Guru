@@ -354,15 +354,22 @@ class GoalManager:
     async def initialize(self) -> None:
         """Initialize Goal Manager (alias for start).
 
-        Loads all goals from storage and recovers in-progress goals.
+        Loads all goals from storage, validates/recovers corrupted records,
+        and resumes goals that were IN_PROGRESS when the previous session
+        ended.
+
+        BUG FIX: this used to be a second, independent implementation that
+        directly contradicted its own "alias for start" docstring -- instead
+        of resuming interrupted goals like start() does, it unconditionally
+        marked every IN_PROGRESS goal as permanently FAILED, and skipped
+        start()'s corruption validation/recovery pass entirely. Depending on
+        which of the two identically-named-in-intent methods a caller used,
+        a restart would either resume in-flight work or silently discard it
+        -- with no documented way to know which was "correct". Delegating to
+        start() makes the method actually do what it already promised, and
+        removes the duplicate, drifted implementation.
         """
-        await self.storage.initialize()
-        # Recover in-progress goals that were interrupted
-        in_progress_goals = await self.storage.query_goals(status=GoalStatus.IN_PROGRESS)
-        for goal in in_progress_goals:
-            goal.status = GoalStatus.FAILED
-            goal.metadata["failure_reason"] = "crash recovery"
-            await self.storage.update_goal(goal)
+        await self.start()
 
     async def list_goals(
         self,

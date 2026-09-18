@@ -89,7 +89,31 @@ class OrchestrationSystem:
 
         if len(sub_tasks) == 1 and sub_tasks[0].id == task.id:
             # Atomic task — execute directly
-            return await self._execute_task(task)
+            # BUG FIX: was an unprotected `return await
+            # self._execute_task(task)` -- this class's own contract
+            # (docstring/example: callers always get a TaskResult
+            # back) means an exception here would break every
+            # caller's assumption, all the way out to
+            # GoalManagerIntegration.receive_task(), which has no
+            # try/except of its own either. Same error-TaskResult
+            # shape as the parallel/sequential dependency-execution
+            # paths, for consistency.
+            try:
+                return await self._execute_task(task)
+            except Exception as exc:
+                logger.error(
+                    "Task %s failed with %s: %s",
+                    task.id,
+                    type(exc).__name__,
+                    exc,
+                )
+                return TaskResult(
+                    task_id=task.id,
+                    agent_id="error",
+                    success=False,
+                    output=None,
+                    error=str(exc),
+                )
 
         # Execute sub-tasks respecting dependencies
         results = await self._execute_with_dependencies(sub_tasks)
@@ -112,7 +136,31 @@ class OrchestrationSystem:
                 # Circular dependency or unresolvable — execute remaining sequentially
                 logger.warning("Could not resolve dependencies, executing remaining sequentially")
                 for t in remaining:
-                    result = await self._execute_task(t)
+                    # BUG FIX: was an unprotected `await
+                    # self._execute_task(t)` -- unlike the parallel
+                    # branch below (which already isolates per-task
+                    # failures via asyncio.gather(return_exceptions=
+                    # True)), an exception here would abort this
+                    # ENTIRE loop, abandoning every other remaining
+                    # task in the batch with no result. Mirrors the
+                    # parallel branch's own error-TaskResult shape
+                    # for consistency between the two paths.
+                    try:
+                        result = await self._execute_task(t)
+                    except Exception as exc:
+                        logger.error(
+                            "Task %s failed with %s: %s",
+                            t.id,
+                            type(exc).__name__,
+                            exc,
+                        )
+                        result = TaskResult(
+                            task_id=t.id,
+                            agent_id="error",
+                            success=False,
+                            output=None,
+                            error=str(exc),
+                        )
                     completed[t.id] = result
                 break
 
@@ -167,14 +215,24 @@ class OrchestrationSystem:
         elapsed_ms = (time.perf_counter() - t0) * 1000
 
         # Record performance
-        await self.tracker.record_performance(
-            agent_id=agent_id,
-            task_id=task.id,
-            task_type=task.task_type,
-            success=success,
-            completion_time_ms=elapsed_ms,
-            resource_usage={},
-        )
+        # BUG FIX: was unprotected -- if this raised (a real
+        # possible storage failure), task_completed() below never
+        # ran, permanently leaking this agent's workload capacity
+        # slot (same bug class Round 48 fixed in
+        # TaskAssigner.assign_task() itself). Recording performance
+        # is a separate concern from releasing the agent's workload
+        # slot -- a failure in one should not prevent the other.
+        try:
+            await self.tracker.record_performance(
+                agent_id=agent_id,
+                task_id=task.id,
+                task_type=task.task_type,
+                success=success,
+                completion_time_ms=elapsed_ms,
+                resource_usage={},
+            )
+        except Exception:
+            logger.exception("Failed to record performance for task %s", task.id)
 
         await self.assigner.task_completed(agent_id)
 

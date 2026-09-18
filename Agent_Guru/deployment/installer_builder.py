@@ -197,16 +197,18 @@ class InstallerBuilder:
                 check=True,
                 capture_output=True,
                 shell=False,  # explicit — never allow shell=True here
+                timeout=600,
             )
             subprocess.run(  # nosec B603 B607  # noqa: S603
                 ["light.exe", str(wixobj), "-o", str(msi_path)],
                 check=True,
                 capture_output=True,
                 shell=False,
+                timeout=600,
             )
             logger.info("windows_msi_built", path=str(msi_path))
             return msi_path
-        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as exc:
             logger.exception("windows_msi_build_failed", error=str(exc))
             return None
 

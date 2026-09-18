@@ -12,6 +12,7 @@ Validates: Requirement 2 (Rule Evaluation), Requirement 8 (Memoization)
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import logging
@@ -43,6 +44,30 @@ COMPARISON_OPERATORS = frozenset({
     "exists",
     "not_exists",
 })
+
+# Maximum rule nesting depth. Rule expressions arrive from policy files, and
+# _evaluate_node() recurses once per level -- an over-nested (or cyclic,
+# hand-written) expression used to bottom out in a RecursionError, which is
+# not a RuleEvaluationError and so bypassed access_controller's fail-closed
+# handler. Mirrors MAX_ROLE_DEPTH in access_controller.py.
+MAX_RULE_DEPTH = 50
+
+# Bounded compiled-regex cache for the `matches` operator. Patterns come from
+# policy definitions, so the set is small and stable; re-compiling on every
+# evaluation was pure waste on the request path.
+_REGEX_CACHE_SIZE = 256
+
+
+@functools.lru_cache(maxsize=_REGEX_CACHE_SIZE)
+def _compiled(pattern: str) -> re.Pattern[str]:
+    return re.compile(pattern)
+
+
+# Precomputed once: _evaluate_node() and _validate_node() each rebuilt this
+# set on every single node visit, which is O(len(COMPARISON_OPERATORS)) of
+# pointless work per node on the authorization request path.
+_COMPARISON_OPERATORS_UPPER = frozenset(op.upper() for op in COMPARISON_OPERATORS)
+
 
 class RuleEvaluationError(Exception):
     """Raised when a rule cannot be evaluated."""
@@ -115,14 +140,21 @@ class RuleEvaluator:
 
         cache_key: str | None = None
         if self.enable_memoization and memo_cache is not None:
-            cache_key = self._rule_cache_key(rule)
+            # SECURITY FIX: the key used to be the hash of the RULE ALONE, so a
+            # memo cache that outlived one request -- or was shared between two
+            # -- would return the decision computed for one principal/resource
+            # as the answer for a different one. That is an authorization
+            # bypass, not a stale read. EvaluationContext.context_hash() already
+            # existed for exactly this and simply was not wired in; binding the
+            # key to it makes the cache safe no matter who holds it.
+            # access_controller.py builds a fresh cache per request today, so
+            # this closes the hole at the source rather than relying on every
+            # future caller repeating that discipline.
+            cache_key = f"{context.context_hash()}:{self._rule_cache_key(rule)}"
             if cache_key in memo_cache:
                 return memo_cache[cache_key]
 
-        try:
-            result = self._evaluate_node(rule, context)
-        except RuleEvaluationError:
-            raise
+        result = self._evaluate_node(rule, context)
         if cache_key is not None and memo_cache is not None:
             memo_cache[cache_key] = result
 
@@ -146,18 +178,44 @@ class RuleEvaluator:
     # Internal evaluation
     # ------------------------------------------------------------------
 
-    def _evaluate_node(self, node: dict[str, Any], context: EvaluationContext) -> bool:
+    def _evaluate_node(
+        self,
+        node: dict[str, Any],
+        context: EvaluationContext,
+        depth: int = 0,
+    ) -> bool:
         """Recursively evaluate a rule node."""
-        operator = node.get("operator", "").upper()
+        if depth > MAX_RULE_DEPTH:
+            msg = (
+                f"Rule nesting exceeds the maximum depth of {MAX_RULE_DEPTH}. "
+                "Refusing to evaluate."
+            )
+            raise RuleEvaluationError(msg)
+        if not isinstance(node, dict):
+            msg = f"Rule node must be a mapping, got {type(node).__name__}: {node!r}"
+            raise RuleEvaluationError(msg)
+
+        raw_operator = node.get("operator", "")
+        if not isinstance(raw_operator, str):
+            # A non-string operator (a number or list in a hand-edited policy
+            # file) used to raise AttributeError from .upper() -- which is not
+            # a RuleEvaluationError, so access_controller's fail-closed handler
+            # never saw it and the exception escaped the policy layer entirely.
+            msg = f"Rule operator must be a string, got {type(raw_operator).__name__}"
+            raise RuleEvaluationError(msg)
+        operator = raw_operator.upper()
 
         if operator in BOOLEAN_OPERATORS:
-            return self._evaluate_boolean(operator, node, context)
-        if operator in {op.upper() for op in COMPARISON_OPERATORS}:
+            return self._evaluate_boolean(operator, node, context, depth)
+        if operator in _COMPARISON_OPERATORS_UPPER:
             return self._evaluate_comparison(operator.lower(), node, context)
         if "attribute" in node:
             # Leaf node with implicit operator
-            op = node.get("operator", "exists").lower()
-            return self._evaluate_comparison(op, node, context)
+            op = node.get("operator", "exists")
+            if not isinstance(op, str):
+                msg = f"Rule operator must be a string, got {type(op).__name__}"
+                raise RuleEvaluationError(msg)
+            return self._evaluate_comparison(op.lower(), node, context)
         msg = f"Unknown operator '{operator}' in rule node: {node}"
         raise RuleEvaluationError(msg)
 
@@ -166,19 +224,23 @@ class RuleEvaluator:
         operator: str,
         node: dict[str, Any],
         context: EvaluationContext,
+        depth: int = 0,
     ) -> bool:
         """Evaluate a boolean (AND/OR/NOT) node."""
         conditions = node.get("conditions", [])
+        if not isinstance(conditions, list):
+            msg = f"'{operator}' requires a list of conditions, got {type(conditions).__name__}"
+            raise RuleEvaluationError(msg)
 
         if operator == "AND":
-            return all(self._evaluate_node(c, context) for c in conditions)
+            return all(self._evaluate_node(c, context, depth + 1) for c in conditions)
         if operator == "OR":
-            return any(self._evaluate_node(c, context) for c in conditions)
+            return any(self._evaluate_node(c, context, depth + 1) for c in conditions)
         if operator == "NOT":
             if not conditions:
                 msg = "NOT operator requires exactly one condition"
                 raise RuleEvaluationError(msg)
-            return not self._evaluate_node(conditions[0], context)
+            return not self._evaluate_node(conditions[0], context, depth + 1)
         msg = f"Unknown boolean operator: {operator}"
         raise RuleEvaluationError(msg)
 
@@ -248,7 +310,20 @@ class RuleEvaluator:
         if operator == "ends_with":
             return str(actual).endswith(str(expected))
         if operator == "matches":
-            return bool(re.match(str(expected), str(actual)))
+            # SECURITY FIX: re.match() anchors only the START of the string, so
+            # a policy condition of "admin" also matched "administrator_evil",
+            # and "safe" matched "safe_but_not". In an authorization predicate
+            # a partial match is the wrong default -- the rule author writes
+            # what the value must BE, not what it must begin with. fullmatch()
+            # makes the operator mean what its name says; a prefix rule is
+            # still expressible as "admin.*".
+            # The operator appears in no policy or fixture in this repository,
+            # so nothing currently relies on the prefix behaviour.
+            try:
+                return bool(_compiled(str(expected)).fullmatch(str(actual)))
+            except re.error as exc:
+                msg = f"Invalid regex in 'matches' rule: {expected!r} ({exc})"
+                raise RuleEvaluationError(msg) from exc
         msg = f"Unknown comparison operator: {operator}"
         raise RuleEvaluationError(msg)
 
@@ -276,6 +351,9 @@ class RuleEvaluator:
             errors.append(f"{path}: missing 'operator' field")
             return
 
+        if not isinstance(operator, str):
+            errors.append(f"{path}: 'operator' must be a string, got {type(operator).__name__}")
+            return
         op_upper = operator.upper()
 
         if op_upper in BOOLEAN_OPERATORS:
@@ -287,7 +365,7 @@ class RuleEvaluator:
                 errors.append(f"{path}: NOT operator requires exactly one condition")
             for i, child in enumerate(conditions):
                 self._validate_node(child, errors, path=f"{path}.conditions[{i}]")
-        elif op_upper in {op.upper() for op in COMPARISON_OPERATORS}:
+        elif op_upper in _COMPARISON_OPERATORS_UPPER:
             if "attribute" not in node:
                 errors.append(f"{path}: comparison operator requires 'attribute' field")
             if op_upper not in {"EXISTS", "NOT_EXISTS"} and "value" not in node:

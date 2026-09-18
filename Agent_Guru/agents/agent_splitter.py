@@ -20,11 +20,14 @@ Date: 2026-03-13
 Version: 1.0.0
 """
 
+import logging
 import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .agent_lifecycle import Agent, AgentLifecycleManager, PerformanceRecord
@@ -240,7 +243,12 @@ class AgentSplitter:
         await self.lifecycle_manager.retire_agent(agent_id, "split")
 
         # Record split event
-        await self.lifecycle_manager._record_evolution_event(
+        # BUG FIX: was self.lifecycle_manager._record_evolution_event
+        # (reaching into a private method on a different class) -- now
+        # uses the public wrapper added to AgentLifecycleManager
+        # (Round 53), which was added precisely because this call site
+        # was one of its confirmed external callers.
+        await self.lifecycle_manager.record_evolution_event(
             event_type="split",
             agent_ids=[agent_id] + [a.id for a in new_agents],
             reason="divergent_specializations",
@@ -499,9 +507,22 @@ class AgentSplitter:
 
         for record in history:
             # Find which cluster this task type belongs to
+            matched = False
             for cluster_types in clusters:
                 if record.task_type in cluster_types:
                     partitions[cluster_types].append(record)
+                    matched = True
                     break
+
+            if not matched:
+                logger.warning(
+                    "Performance record for task_type=%r (task_id=%r) does "
+                    "not match any cluster during split -- record will be "
+                    "dropped from every resulting agent's history. Known "
+                    "clusters: %r",
+                    record.task_type,
+                    getattr(record, "task_id", None),
+                    list(clusters.keys()),
+                )
 
         return partitions

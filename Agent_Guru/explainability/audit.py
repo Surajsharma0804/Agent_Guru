@@ -268,4 +268,8 @@ class AuditTrail:
             if self._memory_conn is not None:
                 self._memory_conn.close()
         except (sqlite3.Error, OSError):
+            # Finalizer. It may run during interpreter shutdown, when the
+            # logging machinery may already be torn down, so reporting here is
+            # unsafe. close() is the supported path and does report; this is
+            # only the last-resort net for callers that never called it.
             pass

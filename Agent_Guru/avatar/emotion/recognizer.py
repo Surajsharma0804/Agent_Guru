@@ -481,7 +481,13 @@ class EmotionRecognizer:
                 logger.info("GPU acceleration enabled: %s", torch.cuda.get_device_name(0))
                 return "cuda"
         except ImportError:
-            pass
+            # GPU was explicitly requested but PyTorch is not installed, so
+            # this silently returned CPU and the caller had no way to tell
+            # that its request had been downgraded.
+            logger.info(
+                "GPU acceleration was requested but PyTorch is not installed; "
+                "falling back to CPU",
+            )
         return "cpu"
 
     @staticmethod

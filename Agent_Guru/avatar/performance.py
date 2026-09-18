@@ -81,6 +81,18 @@ class PerformanceMonitor:
             self._monitor_thread.join(timeout=2.0)
         logger.info("Performance monitor stopped")
 
+    def set_limits(self, max_cpu_percent: float, max_memory_mb: float) -> None:
+        """Update the CPU/memory resource limits.
+
+        These are pure comparison thresholds read by the background
+        monitor loop (for throttled warnings) and by
+        :meth:`get_metrics` / :meth:`is_resource_constrained` -- nothing
+        about the running monitor thread depends on their values at
+        construction time, so this is safe to change live.
+        """
+        self._max_cpu = max_cpu_percent
+        self._max_memory = max_memory_mb
+
     # ------------------------------------------------------------------
     # Metrics recording
     # ------------------------------------------------------------------

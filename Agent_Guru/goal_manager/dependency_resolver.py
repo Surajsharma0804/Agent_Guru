@@ -8,19 +8,22 @@ Performance Characteristics:
     - Time Complexity: O(V + E) for cycle detection (DFS)
     - Time Complexity: O(D) for readiness check where D is number of dependencies
     - Time Complexity: O(V + E) for blocking propagation
-    - Space Complexity: O(V) for visited/recursion stack in DFS
+    - Space Complexity: O(V) for the colour map and explicit DFS stack
     - Correctness: Detects all cycles using depth-first search
 
 Architecture:
     The dependency resolver uses:
-    1. Depth-first search (DFS) for cycle detection
-    2. Recursion stack to track current path
-    3. Visited set to avoid redundant checks
-    4. Recursive propagation for blocking dependent goals
+    1. Iterative depth-first search (explicit stack) for cycle detection
+    2. Three-colour marking to track the current path
+    3. Colour map to avoid redundant checks
+    4. Iterative propagation, over a prebuilt dependents index, for
+       blocking dependent goals
 
 Optimization Techniques:
     - Early termination on cycle detection
-    - Visited set to avoid redundant DFS traversals
+    - Colour marking to avoid redundant DFS traversals
+    - A single goal read inverted into a dependents index, instead of one
+      full-table scan per goal blocked
     - Direct status checks for readiness (no graph traversal)
 
 Author: Kiro AI
@@ -40,11 +43,12 @@ class DependencyResolver:
     are ready for execution based on dependency satisfaction.
 
     Time Complexity:
-        - validate_dependencies: O(V + E) - DFS traversal
+        - validate_dependencies: O(V + E) - iterative DFS traversal
         - is_ready: O(D) where D is number of dependencies
-        - mark_blocked: O(V + E) - recursive propagation
+        - mark_blocked: O(V + E) - iterative propagation over a
+          prebuilt dependents index
 
-    Space Complexity: O(V) for DFS visited/recursion stack
+    Space Complexity: O(V) for the colour map and explicit DFS stack
 
     Example:
         >>> resolver = DependencyResolver(storage)
@@ -68,12 +72,12 @@ class DependencyResolver:
     async def validate_dependencies(self, goal: Goal) -> None:
         """Validate goal dependencies don't form cycles.
 
-        Uses depth-first search to detect circular dependencies.
-        A cycle exists if we encounter a goal that's already in the
-        current recursion stack.
+        Uses an iterative depth-first search to detect circular
+        dependencies. A cycle exists if we reach a goal that is already on
+        the current path.
 
         Time Complexity: O(V + E) where V is goals, E is dependencies
-        Space Complexity: O(V) for visited and recursion stack
+        Space Complexity: O(V) for the colour map and explicit stack
 
         Args:
             goal: Goal to validate (uses goal.dependency_ids as the
@@ -91,14 +95,37 @@ class DependencyResolver:
             msg = f"Circular dependency detected for goal {goal.id}"
             raise CircularDependencyError(msg)
 
+    async def _dependencies_of(self, goal_id: str, override: dict) -> list[str] | None:
+        """Return a goal's dependency ids, or None if the goal does not exist.
+
+        `override` carries the in-flight dependency list for the node being
+        validated, so validation runs against the deps about to be saved
+        rather than whatever is currently persisted.
+        """
+        if goal_id in override:
+            return list(override[goal_id])
+        goal = await self.storage.get_goal(goal_id)
+        if not goal:
+            return None
+        return list(goal.dependency_ids)
+
     async def _has_cycle(self, goal: Goal, override: dict) -> bool:
-        """Check if goal has circular dependencies using DFS.
+        """Check if goal has circular dependencies, iteratively.
 
-        Performs depth-first search starting from the goal,
-        tracking visited nodes and the current recursion stack.
+        RECURSION FIX: this was a recursive DFS (`_has_cycle_util` calling
+        itself once per edge). Dependency chains are user-authored data with
+        no depth limit, so a chain of ~1000 goals exhausted Python's recursion
+        limit and raised RecursionError -- which is NOT CircularDependencyError,
+        so it escaped validate_dependencies() entirely instead of being
+        reported as the invalid dependency graph it is. The traversal below is
+        an explicit-stack DFS: identical semantics, bounded only by memory.
 
-        Time Complexity: O(V + E) - visits each goal once
-        Space Complexity: O(V) - visited and recursion stack
+        Three-colour marking replaces the old visited/rec_stack pair and means
+        exactly the same thing: WHITE = not yet reached, GREY = on the current
+        path (a back-edge to GREY is a cycle), BLACK = fully explored.
+
+        Time Complexity: O(V + E) -- each goal is expanded once.
+        Space Complexity: O(V) for the colour map and the stack.
 
         Args:
             goal: Starting goal for cycle detection
@@ -109,72 +136,47 @@ class DependencyResolver:
             True if cycle detected, False otherwise
 
         """
-        visited: set[str] = set()
-        rec_stack: set[str] = set()
+        white, grey, black = 0, 1, 2
+        colour: dict[str, int] = {}
 
-        return await self._has_cycle_util(goal.id, visited, rec_stack, override)
+        # Each frame is (goal_id, its dependency list or None if not yet
+        # loaded, index of the next dependency to consider).
+        stack: list[tuple[str, list[str] | None, int]] = [(goal.id, None, 0)]
 
-    async def _has_cycle_util(
-        self,
-        goal_id: str,
-        visited: set[str],
-        rec_stack: set[str],
-        override: dict,
-    ) -> bool:
-        """DFS utility for cycle detection.
+        while stack:
+            node, deps, index = stack.pop()
 
-        Recursive helper that performs depth-first search with
-        recursion stack tracking. A cycle exists if we encounter
-        a goal that's already in the current recursion stack.
+            if deps is None:
+                if colour.get(node, white) != white:
+                    continue
+                colour[node] = grey
+                deps = await self._dependencies_of(node, override)
+                if deps is None:
+                    # Goal doesn't exist: no cycle can run through it.
+                    colour[node] = black
+                    continue
+                index = 0
 
-        Algorithm:
-        1. Mark current goal as visited and add to recursion stack
-        2. For each dependency:
-           a. If not visited, recursively check for cycles
-           b. If in recursion stack, cycle detected
-        3. Remove from recursion stack before returning
-
-        Time Complexity: O(V + E) - visits each goal once
-        Space Complexity: O(V) - recursion depth + sets
-
-        Args:
-            goal_id: Current goal ID
-            visited: Set of visited goal IDs
-            rec_stack: Set of goal IDs in current recursion path
-            override: Dict mapping goal_id -> dependency_ids to use
-                      instead of storage (for the node being validated)
-
-        Returns:
-            True if cycle detected, False otherwise
-
-        """
-        # Mark as visited and add to recursion stack
-        visited.add(goal_id)
-        rec_stack.add(goal_id)
-
-        # Use override deps if provided, otherwise fetch from storage
-        if goal_id in override:
-            dep_ids = override[goal_id]
-        else:
-            goal = await self.storage.get_goal(goal_id)
-            if not goal:
-                # Goal doesn't exist, no cycle from this path
-                rec_stack.remove(goal_id)
-                return False
-            dep_ids = goal.dependency_ids
-
-        # Check all dependencies
-        for dep_id in dep_ids:
-            if dep_id not in visited:
-                # Recursively check unvisited dependency
-                if await self._has_cycle_util(dep_id, visited, rec_stack, override):
+            descended = False
+            while index < len(deps):
+                dep_id = deps[index]
+                index += 1
+                dep_colour = colour.get(dep_id, white)
+                if dep_colour == grey:
+                    # Back-edge into the current path: a cycle.
                     return True
-            elif dep_id in rec_stack:
-                # Dependency is in current path - cycle detected!
-                return True
+                if dep_colour == white:
+                    # Resume this frame after the child is fully explored.
+                    stack.append((node, deps, index))
+                    stack.append((dep_id, None, 0))
+                    descended = True
+                    break
+                # black: already fully explored, cannot be part of a cycle
+                # reachable from here.
 
-        # Remove from recursion stack before returning
-        rec_stack.remove(goal_id)
+            if not descended:
+                colour[node] = black
+
         return False
 
     async def is_ready(self, goal: Goal) -> bool:
@@ -217,31 +219,75 @@ class DependencyResolver:
         """
         return await self.is_ready(goal)
 
-    async def mark_blocked(self, goal_id: str) -> None:
+    async def mark_blocked(self, goal_id: str, _visited: set[str] | None = None) -> None:
         """Mark goal as blocked due to failed dependency.
 
-        Recursively propagates blocking to all dependent goals.
+        Propagates blocking to every transitively dependent goal.
         This ensures that if a goal fails, all goals depending on it
         are also marked as blocked.
 
-        Time Complexity: O(V + E) - visits all dependent goals
-        Space Complexity: O(V) - recursion depth
+        Time Complexity: O(V + E) with ONE full goal read, plus one
+            get_goal/update_goal per goal actually blocked.
+        Space Complexity: O(V + E) for the dependents index and worklist
 
         Args:
             goal_id: Goal to mark as blocked
+            _visited: Internal — goal IDs already processed in this
+                propagation, to avoid revisiting a goal reachable through
+                multiple dependency paths. Callers should not pass this.
 
         """
-        # Get goal
-        goal = await self.storage.get_goal(goal_id)
-        if not goal:
-            return
+        # BUG FIX: this used to recurse into every dependent goal with no
+        # memoization at all. dependency_ids form a general DAG (a goal can
+        # depend on several goals, and several goals can share a dependent),
+        # not a tree, so a "diamond" shape -- e.g. D depends on both B and C,
+        # which both depend on A -- caused D to be revisited and re-blocked
+        # once per path into it. On a DAG with real fan-in/fan-out this is
+        # not just wasted work: paths multiply combinatorially with depth, so
+        # actual runtime could be exponential despite the O(V + E) claimed
+        # above (which assumes each node is visited once, as a correct
+        # implementation should). Worse, if a cycle ever ended up in storage
+        # (e.g. via a race between two concurrent validate_dependencies()
+        # calls each checking against a stale snapshot), this had no
+        # recursion-stack guard at all and would recurse until RecursionError
+        # instead of terminating. Tracking visited goal IDs fixes both: each
+        # goal is blocked at most once, and a cycle can no longer cause
+        # unbounded recursion.
+        visited = _visited if _visited is not None else set()
 
-        # Mark as blocked
-        goal.status = GoalStatus.BLOCKED
-        await self.storage.update_goal(goal)
-
-        # Recursively block dependent goals
+        # N+1 FIX: the recursive form called storage.query_goals() -- an
+        # unfiltered full-table read that opens its own connection -- ONCE PER
+        # GOAL it blocked. Blocking a chain of k goals therefore performed k
+        # full scans to answer the same question k times. The goal set is read
+        # once here and inverted into a dependents index, which answers "who
+        # depends on X" in O(1) for every step of the propagation.
+        #
+        # The index is used ONLY to find dependents. Each goal is still
+        # re-read with get_goal() before being written, so a stale field from
+        # this snapshot can never be written back over a concurrent update.
         all_goals = await self.storage.query_goals()
-        for g in all_goals:
-            if goal_id in g.dependency_ids:
-                await self.mark_blocked(g.id)
+        dependents: dict[str, list[str]] = {}
+        for other in all_goals:
+            for dep_id in other.dependency_ids:
+                dependents.setdefault(dep_id, []).append(other.id)
+
+        # RECURSION FIX: an explicit worklist rather than recursion. The
+        # visited set already stopped a cycle in storage from recursing
+        # forever, but a long legitimate chain still hit Python's recursion
+        # limit -- and RecursionError is not something a caller of
+        # mark_blocked() can act on.
+        pending: list[str] = [goal_id]
+        while pending:
+            current = pending.pop()
+            if current in visited:
+                continue
+            visited.add(current)
+
+            goal = await self.storage.get_goal(current)
+            if not goal:
+                continue
+
+            goal.status = GoalStatus.BLOCKED
+            await self.storage.update_goal(goal)
+
+            pending.extend(dependents.get(current, ()))

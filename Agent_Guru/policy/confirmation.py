@@ -274,7 +274,21 @@ class ConfirmationHandler:
         reason: str | None,
     ) -> bool:
         req = self._pending.get(request_id)
-        if req is None or req.status != ConfirmationStatus.PENDING:
+        if req is None:
+            return False
+        # BUG FIX: expiry used to only be enforced lazily, inside
+        # get_status()/get_pending() -- a request whose timeout had already
+        # elapsed was still stored with status=PENDING until one of those
+        # methods happened to be called first. approve()/deny() checked only
+        # `req.status != PENDING`, so calling approve() on an
+        # already-expired-but-not-yet-observed request would succeed and
+        # mark it APPROVED, silently bypassing the confirmation timeout.
+        # Applying the same lazy check here (mirroring get_status()) closes
+        # that window: a request past its expiry can no longer be resolved.
+        if req.status == ConfirmationStatus.PENDING and datetime.now(tz=UTC) > req.expires_at:
+            req.status = ConfirmationStatus.EXPIRED
+            req.resolved_at = datetime.now(tz=UTC)
+        if req.status != ConfirmationStatus.PENDING:
             return False
         req.status = status
         req.resolved_at = datetime.now(tz=UTC)

@@ -16,6 +16,8 @@ import sqlite3
 import subprocess  # nosec B404
 import sys
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -343,7 +345,34 @@ class PackageManager:
                 """,
             )
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        """Open a SQLite connection and guarantee it is closed afterwards.
+
+        BUG FIX (Round 10): this previously returned a bare
+        ``sqlite3.Connection`` and every call site used it as
+        ``with self._connect() as conn:``. That relies on
+        ``sqlite3.Connection.__enter__``/``__exit__``, which manage only the
+        *transaction* (commit on success, rollback on exception) -- per the
+        Python docs, the context manager "neither implicitly opens a new
+        transaction nor closes the connection". So every call to
+        get_installed_packages(), _register_package(), _unregister_package(),
+        _is_registered(), and _init_db() opened a brand-new SQLite
+        connection -- and its underlying OS file descriptor -- that was
+        never released for the remaining lifetime of the process. Verified
+        with a standalone repro: after 5 calls through the old pattern,
+        5/5 connections were still open and usable. In a long-running
+        deployment/update daemon that performs many install/remove/registry
+        operations over weeks of uptime, this leaks one file descriptor per
+        operation and will eventually exhaust the process's fd limit.
+
+        An explicit @contextmanager generator that closes the connection in
+        a ``finally`` block fixes the leak while every existing
+        ``with self._connect() as conn:`` call site keeps working unchanged.
+        """
         conn = sqlite3.connect(str(self._db_path))
-        conn.isolation_level = None  # autocommit for context manager usage
-        return conn
+        conn.isolation_level = None  # autocommit -- each execute() commits immediately
+        try:
+            yield conn
+        finally:
+            conn.close()

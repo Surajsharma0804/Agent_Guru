@@ -105,8 +105,18 @@ class ModelRouterIntegration:
                 return selection
             except Exception:
                 logger.exception("Model Router unavailable. Using default.")
+                # BUG FIX: do NOT cache this fallback under cache_key --
+                # a transient client failure would otherwise
+                # permanently pin this agent/task_type pair to
+                # "default" forever (the cache has no TTL), even after
+                # the model router recovers. Return an uncached default
+                # now so this call unblocks, but let the NEXT call try
+                # the real client again.
+                return ModelSelection(model_id="default", configuration={})
 
-        # Fallback: default model
+        # No client configured at all -- there is no "later" for this
+        # to recover from, so caching the default here is safe and
+        # avoids reconstructing it on every call.
         default = ModelSelection(model_id="default", configuration={})
         self._cache[cache_key] = default
         return default

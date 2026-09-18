@@ -25,6 +25,7 @@ Date: 2024
 Version: 1.0.0
 """
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
@@ -37,6 +38,12 @@ from Agent_Guru.goal_manager.models import Goal, GoalStatus
 
 # Initialize structured logger
 logger = get_logger(__name__)
+
+
+# Upper bound on the background `git push` performed after a goal completes.
+# GitPython kills the git process when this elapses, so an unreachable remote
+# cannot pin a worker thread indefinitely.
+_GIT_PUSH_TIMEOUT_S = 60.0
 
 
 class GoalExecutor:
@@ -149,6 +156,20 @@ class GoalExecutor:
         # If no sub-goals and agent_orchestration is set, execute as leaf task
         if not goal.sub_goal_ids and self.agent_orchestration is not None:
             await self._execute_sub_goal(goal)
+            # BUG FIX: this used to return here without ever calling
+            # _report_completion(). _execute_sub_goal() itself only commits
+            # to GitHub on success -- it never reports to the
+            # Self-Improvement Engine (that happens exclusively in the
+            # multi-sub-goal loop below). A top-level goal with no
+            # decomposition (the common case for a single, non-decomposed
+            # task) would therefore complete and commit successfully while
+            # silently never being recorded as a completed task for
+            # learning/metrics purposes -- an asymmetry with the
+            # multi-sub-goal path, which always reports on full completion.
+            # _execute_sub_goal(goal) mutates `goal` in place (same object),
+            # so goal.status already reflects the outcome here.
+            if goal.status == GoalStatus.COMPLETE:
+                await self._report_completion(goal)
             return
 
         # Execute sub-goals sequentially
@@ -371,16 +392,35 @@ class GoalExecutor:
             if self.git_repo is None:
                 return
 
-            # Stage all changes with git.add(A=True)
-            self.git_repo.git.add(A=True)
+            def _git_work() -> None:
+                # EVENT-LOOP FIX: all three of these are blocking. `git add -A`
+                # walks the worktree, `index.commit()` writes objects, and
+                # `origin.push()` is a NETWORK operation that can take seconds
+                # to minutes -- and every one of them ran directly inside this
+                # `async def`, freezing the entire assistant for the duration.
+                # Goal completion is a background bookkeeping step; it must not
+                # be able to stall the voice pipeline.
 
-            # Create commit with goal description and ID
-            commit_message = f"Goal completed: {goal.description}\n\nGoal ID: {goal.id}"
-            self.git_repo.index.commit(commit_message)
+                # Stage all changes with git.add(A=True)
+                self.git_repo.git.add(A=True)
 
-            # Push to remote origin
-            origin = self.git_repo.remote(name="origin")
-            origin.push()
+                # Create commit with goal description and ID
+                commit_message = (
+                    f"Goal completed: {goal.description}\n\nGoal ID: {goal.id}"
+                )
+                self.git_repo.index.commit(commit_message)
+
+                # HANG FIX: origin.push() had no time limit at all. An
+                # unreachable or hanging remote (a VPN drop, a wedged SSH
+                # connection) pinned this forever. GitPython's push() takes
+                # kill_after_timeout, which terminates the underlying git
+                # process rather than merely abandoning the wait -- verified
+                # against the installed GitPython (3.1.x:
+                # Remote.push(refspec, progress, kill_after_timeout, ...)).
+                origin = self.git_repo.remote(name="origin")
+                origin.push(kill_after_timeout=_GIT_PUSH_TIMEOUT_S)
+
+            await asyncio.to_thread(_git_work)
 
         except Exception as e:
             # Log error but don't fail goal (graceful degradation)

@@ -169,7 +169,21 @@ class SleepWakeCoordinator:
         self._current_mode = PowerMode.SLEEP
         self._cancel_auto_sleep()
 
-        for state in self._components.values():
+        # BUG FIX: was `for state in self._components.values():` --
+        # iterating the live dict view directly. If the mode
+        # callback (awaited inside _set_component_mode below) reacts
+        # to a transition by deregistering ANY component -- a
+        # component announcing its own shutdown is exactly what
+        # set_mode_callback() exists to observe -- self._components
+        # is mutated mid-iteration and CPython raises
+        # "RuntimeError: dictionary changed size during iteration",
+        # aborting this method outright. Snapshotting first avoids
+        # the crash; a deregistration mid-transition still takes
+        # effect for future calls, only this in-progress one is
+        # unaffected -- matching the same fix already applied to
+        # the sibling lifecycle.py (Round 63) and resource_monitor.py
+        # (Round 65) in this subpackage.
+        for state in list(self._components.values()):
             await self._set_component_mode(state, PowerMode.SLEEP)
 
         logger.info("All components transitioned to SLEEP mode")
@@ -187,7 +201,9 @@ class SleepWakeCoordinator:
         self._current_mode = PowerMode.WAKE
         self._last_activity = datetime.now(tz=UTC)
 
-        for state in self._components.values():
+        # BUG FIX: same dict-mutated-during-iteration crash risk as
+        # enter_sleep_mode() above -- see the comment there.
+        for state in list(self._components.values()):
             await self._set_component_mode(state, PowerMode.WAKE)
 
         # Start auto-sleep timer if configured

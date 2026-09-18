@@ -14,6 +14,7 @@ Validates: Requirement 6 (Audit Trail)
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import logging
 import sqlite3
@@ -39,13 +40,22 @@ CREATE TABLE IF NOT EXISTS audit_log (
     applicable_policies TEXT NOT NULL,
     context_hash TEXT NOT NULL,
     evaluation_time_ms REAL NOT NULL,
-    decision_reason TEXT
+    decision_reason TEXT,
+    record_hash TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_principal ON audit_log(principal_id);
 CREATE INDEX IF NOT EXISTS idx_audit_resource ON audit_log(resource_id);
 CREATE INDEX IF NOT EXISTS idx_audit_effect ON audit_log(effect);
 """
+
+# Column added after the initial release, for verify_integrity()'s tamper
+# hash. Existing on-disk databases created before this column existed need
+# an explicit migration since `CREATE TABLE IF NOT EXISTS` does not alter an
+# already-existing table.
+_MIGRATE_ADD_RECORD_HASH = (
+    "ALTER TABLE audit_log ADD COLUMN record_hash TEXT NOT NULL DEFAULT ''"
+)
 
 
 class AuditLogger:
@@ -79,6 +89,20 @@ class AuditLogger:
     def _init_db(self) -> None:
         with self._conn() as conn:
             conn.executescript(_CREATE_TABLE)
+            self._migrate_record_hash_column(conn)
+
+    @staticmethod
+    def _migrate_record_hash_column(conn: sqlite3.Connection) -> None:
+        """Add record_hash to an on-disk audit_log table created before this
+        column existed. `CREATE TABLE IF NOT EXISTS` above is a no-op against
+        an already-existing table, so a persisted database from before this
+        fix needs an explicit ALTER TABLE the first time it's reopened.
+        (Not needed for :memory: databases -- those are always created fresh
+        with the current schema.)
+        """
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(audit_log)").fetchall()}
+        if "record_hash" not in columns:
+            conn.execute(_MIGRATE_ADD_RECORD_HASH)
 
     @contextmanager
     def _conn(self) -> Generator[sqlite3.Connection, None, None]:
@@ -130,8 +154,22 @@ class AuditLogger:
         Validates: Requirement 6.1
         """
         record_id = str(uuid.uuid4())
+        timestamp = datetime.now(tz=timezone.utc).isoformat()
         context_hash = self._hash_context(context)
         policies_json = json.dumps(decision.applicable_policies)
+        record_hash = self._compute_record_hash(
+            record_id=record_id,
+            timestamp=timestamp,
+            principal_id=principal_id,
+            resource_id=resource_id,
+            resource_type=resource_type,
+            action=action,
+            effect=decision.effect.value,
+            applicable_policies=policies_json,
+            context_hash=context_hash,
+            evaluation_time_ms=decision.evaluation_time_ms,
+            decision_reason=decision.reason,
+        )
 
         with self._conn() as conn:
             conn.execute(
@@ -139,12 +177,12 @@ class AuditLogger:
                 INSERT INTO audit_log
                     (id, timestamp, principal_id, resource_id, resource_type,
                      action, effect, applicable_policies, context_hash,
-                     evaluation_time_ms, decision_reason)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     evaluation_time_ms, decision_reason, record_hash)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record_id,
-                    datetime.now(tz=timezone.utc).isoformat(),
+                    timestamp,
                     principal_id,
                     resource_id,
                     resource_type,
@@ -154,6 +192,7 @@ class AuditLogger:
                     context_hash,
                     decision.evaluation_time_ms,
                     decision.reason,
+                    record_hash,
                 ),
             )
 
@@ -220,23 +259,58 @@ class AuditLogger:
     def verify_integrity(self, record_id: str) -> bool:
         """Verify an audit record has not been tampered with.
 
-        The context_hash field is used as a tamper-evident seal.
-        Since we store the hash at write time, we verify the stored hash
-        is a valid SHA256 hex string (structural integrity check).
+        BUG FIX: this used to just check that the stored context_hash was a
+        syntactically valid 64-character hex string -- it never recomputed
+        or compared anything, so it returned True for a record no matter
+        what its fields said, including one whose effect/action/etc. had
+        been altered directly in the database (e.g. `UPDATE audit_log SET
+        effect='ALLOW' WHERE id=...`). It also hashed the *input* evaluation
+        context rather than the persisted row, and the raw context was never
+        stored, so there was nothing to recompute against even in principle.
+        This was a placebo tamper check: it always passed.
+
+        record_hash now covers every field actually persisted for this
+        record (computed once at write time in log_decision() /
+        _compute_record_hash()). Verification recomputes that same hash from
+        the row's *current* contents and compares -- any modification to any
+        column changes the recomputed hash and correctly fails verification.
+
+        Note: records written before this fix (or before the record_hash
+        column existed on an on-disk database -- see _migrate_record_hash_
+        column) have record_hash='' and will report False here. That is
+        intentional, not a false positive: those records were never sealed,
+        so their integrity genuinely cannot be vouched for.
 
         Validates: Requirement 6.4
         """
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT context_hash FROM audit_log WHERE id = ?", (record_id,)
+                """
+                SELECT id, timestamp, principal_id, resource_id, resource_type,
+                       action, effect, applicable_policies, context_hash,
+                       evaluation_time_ms, decision_reason, record_hash
+                FROM audit_log WHERE id = ?
+                """,
+                (record_id,),
             ).fetchone()
 
         if not row:
             return False
 
-        stored_hash = row["context_hash"]
-        # Verify it's a valid SHA256 hex string (64 hex chars)
-        return len(stored_hash) == 64 and all(c in "0123456789abcdef" for c in stored_hash)
+        expected = self._compute_record_hash(
+            record_id=row["id"],
+            timestamp=row["timestamp"],
+            principal_id=row["principal_id"],
+            resource_id=row["resource_id"],
+            resource_type=row["resource_type"],
+            action=row["action"],
+            effect=row["effect"],
+            applicable_policies=row["applicable_policies"],
+            context_hash=row["context_hash"],
+            evaluation_time_ms=row["evaluation_time_ms"],
+            decision_reason=row["decision_reason"],
+        )
+        return hmac.compare_digest(expected, row["record_hash"] or "")
 
     # ------------------------------------------------------------------
     # Retention
@@ -265,6 +339,44 @@ class AuditLogger:
     def _hash_context(context: dict[str, Any]) -> str:
         """Compute SHA256 hash of context dict."""
         serialized = json.dumps(context, sort_keys=True, default=str)
+        return hashlib.sha256(serialized.encode()).hexdigest()
+
+    @staticmethod
+    def _compute_record_hash(
+        *,
+        record_id: str,
+        timestamp: str,
+        principal_id: str,
+        resource_id: str,
+        resource_type: str,
+        action: str,
+        effect: str,
+        applicable_policies: str,
+        context_hash: str,
+        evaluation_time_ms: float,
+        decision_reason: str | None,
+    ) -> str:
+        """Compute a tamper-evident hash over every persisted audit field.
+
+        Used both to seal a record at write time (log_decision) and to
+        re-derive the expected hash at verification time (verify_integrity).
+        Any change to any of these fields after the record was written
+        changes this hash, so a mismatch is proof of tampering.
+        """
+        payload = {
+            "id": record_id,
+            "timestamp": timestamp,
+            "principal_id": principal_id,
+            "resource_id": resource_id,
+            "resource_type": resource_type,
+            "action": action,
+            "effect": effect,
+            "applicable_policies": applicable_policies,
+            "context_hash": context_hash,
+            "evaluation_time_ms": evaluation_time_ms,
+            "decision_reason": decision_reason or "",
+        }
+        serialized = json.dumps(payload, sort_keys=True, default=str)
         return hashlib.sha256(serialized.encode()).hexdigest()
 
     @staticmethod

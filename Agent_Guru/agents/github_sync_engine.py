@@ -156,6 +156,26 @@ class GitHubSyncEngine:
         Prevents CWE-20/79/80: untrusted strings injected into Markdown
         must not be able to introduce raw HTML tags, links, or script content.
 
+        BUG FIX: the original version escaped HTML/Markdown *syntax*
+        characters but left raw line breaks untouched. Every value
+        passed through here is substituted into a single logical line
+        (one field of a commit message, or one field of a README
+        section) -- an unescaped \n or \r lets an attacker-controlled
+        event_type/agent_id/detail value break out of that single-line
+        context and forge additional lines: extra "trailers" in a git
+        commit message pushed to GitHub (CWE-93 log/commit injection --
+        e.g. spoofing a Co-authored-by/Signed-off-by line, or content a
+        downstream CI job greps out of commit messages), or fabricated
+        headings/fields injected directly into the public README.md.
+        U+2028 (LINE SEPARATOR) and U+2029 (PARAGRAPH SEPARATOR) are
+        treated the same way -- some Markdown/HTML renderers and text
+        processors honor them as line breaks even though they are not
+        ASCII \n/\r, so leaving them unescaped would reopen the exact
+        same class of bug through a different code point. All four are
+        replaced with a single space rather than stripped outright, so
+        a legitimately multi-word value stays readable instead of
+        having words run together.
+
         Time Complexity: O(n)
         """
         return (
@@ -167,6 +187,11 @@ class GitHubSyncEngine:
             .replace("`", "&#x60;")
             .replace("[", "&#x5B;")
             .replace("]", "&#x5D;")
+            .replace("\r\n", " ")
+            .replace("\r", " ")
+            .replace("\n", " ")
+            .replace("\u2028", " ")
+            .replace("\u2029", " ")
         )
 
     def _build_readme_content(self, event: SyncEvent) -> str:

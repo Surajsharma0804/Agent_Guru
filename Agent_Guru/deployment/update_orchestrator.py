@@ -106,7 +106,7 @@ class UpdateOrchestrator:
         transaction: Transaction,
         target_env: Path,
         package_paths: dict[str, Path] | None = None,
-        signatures: dict[str, tuple[bytes | None, bytes | None]] | None = None,
+        signatures: dict[str, tuple[bytes | None, str | None]] | None = None,
     ) -> TransactionResult:
         """Execute an update transaction.
 
@@ -114,7 +114,22 @@ class UpdateOrchestrator:
             transaction: The transaction to execute.
             target_env: Target Python environment path.
             package_paths: Map of package_name -> local Path (pre-downloaded).
-            signatures: Map of package_name -> (signature_bytes, public_key_bytes).
+            signatures: Map of package_name -> (signature_bytes, key_id).
+                BUG FIX: this used to be (signature_bytes, public_key_bytes)
+                -- the caller supplied the actual verification key alongside
+                the signature, with no way for this class to check that key
+                against anything. If whatever populates this dict pulled
+                both values from the same untrusted package manifest/server
+                response the signature was supposedly protecting, signing
+                was security theater: an attacker controlling that response
+                could sign with their own key and just advertise it here.
+                Now callers pass a *key_id* instead, and the actual key
+                bytes are always resolved from the local CryptoVerifier
+                trust store (see `_resolve_trusted_key`) -- the same
+                trust-pinning rule UpdateManager.verify_update() already
+                enforces for the single-update auto-update flow. A
+                signature with a key_id that isn't in the trust store is
+                now a hard failure, not silently accepted.
 
         Returns:
             TransactionResult indicating success or failure.
@@ -169,7 +184,7 @@ class UpdateOrchestrator:
         transaction: Transaction,
         target_env: Path,
         package_paths: dict[str, Path],
-        signatures: dict[str, tuple[bytes | None, bytes | None]],
+        signatures: dict[str, tuple[bytes | None, str | None]],
     ) -> TransactionResult:
         transaction.state = TransactionState.EXECUTING
         installed: list[str] = []
@@ -189,8 +204,22 @@ class UpdateOrchestrator:
             for pkg_name, _ in transaction.packages:
                 pkg_path = package_paths.get(pkg_name)
                 if pkg_path and pkg_path.exists():
-                    sig, pub_key = signatures.get(pkg_name, (None, None))
-                    self._cv.verify_package_signature(pkg_path, sig, pub_key)
+                    sig, key_id = signatures.get(pkg_name, (None, None))
+                    if sig is not None:
+                        trusted_key = self._resolve_trusted_key(key_id)
+                        if trusted_key is None:
+                            msg = (
+                                f"Package '{pkg_name}' is signed with an "
+                                f"unrecognized key_id {key_id!r} -- refusing "
+                                f"to trust a signature from an unknown key"
+                            )
+                            raise SignatureVerificationError(msg)
+                        self._cv.verify_package_signature(pkg_path, sig, trusted_key)
+                    else:
+                        # No signature at all -- defer to the configured
+                        # VerificationPolicy (STRICT rejects, PERMISSIVE/
+                        # DISABLED log and allow), same as UpdateManager.
+                        self._cv.verify_package_signature(pkg_path, None, None)
 
             # Step 3: Create rollback snapshot
             snapshot_id = f"txn_{transaction.transaction_id}"
@@ -259,6 +288,17 @@ class UpdateOrchestrator:
                 and self._active_transaction.transaction_id == transaction.transaction_id
             ):
                 self._active_transaction = None
+
+    def _resolve_trusted_key(self, key_id: str | None) -> bytes | None:
+        """Resolve a claimed key_id to trusted public-key bytes, or None.
+
+        Delegates to CryptoVerifier.get_trusted_key() -- the single shared
+        implementation of this lookup, also used by UpdateManager -- rather
+        than trusting any key handed in alongside a signature. See the
+        BUG FIX note on execute_transaction()'s `signatures` parameter for
+        why that trust-pinning rule matters here.
+        """
+        return self._cv.get_trusted_key(key_id)
 
     def _audit(
         self,

@@ -122,15 +122,21 @@ class TaskAssigner:
             )
             selected_id = new_agent.id
 
-        # Update workload
-        self._workloads[selected_id] = self._workloads.get(selected_id, 0) + 1
-
-        # Persist assignment
+        # BUG FIX: persist the assignment BEFORE counting it toward the
+        # agent's in-memory workload. Previously the workload counter was
+        # incremented first; if record_task_assignment() then raised, the
+        # caller would see the exception and (believing no assignment took
+        # place) never call task_completed(), permanently leaking one unit
+        # of the agent's capacity. Persisting first means a failure here
+        # never touches _workloads at all.
         await self.storage.record_task_assignment(
             task_id=task.id,
             agent_id=selected_id,
             timestamp=datetime.now(tz=UTC),
         )
+
+        # Update workload only after the assignment is durably recorded
+        self._workloads[selected_id] = self._workloads.get(selected_id, 0) + 1
 
         return selected_id
 

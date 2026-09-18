@@ -9,6 +9,14 @@ Guides new users through complete AGENT_GURU setup:
 6. Completion
 
 Supports interrupted onboarding (saves progress, resumes on next launch).
+
+SECURITY (Round 13): the on-disk state file is plaintext JSON (it also
+holds a user profile and progress flags, none of which are secret), but
+LLM_CONFIG.api_key is a real cloud-provider credential (OpenAI, Anthropic,
+Gemini, DeepSeek). It is never written to that file -- see
+OnboardingManager._save_state() / _load_state() for how it is instead
+persisted encrypted-at-rest via KeyStore and transparently restored into
+memory.
 """
 
 from __future__ import annotations
@@ -21,6 +29,9 @@ from typing import Any
 
 import structlog
 from pydantic import BaseModel, Field, field_validator
+
+from Agent_Guru.security.crypto.errors import KeyNotFoundError
+from Agent_Guru.security.crypto.key_store import KeyStore
 
 logger = structlog.get_logger(__name__)
 
@@ -106,9 +117,23 @@ class OnboardingManager:
     - Back navigation
     """
 
-    def __init__(self, state_path: Path | None = None) -> None:
+    def __init__(self, state_path: Path | None = None, key_store: KeyStore | None = None) -> None:
         self._state_path = state_path or Path(".guru/onboarding_state.json")
         self._state_path.parent.mkdir(parents=True, exist_ok=True)
+        # Dependency injection, matching IdentityManager's convention
+        # (security/crypto/identity.py) -- callers that already run a
+        # GuruSecuritySystem should inject its shared KeyStore instance so
+        # LLM credentials land in the same encrypted store (and, once one
+        # exists, behind the same master password) as every other secret.
+        # Falling back to a private KeyStore keeps this class usable
+        # standalone; it uses master_password="" because that is the
+        # existing codebase-wide default (see SecurityConfig.master_password
+        # in security/security_system.py) -- not a weaker choice made here,
+        # but not a solved secrets story either. See _save_state().
+        self._key_store = key_store or KeyStore(
+            storage_path=str(self._state_path.parent / "onboarding_secrets.db"),
+            master_password="",  # nosec B106
+        )
         self._state = self._load_state()
 
     # ------------------------------------------------------------------
@@ -253,10 +278,70 @@ class OnboardingManager:
         if self._state_path.exists():
             try:
                 raw = json.loads(self._state_path.read_text())
-                return OnboardingState(**raw)
+                state = OnboardingState(**raw)
             except Exception as exc:
                 logger.exception("onboarding_state_load_error", error=str(exc))
+                return OnboardingState()
+
+            # Restore the LLM API key from the encrypted KeyStore. The
+            # on-disk JSON never carries a real key (see _save_state()), so
+            # a config loaded with api_key already None needs it filled
+            # back in from where it actually lives. If the file predates
+            # this fix, or the field was already populated some other way,
+            # leave it untouched rather than clobbering a legitimate value.
+            if state.llm_config is not None and state.llm_config.api_key is None:
+                key_id = self._llm_api_key_id(state.llm_config.provider)
+                try:
+                    real_key = self._key_store.retrieve_key(key_id)
+                except KeyNotFoundError:
+                    # Expected for providers with no credential (e.g. a
+                    # local ollama server) -- api_key legitimately stays None.
+                    pass
+                else:
+                    state.llm_config.api_key = real_key.decode("utf-8")
+            return state
         return OnboardingState()
 
     def _save_state(self) -> None:
-        self._state_path.write_text(self._state.model_dump_json(indent=2))
+        """Persist onboarding state to disk.
+
+        BUG FIX (Round 13): this previously wrote
+        self._state.model_dump_json() directly to the state file, which
+        meant LLM_CONFIG.api_key -- a real OpenAI/Anthropic/Gemini/DeepSeek
+        credential -- sat in plaintext JSON on disk indefinitely, readable
+        by anything that could `cat` the file (any process running as the
+        user, a backup tool, a support bundle, etc.), with zero encryption
+        at rest. Fixed by extracting the real key into the same
+        AES-256-GCM encrypted KeyStore the rest of the security system
+        uses (keyed per-provider so switching providers doesn't clobber a
+        previously stored one), and writing only a redacted copy (api_key
+        blanked to None, which is already a valid value per LLMConfig) to
+        the plaintext file. _load_state() transparently restores the real
+        key into memory on the next load.
+
+        This does not by itself make the key unreadable to a sufficiently
+        privileged local attacker -- KeyStore's confidentiality depends on
+        its master_password, and this codebase has no master-password
+        sourcing mechanism anywhere yet (see the __init__ docstring note
+        and SecurityConfig.master_password's own "" default in
+        security/security_system.py). It does remove the most casual
+        exposure path (a plain read of the state file no longer reveals
+        the key), which is a genuine improvement over the prior behavior,
+        not a claim of complete secrecy.
+        """
+        state_to_persist = self._state.model_copy(deep=True)
+
+        if state_to_persist.llm_config is not None and state_to_persist.llm_config.api_key:
+            key_id = self._llm_api_key_id(state_to_persist.llm_config.provider)
+            self._key_store.store_key(
+                key_id,
+                state_to_persist.llm_config.api_key.encode("utf-8"),
+            )
+            state_to_persist.llm_config.api_key = None
+
+        self._state_path.write_text(state_to_persist.model_dump_json(indent=2))
+
+    @staticmethod
+    def _llm_api_key_id(provider: str) -> str:
+        """Return the KeyStore key_id under which a provider's API key lives."""
+        return f"onboarding:llm_api_key:{provider}"

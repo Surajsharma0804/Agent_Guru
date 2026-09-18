@@ -352,11 +352,43 @@ class BackgroundServiceOrchestrator:
         Validates: Requirement 12.13
 
         """
+        # BUG FIX: was unconditional -- calling start_watchdog() a
+        # second time while a previous watchdog task was still
+        # running overwrote self._watchdog_task, permanently leaking
+        # the earlier infinite-loop task (unreachable, uncancellable,
+        # and still calling monitor_service_health() forever -- even
+        # across an intentional stop_all_services() shutdown, since
+        # that can only cancel the most recently stored reference).
+        # Cancelling any existing watchdog first closes that leak.
+        if self._watchdog_task is not None and not self._watchdog_task.done():
+            logger.warning(
+                "start_watchdog() called while a watchdog was already "
+                "running; cancelling the previous one first",
+            )
+            self._watchdog_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._watchdog_task
 
         async def _watchdog_loop() -> None:
             while True:
                 await asyncio.sleep(interval_seconds)
-                await self.monitor_service_health()
+                # BUG FIX: was an unprotected `await
+                # self.monitor_service_health()` -- any exception it
+                # raised would kill this task silently and permanently
+                # (nothing awaits it under normal operation), defeating
+                # the watchdog's entire purpose: "automatic restart ...
+                # for always-on operation." Isolating one failed
+                # iteration lets the watchdog keep running on the next
+                # interval, which is exactly the resilience a watchdog
+                # exists to provide.
+                try:
+                    await self.monitor_service_health()
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.exception(
+                        "Watchdog health check failed; will retry next interval",
+                    )
 
         self._watchdog_task = asyncio.create_task(_watchdog_loop())
         logger.info("Watchdog started (interval=%.1fs)", interval_seconds)

@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from contextlib import closing, contextmanager
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -261,6 +261,32 @@ class CryptoVerifier:
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
-        """Open a SQLite connection and guarantee closure via contextlib.closing."""
-        with closing(sqlite3.connect(str(self._db_path))) as conn:
+        """Open a SQLite connection, committing on success and rolling back
+        on failure, and guaranteeing closure either way.
+
+        BUG FIX (Round 10): this previously only wrapped the connection in
+        contextlib.closing(), which guarantees close() but NOT commit().
+        Python's sqlite3 connections do not auto-commit on close() -- per
+        the standard library's own documentation, closing a connection
+        with uncommitted changes discards them. That meant every
+        add_trusted_key() / remove_trusted_key() call (both of which use
+        this method and never called commit() themselves) appeared to
+        succeed -- it logged "trusted_key_added", raised no exception --
+        but the INSERT/DELETE was silently rolled back the moment the
+        connection closed. The trust store was, in effect, write-only in
+        memory for the lifetime of a single call and empty on every
+        subsequent read: confirmed by a real round-trip test (add a key,
+        immediately call get_trusted_keys()) returning an empty list. Fixed
+        at the root -- in this shared connection helper -- rather than
+        patching each call site, so any future caller of _connect() gets
+        correct commit/rollback semantics for free.
+        """
+        conn = sqlite3.connect(str(self._db_path))
+        try:
             yield conn
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()

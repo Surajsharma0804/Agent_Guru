@@ -113,9 +113,17 @@ class PopulationManager:
         # change the O(n) asymptotic complexity the docstring claims (that
         # was already correct; this is a constant-factor/concurrency fix,
         # not an algorithmic one).
-        active, all_agents = await asyncio.gather(
+        # BUG FIX: was `all_agents = await self.storage.query_agents()`
+        # (no status filter) -- fetched every agent row ever created
+        # (retired agents are never deleted) plus a bulk fetch of every
+        # one of those agents' complete performance-record history, all
+        # to compute a `total_agents` count that nothing in this class
+        # ever reads back. count_agents() gets the same number with a
+        # single COUNT(*), no Agent objects or performance history
+        # ever materialized.
+        active, total_agents_count = await asyncio.gather(
             self.storage.query_agents(status=AgentStatus.ACTIVE),
-            self.storage.query_agents(),
+            self.storage.count_agents(),
         )
         count = len(active)
 
@@ -143,7 +151,7 @@ class PopulationManager:
 
         snapshot = PopulationSnapshot(
             timestamp=datetime.now(tz=UTC),
-            total_agents=len(all_agents),
+            total_agents=total_agents_count,
             active_agents=count,
             recommendations=recommendations,
         )

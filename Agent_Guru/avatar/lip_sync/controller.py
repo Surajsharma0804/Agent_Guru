@@ -523,6 +523,25 @@ class LipSyncController:
         self._ring_buffer.clear()
         return LipSyncState.neutral()
 
+    def set_sync_threshold_ms(self, threshold_ms: float) -> None:
+        """Update the maximum allowed audio-visual sync offset.
+
+        This only affects the threshold used to log a sync-drift warning
+        in :meth:`process_audio_stream` -- it is safe to change live with
+        no other state to rebuild.
+
+        Args:
+            threshold_ms: New threshold in milliseconds.
+
+        Raises:
+            ValueError: If threshold_ms is not positive.
+
+        """
+        if threshold_ms <= 0:
+            msg = f"sync_threshold_ms must be > 0, got {threshold_ms}"
+            raise ValueError(msg)
+        self._sync_threshold_ms = threshold_ms
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------

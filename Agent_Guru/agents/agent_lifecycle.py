@@ -313,3 +313,40 @@ class AgentLifecycleManager:
             "timestamp": datetime.now(tz=UTC).isoformat(),
         }
         await self.storage.store_evolution_event(event)
+
+    # BUG FIX: public wrapper for _record_evolution_event(). That
+    # method already has a real external caller (agent_merger.py's
+    # merge_agents(), which reaches into it directly despite the
+    # leading underscore) -- a genuine encapsulation violation, since
+    # this class's own maintainers have no signal that "private"
+    # method has callers outside it. Added additively rather than
+    # renaming, so any other not-yet-discovered caller of the old
+    # private name keeps working unchanged.
+    async def record_evolution_event(
+        self,
+        event_type: str,
+        agent_ids: list[str],
+        reason: str,
+        details: dict[str, Any],
+    ) -> None:
+        """Record an evolution event for GitHub sync (public API).
+
+        Public entry point for external callers (e.g. AgentMerger,
+        AgentSplitter) that need to record a significant change in the
+        agent population -- creation, merge, split, retirement, and
+        similar events. Delegates to the same implementation this
+        class uses internally.
+
+        Args:
+            event_type: Type of evolution event.
+            agent_ids: Agents involved in the event.
+            reason: Reason for the event.
+            details: Additional event details.
+
+        """
+        await self._record_evolution_event(
+            event_type=event_type,
+            agent_ids=agent_ids,
+            reason=reason,
+            details=details,
+        )

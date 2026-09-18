@@ -121,12 +121,19 @@ class AdversarialHandler:
         """
         exceeded = [k for k, v in resource_usage.items() if v > limits.get(k, float("inf"))]
         if exceeded:
-            await self.lifecycle.retire_agent(agent_id, "resource_exhaustion")
+            # BUG FIX: log the detection BEFORE attempting remediation.
+            # retire_agent() touches storage and can raise for real
+            # reasons; if it does after the log call, the security-log
+            # entry for this genuinely-detected event still exists --
+            # previously it was written only after retire_agent()
+            # returned, so a failed retirement silently erased the
+            # audit trail for the detection that triggered it.
             self._log_event(
                 "resource_exhaustion",
                 [agent_id],
                 f"Exceeded limits for: {exceeded}",
             )
+            await self.lifecycle.retire_agent(agent_id, "resource_exhaustion")
             return True
         return False
 
@@ -183,13 +190,19 @@ class AdversarialHandler:
         fraction = len(quarantined_in_group) / len(agent_ids)
 
         if fraction >= similarity_threshold:
-            for agent_id in agent_ids:
-                await self.lifecycle.retire_agent(agent_id, "coordinated_malicious_behavior")
+            # BUG FIX: log the detection BEFORE retiring the group.
+            # Previously the log call came after the retirement loop,
+            # so a retire_agent() failure partway through (a real
+            # possible storage error) both left the remaining agents
+            # un-retired AND erased the only record that coordinated
+            # malicious behavior was ever detected in the first place.
             self._log_event(
                 "coordinated_behavior",
                 agent_ids,
                 f"Coordinated behavior detected: {fraction:.0%} quarantined",
             )
+            for agent_id in agent_ids:
+                await self.lifecycle.retire_agent(agent_id, "coordinated_malicious_behavior")
             return True
         return False
 

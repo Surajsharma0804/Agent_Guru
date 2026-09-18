@@ -120,16 +120,33 @@ class LoopDetector:
         if history is None or len(history) < self.repetition_threshold:
             return False
 
-        recent = list(history)[-self.repetition_threshold :]
+        full = list(history)
+        recent = full[-self.repetition_threshold :]
 
         # Pattern 1: all identical
         if len(set(recent)) == 1:
             return True
 
-        # Pattern 2: alternating A-B-A-B (requires at least 4 actions)
-        if len(recent) >= 4:
-            pattern = recent[:2]
-            if all(recent[i] == pattern[i % 2] for i in range(len(recent))):
+        # Pattern 2: alternating A-B-A-B (requires at least 4 actions to
+        # prove one full period-2 alternation).
+        #
+        # BUG FIX: previously this checked len(recent) >= 4 against
+        # `recent`, which was always sliced down to exactly
+        # repetition_threshold elements -- with the class's own default
+        # repetition_threshold=3, `recent` could never reach length 4,
+        # making this branch permanently unreachable dead code no matter
+        # how many times an agent alternated between two actions. Use a
+        # window sized to max(repetition_threshold, 4), drawn from the
+        # full retained history (bounded by pattern_window, which the
+        # constructor guarantees is >= repetition_threshold), so the
+        # check is reachable for any valid repetition_threshold while
+        # leaving identical behavior for callers who already configured
+        # repetition_threshold >= 4 (where max(threshold, 4) == threshold).
+        alt_window_size = max(self.repetition_threshold, 4)
+        alt_recent = full[-alt_window_size:]
+        if len(alt_recent) >= 4:
+            pattern = alt_recent[:2]
+            if all(alt_recent[i] == pattern[i % 2] for i in range(len(alt_recent))):
                 return True
 
         return False

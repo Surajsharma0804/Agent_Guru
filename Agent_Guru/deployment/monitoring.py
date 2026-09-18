@@ -115,6 +115,10 @@ class MonitoringManager:
 
                 sentry_sdk.capture_message(sanitized, level="error", extras=context or {})
             except ImportError:
+                # Intentionally silent: _init_crash_reporting() already reports
+                # "sentry_sdk_not_installed" once at startup for exactly this
+                # condition. Logging it again would emit a duplicate line for
+                # every single error recorded thereafter.
                 pass
 
     # ------------------------------------------------------------------

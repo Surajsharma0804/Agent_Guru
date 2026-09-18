@@ -270,12 +270,44 @@ class AgentOrchestrator:
                 strategy_used=strategy_id,
             )
 
-        # Phase 3: Outcome recording (after execution)
-        self._record_outcome(task_result, task_type, context)
+        except BaseException:
+            # BUG FIX: `except Exception as e:` above only catches
+            # Exception subclasses. A rarer BaseException
+            # (KeyboardInterrupt, SystemExit, or asyncio.CancelledError,
+            # which has inherited from BaseException rather than
+            # Exception since Python 3.8) raised by the injected
+            # executor() would previously propagate straight out of
+            # execute_task(), skipping the Phase 3 try/finally below
+            # entirely -- leaking this task_id in self.active_tasks
+            # forever, the exact same leak class the BUG-025 fix
+            # below already closed for _record_outcome(), just one
+            # call earlier and for a rarer exception type it did not
+            # cover. Guarantee the same cleanup here, then let the
+            # original exception keep propagating unchanged.
+            task.status = TaskStatus.FAILED
+            task.error = "Task execution interrupted"
+            task.execution_time_ms = (time.perf_counter() - start_time) * 1000
+            self.active_tasks.pop(task_id, None)
+            raise
 
-        # BUG-025: use try/finally to guarantee cleanup even if _record_outcome raises
+        # Phase 3: Outcome recording (after execution)
+        # BUG-025 FIX: the original code called _record_outcome() HERE,
+        # outside the try/finally below, even though that finally's own
+        # comment claimed to "guarantee cleanup even if _record_outcome
+        # raises." It did not: an exception from _record_outcome() would
+        # propagate out of execute_task() immediately, skipping
+        # active_tasks.pop() entirely and leaking that task_id in
+        # self.active_tasks for the rest of this (long-running, per its
+        # own class docstring) orchestrator's lifetime. The try/finally
+        # as originally written wrapped a bare `pass` -- dead protective
+        # code that could never actually protect anything. Moving the
+        # call itself inside the try block makes the guarantee genuine.
+        # (_record_outcome() already catches `Exception` internally, so
+        # this mainly protects against rarer BaseException subclasses --
+        # but the whole point of a `finally` here is to hold even in
+        # those cases, not just the common ones.)
         try:
-            pass  # outcome already recorded above
+            self._record_outcome(task_result, task_type, context)
         finally:
             self.active_tasks.pop(task_id, None)
 

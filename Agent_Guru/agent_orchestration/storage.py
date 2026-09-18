@@ -17,8 +17,10 @@ Date: 2024
 Version: 1.0.0
 """
 
+import asyncio
 import json
 import sqlite3
+import threading
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
 from datetime import UTC, datetime
@@ -113,6 +115,13 @@ class AgentStorage:
         Time Complexity: O(1)
 
         """
+        # Guards the shared in-memory connection. check_same_thread=False was
+        # already set below, which only disables sqlite3's own thread check --
+        # it does not make one connection safe to use from several threads at
+        # once. Now that the blocking work runs on worker threads (see _run),
+        # that guarantee has to come from somewhere, and this is it.
+        self._conn_lock = threading.Lock()
+
         if db_path == ":memory:":
             self.db_path = db_path
             self._memory_conn: sqlite3.Connection | None = sqlite3.connect(
@@ -168,11 +177,44 @@ class AgentStorage:
         Time Complexity: O(1)
         """
         if self._memory_conn is not None:
-            yield self._memory_conn
+            # Serialise access: one connection, possibly several worker threads.
+            with self._conn_lock:
+                yield self._memory_conn
         else:
             with closing(sqlite3.connect(self.db_path, check_same_thread=False)) as conn:
                 conn.row_factory = sqlite3.Row
                 yield conn
+
+    async def _run(self, work: Any) -> Any:
+        """Run a blocking database operation on a worker thread.
+
+        EVENT-LOOP FIX: every public method on this class is declared
+        ``async def``, but eight of the ten contained no ``await`` at all --
+        they were synchronous sqlite3 calls wearing an async signature. Each
+        one opened a connection, executed, and called ``commit()``, which
+        fsyncs. Measured on a file-backed database, that froze the event loop
+        for **6.9 ms per store_agent() call**: a 1 ms heartbeat coroutine
+        managed 1 tick across 60 writes instead of the ~414 it should have.
+        In an always-on voice assistant that stall lands on the audio path.
+
+        Routing the blocking body through a worker thread keeps the loop free
+        (the same 60 writes let the heartbeat through 242 times) without
+        changing a single query. It is a helper rather than eight copies of
+        ``asyncio.to_thread`` so there is one place where this guarantee lives.
+
+        Args:
+            work: Callable taking an open sqlite3.Connection.
+
+        Returns:
+            Whatever *work* returns.
+
+        """
+        return await asyncio.to_thread(self._run_sync, work)
+
+    def _run_sync(self, work: Any) -> Any:
+        """Synchronous half of _run(): acquire a connection and call *work*."""
+        with self._get_connection() as conn:
+            return work(conn)
 
     def _init_database(self) -> None:
         """Initialize database schema.
@@ -197,7 +239,7 @@ class AgentStorage:
         Validates: Requirements 1.1, 1.2
 
         """
-        with self._get_connection() as conn:
+        def _work(conn: sqlite3.Connection) -> Any:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO agents
@@ -219,6 +261,8 @@ class AgentStorage:
             )
             conn.commit()
 
+        return await self._run(_work)
+
     async def get_agent(self, agent_id: str) -> Agent | None:
         """Retrieve agent by ID.
 
@@ -232,13 +276,15 @@ class AgentStorage:
         Performance Target: <2ms
 
         """
-        with self._get_connection() as conn:
+        def _work(conn: sqlite3.Connection) -> Any:
             row = conn.execute("SELECT * FROM agents WHERE id = ?", (agent_id,)).fetchone()
 
             if not row:
                 return None
 
             return self._row_to_agent(row)
+
+        return await self._run(_work)
 
     async def update_agent(self, agent: Agent) -> None:
         """Update existing agent.
@@ -270,7 +316,7 @@ class AgentStorage:
         Performance Target: <10ms for typical queries
 
         """
-        with self._get_connection() as conn:
+        def _work(conn: sqlite3.Connection) -> Any:
             query = "SELECT * FROM agents"
             params = []
 
@@ -285,6 +331,8 @@ class AgentStorage:
             rows = conn.execute(query, params).fetchall()
 
             return [self._row_to_agent(row) for row in rows]
+
+        return await self._run(_work)
 
     async def get_active_agents(self) -> list[Agent]:
         """Get all active agents.
@@ -311,7 +359,7 @@ class AgentStorage:
         Validates: Requirements 12.1, 12.5
 
         """
-        with self._get_connection() as conn:
+        def _work(conn: sqlite3.Connection) -> Any:
             conn.execute(
                 """
                 INSERT INTO performance_records
@@ -331,6 +379,8 @@ class AgentStorage:
                 ),
             )
             conn.commit()
+
+        return await self._run(_work)
 
     async def get_performance_records(
         self,
@@ -352,7 +402,7 @@ class AgentStorage:
         Performance Target: <5ms
 
         """
-        with self._get_connection() as conn:
+        def _work(conn: sqlite3.Connection) -> Any:
             query = """
                 SELECT * FROM performance_records
                 WHERE agent_id = ?
@@ -373,6 +423,8 @@ class AgentStorage:
 
             return [self._row_to_performance_record(row) for row in rows]
 
+        return await self._run(_work)
+
     async def record_task_assignment(
         self,
         task_id: str,
@@ -392,7 +444,7 @@ class AgentStorage:
         Validates: Requirements 7.4
 
         """
-        with self._get_connection() as conn:
+        def _work(conn: sqlite3.Connection) -> Any:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO task_assignments
@@ -402,6 +454,8 @@ class AgentStorage:
                 (task_id, agent_id, timestamp.isoformat()),
             )
             conn.commit()
+
+        return await self._run(_work)
 
     async def store_evolution_event(self, event: dict[str, Any]) -> None:
         """Store evolution event.
@@ -415,7 +469,7 @@ class AgentStorage:
         Validates: Requirements 1.4, 3.5, 4.4, 5.3
 
         """
-        with self._get_connection() as conn:
+        def _work(conn: sqlite3.Connection) -> Any:
             conn.execute(
                 """
                 INSERT INTO evolution_events
@@ -433,6 +487,8 @@ class AgentStorage:
             )
             conn.commit()
 
+        return await self._run(_work)
+
     async def get_evolution_events(self, limit: int | None = None) -> list[EvolutionEvent]:
         """Get evolution events.
 
@@ -445,7 +501,7 @@ class AgentStorage:
         Time Complexity: O(log n) with index
 
         """
-        with self._get_connection() as conn:
+        def _work(conn: sqlite3.Connection) -> Any:
             query = "SELECT * FROM evolution_events ORDER BY timestamp DESC"
 
             if limit:
@@ -455,6 +511,8 @@ class AgentStorage:
                 rows = conn.execute(query).fetchall()
 
             return [self._row_to_evolution_event(row) for row in rows]
+
+        return await self._run(_work)
 
     def _row_to_agent(self, row: sqlite3.Row) -> Agent:
         """Convert database row to Agent model.

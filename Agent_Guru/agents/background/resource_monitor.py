@@ -260,7 +260,19 @@ class ResourceMonitor:
     async def _notify_callbacks(self) -> None:
         """Invoke all registered callbacks with the current snapshot."""
         snapshot = self.get_snapshot()
-        for callback in self._callbacks:
+        # BUG FIX: was `for callback in self._callbacks:` -- iterating
+        # the live list directly. If any callback mutates
+        # self._callbacks during its own await (e.g. a "run once"
+        # callback unregistering itself after firing), CPython's list
+        # iterator silently skips whichever callback got shifted into
+        # the just-vacated index -- the identical bug class already
+        # fixed in the sibling lifecycle.py (Round 63). Given this
+        # class drives safety-relevant responses (low-battery sleep,
+        # thermal throttling, offline-mode switching), a silently
+        # skipped callback here is a real risk, not just a cosmetic
+        # gap. Dispatching over a snapshot copy makes registration
+        # changes during dispatch never affect this update's delivery.
+        for callback in list(self._callbacks):
             try:
                 await callback(snapshot)
             except Exception:

@@ -23,6 +23,11 @@ import logging
 from collections import deque
 from typing import TYPE_CHECKING
 
+# Runtime import (not TYPE_CHECKING): the pairwise scan below needs the actual
+# function. agent_merger only imports its own siblings under TYPE_CHECKING, so
+# this does not create a cycle.
+from .agent_merger import specialization_norm
+
 if TYPE_CHECKING:
     from .agent_lifecycle import Agent
     from .agent_merger import AgentMerger
@@ -30,17 +35,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# NOTE (flagged, not fixed here — needs agent_merger.py to fix properly):
-# every method below calls `self.merger._calculate_similarity(...)` — a
-# PRIVATE (underscore-prefixed) method on a DIFFERENT class, reached into
-# from outside. This happens 4 times in this file alone. It strongly
-# suggests AgentMerger should expose a public `calculate_similarity()` and
-# this file should call that instead — reaching into another class's
-# private method from outside is a real encapsulation violation, and
-# means AgentMerger's maintainers have no signal that this "private"
-# method actually has external callers depending on it. Left as-is here
-# since fixing it properly means adding the public method on AgentMerger,
-# which isn't in this file.
+# BUG FIX: every method below used to reach into AgentMerger's PRIVATE
+# (underscore-prefixed) similarity method from outside, 4 times in this
+# file alone. AgentMerger now exposes a public `calculate_similarity()`
+# wrapper (added when this was fixed), and every call site below has
+# been updated to use it instead.
 
 
 class DuplicateDetector:
@@ -126,13 +125,21 @@ class DuplicateDetector:
         agents = await self.storage.get_active_agents()
         duplicates = []
 
+        # An agent's norm depends only on that agent, so compute it once per
+        # agent instead of once per pair: the old scan recomputed every norm
+        # n-1 times inside the O(n²) loop.
+        norms = [specialization_norm(a.specializations) for a in agents]
+
         # Pairwise comparison (O(n²))
         for i, agent1 in enumerate(agents):
-            for agent2 in agents[i + 1 :]:
+            for j in range(i + 1, len(agents)):
+                agent2 = agents[j]
                 # Calculate similarity using merger's similarity function
-                similarity = self.merger._calculate_similarity(
+                similarity = self.merger.calculate_similarity(
                     agent1.specializations,
                     agent2.specializations,
+                    norms[i],
+                    norms[j],
                 )
 
                 if similarity >= self.duplication_threshold:
@@ -172,13 +179,17 @@ class DuplicateDetector:
 
         """
         agents = await self.storage.get_active_agents()
+        proposed_norm = specialization_norm(proposed_capabilities)
 
         for agent in agents:
             # Compare proposed capabilities with existing agent
-            # Use specializations as proxy for capabilities
-            similarity = self.merger._calculate_similarity(
+            # Use specializations as proxy for capabilities. The proposed
+            # vector does not change during the scan, so its norm is computed
+            # once rather than once per existing agent.
+            similarity = self.merger.calculate_similarity(
                 proposed_capabilities,
                 agent.specializations,
+                proposed_norm,
             )
 
             if similarity >= self.duplication_threshold:
@@ -274,12 +285,18 @@ class DuplicateDetector:
         agents = await self.storage.get_active_agents()
         matrix = {}
 
+        # One norm per agent, not one per pair (see detect_duplicates).
+        norms = [specialization_norm(a.specializations) for a in agents]
+
         # Compute pairwise similarities
         for i, agent1 in enumerate(agents):
-            for agent2 in agents[i + 1 :]:
-                similarity = self.merger._calculate_similarity(
+            for j in range(i + 1, len(agents)):
+                agent2 = agents[j]
+                similarity = self.merger.calculate_similarity(
                     agent1.specializations,
                     agent2.specializations,
+                    norms[i],
+                    norms[j],
                 )
 
                 # Store both directions for convenience
@@ -330,21 +347,33 @@ class DuplicateDetector:
         # comparison, exactly matching the literal docstring contract.
         max_similarity = -1.0
         most_similar_id = None
+        # The target is fixed for the whole scan, so its norm is computed once.
+        target_norm = specialization_norm(target_agent.specializations)
 
         for agent in agents:
             if agent.id == target_agent_id:
                 continue
 
-            similarity = self.merger._calculate_similarity(
+            similarity = self.merger.calculate_similarity(
                 target_agent.specializations,
                 agent.specializations,
+                target_norm,
             )
 
             if similarity > max_similarity:
                 max_similarity = similarity
                 most_similar_id = agent.id
 
-        if most_similar_id:
+        # BUG FIX: was `if most_similar_id:` -- a truthy check on a
+        # string ID. No agent ID is ever an empty string anywhere else
+        # in this codebase (IDs are always uuid4 strings), but an empty
+        # string is falsy in Python, so if one ever occurred it would be
+        # silently treated as "no match found" even though
+        # most_similar_id was genuinely set. `is not None` says exactly
+        # what this means ("was a candidate found"), matching the same
+        # defensive precision already used for max_similarity's -1.0
+        # sentinel above.
+        if most_similar_id is not None:
             return (most_similar_id, max_similarity)
 
         return None

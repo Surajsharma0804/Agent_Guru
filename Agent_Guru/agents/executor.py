@@ -152,6 +152,10 @@ class TaskExecutor:
 
         # Execute in waves: each wave contains tasks whose deps are done
         completed_ids: set[str] = set()
+        # BUG FIX: track failed task IDs too, so a stalled wave can tell
+        # "blocked by a dependency that genuinely failed" apart from a
+        # real cycle or dangling dependency ID (see below).
+        failed_ids: set[str] = set()
         remaining = list(tasks)
 
         while remaining:
@@ -159,14 +163,31 @@ class TaskExecutor:
             ready = [t for t in remaining if all(dep in completed_ids for dep in t.dependencies)]
 
             if not ready:
-                # Dependency cycle or unresolvable deps — fail remaining
+                # BUG FIX: previously every remaining task got the same
+                # generic "cycle detected" message, even when the real
+                # cause was that a dependency genuinely ran and failed --
+                # a completely different, far more common situation than
+                # an actual cycle. Report the specific failed dependency
+                # IDs when that's the real cause; fall back to the
+                # cycle/unresolvable message only when nothing explains
+                # the stall that way (a true cycle or a dangling/missing
+                # dependency ID).
                 for t in remaining:
+                    blocking_failed = sorted(dep for dep in t.dependencies if dep in failed_ids)
                     self._statuses[t.id] = ExecutionStatus.FAILED
+                    if blocking_failed:
+                        error = (
+                            "Blocked by failed dependency/dependencies: "
+                            + ", ".join(blocking_failed)
+                        )
+                    else:
+                        error = "Unresolvable dependency or cycle detected"
                     self._results[t.id] = ExecutionResult(
                         task_id=t.id,
                         status=ExecutionStatus.FAILED,
-                        error="Unresolvable dependency or cycle detected",
+                        error=error,
                     )
+                    failed_ids.add(t.id)
                 break
 
             # Run ready tasks in parallel batches
@@ -181,6 +202,8 @@ class TaskExecutor:
                 self._statuses[result.task_id] = result.status
                 if result.status == ExecutionStatus.COMPLETED:
                     completed_ids.add(result.task_id)
+                else:
+                    failed_ids.add(result.task_id)
 
             # Remove executed tasks from remaining
             executed_ids = {t.id for t in ready}
@@ -274,6 +297,31 @@ class TaskExecutor:
                 task_id=task.id,
                 status=ExecutionStatus.TIMEOUT,
                 error=f"Task timed out after {timeout}s",
+                started_at=started_at,
+                finished_at=finished_at,
+            )
+        except asyncio.CancelledError:
+            # BUG FIX: never swallow cancellation -- it must propagate so
+            # the caller's own cancellation (e.g. a shutdown or a halt())
+            # actually takes effect instead of being reported as a task
+            # failure.
+            raise
+        except Exception as exc:
+            # BUG FIX: previously ANY non-timeout exception from the task
+            # handler (the ordinary case -- a handler doing real work and
+            # failing for a real reason) propagated straight out of this
+            # method, which crashed the surrounding
+            # asyncio.gather(..., return_exceptions=False) call in
+            # execute() and silently abandoned every OTHER still-running
+            # task in that wave with no recorded result. Catching it here
+            # and returning a normal FAILED ExecutionResult restores the
+            # class's own documented contract (COMPLETED, FAILED, or
+            # TIMEOUT) and lets the rest of the wave finish normally.
+            finished_at = datetime.now(tz=UTC)
+            return ExecutionResult(
+                task_id=task.id,
+                status=ExecutionStatus.FAILED,
+                error=str(exc),
                 started_at=started_at,
                 finished_at=finished_at,
             )

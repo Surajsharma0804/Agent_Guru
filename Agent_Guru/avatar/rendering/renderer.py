@@ -344,6 +344,36 @@ class AvatarRenderer:
         """Update the target frame rate."""
         self._target_fps = max(1, fps)
 
+    def set_dimensions(self, width: int, height: int) -> None:
+        """Update the render surface dimensions.
+
+        Takes effect on the very next :meth:`render_frame` call -- frames
+        are allocated fresh (``np.zeros``) each call rather than reused
+        from a fixed-size buffer, so no resize or reconstruction is
+        needed to apply this live.
+
+        Raises:
+            ValueError: If width or height is not positive.
+
+        """
+        if width <= 0 or height <= 0:
+            msg = f"width/height must be positive, got ({width}, {height})"
+            raise ValueError(msg)
+        self._width = width
+        self._height = height
+
+    def set_transition_duration(self, seconds: float) -> None:
+        """Update the emotion transition duration used by AU interpolation.
+
+        Raises:
+            ValueError: If seconds is not positive.
+
+        """
+        if seconds <= 0:
+            msg = f"transition duration must be > 0 seconds, got {seconds}"
+            raise ValueError(msg)
+        self._transition_duration = seconds
+
     # ------------------------------------------------------------------
     # Rendering
     # ------------------------------------------------------------------

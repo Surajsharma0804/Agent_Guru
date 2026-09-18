@@ -206,11 +206,27 @@ class PolicyEngine:
 
         Validates: Requirements 9.1-9.3, 9.5
         """
+        # BUG FIX: this used to call self.storage.update_policy()/
+        # create_policy() directly, bypassing self.update_policy()/
+        # create_policy() (the wrappers that flush self.cache). check_access()
+        # unconditionally reads from and writes to that same shared cache
+        # regardless of test_mode, so without the flush here two things could
+        # go wrong: (1) a pre-existing cached decision for one of the test
+        # cases' principal/resource/action could shadow the temporary test
+        # policy, making the test silently evaluate the *old* policy; and
+        # (2) more seriously, a decision computed against the temporary test
+        # policy could be cached and then survive the restore below, so real
+        # traffic for that exact principal/resource/action/context would
+        # keep getting the test policy's (now-reverted) decision until the
+        # cache entry's TTL expired -- e.g. testing a hypothetical policy
+        # that ALLOWs something the live policy DENIEs could leave a live
+        # ALLOW decision cached after the real DENY policy was restored.
+        # Routing through the cache-invalidating wrappers closes both gaps.
         original = self.storage.get_policy(policy.id)
         if original:
-            self.storage.update_policy(policy)
+            self.update_policy(policy)
         else:
-            self.storage.create_policy(policy)
+            self.create_policy(policy)
 
         passed = 0
         failures: list[TestFailure] = []
@@ -236,9 +252,9 @@ class PolicyEngine:
                 )
 
         if original:
-            self.storage.update_policy(original)
+            self.update_policy(original)
         else:
-            self.storage.delete_policy(policy.id)
+            self.delete_policy(policy.id)
 
         return TestResults(passed=passed, failed=len(failures), failures=failures)
 

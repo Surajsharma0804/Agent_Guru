@@ -14,6 +14,7 @@ Validates: Requirement 12.4
 from __future__ import annotations
 
 import logging
+from collections import deque
 from collections.abc import Callable, Coroutine
 from enum import Enum
 from typing import Any
@@ -118,7 +119,14 @@ class PlatformLifecycleHandler:
         """
         self.platform = platform
         self._handlers: list[LifecycleHandler] = []
-        self._event_history: list[LifecycleEvent] = []
+        # BUG FIX: was an unbounded list -- this handler runs for the
+        # entire lifetime of a long-running companion process, and
+        # background/foreground/minimize/restore cycles recur
+        # constantly, so an unbounded history leaks memory forever
+        # (same class already fixed in convergence_analyzer.py,
+        # Round 57, and elsewhere). event_history still returns a
+        # plain list snapshot -- the public contract is unchanged.
+        self._event_history: deque[LifecycleEvent] = deque(maxlen=1000)
 
     # ------------------------------------------------------------------
     # Handler registration
@@ -172,7 +180,16 @@ class PlatformLifecycleHandler:
         self._event_history.append(event)
         logger.info("Lifecycle event: %s → %s", raw_event, event.value)
 
-        for handler in self._handlers:
+        # BUG FIX: was `for handler in self._handlers:` -- iterating
+        # the live list directly. If any handler mutates
+        # self._handlers during its own await (e.g. a "run once"
+        # handler unregistering itself after firing), CPython's list
+        # iterator silently skips whichever handler got shifted into
+        # the just-vacated index -- a real, silent, hard-to-diagnose
+        # failure to deliver an event to a registered handler.
+        # Dispatching over a snapshot copy makes registration changes
+        # during dispatch never affect this event's delivery.
+        for handler in list(self._handlers):
             try:
                 await handler(event)
             except Exception as exc:

@@ -30,6 +30,7 @@ Date: 2024-01-15
 Version: 1.0.0
 """
 
+import asyncio
 import contextlib
 import json
 import sqlite3
@@ -57,6 +58,21 @@ class GoalStorage:
         - query_goals: O(log n) - indexed scan with filters
 
     Space Complexity: O(n) where n is number of goals
+
+    Concurrency (BUG FIX note): every public method here is declared
+    `async def`, but the underlying sqlite3 driver is synchronous — the
+    actual DB work used to run inline on whatever thread called it, meaning
+    every store/update/get/query blocked the calling event loop for the
+    full duration of the SQLite call. Since GoalStorage is the module every
+    other goal_manager component awaits on for nearly all of its work, this
+    blocked the entire asyncio event loop (voice pipeline, other concurrent
+    goals, everything) for as long as a single goal read or write took. Each
+    method's DB work now runs via `asyncio.to_thread()` so it executes on a
+    worker thread instead. The connection was already created with
+    `check_same_thread=False` and already guarded by `self._lock` (a real
+    `threading.RLock`, correct for cross-OS-thread synchronization) — both
+    were already correctly chosen for a connection shared across threads,
+    they just weren't being given other threads to actually run on.
 
     Example:
         >>> storage = GoalStorage("goals.db")
@@ -183,7 +199,8 @@ class GoalStorage:
         from .exceptions import StorageError as _StorageError
 
         status_value = status.value if hasattr(status, "value") else str(status)
-        try:
+
+        def _write() -> None:
             with self._lock:
                 conn = self._connect()
                 cursor = conn.cursor()
@@ -192,11 +209,22 @@ class GoalStorage:
                     (status_value, goal_id),
                 )
                 if cursor.rowcount == 0:
+                    # BUG FIX: previously raised here without rolling back.
+                    # sqlite3 auto-starts a transaction on the first DML
+                    # statement (even one that changes 0 rows) and only ends
+                    # it on an explicit commit()/rollback(); raising past
+                    # that point left a dangling open transaction on this
+                    # shared persistent connection, silently folded into
+                    # whichever unrelated operation next happened to commit.
+                    conn.rollback()
                     self._close(conn)
                     msg = f"Goal {goal_id} not found"
                     raise _StorageError(msg)
                 conn.commit()
                 self._close(conn)
+
+        try:
+            await asyncio.to_thread(_write)
         except _StorageError:
             raise
 
@@ -282,11 +310,18 @@ class GoalStorage:
             StorageError: If persistence fails
 
         """
-        conn = self._connect()
-        cursor = conn.cursor()
+        # `conn` is populated inside _write() (see nonlocal below) rather
+        # than fetched here, so that a _connect() override which performs
+        # real I/O (not just the trivial "return self._conn" this class
+        # currently has) still runs inside asyncio.to_thread() rather than
+        # blocking the event loop before dispatch.
+        conn: sqlite3.Connection | None = None
 
-        try:
+        def _write() -> None:
+            nonlocal conn
+            conn = self._connect()
             with self._lock:
+                cursor = conn.cursor()
                 cursor.execute(
                     """
                     INSERT INTO goals (
@@ -318,8 +353,12 @@ class GoalStorage:
                 )
                 conn.commit()
 
+        try:
+            await asyncio.to_thread(_write)
+
         except sqlite3.IntegrityError as e:
-            conn.rollback()
+            if conn is not None:
+                conn.rollback()
             logger.exception(
                 "goal_store_integrity_error",
                 goal_id=goal.id,
@@ -330,7 +369,8 @@ class GoalStorage:
             msg = f"Goal with ID {goal.id} already exists: {e}"
             raise StorageError(msg) from e
         finally:
-            self._close(conn)
+            if conn is not None:
+                self._close(conn)
 
     async def update_goal(self, goal: Goal) -> None:
         """Update goal with immediate persistence.
@@ -347,11 +387,15 @@ class GoalStorage:
             StorageError: If persistence fails
 
         """
-        conn = self._connect()
-        cursor = conn.cursor()
+        # See store_goal() for why conn is populated inside _write() rather
+        # than fetched before dispatching to the worker thread.
+        conn: sqlite3.Connection | None = None
 
-        try:
+        def _write() -> None:
+            nonlocal conn
+            conn = self._connect()
             with self._lock:
+                cursor = conn.cursor()
                 cursor.execute(
                     """
                     UPDATE goals SET
@@ -391,16 +435,25 @@ class GoalStorage:
                 )
 
                 if cursor.rowcount == 0:
+                    # BUG FIX: see update_goal_status() — raising without a
+                    # rollback here left a dangling open transaction on the
+                    # shared persistent connection (sqlite3 auto-starts one
+                    # on the UPDATE even though it matched 0 rows).
+                    conn.rollback()
                     logger.error("goal_update_not_found", goal_id=goal.id, operation="update")
                     msg = f"Goal with ID {goal.id} not found"
                     raise StorageError(msg)
 
                 conn.commit()
 
+        try:
+            await asyncio.to_thread(_write)
+
         except StorageError:
             raise
         finally:
-            self._close(conn)
+            if conn is not None:
+                self._close(conn)
 
     async def get_goal(self, goal_id: str) -> Goal | None:
         """Retrieve goal by ID.
@@ -420,7 +473,7 @@ class GoalStorage:
             StorageError: If retrieval fails
 
         """
-        try:
+        def _read() -> tuple | None:
             with self._lock:
                 conn = self._connect()
                 cursor = conn.cursor()
@@ -437,6 +490,10 @@ class GoalStorage:
 
                 row = cursor.fetchone()
                 self._close(conn)
+                return row
+
+        try:
+            row = await asyncio.to_thread(_read)
 
             if not row:
                 return None
@@ -477,7 +534,7 @@ class GoalStorage:
             StorageError: If query fails
 
         """
-        try:
+        def _read() -> list[tuple]:
             with self._lock:
                 conn = self._connect()
                 cursor = conn.cursor()
@@ -502,6 +559,10 @@ class GoalStorage:
                 cursor.execute(query, params)
                 rows = cursor.fetchall()
                 self._close(conn)
+                return rows
+
+        try:
+            rows = await asyncio.to_thread(_read)
 
             return [self._row_to_goal(row) for row in rows]
 

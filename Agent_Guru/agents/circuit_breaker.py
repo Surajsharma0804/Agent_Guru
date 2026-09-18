@@ -54,6 +54,9 @@ class CircuitBreaker:
         self._failure_count = 0
         self._success_count = 0
         self._last_failure_time: datetime | None = None
+        # BUG FIX: guards HALF_OPEN so only one recovery probe is ever
+        # in flight at a time -- see call() for the full explanation.
+        self._half_open_probe_in_flight = False
 
     @property
     def state(self) -> CircuitState:
@@ -70,7 +73,9 @@ class CircuitBreaker:
         """Execute func through the circuit breaker.
 
         Raises:
-            CircuitOpenError: If circuit is OPEN and recovery timeout not elapsed
+            CircuitOpenError: If circuit is OPEN and recovery timeout not elapsed,
+                or if the circuit is HALF_OPEN and a recovery probe is
+                already in flight.
 
         """
         if self._state == CircuitState.OPEN:
@@ -82,6 +87,21 @@ class CircuitBreaker:
                 msg = f"Circuit '{self.name}' is OPEN"
                 raise CircuitOpenError(msg)
 
+        # BUG FIX: only admit one recovery probe at a time while
+        # HALF_OPEN. Previously nothing gated this state at all -- any
+        # number of concurrent callers sailed through exactly like
+        # CLOSED, contradicting the documented "limited calls allowed"
+        # behavior and letting a concurrent burst flood a possibly-
+        # still-broken system during the one moment recovery testing is
+        # supposed to be cautious.
+        half_open_probe = False
+        if self._state == CircuitState.HALF_OPEN:
+            if self._half_open_probe_in_flight:
+                msg = f"Circuit '{self.name}' is HALF_OPEN (recovery probe already in flight)"
+                raise CircuitOpenError(msg)
+            self._half_open_probe_in_flight = True
+            half_open_probe = True
+
         try:
             result = await func(*args, **kwargs)
             self._on_success()
@@ -90,6 +110,9 @@ class CircuitBreaker:
             self._on_failure()
             logger.debug("Circuit %s recorded failure: %s", self.name, e)
             raise
+        finally:
+            if half_open_probe:
+                self._half_open_probe_in_flight = False
 
     def _on_success(self) -> None:
         if self._state == CircuitState.HALF_OPEN:
@@ -118,6 +141,7 @@ class CircuitBreaker:
         self._failure_count = 0
         self._success_count = 0
         self._last_failure_time = None
+        self._half_open_probe_in_flight = False
 
 
 class CircuitOpenError(Exception):

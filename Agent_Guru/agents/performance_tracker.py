@@ -113,12 +113,23 @@ class PerformanceTracker:
         success_rate = sum(1 for r in records if r.success) / len(records)
         avg_time = statistics.mean(r.completion_time_ms for r in records)
 
+        # BUG FIX: was `if records[0].resource_usage: for key in
+        # records[0].resource_usage:` -- only averaged keys present in
+        # the single most recent record, silently dropping any
+        # resource key that OTHER records in the window reported but
+        # the most recent one happened not to. Union the keys across
+        # the whole window instead, so a key reported by any record in
+        # the window is included in the average (still defaulting to
+        # 0.0 for records missing that specific key, same as before).
+        resource_keys: set[str] = set()
+        for r in records:
+            resource_keys.update(r.resource_usage)
+
         avg_resources: dict[str, float] = {}
-        if records[0].resource_usage:
-            for key in records[0].resource_usage:
-                avg_resources[key] = statistics.mean(
-                    r.resource_usage.get(key, 0.0) for r in records
-                )
+        for key in resource_keys:
+            avg_resources[key] = statistics.mean(
+                r.resource_usage.get(key, 0.0) for r in records
+            )
 
         return PerformanceMetrics(
             agent_id=agent_id,

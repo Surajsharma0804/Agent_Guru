@@ -132,7 +132,9 @@ class ProductionDeployment:
         """Verify version follows semver (X.Y.Z)."""
         import re
 
-        if re.match(r"^\d+\.\d+\.\d+$", self._config.version):
+        # ANCHORING FIX: "$" matches before a trailing newline, so a version
+        # of "1.2.3\n" was reported as valid semver by the release preflight.
+        if re.fullmatch(r"\d+\.\d+\.\d+", self._config.version):
             return PreflightResult(
                 "version_format",
                 True,

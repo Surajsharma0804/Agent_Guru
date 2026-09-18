@@ -13,10 +13,13 @@ Validates: Requirements 1 (Agent Registration), 2 (Task Decomposition)
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 
 from .task_decomposer import Task
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Voice command patterns
@@ -234,8 +237,7 @@ class CommandDecomposer:
             return []
 
         cleaned = self._strip_wake_word(command.strip())
-        steps = self._split_into_steps(cleaned)
-        steps = steps[: self.max_steps]
+        steps = self._split_and_bound(cleaned)
 
         parsed = [self._parse_step(s) for s in steps]
         return self._build_tasks(parsed, parent_task_id, base_requirements or {})
@@ -259,8 +261,7 @@ class CommandDecomposer:
             return []
 
         cleaned = self._strip_wake_word(command.strip())
-        steps = self._split_into_steps(cleaned)
-        steps = steps[: self.max_steps]
+        steps = self._split_and_bound(cleaned)
         return [self._parse_step(s) for s in steps]
 
     async def analyze_dependencies(self, tasks: list[Task]) -> dict[str, list[str]]:
@@ -295,6 +296,38 @@ class CommandDecomposer:
 
         """
         return self._WAKE_WORD_RE.sub("", command).strip()
+
+    def _split_and_bound(self, command: str) -> list[str]:
+        """Split into steps and enforce max_steps, warning if any were dropped.
+
+        BUG FIX: decompose() and parse_command() previously each
+        duplicated "split then truncate to max_steps" inline, and
+        neither ever logged anything when truncation actually dropped
+        trailing steps -- a long chained voice command (or a small
+        configured max_steps) could silently lose real user intent with
+        zero signal to the caller or in the logs. This shared helper
+        both removes the duplication and surfaces the truncation.
+
+        Args:
+            command: Cleaned command string (wake-word already removed).
+
+        Returns:
+            Non-empty list of step strings, bounded to self.max_steps.
+
+        Time Complexity: O(n)
+
+        """
+        steps = self._split_into_steps(command)
+        if len(steps) > self.max_steps:
+            logger.warning(
+                "Command decomposed into %d steps, exceeding max_steps=%d — "
+                "dropping %d trailing step(s): %r",
+                len(steps),
+                self.max_steps,
+                len(steps) - self.max_steps,
+                steps[self.max_steps :],
+            )
+        return steps[: self.max_steps]
 
     def _split_into_steps(self, command: str) -> list[str]:
         """Split a command string into atomic step fragments.
@@ -433,9 +466,18 @@ class CommandDecomposer:
             requirements["capabilities"] = step.capabilities
             requirements["target"] = step.target
 
-            metadata: dict[str, str] = {
+            # BUG FIX: can_parallelize is now a real bool, not the string
+            # "True"/"False". Nothing in this codebase currently reads
+            # this key (checked task_assigner.py, assignment_optimizer.py,
+            # and every other agents/*.py file audited so far), but the
+            # sibling task_decomposer.py module already stores the same
+            # metadata key as a real bool -- storing a stringified boolean
+            # here was inconsistent and a footgun (a naive `if metadata[
+            # "can_parallelize"]:` truthiness check on the string "False"
+            # evaluates truthy, since any non-empty string is truthy).
+            metadata: dict[str, str | bool] = {
                 "step_index": str(i),
-                "can_parallelize": str(len(dep_ids) == 0),
+                "can_parallelize": len(dep_ids) == 0,
             }
 
             task = Task(

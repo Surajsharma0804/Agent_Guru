@@ -93,55 +93,10 @@ class GuruAvatarSystem:
 
         self._start_time = time.perf_counter()
 
-        # Emotion recognizer
-        try:
-            self._emotion_recognizer = EmotionRecognizer(
-                model=self._config.emotion_model,
-                confidence_threshold=self._config.emotion_confidence_threshold,
-                smoothing_window=self._config.emotion_smoothing_window,
-                use_gpu=self._config.enable_gpu,
-                map_to_27=self._config.map_to_27_emotions,
-            )
-        except Exception as exc:
-            logger.exception("EmotionRecognizer init failed")
-            self._notify_error(exc, "emotion_recognizer", {})
-            self._emotion_recognizer = EmotionRecognizer(model="heuristic")
-
-        # Lip sync
-        try:
-            self._lip_sync = LipSyncController(
-                model_path=self._config.lip_sync_model_path,
-                sync_threshold_ms=self._config.lip_sync_threshold_ms,
-                buffer_size=self._config.audio_buffer_size,
-            )
-        except Exception as exc:
-            logger.exception("LipSyncController init failed")
-            self._notify_error(exc, "lip_sync", {})
-            self._lip_sync = LipSyncController()
-
-        # Personality engine
-        try:
-            self._personality_engine = PersonalityEngine(self._config.personality_profile_path)
-        except Exception as exc:
-            logger.exception("PersonalityEngine init failed")
-            self._notify_error(exc, "personality_engine", {})
-            self._personality_engine = PersonalityEngine()
-
-        # Renderer
-        try:
-            self._renderer = AvatarRenderer(
-                backend=self._config.render_backend,
-                target_fps=self._config.target_fps,
-                width=self._config.display_width,
-                height=self._config.display_height,
-                transition_duration=self._config.transition_duration_ms / 1000.0,
-            )
-            self._renderer.initialize_display()
-        except Exception as exc:
-            logger.exception("AvatarRenderer init failed — using headless")
-            self._notify_error(exc, "renderer", {})
-            self._renderer = AvatarRenderer(backend="headless")
-            self._renderer.initialize_display()
+        self._emotion_recognizer = self._build_emotion_recognizer()
+        self._lip_sync = self._build_lip_sync()
+        self._personality_engine = self._build_personality_engine()
+        self._renderer = self._build_renderer()
 
         # Performance monitor
         try:
@@ -297,8 +252,56 @@ class GuruAvatarSystem:
         return metrics
 
     def reload_config(self, new_config: AvatarConfig) -> None:
-        """Hot-reload configuration without restart."""
+        """Hot-reload configuration without restart.
+
+        BUG FIX (Round 13): this previously only reassigned ``self._config``
+        to the new object and logged a message. Every already-constructed
+        sub-component (EmotionRecognizer, LipSyncController,
+        PersonalityEngine, AvatarRenderer, PerformanceMonitor) is built
+        from ``self._config`` once, in :meth:`initialize`, and none of
+        them re-read it afterwards -- so a caller invoking this method
+        (or :class:`~Agent_Guru.avatar.config.ConfigWatcher`, which calls
+        exactly this method whenever the on-disk config file changes)
+        believed a live setting change had taken effect, when in reality
+        nothing downstream ever observed the new values until the next
+        full restart. That is a silent no-op wearing the API of a real
+        hot-reload feature -- confirmed by inspection: not one line of
+        the old body referenced any sub-component.
+
+        Fixed by diffing the old and new config per sub-component and,
+        for each one, either applying a cheap in-place update through
+        that component's own setter (for fields that are safe to change
+        without rebuilding internal state -- e.g. confidence thresholds,
+        target FPS, render dimensions, resource limits) or fully
+        reconstructing the component via the same construction-with-
+        fallback helper :meth:`initialize` uses (for fields that are
+        only meaningful at construction time -- e.g. emotion backend
+        selection, GPU device detection, or the renderer's actual
+        window/thread backend). Each sub-component's reload is isolated
+        in its own try/except reported through the existing error-
+        callback mechanism, so one broken subsystem's reload failure
+        never blocks the others from applying and never raises out of
+        this method for a problem that :meth:`initialize` itself would
+        merely log and degrade gracefully from.
+
+        If the system has not been initialized yet, there are no
+        sub-components to update -- this simply stores the new config,
+        exactly matching what :meth:`initialize` will read on its first
+        run.
+        """
+        old_config = self._config
         self._config = new_config
+
+        if not self._initialized:
+            logger.info("Configuration replaced (system not yet initialized)")
+            return
+
+        self._reload_emotion_recognizer(old_config, new_config)
+        self._reload_lip_sync(old_config, new_config)
+        self._reload_personality_engine(old_config, new_config)
+        self._reload_renderer(old_config, new_config)
+        self._reload_performance_monitor(old_config, new_config)
+
         logger.info("Configuration reloaded")
 
     # ------------------------------------------------------------------
@@ -311,6 +314,156 @@ class GuruAvatarSystem:
     ) -> None:
         """Register a callback for error notifications."""
         self._error_callbacks.append(callback)
+
+    # ------------------------------------------------------------------
+    # Sub-component construction (shared by initialize() and
+    # reload_config() so both paths apply the exact same
+    # construct-with-graceful-fallback behavior).
+    # ------------------------------------------------------------------
+
+    def _build_emotion_recognizer(self) -> EmotionRecognizer:
+        try:
+            return EmotionRecognizer(
+                model=self._config.emotion_model,
+                confidence_threshold=self._config.emotion_confidence_threshold,
+                smoothing_window=self._config.emotion_smoothing_window,
+                use_gpu=self._config.enable_gpu,
+                map_to_27=self._config.map_to_27_emotions,
+            )
+        except Exception as exc:
+            logger.exception("EmotionRecognizer init failed")
+            self._notify_error(exc, "emotion_recognizer", {})
+            return EmotionRecognizer(model="heuristic")
+
+    def _build_lip_sync(self) -> LipSyncController:
+        try:
+            return LipSyncController(
+                model_path=self._config.lip_sync_model_path,
+                sync_threshold_ms=self._config.lip_sync_threshold_ms,
+                buffer_size=self._config.audio_buffer_size,
+            )
+        except Exception as exc:
+            logger.exception("LipSyncController init failed")
+            self._notify_error(exc, "lip_sync", {})
+            return LipSyncController()
+
+    def _build_personality_engine(self) -> PersonalityEngine:
+        try:
+            return PersonalityEngine(self._config.personality_profile_path)
+        except Exception as exc:
+            logger.exception("PersonalityEngine init failed")
+            self._notify_error(exc, "personality_engine", {})
+            return PersonalityEngine()
+
+    def _build_renderer(self) -> AvatarRenderer:
+        try:
+            renderer = AvatarRenderer(
+                backend=self._config.render_backend,
+                target_fps=self._config.target_fps,
+                width=self._config.display_width,
+                height=self._config.display_height,
+                transition_duration=self._config.transition_duration_ms / 1000.0,
+            )
+            renderer.initialize_display()
+        except Exception as exc:
+            logger.exception("AvatarRenderer init failed — using headless")
+            self._notify_error(exc, "renderer", {})
+            renderer = AvatarRenderer(backend="headless")
+            renderer.initialize_display()
+        return renderer
+
+    # ------------------------------------------------------------------
+    # reload_config() per-subsystem helpers
+    # ------------------------------------------------------------------
+
+    def _reload_emotion_recognizer(self, old: AvatarConfig, new: AvatarConfig) -> None:
+        try:
+            if (
+                old.emotion_model != new.emotion_model
+                or old.emotion_smoothing_window != new.emotion_smoothing_window
+                or old.enable_gpu != new.enable_gpu
+                or old.map_to_27_emotions != new.map_to_27_emotions
+            ):
+                # These fields only take effect at construction time
+                # (backend selection, GPU device detection, EMA/Kalman
+                # smoothing-window sizing) -- rebuild the component.
+                self._emotion_recognizer = self._build_emotion_recognizer()
+            elif (
+                self._emotion_recognizer is not None
+                and old.emotion_confidence_threshold != new.emotion_confidence_threshold
+            ):
+                self._emotion_recognizer.set_confidence_threshold(
+                    new.emotion_confidence_threshold,
+                )
+        except Exception as exc:
+            logger.exception("Failed to reload emotion recognizer config")
+            self._notify_error(exc, "emotion_recognizer", {"phase": "reload_config"})
+
+    def _reload_lip_sync(self, old: AvatarConfig, new: AvatarConfig) -> None:
+        try:
+            if (
+                old.lip_sync_model_path != new.lip_sync_model_path
+                or old.audio_buffer_size != new.audio_buffer_size
+            ):
+                self._lip_sync = self._build_lip_sync()
+            elif (
+                self._lip_sync is not None
+                and old.lip_sync_threshold_ms != new.lip_sync_threshold_ms
+            ):
+                self._lip_sync.set_sync_threshold_ms(new.lip_sync_threshold_ms)
+        except Exception as exc:
+            logger.exception("Failed to reload lip sync config")
+            self._notify_error(exc, "lip_sync", {"phase": "reload_config"})
+
+    def _reload_personality_engine(self, old: AvatarConfig, new: AvatarConfig) -> None:
+        try:
+            if (
+                self._personality_engine is not None
+                and new.personality_profile_path
+                and old.personality_profile_path != new.personality_profile_path
+            ):
+                self._personality_engine.load_profile(new.personality_profile_path)
+                # Re-apply the (possibly updated) profile for whichever
+                # personality is currently active so the change is
+                # visible immediately, not just on the next set_personality().
+                state = self._state_manager.get_state()
+                profile = self._personality_engine.get_profile(state.personality_type)
+                self._state_manager.update_personality(profile)
+        except Exception as exc:
+            logger.exception("Failed to reload personality profile")
+            self._notify_error(exc, "personality_engine", {"phase": "reload_config"})
+
+    def _reload_renderer(self, old: AvatarConfig, new: AvatarConfig) -> None:
+        try:
+            if old.render_backend != new.render_backend:
+                # Switching backend means tearing down whatever window/
+                # thread the old backend owns before building a new one.
+                if self._renderer is not None:
+                    self._renderer.stop_render_loop()
+                self._renderer = self._build_renderer()
+                return
+            if self._renderer is None:
+                return
+            if old.target_fps != new.target_fps:
+                self._renderer.set_target_fps(new.target_fps)
+            if old.display_width != new.display_width or old.display_height != new.display_height:
+                self._renderer.set_dimensions(new.display_width, new.display_height)
+            if old.transition_duration_ms != new.transition_duration_ms:
+                self._renderer.set_transition_duration(new.transition_duration_ms / 1000.0)
+        except Exception as exc:
+            logger.exception("Failed to reload renderer config")
+            self._notify_error(exc, "renderer", {"phase": "reload_config"})
+
+    def _reload_performance_monitor(self, old: AvatarConfig, new: AvatarConfig) -> None:
+        try:
+            if self._perf_monitor is not None and (
+                old.max_cpu_percent != new.max_cpu_percent
+                or old.max_memory_mb != new.max_memory_mb
+            ):
+                self._perf_monitor.set_limits(new.max_cpu_percent, new.max_memory_mb)
+        except Exception as exc:
+            logger.exception("Failed to reload performance monitor limits")
+            self._notify_error(exc, "performance_monitor", {"phase": "reload_config"})
 
     # ------------------------------------------------------------------
     # Internal helpers
