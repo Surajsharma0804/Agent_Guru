@@ -136,8 +136,21 @@ class OfflineCache:
         try:
             with self._conn:
                 self._conn.execute("DELETE FROM commands WHERE timestamp < ?", (cutoff,))
-        except sqlite3.OperationalError:
-            pass
+        except sqlite3.Error:
+            # ROBUSTNESS FIX: this caught only OperationalError, but
+            # _cleanup_expired() is the FIRST thing lookup() does, and lookup()
+            # is the offline path -- the one that has to work when nothing else
+            # can. A corrupt cache file (sqlite3.DatabaseError) or a closed
+            # connection (sqlite3.ProgrammingError) therefore propagated out of
+            # a step documented as lazy best-effort cleanup and took the whole
+            # offline lookup down with it. Cleanup must never be able to fail a
+            # lookup, so every sqlite3 error is contained here.
+            # OBSERVABILITY FIX: this used to swallow the error outright, so a
+            # locked or corrupt cache DB meant expired rows were NEVER pruned
+            # and the offline cache grew without bound, with nothing anywhere
+            # saying why. Cleanup stays best-effort (control flow unchanged) --
+            # but the failure is now visible.
+            logger.warning("Offline cache cleanup failed", exc_info=True)
 
     def queue_action(self, action: dict[str, Any]) -> None:
         """Queue an action for sync when reconnected."""
