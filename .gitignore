@@ -278,3 +278,8 @@ hello.txt
 **/__pycache__/
 **/*.pyc
 **/*.pyo
+
+test_conversations.db
+test_conversations.db-journal
+Claude outputs/
+
