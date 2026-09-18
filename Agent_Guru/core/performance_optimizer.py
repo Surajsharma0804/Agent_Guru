@@ -196,6 +196,20 @@ class PerformanceOptimizer:
         # Lock guards the cache dict and hit/miss counters against concurrent
         # async tasks interleaved at await points (read-modify-write is not atomic).
         self._cache_lock = threading.Lock()
+        # BUG FIX (Round 25): measure() inserts a new LatencyAccumulator into
+        # self._stats for any previously-unseen stage name with no
+        # synchronization at all, while get_report()/get_bottlenecks()/
+        # reset() iterate self._stats.items()/.values() -- also unguarded.
+        # Reproduced concretely: 30 threads each calling measure() with
+        # distinct new stage names, concurrently with 10 threads calling
+        # get_report(), reliably raised "RuntimeError: dictionary changed
+        # size during iteration" within a few hundred iterations (4-10
+        # crashes per run across 3 runs). A companion app doing STT/LLM/TTS/
+        # tool-execution concurrently is exactly the kind of caller that
+        # exercises measure() from multiple threads at once. This lock
+        # guards every access to self._stats itself (not the per-stage
+        # LatencyAccumulator objects, which already have their own lock).
+        self._stats_lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Measurement context manager
@@ -225,9 +239,11 @@ class PerformanceOptimizer:
             Context manager that records elapsed time on exit.
 
         """
-        if stage not in self._stats:
-            self._stats[stage] = LatencyAccumulator(name=stage, target_ms=float("inf"))
-        return self._Timer(self._stats[stage])
+        with self._stats_lock:
+            if stage not in self._stats:
+                self._stats[stage] = LatencyAccumulator(name=stage, target_ms=float("inf"))
+            stats = self._stats[stage]
+        return self._Timer(stats)
 
     # ------------------------------------------------------------------
     # LLM response caching (reduces redundant API calls)
@@ -264,13 +280,17 @@ class PerformanceOptimizer:
 
     def get_report(self) -> dict[str, Any]:
         """Return a full performance report for all tracked stages."""
-        return {name: stats.summary() for name, stats in self._stats.items()}
+        with self._stats_lock:
+            items = list(self._stats.items())
+        return {name: stats.summary() for name, stats in items}
 
     def get_bottlenecks(self) -> list[str]:
         """Return list of stages that are not meeting their latency targets."""
+        with self._stats_lock:
+            items = list(self._stats.items())
         return [
             name
-            for name, stats in self._stats.items()
+            for name, stats in items
             if stats.sample_count > 0 and not stats.meets_target
         ]
 
@@ -301,7 +321,9 @@ class PerformanceOptimizer:
 
     def reset(self) -> None:
         """Reset all statistics and clear the response cache."""
-        for stats in self._stats.values():
+        with self._stats_lock:
+            items = list(self._stats.values())
+        for stats in items:
             stats.reset()  # MED-002 fix: uses public API, not private attrs
         with self._cache_lock:
             self._response_cache.clear()

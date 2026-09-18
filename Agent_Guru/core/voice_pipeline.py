@@ -144,6 +144,26 @@ class VoicePipeline:
         self._error_count = 0
         self._consecutive_errors = 0
         self._max_consecutive_errors = max_consecutive_errors
+        # BUG FIX (Round 25): speech_captured()/intent_resolved()/response_ready()/
+        # report_error() mutate _last_transcript, _last_response, _error_count and
+        # _consecutive_errors with no synchronization at all -- and critically,
+        # `self._error_count += 1` / `self._consecutive_errors += 1` are compound
+        # read-modify-write operations, not atomic even under the GIL (the
+        # interpreter can switch threads between the LOAD_ATTR and STORE_ATTR
+        # bytecodes). In this app's real architecture these methods are called
+        # from AgentGuru's callbacks (on_speech_captured, on_error, etc.), which
+        # different subsystems (STT, LLM, TTS, the wake-word listener thread)
+        # can invoke concurrently from their own threads -- e.g. a TTS-thread
+        # error and an LLM-thread error reported at the same moment reliably
+        # lose one of the two increments to _error_count/_consecutive_errors,
+        # corrupting the very counters report_error() uses to decide whether to
+        # auto-stop the pipeline (max_consecutive_errors). This dedicated lock
+        # (separate from self._lock, which guards state transitions) makes each
+        # of those field mutations atomic without ever being held across a call
+        # into dispatch() -- dispatch() acquires self._lock itself and
+        # self._lock is a plain, non-reentrant Lock, so nesting the two would
+        # deadlock a thread against itself.
+        self._fields_lock = threading.Lock()
 
         logger.info("VoicePipeline initialized in IDLE state")
 
@@ -243,8 +263,9 @@ class VoicePipeline:
             transcript: STT transcription result
 
         """
-        self._last_transcript = transcript
-        self._consecutive_errors = 0  # Reset on successful speech capture
+        with self._fields_lock:
+            self._last_transcript = transcript
+            self._consecutive_errors = 0  # Reset on successful speech capture
 
         # Check for flow control commands
         normalized = transcript.strip().lower()
@@ -263,7 +284,8 @@ class VoicePipeline:
             response: Optional response text for TTS
 
         """
-        self._last_response = response
+        with self._fields_lock:
+            self._last_response = response
         return self.dispatch(
             PipelineEvent.INTENT_RESOLVED,
             {"intent": intent, "response": response},
@@ -276,7 +298,8 @@ class VoicePipeline:
             response: LLM response text
 
         """
-        self._last_response = response
+        with self._fields_lock:
+            self._last_response = response
         return self.dispatch(PipelineEvent.RESPONSE_READY, response)
 
     def playback_complete(self) -> bool:
@@ -293,11 +316,13 @@ class VoicePipeline:
             error: Error description
 
         """
-        self._error_count += 1
-        self._consecutive_errors += 1
-        logger.error("Pipeline error (%d consecutive): %s", self._consecutive_errors, error)
+        with self._fields_lock:
+            self._error_count += 1
+            self._consecutive_errors += 1
+            consecutive_errors = self._consecutive_errors
+        logger.error("Pipeline error (%d consecutive): %s", consecutive_errors, error)
 
-        if self._consecutive_errors >= self._max_consecutive_errors:
+        if consecutive_errors >= self._max_consecutive_errors:
             logger.critical(
                 "Pipeline exceeded max consecutive errors (%d). Stopping.",
                 self._max_consecutive_errors,

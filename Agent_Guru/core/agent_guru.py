@@ -37,6 +37,14 @@ logger = logging.getLogger(__name__)
 
 _PLATFORM = platform.system().lower()
 
+# Service-loop timings. Module-level rather than function-local so they can be
+# tuned per deployment and driven directly by tests -- with them buried inside
+# _service_loop() the 60s housekeeping interval made the loop's error handling
+# untestable without waiting a real minute.
+IDLE_POLL_S = 0.5  # low-power poll while waiting for a wake word
+ACTIVE_POLL_S = 0.05  # fast poll during active processing
+HOUSEKEEP_S = 60.0  # how often to log housekeeping stats
+
 
 class AgentGuru:
     """Main Agent Guru application.
@@ -99,6 +107,15 @@ class AgentGuru:
         self._wake_word_listener: Callable[[], None] | None = None
         self._wake_thread: threading.Thread | None = None
 
+        # Signal handlers this instance installed, so they can be put back.
+        # Installing handlers is process-global: an app that embeds AgentGuru
+        # had its own SIGINT/SIGTERM handling silently and permanently
+        # replaced by ours the first time run_as_background_service() ran.
+        self._prev_signal_handlers: dict[int, Any] = {}
+        #: Signal number that requested shutdown, logged once we are off the
+        #: signal handler's stack (logging there is not re-entrancy-safe).
+        self._pending_signal: int | None = None
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
@@ -139,18 +156,56 @@ class AgentGuru:
         self._running = True
         self._stop_event.clear()
 
-        # Register signal handlers (desktop only)
-        if _PLATFORM in ("windows", "darwin", "linux"):
-            signal.signal(signal.SIGTERM, self._handle_signal)
-            signal.signal(signal.SIGINT, self._handle_signal)
+        self._install_signal_handlers()
 
         logger.info("AgentGuru background service started")
 
         try:
             self._service_loop()
         finally:
+            self._restore_signal_handlers()
+            # The loop can also end because the pipeline reached STOPPED (an
+            # "exit"/"goodbye" utterance, or the consecutive-error cap). In
+            # that case nothing had set the stop event, so a registered
+            # wake-word listener -- documented to loop until it is set -- kept
+            # listening after the user had said goodbye. Settle it here so
+            # every exit path shuts the whole service down.
+            self._stop_event.set()
             self._running = False
             logger.info("AgentGuru background service stopped")
+
+    def _install_signal_handlers(self) -> None:
+        """Install SIGTERM/SIGINT handlers, if this is the main thread.
+
+        signal.signal() raises ValueError anywhere but the main thread, which
+        would have taken down a perfectly serviceable call to
+        run_as_background_service() from a worker thread. Python only delivers
+        signals to the main thread anyway, so skipping is the correct
+        behaviour there, not a degradation worth failing over.
+        """
+        if _PLATFORM not in ("windows", "darwin", "linux"):
+            return
+        if threading.current_thread() is not threading.main_thread():
+            logger.info(
+                "Not the main thread - skipping signal-handler registration "
+                "(signals are delivered to the main thread only). Call "
+                "shutdown() to stop the service.",
+            )
+            return
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            try:
+                self._prev_signal_handlers[sig] = signal.signal(sig, self._handle_signal)
+            except (ValueError, OSError):
+                logger.warning("Could not install handler for signal %s", sig, exc_info=True)
+
+    def _restore_signal_handlers(self) -> None:
+        """Put back whatever handlers were installed before us."""
+        while self._prev_signal_handlers:
+            sig, handler = self._prev_signal_handlers.popitem()
+            try:
+                signal.signal(sig, handler)
+            except (ValueError, OSError, TypeError):
+                logger.debug("Could not restore handler for signal %s", sig, exc_info=True)
 
     def shutdown(self) -> None:
         """Gracefully shut down the service."""
@@ -300,33 +355,58 @@ class AgentGuru:
                 "or use the async path in main.py which wires WakeWordManager.",
             )
 
-        _IDLE_POLL_S = 0.5  # low-power poll when waiting for wake word
-        _ACTIVE_POLL_S = 0.05  # fast poll during active processing
-        _HOUSEKEEP_S = 60.0  # how often to log housekeeping stats
-
         last_housekeep = time.monotonic()
 
         while not self._stop_event.is_set() and self._pipeline.is_active():
             # Periodic housekeeping
             now = time.monotonic()
-            if now - last_housekeep >= _HOUSEKEEP_S:
-                self._run_housekeeping()
+            if now - last_housekeep >= HOUSEKEEP_S:
+                # RELIABILITY FIX: _run_housekeeping() reaches into the memory
+                # manager, which can raise (a locked DB, a manager whose shape
+                # changed). Unguarded, that exception propagated out of the
+                # loop and killed the always-on service outright -- the
+                # assistant would simply stop answering -- because a *logging*
+                # step failed. Housekeeping is now advisory.
+                try:
+                    self._run_housekeeping()
+                except Exception:
+                    logger.exception("Housekeeping failed; service continues")
                 last_housekeep = now
 
             # Adapt poll interval to pipeline state
             state = self._pipeline.get_state()
             poll_s = (
-                _ACTIVE_POLL_S
+                ACTIVE_POLL_S
                 if state in (PipelineState.PROCESSING, PipelineState.RESPONDING)
-                else _IDLE_POLL_S
+                else IDLE_POLL_S
             )
             # Use stop_event.wait() so shutdown() wakes us up immediately
             self._stop_event.wait(timeout=poll_s)
 
-        # Signal listener thread to stop (it must honour _stop_event)
+        if self._pending_signal is not None:
+            logger.info("Received signal %d - shutting down", self._pending_signal)
+            self._pending_signal = None
+
+        # Signal the listener thread to stop. It must honour _stop_event, and
+        # the loop can exit without it having been set (pipeline reached
+        # STOPPED), so set it here before waiting rather than assuming.
+        self._stop_event.set()
+        self._pipeline.stop()
         if self._wake_thread is not None and self._wake_thread.is_alive():
             self._wake_thread.join(timeout=2.0)
-            self._wake_thread = None
+            if self._wake_thread.is_alive():
+                # THREAD-LEAK FIX: the reference used to be dropped here
+                # unconditionally, so a listener that ignored _stop_event kept
+                # running -- still capturing audio -- with nothing left
+                # pointing at it. Keep the handle and say so.
+                logger.warning(
+                    "Wake-word listener %s did not stop within 2s; it is still "
+                    "running. Its implementation must return once "
+                    "_stop_event is set.",
+                    self._wake_thread.name,
+                )
+            else:
+                self._wake_thread = None
 
     def _on_state_change(self, old_state: PipelineState, new_state: PipelineState) -> None:
         """Log pipeline state transitions."""
@@ -349,9 +429,24 @@ class AgentGuru:
         )
 
     def _handle_signal(self, signum: int, frame: Any) -> None:
-        """Handle OS signals for graceful shutdown."""
-        logger.info("Received signal %d — shutting down", signum)
-        self.shutdown()
+        """Handle OS signals for graceful shutdown.
+
+        DEADLOCK FIX: this used to call shutdown(), which calls
+        VoicePipeline.stop() -> dispatch(), which acquires the pipeline's
+        non-reentrant state lock. Signal handlers run *on the main thread*,
+        interrupting whatever it was doing -- so a SIGINT that arrived while
+        the main thread was already inside dispatch() holding that lock made
+        the handler block on a lock only the interrupted frame could release.
+        The process would hang forever, on the one code path whose entire job
+        is to shut it down. The logging call had the same shape of problem
+        (logging takes its own locks, and the interrupted frame may hold them).
+
+        So the handler now does the one thing that is safe here: set the stop
+        event. run_as_background_service()'s finally block performs the real
+        shutdown once the loop unwinds, on the normal call stack.
+        """
+        self._pending_signal = signum
+        self._stop_event.set()
 
     def _init_auth(self) -> None:
         """Lazily initialize auth manager."""

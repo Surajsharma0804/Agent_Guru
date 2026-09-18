@@ -2,10 +2,13 @@
 Purpose: Comprehensive error handling, retry, and recovery for Agent Guru.
 
 Provides:
-- ErrorHandler: Centralized error handling with speech feedback
+- ErrorHandler: Centralized error handling with speech feedback. Automatic
+  recovery for critical component failures is implemented directly on this
+  class via register_recovery_handler()/_attempt_recovery() (there is no
+  separate RecoveryManager class — this docstring previously advertised one
+  that was never implemented; corrected in Round 25 to match reality).
 - RetryPolicy: Exponential backoff for transient failures
 - ErrorLogger: Structured error logging with rotation
-- RecoveryManager: Automatic recovery for critical component failures
 
 Requirements: 20.1, 20.3, 20.4, 20.5, 20.6, 20.7, 20.8
 
@@ -361,7 +364,15 @@ class ErrorLogger:
                 except (json.JSONDecodeError, ValueError):
                     continue
         except OSError:
-            pass
+            # Returning a silently-empty error history made a broken
+            # persistence path indistinguishable from "no errors have ever
+            # occurred". Whatever was parsed before the failure is still
+            # returned; the failure itself is now reported.
+            logger.warning(
+                "Could not read the persisted error log; returning %d partial record(s)",
+                len(records),
+                exc_info=True,
+            )
 
         return records
 
