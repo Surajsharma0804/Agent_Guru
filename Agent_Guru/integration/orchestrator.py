@@ -137,6 +137,55 @@ class PipelineResult:
 
 
 # ---------------------------------------------------------------------------
+# Per-stage time budgets
+# ---------------------------------------------------------------------------
+# RELIABILITY FIX: run_pipeline() awaited seven of its eight stages with NO
+# time limit whatsoever -- only Stage 3 (reasoning) had one. If STT, memory,
+# the LLM, the policy check or TTS hung, the user got SILENCE FOREVER: no
+# audio, no error, no audit entry, and no way to recover short of restarting
+# the process, because nothing ever raised and the outer `except` never fired.
+# For an always-on voice assistant that is the defining reliability property.
+#
+# Each budget is generous enough not to cut off legitimate slow work (a local
+# Whisper transcription or a CPU-bound local LLM can genuinely take tens of
+# seconds) and every one is overridable per deployment, because the right
+# number depends entirely on the hardware and models in use.
+#
+# Stage 7 (action execution) is deliberately NOT bounded here -- see the note
+# at its call site: cancelling an action mid-flight can leave a real
+# side effect half-applied, which is worse than waiting.
+def _env_seconds(name: str, default: float) -> float:
+    """Read a timeout from the environment, falling back to *default*."""
+    raw_value = os.environ.get(name)
+    if not raw_value:
+        return default
+    try:
+        value = float(raw_value)
+    except ValueError:
+        logger.warning("Ignoring non-numeric %s=%r; using %.1fs", name, raw_value, default)
+        return default
+    if value <= 0:
+        logger.warning("Ignoring non-positive %s=%r; using %.1fs", name, raw_value, default)
+        return default
+    return value
+
+
+STT_TIMEOUT_S = _env_seconds("AGENT_GURU_STT_TIMEOUT", 30.0)
+MEMORY_TIMEOUT_S = _env_seconds("AGENT_GURU_MEMORY_TIMEOUT", 5.0)
+REASONING_TIMEOUT_S = _env_seconds("AGENT_GURU_REASONING_TIMEOUT", 2.0)
+INTENT_TIMEOUT_S = _env_seconds("AGENT_GURU_INTENT_TIMEOUT", 5.0)
+LLM_TIMEOUT_S = _env_seconds("AGENT_GURU_LLM_TIMEOUT", 60.0)
+POLICY_TIMEOUT_S = _env_seconds("AGENT_GURU_POLICY_TIMEOUT", 5.0)
+TTS_TIMEOUT_S = _env_seconds("AGENT_GURU_TTS_TIMEOUT", 30.0)
+MEMORY_WRITE_TIMEOUT_S = _env_seconds("AGENT_GURU_MEMORY_WRITE_TIMEOUT", 10.0)
+
+#: Spoken when the LLM exceeds its budget. Saying nothing leaves the user
+#: staring at a silent assistant; falling through to the generic "Done."
+#: would be worse still, because it claims an action succeeded.
+LLM_TIMEOUT_REPLY = "Sorry, that took too long for me to work out. Could you ask me again?"
+
+
+# ---------------------------------------------------------------------------
 # IntegrationOrchestrator
 # ---------------------------------------------------------------------------
 
@@ -245,6 +294,15 @@ class IntegrationOrchestrator:
 
         # Empathy adapter — adapts responses for emotional state + distress support
         self._empathy_adapter: Any = None  # lazy-init alongside emotion detector
+
+        # Last EmpathyAdapter.adapt_response() result and last detected emotion
+        # label for this turn. Previously adapt_response() was called with an
+        # empty string and its return value discarded entirely — the tone/
+        # pacing/vocabulary guidance it computes never reached the LLM prompt.
+        # _build_system_prompt() now reads _last_adapted_response to add a
+        # real tone instruction instead of throwing that computation away.
+        self._last_adapted_response: Any = None
+        self._last_emotion_hint: str = "neutral"
 
         # Conversation history — last 12 exchanges (24 messages) for continuity.
         # Without this, the LLM has no memory of what was said 10 seconds ago.
@@ -538,10 +596,20 @@ class IntegrationOrchestrator:
         result.pipeline_mode = _pipeline_mode
 
         try:
-            # Stage 1: STT
-            result.transcript, result.detected_language = await self._stage_stt(
-                wake_event.audio, result.personality,
-            )
+            # Stage 1: STT. On timeout the transcript stays empty, which the
+            # existing "nothing was said" path below already handles.
+            try:
+                result.transcript, result.detected_language = await asyncio.wait_for(
+                    self._stage_stt(wake_event.audio, result.personality),
+                    timeout=STT_TIMEOUT_S,
+                )
+            except TimeoutError:
+                logger.warning(
+                    "STT stage exceeded %.1fs - treating the utterance as unheard",
+                    STT_TIMEOUT_S,
+                )
+                result.transcript, result.detected_language = "", ""
+                result.error = f"stt_timeout after {STT_TIMEOUT_S:.1f}s"
             result.stages_completed = 1
 
             if not result.transcript:
@@ -561,18 +629,32 @@ class IntegrationOrchestrator:
             if early_result is not None:
                 return early_result
 
-            # Stage 2: Memory context
-            result.memory_context = await self._stage_memory(result.transcript)
+            # Stage 2: Memory context. Recall is an enhancement, never a
+            # precondition for answering, so a slow store degrades to "no
+            # context" rather than stalling the turn.
+            try:
+                result.memory_context = await asyncio.wait_for(
+                    self._stage_memory(result.transcript), timeout=MEMORY_TIMEOUT_S,
+                )
+            except TimeoutError:
+                logger.warning(
+                    "Memory stage exceeded %.1fs - answering without recalled context",
+                    MEMORY_TIMEOUT_S,
+                )
+                result.memory_context = None
             result.stages_completed = 2
 
             # Stage 3: Reasoning (2s timeout)
             try:
                 result.reasoning_output = await asyncio.wait_for(
                     self._stage_reasoning(result.transcript, result.memory_context),
-                    timeout=2.0,
+                    timeout=REASONING_TIMEOUT_S,
                 )
             except TimeoutError:
-                logger.debug("Reasoning stage timed out (>2s) — continuing without it")
+                logger.debug(
+                    "Reasoning stage timed out (>%.1fs) — continuing without it",
+                    REASONING_TIMEOUT_S,
+                )
                 result.reasoning_output = None
             except Exception:
                 logger.debug("Reasoning stage error — continuing without it")
@@ -580,26 +662,66 @@ class IntegrationOrchestrator:
             result.stages_completed = 3
 
             # Stage 5 (before 4): Intent detection — fast path
-            result.intent = await self._stage_intent(result.transcript or "")
+            try:
+                result.intent = await asyncio.wait_for(
+                    self._stage_intent(result.transcript or ""), timeout=INTENT_TIMEOUT_S,
+                )
+            except TimeoutError:
+                # No intent means no action is attempted; the LLM still answers
+                # conversationally, which is the safe degradation.
+                logger.warning(
+                    "Intent stage exceeded %.1fs - continuing without an intent",
+                    INTENT_TIMEOUT_S,
+                )
+                result.intent = None
             result.stages_completed = 5
 
             # Stage 4: LLM inference (only if needed)
             needs_llm = self._intent_needs_llm(result.intent, result.transcript or "")
             if needs_llm:
-                result.llm_response = await self._stage_llm(
-                    result.transcript, result.memory_context,
-                    result.reasoning_output, result.detected_language,
-                    personality=result.personality,
-                )
+                try:
+                    result.llm_response = await asyncio.wait_for(
+                        self._stage_llm(
+                            result.transcript, result.memory_context,
+                            result.reasoning_output, result.detected_language,
+                            personality=result.personality,
+                        ),
+                        timeout=LLM_TIMEOUT_S,
+                    )
+                except TimeoutError:
+                    logger.warning("LLM stage exceeded %.1fs", LLM_TIMEOUT_S)
+                    result.llm_response = LLM_TIMEOUT_REPLY
+                    result.error = f"llm_timeout after {LLM_TIMEOUT_S:.1f}s"
             else:
                 result.llm_response = None
             result.stages_completed = 4
 
             # Stage 6: Policy check
-            result.policy_allowed = await self._stage_policy(result.intent)
+            try:
+                result.policy_allowed = await asyncio.wait_for(
+                    self._stage_policy(result.intent), timeout=POLICY_TIMEOUT_S,
+                )
+            except TimeoutError:
+                # FAIL CLOSED. A policy check that did not complete has not
+                # granted anything; treating "slow" as "allowed" would turn a
+                # hung policy engine into an authorization bypass.
+                logger.warning(
+                    "Policy stage exceeded %.1fs - denying the action (fail closed)",
+                    POLICY_TIMEOUT_S,
+                )
+                result.policy_allowed = False
+                result.error = f"policy_timeout after {POLICY_TIMEOUT_S:.1f}s"
             result.stages_completed = 6
 
-            # Stage 7: Action execution
+            # Stage 7: Action execution.
+            # DELIBERATELY UNBOUNDED. asyncio.wait_for() cancels the coroutine
+            # it is waiting on, and an action is the one stage with real,
+            # externally visible side effects -- a file half-written, an app
+            # half-launched, a message half-sent. Cancelling mid-flight would
+            # leave that half-state behind with no record of how far it got,
+            # which is worse than waiting. Individual tools are responsible for
+            # bounding their own work (see reasoning/tools/system/_command.py,
+            # which caps every subprocess it runs).
             if result.policy_allowed:
                 result.action_result = await self._stage_action(
                     result.intent, pipeline_mode=result.pipeline_mode,
@@ -608,17 +730,53 @@ class IntegrationOrchestrator:
 
             # Stage 8: TTS
             tts_text = self._finalize_tts_text(result)
-            result.tts_response = await self._stage_tts(tts_text, result.personality)
+            try:
+                result.tts_response = await asyncio.wait_for(
+                    self._stage_tts(tts_text, result.personality), timeout=TTS_TIMEOUT_S,
+                )
+            except TimeoutError:
+                logger.warning(
+                    "TTS stage exceeded %.1fs - no audio for this turn", TTS_TIMEOUT_S,
+                )
+                result.tts_response = None
+                result.error = f"tts_timeout after {TTS_TIMEOUT_S:.1f}s"
             result.stages_completed = 8
 
-            # Track in chat history
+            # Track in chat history (single source of truth — see _llm_complete()
+            # for why the second, duplicate append that used to live there was
+            # removed). Uses the real detected emotion for this turn instead of
+            # the "neutral" placeholder this used to hardcode regardless of what
+            # _detect_emotion() actually found.
             if result.transcript and tts_text:
                 self._chat_history.append({
-                    "role": "user", "content": result.transcript, "emotion": "neutral",
+                    "role": "user",
+                    "content": result.transcript,
+                    "emotion": getattr(self, "_last_emotion_hint", "neutral"),
                 })
                 self._chat_history.append({
                     "role": "assistant", "content": tts_text,
                 })
+
+                # Persist this turn to long-term memory. Previously self.memory
+                # was queried for recall on every turn (_stage_memory) but
+                # nothing ever fed it — store_interaction() was never called,
+                # so retrieval always ran against an empty/stale store. See
+                # docs/audit/claude_companion_and_control_audit_2026-09-13.md.
+                # Bounded: the user already has their answer by this point, so
+                # a slow write must not hold the turn open. Losing one stored
+                # turn is recoverable; hanging the pipeline is not.
+                try:
+                    await asyncio.wait_for(
+                        self._store_turn_in_memory(
+                            result.personality, result.transcript, tts_text,
+                        ),
+                        timeout=MEMORY_WRITE_TIMEOUT_S,
+                    )
+                except TimeoutError:
+                    logger.warning(
+                        "Storing this turn in memory exceeded %.1fs - turn not persisted",
+                        MEMORY_WRITE_TIMEOUT_S,
+                    )
 
             # Audit log
             self._log_audit(result, outcome="success", error=None)
@@ -1148,17 +1306,15 @@ class IntegrationOrchestrator:
             response = await complete_fn(request)
             llm_response = response.content or ""
 
-            # Update conversation history
-            if llm_response:
-                self._chat_history.append({
-                    "role": "user",
-                    "content": transcript or "",
-                    "emotion": emotion_hint or "neutral",
-                })
-                self._chat_history.append({
-                    "role": "assistant",
-                    "content": llm_response,
-                })
+            # NOTE: conversation history is recorded exactly once, in
+            # run_pipeline() after TTS finalizes the actually-spoken text —
+            # this function used to *also* append here with the pre-TTS
+            # llm_response, so every LLM-driven turn was written into
+            # _chat_history twice (wasting half of the 12-exchange window on
+            # near-duplicate entries and skewing _recent_moods). Removed;
+            # emotion_hint for this turn is preserved via self._last_emotion_hint
+            # (set in _detect_emotion()) for run_pipeline() to use instead of
+            # the "neutral" it used to hardcode.
 
             return llm_response
         except ImportError as e:
@@ -1226,12 +1382,45 @@ class IntegrationOrchestrator:
             if _emo_state.confidence > 0.4 and _emo_state.emotion != "neutral":
                 emotion_hint = _emo_state.emotion
                 logger.info("Emotion detected: %s (%.2f)", _emo_state.emotion, _emo_state.confidence)
-            # Track for distress support
-            self._empathy_adapter.adapt_response("", _emo_state)
+            # Track for distress support AND capture the real adaptation (tone/
+            # pacing/vocabulary_level) instead of discarding it — this used to be
+            # called with "" so the only thing that survived was _emo_state
+            # itself (still needed for should_offer_support()'s 3-turn tracker).
+            self._last_adapted_response = self._empathy_adapter.adapt_response(_raw_text, _emo_state)
+            self._last_emotion_hint = emotion_hint or "neutral"
             return emotion_hint
         except Exception as _emo_exc:
             logger.debug("Emotion detection skipped: %s", _emo_exc)
             return ""
+
+    async def _store_turn_in_memory(
+        self,
+        personality: Personality | None,
+        user_message: str,
+        ai_message: str,
+    ) -> None:
+        """Persist a completed turn to self.memory (best-effort, never raises).
+
+        Mirrors _stage_memory()'s duck-typed retrieval pattern below — same
+        idea, opposite direction. self.memory (a MemoryManager instance in
+        production, see main.py's _load_memory()) was being asked for recall
+        every turn without ever being told what to remember; this is the
+        missing write side of that round trip.
+        """
+        try:
+            fn = getattr(self.memory, "store_interaction", None)
+            if fn is None:
+                return
+            if not user_message or not ai_message:
+                return
+            _persona_str = personality.value if personality is not None else "guru"
+            if inspect.iscoroutinefunction(fn):
+                await fn(_persona_str, user_message, ai_message)
+            else:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, fn, _persona_str, user_message, ai_message)
+        except Exception:
+            logger.debug("Memory store_interaction failed", exc_info=True)
 
     async def _fetch_web_context(self, prompt: str) -> str:
         """Fetch web search context if the prompt looks like a question."""
@@ -1291,17 +1480,37 @@ class IntegrationOrchestrator:
                 f"You MUST respond in the same language. Do NOT respond in English."
             )
 
-        # Distress support
+        # Distress support (real 3-consecutive-turn escalation — see
+        # EmpathyAdapter.should_offer_support(), whose DISTRESS_EMOTIONS set
+        # correctly matches EmotionDetector's real labels, unlike the now-
+        # removed dead "crisis" tier that used to live in
+        # companion_prompts._build_emotion_block()). Now also names a real,
+        # locale-appropriate helpline instead of offering generic support with
+        # no actual resource attached.
         try:
             if self._empathy_adapter and self._empathy_adapter.should_offer_support():
+                from Agent_Guru.llm.companion_prompts import resolve_crisis_resource
+
+                _crisis_resource = resolve_crisis_resource(user_country)
                 system_prompt += (
                     "\n\nIMPORTANT: The user has been in distress for multiple turns. "
                     "Gently check in on them — ask how they're really doing. "
-                    "Offer genuine support, not generic platitudes."
+                    "Offer genuine support, not generic platitudes. If they mention "
+                    f"self-harm or feeling hopeless, gently suggest {_crisis_resource}."
                 )
                 logger.info("Distress support triggered — 3+ consecutive distress turns")
         except Exception:
             logger.debug("Empathy adapter check failed", exc_info=True)
+
+        # Tone/pacing guidance from EmpathyAdapter.adapt_response() (see
+        # _detect_emotion() — this used to be computed against an empty string
+        # and its result discarded entirely, so it never reached the LLM).
+        _adapted = getattr(self, "_last_adapted_response", None)
+        if _adapted is not None and emotion_hint and emotion_hint != "neutral":
+            system_prompt += (
+                f"\n\nTONE NOTE: match a {_adapted.tone} tone, {_adapted.pacing} pacing, "
+                f"and {_adapted.vocabulary_level} vocabulary in this reply."
+            )
 
         # Conversation context note
         _turn_count = len(self._chat_history) // 2 + 1
@@ -1951,7 +2160,73 @@ class IntegrationOrchestrator:
         if result is not None:
             return result
 
+        # Presentation generation (e.g. "make a presentation from notes.txt")
+        result = await self._handle_presentation_request(raw_text)
+        if result is not None:
+            return result
+
         return None
+
+    async def _handle_presentation_request(self, raw_text: str) -> str | None:
+        """Turn a source document into a .pptx, wiring
+        platform.features.presentation.generate_presentation() into the
+        live pipeline (Round 10 — see that module's docstring for the full
+        rationale). Runs as a universal feature check, same as briefing/
+        dictation/clipboard above, so it works regardless of what the
+        rule-based intent recognizer would have classified this as.
+
+        Returns None (not handled) when the transcript isn't asking for a
+        presentation, or when it is but no source file could be identified
+        — in the latter case the conversational LLM gets a turn instead of
+        this method guessing a file, since generating from the wrong file
+        would be a worse outcome than asking a clarifying question.
+        """
+        from Agent_Guru.platform.features.presentation import (
+            PresentationError,
+            extract_source_path,
+            generate_presentation,
+            wants_presentation,
+        )
+
+        if not wants_presentation(raw_text):
+            return None
+
+        source_ref = extract_source_path(raw_text)
+        if not source_ref:
+            logger.info(
+                "Presentation request detected but no source file identified: %r",
+                raw_text[:120],
+            )
+            return None
+
+        from pathlib import Path
+
+        from Agent_Guru.security.path_utils import safe_path
+
+        try:
+            # Sandbox to the user's home directory — the same boundary
+            # reasoning/tools/system/file_operations.py uses (Round 8) — so
+            # a spoken/transcribed command can't be used to read arbitrary
+            # filesystem locations via path traversal.
+            source_path = safe_path(source_ref, Path.home())
+        except ValueError:
+            return (
+                f"I can only build presentations from files under your home "
+                f"folder — {self._sanitize_output(source_ref)} is outside that."
+            )
+
+        logger.info("ACTION: create_presentation(%r)", str(source_path))
+        try:
+            complete_fn = getattr(self.llm_runtime, "complete", None)
+            output_path = await generate_presentation(source_path, complete_fn=complete_fn)
+        except PresentationError as exc:
+            logger.warning("Presentation generation failed for %s: %s", source_path, exc)
+            return f"Couldn't build a presentation from that: {self._sanitize_output(str(exc))}"
+        except Exception:
+            logger.exception("Unexpected error generating presentation from %s", source_path)
+            return "Something went wrong while building that presentation."
+
+        return f"Your presentation is ready at {output_path}"
 
     async def _handle_reminder(self, raw_text: str) -> str | None:
         """Handle reminder/timer commands."""
@@ -2120,58 +2395,14 @@ class IntegrationOrchestrator:
         )
 
     # Known URL map — class-level to avoid re-creating per call
-    _URL_MAP: ClassVar[dict[str, str]] = {
-        # Video / Music
-        "youtube": "https://www.youtube.com", "spotify": "https://www.spotify.com",
-        "netflix": "https://www.netflix.com", "hotstar": "https://www.hotstar.com",
-        "primevideo": "https://www.primevideo.com", "jiocinema": "https://www.jiocinema.com",
-        "zee5": "https://www.zee5.com", "sonyliv": "https://www.sonyliv.com",
-        "twitch": "https://www.twitch.tv", "tiktok": "https://www.tiktok.com",
-        # Search / Info
-        "google": "https://www.google.com", "bing": "https://www.bing.com",
-        "wikipedia": "https://www.wikipedia.org", "quora": "https://www.quora.com",
-        "reddit": "https://www.reddit.com", "medium": "https://www.medium.com",
-        "hashnode": "https://hashnode.com",
-        # Social
-        "twitter": "https://www.twitter.com", "facebook": "https://www.facebook.com",
-        "instagram": "https://www.instagram.com", "linkedin": "https://www.linkedin.com",
-        "pinterest": "https://www.pinterest.com", "tumblr": "https://www.tumblr.com",
-        # Messaging
-        "whatsapp": "https://web.whatsapp.com", "telegram": "https://web.telegram.org",
-        "discord": "https://discord.com", "slack": "https://slack.com",
-        "zoom": "https://zoom.us", "teams": "https://teams.microsoft.com",
-        "meet": "https://meet.google.com",
-        # Dev / Coding
-        "github": "https://www.github.com", "stackoverflow": "https://stackoverflow.com",
-        "leetcode": "https://www.leetcode.com", "hackerrank": "https://www.hackerrank.com",
-        "codechef": "https://www.codechef.com", "codeforces": "https://www.codeforces.com",
-        "geeksforgeeks": "https://www.geeksforgeeks.org", "w3schools": "https://www.w3schools.com",
-        "mdn": "https://developer.mozilla.org", "openai": "https://www.openai.com",
-        "huggingface": "https://huggingface.co", "kaggle": "https://www.kaggle.com",
-        "dev.to": "https://dev.to",
-        # Learning
-        "udemy": "https://www.udemy.com", "coursera": "https://www.coursera.org",
-        "edx": "https://www.edx.org", "khanacademy": "https://www.khanacademy.org",
-        "khan academy": "https://www.khanacademy.org",
-        # Shopping / Finance
-        "amazon": "https://www.amazon.in", "flipkart": "https://www.flipkart.com",
-        "myntra": "https://www.myntra.com", "snapdeal": "https://www.snapdeal.com",
-        "paytm": "https://www.paytm.com", "phonepe": "https://www.phonepe.com",
-        "gpay": "https://pay.google.com",
-        # Travel
-        "irctc": "https://www.irctc.co.in", "makemytrip": "https://www.makemytrip.com",
-        "goibibo": "https://www.goibibo.com", "booking": "https://www.booking.com",
-        "airbnb": "https://www.airbnb.com",
-        # Jobs
-        "naukri": "https://www.naukri.com", "indeed": "https://www.indeed.com",
-        "glassdoor": "https://www.glassdoor.com",
-        # Google services
-        "gmail": "https://mail.google.com", "maps": "https://maps.google.com",
-        "translate": "https://translate.google.com", "drive": "https://drive.google.com",
-        "docs": "https://docs.google.com", "sheets": "https://sheets.google.com",
-        "slides": "https://slides.google.com", "calendar": "https://calendar.google.com",
-        "keep": "https://keep.google.com",
-    }
+    # NOTE: the site-name → URL table used to live here as a 60+-entry
+    # `_URL_MAP`, duplicating (and drifting from) platform/os_controller.py's
+    # own 15-entry `_shortcuts` and a third, separate registry in
+    # platform/browser_manager.py. All three have been consolidated into
+    # browser_manager._SITE_REGISTRY (consolidated 2026-09-13) — see that
+    # module for the merged table and conflict resolutions. Both this method
+    # and OSController._resolve_url() now delegate to
+    # browser_manager._resolve_site_url() instead of keeping their own copy.
 
     async def _action_open_url(self, ctrl: Any, param: str) -> str:
         param_lower = param.lower().strip()
@@ -2187,39 +2418,45 @@ class IntegrationOrchestrator:
             await asyncio.to_thread(ctrl.open_application, "firefox")
             return "Opening Firefox"
 
-        # Known URL map
-        known_url = self._URL_MAP.get(param_lower)
-        if known_url:
-            logger.info("ACTION: open_url('%s') → %s", param, known_url)
-            fn = getattr(ctrl, "open_url", None)
-            if fn:
-                await asyncio.to_thread(fn, known_url)
-                return f"Opening {self._sanitize_output(param)}"
+        from Agent_Guru.platform.browser_manager import _resolve_site_url
 
-        # Explicit URL
-        if param.startswith("http://") or param.startswith("https://"):
-            parsed = _up.urlparse(param)
-            if parsed.scheme not in ("http", "https"):
-                return "Cannot open URL with unsafe scheme"
-            fn = getattr(ctrl, "open_url", None)
-            if fn:
-                await asyncio.to_thread(fn, param)
-                return f"Opened {self._sanitize_output(param)}"
+        # _resolve_site_url() covers: known site names (the merged registry),
+        # and anything already shaped like a URL (http(s):// or www.) — safe
+        # by construction, since it only ever returns those two forms.
+        target_url = _resolve_site_url(param)
+        if not target_url:
+            if "." in param and " " not in param:
+                # Bare domain name (e.g. "example.com") — not in the
+                # registry and no scheme/www prefix for _resolve_site_url
+                # to recognize, but still clearly a domain.
+                target_url = param if param.startswith("http") else f"https://{param}"
+            else:
+                # Unrecognized site name — best-effort guess, same
+                # fallback behavior this method has always had.
+                target_url = f"https://www.{param_lower.replace(' ', '')}.com"
 
-        # Domain name
-        if "." in param and " " not in param:
-            url = param if param.startswith("http") else f"https://{param}"
-            fn = getattr(ctrl, "open_url", None)
-            if fn:
-                await asyncio.to_thread(fn, url)
-                return f"Opening {self._sanitize_output(param)}"
+        logger.info("ACTION: open_url('%s') → %s", param, target_url)
 
-        # Unknown → try direct URL
-        direct_url = f"https://www.{param_lower.replace(' ', '')}.com"
+        # Prefer the persistent, tab-reusing BrowserManager: repeated opens
+        # of the same site reuse the existing tab and keep cookies/session
+        # (login state, preferences) instead of relying only on the OS's
+        # plain webbrowser.open(), which always behaves like a fresh,
+        # disconnected request. Falls back to ctrl.open_url (webbrowser.open)
+        # if the persistent browser can't start for any reason, so "open X"
+        # still does something either way — never a silent no-op.
+        try:
+            mgr = await self._get_browser_mgr()
+            await mgr.open_url(target_url)
+            return f"Opening {self._sanitize_output(param)}"
+        except Exception:
+            logger.exception(
+                "Persistent BrowserManager failed for open_url(%s) — falling back to "
+                "plain webbrowser.open()", target_url,
+            )
+
         fn = getattr(ctrl, "open_url", None)
         if fn:
-            logger.info("ACTION: open_url (unknown site) → %s", direct_url)
-            await asyncio.to_thread(fn, direct_url)
+            await asyncio.to_thread(fn, target_url)
             return f"Opening {self._sanitize_output(param)}"
         return f"Cannot open {self._sanitize_output(param)} — browser unavailable"
 
@@ -2243,6 +2480,20 @@ class IntegrationOrchestrator:
                 if fn:
                     await asyncio.to_thread(fn, search_url)
                 return f"Opening YouTube search for {self._sanitize_output(query)}"
+
+        # Prefer the persistent BrowserManager here too — same tab-reuse
+        # rationale as _action_open_url(), and it shares the exact same
+        # engine URLs (see browser_manager.py's search_and_open()) so
+        # there's one source of truth for how a search URL gets built.
+        try:
+            mgr = await self._get_browser_mgr()
+            await mgr.search_and_open(query, engine=engine)
+            return f"Searching for {self._sanitize_output(query)} on {engine}"
+        except Exception:
+            logger.exception(
+                "Persistent BrowserManager failed for web_search(%s) — falling back to "
+                "plain webbrowser.open()", query,
+            )
 
         _engines = {
             "google": "https://www.google.com/search?q=",
