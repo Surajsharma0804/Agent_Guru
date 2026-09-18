@@ -30,6 +30,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import subprocess  # nosec B404
 import urllib.parse
 from pathlib import Path
@@ -43,6 +44,150 @@ _CDP_URL = f"http://localhost:{_CDP_PORT}"
 
 # User data dir so Chrome keeps cookies/session between restarts
 _USER_DATA_DIR = Path.home() / ".cache" / "agent_guru" / "chrome_profile"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Generic "any website" navigation (added 2026-09-13)
+# ─────────────────────────────────────────────────────────────────────────────
+# play_youtube() below is dedicated, API-first, YouTube-specific code. The
+# methods in this section generalize the SAME underlying persistent-browser
+# infrastructure (CDP reconnect, tab reuse, real Chrome/Edge/Brave/whatever
+# is installed) to arbitrary sites: open_url()/open_website() navigate
+# anywhere directly, and search_and_open() drives a real search engine when
+# there's no dedicated API for the task at hand — the point being that
+# Agent Guru doesn't need a per-site API key to act on a website; it can
+# fall back to genuinely using the browser, the way a person would.
+#
+# This does NOT attempt full in-page task automation (filling out an
+# arbitrary form, clicking through a checkout flow on an arbitrary site) —
+# that is a much larger, open-ended capability and claiming it "works on
+# every website" would not be honest. What IS covered, and works on
+# effectively any site without per-site code: opening it, and searching it.
+#
+# CANONICAL REGISTRY (consolidated 2026-09-13): this used to be one of
+# THREE separate, drifting site-name-to-URL tables — this one (~20
+# entries), integration/orchestrator.py's IntegrationOrchestrator._URL_MAP
+# (60+ entries), and platform/os_controller.py's OSController._resolve_url
+# _shortcuts (15 entries) — a direct instance of the duplicate-
+# implementation debt this project explicitly forbids. All three have been
+# merged into this single table; orchestrator.py and os_controller.py now
+# both import and delegate to _resolve_site_url() below instead of keeping
+# their own copies. Where the old tables disagreed, the more useful entry
+# won: "amazon" resolves to amazon.in (this product's primary market, a
+# deliberate prior decision — not a default that should silently flip back
+# to .com), "spotify" to open.spotify.com (the actual app, not the
+# marketing homepage), and github/twitter/x to their canonical no-www
+# domains.
+_SITE_REGISTRY: dict[str, str] = {
+    # Search / AI
+    "google": "https://www.google.com",
+    "bing": "https://www.bing.com",
+    "wikipedia": "https://www.wikipedia.org",
+    "quora": "https://www.quora.com",
+    "chatgpt": "https://chatgpt.com",
+    "gemini": "https://gemini.google.com",
+    # Video / Music
+    "youtube": "https://www.youtube.com",
+    "spotify": "https://open.spotify.com",
+    "netflix": "https://www.netflix.com",
+    "hotstar": "https://www.hotstar.com",
+    "primevideo": "https://www.primevideo.com",
+    "jiocinema": "https://www.jiocinema.com",
+    "zee5": "https://www.zee5.com",
+    "sonyliv": "https://www.sonyliv.com",
+    "twitch": "https://www.twitch.tv",
+    "tiktok": "https://www.tiktok.com",
+    # Social
+    "twitter": "https://twitter.com",
+    "x": "https://x.com",
+    "facebook": "https://www.facebook.com",
+    "instagram": "https://www.instagram.com",
+    "linkedin": "https://www.linkedin.com",
+    "reddit": "https://www.reddit.com",
+    "pinterest": "https://www.pinterest.com",
+    "tumblr": "https://www.tumblr.com",
+    "medium": "https://www.medium.com",
+    "hashnode": "https://hashnode.com",
+    # Messaging
+    "whatsapp": "https://web.whatsapp.com",
+    "whatsapp web": "https://web.whatsapp.com",
+    "telegram": "https://web.telegram.org",
+    "discord": "https://discord.com",
+    "slack": "https://slack.com",
+    "zoom": "https://zoom.us",
+    "teams": "https://teams.microsoft.com",
+    "meet": "https://meet.google.com",
+    # Dev / Coding
+    "github": "https://github.com",
+    "stackoverflow": "https://stackoverflow.com",
+    "leetcode": "https://www.leetcode.com",
+    "hackerrank": "https://www.hackerrank.com",
+    "codechef": "https://www.codechef.com",
+    "codeforces": "https://www.codeforces.com",
+    "geeksforgeeks": "https://www.geeksforgeeks.org",
+    "w3schools": "https://www.w3schools.com",
+    "mdn": "https://developer.mozilla.org",
+    "openai": "https://www.openai.com",
+    "huggingface": "https://huggingface.co",
+    "kaggle": "https://www.kaggle.com",
+    "dev.to": "https://dev.to",
+    # Learning
+    "udemy": "https://www.udemy.com",
+    "coursera": "https://www.coursera.org",
+    "edx": "https://www.edx.org",
+    "khanacademy": "https://www.khanacademy.org",
+    "khan academy": "https://www.khanacademy.org",
+    # Shopping / Finance
+    "amazon": "https://www.amazon.in",
+    "flipkart": "https://www.flipkart.com",
+    "myntra": "https://www.myntra.com",
+    "snapdeal": "https://www.snapdeal.com",
+    "paytm": "https://www.paytm.com",
+    "phonepe": "https://www.phonepe.com",
+    "gpay": "https://pay.google.com",
+    # Travel
+    "irctc": "https://www.irctc.co.in",
+    "makemytrip": "https://www.makemytrip.com",
+    "goibibo": "https://www.goibibo.com",
+    "booking": "https://www.booking.com",
+    "airbnb": "https://www.airbnb.com",
+    # Jobs
+    "naukri": "https://www.naukri.com",
+    "indeed": "https://www.indeed.com",
+    "glassdoor": "https://www.glassdoor.com",
+    # Google services
+    "gmail": "https://mail.google.com",
+    "google maps": "https://maps.google.com",
+    "maps": "https://maps.google.com",
+    "translate": "https://translate.google.com",
+    "drive": "https://drive.google.com",
+    "docs": "https://docs.google.com",
+    "sheets": "https://sheets.google.com",
+    "slides": "https://slides.google.com",
+    "calendar": "https://calendar.google.com",
+    "keep": "https://keep.google.com",
+}
+
+_URL_RE = re.compile(r"^(https?://|www\.)", re.IGNORECASE)
+
+
+def _resolve_site_url(name_or_url: str) -> str:
+    """Resolve a spoken site reference to a concrete URL, or "" if unknown.
+
+    A small registry of common site names is recognized directly (no
+    network round trip). Anything that already looks like a URL is
+    returned as-is (a bare "www." prefix gets "https://" added). Anything
+    else returns "" so the caller knows to treat it as a search query
+    instead of guessing at a URL that doesn't exist.
+    """
+    value = (name_or_url or "").strip()
+    if not value:
+        return ""
+    key = value.lower()
+    if key in _SITE_REGISTRY:
+        return _SITE_REGISTRY[key]
+    if _URL_RE.match(value):
+        return value if value.lower().startswith("http") else f"https://{value}"
+    return ""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -229,6 +374,83 @@ class BrowserManager:
         )
         return f"Skipped forward {seconds} seconds"
 
+    # ── Generic navigation (any website — no API key required) ───────────────
+
+    async def open_url(self, url: str) -> str:
+        """Navigate the persistent browser directly to *url* — any website.
+
+        Reuses an existing tab already open on the same domain (same
+        strategy play_youtube() uses for YouTube, generalized here to any
+        site) instead of always opening a new tab.
+        """
+        await self._ensure_started()
+        if not url.lower().startswith(("http://", "https://")):
+            url = f"https://{url}"
+        page = await self._get_or_create_page_for(url)
+        logger.info("BrowserManager: navigating to %s", url)
+        await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        self._page = page
+        return f"Opened {url}"
+
+    async def open_website(self, name_or_url: str) -> str:
+        """Open a website by common name ("spotify", "gmail") or raw URL.
+
+        Falls back to search_and_open() when *name_or_url* is neither a
+        recognized site name nor something that looks like a URL, so a
+        vague reference ("open that recipe site") still does something
+        useful instead of failing outright.
+        """
+        resolved = _resolve_site_url(name_or_url)
+        if resolved:
+            return await self.open_url(resolved)
+        logger.info(
+            "open_website: %r isn't a known site or URL — searching instead",
+            name_or_url,
+        )
+        return await self.search_and_open(name_or_url)
+
+    async def search_and_open(self, query: str, engine: str = "google") -> str:
+        """Search *query* on a real search engine via the persistent browser.
+
+        This is the no-API-needed fallback: whenever a task needs
+        information (or a site) there's no dedicated API/tool for, driving
+        the actual installed browser to search works for effectively any
+        site, the way a person would do it themselves — instead of the
+        agent being limited to only the handful of capabilities that
+        happen to have a dedicated API integration.
+
+        Deliberately does NOT auto-click a specific result (unlike
+        play_youtube()'s YouTube-specific first-result click): for a
+        generic query, which result is "right" depends entirely on user
+        intent, so this surfaces the real results page rather than
+        guessing. get_page_text() can then read back what's actually on
+        the page (see platform/features/web_search.py's browser-fallback
+        tier for that use).
+        """
+        await self._ensure_started()
+        engines = {
+            "google": "https://www.google.com/search?q=",
+            "bing": "https://www.bing.com/search?q=",
+        }
+        base = engines.get(engine.lower(), engines["google"])
+        search_url = base + urllib.parse.quote_plus(query)
+        page = await self._get_or_create_page_for(search_url)
+        logger.info("BrowserManager: searching %r via %s", query, engine)
+        await page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
+        self._page = page
+        return f"Searched for {query!r} on {engine.title()}"
+
+    async def get_page_text(self, max_chars: int = 3000) -> str:
+        """Return the visible text of the currently active tab (best-effort).
+
+        Used by platform/features/web_search.py's browser-driven fallback
+        tier to pull a real answer out of a real search when the
+        API-based search methods are unavailable or return nothing.
+        """
+        page = await self._active_page_any()
+        text = await page.evaluate("() => document.body ? document.body.innerText : ''")
+        return " ".join((text or "").split())[:max_chars]
+
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     async def _ensure_started(self) -> None:
@@ -362,25 +584,81 @@ class BrowserManager:
             return False
 
     async def _get_or_create_page(self) -> Any:
-        """Get the current page or open a new tab."""
+        """Get the current YouTube tab or open a new one.
+
+        Thin YouTube-specific wrapper over _get_or_create_page_for() — see
+        that method for the generalized (any-site) tab-reuse logic this
+        delegates to, so the two don't drift into duplicate implementations
+        of the same tab-matching logic.
+        """
+        return await self._get_or_create_page_for("https://www.youtube.com")
+
+    def _all_pages(self) -> list[Any]:
+        """Return every open page/tab across self._browser, whatever shape it is.
+
+        BUG FIX (found by real testing, 2026-09-13): self._browser is a real
+        Playwright ``Browser`` (has ``.contexts`` -> list of ``BrowserContext``,
+        each with ``.pages``) when connected via CDP — the path taken whenever
+        a real Chrome/Edge/etc. binary is found (_find_chrome()) or Chrome is
+        already running. But _launch_playwright_chromium()'s fallback (no
+        matching browser binary found on the system at all) sets
+        self._browser to the return of ``launch_persistent_context()``,
+        which is a ``BrowserContext`` directly — it has ``.pages`` but NO
+        ``.contexts`` and NO ``.new_context()``. Every page-lookup method
+        here used to assume the Browser shape unconditionally, so on that
+        fallback path the very first play_youtube()/open_url()/etc. call
+        after start() crashed with AttributeError. This normalizes both
+        shapes so the fallback path actually works instead of only
+        appearing to (it launches successfully; it just couldn't do
+        anything afterward).
+        """
+        if self._browser is None:
+            return []
+        if hasattr(self._browser, "contexts"):  # real Browser (CDP-connected)
+            pages: list[Any] = []
+            for ctx in self._browser.contexts:
+                pages.extend(ctx.pages)
+            return pages
+        return list(self._browser.pages)  # BrowserContext (persistent-context fallback)
+
+    async def _new_page(self) -> Any:
+        """Open a new page/tab, handling both self._browser shapes (see _all_pages())."""
+        if hasattr(self._browser, "contexts"):  # real Browser
+            try:
+                ctx = self._browser.contexts[0]
+            except IndexError:
+                ctx = await self._browser.new_context(viewport={"width": 1440, "height": 900})
+            return await ctx.new_page()
+        # BrowserContext — it IS the context already; open a page directly in it.
+        return await self._browser.new_page()
+
+    async def _get_or_create_page_for(self, url: str) -> Any:
+        """Get a tab already open on *url*'s domain, or open a new one.
+
+        Domain match is exact (www.-insensitive), not substring — a
+        substring check like ``"youtube.com" in page.url`` would also
+        (incorrectly) match a page at ``notyoutube.com``. Generalizes the
+        tab-reuse strategy play_youtube() already relied on to any site.
+        """
         if self._browser is None:
             await self._connect_cdp()
 
-        # Try to reuse existing YouTube tab
         try:
-            contexts = self._browser.contexts
-            for ctx in contexts:
-                for pg in ctx.pages:
-                    if "youtube.com" in pg.url:
-                        return pg
+            target_domain = urllib.parse.urlparse(url).netloc.removeprefix("www.").lower()
         except Exception:
-            logger.exception("Operation failed")
-        # Open new tab
-        try:
-            ctx = self._browser.contexts[0]
-        except (IndexError, Exception):
-            ctx = await self._browser.new_context(viewport={"width": 1440, "height": 900})
-        return await ctx.new_page()
+            target_domain = ""
+
+        if target_domain:
+            try:
+                for pg in self._all_pages():
+                    page_domain = urllib.parse.urlparse(pg.url).netloc.removeprefix("www.").lower()
+                    if page_domain == target_domain:
+                        return pg
+            except Exception:
+                logger.exception("Operation failed")
+
+        # No matching tab — open a new one.
+        return await self._new_page()
 
     async def _search_and_click(self, query: str) -> Any:
         """Playwright fallback: search YouTube and click first result."""
@@ -484,25 +762,58 @@ class BrowserManager:
             except Exception:
                 logger.exception("YouTube page lost — reconnecting")
                 self._page = None
-        # Try to find an open YouTube tab
+        # Try to find an open YouTube tab (via _all_pages() — handles both
+        # the Browser and BrowserContext shapes self._browser can be; see
+        # _all_pages()'s docstring for why that distinction matters)
         if self._browser:
             try:
-                for ctx in self._browser.contexts:
-                    for pg in ctx.pages:
-                        if "youtube.com/watch" in pg.url:
-                            self._page = pg
-                            return pg
+                for pg in self._all_pages():
+                    if "youtube.com/watch" in pg.url:
+                        self._page = pg
+                        return pg
             except Exception:
                 logger.exception("Operation failed")
         # Reconnect via CDP and look again
         await self._connect_cdp()
-        for ctx in self._browser.contexts:
-            for pg in ctx.pages:
-                if "youtube.com" in pg.url:
-                    self._page = pg
-                    return pg
+        for pg in self._all_pages():
+            if "youtube.com" in pg.url:
+                self._page = pg
+                return pg
 
         msg = "No YouTube page open. Say 'play <song> on YouTube' first."
+        raise RuntimeError(msg)
+
+    async def _active_page_any(self) -> Any:
+        """Return the current tab (any site), reconnecting via CDP if needed.
+
+        Generic sibling of _active_page(): that method specifically
+        requires a YouTube tab (for playback controls); this one returns
+        whatever tab is actually open, for the generic open_url()/
+        search_and_open()/get_page_text() methods that don't care which
+        site the active tab is on.
+        """
+        if self._page is not None:
+            try:
+                await self._page.evaluate("() => document.title")
+                return self._page
+            except Exception:
+                logger.exception("Active page lost — reconnecting")
+                self._page = None
+
+        if self._browser:
+            try:
+                pages = self._all_pages()
+                if pages:
+                    return pages[-1]
+            except Exception:
+                logger.exception("Operation failed")
+
+        await self._connect_cdp()
+        pages = self._all_pages()
+        if pages:
+            return pages[-1]
+
+        msg = "No browser page open. Call open_url()/open_website()/search_and_open() first."
         raise RuntimeError(msg)
 
     @staticmethod

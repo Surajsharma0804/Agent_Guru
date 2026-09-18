@@ -741,14 +741,14 @@ class DuplicateAwareGitOperations:
             start_time = time.perf_counter()
 
             # Stage files
-            subprocess.run(["git", "add", *files], check=True, capture_output=True)  # nosec B603 B607  # noqa: S603
+            subprocess.run(["git", "add", *files], check=True, capture_output=True, timeout=30)  # nosec B603 B607  # noqa: S603
 
             # Commit
             cmd = ["git", "commit", "-m", message]
             if author:
                 cmd.extend(["--author", author])
 
-            result = subprocess.run(cmd, check=False, capture_output=True, text=True)  # nosec B603  # noqa: S603
+            result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=30)  # nosec B603  # noqa: S603
 
             exec_time = (time.perf_counter() - start_time) * 1000
 

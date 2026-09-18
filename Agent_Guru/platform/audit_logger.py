@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from Agent_Guru.utils.path_utils import safe_path
+from Agent_Guru.utils.secure_file import restrict_file_permissions
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,17 @@ class AuditLogger:
         else:
             self._log_path = log_p.resolve()
         self._log_path.parent.mkdir(parents=True, exist_ok=True)
+        # SECURITY FIX: the audit log was created by the first append, i.e.
+        # under the process umask -- commonly 0644, world-readable. An audit
+        # trail records who did what and when; leaving it readable by every
+        # local account defeats it. platform/security/auditor.py already does
+        # exactly this for its own log (touch(mode=0o600)); this one was the
+        # inconsistent sibling. Creating it here means it is owner-only before
+        # the first entry is ever written, not after.
+        if not self._log_path.exists():
+            self._log_path.touch(mode=0o600)
+        else:
+            restrict_file_permissions(self._log_path)
 
         logger.debug("AuditLogger initialized: %s", self._log_path)
 
@@ -240,6 +252,9 @@ class AuditLogger:
                 except (json.JSONDecodeError, TypeError):
                     continue
         except FileNotFoundError:
+            # No log file yet means nothing has been audited yet, which is
+            # correctly represented by an empty result. Note this catches ONLY
+            # FileNotFoundError -- an unreadable or corrupt log still raises.
             pass
         return entries
 

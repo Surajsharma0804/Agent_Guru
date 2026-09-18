@@ -68,21 +68,90 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-# Import controllers (at module level for testability)
-try:
-    from Agent_Guru.platform.controllers.application_control import ApplicationController
-    from Agent_Guru.platform.controllers.file_operations import FileOperationsController
-    from Agent_Guru.platform.controllers.input_control import KeyboardController, MouseController
-    from Agent_Guru.platform.controllers.media_control import MediaController
-    from Agent_Guru.platform.controllers.messaging_controller import MessagingController
-    from Agent_Guru.platform.controllers.screen_capture import ScreenCaptureController
-    from Agent_Guru.platform.controllers.system_settings import SystemSettingsController
-    from Agent_Guru.platform.controllers.text_input import TextInputController
-    from Agent_Guru.platform.controllers.window_management import WindowManager
-    from Agent_Guru.platform.hardware.monitor import HardwareMonitor
-    from Agent_Guru.platform.process_manager import ProcessManager
-except ImportError:
-    logger.exception("Some controllers not available")
+def _import_optional(module_path: str, *class_names: str) -> tuple[Any, ...]:
+    """Import *class_names* from *module_path*, isolating failures per-module.
+
+    BUG FIX (found 2026-09-13): all eleven controller imports used to live in
+    a single `try: ... except ImportError: logger.exception(...)` block.
+    Every one of those classes is later constructed through `_safe_init()`,
+    which clearly exists to isolate a single controller's failure from the
+    rest (missing dependency, platform-unsupported feature, whatever) — but
+    the shared import block undid that entirely: if even ONE of the eleven
+    modules failed to import (an optional dependency like pyautogui missing,
+    a platform-only module on the wrong OS, an unrelated bug in any single
+    controller file), *every* class name from *every* module in that block
+    was left unbound. `_init_controllers()` then referenced an undefined
+    name directly (e.g. `FileOperationsController` in `_safe_init(
+    FileOperationsController, ...)`), raising a bare `NameError` that
+    propagates out of `_init_controllers()` and `__init__()` uncaught — not
+    the graceful "some controllers unavailable" degradation the log message
+    implied, but a hard crash of the *entire* OSController over one
+    unrelated missing piece.
+
+    Importing each module independently means a broken/missing module now
+    only takes down the controller(s) it defines: this returns None for
+    each requested class name instead of raising, and `_safe_init()`
+    already handles a None class gracefully (`None(*args, **kwargs)` raises
+    TypeError, which `_safe_init()` catches and turns into `None` — exactly
+    the same "controller unavailable" outcome _safe_init() already produces
+    for a class that imported fine but failed to construct).
+
+    Args:
+        module_path: Fully-qualified module to import.
+        *class_names: Attribute name(s) to pull from that module.
+
+    Returns:
+        A tuple the same length as *class_names* — either the real classes,
+        or None per name if the module could not be imported.
+
+    """
+    try:
+        mod = __import__(module_path, fromlist=list(class_names))
+    except ImportError:
+        logger.warning(
+            "Controller module unavailable (%s) — %s will be disabled, other "
+            "controllers are unaffected",
+            module_path,
+            ", ".join(class_names),
+            exc_info=True,
+        )
+        return tuple(None for _ in class_names)
+    return tuple(getattr(mod, name, None) for name in class_names)
+
+
+(ApplicationController,) = _import_optional(
+    "Agent_Guru.platform.controllers.application_control", "ApplicationController",
+)
+(FileOperationsController,) = _import_optional(
+    "Agent_Guru.platform.controllers.file_operations", "FileOperationsController",
+)
+KeyboardController, MouseController = _import_optional(
+    "Agent_Guru.platform.controllers.input_control", "KeyboardController", "MouseController",
+)
+(MediaController,) = _import_optional(
+    "Agent_Guru.platform.controllers.media_control", "MediaController",
+)
+(MessagingController,) = _import_optional(
+    "Agent_Guru.platform.controllers.messaging_controller", "MessagingController",
+)
+(ScreenCaptureController,) = _import_optional(
+    "Agent_Guru.platform.controllers.screen_capture", "ScreenCaptureController",
+)
+(SystemSettingsController,) = _import_optional(
+    "Agent_Guru.platform.controllers.system_settings", "SystemSettingsController",
+)
+(TextInputController,) = _import_optional(
+    "Agent_Guru.platform.controllers.text_input", "TextInputController",
+)
+(WindowManager,) = _import_optional(
+    "Agent_Guru.platform.controllers.window_management", "WindowManager",
+)
+(HardwareMonitor,) = _import_optional(
+    "Agent_Guru.platform.hardware.monitor", "HardwareMonitor",
+)
+(ProcessManager,) = _import_optional(
+    "Agent_Guru.platform.process_manager", "ProcessManager",
+)
 
 
 class OperationCategory(Enum):
@@ -191,6 +260,8 @@ class OSController:
         audit_log_path: Path to audit log file
         require_confirmation: Whether to require confirmation for destructive ops
         platform: Current platform name
+        _file_base_dir: Sandbox root for all file operations (defaults to the
+            user's home directory — see __init__'s file_base_dir docstring)
         _file_controller: File operations controller
         _app_controller: Application control controller
         _text_controller: Text input controller
@@ -210,17 +281,44 @@ class OSController:
         self,
         audit_log_path: str | None = None,
         require_confirmation: bool = False,
+        file_base_dir: str | Path | None = None,
     ) -> None:
         """Initialize OS controller.
 
         Args:
             audit_log_path: Path to audit log file (None = no logging)
             require_confirmation: Whether to require confirmation for destructive ops
+            file_base_dir: Root directory that create_file/read_file/update_file/
+                delete_file/copy_file/move_file are sandboxed to (see
+                FileOperationsController's path-traversal protection in
+                security/path_utils.py::safe_path). Defaults to the current
+                user's home directory (covers Desktop/Documents/Downloads and
+                everything else under it, on Windows/macOS/Linux alike).
+
+                Found and fixed 2026-09-13: this used to be left unset when
+                constructing FileOperationsController below, which made ITS
+                own default apply instead — Path.cwd(), i.e. whatever
+                directory the *process* happened to start in. For a desktop
+                companion that can be launched from a shortcut, a terminal,
+                or a service, that is not a stable or meaningful security
+                boundary: depending on how Agent Guru was started, "create a
+                file called notes.txt" could either be confined to a
+                near-arbitrary install/launch directory (most user file
+                locations then correctly rejected as "path traversal", which
+                is the failure mode a user actually hit — not a crash, just a
+                silently-too-narrow sandbox) or, if launched from a broad cwd,
+                effectively unconfined. Defaulting to the user's home
+                directory makes the sandbox boundary predictable, always
+                covers the places a person actually asks to save files to,
+                and does not depend on launch method.
 
         """
         self.audit_log_path = audit_log_path
         self.require_confirmation = require_confirmation
         self.platform = sys.platform
+        self._file_base_dir: Path = (
+            Path(file_base_dir).expanduser().resolve() if file_base_dir else Path.home().resolve()
+        )
 
         # Initialize audit log
         if self.audit_log_path:
@@ -250,6 +348,7 @@ class OSController:
             FileOperationsController,
             audit_log_path=self.audit_log_path,
             require_confirmation=self.require_confirmation,
+            base_dir=self._file_base_dir,
         )
         self._app_controller = self._safe_init(ApplicationController)
         self._desktop_app_controller = self._safe_init_desktop_app()
@@ -1585,38 +1684,33 @@ class OSController:
         """
         import urllib.parse
 
+        from Agent_Guru.platform.browser_manager import _resolve_site_url
+
         raw = raw.strip()
-        # Already a full URL
-        if raw.startswith(("http://", "https://")):
-            return raw
 
-        # Known site shortcuts
-        _shortcuts: dict[str, str] = {
-            "youtube": "https://www.youtube.com",
-            "google": "https://www.google.com",
-            "gmail": "https://mail.google.com",
-            "github": "https://www.github.com",
-            "stackoverflow": "https://stackoverflow.com",
-            "reddit": "https://www.reddit.com",
-            "twitter": "https://www.twitter.com",
-            "x": "https://www.x.com",
-            "facebook": "https://www.facebook.com",
-            "instagram": "https://www.instagram.com",
-            "linkedin": "https://www.linkedin.com",
-            "amazon": "https://www.amazon.com",
-            "netflix": "https://www.netflix.com",
-            "spotify": "https://open.spotify.com",
-            "wikipedia": "https://www.wikipedia.org",
-        }
-        lower = raw.lower()
-        if lower in _shortcuts:
-            return _shortcuts[lower]
+        # Known site name, already-a-URL, or www.-prefixed string —
+        # delegates to the single canonical site registry in
+        # browser_manager.py. This method used to keep its own separate
+        # 15-entry `_shortcuts` copy — one of three duplicate site-name
+        # registries found in the codebase (the others: orchestrator.py's
+        # `_URL_MAP` and browser_manager.py's own original, smaller
+        # table) — consolidated into one source of truth 2026-09-13.
+        resolved = _resolve_site_url(raw)
+        if resolved:
+            return resolved
 
-        # Looks like a domain (contains a dot, no spaces)
+        # Looks like a domain (contains a dot, no spaces) but isn't a
+        # known site name and has no scheme/www prefix for
+        # _resolve_site_url() to recognize (e.g. "example.com").
         if "." in raw and " " not in raw:
             return f"https://{raw}"
 
-        # Treat as a Google search query
+        # Treat as a Google search query. This fallback is
+        # OSController-specific: _resolve_site_url() deliberately returns
+        # "" for an unrecognized bare word so ITS callers (browser_manager
+        # .open_website()) can choose to search instead of guessing a
+        # URL, but OSController.open_url()/web_search() always need a
+        # concrete URL back, so the search-query fallback lives here.
         return "https://www.google.com/search?q=" + urllib.parse.quote_plus(raw)
 
     # ==================== Destructive / Permission-Required Operations ====================
@@ -1683,6 +1777,71 @@ class OSController:
                 error=str(e),
             )
 
+    @staticmethod
+    def _try_run_power_command(cmd: list[str], wait_seconds: float = 3.0) -> tuple[bool, str | None]:
+        """Launch a shutdown/reboot command and detect a fast non-interactive failure.
+
+        BUG FIX (found 2026-09-13): reset_pc()/shutdown_pc() used to
+        fire-and-forget `subprocess.Popen(["sudo", "shutdown", ...])` (or
+        `["sudo", "reboot"]`/`["sudo", "poweroff"]`) on macOS/Linux and then
+        unconditionally report success — but plain `sudo` with no cached
+        credentials and no NOPASSWD entry blocks waiting for a password on
+        stdin, which a detached Popen has no way to supply. That means the
+        call could hang forever in the background while Agent Guru had
+        already told the user "PC restarting now" — a real silent failure:
+        nothing happens, and there is no way to tell from the returned
+        OperationResult.
+
+        This runs the *real* command (unchanged for the success path — it
+        is not weakened to a dry run) but via `sudo -n` (non-interactive):
+        if sudo would need a password, `-n` makes it fail immediately
+        instead of blocking, so this can tell the difference between "the
+        machine is actually going down" and "nothing happened because sudo
+        needs a password Agent Guru cannot provide" within a few seconds,
+        and report the latter honestly instead of claiming success.
+
+        Args:
+            cmd: Full command argv, e.g. ["sudo", "shutdown", "-r", "now"].
+                A leading "sudo" gets "-n" inserted after it; commands that
+                don't need sudo (there are none on this path today, but this
+                stays generic) run as given.
+            wait_seconds: How long to wait for a fast failure before
+                concluding the command is genuinely proceeding (shutdown/
+                reboot/poweroff themselves don't return until the machine
+                actually goes down, so still running after this long is the
+                success case, not a hang).
+
+        Returns:
+            (True, None) if the command launched and is proceeding (or
+            exited 0). (False, detail) if it failed fast — e.g. sudo needs a
+            password, or the binary doesn't exist.
+
+        """
+        import subprocess  # nosec B404
+
+        run_cmd = [cmd[0], "-n", *cmd[1:]] if cmd and cmd[0] == "sudo" else list(cmd)
+
+        try:
+            proc = subprocess.Popen(  # nosec B603 B607
+                run_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+        except FileNotFoundError:
+            return False, f"required command not found: {run_cmd[0]}"
+
+        try:
+            _, stderr_bytes = proc.communicate(timeout=wait_seconds)
+        except subprocess.TimeoutExpired:
+            # Still running with no fast failure — genuinely proceeding.
+            return True, None
+
+        if proc.returncode == 0:
+            return True, None
+
+        detail = (stderr_bytes or b"").decode(errors="replace").strip()
+        if not detail and run_cmd[0] == "sudo":
+            detail = "sudo requires a password in this context (no interactive terminal available)"
+        return False, detail or f"exited with code {proc.returncode}"
+
     def reset_pc(self, confirmed: bool = False) -> OperationResult:
         """Reset / restart the PC. Requires explicit confirmation.
 
@@ -1709,11 +1868,26 @@ class OSController:
             if self.platform == "win32":
                 subprocess.Popen(["shutdown", "/r", "/t", "5"])  # nosec B603 B607
                 msg = "PC will restart in 5 seconds"
-            elif self.platform == "darwin":
-                subprocess.Popen(["sudo", "shutdown", "-r", "now"])  # nosec B603 B607
-                msg = "PC restarting now"
             else:
-                subprocess.Popen(["sudo", "reboot"])  # nosec B603 B607
+                cmd = ["sudo", "shutdown", "-r", "now"] if self.platform == "darwin" else ["sudo", "reboot"]
+                ok, detail = self._try_run_power_command(cmd)
+                if not ok:
+                    self._log_operation(
+                        OperationCategory.SYSTEM_SETTINGS,
+                        "reset_pc",
+                        False,
+                        {"confirmed": True, "error": detail},
+                    )
+                    return OperationResult(
+                        success=False,
+                        category=OperationCategory.SYSTEM_SETTINGS,
+                        operation="reset_pc",
+                        message=(
+                            f"Could not restart the PC: {detail}. Configure passwordless "
+                            f"sudo for '{cmd[1]}' (visudo -> NOPASSWD), or restart it manually."
+                        ),
+                        error="sudo_failed",
+                    )
                 msg = "PC restarting now"
 
             self._log_operation(
@@ -1764,11 +1938,26 @@ class OSController:
             if self.platform == "win32":
                 subprocess.Popen(["shutdown", "/s", "/t", "5"])  # nosec B603 B607
                 msg = "PC will shut down in 5 seconds"
-            elif self.platform == "darwin":
-                subprocess.Popen(["sudo", "shutdown", "-h", "now"])  # nosec B603 B607
-                msg = "PC shutting down now"
             else:
-                subprocess.Popen(["sudo", "poweroff"])  # nosec B603 B607
+                cmd = ["sudo", "shutdown", "-h", "now"] if self.platform == "darwin" else ["sudo", "poweroff"]
+                ok, detail = self._try_run_power_command(cmd)
+                if not ok:
+                    self._log_operation(
+                        OperationCategory.SYSTEM_SETTINGS,
+                        "shutdown_pc",
+                        False,
+                        {"confirmed": True, "error": detail},
+                    )
+                    return OperationResult(
+                        success=False,
+                        category=OperationCategory.SYSTEM_SETTINGS,
+                        operation="shutdown_pc",
+                        message=(
+                            f"Could not shut down the PC: {detail}. Configure passwordless "
+                            f"sudo for '{cmd[1]}' (visudo -> NOPASSWD), or shut it down manually."
+                        ),
+                        error="sudo_failed",
+                    )
                 msg = "PC shutting down now"
 
             self._log_operation(
@@ -1870,7 +2059,20 @@ class OSController:
 
         """
         try:
-            processes = self._process_manager.get_process_list()
+            # BUG FIX (found 2026-09-13): this called a method,
+            # get_process_list(), that ProcessManager
+            # (platform/process_manager.py) has never defined -- its real
+            # method is list_processes(). Every call here raised
+            # AttributeError, which the broad `except Exception` below
+            # caught and silently turned into an empty list. The result:
+            # "list processes" (and get_system_info()'s process_count,
+            # which calls this method) has always reported zero processes,
+            # no matter how many were actually running, with nothing
+            # visible to the user -- only a debug-level exception log entry
+            # buried per-call. A completely broken, always-failing feature
+            # that looked, from the outside, like "no processes" instead of
+            # "this is broken."
+            processes = self._process_manager.list_processes()
             self._log_operation(
                 OperationCategory.PROCESS,
                 "list_processes",

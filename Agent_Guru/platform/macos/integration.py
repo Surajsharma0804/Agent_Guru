@@ -555,12 +555,14 @@ class MacOSIntegration:
             Parsed value (int, float, bool, str, list, dict)
 
         """
-        # Try to parse as integer
+        # Type-probe cascade over `defaults` output, which is untyped text.
+        # "not an int" / "not a float" are ordinary outcomes here, not errors:
+        # the next branch down handles them, and a str fallthrough is always
+        # valid. Nothing is hidden by these.
         try:
             return int(value_str)
         except ValueError:
             pass
-        # Try to parse as float
         try:
             return float(value_str)
         except ValueError:

@@ -58,6 +58,10 @@ from typing import Any
 
 import structlog
 
+from Agent_Guru.utils.secure_file import (
+    restrict_file_permissions as _restrict_file_permissions,
+)
+
 logger = structlog.get_logger(__name__)
 
 
@@ -694,6 +698,13 @@ class SecurityAuditor:
                             # Stream compression to avoid loading entire file (constant memory)
                             while chunk := f_in.read(8192):
                                 f_out.write(chunk)
+
+                    # SECURITY FIX: the live log is created 0600
+                    # (touch(mode=0o600) above), but the gzip ARCHIVE of it was
+                    # created under the process umask -- so rotating an audit
+                    # log silently downgraded it to world-readable. Same
+                    # contents, same sensitivity.
+                    _restrict_file_permissions(archive_path)
 
                     # Remove original file after successful compression
                     log_file.unlink()
@@ -1550,7 +1561,16 @@ class SecurityAuditor:
                 with open(self.current_log_file, encoding="utf-8") as f:
                     current_entries = sum(1 for line in f if line.strip())
             except OSError:
-                pass
+                # The file exists (checked above) but could not be read.
+                # Reporting 0 entries for an unreadable AUDIT log is actively
+                # misleading -- it reads as "nothing was audited". The count
+                # still degrades to 0 so stats remain available, but the
+                # reason is no longer invisible.
+                logger.warning(
+                    "audit_log_count_failed",
+                    log_file=str(self.current_log_file),
+                    exc_info=True,
+                )
         stats["current_log_entries"] = current_entries
         stats["total_size"] = stats["current_log_size"]
         return stats

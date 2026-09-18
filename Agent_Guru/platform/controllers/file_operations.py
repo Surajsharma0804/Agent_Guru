@@ -405,8 +405,32 @@ class FileOperationsController:
 
             return content
 
-        except PermissionError:
-            # Re-raise PermissionError so callers can detect path traversal violations
+        except (ValueError, PermissionError, FileNotFoundError) as e:
+            # Unlike create_file/update_file/delete_file/copy_file/move_file
+            # (which catch a blanket `Exception` and return a
+            # FileOperationResult(success=False, ...)), read_file()'s
+            # documented contract is to raise — its callers (e.g.
+            # OSController.read_file()) catch these themselves. That part
+            # was already correct; what was missing is this audit log call.
+            #
+            # BUG FIX (found 2026-09-13): this used to be `except
+            # PermissionError: raise` with a comment claiming it let callers
+            # "detect path traversal violations" — but _validate_path()
+            # (via security/path_utils.py::safe_path) raises ValueError for
+            # a traversal attempt, not PermissionError, so that handler
+            # never actually caught a traversal attempt at all; it only
+            # matched the unrelated real-OS-permission-denied case from
+            # _check_permissions(). Worse, unlike every sibling method here,
+            # a failed read was never written to the audit log — for a
+            # module whose own docstring promises "audit trail for all
+            # operations", a path-traversal attempt (exactly the kind of
+            # event an audit trail exists to catch) went completely
+            # unrecorded. Now all three real failure modes (traversal /
+            # file-too-large -> ValueError, permission denied ->
+            # PermissionError, missing file -> FileNotFoundError) are
+            # logged before re-raising, so the audit trail actually covers
+            # read failures the way create/update/delete/copy/move already do.
+            self._log_operation(FileOperationType.READ, path, False, {"error": str(e)})
             raise
 
     # ==================== File Update Operations ====================

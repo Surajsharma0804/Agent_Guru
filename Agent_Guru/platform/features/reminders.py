@@ -157,14 +157,17 @@ class ReminderManager:
         now = datetime.datetime.now(tz=datetime.UTC)
 
         # Try "3pm", "3:30pm", "3:30 pm", "15:30"
+        # fullmatch, not match+"$": Python's "$" also matches just before a
+        # trailing newline, so "7:30 pm\n<anything-was-already-stripped>" and
+        # similar near-misses parsed as valid times.
         patterns = [
-            (r"^(\d{1,2}):(\d{2})\s*(am|pm)$", True),
-            (r"^(\d{1,2})\s*(am|pm)$", False),
-            (r"^(\d{1,2}):(\d{2})$", None),
+            (r"(\d{1,2}):(\d{2})\s*(am|pm)", True),
+            (r"(\d{1,2})\s*(am|pm)", False),
+            (r"(\d{1,2}):(\d{2})", None),
         ]
 
         for pattern, has_minutes in patterns:
-            m = re.match(pattern, time_str)
+            m = re.fullmatch(pattern, time_str)
             if not m:
                 continue
             groups = m.groups()

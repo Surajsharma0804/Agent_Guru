@@ -25,7 +25,7 @@ Date: 2026-02-26
 Version: 1.0.0
 """
 
-import fnmatch
+import functools
 import logging
 import platform
 import re
@@ -34,6 +34,59 @@ from enum import Enum
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Splits a glob pattern into literal runs and wildcard tokens, longest first so
+# "**" is never seen as two "*".
+_WILDCARD_SPLIT = re.compile(r"(\*\*|\*|\?)")
+
+# Patterns are registered once and matched against every checked path, so the
+# translated regex is compiled once and reused.
+_PATTERN_CACHE_SIZE = 512
+
+
+@functools.lru_cache(maxsize=_PATTERN_CACHE_SIZE)
+def _compile_glob(pattern: str) -> re.Pattern[str]:
+    """Translate a glob-style path pattern into one fully anchored regex.
+
+    SECURITY FIX. _match_pattern() used to take two different routes with two
+    different bugs, and both widened access:
+
+    1. Patterns containing "**" were turned into a regex by string-replacing
+       the wildcards and nothing else, so every OTHER regex metacharacter in
+       the pattern stayed live. An allow-rule for "/home/user/.config/**"
+       became ``^/home/user/.config/.*$``, in which the dot before "config"
+       matches ANY character -- granting the caller "/home/user/Xconfig/..."
+       as well. Literal runs are now re.escape()d, so a pattern means exactly
+       what it says.
+    2. Every other pattern went to fnmatch, whose "*" matches "/" as well.
+       The method's own docstring promises "* matches any characters except
+       /", so an allow-rule of "/home/user/*" -- plainly intended as "files
+       directly in the home directory" -- actually matched
+       "/home/user/private/keys/id_rsa" and handed out the entire subtree.
+       Both branches now share this one translation, so the documented
+       semantics are the real ones.
+
+    Anchoring: the caller uses fullmatch() rather than match() with a "$",
+    because in Python "$" also matches just before a trailing newline -- a
+    path ending in "\n" could satisfy a pattern it does not actually equal.
+
+    re.DOTALL is set so that "**" spans newlines too: POSIX filenames may
+    contain them, and a *blocked* pattern must not be evadable that way.
+
+    Time Complexity: O(len(pattern)) once per distinct pattern, then cached.
+    """
+    parts = _WILDCARD_SPLIT.split(pattern)
+    regex = "".join(
+        ".*"
+        if part == "**"
+        else "[^/]*"
+        if part == "*"
+        else "[^/]"
+        if part == "?"
+        else re.escape(part)
+        for part in parts
+    )
+    return re.compile(regex, re.DOTALL)
 
 
 class PermissionType(Enum):
@@ -308,8 +361,12 @@ class PathPermissionChecker:
         - * matches any characters except /
         - ** matches any characters including /
         - ? matches single character
+        - every other character is literal
 
-        Time Complexity: O(m * n) where m is path length, n is pattern length
+        One translation is used for all patterns -- see _compile_glob() for the
+        two access-widening bugs that having two separate routes caused.
+
+        Time Complexity: O(m) in path length after the pattern is compiled once.
         Space Complexity: O(1)
 
         Args:
@@ -320,26 +377,13 @@ class PathPermissionChecker:
             True if path matches pattern
 
         """
-        # Handle ** (match any path components)
-        if "**" in pattern:
-            # Replace wildcards in correct order to avoid conflicts
-            # First, replace ** with a placeholder
-            regex_pattern = pattern.replace("**", "\x00DOUBLESTAR\x00")
-            # Then replace single * and ?
-            regex_pattern = regex_pattern.replace("*", "[^/]*")
-            regex_pattern = regex_pattern.replace("?", "[^/]")
-            # Finally, replace the placeholder with .*
-            regex_pattern = regex_pattern.replace("\x00DOUBLESTAR\x00", ".*")
-            regex_pattern = f"^{regex_pattern}$"
-
-            try:
-                return bool(re.match(regex_pattern, path))
-            except re.error:
-                logger.exception("Invalid regex pattern")
-                return False
-        else:
-            # Use fnmatch for simple wildcards
-            return fnmatch.fnmatch(path, pattern)
+        try:
+            return bool(_compile_glob(pattern).fullmatch(path))
+        except re.error:
+            # Only reachable if re.escape() output is somehow unusable; kept so
+            # a bad pattern denies rather than raising into the caller.
+            logger.exception("Invalid path pattern: %s", pattern)
+            return False
 
     def check_permission_type(self, path: str, permission: PermissionType) -> bool:
         """Check if specific permission is granted for path.

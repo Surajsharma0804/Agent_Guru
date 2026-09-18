@@ -88,50 +88,26 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
-import stat
 import threading
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
+# DE-DUPLICATION: this module and speech/biometric/speaker_verifier.py each
+# carried a byte-identical private copy of _restrict_file_permissions (their
+# docstrings even cite one another). There is now one implementation, and
+# secure_write_bytes additionally closes the window in which the file sat on
+# disk under the process umask before the chmod landed.
+from Agent_Guru.utils.secure_file import restrict_file_permissions, secure_write_bytes
+
 logger = logging.getLogger(__name__)
+
+#: Back-compat alias for the former module-private helper.
+_restrict_file_permissions = restrict_file_permissions
 
 # Where we store user facts
 _MEMORY_PATH = Path.home() / ".cache" / "agent_guru" / "user_memory.json"
-
-
-def _restrict_file_permissions(path: Path) -> None:
-    """Best-effort: restrict a file to owner-only access.
-
-    Unix: chmod 0600.
-    Windows: icacls granting only the current user, removing inherited
-    broader ACEs. Uses the standard built-in icacls tool (no extra
-    dependency like pywin32 needed).
-
-    This is best-effort defense-in-depth for personal data (name, location,
-    family, hobbies, custom facts), not a hard security boundary — failures
-    are logged at debug level and never block the actual save.
-    """
-    try:
-        if os.name != "nt":
-            path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-            return
-        import subprocess  # nosec B404
-
-        user = os.environ.get("USERNAME", "")
-        if not user:
-            logger.debug("Could not determine USERNAME — skipping Windows ACL restriction")
-            return
-        subprocess.run(  # nosec B603 B607
-            ["icacls", str(path), "/inheritance:r", "/grant:r", f"{user}:F"],
-            capture_output=True,
-            timeout=5,
-            check=False,
-        )
-    except Exception:
-        logger.debug("Best-effort file-permission restriction failed for %s", path, exc_info=True)
 
 
 class UserMemory:
@@ -351,14 +327,15 @@ class UserMemory:
         lock itself.
         """
         try:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(
-                json.dumps(self._facts, indent=2, ensure_ascii=False),
-                encoding="utf-8",
+            # Owner-only from the first byte, and replaced atomically. The
+            # previous write_text()-then-chmod sequence left the user's facts
+            # world-readable for the duration of the write, and truncated the
+            # existing file first, so a crash mid-save lost every remembered
+            # fact instead of keeping the last good copy.
+            secure_write_bytes(
+                self._path,
+                json.dumps(self._facts, indent=2, ensure_ascii=False).encode("utf-8"),
             )
-            # FIX: was chmod-only (a no-op on Windows) despite the module
-            # docstring claiming ACL protection on Windows.
-            _restrict_file_permissions(self._path)
         except Exception:
             logger.exception("UserMemory: failed to save")
 

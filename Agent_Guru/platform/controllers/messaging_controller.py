@@ -17,9 +17,41 @@ Design Decisions:
     - All public methods are async (asyncio.create_subprocess_exec for I/O)
     - Returns True/False or list — never raises for normal failures
     - Works on ALL platforms — no RuntimeError for wrong platform
-    - Fuzzy contact name matching (case-insensitive, partial)
+    - Fuzzy contact name matching (case-insensitive, partial) against a
+      local, on-device contacts store (see "Contact resolution" below)
     - Message sanitization: strip null bytes, truncate to 2000 chars
     - Graceful fallback when tools (adb, xcrun, pyautogui) unavailable
+
+Contact resolution (added 2026-09-13):
+    search_contact() used to be a permanent stub that always returned an
+    empty list, and send_message() passed whatever the caller gave it
+    (e.g. "Rahul") straight through to the per-app URL builders. For
+    WhatsApp and email specifically that was worse than just "not
+    finding" the contact: a non-phone-number contact fell through to
+    ``https://web.whatsapp.com/send?text=...`` with no ``phone=``
+    parameter, which opens WhatsApp Web's generic compose screen with
+    NO recipient selected — the message reaches nobody — yet the method
+    still returned True, so a caller (including the agent's own action
+    layer) had no way to know the send didn't actually go anywhere.
+
+    This module now keeps a small local JSON address book (see
+    _resolve_contacts_path(), next to memory_manager.py's memory.db, in
+    the same OS-standard per-user data directory) that callers populate
+    via add_contact()/remove_contact()/list_contacts(). send_message()
+    resolves its `contact` argument through resolve_contact() before
+    dispatching:
+      - A value that already looks like a real identifier for the app
+        (a phone number for whatsapp/sms, an email address for email, an
+        @handle for telegram) is used as-is — unchanged from before.
+      - Otherwise it is fuzzy-matched (case-insensitive substring, then
+        difflib close-match) against saved contact names for that app.
+      - For whatsapp/sms/email, if nothing resolves, send_message() now
+        returns False with a clear log message instead of silently
+        "succeeding" at reaching nobody. For telegram/slack, a bare word
+        can legitimately BE the identifier itself (a Telegram username
+        needs no "@"; Slack's URL scheme does not address a specific
+        contact at all — see _send_desktop_slack), so those still fall
+        back to using the raw value, matching the prior behavior.
 
 Performance Characteristics:
     - Time Complexity: O(n) for fuzzy matching where n = number of known contacts
@@ -33,8 +65,13 @@ Date: 2026-03-20
 from __future__ import annotations
 
 import asyncio
+import difflib
+import json
 import logging
+import os
+import re
 import urllib.parse
+from pathlib import Path
 
 from Agent_Guru.platform.platform_detector import PlatformDetector
 from Agent_Guru.platform.utils import normalize as _normalize
@@ -49,6 +86,106 @@ _MAX_MESSAGE_LENGTH: int = 2_000
 
 # Supported app names (canonical lowercase)
 _SUPPORTED_APPS: frozenset[str] = frozenset({"whatsapp", "telegram", "slack", "sms", "email"})
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _looks_like_phone(value: str) -> bool:
+    """Heuristic: True if *value* is already a phone number, not a display name."""
+    digits_only = re.sub(r"[+\-()\s]", "", value.strip())
+    return digits_only.isdigit() and len(digits_only) >= 7
+
+
+def _looks_like_email(value: str) -> bool:
+    """Heuristic: True if *value* is already a well-formed email address."""
+    return bool(_EMAIL_RE.match(value.strip()))
+
+
+def _looks_like_handle(value: str) -> bool:
+    """True if *value* already looks like an @username / platform handle."""
+    return value.strip().startswith("@") and len(value.strip()) > 1
+
+
+# ---------------------------------------------------------------------------
+# Local contacts store (JSON, on-device, no cloud sync)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_contacts_path() -> Path:
+    """Return the OS-appropriate path for the local contacts store.
+
+    Mirrors memory/memory_manager.py's ``_resolve_db_path()`` so all of
+    Agent Guru's local per-user state lives under the same
+    platform-standard directory: ``%LOCALAPPDATA%\\agent_guru`` on
+    Windows, ``$XDG_DATA_HOME/agent_guru`` (or ``~/.local/share/agent_guru``)
+    on Linux/macOS.
+    """
+    if os.name == "nt":  # Windows
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    else:  # Linux / macOS
+        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    data_dir = base / "agent_guru"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir / "contacts.json"
+
+
+def _load_contacts(path: Path) -> dict[str, dict[str, str]]:
+    """Load the contacts store, keyed by lowercase contact name.
+
+    Never raises — a missing or corrupt file is treated as an empty
+    address book (with a logged warning for the corrupt case) rather
+    than crashing whatever asked to send a message.
+    """
+    if not path.is_file():
+        return {}
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return {}
+        return {
+            str(name).lower(): {str(k): str(v) for k, v in identifiers.items()}
+            for name, identifiers in data.items()
+            if isinstance(identifiers, dict)
+        }
+    except (OSError, ValueError) as exc:
+        logger.warning(
+            "Contacts store at %s is unreadable/corrupt (%s) — treating as empty",
+            path, exc,
+        )
+        return {}
+
+
+def _save_contacts(path: Path, contacts: dict[str, dict[str, str]]) -> bool:
+    """Write the contacts store atomically (write-temp-then-rename)."""
+    try:
+        tmp_path = path.with_suffix(".json.tmp")
+        with tmp_path.open("w", encoding="utf-8") as f:
+            json.dump(contacts, f, indent=2, sort_keys=True)
+        tmp_path.replace(path)  # atomic on POSIX and Windows (NTFS)
+        return True
+    except OSError as exc:
+        logger.warning("Failed to save contacts store at %s: %s", path, exc)
+        return False
+
+
+def _fuzzy_match_names(query: str, candidate_names: list[str]) -> list[str]:
+    """Case-insensitive substring match, falling back to close-match fuzzy
+    search (via difflib) when nothing contains the query as a substring.
+
+    O(n) in the number of saved contacts — fine for a personal address
+    book (tens to low hundreds of entries), not intended for a directory
+    of thousands.
+    """
+    query_norm = query.strip().lower()
+    if not query_norm:
+        return []
+
+    substring_hits = [n for n in candidate_names if query_norm in n]
+    if substring_hits:
+        return substring_hits
+
+    return difflib.get_close_matches(query_norm, candidate_names, n=5, cutoff=0.6)
 
 # ---------------------------------------------------------------------------
 # Platform detection (mirrors mobile_app_controller.py)
@@ -136,16 +273,26 @@ class MessagingController:
         Falls back gracefully if xcrun is unavailable.
     """
 
-    def __init__(self, platform_override: str | None = None) -> None:
+    def __init__(
+        self,
+        platform_override: str | None = None,
+        contacts_path_override: str | Path | None = None,
+    ) -> None:
         """Create the controller.
 
         Args:
             platform_override: Force a specific platform string (for testing).
                 When ``None`` the platform is auto-detected.
+            contacts_path_override: Use this path for the local contacts
+                store instead of the OS-standard location (for testing —
+                keeps tests from touching the real user's address book).
 
         """
         self._platform: str = platform_override or _detect_platform()
         self._initialized: bool = False
+        self._contacts_path: Path = (
+            Path(contacts_path_override) if contacts_path_override else _resolve_contacts_path()
+        )
 
         logger.info("MessagingController created — platform=%s", self._platform)
 
@@ -217,6 +364,19 @@ class MessagingController:
             logger.warning("send_message: message is empty after sanitization")
             return False
 
+        resolved_contact = await self.resolve_contact(app_norm, contact)
+        if resolved_contact is None:
+            logger.warning(
+                "send_message: could not resolve %r to a working %s contact — "
+                "no matching saved contact (or the match was ambiguous), and "
+                "the value isn't a phone number/email Agent Guru can send to "
+                "directly. Save it first with add_contact(%r, %s='...'), or "
+                "say the phone number/email directly.",
+                contact, app_norm, contact, app_norm,
+            )
+            return False
+        contact = resolved_contact
+
         logger.info(
             "send_message: app=%r contact=%r len(message)=%d platform=%s",
             app_norm,
@@ -239,15 +399,18 @@ class MessagingController:
     async def search_contact(self, app: str, query: str) -> list[str]:
         """Search for contacts matching *query* in the specified app.
 
-        Best-effort — may return an empty list when the app does not expose
-        a searchable contact list or when the required tool is unavailable.
+        Fuzzy-matches (case-insensitive substring, then difflib close
+        match) against names in the local contacts store that have a
+        saved identifier for *app* — see add_contact(). Returns an
+        empty list when no contacts are saved yet, none match, or
+        *app*/*query* is empty; never raises.
 
         Args:
             app: Messaging app name.
             query: Search string (fuzzy matched against known contacts).
 
         Returns:
-            List of matching contact name strings (may be empty).
+            List of matching contact display-name strings (may be empty).
 
         """
         app_norm = _normalize(app)
@@ -262,13 +425,155 @@ class MessagingController:
         )
 
         try:
-            # Best-effort: return empty list — real contact search requires
-            # app-specific APIs that are not available in a sandboxed context.
-            # Subclasses or future integrations can override this.
-            return []
+            loop = asyncio.get_running_loop()
+            contacts = await loop.run_in_executor(None, _load_contacts, self._contacts_path)
+            if not contacts:
+                return []
+            matches = _fuzzy_match_names(query, list(contacts.keys()))
+            return [
+                contacts[key].get("_display_name", key)
+                for key in matches
+                if app_norm in contacts[key] and contacts[key][app_norm]
+            ]
         except Exception:
             logger.exception("search_contact(%r, %r) failed", app_norm, query)
             return []
+
+    async def resolve_contact(self, app: str, name_or_identifier: str) -> str | None:
+        """Resolve a spoken/typed contact reference to a concrete send-target.
+
+        If *name_or_identifier* already looks like a raw identifier for
+        *app* (a phone number for whatsapp/sms, an email address for
+        email, an @handle for telegram) it is returned unchanged — this
+        preserves send_message()'s original behavior of accepting raw
+        identifiers directly.
+
+        Otherwise it is looked up by fuzzy, case-insensitive name against
+        the local contacts store (see add_contact()). Ambiguous matches
+        (more than one saved contact fits) resolve to None rather than
+        guessing.
+
+        When there is still no match: for telegram and slack, the raw
+        value is used as-is, because a bare word can legitimately BE the
+        identifier itself (a Telegram username needs no "@"; Slack's URL
+        scheme does not address a specific contact at all — see
+        _send_desktop_slack) — this matches this module's pre-existing
+        behavior for those two apps. For whatsapp/sms/email, a
+        non-phone/non-email string was never a working identifier (wa.me
+        and mailto: both need the real thing), so this returns None
+        instead of building a URL that silently reaches nobody — see the
+        "Contact resolution" note in this module's docstring.
+
+        Args:
+            app: Messaging app name.
+            name_or_identifier: What the caller has — a saved contact's
+                display name, or a raw phone number/email/handle.
+
+        Returns:
+            A concrete identifier to send to, or None if it cannot be
+            resolved.
+
+        """
+        app_norm = _normalize(app)
+        value = (name_or_identifier or "").strip()
+        if not value:
+            return None
+
+        if app_norm in ("whatsapp", "sms") and _looks_like_phone(value):
+            return value
+        if app_norm == "email" and _looks_like_email(value):
+            return value
+        if app_norm == "telegram" and _looks_like_handle(value):
+            return value
+
+        loop = asyncio.get_running_loop()
+        contacts = await loop.run_in_executor(None, _load_contacts, self._contacts_path)
+        if contacts:
+            matches = _fuzzy_match_names(value, list(contacts.keys()))
+            resolved = list(
+                dict.fromkeys(
+                    contacts[key][app_norm]
+                    for key in matches
+                    if app_norm in contacts[key] and contacts[key][app_norm]
+                ),
+            )
+            if len(resolved) == 1:
+                return resolved[0]
+            if len(resolved) > 1:
+                logger.warning(
+                    "resolve_contact: %r matched multiple saved contacts for "
+                    "app=%s (%s) — ambiguous, refusing to guess",
+                    value, app_norm, ", ".join(resolved),
+                )
+                return None
+
+        if app_norm in ("telegram", "slack"):
+            return value
+        return None
+
+    async def add_contact(self, name: str, **identifiers: str) -> bool:
+        """Add or update a contact in the local address book.
+
+        Args:
+            name: Display name to look the contact up by later, e.g.
+                ``add_contact("Rahul", whatsapp="+919876543210",
+                telegram="@rahul123")``.
+            **identifiers: app-name -> identifier pairs. Keys are
+                normally one of "whatsapp", "telegram", "slack", "sms",
+                "email", but any key is stored (forward-compatible) —
+                only recognized app keys are used by resolve_contact().
+
+        Returns:
+            True if the contact was saved.
+
+        """
+        name = (name or "").strip()
+        if not name:
+            logger.warning("add_contact called with empty name")
+            return False
+        clean_identifiers = {k: str(v).strip() for k, v in identifiers.items() if str(v).strip()}
+        if not clean_identifiers:
+            logger.warning("add_contact(%r) called with no non-empty identifiers", name)
+            return False
+
+        loop = asyncio.get_running_loop()
+        contacts = await loop.run_in_executor(None, _load_contacts, self._contacts_path)
+        key = name.lower()
+        entry = contacts.get(key, {})
+        entry.update(clean_identifiers)
+        entry["_display_name"] = name
+        contacts[key] = entry
+
+        ok = await loop.run_in_executor(None, _save_contacts, self._contacts_path, contacts)
+        if ok:
+            logger.info("Contact %r saved (%s)", name, ", ".join(sorted(clean_identifiers)))
+        return ok
+
+    async def remove_contact(self, name: str) -> bool:
+        """Remove a contact from the local address book.
+
+        Returns:
+            True if a contact with this name existed and was removed.
+
+        """
+        key = (name or "").strip().lower()
+        if not key:
+            return False
+        loop = asyncio.get_running_loop()
+        contacts = await loop.run_in_executor(None, _load_contacts, self._contacts_path)
+        if key not in contacts:
+            return False
+        del contacts[key]
+        return await loop.run_in_executor(None, _save_contacts, self._contacts_path, contacts)
+
+    async def list_contacts(self) -> dict[str, dict[str, str]]:
+        """Return every saved contact as ``{display_name: {app: identifier}}``."""
+        loop = asyncio.get_running_loop()
+        contacts = await loop.run_in_executor(None, _load_contacts, self._contacts_path)
+        return {
+            entry.get("_display_name", name): {k: v for k, v in entry.items() if k != "_display_name"}
+            for name, entry in contacts.items()
+        }
 
     # ------------------------------------------------------------------
     # Properties

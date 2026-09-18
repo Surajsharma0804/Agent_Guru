@@ -52,6 +52,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from Agent_Guru.platform.protected_processes import is_protected_process_name
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -123,10 +125,43 @@ class ApplicationController:
 
     """
 
+    # Process names close_application()/_taskkill_by_name() must never
+    # terminate — killing any of these takes down the OS shell or a core
+    # system service, not just "an app".
+    #
+    # BUG FIX (found 2026-09-13, this round): this used to be a local class
+    # constant here, duplicating an identical set that ProcessManager
+    # (platform/process_manager.py) independently needed for the exact same
+    # reason once its own terminate_process() got the same class of
+    # protected-process check. Two independently-maintained copies of a
+    # safety-critical list is exactly how they drift apart -- a name added
+    # to one guard after an incident but not the other leaves a real gap.
+    # Now both import the single canonical set from
+    # platform/protected_processes.py instead.
     def __init__(self) -> None:
         """Initialize application controller."""
         self.platform = sys.platform
         self._platform_integration = self._get_platform_integration()
+
+    @staticmethod
+    def _is_protected_process_name(name: str | None) -> bool:
+        """Return True if *name* (a friendly name or an exe name) is protected."""
+        return is_protected_process_name(name)
+
+    def _get_process_name(self, pid: int) -> str | None:
+        """Look up the real executable name currently running as *pid*.
+
+        Used to re-check a process against the protected-process set right
+        before termination — see the BUG FIX note in close_application()
+        for why checking the caller's input string alone isn't enough.
+        """
+        try:
+            for process in self._platform_integration.get_process_list():
+                if process.pid == pid:
+                    return process.name
+        except Exception:
+            logger.exception("Failed to look up process name for pid %s", pid)
+        return None
 
     @staticmethod
     def _sanitize_window_identifier(window_identifier: str) -> str:
@@ -546,21 +581,12 @@ class ApplicationController:
         """
         logger.info("Closing application: %s (force=%s)", app_identifier, force)
 
-        # Guard: never allow closing system-critical or IDE processes
-        _PROTECTED_NAMES = {
-            "kiro",
-            "code.exe",
-            "explorer.exe",
-            "winlogon.exe",
-            "csrss.exe",
-            "lsass.exe",
-            "services.exe",
-            "svchost.exe",
-            "system",
-            "smss.exe",
-            "wininit.exe",
-        }
-        if isinstance(app_identifier, str) and app_identifier.strip().lower() in _PROTECTED_NAMES:
+        # Guard: never allow closing system-critical or IDE processes.
+        # This first check catches the identifier being ALREADY the literal
+        # protected exe name (e.g. someone/something passes "explorer.exe"
+        # directly) — it is not, by itself, enough; see the second check
+        # below for why.
+        if isinstance(app_identifier, str) and self._is_protected_process_name(app_identifier):
             msg = f"Refusing to close protected process: {app_identifier}"
             raise ValueError(msg)
 
@@ -580,6 +606,29 @@ class ApplicationController:
                     return self._taskkill_by_name(app_identifier, force=force)
                 msg = f"Application not found: {app_identifier}"
                 raise ProcessLookupError(msg)
+
+            # BUG FIX (found 2026-09-13): the guard above only catches an
+            # identifier that IS ALREADY the literal protected exe name —
+            # but real voice/text input uses friendly names ("explorer",
+            # "file explorer"), and _find_process_by_name() resolves those
+            # straight to the protected process (explorer.exe IS the
+            # Windows shell, and IS in _PROTECTED_PROCESS_NAMES) via
+            # _PROCESS_NAME_ALIASES without ever tripping that check. That
+            # meant an entirely ordinary command like "close explorer"
+            # could silently bypass "never kill system-critical processes"
+            # and take down the desktop shell — the guard existed but
+            # didn't actually guard the case it was clearly written for.
+            # Re-checking the REAL resolved process name right before
+            # termination closes that gap for every path that reaches this
+            # point (alias table match, substring fallback, or an explicit
+            # PID the caller passed directly), not just the input string.
+            real_name = self._get_process_name(pid)
+            if self._is_protected_process_name(real_name):
+                msg = (
+                    f"Refusing to close protected process: {app_identifier!r} "
+                    f"resolves to {real_name!r}"
+                )
+                raise ValueError(msg)
 
             # Terminate process via platform integration
             success = self._platform_integration.terminate_process(pid, force=force)
@@ -612,13 +661,52 @@ class ApplicationController:
         """
         import subprocess as _sp  # nosec B404
 
+        # BUG FIX (found 2026-09-13, same class as close_application()'s
+        # fix above): this method is the fallback close_application() uses
+        # when _find_process_by_name() can't find a PID via psutil (e.g. a
+        # UWP/Store app, or a lookup that's flaky for some other reason) —
+        # which is precisely the case where the caller-input-only guard at
+        # the top of close_application() is the ONLY check that ran, and
+        # that guard only catches the input already being the literal
+        # protected exe name. A friendly name like "explorer" sails through
+        # unblocked and resolves right here, via _PROCESS_NAME_ALIASES, to
+        # the real protected exe (e.g. "explorer.exe") — so without a check
+        # in this method too, "close explorer" could still reach a real
+        # `taskkill /IM explorer.exe` through this path even after the
+        # close_application() fix, defeating it entirely for any app whose
+        # psutil lookup happens to miss. Filter every resolved alias against
+        # the same canonical protected-name set before running taskkill on
+        # any of them, exactly as close_application() now does for the
+        # psutil-found-a-pid path.
+        if self._is_protected_process_name(app_name):
+            logger.error(
+                "Refusing to taskkill protected process (raw identifier): %s",
+                app_name,
+            )
+            return False
+
         name_lower = app_name.strip().lower()
         aliases = self._PROCESS_NAME_ALIASES.get(name_lower, [])
         # Also try the raw name with .exe appended
         if not aliases:
             aliases = [f"{app_name}.exe"]
 
-        for exe_name in aliases:
+        safe_aliases = [a for a in aliases if not self._is_protected_process_name(a)]
+        if len(safe_aliases) < len(aliases):
+            blocked = [a for a in aliases if a not in safe_aliases]
+            logger.error(
+                "Refusing to taskkill protected process alias(es) %s for '%s'",
+                blocked,
+                app_name,
+            )
+        if not safe_aliases:
+            # Every resolved alias was protected -- refuse outright rather
+            # than silently falling through to "no aliases left to try",
+            # which would look like an ordinary "app not found" failure and
+            # obscure that this was actually a safety refusal.
+            return False
+
+        for exe_name in safe_aliases:
             try:
                 cmd = ["taskkill", "/IM", exe_name]
                 if force:

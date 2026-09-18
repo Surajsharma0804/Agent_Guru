@@ -24,6 +24,8 @@ import subprocess  # nosec B404
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from Agent_Guru.platform.subprocess_utils import run_cmd
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -194,7 +196,7 @@ class WindowsSettingsBackend(SystemSettingsBackend):
             devices = self._AudioUtilities.GetSpeakers()
             volume = devices.EndpointVolume
             volume.SetMasterVolumeLevelScalar(level / 100.0, None)
-            logger.info("Set volume to %s%", level)
+            logger.info("Set volume to %s%%", level)
         except Exception as e:
             logger.exception("Failed to set volume")
             msg = f"Failed to set volume: {e}"
@@ -261,7 +263,7 @@ class WindowsSettingsBackend(SystemSettingsBackend):
             brightness_methods = c.WmiMonitorBrightnessMethods()
             if brightness_methods:
                 brightness_methods[0].WmiSetBrightness(level, 0)
-                logger.info("Set brightness to %s%", level)
+                logger.info("Set brightness to %s%%", level)
             else:
                 msg = "No brightness control available"
                 raise SystemSettingsError(msg)
@@ -273,10 +275,8 @@ class WindowsSettingsBackend(SystemSettingsBackend):
         """Get network settings using netsh."""
         try:
             # Check WiFi status
-            result = subprocess.run(  # nosec B603 B607
+            result = run_cmd(  # nosec B603 B607
                 ["netsh", "interface", "show", "interface"],
-                capture_output=True,
-                text=True,
                 check=True,
             )
             wifi_enabled = "Wi-Fi" in result.stdout and "Connected" in result.stdout
@@ -301,13 +301,12 @@ class WindowsSettingsBackend(SystemSettingsBackend):
         """Enable or disable WiFi using netsh."""
         try:
             action = "enable" if enabled else "disable"
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["netsh", "interface", "set", "interface", "Wi-Fi", action],
-                capture_output=True,
                 check=True,
             )
             logger.info("WiFi %sd", action)
-        except subprocess.CalledProcessError as e:
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             logger.exception("Failed to WiFi")
             msg = f"Failed to {action} WiFi: {e}"
             raise SystemSettingsError(msg) from e
@@ -395,18 +394,14 @@ class MacOSSettingsBackend(SystemSettingsBackend):
     def get_volume(self) -> VolumeInfo:
         """Get current volume using AppleScript."""
         try:
-            result = subprocess.run(  # nosec B603 B607
+            result = run_cmd(  # nosec B603 B607
                 ["osascript", "-e", "output volume of (get volume settings)"],
-                capture_output=True,
-                text=True,
                 check=True,
             )
             level = int(result.stdout.strip())
 
-            result_mute = subprocess.run(  # nosec B603 B607
+            result_mute = run_cmd(  # nosec B603 B607
                 ["osascript", "-e", "output muted of (get volume settings)"],
-                capture_output=True,
-                text=True,
                 check=True,
             )
             is_muted = result_mute.stdout.strip() == "true"
@@ -424,13 +419,12 @@ class MacOSSettingsBackend(SystemSettingsBackend):
             raise InvalidSettingValueError(msg)
 
         try:
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["osascript", "-e", f"set volume output volume {level}"],
-                capture_output=True,
                 check=True,
             )
-            logger.info("Set volume to %s%", level)
-        except subprocess.CalledProcessError as e:
+            logger.info("Set volume to %s%%", level)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             logger.exception("Failed to set volume")
             msg = f"Failed to set volume: {e}"
             raise SystemSettingsError(msg) from e
@@ -438,13 +432,12 @@ class MacOSSettingsBackend(SystemSettingsBackend):
     def mute_volume(self) -> None:
         """Mute audio using AppleScript."""
         try:
-            subprocess.run(  # nosec B603 B607
+            run_cmd(  # nosec B603 B607
                 ["osascript", "-e", "set volume output muted true"],
-                capture_output=True,
                 check=True,
             )
             logger.info("Muted audio")
-        except subprocess.CalledProcessError as e:
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             logger.exception("Failed to mute")
             msg = f"Failed to mute: {e}"
             raise SystemSettingsError(msg) from e
@@ -452,13 +445,12 @@ class MacOSSettingsBackend(SystemSettingsBackend):
     def unmute_volume(self) -> None:
         """Unmute audio using AppleScript."""
         try:
-            subprocess.run(  # nosec B603 B607
+            run_cmd(  # nosec B603 B607
                 ["osascript", "-e", "set volume output muted false"],
-                capture_output=True,
                 check=True,
             )
             logger.info("Unmuted audio")
-        except subprocess.CalledProcessError as e:
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             logger.exception("Failed to unmute")
             msg = f"Failed to unmute: {e}"
             raise SystemSettingsError(msg) from e
@@ -466,10 +458,8 @@ class MacOSSettingsBackend(SystemSettingsBackend):
     def get_brightness(self) -> BrightnessInfo:
         """Get current brightness using brightness command."""
         try:
-            result = subprocess.run(  # nosec B603 B607
+            result = run_cmd(  # nosec B603 B607
                 ["brightness", "-l"],
-                capture_output=True,
-                text=True,
                 check=True,
             )
             # Parse output: "display 0: brightness 0.75"
@@ -480,6 +470,9 @@ class MacOSSettingsBackend(SystemSettingsBackend):
                     return BrightnessInfo(level=level)
             msg = "Could not parse brightness"
             raise SystemSettingsError(msg)
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Brightness control requires 'brightness' utility (brew install brightness)"
             raise UnsupportedOperationError(
@@ -494,12 +487,14 @@ class MacOSSettingsBackend(SystemSettingsBackend):
 
         try:
             brightness_float = level / 100.0
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["brightness", str(brightness_float)],
-                capture_output=True,
                 check=True,
             )
-            logger.info("Set brightness to %s%", level)
+            logger.info("Set brightness to %s%%", level)
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Brightness control requires 'brightness' utility (brew install brightness)"
             raise UnsupportedOperationError(
@@ -510,16 +505,14 @@ class MacOSSettingsBackend(SystemSettingsBackend):
         """Get network settings using networksetup."""
         try:
             # Check WiFi status
-            result = subprocess.run(  # nosec B603 B607
+            result = run_cmd(  # nosec B603 B607
                 ["networksetup", "-getairportpower", "en0"],
-                capture_output=True,
-                text=True,
                 check=True,
             )
             wifi_enabled = "On" in result.stdout
 
             # Check Bluetooth status
-            result_bt = subprocess.run(  # nosec B603 B607
+            result_bt = run_cmd(  # nosec B603 B607
                 [
                     "defaults",
                     "read",
@@ -527,8 +520,6 @@ class MacOSSettingsBackend(SystemSettingsBackend):
                     "ControllerPowerState",
                 ],
                 check=False,
-                capture_output=True,
-                text=True,
             )
             bluetooth_enabled = result_bt.returncode == 0 and "1" in result_bt.stdout
 
@@ -549,13 +540,12 @@ class MacOSSettingsBackend(SystemSettingsBackend):
         """Enable or disable WiFi using networksetup."""
         try:
             action = "on" if enabled else "off"
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["networksetup", "-setairportpower", "en0", action],
-                capture_output=True,
                 check=True,
             )
             logger.info("WiFi %s", action)
-        except subprocess.CalledProcessError as e:
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             logger.exception("Failed to set WiFi")
             msg = f"Failed to set WiFi: {e}"
             raise SystemSettingsError(msg) from e
@@ -564,12 +554,14 @@ class MacOSSettingsBackend(SystemSettingsBackend):
         """Enable or disable Bluetooth using blueutil."""
         try:
             action = "1" if enabled else "0"
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["blueutil", "--power", action],
-                capture_output=True,
                 check=True,
             )
-            logger.info("Bluetooth", "enabled" if enabled else "disabled")
+            logger.info("Bluetooth %s", "enabled" if enabled else "disabled")
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Bluetooth control requires 'blueutil' (brew install blueutil)"
             raise UnsupportedOperationError(
@@ -584,10 +576,8 @@ class MacOSSettingsBackend(SystemSettingsBackend):
     def get_display_settings(self) -> DisplayInfo:
         """Get display settings using system_profiler."""
         try:
-            result = subprocess.run(  # nosec B603 B607
+            result = run_cmd(  # nosec B603 B607
                 ["system_profiler", "SPDisplaysDataType"],
-                capture_output=True,
-                text=True,
                 check=True,
             )
 
@@ -619,12 +609,14 @@ class MacOSSettingsBackend(SystemSettingsBackend):
             raise InvalidSettingValueError(msg)
 
         try:
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["displayplacer", f"res:{width}x{height}"],
-                capture_output=True,
                 check=True,
             )
             logger.info("Set resolution to %sx%s", width, height)
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Display control requires 'displayplacer' (brew install displayplacer)"
             raise UnsupportedOperationError(
@@ -648,10 +640,8 @@ class LinuxSettingsBackend(SystemSettingsBackend):
     def get_volume(self) -> VolumeInfo:
         """Get current volume using amixer."""
         try:
-            result = subprocess.run(  # nosec B603 B607
+            result = run_cmd(  # nosec B603 B607
                 ["amixer", "get", "Master"],
-                capture_output=True,
-                text=True,
                 check=True,
             )
 
@@ -665,6 +655,9 @@ class LinuxSettingsBackend(SystemSettingsBackend):
 
             msg = "Could not parse volume"
             raise SystemSettingsError(msg)
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Volume control requires 'amixer' (install alsa-utils)"
             raise UnsupportedOperationError(
@@ -678,12 +671,14 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise InvalidSettingValueError(msg)
 
         try:
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["amixer", "set", "Master", f"{level}%"],
-                capture_output=True,
                 check=True,
             )
-            logger.info("Set volume to %s%", level)
+            logger.info("Set volume to %s%%", level)
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Volume control requires 'amixer' (install alsa-utils)"
             raise UnsupportedOperationError(
@@ -693,12 +688,14 @@ class LinuxSettingsBackend(SystemSettingsBackend):
     def mute_volume(self) -> None:
         """Mute audio using amixer."""
         try:
-            subprocess.run(  # nosec B603 B607
+            run_cmd(  # nosec B603 B607
                 ["amixer", "set", "Master", "mute"],
-                capture_output=True,
                 check=True,
             )
             logger.info("Muted audio")
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Volume control requires 'amixer' (install alsa-utils)"
             raise UnsupportedOperationError(
@@ -708,12 +705,14 @@ class LinuxSettingsBackend(SystemSettingsBackend):
     def unmute_volume(self) -> None:
         """Unmute audio using amixer."""
         try:
-            subprocess.run(  # nosec B603 B607
+            run_cmd(  # nosec B603 B607
                 ["amixer", "set", "Master", "unmute"],
-                capture_output=True,
                 check=True,
             )
             logger.info("Unmuted audio")
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Volume control requires 'amixer' (install alsa-utils)"
             raise UnsupportedOperationError(
@@ -723,14 +722,15 @@ class LinuxSettingsBackend(SystemSettingsBackend):
     def get_brightness(self) -> BrightnessInfo:
         """Get current brightness using xbacklight."""
         try:
-            result = subprocess.run(  # nosec B603 B607
+            result = run_cmd(  # nosec B603 B607
                 ["xbacklight", "-get"],
-                capture_output=True,
-                text=True,
                 check=True,
             )
             level = int(float(result.stdout.strip()))
             return BrightnessInfo(level=level)
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Brightness control requires 'xbacklight' (install xbacklight)"
             raise UnsupportedOperationError(
@@ -744,12 +744,14 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             raise InvalidSettingValueError(msg)
 
         try:
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["xbacklight", "-set", str(level)],
-                capture_output=True,
                 check=True,
             )
-            logger.info("Set brightness to %s%", level)
+            logger.info("Set brightness to %s%%", level)
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Brightness control requires 'xbacklight' (install xbacklight)"
             raise UnsupportedOperationError(
@@ -760,20 +762,16 @@ class LinuxSettingsBackend(SystemSettingsBackend):
         """Get network settings using nmcli."""
         try:
             # Check WiFi status
-            result = subprocess.run(  # nosec B603 B607
+            result = run_cmd(  # nosec B603 B607
                 ["nmcli", "radio", "wifi"],
-                capture_output=True,
-                text=True,
                 check=True,
             )
             wifi_enabled = "enabled" in result.stdout
 
             # Check Bluetooth status
-            result_bt = subprocess.run(  # nosec B603 B607
+            result_bt = run_cmd(  # nosec B603 B607
                 ["nmcli", "radio", "bluetooth"],
                 check=False,
-                capture_output=True,
-                text=True,
             )
             bluetooth_enabled = result_bt.returncode == 0 and "enabled" in result_bt.stdout
 
@@ -785,6 +783,9 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 bluetooth_enabled=bluetooth_enabled,
                 airplane_mode=airplane_mode,
             )
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Network control requires 'nmcli' (install NetworkManager)"
             raise UnsupportedOperationError(
@@ -795,12 +796,14 @@ class LinuxSettingsBackend(SystemSettingsBackend):
         """Enable or disable WiFi using nmcli."""
         try:
             action = "on" if enabled else "off"
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["nmcli", "radio", "wifi", action],
-                capture_output=True,
                 check=True,
             )
             logger.info("WiFi %s", action)
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Network control requires 'nmcli' (install NetworkManager)"
             raise UnsupportedOperationError(
@@ -811,12 +814,14 @@ class LinuxSettingsBackend(SystemSettingsBackend):
         """Enable or disable Bluetooth using rfkill."""
         try:
             action = "unblock" if enabled else "block"
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["rfkill", action, "bluetooth"],
-                capture_output=True,
                 check=True,
             )
-            logger.info("Bluetooth", "enabled" if enabled else "disabled")
+            logger.info("Bluetooth %s", "enabled" if enabled else "disabled")
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Bluetooth control requires 'rfkill' (install rfkill)"
             raise UnsupportedOperationError(
@@ -827,12 +832,14 @@ class LinuxSettingsBackend(SystemSettingsBackend):
         """Enable or disable airplane mode (all radios)."""
         try:
             action = "block" if enabled else "unblock"
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["rfkill", action, "all"],
-                capture_output=True,
                 check=True,
             )
-            logger.info("Airplane mode", "enabled" if enabled else "disabled")
+            logger.info("Airplane mode %s", "enabled" if enabled else "disabled")
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Airplane mode control requires 'rfkill' (install rfkill)"
             raise UnsupportedOperationError(
@@ -842,10 +849,8 @@ class LinuxSettingsBackend(SystemSettingsBackend):
     def get_display_settings(self) -> DisplayInfo:
         """Get display settings using xrandr."""
         try:
-            result = subprocess.run(  # nosec B603 B607
+            result = run_cmd(  # nosec B603 B607
                 ["xrandr"],
-                capture_output=True,
-                text=True,
                 check=True,
             )
 
@@ -867,6 +872,9 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 orientation=0,  # Would need xrandr --query to get rotation
                 refresh_rate=None,
             )
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Display control requires 'xrandr' (install x11-xserver-utils)"
             raise UnsupportedOperationError(
@@ -881,10 +889,8 @@ class LinuxSettingsBackend(SystemSettingsBackend):
 
         try:
             # Get primary display
-            result = subprocess.run(  # nosec B603 B607
+            result = run_cmd(  # nosec B603 B607
                 ["xrandr", "--query"],
-                capture_output=True,
-                text=True,
                 check=True,
             )
 
@@ -900,12 +906,14 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 raise SystemSettingsError(msg)
 
             # Set resolution
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["xrandr", "--output", display_name, "--mode", f"{width}x{height}"],
-                capture_output=True,
                 check=True,
             )
             logger.info("Set resolution to %sx%s", width, height)
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Display control requires 'xrandr' (install x11-xserver-utils)"
             raise UnsupportedOperationError(
@@ -926,10 +934,8 @@ class LinuxSettingsBackend(SystemSettingsBackend):
             rotation = rotation_map[orientation]
 
             # Get primary display
-            result = subprocess.run(  # nosec B603 B607
+            result = run_cmd(  # nosec B603 B607
                 ["xrandr", "--query"],
-                capture_output=True,
-                text=True,
                 check=True,
             )
 
@@ -944,12 +950,14 @@ class LinuxSettingsBackend(SystemSettingsBackend):
                 raise SystemSettingsError(msg)
 
             # Set rotation
-            subprocess.run(  # nosec B603 B607  # noqa: S603
+            run_cmd(  # nosec B603 B607  # noqa: S603
                 ["xrandr", "--output", display_name, "--rotate", rotation],
-                capture_output=True,
                 check=True,
             )
             logger.info("Set orientation to %s degrees", orientation)
+        except subprocess.TimeoutExpired as e:
+            msg = f"Timed out running {e.cmd[0]} after {e.timeout}s"
+            raise SystemSettingsError(msg) from e
         except FileNotFoundError as e:
             msg = "Display control requires 'xrandr' (install x11-xserver-utils)"
             raise UnsupportedOperationError(

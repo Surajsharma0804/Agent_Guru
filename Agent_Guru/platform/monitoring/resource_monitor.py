@@ -328,6 +328,11 @@ class ResourceMonitor:
                             nt = p.num_threads()
                             thread_count += nt
                         except (psutil.AccessDenied, OSError):
+                            # Per-process, over every PID on the machine:
+                            # protected processes always deny this. Reporting
+                            # it would emit hundreds of lines per sample for a
+                            # condition that is entirely normal; the thread
+                            # total is documented as a best-effort figure.
                             pass
                     except (
                         psutil.NoSuchProcess,

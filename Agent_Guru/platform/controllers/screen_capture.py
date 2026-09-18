@@ -200,10 +200,22 @@ class WindowsScreenCaptureBackend(ScreenCaptureBackend):
                 output_path,
             ]
 
+            # BUG FIX (Round 9): stdout/stderr were previously subprocess.PIPE, but nothing
+            # ever reads from those pipes while recording is in progress. ffmpeg writes a
+            # continuous stream of progress statistics to stderr (frame=/fps=/bitrate=/...)
+            # every fraction of a second by default. Once that unread output fills the OS
+            # pipe buffer (typically 64KB), ffmpeg blocks on write() and the recording
+            # silently hangs forever - and because it can no longer service stdin either,
+            # stop_recording()'s graceful "q" keypress never gets processed, so every
+            # recording longer than a few seconds would eventually deadlock and then get
+            # force-killed by the timeout in stop_ffmpeg_process(), producing a truncated/
+            # corrupted output file. Discarding stdout/stderr (which this code never
+            # consumes anyway) removes the deadlock entirely; stdin stays a pipe so the
+            # graceful "q" stop signal in stop_ffmpeg_process() still works.
             process = subprocess.Popen(  # noqa: S603
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 stdin=subprocess.PIPE,
             )  # nosec B603 B607
 
@@ -253,10 +265,22 @@ class MacOSScreenCaptureBackend(ScreenCaptureBackend):
                 output_path,
             ]
 
+            # BUG FIX (Round 9): stdout/stderr were previously subprocess.PIPE, but nothing
+            # ever reads from those pipes while recording is in progress. ffmpeg writes a
+            # continuous stream of progress statistics to stderr (frame=/fps=/bitrate=/...)
+            # every fraction of a second by default. Once that unread output fills the OS
+            # pipe buffer (typically 64KB), ffmpeg blocks on write() and the recording
+            # silently hangs forever - and because it can no longer service stdin either,
+            # stop_recording()'s graceful "q" keypress never gets processed, so every
+            # recording longer than a few seconds would eventually deadlock and then get
+            # force-killed by the timeout in stop_ffmpeg_process(), producing a truncated/
+            # corrupted output file. Discarding stdout/stderr (which this code never
+            # consumes anyway) removes the deadlock entirely; stdin stays a pipe so the
+            # graceful "q" stop signal in stop_ffmpeg_process() still works.
             process = subprocess.Popen(  # noqa: S603
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 stdin=subprocess.PIPE,
             )  # nosec B603 B607
 
@@ -322,10 +346,22 @@ class LinuxScreenCaptureBackend(ScreenCaptureBackend):
                 output_path,
             ]
 
+            # BUG FIX (Round 9): stdout/stderr were previously subprocess.PIPE, but nothing
+            # ever reads from those pipes while recording is in progress. ffmpeg writes a
+            # continuous stream of progress statistics to stderr (frame=/fps=/bitrate=/...)
+            # every fraction of a second by default. Once that unread output fills the OS
+            # pipe buffer (typically 64KB), ffmpeg blocks on write() and the recording
+            # silently hangs forever - and because it can no longer service stdin either,
+            # stop_recording()'s graceful "q" keypress never gets processed, so every
+            # recording longer than a few seconds would eventually deadlock and then get
+            # force-killed by the timeout in stop_ffmpeg_process(), producing a truncated/
+            # corrupted output file. Discarding stdout/stderr (which this code never
+            # consumes anyway) removes the deadlock entirely; stdin stays a pipe so the
+            # graceful "q" stop signal in stop_ffmpeg_process() still works.
             process = subprocess.Popen(  # noqa: S603
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 stdin=subprocess.PIPE,
             )  # nosec B603 B607
 

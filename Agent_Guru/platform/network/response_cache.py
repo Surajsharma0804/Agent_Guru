@@ -258,6 +258,9 @@ class ResponseCache:
                 expires = parsedate_to_datetime(headers["Expires"])
                 max_age = int((expires - datetime.now(expires.tzinfo)).total_seconds())
             except (ValueError, TypeError):
+                # A malformed Expires header is remote, untrusted input and is
+                # common in the wild. Falling through to the default TTL below
+                # is the specified behaviour, not a failure to hide.
                 pass
 
         # Default TTL if no caching directives

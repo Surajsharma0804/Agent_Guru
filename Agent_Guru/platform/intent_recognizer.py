@@ -78,6 +78,9 @@ def _detect_platform() -> str:
         return "linux"
     if system == "java":
         return "android"
+    # Platform probe: each import failing IS the answer (this is not iOS), so
+    # there is nothing to report -- and this runs on every call, where a log
+    # line would be pure noise.
     try:
         import objc_util  # type: ignore[import]  # noqa: F401
 

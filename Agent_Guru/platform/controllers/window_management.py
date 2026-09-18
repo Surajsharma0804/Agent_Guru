@@ -53,6 +53,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from Agent_Guru.platform.window_identifiers import sanitize_window_identifier
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -255,12 +257,33 @@ class WindowManager:
                     ),
                 )
 
-            return screens
+            # BUG FIX (found 2026-09-13): the macOS/Linux siblings of this
+            # method both fall back to _get_fallback_screen() when their
+            # real detection produces an empty list; this one used to
+            # return `screens` unconditionally, even when empty (possible
+            # if EnumDisplayMonitors() enumerates monitors whose
+            # GetMonitorInfo() calls all happen to fail, or in some
+            # remote-desktop/headless configurations). An empty screen list
+            # reaching snap_window() turns "Invalid screen index: 0" into
+            # the confusing "Must be between 0 and -1", instead of just
+            # working against a sane default like every other platform.
+            return screens if screens else self._get_fallback_screen()
 
         except ImportError:
             logger.exception("win32api not available, using fallback")
-            # Fallback: single screen with common resolution
-            return [ScreenInfo(index=0, x=0, y=0, width=1920, height=1080, is_primary=True)]
+            return self._get_fallback_screen()
+        except Exception:
+            # BUG FIX (found 2026-09-13): only ImportError was caught here,
+            # unlike _get_screens_macos()/_get_screens_linux() which both
+            # catch broadly and fall back. Any other pywin32-level failure
+            # (EnumDisplayMonitors/GetMonitorInfo can raise a pywintypes
+            # error in edge cases -- disconnected monitors, driver issues,
+            # some remote-desktop sessions) used to propagate straight out
+            # of get_screens() uncaught, crashing snap_window()/
+            # tile_windows()/cascade_windows() instead of degrading
+            # gracefully to a default screen like the other two platforms.
+            logger.exception("Failed to get Windows screen info, using fallback")
+            return self._get_fallback_screen()
 
     def _get_screens_macos(self) -> list[ScreenInfo]:
         """Get screen information on macOS.
@@ -591,12 +614,30 @@ class WindowManager:
 
         """
         try:
+            # SECURITY FIX (found 2026-09-13): window_identifier used to be
+            # interpolated directly into this AppleScript source via an
+            # f-string, with no validation or escaping at all. A window
+            # identifier is untrusted, attacker-influenceable text -- it
+            # typically comes straight from a voice/text command, and a
+            # REAL window's title is itself attacker-influenceable (a
+            # browser tab's title is whatever the visited page set it to).
+            # AppleScript has a `do shell script` command capable of
+            # running arbitrary shell commands; an identifier containing a
+            # stray `"` could break out of the `contains "..."` string
+            # literal and splice in arbitrary AppleScript (and from there,
+            # arbitrary shell commands) that `osascript` would then
+            # actually execute. Rejecting dangerous characters outright
+            # (via the same deny-list already used for this exact purpose
+            # in application_control.py's own macOS window operations)
+            # closes this before the script is ever built.
+            safe_identifier = sanitize_window_identifier(window_identifier)
+
             # Use AppleScript to move and resize window
             script = f"""
             tell application "System Events"
                 set frontApp to first application process whose frontmost is true
                 tell frontApp
-                    set frontWindow to first window whose name contains "{window_identifier}"
+                    set frontWindow to first window whose name contains "{safe_identifier}"
                     set position of frontWindow to {{{x}, {y}}}
                     set size of frontWindow to {{{width}, {height}}}
                 end tell
@@ -617,6 +658,11 @@ class WindowManager:
             logger.error("AppleScript error: %s", result.stderr)
             return False
 
+        except ValueError:
+            logger.exception(
+                "Rejected unsafe window identifier for AppleScript (window snap)",
+            )
+            return False
         except Exception:
             logger.exception("Failed to snap window on macOS")
             return False
@@ -754,7 +800,19 @@ class WindowManager:
 
         # Get primary screen
         screens = self.get_screens()
-        primary_screen = next(s for s in screens if s.is_primary)
+        # BUG FIX (found 2026-09-13): this used a bare next() with no
+        # default, which raises an uncaught StopIteration -- crashing
+        # arrange_windows() (and therefore tile_windows()/
+        # cascade_windows()) -- whenever no screen in the list is marked
+        # primary. That's not a hypothetical case: _get_screens_linux()
+        # sets is_primary purely from whether the literal word "primary"
+        # appears in a given xrandr `connected` line, which is a real,
+        # ordinary xrandr/X-config state that leaves no display marked
+        # primary. get_screens() is guaranteed to return at least one
+        # entry (every platform path now falls back to
+        # _get_fallback_screen() rather than an empty list), so falling
+        # back to the first screen is always safe here.
+        primary_screen = next((s for s in screens if s.is_primary), screens[0])
 
         # Arrange based on style
         if style == ArrangementStyle.TILE:

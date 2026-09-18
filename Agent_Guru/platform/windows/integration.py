@@ -463,7 +463,14 @@ class WindowsIntegration:
                 logger.info("Started process: %s (PID: %s)", executable, process.pid)
                 return process.pid
             except (FileNotFoundError, OSError):
-                pass
+                # Not fatal -- the fallback below is tried next -- but when
+                # BOTH paths fail the user just sees "the app did not open"
+                # with no recorded cause. Record why the preferred path lost.
+                logger.debug(
+                    "Detached launch of %s failed; trying fallback",
+                    executable,
+                    exc_info=True,
+                )
             # Fallback: Check if executable exists using shutil.which before trying shell=True
             import shutil
 

@@ -82,6 +82,8 @@ from dataclasses import dataclass
 
 import psutil
 
+from Agent_Guru.platform.protected_processes import is_protected_process_name
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -286,12 +288,26 @@ class ProcessManager:
         try:
             logger.info("Starting process: %s", " ".join(command))
 
-            # Start process using subprocess
+            # BUG FIX (found 2026-09-13): stdout/stderr/stdin used to be
+            # opened as subprocess.PIPE, but this class never reads from
+            # those pipes anywhere -- start_process() returns only the PID,
+            # and no other method here ever calls process.communicate() or
+            # reads process.stdout/stderr. A pipe that nobody drains has a
+            # small, fixed OS buffer (commonly 64KB); once the child writes
+            # more than that to stdout or stderr, the write blocks and the
+            # child hangs forever waiting for a reader that will never come
+            # -- a classic subprocess deadlock, not a hypothetical one: any
+            # perfectly normal program that logs to stdout/stderr (which is
+            # most of them) can trigger it. Since nothing here consumes the
+            # child's I/O, DEVNULL is the correct choice: it reflects what
+            # actually happens (output is discarded) instead of silently
+            # setting a trap that only springs once a launched app gets
+            # chatty enough.
             process = subprocess.Popen(  # nosec B603  # noqa: S603
                 command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
             )
 
             pid = process.pid
@@ -307,9 +323,22 @@ class ProcessManager:
             logger.info("Started process with PID: %d", pid)
             return pid
 
-        except FileNotFoundError as e:
-            logger.exception("Executable not found")
-            msg = f"Executable not found: {executable}"
+        except OSError as e:
+            # BUG FIX (found 2026-09-13): only FileNotFoundError was caught
+            # here, but Popen() raises plain OSError (or its other
+            # subclasses) for plenty of equally routine launch failures --
+            # PermissionError when the target exists but isn't executable,
+            # NotADirectoryError, or a platform-specific OSError (e.g. a
+            # malformed Windows executable). Every one of those used to
+            # propagate as a raw, undocumented exception straight out of a
+            # method whose own docstring promises callers only ever see
+            # ProcessStartError/ValueError -- silently breaking that
+            # contract for any caller who (reasonably) only caught the
+            # documented types. FileNotFoundError is itself an OSError
+            # subclass, so this widens the catch to the whole family while
+            # still preserving the real, specific OS error message.
+            logger.exception("Failed to start process: %s", executable)
+            msg = f"Failed to start process '{executable}': {e}"
             raise ProcessStartError(msg) from e
 
     def terminate_process(self, pid: int, force: bool = False) -> bool:
@@ -339,6 +368,37 @@ class ProcessManager:
             # Get process object
             process = psutil.Process(pid)
 
+            # BUG FIX / SECURITY (found 2026-09-13): this method previously
+            # had NO protected-process check at all. Unlike
+            # ApplicationController.close_application() (which now re-checks
+            # the resolved process name -- see application_control.py,
+            # fixed in the prior round), ProcessManager is a separate,
+            # lower-level, cross-platform API that any current or future
+            # caller can use directly to end a process by PID. Without this
+            # check, a bare `ProcessManager().terminate_process(pid)` call
+            # against the wrong PID could kill explorer.exe, lsass.exe, or
+            # (on macOS/Linux, which this class also supports and
+            # application_control.py's taskkill-based guard does not cover)
+            # init/systemd/launchd -- taking down the desktop shell, a core
+            # OS service, or the whole machine's PID-1, not just "a
+            # process". Resolve the real name via psutil (never trust a
+            # caller-supplied label) and refuse before ever calling
+            # terminate()/kill(). PID 1 is refused unconditionally as a
+            # second, name-independent layer: on POSIX, PID 1 is always the
+            # init/systemd process no matter what psutil reports its name
+            # as, and killing it panics or hard-hangs the OS.
+            try:
+                real_name = process.name()
+            except (psutil.AccessDenied, psutil.NoSuchProcess, OSError):
+                real_name = None
+            if pid == 1 or is_protected_process_name(real_name):
+                msg = (
+                    f"Refusing to terminate protected process: PID={pid} "
+                    f"(resolved name={real_name!r})"
+                )
+                logger.error(msg)
+                raise ProcessTerminationError(msg)
+
             logger.info("Terminating process PID=%d (force=%s)", pid, force)
 
             if force:
@@ -352,7 +412,7 @@ class ProcessManager:
             try:
                 process.wait(timeout=5.0)
             except psutil.TimeoutExpired:
-                logger.exception("Process PID= did not terminate within timeout")
+                logger.warning("Process PID=%d did not terminate within timeout", pid)
                 if not force:
                     # If graceful termination timed out, force kill
                     logger.info("Force killing process PID=%d", pid)
@@ -365,9 +425,25 @@ class ProcessManager:
             return True
 
         except psutil.NoSuchProcess as e:
-            logger.exception("Process not found: PID=")
+            logger.info("Process not found: PID=%d", pid)
             msg = f"Process not found: PID={pid}"
             raise ProcessNotFoundError(msg) from e
+        except (psutil.AccessDenied, psutil.TimeoutExpired, OSError) as e:
+            # BUG FIX (found 2026-09-13): this method's own docstring
+            # promises "Raises: ProcessTerminationError: If termination
+            # fails", and defines that exact exception class for the
+            # purpose -- but ProcessTerminationError was never actually
+            # raised anywhere in this file. AccessDenied (very common:
+            # trying to kill a process you don't own, or lack admin/root
+            # for) and a repeat TimeoutExpired (force-kill itself not
+            # completing within the retry's own timeout) both used to
+            # propagate as raw, undocumented psutil exceptions straight out
+            # of this method -- silently breaking the contract for any
+            # caller who (reasonably) only catches the documented
+            # ProcessManagerError/ProcessNotFoundError/ValueError.
+            logger.exception("Failed to terminate process PID=%d", pid)
+            msg = f"Failed to terminate process PID={pid}: {e}"
+            raise ProcessTerminationError(msg) from e
 
     def get_process_status(self, pid: int) -> str:
         """Query process status.

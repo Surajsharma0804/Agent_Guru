@@ -166,13 +166,7 @@ class MouseController:
             >>> mouse.move_to(300, 400, duration=0.5)  # Slow movement
 
         """
-        screen_width, screen_height = pyautogui.size()
-
-        if not (0 <= x < screen_width and 0 <= y < screen_height):
-            msg = f"Coordinates ({x}, {y}) out of screen bounds ({screen_width}x{screen_height})"
-            raise ValueError(
-                msg,
-            )
+        self._validate_bounds(x, y)
 
         duration = duration if duration is not None else self.config.duration
 
@@ -222,6 +216,26 @@ class MouseController:
         pyautogui.click(button=button, clicks=clicks, interval=interval)
         logger.debug("Clicked %s button %s time(s)", button, clicks)
 
+    def _validate_bounds(self, x: int, y: int) -> None:
+        """Validate that (x, y) is within the current screen bounds.
+
+        BUG FIX (Round 9): move_to() already validated its target coordinates,
+        but click_at()/drag_to()/drag_relative()/scroll() did not -- an
+        inconsistency that let an out-of-bounds coordinate reach pyautogui
+        directly (which can silently clamp, no-op, or hit the fail-safe
+        corner depending on version/platform) instead of failing with a
+        clear error at the point of the call. Factored out so every method
+        that takes an absolute screen position validates the same way.
+
+        Raises:
+            ValueError: If coordinates are out of screen bounds
+
+        """
+        screen_width, screen_height = pyautogui.size()
+        if not (0 <= x < screen_width and 0 <= y < screen_height):
+            msg = f"Coordinates ({x}, {y}) out of screen bounds ({screen_width}x{screen_height})"
+            raise ValueError(msg)
+
     def click_at(self, x: int, y: int, button: MouseButton = "left", clicks: int = 1) -> None:
         """Click mouse button at specific position.
 
@@ -233,12 +247,16 @@ class MouseController:
             button: Mouse button to click
             clicks: Number of clicks
 
+        Raises:
+            ValueError: If coordinates are out of screen bounds
+
         Example:
             >>> mouse = MouseController()
             >>> mouse.click_at(100, 200)  # Click at (100, 200)
             >>> mouse.click_at(300, 400, "right")  # Right click
 
         """
+        self._validate_bounds(x, y)
         pyautogui.click(x=x, y=y, button=button, clicks=clicks)
         logger.debug("Clicked %s at (%s, %s)", button, x, y)
 
@@ -286,12 +304,16 @@ class MouseController:
             button: Mouse button to hold during drag
             duration: Drag duration (uses config default if None)
 
+        Raises:
+            ValueError: If coordinates are out of screen bounds
+
         Example:
             >>> mouse = MouseController()
             >>> mouse.move_to(100, 100)
             >>> mouse.drag_to(200, 200)  # Drag to (200, 200)
 
         """
+        self._validate_bounds(x, y)
         duration = duration if duration is not None else self.config.duration
 
         pyautogui.dragTo(
@@ -321,11 +343,21 @@ class MouseController:
             button: Mouse button to hold during drag
             duration: Drag duration (uses config default if None)
 
+        Raises:
+            ValueError: If the resulting position would be out of screen bounds
+
         Example:
             >>> mouse = MouseController()
             >>> mouse.drag_relative(100, 100)  # Drag 100 right, 100 down
 
         """
+        # BUG FIX (Round 9): validate the resulting absolute position, since
+        # this method takes an offset rather than an absolute coordinate --
+        # click_at()/drag_to() validate their target directly, this one has
+        # to compute it first from the current cursor position.
+        current_x, current_y = pyautogui.position()
+        self._validate_bounds(current_x + dx, current_y + dy)
+
         duration = duration if duration is not None else self.config.duration
 
         pyautogui.drag(
@@ -348,6 +380,9 @@ class MouseController:
             x: Optional x coordinate to scroll at
             y: Optional y coordinate to scroll at
 
+        Raises:
+            ValueError: If an explicit (x, y) position is out of screen bounds
+
         Example:
             >>> mouse = MouseController()
             >>> mouse.scroll(10)  # Scroll up 10 clicks
@@ -355,6 +390,12 @@ class MouseController:
             >>> mouse.scroll(3, x=100, y=200)  # Scroll at position
 
         """
+        # BUG FIX (Round 9): only validate when a position was actually given --
+        # x/y are optional here (None means "scroll at the current cursor
+        # position", which is always in-bounds by definition).
+        if x is not None and y is not None:
+            self._validate_bounds(x, y)
+
         pyautogui.scroll(clicks, x=x, y=y)
         logger.debug("Scrolled %s clicks", clicks)
 
@@ -572,10 +613,12 @@ class KeyboardController:
             keys: Single key or list of keys to press
 
         """
-        if isinstance(keys, str):
-            self.press_key(keys)
-        else:
-            pyautogui.press(keys)
+        # BUG FIX (Round 9): the list branch used to call pyautogui.press(keys)
+        # directly, bypassing press_key()'s debug logging for no functional
+        # reason -- pyautogui.press() already accepts a list[str] for `key`,
+        # so press_key(keys) handles both the str and list[str] cases
+        # identically (and consistently logs either way).
+        self.press_key(keys)
 
     def hotkey(self, *keys: str) -> None:
         """Alias for press_shortcut."""
@@ -616,15 +659,47 @@ class KeyHoldContext:
         self.keys = keys
 
     def __enter__(self) -> "KeyHoldContext":
-        """Press all keys down."""
-        for key in self.keys:
-            self.controller.key_down(key)
+        """Press all keys down.
+
+        BUG FIX (Round 9): if key_down() raised partway through the list,
+        Python never calls __exit__() for a `with` block whose __enter__()
+        raised -- so any keys already pressed before the failure were left
+        stuck down for the rest of the process's lifetime (a real "stuck
+        modifier key" bug: e.g. holding ["ctrl", "shift"] where "shift"
+        fails leaves ctrl held forever). This now releases whatever was
+        already pressed before re-raising, and does so defensively (one
+        failed release no longer aborts releasing the rest).
+        """
+        pressed: list[str] = []
+        try:
+            for key in self.keys:
+                self.controller.key_down(key)
+                pressed.append(key)
+        except Exception:
+            for key in reversed(pressed):
+                try:
+                    self.controller.key_up(key)
+                except Exception:
+                    logger.exception(
+                        "Failed to release key %s while recovering from a failed key_down",
+                        key,
+                    )
+            raise
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Release all keys."""
+        """Release all keys.
+
+        BUG FIX (Round 9): previously, if key_up() raised for one key, the
+        loop aborted and every subsequent key in the list was left stuck
+        down. Each release is now attempted independently so one failure
+        can't prevent the rest of the held keys from being released.
+        """
         for key in reversed(self.keys):
-            self.controller.key_up(key)
+            try:
+                self.controller.key_up(key)
+            except Exception:
+                logger.exception("Failed to release key %s", key)
 
 
 # Common keyboard shortcuts
