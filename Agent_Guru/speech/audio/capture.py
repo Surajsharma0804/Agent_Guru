@@ -205,6 +205,19 @@ class FileCapture(AudioCapture):
         except FileNotFoundError as e:
             msg = f"Audio file not found: {file_path}"
             raise AudioInputError(msg) from e
+        except Exception as e:
+            # BUG FIX (Round 15): only FileNotFoundError was caught and
+            # rewrapped here, but this method's own docstring promises
+            # `AudioInputError` on ANY load failure. sf.read() raises
+            # soundfile.LibsndfileError / RuntimeError (among others) for a
+            # corrupt, truncated, or unsupported-format file, and that
+            # propagated unwrapped -- breaking the exception-type contract
+            # callers rely on when they only catch AudioInputError (as
+            # get_file_info() below already correctly assumes for itself).
+            # Fixed by adding a catch-all, mirroring get_file_info()'s
+            # existing pattern.
+            msg = f"Failed to load audio file '{file_path}': {e}"
+            raise AudioInputError(msg) from e
 
     @staticmethod
     def get_file_info(file_path: str) -> dict:

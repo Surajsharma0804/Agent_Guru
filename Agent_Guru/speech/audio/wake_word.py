@@ -14,6 +14,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -62,6 +63,12 @@ except ImportError:
 
 class WakeWordError(GuruSpeechError):
     """Raised when wake word detection encounters an unrecoverable error."""
+
+
+# openWakeWord requires 80ms chunks (1280 samples @ 16kHz) per inference
+# call -- a fixed property of the model, not configurable via
+# WakeWordConfig.frame_length. See get_frame_length()'s docstring.
+_OWW_CHUNK_SIZE = 1280
 
 
 # ---------------------------------------------------------------------------
@@ -339,7 +346,33 @@ class WakeWordDetector:
         self._last_detection_time = 0.0
 
     def get_frame_length(self) -> int:
-        """Return the required audio frame length in samples."""
+        """Return the required audio frame length in samples.
+
+        BUG FIX (Round 15): this used to always return
+        `config.frame_length` (512 samples / 32ms @ 16kHz) regardless of
+        which backend is active. The openwakeword backend, however,
+        internally requires an 80ms (1280-sample) chunk per inference
+        call -- an inherent requirement of that model, unrelated to
+        config.frame_length. A caller that (reasonably) sizes its capture
+        buffer to whatever this method returns would, on the openwakeword
+        backend, hand `_detect_openwakeword()` a buffer shorter than its
+        required chunk size; `range(0, len(audio) - chunk_size + 1,
+        chunk_size)` is then empty, the model is never invoked, and
+        `detect()` silently returns None on every single call forever --
+        wake-word detection permanently and silently disabled, with
+        nothing logged to explain why. This is a realistic failure mode:
+        openwakeword is the second-priority backend (selected whenever
+        it's installed and no Porcupine access key is configured -- a very
+        plausible offline-first default), and a sibling module
+        (speech/audio/pipeline.py) hardcodes a 512-sample ring-buffer frame
+        size that would trigger exactly this. Fixed by making this
+        backend-aware so callers who follow the documented contract get a
+        size the active backend can actually use. See also the defensive
+        warning log added in `_detect_openwakeword()` for callers that
+        don't call this getter at all.
+        """
+        if self._backend == "openwakeword":
+            return _OWW_CHUNK_SIZE
         return self.config.frame_length
 
     def get_sample_rate(self) -> int:
@@ -456,14 +489,38 @@ class WakeWordDetector:
             audio_int16 = (audio * 32767).astype(np.int16)
 
             # Process in 80ms chunks (1280 samples at 16kHz)
-            chunk_size = 1280
+            chunk_size = _OWW_CHUNK_SIZE
             max_score = 0.0
+            n_chunks = 0
             for start in range(0, len(audio_int16) - chunk_size + 1, chunk_size):
                 chunk = audio_int16[start : start + chunk_size]
                 prediction = self._oww_model.predict(chunk)
+                n_chunks += 1
                 # Get max score across all models
                 for score in prediction.values():
                     max_score = max(max_score, score)
+
+            # BUG FIX (Round 15): if the caller handed us fewer samples than
+            # one openWakeWord chunk, the loop above never executes and this
+            # method silently returns None -- indistinguishable from "no
+            # wake word present." That used to happen on every call whenever
+            # a caller sized its buffers from get_frame_length()'s old,
+            # backend-unaware value (or from a hardcoded 512-sample buffer
+            # elsewhere, e.g. speech/audio/pipeline.py's ring buffer). Now
+            # that get_frame_length() is backend-aware this should no
+            # longer happen in practice, but this warning stays as a
+            # diagnostic safety net for any caller that doesn't use it.
+            if n_chunks == 0:
+                logger.warning(
+                    "openWakeWord: got %d samples but need >= %d (80ms @ %dHz) per "
+                    "inference call -- no inference performed this call. Ensure the "
+                    "caller sizes its audio buffer using get_frame_length(), which "
+                    "now returns the openwakeword-specific chunk size while this "
+                    "backend is active.",
+                    len(audio_int16),
+                    chunk_size,
+                    self.config.sample_rate,
+                )
 
             # Threshold: 0.5 is a good balance of sensitivity vs false positives
             threshold = max(0.3, 1.0 - self.config.sensitivity)
@@ -524,7 +581,19 @@ class WakeWordDetector:
         return None
 
     async def _detect_vosk(self, audio: np.ndarray, now: float) -> WakeWordDetection | None:
-        """Detect using Vosk keyword spotting."""
+        """Detect using Vosk keyword spotting.
+
+        BUG FIX (Round 15): the wake-word match used to be plain substring
+        containment (`if phrase in text`) against the live Vosk transcript.
+        With the default wake words being bare dictionary words ("guru",
+        "maya" -- "maya" especially is a common name), this false-triggers
+        on any utterance that merely *contains* the substring as part of a
+        longer word or phrase (e.g. "gurudwara", "Maya's house", "the
+        figure out"), not just the wake phrase itself spoken on its own.
+        Fixed by matching on whole-word/phrase boundaries via regex
+        (`\\b...\\b`), so a wake phrase must appear as its own word(s) in
+        the transcript, not as a substring of an unrelated word.
+        """
         try:
             recognizer = self._get_vosk_recognizer()
             audio_int16 = (audio * 32767).astype(np.int16)
@@ -540,7 +609,7 @@ class WakeWordDetector:
                 confidence = 0.7
 
             for phrase, personality in self.config.wake_words.items():
-                if phrase in text:
+                if re.search(rf"\b{re.escape(phrase)}\b", text):
                     self._last_detection_time = now
                     detection = WakeWordDetection(
                         wake_word=phrase,

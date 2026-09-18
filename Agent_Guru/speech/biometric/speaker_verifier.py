@@ -90,9 +90,8 @@ Date: 2026-07-07
 
 from __future__ import annotations
 
+import io
 import logging
-import os
-import stat
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -100,7 +99,15 @@ from typing import Any
 
 import numpy as np
 
+# DE-DUPLICATION: see Agent_Guru/utils/secure_file.py -- this module and
+# platform/features/user_memory.py each carried an identical private copy of
+# _restrict_file_permissions.
+from Agent_Guru.utils.secure_file import restrict_file_permissions, secure_write_bytes
+
 logger = logging.getLogger(__name__)
+
+#: Back-compat alias for the former module-private helper.
+_restrict_file_permissions = restrict_file_permissions
 
 # ---------------------------------------------------------------------------
 # Storage
@@ -114,37 +121,6 @@ _DEFAULT_THRESHOLD = 0.75
 
 # Absolute floor — never go below this regardless of calibration
 _THRESHOLD_FLOOR = 0.75
-
-
-def _restrict_file_permissions(path: Path) -> None:
-    """Best-effort: restrict a file to owner-only access.
-
-    Unix: chmod 0600.
-    Windows: icacls granting only the current user, removing inherited
-    broader ACEs. Uses the standard built-in icacls tool (no extra
-    dependency like pywin32 needed).
-
-    Best-effort defense-in-depth for biometric data, not a hard security
-    boundary — failures are logged at debug level and never block the save.
-    """
-    try:
-        if os.name != "nt":
-            path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-            return
-        import subprocess  # nosec B404
-
-        user = os.environ.get("USERNAME", "")
-        if not user:
-            logger.debug("Could not determine USERNAME — skipping Windows ACL restriction")
-            return
-        subprocess.run(  # nosec B603 B607
-            ["icacls", str(path), "/inheritance:r", "/grant:r", f"{user}:F"],
-            capture_output=True,
-            timeout=5,
-            check=False,
-        )
-    except Exception:
-        logger.debug("Best-effort file-permission restriction failed for %s", path, exc_info=True)
 
 
 def _to_scalar(value: Any, default: float = 0.0) -> float:
@@ -595,9 +571,15 @@ class SpeakerVerifier:
         if self._embedding is None:
             return
         try:
-            self._profile_path.parent.mkdir(parents=True, exist_ok=True)
+            # Serialize in memory, then swap the file into place atomically
+            # and owner-only from the first byte. np.savez() wrote straight to
+            # the destination, so an interrupted save left a truncated .npz
+            # that _load_profile() could only report as a failure -- the user
+            # would have to re-enroll -- and the biometric embedding was
+            # readable under the process umask until the chmod that followed.
+            buf = io.BytesIO()
             np.savez(
-                str(self._profile_path),
+                buf,
                 embedding=self._embedding,
                 # FIX: previously np.array([self._threshold]) (shape (1,)),
                 # which _load_profile()'s old float() call couldn't parse
@@ -607,8 +589,7 @@ class SpeakerVerifier:
                 # still reads old shape-(1,) profiles correctly too.
                 threshold=float(self._threshold),
             )
-            # Owner-only permissions (biometric data)
-            _restrict_file_permissions(self._profile_path)
+            secure_write_bytes(self._profile_path, buf.getvalue())
             logger.debug("SpeakerVerifier: profile saved")
         except Exception:
             logger.exception("SpeakerVerifier: failed to save profile")

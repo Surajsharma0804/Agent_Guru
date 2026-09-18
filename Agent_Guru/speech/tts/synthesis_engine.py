@@ -164,18 +164,36 @@ class SynthesisEngine:
         )
 
     def initialize(self) -> None:
-        """Load TTS model. Call once before synthesizing."""
+        """Load TTS model. Call once before synthesizing.
+
+        BUG FIX (Round 16): `self._lock` was created in __init__ but never
+        actually acquired anywhere in this class -- this method's
+        check-then-act (`if self._initialized: return` ... construct ...
+        `self._initialized = True`) was a textbook unguarded race: two
+        threads calling synthesize() concurrently before the first
+        initialize() completes could both observe `_initialized is False`
+        and both construct a CoquiTTSEngine (which itself loads the Kokoro
+        ONNX model) -- duplicate, wasted model construction, exactly the
+        "duplicate model instances" anti-pattern this project explicitly
+        audits for. Fixed with the standard double-checked-locking pattern:
+        check outside the lock (fast path once initialized), re-check
+        inside it (in case another thread finished first while this one
+        waited), then initialize while holding the lock.
+        """
         if self._initialized:
             return
-        try:
-            from Agent_Guru.speech.tts.tts_engine import CoquiTTSEngine
+        with self._lock:
+            if self._initialized:
+                return
+            try:
+                from Agent_Guru.speech.tts.tts_engine import CoquiTTSEngine
 
-            self._coqui_engine = CoquiTTSEngine(use_gpu=self._config.use_gpu)
-            self._initialized = True
-            logger.info("SynthesisEngine: Kokoro TTS engine loaded")
-        except Exception:
-            logger.exception("TTS engine unavailable. Using silence fallback.")
-            self._initialized = True  # Mark as initialized even without model
+                self._coqui_engine = CoquiTTSEngine(use_gpu=self._config.use_gpu)
+                self._initialized = True
+                logger.info("SynthesisEngine: Kokoro TTS engine loaded")
+            except Exception:
+                logger.exception("TTS engine unavailable. Using silence fallback.")
+                self._initialized = True  # Mark as initialized even without model
 
     def synthesize(self, text: str) -> SynthesisResult:
         """Synthesize text to audio.
@@ -195,10 +213,55 @@ class SynthesisEngine:
         if not self._initialized:
             self.initialize()
 
+        # BUG FIX (Round 16): interrupt()/is_interrupted() previously had
+        # NO effect on anything -- interrupt() only set a threading.Event
+        # that nothing in synthesize()/_synthesize_audio() ever checked, so
+        # calling it mid-utterance did not stop the current or next
+        # synthesis. Kokoro's actual synthesis call (_kokoro.create(...) in
+        # tts_engine.py) is a single opaque blocking call into the ONNX
+        # runtime with no safe internal cancellation point -- a
+        # threading.Event can't abort another thread's C-extension call
+        # mid-inference, so a synthesis already in flight genuinely cannot
+        # be cut short without materially riskier machinery (e.g. running
+        # ONNX in a separate, killable process), which is out of scope for
+        # this fix. What CAN be honestly fixed, and is fixed here: when a
+        # caller speaks a long response as a queue of per-sentence
+        # synthesize() calls (the realistic shape of "interruption" for a
+        # companion that speaks in chunks), a not-yet-started call now
+        # correctly honors an interrupt() issued before it began, instead
+        # of synthesizing anyway and only exposing the flag to a caller
+        # who has to remember to check it themselves.
+        if self._interrupted.is_set():
+            logger.info("SynthesisEngine: synthesize() skipped — already interrupted")
+            # Consume the interrupt: this skip is what interrupt() asked
+            # for. Without clearing here, the flag would stay set forever
+            # (the only other clear() is further below, on the path this
+            # branch just avoided), permanently wedging every future
+            # synthesize() call into this same skip branch instead of
+            # resuming normal operation after the one interrupted call.
+            self._interrupted.clear()
+            latency_ms = (time.perf_counter() - start) * 1000
+            return SynthesisResult(
+                audio_bytes=b"",
+                sample_rate=self._config.sample_rate,
+                duration_seconds=0.0,
+                text=text,
+                voice_profile=self._config.voice_profile,
+                speech_rate=self._config.speech_rate,
+                latency_ms=latency_ms,
+                success=False,
+                error="Synthesis interrupted before starting",
+            )
+
         # Apply prosody preprocessing
         processed_text = self._apply_prosody(text) if self._config.enable_prosody else text
 
-        # Clear interruption flag
+        # Clear interruption flag so this call starts fresh. (Per-call
+        # clearing preserves the original semantics: interrupt() cancels
+        # calls made before the next one, not a whole future queue: a
+        # caller that wants to stop an entire pending queue of sentences
+        # must check is_interrupted() itself between queued calls, before
+        # each one clears it for itself.)
         self._interrupted.clear()
 
         try:
@@ -296,7 +359,23 @@ class SynthesisEngine:
                     speech_rate=self._config.speech_rate,
                     volume=self._config.volume,
                 )
-                return audio_bytes, self._config.sample_rate
+                # BUG FIX (Round 16): this used to unconditionally return
+                # self._config.sample_rate (default 22050) as the audio's
+                # sample rate, regardless of what the underlying engine
+                # actually produced. The real Kokoro engine (tts_engine.py)
+                # outputs 24000Hz natively -- that's the rate genuinely
+                # baked into audio_bytes' WAV header -- so SynthesisResult
+                # .sample_rate was simply wrong whenever Kokoro was active.
+                # Any downstream code that configures audio playback (e.g.
+                # an output device/stream) from result.sample_rate instead
+                # of independently parsing the WAV header would play back
+                # 24000Hz audio at a 22050Hz rate: ~8.7% too slow/pitched
+                # down. Fixed by reading the actual rate out of the WAV
+                # header (mirroring _estimate_duration()'s existing
+                # approach), falling back to the configured rate only if
+                # the bytes can't be parsed as WAV.
+                sample_rate = self._parse_wav_sample_rate(audio_bytes) or self._config.sample_rate
+                return audio_bytes, sample_rate
             except Exception:
                 logger.exception("CoquiTTS synthesis failed. Using silence fallback.")
 
@@ -400,6 +479,26 @@ class SynthesisEngine:
             wf.writeframes(b"\x00\x00" * n_samples)
 
         return buf.getvalue()
+
+    @staticmethod
+    def _parse_wav_sample_rate(audio_bytes: bytes) -> int | None:
+        """Read the actual sample rate baked into WAV-format *audio_bytes*.
+
+        Returns None if the bytes can't be parsed as WAV (caller should
+        fall back to the configured rate in that case). See _synthesize_
+        audio()'s BUG FIX (Round 16) note for why this exists.
+        """
+        if not audio_bytes:
+            return None
+        try:
+            import io
+            import wave
+
+            with wave.open(io.BytesIO(audio_bytes), "rb") as wf:
+                rate = wf.getframerate()
+                return rate if rate > 0 else None
+        except Exception:
+            return None
 
     @staticmethod
     def _estimate_duration(audio_bytes: bytes, sample_rate: int) -> float:

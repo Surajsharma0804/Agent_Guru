@@ -531,6 +531,25 @@ class TTSManager:
         self._coqui_lock = asyncio.Lock()
         self._pyttsx3_lock = asyncio.Lock()
 
+        # BUG FIX: initialize() previously had the same unguarded
+        # check-then-act race on self._initialized that STTManager had
+        # (see speech/stt_manager.py Round 37 fix) -- two concurrent
+        # initialize() callers could both observe self._initialized ==
+        # False (the check happens before the only await point that
+        # would let the other coroutine run) and both proceed into
+        # _init_desktop(). Note this is NOT already covered by
+        # SynthesisEngine.initialize()'s own Round 16 double-checked-
+        # locking fix: that lock only guards concurrent calls on ONE
+        # SynthesisEngine instance, but this race happens one level up
+        # -- _init_desktop() constructs a SEPARATE `SynthesisEngine(...)`
+        # per initialize() call, so two concurrent callers build TWO
+        # engines (each independently loading its own Kokoro ONNX
+        # model), and whichever finishes last silently overwrites
+        # self._synthesis_engine, discarding the other -- a duplicate,
+        # wasted model load. This lock makes the whole check-then-
+        # initialize sequence atomic, exactly like the STTManager fix.
+        self._init_lock: asyncio.Lock = asyncio.Lock()
+
         logger.info("TTSManager created — platform=%s", self._config.platform)
 
     # ------------------------------------------------------------------
@@ -547,27 +566,28 @@ class TTSManager:
             RuntimeError: If already initialized.
 
         """
-        if self._initialized:
-            logger.warning("TTSManager already initialized")
-            return
+        async with self._init_lock:
+            if self._initialized:
+                logger.warning("TTSManager already initialized")
+                return
 
-        plat = self._config.platform
+            plat = self._config.platform
 
-        if plat in ("windows", "macos", "linux", "unknown"):
-            await self._init_desktop()
-        elif plat == "android":
-            await self._init_android()
-        elif plat == "ios":
-            await self._init_ios()
-        else:
-            await self._init_desktop()
+            if plat in ("windows", "macos", "linux", "unknown"):
+                await self._init_desktop()
+            elif plat == "android":
+                await self._init_android()
+            elif plat == "ios":
+                await self._init_ios()
+            else:
+                await self._init_desktop()
 
-        self._initialized = True
-        logger.info(
-            "TTSManager initialized — backend=%s, platform=%s",
-            self._active_backend.value,
-            plat,
-        )
+            self._initialized = True
+            logger.info(
+                "TTSManager initialized — backend=%s, platform=%s",
+                self._active_backend.value,
+                plat,
+            )
 
     async def _init_desktop(self) -> None:
         """Initialize desktop TTS: Kokoro ONNX primary, pyttsx3 fallback."""
@@ -642,6 +662,17 @@ class TTSManager:
         self._synthesis_engine = None
         self._desktop_backend = None
         self._ios_backend = None
+        # BUG FIX: _active_backend was previously left unchanged here,
+        # so after shutdown() the active_backend property kept
+        # reporting the last backend that was active (e.g.
+        # TTSBackend.KOKORO) even though no backend is actually loaded
+        # -- the same class of stale-state bug fixed in STTManager.
+        # shutdown() (Round 37). Reset to TTSBackend.SILENCE, the same
+        # "no backend" sentinel __init__ uses before the first
+        # initialize() call, rather than None -- active_backend's
+        # return type is TTSBackend (non-Optional), so None would
+        # violate the existing type contract this property already has.
+        self._active_backend = TTSBackend.SILENCE
         self._initialized = False
         logger.info("TTSManager shut down")
 

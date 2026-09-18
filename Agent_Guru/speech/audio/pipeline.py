@@ -2,7 +2,7 @@
 Purpose: Audio pipeline with ring buffer, device management, and feedback prevention.
 
 Provides:
-- Lock-free ring buffer (10 seconds capacity at 16kHz)
+- Thread-safe ring buffer (10 seconds capacity at 16kHz)
 - Audio device detection and selection
 - Graceful device disconnection handling with auto-reconnection
 - Audio feedback loop prevention during simultaneous capture/playback
@@ -125,12 +125,22 @@ class RingBuffer:
         Time Complexity: O(n)
 
         Args:
-            n: Number of frames to read
+            n: Number of frames to read. n <= 0 returns an empty list.
 
         Returns:
             List of frames (oldest first), up to n frames
 
+        BUG FIX (Round 15): `frames[-n:] if n < len(frames) else frames`
+        mishandled n=0 with a non-empty buffer: `n < len(frames)` is True,
+        so it evaluated `frames[-0:]` -- and in Python `-0 == 0`, so
+        `frames[0:]` returns the ENTIRE buffer, not zero frames. A caller
+        passing n=0 to mean "give me nothing" silently got everything
+        instead. Negative n was similarly unvalidated and produced
+        undefined slicing. Fixed by explicitly returning [] for n <= 0
+        before any slicing is attempted.
         """
+        if n <= 0:
+            return []
         with self._lock:
             frames = list(self._buffer)
         return frames[-n:] if n < len(frames) else frames
@@ -171,7 +181,7 @@ class AudioPipeline:
     """Production audio pipeline with device management and feedback prevention.
 
     Manages audio capture and playback with:
-    - Lock-free ring buffer (10 seconds at 16kHz)
+    - Thread-safe ring buffer (10 seconds at 16kHz)
     - Device detection and selection
     - Auto-reconnection on device disconnect
     - Feedback prevention (mute capture during playback)
@@ -220,6 +230,7 @@ class AudioPipeline:
         # Reconnection state
         self._reconnect_attempts = 0
         self._reconnect_callbacks: list[Callable] = []
+        self._reconnect_thread: threading.Thread | None = None
 
         logger.info(
             f"AudioPipeline initialized: {sample_rate}Hz, {channels}ch, "
@@ -299,13 +310,37 @@ class AudioPipeline:
 
         Attempts reconnection with exponential backoff up to
         _MAX_RECONNECT_ATTEMPTS times.
+
+        BUG FIX (Round 15): this used to call `self._attempt_reconnect()`
+        directly and synchronously. With the default backoff schedule
+        (_RECONNECT_DELAY_S doubling across _MAX_RECONNECT_ATTEMPTS
+        attempts), that method blocks on `time.sleep()` for up to ~31
+        seconds total. Since nothing dispatched the call to a background
+        thread, whichever thread reported the disconnect -- realistically
+        an audio backend's device-monitoring callback, not a thread meant
+        to sit idle for half a minute -- was stalled for the entire
+        reconnection window instead of returning immediately as a
+        "handle_device_disconnect" method implies it should. Fixed by
+        running `_attempt_reconnect()` on a dedicated daemon thread, with
+        a guard (`_reconnect_thread`) so overlapping disconnect reports
+        don't spawn duplicate concurrent reconnect loops.
         """
         with self._lock:
+            if self._reconnect_thread is not None and self._reconnect_thread.is_alive():
+                logger.debug(
+                    "Reconnect already in progress — ignoring duplicate disconnect event",
+                )
+                return
             self._device_state = DeviceState.DISCONNECTED
             self._reconnect_attempts = 0
+            self._reconnect_thread = threading.Thread(
+                target=self._attempt_reconnect,
+                name="audio-pipeline-reconnect",
+                daemon=True,
+            )
+            self._reconnect_thread.start()
 
         logger.warning("Audio device disconnected - attempting reconnection")
-        self._attempt_reconnect()
 
     def _attempt_reconnect(self) -> None:
         """Attempt to reconnect to audio device."""

@@ -92,6 +92,10 @@ class BackgroundServiceManager:
         # Timers
         self._wake_timeout_seconds = 3.0  # Return to sleep after 3s of silence
         self._wake_timeout_timer: threading.Timer | None = None
+        # BUG FIX (see _reset_wake_timeout / _on_wake_timeout): fencing
+        # token guarding against a threading.Timer callback that slips
+        # past cancel() -- see the detailed explanation at its use below.
+        self._wake_timeout_generation = 0
 
         # Logging
         self.logger = logging.getLogger(__name__)
@@ -341,16 +345,56 @@ class BackgroundServiceManager:
         if self._wake_timeout_timer:
             self._wake_timeout_timer.cancel()
 
+        # BUG FIX: threading.Timer.cancel() only works "if the timer is
+        # still in its waiting stage" (per the stdlib docs) -- it cannot
+        # stop a timer whose interval has already elapsed and whose
+        # fire-or-not check has already passed. There is a real, narrow
+        # window where the *previous* timer's countdown finishes at
+        # essentially the same moment this method is called to reset it
+        # (e.g. the user speaks again right at the ~3s mark): the old
+        # timer's callback thread can pass its internal "am I cancelled?"
+        # check microseconds before this cancel() call lands, and will
+        # then go on to call _on_wake_timeout() anyway, blocking on
+        # _state_lock until whichever caller reset the timeout releases
+        # it. Once unblocked, the old callback would see state==WAKE
+        # (it's still WAKE -- a fresh command/silence event just reset
+        # the timeout) and incorrectly transition the service back to
+        # SLEEP immediately after the user just interacted with it,
+        # racing against the brand-new timer this call is about to start.
+        # Tagging every timer with a monotonically increasing generation
+        # number, and having the callback verify it's still the most
+        # recently issued one (under the same lock it already takes)
+        # before acting, closes this window: a stale callback that slips
+        # past cancel() becomes a safe no-op instead of a spurious sleep
+        # transition.
+        self._wake_timeout_generation += 1
+        generation = self._wake_timeout_generation
+
         # Start new timer
         self._wake_timeout_timer = threading.Timer(
             self._wake_timeout_seconds,
             self._on_wake_timeout,
+            args=(generation,),
         )
         self._wake_timeout_timer.start()
 
-    def _on_wake_timeout(self) -> None:
-        """Handle wake timeout (return to sleep)."""
+    def _on_wake_timeout(self, generation: int) -> None:
+        """Handle wake timeout (return to sleep).
+
+        Args:
+            generation: The _wake_timeout_generation value in effect when
+                this specific timer was scheduled. If a newer timer has
+                since been scheduled (generation has moved on), this
+                firing is stale -- e.g. it slipped past a cancel() call
+                in the race described in _reset_wake_timeout() -- and
+                must not act.
+
+        """
         with self._state_lock:
+            if generation != self._wake_timeout_generation:
+                self.logger.debug("Ignoring stale wake timeout (generation %d, current %d)",
+                                   generation, self._wake_timeout_generation)
+                return
             if self._state == ServiceState.WAKE:
                 self._transition_to_sleep()
                 self.logger.info("Wake timeout, returned to sleep mode")
@@ -373,9 +417,24 @@ class BackgroundServiceManager:
 
             return cpu_percent, memory_mb
         except ImportError:
-            # Mock values for testing
-            if self._state == ServiceState.SLEEP:
-                return 3.0, 80.0  # <5% CPU, <100MB RAM
-            if self._state == ServiceState.WAKE:
-                return 25.0, 400.0  # <30% CPU, <500MB RAM
-            return 0.0, 50.0
+            # BUG FIX: this used to return hardcoded, plausible-looking
+            # "healthy" numbers (e.g. 3.0% CPU / 80MB RAM while asleep)
+            # whenever psutil wasn't importable -- indistinguishable from
+            # a real measurement to get_metrics()'s caller or to any
+            # dashboard/alerting consuming it. That's fabricated
+            # telemetry: if psutil were ever genuinely absent in a
+            # deployment (a packaging gap, a stripped-down environment),
+            # this would silently report "everything's fine" instead of
+            # surfacing that no real measurement was taken, masking
+            # rather than revealing the problem and potentially hiding
+            # genuine resource exhaustion behind a canned "healthy"
+            # reading. NaN unambiguously signals "not measured" to any
+            # consumer that checks for it (math.isnan), and is safe by
+            # construction against numeric comparisons silently
+            # evaluating as healthy (any comparison against NaN is
+            # False).
+            self.logger.warning(
+                "psutil not available -- resource usage cannot be measured; "
+                "get_metrics() will report NaN for cpu_percent/memory_mb",
+            )
+            return float("nan"), float("nan")

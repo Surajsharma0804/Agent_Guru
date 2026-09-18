@@ -7,14 +7,16 @@ text-to-speech synthesis.
 
 import contextlib
 import logging
+import pathlib
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import librosa
 import numpy as np
 
 from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embedding
+from Agent_Guru.utils.secure_file import secure_write_bytes
 from Agent_Guru.speech.exceptions import GuruSpeechError
 from Agent_Guru.speech.models import VoiceModel
 
@@ -62,6 +64,10 @@ class VoiceCloner:
         """
         self.model_path = model_path
         self._voice_profiles: dict[str, VoiceProfile] = {}
+        # BUG FIX (Round 16): see synthesize_with_cloned_voice()'s note --
+        # a fresh CoquiTTSEngine used to be constructed on every call,
+        # forcing a full Kokoro ONNX model (re)load every time.
+        self._tts_engine: Any | None = None
 
         # Feature extraction parameters
         self.n_mfcc = 40  # More coefficients for voice cloning
@@ -337,7 +343,9 @@ class VoiceCloner:
             Float32 numpy array in [-1, 1] at 24 kHz.
 
         Raises:
-            VoiceCloningError: If synthesis fails.
+            VoiceCloningError: If synthesis fails (including a failure
+                originating inside the underlying TTS engine -- see BUG
+                FIX note below).
 
         """
         try:
@@ -346,7 +354,6 @@ class VoiceCloner:
                 raise VoiceCloningError(msg)
 
             from Agent_Guru.speech.models import EmotionType, PersonalityType
-            from Agent_Guru.speech.tts.tts_engine import CoquiTTSEngine
 
             # Resolve personality
             if personality is None:
@@ -358,8 +365,25 @@ class VoiceCloner:
                 with contextlib.suppress(ValueError):
                     emotion_enum = EmotionType(emotion.lower())
 
-            engine = CoquiTTSEngine()
-            audio, _sr = engine.synthesize_to_array(
+            # BUG FIX (Round 16): this used to construct a brand-new
+            # CoquiTTSEngine() on every single call. CoquiTTSEngine wraps a
+            # KokoroTTSEngine whose ONNX model is loaded lazily on first
+            # use and cached on THAT INSTANCE (`self._loaded`) -- a fresh
+            # instance has `_loaded=False`, so every call to this method
+            # re-ran the full model load path (integrity hash verification
+            # of both cached files, ONNX session construction, and a
+            # network-touching download attempt if the files were ever
+            # missing) instead of reusing an already-loaded model. Fixed by
+            # lazily constructing the engine once and caching it on
+            # `self._tts_engine`, matching the load-once-and-reuse pattern
+            # already used elsewhere in this codebase (e.g.
+            # SynthesisEngine.initialize()).
+            if self._tts_engine is None:
+                from Agent_Guru.speech.tts.tts_engine import CoquiTTSEngine
+
+                self._tts_engine = CoquiTTSEngine()
+
+            audio, _sr = self._tts_engine.synthesize_to_array(
                 text,
                 personality=personality,
                 emotion=emotion_enum,
@@ -375,6 +399,20 @@ class VoiceCloner:
 
         except VoiceCloningError:
             raise
+        except Exception as e:
+            # BUG FIX (Round 16): only VoiceCloningError was re-raised here;
+            # every other method in this class (enroll_voice,
+            # update_voice_model, save_voice_profile, load_voice_profile)
+            # wraps generic failures as VoiceCloningError, but this method
+            # let anything else -- notably TTSError from the underlying
+            # Kokoro/pyttsx3 engine, a sibling of VoiceCloningError under
+            # GuruSpeechError, not a subclass of it -- propagate unwrapped,
+            # breaking this method's own documented "Raises:
+            # VoiceCloningError" contract for any caller that only catches
+            # that type. Fixed by wrapping, consistent with the rest of
+            # this class.
+            msg = f"Voice synthesis failed for '{voice_id}': {e}"
+            raise VoiceCloningError(msg) from e
 
     def compute_similarity(
         self,
@@ -532,8 +570,15 @@ class VoiceCloner:
                 "created_at": profile.created_at,
                 "updated_at": profile.updated_at,
             }
-            with open(filepath, "w", encoding="utf-8") as f:
-                _json.dump(profile_data, f)
+            # SECURITY FIX: `features` is a VOICE EMBEDDING -- biometric data
+            # of the same kind speech/biometric/speaker_verifier.py already
+            # stores owner-only. This profile was written under the process
+            # umask, commonly world-readable, and non-atomically, so an
+            # interrupted save left a truncated profile. secure_write_bytes
+            # fixes both.
+            secure_write_bytes(
+                pathlib.Path(filepath), _json.dumps(profile_data).encode("utf-8"),
+            )
 
             logger.info("Voice profile '%s' saved to %s", voice_id, filepath)
 

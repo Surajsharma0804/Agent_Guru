@@ -19,6 +19,13 @@ except (ImportError, OSError) as _fw_err:
 from Agent_Guru.speech.exceptions import GuruSpeechError
 from Agent_Guru.speech.models import TranscriptionResult, TranscriptionSegment
 
+logger = logging.getLogger(__name__)
+
+# faster_whisper's array-input path (as opposed to file-path input, which
+# has its own internal decode/resample step) requires audio to already be
+# mono float32 at exactly this rate. See transcribe()'s BUG FIX note below.
+_WHISPER_SAMPLE_RATE = 16000
+
 
 class WhisperTranscriber:
     """Speech-to-text transcriber using OpenAI Whisper (faster-whisper).
@@ -62,14 +69,32 @@ class WhisperTranscriber:
         self.beam_size = beam_size
         self.device = device
         self._model: WhisperModel | None = None
+        # BUG FIX (Round 16): see _load_model()'s docstring.
+        self._model_load_failed = False
 
     def _load_model(self) -> WhisperModel:
         """Load Whisper model (lazy loading, synchronous).
 
         Uses local cache when available to avoid HuggingFace network calls on
         every startup. Falls back to downloading if not yet cached.
+
+        BUG FIX (Round 16): this used to only check `self._model is None`
+        to decide whether a load had already been attempted, so a
+        persistently broken environment (blocked ctranslate2 DLL, no GPU
+        driver, bad compute_type, no network for a first-time download)
+        caused every single transcribe()/transcribe_file() call to
+        re-attempt the full model construction (including a network-
+        touching download attempt) from scratch, only to hit the same
+        failure again. This is the same class of bug fixed in
+        vision/liveness/detector.py's _get_session() in round 15. Fixed by
+        caching the failure so a broken load fails fast on every call
+        after the first, instead of repeatedly paying (and re-raising) the
+        same expensive failure.
         """
         if self._model is None:
+            if self._model_load_failed:
+                msg = "Whisper model previously failed to load — not retrying automatically"
+                raise GuruSpeechError(msg)
             try:
                 model_id = self.model_path or self.model_size
                 # Try local cache first — no HuggingFace ping
@@ -88,6 +113,7 @@ class WhisperTranscriber:
                         compute_type=self.compute_type,
                     )
             except Exception as e:
+                self._model_load_failed = True
                 msg = f"Failed to load Whisper model: {e}"
                 raise GuruSpeechError(msg) from e
         return self._model
@@ -135,6 +161,40 @@ class WhisperTranscriber:
         if audio_data.max() > 1.0 or audio_data.min() < -1.0:
             audio_data = audio_data / np.abs(audio_data).max()
 
+        # Compute the real audio duration from the CALLER's stated sample_rate
+        # and the pre-resample length, before any resampling below changes
+        # len(audio_data). This is the value actually reported in the result
+        # and used for the (currently unused) real-time-factor calculation.
+        audio_duration = len(audio_data) / sample_rate
+
+        # BUG FIX (Round 16): faster_whisper's array-input path (as used
+        # here, as opposed to transcribe_file()'s file-path input, which has
+        # its own internal decode/resample step) requires audio to already
+        # be 16kHz -- it does NOT resample a raw numpy array itself. This
+        # method used to accept an arbitrary `sample_rate` and use it ONLY
+        # to compute `audio_duration` below, then hand the array to
+        # model.transcribe() completely unchanged regardless of its actual
+        # rate. Desktop mic capture commonly runs at 44.1kHz/48kHz; feeding
+        # that straight to a 16kHz-expecting model makes Whisper decode the
+        # waveform as if it were ~2.75x slower/lower-pitched than real,
+        # silently producing garbled or wrong text with NO error or
+        # warning -- on the live/streaming STT hot path for a voice
+        # companion. Fixed by resampling to 16kHz here whenever the caller's
+        # sample_rate differs, using the same linear-interpolation approach
+        # already used elsewhere in this codebase's audio path (see
+        # speech/audio/processor.py::convert_format) -- consistent with the
+        # existing method, including its documented anti-aliasing caveat
+        # for heavy downsampling, rather than introducing a new dependency.
+        if sample_rate != _WHISPER_SAMPLE_RATE:
+            logger.debug(
+                "Resampling audio %dHz -> %dHz before Whisper transcription "
+                "(faster_whisper's array-input path requires 16kHz and does "
+                "not resample internally)",
+                sample_rate,
+                _WHISPER_SAMPLE_RATE,
+            )
+            audio_data = self._resample_to_whisper_rate(audio_data, sample_rate)
+
         model = self._load_model()
 
         start_time = time.time()
@@ -180,7 +240,9 @@ class WhisperTranscriber:
 
             # Calculate duration
             duration = time.time() - start_time
-            audio_duration = len(audio_data) / sample_rate
+            # audio_duration was already computed above (pre-resample, using
+            # the caller's original sample_rate) so it reflects the real
+            # input duration regardless of any resampling performed above.
 
             # Calculate average confidence
             avg_confidence = (
@@ -208,6 +270,30 @@ class WhisperTranscriber:
         except Exception as e:
             msg = f"Transcription failed: {e}"
             raise GuruSpeechError(msg) from e
+
+    @staticmethod
+    def _resample_to_whisper_rate(audio_data: np.ndarray, sample_rate: int) -> np.ndarray:
+        """Linearly resample *audio_data* from *sample_rate* to 16kHz.
+
+        See transcribe()'s BUG FIX (Round 16) note for why this exists.
+        Uses linear interpolation (np.interp), matching the approach
+        already used elsewhere in this codebase's audio path
+        (speech/audio/processor.py::convert_format) rather than adding a
+        new scipy/librosa dependency. As with that sibling implementation,
+        this has no anti-aliasing filter, so heavy downsampling (e.g.
+        48kHz -> 16kHz) can introduce some aliasing distortion -- a real
+        but pre-existing limitation of this codebase's resampling
+        approach, not something this fix introduces. It is still a large,
+        clear correctness improvement over the prior behavior of feeding
+        Whisper unresampled audio outright.
+        """
+        if len(audio_data) == 0 or sample_rate <= 0:
+            return audio_data
+        duration = len(audio_data) / sample_rate
+        target_length = max(1, int(round(duration * _WHISPER_SAMPLE_RATE)))
+        original_indices = np.arange(len(audio_data))
+        target_indices = np.linspace(0, len(audio_data) - 1, num=target_length)
+        return np.interp(target_indices, original_indices, audio_data).astype(np.float32)
 
     def transcribe_file(self, file_path: str, language: str | None = None) -> TranscriptionResult:
         """Transcribe audio file.
@@ -304,12 +390,34 @@ class WhisperTranscriber:
             num_speakers: Expected number of speakers (None for auto-detect)
 
         Returns:
-            TranscriptionResult with speaker labels in segments
+            TranscriptionResult from plain transcription. Diarization is
+            NOT implemented (see BUG FIX note below) -- every segment's
+            speaker_id is None, exactly as from transcribe().
 
+        BUG FIX (Round 16): this method silently returned a plain
+        (non-diarized) transcription while its own docstring promised
+        "speaker labels in segments" and its `num_speakers` parameter
+        implied real diarization was performed. A caller building a
+        multi-speaker transcript from this got silently wrong
+        (undifferentiated) data with no error or warning. Real speaker
+        diarization needs pyannote.audio or similar (additional
+        dependencies + model loading) and is not implemented here -- that
+        is unchanged by this fix. What IS fixed is the silence: this now
+        logs a clear warning so the gap is visible at runtime instead of
+        masquerading as a diarization feature that quietly does nothing.
         """
-        # First, get basic transcription
-        return self.transcribe(audio_data, sample_rate, language)
-
+        if num_speakers is not None:
+            logger.warning(
+                "transcribe_with_diarization(num_speakers=%s) called, but speaker "
+                "diarization is NOT implemented -- returning plain transcription "
+                "with speaker_id=None on every segment. num_speakers is ignored.",
+                num_speakers,
+            )
+        else:
+            logger.debug(
+                "transcribe_with_diarization() called, but speaker diarization is "
+                "NOT implemented -- returning plain transcription (speaker_id=None).",
+            )
         # TODO: Implement speaker diarization using pyannote.audio or similar
-        # For now, return basic transcription
-        # This would require additional dependencies and model loading
+        # (additional dependencies + model loading required).
+        return self.transcribe(audio_data, sample_rate, language)

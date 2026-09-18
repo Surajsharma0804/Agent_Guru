@@ -115,6 +115,19 @@ class AdvancedNoiseCancellation:
 
         except AudioProcessingError:
             raise
+        except Exception:
+            # BUG FIX (Round 15): only AudioProcessingError (the explicit
+            # empty-audio validation above) was caught here -- any other
+            # failure (e.g. an internal noisereduce/librosa exception from
+            # nr.reduce_noise itself) propagated unhandled, unlike every
+            # other method in this class and unlike the equivalent
+            # reduce_noise() in the sibling processor.py, both of which
+            # fail open by returning the original audio. Aligned this
+            # method with that established fail-safe pattern so a noise-
+            # reduction backend failure degrades gracefully instead of
+            # crashing the caller.
+            logger.exception("Advanced noise reduction failed, returning original audio")
+            return audio
 
     def detect_noise_type(self, audio: np.ndarray) -> NoiseType:
         """Detect the type of background noise present.

@@ -158,7 +158,21 @@ class _AudioCapture:
                     self._stream.stop_stream()
                     self._stream.close()
                 elif hasattr(self._stream, "stop"):
+                    # BUG FIX: sounddevice's InputStream separates stop()
+                    # (halts the audio callback) from close() (actually
+                    # releases the underlying PortAudio stream/OS audio
+                    # device handle) -- calling only stop() here left the
+                    # device handle held open indefinitely. This module
+                    # explicitly targets 24+ hour continuous operation
+                    # (see class/module docstrings), and _capture_pyaudio's
+                    # own error-recovery path calls close() + reopens on
+                    # every transient stream error it sees -- each such
+                    # cycle, over a long session, leaked one more
+                    # unreleased sounddevice stream, eventually risking
+                    # "device busy"/"too many open streams" failures.
                     self._stream.stop()
+                    if hasattr(self._stream, "close"):
+                        self._stream.close()
                 self._stream = None
             if self._pyaudio_instance is not None:
                 self._pyaudio_instance.terminate()
@@ -475,7 +489,12 @@ class WakeWordManager:
             duration=self._config.audio_capture_duration,
             platform_name=self._config.platform,
         )
-        self._audio_capture.open()
+        # EVENT-LOOP FIX: opening the audio device is a blocking call into the
+        # host audio stack and routinely takes tens to hundreds of milliseconds
+        # (device enumeration, stream setup). Running it directly in this
+        # `async def` froze the whole event loop for that entire time -- and
+        # this is the wake-word path, so the freeze lands squarely on audio.
+        await asyncio.to_thread(self._audio_capture.open)
         self._initialized = True
         logger.info(
             "WakeWordManager initialized — backend=%s, platform=%s",
@@ -500,6 +519,33 @@ class WakeWordManager:
         if self._is_listening:
             logger.warning("Already listening")
             return
+
+        # BUG FIX: stop_listening() closes and drops _audio_capture by
+        # design (see close(), fixed above -- resources should genuinely
+        # be released on stop), and the BUG-026 note below deliberately
+        # does NOT reset _initialized so a caller can start_listening()
+        # again without re-initialize()-ing. But nothing previously
+        # recreated _audio_capture here: after a stop/start cycle,
+        # _listen_loop()'s `if self._audio_capture is not None` guard
+        # silently skipped capturing on every single iteration forever,
+        # while is_listening still reported True the whole time -- a
+        # permanently dead, silently non-functional listening loop with
+        # no error, warning, or log to reveal it (detect() called
+        # directly raises RuntimeError in this same situation, so the
+        # background loop's silent failure was also inconsistent with
+        # the class's own explicit API). Recreating _audio_capture here
+        # when missing makes the stop/start cycle BUG-026 was written to
+        # support actually work as documented.
+        if self._audio_capture is None:
+            sample_rate = self._config.wake_word_config.sample_rate
+            self._audio_capture = _AudioCapture(
+                sample_rate=sample_rate,
+                duration=self._config.audio_capture_duration,
+                platform_name=self._config.platform,
+            )
+            # Same blocking device open as in initialize(); this one runs on
+            # every stop/start cycle, i.e. repeatedly during normal use.
+            await asyncio.to_thread(self._audio_capture.open)
 
         self._is_listening = True
         self._power_mode = PowerMode.SLEEP

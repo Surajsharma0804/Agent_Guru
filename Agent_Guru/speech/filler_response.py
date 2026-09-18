@@ -99,6 +99,26 @@ Fixes applied in this revision (all verified — see notes inline):
        product gap, not just a code bug, and is flagged here rather than
        hidden behind a "works on my machine" beep fallback.
 
+    8. CRITICAL — _get_kokoro_engine()'s default model paths were the bare
+       relative filenames "kokoro-v1.0.onnx" / "voices-v1.0.bin", resolved
+       against the process's current working directory at runtime. The
+       sibling module actually used for real Guru/Maya speech,
+       speech/tts/tts_engine.py's CoquiTTSEngine, resolves (and
+       auto-downloads) the SAME physical model files to a fixed, CWD-
+       independent cache directory: Path.home() / ".cache" / "agent_guru"
+       / "kokoro". A GUI app's working directory at launch is not
+       reliably the install directory (or any directory containing these
+       files), so on essentially any real-world launch this module would
+       silently fail to find a model that is correctly present on disk at
+       the canonical cache path — falling through to the pyttsx3/beep
+       fallback every time, defeating fixes #1 and #2 above by accident of
+       CWD rather than genuine model unavailability. Fixed: the defaults
+       now point at the same canonical cache directory tts_engine.py uses,
+       so both modules load the one shared, already-downloaded model
+       instead of the filler cache needing (and never getting) its own
+       copy. The KOKORO_MODEL_PATH / KOKORO_VOICES_PATH environment-
+       variable overrides are preserved unchanged for testing/CI.
+
 Author: Agent Guru Team
 Date: 2026-07-07
 """
@@ -110,6 +130,7 @@ import os
 import random
 import threading
 import time
+from pathlib import Path
 
 import numpy as np
 
@@ -134,6 +155,17 @@ FILLER_MIC_GATE_DURATION_S = 0.35
 # rate any real TTS backend happens to return — see fix #4 above for why
 # clip sample rates must never be shared mutable state.
 _BEEP_SAMPLE_RATE = 24000
+
+# Canonical Kokoro model cache location — MUST match
+# speech/tts/tts_engine.py's _CACHE_DIR exactly (fix #8): both modules
+# load the SAME physical model files, downloaded once by that module's
+# CoquiTTSEngine._ensure_loaded(). Bare relative filenames here would
+# resolve against the process's CWD at runtime, which is not reliably
+# the install directory (or any directory containing the model) for a
+# real deployed GUI app.
+_KOKORO_CACHE_DIR = Path.home() / ".cache" / "agent_guru" / "kokoro"
+_DEFAULT_KOKORO_MODEL_PATH = _KOKORO_CACHE_DIR / "kokoro-v1.0.onnx"
+_DEFAULT_KOKORO_VOICES_PATH = _KOKORO_CACHE_DIR / "voices-v1.0.bin"
 
 # A single cached (samples, sample_rate) filler clip.
 _FillerClip = tuple[np.ndarray, int]
@@ -319,6 +351,11 @@ class FillerResponseCache:
         `Kokoro(model_path, voices_path)`. Built once here and cached on
         the instance so every phrase reuses the same loaded model
         (fixes #1 and #2).
+
+        FIX #8: the default model/voices paths now point at the same
+        canonical, CWD-independent cache directory speech/tts/tts_engine.py
+        already downloads these exact files to, instead of bare relative
+        filenames that only resolved by accident of working directory.
         """
         if self._kokoro_unavailable:
             return None
@@ -328,8 +365,8 @@ class FillerResponseCache:
             from kokoro_onnx import Kokoro
 
             self._kokoro = Kokoro(
-                os.environ.get("KOKORO_MODEL_PATH", "kokoro-v1.0.onnx"),
-                os.environ.get("KOKORO_VOICES_PATH", "voices-v1.0.bin"),
+                os.environ.get("KOKORO_MODEL_PATH", str(_DEFAULT_KOKORO_MODEL_PATH)),
+                os.environ.get("KOKORO_VOICES_PATH", str(_DEFAULT_KOKORO_VOICES_PATH)),
             )
             return self._kokoro
         except Exception:
@@ -414,6 +451,9 @@ class FillerResponseCache:
                 try:
                     os.unlink(tmp_path)
                 except OSError:
+                    # Best-effort cleanup of our own temp file in a finally
+                    # block. Raising here would replace the real synthesis
+                    # result (or the real error) with a cleanup error.
                     pass
 
     def _generate_beep(self, duration_s: float = 0.15) -> np.ndarray:

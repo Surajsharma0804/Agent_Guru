@@ -77,6 +77,18 @@ class VoiceInteractionResult:
     context_id: str | None
     processing_time_ms: float
 
+    # BUG FIX: the pipeline used to route a recognised command and then
+    # discard the routing result, logging any failure and returning a result
+    # indistinguishable from success. The user would hear a normal reply
+    # while the action never happened. These fields let the caller tell the
+    # user the truth ("I could not do that") instead of silently pretending.
+    #
+    # command_executed is None when the utterance was not a command at all,
+    # True when it was routed and succeeded, False when it failed or was
+    # dropped; command_error then carries the reason.
+    command_executed: bool | None = None
+    command_error: str | None = None
+
 
 class SpeechEngine:
     """Main Speech Engine Facade - ZERO COMPROMISE.
@@ -249,7 +261,9 @@ class SpeechEngine:
             emotion = self.detect_emotion(processed_audio)
 
             # Step 5: Command recognition + routing
-            command = await self._process_command(transcription)
+            command, command_executed, command_error = await self._process_command(
+                transcription,
+            )
 
             # Step 6: Context management + memory
             await self._update_context(transcription, emotion, personality)
@@ -268,6 +282,8 @@ class SpeechEngine:
                 personality=personality,
                 context_id=self._current_context_id,
                 processing_time_ms=processing_time,
+                command_executed=command_executed,
+                command_error=command_error,
             )
 
         except Exception as e:
@@ -321,20 +337,52 @@ class SpeechEngine:
             pass
         return PersonalityType.GURU
 
-    async def _process_command(self, transcription: Any) -> Any:
-        """Parse command from transcription and route to agent orchestration."""
+    async def _process_command(
+        self, transcription: Any,
+    ) -> tuple[Any, bool | None, str | None]:
+        """Parse a command and route it, reporting whether it actually ran.
+
+        Returns:
+            (command, command_executed, command_error). command_executed is
+            None when the utterance was not a command, True on successful
+            execution, False when execution failed or was dropped.
+
+        """
         if not transcription.text:
-            return None
+            return None, None, None
         if self.command_parser is None:
             msg = "Command parser not initialized"
             raise RuntimeError(msg)
+
         command = self.command_parser.interpret(transcription.text)
-        if command and command.is_command and self.agent_orchestration:
-            try:
-                await self.agent_orchestration.route_command(command)
-            except Exception:
-                self.logger.exception("Agent orchestration routing failed")
-        return command
+        if not (command and command.is_command):
+            return command, None, None
+
+        # BUG FIX: a recognised command with no orchestration attached used to
+        # be dropped in silence -- the `and self.agent_orchestration` guard
+        # simply skipped routing and returned as though all was well.
+        if not self.agent_orchestration:
+            self.logger.warning(
+                "Command %s recognised but no orchestration is attached — not executed",
+                getattr(command, "action_id", None),
+            )
+            return command, False, "No orchestration attached — command not executed"
+
+        # Routing failures stay non-fatal (one failed tool must not kill the
+        # whole voice turn) but are now REPORTED rather than swallowed.
+        try:
+            routing = await self.agent_orchestration.route_command(command)
+        except Exception as exc:
+            self.logger.exception("Agent orchestration routing failed")
+            return command, False, f"Command routing failed: {exc}"
+
+        success = getattr(routing, "success", None)
+        if success is None:
+            # Unexpected return shape: do not claim success we cannot verify.
+            return command, False, "Command routing returned no status"
+        if success:
+            return command, True, None
+        return command, False, getattr(routing, "error", None) or "Command execution failed"
 
     async def _update_context(
         self, transcription: Any, emotion: Any, personality: PersonalityType,
@@ -542,10 +590,35 @@ class SpeechEngine:
                 is_running = False
 
             if is_running:
-                # Called from inside an async context — run in a separate thread
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                # Called from inside an async context — run in a separate thread.
+                #
+                # BUG FIX (voice/vision/avatar audit): this previously used
+                # `with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:`.
+                # ThreadPoolExecutor.__exit__ calls shutdown(wait=True), which
+                # blocks until the submitted task actually finishes — even
+                # after future.result(timeout=10) has already raised
+                # TimeoutError. Verified concretely with a standalone repro:
+                # future.result(timeout=0.5) against a 3-second task raised
+                # TimeoutError at the correct t=0.5s, but the `with` block's
+                # __exit__ did not let that exception escape to the caller
+                # until t=3.0s (the full task duration). So the documented
+                # "times out after 10s" guarantee was false: a genuinely
+                # hung extraction (this method feeds
+                # BiometricAuthenticator.authenticate_voice(), which MUST
+                # be able to bound how long it waits) would block the
+                # caller for however long the runaway task actually took —
+                # potentially forever — not 10 seconds.
+                #
+                # Fix: don't use the pool as a context manager. Shut it down
+                # with wait=False so the caller's timeout is honored
+                # immediately; the orphaned worker thread finishes (or is
+                # abandoned) on its own without blocking this call.
+                pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                try:
                     future = pool.submit(asyncio.run, coro)
                     result: VoiceFeatures = future.result(timeout=10)
+                finally:
+                    pool.shutdown(wait=False)
             else:
                 result = asyncio.run(coro)
         except concurrent.futures.TimeoutError as exc:
@@ -614,17 +687,33 @@ class SpeechEngine:
         """Shutdown speech engine and cleanup resources."""
         self.logger.info("Shutting down Speech Engine...")
 
+        # BUG FIX: stopping the background service used to happen inside the
+        # same try/except that also cleared every component reference. If
+        # background_service.stop() raised, the exception jumped straight to
+        # `except` and NONE of the `self.X = None` assignments below it ever
+        # ran -- leaving every other component (audio capture, STT/TTS
+        # engines, wake word detector, ...) still referenced by this engine
+        # even though `_state` was unconditionally reset to UNINITIALIZED by
+        # the `finally` block. A caller trusting get_state() == UNINITIALIZED
+        # to mean "safe to initialize() again" would then have a fresh
+        # initialize() construct a second generation of every component
+        # (new AudioCapture grabbing the same microphone, a new
+        # BackgroundServiceManager) while the first generation -- including
+        # a background service that never actually stopped -- stayed alive
+        # and reachable from nowhere, a resource/thread leak and a source of
+        # duplicate audio-device contention. Isolating the one call that can
+        # actually raise, and moving the reference-clearing into `finally`,
+        # ensures shutdown() always fully releases every component
+        # regardless of what any single one of them does.
         try:
-            # Stop background service
             if self.background_service:
                 self.background_service.stop()
-
-            # Cleanup components
+        except Exception as e:
+            self.logger.exception("Error stopping background service during shutdown: %s", e)
+        finally:
+            # Clear component references -- always, even if a component's
+            # own stop() raised above.
             # AudioCapture doesn't need explicit stop - it's synchronous
-            if self.audio_capture:
-                pass  # No stop method needed
-
-            # Clear component references
             self.audio_capture = None
             self.audio_processor = None
             self.wake_word_detector = None
@@ -644,11 +733,8 @@ class SpeechEngine:
             self.memory_client = None
             self.goal_manager_client = None
 
-            self.logger.info("Speech Engine shutdown complete")
-
-        except Exception as e:
-            self.logger.exception("Error during shutdown: %s", e)
-        finally:
             # ALWAYS set state to UNINITIALIZED, even on error
             with self._state_lock:
                 self._state = EngineState.UNINITIALIZED
+
+        self.logger.info("Speech Engine shutdown complete")

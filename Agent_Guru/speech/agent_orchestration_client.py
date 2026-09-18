@@ -96,12 +96,23 @@ class AgentOrchestrationClient:
             )
 
         if self._system is None:
-            logger.debug("Orchestration unavailable — command %s skipped", command.action_id)
+            # BUG FIX: this used to return success=True with no error for a
+            # command that was never executed. A voice command that silently
+            # does nothing while reporting success is the worst possible
+            # outcome for the user: the assistant appears to comply and the
+            # action never happens, with nothing upstream able to detect it.
+            # Report the truth so the caller can tell the user it could not
+            # be done. Logged at warning level -- a dropped user command is
+            # not a debug-level detail.
+            logger.warning(
+                "Orchestration unavailable — command %s was NOT executed",
+                command.action_id,
+            )
             return RoutingResult(
-                success=True,
+                success=False,
                 task_id=None,
                 output=None,
-                error=None,
+                error="Orchestration system unavailable — command not executed",
             )
 
         try:

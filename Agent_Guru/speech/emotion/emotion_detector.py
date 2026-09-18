@@ -118,7 +118,7 @@ class EmotionDetector:
             features = self.extract_acoustic_features(audio, sample_rate)
 
             # Compute audio quality score
-            audio_quality = self._compute_audio_quality(audio, features)
+            audio_quality = self._compute_audio_quality(audio, features, sample_rate)
 
             # Classify emotion based on features
             emotion_scores = self._classify_emotion(features, audio_quality)
@@ -503,9 +503,21 @@ class EmotionDetector:
         """
         emotion_scores = {}
 
-        # If audio quality is poor, return low confidence for all emotions
+        # If audio quality is poor, we have no reliable signal to classify
+        # on. BUG FIX (Round 17): this used to return an IDENTICAL score
+        # (0.3) for every EmotionType. Since detect_emotion() picks the
+        # primary emotion via max(emotion_scores.items(), key=...), a tie
+        # across all 7 emotions is broken by dict/enum iteration order --
+        # meaning every low-quality utterance was silently classified as
+        # whichever EmotionType happens to be declared first, which is not
+        # necessarily (and should not be assumed to be) NEUTRAL. Give
+        # NEUTRAL a strictly higher score so poor-quality audio
+        # deterministically and correctly reports "we don't know" rather
+        # than an arbitrary, possibly-wrong specific emotion.
         if audio_quality < 0.3:
-            return dict.fromkeys(EmotionType, 0.3)
+            low_confidence_scores = dict.fromkeys(EmotionType, 0.1)
+            low_confidence_scores[EmotionType.NEUTRAL] = 0.3
+            return low_confidence_scores
 
         # Calculate match score for each emotion
         for emotion, profile in self._emotion_profiles.items():
@@ -556,7 +568,12 @@ class EmotionDetector:
 
         return emotion_scores
 
-    def _compute_audio_quality(self, audio: np.ndarray, features: dict[str, float]) -> float:
+    def _compute_audio_quality(
+        self,
+        audio: np.ndarray,
+        features: dict[str, float],
+        sample_rate: int,
+    ) -> float:
         """Compute audio quality score for emotion detection.
 
         Considers:
@@ -568,6 +585,7 @@ class EmotionDetector:
         Args:
             audio: Audio data
             features: Extracted features
+            sample_rate: Sample rate in Hz of `audio`
 
         Returns:
             Quality score between 0.0 and 1.0
@@ -576,7 +594,14 @@ class EmotionDetector:
         quality_factors = []
 
         # 1. Check audio duration (prefer 1-5 seconds)
-        duration = len(audio) / 16000.0  # Assume 16kHz
+        # BUG FIX (Round 17): this used to hardcode `len(audio) / 16000.0`
+        # regardless of the actual sample rate, even though detect_emotion()
+        # receives (and extract_acoustic_features() correctly uses) the real
+        # `sample_rate`. Any caller passing non-16kHz audio (e.g. 44.1kHz
+        # capture, or 8kHz telephony) got a silently wrong duration, which
+        # corrupted duration_score and therefore the overall audio_quality
+        # score feeding directly into emotion classification confidence.
+        duration = len(audio) / float(sample_rate) if sample_rate > 0 else len(audio) / 16000.0
         if 1.0 <= duration <= 5.0:
             duration_score = 1.0
         elif duration < 1.0:

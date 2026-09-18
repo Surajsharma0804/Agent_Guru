@@ -12,6 +12,7 @@ This module provides conversation context management including:
 """
 
 import re
+import threading
 import time
 import uuid
 from typing import Any
@@ -52,6 +53,18 @@ class ConversationContextManager:
         """
         self.max_history_turns = max_history_turns
         self._contexts: dict[str, ConversationContext] = {}
+        # BUG FIX (Round 17): this class is documented as "Thread-safe for
+        # concurrent access" below, but had no synchronization at all --
+        # every method read/wrote self._contexts and mutated
+        # ConversationContext objects (turn list append + trim, preference
+        # dict update) with no lock. Concurrent callers (e.g. the STT
+        # pipeline thread and a wake-word/voice-command thread both
+        # touching the same conversation) could race: lost turns, turn
+        # lists exceeding max_history_turns, or corrupted user_preferences
+        # from interleaved dict updates. A single non-reentrant lock is
+        # sufficient since no public method here calls another public
+        # method on this class.
+        self._lock = threading.Lock()
 
         # Reference resolution patterns
         self._pronoun_patterns = [
@@ -100,7 +113,8 @@ class ConversationContextManager:
             updated_at=time.time(),
         )
 
-        self._contexts[context_id] = context
+        with self._lock:
+            self._contexts[context_id] = context
         return context_id, context
 
     def add_turn(
@@ -125,34 +139,41 @@ class ConversationContextManager:
             ContextNotFoundError: If context_id not found
 
         """
-        if context_id not in self._contexts:
-            msg = f"Context not found: {context_id}"
-            raise ContextNotFoundError(msg)
+        with self._lock:
+            if context_id not in self._contexts:
+                msg = f"Context not found: {context_id}"
+                raise ContextNotFoundError(msg)
 
-        context = self._contexts[context_id]
+            context = self._contexts[context_id]
 
-        # Create turn
-        turn = ConversationTurn(speaker=speaker, text=text, timestamp=time.time(), emotion=emotion)
+            # Create turn
+            turn = ConversationTurn(speaker=speaker, text=text, timestamp=time.time(), emotion=emotion)
 
-        # Add turn and maintain max history
-        context.turns.append(turn)
-        if len(context.turns) > self.max_history_turns:
-            context.turns = context.turns[-self.max_history_turns :]
+            # Add turn and maintain max history
+            context.turns.append(turn)
+            if len(context.turns) > self.max_history_turns:
+                context.turns = context.turns[-self.max_history_turns :]
 
-        # Update topic if needed
-        if speaker == "user":
-            new_topic = self._extract_topic(text)
-            if new_topic and new_topic != context.current_topic:
-                context.current_topic = new_topic
+            # Update topic if needed
+            if speaker == "user":
+                new_topic = self._extract_topic(text)
+                if new_topic and new_topic != context.current_topic:
+                    context.current_topic = new_topic
 
-        # Extract preferences
-        if speaker == "user":
-            preferences = self._extract_preferences_from_text(text)
-            context.user_preferences.update(preferences)
+            # Extract preferences
+            if speaker == "user":
+                preferences = self._extract_preferences_from_text(text)
+                # BUG FIX (Round 17): a plain dict.update() let contradictory
+                # preferences accumulate forever -- e.g. "I like coffee" then
+                # later "I don't like coffee" left BOTH likes_coffee=True and
+                # dislikes_coffee=True in user_preferences with nothing ever
+                # removing the stale one. _merge_preferences() resolves the
+                # direct contradiction so the newer statement wins.
+                self._merge_preferences(context, preferences)
 
-        context.updated_at = time.time()
+            context.updated_at = time.time()
 
-        return context
+            return context
 
     def resolve_reference(self, context_id: str, reference: str) -> str | None:
         """Resolve pronoun or reference to previous context.
@@ -173,30 +194,31 @@ class ConversationContextManager:
             ContextNotFoundError: If context_id not found
 
         """
-        if context_id not in self._contexts:
-            msg = f"Context not found: {context_id}"
-            raise ContextNotFoundError(msg)
+        with self._lock:
+            if context_id not in self._contexts:
+                msg = f"Context not found: {context_id}"
+                raise ContextNotFoundError(msg)
 
-        context = self._contexts[context_id]
+            context = self._contexts[context_id]
 
-        # Check if reference contains pronouns
-        has_pronoun = any(
-            re.search(pattern, reference.lower()) for pattern in self._pronoun_patterns
-        )
+            # Check if reference contains pronouns
+            has_pronoun = any(
+                re.search(pattern, reference.lower()) for pattern in self._pronoun_patterns
+            )
 
-        if not has_pronoun:
+            if not has_pronoun:
+                return None
+
+            # Look back through turns to find referent
+            for turn in reversed(context.turns):
+                if turn.speaker == "user":
+                    # Extract nouns/entities from previous user turns
+                    entities = self._extract_entities(turn.text)
+                    if entities:
+                        # Return most recent entity
+                        return entities[0]
+
             return None
-
-        # Look back through turns to find referent
-        for turn in reversed(context.turns):
-            if turn.speaker == "user":
-                # Extract nouns/entities from previous user turns
-                entities = self._extract_entities(turn.text)
-                if entities:
-                    # Return most recent entity
-                    return entities[0]
-
-        return None
 
     def detect_topic_shift(self, context_id: str, new_input: str) -> bool:
         """Detect if conversation topic has changed.
@@ -212,21 +234,22 @@ class ConversationContextManager:
             ContextNotFoundError: If context_id not found
 
         """
-        if context_id not in self._contexts:
-            msg = f"Context not found: {context_id}"
-            raise ContextNotFoundError(msg)
+        with self._lock:
+            if context_id not in self._contexts:
+                msg = f"Context not found: {context_id}"
+                raise ContextNotFoundError(msg)
 
-        context = self._contexts[context_id]
+            context = self._contexts[context_id]
 
-        if not context.current_topic:
-            return False
+            if not context.current_topic:
+                return False
 
-        new_topic = self._extract_topic(new_input)
+            new_topic = self._extract_topic(new_input)
 
-        if not new_topic:
-            return False
+            if not new_topic:
+                return False
 
-        return new_topic != context.current_topic
+            return new_topic != context.current_topic
 
     def get_context_summary(self, context_id: str) -> str:
         """Generate summary of conversation context.
@@ -241,33 +264,36 @@ class ConversationContextManager:
             ContextNotFoundError: If context_id not found
 
         """
-        if context_id not in self._contexts:
-            msg = f"Context not found: {context_id}"
-            raise ContextNotFoundError(msg)
+        with self._lock:
+            if context_id not in self._contexts:
+                msg = f"Context not found: {context_id}"
+                raise ContextNotFoundError(msg)
 
-        context = self._contexts[context_id]
+            context = self._contexts[context_id]
 
-        if not context.turns:
-            return "No conversation history."
+            if not context.turns:
+                return "No conversation history."
 
-        summary_parts = []
-        summary_parts.append(f"Conversation with {context.personality.value.title()}")
-        summary_parts.append(f"Total turns: {len(context.turns)}")
+            summary_parts = []
+            summary_parts.append(f"Conversation with {context.personality.value.title()}")
+            summary_parts.append(f"Total turns: {len(context.turns)}")
 
-        if context.current_topic:
-            summary_parts.append(f"Current topic: {context.current_topic}")
+            if context.current_topic:
+                summary_parts.append(f"Current topic: {context.current_topic}")
 
-        if context.user_preferences:
-            prefs = ", ".join(f"{k}: {v}" for k, v in context.user_preferences.items())
-            summary_parts.append(f"User preferences: {prefs}")
+            if context.user_preferences:
+                prefs = ", ".join(f"{k}: {v}" for k, v in context.user_preferences.items())
+                summary_parts.append(f"User preferences: {prefs}")
 
-        # Add recent turns
-        summary_parts.append("\nRecent conversation:")
-        for turn in context.turns[-3:]:  # Last 3 turns
-            speaker_label = "User" if turn.speaker == "user" else context.personality.value.title()
-            summary_parts.append(f"  {speaker_label}: {turn.text[:50]}...")
+            # Add recent turns
+            summary_parts.append("\nRecent conversation:")
+            for turn in context.turns[-3:]:  # Last 3 turns
+                speaker_label = (
+                    "User" if turn.speaker == "user" else context.personality.value.title()
+                )
+                summary_parts.append(f"  {speaker_label}: {turn.text[:50]}...")
 
-        return "\n".join(summary_parts)
+            return "\n".join(summary_parts)
 
     def clear_context(self, context_id: str) -> None:
         """Clear conversation context.
@@ -279,11 +305,12 @@ class ConversationContextManager:
             ContextNotFoundError: If context_id not found
 
         """
-        if context_id not in self._contexts:
-            msg = f"Context not found: {context_id}"
-            raise ContextNotFoundError(msg)
+        with self._lock:
+            if context_id not in self._contexts:
+                msg = f"Context not found: {context_id}"
+                raise ContextNotFoundError(msg)
 
-        del self._contexts[context_id]
+            del self._contexts[context_id]
 
     def get_context(self, context_id: str) -> ConversationContext:
         """Get conversation context.
@@ -298,11 +325,12 @@ class ConversationContextManager:
             ContextNotFoundError: If context_id not found
 
         """
-        if context_id not in self._contexts:
-            msg = f"Context not found: {context_id}"
-            raise ContextNotFoundError(msg)
+        with self._lock:
+            if context_id not in self._contexts:
+                msg = f"Context not found: {context_id}"
+                raise ContextNotFoundError(msg)
 
-        return self._contexts[context_id]
+            return self._contexts[context_id]
 
     def extract_preferences(self, context_id: str) -> dict[str, Any]:
         """Extract user preferences from conversation.
@@ -321,12 +349,55 @@ class ConversationContextManager:
             ContextNotFoundError: If context_id not found
 
         """
-        if context_id not in self._contexts:
-            msg = f"Context not found: {context_id}"
-            raise ContextNotFoundError(msg)
+        with self._lock:
+            if context_id not in self._contexts:
+                msg = f"Context not found: {context_id}"
+                raise ContextNotFoundError(msg)
 
-        context = self._contexts[context_id]
-        return context.user_preferences.copy()
+            context = self._contexts[context_id]
+            return context.user_preferences.copy()
+
+    def _merge_preferences(
+        self,
+        context: ConversationContext,
+        new_preferences: dict[str, Any],
+    ) -> None:
+        """Merge newly-extracted preferences into a context, resolving contradictions.
+
+        BUG FIX (Round 17): add_turn() used to merge preferences with a
+        plain `context.user_preferences.update(preferences)`. Because
+        "likes_X" and "dislikes_X" (and "prefer_A_over_B" /
+        "prefer_B_over_A") are independent dict keys, nothing ever removed
+        a stale preference when the user contradicted themselves later in
+        the conversation -- e.g. "I like coffee" followed much later by
+        "I don't like coffee" left BOTH likes_coffee=True and
+        dislikes_coffee=True sitting in user_preferences forever, with no
+        way for a caller to tell which one is actually current. This
+        resolves the direct contradiction pairs so the newer statement
+        wins, then applies the update. Caller must hold self._lock.
+
+        Args:
+            context: Context whose user_preferences should be updated
+            new_preferences: Newly extracted preferences to merge in
+
+        """
+        for key in new_preferences:
+            if key.startswith("likes_"):
+                subject = key[len("likes_") :]
+                context.user_preferences.pop(f"dislikes_{subject}", None)
+            elif key.startswith("dislikes_"):
+                subject = key[len("dislikes_") :]
+                context.user_preferences.pop(f"likes_{subject}", None)
+            elif key.startswith("prefer_") and "_over_" in key:
+                rest = key[len("prefer_") :]
+                parts = rest.split("_over_", 1)
+                if len(parts) == 2:
+                    preferred, not_preferred = parts
+                    context.user_preferences.pop(
+                        f"prefer_{not_preferred}_over_{preferred}", None,
+                    )
+
+        context.user_preferences.update(new_preferences)
 
     def _extract_topic(self, text: str) -> str | None:
         """Extract topic from text using keyword matching.

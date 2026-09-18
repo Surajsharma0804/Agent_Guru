@@ -350,6 +350,22 @@ class STTManager:
         self._language_detector: LanguageDetector | None = None
         self._active_backend: STTBackend | None = None
         self._initialized: bool = False
+        # BUG FIX: initialize() previously had a check-then-act race on
+        # self._initialized -- two concurrent initialize() callers could
+        # both observe self._initialized == False (the check happens
+        # before the only await point that would let the other coroutine
+        # run) and both proceed to construct and load a full Whisper
+        # model. Whichever call's _init_desktop() runs second overwrites
+        # self._whisper, silently discarding the first (fully-loaded, or
+        # still-loading) WhisperTranscriber instance -- wasting a
+        # duplicate model load (CPU + significant RAM for the loaded
+        # model, exactly the "duplicate model instances" this project's
+        # engineering standard calls out) for no benefit. An asyncio.Lock
+        # makes the whole check-then-initialize sequence atomic: a second
+        # concurrent caller now blocks until the first completes, then
+        # sees self._initialized == True and returns immediately without
+        # re-running backend init.
+        self._init_lock: asyncio.Lock = asyncio.Lock()
 
         logger.info("STTManager created — platform=%s", self._config.platform)
 
@@ -369,31 +385,32 @@ class STTManager:
             ModelLoadError: If the backend fails to load.
 
         """
-        if self._initialized:
-            logger.warning("STTManager already initialized")
-            return
+        async with self._init_lock:
+            if self._initialized:
+                logger.warning("STTManager already initialized")
+                return
 
-        plat = self._config.platform
+            plat = self._config.platform
 
-        if plat in ("windows", "macos", "linux", "unknown"):
-            await self._init_desktop()
-        elif plat == "android":
-            await self._init_android()
-        elif plat == "ios":
-            await self._init_ios()
-        else:
-            # Unknown platform — try desktop backend as best-effort
-            await self._init_desktop()
+            if plat in ("windows", "macos", "linux", "unknown"):
+                await self._init_desktop()
+            elif plat == "android":
+                await self._init_android()
+            elif plat == "ios":
+                await self._init_ios()
+            else:
+                # Unknown platform — try desktop backend as best-effort
+                await self._init_desktop()
 
-        if self._config.enable_language_detection:
-            self._language_detector = LanguageDetector()
+            if self._config.enable_language_detection:
+                self._language_detector = LanguageDetector()
 
-        self._initialized = True
-        logger.info(
-            "STTManager initialized — backend=%s, platform=%s",
-            self._active_backend,
-            plat,
-        )
+            self._initialized = True
+            logger.info(
+                "STTManager initialized — backend=%s, platform=%s",
+                self._active_backend,
+                plat,
+            )
 
     async def _init_desktop(self) -> None:
         """Initialize faster-whisper backend for desktop platforms."""
@@ -444,6 +461,16 @@ class STTManager:
         self._whisper = None
         self._mobile_backend = None
         self._language_detector = None
+        # BUG FIX: _active_backend was previously left unchanged here, so
+        # after shutdown() the active_backend property kept reporting the
+        # last backend that was active (e.g. STTBackend.WHISPER) even
+        # though no backend is actually loaded or usable. If a later
+        # initialize() call failed (e.g. ModelLoadError from a missing
+        # model file), self._initialized correctly stayed False, but
+        # active_backend still misleadingly reported the prior session's
+        # value -- a caller that checks active_backend without also
+        # checking is_initialized would wrongly conclude STT is ready.
+        self._active_backend = None
         self._initialized = False
         logger.info("STTManager shut down")
 

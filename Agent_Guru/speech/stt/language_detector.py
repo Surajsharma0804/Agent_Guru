@@ -610,7 +610,23 @@ class LanguageDetector:
                     char_lang = arabic_urdu_lang
 
             # High confidence character-based detection (>50% of characters)
-            if char_conf > 0.5:
+            #
+            # BUG FIX (Round 16): this early return used to fire whenever
+            # char_conf > 0.5, WITHOUT ever comparing against the caller's
+            # min_confidence -- unlike the combined-score path below (see
+            # the "Check minimum confidence" block), which correctly gates
+            # its result on min_confidence. A caller that explicitly passed
+            # a stricter min_confidence (e.g. 0.9, to only auto-switch STT
+            # language/acoustic model on very confident signal) would still
+            # get back a "confident" result here for any CJK/Devanagari/
+            # Cyrillic/Greek-range text whose character match was merely
+            # 51-89%, silently violating the threshold it asked for. Fixed
+            # by requiring char_conf to also clear min_confidence before
+            # taking this fast path; text that clears 0.5 but not the
+            # caller's own bar now falls through to the combined scoring
+            # below (which still applies its own min_confidence check), or
+            # returns UNKNOWN via that same check, instead of bypassing it.
+            if char_conf > 0.5 and char_conf >= min_confidence:
                 return LanguageDetectionResult(language=char_lang, confidence=char_conf)
 
             # Medium confidence - add to scores but continue checking

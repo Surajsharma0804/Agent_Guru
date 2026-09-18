@@ -7,10 +7,20 @@ Production-grade implementation for iOS TTS with:
 - On-device synthesis (iOS 13+)
 """
 
+import logging
 import time
 
 from Agent_Guru.speech.exceptions import GuruSpeechError
 from Agent_Guru.speech.models import EmotionType, PersonalityType
+
+logger = logging.getLogger(__name__)
+
+# An AVSpeechSynthesizer that never reports "finished" -- a delegate callback
+# lost when the audio session is torn down mid-utterance, for instance -- used
+# to pin synthesize() forever. Real speech is bounded, so the wait for it is
+# bounded too.
+SYNTHESIS_WAIT_TIMEOUT_S = 30.0
+SYNTHESIS_POLL_INTERVAL_S = 0.05
 
 # Try to import iOS modules, set to None if not available (for testing on desktop)
 try:
@@ -112,18 +122,31 @@ class IOSTTS:
             voices = self.AVSpeechSynthesisVoice.speechVoices()
 
             for voice in voices:
-                voice.identifier.lower()
-                name = voice.name.lower()
+                # The identifier is what actually disambiguates Apple's voices
+                # ("com.apple.ttsbundle.siri_male_en-US"); many display names
+                # are just given names ("Aaron", "Samantha") and carry no
+                # gender word at all. The previous code computed
+                # voice.identifier.lower() and threw the result away, matching
+                # on the display name alone -- so on a device whose voices are
+                # named that way NEITHER branch matched and Guru and Maya both
+                # fell through to the same default voice, i.e. one voice for
+                # two personalities.
+                haystack = f"{voice.identifier} {voice.name}".lower()
+                # "female" CONTAINS "male", and "woman" contains "man", so the
+                # female test has to win. The previous order did not do this:
+                # a device that lists its female voice first had that voice
+                # assigned as the MALE voice.
+                is_female = "female" in haystack or "woman" in haystack
+                is_male = not is_female and ("male" in haystack or "man" in haystack)
+                # "en" as a substring test would also accept unrelated tags;
+                # a language code starts with its language.
+                is_english = str(voice.language).lower().startswith("en")
 
-                # Look for male voice (prefer English)
-                if not self._male_voice:
-                    if ("male" in name or "man" in name) and "en" in voice.language:
-                        self._male_voice = voice
+                if not self._male_voice and is_male and is_english:
+                    self._male_voice = voice
 
-                # Look for female voice (prefer English)
-                if not self._female_voice:
-                    if ("female" in name or "woman" in name) and "en" in voice.language:
-                        self._female_voice = voice
+                if not self._female_voice and is_female and is_english:
+                    self._female_voice = voice
 
             # Fallback: use default voices
             if not self._male_voice:
@@ -135,6 +158,31 @@ class IOSTTS:
             # If voice caching fails, use default
             self._male_voice = self.AVSpeechSynthesisVoice.voiceWithLanguage_("en-US")
             self._female_voice = self.AVSpeechSynthesisVoice.voiceWithLanguage_("en-US")
+
+    def _synthesizer_is_speaking(self) -> bool:
+        """Whether the synthesizer is still speaking.
+
+        AVSpeechSynthesizer declares this as
+        `@property(readonly, getter=isSpeaking) BOOL speaking`, which the
+        Objective-C bridge exposes as a zero-argument METHOD. Reading
+        `synthesizer.isSpeaking` without calling it yields the bound method
+        object, which is always truthy -- that is what made the wait loop in
+        synthesize() unable to ever end. Both spellings are accepted here
+        because pyobjus and pyobjc differ on whether such a property is also
+        surfaced as a plain attribute.
+        """
+        synthesizer = self._synthesizer
+        if synthesizer is None:
+            return False
+        try:
+            speaking = synthesizer.isSpeaking
+            if callable(speaking):
+                speaking = speaking()
+        except Exception:
+            # An unreadable state is not a reason to keep waiting.
+            logger.debug("Could not read synthesizer speaking state", exc_info=True)
+            return False
+        return bool(speaking)
 
     def synthesize(
         self,
@@ -229,9 +277,18 @@ class IOSTTS:
                 if self._synthesizer:
                     self._synthesizer.speakUtterance_(utterance)
 
-                # Wait for synthesis to complete
-                while self._synthesizer.isSpeaking if self._synthesizer else False:
-                    time.sleep(0.1)
+                # Wait for synthesis to complete -- but never indefinitely.
+                deadline = time.monotonic() + SYNTHESIS_WAIT_TIMEOUT_S
+                while self._synthesizer_is_speaking():
+                    if time.monotonic() >= deadline:
+                        logger.warning(
+                            "Speech synthesis still reported as running after "
+                            "%.0fs; abandoning the wait rather than blocking "
+                            "the caller forever",
+                            SYNTHESIS_WAIT_TIMEOUT_S,
+                        )
+                        break
+                    time.sleep(SYNTHESIS_POLL_INTERVAL_S)
 
                 # For now, return empty bytes as iOS synthesis is more complex
                 # In production, would use AVAudioEngine to capture output
@@ -264,6 +321,9 @@ class IOSTTS:
                     if os.path.exists(tmp_path):
                         os.unlink(tmp_path)
                 except OSError:
+                    # Best-effort cleanup of our own temp file in a finally
+                    # block. Raising here would mask the real synthesis result
+                    # (or the real error) with a cleanup error.
                     pass
 
         except Exception as e:
