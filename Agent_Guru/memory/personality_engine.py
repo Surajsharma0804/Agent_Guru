@@ -95,13 +95,18 @@ class PersonalityEvolutionEngine:
             max(0.0, profile.metrics.user_satisfaction + satisfaction_delta),
         )
 
-        # Auto-rollback on very negative feedback
+        # Auto-rollback on very negative feedback: restore the parameters as
+        # they were immediately before *this* update. The snapshot taken at
+        # the top of this method (before the version increment above) was
+        # recorded at `profile.version - 1` (post-increment), so that is the
+        # correct rollback target — not `profile.version - 2`, which skips
+        # past that snapshot and discards one additional, unrelated update.
         if (
             profile.metrics.user_satisfaction < _AUTO_ROLLBACK_THRESHOLD
             and len(profile.evolution_history) >= 2
         ):
             logger.info("Auto-rollback triggered for user %s", feedback.user_id)
-            profile = self._do_rollback(profile, profile.version - 2)
+            profile = self._do_rollback(profile, profile.version - 1)
 
         self._profiles[feedback.user_id] = profile
         return profile.model_copy(deep=True)

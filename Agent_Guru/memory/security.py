@@ -25,6 +25,28 @@ from uuid import UUID, uuid4
 
 logger = logging.getLogger(__name__)
 
+
+class EncryptionUnavailableError(RuntimeError):
+    """Raised when AES-256-GCM encryption/decryption cannot be performed.
+
+    BUG FIX (Round 18): `cryptography` is a hard pinned dependency of this
+    project (requirements.txt: cryptography>=41.0.0), so this should never
+    trigger on a correctly-installed deployment. It exists so a broken
+    install fails loudly instead of MemorySecurityManager silently
+    downgrading "AES-256-GCM encryption at rest" (this class's own
+    documented guarantee -- Requirement 18.1) to a trivially-broken
+    repeating-key XOR cipher with no authentication and no integrity
+    protection (an attacker can flip ciphertext bits undetected, and the
+    keystream repeats every 32 bytes, making it breakable by ordinary
+    frequency analysis on real text/JSON payloads). Encrypting sensitive,
+    GDPR-governed user data with a cipher that provides essentially none
+    of the security the docstring promises -- silently, with nothing but
+    a debug-level "for testing only" code comment as a warning -- is worse
+    than refusing to operate. See encrypt()/decrypt() and the
+    allow_insecure_fallback constructor flag below.
+    """
+
+
 # Sensitive field patterns for redaction
 _SENSITIVE_PATTERNS = (
     re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),  # SSN
@@ -68,7 +90,22 @@ class AccessAuditEntry:
 class MemorySecurityManager:
     """Handles encryption, RBAC, redaction, and audit logging."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, allow_insecure_fallback: bool = False) -> None:
+        """Initialize the security manager.
+
+        Args:
+            allow_insecure_fallback: if True, encrypt()/decrypt() are
+                permitted to silently fall back to the non-authenticated
+                XOR cipher when the `cryptography` package is unavailable.
+                BUG FIX (Round 18): defaults to False. `cryptography` is a
+                hard pinned dependency, so leaving this False costs nothing
+                in a correct deployment and prevents a broken install from
+                quietly storing "encrypted" sensitive data with a cipher
+                that provides essentially no real protection. Set True
+                only for tests that deliberately exercise the fallback
+                path and accept that it is not secure.
+
+        """
         # Key store: key_id -> 32-byte key
         self._keys: dict[str, bytes] = {}
         # User roles: user_id -> Role
@@ -77,6 +114,7 @@ class MemorySecurityManager:
         self._audit_log: list[AccessAuditEntry] = []
         # Deleted user IDs (GDPR)
         self._deleted_users: set[str] = set()
+        self._allow_insecure_fallback = allow_insecure_fallback
 
     # ------------------------------------------------------------------
     # Encryption at rest (AES-256-GCM via cryptography library)
@@ -89,11 +127,31 @@ class MemorySecurityManager:
         return key
 
     def encrypt(self, key_id: str, plaintext: str) -> bytes:
-        """Encrypt plaintext with AES-256-GCM. Returns nonce + tag + ciphertext."""
+        """Encrypt plaintext with AES-256-GCM. Returns nonce + tag + ciphertext.
+
+        Raises:
+            EncryptionUnavailableError: if the `cryptography` package is
+                unavailable and allow_insecure_fallback was not set True.
+
+        """
         try:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
         except ImportError:
-            # Fallback: XOR with key hash (NOT production-safe, for testing only)
+            # BUG FIX (Round 18): this used to silently fall back to XOR
+            # (see EncryptionUnavailableError's docstring for why that's
+            # dangerous for anything claiming "encryption at rest"). Fail
+            # loudly by default; only degrade if explicitly opted into.
+            if not self._allow_insecure_fallback:
+                logger.critical(
+                    "cryptography package unavailable -- refusing to "
+                    "encrypt with the insecure XOR fallback. Install "
+                    "cryptography>=41.0.0 (see requirements.txt), or "
+                    "construct MemorySecurityManager(allow_insecure_fallback"
+                    "=True) if this is a test that intentionally accepts "
+                    "no real encryption.",
+                )
+                msg = "cryptography package is unavailable; refusing insecure fallback"
+                raise EncryptionUnavailableError(msg) from None
             return self._xor_encrypt(key_id, plaintext)
         key = self._keys.get(key_id)
         if key is None:
@@ -105,10 +163,27 @@ class MemorySecurityManager:
         return nonce + ciphertext
 
     def decrypt(self, key_id: str, ciphertext: bytes) -> str:
-        """Decrypt AES-256-GCM ciphertext."""
+        """Decrypt AES-256-GCM ciphertext.
+
+        Raises:
+            EncryptionUnavailableError: if the `cryptography` package is
+                unavailable and allow_insecure_fallback was not set True.
+
+        """
         try:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
         except ImportError:
+            if not self._allow_insecure_fallback:
+                logger.critical(
+                    "cryptography package unavailable -- refusing to "
+                    "decrypt with the insecure XOR fallback. Install "
+                    "cryptography>=41.0.0 (see requirements.txt), or "
+                    "construct MemorySecurityManager(allow_insecure_fallback"
+                    "=True) if this is a test that intentionally accepts "
+                    "no real encryption.",
+                )
+                msg = "cryptography package is unavailable; refusing insecure fallback"
+                raise EncryptionUnavailableError(msg) from None
             return self._xor_decrypt(key_id, ciphertext)
         key = self._keys.get(key_id)
         if key is None:

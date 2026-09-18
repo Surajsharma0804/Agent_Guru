@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -52,6 +53,15 @@ class WriteAheadLog:
             db_path,
             check_same_thread=False,
         )  # persistent; closed in close()
+        # BUG FIX (Round 18): check_same_thread=False means this connection
+        # is explicitly intended to be shared across threads (a WAL used
+        # for "crash recovery" of "all mutations" is squarely the kind of
+        # thing multiple worker threads append to concurrently) -- but the
+        # sqlite3 docs are explicit that disabling that check does NOT make
+        # the connection itself safe for concurrent use; the caller is
+        # responsible for serializing access. Every method below now holds
+        # this lock for its full SQL operation.
+        self._lock = threading.Lock()
         self._init_db()
 
     def _init_db(self) -> None:
@@ -72,7 +82,7 @@ class WriteAheadLog:
     def append(self, operation: str, payload: dict[str, Any]) -> WALEntry:
         """Log a mutation before applying it."""
         entry = WALEntry(operation=operation, payload=payload)
-        with self._conn:
+        with self._lock, self._conn:
             self._conn.execute(
                 "INSERT INTO wal (entry_id, operation, payload, status, timestamp, error) VALUES (?,?,?,?,?,?)",
                 (
@@ -87,21 +97,21 @@ class WriteAheadLog:
         return entry
 
     def mark_applied(self, entry_id: UUID) -> None:
-        with self._conn:
+        with self._lock, self._conn:
             self._conn.execute(
                 "UPDATE wal SET status = ? WHERE entry_id = ?",
                 (WALEntryStatus.APPLIED.value, str(entry_id)),
             )
 
     def mark_failed(self, entry_id: UUID, error: str) -> None:
-        with self._conn:
+        with self._lock, self._conn:
             self._conn.execute(
                 "UPDATE wal SET status = ?, error = ? WHERE entry_id = ?",
                 (WALEntryStatus.FAILED.value, error, str(entry_id)),
             )
 
     def get_pending(self) -> list[WALEntry]:
-        with self._conn:
+        with self._lock, self._conn:
             rows = self._conn.execute(
                 "SELECT entry_id, operation, payload, status, timestamp, error FROM wal WHERE status = ? ORDER BY timestamp",
                 (WALEntryStatus.PENDING.value,),
@@ -119,7 +129,7 @@ class WriteAheadLog:
         ]
 
     def count_by_status(self, status: WALEntryStatus) -> int:
-        with self._conn:
+        with self._lock, self._conn:
             row = self._conn.execute(
                 "SELECT COUNT(*) FROM wal WHERE status = ?",
                 (status.value,),
@@ -127,7 +137,8 @@ class WriteAheadLog:
         return row[0] if row else 0
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
 
 def retry_with_backoff(
@@ -158,17 +169,28 @@ class CircuitBreaker:
         self._reset_timeout = reset_timeout
         self._failure_count = 0
         self._open_since: float | None = None
+        # BUG FIX (Round 18): a circuit breaker exists specifically to
+        # protect "external dependencies" from concurrent overload, which
+        # means it must itself be safe to call from multiple threads. The
+        # failure counter was a bare `+= 1` (read-modify-write, not atomic)
+        # and `is_open` mutated state without any synchronization -- two
+        # threads failing at once could race and lose an increment,
+        # meaning the breaker could take MORE than failure_threshold
+        # failures to actually open, silently weakening the exact
+        # guarantee it exists to provide.
+        self._lock = threading.Lock()
 
     @property
     def is_open(self) -> bool:
-        if self._open_since is None:
-            return False
-        if time.monotonic() - self._open_since >= self._reset_timeout:
-            # Auto-reset
-            self._failure_count = 0
-            self._open_since = None
-            return False
-        return True
+        with self._lock:
+            if self._open_since is None:
+                return False
+            if time.monotonic() - self._open_since >= self._reset_timeout:
+                # Auto-reset
+                self._failure_count = 0
+                self._open_since = None
+                return False
+            return True
 
     def call(self, fn: Callable[[], Any]) -> Any:
         if self.is_open:
@@ -176,15 +198,25 @@ class CircuitBreaker:
             raise RuntimeError(msg)
         try:
             result = fn()
-            self._failure_count = 0  # Reset on success
-            return result
         except Exception:
-            self._failure_count += 1
-            if self._failure_count >= self._threshold:
-                self._open_since = time.monotonic()
-                logger.exception("Circuit breaker OPENED after %d failures", self._failure_count)
+            with self._lock:
+                self._failure_count += 1
+                should_open = self._failure_count >= self._threshold
+                if should_open:
+                    self._open_since = time.monotonic()
+            if should_open:
+                logger.exception(
+                    "Circuit breaker OPENED after %d failures",
+                    self._failure_count,
+                )
+            else:
+                logger.exception("Circuit breaker call failed (%d/%d)", self._failure_count, self._threshold)
             raise
+        with self._lock:
+            self._failure_count = 0  # Reset on success
+        return result
 
     def reset(self) -> None:
-        self._failure_count = 0
-        self._open_since = None
+        with self._lock:
+            self._failure_count = 0
+            self._open_since = None

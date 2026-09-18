@@ -178,7 +178,12 @@ class SelfImprovementIntegration:
 
     def provide_performance_data(self, time_range: TimeRange | None = None) -> PerformanceData:
         """Aggregate success rates and failure patterns across task types."""
-        all_exps = list(self._experiences._experiences.values())
+        # Was `list(self._experiences._experiences.values())` — reaching into
+        # ExperienceRepository's private dict directly. Uses the new public
+        # get_all_experiences() instead (added alongside this fix), which
+        # returns the same unfiltered/untruncated data without breaking
+        # encapsulation or depending on that class's internal representation.
+        all_exps = self._experiences.get_all_experiences()
         if time_range:
             all_exps = [e for e in all_exps if time_range.start <= e.start_time <= time_range.end]
 

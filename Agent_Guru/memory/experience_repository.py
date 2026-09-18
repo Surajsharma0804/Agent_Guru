@@ -8,6 +8,7 @@ Similarity formula:
 
 from __future__ import annotations
 
+import heapq
 import logging
 from collections import defaultdict
 from typing import TYPE_CHECKING
@@ -93,22 +94,46 @@ class ExperienceRepository:
     # ------------------------------------------------------------------
 
     def _action_sequence_similarity(self, t1: ExecutionTrace, t2: ExecutionTrace) -> float:
-        """LCS-based similarity of action type sequences."""
+        """LCS-based similarity of action type sequences.
+
+        SPACE FIX: this allocated the full (m+1) x (n+1) DP table -- O(m*n)
+        integers -- when the only value ever read out of it is dp[m][n], the
+        LCS length. Each row depends solely on the row above it, so a single
+        rolling row is sufficient and the table was pure waste: two execution
+        traces of 500 actions each held a quarter of a million list slots for
+        one number, and the scattered row allocations defeat cache locality on
+        the inner loop as well.
+
+        Space Complexity: O(min(m, n)) -- the sequences are swapped so the row
+        is the shorter of the two. Was O(m * n).
+        Time Complexity: O(m * n), unchanged. The result is identical.
+        """
         s1 = [a.action_type for a in t1.actions]
         s2 = [a.action_type for a in t2.actions]
         if not s1 and not s2:
             return 1.0
         if not s1 or not s2:
             return 0.0
-        m, n = len(s1), len(s2)
-        dp = [[0] * (n + 1) for _ in range(m + 1)]
-        for i in range(1, m + 1):
+
+        total = len(s1) + len(s2)
+        # Iterate the longer sequence, keep a row as long as the shorter one.
+        if len(s1) < len(s2):
+            s1, s2 = s2, s1
+        n = len(s2)
+
+        previous = [0] * (n + 1)
+        current = [0] * (n + 1)
+        for item in s1:
             for j in range(1, n + 1):
-                if s1[i - 1] == s2[j - 1]:
-                    dp[i][j] = dp[i - 1][j - 1] + 1
+                if item == s2[j - 1]:
+                    current[j] = previous[j - 1] + 1
                 else:
-                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-        return 2 * dp[m][n] / (m + n)
+                    left = current[j - 1]
+                    up = previous[j]
+                    current[j] = left if left > up else up
+            previous, current = current, previous
+
+        return 2 * previous[n] / total
 
     def _state_similarity(self, t1: ExecutionTrace, t2: ExecutionTrace) -> float:
         """Key overlap between final states."""
@@ -140,19 +165,35 @@ class ExperienceRepository:
         reference: Experience,
     ) -> list[Experience]:
         """Return experiences ranked by similarity to reference."""
-        candidates = list(self._experiences.values())
-        if query.task_type:
-            candidates = [e for e in candidates if e.task_type == query.task_type]
-        if not query.include_failures:
-            candidates = [e for e in candidates if e.success]
-        candidates = [e for e in candidates if e.success_score >= query.min_success_score]
-        # Exclude the reference itself
-        candidates = [e for e in candidates if e.id != reference.id]
+        # One pass over the store instead of four successive list rebuilds,
+        # and the cheap predicates are checked BEFORE the expensive LCS
+        # similarity so a filtered-out experience is never scored at all.
+        wants_type = query.task_type
+        include_failures = query.include_failures
+        min_score = query.min_success_score
+        ref_id = reference.id
 
-        scored = [(e, self.calculate_similarity(reference, e)) for e in candidates]
-        scored = [(e, s) for e, s in scored if s >= query.similarity_threshold]
-        scored.sort(key=lambda x: x[1], reverse=True)
-        return [e.model_copy(deep=True) for e, _ in scored[: query.max_results]]
+        scored: list[tuple[float, int, Experience]] = []
+        for tiebreak, exp in enumerate(self._experiences.values()):
+            if exp.id == ref_id:
+                continue
+            if wants_type and exp.task_type != wants_type:
+                continue
+            if not include_failures and not exp.success:
+                continue
+            if exp.success_score < min_score:
+                continue
+            similarity = self.calculate_similarity(reference, exp)
+            if similarity >= query.similarity_threshold:
+                # tiebreak keeps the ordering of equally-similar experiences
+                # deterministic and identical to the previous stable sort.
+                scored.append((similarity, -tiebreak, exp))
+
+        if query.max_results <= 0:
+            return []
+        # nlargest is O(k log n) rather than sorting every candidate to take k.
+        top = heapq.nlargest(query.max_results, scored, key=lambda item: item[:2])
+        return [exp.model_copy(deep=True) for _, _, exp in top]
 
     # ------------------------------------------------------------------
     # Pattern recognition
@@ -216,6 +257,17 @@ class ExperienceRepository:
             exps = [e for e in exps if e.task_type == task_type]
         exps.sort(key=lambda e: e.start_time)
         return [e.model_copy(deep=True) for e in exps[:limit]]
+
+    def get_all_experiences(self) -> list[Experience]:
+        """Return every stored experience, unfiltered and untruncated.
+
+        Added so callers that need the full set (e.g. aggregating success
+        rates across the whole repository) don't have to either reach into
+        this class's private `_experiences` dict directly, or use
+        `get_experiences_by_time()` and risk silently losing data past its
+        default `limit=100`.
+        """
+        return [e.model_copy(deep=True) for e in self._experiences.values()]
 
     @property
     def experience_count(self) -> int:

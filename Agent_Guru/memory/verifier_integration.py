@@ -151,7 +151,12 @@ class VerifierIntegration:
         try:
             result = self._backend.verify(item_id, item_type, data)
         except Exception as exc:
-            logger.exception("Verification error for")
+            # The item_id/item_type were previously dropped from this log
+            # line (the message read just "Verification error for", with no
+            # interpolation at all) — during a real verifier-backend outage,
+            # every failure logged identically, making it impossible to tell
+            # from the log which item actually failed.
+            logger.exception("Verification error for item %s (%s)", item_id, item_type)
             self._pending_queue.append((item_id, item_type, data))
             return VerificationResult(
                 verified=False,
@@ -196,20 +201,35 @@ class VerifierIntegration:
         existing_item_id: UUID,
         existing_confidence: float,
         contradiction_threshold: float = 0.8,
+        existing_data: dict[str, Any] | None = None,
     ) -> bool:
         """Return True if new data contradicts a high-confidence existing item.
 
         Property 31: triggers re-verification of existing item when True.
+
+        When `existing_data` is supplied, this does a real per-key comparison
+        (same approach as `adversarial.AdversarialRobustnessEngine.check_for_poisoning`)
+        and only flags an actual value conflict on an overlapping key.
+        `existing_data` is optional and defaults to None for backward
+        compatibility with existing callers that don't have it on hand; in
+        that case this falls back to the previous, deliberately conservative
+        behavior of flagging any non-empty `new_data` against a high-confidence
+        item — callers that *can* provide `existing_data` should, since the
+        fallback cannot tell a real contradiction from an unrelated update.
         """
         if existing_confidence < contradiction_threshold:
             return False
-        # Simple contradiction: same key, different value
         existing_score = self._confidence_scores.get(existing_item_id, 0.0)
         if existing_score < contradiction_threshold:
             return False
-        # Check for key overlap with conflicting values
-        # (In production this would compare actual attribute values)
-        return bool(new_data)  # Simplified: any new data for a high-confidence item is flagged
+        if existing_data is not None:
+            return any(
+                key in existing_data and existing_data[key] != value
+                for key, value in new_data.items()
+            )
+        # Fallback used only when the caller has no existing_data on hand:
+        # any new data for a high-confidence item is conservatively flagged.
+        return bool(new_data)
 
     # ------------------------------------------------------------------
     # Queue processing

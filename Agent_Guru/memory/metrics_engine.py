@@ -128,6 +128,19 @@ class MetricsEngine:
     def calculate_trend(self, metric_type: MetricType, window: int = 20) -> TrendResult | None:
         """Linear trend over the last `window` snapshots. Returns None if <2 points."""
         snaps = self._store.get(metric_type, [])[-window:]
+        return self._trend_from_snapshots(metric_type, snaps)
+
+    @staticmethod
+    def _trend_from_snapshots(
+        metric_type: MetricType, snaps: list[MetricSnapshot],
+    ) -> TrendResult | None:
+        """Compute a linear-regression trend over an already-selected snapshot list.
+
+        Factored out of calculate_trend() so callers that need a trend over a
+        specific (e.g. time-filtered) slice — see generate_dashboard() — get a
+        trend computed over that same slice, instead of silently recomputing
+        it over the full, unfiltered history.
+        """
         n = len(snaps)
         if n < 2:
             return None
@@ -151,8 +164,18 @@ class MetricsEngine:
     # Dashboard
     # ------------------------------------------------------------------
 
-    def generate_dashboard(self, since: datetime | None = None) -> list[DashboardEntry]:
-        """Summary of all tracked metric types."""
+    def generate_dashboard(
+        self, since: datetime | None = None, window: int = 20,
+    ) -> list[DashboardEntry]:
+        """Summary of all tracked metric types.
+
+        `trend_slope` is computed over the same `since`-filtered snapshots as
+        `latest_value`/`mean_value`/`sample_count` (previously it silently
+        recomputed the trend over the *entire*, unfiltered metric history via
+        calculate_trend(), so a caller passing `since=` would get a dashboard
+        entry whose sample_count/mean reflected the filtered window while its
+        trend_slope reflected a completely different, unfiltered one).
+        """
         entries = []
         for metric_type, snaps in self._store.items():
             if since:
@@ -160,7 +183,7 @@ class MetricsEngine:
             if not snaps:
                 continue
             values = [s.value for s in snaps]
-            trend = self.calculate_trend(metric_type)
+            trend = self._trend_from_snapshots(metric_type, snaps[-window:])
             entries.append(
                 DashboardEntry(
                     metric_type=metric_type,

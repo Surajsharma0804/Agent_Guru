@@ -13,15 +13,27 @@ Design Decisions:
     - All public methods are async
     - Returns True/False or list — never raises for normal failures
     - Per-personality conversation storage (GURU and MAYA)
-    - Semantic search with embeddings (simulated/stub — log + return ranked list)
+    - Semantic search with real sentence-transformer embeddings when available
+      (reuses Agent_Guru.reasoning.memory.embedding.EmbeddingGenerator — the
+      same all-MiniLM-L6-v2 model already used by reasoning/memory/'s
+      ChromaDB store — instead of a second, separate embedding scheme).
+      Falls back to a cheap 26-dim letter-frequency vector ONLY when
+      sentence-transformers/torch aren't installed, so this module never
+      hard-fails without them. See _embed_text() / _REAL_EMBEDDER_AVAILABLE.
     - platform_override parameter for testing
-    - Desktop uses in-memory dict + optional aiosqlite persistence
-    - Mobile platforms simulate storage (log + return True/value)
+    - Desktop uses in-memory dict + aiosqlite persistence (embeddings are
+      persisted alongside each row so they are computed once, not
+      recomputed on every warm-cache load at startup)
+    - Mobile platforms simulate storage (log + return True/value) — this is
+      a known, explicitly-documented limitation (see store/recall/search
+      docstrings below), not a claim that mobile persistence is real.
 
 Performance Characteristics:
     - Time Complexity: O(1) store, O(n) recall/search over stored interactions
     - Space Complexity: O(n) where n = number of stored interactions
-    - Latency: <100ms per operation (simulated)
+    - Latency: <100ms per operation on desktop (real embedding generation adds
+      ~20-200ms to store_interaction() depending on CPU/GPU — see
+      Agent_Guru/reasoning/memory/embedding.py's documented latency budget)
 
 Author: Agent Guru Team
 Date: 2026-03-20
@@ -30,8 +42,11 @@ Date: 2026-03-20
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
+import heapq
+import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -50,6 +65,59 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Real embeddings (soft dependency, same pattern as aiosqlite above)
+# ---------------------------------------------------------------------------
+# Reuses the existing, already-built EmbeddingGenerator (sentence-transformers
+# all-MiniLM-L6-v2, 384-dim, GPU-aware) from reasoning/memory/embedding.py
+# instead of writing a second embedding implementation. That module raises
+# ImportError at construction time if sentence-transformers/torch aren't
+# installed — this file catches that once, at first use, and falls back to
+# the 26-dim letter-frequency stub rather than crashing memory storage/search.
+_real_embedder: Any = None
+_real_embedder_lock = threading.Lock()
+_REAL_EMBEDDER_AVAILABLE: bool | None = None  # None = not yet probed
+_logged_stub_fallback = False
+
+
+def _get_real_embedder() -> Any:
+    """Return a process-wide EmbeddingGenerator singleton, or None if unavailable.
+
+    Loading a sentence-transformers model is expensive (real disk/GPU I/O), so
+    this is done at most once per process and cached — never per-interaction.
+    Thread-safe (double-checked locking) since callers reach this via
+    loop.run_in_executor from multiple coroutines.
+    """
+    global _real_embedder, _REAL_EMBEDDER_AVAILABLE  # noqa: PLW0603
+    if _REAL_EMBEDDER_AVAILABLE is False:
+        return None
+    if _real_embedder is not None:
+        return _real_embedder
+    with _real_embedder_lock:
+        if _real_embedder is not None:
+            return _real_embedder
+        if _REAL_EMBEDDER_AVAILABLE is False:
+            return None
+        try:
+            from Agent_Guru.reasoning.memory.embedding import EmbeddingGenerator
+
+            _real_embedder = EmbeddingGenerator()
+            _REAL_EMBEDDER_AVAILABLE = True
+            logger.info("MemoryManager: using real sentence-transformer embeddings")
+        except Exception as exc:  # ImportError (not installed) or model load failure
+            _REAL_EMBEDDER_AVAILABLE = False
+            global _logged_stub_fallback  # noqa: PLW0603
+            if not _logged_stub_fallback:
+                logger.warning(
+                    "MemoryManager: real embeddings unavailable (%s) — falling back to "
+                    "a 26-dim letter-frequency stub. Semantic recall quality will be "
+                    "significantly degraded until sentence-transformers + torch are "
+                    "installed. Install with: pip install sentence-transformers torch",
+                    exc,
+                )
+                _logged_stub_fallback = True
+        return _real_embedder
 
 # ---------------------------------------------------------------------------
 # Supported personalities
@@ -102,13 +170,19 @@ class _Interaction:
         user_message: str,
         ai_message: str,
         timestamp: float | None = None,
+        embedding: list[float] | None = None,
     ) -> None:
         self.personality = personality.upper()
         self.user_message = user_message
         self.ai_message = ai_message
         self.timestamp: float = timestamp if timestamp is not None else time.time()
-        # Simulated embedding: bag-of-words character frequencies (stub)
-        self.embedding: list[float] = _stub_embed(user_message + " " + ai_message)
+        # embedding is passed in when loading a row that already has one
+        # persisted (see _initialize_desktop's warm-cache load) so it is
+        # computed once at write time, never recomputed on every startup.
+        # Only compute fresh here for a brand-new interaction.
+        self.embedding: list[float] = (
+            embedding if embedding is not None else _embed_text(user_message + " " + ai_message)
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -120,17 +194,23 @@ class _Interaction:
 
 
 # ---------------------------------------------------------------------------
-# Simulated embedding helpers
+# Embedding helpers
 # ---------------------------------------------------------------------------
 
 
 def _stub_embed(text: str) -> list[float]:
-    """Return a stub embedding vector (character frequency, 26-dim).
+    """Return a fallback embedding vector (character frequency, 26-dim).
 
-    This is a placeholder for a real embedding model.  It produces a
-    deterministic, normalised 26-element float vector based on letter
-    frequencies so that cosine similarity gives a rough semantic signal
-    for testing purposes.
+    Used ONLY when the real embedder (_get_real_embedder(), sentence-
+    transformers all-MiniLM-L6-v2) is unavailable, or for legacy rows loaded
+    from a database written before this file used real embeddings (see
+    _initialize_desktop — recomputing a real embedding for every legacy row
+    at every startup would turn a fast warm-cache load into a multi-minute
+    stall on CPU-only machines, so legacy rows deliberately keep this cheap
+    fallback rather than being silently upgraded on load).
+
+    This vector captures letter-frequency, not meaning — cosine similarity
+    against it gives an extremely rough signal, not real semantic recall.
 
     Time Complexity: O(n) where n = len(text)
     Space Complexity: O(1) — fixed 26-element output
@@ -143,17 +223,120 @@ def _stub_embed(text: str) -> list[float]:
     return [c / total for c in counts]
 
 
-def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    """Return cosine similarity between two equal-length vectors.
+def _embed_text(text: str) -> list[float]:
+    """Return an embedding for *text*: real sentence-transformer if available.
 
-    Returns 0.0 if either vector is all-zeros.
+    Dispatches to the shared EmbeddingGenerator singleton (384-dim,
+    meaning-aware) when sentence-transformers/torch are installed, otherwise
+    falls back to the 26-dim letter-frequency stub. Never raises — a failure
+    in the real embedder degrades to the stub rather than breaking storage.
 
-    Time Complexity: O(d) where d = len(a)
+    This is a BLOCKING, synchronous call — real sentence-transformer
+    inference takes ~20-200ms on CPU (see module docstring). Callers from
+    async code must go through _embed_text_async() below rather than
+    calling this directly, or they will stall the event loop for the
+    duration of every embedding computation.
+
+    Time Complexity: O(n) where n = len(text) either way.
+    Space Complexity: O(1) — fixed-size output (384-dim real, 26-dim stub).
+    """
+    embedder = _get_real_embedder()
+    if embedder is not None:
+        try:
+            return embedder.generate(text)
+        except Exception:
+            logger.debug("Real embedding generation failed, falling back to stub", exc_info=True)
+    return _stub_embed(text)
+
+
+async def _embed_text_async(text: str) -> list[float]:
+    """Async wrapper around _embed_text() — runs it in a thread-pool executor.
+
+    BUG FIX (Round 19): _get_real_embedder()'s own docstring already
+    documented "callers reach this via loop.run_in_executor from multiple
+    coroutines" as the intended design, but nothing in this file actually
+    did that — _Interaction.__init__ (via store_interaction) and
+    _semantic_search_in_memory (via search) both called _embed_text()
+    directly and synchronously from async methods. Real embedding
+    generation is documented elsewhere in this file as costing ~20-200ms
+    on CPU; run synchronously on the event loop, that stalls EVERY other
+    concurrent coroutine (other store/recall/search calls, IPC, voice
+    pipeline callbacks) for the duration — exactly the latency regression
+    the project's async-scheduling performance standard calls out. This
+    wrapper, used by every async call site below, is what actually makes
+    the double-checked locking in _get_real_embedder() meaningful (it now
+    really can be entered from multiple executor threads concurrently).
+
+    Time Complexity: same as _embed_text() (O(n) in text length), plus a
+    thread-pool dispatch.
+    Space Complexity: O(1).
+    """
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _embed_text, text)
+
+
+def _vector_magnitude(v: list[float]) -> float:
+    """Euclidean norm of *v*. Split out so a query vector compared against
+    thousands of candidates has its magnitude computed once, not once per
+    candidate (see _cosine_similarity's `a_magnitude` argument)."""
+    return sum(x * x for x in v) ** 0.5
+
+
+def _cosine_similarity(
+    a: list[float],
+    b: list[float],
+    a_magnitude: float | None = None,
+) -> float:
+    """Return cosine similarity between two vectors of the SAME dimension.
+
+    Returns 0.0 if either vector is all-zeros, OR if the two vectors have
+    different lengths. The mismatched-length case matters in practice: it
+    happens whenever a query is embedded in "real" (384-dim) mode while a
+    stored interaction only has a "stub" (26-dim) fallback embedding (e.g. a
+    legacy row from before real embeddings were wired in, or the real
+    embedder failed to load for just one of the two calls). zip() would
+    previously truncate silently to the shorter vector instead of raising —
+    producing a meaningless similarity score rather than an error, which is
+    worse than just excluding the candidate. Now it's treated as "not a
+    match" (0.0) instead of silently comparing incompatible embedding spaces.
+
+    PERFORMANCE: this made THREE separate passes over the vectors (one
+    generator-sum each for the dot product and the two magnitudes), and
+    recomputed the *query* magnitude once per candidate even though it is
+    identical for every comparison in a search. Ranking N stored interactions
+    therefore cost 3*N*d multiply-adds where N*d + d is sufficient. The maths
+    is unchanged -- the loop below computes exactly the same three sums, in
+    one pass -- and `a_magnitude` lets a caller that already knows |a| skip
+    recomputing it. Same result, same guard conditions.
+
+    Args:
+        a: First vector (the query, in search use).
+        b: Second vector (a candidate).
+        a_magnitude: Precomputed |a| from _vector_magnitude(), when the caller
+            is comparing one vector against many.
+
+    Time Complexity: O(d) where d = len(a), one pass instead of three.
     Space Complexity: O(1)
     """
-    dot = sum(x * y for x, y in zip(a, b, strict=False))
-    mag_a = sum(x * x for x in a) ** 0.5
-    mag_b = sum(x * x for x in b) ** 0.5
+    if len(a) != len(b):
+        return 0.0
+
+    dot = 0.0
+    mag_b_sq = 0.0
+    if a_magnitude is None:
+        mag_a_sq = 0.0
+        for x, y in zip(a, b, strict=True):
+            dot += x * y
+            mag_a_sq += x * x
+            mag_b_sq += y * y
+        mag_a = mag_a_sq**0.5
+    else:
+        mag_a = a_magnitude
+        for x, y in zip(a, b, strict=True):
+            dot += x * y
+            mag_b_sq += y * y
+
+    mag_b = mag_b_sq**0.5
     if mag_a < 1e-10 or mag_b < 1e-10:
         return 0.0
     return dot / (mag_a * mag_b)
@@ -338,10 +521,16 @@ class MemoryManager:
         )
 
         try:
+            # BUG FIX (Round 19): compute the embedding via the async,
+            # executor-backed wrapper instead of letting _Interaction's
+            # constructor call the (blocking) real embedder synchronously
+            # on the event loop — see _embed_text_async()'s docstring.
+            embedding = await _embed_text_async(user_message + " " + ai_message)
             interaction = _Interaction(
                 personality=personality,
                 user_message=user_message,
                 ai_message=ai_message,
+                embedding=embedding,
             )
 
             if _is_desktop(self._platform):
@@ -461,7 +650,8 @@ class MemoryManager:
                 "search: unknown platform %r — simulating success",
                 self._platform,
             )
-            return self._semantic_search_in_memory(query, limit, personality)
+            query_emb = await _embed_text_async(query)
+            return self._semantic_search_in_memory(query_emb, limit, personality)
         except Exception:
             logger.exception("search failed")
             return []
@@ -497,9 +687,28 @@ class MemoryManager:
         if len(history) <= threshold:
             return history
 
-        # Split into older (to compress) and recent (to keep)
-        older = history[:-max_verbatim]
-        recent = history[-max_verbatim:]
+        # Split into older (to compress) and recent (to keep).
+        # BUG FIX (Round 19): `history[:-max_verbatim]` / `history[-max_verbatim:]`
+        # silently misbehaved at both edges of max_verbatim's valid range:
+        #   - max_verbatim == 0: Python treats -0 as 0, so `[:-0]` is `[:0]`
+        #     (empty) and `[-0:]` is `[0:]` (everything) — the EXACT INVERSE
+        #     of "keep 0 messages verbatim, compress everything".
+        #   - max_verbatim >= len(history): `older` becomes empty but the
+        #     code still unconditionally built and prepended a
+        #     "[Compressed conversation history — 0 earlier messages
+        #     summarized]" system message, making compression add a
+        #     useless message instead of being a safe no-op.
+        # Both are handled explicitly below rather than relying on slice
+        # arithmetic to do the right thing at the boundaries.
+        if max_verbatim > 0:
+            older = history[:-max_verbatim]
+            recent = history[-max_verbatim:]
+        else:
+            older = list(history)
+            recent = []
+
+        if not older:
+            return recent
 
         # Build summary of older messages
         summary_parts = []
@@ -578,19 +787,27 @@ class MemoryManager:
                 personality TEXT NOT NULL,
                 user_message TEXT NOT NULL,
                 ai_message   TEXT NOT NULL,
-                timestamp    REAL NOT NULL
+                timestamp    REAL NOT NULL,
+                embedding    TEXT
             )
         """)
+        await self._migrate_add_embedding_column()
         await self._db.execute(
             "CREATE INDEX IF NOT EXISTS idx_personality_ts "
             "ON interactions (personality, timestamp DESC)",
         )
         await self._db.commit()
 
-        # Warm in-memory cache from the last 500 rows per personality
+        # Warm in-memory cache from the last 500 rows per personality.
+        # embedding is persisted (see _store_desktop) so it is computed once,
+        # at write time — NOT recomputed here on every startup. A row written
+        # before this column existed has embedding=NULL; for those legacy
+        # rows we explicitly use the cheap stub (never the real embedder) so
+        # a database with hundreds of old rows can't turn a warm-cache load
+        # into a multi-minute startup stall. See _stub_embed()'s docstring.
         for personality in PERSONALITIES:
             async with self._db.execute(
-                "SELECT personality, user_message, ai_message, timestamp "
+                "SELECT personality, user_message, ai_message, timestamp, embedding "
                 "FROM interactions WHERE personality=? "
                 "ORDER BY timestamp ASC "
                 "LIMIT 500",
@@ -599,16 +816,43 @@ class MemoryManager:
                 rows = await cursor.fetchall()
 
             for row in rows:
+                stored_embedding_json = row[4]
+                if stored_embedding_json:
+                    try:
+                        embedding = json.loads(stored_embedding_json)
+                    except (ValueError, TypeError):
+                        logger.debug("Corrupt stored embedding, recomputing as stub")
+                        embedding = _stub_embed(row[1] + " " + row[2])
+                else:
+                    embedding = _stub_embed(row[1] + " " + row[2])
                 interaction = _Interaction(
                     personality=row[0],
                     user_message=row[1],
                     ai_message=row[2],
                     timestamp=row[3],
+                    embedding=embedding,
                 )
                 self._store[personality].append(interaction)
 
         total = sum(len(v) for v in self._store.values())
         logger.info("Desktop: loaded %d interactions from SQLite cache", total)
+
+    async def _migrate_add_embedding_column(self) -> None:
+        """Add the embedding column to a pre-existing database that lacks it.
+
+        SQLite has no 'ADD COLUMN IF NOT EXISTS', so this checks
+        PRAGMA table_info first. Safe to call every startup — a no-op once
+        the column exists. New databases already get the column from the
+        CREATE TABLE above; this only matters for databases created before
+        real-embedding persistence was added.
+        """
+        async with self._db.execute("PRAGMA table_info(interactions)") as cursor:
+            columns = await cursor.fetchall()
+        column_names = {col[1] for col in columns}
+        if "embedding" not in column_names:
+            logger.info("Migrating interactions table: adding embedding column")
+            await self._db.execute("ALTER TABLE interactions ADD COLUMN embedding TEXT")
+            await self._db.commit()
 
     async def _shutdown_desktop(self) -> None:
         """Shut down desktop storage and close the SQLite connection."""
@@ -620,25 +864,39 @@ class MemoryManager:
             logger.info("Desktop: MemoryManager shut down (in-memory mode)")
 
     async def _store_desktop(self, interaction: _Interaction) -> bool:
-        """Persist interaction to SQLite and update in-memory cache."""
-        # Always update in-memory cache first (fast path)
-        self._store[interaction.personality].append(interaction)
+        """Persist interaction to SQLite and update in-memory cache.
 
+        BUG FIX (Round 19): this used to append to the in-memory cache
+        BEFORE attempting the SQLite insert. If the insert then raised
+        (disk full, corruption, a lock held past busy_timeout...), the
+        interaction stayed in the cache anyway — so search() and
+        interaction_count() (which read the cache) would report an
+        interaction that recall() (which reads SQLite directly when
+        available) would never show, and that would silently vanish on
+        the next restart despite search() having found it in the
+        meantime. The cache is now only updated after the durable write
+        actually succeeds, so all read paths stay consistent with what
+        was really persisted.
+        """
         if self._db is None:
-            # aiosqlite unavailable — in-memory only
+            # aiosqlite unavailable — in-memory only, nothing to fail against
+            self._store[interaction.personality].append(interaction)
             return True
 
         await self._db.execute(
-            "INSERT INTO interactions (personality, user_message, ai_message, timestamp) "
-            "VALUES (?, ?, ?, ?)",
+            "INSERT INTO interactions "
+            "(personality, user_message, ai_message, timestamp, embedding) "
+            "VALUES (?, ?, ?, ?, ?)",
             (
                 interaction.personality,
                 interaction.user_message,
                 interaction.ai_message,
                 interaction.timestamp,
+                json.dumps(interaction.embedding),
             ),
         )
         await self._db.commit()
+        self._store[interaction.personality].append(interaction)
         return True
 
     async def _recall_desktop(self, personality: str, limit: int) -> list[dict[str, Any]]:
@@ -666,10 +924,16 @@ class MemoryManager:
         limit: int,
         personality: str | None,
     ) -> list[dict[str, Any]]:
-        """Semantic search using stub embeddings against the in-memory cache."""
+        """Semantic search against the in-memory cache (real or stub embeddings)."""
         # NOTE: real FTS would use SQLite FTS5 or a vector extension.
-        # The stub embedding search runs in-memory (cache already warmed at init).
-        return self._semantic_search_in_memory(query, limit, personality)
+        # The embedding search runs in-memory (cache already warmed at init).
+        # BUG FIX (Round 19): the query is now embedded with the same
+        # dispatcher (_embed_text_async, real embedder when available) used
+        # to embed stored interactions — see _semantic_search_in_memory()'s
+        # docstring for why embedding the query with the cheap stub while
+        # interactions carry real 384-dim embeddings made search a no-op.
+        query_emb = await _embed_text_async(query)
+        return self._semantic_search_in_memory(query_emb, limit, personality)
 
     # ------------------------------------------------------------------
     # Android implementations (SharedPreferences + SQLite via adb — simulated)
@@ -723,7 +987,8 @@ class MemoryManager:
             len(query),
             limit,
         )
-        return self._semantic_search_in_memory(query, limit, personality)
+        query_emb = await _embed_text_async(query)
+        return self._semantic_search_in_memory(query_emb, limit, personality)
 
     # ------------------------------------------------------------------
     # iOS implementations (UserDefaults + Core Data via xcrun — simulated)
@@ -777,7 +1042,8 @@ class MemoryManager:
             len(query),
             limit,
         )
-        return self._semantic_search_in_memory(query, limit, personality)
+        query_emb = await _embed_text_async(query)
+        return self._semantic_search_in_memory(query_emb, limit, personality)
 
     # ------------------------------------------------------------------
     # Shared semantic search (in-memory, stub embeddings)
@@ -785,20 +1051,45 @@ class MemoryManager:
 
     def _semantic_search_in_memory(
         self,
-        query: str,
+        query_emb: list[float],
         limit: int,
         personality: str | None,
     ) -> list[dict[str, Any]]:
-        """Rank stored interactions by cosine similarity to *query*.
+        """Rank stored interactions by cosine similarity to a pre-embedded query.
 
-        Uses stub character-frequency embeddings.  In production this would
-        use a real sentence-transformer model.
+        Uses the real sentence-transformer embedding when available (same
+        model used to embed stored interactions), falling back to the
+        26-dim letter-frequency stub only when unavailable for both.
 
-        Time Complexity: O(n * d) where n = interactions, d = embedding dim (26)
-        Space Complexity: O(n) for scored list
+        BUG FIX (Round 19): this used to compute `query_emb = _stub_embed(query)`
+        internally, UNCONDITIONALLY — even when stored interactions carry
+        real 384-dim embeddings (the normal case whenever sentence-
+        transformers/torch are installed, i.e. the intended production
+        configuration this module's own docstring advertises). Since
+        _cosine_similarity() correctly returns 0.0 for any dimension
+        mismatch (26 vs 384) rather than silently truncating, EVERY
+        candidate scored exactly 0.0 against a stub-embedded query whenever
+        real embeddings were in use — making "semantic search" silently
+        degrade to an unranked, effectively-random ordering (Python's
+        stable sort just preserves insertion order for a set of all-equal
+        scores) instead of doing what its name says. Callers now embed the
+        query with the same dispatcher used for storage (_embed_text_async,
+        real embedder when available) and pass the result in here, so
+        query and candidate embeddings are always in the same space.
+
+        Time Complexity: O(n * d + n log k) where n = interactions, d =
+        embedding dim (26 for the stub, 384 for the real embedder) and k =
+        limit. This used to be O(n * d * 3 + n log n): every candidate
+        recomputed the query's magnitude, and the whole candidate list was
+        fully sorted to take the top few. Recall is typically k <= 10 against
+        an entire conversation history, so both terms mattered.
+        Space Complexity: O(k) for the result heap, down from O(n) for the
+        fully scored list.
 
         Args:
-            query: Search query string.
+            query_emb: Pre-computed embedding of the search query, produced
+                by the same embedding function used for stored interactions
+                (see _embed_text_async()).
             limit: Maximum results to return.
             personality: Optional personality filter.
 
@@ -806,8 +1097,6 @@ class MemoryManager:
             List of interaction dicts ranked by similarity (best first).
 
         """
-        query_emb = _stub_embed(query)
-
         candidates: list[_Interaction] = []
         if personality is not None:
             candidates = list(self._store.get(personality, []))
@@ -818,10 +1107,19 @@ class MemoryManager:
         if not candidates:
             return []
 
-        scored = [
-            (interaction, _cosine_similarity(query_emb, interaction.embedding))
-            for interaction in candidates
-        ]
-        scored.sort(key=lambda x: x[1], reverse=True)
+        if limit <= 0:
+            return []
 
-        return [item.to_dict() for item, _ in scored[:limit]]
+        # The query magnitude is identical for every comparison, so compute it
+        # once here instead of once per candidate inside _cosine_similarity.
+        query_mag = _vector_magnitude(query_emb)
+
+        # heapq.nlargest is documented as equivalent to
+        # sorted(..., reverse=True)[:k], ties included, but costs O(n log k)
+        # instead of O(n log n) and never materialises the scored list.
+        top = heapq.nlargest(
+            limit,
+            candidates,
+            key=lambda i: _cosine_similarity(query_emb, i.embedding, query_mag),
+        )
+        return [item.to_dict() for item in top]
