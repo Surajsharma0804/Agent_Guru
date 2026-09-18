@@ -565,6 +565,8 @@ class DatasetManager:
 
             return cv2.imread(str(path))
         except ImportError:
+            # OpenCV is optional; the PIL path below is the documented
+            # fallback and returns None if it too is unavailable.
             pass
         try:
             from PIL import Image  # type: ignore[import]
@@ -582,6 +584,8 @@ class DatasetManager:
 
             return bool(cv2.imwrite(str(path), image))
         except ImportError:
+            # OpenCV is optional; the PIL path below is the documented
+            # fallback and returns False if it too is unavailable.
             pass
         try:
             from PIL import Image  # type: ignore[import]

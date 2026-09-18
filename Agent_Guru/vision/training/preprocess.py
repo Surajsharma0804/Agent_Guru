@@ -299,6 +299,8 @@ def _load_image(path: Path) -> np.ndarray | None:
             return None
         return img
     except ImportError:
+        # OpenCV is optional; the PIL fallback below is the documented path
+        # and returns None if it too is unavailable.
         pass
 
     # Fallback: try PIL
@@ -320,6 +322,7 @@ def _save_image(image: np.ndarray, path: Path) -> bool:
 
         return cv2.imwrite(str(path), image)
     except ImportError:
+        # OpenCV is optional; the PIL fallback below is the documented path.
         pass
 
     try:

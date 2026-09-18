@@ -1,10 +1,32 @@
 """Liveness detection module — anti-spoofing for face recognition.
 
 Primary: ONNX anti-spoofing model (e.g. Silent-Face / MiniFASNet).
-Fallback: Laplacian variance (texture richness) + optional EAR blink bonus.
+Fallback: Laplacian variance (texture richness) only.
 
 Real faces have high-frequency texture; printed photos and screens don't.
-When 5-point landmarks are provided, adds an EAR-based blink bonus.
+
+BUG FIX (Round 15): this module used to also accept 5-point ArcFace
+landmarks (left_eye, right_eye, nose, left_mouth, right_mouth) in the
+fallback path and add a "blink bonus" to the liveness score when a blink
+was "detected" via `_detect_blink()`. That function computed
+`|left_eye_y - right_eye_y| / inter_eye_distance` -- which is the standard
+formula for a face's ROLL/TILT angle (how level the head is), not eye
+closure. Genuine blink/eye-closure detection (the classic Eye Aspect
+Ratio) needs per-eye eyelid contour points (upper lid vs. lower lid of the
+SAME eye); a 5-point layout with a single center point per eye cannot
+express eye openness at all, only the angle between the two eyes.
+
+In practice this meant the "blink bonus" fired whenever the face was
+roughly level/upright in the frame -- true for essentially any face photo
+someone bothered to align well, including a printed photo or a screen
+replay held up straight. So the bonus added score to spoofed inputs just
+as readily as to live ones, providing no actual anti-spoofing signal while
+giving a false impression that blink-based liveness was being checked.
+Removed rather than "fixed in place": a 5-point landmark set fundamentally
+cannot support real blink detection, so there is no correct version of
+this check to keep with the data available here. Removing it makes the
+system marginally STRICTER (a spoof can no longer pick up the +0.1 bonus),
+which is the safe direction for a security check under uncertainty.
 """
 
 from __future__ import annotations
@@ -41,8 +63,6 @@ class LivenessDetector:
 
     Primary method: ONNX anti-spoofing model (Silent-Face / MiniFASNet).
     Fallback method: Laplacian variance measures texture richness.
-    Secondary method (optional): vertical eye-closure ratio using 5-point
-    ArcFace landmarks to detect blinks.
 
     Args:
         threshold: Score threshold above which a face is classified as live.
@@ -57,12 +77,6 @@ class LivenessDetector:
     # Empirically, real faces typically have variance > 200; photos < 100.
     _TEXTURE_NORM: float = 500.0
 
-    # Eye-closure threshold: ratio of vertical eye spread to inter-eye distance.
-    _EYE_CLOSURE_THRESHOLD: float = 0.15
-
-    # Bonus added to score when a blink is detected.
-    _BLINK_BONUS: float = 0.1
-
     _EXPECTED_SHAPE: tuple[int, int, int] = (112, 112, 3)
 
     def __init__(
@@ -75,15 +89,36 @@ class LivenessDetector:
         self._model_path = model_path
         self._use_gpu = use_gpu
         self._session: object | None = None
+        # BUG FIX (Round 15): see _get_session() docstring below.
+        self._session_load_failed: bool = False
 
     # ------------------------------------------------------------------
     # ONNX session
     # ------------------------------------------------------------------
 
     def _get_session(self) -> object | None:
-        """Lazy-load the ONNX anti-spoofing model. Returns None if unavailable."""
+        """Lazy-load the ONNX anti-spoofing model. Returns None if unavailable.
+
+        BUG FIX (Round 15): this used to only check `self._session is not
+        None` to decide whether loading had already been attempted, so a
+        model path that exists but fails to load (corrupt file, incompatible
+        opset, wrong providers, truncated download, ...) was never
+        remembered as failed -- every single call to check_liveness()
+        re-entered this method, re-imported onnxruntime, and re-attempted
+        `ort.InferenceSession(...)` from scratch, only to hit the same
+        exception again. On a hot path (this runs per-frame in the face
+        pipeline via vision/engine.py) that means paying the full load-and-
+        fail cost (disk I/O, exception construction, a full-traceback
+        `logger.exception()` call) on every single frame instead of once.
+        Fixed by caching the failure with `_session_load_failed`, which is
+        checked before any load is attempted; behavior is otherwise
+        identical -- a working model still loads exactly once and is
+        reused, and the texture-heuristic fallback is unchanged either way.
+        """
         if self._session is not None:
             return self._session
+        if self._session_load_failed:
+            return None
         if not self._model_path or not os.path.isfile(self._model_path):  # noqa: PTH113
             return None
         try:
@@ -97,8 +132,10 @@ class LivenessDetector:
             self._session = ort.InferenceSession(self._model_path, providers=providers)
             logger.info("Loaded liveness ONNX model from '%s'", self._model_path)
         except Exception as exc:
+            self._session_load_failed = True
             logger.exception(
-                "Failed to load liveness ONNX model from '%s': %s — using heuristic fallback",
+                "Failed to load liveness ONNX model from '%s': %s — using heuristic fallback "
+                "(will not retry loading this session again)",
                 self._model_path,
                 exc,
             )
@@ -165,7 +202,14 @@ class LivenessDetector:
             aligned_face: BGR image of shape (112, 112, 3), dtype uint8.
             landmarks: Optional 5-point landmarks of shape (5, 2) — the
                 standard ArcFace layout: left eye, right eye, nose tip,
-                left mouth corner, right mouth corner.
+                left mouth corner, right mouth corner. Accepted for API
+                compatibility with callers (e.g. vision/engine.py passes
+                `detection.landmarks`), but not currently used: see the
+                module docstring's "Fixed" note on why a 5-point layout
+                cannot support genuine blink/eye-closure detection. Kept
+                as a parameter so a future round can add a real signal
+                (e.g. from eyelid-contour landmarks) without changing this
+                method's call sites.
 
         Returns:
             LivenessResult with is_live, score in [0.0, 1.0], and method.
@@ -174,6 +218,7 @@ class LivenessDetector:
             InvalidImageError: If aligned_face has wrong shape or dtype.
 
         """
+        del landmarks  # not used -- see Args note above
         self._validate_face(aligned_face)
 
         # Try ONNX model first
@@ -183,19 +228,8 @@ class LivenessDetector:
             return LivenessResult(is_live=score >= self.threshold, score=score, method="onnx")
 
         # Fallback: Laplacian texture heuristic
-        texture_score = self._texture_score(aligned_face)
-        score = texture_score
-        method = "texture"
-
-        if landmarks is not None and landmarks.shape == (5, 2):
-            blink_detected = self._detect_blink(landmarks)
-            if blink_detected:
-                score += self._BLINK_BONUS
-                logger.debug("Blink detected — adding liveness bonus")
-            method = "combined"
-
-        score = float(np.clip(score, 0.0, 1.0))
-        return LivenessResult(is_live=score >= self.threshold, score=score, method=method)
+        score = float(np.clip(self._texture_score(aligned_face), 0.0, 1.0))
+        return LivenessResult(is_live=score >= self.threshold, score=score, method="texture")
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -242,33 +276,3 @@ class LivenessDetector:
 
         variance = float(np.var(lap))
         return min(1.0, variance / LivenessDetector._TEXTURE_NORM)
-
-    @staticmethod
-    def _detect_blink(landmarks: np.ndarray) -> bool:
-        """Detect a blink from 5-point ArcFace landmarks.
-
-        Layout: 0=left_eye, 1=right_eye, 2=nose, 3=left_mouth, 4=right_mouth.
-
-        Uses the vertical spread of the two eye points relative to the
-        inter-eye horizontal distance as a proxy for eye openness.
-        When the eyes are closed (blink), the two eye landmarks move
-        vertically closer together relative to the face width.
-
-        Returns:
-            True if a blink (eye closure) is detected.
-
-        """
-        left_eye = landmarks[0].astype(np.float64)
-        right_eye = landmarks[1].astype(np.float64)
-
-        # Vertical distance between the two eye landmarks
-        vertical_diff = abs(float(left_eye[1] - right_eye[1]))
-
-        # Horizontal inter-eye distance (face width proxy)
-        inter_eye_dist = float(np.linalg.norm(right_eye - left_eye)) + 1e-6
-
-        # Ratio: small when eyes are at the same height (open),
-        # larger when one eye droops (partial closure / blink)
-        closure_ratio = vertical_diff / inter_eye_dist
-
-        return closure_ratio < LivenessDetector._EYE_CLOSURE_THRESHOLD

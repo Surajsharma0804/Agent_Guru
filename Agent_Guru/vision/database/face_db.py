@@ -17,10 +17,10 @@ Design:
 from __future__ import annotations
 
 import base64
-import contextlib
 import json
 import logging
 import os
+import pathlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -28,6 +28,7 @@ from typing import Any
 import numpy as np
 
 from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embedding
+from Agent_Guru.utils.secure_file import restrict_dir_permissions, secure_write_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -389,21 +390,34 @@ class FaceDatabase:
         """Persist the database to disk as JSON.
 
         Embedding vectors are base64-encoded for compact, lossless storage.
-        The file is written atomically via a temporary name then renamed.
+        The file is replaced atomically and is readable only by its owner.
+
+        SECURITY FIX: this file holds FACE BIOMETRIC TEMPLATES, and it was
+        written with whatever the process umask allowed -- commonly 0644,
+        i.e. world-readable. The two sibling stores of comparable data,
+        speech/biometric/speaker_verifier.py (voice templates) and
+        platform/features/user_memory.py (personal facts), are both owner-only;
+        this one was the odd one out. secure_write_bytes() creates the file
+        0600 from its first byte, so there is no window in which the templates
+        are exposed, and the directory is restricted too.
+
+        CONCURRENCY FIX: the temporary file was a FIXED name
+        (db_path + ".tmp"). Two saves overlapping -- e.g. add_embedding() and
+        import_json(), which both call save() -- wrote to the same temporary
+        path and then each renamed it, so one could publish the other's
+        half-written JSON as the real database. secure_write_bytes() uses a
+        unique temporary name per call, so overlapping saves cannot interleave.
         """
         data = self._serialise()
-        tmp_path = self._db_path + ".tmp"
         try:
-            with open(tmp_path, "w", encoding="utf-8") as fh:
-                json.dump(data, fh, indent=2)
-            os.replace(tmp_path, self._db_path)  # noqa: PTH105
+            restrict_dir_permissions(pathlib.Path(self._db_path).parent)
+            secure_write_bytes(
+                pathlib.Path(self._db_path),
+                json.dumps(data, indent=2).encode("utf-8"),
+            )
             logger.debug("save: database written to '%s'", self._db_path)
         except OSError:
             logger.exception("save: failed to write database")
-            # Clean up temp file if it exists
-            if os.path.exists(tmp_path):
-                with contextlib.suppress(OSError):
-                    os.remove(tmp_path)  # noqa: PTH107
 
     def load(self) -> None:
         """Load the database from disk.

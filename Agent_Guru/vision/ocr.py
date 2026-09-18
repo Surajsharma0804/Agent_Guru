@@ -156,6 +156,9 @@ class OCREngine:
                     )
             return words
         except ImportError:
+            # easyocr is an optional backend; the pytesseract cascade below is
+            # the documented fallback. Absence is a configuration state, not a
+            # failure, and this is reported once by the backend selection.
             pass
 
         try:
