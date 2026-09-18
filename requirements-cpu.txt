@@ -52,6 +52,24 @@ faster-whisper>=0.9.0
 transformers>=4.30.0
 tokenizers>=0.13.0
 sentencepiece>=0.1.99
+sentence-transformers>=2.2.0
+
+# Vector Database for Memory System
+# Was declared only in requirements.txt, so the documented CPU-only
+# install produced a build whose memory system could not import its
+# vector store.
+chromadb>=0.4.0
+
+# Imported at module scope by shipped code but previously declared nowhere, so
+# a clean install of this file produced an ImportError on first use:
+#   networkx           -> Agent_Guru/agents/delegation_manager.py
+#   celery             -> Agent_Guru/reasoning/execution/async_executor.py
+#   nltk               -> Agent_Guru/reasoning/scripts/train_intent_classifier.py
+#   pytorch-lightning  -> Agent_Guru/reasoning/scripts/train_intent_classifier.py
+networkx>=3.0
+celery>=5.3.0
+nltk>=3.8.1
+pytorch-lightning>=2.0.0
 
 # Text-to-Speech (FREE, LOCAL, NATURAL)
 kokoro-onnx>=0.5.0  # Primary TTS engine used by Guru_Demo.py

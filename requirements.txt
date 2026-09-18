@@ -73,6 +73,17 @@ langchain>=0.1.0
 langchain-core>=0.1.0
 langchain-community>=0.0.20
 
+# Imported at module scope by shipped code but previously declared nowhere, so
+# a clean install of this file produced an ImportError on first use:
+#   networkx           -> Agent_Guru/agents/delegation_manager.py
+#   celery             -> Agent_Guru/reasoning/execution/async_executor.py
+#   nltk               -> Agent_Guru/reasoning/scripts/train_intent_classifier.py
+#   pytorch-lightning  -> Agent_Guru/reasoning/scripts/train_intent_classifier.py
+networkx>=3.0
+celery>=5.3.0
+nltk>=3.8.1
+pytorch-lightning>=2.0.0
+
 # Configuration & Utilities
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
@@ -136,6 +147,15 @@ pyobjc-framework-Quartz>=9.2; sys_platform == 'darwin'
 dbus-python>=1.3.2; sys_platform == 'linux'
 pyautogui>=0.9.54  # Mouse/keyboard control
 pynput>=1.7.6  # Keyboard/mouse input monitoring
+
+# Presentation / Document Generation (platform/features/presentation.py)
+# python-pptx is required to render decks locally (the always-available,
+# offline-first path). python-docx / pypdf are optional — only needed if
+# the source file to turn into slides is a .docx or .pdf; .txt/.md and
+# most other text formats work without them.
+python-pptx>=0.6.23
+python-docx>=1.1.0
+pypdf>=4.0.0
 
 # Optional: Enhanced Features
 # Uncomment if needed:

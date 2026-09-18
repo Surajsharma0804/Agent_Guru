@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge" alt="MIT License"></a>
   <a href="https://github.com/Surajsharma0804/Agent_Guru"><img src="https://img.shields.io/badge/Status-Production_Ready-10b981?style=for-the-badge" alt="Production Ready"></a>
   <a href="https://github.com/Surajsharma0804/Agent_Guru/stargazers"><img src="https://img.shields.io/github/stars/Surajsharma0804/Agent_Guru?style=for-the-badge&color=f59e0b" alt="Stars"></a>
@@ -296,7 +296,7 @@ strategy = engine.get_optimal_strategy(task_type="voice_command")
 
 | Requirement | Required | Notes |
 |:------------|:---------|:------|
-| Python 3.10+ | ✅ Yes | Core runtime |
+| Python 3.11+ | ✅ Yes | Core runtime |
 | NVIDIA GPU | ⭐ Recommended | 10-50x faster STT. Works on CPU too. |
 | [Ollama](https://ollama.ai) | 🔄 Optional | For free local LLM. Can use cloud APIs instead. |
 
