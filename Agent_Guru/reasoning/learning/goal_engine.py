@@ -20,6 +20,7 @@ import sqlite3
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from Agent_Guru.reasoning.models.goal import (
     GoalExecutionResult,
@@ -1053,31 +1054,40 @@ class GoalEngine:
             Number of consecutive failures
 
         """
-        conn = sqlite3.connect(str(self.db_path))
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT success FROM goal_executions
-                WHERE goal_id = ?
-                ORDER BY timestamp DESC
-                LIMIT ?
-            """,
-                (goal_id, limit),
-            )
-            recent_executions = [row[0] for row in cursor.fetchall()]
+        # EVENT-LOOP FIX: this method is declared `async def` but contained no
+        # await -- the body below is synchronous blocking work (opening a
+        # connection, querying, and for a write commit()/fsync), executed directly
+        # on the event loop. The same shape in agent_orchestration/storage.py was
+        # measured freezing a 1 ms heartbeat to 2% responsiveness. The body itself
+        # is unchanged; only the thread it runs on has moved.
+        def _work() -> Any:
+            conn = sqlite3.connect(str(self.db_path))
+            try:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT success FROM goal_executions
+                    WHERE goal_id = ?
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """,
+                    (goal_id, limit),
+                )
+                recent_executions = [row[0] for row in cursor.fetchall()]
 
-            # Count consecutive failures from most recent
-            failure_count = 0
-            for success in recent_executions:
-                if not success:
-                    failure_count += 1
-                else:
-                    break
+                # Count consecutive failures from most recent
+                failure_count = 0
+                for success in recent_executions:
+                    if not success:
+                        failure_count += 1
+                    else:
+                        break
 
-            return failure_count
-        finally:
-            conn.close()
+                return failure_count
+            finally:
+                conn.close()
+
+        return await asyncio.to_thread(_work)
 
     async def get_goal_metrics(self, goal_id: str) -> dict:
         """Get execution metrics for a goal.
@@ -1162,20 +1172,29 @@ class GoalEngine:
 
     async def _count_active_goals(self, user_id: str) -> int:
         """Count active goals for a user."""
-        conn = sqlite3.connect(str(self.db_path))
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT COUNT(*) FROM persistent_goals
-                WHERE user_id = ? AND status = 'active'
-            """,
-                (user_id,),
-            )
-            result = cursor.fetchone()
-            return int(result[0]) if result else 0
-        finally:
-            conn.close()
+        # EVENT-LOOP FIX: this method is declared `async def` but contained no
+        # await -- the body below is synchronous blocking work (opening a
+        # connection, querying, and for a write commit()/fsync), executed directly
+        # on the event loop. The same shape in agent_orchestration/storage.py was
+        # measured freezing a 1 ms heartbeat to 2% responsiveness. The body itself
+        # is unchanged; only the thread it runs on has moved.
+        def _work() -> Any:
+            conn = sqlite3.connect(str(self.db_path))
+            try:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) FROM persistent_goals
+                    WHERE user_id = ? AND status = 'active'
+                """,
+                    (user_id,),
+                )
+                result = cursor.fetchone()
+                return int(result[0]) if result else 0
+            finally:
+                conn.close()
+
+        return await asyncio.to_thread(_work)
 
     def _row_to_goal(self, row: tuple) -> PersistentGoal:
         """Convert database row to PersistentGoal object."""

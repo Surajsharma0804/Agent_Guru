@@ -259,11 +259,16 @@ class VectorDatabase:
             query_embedding: Query embedding vector (384-dim)
             user_id: User ID to filter results (privacy)
             top_k: Number of results to return (default 5)
-            min_similarity: Minimum similarity threshold (default 0.0)
+            min_similarity: Minimum RAW cosine similarity threshold, range
+                [-1.0, 1.0] (default 0.0 = no filtering). Same scale as
+                EmbeddingGenerator.compute_similarity() and
+                security.embedding_auth.RETRIEVAL_THRESHOLD -- NOT rescaled
+                to [0.0, 1.0].
 
         Returns:
             List of (memory_id, content, similarity, metadata) tuples
-            sorted by similarity (highest first)
+            sorted by similarity (highest first). `similarity` is raw
+            cosine similarity in [-1.0, 1.0].
 
         Raises:
             ValueError: If embedding dimension is incorrect
@@ -316,9 +321,29 @@ class VectorDatabase:
                     distance = results["distances"][0][i]
                     metadata = results["metadatas"][0][i]
 
-                    # Convert distance to similarity (cosine distance to similarity)
-                    # ChromaDB returns cosine distance (0 = identical, 2 = opposite)
-                    similarity = 1.0 - (distance / 2.0)
+                    # Convert distance to similarity (cosine distance to similarity).
+                    # ChromaDB's "cosine" space defines distance as
+                    # 1 - cosine_similarity, so it ranges 0 (identical,
+                    # similarity=1.0) to 2 (opposite, similarity=-1.0).
+                    #
+                    # BUG FIX (Round 20): this used to compute
+                    # `1.0 - (distance / 2.0)`, which is algebraically
+                    # `(cosine_similarity + 1) / 2` -- a [0,1]-rescaled
+                    # similarity, NOT the raw cosine similarity the rest of
+                    # this subsystem uses. EmbeddingGenerator.compute_similarity()
+                    # (reasoning/memory/embedding.py) explicitly documents and
+                    # returns raw cosine similarity in [-1.0, 1.0], and
+                    # MemoryStoragePipeline's deduplication_threshold (default
+                    # 0.95, docstring: "similarity >= deduplication_threshold")
+                    # and security/embedding_auth.RETRIEVAL_THRESHOLD (0.85) are
+                    # both calibrated against that raw-cosine convention. Mixing
+                    # a silently-rescaled similarity into that same threshold
+                    # ecosystem changed what those thresholds actually enforced
+                    # (e.g. a "0.95 similarity required" deduplication check was
+                    # really only requiring raw cosine similarity >= 0.90).
+                    # Returning raw cosine similarity here makes every
+                    # similarity value in this subsystem mean the same thing.
+                    similarity = 1.0 - distance
 
                     # Filter by minimum similarity
                     if similarity >= min_similarity:
@@ -383,8 +408,13 @@ class VectorDatabase:
                 include=["documents", "embeddings", "metadatas"],
             )
 
-            # Check if memory exists
-            if not results["ids"] or not results["ids"]:
+            # Check if memory exists.
+            # BUG FIX (Round 20): this used to check `not results["ids"] or
+            # not results["ids"]` -- the same condition twice, a copy-paste
+            # mistake that was functionally a no-op (harmless, since both
+            # sides are identical) but misleadingly suggested a second,
+            # different check that was never actually written.
+            if not results["ids"]:
                 return None
 
             content = results["documents"][0]
@@ -485,22 +515,31 @@ class VectorDatabase:
             msg = f"Memory deletion failed: {e}"
             raise RuntimeError(msg) from e
 
-    def count(self, memory_type: MemoryType) -> int:
+    def count(self, memory_type: MemoryType, user_id: str | None = None) -> int:
         """Get the number of memories in a collection.
 
-        Time Complexity: O(1)
-        Space Complexity: O(1)
+        Time Complexity: O(1) when user_id is None (collection.count());
+            O(n) when user_id is given (metadata-filtered fetch of matching
+            ids -- ChromaDB has no O(1) filtered-count primitive)
+        Space Complexity: O(1) when user_id is None; O(k) ids when given,
+            where k is that user's memory count
 
         Args:
             memory_type: Type of memories to count
+            user_id: Optional user ID to scope the count to. When omitted,
+                returns the count across ALL users for this memory type --
+                callers that mean "how many memories does user X have" must
+                pass user_id explicitly.
 
         Returns:
-            Number of memories in the collection
+            Number of memories in the collection (optionally user-scoped)
 
         Example:
             >>> db = VectorDatabase()
             >>> count = db.count(MemoryType.EPISODIC)
-            >>> print(f"Episodic memories: {count}")
+            >>> print(f"Episodic memories (all users): {count}")
+            >>> count = db.count(MemoryType.EPISODIC, user_id="user_123")
+            >>> print(f"Episodic memories for user_123: {count}")
 
         """
         collection = self.collections.get(memory_type)
@@ -508,7 +547,27 @@ class VectorDatabase:
             msg = f"Invalid memory type: {memory_type}"
             raise ValueError(msg)
 
-        return collection.count()
+        if user_id is None:
+            return collection.count()
+
+        # BUG FIX (Round 20): count() previously had no way to scope by
+        # user -- every caller of vector_db.count(memory_type), including
+        # MemoryStoragePipeline's max_memories_per_user enforcement and
+        # get_storage_stats(user_id=...), was actually reading/enforcing a
+        # GLOBAL count shared across every user for that memory type, not a
+        # per-user count. That meant one user's memory volume could exhaust
+        # every OTHER user's storage quota for that memory type, and
+        # "storage stats for user X" silently returned totals for every
+        # user instead of just X's own memories. ChromaDB collections have
+        # no O(1) filtered-count call, so this fetches matching ids
+        # (documents/embeddings excluded) and counts them.
+        try:
+            results = collection.get(where={"user_id": user_id}, include=[])
+            return len(results["ids"])
+        except Exception as e:
+            logger.exception("Failed to count memories for user")
+            msg = f"Memory count failed: {e}"
+            raise RuntimeError(msg) from e
 
     def reset(self, memory_type: MemoryType | None = None) -> None:
         """Reset database (delete all memories).

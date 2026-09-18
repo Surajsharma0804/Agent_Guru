@@ -106,7 +106,22 @@ class PermissionManager:
 
             # Auto-grant for trusted skills
             if trust_level == TrustLevel.TRUSTED and auto_grant:
-                await self.grant_permission(skill_id, permission)
+                # CONCURRENCY FIX (Round 14): this used to call
+                # `await self.grant_permission(...)` right here -- but this
+                # whole method body runs inside `async with self._lock:`
+                # above, and grant_permission() itself does `async with
+                # self._lock:` too. asyncio.Lock is NOT reentrant, so the
+                # second acquire attempt would block forever waiting for a
+                # lock this same coroutine already holds -- a real deadlock,
+                # confirmed by executing this exact path in a regression
+                # test (it hung indefinitely until killed). Every TRUSTED
+                # skill's very first auto-granted permission request hung
+                # the caller permanently. Fixed by inlining the grant logic
+                # via the lock-free helper (also used by grant_permission()
+                # itself under its own lock) instead of recursively
+                # re-entering the lock.
+                await self._grant_permission_unlocked(skill_id, permission)
+                await self._persist()
                 self._log_permission_event(skill_id, permission, "auto_granted", reason)
                 return True
 
@@ -123,18 +138,26 @@ class PermissionManager:
                 timestamp=datetime.now(tz=UTC),
             )
 
-            # Note: In a real implementation, this would:
-            # 1. Show UI prompt to user with permission description
-            # 2. Wait for user response
-            # 3. Grant or deny based on user choice
-            # For now, we'll simulate user approval for restricted skills
-            user_approved = trust_level == TrustLevel.RESTRICTED
-
-            if user_approved:
-                await self.grant_permission(skill_id, permission)
-                self._log_permission_event(skill_id, permission, "granted", reason)
-                return True
-            self._log_permission_event(skill_id, permission, "denied", reason)
+            # SECURITY FIX (Round 14): this used to read
+            # `user_approved = trust_level == TrustLevel.RESTRICTED`, with a
+            # comment admitting it was "simulating user approval" because no
+            # real UI consent prompt exists yet. RESTRICTED is this
+            # subsystem's *default* trust level (see get_trust_level()) --
+            # every never-vetted, newly-installed skill starts there. So in
+            # practice this line auto-granted every permission any
+            # unconfigured skill asked for, to every skill, unconditionally,
+            # with no human ever consulted. That is not a missing feature
+            # with a conservative fallback -- it is a fabricated approval
+            # that silently defeats the entire point of having a permission
+            # system. A skill request that genuinely requires interactive
+            # user consent must fail closed (denied) until a real consent
+            # channel exists, never fail open. Auto-approval remains
+            # available through the legitimate path above (TRUSTED trust
+            # level with the caller passing auto_grant=True), and an
+            # operator can still grant_permission()/set_trust_level()
+            # explicitly through the manual API -- neither of those is
+            # affected by this fix.
+            self._log_permission_event(skill_id, permission, "denied_no_consent_channel", reason)
             return False
 
     async def grant_permission(self, skill_id: str, permission: Permission) -> None:
@@ -146,14 +169,24 @@ class PermissionManager:
 
         """
         async with self._lock:
-            if skill_id not in self._permissions:
-                self._permissions[skill_id] = set()
-
-            self._permissions[skill_id].add(permission)
+            await self._grant_permission_unlocked(skill_id, permission)
             self._log_permission_event(skill_id, permission, "granted", "Manual grant")
 
             # Persist changes
             await self._persist()
+
+    async def _grant_permission_unlocked(self, skill_id: str, permission: Permission) -> None:
+        """Core grant-permission bookkeeping, assuming `self._lock` is
+        already held by the caller.
+
+        Extracted so `request_permission()`'s TRUSTED+auto_grant path can
+        perform the same bookkeeping without recursively re-entering
+        `self._lock` (see the deadlock fix note in `request_permission()`).
+        """
+        if skill_id not in self._permissions:
+            self._permissions[skill_id] = set()
+
+        self._permissions[skill_id].add(permission)
 
     async def revoke_permission(self, skill_id: str, permission: Permission) -> None:
         """Revoke a permission from a skill.

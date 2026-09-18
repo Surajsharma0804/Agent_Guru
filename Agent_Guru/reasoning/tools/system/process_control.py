@@ -3,7 +3,6 @@
 Platform-specific implementations for Windows, macOS, and Linux.
 """
 
-import asyncio
 import logging
 import platform
 from typing import Any
@@ -15,32 +14,10 @@ from Agent_Guru.reasoning.tools.base import (
     ToolSensitivity,
 )
 from Agent_Guru.reasoning.tools.registry import tool
+from Agent_Guru.reasoning.tools.system._command import run_cmd_async
 from Agent_Guru.security.redaction import redact
 
 logger = logging.getLogger(__name__)
-
-
-async def _run_cmd_async(args: list[str]) -> tuple[int, str, str]:
-    """Run a subprocess command asynchronously.
-
-    Args:
-        args: Command and arguments to execute.
-
-    Returns:
-        Tuple of (returncode, stdout, stderr).
-
-    """
-    proc = await asyncio.create_subprocess_exec(
-        *args,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout_bytes, stderr_bytes = await proc.communicate()
-    return (
-        proc.returncode or 0,
-        stdout_bytes.decode("utf-8", errors="replace"),
-        stderr_bytes.decode("utf-8", errors="replace"),
-    )
 
 
 class PlatformProcessController:
@@ -64,7 +41,7 @@ class PlatformProcessController:
         try:
             if system == "windows":
                 # Windows: use tasklist
-                returncode, stdout, stderr = await _run_cmd_async(
+                returncode, stdout, stderr = await run_cmd_async(
                     ["tasklist", "/FO", "CSV", "/NH"],
                 )
                 if returncode != 0:
@@ -88,7 +65,7 @@ class PlatformProcessController:
 
             elif system in {"darwin", "linux"}:
                 # macOS/Linux: use ps
-                returncode, stdout, stderr = await _run_cmd_async(["ps", "aux"])
+                returncode, stdout, stderr = await run_cmd_async(["ps", "aux"])
                 if returncode != 0:
                     return {
                         "success": False,
@@ -149,6 +126,50 @@ class PlatformProcessController:
         """
         system = PlatformProcessController.get_platform()
 
+        # SECURITY FIX (found 2026-09-13): this tool -- the actual
+        # LLM-facing "kill process" tool the agent calls, reachable by bare
+        # PID -- had ZERO protected-process check. platform/process_manager.py
+        # (a separate, duplicate reimplementation of the same feature; see
+        # the module docstring) got exactly this guard in an earlier audit
+        # round after finding that a bare terminate_process(pid) call could
+        # kill explorer.exe/lsass.exe/init with no protection at all. This
+        # parallel implementation never got that fix because it exists
+        # independently and wasn't discovered until this pass. Resolve the
+        # real process name via psutil (never trust that a caller somehow
+        # already knows the PID is safe) and refuse before ever touching
+        # taskkill/kill. PID 1 is refused unconditionally, independent of
+        # name resolution succeeding: on POSIX it is always the
+        # init/systemd process no matter what a name lookup reports.
+        # Lazy import: keeps reasoning/ free of a module-level platform/
+        # dependency, matching the existing convention in this package
+        # (see app_control.py's open_app()).
+        from Agent_Guru.platform.protected_processes import (  # layer-exempt: lazy import avoids module-level reasoning→platform dependency
+            is_protected_process_name,
+        )
+
+        if pid == 1:
+            return {
+                "success": False,
+                "error": f"Refusing to kill protected process: PID={pid} (PID 1 is the OS's init/launch process)",
+            }
+
+        try:
+            import psutil  # already a project dependency (see platform/process_manager.py)
+
+            real_name = psutil.Process(pid).name()
+        except Exception:
+            # Process may not exist, or psutil may be unavailable -- either
+            # way, fall through to the normal kill attempt below, which
+            # will fail on its own (e.g. "no such process") with an honest
+            # error rather than a fabricated protection claim.
+            real_name = None
+
+        if is_protected_process_name(real_name):
+            return {
+                "success": False,
+                "error": f"Refusing to kill protected process: PID={pid} (resolved name={real_name!r})",
+            }
+
         try:
             if system == "windows":
                 # Windows: use taskkill
@@ -156,7 +177,7 @@ class PlatformProcessController:
                 if force:
                     cmd.append("/F")
 
-                returncode, _stdout, stderr = await _run_cmd_async(cmd)
+                returncode, _stdout, stderr = await run_cmd_async(cmd)
                 if returncode != 0:
                     return {
                         "success": False,
@@ -166,7 +187,7 @@ class PlatformProcessController:
             elif system in {"darwin", "linux"}:
                 # macOS/Linux: use kill
                 signal = "-9" if force else "-15"
-                returncode, _stdout, stderr = await _run_cmd_async(
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["kill", signal, str(pid)],
                 )
                 if returncode != 0:

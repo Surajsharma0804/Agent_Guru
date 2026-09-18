@@ -57,20 +57,42 @@ class QuestionAnswerTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would:
-            # 1. Query Wikipedia API or other knowledge bases
-            # 2. Use LLM for answer extraction
-            # 3. Provide sources and confidence scores
+            # BUG FIX (Round 21): this used to fabricate a literal template
+            # string ("Answer would appear here...") together with a fake
+            # "sources": ["Wikipedia", "Knowledge Base"] and a fake
+            # "confidence": 0.85 -- presenting completely made-up metadata
+            # about a lookup that never happened as if it were real. Wired
+            # to the same real, already-tested web-search backend used by
+            # reasoning/tools/knowledge/web_search.py (lazy import: see
+            # that module's identical fix for why the import is lazy here).
+            # This gives genuinely fetched content for most factual
+            # questions instead of a template placeholder, and now honestly
+            # attributes the source as "web search" -- not "Wikipedia",
+            # since we don't control or verify which site the result
+            # actually came from.
+            from Agent_Guru.platform.features.web_search import search_web
+
+            answer = await search_web(question, max_chars=600)
+
+            if answer:
+                return {
+                    "success": True,
+                    "result": {
+                        "question": question,
+                        "answer": answer,
+                        "sources": ["web search"],
+                        "message": f"Answer retrieved for: {question}",
+                    },
+                }
+
             return {
-                "success": True,
-                "result": {
-                    "question": question,
-                    "answer": "Answer would appear here based on knowledge base query",
-                    "sources": ["Wikipedia", "Knowledge Base"],
-                    "confidence": 0.85,
-                    "message": f"Answer retrieved for: {question}",
-                    "note": "This is a placeholder. Real implementation would query knowledge bases.",
-                },
+                "success": False,
+                "error": (
+                    "Could not answer the question: no web search backend "
+                    "available (duckduckgo-search not installed, the "
+                    "instant-answer API was unreachable, and no browser "
+                    "fallback was available)."
+                ),
             }
 
         except Exception as e:
@@ -123,22 +145,39 @@ class DefineWordTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would use a dictionary API
+            # BUG FIX (Round 21): this used to fabricate a fake definition
+            # ("Definition of 'X' would appear here"), a fake example
+            # sentence, and a fake "pronunciation" field -- claiming success
+            # with content that was never looked up anywhere, for EVERY
+            # word, including words that don't exist. DuckDuckGo's
+            # instant-answer API (one of the three tiers inside
+            # search_web()) frequently returns real dictionary-style
+            # definitions for "define <word>" queries, so this is wired to
+            # the same real backend used by web_search.py/QuestionAnswerTool
+            # above rather than a dedicated dictionary API this codebase
+            # doesn't have credentials for.
+            from Agent_Guru.platform.features.web_search import search_web
+
+            definition_text = await search_web(f"define {word}", max_chars=400)
+
+            if definition_text:
+                return {
+                    "success": True,
+                    "result": {
+                        "word": word,
+                        "definition": definition_text,
+                        "message": f"Definition retrieved for: {word}",
+                    },
+                }
+
             return {
-                "success": True,
-                "result": {
-                    "word": word,
-                    "definitions": [
-                        {
-                            "part_of_speech": "noun",
-                            "definition": f"Definition of '{word}' would appear here",
-                            "example": f"Example usage of '{word}' in a sentence",
-                        },
-                    ],
-                    "pronunciation": f"Pronunciation of '{word}'",
-                    "message": f"Definition retrieved for: {word}",
-                    "note": "This is a placeholder. Real implementation would use dictionary API.",
-                },
+                "success": False,
+                "error": (
+                    f"Could not find a definition for '{word}': no web search "
+                    "backend available (duckduckgo-search not installed, the "
+                    "instant-answer API was unreachable, and no browser "
+                    "fallback was available)."
+                ),
             }
 
         except Exception as e:

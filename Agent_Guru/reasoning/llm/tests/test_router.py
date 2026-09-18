@@ -379,7 +379,9 @@ class TestMetrics:
 
         assert metrics.total_requests == 1  # nosec B101
         assert metrics.local_requests == 1  # nosec B101
-        assert metrics.local_latency_ms == [100.0]  # nosec B101
+        # Latency history is a bounded deque (see MAX_LATENCY_SAMPLES) so a
+        # long-running session cannot grow it without limit; compare contents.
+        assert list(metrics.local_latency_ms) == [100.0]  # nosec B101
         assert metrics.local_errors == 0  # nosec B101
 
     def test_record_cloud_request(self):
@@ -389,7 +391,7 @@ class TestMetrics:
 
         assert metrics.total_requests == 1  # nosec B101
         assert metrics.cloud_requests == 1  # nosec B101
-        assert metrics.cloud_latency_ms == [200.0]  # nosec B101
+        assert list(metrics.cloud_latency_ms) == [200.0]  # nosec B101
         assert metrics.cloud_errors == 0  # nosec B101
 
     def test_record_error(self):

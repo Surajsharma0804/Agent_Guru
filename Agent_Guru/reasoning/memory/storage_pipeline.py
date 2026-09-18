@@ -388,9 +388,34 @@ class MemoryStoragePipeline:
             Memory ID if stored, None if deduplicated
 
         """
+        # BUG FIX (Round 20): every operation in this critical section --
+        # vector_db.count(), embedding_generator.generate(),
+        # vector_db.search() (inside _is_duplicate), vector_db.store() --
+        # is a BLOCKING, synchronous call (ChromaDB's Python client isn't
+        # async, and real sentence-transformer inference is documented
+        # elsewhere in this codebase as costing ~20-200ms). All of them used
+        # to run directly on the event loop while ALSO holding self._lock,
+        # meaning every memory-store call for EVERY user was serialized
+        # behind a single lock AND froze the entire event loop -- all other
+        # concurrent async work (voice pipeline callbacks, other users'
+        # requests, IPC) -- for the full duration of an embedding
+        # computation plus a database write, every single time. Each
+        # blocking call now runs via run_in_executor so it no longer stalls
+        # the event loop; the lock is kept around the whole sequence
+        # (unchanged) because the count-check-then-store and
+        # dedup-check-then-store logic below is a genuine check-then-act
+        # that still needs to stay serialized per pipeline instance.
+        loop = asyncio.get_running_loop()
         async with self._lock:
-            # Check if user has too many memories
-            memory_count = self.vector_db.count(memory.memory_type)
+            # Check if user has too many memories.
+            # BUG FIX (Round 20): now scoped to this user via vector_db's
+            # new user_id parameter -- previously this counted ALL users'
+            # memories of this type combined, so max_memories_per_user was
+            # actually a shared global cap: one busy user could exhaust it
+            # and silently block storage for every other user.
+            memory_count = await loop.run_in_executor(
+                None, self.vector_db.count, memory.memory_type, memory.user_id,
+            )
             if memory_count >= self.max_memories_per_user:
                 logger.warning(
                     "User %s has %d memories, skipping storage (max=%d)",
@@ -401,7 +426,9 @@ class MemoryStoragePipeline:
                 return None
 
             # Generate embedding
-            embedding = self.embedding_generator.generate(memory.content)
+            embedding = await loop.run_in_executor(
+                None, self.embedding_generator.generate, memory.content,
+            )
 
             # Check for duplicates
             is_duplicate = await self._is_duplicate(memory.memory_type, memory.user_id, embedding)
@@ -416,17 +443,20 @@ class MemoryStoragePipeline:
 
             # Store in vector database
             try:
-                self.vector_db.store(
-                    memory_type=memory.memory_type,
-                    memory_id=memory.memory_id,
-                    content=memory.content,
-                    embedding=embedding,  # Already a list
-                    metadata={
-                        "user_id": memory.user_id,
-                        "timestamp": memory.timestamp.isoformat(),
-                        "relevance_score": memory.relevance_score,
-                        **memory.metadata,
-                    },
+                await loop.run_in_executor(
+                    None,
+                    lambda: self.vector_db.store(
+                        memory_type=memory.memory_type,
+                        memory_id=memory.memory_id,
+                        content=memory.content,
+                        embedding=embedding,  # Already a list
+                        metadata={
+                            "user_id": memory.user_id,
+                            "timestamp": memory.timestamp.isoformat(),
+                            "relevance_score": memory.relevance_score,
+                            **memory.metadata,
+                        },
+                    ),
                 )
 
                 # Update recent memory cache
@@ -473,13 +503,22 @@ class MemoryStoragePipeline:
 
         """
         # Search for similar memories
+        # BUG FIX (Round 20): completes the fix started in _store_memory() --
+        # this was still a blocking, synchronous ChromaDB call made directly
+        # on the event loop (and, via _store_memory()'s caller, while holding
+        # self._lock), stalling all other concurrent async work for the
+        # duration of the vector search every time a memory was stored.
         try:
-            results = self.vector_db.search(
-                memory_type=memory_type,
-                query_embedding=embedding,
-                user_id=user_id,
-                top_k=1,
-                min_similarity=self.deduplication_threshold,
+            loop = asyncio.get_running_loop()
+            results = await loop.run_in_executor(
+                None,
+                lambda: self.vector_db.search(
+                    memory_type=memory_type,
+                    query_embedding=embedding,
+                    user_id=user_id,
+                    top_k=1,
+                    min_similarity=self.deduplication_threshold,
+                ),
             )
 
             if not results:
@@ -532,9 +571,15 @@ class MemoryStoragePipeline:
             >>> print(f"Episodic: {stats['episodic']}")
 
         """
+        # BUG FIX (Round 20): this previously ignored its own `user_id`
+        # parameter entirely and always passed vector_db.count() only a
+        # memory_type -- so "get_storage_stats(user_id='alice')" silently
+        # returned the GLOBAL count across every user for each memory type,
+        # not alice's own counts. Now forwarded to vector_db.count()'s new
+        # user_id filter.
         stats = {}
         for memory_type in MemoryType:
-            count = self.vector_db.count(memory_type)
+            count = self.vector_db.count(memory_type, user_id)
             stats[memory_type.value] = count
 
         return stats

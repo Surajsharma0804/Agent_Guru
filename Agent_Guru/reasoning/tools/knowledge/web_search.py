@@ -102,17 +102,57 @@ class WebSearchTool(Tool):
             elif engine == "duckduckgo":
                 search_url = f"https://duckduckgo.com/?q={encoded_query}"
 
-            # Note: In a real implementation, you would use an API or web scraping
-            # For now, we return a mock response with the search URL
+            # BUG FIX (Round 21): this tool used to fabricate a "success"
+            # response containing nothing but the search URL, explicitly
+            # labeled "This is a placeholder" -- meaning the LLM agent (and
+            # therefore the user) received zero actual search content from
+            # what is supposed to be the primary web-search capability.
+            # A REAL implementation already exists and is already used
+            # elsewhere in this codebase for exactly this purpose:
+            # platform/features/web_search.py::search_web() -- a genuine
+            # three-tier fetcher (duckduckgo-search library, then the
+            # DuckDuckGo instant-answer API, then a real browser-driven
+            # Google search as a last resort), no API key required. It was
+            # simply never wired into this LLM-facing tool. Delegated to it
+            # here (lazy import: reasoning/ -> platform/ is a layer
+            # boundary this codebase keeps lazy, matching the existing
+            # convention e.g. in reasoning/tools/system/app_control.py).
+            from Agent_Guru.platform.features.web_search import search_web
+
+            snippet = await search_web(query, max_chars=max_results * 200)
+
+            if snippet:
+                return {
+                    "success": True,
+                    "result": {
+                        "query": query,
+                        "engine": engine,
+                        "search_url": search_url,
+                        "max_results": max_results,
+                        "results_text": snippet,
+                        "message": f"Found web results for '{query}'",
+                    },
+                }
+
+            # Genuinely no live result available (no ddgs installed, no
+            # network reachable, and no browser available for the
+            # last-resort fallback) -- honest about that rather than
+            # claiming success with nothing behind it. The search URL is
+            # still real and still useful, so it's included as a fallback
+            # the agent can offer to open for the user.
             return {
-                "success": True,
+                "success": False,
+                "error": (
+                    "Could not retrieve live web results (no search backend "
+                    "available: duckduckgo-search is not installed, the "
+                    "DuckDuckGo instant-answer API was unreachable, and no "
+                    "browser fallback was available). You can still open "
+                    f"{search_url} directly."
+                ),
                 "result": {
                     "query": query,
                     "engine": engine,
                     "search_url": search_url,
-                    "max_results": max_results,
-                    "message": f"Search URL generated for '{query}' on {engine}",
-                    "note": "This is a placeholder. Real implementation would use search API or web scraping.",
                 },
             }
 

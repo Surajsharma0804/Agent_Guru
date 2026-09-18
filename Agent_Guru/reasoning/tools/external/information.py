@@ -93,18 +93,22 @@ class GetNewsTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would use NewsAPI,
-            # Google News API, or similar service
+            # BUG FIX (Round 21): this used to unconditionally return
+            # "success": True with "article_count": 0 and "articles": [] --
+            # indistinguishable from a real query that legitimately found no
+            # matching news, when no query ever happened. A generic web
+            # search (the real backend wired into web_search.py/
+            # information.py's knowledge-tool siblings this same round)
+            # isn't a safe substitute here: this tool's contract promises
+            # structured article objects (titles, sources, dates), which a
+            # search snippet can't reliably provide -- returning something
+            # that looks structured but is really just chopped-up search
+            # text would trade one kind of dishonesty for another. No news
+            # API is configured in this codebase, so this now honestly
+            # fails.
             return {
-                "success": True,
-                "result": {
-                    "query": query,
-                    "category": category,
-                    "article_count": 0,
-                    "articles": [],
-                    "message": f"Retrieved {category} news" + (f" for '{query}'" if query else ""),
-                    "note": "This is a placeholder. Real implementation would use news API.",
-                },
+                "success": False,
+                "error": "News retrieval is not available: no news API is configured in this build of Agent Guru.",
             }
 
         except Exception as e:
@@ -165,20 +169,22 @@ class GetStockPriceTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would use Alpha Vantage,
-            # Yahoo Finance API, or similar service
+            # BUG FIX (Round 21): this used to return the EXACT SAME
+            # fabricated numbers ($150.00, +$2.50, +1.69%, 1M volume, $2.5T
+            # market cap) for ANY ticker symbol whatsoever, with
+            # "success": True and no indication it was invented. Of every
+            # placeholder found in this audit, this is the one with the
+            # clearest potential for direct real-world harm: a user asking
+            # about a real position or a trade decision could act on a
+            # completely fabricated price with total false confidence, and
+            # -- per this system prompt's own guidance on financial
+            # information -- Agent Guru must not present confident,
+            # made-up financial data as fact. No financial-data API is
+            # configured in this codebase, so this now honestly fails
+            # rather than inventing a price.
             return {
-                "success": True,
-                "result": {
-                    "symbol": symbol,
-                    "price": 150.00,
-                    "change": 2.50,
-                    "change_percent": 1.69,
-                    "volume": 1000000,
-                    "market_cap": "2.5T",
-                    "message": f"Stock data for {symbol}",
-                    "note": "This is a placeholder. Real implementation would use financial API.",
-                },
+                "success": False,
+                "error": f"Stock price lookup is not available for {symbol}: no financial data API is configured in this build of Agent Guru.",
             }
 
         except Exception as e:

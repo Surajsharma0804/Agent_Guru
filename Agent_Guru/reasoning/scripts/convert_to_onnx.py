@@ -106,7 +106,13 @@ def convert_to_onnx(
             optimized_model.save_model_to_file(output_path)
 
         except ImportError:
-            pass
+            # onnxruntime's transformer optimizer is optional. Skipping it
+            # silently made an UNOPTIMIZED model indistinguishable from an
+            # optimized one in the build output.
+            print(
+                "  ! onnxruntime.transformers not available - "
+                "skipping graph optimization (model is still valid)",
+            )
 
     # Verify ONNX model
     verify_onnx_model(output_path, tokenizer)
@@ -148,7 +154,12 @@ def verify_onnx_model(onnx_path: str, tokenizer: DebertaV2Tokenizer) -> None:
         ort_outputs[0]
 
     except ImportError:
-        pass
+        # Verification is only possible with onnxruntime installed. Swallowing
+        # this reported a *verified* model when nothing had actually been run
+        # against it -- a false success in the build pipeline.
+        print(
+            "  ! onnxruntime not installed - ONNX model was NOT verified",
+        )
 
 
 def main() -> None:

@@ -441,7 +441,9 @@ class NEREntityExtractor:
 
         text = text.lower().strip()
 
-        # Try direct number conversion
+        # "not a numeral" is the expected outcome for worded numbers such as
+        # "forty"; the word_to_num lookup below is the real handler for those,
+        # so this failure is a routing decision rather than an error.
         try:
             return float(text)
         except ValueError:

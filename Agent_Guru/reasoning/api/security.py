@@ -331,8 +331,13 @@ class SecureProcessRequest(BaseModel):
     @classmethod
     def validate_user_id(cls, v):
         """Validate user_id format."""
-        # Only allow alphanumeric and underscore
-        if not re.match(r"^[a-zA-Z0-9_-]+$", v):
+        # Only allow alphanumeric and underscore.
+        # ANCHORING FIX: re.match(r"^...$") is NOT a whole-string check -- in
+        # Python "$" also matches immediately before a trailing newline, so
+        # "alice\n" passed this validator and flowed on into logs, storage keys
+        # and file names as if it had been validated. fullmatch() means what
+        # this code was trying to say.
+        if not re.fullmatch(r"[a-zA-Z0-9_-]+", v):
             msg = "user_id contains invalid characters"
             raise ValueError(msg)
         return v

@@ -16,8 +16,36 @@ from Agent_Guru.reasoning.tools.base import (
 )
 from Agent_Guru.reasoning.tools.registry import tool
 
+# SECURITY FIX (found 2026-09-13): every tool in this file used to resolve
+# `Path(file_path).resolve()` with NO containment check at all -- unlike
+# platform/controllers/file_operations.py (a separate, duplicate
+# reimplementation of file operations; see the module docstring), which
+# has enforced a base_dir sandbox via safe_path() since an earlier audit
+# round. That meant file.read/write/delete/move/copy -- the actual
+# LLM-facing tools the agent calls -- could touch ANY file anywhere on the
+# filesystem the process has OS permission for: SSH keys, credential
+# stores, arbitrary system files, other users' data. The ToolSensitivity
+# markers below (SENSITIVE/DANGEROUS) may gate a confirmation prompt
+# somewhere upstream, but that is a soft UX control, not a technical
+# boundary -- it does nothing to stop a prompt-injection-driven request
+# the user approves without realizing the full absolute path involved, and
+# nothing stops FileReadTool at all (marked SAFE, no confirmation). Reusing
+# security/path_utils.py::safe_path() -- the same, already-audited
+# traversal-safe resolver platform/controllers/file_operations.py uses --
+# for a real, technical sandbox instead of an implicit "resolve anything"
+# behavior. The sandbox root matches OSController's own default
+# (platform/os_controller.py, file_base_dir: Path.home()) for consistency
+# between the two parallel implementations, and no config path
+# unintentionally reaches system directories.
+from Agent_Guru.security.path_utils import safe_path
+
 # Maximum file size for read operations (10MB)
 MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+
+# Sandbox root for every file.* tool in this module. Relative paths
+# resolve within this directory (not the process's cwd); absolute paths
+# must resolve to somewhere inside it or safe_path() raises ValueError.
+_FILE_TOOLS_BASE_DIR = Path.home().resolve()
 
 @tool(
     tool_id="file.read",
@@ -65,7 +93,7 @@ class FileReadTool(Tool):
         encoding = kwargs.get("encoding", "utf-8")
 
         try:
-            path = Path(file_path).resolve()
+            path = safe_path(file_path, _FILE_TOOLS_BASE_DIR)
 
             # Validate file exists
             if not path.exists():
@@ -107,6 +135,13 @@ class FileReadTool(Tool):
             return {
                 "success": False,
                 "error": f"Failed to decode file with encoding {encoding}",
+            }
+        except ValueError as e:
+            # Raised by safe_path() when file_path resolves outside the
+            # permitted sandbox (see the module-level SECURITY FIX note).
+            return {
+                "success": False,
+                "error": str(e),
             }
 
 @tool(
@@ -172,7 +207,7 @@ class FileWriteTool(Tool):
         append = kwargs.get("append", False)
 
         try:
-            path = Path(file_path).resolve()
+            path = safe_path(file_path, _FILE_TOOLS_BASE_DIR)
 
             # Create parent directories if needed
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -241,7 +276,7 @@ class FileDeleteTool(Tool):
         file_path = kwargs["file_path"]
 
         try:
-            path = Path(file_path).resolve()
+            path = safe_path(file_path, _FILE_TOOLS_BASE_DIR)
 
             # Validate file exists
             if not path.exists():
@@ -319,8 +354,8 @@ class FileMoveTool(Tool):
         destination_path = kwargs["destination_path"]
 
         try:
-            source = Path(source_path).resolve()
-            destination = Path(destination_path).resolve()
+            source = safe_path(source_path, _FILE_TOOLS_BASE_DIR)
+            destination = safe_path(destination_path, _FILE_TOOLS_BASE_DIR)
 
             # Validate source exists
             if not source.exists():
@@ -402,8 +437,8 @@ class FileCopyTool(Tool):
         destination_path = kwargs["destination_path"]
 
         try:
-            source = Path(source_path).resolve()
-            destination = Path(destination_path).resolve()
+            source = safe_path(source_path, _FILE_TOOLS_BASE_DIR)
+            destination = safe_path(destination_path, _FILE_TOOLS_BASE_DIR)
 
             # Validate source exists
             if not source.exists():

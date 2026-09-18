@@ -37,8 +37,17 @@ class SensitivityRule:
             True if rule matches, False otherwise
 
         """
-        # Check tool pattern
-        if not re.match(self.tool_pattern, tool_id):
+        # SAFETY FIX: these used re.match(), which anchors at the START of the
+        # string only. Every built-in rule works around that by writing
+        # ".*delete.*" instead of "delete", but add_rule() is public, and a
+        # caller who writes the obvious "delete_file" got a rule that silently
+        # only fired on tool ids BEGINNING with it -- so "vendor.delete_file"
+        # was classified SAFE. For a sensitivity classifier the conservative
+        # direction is to match more, not less, so this uses re.search().
+        # Existing ".*x.*" rules are unaffected: with a leading ".*" the two
+        # are equivalent. A rule that genuinely wants start-anchoring can still
+        # say so with an explicit "^".
+        if not re.search(self.tool_pattern, tool_id):
             return False
 
         # Check parameter patterns
@@ -47,7 +56,9 @@ class SensitivityRule:
                 return False
 
             param_value = str(parameters[param_name])
-            if not re.match(param_pattern, param_value):
+            # Same reasoning: a dangerous value must be caught wherever it
+            # appears in the argument, not only at its start.
+            if not re.search(param_pattern, param_value):
                 return False
 
         return True

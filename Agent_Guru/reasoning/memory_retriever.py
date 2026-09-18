@@ -28,8 +28,8 @@ Date: 2024
 Version: 1.0.0
 """
 
-import asyncio
 import logging
+import threading
 import time
 from datetime import UTC, datetime
 from uuid import UUID
@@ -135,8 +135,25 @@ class MemoryRetriever:
         self.max_results = max_results
         self.relevance_decay_days = relevance_decay_days
 
-        # Thread safety
-        self._lock = asyncio.Lock()
+        # Thread safety.
+        # BUG FIX (Round 20): this was previously `asyncio.Lock()`, which only
+        # synchronizes coroutines on a single event loop thread -- it provides
+        # NO protection against concurrent access from real OS threads (e.g.
+        # multiple `loop.run_in_executor()` worker threads calling into this
+        # class simultaneously, the exact pattern this codebase's memory
+        # subsystem uses elsewhere for CPU-bound work like embedding
+        # generation). Worse, the lock was never actually acquired anywhere
+        # in this class despite the class docstring's "Thread-safe for
+        # concurrent access" claim, so the mutating methods below (store,
+        # clear, delete_memory, delete_memories_by_type, prune_memories,
+        # update_relevance) were racing on shared mutable state
+        # (self.memories / self.embeddings / self.memory_ids) with no
+        # protection at all -- e.g. two concurrent store() calls both
+        # snapshot self.embeddings, both np.vstack() onto the old array, and
+        # whichever write lands second silently discards the other's row.
+        # A real threading.Lock, actually held around each mutation, is the
+        # correct primitive for real multi-thread safety.
+        self._lock = threading.Lock()
 
     def store(self, memory: Memory) -> None:
         """Store a memory with automatic embedding generation.
@@ -160,11 +177,10 @@ class MemoryRetriever:
             >>> retriever.store(memory)
 
         """
-        if memory.memory_id in self.memories:
-            msg = f"Memory with ID {memory.memory_id} already exists"
-            raise ValueError(msg)
-
-        # Generate embedding if not provided
+        # Generate embedding if not provided. Deliberately done OUTSIDE the
+        # lock below: it's the expensive step (sentence-transformer
+        # inference) and doesn't touch any shared state, so there's no
+        # reason to serialize other threads behind it.
         if memory.embedding is None:
             embedding = self._generate_embedding(memory.content)
             # Update memory with embedding (create new instance)
@@ -172,16 +188,25 @@ class MemoryRetriever:
             memory_dict["embedding"] = embedding.tolist()
             memory = memory.__class__(**memory_dict)
 
-        # Store memory
-        self.memories[memory.memory_id] = memory
-        self.memory_ids.append(memory.memory_id)
+        # BUG FIX (Round 20): the existence check and the three-part update
+        # of shared state (self.memories / self.memory_ids / self.embeddings)
+        # must be a single atomic critical section -- see the note on
+        # self._lock in __init__ for why this was previously unprotected.
+        with self._lock:
+            if memory.memory_id in self.memories:
+                msg = f"Memory with ID {memory.memory_id} already exists"
+                raise ValueError(msg)
 
-        # Update embeddings array
-        embedding_array = np.array(memory.embedding, dtype=np.float32)
-        if self.embeddings is None:
-            self.embeddings = embedding_array.reshape(1, -1)
-        else:
-            self.embeddings = np.vstack([self.embeddings, embedding_array])
+            # Store memory
+            self.memories[memory.memory_id] = memory
+            self.memory_ids.append(memory.memory_id)
+
+            # Update embeddings array
+            embedding_array = np.array(memory.embedding, dtype=np.float32)
+            if self.embeddings is None:
+                self.embeddings = embedding_array.reshape(1, -1)
+            else:
+                self.embeddings = np.vstack([self.embeddings, embedding_array])
 
     def retrieve(
         self,
@@ -226,11 +251,24 @@ class MemoryRetriever:
         if not self.memories:
             return []
 
+        # BUG FIX (Round 20): compute the query embedding exactly once and
+        # pass it to both semantic_search() and rank_memories() below.
+        # Previously each of those methods independently called
+        # self._generate_embedding(query) itself, so every retrieve() call
+        # ran sentence-transformer inference on the *same* query string
+        # twice -- doubling the cost of the single most expensive operation
+        # on this path (this module's own docs cite 20-200ms per embedding)
+        # for zero benefit, directly eating into the <100ms retrieval
+        # latency budget this method warns about a few lines below.
+        query_embedding = self._generate_embedding(query)
+
         # Semantic search
-        candidates = self.semantic_search(query, user_id, memory_types, top_k * 2)
+        candidates = self.semantic_search(
+            query, user_id, memory_types, top_k * 2, query_embedding=query_embedding,
+        )
 
         # Rank by multiple factors
-        ranked = self.rank_memories(candidates, query)
+        ranked = self.rank_memories(candidates, query, query_embedding=query_embedding)
 
         # Limit to top_k
         results = ranked[:top_k]
@@ -255,6 +293,7 @@ class MemoryRetriever:
         user_id: str,
         memory_types: list[MemoryType] | None = None,
         top_k: int = 10,
+        query_embedding: np.ndarray | None = None,
     ) -> list[Memory]:
         """Perform semantic search using query embeddings.
 
@@ -266,6 +305,12 @@ class MemoryRetriever:
             user_id: User ID to filter memories
             memory_types: Optional list of memory types to filter
             top_k: Number of candidates to return
+            query_embedding: Optional precomputed embedding for *query* (from
+                self._generate_embedding). Callers that already have it
+                (e.g. retrieve()) should pass it to avoid a redundant,
+                expensive re-embedding of the same text; when omitted it is
+                computed here as before, so direct callers of this method
+                are unaffected.
 
         Returns:
             List of Memory objects with highest semantic similarity
@@ -279,8 +324,9 @@ class MemoryRetriever:
             ... )
 
         """
-        # Generate query embedding
-        query_embedding = self._generate_embedding(query)
+        # Generate query embedding (unless the caller already computed one)
+        if query_embedding is None:
+            query_embedding = self._generate_embedding(query)
 
         # Filter memories by user_id and memory_types
         filtered_memories = [
@@ -311,7 +357,12 @@ class MemoryRetriever:
         top_memory_ids = [memory_id for _, memory_id in similarities[:top_k]]
         return [self.memories[memory_id] for memory_id in top_memory_ids]
 
-    def rank_memories(self, memories: list[Memory], query: str) -> list[Memory]:
+    def rank_memories(
+        self,
+        memories: list[Memory],
+        query: str,
+        query_embedding: np.ndarray | None = None,
+    ) -> list[Memory]:
         """Rank memories by relevance, recency, and importance.
 
         Time Complexity: O(k log k) where k=len(memories)
@@ -328,6 +379,8 @@ class MemoryRetriever:
         Args:
             memories: List of Memory objects to rank
             query: Query string for semantic similarity
+            query_embedding: Optional precomputed embedding for *query* (see
+                semantic_search()'s matching parameter for why).
 
         Returns:
             List of Memory objects sorted by combined score (descending)
@@ -340,8 +393,9 @@ class MemoryRetriever:
         if not memories:
             return []
 
-        # Generate query embedding once
-        query_embedding = self._generate_embedding(query)
+        # Generate query embedding once (unless the caller already has one)
+        if query_embedding is None:
+            query_embedding = self._generate_embedding(query)
 
         # Compute scores for each memory
         scored_memories: list[tuple[float, Memory]] = []
@@ -390,20 +444,24 @@ class MemoryRetriever:
             >>> retriever.update_relevance(memory_id, 0.8)
 
         """
-        if memory_id not in self.memories:
-            msg = f"Memory with ID {memory_id} not found"
-            raise ValueError(msg)
-
         if not 0.0 <= new_score <= 1.0:
             msg = f"new_score must be between 0.0 and 1.0, got {new_score}"
             raise ValueError(msg)
 
-        # Update memory (create new instance with updated score)
-        memory = self.memories[memory_id]
-        memory_dict = memory.model_dump()
-        memory_dict["relevance_score"] = new_score
-        updated_memory = memory.__class__(**memory_dict)
-        self.memories[memory_id] = updated_memory
+        # BUG FIX (Round 20): read-check-write on self.memories made atomic
+        # under self._lock (see __init__) instead of racing with concurrent
+        # store()/delete_memory()/etc. calls.
+        with self._lock:
+            if memory_id not in self.memories:
+                msg = f"Memory with ID {memory_id} not found"
+                raise ValueError(msg)
+
+            # Update memory (create new instance with updated score)
+            memory = self.memories[memory_id]
+            memory_dict = memory.model_dump()
+            memory_dict["relevance_score"] = new_score
+            updated_memory = memory.__class__(**memory_dict)
+            self.memories[memory_id] = updated_memory
 
     def _generate_embedding(self, text: str) -> np.ndarray:
         """Generate embedding for text using SentenceTransformer.
@@ -465,33 +523,36 @@ class MemoryRetriever:
             user_id: Optional user ID to filter by
 
         """
-        if user_id is None:
-            self.memories.clear()
-            self.memory_ids.clear()
-            self.embeddings = None
-        else:
-            # Remove memories for specific user
-            to_remove = [
-                memory_id
-                for memory_id, memory in self.memories.items()
-                if memory.user_id == user_id
-            ]
-            for memory_id in to_remove:
-                del self.memories[memory_id]
-
-            # Rebuild memory_ids — O(n) instead of O(n²) from list.remove()
-            self.memory_ids = list(self.memories.keys())
-
-            # Rebuild embeddings array
-            if self.memory_ids:
-                self.embeddings = np.vstack(
-                    [
-                        np.array(self.memories[mid].embedding, dtype=np.float32)
-                        for mid in self.memory_ids
-                    ],
-                )
-            else:
+        # BUG FIX (Round 20): protect the multi-step read/rebuild of shared
+        # state with self._lock (see __init__).
+        with self._lock:
+            if user_id is None:
+                self.memories.clear()
+                self.memory_ids.clear()
                 self.embeddings = None
+            else:
+                # Remove memories for specific user
+                to_remove = [
+                    memory_id
+                    for memory_id, memory in self.memories.items()
+                    if memory.user_id == user_id
+                ]
+                for memory_id in to_remove:
+                    del self.memories[memory_id]
+
+                # Rebuild memory_ids — O(n) instead of O(n²) from list.remove()
+                self.memory_ids = list(self.memories.keys())
+
+                # Rebuild embeddings array
+                if self.memory_ids:
+                    self.embeddings = np.vstack(
+                        [
+                            np.array(self.memories[mid].embedding, dtype=np.float32)
+                            for mid in self.memory_ids
+                        ],
+                    )
+                else:
+                    self.embeddings = None
 
     def compute_importance_score(self, memory: Memory) -> float:
         """Compute importance score for a memory.
@@ -594,47 +655,51 @@ class MemoryRetriever:
             importance_threshold, protect_high_importance, keep_minimum, max_age_days,
         )
 
-        user_memories = [
-            (memory_id, memory)
-            for memory_id, memory in self.memories.items()
-            if memory.user_id == user_id
-        ]
+        # BUG FIX (Round 20): this whole read-score-remove-rebuild sequence
+        # is a single check-then-act against shared state and must run as
+        # one atomic critical section under self._lock (see __init__).
+        with self._lock:
+            user_memories = [
+                (memory_id, memory)
+                for memory_id, memory in self.memories.items()
+                if memory.user_id == user_id
+            ]
 
-        if len(user_memories) <= keep_minimum:
-            return 0
+            if len(user_memories) <= keep_minimum:
+                return 0
 
-        # Score and sort by importance
-        scored_memories = [
-            (self.compute_importance_score(m), mid, m) for mid, m in user_memories
-        ]
-        scored_memories.sort(reverse=True, key=lambda x: x[0])
+            # Score and sort by importance
+            scored_memories = [
+                (self.compute_importance_score(m), mid, m) for mid, m in user_memories
+            ]
+            scored_memories.sort(reverse=True, key=lambda x: x[0])
 
-        # Apply retention policy
-        to_keep, to_remove = self._apply_retention_policy(
-            scored_memories, importance_threshold, max_age_days, protect_high_importance,
-        )
-
-        # Enforce minimum
-        self._enforce_keep_minimum(to_keep, to_remove, keep_minimum)
-
-        # Remove and rebuild
-        for memory_id in to_remove:
-            del self.memories[memory_id]
-
-        self.memory_ids = list(self.memories.keys())
-
-        if self.memory_ids:
-            self.embeddings = np.vstack(
-                [
-                    np.array(self.memories[mid].embedding, dtype=np.float32)
-                    for mid in self.memory_ids
-                    if mid in self.memories
-                ],
+            # Apply retention policy
+            to_keep, to_remove = self._apply_retention_policy(
+                scored_memories, importance_threshold, max_age_days, protect_high_importance,
             )
-        else:
-            self.embeddings = None
 
-        return len(to_remove)
+            # Enforce minimum
+            self._enforce_keep_minimum(to_keep, to_remove, keep_minimum)
+
+            # Remove and rebuild
+            for memory_id in to_remove:
+                del self.memories[memory_id]
+
+            self.memory_ids = list(self.memories.keys())
+
+            if self.memory_ids:
+                self.embeddings = np.vstack(
+                    [
+                        np.array(self.memories[mid].embedding, dtype=np.float32)
+                        for mid in self.memory_ids
+                        if mid in self.memories
+                    ],
+                )
+            else:
+                self.embeddings = None
+
+            return len(to_remove)
 
     @staticmethod
     def _validate_prune_params(
@@ -722,33 +787,36 @@ class MemoryRetriever:
             >>> print(f"Deleted: {deleted}")
 
         """
-        # Check if memory exists
-        if memory_id not in self.memories:
-            return False
+        # BUG FIX (Round 20): atomic check-authorize-delete-rebuild under
+        # self._lock (see __init__).
+        with self._lock:
+            # Check if memory exists
+            if memory_id not in self.memories:
+                return False
 
-        # Check authorization
-        memory = self.memories[memory_id]
-        if memory.user_id != user_id:
-            return False
+            # Check authorization
+            memory = self.memories[memory_id]
+            if memory.user_id != user_id:
+                return False
 
-        # Delete memory
-        del self.memories[memory_id]
+            # Delete memory
+            del self.memories[memory_id]
 
-        # Rebuild memory_ids — O(n) instead of O(n) from list.remove()
-        self.memory_ids = list(self.memories.keys())
+            # Rebuild memory_ids — O(n) instead of O(n) from list.remove()
+            self.memory_ids = list(self.memories.keys())
 
-        # Rebuild embeddings array
-        if self.memory_ids:
-            self.embeddings = np.vstack(
-                [
-                    np.array(self.memories[mid].embedding, dtype=np.float32)
-                    for mid in self.memory_ids
-                ],
-            )
-        else:
-            self.embeddings = None
+            # Rebuild embeddings array
+            if self.memory_ids:
+                self.embeddings = np.vstack(
+                    [
+                        np.array(self.memories[mid].embedding, dtype=np.float32)
+                        for mid in self.memory_ids
+                    ],
+                )
+            else:
+                self.embeddings = None
 
-        return True
+            return True
 
     def delete_memories_by_type(self, user_id: str, memory_type: MemoryType) -> int:
         """Delete all memories of a specific type for a user.
@@ -772,29 +840,32 @@ class MemoryRetriever:
             >>> print(f"Deleted {deleted} episodic memories")
 
         """
-        # Find memories to delete
-        to_remove = [
-            memory_id
-            for memory_id, memory in self.memories.items()
-            if memory.user_id == user_id and memory.memory_type == memory_type
-        ]
+        # BUG FIX (Round 20): atomic find-delete-rebuild under self._lock
+        # (see __init__).
+        with self._lock:
+            # Find memories to delete
+            to_remove = [
+                memory_id
+                for memory_id, memory in self.memories.items()
+                if memory.user_id == user_id and memory.memory_type == memory_type
+            ]
 
-        # Delete memories
-        for memory_id in to_remove:
-            del self.memories[memory_id]
+            # Delete memories
+            for memory_id in to_remove:
+                del self.memories[memory_id]
 
-        # Rebuild memory_ids — O(n) instead of O(n²) from list.remove()
-        self.memory_ids = list(self.memories.keys())
+            # Rebuild memory_ids — O(n) instead of O(n²) from list.remove()
+            self.memory_ids = list(self.memories.keys())
 
-        # Rebuild embeddings array
-        if self.memory_ids:
-            self.embeddings = np.vstack(
-                [
-                    np.array(self.memories[mid].embedding, dtype=np.float32)
-                    for mid in self.memory_ids
-                ],
-            )
-        else:
-            self.embeddings = None
+            # Rebuild embeddings array
+            if self.memory_ids:
+                self.embeddings = np.vstack(
+                    [
+                        np.array(self.memories[mid].embedding, dtype=np.float32)
+                        for mid in self.memory_ids
+                    ],
+                )
+            else:
+                self.embeddings = None
 
-        return len(to_remove)
+            return len(to_remove)

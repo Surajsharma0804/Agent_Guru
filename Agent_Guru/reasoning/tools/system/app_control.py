@@ -3,9 +3,9 @@
 Platform-specific implementations for Windows, macOS, and Linux.
 """
 
+import asyncio
 import logging
 import platform
-import subprocess  # nosec B404
 from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
@@ -15,6 +15,7 @@ from Agent_Guru.reasoning.tools.base import (
     ToolSensitivity,
 )
 from Agent_Guru.reasoning.tools.registry import tool
+from Agent_Guru.reasoning.tools.system._command import run_cmd_async
 from Agent_Guru.security.redaction import redact
 
 logger = logging.getLogger(__name__)
@@ -50,14 +51,14 @@ class PlatformAppController:
                 run_cmd(["cmd", "/c", "start", "", app_name], check=False)  # nosec B603 B607
             elif system == "darwin":
                 # macOS: use open command
-                subprocess.Popen(["open", "-a", app_name])  # nosec B603 B607  # noqa: S603
+                await asyncio.create_subprocess_exec("open", "-a", app_name)  # nosec B603 B607
             elif system == "linux":
                 # Linux: try common methods
                 try:
-                    subprocess.Popen([app_name])  # nosec B603 B607  # noqa: S603
+                    await asyncio.create_subprocess_exec(app_name)  # nosec B603 B607
                 except FileNotFoundError:
                     # Try with xdg-open
-                    subprocess.Popen(["xdg-open", app_name])  # nosec B603 B607  # noqa: S603
+                    await asyncio.create_subprocess_exec("xdg-open", app_name)  # nosec B603 B607
             else:
                 return {
                     "success": False,
@@ -94,46 +95,73 @@ class PlatformAppController:
         """
         system = PlatformAppController.get_platform()
 
+        # SECURITY FIX (found 2026-09-13): this tool -- the actual
+        # LLM-facing "close application" tool the agent calls -- had ZERO
+        # protected-process check. platform/controllers/application_control.py
+        # got exactly this guard in an earlier audit round after finding
+        # that "close explorer" could kill the Windows shell; this parallel
+        # implementation (a separate, duplicate reimplementation of the
+        # same feature -- see the module docstring below) never got that
+        # fix because it exists independently and wasn't discovered until
+        # this pass. Refuse before ever touching taskkill/osascript/pkill.
+        # Lazy import: keeps reasoning/ free of a module-level platform/
+        # dependency, matching the existing convention in open_app() above.
+        from Agent_Guru.platform.protected_processes import (  # layer-exempt: lazy import avoids module-level reasoning→platform dependency
+            is_protected_process_name,
+        )
+        from Agent_Guru.platform.window_identifiers import (  # layer-exempt: lazy import avoids module-level reasoning→platform dependency
+            sanitize_window_identifier,
+        )
+
+        if is_protected_process_name(app_name) or is_protected_process_name(f"{app_name}.exe"):
+            return {
+                "success": False,
+                "error": f"Refusing to close protected process: {app_name}",  # nosec B200
+            }
+
         try:
             if system == "windows":
                 # Windows: use taskkill
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["taskkill", "/F", "/IM", f"{app_name}.exe"],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
+                if returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to close {app_name}: {result.stderr}",  # nosec B200
+                        "error": f"Failed to close {app_name}: {stderr}",  # nosec B200
                     }
             elif system == "darwin":
+                # SECURITY FIX (found 2026-09-13): app_name used to be
+                # f-string-interpolated directly into this AppleScript
+                # source with zero validation. AppleScript's `do shell
+                # script` can run arbitrary shell commands; a stray `"`
+                # here could break out of the string literal and splice in
+                # attacker-controlled AppleScript/shell commands that
+                # osascript would then actually execute. Reusing the same
+                # deny-list validator already used for this exact purpose
+                # in window_management.py's AppleScript window operations
+                # -- the threat model (untrusted free text going into an
+                # AppleScript string literal) is identical.
+                safe_app_name = sanitize_window_identifier(app_name)
                 # macOS: use osascript to quit application
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["osascript", "-e", f'quit app "{app_name}"'],
-                    check=False,
-                    capture_output=True,
-                    text=True,
+                returncode, _stdout, stderr = await run_cmd_async(
+                    ["osascript", "-e", f'quit app "{safe_app_name}"'],
                 )
-                if result.returncode != 0:
+                if returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to close {app_name}: {result.stderr}",  # nosec B200
+                        "error": f"Failed to close {app_name}: {stderr}",  # nosec B200
                     }
             elif system == "linux":
                 # Linux: use pkill
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["pkill", "-f", app_name],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode not in {0, 1}:
+                if returncode not in {0, 1}:
                     # returncode 1 means no process found, which is acceptable
                     return {
                         "success": False,
-                        "error": f"Failed to close {app_name}: {result.stderr}",  # nosec B200
+                        "error": f"Failed to close {app_name}: {stderr}",  # nosec B200
                     }
             else:
                 return {
@@ -171,52 +199,68 @@ class PlatformAppController:
         """
         system = PlatformAppController.get_platform()
 
+        # SECURITY FIX (found 2026-09-13): see close_app() above for the
+        # full rationale -- same lazy-import convention, same reused
+        # validator.
+        from Agent_Guru.platform.window_identifiers import (  # layer-exempt: lazy import avoids module-level reasoning→platform dependency
+            sanitize_window_identifier,
+        )
+
         try:
             if system == "windows":
+                # SECURITY FIX (found 2026-09-13): THE MOST SEVERE issue
+                # found in this file. app_name used to be f-string-
+                # interpolated directly into a PowerShell script with zero
+                # validation. PowerShell is Windows' primary scripting
+                # environment with full system access; an app_name like
+                # `x" }} ; Remove-Item -Recurse -Force C:\Users -ErrorAction
+                # SilentlyContinue ; $y = "` would break out of the
+                # `-like "*...*"` string literal and splice in arbitrary
+                # PowerShell that `powershell -Command` would then actually
+                # execute -- a full remote/agent-driven code execution
+                # primitive, not just a process-targeting bug. The same
+                # deny-list validator rejects every character PowerShell
+                # string-literal breakout depends on (quotes, backtick,
+                # `$`, semicolons, pipes, parens).
+                safe_app_name = sanitize_window_identifier(app_name)
                 # Windows: use PowerShell to bring window to front
                 ps_script = f"""
-                $app = Get-Process | Where-Object {{$_.MainWindowTitle -like "*{app_name}*"}} | Select-Object -First 1
+                $app = Get-Process | Where-Object {{$_.MainWindowTitle -like "*{safe_app_name}*"}} | Select-Object -First 1
                 if ($app) {{
                     $wshell = New-Object -ComObject wscript.shell
                     $wshell.AppActivate($app.Id)
                 }}
                 """
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["powershell", "-Command", ps_script],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
+                if returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to switch to {app_name}: {result.stderr}",  # nosec B200
+                        "error": f"Failed to switch to {app_name}: {stderr}",  # nosec B200
                     }
             elif system == "darwin":
+                # SECURITY FIX (found 2026-09-13): same AppleScript
+                # injection class as close_app()'s darwin branch.
+                safe_app_name = sanitize_window_identifier(app_name)
                 # macOS: use osascript to activate application
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
-                    ["osascript", "-e", f'tell application "{app_name}" to activate'],
-                    check=False,
-                    capture_output=True,
-                    text=True,
+                returncode, _stdout, stderr = await run_cmd_async(
+                    ["osascript", "-e", f'tell application "{safe_app_name}" to activate'],
                 )
-                if result.returncode != 0:
+                if returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to switch to {app_name}: {result.stderr}",  # nosec B200
+                        "error": f"Failed to switch to {app_name}: {stderr}",  # nosec B200
                     }
             elif system == "linux":
                 # Linux: use wmctrl if available
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["wmctrl", "-a", app_name],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
+                if returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to switch to {app_name}: {result.stderr}",  # nosec B200
+                        "error": f"Failed to switch to {app_name}: {stderr}",  # nosec B200
                     }
             else:
                 return {

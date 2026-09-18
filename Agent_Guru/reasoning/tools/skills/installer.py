@@ -143,7 +143,25 @@ class SkillInstaller:
                 shutil.copy(source, skill_install_dir / "manifest.json")
 
             # Step 5: Register skill
-            await self.registry.register_skill(manifest)
+            installed = await self.registry.register_skill(manifest)
+
+            # BUG FIX (Round 14): install_skill() registered the skill with
+            # SkillRegistry (self.registry, above) but never told
+            # SkillToolRegistry -- a completely separate registry, despite
+            # the similar name -- that a new skill exists. Confirmed via
+            # full-repository search: nothing anywhere ever called
+            # SkillToolRegistry.register_skill(), so a skill installed
+            # through this method could never actually become a callable
+            # tool, even though reasoning/tools/selector.py is already
+            # live-wired to select from exactly that registry
+            # (get_skill_tool_registry()). Bridging the two here is what
+            # makes "install a skill" actually result in a usable tool
+            # instead of a registry entry nothing ever reads.
+            from Agent_Guru.reasoning.tools.skills.skill_tool_adapter import (
+                get_skill_tool_registry,
+            )
+
+            get_skill_tool_registry().register_skill(installed)
 
             # Step 6: Initialize usage stats
             self._usage_stats[manifest.skill_id] = {
@@ -188,6 +206,12 @@ class SkillInstaller:
 
             # Step 2: Unregister skill
             await self.registry.unregister_skill(skill_id)
+
+            from Agent_Guru.reasoning.tools.skills.skill_tool_adapter import (
+                get_skill_tool_registry,
+            )
+
+            get_skill_tool_registry().unregister_skill(skill_id)
 
             # Step 3: Revoke all permissions
             granted_permissions = self.permission_manager.get_granted_permissions(skill_id)
@@ -299,8 +323,14 @@ class SkillInstaller:
                     shutil.copy(source, current_dir / "manifest.json")
 
                 # Step 6: Update registry
+                from Agent_Guru.reasoning.tools.skills.skill_tool_adapter import (
+                    get_skill_tool_registry,
+                )
+
                 await self.registry.unregister_skill(skill_id)
-                await self.registry.register_skill(manifest)
+                get_skill_tool_registry().unregister_skill(skill_id)
+                updated = await self.registry.register_skill(manifest)
+                get_skill_tool_registry().register_skill(updated)
 
                 # Step 7: Cleanup backup
                 if backup_dir.exists():
@@ -384,11 +414,21 @@ class SkillInstaller:
             if not manifest_path.exists():
                 return None
 
-            # Parse manifest
+            # BUG FIX (Round 14): the parsed JSON was previously discarded
+            # (`json.load(f)` with no assignment) and the actual `return`
+            # statement was `SkillManifestParser().parse` -- a bare
+            # attribute access on an object that has no `parse` method
+            # (only the static `parse_yaml`/`parse_dict`); the trailing
+            # "(manifest_data)" was inside the `# type: ignore` comment and
+            # never executed. Every call raised AttributeError, silently
+            # swallowed by the except clause below, so install_skill()
+            # failed with "Failed to load skill manifest" for every real
+            # manifest, unconditionally -- this method could not succeed
+            # once, ever. Fixed by actually parsing the loaded data.
             with open(manifest_path, encoding="utf-8") as f:  # noqa: ASYNC230
-                json.load(f)
+                manifest_data = json.load(f)
 
-            return SkillManifestParser().parse  # type: ignore[attr-defined](manifest_data)
+            return SkillManifestParser.parse_dict(manifest_data)
 
         except Exception as e:
             _logger.warning("Failed to load manifest: %s", e)

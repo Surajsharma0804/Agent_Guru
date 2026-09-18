@@ -17,6 +17,7 @@ from Agent_Guru.reasoning.error.error_manager import (  # noqa: E402
     ErrorType,
     get_error_manager,
 )
+from Agent_Guru.reasoning.models.skill import TrustLevel  # noqa: E402
 from Agent_Guru.reasoning.tools.base import Tool  # noqa: E402
 from Agent_Guru.reasoning.tools.registry import get_registry  # noqa: E402
 from Agent_Guru.reasoning.tools.skills.manifest import (  # noqa: E402
@@ -24,6 +25,8 @@ from Agent_Guru.reasoning.tools.skills.manifest import (  # noqa: E402
     SkillManifestParser,
     SkillManifestValidator,
 )
+from Agent_Guru.reasoning.tools.skills.permissions import get_permission_manager  # noqa: E402
+from Agent_Guru.reasoning.tools.skills.registry import get_skill_registry  # noqa: E402
 
 
 class SkillLoader:
@@ -103,6 +106,48 @@ class SkillLoader:
             )
             raise ValueError(error.user_message)
 
+        # SECURITY FIX (Round 14): previously this method proceeded straight
+        # from schema validation to importing and exec'ing the skill's
+        # entry-point module in-process, with no reference anywhere to
+        # SkillRegistry or PermissionManager -- the exact
+        # install-time-consent and trust-level infrastructure this codebase
+        # built specifically to gate third-party code execution. A bare
+        # directory dropped into plugins_dir with nothing more than a
+        # syntactically valid skill.yaml would have its Python entry point
+        # imported and any Tool subclass silently registered into the live,
+        # global tool registry -- no install step, no permission request,
+        # no trust level ever consulted. A full-repository search confirmed
+        # nothing in the live app calls this method today, but
+        # reasoning/tools/selector.py already wires the sandboxed skill-tool
+        # path (get_skill_tool_registry()) into live tool selection, so
+        # this method is clearly meant to be connected the same way -- and
+        # doing so without this gate would immediately reopen unauthenticated
+        # arbitrary code execution. Require the skill to already be
+        # registered (i.e. it went through SkillInstaller's manifest
+        # validation + permission-request flow) and not BLOCKED at the
+        # trust level before importing a single line of its code.
+        if get_skill_registry().get_skill(manifest.skill_id) is None:
+            context = ErrorContext(tool_id=manifest.skill_id)
+            error = error_manager.create_error(
+                error_type=ErrorType.PERMISSION_DENIED,
+                message=(
+                    f"Skill '{manifest.skill_id}' is not installed/registered -- "
+                    "refusing to import unvetted third-party code"
+                ),
+                context=context,
+            )
+            raise ValueError(error.user_message)
+
+        trust_level = get_permission_manager().get_trust_level(manifest.skill_id)
+        if trust_level == TrustLevel.BLOCKED:
+            context = ErrorContext(tool_id=manifest.skill_id)
+            error = error_manager.create_error(
+                error_type=ErrorType.PERMISSION_DENIED,
+                message=f"Skill '{manifest.skill_id}' is blocked -- refusing to load",
+                context=context,
+            )
+            raise ValueError(error.user_message)
+
         # Load skill module
         try:
             module = self._load_module(skill_dir, manifest.entry_point)
@@ -151,9 +196,26 @@ class SkillLoader:
             ImportError: If module loading fails
 
         """
-        # Convert entry point to file path
-        module_path = skill_dir / entry_point.replace(".", "/")
+        # SECURITY FIX (Round 14): entry_point is untrusted data taken
+        # straight from the skill's own manifest file. The old code built
+        # `skill_dir / entry_point.replace(".", "/")` with plain path
+        # arithmetic and no containment check -- only "." was neutralized,
+        # so a manifest entry_point of e.g. "../../../etc/passwd" (or any
+        # absolute path, which Path.__truediv__ happily accepts and
+        # discards the left side of) would resolve module_path OUTSIDE
+        # skill_dir entirely, and this method would still exec_module()
+        # whatever Python file it found there. Fixed by resolving the
+        # untrusted component through safe_path(), the same containment
+        # helper already used for untrusted path input elsewhere in this
+        # codebase (avatar/config.py, deployment/onboarding.py,
+        # personality/engine.py).
+        from Agent_Guru.utils.path_utils import safe_path
+
+        module_path = safe_path(skill_dir, entry_point.replace(".", "/"))
         if module_path.is_dir():
+            # module_path was already validated to be inside skill_dir;
+            # appending a fixed, non-attacker-controlled filename cannot
+            # escape it.
             module_path = module_path / "__init__.py"
         elif not module_path.suffix:
             module_path = module_path.with_suffix(".py")

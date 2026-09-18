@@ -75,20 +75,21 @@ class GetWeatherTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would use OpenWeatherMap,
-            # Weather.com API, or similar service
+            # BUG FIX (Round 21): this used to unconditionally return the
+            # exact same fabricated reading -- 20C/68F, "Partly Cloudy", 65%
+            # humidity, wind 10 -- for EVERY location on Earth, with
+            # "success": True and no indication whatsoever that it was
+            # invented. This is the single most dangerous placeholder found
+            # in this round: unlike a calendar or email placeholder (whose
+            # falseness the user discovers the moment they check the real
+            # thing), fabricated weather data can directly shape a user's
+            # real-world decisions (whether to bring an umbrella, dress for
+            # cold, delay travel) with total false confidence and no way
+            # for the user to sanity-check it in the moment. No weather API
+            # is configured in this codebase, so this now honestly fails.
             return {
-                "success": True,
-                "result": {
-                    "location": location,
-                    "temperature": 20 if units == "metric" else 68,
-                    "units": units,
-                    "condition": "Partly Cloudy",
-                    "humidity": 65,
-                    "wind_speed": 10,
-                    "message": f"Weather for {location}",
-                    "note": "This is a placeholder. Real implementation would use weather API.",
-                },
+                "success": False,
+                "error": "Weather lookup is not available: no weather API is configured in this build of Agent Guru.",
             }
 
         except Exception as e:
@@ -173,24 +174,15 @@ class GetDirectionsTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would use Google Maps API,
-            # Mapbox, or similar service
+            # BUG FIX (Round 21): this used to return identical fabricated
+            # directions ("10 km", "15 minutes", "Head north on Main St...")
+            # for ANY origin/destination pair -- including pairs on
+            # different continents -- with "success": True. No maps API is
+            # configured in this codebase, so this now honestly fails
+            # instead of inventing a route.
             return {
-                "success": True,
-                "result": {
-                    "origin": origin,
-                    "destination": destination,
-                    "mode": mode,
-                    "distance": "10 km",
-                    "duration": "15 minutes",
-                    "steps": [
-                        "Head north on Main St",
-                        "Turn right onto Oak Ave",
-                        "Arrive at destination",
-                    ],
-                    "message": f"Directions from {origin} to {destination}",
-                    "note": "This is a placeholder. Real implementation would use maps API.",
-                },
+                "success": False,
+                "error": "Directions are not available: no maps/directions API is configured in this build of Agent Guru.",
             }
 
         except Exception as e:
@@ -275,19 +267,15 @@ class SearchPlacesTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would use Google Places API,
-            # Foursquare, or similar service
+            # BUG FIX (Round 21): this used to unconditionally return
+            # "success": True with "place_count": 0 and "places": [] -- an
+            # empty-but-successful result indistinguishable from a real
+            # search that legitimately found nothing nearby, when in truth
+            # no search ever happened. No places API is configured in this
+            # codebase, so this now honestly fails.
             return {
-                "success": True,
-                "result": {
-                    "query": query,
-                    "location": location,
-                    "radius": radius,
-                    "place_count": 0,
-                    "places": [],
-                    "message": f"Searched for '{query}' near {location}",
-                    "note": "This is a placeholder. Real implementation would use places API.",
-                },
+                "success": False,
+                "error": "Place search is not available: no places API is configured in this build of Agent Guru.",
             }
 
         except Exception as e:

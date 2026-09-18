@@ -19,6 +19,7 @@ import uuid
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from Agent_Guru.reasoning.models.behavioral import PatternType, TimePattern
 
@@ -361,78 +362,87 @@ class PatternDetector:
             pattern: Pattern to store
 
         """
-        conn = sqlite3.connect(str(self.db_path))
-        try:
-            cursor = conn.cursor()
+        # EVENT-LOOP FIX: this method is declared `async def` but contained no
+        # await -- the body below is synchronous blocking work (opening a
+        # connection, querying, and for a write commit()/fsync), executed directly
+        # on the event loop. The same shape in agent_orchestration/storage.py was
+        # measured freezing a 1 ms heartbeat to 2% responsiveness. The body itself
+        # is unchanged; only the thread it runs on has moved.
+        def _work() -> Any:
+            conn = sqlite3.connect(str(self.db_path))
+            try:
+                cursor = conn.cursor()
 
-            # Check if pattern exists
-            cursor.execute(
-                """
-                SELECT pattern_id FROM time_patterns
-                WHERE user_id = ? AND pattern_type = ? AND command = ?
-                AND time_of_day IS ? AND day_of_week IS ?
-            """,
-                (
-                    pattern.user_id,
-                    pattern.pattern_type.value,
-                    pattern.command,
-                    pattern.time_of_day,
-                    pattern.day_of_week,
-                ),
-            )
-            existing = cursor.fetchone()
-
-            if existing:
-                # Update existing pattern
+                # Check if pattern exists
                 cursor.execute(
                     """
-                    UPDATE time_patterns
-                    SET frequency = ?,
-                        confidence = ?,
-                        last_occurrence = ?,
-                        metadata = ?,
-                        updated_at = ?
-                    WHERE pattern_id = ?
+                    SELECT pattern_id FROM time_patterns
+                    WHERE user_id = ? AND pattern_type = ? AND command = ?
+                    AND time_of_day IS ? AND day_of_week IS ?
                 """,
                     (
-                        pattern.frequency,
-                        pattern.confidence,
-                        pattern.last_occurrence.isoformat(),
-                        json.dumps(pattern.metadata),
-                        datetime.now(tz=UTC).isoformat(),
-                        existing[0],
-                    ),
-                )
-            else:
-                # Insert new pattern
-                now = datetime.now(tz=UTC).isoformat()
-                cursor.execute(
-                    """
-                    INSERT INTO time_patterns (
-                        pattern_id, user_id, pattern_type, command,
-                        time_of_day, day_of_week, frequency, confidence,
-                        last_occurrence, metadata, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                    (
-                        pattern.pattern_id,
                         pattern.user_id,
                         pattern.pattern_type.value,
                         pattern.command,
                         pattern.time_of_day,
                         pattern.day_of_week,
-                        pattern.frequency,
-                        pattern.confidence,
-                        pattern.last_occurrence.isoformat(),
-                        json.dumps(pattern.metadata),
-                        now,
-                        now,
                     ),
                 )
+                existing = cursor.fetchone()
 
-            conn.commit()
-        finally:
-            conn.close()
+                if existing:
+                    # Update existing pattern
+                    cursor.execute(
+                        """
+                        UPDATE time_patterns
+                        SET frequency = ?,
+                            confidence = ?,
+                            last_occurrence = ?,
+                            metadata = ?,
+                            updated_at = ?
+                        WHERE pattern_id = ?
+                    """,
+                        (
+                            pattern.frequency,
+                            pattern.confidence,
+                            pattern.last_occurrence.isoformat(),
+                            json.dumps(pattern.metadata),
+                            datetime.now(tz=UTC).isoformat(),
+                            existing[0],
+                        ),
+                    )
+                else:
+                    # Insert new pattern
+                    now = datetime.now(tz=UTC).isoformat()
+                    cursor.execute(
+                        """
+                        INSERT INTO time_patterns (
+                            pattern_id, user_id, pattern_type, command,
+                            time_of_day, day_of_week, frequency, confidence,
+                            last_occurrence, metadata, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                        (
+                            pattern.pattern_id,
+                            pattern.user_id,
+                            pattern.pattern_type.value,
+                            pattern.command,
+                            pattern.time_of_day,
+                            pattern.day_of_week,
+                            pattern.frequency,
+                            pattern.confidence,
+                            pattern.last_occurrence.isoformat(),
+                            json.dumps(pattern.metadata),
+                            now,
+                            now,
+                        ),
+                    )
+
+                conn.commit()
+            finally:
+                conn.close()
+
+        return await asyncio.to_thread(_work)
 
     async def get_patterns(
         self,

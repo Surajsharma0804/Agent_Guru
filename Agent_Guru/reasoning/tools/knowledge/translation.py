@@ -144,19 +144,30 @@ class TranslateTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would use a translation API
-            # (Google Translate, DeepL, Azure Translator, etc.)
+            # BUG FIX (Round 21): this used to return a fabricated string
+            # literally reading "[Translation of 'X' to Spanish]" -- NOT a
+            # real translation -- while claiming success with a fake
+            # "detected_language" too. This is a materially worse kind of
+            # fake than, say, the weather/stock placeholders elsewhere in
+            # this audit: a user who doesn't speak the target language has
+            # no way to notice the translation is fabricated nonsense,
+            # whereas a wrong stock price is at least independently
+            # checkable. Unlike web_search.py/information.py's fixes this
+            # round, a generic web search snippet is not a safe substitute
+            # here either -- scraped, unstructured text from a "translate X
+            # to Y" query is not reliably an actual translation of the
+            # input, so returning that as "the translation" would still be
+            # presenting an unverifiable, possibly-wrong string as fact.
+            # Honestly failing until a real translation API/model is wired
+            # up is the correct behavior for a companion whose mandate
+            # explicitly includes multilingual interaction done right, not
+            # multilingual interaction that silently lies.
             return {
-                "success": True,
-                "result": {
-                    "original_text": text,
-                    "translated_text": f"[Translation of '{text}' to {SUPPORTED_LANGUAGES.get(target_language, target_language)}]",
-                    "source_language": source_language,
-                    "target_language": target_language,
-                    "detected_language": "en" if source_language == "auto" else source_language,
-                    "message": f"Translated text from {source_language} to {target_language}",
-                    "note": "This is a placeholder. Real implementation would use translation API.",
-                },
+                "success": False,
+                "error": (
+                    "Translation is not available: no translation API is "
+                    "configured in this build of Agent Guru."
+                ),
             }
 
         except Exception as e:

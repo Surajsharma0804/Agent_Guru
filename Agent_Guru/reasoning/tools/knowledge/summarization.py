@@ -1,8 +1,16 @@
 """Summarization tools for text, articles, and documents.
 
-Uses LLM for intelligent summarization.
+DOC FIX (Round 21): this previously claimed "Uses LLM for intelligent
+summarization" -- none of the tools in this module do; SummarizeTextTool
+and SummarizeDocumentTool perform honest word-count truncation (real
+content, extractive, not LLM-generated), and SummarizeArticleTool honestly
+reports that arbitrary-URL fetching isn't implemented yet rather than
+fabricating a summary. See this module's per-tool fix notes and the
+Round 21 audit report for details.
 """
 
+import asyncio
+from pathlib import Path
 from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
@@ -12,6 +20,11 @@ from Agent_Guru.reasoning.tools.base import (
     ToolSensitivity,
 )
 from Agent_Guru.reasoning.tools.registry import tool
+
+# Maximum document size for summarization (5MB) -- smaller than
+# file_operations.py's 10MB read cap since this also has to hold the
+# word-split copy in memory.
+MAX_DOCUMENT_SIZE_BYTES = 5 * 1024 * 1024
 
 
 @tool(
@@ -160,19 +173,33 @@ class SummarizeArticleTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would:
-            # 1. Fetch the article content
-            # 2. Extract main text
-            # 3. Use LLM for summarization
+            # BUG FIX (Round 21): this used to claim success with a literal
+            # placeholder string ("Article summary would appear here") --
+            # the article at `url` was never fetched at all. Left as an
+            # honest failure rather than fabricated content: unlike
+            # web_search.py/information.py's fixes (this same round), there
+            # is no already-built, already-tested "fetch this specific
+            # arbitrary URL's content" capability in this codebase to
+            # delegate to yet -- platform/browser_manager.py can navigate to
+            # a URL and extract page text (used by web_search.py's tier-3
+            # search fallback), but wiring an LLM-agent-facing tool to
+            # navigate to an arbitrary, user/LLM-supplied URL is a distinct
+            # capability with its own safety surface (the shared browser
+            # instance is also used for other live features like YouTube
+            # playback, so a long-running fetch here could interfere with
+            # those; and unlike a search query, an arbitrary URL needs its
+            # own scrutiny e.g. against local-network/internal-address
+            # targets) that deserves a dedicated audit rather than being
+            # folded into this fix. See this round's report for the
+            # specific follow-up recommendation.
             return {
-                "success": True,
-                "result": {
-                    "url": url,
-                    "max_length": max_length,
-                    "summary": "Article summary would appear here",
-                    "message": f"Article from {url} would be summarized",
-                    "note": "This is a placeholder. Real implementation would fetch and summarize article content.",
-                },
+                "success": False,
+                "error": (
+                    "Article summarization is not available: this build has "
+                    "no capability to fetch arbitrary article URLs yet. "
+                    "Provide the article text directly and use "
+                    "'summarize.text' instead."
+                ),
             }
 
         except Exception as e:
@@ -242,21 +269,81 @@ class SummarizeDocumentTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would:
-            # 1. Read the document (PDF, DOCX, TXT, etc.)
-            # 2. Extract text content
-            # 3. Use LLM for summarization
+            # BUG FIX (Round 21): this used to claim success with a literal
+            # placeholder string ("Document summary would appear here") --
+            # the file was never opened. Unlike SummarizeArticleTool (see
+            # that method's fix note), a real, already-audited building
+            # block for this DOES exist: the same safe_path()-sandboxed
+            # file read pattern already applied to
+            # reasoning/tools/system/file_operations.py::FileReadTool
+            # (Round 8) -- containment-checked to the user's home directory,
+            # raising ValueError on any traversal attempt. Only plain-text
+            # formats are handled here (.txt/.md/.markdown/.rst/.log, or no
+            # extension); PDF/DOCX would need a real parser this codebase
+            # doesn't have wired up yet, so those are honestly rejected
+            # rather than read as garbled binary and "summarized" into
+            # nonsense.
+            from Agent_Guru.security.path_utils import safe_path
+
+            _base_dir = Path.home().resolve()
+            try:
+                resolved_path = safe_path(file_path, _base_dir)
+            except ValueError as e:
+                return {"success": False, "error": str(e)}
+
+            if not resolved_path.exists() or not resolved_path.is_file():
+                return {
+                    "success": False,
+                    "error": f"File not found: {file_path}",
+                }
+
+            _TEXT_SUFFIXES = {"", ".txt", ".md", ".markdown", ".rst", ".log"}
+            if resolved_path.suffix.lower() not in _TEXT_SUFFIXES:
+                return {
+                    "success": False,
+                    "error": (
+                        f"Cannot summarize '{resolved_path.suffix}' files yet -- "
+                        "only plain text documents (.txt, .md, .rst, .log) are "
+                        "supported. PDF/DOCX extraction is not implemented."
+                    ),
+                }
+
+            file_size = resolved_path.stat().st_size
+            if file_size > MAX_DOCUMENT_SIZE_BYTES:
+                return {
+                    "success": False,
+                    "error": (
+                        f"File too large to summarize: {file_size} bytes "
+                        f"(max: {MAX_DOCUMENT_SIZE_BYTES})"
+                    ),
+                }
+
+            content = await asyncio.to_thread(resolved_path.read_text, encoding="utf-8")
+
+            # Same honest extractive approach as SummarizeTextTool above
+            # (word-count truncation, not LLM-generated) -- real content,
+            # real truncation, clearly not claimed to be more than that.
+            words = content.split()
+            word_count = len(words)
+            summary = content if word_count <= max_length else " ".join(words[:max_length]) + "..."
+
             return {
                 "success": True,
                 "result": {
-                    "file_path": file_path,
+                    "file_path": str(resolved_path),
                     "max_length": max_length,
-                    "summary": "Document summary would appear here",
-                    "message": f"Document {file_path} would be summarized",
-                    "note": "This is a placeholder. Real implementation would read and summarize document content.",
+                    "original_length": word_count,
+                    "summary_length": min(word_count, max_length),
+                    "summary": summary,
+                    "message": f"Summarized {resolved_path.name} ({word_count} words)",
                 },
             }
 
+        except UnicodeDecodeError:
+            return {
+                "success": False,
+                "error": "Failed to decode file as UTF-8 text",
+            }
         except Exception as e:
             return {
                 "success": False,

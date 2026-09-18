@@ -239,45 +239,80 @@ class SyncExecutor:
         """
         import concurrent.futures
 
-        # Use ThreadPoolExecutor for timeout enforcement
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        # Deliberately NOT a `with` block. ThreadPoolExecutor.__exit__ calls
+        # shutdown(wait=True), which JOINS the worker thread on every exit
+        # path -- including the timeout one -- and future.cancel() cannot stop
+        # a task that has already started running. The previous version
+        # therefore raised TimeoutError and then blocked inside __exit__ until
+        # the call it had just given up on finished anyway: measured, a 0.5s
+        # timeout against a 20s tool returned after 20.0s. The timeout label
+        # was correct and the timeout itself bounded nothing.
+        executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix="guru-tool",
+        )
+        abandoned = False
+        try:
             future = executor.submit(tool_function, parameters)
 
+            # Wait for result with timeout, checking cancellation periodically
+            if cancellation_token and "check_fn" in cancellation_token:
+                check_fn = cancellation_token["check_fn"]
+                poll_interval = 0.1  # Check every 100ms
+                # A real deadline rather than a count of poll intervals: the
+                # old loop added 0.1 per iteration regardless of how long the
+                # iteration actually took, so a slow check_fn made the
+                # effective timeout drift arbitrarily far past `timeout`.
+                deadline = time.monotonic() + timeout
+
+                while True:
+                    # Check if cancelled
+                    if check_fn():
+                        abandoned = True
+                        future.cancel()
+                        # Raise cancellation error
+                        msg = "Execution was cancelled"
+                        raise ValueError(msg)
+
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        break
+
+                    # Try to get result with short timeout
+                    try:
+                        return future.result(timeout=min(poll_interval, remaining))
+                    except concurrent.futures.TimeoutError:
+                        # Not done yet, continue polling
+                        continue
+
+                # Timeout exceeded
+                abandoned = True
+                future.cancel()
+                msg = f"Execution exceeded timeout of {timeout}s"
+                raise TimeoutError(msg)
+
+            # No cancellation token, just wait for result
             try:
-                # Wait for result with timeout, checking cancellation periodically
-                if cancellation_token and "check_fn" in cancellation_token:
-                    check_fn = cancellation_token["check_fn"]
-                    # Poll for cancellation while waiting
-                    elapsed = 0.0
-                    poll_interval = 0.1  # Check every 100ms
-
-                    while elapsed < timeout:
-                        # Check if cancelled
-                        if check_fn():
-                            future.cancel()
-                            # Raise cancellation error
-                            msg = "Execution was cancelled"
-                            raise ValueError(msg)
-
-                        # Try to get result with short timeout
-                        try:
-                            return future.result(timeout=poll_interval)
-                        except concurrent.futures.TimeoutError:
-                            # Not done yet, continue polling
-                            elapsed += poll_interval
-                            continue
-                    # Timeout exceeded
-                    future.cancel()
-                    msg = f"Execution exceeded timeout of {timeout}s"
-                    raise TimeoutError(msg)
-                # No cancellation token, just wait for result
                 return future.result(timeout=timeout)
-
             except concurrent.futures.TimeoutError as e:
-                # Cancel the future
+                # On Python 3.11+ concurrent.futures.TimeoutError IS the
+                # builtin TimeoutError, so a tool that raises TimeoutError of
+                # its own lands here too. future.done() tells them apart: a
+                # genuine wait-timeout leaves the future still running.
+                if future.done():
+                    raise
+                abandoned = True
                 future.cancel()
                 msg = f"Execution exceeded timeout of {timeout}s"
                 raise TimeoutError(msg) from e
+        finally:
+            # Give-up paths do NOT wait. The orphaned worker finishes on its
+            # own time instead of holding the caller past the deadline it was
+            # promised. Python cannot kill a running thread, so a genuinely
+            # wedged tool still occupies one thread until it returns -- tools
+            # are expected to bound their own I/O. What is fixed here is that
+            # such a tool no longer blocks its CALLER.
+            executor.shutdown(wait=not abandoned, cancel_futures=True)
 
     def _is_transient_error(self, error: Exception) -> bool:
         """Check if error is transient and retryable.

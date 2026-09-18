@@ -12,6 +12,8 @@ from cryptography.fernet import Fernet
 
 from Agent_Guru.reasoning.models.action import ActionSensitivity
 
+from Agent_Guru.utils.secure_file import secure_write_bytes as _secure_write_bytes
+
 logger = structlog.get_logger(__name__)
 
 
@@ -459,8 +461,9 @@ class AuditLogger:
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(entries_dict, f, indent=2)
+        # Exported audit entries carry the same content as the log itself, so
+        # the export is written owner-only rather than under the umask.
+        _secure_write_bytes(output_file, json.dumps(entries_dict, indent=2).encode("utf-8"))
 
         logger.info(
             "audit_logs_exported",

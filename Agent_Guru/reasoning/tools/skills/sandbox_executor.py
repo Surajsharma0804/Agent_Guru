@@ -73,6 +73,7 @@ class SkillSandboxExecutor:
         """
         start_time = time.perf_counter()
         self._execution_count += 1
+        sandbox_created = False
 
         try:
             # Step 1: Check permissions
@@ -80,15 +81,13 @@ class SkillSandboxExecutor:
 
             # Step 2: Create sandbox environment
             sandbox = await self._create_sandbox(skill)
+            sandbox_created = True
 
             # Step 3: Execute skill in sandbox
             result = await self._execute_in_sandbox(sandbox, skill, entry_point, parameters)
 
             # Step 4: Validate result
             await self._validate_result(result)
-
-            # Step 5: Cleanup
-            await self._cleanup_sandbox(skill.manifest.skill_id)
 
             # Calculate execution time
             execution_time_ms = int((time.perf_counter() - start_time) * 1000)
@@ -107,12 +106,31 @@ class SkillSandboxExecutor:
             # Track violation if it's a sandbox issue
             if "sandbox" in error_msg.lower() or "violation" in error_msg.lower():
                 self._violation_count += 1
-                await self._cleanup_sandbox(skill.manifest.skill_id)
             return ExecutionResult(
                 success=False,
                 error=error_msg,
                 execution_time_ms=execution_time_ms,
             )
+
+        finally:
+            # RESOURCE-LEAK FIX (Round 14): cleanup previously only ran on
+            # the success path (the old unconditional Step 5 call) or on a
+            # ValueError whose message happened to contain
+            # "sandbox"/"violation" -- every other failure after a sandbox
+            # was actually created (a plain execution failure, a result over
+            # the size limit, and *every* TimeoutError, since TimeoutError
+            # is not a ValueError and was never caught by the except clause
+            # above at all) leaked that sandbox's temp directory on disk and
+            # its cached SkillSandbox object forever -- confirmed: a timed-
+            # out skill's temp_dir was never removed and its sandbox object
+            # stayed cached in SandboxManager.sandboxes, silently reused
+            # (uncleaned) by the next invocation. Cleanup now always runs,
+            # once a sandbox actually exists for this call, regardless of
+            # how the call ends -- including TimeoutError, which still
+            # propagates to the caller unchanged (this docstring's
+            # documented contract), just with cleanup guaranteed first.
+            if sandbox_created:
+                await self._cleanup_sandbox(skill.manifest.skill_id)
 
     async def _check_permissions(self, skill: InstalledSkill, user_id: str) -> None:
         """Check if skill has required permissions.
@@ -251,6 +269,24 @@ class SkillSandboxExecutor:
                     error = error_manager.create_error(
                         error_type=ErrorType.RESOURCE_EXHAUSTED,
                         message="Memory limit exceeded",
+                        context=context,
+                    )
+                    raise ValueError(error.user_message)
+                # BUG FIX (Round 14): sandbox.py's streaming-cap fix now
+                # kills the child and appends the marker
+                # "[sandbox] output exceeded 1MB limit; process
+                # terminated" to stderr instead of letting the process
+                # (and the parent's buffers) grow unbounded. Without this
+                # branch that marker fell through to the generic
+                # TOOL_EXECUTION_FAILED case below, which is misleading --
+                # this is a resource limit being enforced correctly, not
+                # an arbitrary execution failure, and callers deserve the
+                # same RESOURCE_EXHAUSTED error type they get for memory
+                # and timeout limits.
+                if "output exceeded" in stderr.lower():
+                    error = error_manager.create_error(
+                        error_type=ErrorType.RESOURCE_EXHAUSTED,
+                        message="Output size limit exceeded",
                         context=context,
                     )
                     raise ValueError(error.user_message)

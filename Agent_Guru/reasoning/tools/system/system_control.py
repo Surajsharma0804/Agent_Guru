@@ -5,7 +5,6 @@ Platform-specific implementations for Windows, macOS, and Linux.
 
 import logging
 import platform
-import subprocess  # nosec B404
 from typing import Any
 
 from Agent_Guru.reasoning.tools.base import (
@@ -15,6 +14,7 @@ from Agent_Guru.reasoning.tools.base import (
     ToolSensitivity,
 )
 from Agent_Guru.reasoning.tools.registry import tool
+from Agent_Guru.reasoning.tools.system._command import run_cmd_async
 from Agent_Guru.security.redaction import redact
 
 logger = logging.getLogger(__name__)
@@ -48,32 +48,23 @@ class PlatformSystemController:
                     f"for ($i = 0; $i -lt 50; $i++) {{ $obj.SendKeys([char]174) }}; "
                     f"for ($i = 0; $i -lt {level * 2}; $i++) {{ $obj.SendKeys([char]175) }}"
                 )
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["powershell", "-Command", ps_script],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
-                    return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
+                if returncode != 0:
+                    return {"success": False, "error": f"Failed to set volume: {stderr}"}
             elif system == "darwin":
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["osascript", "-e", f"set volume output volume {level}"],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
-                    return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
+                if returncode != 0:
+                    return {"success": False, "error": f"Failed to set volume: {stderr}"}
             elif system == "linux":
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["amixer", "set", "Master", f"{level}%"],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
-                    return {"success": False, "error": f"Failed to set volume: {result.stderr}"}
+                if returncode != 0:
+                    return {"success": False, "error": f"Failed to set volume: {stderr}"}
             else:
                 return {"success": False, "error": "Unsupported platform"}
 
@@ -106,41 +97,29 @@ class PlatformSystemController:
                     "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods)"
                     f".WmiSetBrightness(1,{level})"
                 )
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["powershell", "-Command", ps_script],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
-                    return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
+                if returncode != 0:
+                    return {"success": False, "error": f"Failed to set brightness: {stderr}"}
             elif system == "darwin":
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["brightness", str(level / 100.0)],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
-                    return {"success": False, "error": f"Failed to set brightness: {result.stderr}"}
+                if returncode != 0:
+                    return {"success": False, "error": f"Failed to set brightness: {stderr}"}
             elif system == "linux":
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["brightnessctl", "set", f"{level}%"],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
-                    result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                if returncode != 0:
+                    returncode, _stdout, stderr = await run_cmd_async(
                         ["xbacklight", "-set", str(level)],
-                        check=False,
-                        capture_output=True,
-                        text=True,
                     )
-                    if result.returncode != 0:
+                    if returncode != 0:
                         return {
                             "success": False,
-                            "error": f"Failed to set brightness: {result.stderr}",
+                            "error": f"Failed to set brightness: {stderr}",
                         }
             else:
                 return {"success": False, "error": "Unsupported platform"}
@@ -172,34 +151,25 @@ class PlatformSystemController:
         try:
             if system == "windows":
                 state = "enable" if enable else "disable"
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["netsh", "interface", "set", "interface", "Wi-Fi", state],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
-                    return {"success": False, "error": f"Failed to {action} WiFi: {result.stderr}"}
+                if returncode != 0:
+                    return {"success": False, "error": f"Failed to {action} WiFi: {stderr}"}
             elif system == "darwin":
                 state = "on" if enable else "off"
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["networksetup", "-setairportpower", "en0", state],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
-                    return {"success": False, "error": f"Failed to {action} WiFi: {result.stderr}"}
+                if returncode != 0:
+                    return {"success": False, "error": f"Failed to {action} WiFi: {stderr}"}
             elif system == "linux":
                 state = "on" if enable else "off"
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["nmcli", "radio", "wifi", state],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
-                    return {"success": False, "error": f"Failed to {action} WiFi: {result.stderr}"}
+                if returncode != 0:
+                    return {"success": False, "error": f"Failed to {action} WiFi: {stderr}"}
             else:
                 return {"success": False, "error": "Unsupported platform"}
 
@@ -237,42 +207,33 @@ class PlatformSystemController:
                     "$bluetooth = $radios | Where-Object { $_.Kind -eq 'Bluetooth' }; "
                     f"$bluetooth.SetStateAsync({state}).GetAwaiter().GetResult() | Out-Null"
                 )
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["powershell", "-Command", ps_script],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
+                if returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to {action} Bluetooth: {result.stderr}",
+                        "error": f"Failed to {action} Bluetooth: {stderr}",
                     }
             elif system == "darwin":
                 state = "1" if enable else "0"
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["blueutil", "--power", state],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
+                if returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to {action} Bluetooth: {result.stderr}",
+                        "error": f"Failed to {action} Bluetooth: {stderr}",
                     }
             elif system == "linux":
                 state = "unblock" if enable else "block"
-                result = subprocess.run(  # nosec B603 B607  # noqa: S603
+                returncode, _stdout, stderr = await run_cmd_async(
                     ["rfkill", state, "bluetooth"],
-                    check=False,
-                    capture_output=True,
-                    text=True,
                 )
-                if result.returncode != 0:
+                if returncode != 0:
                     return {
                         "success": False,
-                        "error": f"Failed to {action} Bluetooth: {result.stderr}",
+                        "error": f"Failed to {action} Bluetooth: {stderr}",
                     }
             else:
                 return {"success": False, "error": "Unsupported platform"}

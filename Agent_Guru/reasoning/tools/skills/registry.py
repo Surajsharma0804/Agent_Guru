@@ -9,6 +9,7 @@ from pathlib import Path
 
 from Agent_Guru.reasoning.models.skill import (
     InstalledSkill,
+    Permission,
     SkillManifestModel,
     SkillStatus,
 )
@@ -57,15 +58,47 @@ class SkillRegistry:
                 msg = f"Skill '{manifest.skill_id}' already registered"
                 raise ValueError(msg)
 
-            # Convert to model
+            # BUG FIX (Round 14): this previously hardcoded
+            # capabilities=[], required_permissions=[], entry_points={}
+            # regardless of what the manifest actually declared -- silently
+            # discarding manifest.permissions and manifest.tools entirely.
+            # The practical effect: SkillSandboxExecutor._check_permissions()
+            # iterates skill.manifest.required_permissions to decide what to
+            # gate -- with it always empty, no permission a skill's manifest
+            # ever asked for was checked at execution time, no matter what
+            # the manifest said. required_permissions is safe to populate
+            # via a direct Permission(...) conversion here because
+            # SkillManifestValidator.validate() (called just above, which
+            # raises on failure) already restricts manifest.permissions to
+            # exactly the same value set the Permission enum defines.
+            # capabilities is populated from each declared tool's tool_id
+            # (validated as required by the same validator) since that is
+            # what find_skills_by_capability() and SkillToolAdapter's tool
+            # metadata actually key on.
+            #
+            # entry_points intentionally stays {} -- see the note below.
+            # This is a genuine schema gap, not something safe to guess at:
+            # SkillManifest has a single `entry_point: str` (a module path,
+            # consumed by SkillLoader for in-process import) and `tools`
+            # entries with no per-tool inline-source or per-tool entry_point
+            # field at all, while SkillManifestModel.entry_points is
+            # `dict[str, str]` whose values sandbox_executor.py feeds
+            # directly to `python -c` as literal source. Those are two
+            # incompatible shapes; fabricating a mapping between them here
+            # would misrepresent what the manifest actually declares rather
+            # than fix anything. This needs a real design decision (e.g.
+            # should each tool entry carry its own entry_point?) which is
+            # out of scope for a bug-fix pass and is tracked separately.
             manifest_model = SkillManifestModel(
                 skill_id=manifest.skill_id,
                 version=manifest.version,
                 name=manifest.name,
                 description=manifest.description,
                 author=manifest.author,
-                capabilities=[],
-                required_permissions=[],
+                capabilities=[
+                    tool["tool_id"] for tool in manifest.tools if tool.get("tool_id")
+                ],
+                required_permissions=[Permission(p) for p in manifest.permissions],
                 entry_points={},
                 dependencies=manifest.dependencies,
             )

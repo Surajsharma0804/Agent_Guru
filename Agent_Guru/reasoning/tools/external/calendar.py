@@ -110,22 +110,19 @@ class CreateCalendarEventTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would use Google Calendar API,
-            # Microsoft Graph API, or other calendar service
-            event_id = f"event_{hash(title + start_time)}"
-
+            # BUG FIX (Round 21): this used to unconditionally claim
+            # "success": True with a fabricated event_id and a message
+            # reading "Created event '{title}'..." -- no calendar was ever
+            # touched, and the user would have no way to know the event
+            # doesn't actually exist until they check their real calendar
+            # and find it missing. No calendar controller/API credentials
+            # exist anywhere in this codebase to delegate to (unlike
+            # messaging.py's fix in Round 4), so honestly failing is
+            # correct here rather than fabricating an integration this
+            # round didn't build or test.
             return {
-                "success": True,
-                "result": {
-                    "event_id": event_id,
-                    "title": title,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "description": description,
-                    "location": location,
-                    "message": f"Created event '{title}' from {start_time} to {end_time}",
-                    "note": "This is a placeholder. Real implementation would use calendar API.",
-                },
+                "success": False,
+                "error": "Calendar integration is not available: no calendar provider is configured in this build of Agent Guru.",
             }
 
         except Exception as e:
@@ -213,17 +210,19 @@ class GetCalendarEventsTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would query calendar API
+            # BUG FIX (Round 21): this used to unconditionally claim
+            # "success": True with "event_count": 0 and "events": [] and a
+            # message reading "Retrieved events from..." -- no calendar
+            # query ever happened. This is arguably worse than
+            # CreateCalendarEventTool's old bug: a user asking "what's on my
+            # calendar today" would be confidently told they have ZERO
+            # events -- indistinguishable from a real, successful query
+            # that legitimately found nothing -- when in truth no query was
+            # ever attempted. No calendar provider is configured in this
+            # codebase, so this honestly fails instead.
             return {
-                "success": True,
-                "result": {
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "event_count": 0,
-                    "events": [],
-                    "message": f"Retrieved events from {start_date} to {end_date}",
-                    "note": "This is a placeholder. Real implementation would query calendar API.",
-                },
+                "success": False,
+                "error": "Calendar integration is not available: no calendar provider is configured in this build of Agent Guru.",
             }
 
         except Exception as e:

@@ -114,22 +114,29 @@ class SendEmailTool(Tool):
             }
 
         try:
-            # Note: In a real implementation, this would:
-            # 1. Load API credentials from secure storage
-            # 2. Use provider-specific API (Gmail API, Microsoft Graph, SMTP)
-            # 3. Send the email
-            # 4. Handle rate limiting and retries
+            # BUG FIX (Round 21): this used to unconditionally claim
+            # "success": True with a fabricated message_id (built from
+            # hash(to + subject)) and a message reading "Email sent to
+            # {to}" -- no email was ever sent. This is the exact same class
+            # of bug Round 4 found and fixed in the sibling file
+            # reasoning/tools/external/messaging.py (SendSMSTool etc.):
+            # a tool on the LLM agent's direct tool-calling path silently
+            # lying about having completed a real-world action, which is
+            # strictly worse than an error, since neither the agent nor the
+            # user has any way to know the email never left the building.
+            # Unlike messaging.py, there is no existing, already-built
+            # controller anywhere in this codebase to delegate to here
+            # (platform/controllers/ has a messaging_controller.py but no
+            # email equivalent, and no SMTP/OAuth credential storage
+            # exists) -- so honestly failing is the correct fix, not
+            # fabricating a fake integration this round didn't build or
+            # test.
             return {
-                "success": True,
-                "result": {
-                    "to": to,
-                    "subject": subject,
-                    "cc": cc,
-                    "provider": provider,
-                    "message_id": f"msg_{hash(to + subject)}",
-                    "message": f"Email sent to {to} via {provider}",
-                    "note": "This is a placeholder. Real implementation would use email API.",
-                },
+                "success": False,
+                "error": (
+                    f"Email sending is not available: no email provider "
+                    f"({provider}) is configured in this build of Agent Guru."
+                ),
             }
 
         except Exception as e:

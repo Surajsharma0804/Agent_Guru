@@ -235,7 +235,9 @@ class RedisPool:
             port: Redis port
             db: Redis database number
             password: Redis password (optional)
-            min_size: Minimum number of connections
+            min_size: Retained for API compatibility. redis-py's asyncio
+                pool opens connections on demand and has no minimum-size
+                concept, so this value is not enforced.
             max_size: Maximum number of connections
 
         """
@@ -255,30 +257,48 @@ class RedisPool:
             return
 
         try:
-            import aioredis
+            # redis-py's asyncio client. aioredis was archived in 2022 and its
+            # maintainers merged it INTO redis-py, so `redis.asyncio` is the
+            # same project under its supported name. The import stays inside
+            # this method so a machine without Redis installed can still import
+            # this module -- Redis is an optional accelerator here, never a
+            # requirement for the offline path.
+            from redis import asyncio as redis_asyncio
 
             logger.info(
-                "Initializing Redis pool: %s:%s (min=%s, max=%s)",
+                "Initializing Redis pool: %s:%s (max=%s)",
                 self.host,
                 self.port,
-                self.min_size,
                 self.max_size,
             )
 
-            self._pool = await aioredis.create_redis_pool(  # type: ignore[attr-defined]
-                f"redis://{self.host}:{self.port}/{self.db}",
+            pool = redis_asyncio.Redis(
+                host=self.host,
+                port=self.port,
+                db=self.db,
                 password=self.password,
-                minsize=self.min_size,
-                maxsize=self.max_size,
-                encoding="utf-8",
+                max_connections=self.max_size,
+                decode_responses=True,
             )
+            # Connect eagerly: redis-py opens sockets lazily, and a pool that
+            # reports success and then fails on first use is worse than one
+            # that reports failure here. This also preserves the behaviour of
+            # the previous eager-connecting implementation.
+            await pool.ping()
 
+            self._pool = pool
             self._initialized = True
             logger.info("Redis pool initialized")
 
         except ImportError:
-            logger.exception("aioredis not installed, Redis pooling disabled")
+            # Expected on an installation without the optional redis extra.
+            # Not an error, and not worth a stack trace.
+            logger.info("redis is not installed, Redis pooling disabled")
             self._pool = None
+        except Exception:
+            # Unreachable server, auth failure, wrong port. Degrade to "no
+            # pool" so callers fall back to their local path rather than
+            # propagating an infrastructure error into the reasoning loop.
             logger.exception("Failed to initialize Redis pool")
             self._pool = None
 
@@ -319,9 +339,15 @@ class RedisPool:
     async def close(self) -> None:
         """Close the Redis connection pool."""
         if self._pool is not None:
-            self._pool.close()
-            await self._pool.wait_closed()
+            pool, self._pool = self._pool, None
             self._initialized = False
+            try:
+                # redis-py >= 5.0.1 spells this aclose(); close() is the
+                # deprecated alias and is a coroutine on 4.2 - 5.0.
+                closer = getattr(pool, "aclose", None) or pool.close
+                await closer()
+            except Exception:
+                logger.exception("Error while closing Redis pool")
             logger.info("Redis pool closed")
 
 
@@ -374,8 +400,13 @@ async def get_redis_pool(
     global _redis_pool
 
     if _redis_pool is None:
-        _redis_pool = RedisPool(host, port, db, password, min_size, max_size)
-        await _redis_pool.initialize()
+        # Build locally and publish only once initialize() has returned. A
+        # failed initialize() used to leave the half-built pool installed as
+        # the global, so every later caller got that broken instance back
+        # without ever retrying.
+        pool = RedisPool(host, port, db, password, min_size, max_size)
+        await pool.initialize()
+        _redis_pool = pool
 
     return _redis_pool
 

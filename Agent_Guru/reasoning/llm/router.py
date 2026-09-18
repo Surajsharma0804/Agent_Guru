@@ -10,6 +10,7 @@ Performance Target: <50ms routing decision overhead
 """
 
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
@@ -17,6 +18,11 @@ from typing import Any
 
 from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider
+
+
+# Rolling window for latency samples. Bounded so a long-running session
+# cannot grow these without limit.
+MAX_LATENCY_SAMPLES = 1000
 
 
 class RoutingDecision(str, Enum):
@@ -50,10 +56,28 @@ class RoutingMetrics:
     local_requests: int = 0
     cloud_requests: int = 0
     fallback_requests: int = 0
-    local_latency_ms: list[float] = field(default_factory=list)
-    cloud_latency_ms: list[float] = field(default_factory=list)
+    # BUG FIX (memory): these were plain lists appended to on EVERY request
+    # and never trimmed. In a companion designed to run continuously they
+    # grow without bound -- one float per LLM call, forever. Bounded to the
+    # most recent MAX_LATENCY_SAMPLES, which keeps the rolling average
+    # representative (and more current) at fixed memory cost.
+    local_latency_ms: deque[float] = field(
+        default_factory=lambda: deque(maxlen=MAX_LATENCY_SAMPLES),
+    )
+    cloud_latency_ms: deque[float] = field(
+        default_factory=lambda: deque(maxlen=MAX_LATENCY_SAMPLES),
+    )
+    # BUG FIX (observability): fallback had a counter but no latency and no
+    # error tracking -- record_request() discarded both arguments for this
+    # decision. Fallback is the path taken whenever the primary provider is
+    # down, so how slow and how reliable it is was precisely the thing that
+    # could not be seen.
+    fallback_latency_ms: deque[float] = field(
+        default_factory=lambda: deque(maxlen=MAX_LATENCY_SAMPLES),
+    )
     local_errors: int = 0
     cloud_errors: int = 0
+    fallback_errors: int = 0
     last_updated: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def record_request(
@@ -77,6 +101,9 @@ class RoutingMetrics:
                 self.cloud_errors += 1
         elif decision == RoutingDecision.FALLBACK:
             self.fallback_requests += 1
+            self.fallback_latency_ms.append(latency_ms)
+            if error:
+                self.fallback_errors += 1
 
         self.last_updated = datetime.now(tz=UTC)
 
@@ -108,6 +135,21 @@ class RoutingMetrics:
             ),
             "cloud_error_rate": (
                 self.cloud_errors / self.cloud_requests if self.cloud_requests > 0 else 0.0
+            ),
+            "fallback_percentage": (
+                self.fallback_requests / self.total_requests * 100
+                if self.total_requests > 0
+                else 0.0
+            ),
+            "fallback_avg_latency_ms": (
+                sum(self.fallback_latency_ms) / len(self.fallback_latency_ms)
+                if self.fallback_latency_ms
+                else 0.0
+            ),
+            "fallback_error_rate": (
+                self.fallback_errors / self.fallback_requests
+                if self.fallback_requests > 0
+                else 0.0
             ),
             "last_updated": self.last_updated.isoformat(),
         }
@@ -351,6 +393,13 @@ class HybridLLMRouter:
                 )
                 return response
 
+            # Defensive: every RoutingDecision member is handled above, but
+            # falling off the end would silently return None from a function
+            # declared to return LLMResponse, surfacing as an AttributeError
+            # far from the cause. Fail where the problem actually is.
+            msg = f"Unhandled routing decision: {decision}"
+            raise RuntimeError(msg)
+
         except Exception as primary_error:
             # Record error
             routing_latency_ms = (time.perf_counter() - start_time) * 1000
@@ -359,12 +408,21 @@ class HybridLLMRouter:
             # Try fallback if enabled
             if self.enable_fallback:
                 try:
+                    # BUG FIX: both fallback paths below used to record
+                    # `routing_latency_ms`, which was measured at the moment
+                    # the PRIMARY provider failed -- before the fallback call
+                    # had even started. The fallback provider's own inference
+                    # time was therefore excluded entirely, so every
+                    # successful fallback was recorded as far faster than it
+                    # really was, systematically biasing the routing metrics
+                    # in favour of fallback. Latency is now measured after
+                    # the fallback response actually arrives.
                     if decision == RoutingDecision.LOCAL and self.cloud_provider:
                         # Fallback to cloud
                         response = await self.cloud_provider.generate(request)
                         self.metrics.record_request(
                             RoutingDecision.FALLBACK,
-                            routing_latency_ms,
+                            (time.perf_counter() - start_time) * 1000,
                             error=False,
                         )
                         return response
@@ -374,7 +432,7 @@ class HybridLLMRouter:
                         response = await self.local_provider.generate(request)
                         self.metrics.record_request(
                             RoutingDecision.FALLBACK,
-                            routing_latency_ms,
+                            (time.perf_counter() - start_time) * 1000,
                             error=False,
                         )
                         return response
