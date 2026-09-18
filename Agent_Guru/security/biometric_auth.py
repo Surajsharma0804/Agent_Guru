@@ -128,8 +128,13 @@ class BiometricAuthenticator:
           3. Compare embedding to stored template (cosine similarity).
           4. Return AuthenticationResult.
 
-        Raises:
-            KeyError: If *profile_id* has no enrolled face template.
+        Returns:
+            AuthenticationResult(authenticated=False, ...) when *profile_id*
+            has no enrolled face template. (Docstring fixed, Round 24: this
+            used to document "Raises: KeyError" here, but the implementation
+            has always returned a failed AuthenticationResult instead of
+            raising -- the safer of the two behaviors, but the docstring was
+            simply wrong about what callers actually get back.)
 
         """
         if profile_id not in self._face_templates:
@@ -156,13 +161,28 @@ class BiometricAuthenticator:
                 modality="face",
                 user_id=profile_id,
                 failure_reason=(f"Liveness check failed (score={features.liveness_score:.3f})"),
+                liveness_failed=True,
             )
 
         template = self._face_templates[profile_id]
-        # Enforce biometric threshold via verify_embedding (FAR < 0.1%).
+        # BUG FIX (Round 15): this used to enforce the FIXED
+        # BIOMETRIC_THRESHOLD (0.97) unconditionally and then report
+        # `self.face_threshold` (default 0.75, whatever the caller
+        # configured) in the failure message -- a number that was never
+        # actually the gate being applied. self.face_threshold was pure
+        # dead configuration: setting it to anything had zero effect on
+        # whether authentication succeeded, and the error message actively
+        # misreported what threshold caused the rejection. Fixed the same
+        # way as VoiceAuthenticator.effective_similarity_threshold: take
+        # the max of the configured threshold and the security floor, so
+        # a caller can only ever demand something STRICTER than
+        # BIOMETRIC_THRESHOLD, never weaker (which would silently lower
+        # the audited FAR<0.1% guarantee) -- default behavior (0.75 < 0.97)
+        # is unchanged.
+        effective_threshold = max(self.face_threshold, BIOMETRIC_THRESHOLD)
         # Also compute raw similarity for the confidence field.
         similarity = float(max(0.0, min(1.0, _cosine_similarity(features.embedding, template))))
-        authenticated = verify_embedding(features.embedding, template, BIOMETRIC_THRESHOLD)
+        authenticated = verify_embedding(features.embedding, template, effective_threshold)
 
         logger.info(
             "Face auth for %s: %s (similarity=%.3f)",
@@ -179,7 +199,7 @@ class BiometricAuthenticator:
             failure_reason=(
                 None
                 if authenticated
-                else f"Similarity {similarity:.3f} below threshold {self.face_threshold}"
+                else f"Similarity {similarity:.3f} below threshold {effective_threshold}"
             ),
         )
 
@@ -249,10 +269,19 @@ class BiometricAuthenticator:
 
         # Liveness rejection is already handled inside VoiceAuthenticator.authenticate()
         # (returns False, None, 0.0 when is_live is False).
-        if not authenticated and not voice_features.is_live:
+        liveness_failed = not authenticated and not voice_features.is_live
+        if liveness_failed:
             failure_reason = f"Liveness check failed (score={voice_features.liveness_score:.3f})"
         elif not authenticated:
-            failure_reason = f"Similarity {similarity:.3f} below threshold {self.voice_threshold}"
+            # BUG FIX (Round 15): previously reported self.voice_threshold
+            # (the raw, possibly-lower constructor argument) here, but the
+            # actual gate applied inside VoiceAuthenticator.authenticate()
+            # is effective_similarity_threshold (max of that argument and
+            # the BIOMETRIC_THRESHOLD security floor) -- see that
+            # property's docstring. Reporting the unused argument here
+            # actively misreported the real cause of the rejection.
+            effective_threshold = self.voice_authenticator.effective_similarity_threshold
+            failure_reason = f"Similarity {similarity:.3f} below threshold {effective_threshold}"
         else:
             failure_reason = None
 
@@ -266,6 +295,7 @@ class BiometricAuthenticator:
             modality="voice",
             user_id=profile_id,
             failure_reason=failure_reason,
+            liveness_failed=liveness_failed,
         )
 
     # ------------------------------------------------------------------
@@ -308,12 +338,17 @@ class BiometricAuthenticator:
 
         if face_image is not None:
             face_result = self.authenticate_face(profile_id, face_image)
-            # Liveness failure → immediate rejection
-            if (
-                not face_result.authenticated
-                and face_result.failure_reason is not None
-                and "liveness" in face_result.failure_reason.lower()
-            ):
+            # Liveness failure → immediate rejection.
+            # BUG FIX (Round 24): this used to detect a liveness rejection by
+            # substring-matching "liveness" inside failure_reason.lower() --
+            # fragile, since it silently stops working the moment that
+            # message's wording changes anywhere it's set, with nothing to
+            # catch the drift. AuthenticationResult.liveness_failed (added
+            # this round) is a real, structured flag set directly by
+            # authenticate_face()/authenticate_voice() at the point they
+            # know the true cause, so this check can no longer desync from
+            # what actually happened.
+            if not face_result.authenticated and face_result.liveness_failed:
                 logger.warning(
                     "SECURITY: Multi-factor auth rejected for %s — face liveness failed",
                     profile_id,
@@ -330,12 +365,9 @@ class BiometricAuthenticator:
 
         if voice_audio is not None:
             voice_result = self.authenticate_voice(profile_id, voice_audio)
-            # Liveness failure → immediate rejection
-            if (
-                not voice_result.authenticated
-                and voice_result.failure_reason is not None
-                and "liveness" in voice_result.failure_reason.lower()
-            ):
+            # Liveness failure → immediate rejection (see the face-modality
+            # comment above for why this now checks the structured flag).
+            if not voice_result.authenticated and voice_result.liveness_failed:
                 logger.warning(
                     "SECURITY: Multi-factor auth rejected for %s — voice liveness failed",
                     profile_id,

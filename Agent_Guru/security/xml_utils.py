@@ -100,40 +100,94 @@ def _parse_with_defusedxml(source: str | Path | IO[bytes] | IO[str]) -> ET.Eleme
 
 
 def _parse_with_stdlib(source: str | Path | IO[bytes] | IO[str]) -> ET.Element:
-    """Parse using stdlib ET with a hardened parser that rejects external entities."""
+    """Parse using a hardened raw expat parser (defusedxml unavailable).
 
-    class _SafeParser(ET.XMLParser):
-        """XMLParser subclass that raises ValueError on external entity use."""
+    This used to subclass ``xml.etree.ElementTree.XMLParser`` and reach into
+    ``self.parser`` (the underlying expat parser object) to call
+    ``UseForeignDTD(False)``, plus override ``handle_entityref``/
+    ``handle_charref`` expecting ET to invoke them for entity references.
+    Neither worked: since Python 3.8, ``ET.XMLParser`` no longer exposes the
+    expat parser as a public ``.parser`` attribute at all (that instantiation
+    raised ``AttributeError`` unconditionally), and ``ET.XMLParser`` has
+    never called methods named ``handle_entityref``/``handle_charref`` in
+    the first place — those names belong to the unrelated, long-removed
+    ``xmllib.XMLParser`` API, not to ``ET.XMLParser``'s target-callback
+    contract (``start``/``end``/``data``/``comment``/``pi``/``close``). So
+    even before the ``AttributeError``, the "hardening" itself could never
+    have fired. Net effect: this fallback path — reached only when
+    ``defusedxml`` (a hard ``requirements.txt`` dependency) is somehow
+    unavailable — crashed on every single call rather than providing any
+    protection, turning every XML parse in the whole application into a
+    guaranteed failure in that situation instead of a safe one.
 
-        def __init__(self) -> None:
-            super().__init__()
-            # Disable external entity expansion at the expat level
-            self.parser.UseForeignDTD(False)  # type: ignore[attr-defined]
+    This replacement talks to ``xml.parsers.expat`` directly, which still
+    exposes full handler configuration, and rejects any DOCTYPE declaration
+    outright via ``StartDoctypeDeclHandler`` before any entities it might
+    declare are even parsed. That blocks both external-entity XXE (e.g.
+    ``<!ENTITY xxe SYSTEM "file:///etc/passwd">``) and internal-entity
+    "billion laughs" expansion DoS at the same point, since a document with
+    no entity declarations at all cannot mount either attack.
+    ``ExternalEntityRefHandler`` is also rejected as defense in depth in
+    case a DOCTYPE construct ever reaches that callback by some other path.
+    This is intentionally stricter than ``defusedxml``'s own default
+    posture (which permits declaration-free DTDs) — that tradeoff is
+    accepted here because this code path exists only as a fallback for an
+    already-exceptional situation, and "no DOCTYPE, ever" is far easier to
+    verify correct than replicating defusedxml's full entity-handling
+    policy by hand.
+    """
+    import xml.parsers.expat as expat
 
-        def handle_entityref(self, name: str) -> None:  # type: ignore[override]
-            msg = (
-                f"External entity reference &{name}; detected — "
-                "XML external entity injection (XXE) is not permitted."
-            )
-            raise ValueError(
-                msg,
-            )
+    parser = expat.ParserCreate()
+    builder = ET.TreeBuilder()
 
-        def handle_charref(self, name: str) -> None:  # type: ignore[override]
-            # Numeric character references are safe; delegate to parent.
-            super().handle_charref(name)  # type: ignore[misc]
+    def _reject_doctype(
+        doctype_name: str,
+        system_id: str | None,
+        public_id: str | None,
+        has_internal_subset: bool,  # noqa: FBT001
+    ) -> None:
+        msg = (
+            f"DOCTYPE declaration detected (name={doctype_name!r}) — "
+            "DTDs are not permitted (XML external entity / entity-expansion "
+            "protection)."
+        )
+        raise ValueError(msg)
 
-    parser = _SafeParser()
+    def _reject_external_entity(
+        context: str,
+        base: str | None,
+        system_id: str | None,
+        public_id: str | None,
+    ) -> None:
+        msg = (
+            f"External entity reference detected (system_id={system_id!r}) — "
+            "XML external entity injection (XXE) is not permitted."
+        )
+        raise ValueError(msg)
+
+    parser.StartDoctypeDeclHandler = _reject_doctype
+    parser.ExternalEntityRefHandler = _reject_external_entity
+    parser.StartElementHandler = builder.start
+    parser.EndElementHandler = builder.end
+    parser.CharacterDataHandler = builder.data
 
     if isinstance(source, str):
-        return ET.fromstring(source, parser=parser)  # nosec B314
-    if isinstance(source, Path):
-        tree = ET.parse(str(source), parser=parser)  # nosec B314
-        return tree.getroot()
-    # File-like object — read content and parse as string
-    content = source.read()
-    if isinstance(content, bytes):
-        root = ET.fromstring(content, parser=parser)  # nosec B314
+        data: bytes | str = source
+    elif isinstance(source, Path):
+        data = source.read_bytes()
     else:
-        root = ET.fromstring(content.encode(), parser=parser)  # nosec B314
-    return root
+        # File-like object (bytes or str content, either is fine — expat's
+        # Parse() accepts both).
+        data = source.read()
+
+    try:
+        parser.Parse(data, True)  # noqa: FBT003 - expat's own `isfinal` positional arg
+    except expat.ExpatError as exc:
+        # Malformed (but not DOCTYPE/entity-related) XML — surface the same
+        # exception type ET.fromstring()/ET.parse() would have raised, so
+        # callers of safe_xml_parse() see a consistent contract regardless
+        # of which backend handled the parse.
+        raise ET.ParseError(str(exc)) from exc
+
+    return builder.close()

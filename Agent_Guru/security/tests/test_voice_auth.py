@@ -165,11 +165,17 @@ class TestVoiceAuthenticator:
         authenticator.enroll_user("user1", voice_features)
         
         # Update with new features
+        # liveness_score/is_live added (Round 24): VoiceAuthenticator.update_profile()
+        # now enforces the same liveness gate as enroll_user() -- see that method's
+        # "BUG FIX (Round 24)" comment. Without these, this VoiceFeatures would
+        # default to is_live=False and update_profile() would (correctly) reject it.
         new_features = VoiceFeatures(
             feature_vector=np.random.randn(128).astype(np.float32),
             sample_rate=16000,
             duration=3.0,
-            quality_score=0.95
+            quality_score=0.95,
+            liveness_score=0.9,
+            is_live=True,
         )
         
         updated_profile = authenticator.update_profile("user1", new_features)
@@ -264,13 +270,28 @@ class TestVoiceAuthenticator:
         assert similarity == pytest.approx(1.0, abs=0.01)  # nosec B101
     
     def test_similarity_different_features(self, authenticator: VoiceAuthenticator):
-        """Test similarity of different features is < 1.0."""
+        """Test similarity of different features is < 1.0.
+
+        Fixed (Round 24): this asserted `0.0 <= similarity`, but
+        `_compute_similarity()` legitimately returns *raw* cosine
+        similarity in [-1.0, 1.0] (see its own docstring, fixed in Round
+        15 specifically so this method's output matches the scale
+        `verify_embedding()` actually thresholds against). Two random
+        128-dim Gaussian vectors have expected cosine similarity ~0 but
+        are just as likely to land slightly negative as slightly positive
+        -- this test was flaky by construction and failed on this exact
+        run (observed similarity ~= -0.058, a perfectly ordinary value
+        for two unrelated random vectors, not a bug in the code under
+        test). Bounding to the method's real, documented range removes
+        the flakiness without weakening what the test actually checks
+        (that unrelated vectors are clearly not judged identical).
+        """
         features1 = np.random.randn(128).astype(np.float32)
         features2 = np.random.randn(128).astype(np.float32)
-        
+
         similarity = authenticator._compute_similarity(features1, features2)
-        
-        assert 0.0 <= similarity <= 1.0  # nosec B101
+
+        assert -1.0 <= similarity <= 1.0  # nosec B101
         assert similarity < 1.0  # nosec B101
     
     def test_similarity_zero_vectors(self, authenticator: VoiceAuthenticator):
@@ -287,16 +308,28 @@ class TestVoiceAuthenticator:
     # ========================================================================
     
     def test_invalid_similarity_threshold_negative(self):
-        """Test initialization with negative similarity threshold."""
-        # Should allow but will cause issues - test the behavior
-        authenticator = VoiceAuthenticator(similarity_threshold=-0.5)
-        assert authenticator.similarity_threshold == -0.5  # nosec B101
-    
+        """Test initialization with negative similarity threshold.
+
+        Fixed (Round 24): this used to assert the constructor silently
+        *accepted* -0.5 (a stale expectation predating VoiceAuthenticator
+        .__init__'s own `if not 0.0 <= similarity_threshold <= 1.0: raise
+        ValueError` guard, which this test then contradicted and which
+        failed every real run -- the test was asserting behavior the code
+        has never actually had). A negative threshold is nonsensical for a
+        cosine-similarity gate, so raising is correct; the test now
+        verifies that instead of the stale silent-acceptance expectation.
+        """
+        with pytest.raises(ValueError, match=r"similarity_threshold must be in \[0\.0, 1\.0\]"):
+            VoiceAuthenticator(similarity_threshold=-0.5)
+
     def test_invalid_similarity_threshold_above_one(self):
-        """Test initialization with similarity threshold > 1.0."""
-        # Should allow but will never authenticate - test the behavior
-        authenticator = VoiceAuthenticator(similarity_threshold=1.5)
-        assert authenticator.similarity_threshold == 1.5  # nosec B101
+        """Test initialization with similarity threshold > 1.0.
+
+        Fixed (Round 24): see test_invalid_similarity_threshold_negative's
+        comment -- same stale expectation, same constructor guard.
+        """
+        with pytest.raises(ValueError, match=r"similarity_threshold must be in \[0\.0, 1\.0\]"):
+            VoiceAuthenticator(similarity_threshold=1.5)
     
     def test_boundary_similarity_threshold_zero(self):
         """Test authentication with similarity threshold of 0.0 (passes for similar vectors)."""
@@ -358,11 +391,16 @@ class TestVoiceAuthenticator:
         authenticator = VoiceAuthenticator()
         
         # Quality score exactly at threshold (0.5)
+        # liveness_score/is_live added (Round 24): see test_update_profile's comment
+        # -- this test is specifically about the quality boundary, not liveness, so
+        # it needs is_live=True to reach the quality check's outcome at all.
         boundary_features = VoiceFeatures(
             feature_vector=np.random.randn(128).astype(np.float32),
             sample_rate=16000,
             duration=3.0,
-            quality_score=0.5
+            quality_score=0.5,
+            liveness_score=0.9,
+            is_live=True,
         )
         
         # Should succeed because >= threshold
@@ -445,12 +483,15 @@ class TestVoiceAuthenticator:
         authenticator.enroll_user("user1", initial_features)
         
         # Update 10 times with different features
+        # liveness_score/is_live added (Round 24): see test_update_profile's comment.
         for i in range(10):
             update_features = VoiceFeatures(
                 feature_vector=np.random.randn(128).astype(np.float32),
                 sample_rate=16000,
                 duration=3.0,
-                quality_score=0.7 + i * 0.01
+                quality_score=0.7 + i * 0.01,
+                liveness_score=0.9,
+                is_live=True,
             )
             profile = authenticator.update_profile("user1", update_features)
         
@@ -518,9 +559,15 @@ class TestVoiceAuthenticator:
         features2 = np.array([-1.0, 1.0, -1.0, 1.0] * 32, dtype=np.float32)
         
         similarity = authenticator._compute_similarity(features1, features2)
-        
-        # Should be 0.0 (opposite)
-        assert similarity == pytest.approx(0.0, abs=0.01)  # nosec B101
+
+        # Fixed (Round 24): features2 == -features1 here (element-wise sign
+        # flip of the exact same magnitudes), which are perfectly
+        # *anti-parallel* vectors -- cosine similarity for that is exactly
+        # -1.0, not 0.0 (0.0 would be *orthogonal* vectors, e.g.
+        # [1,0,0,...] vs [0,1,0,...], which these are not). The old
+        # assertion was mathematically wrong and failed on every real run
+        # (observed similarity ~= -1.0000001, well outside 0.0 +/- 0.01).
+        assert similarity == pytest.approx(-1.0, abs=0.01)  # nosec B101
     
     def test_similarity_with_very_large_values(self):
         """Test similarity with very large feature values."""

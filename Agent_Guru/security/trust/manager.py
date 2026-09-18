@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import threading
 import uuid
 from dataclasses import dataclass, field
 
@@ -71,6 +72,11 @@ class TrustManager:
     ) -> None:
         self._conn = sqlite3.connect(storage_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
+        # check_same_thread=False only disables sqlite3's own cross-thread
+        # check, it doesn't make the connection itself safe for concurrent
+        # use — this lock serializes every operation against self._conn
+        # (same fix applied to KeyStore and AuditLogger this round).
+        self._lock = threading.Lock()
         self._audit_logger = audit_logger
         self._init_schema()
 
@@ -141,7 +147,7 @@ class TrustManager:
         event_type = "auth_success" if success else "auth_failure"
         score_impact = 0.1 if success else -0.1
 
-        with self._conn:
+        with self._lock, self._conn:
             self._conn.execute(
                 """
                 INSERT INTO trust_history
@@ -158,7 +164,7 @@ class TrustManager:
             )
 
         if biometric_score is not None:
-            with self._conn:
+            with self._lock, self._conn:
                 self._conn.execute(
                     """
                     INSERT INTO trust_history
@@ -208,7 +214,7 @@ class TrustManager:
         created_at = datetime.now(tz=UTC)
         meta = metadata or {}
 
-        with self._conn:
+        with self._lock, self._conn:
             self._conn.execute(
                 """
                 INSERT OR REPLACE INTO trust_relationships
@@ -258,7 +264,7 @@ class TrustManager:
             to_id: Trusted identity.
 
         """
-        with self._conn:
+        with self._lock, self._conn:
             self._conn.execute(
                 "DELETE FROM trust_relationships WHERE from_id = ? AND to_id = ?",
                 (from_id, to_id),
@@ -293,10 +299,11 @@ class TrustManager:
             List of trust relationships.
 
         """
-        rows = self._conn.execute(
-            "SELECT * FROM trust_relationships WHERE from_id = ?",
-            (profile_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM trust_relationships WHERE from_id = ?",
+                (profile_id,),
+            ).fetchall()
 
         direct = [self._row_to_relationship(r) for r in rows]
 
@@ -314,10 +321,11 @@ class TrustManager:
                 if node in visited:
                     continue
                 visited.add(node)
-                sub_rows = self._conn.execute(
-                    "SELECT * FROM trust_relationships WHERE from_id = ?",
-                    (node,),
-                ).fetchall()
+                with self._lock:
+                    sub_rows = self._conn.execute(
+                        "SELECT * FROM trust_relationships WHERE from_id = ?",
+                        (node,),
+                    ).fetchall()
                 for sub_row in sub_rows:
                     sub_rel = self._row_to_relationship(sub_row)
                     key = (sub_rel.from_id, sub_rel.to_id)
@@ -347,22 +355,36 @@ class TrustManager:
             Transitive trust score in [0.0, 1.0].
 
         """
-        # BFS with trust decay
+        # BFS with trust decay. Decay is applied exactly once per hop beyond
+        # the first (a direct, 1-hop relationship uses its edge trust_level
+        # at full value; each additional hop multiplies by _TRANSITIVE_DECAY
+        # exactly once), matching this class's own docstring ("decays by 0.8
+        # per hop"). `current_trust` already carries forward every decay
+        # factor applied at prior hops via this same loop, so the previous
+        # version's `(_TRANSITIVE_DECAY**hop)` — using the *absolute* hop
+        # index rather than a single per-iteration factor — double-applied
+        # decay on top of what `current_trust` already embedded: a 3-hop
+        # path ended up decayed by 0.8**3 instead of the intended 0.8**2 (a
+        # 2-hop path was unaffected, since hop=1 there only ever applied one
+        # factor either way), silently under-scoring longer trust chains
+        # more than the documented policy calls for.
         visited: set[str] = {from_id}
         frontier = [(from_id, 1.0)]
         best_trust = 0.0
 
         for hop in range(max_hops):
+            decay_factor = _TRANSITIVE_DECAY if hop >= 1 else 1.0
             next_frontier = []
             for node, current_trust in frontier:
-                rows = self._conn.execute(
-                    "SELECT to_id, trust_level FROM trust_relationships WHERE from_id = ?",
-                    (node,),
-                ).fetchall()
+                with self._lock:
+                    rows = self._conn.execute(
+                        "SELECT to_id, trust_level FROM trust_relationships WHERE from_id = ?",
+                        (node,),
+                    ).fetchall()
                 for row in rows:
                     next_node = row["to_id"]
                     edge_trust = row["trust_level"]
-                    new_trust = current_trust * edge_trust * (_TRANSITIVE_DECAY**hop)
+                    new_trust = current_trust * edge_trust * decay_factor
 
                     if next_node == to_id:
                         best_trust = max(best_trust, new_trust)
@@ -382,7 +404,7 @@ class TrustManager:
     # ------------------------------------------------------------------
 
     def _init_schema(self) -> None:
-        with self._conn:
+        with self._lock, self._conn:
             self._conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS trust_relationships (
@@ -410,14 +432,15 @@ class TrustManager:
 
     def _compute_auth_factor(self, profile_id: str) -> float:
         """Compute authentication history factor."""
-        rows = self._conn.execute(
-            """
-            SELECT event_type, score_impact FROM trust_history
-            WHERE profile_id = ? AND event_type IN ('auth_success', 'auth_failure')
-            ORDER BY timestamp DESC LIMIT 20
-            """,
-            (profile_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT event_type, score_impact FROM trust_history
+                WHERE profile_id = ? AND event_type IN ('auth_success', 'auth_failure')
+                ORDER BY timestamp DESC LIMIT 20
+                """,
+                (profile_id,),
+            ).fetchall()
 
         if not rows:
             return _DEFAULT_TRUST
@@ -428,14 +451,15 @@ class TrustManager:
 
     def _compute_biometric_factor(self, profile_id: str) -> float:
         """Compute biometric confidence factor."""
-        rows = self._conn.execute(
-            """
-            SELECT score_impact FROM trust_history
-            WHERE profile_id = ? AND event_type = 'biometric_score'
-            ORDER BY timestamp DESC LIMIT 10
-            """,
-            (profile_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT score_impact FROM trust_history
+                WHERE profile_id = ? AND event_type = 'biometric_score'
+                ORDER BY timestamp DESC LIMIT 10
+                """,
+                (profile_id,),
+            ).fetchall()
 
         if not rows:
             return _DEFAULT_TRUST
@@ -445,10 +469,11 @@ class TrustManager:
 
     def _compute_relationship_factor(self, profile_id: str) -> float:
         """Compute relationship-based trust factor."""
-        rows = self._conn.execute(
-            "SELECT trust_level FROM trust_relationships WHERE to_id = ?",
-            (profile_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT trust_level FROM trust_relationships WHERE to_id = ?",
+                (profile_id,),
+            ).fetchall()
 
         if not rows:
             return _DEFAULT_TRUST

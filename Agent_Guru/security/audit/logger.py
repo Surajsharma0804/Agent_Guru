@@ -11,7 +11,9 @@ from __future__ import annotations
 import csv
 import io
 import json
+import logging
 import sqlite3
+import threading
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -24,6 +26,8 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 )
 
 from Agent_Guru.security.crypto.errors import AuditLogError
+
+logger = logging.getLogger(__name__)
 
 # Sensitive keys that must be scrubbed from log details
 _SENSITIVE_KEYS = frozenset(
@@ -102,11 +106,45 @@ class AuditLogger:
     ) -> None:
         self._conn = sqlite3.connect(storage_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
+        # check_same_thread=False only disables sqlite3's own cross-thread
+        # check, it doesn't make the connection itself safe for concurrent
+        # use — this lock serializes every operation against self._conn, the
+        # same fix applied to KeyStore and TrustManager in this same round
+        # (all three share the identical unprotected-shared-connection
+        # pattern found and fixed in memory/github_sync.py last round).
+        self._lock = threading.Lock()
         self._init_schema()
 
         # Set up signing key
         if signing_key is not None:
             self._private_key = Ed25519PrivateKey.from_private_bytes(signing_key)
+        elif storage_path != ":memory:":
+            # A persistent audit log with no explicit signing_key generates
+            # a brand-new random key on every single instantiation. Since
+            # verify_log_integrity() recomputes each entry's signable
+            # content and checks it against *this instance's* public key,
+            # every entry written by a *previous* process (a different,
+            # already-discarded random key) will fail verification the
+            # moment this process restarts — reported as tampered=True even
+            # though nothing was actually tampered with. This doesn't
+            # silently corrupt anything, but it makes the audit log's core
+            # promise ("tamper-evidence") produce false positives on every
+            # restart unless the caller persists and re-supplies the same
+            # signing_key bytes (e.g. via KeyStore) across instantiations
+            # against the same storage_path — surfacing that here rather
+            # than leaving it a silent, confusing surprise.
+            logger.warning(
+                "AuditLogger(storage_path=%r) created with no signing_key: "
+                "a new random Ed25519 key was generated for this process. "
+                "Log entries written by a previous process will report "
+                "tampered=True on verify_log_integrity()/query_logs() even "
+                "though they were not tampered with. Pass the same "
+                "signing_key bytes (persisted via KeyStore) across "
+                "instantiations against this storage_path for durable "
+                "tamper-evidence.",
+                storage_path,
+            )
+            self._private_key = Ed25519PrivateKey.generate()
         else:
             self._private_key = Ed25519PrivateKey.generate()
 
@@ -250,7 +288,7 @@ class AuditLogger:
     # ------------------------------------------------------------------
 
     def _init_schema(self) -> None:
-        with self._conn:
+        with self._lock, self._conn:
             self._conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -267,7 +305,7 @@ class AuditLogger:
             )
 
     def _persist_entry(self, entry: AuditLogEntry) -> None:
-        with self._conn:
+        with self._lock, self._conn:
             self._conn.execute(
                 """
                 INSERT INTO audit_logs
@@ -320,7 +358,8 @@ class AuditLogger:
             sql += " WHERE " + " AND ".join(conditions)
         sql += " ORDER BY timestamp ASC"
 
-        return self._conn.execute(sql, params).fetchall()
+        with self._lock:
+            return self._conn.execute(sql, params).fetchall()
 
     def _row_to_entry(self, row: sqlite3.Row) -> AuditLogEntry:
         return AuditLogEntry(
@@ -362,11 +401,26 @@ class AuditLogger:
         for key, value in details.items():
             if any(sensitive in key.lower() for sensitive in _SENSITIVE_KEYS):
                 sanitized[key] = "[REDACTED]"
-            elif isinstance(value, dict):
-                sanitized[key] = self._sanitize_details(value)
             else:
-                sanitized[key] = value
+                sanitized[key] = self._sanitize_value(value)
         return sanitized
+
+    def _sanitize_value(self, value: Any) -> Any:
+        """Recursively sanitize a value that may itself carry sensitive keys.
+
+        The previous version only recursed into `dict` values directly under
+        a details dict — a sensitive key nested one level deeper through a
+        `list` (e.g. `details={"items": [{"api_key": "..."}]}`) was never
+        inspected at all and got persisted to the audit log, and included in
+        export_logs() output, completely unredacted despite `api_key` being
+        listed in _SENSITIVE_KEYS. This recurses into lists/tuples too, so
+        any dict found at any nesting depth still gets sanitized.
+        """
+        if isinstance(value, dict):
+            return self._sanitize_details(value)
+        if isinstance(value, (list, tuple)):
+            return [self._sanitize_value(v) for v in value]
+        return value
 
     def _export_json(self, entries: list[AuditLogEntry]) -> str:
         data = []

@@ -38,13 +38,46 @@ class VoiceAuthenticator:
         """Initialize voice authenticator.
 
         Args:
-            similarity_threshold: Minimum similarity score for authentication (0.0-1.0)
+            similarity_threshold: Minimum similarity score for authentication
+                (0.0-1.0). See `effective_similarity_threshold` -- this can
+                only ever make matching STRICTER than the biometric security
+                floor (BIOMETRIC_THRESHOLD), never weaker.
 
         """
+        if not 0.0 <= similarity_threshold <= 1.0:
+            msg = f"similarity_threshold must be in [0.0, 1.0], got {similarity_threshold!r}"
+            raise ValueError(msg)
         self.similarity_threshold = similarity_threshold
         self.quality_threshold = 0.5  # Minimum quality score for enrollment
         self._profiles: dict[str, VoiceProfile] = {}
         self.logger = logging.getLogger(__name__)
+
+    @property
+    def effective_similarity_threshold(self) -> float:
+        """The cosine-similarity threshold actually enforced by authenticate().
+
+        BUG FIX (Round 15): `similarity_threshold` (the constructor
+        parameter above, default 0.85) used to be accepted, stored, and
+        then never read again anywhere -- authenticate() called
+        verify_embedding() with the hardcoded BIOMETRIC_THRESHOLD (0.97,
+        the NIST-FRVT-derived FAR<0.1% security floor from
+        embedding_auth.py) no matter what similarity_threshold was set to.
+        That made the constructor parameter completely dead, and every
+        failure-reason message that quoted it (here and in
+        BiometricAuthenticator, which threads its own voice_threshold
+        straight into this constructor) reported a number that was never
+        actually enforced -- actively misleading, not just unused.
+
+        Fixed by taking the max of the two: a caller can demand a
+        STRICTER match than the security floor (a real, honored setting),
+        but can never configure a WEAKER one, which would silently lower
+        the audited FAR<0.1% guarantee below what it was reviewed for.
+        With the default of 0.85 (< 0.97) this is exactly the threshold
+        that was already being enforced, so default behavior is unchanged
+        by this fix -- only the dead parameter and the misleading messages
+        are.
+        """
+        return max(self.similarity_threshold, BIOMETRIC_THRESHOLD)
 
     def enroll_user(self, user_id: str, voice_features: VoiceFeatures) -> VoiceProfile:
         """Enroll a new user with voice biometrics.
@@ -69,6 +102,36 @@ class VoiceAuthenticator:
             raise VoiceAuthenticationError(
                 msg,
             )
+
+        # BUG FIX (Round 24): enrollment used to store voice_features.feature_vector
+        # as a trusted biometric template with no liveness check at all, even though
+        # VoiceFeatures.is_live's own docstring says "The BiometricAuthenticator MUST
+        # reject authentication when this field is False", and authenticate() below
+        # already enforces exactly that. BiometricAuthenticator.enroll_face() (the
+        # face-modality equivalent) already rejects enrollment when features.is_live
+        # is False -- this was the one asymmetric gap between the two modalities: an
+        # attacker who could reach this method (directly, or via
+        # BiometricAuthenticator.enroll_voice() / SpeechSecurityIntegration.
+        # enroll_user_from_audio(), both of which call straight through here) could
+        # plant a synthetic/replayed voice sample as somebody's permanent reference
+        # template, since nothing here ever checked is_live at enrollment time --
+        # undermining the anti-spoofing guarantee at its foundation rather than just
+        # at the point of use. Checked after the quality gate (not before) so this
+        # doesn't change the failure reason reported for a low-quality-but-live
+        # sample (test_enroll_low_quality_voice's fixture omits is_live, which
+        # defaults to False -- placing this check first would have changed that
+        # test's failure from "quality too low" to a liveness rejection).
+        if not voice_features.is_live:
+            self.logger.warning(
+                "SECURITY: Voice enrollment rejected for %s — liveness check failed (score=%.3f)",
+                user_id,
+                voice_features.liveness_score,
+            )
+            msg = (
+                f"Voice enrollment rejected: liveness check failed "
+                f"(score={voice_features.liveness_score:.3f})"
+            )
+            raise VoiceAuthenticationError(msg)
 
         profile = VoiceProfile(
             user_id=user_id,
@@ -126,7 +189,7 @@ class VoiceAuthenticator:
             authenticated = verify_embedding(
                 voice_features.feature_vector,
                 profile.feature_vector,
-                BIOMETRIC_THRESHOLD,
+                self.effective_similarity_threshold,
             )
             self.logger.info(
                 "Verification for %s: %s (similarity: %.3f)",
@@ -158,7 +221,7 @@ class VoiceAuthenticator:
         authenticated = best_match is not None and verify_embedding(
             voice_features.feature_vector,
             self._profiles[best_match].feature_vector,
-            BIOMETRIC_THRESHOLD,
+            self.effective_similarity_threshold,
         )
         self.logger.info(
             "Identification: %s (user: %s, similarity: %.3f)",
@@ -185,6 +248,23 @@ class VoiceAuthenticator:
         """
         if user_id not in self._profiles:
             msg = f"User {user_id} not enrolled"
+            raise VoiceAuthenticationError(msg)
+
+        # BUG FIX (Round 24): same liveness gap as enroll_user() above, and just
+        # as consequential here -- without this, an attacker who could reach this
+        # method could gradually replace a user's trusted template with a
+        # synthetic/replayed sample via the alpha=0.3 blend below, one call at a
+        # time, without ever needing to pass the enrollment-time liveness check.
+        if not voice_features.is_live:
+            self.logger.warning(
+                "SECURITY: Voice profile update rejected for %s — liveness check failed (score=%.3f)",
+                user_id,
+                voice_features.liveness_score,
+            )
+            msg = (
+                f"Voice profile update rejected: liveness check failed "
+                f"(score={voice_features.liveness_score:.3f})"
+            )
             raise VoiceAuthenticationError(msg)
 
         profile = self._profiles[user_id]
@@ -251,17 +331,42 @@ class VoiceAuthenticator:
     def _compute_similarity(self, features1: np.ndarray, features2: np.ndarray) -> float:
         """Compute similarity between two feature vectors.
 
-        Uses cosine similarity.
+        Uses raw cosine similarity, in [-1.0, 1.0].
+
+        BUG FIX (Round 15): this used to remap raw cosine similarity into
+        [0, 1] via `(similarity + 1) / 2` before returning it. That value
+        is what `authenticate()` returns to callers as its reported
+        `similarity`/`confidence` number, and what gets logged -- but the
+        actual pass/fail decision (`verify_embedding()`, both here and in
+        BiometricAuthenticator) compares RAW cosine similarity against
+        BIOMETRIC_THRESHOLD (0.97). So the number shown in logs and
+        returned as "confidence" was on a different scale than the number
+        actually being thresholded (e.g. a raw cosine of 0.5 -- clearly
+        failing a 0.97 bar -- displayed as 0.75, which reads as "pretty
+        close"). Worse, BiometricAuthenticator.authenticate_multi_factor()
+        averages this value together with the FACE modality's confidence,
+        which BiometricAuthenticator computes as raw cosine (clamped to
+        [0,1], no remapping) -- so the two modalities' "confidence" scores
+        were never comparable, silently skewing the fused score toward
+        voice. Returning raw cosine here (matching
+        BiometricAuthenticator._cosine_similarity() and
+        embedding_auth.verify_embedding()'s scale) fixes both: logs/
+        confidence now reflect the actual quantity being thresholded, and
+        multi-factor fusion averages like-scaled numbers. The `best_match`
+        selection in identification mode is unaffected -- remapping via
+        `(x+1)/2` is monotonic, so it never changed which candidate had
+        the highest similarity, only the number's parade.
 
         Args:
             features1: First feature vector
             features2: Second feature vector
 
         Returns:
-            Similarity score (0.0-1.0)
+            Cosine similarity score (-1.0 to 1.0). Callers that need a
+            [0, 1] confidence value should clamp (as
+            BiometricAuthenticator.authenticate_voice() already does).
 
         """
-        # Cosine similarity
         dot_product = np.dot(features1, features2)
         norm1 = np.linalg.norm(features1)
         norm2 = np.linalg.norm(features2)
@@ -269,8 +374,4 @@ class VoiceAuthenticator:
         if norm1 == 0 or norm2 == 0:
             return 0.0
 
-        similarity = dot_product / (norm1 * norm2)
-
-        # Normalize to 0-1 range (cosine similarity is -1 to 1)
-        result: float = float((similarity + 1) / 2)
-        return result
+        return float(dot_product / (norm1 * norm2))

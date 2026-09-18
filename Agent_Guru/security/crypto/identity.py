@@ -30,7 +30,13 @@ class KeyPair:
     """Ed25519 key pair."""
 
     public_key: bytes  # 32 bytes raw
-    private_key: bytes  # 32 bytes raw seed
+    # repr=False: dataclass auto-generates __repr__ from every field by
+    # default, which would print the raw private key bytes verbatim into
+    # any log line, exception traceback, or debugger session that captures
+    # this object (or an IdentityProfile embedding it) — a direct secret
+    # leak. This also suppresses it from IdentityProfile's own auto-repr,
+    # since that repr calls repr() on this nested KeyPair.
+    private_key: bytes = field(repr=False)  # 32 bytes raw seed
     created_at: datetime
     deprecated_at: datetime | None = None
 

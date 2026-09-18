@@ -51,9 +51,17 @@ _INJECTION_PATTERNS = (
     re.compile(r"<script", re.IGNORECASE),  # XSS
     re.compile(r"DROP\s+TABLE", re.IGNORECASE),  # SQL injection
     re.compile(r"SELECT\s+\*", re.IGNORECASE),  # SQL injection
-    re.compile(r"\.\./"),  # Path traversal
+    # BUG FIX (Round 24): this only matched forward-slash path traversal
+    # (`../`), completely missing the backslash form (`..\`) that Windows
+    # paths use — a real gap given AGENT_GURU explicitly targets Windows as
+    # a first-class desktop platform. `[/\\]` matches either separator.
+    re.compile(r"\.\.[/\\]"),  # Path traversal (both / and \ separators)
     re.compile(r"__import__"),  # Python injection
     re.compile(r"eval\s*\("),  # Code injection
+    # BUG FIX (Round 24): `eval(` was blocked but its equally dangerous
+    # sibling `exec(` was not — an oversight, not an intentional asymmetry;
+    # both execute arbitrary Python source from a string.
+    re.compile(r"exec\s*\("),  # Code injection
 )
 
 # Maximum input lengths
@@ -121,7 +129,17 @@ class PrivacyController:
             ValueError: If URL uses HTTP when HTTPS is required
 
         """
-        if self._config.require_https and url.startswith("http://"):
+        # BUG FIX (Round 24): this used to compare `url.startswith("http://")`
+        # directly against the raw, unmodified input. URL schemes are
+        # case-insensitive per RFC 3986, and `str.startswith` is not -- so a
+        # URL spelled "HTTP://api.example.com" (or with leading whitespace,
+        # e.g. from string concatenation or a config value) sailed straight
+        # past this check, defeating the entire purpose of a HTTPS-enforcement
+        # gate. Normalizing before the comparison closes that bypass without
+        # changing behavior for any URL this already correctly rejected or
+        # accepted.
+        normalized_url = url.strip().lower()
+        if self._config.require_https and normalized_url.startswith("http://"):
             msg = f"HTTPS required for cloud API calls, got HTTP: {url}"
             raise ValueError(msg)
 
@@ -364,6 +382,11 @@ class SensitiveActionGuard:
 
     """
 
+    # Confirmation tokens expire after this many seconds (see confirm()) —
+    # kept as a class constant so _prune_expired() can reuse the exact same
+    # value rather than duplicating the literal.
+    _CONFIRMATION_TIMEOUT_SECONDS = 30.0
+
     def __init__(self) -> None:
         self._confirmation_callbacks: dict[str, Callable] = {}
         self._pending_confirmations: dict[str, dict] = {}
@@ -403,6 +426,20 @@ class SensitiveActionGuard:
 
         token = str(uuid.uuid4())
         with self._lock:
+            # BUG FIX (Round 24): a token that's never confirmed or explicitly
+            # cancelled (the user ignores the prompt, the calling flow is
+            # abandoned, the app is scripted and just never calls back) used
+            # to sit in _pending_confirmations forever — confirm() only ever
+            # pops a token when it's actually looked up, so nothing swept
+            # stale entries out. In a long-running companion process that's
+            # an unbounded memory leak, the same class of bug already fixed
+            # this project in ZKProofSystem._seen_nonces (Round 23) and
+            # memory/github_sync.py's queue (Round 22). Each pending token is
+            # already meaningless after _CONFIRMATION_TIMEOUT_SECONDS (confirm()
+            # itself rejects it as expired), so pruning anything older than
+            # that here, on every new request, bounds memory without needing
+            # a background thread.
+            self._prune_expired_locked()
             self._pending_confirmations[token] = {
                 "action": action,
                 "params": params,
@@ -427,9 +464,9 @@ class SensitiveActionGuard:
         if pending is None:
             return False
 
-        # Check timeout (30 seconds)
+        # Check timeout
         age = time.monotonic() - pending["timestamp"]
-        if age > 30.0:
+        if age > self._CONFIRMATION_TIMEOUT_SECONDS:
             logger.warning("Confirmation token expired: %s", token)
             return False
 
@@ -444,3 +481,18 @@ class SensitiveActionGuard:
         """
         with self._lock:
             self._pending_confirmations.pop(token, None)
+
+    def _prune_expired_locked(self) -> None:
+        """Evict pending confirmations older than the timeout.
+
+        Caller must already hold ``self._lock``. See the note in
+        ``request_confirmation()`` for why this exists.
+        """
+        now = time.monotonic()
+        expired = [
+            token
+            for token, pending in self._pending_confirmations.items()
+            if now - pending["timestamp"] > self._CONFIRMATION_TIMEOUT_SECONDS
+        ]
+        for token in expired:
+            del self._pending_confirmations[token]
