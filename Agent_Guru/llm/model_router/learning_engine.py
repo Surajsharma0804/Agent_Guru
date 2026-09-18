@@ -265,4 +265,11 @@ class LearningEngine:
         base = _SUCCESS_BONUS if record.success else _FAILURE_PENALTY
 
         latency_penalty = record.latency_ms * _LATENCY_PENALTY_SCALE
-        return base - latency_penalty
+        # BUG FIX: _COST_PENALTY_SCALE was defined and documented above as one
+        # of the four reward components, but PerformanceRecord previously had
+        # no `cost` field to read from, so this penalty was silently always
+        # zero — cost never influenced learned selection weights despite the
+        # module's stated design. PerformanceRecord.cost is now populated by
+        # ModelRouter.record_outcome() (router.py), so it is applied here.
+        cost_penalty = record.cost * _COST_PENALTY_SCALE
+        return base - latency_penalty - cost_penalty

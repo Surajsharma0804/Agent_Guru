@@ -131,7 +131,26 @@ class GitHubSyncEngine:
     # ------------------------------------------------------------------
 
     async def _sync_loop(self) -> None:
-        """Background loop that processes pending operations."""
+        """Background loop that processes pending operations.
+
+        BUG FIX (Round 26): the only exception this caught was
+        asyncio.CancelledError. _process_pending_operations() wraps its own
+        network call (_update_readme()) in a try/except that retries with
+        backoff, but the batching step right before it (list(...)/deque
+        reassignment) runs outside that inner try — so any exception raised
+        there (or anywhere else in this loop's body that isn't already
+        caught deeper down) would propagate out of this while loop and kill
+        the background asyncio.Task permanently and silently: start() only
+        calls create_task() once and nothing ever awaits or re-creates it,
+        so the whole "queue + retry with exponential backoff" reliability
+        mechanism this class exists to provide would simply stop running
+        forever, with nothing more than a "Task exception was never
+        retrieved" warning logged whenever the Task object happens to be
+        garbage-collected. A background loop that is supposed to survive
+        individual failures must not be allowed to die from an unexpected
+        one — so any non-cancellation exception is now logged and the loop
+        continues to the next cycle instead of terminating the task.
+        """
         while True:
             try:
                 await asyncio.sleep(self.batch_window_s)
@@ -139,6 +158,12 @@ class GitHubSyncEngine:
                     await self._process_pending_operations()
             except asyncio.CancelledError:
                 break
+            except Exception:
+                logger.exception(
+                    "Unexpected error in GitHub sync loop — will retry next cycle "
+                    "(%.0fs) instead of stopping the background sync task.",
+                    self.batch_window_s,
+                )
 
     async def _process_pending_operations(self) -> None:
         """Process (and batch) pending sync operations."""

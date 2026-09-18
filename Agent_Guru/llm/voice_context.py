@@ -94,6 +94,35 @@ class VoiceContextManager:
     ) -> None:
         """Add a conversation turn to the session history.
 
+        BUG FIX (Round 26): this used to try bridging into the async
+        ContextManager.update_context() from this synchronous method, with
+        two problems. First, `asyncio.get_running_loop()` only ever returns
+        successfully when a loop IS running in this thread — so the
+        `if loop.is_running(): ... else: loop.run_until_complete(...)` split
+        was checking a condition that can never be False at that point; the
+        `else` branch was dead, unreachable code (and would itself raise if
+        it ever somehow ran, since you cannot run_until_complete() on a loop
+        that's already running). Second, and more importantly, the live
+        "loop is running" branch used `asyncio.ensure_future()` to schedule
+        the update and then returned immediately WITHOUT awaiting it. That
+        is a real, reproducible race: a scheduled task cannot execute until
+        the caller yields control back to the event loop, so any code that
+        called `add_turn()` followed immediately by `get_context_messages()`
+        (the exact pattern this class's own docstring demonstrates) would
+        not reliably see the just-added turn. Any exception raised inside
+        the detached task was also silently dropped unless something else
+        happened to retrieve it.
+
+        `add_turn_sync()` already implements this exact operation correctly
+        and synchronously — direct, immediate mutation of session state,
+        no event loop required — so `add_turn()` now simply delegates to
+        it. Both methods now have identical, deterministic,
+        immediately-visible-on-return behavior regardless of whether an
+        event loop happens to be running when this is called, and this also
+        avoids the overhead of `asyncio.run()` spinning up and tearing down
+        a brand-new event loop on every single call in the (common, for a
+        plain-threaded desktop service) case where no loop is running.
+
         Time Complexity: O(1) amortized
         Space Complexity: O(1)
 
@@ -103,24 +132,7 @@ class VoiceContextManager:
             assistant_text: Assistant's response
 
         """
-        user_msg = Message(role="user", content=user_text)
-        assistant_msg = Message(role="assistant", content=assistant_text)
-
-        # Use asyncio.run_coroutine_threadsafe or create event loop if needed
-        try:
-            loop = asyncio.get_running_loop()
-            if loop.is_running():
-                # Schedule as a task
-                asyncio.ensure_future(  # noqa: RUF006
-                    self._context_manager.update_context(session_id, user_msg, assistant_msg),
-                )
-            else:
-                loop.run_until_complete(
-                    self._context_manager.update_context(session_id, user_msg, assistant_msg),
-                )
-        except RuntimeError:
-            # No event loop — create one
-            asyncio.run(self._context_manager.update_context(session_id, user_msg, assistant_msg))
+        self.add_turn_sync(session_id, user_text, assistant_text)
 
     def add_turn_sync(
         self,

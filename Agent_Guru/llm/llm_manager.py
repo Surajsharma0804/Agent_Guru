@@ -120,6 +120,9 @@ def _detect_platform() -> str:
         return "linux"
     if system == "java":
         return "android"
+    # Platform probe: the import failing IS the answer (this is not iOS), so
+    # there is nothing to report -- and this runs on every call, where a log
+    # line would be pure noise.
     try:
         import objc_util  # type: ignore[import]  # noqa: F401
 
@@ -379,6 +382,46 @@ class LLMManager:
         )
 
         latency_ms = (time.perf_counter() - t_start) * 1000
+
+        # BUG FIX (Round 26): generate_response() is the real production
+        # entry point (per this module's own docstring), but it calls
+        # ProviderFailoverRouter.complete_with_failover() directly — it
+        # never calls self._runtime.complete(), which is the only code path
+        # that reports metrics to self._runtime.performance_monitor (see
+        # llm_runtime.py). LLMRuntime.from_config() still builds a fully
+        # configured PerformanceMonitor (and ErrorHandler, with its retry +
+        # circuit-breaker logic), but neither ever receives a single call in
+        # this — the actual — flow: PerformanceMonitor.report_to_self_improvement()
+        # would always return empty metrics in production, and
+        # _emit_reliability_warning() could never fire, even for a provider
+        # that is failing constantly, because nothing was ever recording
+        # those requests. This wires the successful-completion case back
+        # into the existing, already-initialized monitor so the telemetry
+        # this codebase explicitly built for the Self-Improvement Engine
+        # integration actually receives data. (The failed-attempts case is
+        # intentionally left alone here: complete_with_failover() only
+        # returns the final aggregate result, not each individual
+        # provider's own latency/error from the failover loop, so an
+        # accurate per-provider failure record can't be reconstructed after
+        # the fact from this call site — that per-provider failure detail
+        # already lives in ProviderFailoverRouter.get_health_status().
+        # Separately, and left as a flagged, NOT-fixed architectural
+        # finding rather than merged here: ErrorHandler's retry/circuit-
+        # breaker logic is also bypassed by this same call path in favor of
+        # ProviderFailoverRouter's own, independent failover strategy.
+        # Merging those two would change real failover/retry timing
+        # behavior and needs to be validated against a live
+        # Ollama/cloud-provider environment this sandbox doesn't have —
+        # see the Round 26 report.)
+        if self._runtime is not None and result.provider_used is not None:
+            await self._runtime.performance_monitor.record_request(
+                model=result.response.model,
+                provider=result.provider_used,
+                latency_ms=result.response.latency_ms,
+                tokens=result.response.usage.total_tokens,
+                cost=result.response.usage.estimated_cost,
+                success=True,
+            )
 
         # Update conversation context
         if self._runtime is not None and self._runtime.context_manager is not None:

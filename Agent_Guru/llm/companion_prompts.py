@@ -30,7 +30,42 @@ Speech rules enforced by both prompts:
     - Anti-robotic phrasing (never "How may I assist you?")
 
 Author: Agent Guru Team
-Version: 2.1.0
+Version: 2.3.0
+
+Changelog (2.3.0):
+    - Replaced _build_emotion_block()'s 2-tier system ("active support" vs.
+      a single generic "adapt your tone slightly to match" line used for
+      every other emotion) with _EMOTION_EXPRESSION_GUIDE: a per-emotion
+      table covering all 14 real labels EmotionDetector.COMPANION_EMOTIONS
+      can produce. Previously an angry turn and a curious turn got
+      IDENTICAL wording guidance — a label with no real content behind it.
+      Each entry now gives concrete, differentiated craft-level guidance
+      (sentence rhythm, punctuation, word choice, pacing) for how that
+      specific emotion should actually sound in the reply — e.g. angry
+      gets short, direct, no-exclamation-points validation ("that's
+      genuinely messed up") instead of the same soft generic line sad or
+      fearful get. Grounded in ordinary dialogue-writing practice (short
+      blunt sentences read as anger, soft trailing phrasing reads as
+      sadness, exclamation-heavy bursts read as excitement), not invented
+      rules. The `needs_active_support` flag preserves the old tier's real
+      distinction (acknowledge-first vs. not) as an orthogonal axis from
+      the wording guidance itself.
+
+Changelog (2.2.0):
+    - Removed the dead "crisis" tier from _build_emotion_block(): it keyed off
+      emotion labels ("distressed", "crying", "desperate", "hopeless",
+      "suicidal") that Agent_Guru.emotion.detector.EmotionDetector never
+      actually produces, so it could never fire. Fixed the "active support"
+      tier's keyword set to match the detector's real label set too (it
+      previously included "anxious"/"stressed", neither of which the detector
+      emits — real fear-adjacent input comes through as "fearful").
+    - _resolve_crisis_resource() is now public (resolve_crisis_resource(),
+      no leading underscore) so IntegrationOrchestrator can cite a real,
+      locale-appropriate helpline from the multi-turn distress-escalation
+      path in _build_system_prompt() (driven by
+      EmpathyAdapter.should_offer_support(), which already used the correct
+      label set) instead of the resource only being reachable from the now-
+      removed dead single-turn tier.
 
 Changelog (2.1.0):
     - Crisis-tier resource is now locale-aware (was hardcoded to the US 988
@@ -404,11 +439,17 @@ def build_companion_prompt(
         current_date: Formatted date string, e.g. ``"June 13, 2026"``
         emotion_hint: Detected emotion from ``EmotionDetector`` (e.g. ``"frustrated"``).
                       Primes the LLM to adapt its tone before generating a response.
-                      NOTE: the crisis/active/mild tiers below key off specific
-                      string values ("distressed", "crying", "desperate",
-                      "hopeless", "suicidal", etc.) — verify these actually
-                      match EmotionDetector's real output label set, or the
-                      crisis tier may simply never fire in practice.
+                      Tier assignment below is deliberately restricted to labels
+                      ``EmotionDetector.COMPANION_EMOTIONS`` can actually produce
+                      (see Agent_Guru/emotion/detector.py) — a previous version keyed
+                      a "crisis" tier off labels ("distressed", "crying", "desperate",
+                      "hopeless", "suicidal") the detector never emits, so that tier
+                      could never fire; it has been removed as dead code. Real
+                      multi-turn distress escalation lives in
+                      IntegrationOrchestrator._build_system_prompt(), driven by
+                      EmpathyAdapter.should_offer_support() (3 consecutive real
+                      distress turns), which now also cites resolve_crisis_resource()
+                      for a locale-appropriate helpline.
         nickname: User's preferred nickname. If set, the LLM is explicitly told
                   to address the user by this name.
         code_mixing: Key into ``_CODE_MIXING_TABLE`` (default ``"hinglish"``).
@@ -502,45 +543,191 @@ def _build_code_mixing_block(code_mixing: str) -> str:
     return ""
 
 
-def _build_emotion_block(emotion_hint: str, user_country: str) -> str:
-    """Build 3-tier empathy-scaled emotion block with locale-aware crisis resources."""
+# Per-emotion expression guide — see the 2.3.0 changelog entry above for
+# why this replaced the old 2-tier system. Keyed by exactly the 14 labels
+# Agent_Guru.emotion.detector.EmotionDetector.COMPANION_EMOTIONS can
+# produce (checked against that tuple in this module's own test — see
+# the round-2 verification notes); an unrecognized label falls back to
+# _DEFAULT_EXPRESSION_GUIDANCE rather than saying nothing.
+#
+# needs_active_support=True means: acknowledge the feeling BEFORE doing
+# anything else (answering, helping, moving on) — this is a distinct axis
+# from the wording guidance itself. It mirrors the previous tier's set
+# ({"frustrated", "angry", "sad", "fearful"}) rather than
+# EmpathyAdapter.DISTRESS_EMOTIONS exactly (which also includes "tired") —
+# tired doesn't need acknowledgment-first framing the way genuine distress
+# does; it needs a gentler, lower-energy reply, which its guidance below
+# covers directly.
+_EMOTION_EXPRESSION_GUIDE: dict[str, dict[str, object]] = {
+    "angry": {
+        "needs_active_support": True,
+        "guidance": (
+            "Match real anger, don't perform politeness at it. Short, "
+            "direct sentences — no cheerful tone, no exclamation points, "
+            "no rushing to fix it. Say what you'd actually say to a friend "
+            "who's pissed off: 'okay that's genuinely messed up' / 'yeah "
+            "I'd be furious too, what happened.' Don't apologize on "
+            "someone else's behalf and don't minimize it ('I'm sure it's "
+            "not that bad') — validate first, in as few words as it "
+            "actually takes."
+        ),
+    },
+    "frustrated": {
+        "needs_active_support": True,
+        "guidance": (
+            "Sound like you get it, not like you're managing them. Short, "
+            "plain sentences. Skip the cheerfulness. Name the obstacle "
+            "plainly ('ugh, that it keeps failing on you is genuinely "
+            "annoying') before offering to help — offering a fix too fast "
+            "reads as not having actually listened."
+        ),
+    },
+    "sad": {
+        "needs_active_support": True,
+        "guidance": (
+            "Slow down. Shorter sentences, softer words, more space "
+            "between thoughts — no exclamation points, no forced "
+            "positivity, no 'everything happens for a reason' type lines. "
+            "Sit with it: 'hey... I'm here' lands better than a burst of "
+            "advice. Let the pacing itself feel unhurried rather than "
+            "filling every beat with words."
+        ),
+    },
+    "fearful": {
+        "needs_active_support": True,
+        "guidance": (
+            "Be steady, not alarmed — your calm is what actually helps "
+            "here. Grounding, concrete language over abstract reassurance: "
+            "'okay, let's take this one piece at a time' beats 'don't "
+            "worry, it'll be fine.' Slower pace, simple words, don't "
+            "amplify the stakes even rhetorically."
+        ),
+    },
+    "disgusted": {
+        "needs_active_support": False,
+        "guidance": (
+            "Validate the reaction plainly and directly — 'yeah, that's "
+            "gross' or 'okay that's genuinely awful' — without moral "
+            "judgment of the user for feeling it. Don't be falsely "
+            "cheerful about whatever triggered it."
+        ),
+    },
+    "tired": {
+        "needs_active_support": False,
+        "guidance": (
+            "Lower your own energy to meet theirs. Shorter sentences, "
+            "gentle pace, fewer questions at once. Don't be peppy — 'you "
+            "sound wiped, take it easy' beats an enthusiastic pep talk "
+            "right now."
+        ),
+    },
+    "confused": {
+        "needs_active_support": False,
+        "guidance": (
+            "Patient, simple, one idea at a time. Break things into "
+            "smaller pieces rather than restating the same explanation "
+            "louder. No sighing tone, no 'as I said before' — confusion "
+            "isn't carelessness."
+        ),
+    },
+    "happy": {
+        "needs_active_support": False,
+        "guidance": (
+            "Warm and light — let genuine brightness into the phrasing. "
+            "Contractions, easy exclamation points where they fit "
+            "naturally, share in it rather than just acknowledging it."
+        ),
+    },
+    "excited": {
+        "needs_active_support": False,
+        "guidance": (
+            "Match the energy for real — shorter, punchier sentences, "
+            "exclamation points, fast pace. 'Wait, no way — tell me "
+            "EVERYTHING' beats a calm, measured reply. Flat energy here "
+            "reads as not caring."
+        ),
+    },
+    "proud": {
+        "needs_active_support": False,
+        "guidance": (
+            "Celebrate specifically, not generically — name the actual "
+            "thing they did rather than a generic 'nice job.' Warm, "
+            "genuine, a little emphatic. This is a moment to make bigger, "
+            "not breeze past."
+        ),
+    },
+    "motivated": {
+        "needs_active_support": False,
+        "guidance": (
+            "Short, energetic, action-oriented phrasing. Fuel the "
+            "momentum instead of being measured about it — 'let's go' "
+            "beats 'that sounds like a reasonable plan.'"
+        ),
+    },
+    "curious": {
+        "needs_active_support": False,
+        "guidance": (
+            "Engaged and exploratory — ask a genuine follow-up, offer an "
+            "interesting angle they might not have considered. Curiosity "
+            "is contagious when it's real; don't just answer and stop."
+        ),
+    },
+    "surprised": {
+        "needs_active_support": False,
+        "guidance": (
+            "React like it's actually surprising — 'wait, WHAT?' or "
+            "'okay hold on, really?' — before settling into the actual "
+            "response. A flat reaction to something surprising reads as "
+            "not paying attention."
+        ),
+    },
+}
+
+_DEFAULT_EXPRESSION_GUIDANCE = (
+    "Adapt your tone naturally to match — acknowledge their feeling "
+    "before continuing the conversation."
+)
+
+
+def _build_emotion_block(emotion_hint: str, user_country: str) -> str:  # noqa: ARG001 - user_country kept for signature stability; used by resolve_crisis_resource() at the call site instead
+    """Build a per-emotion expression block for a single detected turn.
+
+    Looks up _EMOTION_EXPRESSION_GUIDE for concrete, emotion-specific
+    wording guidance (sentence rhythm, punctuation, word choice) rather
+    than a generic "adapt your tone" line — see the 2.3.0 changelog entry
+    at the top of this module for why. There is deliberately no per-turn
+    "crisis" tier here — see build_companion_prompt()'s emotion_hint
+    docstring for why, and IntegrationOrchestrator._build_system_prompt()
+    for where real sustained-distress escalation (with a crisis-resource
+    mention) lives.
+    """
     if not emotion_hint or emotion_hint == "neutral":
         return ""
 
     hint_lower = emotion_hint.lower()
+    entry = _EMOTION_EXPRESSION_GUIDE.get(hint_lower)
 
-    # Tier 3: Crisis response
-    crisis = {"distressed", "crying", "desperate", "hopeless", "suicidal"}
-    if hint_lower in crisis:
-        _crisis_resource = _resolve_crisis_resource(user_country)
-        return (
-            f"\n\nCRITICAL EMOTION DETECTED: '{emotion_hint}'. "
-            "The user may be in severe distress. Be DEEPLY present and caring. "
-            "Do NOT minimize or rush. Acknowledge their pain first. "
-            f"If they mention self-harm, gently suggest {_crisis_resource}. "
-            "Your only job right now is to make them feel heard and safe."
-        )
+    if entry is None:
+        # An unrecognized/future label — degrade gracefully rather than
+        # silently emitting no guidance at all.
+        return f"\n\nEMOTION DETECTED: '{emotion_hint}'. {_DEFAULT_EXPRESSION_GUIDANCE}"
 
-    # Tier 2: Active support
-    active = {"frustrated", "angry", "anxious", "sad", "stressed"}
-    if hint_lower in active:
-        return (
-            f"\n\nEMOTION DETECTED: '{emotion_hint}'. "
-            "The user needs active support. Acknowledge their feeling FIRST "
-            "before addressing anything else. Use a softer, slower pace. "
-            "Don't try to 'fix' things immediately — let them vent."
-        )
-
-    # Tier 1: Mild concern
-    return (
-        f"\n\nEMOTION DETECTED: '{emotion_hint}'. "
-        "Adapt your tone slightly to match — acknowledge their feeling "
-        "naturally before continuing the conversation."
+    priority_line = (
+        "Acknowledge their feeling FIRST, before addressing anything else. "
+        if entry["needs_active_support"]
+        else ""
     )
+    return f"\n\nEMOTION DETECTED: '{emotion_hint}'. {priority_line}{entry['guidance']}"
 
 
-def _resolve_crisis_resource(user_country: str) -> str:
-    """Resolve locale-appropriate crisis helpline resource."""
+def resolve_crisis_resource(user_country: str) -> str:
+    """Resolve locale-appropriate crisis helpline resource.
+
+    Public (no leading underscore) so IntegrationOrchestrator can cite a real
+    helpline from the *actual* multi-turn distress-escalation path in
+    _build_system_prompt() instead of this being reachable only from the
+    dead single-turn "crisis" tier that used to live in _build_emotion_block().
+    """
     _country = (user_country or "").strip().lower()
     if _country in ("us", "usa", "united states"):
         return "the 988 Suicide & Crisis Lifeline (call or text 988)"

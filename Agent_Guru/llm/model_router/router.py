@@ -6,7 +6,6 @@ Provides a single entry point for model selection with full observability.
 
 from __future__ import annotations
 
-import threading
 import time
 import uuid
 from datetime import UTC, datetime
@@ -66,7 +65,20 @@ class ModelRouter:
         self._cost_tracker = CostTracker(budget_threshold=budget_threshold)
         self._fallback_manager = FallbackManager()
         self._learning_engine = LearningEngine()
-        self._lock = threading.RLock()
+        # NOTE: No facade-level lock here. Each sub-component (registry,
+        # selector, monitor, cost_tracker, fallback_manager, learning_engine)
+        # is independently thread-safe via its own internal lock, and
+        # select_model()/record_outcome() have no invariant that requires
+        # those calls to be atomic as a single unit — e.g. register_model()'s
+        # brief window between registry.register_model() and
+        # learning_engine.initialize_new_model() only means a concurrent
+        # select_model() may briefly see the new model with neutral (1.0)
+        # learning weight, which is harmless. A prior revision declared
+        # `self._lock = threading.RLock()` here but never acquired it
+        # anywhere in the class (confirmed via a repo-wide grep for
+        # `_lock` in this file and for external `router._lock` references) —
+        # that was dead code implying a protection that did not exist, so it
+        # has been removed rather than left as a misleading no-op.
 
     # ------------------------------------------------------------------
     # Primary API
@@ -203,6 +215,16 @@ class ModelRouter:
         cost_per_input = model.cost_per_input_token if model else 0.0
         cost_per_output = model.cost_per_output_token if model else 0.0
 
+        # Compute the actual cost of this invocation so LearningEngine can
+        # factor cost into its reward signal (previously PerformanceRecord had
+        # no cost field, so LearningEngine's _COST_PENALTY_SCALE was defined
+        # but silently never applied — see learning_engine.py). This mirrors
+        # CostTracker.record_cost()'s formula; it is computed here rather than
+        # read back from CostTracker because record_cost() is only called
+        # below when tokens > 0, and because computing it locally avoids
+        # coupling this method's control flow to that conditional call.
+        cost = (input_tokens * cost_per_input) + (output_tokens * cost_per_output)
+
         perf_record = PerformanceRecord(
             record_id=str(uuid.uuid4()),
             model_id=model_id,
@@ -212,6 +234,7 @@ class ModelRouter:
             quality_score=quality_score,
             failure_reason=failure_reason,
             timestamp=datetime.now(UTC),
+            cost=cost,
         )
 
         self._monitor.record(perf_record)

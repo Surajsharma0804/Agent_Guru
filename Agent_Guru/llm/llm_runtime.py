@@ -170,11 +170,44 @@ class LLMRuntime:
         if self._get_provider(request.model) == ModelProvider.OLLAMA:
             timeout = min(timeout, 120.0)  # 120s for local Ollama
 
-        # Execute with retry, enforcing timeout on each adapter call
-        response = await self.error_handler.execute_with_retry(
-            lambda: asyncio.wait_for(adapter.complete(request), timeout=timeout),
-            provider=provider.value,
-        )
+        # Execute with retry, enforcing timeout on each adapter call.
+        #
+        # BUG FIX (Round 26): unlike stream() just below (which wraps its
+        # equivalent call in try/except and calls
+        # performance_monitor.record_request(success=False, ...) on failure),
+        # this call had no such handling — if every retry attempt raised
+        # (or a permanent/non-retryable error occurred), the exception from
+        # execute_with_retry() propagated straight out of complete() and
+        # performance_monitor.record_request() below was simply never
+        # reached for that request. Because ErrorHandler's circuit breaker
+        # tracks failures independently (via its own internal state, not
+        # through PerformanceMonitor), the app still recovered correctly —
+        # but PerformanceMonitor, whose failure counter is what
+        # _emit_reliability_warning() and report_to_self_improvement()'s
+        # success_rate are actually computed from, never saw a single
+        # failed request on this — the primary, non-streaming — call path.
+        # A model/provider that was failing constantly would have reported
+        # a misleading 100% success_rate to the Self-Improvement Engine,
+        # since only successes were ever recorded. Wrapping this the same
+        # way stream() already does closes that gap.
+        try:
+            response = await self.error_handler.execute_with_retry(
+                lambda: asyncio.wait_for(adapter.complete(request), timeout=timeout),
+                provider=provider.value,
+            )
+        except Exception as exc:
+            latency_ms = (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
+            await self.performance_monitor.record_request(
+                model=request.model,
+                provider=provider,
+                latency_ms=latency_ms,
+                tokens=estimated_tokens,
+                cost=0.0,
+                success=False,
+                error=str(exc),
+            )
+            raise
+
         # Update context
         if request.session_id and request.messages:
             await self.context_manager.update_context(

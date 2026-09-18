@@ -4,7 +4,12 @@ Tracks latency, token usage, cost, and reliability per model/provider.
 Emits warnings for slow responses and reliability issues.
 
 Performance:
-    Time Complexity: O(log n) for percentile calculation
+    Time Complexity: O(1) amortized for record_request() (BUG FIX, Round 26:
+        this used to run a full O(n log n) sort on every single call -- see
+        the comment on _compute_latency_stats() and record_request() below).
+        O(n log n) for get_metrics()/report_to_self_improvement(), where
+        n <= _MAX_LATENCY_SAMPLES -- paid only when a report is actually
+        requested, not on every write.
     Space Complexity: O(p * 1000) where p = number of model/provider pairs
 
 Author: Agent Guru Team
@@ -15,8 +20,9 @@ Version: 1.0.0
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -82,7 +88,17 @@ class PerformanceMonitor:
         self.failure_threshold = failure_threshold
 
         self._metrics: dict[str, PerformanceMetrics] = {}
-        self._latency_history: dict[str, list[float]] = defaultdict(list)
+        # BUG FIX (Round 26): was `defaultdict(list)` with the cap enforced by
+        # manually re-slicing `history[-_MAX_LATENCY_SAMPLES:]` every time the
+        # list grew past the cap -- which, once the cap is reached, is EVERY
+        # subsequent call (one append immediately re-exceeds the cap right
+        # after each trim), so that was an O(_MAX_LATENCY_SAMPLES) list copy
+        # on effectively every record_request() once a model/provider pair
+        # was warmed up. deque(maxlen=...) evicts the oldest sample in O(1)
+        # as part of the append itself.
+        self._latency_history: dict[str, deque[float]] = defaultdict(
+            lambda: deque(maxlen=_MAX_LATENCY_SAMPLES),
+        )
         self._recent_failures: dict[str, list[datetime]] = defaultdict(list)
         self._lock = asyncio.Lock()
 
@@ -132,21 +148,23 @@ class PerformanceMonitor:
                 cutoff = now - timedelta(seconds=_FAILURE_WINDOW_S)
                 self._recent_failures[key] = [t for t in self._recent_failures[key] if t >= cutoff]
 
-            # Latency history (capped at _MAX_LATENCY_SAMPLES)
-            history = self._latency_history[key]
-            history.append(latency_ms)
-            if len(history) > _MAX_LATENCY_SAMPLES:
-                self._latency_history[key] = history[-_MAX_LATENCY_SAMPLES:]
+            # Latency history — O(1) amortized append; deque(maxlen=...)
+            # evicts the oldest sample automatically once at capacity.
+            self._latency_history[key].append(latency_ms)
 
-            # Recalculate latency stats
-            sorted_latencies = sorted(self._latency_history[key])
-            n = len(sorted_latencies)
-            m.average_latency_ms = sum(sorted_latencies) / n
-            # Clamp indices to valid range
-            p95_idx = min(int(n * 0.95), n - 1)
-            p99_idx = min(int(n * 0.99), n - 1)
-            m.p95_latency_ms = sorted_latencies[p95_idx]
-            m.p99_latency_ms = sorted_latencies[p99_idx]
+            # BUG FIX (Round 26): the O(n log n) sort + percentile calc that
+            # used to run right here, on every single record_request() call
+            # (i.e. on the hot path for every LLM completion, while holding
+            # the lock that serializes ALL record_request()/get_metrics()
+            # calls across every model/provider pair), has been moved to
+            # get_metrics()/_compute_latency_stats() — computed lazily, only
+            # when a report is actually requested. Reports are requested far
+            # less often than completions happen, and this mirrors the
+            # pattern this codebase already uses elsewhere for the identical
+            # problem (core/performance_optimizer.py's LatencyAccumulator,
+            # avatar/performance.py) rather than eagerly recomputing
+            # statistics nobody may read before the next write overwrites
+            # them anyway.
 
             # Accumulate tokens and cost
             m.total_tokens += tokens
@@ -175,6 +193,11 @@ class PerformanceMonitor:
     ) -> dict[str, PerformanceMetrics]:
         """Return performance metrics, optionally filtered.
 
+        Latency statistics (average_latency_ms/p95_latency_ms/p99_latency_ms)
+        are computed here, lazily, from the raw sample history rather than
+        being read off a pre-computed field — see the Round 26 fix note on
+        record_request() and _compute_latency_stats().
+
         Args:
             model: Optional model name filter.
             provider: Optional provider filter.
@@ -186,12 +209,49 @@ class PerformanceMonitor:
         async with self._lock:
             if model and provider:
                 key = f"{provider.value}:{model}"
-                return {key: self._metrics[key]} if key in self._metrics else {}
+                return {key: self._snapshot(key)} if key in self._metrics else {}
             if model:
-                return {k: v for k, v in self._metrics.items() if v.model == model}
-            if provider:
-                return {k: v for k, v in self._metrics.items() if v.provider == provider}
-            return dict(self._metrics)
+                keys = [k for k, v in self._metrics.items() if v.model == model]
+            elif provider:
+                keys = [k for k, v in self._metrics.items() if v.provider == provider]
+            else:
+                keys = list(self._metrics.keys())
+            return {k: self._snapshot(k) for k in keys}
+
+    def _snapshot(self, key: str) -> PerformanceMetrics:
+        """Return a PerformanceMetrics copy for `key` with fresh latency stats.
+
+        Must be called while holding self._lock (both callers already do).
+        Returns a copy (dataclasses.replace) rather than the stored instance
+        so the object handed to a caller is a self-consistent point-in-time
+        snapshot, and so the stored self._metrics[key] instance's latency
+        fields are never mutated outside of this read path.
+        """
+        m = self._metrics[key]
+        mean, p95, p99 = self._compute_latency_stats(self._latency_history.get(key, ()))
+        return dataclasses.replace(
+            m,
+            average_latency_ms=mean,
+            p95_latency_ms=p95,
+            p99_latency_ms=p99,
+        )
+
+    @staticmethod
+    def _compute_latency_stats(history: deque[float] | tuple[float, ...]) -> tuple[float, float, float]:
+        """Compute (mean_ms, p95_ms, p99_ms) from a latency sample collection.
+
+        Time Complexity: O(n log n) for the sort, n = len(history) <= _MAX_LATENCY_SAMPLES.
+        Called only from the (comparatively rare) read path — see the Round 26
+        fix note on record_request().
+        """
+        if not history:
+            return 0.0, 0.0, 0.0
+        sorted_latencies = sorted(history)
+        n = len(sorted_latencies)
+        mean = sum(sorted_latencies) / n
+        p95_idx = min(int(n * 0.95), n - 1)
+        p99_idx = min(int(n * 0.99), n - 1)
+        return mean, sorted_latencies[p95_idx], sorted_latencies[p99_idx]
 
     async def report_to_self_improvement(self) -> dict[str, Any]:
         """Format metrics for the Self-Improvement Engine.

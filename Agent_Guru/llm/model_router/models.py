@@ -171,6 +171,12 @@ class PerformanceRecord(BaseModel):
     quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
     failure_reason: str | None = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    # Cost of this invocation (input_tokens * cost_per_input + output_tokens *
+    # cost_per_output), mirroring CostTracker's cost formula. Defaults to 0.0
+    # for callers that don't have token/cost data available. Consumed by
+    # LearningEngine._calculate_reward() to apply the cost penalty component
+    # of the reward signal — see model_router/learning_engine.py.
+    cost: float = Field(default=0.0, ge=0.0)
 
     model_config = {"frozen": False}
 

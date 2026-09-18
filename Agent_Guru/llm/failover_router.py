@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -125,6 +126,14 @@ _RULE_BASED_RESPONSES: dict[str, str] = {
     "cancel": "Cancelled. What would you like to do instead?",
 }
 
+# Matching order and word boundaries both matter here -- see
+# _rule_based_response(). Longest pattern first so a specific phrase beats a
+# generic one that happens to be contained in the same utterance.
+_RULE_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = tuple(
+    (re.compile(rf"\b{re.escape(_p)}\b"), _r)
+    for _p, _r in sorted(_RULE_BASED_RESPONSES.items(), key=lambda kv: -len(kv[0]))
+)
+
 _DEFAULT_FALLBACK = (
     "I'm having trouble connecting to my AI services right now. "
     "Please check your internet connection or try again in a moment. "
@@ -143,8 +152,23 @@ def _rule_based_response(user_message: str) -> str:
 
     """
     normalized = user_message.lower().strip().rstrip("?!.,")
-    for pattern, response in _RULE_BASED_RESPONSES.items():
-        if pattern in normalized:
+
+    # BUG FIX: this was a bare `if pattern in normalized` walk over the dict in
+    # insertion order -- i.e. unanchored substring matching, with the shortest
+    # and most generic patterns ("hi", "hey", "open", "play") checked FIRST.
+    # Measured against the real table:
+    #   "I need help with this thing"  -> matched "hi" inside "this"
+    #                                     -> "Hi there! I'm Guru."  (wrong;
+    #                                        "help" was the right answer)
+    #   "can you play it"              -> matched "hey"? no, but "play" ok
+    #   "hello, what can you do"       -> matched "hello", never reaching the
+    #                                     far more useful "what can you do"
+    # This is the rule-based path, which is what the user actually talks to
+    # when the machine is offline -- exactly when a nonsense reply is least
+    # forgivable. Word boundaries stop a pattern matching inside another word,
+    # and longest-first ordering lets the most specific phrase win.
+    for pattern, response in _RULE_PATTERNS:
+        if pattern.search(normalized):
             return response
     return _DEFAULT_FALLBACK
 
@@ -161,6 +185,8 @@ class FailoverConfig:
     Attributes:
         provider_chain: Ordered list of providers to try
         health_check_ttl_seconds: How long to cache health status
+        completion_timeout_seconds: Hard cap on a single provider's completion
+            before it is treated as a failure and the chain moves on
         max_failures_before_skip: Consecutive failures before skipping provider
         enable_rule_based_fallback: Whether to use rule-based fallback
         voice_system_prompt: System prompt for voice interaction personality
@@ -176,6 +202,7 @@ class FailoverConfig:
         ],
     )
     health_check_ttl_seconds: float = 30.0
+    completion_timeout_seconds: float = 30.0
     max_failures_before_skip: int = 3
     enable_rule_based_fallback: bool = True
     voice_system_prompt: str = (
@@ -291,7 +318,21 @@ class ProviderFailoverRouter:
                 # Adapt request model to provider's default if needed
                 adapted_request = self._adapt_request(request, provider)
                 adapter = self._adapters[provider]
-                response = await adapter.complete(adapted_request)
+                # HANG FIX: this awaited the adapter with no time limit at all,
+                # while check_provider_availability() a few methods down
+                # already wraps the identical call in a 5s wait_for -- so the
+                # omission here was an oversight, not a decision. A provider
+                # that accepts the connection and then never answers (a
+                # black-holed network, a wedged local Ollama) pinned the whole
+                # failover chain forever: the one mechanism whose entire
+                # purpose is to move on when a provider is not working could
+                # not move on. A timeout is counted as a failure for that
+                # provider, so the chain advances exactly as it does for any
+                # other error.
+                response = await asyncio.wait_for(
+                    adapter.complete(adapted_request),
+                    timeout=self._config.completion_timeout_seconds,
+                )
 
                 # Mark provider as healthy
                 async with self._lock:
@@ -315,8 +356,35 @@ class ProviderFailoverRouter:
                     latency_ms=latency_ms,
                 )
 
+            except TimeoutError:
+                logger.warning(
+                    "Provider %s timed out after %.1fs. Trying next provider...",
+                    provider.value,
+                    self._config.completion_timeout_seconds,
+                )
+                async with self._lock:
+                    health.status = ProviderStatus.UNAVAILABLE
+                    health.consecutive_failures += 1
+                    health.last_check_ts = time.time()
+                    health.last_error = (
+                        f"timed out after {self._config.completion_timeout_seconds:.1f}s"
+                    )
+                continue
+
             except Exception as e:
-                logger.exception("Provider %s failed. Trying next provider...", provider.value)
+                # Was logger.exception(), i.e. a full stack trace per provider.
+                # For an offline-first assistant every offline utterance walks
+                # the entire chain, so that printed four tracebacks per turn
+                # for the single expected condition "there is no internet" --
+                # burying real faults. The cause stays on one line; the
+                # traceback is still there at debug level.
+                logger.warning(
+                    "Provider %s failed (%s: %s). Trying next provider...",
+                    provider.value,
+                    type(e).__name__,
+                    e,
+                )
+                logger.debug("Provider %s failure detail", provider.value, exc_info=True)
                 async with self._lock:
                     health.status = ProviderStatus.UNAVAILABLE
                     health.consecutive_failures += 1

@@ -14,8 +14,10 @@ Version: 1.0.0
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -100,12 +102,45 @@ class OllamaAdapter(ProviderAdapter):
         # More CPU threads for any layers that spill to CPU
         options["num_thread"] = 8
 
-        response = await client.chat(
-            model=request.model,
-            messages=messages,
-            options=options,
-            keep_alive=-1,  # P2-61: keep model loaded permanently
+        # BUG FIX: latency_ms was previously hardcoded to 0.0 below instead of
+        # being measured, so every CompletionResponse this adapter produced
+        # silently reported zero latency. ProviderFailoverRouter.complete_
+        # with_failover() computes its own accurate round-trip latency but
+        # only stores it on FailoverResult.latency_ms — it never propagates
+        # that back into response.latency_ms — and LLMManager.generate_
+        # response()'s telemetry call (record_request(latency_ms=result.
+        # response.latency_ms, ...)) reads the per-provider field on the
+        # response, by design, so that a slow/failed earlier provider in the
+        # failover chain doesn't inflate the latency attributed to the
+        # provider that actually succeeded. Since Ollama is the only adapter
+        # currently wired into this repo's on-device provider chain, this
+        # was silently zeroing out 100% of the LLM performance telemetry
+        # this codebase records in practice. Fixed by measuring the actual
+        # client.chat() call duration here, matching how CompletionResponse
+        # is documented to be used everywhere else.
+        # BUG FIX: OllamaConfig.timeout_s was declared (llm/models.py) but
+        # never read anywhere in this adapter, and ProviderFailoverRouter
+        # (the production caller — llm/failover_router.py) awaits
+        # adapter.complete() directly with no timeout of its own either. A
+        # stalled Ollama server (model still loading, GPU driver wedged, a
+        # dropped local socket that never errors) would previously hang this
+        # call forever: no exception is raised, so the failover chain never
+        # gets a chance to try the next provider or fall back to a rule-
+        # based response, and the whole request pipeline freezes. Wrapping
+        # the call in asyncio.wait_for(timeout_s) turns that into a bounded
+        # TimeoutError that ProviderFailoverRouter's except-and-continue
+        # loop already handles correctly.
+        call_start = time.perf_counter()
+        response = await asyncio.wait_for(
+            client.chat(
+                model=request.model,
+                messages=messages,
+                options=options,
+                keep_alive=-1,  # P2-61: keep model loaded permanently
+            ),
+            timeout=self.config.timeout_s,
         )
+        latency_ms = (time.perf_counter() - call_start) * 1000
         prompt_tokens = response.get("prompt_eval_count", 0)
         completion_tokens = response.get("eval_count", 0)
 
@@ -121,7 +156,7 @@ class OllamaAdapter(ProviderAdapter):
                 estimated_cost=0.0,  # Local models are free
             ),
             function_call=None,
-            latency_ms=0.0,
+            latency_ms=latency_ms,
             timestamp=datetime.now(tz=UTC),
         )
 
@@ -141,11 +176,26 @@ class OllamaAdapter(ProviderAdapter):
         options["num_ctx"] = 1024  # Smaller context = more VRAM for model layers
         options["num_thread"] = 8  # CPU threads for spilled layers
 
-        stream = await client.chat(
-            model=request.model,
-            messages=messages,
-            stream=True,
-            options=options,
+        # BUG FIX: same unbounded-hang risk as complete() above — guard the
+        # initial call that opens the stream with the configured timeout.
+        # (Not currently reached in production: only LLMRuntime.complete()
+        # calls adapter.stream(), and production goes through LLMManager /
+        # ProviderFailoverRouter instead — see llm_manager.py. Fixed here
+        # too so this adapter is safe regardless of which caller reaches it,
+        # and so it doesn't silently regress if streaming is wired in later.
+        # A stall *mid-stream*, after this call returns, would need a
+        # per-chunk timeout around the iteration below to fully close off;
+        # that's a larger change than closing the connect-time hang this
+        # fixes, and is left as a follow-up since it isn't on the current
+        # production path.)
+        stream = await asyncio.wait_for(
+            client.chat(
+                model=request.model,
+                messages=messages,
+                stream=True,
+                options=options,
+            ),
+            timeout=self.config.timeout_s,
         )
 
         async for chunk in stream:
