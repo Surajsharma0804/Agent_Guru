@@ -526,6 +526,18 @@ class EnsembleVotingSystem:
             # All failed
             return results[0], 0.0, 0.0
 
+        # BUG FIX: total_weight can legitimately be 0.0 -- every
+        # strategy that produced a successful result this round might
+        # have a historical success_rate of exactly 0.0 (a brand-new,
+        # never-yet-succeeded strategy's natural initial value). Without
+        # this guard, the divisions below raise ZeroDivisionError,
+        # crashing WEIGHTED voting -- this class's own default voting
+        # method. Fall back to an equal-weight vote among the
+        # successful results instead of dividing by zero.
+        if total_weight <= 0.0:
+            weighted_results = [(result, 1.0) for result, _ in weighted_results]
+            total_weight = float(len(weighted_results))
+
         # Find result with highest cumulative weight (excluding strategy_id)
         result_weights: dict[str, float] = {}
         result_map: dict[str, dict[str, Any]] = {}
@@ -706,7 +718,18 @@ class EnsembleVotingSystem:
             ensemble_count = ensemble_row[0] or 0
             ensemble_success_rate = ensemble_row[1] or 0.0
             ensemble_avg_time = ensemble_row[2] or 0.0
-            disagreement_rate = 1.0 - (ensemble_row[3] or 1.0)
+            # BUG FIX: `(ensemble_row[3] or 1.0)` treated a genuine
+            # average agreement score of exactly 0.0 (total
+            # disagreement across every execution) the same as "no
+            # data" (SQL NULL), reporting disagreement_rate == 0.0 --
+            # perfect agreement -- for what was actually the worst
+            # possible case. Only a real NULL (no matching rows)
+            # should fall back to "no disagreement"; a genuine 0.0
+            # average must be honored as-is.
+            avg_agreement_score = ensemble_row[3]
+            disagreement_rate = (
+                1.0 - avg_agreement_score if avg_agreement_score is not None else 0.0
+            )
 
             # Get single-strategy execution stats from task_executions table if it exists
             single_count = 0

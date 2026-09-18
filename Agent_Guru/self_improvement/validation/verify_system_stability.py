@@ -85,9 +85,21 @@ def check_memory_usage(conn: sqlite3.Connection) -> Dict[str, Any]:
     last_mean = statistics.mean(last_quarter)
     
     # Check if execution time increased significantly (sign of memory leak)
-    degradation = (last_mean - first_mean) / first_mean if first_mean > 0 else 0
+    # BUG FIX: a zero first-quarter mean (plausible for trivial/cached
+    # early tasks) used to make this ratio undefined and silently fall
+    # back to 0 -- reporting "no memory leak" even if the last quarter's
+    # mean execution time jumped to a large positive value. Any positive
+    # last_mean after a zero baseline is treated as exceeding the bounded
+    # threshold below, consistent with how the equivalent zero-baseline
+    # case is handled in verify_improvement.py's relative-improvement
+    # calculation.
+    degradation = (
+        (last_mean - first_mean) / first_mean
+        if first_mean > 0
+        else (1.0 if last_mean > 0 else 0.0)
+    )
     
-    # Allow up to 50% increase (we actually improved, so this should pass)
+    # Allow up to 50% increase
     bounded = degradation < 0.5
     
     return {
@@ -130,14 +142,27 @@ def check_performance_degradation(conn: sqlite3.Connection) -> Dict[str, Any]:
     final_success_rate = final_window[1]
     first_success_rate = first_window[1]
     
-    # Performance should not degrade significantly
-    # (We actually improved, so this should pass easily)
-    no_degradation = final_success_rate >= first_success_rate * 0.8  # Allow 20% drop max
+    # BUG FIX: this used to compare only the first and final windows,
+    # so a severe mid-run dip (e.g. a transient failure spike in an
+    # interior window) that recovered by the final window would be
+    # completely invisible to this check, despite this function's own
+    # name and docstring describing degradation "over time" -- the
+    # whole trajectory, not just its two endpoints. The existing 20%-
+    # drop-from-baseline tolerance is now applied to every window, not
+    # only the last one.
+    window_success_rates = [w[1] for w in windows]
+    min_success_rate = min(window_success_rates)
+    worst_window_start = windows[window_success_rates.index(min_success_rate)][0]
+    
+    # Performance should not degrade significantly in any window
+    no_degradation = min_success_rate >= first_success_rate * 0.8  # Allow 20% drop max
     
     return {
         "status": "PASSED" if no_degradation else "FAILED",
         "first_window_success_rate": round(first_success_rate * 100, 1),
         "final_window_success_rate": round(final_success_rate * 100, 1),
+        "min_window_success_rate": round(min_success_rate * 100, 1),
+        "worst_window_start_task": worst_window_start,
         "change_percentage": round((final_success_rate - first_success_rate) * 100, 1),
         "no_degradation": no_degradation,
         "total_windows": len(windows)
@@ -309,7 +334,7 @@ The system was evaluated on four key stability criteria:
 
 {status_emoji} **{'SUCCESS' if results['status'] == 'PASSED' else 'FAILURE'}:** The system {'demonstrated excellent stability' if results['status'] == 'PASSED' else 'experienced stability issues'} during the 100-task learning cycle.
 
-This {'validates' if results['status'] == 'PASSED' else 'does not validate'} Requirement 7.6: "THE Self_Improvement_Engine SHALL provide confidence intervals and statistical tests proving improvement is not due to chance."
+This {'validates' if results['status'] == 'PASSED' else 'does not validate'} Requirement 7.6: "THE Self_Improvement_Engine SHALL remain stable throughout the self-improvement learning process, with no crashes, bounded memory usage, no significant performance degradation, and consistent task execution."
 
 ---
 

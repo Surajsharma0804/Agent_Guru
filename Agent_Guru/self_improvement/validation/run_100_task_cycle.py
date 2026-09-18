@@ -433,6 +433,33 @@ def _init_validation_engine(db_path: str, enable_git: bool) -> SelfImprovementEn
     return engine
 
 
+def _derive_failure_type(*, hallucination_detected: bool, tool_selection_correct: bool) -> "FailureType":
+    """Derive the recorded failure category from a task's own already-
+    computed outcome flags, instead of choosing one uniformly at random
+    and unrelated to what the task's own metrics row will say happened.
+
+    BUG FIX: _run_task_loop() used to pick failure_type via
+    `secrets.choice([REASONING_ERROR, TOOL_ERROR, HALLUCINATION])`,
+    completely independent of the hallucination_detected /
+    tool_selection_correct flags already computed for that exact same
+    task -- so a task with hallucination_detected=True would, 2/3 of
+    the time, still be recorded with an unrelated failure_type like
+    "reasoning_error". Since both values are stored in the same
+    metrics row, this made the generated "Failure Analysis" section
+    self-contradictory: failure-type tallies with no relationship to
+    the per-task flags recorded for those identical tasks. Priority
+    mirrors the order these flags are already checked elsewhere in
+    this module's own simulation logic (hallucination is the most
+    specific signal, then tool misuse, with reasoning error as the
+    catch-all default failure mode).
+    """
+    if hallucination_detected:
+        return FailureType.HALLUCINATION
+    if not tool_selection_correct:
+        return FailureType.TOOL_ERROR
+    return FailureType.REASONING_ERROR
+
+
 def _run_task_loop(
     engine: SelfImprovementEngine,
     executor: TaskExecutor,
@@ -453,11 +480,10 @@ def _run_task_loop(
 
         error_details = None
         if not success:
-            failure_type = secrets.choice([
-                FailureType.REASONING_ERROR,
-                FailureType.TOOL_ERROR,
-                FailureType.HALLUCINATION,
-            ])
+            failure_type = _derive_failure_type(
+                hallucination_detected=result.hallucination_detected,
+                tool_selection_correct=result.tool_selection_correct,
+            )
             error_details = {
                 "type": failure_type.value,
                 "description": f"Simulated {failure_type.value}",

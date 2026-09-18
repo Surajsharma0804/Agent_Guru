@@ -207,8 +207,19 @@ class SelfImprovementEngine:
         """
         start_time = time.time()
 
-        # Increment task sequence
-        self._task_sequence += 1
+        # BUG FIX (P2-53): self._lock was declared in __init__ specifically
+        # to protect self._task_sequence from concurrent mutation, but was
+        # never actually acquired anywhere in this class -- the increment
+        # below, and every later read of self._task_sequence in this method,
+        # ran completely unsynchronized. Under concurrent calls to this
+        # method that allowed lost increments (duplicate/skipped
+        # task_sequence_number values, and a measurement-window boundary
+        # that could be missed entirely). Now increments under the lock and
+        # reuses a single local snapshot for everything this execution needs,
+        # instead of re-reading the shared counter later.
+        with self._lock:
+            self._task_sequence += 1
+            task_sequence_number = self._task_sequence
 
         # Classify failure type if task failed
         failure_type = None
@@ -246,7 +257,7 @@ class SelfImprovementEngine:
             reasoning_quality=reasoning_quality,
             tool_selection_correct=tool_selection_correct,
             hallucination_detected=hallucination_detected,
-            task_sequence_number=self._task_sequence,
+            task_sequence_number=task_sequence_number,
         )
 
         # If failed, analyze failure
@@ -268,7 +279,7 @@ class SelfImprovementEngine:
             self._commit_execution_data(execution)
 
         # Check if we've hit measurement window
-        if self._task_sequence % self.measurement_window == 0:
+        if task_sequence_number % self.measurement_window == 0:
             self._generate_improvement_report()
 
         # Performance monitoring
@@ -537,6 +548,18 @@ class SelfImprovementEngine:
 
         # Optionally record in performance tracker
         if record_in_tracker:
+            # BUG FIX (P2-53): this used to compute
+            # `self._task_sequence + 1` for the metrics call below and then
+            # separately increment the real attribute afterward -- two
+            # independent, unsynchronized reads of the same shared counter
+            # that could race to hand out the SAME task_sequence_number to
+            # two different concurrent calls. Now a single lock-guarded
+            # increment produces one value reused for both the metrics call
+            # and the counter's new state.
+            with self._lock:
+                self._task_sequence += 1
+                task_sequence_number = self._task_sequence
+
             self.performance_tracker.record_task_metrics(
                 task_id=task_id,
                 task_type=task_type,
@@ -546,7 +569,7 @@ class SelfImprovementEngine:
                 reasoning_quality=0.0,
                 tool_selection_correct=False,
                 hallucination_detected=(failure_type == FailureType.HALLUCINATION),
-                task_sequence_number=self._task_sequence + 1,
+                task_sequence_number=task_sequence_number,
             )
 
             # Update strategy performance
@@ -555,9 +578,6 @@ class SelfImprovementEngine:
                 False,
                 test_execution.execution_time_ms,
             )
-
-            # Increment task sequence
-            self._task_sequence += 1
 
         return task_id
 

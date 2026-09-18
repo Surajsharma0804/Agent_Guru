@@ -212,6 +212,7 @@ class PerformanceTracker:
                     AVG(execution_time_ms) as avg_time,
                     AVG(reasoning_quality) as avg_reasoning,
                     SUM(tool_selection_correct) as tool_correct,
+                    COUNT(tool_selection_correct) as tool_selection_count,
                     SUM(hallucination_detected) as hallucinations,
                     MIN(timestamp) as start_time,
                     MAX(timestamp) as end_time
@@ -233,12 +234,23 @@ class PerformanceTracker:
                     window_end=datetime.now(tz=UTC),
                 )
 
-            total, successes, avg_time, avg_reasoning, tool_correct, hallucinations, start, end = (
-                row
-            )
+            (
+                total, successes, avg_time, avg_reasoning, tool_correct,
+                tool_selection_count, hallucinations, start, end,
+            ) = row
 
             success_rate = successes / total if total > 0 else 0.0
-            tool_selection_rate = tool_correct / total if total > 0 else 0.0
+            # BUG FIX: tool_selection_correct is nullable (NULL when no
+            # tool was used, per the metrics table schema) -- dividing
+            # SUM(tool_selection_correct) by `total` (every row,
+            # including those where the column is legitimately NULL)
+            # silently dilutes the rate. Divide by COUNT(tool_selection_
+            # correct) instead, which -- like SUM() -- counts only the
+            # non-NULL rows, so the rate reflects accuracy only among
+            # tasks where tool selection actually applied.
+            tool_selection_rate = (
+                tool_correct / tool_selection_count if tool_selection_count else 0.0
+            )
             hallucination_rate = hallucinations / total if total > 0 else 0.0
 
             return AggregateMetrics(
@@ -275,6 +287,7 @@ class PerformanceTracker:
                     AVG(execution_time_ms) as avg_time,
                     AVG(reasoning_quality) as avg_reasoning,
                     SUM(tool_selection_correct) as tool_correct,
+                    COUNT(tool_selection_correct) as tool_selection_count,
                     SUM(hallucination_detected) as hallucinations,
                     MIN(timestamp) as start_time,
                     MAX(timestamp) as end_time
@@ -291,12 +304,19 @@ class PerformanceTracker:
             if not row or row[0] < baseline_size:
                 return None  # Not enough data for baseline
 
-            total, successes, avg_time, avg_reasoning, tool_correct, hallucinations, start, end = (
-                row
-            )
+            (
+                total, successes, avg_time, avg_reasoning, tool_correct,
+                tool_selection_count, hallucinations, start, end,
+            ) = row
 
             success_rate = successes / total if total > 0 else 0.0
-            tool_selection_rate = tool_correct / total if total > 0 else 0.0
+            # BUG FIX: see get_current_metrics() -- divide by the count
+            # of non-NULL tool_selection_correct rows, not the full
+            # window total, to avoid diluting the rate with tasks where
+            # tool selection didn't apply.
+            tool_selection_rate = (
+                tool_correct / tool_selection_count if tool_selection_count else 0.0
+            )
             hallucination_rate = hallucinations / total if total > 0 else 0.0
 
             return AggregateMetrics(
@@ -333,6 +353,7 @@ class PerformanceTracker:
                     AVG(execution_time_ms) as avg_time,
                     AVG(reasoning_quality) as avg_reasoning,
                     SUM(tool_selection_correct) as tool_correct,
+                    COUNT(tool_selection_correct) as tool_selection_count,
                     SUM(hallucination_detected) as hallucinations,
                     MIN(timestamp) as start_time,
                     MAX(timestamp) as end_time
@@ -349,12 +370,19 @@ class PerformanceTracker:
             if not row or row[0] < window_size:
                 return None  # Not enough data
 
-            total, successes, avg_time, avg_reasoning, tool_correct, hallucinations, start, end = (
-                row
-            )
+            (
+                total, successes, avg_time, avg_reasoning, tool_correct,
+                tool_selection_count, hallucinations, start, end,
+            ) = row
 
             success_rate = successes / total if total > 0 else 0.0
-            tool_selection_rate = tool_correct / total if total > 0 else 0.0
+            # BUG FIX: see get_current_metrics() -- divide by the count
+            # of non-NULL tool_selection_correct rows, not the full
+            # window total, to avoid diluting the rate with tasks where
+            # tool selection didn't apply.
+            tool_selection_rate = (
+                tool_correct / tool_selection_count if tool_selection_count else 0.0
+            )
             hallucination_rate = hallucinations / total if total > 0 else 0.0
 
             return AggregateMetrics(
@@ -397,6 +425,18 @@ class PerformanceTracker:
         if not baseline or not recent:
             return None
 
+        # BUG FIX: get_baseline_metrics() (oldest-first) and
+        # get_recent_metrics() (newest-first) query independently and
+        # can overlap -- the same task executions counted in both
+        # windows -- whenever baseline_size + recent_size exceeds the
+        # total recorded task count, biasing this comparison toward
+        # "no difference" rather than a genuine before/after
+        # comparison. Refuse to compare windows that can't be
+        # guaranteed disjoint, consistent with this method's existing
+        # "insufficient data" contract.
+        if self.get_task_count() < baseline_size + recent_size:
+            return None
+
         success_rate_improvement = recent.success_rate - baseline.success_rate
 
         # Execution time improvement (negative means faster)
@@ -426,9 +466,20 @@ class PerformanceTracker:
             baseline_error_rate = 1.0 - baseline.success_rate
             recent_error_rate = 1.0 - recent.success_rate
             error_reduction = baseline_error_rate - recent_error_rate
-            relative_improvement = (
-                (error_reduction / baseline_error_rate * 100) if baseline_error_rate > 0 else 0.0
-            )
+            if baseline_error_rate > 0:
+                relative_improvement = error_reduction / baseline_error_rate * 100
+            else:
+                # BUG FIX: a perfect (100%) baseline has a zero error rate, so
+                # error-rate reduction is undefined and this used to fall back
+                # to 0.0 -- reporting 'no change' even when performance had
+                # collapsed. A run going from 100% success to 30% success
+                # reported relative_improvement = 0.0, hiding a 70-point
+                # regression from every consumer that trends this value.
+                # The standard relative formula is well defined here (the
+                # denominator is the success rate, which is 1.0, not the error
+                # rate), so use it: perfect -> perfect still yields 0.0, while
+                # perfect -> 30% correctly yields -70.0.
+                relative_improvement = success_rate_improvement / baseline.success_rate * 100
         else:
             # Standard relative improvement calculation
             relative_improvement = success_rate_improvement / baseline.success_rate * 100
@@ -482,6 +533,28 @@ class PerformanceTracker:
             - confidence_interval_95: 95% confidence interval for improvement
 
         """
+        # BUG FIX: see calculate_improvement() -- the baseline (oldest-
+        # first) and recent (newest-first) windows queried below can
+        # overlap whenever baseline_size + recent_size exceeds the total
+        # recorded task count, comparing some of the same task
+        # executions against themselves. Refuse rather than return a
+        # biased significance test.
+        if self.get_task_count() < baseline_size + recent_size:
+            return None
+
+        # BUG FIX: sample standard deviation (ddof=1, used below) and
+        # scipy's independent t-test are both mathematically undefined for
+        # a sample of size 1 -- silently producing NaN (t_statistic,
+        # p_value, and confidence_interval_95 all NaN) rather than raising
+        # or returning None. Because `NaN < 0.05` is False in Python, that
+        # NaN silently surfaced as is_significant=False -- indistinguishable
+        # from a genuine non-significant result. This method's own
+        # docstring promises "None if insufficient data"; a window of size
+        # 1 is insufficient data for a variance estimate, so it is now
+        # rejected the same way as the overlap case just above.
+        if baseline_size < 2 or recent_size < 2:
+            return None
+
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 

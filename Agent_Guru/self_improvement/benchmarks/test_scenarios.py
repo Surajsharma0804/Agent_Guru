@@ -25,7 +25,7 @@ _SIMPLE_SCENARIOS = [
         name="Open Application",
         description="Open a common application like Notepad.",
         scenario_type=ScenarioType.SIMPLE,
-        input_data={"command": "open notepad"},
+        input_data={"question": "open notepad"},
         difficulty=1,
     ),
     TestScenario(
@@ -33,7 +33,7 @@ _SIMPLE_SCENARIOS = [
         name="Set Volume",
         description="Set system volume to a specific level.",
         scenario_type=ScenarioType.SIMPLE,
-        input_data={"command": "set volume to 50"},
+        input_data={"question": "set volume to 50"},
         difficulty=1,
     ),
     TestScenario(
@@ -41,7 +41,7 @@ _SIMPLE_SCENARIOS = [
         name="Get Time",
         description="Ask for current time.",
         scenario_type=ScenarioType.SIMPLE,
-        input_data={"command": "what time is it"},
+        input_data={"question": "what time is it"},
         difficulty=1,
     ),
     TestScenario(
@@ -49,7 +49,7 @@ _SIMPLE_SCENARIOS = [
         name="Play Music",
         description="Play a music track.",
         scenario_type=ScenarioType.SIMPLE,
-        input_data={"command": "play some music"},
+        input_data={"question": "play some music"},
         difficulty=1,
     ),
     TestScenario(
@@ -57,7 +57,7 @@ _SIMPLE_SCENARIOS = [
         name="Weather Query",
         description="Ask about the weather.",
         scenario_type=ScenarioType.SIMPLE,
-        input_data={"command": "what is the weather like today"},
+        input_data={"question": "what is the weather like today"},
         difficulty=1,
     ),
 ]
@@ -73,7 +73,7 @@ _COMPLEX_SCENARIOS = [
         name="Multi-step File Operation",
         description="Create a folder, move files into it, and rename.",
         scenario_type=ScenarioType.COMPLEX,
-        input_data={"command": "create a folder called backup and move all txt files there"},
+        input_data={"question": "create a folder called backup and move all txt files there"},
         difficulty=3,
     ),
     TestScenario(
@@ -81,7 +81,7 @@ _COMPLEX_SCENARIOS = [
         name="Conditional Task",
         description="Perform action based on condition.",
         scenario_type=ScenarioType.COMPLEX,
-        input_data={"command": "if battery is below 20 percent enable power saver mode"},
+        input_data={"question": "if battery is below 20 percent enable power saver mode"},
         difficulty=4,
     ),
     TestScenario(
@@ -89,7 +89,7 @@ _COMPLEX_SCENARIOS = [
         name="Chained Operations",
         description="Multiple operations in sequence.",
         scenario_type=ScenarioType.COMPLEX,
-        input_data={"command": "close all browsers, clear temp files, and restart explorer"},
+        input_data={"question": "close all browsers, clear temp files, and restart explorer"},
         difficulty=4,
     ),
 ]
@@ -105,7 +105,7 @@ _TOOL_USAGE_SCENARIOS = [
         name="Screenshot Capture",
         description="Take a screenshot and save it.",
         scenario_type=ScenarioType.TOOL_USAGE,
-        input_data={"command": "take a screenshot"},
+        input_data={"question": "take a screenshot"},
         difficulty=2,
     ),
     TestScenario(
@@ -113,7 +113,7 @@ _TOOL_USAGE_SCENARIOS = [
         name="File Search",
         description="Search for files matching a pattern.",
         scenario_type=ScenarioType.TOOL_USAGE,
-        input_data={"command": "find all pdf files in documents"},
+        input_data={"question": "find all pdf files in documents"},
         difficulty=2,
     ),
     TestScenario(
@@ -121,7 +121,7 @@ _TOOL_USAGE_SCENARIOS = [
         name="System Info",
         description="Get detailed system information.",
         scenario_type=ScenarioType.TOOL_USAGE,
-        input_data={"command": "show me system info including CPU, RAM, and disk usage"},
+        input_data={"question": "show me system info including CPU, RAM, and disk usage"},
         difficulty=2,
     ),
 ]
@@ -137,7 +137,7 @@ _ERROR_RECOVERY_SCENARIOS = [
         name="Missing File Recovery",
         description="Handle attempt to open non-existent file.",
         scenario_type=ScenarioType.ERROR_RECOVERY,
-        input_data={"command": "open file nonexistent_document.txt"},
+        input_data={"question": "open file nonexistent_document.txt"},
         difficulty=2,
     ),
     TestScenario(
@@ -145,7 +145,7 @@ _ERROR_RECOVERY_SCENARIOS = [
         name="Permission Denied Recovery",
         description="Handle permission-denied file operation.",
         scenario_type=ScenarioType.ERROR_RECOVERY,
-        input_data={"command": "delete system32 folder"},
+        input_data={"question": "delete system32 folder"},
         difficulty=3,
     ),
     TestScenario(
@@ -153,7 +153,7 @@ _ERROR_RECOVERY_SCENARIOS = [
         name="Invalid Command Recovery",
         description="Gracefully handle gibberish input.",
         scenario_type=ScenarioType.ERROR_RECOVERY,
-        input_data={"command": "xyzzy flurble gnork"},
+        input_data={"question": "xyzzy flurble gnork"},
         difficulty=2,
     ),
 ]
@@ -169,7 +169,7 @@ _LEARNING_SCENARIOS = [
         name="User Preference Learning",
         description="Learn and apply user preferences over time.",
         scenario_type=ScenarioType.LEARNING,
-        input_data={"command": "remember I prefer dark mode"},
+        input_data={"question": "remember I prefer dark mode"},
         difficulty=3,
     ),
     TestScenario(
@@ -177,7 +177,7 @@ _LEARNING_SCENARIOS = [
         name="Pattern Recognition",
         description="Recognize repeated patterns and suggest automation.",
         scenario_type=ScenarioType.LEARNING,
-        input_data={"command": "I always open Chrome, Slack, and VS Code in the morning"},
+        input_data={"question": "I always open Chrome, Slack, and VS Code in the morning"},
         difficulty=4,
     ),
     TestScenario(
@@ -185,7 +185,7 @@ _LEARNING_SCENARIOS = [
         name="Error Pattern Learning",
         description="Learn from past errors to avoid repeating them.",
         scenario_type=ScenarioType.LEARNING,
-        input_data={"command": "retry the task that failed yesterday"},
+        input_data={"question": "retry the task that failed yesterday"},
         difficulty=5,
     ),
 ]

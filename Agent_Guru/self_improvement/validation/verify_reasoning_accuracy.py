@@ -69,11 +69,24 @@ def calculate_window_stats(
 def calculate_improvement(baseline: float, final: float) -> Dict[str, Any]:
     """Calculate improvement metrics."""
     if baseline == 0:
+        # BUG FIX: a zero baseline mean reasoning_quality (the worst end
+        # of this file's own documented 0.0-1.0 scale) followed by ANY
+        # positive final mean is a genuine improvement, but this used to
+        # hardcode improved=False regardless -- silently reporting the
+        # best-case outcome (worst possible reasoning -> something
+        # better) as "no improvement", the same zero-baseline masking
+        # defect already fixed in verify_improvement.py (Round 92).
+        # absolute_change is also well-defined here (final - 0 == final)
+        # and is preserved instead of being discarded as 0.0; only
+        # relative_change is genuinely undefined (division by zero) and
+        # is given the same 100%-if-any-improvement convention already
+        # established in performance_tracker.py's zero-baseline handling.
+        absolute_change = final - baseline
         return {
-            "absolute_change": 0.0,
-            "relative_change": 0.0,
-            "percentage_change": 0.0,
-            "improved": False
+            "absolute_change": absolute_change,
+            "relative_change": 1.0 if final > 0 else 0.0,
+            "percentage_change": 100.0 if final > 0 else 0.0,
+            "improved": final > 0,
         }
     
     absolute_change = final - baseline  # Positive means improvement (higher is better)
@@ -104,12 +117,51 @@ def verify_reasoning_accuracy_improvement(db_path: str) -> Dict[str, Any]:
     quality_scores = get_reasoning_quality_scores(conn)
     
     if len(quality_scores) < 100:
+        # BUG FIX: identical to the defect fixed this session in the
+        # sibling verify_execution_time.py (Round 94) -- this early
+        # return used to (1) leave `conn` open (only the success path
+        # below closes it) and (2) return a dict shaped differently than
+        # the success path, which generate_report() (called
+        # unconditionally from main()) indexes unconditionally, crashing
+        # with a KeyError on a validation database with fewer than 100
+        # recorded tasks. Fixed to close the connection and return the
+        # same shape as the success path, with zeroed placeholder stats.
+        conn.close()
+        empty_window_stats = {
+            "window": "N/A",
+            "mean_score": 0.0,
+            "median_score": 0.0,
+            "min_score": 0.0,
+            "max_score": 0.0,
+            "std_dev": 0.0,
+            "count": 0,
+        }
         return {
             "status": "FAILED",
             "reason": f"Insufficient tasks: {len(quality_scores)} < 100",
-            "baseline": {},
-            "final": {},
-            "improvement": {}
+            "verification_date": datetime.now(tz=timezone.utc).isoformat(),
+            "database": db_path,
+            "baseline": dict(empty_window_stats),
+            "final": dict(empty_window_stats),
+            "improvement": {
+                "absolute_change": 0.0,
+                "relative_change": 0.0,
+                "percentage_change": 0.0,
+                "improved": False,
+                "interpretation": "N/A",
+            },
+            "overall": {
+                "total_tasks": len(quality_scores),
+                "mean": 0.0,
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+            },
+            "conclusion": (
+                f"Verification could not run: only {len(quality_scores)} "
+                "of the required 100 tasks were found in the validation "
+                "database."
+            ),
         }
     
     # Calculate baseline stats (tasks 1-10)

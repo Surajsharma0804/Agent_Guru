@@ -592,8 +592,13 @@ def test_edge_case_zero_baseline_success_rate(tracker):
 
     assert improvement is not None  # nosec B101
     assert improvement["success_rate_improvement"] == 1.0  # nosec B101
-    # Relative improvement is 0 when baseline is 0
-    assert improvement["relative_improvement"] == 0.0  # nosec B101
+    # Baseline 0% -> recent 100% is the largest possible gain, so relative
+    # improvement is capped at 100.0 rather than reported as 0.0. Asserting
+    # 0.0 here encoded a harmful expectation: ImprovementReporter divides
+    # this by 100 and compares it against its improvement threshold, so 0.0
+    # would make a total turnaround (0% -> 100% success) register as
+    # 'failed to improve' and raise a false alert.
+    assert improvement["relative_improvement"] == 100.0  # nosec B101
 
 
 def test_edge_case_perfect_baseline(tracker):

@@ -150,6 +150,15 @@ class BaseBenchmark:
                 except Exception as exc:
                     _logger.debug("Warmup iteration %d skipped: %s", i, exc)  # Ignore warmup errors
 
+        # BUG FIX: psutil.Process.cpu_percent(interval=None) always returns a
+        # meaningless 0.0 on its first call after the Process object is created,
+        # since there is no prior sample to diff against -- and self.process is
+        # created once in __init__ and never re-primed, while the warmup loop
+        # above never itself calls cpu_percent(). Without this throwaway call,
+        # every run_benchmark() call's first measured scenario would get a
+        # biased cpu_before of 0.0 regardless of whether warmup_runs was used.
+        self.process.cpu_percent()
+
         # Actual benchmark runs
         for _i, scenario in enumerate(scenarios):
             try:

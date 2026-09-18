@@ -24,6 +24,7 @@ import logging
 _logger = logging.getLogger(__name__)
 
 import json  # noqa: E402
+import secrets  # noqa: E402
 import time  # noqa: E402
 from dataclasses import dataclass  # noqa: E402
 from datetime import UTC, datetime  # noqa: E402
@@ -118,13 +119,10 @@ class FailureAnalyzer:
         # Store failure with full context
         self._store_failure(execution)
 
-        # Extract specific failure details based on type
-        if execution.failure_type == FailureType.REASONING_ERROR:
-            self._analyze_reasoning_error(execution)
-        elif execution.failure_type == FailureType.TOOL_ERROR:
-            self._analyze_tool_error(execution)
-        elif execution.failure_type == FailureType.HALLUCINATION:
-            self._analyze_hallucination(execution)
+        # Type-specific detail (reasoning_step / tool_name /
+        # hallucination_content) is already extracted and persisted by
+        # _store_failure() above, and _update_failure_patterns() below treats
+        # tool_name and reasoning_step as critical pattern-matching features.
 
         # Update failure patterns
         self._update_failure_patterns(execution)
@@ -147,8 +145,23 @@ class FailureAnalyzer:
         with self.pool.transaction() as conn:
             cursor = conn.cursor()
 
-            # Generate unique failure ID
-            failure_id = f"failure_{execution.task_id}_{int(time.time() * 1000)}"
+            # BUG FIX: this ID used to be task_id + a MILLISECOND-
+            # precision timestamp only, with no random component --
+            # unlike _create_new_pattern()'s pattern_id below, which
+            # already combines a microsecond timestamp with a
+            # secrets-based random suffix specifically to avoid
+            # collisions. Since `failures.id` is a PRIMARY KEY, two
+            # failures for the same task_id within the same
+            # millisecond (plausible under load: rapid retries, batch
+            # failure recording) produced an identical failure_id and
+            # an uncaught sqlite3.IntegrityError on the second INSERT.
+            # Generate unique failure ID (microsecond precision + a
+            # random suffix, matching _create_new_pattern()'s already-
+            # correct pattern_id convention in this same file).
+            failure_id = (
+                f"failure_{execution.task_id}_{int(time.time() * 1000000)}"
+                f"_{secrets.randbelow(9999 - 1000 + 1) + 1000}"
+            )
 
             # Extract specific failure details
             reasoning_step = None
@@ -184,69 +197,6 @@ class FailureAnalyzer:
                 ),
             )
 
-    def _analyze_reasoning_error(self, execution: TaskExecution) -> None:
-        """Analyze reasoning error to identify logical mistake.
-
-        Extracts the specific logical step where reasoning diverged.
-
-        Args:
-            execution: Failed task execution with reasoning error
-
-        Validates: Requirements 1.3
-
-        """
-        if not execution.error_details:
-            return
-
-        reasoning_step = execution.error_details.get("reasoning_step")
-        if reasoning_step:
-            # Record the specific logical step where reasoning diverged
-            # This helps Strategy Optimizer learn better reasoning patterns
-            # Future enhancement: integrate with LLM Runtime to get full reasoning trace
-            pass
-
-    def _analyze_tool_error(self, execution: TaskExecution) -> None:
-        """Analyze tool error to identify misuse pattern.
-
-        Records which tool was misused and how.
-
-        Args:
-            execution: Failed task execution with tool error
-
-        Validates: Requirements 1.4
-
-        """
-        if not execution.error_details:
-            return
-
-        tool_name = execution.error_details.get("tool_name")
-        if tool_name:
-            # Record which tool was misused
-            # This helps Strategy Optimizer avoid similar mistakes
-            # Future enhancement: track correct vs incorrect tool usage patterns
-            pass
-
-    def _analyze_hallucination(self, execution: TaskExecution) -> None:
-        """Analyze hallucination to identify fabricated information.
-
-        Records what was fabricated vs what was correct.
-
-        Args:
-            execution: Failed task execution with hallucination
-
-        Validates: Requirements 1.5
-
-        """
-        if not execution.error_details:
-            return
-
-        hallucination_content = execution.error_details.get("hallucination_content")
-        if hallucination_content:
-            # Record what was fabricated
-            # This helps Prompt Evolution System refine prompts
-            # Future enhancement: track hallucination patterns by prompt type
-            pass
-
     def _update_failure_patterns(self, execution: TaskExecution) -> None:
         """Update failure patterns based on new failure.
 
@@ -261,18 +211,25 @@ class FailureAnalyzer:
         """
         # Extract features from failure
         features = self._extract_failure_features(execution)
+        failure_type = execution.failure_type or FailureType.UNKNOWN
 
-        # Find matching patterns
-        matching_pattern = self._find_matching_pattern(
-            execution.failure_type or FailureType.UNKNOWN, features
-        )
+        # BUG FIX: find-matching-pattern-then-increment-or-create used to
+        # be three separate connections/transactions (a plain read, then a
+        # later, independent write), which raced under concurrent calls --
+        # see this method's docstring above. Now performed as one atomic
+        # IMMEDIATE transaction so the lookup and the resulting write can
+        # never be interleaved with another call's lookup-and-write.
+        with self.pool.transaction(isolation_level="IMMEDIATE") as conn:
+            cursor = conn.cursor()
 
-        if matching_pattern:
-            # Update existing pattern
-            self._increment_pattern_count(matching_pattern.pattern_id)
-        else:
-            # Create new pattern
-            self._create_new_pattern(execution.failure_type or FailureType.UNKNOWN, features)
+            matching_pattern = self._find_matching_pattern(cursor, failure_type, features)
+
+            if matching_pattern:
+                # Update existing pattern
+                self._increment_pattern_count(cursor, matching_pattern.pattern_id)
+            else:
+                # Create new pattern
+                self._create_new_pattern(cursor, failure_type, features)
 
     def _extract_failure_features(self, execution: TaskExecution) -> dict[str, Any]:
         """Extract features from failure for pattern matching.
@@ -303,6 +260,7 @@ class FailureAnalyzer:
 
     def _find_matching_pattern(
         self,
+        cursor: "sqlite3.Cursor",
         failure_type: FailureType,
         features: dict[str, Any],
     ) -> FailurePattern | None:
@@ -310,7 +268,14 @@ class FailureAnalyzer:
 
         Uses feature similarity threshold for matching.
 
+        BUG FIX: now takes the caller's cursor instead of opening its own
+        pool connection, so this read participates in the same atomic
+        transaction as the increment-or-create that follows it in
+        _update_failure_patterns() -- see that method's docstring. This is
+        a private helper with no other call sites in the codebase.
+
         Args:
+            cursor: Cursor for the caller's open transaction
             failure_type: Type of failure
             features: Feature dictionary
 
@@ -321,31 +286,28 @@ class FailureAnalyzer:
         Performance Target: <5ms
 
         """
-        with self.pool.connection() as conn:
-            cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT pattern_id, failure_type, common_features,
+                   occurrence_count, confidence_score, first_seen, last_seen
+            FROM failure_patterns
+            WHERE failure_type = ?
+        """,
+            (failure_type.value,),
+        )
 
-            cursor.execute(
-                """
-                SELECT pattern_id, failure_type, common_features,
-                       occurrence_count, confidence_score, first_seen, last_seen
-                FROM failure_patterns
-                WHERE failure_type = ?
-            """,
-                (failure_type.value,),
-            )
-
-            for row in cursor.fetchall():
-                stored_features = json.loads(row[2])
-                if self._features_match(features, stored_features):
-                    return FailurePattern(
-                        pattern_id=row[0],
-                        failure_type=FailureType(row[1]),
-                        common_features=stored_features,
-                        occurrence_count=row[3],
-                        confidence_score=row[4],
-                        first_seen=datetime.fromisoformat(row[5]),
-                        last_seen=datetime.fromisoformat(row[6]),
-                    )
+        for row in cursor.fetchall():
+            stored_features = json.loads(row[2])
+            if self._features_match(features, stored_features):
+                return FailurePattern(
+                    pattern_id=row[0],
+                    failure_type=FailureType(row[1]),
+                    common_features=stored_features,
+                    occurrence_count=row[3],
+                    confidence_score=row[4],
+                    first_seen=datetime.fromisoformat(row[5]),
+                    last_seen=datetime.fromisoformat(row[6]),
+                )
 
         return None
 
@@ -384,67 +346,74 @@ class FailureAnalyzer:
         similarity = matching / len(common_keys)
         return similarity >= self._pattern_match_threshold
 
-    def _increment_pattern_count(self, pattern_id: str) -> None:
+    def _increment_pattern_count(self, cursor: "sqlite3.Cursor", pattern_id: str) -> None:
         """Increment occurrence count for pattern.
 
+        BUG FIX: now takes the caller's cursor instead of opening its own
+        pool transaction -- see _update_failure_patterns()'s docstring.
+
         Args:
+            cursor: Cursor for the caller's open transaction
             pattern_id: Pattern identifier
 
         Time Complexity: O(1)
 
         """
-        with self.pool.transaction() as conn:
-            cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE failure_patterns
+            SET occurrence_count = occurrence_count + 1,
+                last_seen = ?,
+                confidence_score = MIN(1.0, confidence_score + 0.05)
+            WHERE pattern_id = ?
+        """,
+            (datetime.now(tz=UTC).isoformat(), pattern_id),
+        )
 
-            cursor.execute(
-                """
-                UPDATE failure_patterns
-                SET occurrence_count = occurrence_count + 1,
-                    last_seen = ?,
-                    confidence_score = MIN(1.0, confidence_score + 0.05)
-                WHERE pattern_id = ?
-            """,
-                (datetime.now(tz=UTC).isoformat(), pattern_id),
-            )
-
-    def _create_new_pattern(self, failure_type: FailureType, features: dict[str, Any]) -> None:
+    def _create_new_pattern(
+        self,
+        cursor: "sqlite3.Cursor",
+        failure_type: FailureType,
+        features: dict[str, Any],
+    ) -> None:
         """Create new failure pattern.
 
+        BUG FIX: now takes the caller's cursor instead of opening its own
+        pool transaction -- see _update_failure_patterns()'s docstring.
+
         Args:
+            cursor: Cursor for the caller's open transaction
             failure_type: Type of failure
             features: Feature dictionary
 
         Time Complexity: O(1)
 
         """
-        with self.pool.transaction() as conn:
-            cursor = conn.cursor()
+        # Generate unique pattern_id using timestamp + random component
+        import secrets
 
-            # Generate unique pattern_id using timestamp + random component
-            import secrets
+        pattern_id = (
+            f"pattern_{int(time.time() * 1000000)}_{secrets.randbelow(9999 - 1000 + 1) + 1000}"
+        )
+        now = datetime.now(tz=UTC).isoformat()
 
-            pattern_id = (
-                f"pattern_{int(time.time() * 1000000)}_{secrets.randbelow(9999 - 1000 + 1) + 1000}"
-            )
-            now = datetime.now(tz=UTC).isoformat()
-
-            cursor.execute(
-                """
-                INSERT INTO failure_patterns (
-                    pattern_id, failure_type, common_features,
-                    occurrence_count, confidence_score, first_seen, last_seen
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    pattern_id,
-                    failure_type.value,
-                    json.dumps(features),
-                    1,
-                    0.1,  # Initial low confidence
-                    now,
-                    now,
-                ),
-            )
+        cursor.execute(
+            """
+            INSERT INTO failure_patterns (
+                pattern_id, failure_type, common_features,
+                occurrence_count, confidence_score, first_seen, last_seen
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+            (
+                pattern_id,
+                failure_type.value,
+                json.dumps(features),
+                1,
+                0.1,  # Initial low confidence
+                now,
+                now,
+            ),
+        )
 
     def get_failure_patterns(
         self,

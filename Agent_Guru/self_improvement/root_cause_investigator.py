@@ -21,6 +21,7 @@ Author: Agent Guru Team
 Date: 2026-02-28
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import Enum
@@ -119,6 +120,7 @@ class RootCauseInvestigator:
         self.pool = pool
         self.min_correlation_threshold = min_correlation_threshold
         self.max_time_to_degradation_hours = max_time_to_degradation_hours
+        self.logger = logging.getLogger(__name__)
 
     def investigate_degradation(
         self,
@@ -320,38 +322,61 @@ class RootCauseInvestigator:
         start_iso = start_time.isoformat()
         end_iso = end_time.isoformat()
 
-        with self.pool.connection() as conn:
-            cursor = conn.cursor()
+        # BUG FIX: "change_history" is not a table DatabaseSchema.
+        # create_schema() creates (confirmed via a repository-wide grep --
+        # this name appears nowhere else in this package either, unlike
+        # "task_executions", which had an evidenced replacement,
+        # "metrics"). Unlike every sibling file in this package, this
+        # method previously had NO exception handling at all, so this
+        # raised an uncaught sqlite3.OperationalError and crashed both
+        # public methods that call it -- investigate_degradation() and
+        # investigate_recent_changes() -- exactly the methods meant to
+        # run automatically the moment a degradation alert fires. Rather
+        # than invent a "change_history" schema with no evidence behind
+        # it, degrade gracefully like every sibling file does: catch the
+        # failure, log it, and return an empty list, which makes the
+        # ALREADY-EXISTING "no changes found" branch in both callers
+        # (which gives sensible guidance) the natural outcome instead of
+        # a crash.
+        try:
+            with self.pool.connection() as conn:
+                cursor = conn.cursor()
 
-            cursor.execute(
-                """
-                SELECT change_id, change_type, timestamp, component_id,
-                       previous_state, new_state, performance_before,
-                       performance_after, rolled_back
-                FROM change_history
-                WHERE timestamp >= ? AND timestamp <= ?
-                ORDER BY timestamp ASC
-            """,
-                (start_iso, end_iso),
-            )
-
-            changes = []
-            for row in cursor.fetchall():
-                changes.append(
-                    {
-                        "change_id": row[0],
-                        "change_type": row[1],
-                        "timestamp": row[2],
-                        "component_id": row[3],
-                        "previous_state": json.loads(row[4]),
-                        "new_state": json.loads(row[5]),
-                        "performance_before": json.loads(row[6]),
-                        "performance_after": json.loads(row[7]) if row[7] else None,
-                        "rolled_back": bool(row[8]),
-                    },
+                cursor.execute(
+                    """
+                    SELECT change_id, change_type, timestamp, component_id,
+                           previous_state, new_state, performance_before,
+                           performance_after, rolled_back
+                    FROM change_history
+                    WHERE timestamp >= ? AND timestamp <= ?
+                    ORDER BY timestamp ASC
+                """,
+                    (start_iso, end_iso),
                 )
 
-            return changes
+                changes = []
+                for row in cursor.fetchall():
+                    changes.append(
+                        {
+                            "change_id": row[0],
+                            "change_type": row[1],
+                            "timestamp": row[2],
+                            "component_id": row[3],
+                            "previous_state": json.loads(row[4]),
+                            "new_state": json.loads(row[5]),
+                            "performance_before": json.loads(row[6]),
+                            "performance_after": json.loads(row[7]) if row[7] else None,
+                            "rolled_back": bool(row[8]),
+                        },
+                    )
+
+                return changes
+        except Exception:
+            self.logger.exception(
+                "Failed to load change history for root cause investigation; "
+                "treating as no changes found",
+            )
+            return []
 
     def _calculate_correlation(
         self,

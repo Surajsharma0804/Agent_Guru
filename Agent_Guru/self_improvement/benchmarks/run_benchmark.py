@@ -73,9 +73,9 @@ def run_all_benchmarks(
     # Save Agent Guru results
     agent_guru_result.to_json(os.path.join(output_dir, f"agent_guru_{timestamp}.json"))
     if agent_guru_result.metrics.improvement_rate is not None:
-        pass
+        print(f"Agent Guru improvement rate: {agent_guru_result.metrics.improvement_rate:.1f}%")
     if agent_guru_result.metrics.recovery_rate is not None:
-        pass
+        print(f"Agent Guru recovery rate: {agent_guru_result.metrics.recovery_rate:.1f}%")
 
     # Run LangChain benchmark
     langchain = create_langchain_benchmark()
@@ -119,9 +119,20 @@ def run_all_benchmarks(
     agent_guru.generate_markdown_report(results, report_path)
 
     # Print key findings
+    print(f"\nBenchmark reports saved to {output_dir}")
+    overall_winner = analysis["overall_winner"]["winner"]
+    print(
+        f"Overall winner: {overall_winner['framework']} "
+        f"(score: {overall_winner['score']:.1f}/100)",
+    )
 
     if analysis["improvement_analysis"].get("agent_guru_unique"):
-        pass
+        agent_guru_improvement = analysis["improvement_analysis"]["agent_guru_improvement"]
+        print(
+            "Agent Guru unique feature: self-improvement capability "
+            f"({agent_guru_improvement:.1f}% improvement over time) -- "
+            "no other framework demonstrated improvement over time",
+        )
 
     return results
 
@@ -161,7 +172,10 @@ def main() -> None:
 
     for result in results:
         if result.metrics.improvement_rate is not None:
-            pass
+            print(
+                f"{result.framework_name}: "
+                f"{result.metrics.improvement_rate:.1f}% improvement over time",
+            )
 
 
 if __name__ == "__main__":

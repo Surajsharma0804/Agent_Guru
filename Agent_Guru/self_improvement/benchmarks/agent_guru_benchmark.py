@@ -55,6 +55,12 @@ class AgentGuruBenchmark(BaseBenchmark):
         # Track initial and final performance for improvement calculation
         self.initial_success_rate: float | None = None
         self.task_count = 0
+        # BUG FIX: tracks this benchmark's own running success count,
+        # computed the same way the base class's run_benchmark() loop
+        # will classify each scenario's result -- see execute_scenario()
+        # below for why self.successes (the base class's own counter)
+        # cannot be read reliably at the moment initial_success_rate is set.
+        self._own_successes = 0
 
     def execute_scenario(self, scenario: TestScenario) -> Any:
         """Execute a test scenario using Agent Guru engine.
@@ -75,7 +81,17 @@ class AgentGuruBenchmark(BaseBenchmark):
             self.track_api_call(tokens=len(question.split()) * 4)
 
             # Determine success
-            self._check_success(scenario, result)
+            # BUG FIX: this return value used to be discarded entirely, and
+            # initial_success_rate below read self.successes -- a counter the
+            # BASE CLASS's own run_benchmark() loop only increments AFTER
+            # execute_scenario() returns for this same scenario. That made the
+            # "first 10 tasks" baseline silently computed from only the first 9
+            # tasks' recorded outcomes divided by 10, deflating the baseline and
+            # inflating the reported improvement_rate. Tracking the outcome
+            # locally, consistent with how the base class will classify it,
+            # fixes the off-by-one without touching the base class's own tally.
+            if self._check_success(scenario, result):
+                self._own_successes += 1
 
             # For benchmark purposes, we don't record in the engine
             # to avoid database locking issues and missing strategy errors
@@ -84,13 +100,34 @@ class AgentGuruBenchmark(BaseBenchmark):
 
             # Track initial success rate (first 10 tasks)
             if self.task_count == 10:
-                self.initial_success_rate = self.successes / max(self.task_count, 1) * 100
+                self.initial_success_rate = self._own_successes / max(self.task_count, 1) * 100
 
             return result
 
         except Exception as e:
+            # BUG FIX (Round 106, coordinated with Round 105's identical fix in
+            # langchain_benchmark.py): this used to set error_result to a
+            # non-None f"Error: {e!s}" string, which _check_success()'s default
+            # criterion (`result is not None`) counts as a SUCCESS -- silently
+            # recording a genuine internal failure as this framework succeeding
+            # at the task. autogen_benchmark.py and crewai_benchmark.py both
+            # correctly return None from their own equivalent exception
+            # handlers, which _check_success() correctly classifies as a
+            # failure -- error_result is now None to match that established,
+            # correct convention. The bookkeeping below is unchanged: it already
+            # generically calls _check_success(scenario, error_result) and only
+            # increments _own_successes on a True result, so it now correctly
+            # does NOT count this failure, with no further logic changes needed.
+            import logging as _logging
+
+            _logging.getLogger(__name__).debug("Task simulation failed: %s", e)
+            error_result = None
+            if self._check_success(scenario, error_result):
+                self._own_successes += 1
             self.task_count += 1
-            return f"Error: {e!s}"
+            if self.task_count == 10:
+                self.initial_success_rate = self._own_successes / max(self.task_count, 1) * 100
+            return error_result
 
     # Dispatch table for simulated task execution — each entry is
     # (substring_to_match, response). Checked in order, first match wins.

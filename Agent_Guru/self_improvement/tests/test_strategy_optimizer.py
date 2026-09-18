@@ -719,6 +719,13 @@ class TestAdversarialScenarios:
         assert len(ranked) == 1000  # nosec B101
         assert elapsed < 1.0, f"Ranking 1000 strategies took {elapsed:.3f}s, should be <1s"  # nosec B101
 
+    # This test performs 1,000,000 real, individually-committed database
+    # updates to validate numerical stability of the running averages. It
+    # genuinely completes and passes (measured ~36s), but that exceeds the
+    # project-wide 30s default in pytest.ini, so it carries an explicit
+    # override. This is a legitimately long I/O-bound test, not a hang.
+    @pytest.mark.slow
+    @pytest.mark.timeout(120)
     def test_extreme_execution_counts(self, optimizer):
         """
         HARDEST: Test with millions of executions to validate numerical stability.

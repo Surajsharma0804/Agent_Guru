@@ -41,8 +41,20 @@ def pool(temp_db):
 
 @pytest.fixture
 def system(pool):
-    """Create PromptEvolutionSystem instance."""
-    return PromptEvolutionSystem(pool)
+    """Create PromptEvolutionSystem instance.
+
+    BUG FIX: min_update_interval_seconds is set to 0 here. The production
+    default is 3600s (1 hour), which is correct product behaviour -- it
+    stops prompt thrashing. But these tests register several prompt
+    versions back to back as SETUP, so the limiter rejected the second
+    registration with RuntimeError and 14 tests failed for a reason
+    unrelated to what they assert. No test in this file exercises the
+    update rate limiter itself, so disabling it here loses no coverage.
+    rollback_cooldown_seconds and oscillation_window_seconds keep their
+    production defaults, so stability and oscillation behaviour is still
+    genuinely exercised.
+    """
+    return PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
 
 class TestPromptEvolutionSystemInitialization:
@@ -902,7 +914,7 @@ class TestPromptEvolutionProperties:
         try:
             DatabaseSchema.create_schema(db_path)
             pool = ConnectionPool(db_path, min_size=1, max_size=5)
-            system = PromptEvolutionSystem(pool)
+            system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
             prompt_id = system.register_prompt("type1", "Test prompt")
 
@@ -944,7 +956,7 @@ class TestPromptEvolutionProperties:
         try:
             DatabaseSchema.create_schema(db_path)
             pool = ConnectionPool(db_path, min_size=1, max_size=5)
-            system = PromptEvolutionSystem(pool)
+            system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
             prompt_type = "task_analysis"
             current_success_rate = 0.5
@@ -1007,7 +1019,7 @@ class TestPromptEvolutionProperties:
         try:
             DatabaseSchema.create_schema(db_path)
             pool = ConnectionPool(db_path, min_size=1, max_size=5)
-            system = PromptEvolutionSystem(pool)
+            system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
             prompt_id = system.register_prompt("type1", "Weak prompt")
 
@@ -1054,7 +1066,7 @@ class TestPromptEvolutionProperties:
         try:
             DatabaseSchema.create_schema(db_path)
             pool = ConnectionPool(db_path, min_size=1, max_size=5)
-            system = PromptEvolutionSystem(pool)
+            system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
             prompt_type = "type1"
 
@@ -1108,7 +1120,7 @@ class TestPromptEvolutionProperties:
         try:
             DatabaseSchema.create_schema(db_path)
             pool = ConnectionPool(db_path, min_size=1, max_size=5)
-            system = PromptEvolutionSystem(pool)
+            system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
             prompt_id = system.register_prompt("type1", prompt_text)
 
@@ -1153,7 +1165,7 @@ class TestPromptEvolutionProperties:
         try:
             DatabaseSchema.create_schema(db_path)
             pool = ConnectionPool(db_path, min_size=1, max_size=5)
-            system = PromptEvolutionSystem(pool)
+            system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
             prompt_id = system.register_prompt("type1", "Prompt")
 
@@ -1331,7 +1343,7 @@ class TestPromptReplacementProperties:
         try:
             DatabaseSchema.create_schema(db_path)
             pool = ConnectionPool(db_path, min_size=1, max_size=5)
-            system = PromptEvolutionSystem(pool)
+            system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
             # Register poor performing prompt (version 1)
             v1_id = system.register_prompt("type1", "Poor prompt", version=1)
@@ -1401,13 +1413,28 @@ class TestPromptReplacementProperties:
 class TestPromptStabilityAdversarial:
     """Adversarial tests for prompt system stability."""
 
-    def test_adversarial_stability_under_oscillating_feedback(self, system):
+    def test_adversarial_stability_under_oscillating_feedback(self, pool):
         """Adversarial: System must remain stable under oscillating feedback.
+
+        Builds its own system with rollback_cooldown_seconds=0 as well as
+        min_update_interval_seconds=0: this test deliberately performs a
+        rollback and then registers a further version as SETUP for phase 3.
+        The production 2h post-rollback cooldown correctly forbids that
+        sequence, but the property under test is success-rate stability
+        across oscillating feedback, not the cooldown timer. The
+        oscillation_window keeps its production default so the oscillation
+        guard itself is still genuinely exercised by the rollback below.
 
         This test simulates a worst-case scenario where feedback oscillates
         rapidly between success and failure, which could cause the system
         to thrash between versions or make poor decisions.
         """
+        system = PromptEvolutionSystem(
+            pool,
+            min_update_interval_seconds=0.0,
+            rollback_cooldown_seconds=0.0,
+        )
+
         # Register initial prompt
         v1_id = system.register_prompt("type1", "Version 1", version=1)
 
@@ -1770,7 +1797,7 @@ class TestMonotonicPromptQualityImprovement:
         try:
             DatabaseSchema.create_schema(db_path)
             pool = ConnectionPool(db_path, min_size=1, max_size=5)
-            system = PromptEvolutionSystem(pool)
+            system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
             prompt_type = "task_analysis"
             success_rates = []
@@ -1849,7 +1876,7 @@ class TestMonotonicPromptQualityImprovement:
         try:
             DatabaseSchema.create_schema(db_path)
             pool = ConnectionPool(db_path, min_size=1, max_size=5)
-            system = PromptEvolutionSystem(pool)
+            system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
             prompt_type = "task_analysis"
             base_success_rate = 0.7
@@ -1963,7 +1990,7 @@ class TestMonotonicPromptQualityImprovement:
         try:
             DatabaseSchema.create_schema(db_path)
             pool = ConnectionPool(db_path, min_size=1, max_size=5)
-            system = PromptEvolutionSystem(pool)
+            system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
             prompt_type = "task_analysis"
             metric_values = []
@@ -2059,7 +2086,7 @@ class TestMonotonicPromptQualityImprovement:
         try:
             DatabaseSchema.create_schema(db_path)
             pool = ConnectionPool(db_path, min_size=1, max_size=5)
-            system = PromptEvolutionSystem(pool)
+            system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
             prompt_type = "task_analysis"
             poor_prompt_ids = []
@@ -2171,7 +2198,7 @@ class TestMonotonicPromptQualityImprovement:
         try:
             DatabaseSchema.create_schema(db_path)
             pool = ConnectionPool(db_path, min_size=1, max_size=5)
-            system = PromptEvolutionSystem(pool)
+            system = PromptEvolutionSystem(pool, min_update_interval_seconds=0.0)
 
             prompt_type = "task_analysis"
             base_rate = 0.5

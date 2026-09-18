@@ -172,10 +172,16 @@ class ImprovementReporter:
             )
 
         # Create report
+        # BUG FIX: report_id and timestamp used to each call
+        # `datetime.now(tz=UTC)` independently -- two separate calls a
+        # few microseconds apart, so the report's own ID embedded a
+        # timestamp that did not exactly match its `timestamp` field.
+        # Captured once and reused for both, so they always agree.
+        report_timestamp = datetime.now(tz=UTC)
         return ImprovementReport(
             # Metadata
-            report_id=f"report_{datetime.now(tz=UTC).timestamp()}",
-            timestamp=datetime.now(tz=UTC),
+            report_id=f"report_{report_timestamp.timestamp()}",
+            timestamp=report_timestamp,
             total_tasks=total_tasks,
             measurement_window=measurement_window,
             # Performance Metrics

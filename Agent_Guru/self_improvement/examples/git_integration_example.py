@@ -52,10 +52,12 @@ def example_basic_usage() -> None:
         push=False,  # Don't push for this example
     )
 
+    # BUG FIX: this used to be `if success: pass / else: pass` --
+    # the commit result was computed and immediately discarded.
     if success:
-        pass
+        print(f"Committed execution data for task {execution.task_id}.")
     else:
-        pass
+        print(f"Failed to commit execution data for task {execution.task_id}.")
 
 
 def example_with_authentication() -> None:
@@ -99,10 +101,11 @@ def example_improvement_report() -> None:
 
     success = git_integration.commit_improvement_report(report, push=False)
 
+    # BUG FIX: identical pattern to example_basic_usage() above -- restored.
     if success:
-        pass
+        print(f"Committed improvement report (success rate: {report['current_success_rate']:.0%}).")
     else:
-        pass
+        print("Failed to commit improvement report.")
 
 
 def example_offline_queue() -> None:
@@ -117,7 +120,11 @@ def example_offline_queue() -> None:
     )
 
     # Simulate offline operation
-
+    # BUG FIX: both the per-iteration commit results and the final
+    # process_queue() count used to be computed and discarded --
+    # restored so the offline-queue demonstration actually reports
+    # what happened.
+    committed = 0
     for i in range(3):
         execution = TaskExecution(
             task_id=f"offline_task_{i}",
@@ -132,10 +139,13 @@ def example_offline_queue() -> None:
         )
 
         # Commits will be queued if push fails
-        git_integration.commit_execution_data(execution, push=False)
+        if git_integration.commit_execution_data(execution, push=False):
+            committed += 1
+    print(f"Committed {committed}/3 offline executions.")
 
     # Process queue when back online
-    git_integration.process_queue()
+    processed = git_integration.process_queue()
+    print(f"Processed {processed} queued commit(s).")
 
 
 def example_retry_logic() -> None:
@@ -159,10 +169,11 @@ def example_online_status() -> None:
 
     is_online = git_integration.is_online()
 
+    # BUG FIX: identical pattern to example_basic_usage() above -- restored.
     if is_online:
-        pass
+        print("Git remote is online.")
     else:
-        pass
+        print("Git remote is offline.")
 
 
 def example_failure_commit() -> None:
@@ -186,8 +197,12 @@ def example_failure_commit() -> None:
 
     success = git_integration.commit_execution_data(execution, push=False)
 
+    # BUG FIX: this branch used to be `pass` (and had no else at all) --
+    # the commit result was computed and never reported either way.
     if success:
-        pass
+        print(f"Committed failed execution for task {execution.task_id}.")
+    else:
+        print(f"Failed to commit failed-execution record for task {execution.task_id}.")
 
 
 def main() -> None:

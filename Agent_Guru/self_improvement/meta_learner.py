@@ -33,6 +33,7 @@ Version: 1.0.0
 import hashlib
 import json
 import sqlite3
+import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
@@ -181,10 +182,30 @@ class MetaLearner:
         self.eps = eps
         self.min_confidence = min_confidence
 
-        # Feature scaler for normalization
-        self.scaler = StandardScaler()
+        # BUG FIX (thread-safety): a StandardScaler used to be created
+        # here and stored as self.scaler, shared across every call to
+        # _cluster_features(). That method always does a full
+        # fit_transform() (never an incremental partial_fit), and nothing
+        # in this class ever reads the scaler's fitted state afterward --
+        # it was already effectively call-local. Sharing it as instance
+        # state meant concurrent calls to _cluster_features() (reachable
+        # via concurrent SelfImprovementEngine.record_task_execution()
+        # calls) raced on the same StandardScaler's internal fitted
+        # state, concretely reproduced as scikit-learn raising
+        # AttributeError: 'float' object has no attribute 'astype'.
+        # _cluster_features() now creates its own local StandardScaler()
+        # per call instead -- see there for details.
 
-        # Cache for patterns (loaded on demand)
+        # Cache for patterns (loaded on demand).
+        # BUG FIX: guarded by a lock. record_task_execution() invalidates
+        # this cache and is explicitly reachable concurrently (see the
+        # StandardScaler race noted above), while get_strategy_recommendations()
+        # read the attribute twice -- once to test for None and populate it,
+        # then AGAIN to pass it downstream. An invalidation landing between
+        # those two reads passed None into _match_patterns(), which iterates
+        # it. Readers now resolve the cache once, under the lock, into a
+        # local reference that a concurrent invalidation cannot pull away.
+        self._cache_lock = threading.Lock()
         self._pattern_cache: list[Pattern] | None = None
         self._cache_timestamp: datetime | None = None
 
@@ -251,7 +272,8 @@ class MetaLearner:
         self._store_execution_features(execution, features)
 
         # Invalidate pattern cache (will be rebuilt on next query)
-        self._pattern_cache = None
+        with self._cache_lock:
+            self._pattern_cache = None
 
         # Trigger incremental update if enough new data
         if self._should_update_patterns():
@@ -488,7 +510,7 @@ class MetaLearner:
                 success_data,
                 PatternType.SUCCESS_PATTERN,
             )
-            self._store_patterns(success_patterns)
+            self._store_patterns(success_patterns, PatternType.SUCCESS_PATTERN)
 
         # Cluster failed executions
         if len(failure_features) >= self.min_samples:
@@ -497,7 +519,7 @@ class MetaLearner:
                 failure_data,
                 PatternType.FAILURE_PATTERN,
             )
-            self._store_patterns(failure_patterns)
+            self._store_patterns(failure_patterns, PatternType.FAILURE_PATTERN)
 
     def _load_features(self, success: bool) -> tuple[np.ndarray, list[dict[str, Any]]]:
         """Load execution features from database.
@@ -562,8 +584,17 @@ class MetaLearner:
         Space Complexity: O(n)
 
         """
-        # Normalize features
-        features_scaled = self.scaler.fit_transform(features)
+        # BUG FIX (thread-safety): use a fresh, function-local scaler
+        # instead of a shared self.scaler instance. fit_transform() always
+        # recomputes mean_/var_/scale_ from `features` from scratch on
+        # every call regardless of any prior fit, and nothing reads the
+        # scaler's fitted state after this line (the pattern centroid and
+        # feature ranges below are computed from the original, unscaled
+        # `features` array, not features_scaled) -- so this produces
+        # byte-identical output to the previous single-threaded behavior,
+        # while removing the shared mutable state that made concurrent
+        # calls corrupt scikit-learn's internal fit state.
+        features_scaled = StandardScaler().fit_transform(features)
 
         # Cluster with DBSCAN
         clustering = DBSCAN(eps=self.eps, min_samples=self.min_samples)
@@ -694,11 +725,25 @@ class MetaLearner:
         centroid_hash = hashlib.md5(centroid.tobytes(), usedforsecurity=False).hexdigest()[:8]
         return f"{pattern_type.value}_{centroid_hash}"
 
-    def _store_patterns(self, patterns: list[Pattern]) -> None:
-        """Store patterns in database.
+    def _store_patterns(self, patterns: list[Pattern], pattern_type: PatternType) -> None:
+        """Store patterns in database, replacing the prior set for this type.
+
+        BUG FIX: update_patterns() fully recomputes a pattern_type's cluster
+        set from scratch on every call, but pattern_id is derived from the
+        cluster centroid's hash, so a re-clustering over a shifted recency
+        window almost always produces different pattern_ids -- INSERT OR
+        REPLACE alone never actually replaced the prior run's rows.
+        Reproduced concretely: two successive update_patterns() calls left
+        both runs' pattern rows in the table at once, growing meta_patterns
+        unboundedly and causing recommend_strategies() to keep matching
+        against stale, superseded patterns forever. Deleting this type's
+        existing rows before inserting the freshly computed set (in the
+        same transaction) restores this class's own documented "Update
+        patterns as new data arrives" semantics -- replace, not accumulate.
 
         Args:
-            patterns: List of patterns to store
+            patterns: List of patterns to store (all of the same pattern_type)
+            pattern_type: The pattern type being replaced
 
         Time Complexity: O(n) where n is number of patterns
         Space Complexity: O(1)
@@ -707,15 +752,23 @@ class MetaLearner:
         with sqlite3.connect(self.storage_path) as conn:
             cursor = conn.cursor()
 
-            for pattern in patterns:
-                cursor.execute(
-                    """
+            cursor.execute(
+                "DELETE FROM meta_patterns WHERE pattern_type = ?",
+                (pattern_type.value,),
+            )
+
+            # One prepared statement for the whole batch instead of one
+            # execute() per pattern: same rows, same order, but the statement
+            # is parsed and bound once rather than len(patterns) times.
+            cursor.executemany(
+                """
                     INSERT OR REPLACE INTO meta_patterns (
                         pattern_id, pattern_type, centroid, feature_ranges,
                         recommended_strategies, confidence, sample_count,
                         created_at, last_updated
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
+                [
                     (
                         pattern.pattern_id,
                         pattern.pattern_type.value,
@@ -726,8 +779,10 @@ class MetaLearner:
                         pattern.sample_count,
                         pattern.created_at.isoformat(),
                         pattern.last_updated.isoformat(),
-                    ),
-                )
+                    )
+                    for pattern in patterns
+                ],
+            )
 
             conn.commit()
 
@@ -752,9 +807,13 @@ class MetaLearner:
         Space Complexity: O(k)
 
         """
-        # Load patterns if not cached
-        if self._pattern_cache is None:
-            self._pattern_cache = self._load_patterns()
+        # Load patterns if not cached. Resolved once into a local so a
+        # concurrent invalidation cannot turn it back into None mid-use.
+        with self._cache_lock:
+            patterns = self._pattern_cache
+            if patterns is None:
+                patterns = self._load_patterns()
+                self._pattern_cache = patterns
 
         # Extract features for new task (create dummy execution)
         task_features = self._extract_task_features(task_type, context or {})
@@ -762,7 +821,7 @@ class MetaLearner:
         # Find matching success patterns
         matching_patterns = self._match_patterns(
             task_features,
-            self._pattern_cache,
+            patterns,
             PatternType.SUCCESS_PATTERN,
         )
 

@@ -277,6 +277,28 @@ class ConflictResolver:
         n1 = np.sum(outcomes)
         n0 = n - n1
 
+        # BUG FIX: min_executions is a caller-supplied parameter with no
+        # lower-bound validation (unlike __init__'s thresholds, which do
+        # validate their range). If a caller ever passes
+        # min_executions <= 0 together with an empty executions list, the
+        # guard above (`len(executions) < min_executions`) is skipped
+        # entirely, and n/n1/n0 are all 0 here -- float(n1 / n) below
+        # would evaluate to NaN (confirmed: numpy float division by zero
+        # doesn't raise, it warns and returns nan), while simultaneously
+        # reporting "all_success": True and "all_failure": True at once,
+        # which is self-contradictory for a demonstrably empty set. Report
+        # this the same honest way the top-of-method guard already does
+        # for the same underlying condition (too little real data).
+        if n == 0:
+            return ConflictDetection(
+                has_conflict=False,
+                conflict_type=ConflictType.CONTRADICTORY_FEEDBACK,
+                confidence=0.0,
+                conflicting_executions=[],
+                details={"reason": "insufficient_data", "count": 0},
+                detected_at=datetime.now(tz=UTC),
+            )
+
         if n1 == 0 or n0 == 0:
             return ConflictDetection(
                 has_conflict=False,

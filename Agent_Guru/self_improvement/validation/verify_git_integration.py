@@ -28,7 +28,12 @@ def verify_git_integration() -> Dict[str, Any]:
     results = {
         "status": "PASSED",
         "verification_date": datetime.now(tz=timezone.utc).isoformat(),
-        "test_mode_note": "Git commits disabled in test mode",
+        "test_mode_note": (
+            "Git commits were not executed during this validation run because "
+            "the test harness did not invoke commit_execution_data() -- "
+            "git_integration.py has no built-in test-mode flag that disables "
+            "commits automatically"
+        ),
         "checks": {}
     }
     
@@ -83,12 +88,37 @@ def verify_git_integration() -> Dict[str, Any]:
         }
     
     # Check 5: Test mode configuration
-    # In test mode, commits are disabled to avoid polluting the repository
-    results["checks"]["test_mode_configuration"] = {
-        "status": "PASSED",
-        "note": "Git commits correctly disabled in test mode",
-        "reason": "Prevents test data from being committed to production repository"
-    }
+    # BUG FIX: this check used to be hardcoded to status=PASSED with the
+    # claim "Git commits correctly disabled in test mode" -- but
+    # git_integration.py has no test_mode parameter or flag anywhere in
+    # it (confirmed by direct inspection), so that claim was fabricated
+    # rather than verified. This now checks something real: whether
+    # commit_execution_data() exposes a push-control parameter, the one
+    # concrete, reproducible mechanism that could be used to avoid
+    # pushing commits to the remote, and describes accurately how
+    # commit avoidance was actually achieved for this validation run.
+    if git_integration_path.exists():
+        has_push_control_param = "push: bool" in content or "push:bool" in content
+        results["checks"]["test_mode_configuration"] = {
+            "status": "PASSED" if has_push_control_param else "FAILED",
+            "has_push_control_parameter": has_push_control_param,
+            "note": (
+                "commit_execution_data() exposes a push parameter that can "
+                "suppress pushing to the remote"
+                if has_push_control_param
+                else "No push-control parameter found on commit_execution_data()"
+            ),
+            "reason": (
+                "Commits were avoided during this validation run because the test "
+                "harness did not invoke commit_execution_data() -- not because of "
+                "any built-in test-mode flag, since git_integration.py has none"
+            )
+        }
+    else:
+        results["checks"]["test_mode_configuration"] = {
+            "status": "FAILED",
+            "reason": "Git integration module not found"
+        }
     
     # Overall status
     all_passed = all(

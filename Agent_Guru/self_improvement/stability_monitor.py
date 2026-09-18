@@ -528,7 +528,25 @@ class StabilityMonitor:
         value: float,
         timestamp: datetime,
     ) -> None:
-        """Persist change to database.
+        """Persist change to database, including its real, currently-
+        computed stability metrics.
+
+        BUG FIX: this used to write hardcoded placeholder values
+        (variance=0.0, change_frequency=0.0, oscillation_detected=0,
+        stability_score=1.0) with a comment claiming they would be
+        "calculated on next check" -- but nothing anywhere in this file
+        ever updates a stability_metrics row after its initial INSERT.
+        Reproduced concretely: a deliberately oscillating sequence
+        correctly computed oscillation_detected=True,
+        stability_score=0.0 in-memory via check_stability(), while every
+        one of the persisted rows for that same data falsely claimed
+        oscillation_detected=0, stability_score=1.0 -- a complete
+        inversion of the truth for anyone reading the table directly.
+        Now computes the real values via the already-correct
+        _calculate_stability_metrics() (safe here: record_change()
+        appends the new value to _change_history before calling this
+        method, so the metric being persisted is already included in
+        the calculation).
 
         Args:
             component: Component name
@@ -537,6 +555,9 @@ class StabilityMonitor:
             timestamp: Timestamp of change
 
         """
+        key = f"{component}:{metric_name}"
+        computed = self._calculate_stability_metrics(component, metric_name, key)
+
         with self.pool.connection() as conn:
             cursor = conn.cursor()
 
@@ -558,10 +579,10 @@ class StabilityMonitor:
                     component,
                     metric_name,
                     value,
-                    0.0,  # Will be calculated on next check
-                    0.0,  # Will be calculated on next check
-                    0,  # Will be calculated on next check
-                    1.0,  # Will be calculated on next check
+                    computed.variance,
+                    computed.change_frequency,
+                    1 if computed.oscillation_detected else 0,
+                    computed.stability_score,
                     timestamp.isoformat(),
                 ),
             )

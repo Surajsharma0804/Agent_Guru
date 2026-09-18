@@ -131,10 +131,21 @@ class ImprovementVerifier:
         
         # Calculate improvement
         absolute_improvement = final_success_rate - baseline_success_rate
-        relative_improvement = (
-            absolute_improvement / baseline_success_rate
-            if baseline_success_rate > 0 else 0.0
-        )
+        # BUG FIX: a zero baseline success rate makes relative
+        # improvement mathematically undefined (division by zero), but
+        # this used to silently fall back to 0.0 in that case --
+        # misreporting even a 0% -> 100% improvement as a 0% relative
+        # improvement, which then makes meets_target always False no
+        # matter how dramatic the real improvement was. Any positive
+        # final success rate after a zero baseline is treated as a full
+        # (100%, i.e. 1.0 in this file's fraction convention)
+        # improvement, consistent with the equivalent zero-baseline
+        # handling already established in performance_tracker.py's
+        # calculate_improvement().
+        if baseline_success_rate > 0:
+            relative_improvement = absolute_improvement / baseline_success_rate
+        else:
+            relative_improvement = 1.0 if final_success_rate > 0 else 0.0
         improvement_percentage = relative_improvement * 100
         
         # Check if target met
@@ -280,28 +291,58 @@ class ImprovementVerifier:
         baseline_results = np.array([1 if t["success"] else 0 for t in baseline_tasks])
         final_results = np.array([1 if t["success"] else 0 for t in final_tasks])
         
-        # Perform t-test
-        t_stat, p_value = stats.ttest_ind(final_results, baseline_results)
+        # Perform t-test (scipy defaults to equal_var=True, a pooled-
+        # variance / Student's t-test -- the confidence interval below
+        # is computed to match that same model)
+        t_stat, p_value_two_tailed = stats.ttest_ind(final_results, baseline_results)
         
-        # Check significance (one-tailed test for improvement)
+        # BUG FIX: this used to compare the RAW two-tailed p-value from
+        # scipy directly against alpha, despite the comment (and every
+        # downstream report) describing this as a one-tailed test. A
+        # one-tailed p-value for the hypothesis "final > baseline" is
+        # half the two-tailed p-value when the observed effect is in that
+        # direction (t_stat > 0), and 1 minus that half otherwise --
+        # standard derivation for a one-tailed test from a two-tailed
+        # t-test result. Concretely reproduced: baseline 30% / final 70%
+        # over 10 tasks each (t_stat=1.8516, two-tailed p=0.0806) used to
+        # report is_significant=False under the old two-tailed check,
+        # while the correct one-tailed p-value (0.0403) is significant at
+        # the stated 95% confidence level. p_value now reports this
+        # one-tailed value consistently everywhere it surfaces (JSON
+        # report, Markdown report, printed summary), matching the
+        # one-tailed methodology already documented throughout.
         alpha = 1 - self.confidence_level
+        p_value = (
+            p_value_two_tailed / 2 if t_stat > 0 else 1 - p_value_two_tailed / 2
+        )
         is_significant = p_value < alpha and t_stat > 0
         
         # Calculate confidence interval for difference in means
         baseline_mean = np.mean(baseline_results)
         final_mean = np.mean(final_results)
-        baseline_std = np.std(baseline_results, ddof=1)
-        final_std = np.std(final_results, ddof=1)
+        baseline_var = np.var(baseline_results, ddof=1)
+        final_var = np.var(final_results, ddof=1)
         
         n1 = len(baseline_results)
         n2 = len(final_results)
         
-        # Pooled standard error
-        se = np.sqrt((baseline_std**2 / n1) + (final_std**2 / n2))
-        
         # Critical value for confidence interval
         df = n1 + n2 - 2
         t_critical = stats.t.ppf((1 + self.confidence_level) / 2, df)
+        
+        # BUG FIX: pooled-variance standard error, matching scipy's
+        # equal_var=True t-test above and the Student's df used here --
+        # this used to be Welch's (unpooled-variance) SE paired with
+        # Student's df, an inconsistent hybrid that is not a valid
+        # procedure for either test. (For the equal window sizes this
+        # class defaults to, n1 == n2 makes the two formulas coincide
+        # numerically, so this was latent rather than currently
+        # observable -- but baseline_window/final_window are caller-
+        # configurable, so unequal sizes would have produced a
+        # confidence interval whose true coverage did not match its
+        # claimed confidence_level.)
+        pooled_var = ((n1 - 1) * baseline_var + (n2 - 1) * final_var) / df
+        se = np.sqrt(pooled_var * (1 / n1 + 1 / n2))
         
         # Confidence interval for difference
         diff = final_mean - baseline_mean

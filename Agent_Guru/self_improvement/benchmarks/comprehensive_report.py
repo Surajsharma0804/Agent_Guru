@@ -186,12 +186,28 @@ class ComprehensiveBenchmarkReport:
         success_rates = {r.framework_name: r.metrics.success_rate for r in self.results}
         best_success = max(success_rates.values())
         for name, rate in success_rates.items():
-            scores[name] += (rate / best_success) * 40
+            # BUG FIX: previously `(rate / best_success) * 40` unconditionally,
+            # which raised ZeroDivisionError if every framework scored 0% success
+            # (best_success == 0). When nothing scored above 0%, there is nothing
+            # to be relatively better than, so no framework earns credit here.
+            if best_success > 0:
+                scores[name] += (rate / best_success) * 40
 
         times = {r.framework_name: r.metrics.avg_execution_time_ms for r in self.results}
-        best_time = min(times.values())
+        # BUG FIX: avg_execution_time_ms == 0.0 is base_benchmark.py's sentinel for
+        # "no scenario ever completed long enough to record a time" (e.g. every
+        # scenario raised before timing), not a genuine fastest-possible result.
+        # Excluding such entries from the "best" pool prevents one framework with
+        # no timing data from (a) crashing this computation via best_time / time ==
+        # 0 / 0 when it is also the minimum, and (b) silently zeroing out every
+        # other, legitimately-measured framework's speed score in the process.
+        positive_times = [t for t in times.values() if t > 0]
+        best_time = min(positive_times) if positive_times else None
         for name, time in times.items():
-            scores[name] += (best_time / time) * 30
+            if best_time is not None and time > 0:
+                scores[name] += (best_time / time) * 30
+            # else: this framework recorded no real timing data -- it earns no
+            # speed-dimension credit rather than a crash or a fabricated score.
 
         costs = {r.framework_name: r.metrics.total_tokens for r in self.results}
         best_cost = min(costs.values())

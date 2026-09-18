@@ -313,10 +313,31 @@ class GitIntegration:
 
                 time.sleep(backoff)
 
+            finally:
+                # BUG FIX: previously the plaintext TOKEN credential
+                # helper _configure_auth() writes to .git/config was
+                # never cleaned up -- it stayed on disk indefinitely
+                # after this method returned, success or failure alike.
+                # Clearing it here, unconditionally, after every single
+                # attempt shrinks that exposure window from
+                # "indefinitely" to "only while this attempt was in
+                # flight." A no-op for SSH/NONE auth.
+                self._clear_auth()
+
         return False
 
     def _configure_auth(self) -> None:
-        """Configure Git authentication based on auth_method."""
+        """Configure Git authentication based on auth_method.
+
+        SECURITY NOTE: for TOKEN auth this persists the raw token in
+        plaintext to .git/config (GitPython's config_writer() writes to
+        the on-disk repo-local config, not an in-memory/process-scoped
+        value). That is unavoidable given this credential-helper
+        mechanism, but the exposure window is minimized: callers of this
+        method MUST pair it with _clear_auth() (see _push_with_retry's
+        try/finally below) so the plaintext token is only ever on disk
+        for the duration of a single push attempt, not indefinitely.
+        """
         if self.auth_method == AuthMethod.TOKEN and self.auth_token:
             # Configure token authentication
             with self.repo.config_writer() as config:
@@ -330,6 +351,64 @@ class GitIntegration:
             pass
         # NONE method doesn't configure authentication
 
+    def _clear_auth(self) -> None:
+        """Remove the TOKEN credential helper written by _configure_auth().
+
+        BUG FIX: previously nothing ever removed the credential.helper
+        value _configure_auth() writes for TOKEN auth, so the raw auth
+        token sat in PLAINTEXT inside .git/config indefinitely -- from
+        the moment of the first push onward, for the lifetime of the
+        repository, readable by anything with filesystem access to it
+        (another local process or agent skill running as the same user,
+        a backup, a misconfigured cloud sync of the repo directory).
+        Called from a `finally` block after every push attempt so the
+        plaintext token is removed immediately once no longer needed,
+        regardless of whether that attempt succeeded or failed.
+        """
+        if self.auth_method == AuthMethod.TOKEN and self.auth_token:
+            try:
+                with self.repo.config_writer() as config:
+                    if config.has_section("credential"):
+                        config.remove_option("credential", "helper")
+            except Exception:
+                logger.warning(
+                    "Failed to clear TOKEN credential helper from .git/config "
+                    "after push -- the plaintext token may remain on disk "
+                    "until the next successful clear",
+                    exc_info=True,
+                )
+
+    @staticmethod
+    def _sanitize_commit_field(value: str) -> str:
+        """Neutralize raw line breaks in a value bound for a commit message.
+
+        BUG FIX: _generate_execution_commit_message() interpolates
+        execution.task_type / execution.strategy_id -- free-form `str`
+        fields that originate from record_task_execution(), the public
+        entry point Agent Orchestration calls after every task
+        execution, and so are plausibly influenced by parsed user input
+        or an LLM-driven strategy choice -- directly into an f-string
+        with no sanitization at all. This class pushes the resulting
+        commit to a real remote autonomously (auto_push=True by
+        default), so an embedded \n/\r (or U+2028/U+2029, which some
+        tooling also treats as a line break) could forge extra physical
+        lines in the commit message -- e.g. spoofing a trailer like
+        'Co-authored-by:' -- exactly the same class of commit-message
+        injection (CWE-93) already fixed in agents/github_sync_engine.py.
+        Collapsed to a single space rather than stripped, so a
+        legitimately multi-word value stays readable.
+
+        Time Complexity: O(n)
+        """
+        return (
+            str(value)
+            .replace("\r\n", " ")
+            .replace("\r", " ")
+            .replace("\n", " ")
+            .replace("\u2028", " ")
+            .replace("\u2029", " ")
+        )
+
     def _generate_execution_commit_message(self, execution: Any) -> str:
         """Generate meaningful commit message for task execution.
 
@@ -340,15 +419,18 @@ class GitIntegration:
             Descriptive commit message
 
         """
+        safe_task_type = self._sanitize_commit_field(execution.task_type)
+        safe_strategy_id = self._sanitize_commit_field(execution.strategy_id)
         if execution.success:
             return (
-                f"✅ Task {execution.task_type} succeeded "
+                f"✅ Task {safe_task_type} succeeded "
                 f"({execution.execution_time_ms:.0f}ms) "
-                f"using {execution.strategy_id}"
+                f"using {safe_strategy_id}"
             )
         failure_type = execution.failure_type.value if execution.failure_type else "unknown"
+        safe_failure_type = self._sanitize_commit_field(failure_type)
         return (
-            f"❌ Task {execution.task_type} failed ({failure_type}) using {execution.strategy_id}"
+            f"❌ Task {safe_task_type} failed ({safe_failure_type}) using {safe_strategy_id}"
         )
 
     def _generate_report_commit_message(self, report: dict[str, Any]) -> str:
@@ -494,6 +576,19 @@ class GitIntegration:
         failed = []
 
         for commit_data in self._pending_commits:
+            # BUG FIX: was `if self._push_with_retry(commit_data):`
+            # with no reset -- a commit that already exhausted its
+            # retry budget in an EARLIER processing pass (the exact
+            # condition under which _push_with_retry() itself queues
+            # it here with retry_count already at max_retries) would
+            # cause `while retry_count < self.max_retries:` to be
+            # false from the very first check -- no push attempt, no
+            # log line, forever, even long after the underlying
+            # network/auth problem is resolved. Resetting the budget
+            # here gives every queued commit a fresh attempt on each
+            # processing pass, matching the "resilient to network
+            # failures" design this offline queue exists to provide.
+            commit_data.retry_count = 0
             if self._push_with_retry(commit_data):
                 processed += 1
             else:

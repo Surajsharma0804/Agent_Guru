@@ -598,14 +598,26 @@ class DatabaseSchema:
                 cursor = conn.cursor()
 
                 # Check all required tables exist
+                # BUG FIX: this list previously named only 7 of the
+                # 9 tables create_schema() actually creates, so a
+                # schema that was missing prompt_updates and/or
+                # edge_case_metrics entirely (e.g. from a
+                # create_schema() call that failed partway through --
+                # DDL statements are not implicitly transactional the
+                # way INSERT/UPDATE/DELETE are under sqlite3's default
+                # isolation level) would still report as fully valid
+                # here, contradicting this method's own docstring
+                # ("Checks that all required tables ... exist").
                 required_tables = [
                     "schema_version",
                     "failures",
                     "strategies",
                     "prompts",
+                    "prompt_updates",
                     "metrics",
                     "failure_patterns",
                     "stability_metrics",
+                    "edge_case_metrics",
                 ]
 
                 # Use parameterized placeholders — table names are hardcoded, only values are parameterized

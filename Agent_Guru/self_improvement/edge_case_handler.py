@@ -182,8 +182,11 @@ class EdgeCaseHandler:
         """
         sample_size = successes + failures
 
-        # Calculate raw success rate
-        successes / sample_size if sample_size > 0 else 0.0
+        # BUG FIX: this used to compute a raw success rate here
+        # (successes / sample_size) but never assigned or used it --
+        # dead code left over from before success_rate was switched to
+        # the Bayesian-smoothed value below. Removed entirely; no
+        # behavioral effect.
 
         # Apply Bayesian smoothing to prevent overfitting to small samples
         smoothed_successes = successes + self.bayesian_prior_successes
@@ -288,6 +291,18 @@ class EdgeCaseHandler:
             Confidence score 0.0-1.0
 
         """
+        # BUG FIX: a pattern with zero observed samples has zero
+        # confidence, full stop. Without this guard,
+        # _wilson_score_interval() returns a degenerate (0.0, 0.0)
+        # interval for sample_size == 0 (its own explicit guard), and
+        # the width_score formula below then misreads that zero WIDTH
+        # as "perfectly narrow, therefore maximally confident" --
+        # producing a misleading ~0.40 confidence score for a pattern
+        # with literally no data, even though meets_threshold is
+        # correctly False for the same case.
+        if sample_size == 0:
+            return 0.0
+
         # Sample size component (sigmoid function)
         # Reaches 0.5 at min_sample_size, approaches 1.0 for large samples
         size_score = 1.0 / (1.0 + math.exp(-0.5 * (sample_size - self.min_sample_size)))

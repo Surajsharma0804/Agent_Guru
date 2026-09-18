@@ -118,11 +118,22 @@ class PolicyIntegration:
             return PolicyDecision.DENY
 
         try:
-            # Query policy engine (placeholder)
-            # In real implementation, this would call policy_engine.evaluate()
+            # BUG FIX (severe, policy bypass): this used to be a
+            # placeholder that never called policy_engine.evaluate() --
+            # it unconditionally returned ALLOW, silently bypassing any
+            # governance constraint a connected policy engine was
+            # configured to enforce. Now actually queries it, using the
+            # evaluate(policy_name, context) -> bool contract defined by
+            # this module's own test suite's MockPolicyEngine.
+            policy_context: dict[str, Any] = {
+                "strategy_id": strategy_id,
+                "task_type": task_type,
+            }
+            if context:
+                policy_context.update(context)
 
-            # For now, allow all strategies
-            return PolicyDecision.ALLOW
+            allowed = self.policy_engine.evaluate("allow_strategy_changes", policy_context)
+            return PolicyDecision.ALLOW if allowed else PolicyDecision.DENY
 
         except Exception as e:
             logger.warning("Warning: Policy check failed: %s", e)
@@ -166,11 +177,22 @@ class PolicyIntegration:
             return PolicyDecision.DENY
 
         try:
-            # Query policy engine (placeholder)
-            # In real implementation, this would call policy_engine.validate_prompt()
+            # BUG FIX (severe, policy bypass): same defect as
+            # check_strategy_policy() above -- this used to be a
+            # placeholder that never called the connected policy engine
+            # and unconditionally allowed every prompt evolution. Now
+            # actually queries it via the same evaluate(policy_name,
+            # context) -> bool contract.
+            policy_context: dict[str, Any] = {
+                "prompt_type": prompt_type,
+                "current_content": current_content,
+                "proposed_content": proposed_content,
+            }
+            if context:
+                policy_context.update(context)
 
-            # For now, allow all prompt evolution
-            return PolicyDecision.ALLOW
+            allowed = self.policy_engine.evaluate("allow_prompt_evolution", policy_context)
+            return PolicyDecision.ALLOW if allowed else PolicyDecision.DENY
 
         except Exception as e:
             logger.warning("Warning: Prompt evolution policy check failed: %s", e)
@@ -206,10 +228,21 @@ class PolicyIntegration:
             return self._get_all_strategies()
 
         try:
-            # Query policy engine for allowed strategies (placeholder)
-            # In real implementation, this would call policy_engine.get_allowed_strategies()
-
-            return self._get_all_strategies()
+            # BUG FIX: this used to be a placeholder that never
+            # consulted the connected policy engine at all -- it
+            # returned every registered strategy unfiltered, identical
+            # to the no-policy-engine branch above. The policy engine
+            # doesn't expose a bulk "list allowed strategies" method in
+            # its known contract (only evaluate()), so this now reuses
+            # the already-fixed, evidence-backed check_strategy_policy()
+            # per strategy, matching this method's own documented O(n)
+            # complexity.
+            all_strategies = self._get_all_strategies()
+            return [
+                sid
+                for sid in all_strategies
+                if self.check_strategy_policy(sid, task_type, context) == PolicyDecision.ALLOW
+            ]
 
         except Exception as e:
             logger.warning("Warning: Get allowed strategies failed: %s", e)

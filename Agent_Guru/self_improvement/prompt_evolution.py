@@ -954,10 +954,21 @@ IMPROVED PROMPT:"""
             >>> assert active.version == 2
 
         """
-        conn = self.pool.acquire()
-        cursor = conn.connection.cursor()
+        # BUG FIX (connection-pool self-exhaustion / potential deadlock):
+        # this used to acquire one connection via self.pool.acquire() and
+        # hold it for the whole method, including across the call to
+        # can_switch_to_version() below, which itself acquires a SECOND
+        # connection from the same pool. Under a fully-utilized or
+        # minimally-sized pool that nested acquire blocks and then raises
+        # TimeoutError("Connection pool exhausted") -- reproduced
+        # concretely with a single-connection pool, where even an
+        # uncontended, single-threaded call failed. Now uses short,
+        # non-overlapping connection scopes matching every other method in
+        # this class, with the two is_active UPDATEs still committed
+        # together atomically in one transaction.
+        with self.pool.connection() as conn:
+            cursor = conn.cursor()
 
-        try:
             # Get current active version
             cursor.execute(
                 """
@@ -969,27 +980,31 @@ IMPROVED PROMPT:"""
             )
             current = cursor.fetchone()
 
-            if not current:
-                msg = f"No active prompt found for type '{prompt_type}'"
-                raise ValueError(msg)
+        if not current:
+            msg = f"No active prompt found for type '{prompt_type}'"
+            raise ValueError(msg)
 
-            current_id, current_version = current
+        current_id, current_version = current
 
-            # Determine target version
-            if target_version is None:
-                # Rollback to previous version
-                target_version = current_version - 1
+        # Determine target version
+        if target_version is None:
+            # Rollback to previous version
+            target_version = current_version - 1
 
-            if target_version < 1:
-                msg = f"Cannot rollback to version {target_version} (minimum is 1)"
-                raise ValueError(msg)
+        if target_version < 1:
+            msg = f"Cannot rollback to version {target_version} (minimum is 1)"
+            raise ValueError(msg)
 
-            # Check oscillation (unless forced)
-            if not force:
-                can_switch, reason = self.can_switch_to_version(prompt_type, target_version)
-                if not can_switch:
-                    msg = f"Oscillation prevention: {reason}"
-                    raise RuntimeError(msg)
+        # Check oscillation (unless forced) -- uses its own connection;
+        # no longer nested inside another held connection.
+        if not force:
+            can_switch, reason = self.can_switch_to_version(prompt_type, target_version)
+            if not can_switch:
+                msg = f"Oscillation prevention: {reason}"
+                raise RuntimeError(msg)
+
+        with self.pool.connection() as conn:
+            cursor = conn.cursor()
 
             # Get target version
             cursor.execute(
@@ -1030,15 +1045,12 @@ IMPROVED PROMPT:"""
                 (target_id,),
             )
 
-            conn.connection.commit()
+            conn.commit()
 
-            # Record rollback for rate limiting
-            self._record_prompt_update(prompt_type, "rollback", current_version, target_version)
+        # Record rollback for rate limiting
+        self._record_prompt_update(prompt_type, "rollback", current_version, target_version)
 
-            return str(target_id)
-
-        finally:
-            self.pool.release(conn)
+        return str(target_id)
 
     def detect_performance_degradation(
         self,
@@ -1384,8 +1396,23 @@ IMPROVED PROMPT:"""
 
             target_count_in_recent = recent_versions.count(target_version)
 
-            # True oscillation: switching back to a recently used version
-            is_oscillating = target_version in last_four and target_count_in_recent >= 1
+            # BUG FIX: this used `target_count_in_recent >= 1`, which is
+            # redundant with `target_version in last_four` -- if the target is
+            # among the last four it necessarily appears at least once. The
+            # condition therefore collapsed to 'block any switch back to a
+            # recently seen version'. Because a rollback's target is by
+            # definition the version that was just active, this rejected
+            # essentially EVERY legitimate rollback inside the oscillation
+            # window (24h by default) -- disabling the very safety mechanism
+            # rollback_prompt() exists to provide, precisely when it is needed
+            # (shortly after a bad version goes live).
+            #
+            # >= 2 is what both this method's docstring ('AND there's a pattern
+            # of version switching') and rule 2 in the comment above ('appears
+            # at least twice') actually describe. It admits the first rollback
+            # (recent [2, 1] -> target 1 appears once) while still catching real
+            # flapping (recent [2, 1, 2, 1] -> target 1 appears twice).
+            is_oscillating = target_version in last_four and target_count_in_recent >= 2
 
             return is_oscillating, recent_versions
 

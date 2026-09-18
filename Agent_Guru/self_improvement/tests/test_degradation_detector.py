@@ -204,8 +204,13 @@ class TestDegradationDetection:
 
         assert alert is not None  # nosec B101
         assert DegradationMetric.EXECUTION_TIME in alert.degraded_metrics  # nosec B101
-        assert "execution_time_change_pct" in alert.metric_changes  # nosec B101
-        assert alert.metric_changes["execution_time_change_pct"] > 0  # Positive change  # nosec B101
+        # Key is "execution_time_change" (not "..._pct"): the value is a raw
+        # fraction on the same scale as every other entry in metric_changes,
+        # because _determine_severity() takes max(abs(v)) across them all and
+        # compares against shared fractional thresholds. Storing a percentage
+        # here previously forced SEVERE on any execution-time degradation.
+        assert "execution_time_change" in alert.metric_changes  # nosec B101
+        assert alert.metric_changes["execution_time_change"] > 0  # Positive change  # nosec B101
 
     def test_reasoning_quality_degradation_detected(self, detector, tracker):
         """Test detection of reasoning quality degradation."""

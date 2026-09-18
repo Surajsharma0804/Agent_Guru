@@ -11,6 +11,7 @@ Test Coverage:
 """
 
 import gc
+import logging
 import tempfile
 from pathlib import Path
 
@@ -336,8 +337,18 @@ class TestCheckImprovementThreshold:
 class TestTriggerAlert:
     """Test trigger_alert method."""
 
-    def test_trigger_alert_when_required(self, reporter, tracker, capsys):
-        """Test alert is triggered when required."""
+    def test_trigger_alert_when_required(self, reporter, tracker, caplog):
+        """Test alert is triggered when required.
+
+        BUG FIX: this test used to capture stdout via `capsys`, but the
+        real trigger_alert() implementation writes its alert entirely via
+        `_logger.info(...)`, which `capsys` cannot see -- this test always
+        failed for a reason unrelated to trigger_alert()'s actual behavior.
+        Switched to `caplog`, which is what actually observes log records,
+        with the capture level raised to INFO to match `_logger.info()`
+        (caplog's default capture level is WARNING).
+        """
+        caplog.set_level(logging.INFO)
         # Record 100 tasks with insufficient improvement (no improvement)
         for i in range(100):
             success = i < 5 or i >= 95  # 50% baseline, 50% recent
@@ -356,12 +367,20 @@ class TestTriggerAlert:
         report = reporter.generate_report(measurement_window=100)
         reporter.trigger_alert(report)
 
-        captured = capsys.readouterr()
-        assert "IMPROVEMENT ALERT" in captured.out  # nosec B101
-        assert "Recommendations:" in captured.out  # nosec B101
+        assert "IMPROVEMENT ALERT" in caplog.text  # nosec B101
+        assert "Recommendations:" in caplog.text  # nosec B101
 
-    def test_no_alert_when_not_required(self, reporter, tracker, capsys):
-        """Test no alert when not required."""
+    def test_no_alert_when_not_required(self, reporter, tracker, caplog):
+        """Test no alert when not required.
+
+        BUG FIX: identical capsys -> caplog issue as
+        test_trigger_alert_when_required() above. This assertion used to
+        pass vacuously (captured.out is always empty regardless of
+        trigger_alert()'s real behavior, since it never writes to stdout) --
+        it would have passed even if trigger_alert() were deleted entirely.
+        Now checks the real log output for the absence of the alert banner.
+        """
+        caplog.set_level(logging.INFO)
         # Record 100 tasks with good improvement
         for i in range(100):
             success = i < 5 or i >= 10
@@ -380,8 +399,7 @@ class TestTriggerAlert:
         report = reporter.generate_report(measurement_window=100)
         reporter.trigger_alert(report)
 
-        captured = capsys.readouterr()
-        assert captured.out == ""  # No output  # nosec B101
+        assert "IMPROVEMENT ALERT" not in caplog.text  # No alert  # nosec B101
 
 
 # Property-Based Tests
@@ -436,10 +454,21 @@ def test_property_improvement_always_detected(baseline_success, recent_success):
         report = reporter.generate_report(measurement_window=100)
 
         assert report is not None  # nosec B101
-        if recent_success > baseline_success:
+        # BUG FIX: the precondition must use the DISCRETISED counts actually
+        # recorded, not the continuous generated rates. Only 10 baseline and
+        # 10 recent tasks are recorded, and int() truncates, so e.g.
+        # baseline_success=0.5 and recent_success=0.5625 both yield 5
+        # successes out of 10 -- identical data. Asserting that improvement
+        # must be > 0 there demanded a difference the harness never wrote,
+        # so Hypothesis eventually found that counter-example. Comparing the
+        # real counts also lets us assert the equal case exactly, which the
+        # original left unchecked.
+        if recent_successes > baseline_successes:
             assert report.success_rate_improvement > 0  # nosec B101
-        elif recent_success < baseline_success:
+        elif recent_successes < baseline_successes:
             assert report.success_rate_improvement < 0  # nosec B101
+        else:
+            assert report.success_rate_improvement == 0  # nosec B101
 
         pool.close_all()
         gc.collect()

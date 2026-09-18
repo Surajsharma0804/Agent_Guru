@@ -532,8 +532,31 @@ class MigrationSystem:
 
         tables = {row[0] for row in cursor.fetchall()}
 
-        # Minimum required tables
-        required_tables = {"schema_migrations"}
+        # BUG FIX: previously only "schema_migrations" was checked
+        # here -- the one table _apply_migration()/_rollback_migration()
+        # itself just wrote to moments earlier, so it is trivially
+        # present on every single call and this validation could never
+        # actually fail, no matter what a migration's upgrade()/
+        # downgrade() function did (a typo'd table name, an accidental
+        # DROP TABLE, or running against a database where
+        # database_schema.py's create_schema() was never called
+        # first). Checking the full baseline schema (mirroring the
+        # same table list Round 68 already fixed database_schema.py's
+        # verify_schema() to use) lets this check actually catch a
+        # migration that damaged the expected schema, before COMMIT
+        # makes that damage permanent.
+        required_tables = {
+            "schema_migrations",
+            "schema_version",
+            "failures",
+            "strategies",
+            "prompts",
+            "prompt_updates",
+            "metrics",
+            "failure_patterns",
+            "stability_metrics",
+            "edge_case_metrics",
+        }
 
         missing_tables = required_tables - tables
         if missing_tables:
@@ -611,6 +634,14 @@ if __name__ == "__main__":
     # Ensure database exists
     db_file = safe_path(BASE_DIR, db_path)
     db_file.parent.mkdir(parents=True, exist_ok=True)
+    # BUG FIX: MigrationSystem has always assumed the base schema
+    # (created by DatabaseSchema.create_schema()) already exists --
+    # see _migration_1_upgrade()'s own comment. This demo previously
+    # skipped that step entirely, so running it against a fresh
+    # database path (its own documented default usage) would fail.
+    from Agent_Guru.self_improvement.database_schema import DatabaseSchema
+
+    DatabaseSchema.create_schema(db_path)
     system = MigrationSystem(db_path)
 
     # Show status

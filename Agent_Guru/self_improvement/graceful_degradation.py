@@ -26,7 +26,7 @@ class FallbackStrategy:
     strategy_id: str = "default"
     name: str = "Default Strategy"
     description: str = "Basic fallback strategy"
-    parameters: dict[str, Any] = None
+    parameters: dict[str, Any] | None = None
 
     def __post_init__(self):
         if self.parameters is None:
@@ -90,6 +90,15 @@ class GracefulDegradationHandler:
                 )
                 self.failure_count = 0
                 self.mode = DegradationMode.NORMAL
+                # BUG FIX: reset() (the manual recovery path) clears
+                # last_failure along with mode and failure_count -- this
+                # automatic-recovery path performs the identical
+                # semantic transition but used to leave last_failure
+                # holding a stale timestamp from the resolved failure,
+                # so a fully recovered handler (mode="normal",
+                # failure_count=0) would still report a leftover
+                # last_failure in get_status()/get_metrics_with_fallback().
+                self.last_failure = None
 
             return result
 

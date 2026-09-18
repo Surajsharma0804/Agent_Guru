@@ -209,65 +209,57 @@ class StrategyOptimizer:
             ValueError: If strategy_id doesn't exist
 
         """
+        # BUG FIX (correctness): this used to SELECT the current counters,
+        # compute the new values in Python, then UPDATE. Python's sqlite3 does
+        # not open a write transaction on a SELECT, so two concurrent calls
+        # could both read the same counters and the second UPDATE would
+        # overwrite the first -- a classic lost update. Task executions are
+        # recorded concurrently, so increments were silently being dropped.
+        #
+        # PERFORMANCE: this is a per-task-execution hot path. Folding the
+        # arithmetic into one UPDATE halves the statements per call and removes
+        # a full row round-trip.
+        #
+        # SQLite evaluates every column reference on the right-hand side of an
+        # UPDATE against the row's pre-update values, so total_executions,
+        # success_count and avg_execution_time_ms below are all consistently
+        # the old values within this single atomic statement.
+        now = datetime.now(tz=UTC).isoformat()
+        success_delta = 1 if success else 0
+        failure_delta = 0 if success else 1
+
         with self.pool.connection() as conn:
             cursor = conn.cursor()
-
-            # Get current stats
-            cursor.execute(
-                """
-                SELECT total_executions, success_count,
-                       failure_count, avg_execution_time_ms
-                FROM strategies
-                WHERE strategy_id = ?
-            """,
-                (strategy_id,),
-            )
-
-            row = cursor.fetchone()
-            if not row:
-                msg = f"Strategy '{strategy_id}' not found"
-                raise ValueError(msg)
-
-            total, success_count, failure_count, avg_time = row
-
-            # Update stats
-            new_total = total + 1
-            new_success_count = success_count + (1 if success else 0)
-            new_failure_count = failure_count + (0 if success else 1)
-            new_success_rate = new_success_count / new_total if new_total > 0 else 0.0
-
-            # Update average execution time (running average)
-            new_avg_time = (
-                (avg_time * total + execution_time_ms) / new_total
-                if new_total > 0
-                else execution_time_ms
-            )
-
-            now = datetime.now(tz=UTC).isoformat()
 
             cursor.execute(
                 """
                 UPDATE strategies
-                SET total_executions = ?,
-                    success_count = ?,
-                    failure_count = ?,
-                    success_rate = ?,
-                    avg_execution_time_ms = ?,
+                SET total_executions = total_executions + 1,
+                    success_count = success_count + ?,
+                    failure_count = failure_count + ?,
+                    success_rate = CAST(success_count + ? AS REAL)
+                                   / (total_executions + 1),
+                    avg_execution_time_ms =
+                        (avg_execution_time_ms * total_executions + ?)
+                        / (total_executions + 1),
                     last_updated = ?,
                     last_used = ?
                 WHERE strategy_id = ?
             """,
                 (
-                    new_total,
-                    new_success_count,
-                    new_failure_count,
-                    new_success_rate,
-                    new_avg_time,
+                    success_delta,
+                    failure_delta,
+                    success_delta,
+                    execution_time_ms,
                     now,
                     now,
                     strategy_id,
                 ),
             )
+
+            if cursor.rowcount == 0:
+                msg = f"Strategy '{strategy_id}' not found"
+                raise ValueError(msg)
 
             conn.commit()
 
@@ -864,6 +856,21 @@ class StrategyOptimizer:
                     now,
                     merged_id,
                 ),
+            )
+
+            # BUG FIX: this used to leave the original strategies
+            # (strategy_ids) in the table forever after merging --
+            # "merging" created a new strategy alongside the old ones
+            # instead of replacing them, so all originals stayed
+            # independently selectable and kept accumulating their own
+            # diverging performance stats. Now removes them in the same
+            # transaction as the merged strategy's stat initialization,
+            # matching this method's own docstring ("Combines strategies
+            # ... into one") and the only removal mechanism this table
+            # supports (there is no active/deprecated column).
+            cursor.executemany(
+                "DELETE FROM strategies WHERE strategy_id = ?",
+                [(sid,) for sid in strategy_ids],
             )
 
             conn.commit()

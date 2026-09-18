@@ -89,10 +89,22 @@ class MemoryIntegration:
             # Get learning data from engine
             metrics = self.engine.get_improvement_metrics()
 
-            # Sync to memory system (placeholder)
-            # In real implementation, this would call memory_system.store()
+            # BUG FIX: this used to be a placeholder that never called
+            # memory_system.store() -- it fetched metrics and reported
+            # synced=True without ever persisting anything to the
+            # connected memory system. Now actually stores the synced
+            # payload, using the store(data) contract defined by this
+            # module's own test suite's MockMemorySystem.
+            sync_timestamp = datetime.now(tz=UTC)
+            self.memory_system.store(
+                {
+                    "type": "learning_metrics",
+                    "metrics": metrics,
+                    "timestamp": sync_timestamp.isoformat(),
+                },
+            )
 
-            self.last_sync_time = datetime.now(tz=UTC)
+            self.last_sync_time = sync_timestamp
 
             return {
                 "synced": True,
@@ -131,10 +143,25 @@ class MemoryIntegration:
             return self._get_patterns_from_engine(task_type, limit)
 
         try:
-            # Query memory system (placeholder)
-            # In real implementation, this would call memory_system.query()
+            # BUG FIX: this used to be a placeholder that never called
+            # memory_system.query() -- it unconditionally fell through to
+            # _get_patterns_from_engine(), so a connected memory system
+            # had no effect on this method at all. Now actually queries
+            # it, using the query(filters) contract defined by this
+            # module's own test suite's MockMemorySystem.
+            filters: dict[str, Any] = {"limit": limit}
+            if task_type is not None:
+                filters["task_type"] = task_type
 
-            return self._get_patterns_from_engine(task_type, limit)
+            patterns = self.memory_system.query(filters)
+
+            # Apply the same task_type filter the engine-fallback path
+            # uses, in case the memory system's query() doesn't filter
+            # internally.
+            if task_type:
+                patterns = [p for p in patterns if p.get("task_type") == task_type]
+
+            return patterns[:limit]
 
         except Exception as e:
             logger.warning("Warning: Historical pattern retrieval failed: %s", e)

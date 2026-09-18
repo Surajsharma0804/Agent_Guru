@@ -44,6 +44,17 @@ class HealthChecker:
     """Health checker for self-improvement engine.
 
     Monitors system health and provides diagnostic information.
+
+    BUG FIX: every query in this class used to reference a table
+    named "task_executions", which DatabaseSchema.create_schema()
+    never creates -- the real table holding this data is "metrics"
+    (see database_schema.py's _create_metrics_table()). Because every
+    method here catches its own exceptions, this never crashed -- it
+    just meant _check_database() unconditionally reported the
+    database as UNHEALTHY ("no such table: task_executions"), which
+    alone forced check_health()'s overall status to UNHEALTHY on
+    every call regardless of actual system health. All "metrics"
+    table queries below have been corrected to match the real schema.
     """
 
     def __init__(self, storage_path: str, config: Any | None = None) -> None:
@@ -117,7 +128,7 @@ class HealthChecker:
             # Check database connectivity
             with sqlite3.connect(self.storage_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM task_executions")
+                cursor.execute("SELECT COUNT(*) FROM metrics")
                 task_count = cursor.fetchone()[0]
 
             return HealthCheckResult(
@@ -214,7 +225,7 @@ class HealthChecker:
                 # Get recent task execution times
                 cursor.execute("""
                     SELECT AVG(execution_time_ms)
-                    FROM task_executions
+                    FROM metrics
                     WHERE timestamp > datetime('now', '-1 hour')
                 """)
                 avg_time = cursor.fetchone()[0]
@@ -223,7 +234,7 @@ class HealthChecker:
                 cursor.execute("""
                     SELECT
                         SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)
-                    FROM task_executions
+                    FROM metrics
                     WHERE timestamp > datetime('now', '-1 hour')
                 """)
                 success_rate = cursor.fetchone()[0]
@@ -268,10 +279,20 @@ class HealthChecker:
                 cursor = conn.cursor()
 
                 # Get total task count
-                cursor.execute("SELECT COUNT(*) FROM task_executions")
+                cursor.execute("SELECT COUNT(*) FROM metrics")
                 total_tasks = cursor.fetchone()[0]
 
                 # Get recent improvement
+                # KNOWN ISSUE (not fixed this round): "improvement_reports"
+                # is not a table DatabaseSchema.create_schema() creates.
+                # The only other reference to "improvement_reports" in this
+                # package is a JSON file path in git_integration.py,
+                # suggesting this data may actually live in a JSON file, not
+                # SQL. Fixing this correctly needs improvement_reporter.py
+                # (not yet audited) read first to find the real source of
+                # truth. This query already fails safely below (caught by
+                # this method's own except Exception, degrading to
+                # HealthStatus.DEGRADED) -- left as-is pending that audit.
                 cursor.execute("""
                     SELECT relative_improvement
                     FROM improvement_reports
@@ -334,7 +355,7 @@ class HealthChecker:
                 cursor = conn.cursor()
 
                 # Total tasks
-                cursor.execute("SELECT COUNT(*) FROM task_executions")
+                cursor.execute("SELECT COUNT(*) FROM metrics")
                 total_tasks = cursor.fetchone()[0]
 
                 # Success rate (last 100 tasks)
@@ -342,7 +363,7 @@ class HealthChecker:
                     SELECT
                         SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)
                     FROM (
-                        SELECT success FROM task_executions
+                        SELECT success FROM metrics
                         ORDER BY timestamp DESC
                         LIMIT 100
                     )
@@ -353,7 +374,7 @@ class HealthChecker:
                 cursor.execute("""
                     SELECT AVG(execution_time_ms)
                     FROM (
-                        SELECT execution_time_ms FROM task_executions
+                        SELECT execution_time_ms FROM metrics
                         ORDER BY timestamp DESC
                         LIMIT 100
                     )

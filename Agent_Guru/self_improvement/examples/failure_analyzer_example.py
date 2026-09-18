@@ -103,21 +103,42 @@ def main() -> None:
             analyzer.analyze_failure(similar_failure)
 
         # Example 5: Query failure statistics
-        analyzer.get_failure_count()
-        analyzer.get_failure_count(failure_type=FailureType.REASONING_ERROR)
-        analyzer.get_failure_count(failure_type=FailureType.TOOL_ERROR)
-        analyzer.get_failure_count(failure_type=FailureType.HALLUCINATION)
-        analyzer.get_failure_count(failure_type=FailureType.TIMEOUT)
+        # BUG FIX: all five return values used to be computed and immediately
+        # discarded -- the comment says "Query failure statistics" but nothing
+        # was ever reported. Restored.
+        total_failures = analyzer.get_failure_count()
+        reasoning_failures = analyzer.get_failure_count(failure_type=FailureType.REASONING_ERROR)
+        tool_failures = analyzer.get_failure_count(failure_type=FailureType.TOOL_ERROR)
+        hallucination_failures = analyzer.get_failure_count(failure_type=FailureType.HALLUCINATION)
+        timeout_failures = analyzer.get_failure_count(failure_type=FailureType.TIMEOUT)
+        print("\nFailure counts:")
+        print(f"  Total: {total_failures}")
+        print(f"  Reasoning errors: {reasoning_failures}")
+        print(f"  Tool errors: {tool_failures}")
+        print(f"  Hallucinations: {hallucination_failures}")
+        print(f"  Timeouts: {timeout_failures}")
 
         # Example 6: Get identified patterns
+        # BUG FIX: this loop used to be `pass` -- the identified patterns were
+        # computed via a real query but never shown. Restored.
         patterns = analyzer.get_failure_patterns(min_occurrences=2)
+        print(f"\nIdentified patterns ({len(patterns)}):")
         for _pattern in patterns:
-            pass
+            print(
+                f"  - {_pattern.pattern_id}: {_pattern.failure_type.value} "
+                f"(occurrences={_pattern.occurrence_count}, "
+                f"confidence={_pattern.confidence_score:.2f})",
+            )
 
         # Example 7: Get recent failures
+        # BUG FIX: identical pattern to the patterns loop above -- restored.
         recent = analyzer.get_recent_failures(limit=3)
+        print(f"\nRecent failures ({len(recent)}):")
         for _failure in recent:
-            pass
+            print(
+                f"  - {_failure['task_id']} ({_failure['failure_type']}) "
+                f"at {_failure['timestamp']}",
+            )
 
         # Example 8: Record hallucination from LLM Runtime
         analyzer.record_hallucination(
@@ -127,7 +148,19 @@ def main() -> None:
         )
 
         # Example 9: Get connection pool statistics
-        pool.get_stats()
+        # BUG FIX: the returned ConnectionStats used to be computed and
+        # immediately discarded. Restored.
+        stats = pool.get_stats()
+        print("\nConnection pool stats:")
+        print(f"  Total connections: {stats.total_connections}")
+        print(f"  Active: {stats.active_connections}")
+        print(f"  Idle: {stats.idle_connections}")
+        print(f"  Total acquisitions: {stats.total_acquisitions}")
+        print(f"  Total releases: {stats.total_releases}")
+        print(f"  Avg acquisition time: {stats.avg_acquisition_time_ms:.2f}ms")
+        print(f"  Avg transaction time: {stats.avg_transaction_time_ms:.2f}ms")
+        print(f"  Failed acquisitions: {stats.failed_acquisitions}")
+        print(f"  Failed transactions: {stats.failed_transactions}")
 
         # Cleanup
         pool.close_all()

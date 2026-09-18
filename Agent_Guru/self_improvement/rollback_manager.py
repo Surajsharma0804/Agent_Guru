@@ -332,7 +332,13 @@ class RollbackManager:
             change_type = ChangeType(change[1])
             component_id = change[3]
             previous_state = json.loads(change[4])
-            json.loads(change[6])
+            # BUG FIX: this used to also call `json.loads(change[6])` here
+            # and discard the result -- a wasted JSON parse on every
+            # change being rolled back. The same field is correctly
+            # parsed again below, in the separate "Calculate restored
+            # performance" loop (`perf = json.loads(change[6])`), which is
+            # the only place the value is actually used. Removed the dead
+            # duplicate parse; behavior is unchanged.
 
             try:
                 # Rollback based on change type
@@ -681,24 +687,53 @@ class RollbackManager:
     def _rollback_pattern(self, pattern_id: str, previous_state: dict[str, Any]) -> None:
         """Rollback a pattern to previous state.
 
+        BUG FIX: this used to be a silent no-op (a comment saying "would be
+        implemented here", doing nothing). Because the caller,
+        rollback_recent_changes(), only skips marking a change rolled_back
+        when this method RAISES, the silent no-op caused every
+        PATTERN_UPDATE rollback to be falsely reported as successful --
+        confirmed concretely: RollbackResult.success=True,
+        changes_rolled_back=1, and the change_history row marked
+        rolled_back=1, despite no pattern state ever being reverted. There
+        is no evidenced schema in this file for what a pattern's storage
+        record actually looks like (likely meta_patterns in
+        meta_learner.py), so implementing real revert logic here would be
+        an unjustified guess. Raising instead makes the existing
+        try/except in rollback_recent_changes() correctly treat this as a
+        failure -- honest reporting instead of a false success -- while
+        other changes in the same batch still roll back normally.
+
         Args:
             pattern_id: Pattern ID to rollback
             previous_state: Previous state to restore
 
+        Raises:
+            NotImplementedError: Pattern rollback has no evidenced target
+                schema to revert; always raises until implemented.
+
         """
-        # Pattern rollback would be implemented here
-        # For now, this is a placeholder
+        msg = f"Pattern rollback is not implemented (pattern_id={pattern_id})"
+        raise NotImplementedError(msg)
 
     def _rollback_configuration(self, config_id: str, previous_state: dict[str, Any]) -> None:
         """Rollback a configuration to previous state.
+
+        BUG FIX: same defect and fix as _rollback_pattern() above -- see
+        that method's docstring for the full explanation. Raises instead
+        of silently no-op'ing so CONFIGURATION_UPDATE rollbacks are
+        honestly reported as failed rather than falsely marked complete.
 
         Args:
             config_id: Configuration ID to rollback
             previous_state: Previous state to restore
 
+        Raises:
+            NotImplementedError: Configuration rollback has no evidenced
+                target schema to revert; always raises until implemented.
+
         """
-        # Configuration rollback would be implemented here
-        # For now, this is a placeholder
+        msg = f"Configuration rollback is not implemented (config_id={config_id})"
+        raise NotImplementedError(msg)
 
     def _mark_rolled_back(self, change_id: str) -> None:
         """Mark a change as rolled back.

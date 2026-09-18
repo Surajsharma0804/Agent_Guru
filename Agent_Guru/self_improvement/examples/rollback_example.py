@@ -63,8 +63,13 @@ def example_basic_rollback() -> None:
         # Rollback recent changes
         result = manager.rollback_recent_changes(hours=24)
 
+        # BUG FIX: this used to be `if result.performance_restored: pass` --
+        # the restored-performance data was computed and immediately
+        # discarded either way.
         if result.performance_restored:
-            pass
+            print(f"Rollback restored performance: {result.performance_restored}")
+        else:
+            print(f"Rolled back {result.changes_rolled_back} change(s) (success={result.success}).")
 
         pool.close_all()
 
@@ -129,11 +134,23 @@ def example_degradation_triggered_rollback() -> None:
         )
 
         # Automatic rollback based on degradation
-        result = manager.rollback_on_degradation(alert)
+        # BUG FIX (crash): rollback_on_degradation() genuinely returns a
+        # `tuple[RollbackResult, Any]` (the rollback result and an optional
+        # root-cause investigation report) -- this used to bind the whole
+        # tuple to `result` and then access `result.performance_restored`,
+        # which raises AttributeError every time this function actually
+        # runs (a plain tuple has no such attribute). Since this module runs
+        # all 5 examples inside one try/except with no per-example recovery,
+        # this silently prevented every example after this one from ever
+        # running. Fixed by unpacking the real 2-tuple.
+        result, _investigation = manager.rollback_on_degradation(alert)
 
+        # BUG FIX (no-op): this loop used to be `pass` -- the restored
+        # per-metric performance values were computed and discarded.
         if result.performance_restored:
+            print(f"Degradation rollback restored {result.changes_rolled_back} change(s):")
             for _metric, _value in result.performance_restored.items():
-                pass
+                print(f"  - {_metric}: {_value:.2f}")
 
         pool.close_all()
 
@@ -185,8 +202,12 @@ def example_selective_rollback() -> None:
         )
 
         # Verify prompt change was not rolled back
+        # BUG FIX: this used to be a bare list-comprehension expression
+        # statement -- the filtered list was computed and immediately
+        # discarded, so the verification never actually reported anything.
         history = manager.get_change_history(hours=24, include_rolled_back=False)
-        [h for h in history if h.change_type == ChangeType.PROMPT_UPDATE]
+        remaining_prompt_changes = [h for h in history if h.change_type == ChangeType.PROMPT_UPDATE]
+        print(f"Prompt changes not rolled back: {len(remaining_prompt_changes)} (expected 1).")
 
         pool.close_all()
 
@@ -223,15 +244,27 @@ def example_rollback_statistics() -> None:
         )
 
         # Get statistics
+        # BUG FIX: both loops below used to be `pass` no-ops -- the
+        # per-type breakdown and per-component rollback counts were
+        # computed via real queries but never shown. Restored.
         stats = manager.get_rollback_statistics(hours=24)
+        print(
+            f"Rollback stats: {stats['rolled_back_changes']}/{stats['total_changes']} "
+            f"changes rolled back ({stats['rollback_rate']:.0%}).",
+        )
 
         if stats["changes_by_type"]:
-            for _counts in stats["changes_by_type"].values():
-                pass
+            print("Changes by type:")
+            for _change_type, _counts in stats["changes_by_type"].items():
+                print(
+                    f"  - {_change_type}: {_counts['total']} total, "
+                    f"{_counts['rolled_back']} rolled back",
+                )
 
         if stats["most_rolled_back_components"]:
+            print("Most rolled back components:")
             for _component in stats["most_rolled_back_components"][:5]:
-                pass
+                print(f"  - {_component['component_id']}: {_component['count']} rollback(s)")
 
         pool.close_all()
 
@@ -266,18 +299,29 @@ def example_change_history() -> None:
         manager.rollback_recent_changes(hours=24, component_ids=["strategy_0", "strategy_2"])
 
         # View history
+        # BUG FIX: this loop used to check `record.performance_before`/
+        # `record.performance_after` and discard both via `pass` -- the
+        # real per-record performance data was computed but never shown.
+        # A record status header was also added since the before/after
+        # prints are meaningless without identifying which record they
+        # belong to.
         history = manager.get_change_history(hours=24, include_rolled_back=True)
+        print(f"Change history ({len(history)} record(s), including rolled back):")
 
         for record in history:
+            status = "rolled back" if record.rolled_back else "active"
+            print(f"  - {record.component_id} ({record.change_type.value}, {status})")
             if record.performance_before:
-                pass
+                print(f"      before: {record.performance_before}")
             if record.performance_after:
-                pass
+                print(f"      after: {record.performance_after}")
 
         # View only active changes
+        # BUG FIX: this loop used to be `pass` -- restored.
         active_history = manager.get_change_history(hours=24, include_rolled_back=False)
+        print(f"Active (not rolled back) changes: {len(active_history)}")
         for _record in active_history:
-            pass
+            print(f"  - {_record.component_id}")
 
         pool.close_all()
 

@@ -93,8 +93,18 @@ class LangChainBenchmark(BaseBenchmark):
             return result
 
         except Exception as e:
-            # Return error message
-            return f"Error: {e!s}"
+            # BUG FIX: previously returned a non-None f"Error: {e!s}" string,
+            # which BaseBenchmark._check_success()'s default criterion (`result
+            # is not None`) silently counts as a SUCCESS -- a genuine exception
+            # during real LangChain agent execution was recorded as this
+            # framework succeeding at the task. autogen_benchmark.py and
+            # crewai_benchmark.py both correctly return None from the
+            # equivalent exception handler in their own real-framework code
+            # paths, which _check_success() correctly classifies as a failure.
+            # Logging the error for diagnostics and returning None aligns this
+            # wrapper with that established, correct convention.
+            logger.debug("LangChain agent execution failed: %s", e)
+            return None
 
     # Dispatch tables shared with AgentGuruBenchmark for consistency
     _TASK_DISPATCH: ClassVar[list[tuple[str, str]]] = [

@@ -173,12 +173,12 @@ def generate_final_validation_report() -> dict[str, Any]:
             ),
             "pass_rate": f"{(sum(1 for task, data in [('task_24_1', task_24_1.get('validation_passed', False)), ('task_24_2', task_24_2.get('validation_passed', False)), ('task_24_3', task_24_3.get('status') == 'PASSED'), ('task_24_4', task_24_4.get('status') == 'PASSED'), ('task_24_5', task_24_5.get('status') == 'PASSED'), ('task_24_6', task_24_6.get('status') == 'PASSED')] if data) / 6 * 100):.1f}%",
         },
-        "recommendations": generate_recommendations(validation_results),
+        "recommendations": generate_recommendations(validation_results, all_tasks_passed),
         "conclusion": generate_conclusion(all_tasks_passed, validation_results),
     }
 
 
-def generate_recommendations(validation_results: dict[str, Any]) -> list[str]:
+def generate_recommendations(validation_results: dict[str, Any], all_passed: bool) -> list[str]:
     """Generate recommendations based on validation results."""
     recommendations = []
 
@@ -215,10 +215,21 @@ def generate_recommendations(validation_results: dict[str, Any]) -> list[str]:
             "showing better decision-making",
         )
 
-    # General recommendations
-    recommendations.append(
-        "🚀 READY FOR PRODUCTION: All validation criteria met, system is ready for deployment",
-    )
+    # BUG FIX: this used to unconditionally claim the system was
+    # "READY FOR PRODUCTION" and that "All validation criteria met",
+    # even when one or more of the six validation tasks actually
+    # FAILED -- directly contradicting this same report's own computed
+    # overall_status. Now reflects the real, already-computed
+    # all_passed result instead of manufacturing a success claim.
+    if all_passed:
+        recommendations.append(
+            "🚀 READY FOR PRODUCTION: All validation criteria met, system is ready for deployment",
+        )
+    else:
+        recommendations.append(
+            "⛔ NOT READY FOR PRODUCTION: One or more validation criteria were not met -- "
+            "review the failing tasks above before deployment",
+        )
 
     recommendations.append(
         "📊 NEXT STEPS: Run with Git commits enabled to test version control integration",
@@ -295,8 +306,7 @@ This report summarizes the complete validation of the self-improvement engine's 
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Success Rate Improvement** | {report["key_metrics"]["success_rate_improvement"]} | {"✅ Exceeds 15% target" if float(report["key_metrics"]["success_rate_improvement"].rstrip("%")) >= 15 else "❌ Below target"} |  # noqa: PLR2004 - Threshold
-
+| **Success Rate Improvement** | {report["key_metrics"]["success_rate_improvement"]} | {"✅ Exceeds 15% target" if float(report["key_metrics"]["success_rate_improvement"].rstrip("%")) >= 15 else "❌ Below target"} |
 | **Execution Time Improvement** | {report["key_metrics"]["execution_time_improvement"]} | {"✅ Improved" if float(report["key_metrics"]["execution_time_improvement"].rstrip("%")) > 0 else "❌ No improvement"} |
 | **Reasoning Accuracy Improvement** | {report["key_metrics"]["reasoning_accuracy_improvement"]} | {"✅ Improved" if float(report["key_metrics"]["reasoning_accuracy_improvement"].rstrip("%")) > 0 else "❌ No improvement"} |
 | **System Stability** | {report["key_metrics"]["system_stability"]} | {"✅ Stable" if report["key_metrics"]["system_stability"] == "Stable" else "❌ Unstable"} |

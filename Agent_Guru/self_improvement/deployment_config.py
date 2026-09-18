@@ -6,7 +6,6 @@ engine in production environments.
 
 import os
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 
@@ -69,9 +68,19 @@ class DeploymentConfig:
             msg = "exploration_rate must be between 0 and 1"
             raise ValueError(msg)
 
-        # Create directories if they don't exist
-        Path(self.storage_path).parent.mkdir(parents=True, exist_ok=True)
-        Path(self.backup_path).mkdir(parents=True, exist_ok=True)
+        # BUG FIX: this used to unconditionally mkdir() storage_path's
+        # parent and backup_path here -- since PRODUCTION_CONFIG,
+        # STAGING_CONFIG, and DEVELOPMENT_CONFIG are all constructed
+        # at MODULE IMPORT TIME below, merely importing this module
+        # silently created directories on disk for all three
+        # environments regardless of which one is actually used, and
+        # could crash the whole process at import time if the current
+        # working directory isn't writable. Every actual storage-
+        # opening class in this codebase (e.g. database_schema.py's
+        # create_schema(), git_integration.py's queue_path setup)
+        # already creates its own parent directory right before it
+        # actually opens a file -- a plain configuration dataclass has
+        # no business doing this as a side effect of construction.
 
     @classmethod
     def from_environment(cls) -> "DeploymentConfig":

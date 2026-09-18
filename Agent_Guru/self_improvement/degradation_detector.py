@@ -215,7 +215,19 @@ class DegradationDetector:
             ) / historical.avg_execution_time_ms
             if execution_time_change > self.execution_time_threshold:
                 degraded_metrics.append(DegradationMetric.EXECUTION_TIME)
-                metric_changes["execution_time_change_pct"] = execution_time_change * 100
+                # BUG FIX: this used to store execution_time_change * 100
+                # (a percentage-point value, e.g. 25.0 for a 25% increase)
+                # under a key mixed into this SAME dict alongside every
+                # other metric's change, which are all raw fractions (e.g.
+                # -0.12 for a 12% drop) -- not percentages. Since
+                # _determine_severity() takes max(abs(v) for v in
+                # metric_changes.values()) and compares it against
+                # fractional thresholds shared by every metric, the ~100x
+                # scale mismatch made ANY execution-time degradation force
+                # severity to SEVERE whenever a critical metric also
+                # degraded, regardless of that metric's actual magnitude.
+                # Store the same fractional scale as every other metric.
+                metric_changes["execution_time_change"] = execution_time_change
 
         # Check reasoning quality
         reasoning_change = recent.avg_reasoning_quality - historical.avg_reasoning_quality
@@ -337,16 +349,30 @@ class DegradationDetector:
         """Calculate aggregate metrics from raw data rows."""
         success_values = [row[0] for row in rows]
         execution_times = [row[1] for row in rows]
-        reasoning_qualities = [row[2] for row in rows]
-        tool_selections = [row[3] for row in rows]
+        # BUG FIX: reasoning_quality and tool_selection_correct are both
+        # nullable columns in the metrics table schema (not every task
+        # gets a reasoning-quality score; tool_selection_correct doesn't
+        # apply when no tool was used) -- summing a list containing None
+        # raised TypeError, crashing degradation detection the moment any
+        # task in the window had either field unset, which is an entirely
+        # normal, schema-permitted occurrence. Filter out unset values and
+        # average only over the tasks where each metric was actually
+        # recorded, rather than crashing or mismatching numerator/
+        # denominator against the full window size.
+        reasoning_qualities = [row[2] for row in rows if row[2] is not None]
+        tool_selections = [row[3] for row in rows if row[3] is not None]
         hallucinations = [row[4] for row in rows]
         timestamps = [datetime.fromisoformat(row[5]) for row in rows]
 
         total = len(rows)
         success_rate = sum(success_values) / total if total > 0 else 0.0
         avg_execution_time = sum(execution_times) / total if total > 0 else 0.0
-        avg_reasoning_quality = sum(reasoning_qualities) / total if total > 0 else 0.0
-        tool_selection_rate = sum(tool_selections) / total if total > 0 else 0.0
+        avg_reasoning_quality = (
+            sum(reasoning_qualities) / len(reasoning_qualities) if reasoning_qualities else 0.0
+        )
+        tool_selection_rate = (
+            sum(tool_selections) / len(tool_selections) if tool_selections else 0.0
+        )
         hallucination_rate = sum(hallucinations) / total if total > 0 else 0.0
 
         return PerformanceWindow(

@@ -46,6 +46,19 @@ class ImprovementMonitor:
     """Monitors improvement metrics and triggers alerts.
 
     Tracks learning progress and alerts when improvement targets are not met.
+
+    BUG FIX: every task-execution query in this class used to reference
+    a table named "task_executions", which DatabaseSchema.create_schema()
+    never creates -- the real table is "metrics" (see database_schema.py
+    and performance_tracker.py's correct usage of it; this is the same
+    defect independently found in health_check.py, Round 75). Because
+    every method here catches its own exceptions, this never crashed --
+    it just meant check_performance_degradation() and
+    check_failure_rate() could NEVER detect a real degradation or
+    failure spike (their queries always failed silently, returning None
+    as if everything were fine), and get_dashboard_metrics() always
+    returned an error dict instead of real statistics. All "metrics"
+    table queries below have been corrected to match the real schema.
     """
 
     def __init__(
@@ -78,6 +91,19 @@ class ImprovementMonitor:
             with sqlite3.connect(self.storage_path) as conn:
                 cursor = conn.cursor()
 
+                # KNOWN ISSUE (not fixed this round): "improvement_reports"
+                # is not a table DatabaseSchema.create_schema() creates, and
+                # improvement_reporter.py (Round 76) has no logic that
+                # persists an ImprovementReport anywhere -- the real source
+                # of truth, if any, is still unidentified (likely
+                # self_improvement_engine.py, not yet audited). This query
+                # also selects columns that don't match
+                # ImprovementReport's real field names
+                # (recent_success_rate/total_tasks, not final_success_rate/
+                # task_count) -- further evidence this table was never
+                # actually implemented. Fails safely below (caught by this
+                # method's own except Exception) -- left as-is pending an
+                # audit of where improvement reports really live.
                 # Get latest improvement report
                 cursor.execute("""
                     SELECT
@@ -140,7 +166,7 @@ class ImprovementMonitor:
                     WITH recent AS (
                         SELECT AVG(CASE WHEN success = 1 THEN 1.0 ELSE 0.0 END) as rate
                         FROM (
-                            SELECT success FROM task_executions
+                            SELECT success FROM metrics
                             ORDER BY timestamp DESC
                             LIMIT 10
                         )
@@ -148,7 +174,7 @@ class ImprovementMonitor:
                     previous AS (
                         SELECT AVG(CASE WHEN success = 1 THEN 1.0 ELSE 0.0 END) as rate
                         FROM (
-                            SELECT success FROM task_executions
+                            SELECT success FROM metrics
                             ORDER BY timestamp DESC
                             LIMIT 20
                             OFFSET 10
@@ -210,7 +236,7 @@ class ImprovementMonitor:
                     SELECT
                         SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*)
                     FROM (
-                        SELECT success FROM task_executions
+                        SELECT success FROM metrics
                         ORDER BY timestamp DESC
                         LIMIT 100
                     )
@@ -289,7 +315,7 @@ class ImprovementMonitor:
                         COUNT(*) as total_tasks,
                         SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as success_rate,
                         AVG(execution_time_ms) as avg_time
-                    FROM task_executions
+                    FROM metrics
                 """)
                 total_tasks, success_rate, avg_time = cursor.fetchone()
 
@@ -299,13 +325,15 @@ class ImprovementMonitor:
                         SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as success_rate,
                         AVG(execution_time_ms) as avg_time
                     FROM (
-                        SELECT success, execution_time_ms FROM task_executions
+                        SELECT success, execution_time_ms FROM metrics
                         ORDER BY timestamp DESC
                         LIMIT 100
                     )
                 """)
                 recent_success, recent_time = cursor.fetchone()
 
+                # KNOWN ISSUE (not fixed this round): see check_improvement()
+                # above -- "improvement_reports" is not a real table.
                 # Latest improvement
                 cursor.execute("""
                     SELECT relative_improvement, timestamp
