@@ -34,7 +34,7 @@ name: CI - Agent Guru
 #
 #   * push and pull_request: the gate. Linux only - lint, security, mypy and
 #     pytest on Python 3.11, 3.12 and 3.13.
-#   * schedule (nightly) and workflow_dispatch (by hand): the platform run.
+#   * schedule (weekly) and workflow_dispatch (by hand): the platform run.
 #     pytest on Windows (3.11, 3.12, 3.13) and macOS (3.13) only.
 #
 # Why. GitHub bills Linux minutes 1x, Windows 2x and macOS 10x against a
@@ -56,9 +56,14 @@ name: CI - Agent Guru
 #
 # The Windows and macOS legs were already non-blocking (continue-on-error),
 # so 304 of every 361 minutes bought a signal that no pull request was gated
-# on. They now run nightly and on demand instead. Note that one platform run
-# costs the same 304 billed minutes, so a nightly schedule on its own spends
-# about 9,100 minutes a month: check the allowance before relying on it.
+# on. They now run weekly and on demand instead.
+#
+#   weekly platform run: 304 billed minutes x about 4.3 runs a month
+#                        = about 1,300 billed minutes a month
+#
+# That leaves about 1,700 minutes, roughly 30 Linux gate runs a month. Each
+# extra platform run triggered by hand costs another 304. A nightly schedule
+# would cost about 9,100 minutes a month, three times the allowance.
 # ---------------------------------------------------------------------------
 on:
   push:
@@ -66,8 +71,8 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    # 03:00 UTC nightly. Scheduled runs use the default branch.
-    - cron: "0 3 * * *"
+    # Sundays 03:00 UTC. Scheduled runs use the default branch.
+    - cron: "0 3 * * 0"
   workflow_dispatch:
 
 permissions:
@@ -75,7 +80,7 @@ permissions:
 
 # A new push to the same branch makes the previous run's result irrelevant.
 # Platform runs get their own group: they run on main too, and sharing the
-# group would let a push to main cancel a nightly run, or the reverse.
+# group would let a push to main cancel a weekly run, or the reverse.
 concurrency:
   group: >-
     ${{ github.workflow }}-${{ github.ref }}-${{
@@ -293,7 +298,7 @@ jobs:
   # Gate 3 - the actual test suite.
   # Blocking on Linux across the declared Python range, on every push and
   # pull request. Windows and macOS, which the README also calls
-  # production-ready, run in the platform run (nightly and on demand); see
+  # production-ready, run in the platform run (weekly and on demand); see
   # the cost note at the top of this file.
   #
   # The Windows and macOS legs are not a gate. The suite had never run in
