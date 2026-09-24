@@ -33,13 +33,17 @@ Version: 1.0.0
 import asyncio
 import functools
 import json
+import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from pydantic import BaseModel, Field
 
+from Agent_Guru.reasoning.llm.timeouts import intent_timeout
 from Agent_Guru.reasoning.models.intent import Entity
+
+logger = logging.getLogger(__name__)
 
 # Try to import LLM clients
 try:
@@ -64,6 +68,13 @@ except ImportError:
     anthropic_module = None
 
 
+
+# The providers LLMFallbackClassifier can actually drive. Ollama is local and
+# always available; the other two need the optional `cloud` extra
+# (`pip install agent-guru[cloud]`) and are rejected at classifier
+# construction when their SDK is absent.
+SUPPORTED_PROVIDERS = frozenset({"ollama", "openai", "anthropic"})
+
 @dataclass
 class LLMFallbackConfig:
     """Configuration for LLM fallback classifier.
@@ -74,7 +85,8 @@ class LLMFallbackConfig:
         api_key: API key for LLM provider (not needed for Ollama)
         ollama_host: Ollama server host (default: "127.0.0.1")
         ollama_port: Ollama server port (default: 11434)
-        timeout_ms: Timeout in milliseconds (1000ms for Ollama, 300ms for cloud)
+        timeout_ms: Per-call timeout in milliseconds. Defaults to the
+            AGENT_GURU_INTENT_TIMEOUT_SECONDS policy.
         max_retries: Maximum number of retries (3)
         temperature: Sampling temperature (0.0 for deterministic)
         max_tokens: Maximum tokens in response (512)
@@ -86,10 +98,49 @@ class LLMFallbackConfig:
     api_key: str | None = None
     ollama_host: str = "127.0.0.1"
     ollama_port: int = 11434
-    timeout_ms: float = 1000.0  # 1 second for local Ollama
+    # DEFECT FIX: this was a hard-coded 1000.0 with the comment "1 second
+    # for local Ollama". No local model classifies intent in one second on a
+    # CPU - loading and running even a small model takes far longer - so on
+    # the offline, GPU-less hardware this project is built for, the LLM
+    # fallback timed out on every single call and the classifier silently
+    # never had a fallback at all. The failure looked like "the fallback
+    # doesn't help", not like a misconfigured timeout.
+    timeout_ms: float = field(default_factory=lambda: intent_timeout() * 1000.0)
     max_retries: int = 3
     temperature: float = 0.0
     max_tokens: int = 512
+
+    def __post_init__(self) -> None:
+        """Reject a configuration that cannot work.
+
+        None of this was checked before. An unsupported provider name was
+        accepted here without complaint and only surfaced much later, from
+        LLMFallbackClassifier._initialize_client(), as
+        "Unsupported provider: <name>" - after the object had been passed
+        around, stored, maybe serialised. A typo belongs to the line that made
+        it, so it is caught at construction.
+        """
+        if self.provider not in SUPPORTED_PROVIDERS:
+            msg = (
+                f"Unsupported provider {self.provider!r}. "
+                f"Supported: {', '.join(sorted(SUPPORTED_PROVIDERS))}"
+            )
+            raise ValueError(msg)
+        if self.timeout_ms <= 0:
+            msg = f"timeout_ms must be positive, got {self.timeout_ms}"
+            raise ValueError(msg)
+        if self.max_retries < 0:
+            msg = f"max_retries cannot be negative, got {self.max_retries}"
+            raise ValueError(msg)
+        if not 0.0 <= self.temperature <= 2.0:
+            msg = f"temperature must be in [0.0, 2.0], got {self.temperature}"
+            raise ValueError(msg)
+        if self.max_tokens <= 0:
+            msg = f"max_tokens must be positive, got {self.max_tokens}"
+            raise ValueError(msg)
+        if not 1 <= self.ollama_port <= 65535:
+            msg = f"ollama_port must be in [1, 65535], got {self.ollama_port}"
+            raise ValueError(msg)
 
 
 class LLMIntentResponse(BaseModel):
@@ -247,9 +298,11 @@ Classify the following input:"""
         elif self.config.provider == "anthropic":
             self.client = anthropic.Anthropic(api_key=self.config.api_key)
         else:
+            # Unreachable through LLMFallbackConfig, which validates the
+            # name on construction; kept as a guard for a hand-mutated config.
             msg = (
                 f"Unsupported provider: {self.config.provider}. "
-                "Supported: ollama, openai, anthropic"
+                f"Supported: {', '.join(sorted(SUPPORTED_PROVIDERS))}"
             )
             raise ValueError(
                 msg,
@@ -304,32 +357,75 @@ Classify the following input:"""
                     provider=self.config.provider,
                 )
 
+            # BUG FIX: this was a single `except TimeoutError` whose body was
+            # duplicated -- the second copy passing error=str(e), which is the
+            # signature of a lost `except Exception` clause. Three things were
+            # broken by it:
+            #
+            #   1. A MALFORMED LLM RESPONSE was not caught at all.
+            #      _parse_response() raises ValueError for bad JSON or a
+            #      failed schema check (deliberately, "so caller can retry"),
+            #      but ValueError is not TimeoutError, so it propagated
+            #      straight out of classify_async(). On the intent path that
+            #      takes the whole turn down, instead of the UNKNOWN result
+            #      this method exists to produce.
+            #   2. `retries` was incremented TWICE per timeout, so the count
+            #      reported to callers and to _update_metrics was wrong.
+            #   3. The duplicated body slept twice, doubling the backoff.
             except TimeoutError as e:
+                if (result := await self._give_up_or_backoff(
+                    attempt, text, start_time, retries + 1, e,
+                )) is not None:
+                    return result
                 retries += 1
-                if attempt == self.config.max_retries - 1:
-                    # Final attempt failed, return UNKNOWN
-                    inference_time_ms = (time.perf_counter() - start_time) * 1000
-                    self._update_metrics(inference_time_ms, retries, success=False)
-                    return self._create_unknown_result(text, inference_time_ms, retries)
-                # Exponential backoff
-                await asyncio.sleep(0.1 * (2**attempt))
+
+            except Exception as e:
+                # Malformed response, schema failure, provider/transport error.
+                # Falling back to UNKNOWN is the entire point of this class:
+                # a classifier that raises is worse than one that says it does
+                # not know.
+                logger.warning(
+                    "LLM intent classification failed (attempt %d/%d): %s",
+                    attempt + 1,
+                    self.config.max_retries,
+                    e,
+                )
+                if (result := await self._give_up_or_backoff(
+                    attempt, text, start_time, retries + 1, e,
+                )) is not None:
+                    return result
                 retries += 1
-                if attempt == self.config.max_retries - 1:
-                    # Final attempt failed, return UNKNOWN
-                    inference_time_ms = (time.perf_counter() - start_time) * 1000
-                    self._update_metrics(inference_time_ms, retries, success=False)
-                    return self._create_unknown_result(
-                        text,
-                        inference_time_ms,
-                        retries,
-                        error=str(e),
-                    )
-                # Exponential backoff
-                await asyncio.sleep(0.1 * (2**attempt))
         # Should never reach here
         inference_time_ms = (time.perf_counter() - start_time) * 1000
         self._update_metrics(inference_time_ms, retries, success=False)
         return self._create_unknown_result(text, inference_time_ms, retries)
+
+    async def _give_up_or_backoff(
+        self,
+        attempt: int,
+        text: str,
+        start_time: float,
+        retries: int,
+        error: BaseException,
+    ) -> "LLMClassificationResult | None":
+        """Return an UNKNOWN result if attempts are exhausted, else back off.
+
+        Shared by every handler in classify_async()'s retry loop so the
+        give-up path cannot drift between them -- which is exactly how the
+        duplicated block this replaces came about.
+        """
+        if attempt >= self.config.max_retries - 1:
+            inference_time_ms = (time.perf_counter() - start_time) * 1000
+            self._update_metrics(inference_time_ms, retries, success=False)
+            return self._create_unknown_result(
+                text,
+                inference_time_ms,
+                retries,
+                error=str(error),
+            )
+        # Exponential backoff: 0.1s, 0.2s, 0.4s ...
+        await asyncio.sleep(0.1 * (2**attempt))
+        return None
 
     async def _call_llm_async(
         self,
@@ -394,7 +490,7 @@ Classify the following input:"""
             "format": "json",
         }
 
-        # asyncio.to_thread() propagates contextvars â€” preferred over run_in_executor
+        # asyncio.to_thread() propagates contextvars -- preferred over run_in_executor
         _post = functools.partial(
             requests.post,  # nosec B113
             f"{base_url}/api/generate",
@@ -424,7 +520,7 @@ Classify the following input:"""
             msg = "OpenAI client not initialized"
             raise RuntimeError(msg)
 
-        # asyncio.to_thread() propagates contextvars â€” preferred over run_in_executor
+        # asyncio.to_thread() propagates contextvars -- preferred over run_in_executor
         _create = functools.partial(
             self.client.chat.completions.create,  # type: ignore[union-attr]
             model=self.config.model,
@@ -454,7 +550,7 @@ Classify the following input:"""
             msg = "Anthropic client not initialized"
             raise RuntimeError(msg)
 
-        # asyncio.to_thread() propagates contextvars â€” preferred over run_in_executor
+        # asyncio.to_thread() propagates contextvars -- preferred over run_in_executor
         _create = functools.partial(
             self.client.messages.create,  # type: ignore[union-attr]
             model=self.config.model,
@@ -487,11 +583,11 @@ Classify the following input:"""
         text = text.removesuffix("```")
         text = text.strip()
 
-        # Parse JSON â€” raise ValueError on failure so caller can retry
+        # Parse JSON -- raise ValueError on failure so caller can retry
         try:
             response_data = json.loads(text)
         except json.JSONDecodeError as exc:
-            msg = f"LLM returned invalid JSON: {exc} â€” raw: {text[:200]}"
+            msg = f"LLM returned invalid JSON: {exc} -- raw: {text[:200]}"
             raise ValueError(msg) from exc
         # Validate with Pydantic
         try:
