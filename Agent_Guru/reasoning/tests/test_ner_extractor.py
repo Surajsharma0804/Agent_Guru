@@ -206,14 +206,15 @@ class TestModelLoading:
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     @patch("Agent_Guru.reasoning.intent.ner_extractor.spacy.load")
-    @patch("Agent_Guru.reasoning.intent.ner_extractor.spacy.require_gpu")
+    @patch("Agent_Guru.reasoning.intent.ner_extractor.spacy.prefer_gpu")
     def test_load_model_success_with_gpu(
-        self, mock_require_gpu, mock_spacy_load, temp_model_dir, mock_spacy_model
+        self, mock_prefer_gpu, mock_spacy_load, temp_model_dir, mock_spacy_model
     ):
         """Test successful model loading with GPU."""
-        # Setup mocks
+        # Setup mocks. load_model() requests the GPU through spacy.prefer_gpu(),
+        # which reports whether a GPU was activated.
         mock_spacy_load.return_value = mock_spacy_model
-        mock_require_gpu.return_value = None
+        mock_prefer_gpu.return_value = True
 
         config = NERConfig(
             model_path=str(temp_model_dir / "model"),
@@ -226,18 +227,19 @@ class TestModelLoading:
 
         # Verify
         assert extractor.nlp is not None  # nosec B101
-        mock_require_gpu.assert_called_once()
+        mock_prefer_gpu.assert_called_once()
+        assert extractor._gpu_active is True  # nosec B101
 
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy not available")
     @patch("Agent_Guru.reasoning.intent.ner_extractor.spacy.load")
-    @patch("Agent_Guru.reasoning.intent.ner_extractor.spacy.require_gpu")
+    @patch("Agent_Guru.reasoning.intent.ner_extractor.spacy.prefer_gpu")
     def test_load_model_gpu_fallback(
-        self, mock_require_gpu, mock_spacy_load, temp_model_dir, mock_spacy_model
+        self, mock_prefer_gpu, mock_spacy_load, temp_model_dir, mock_spacy_model
     ):
         """Test GPU fallback to CPU when GPU unavailable."""
         # Setup mocks
         mock_spacy_load.return_value = mock_spacy_model
-        mock_require_gpu.side_effect = Exception("GPU not available")
+        mock_prefer_gpu.side_effect = Exception("GPU not available")
 
         config = NERConfig(
             model_path=str(temp_model_dir / "model"),
@@ -249,8 +251,10 @@ class TestModelLoading:
         # Load model (should not raise)
         extractor.load_model()
 
-        # Verify
+        # Verify: the GPU error was handled and the model runs on CPU
         assert extractor.nlp is not None  # nosec B101
+        mock_prefer_gpu.assert_called_once()
+        assert extractor._gpu_active is False  # nosec B101
 
 
 # ============================================================================
