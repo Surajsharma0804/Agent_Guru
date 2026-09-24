@@ -47,6 +47,7 @@ Environment variable                    Governs
 ======================================  ==========================================
 ``AGENT_GURU_NUM_CTX``                  Context window sent with every request
 ``AGENT_GURU_NUM_GPU``                  Model layers Ollama is asked to put on GPU
+``AGENT_GURU_SPOKEN_REPLY_TOKENS``      Longest reply the voice pipeline generates
 ======================================  ==========================================
 
 ``OLLAMA_CONTEXT_LENGTH`` is deliberately NOT read. It configures the
@@ -96,6 +97,22 @@ MIN_NUM_CTX = 2048
 #: answer.
 DEFAULT_NUM_GPU = 99
 
+#: Longest reply, in tokens, the voice pipeline asks the model for.
+#:
+#: This was 400, which in practice meant no limit. Measured with the real
+#: system prompt on gemma3:4b, "tell me about the history of India" ran 228
+#: tokens, 163 words, about 65 s of speech, and 14-27 s of generation on a
+#: 4 GB laptop GPU. Every token is paid for twice, once in generation and again
+#: in speech, and the user can do nothing until both are over.
+#:
+#: 100 tokens is about 70 words, roughly 28 s of speech at a normal speaking
+#: rate. That leaves room for the 2-4 sentences the companion prompt asks for
+#: while bounding generation at about 3 s on a cool GPU and about 12 s on a
+#: throttled or CPU-only one. Short factual answers never reach it: "what is the
+#: capital of France" is 43 tokens. The orchestrator trims a capped reply back
+#: to its last full sentence, so the cap never ends speech mid-word.
+DEFAULT_SPOKEN_REPLY_TOKENS = 100
+
 
 def _env_int(name: str, default: int, minimum: int) -> int:
     """Read an integer from the environment, falling back on default.
@@ -129,6 +146,11 @@ def context_window() -> int:
 def gpu_layers() -> int:
     """Model layers Ollama is asked to offload to the GPU. 0 means CPU only."""
     return _env_int("AGENT_GURU_NUM_GPU", DEFAULT_NUM_GPU, 0)
+
+
+def spoken_reply_tokens() -> int:
+    """Longest reply, in tokens, the voice pipeline asks the model for."""
+    return _env_int("AGENT_GURU_SPOKEN_REPLY_TOKENS", DEFAULT_SPOKEN_REPLY_TOKENS, 1)
 
 
 def ollama_options(

@@ -153,7 +153,10 @@ class OllamaAdapter(ProviderAdapter):
             content=response["message"]["content"],
             model=request.model,
             provider=ModelProvider.OLLAMA,
-            finish_reason="stop",
+            # Was hard-coded "stop", so a reply cut off by num_predict looked
+            # finished and the voice pipeline spoke it mid-sentence. Ollama
+            # reports "length" when the cap ended it.
+            finish_reason=response.get("done_reason") or "stop",
             usage=TokenUsage(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
