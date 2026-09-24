@@ -1,17 +1,17 @@
-"""Agent_Guru/integration/orchestrator.py.
+﻿"""Agent_Guru/integration/orchestrator.py.
 
-IntegrationOrchestrator — wires all Agent Guru subsystems into a single unified
+IntegrationOrchestrator - wires all Agent Guru subsystems into a single unified
 pipeline and manages concurrent async startup.
 
 End-to-end pipeline (8 stages):
-  1. STT          — speech_engine.transcribe(audio)
-  2. Memory       — memory.retrieve(transcript)
-  3. Reasoning    — reasoning.analyze(transcript, memory_context)
-  4. LLM          — llm_runtime.infer(transcript, memory_context, reasoning_output)
-  5. Intent       — extracted from LLM response
-  6. Policy check — policy.evaluate(intent)
-  7. Action       — agent_orchestrator.execute(intent)  [only if policy allows]
-  8. TTS          — speech_engine.synthesize(response, personality)
+  1. STT          - speech_engine.transcribe(audio)
+  2. Memory       - memory.retrieve(transcript)
+  3. Reasoning    - reasoning.analyze(transcript, memory_context)
+  4. LLM          - llm_runtime.infer(transcript, memory_context, reasoning_output)
+  5. Intent       - extracted from LLM response
+  6. Policy check - policy.evaluate(intent)
+  7. Action       - agent_orchestrator.execute(intent)  [only if policy allows]
+  8. TTS          - speech_engine.synthesize(response, personality)
 
 Concurrent startup: asyncio.gather() initialises all subsystems in parallel so
 total startup time is bounded by the slowest subsystem, not their sum.
@@ -19,16 +19,16 @@ total startup time is bounded by the slowest subsystem, not their sum.
 Parallel vision/speech: handle_concurrent_event() dispatches both pipelines as
 independent asyncio tasks.
 
-This module is purely additive — no existing subsystem code is modified.
+This module is purely additive - no existing subsystem code is modified.
 
 Performance:
   - Time Complexity: O(1) orchestration overhead per pipeline stage
-  - Space Complexity: O(1) — fixed subsystem references
+  - Space Complexity: O(1) - fixed subsystem references
 
 Concurrency note (pipeline_mode):
   Speaker-verification outcome ("full" vs "restricted") is carried on the
   per-call PipelineResult and passed explicitly through _stage_action() /
-  _execute_single_action() as a parameter — never stored on `self`. Two
+  _execute_single_action() as a parameter - never stored on `self`. Two
   pipeline runs can be in flight at once (see handle_concurrent_event), so
   any safety-relevant flag stored on the shared instance would be a race
   condition. Passing it by value through the call chain avoids that.
@@ -110,7 +110,7 @@ class PipelineResult:
         action_result: Result of action execution from stage 7.
         tts_response: TTS audio/text from stage 8.
         personality: Personality used for this interaction.
-        pipeline_mode: "full" or "restricted" — set by speaker verification.
+        pipeline_mode: "full" or "restricted" - set by speaker verification.
             "restricted" means the speaking voice did not match the enrolled
             owner profile; destructive actions and memory writes are denied
             downstream, but the pipeline still responds conversationally
@@ -225,7 +225,7 @@ class IntegrationOrchestrator:
 
     """
 
-    # Explicit wildcard constants — intentional allow-all for the pipeline principal only.
+    # Explicit wildcard constants - intentional allow-all for the pipeline principal only.
     # These are NOT applied to any user-facing principal; only "guru_pipeline" is targeted.
     _PIPELINE_RESOURCES: tuple[str, ...] = ("*",)
     _PIPELINE_ACTIONS: tuple[str, ...] = ("*",)
@@ -266,45 +266,45 @@ class IntegrationOrchestrator:
         # the running loop, preventing RuntimeError on Python 3.10+.
         self._sleeping_lock: asyncio.Lock | None = None
 
-        # Intent recognizer — initialized lazily on first use
+        # Intent recognizer - initialized lazily on first use
         self._intent_recognizer: Any = None
 
-        # STT function cache — resolved once at startup
+        # STT function cache - resolved once at startup
         self._stt_fn: Callable | None = None
         self._stt_params: list[str] | None = None
 
-        # TTS function cache — resolved once at startup
+        # TTS function cache - resolved once at startup
         self._tts_fn: Callable | None = None
         self._tts_fn_type: str = "unknown"  # "array", "response", "bytes", or "unknown"
 
-        # Audit logger — records every pipeline execution
+        # Audit logger - records every pipeline execution
         self._audit_logger: AuditLogger = AuditLogger()
 
-        # Persistent browser manager — one Chrome instance, CDP reconnect
+        # Persistent browser manager - one Chrome instance, CDP reconnect
         self._browser_mgr: Any = None  # lazy-init on first YouTube command
 
-        # Reminder manager — handles "remind me in X minutes" commands
+        # Reminder manager - handles "remind me in X minutes" commands
         self._reminder_mgr: Any = None  # lazy-init on first reminder command
 
-        # User memory — persistent facts about the user (name, preferences, etc.)
+        # User memory - persistent facts about the user (name, preferences, etc.)
         self._user_memory: Any = None  # lazy-init on first use
 
-        # Emotion detector — persistent across pipeline calls for trend tracking
+        # Emotion detector - persistent across pipeline calls for trend tracking
         self._emotion_detector: Any = None  # lazy-init on first LLM call
 
-        # Empathy adapter — adapts responses for emotional state + distress support
+        # Empathy adapter - adapts responses for emotional state + distress support
         self._empathy_adapter: Any = None  # lazy-init alongside emotion detector
 
         # Last EmpathyAdapter.adapt_response() result and last detected emotion
         # label for this turn. Previously adapt_response() was called with an
-        # empty string and its return value discarded entirely — the tone/
+        # empty string and its return value discarded entirely - the tone/
         # pacing/vocabulary guidance it computes never reached the LLM prompt.
         # _build_system_prompt() now reads _last_adapted_response to add a
         # real tone instruction instead of throwing that computation away.
         self._last_adapted_response: Any = None
         self._last_emotion_hint: str = "neutral"
 
-        # Conversation history — last 12 exchanges (24 messages) for continuity.
+        # Conversation history - last 12 exchanges (24 messages) for continuity.
         # Without this, the LLM has no memory of what was said 10 seconds ago.
         # A companion must remember at least the recent conversation.
         # The token budget guard in _stage_llm handles overflow gracefully.
@@ -320,7 +320,7 @@ class IntegrationOrchestrator:
         # condition across concurrent pipeline runs even if fixed. See the
         # module docstring's "Concurrency note".
 
-        logger.info("IntegrationOrchestrator wired — all subsystems connected")
+        logger.info("IntegrationOrchestrator wired - all subsystems connected")
 
     # ------------------------------------------------------------------
     # Concurrent startup
@@ -334,7 +334,7 @@ class IntegrationOrchestrator:
 
         Total startup time ≤ max(individual init times) + scheduling overhead.
         """
-        logger.info("IntegrationOrchestrator.startup() — concurrent init begin")
+        logger.info("IntegrationOrchestrator.startup() - concurrent init begin")
 
         # Distribute GPU configs to subsystems that accept them
         whisper_cfg = self.gpu_pool.allocate("whisper")
@@ -342,7 +342,7 @@ class IntegrationOrchestrator:
         torch_cfg = self.gpu_pool.allocate("torch")
 
         logger.info(
-            "GPU configs — whisper: %s, onnx: %s, torch: %s",
+            "GPU configs - whisper: %s, onnx: %s, torch: %s",
             whisper_cfg.device,
             onnx_cfg.device,
             torch_cfg.device,
@@ -366,7 +366,7 @@ class IntegrationOrchestrator:
         # FIX: the filler-response cache (played in run_pipeline()'s
         # post-wake-word pause) was previously only ever lazily initialised
         # on the FIRST live wake-word event, inside the hot pipeline path.
-        # initialize() loads the Kokoro ONNX model + voice bank from disk —
+        # initialize() loads the Kokoro ONNX model + voice bank from disk -
         # exactly the kind of work this concurrent-startup phase exists to
         # absorb ahead of time. Warmed here instead so the very first
         # real interaction doesn't pay that load cost. _init_subsystem()
@@ -380,11 +380,11 @@ class IntegrationOrchestrator:
             coros.append(self._init_subsystem("filler_cache", _get_filler_cache_fn()))
         except Exception:
             logger.debug(
-                "Filler-response module unavailable — skipping cache warm-up",
+                "Filler-response module unavailable - skipping cache warm-up",
                 exc_info=True,
             )
 
-        # Concurrent initialisation — NOT sequential awaits
+        # Concurrent initialisation - NOT sequential awaits
         results = await asyncio.gather(*coros, return_exceptions=True)
 
         # P2-47: Log any subsystem startup failures instead of silently swallowing
@@ -401,7 +401,7 @@ class IntegrationOrchestrator:
         self._seed_default_policy()
 
         self._sleeping = False
-        logger.info("IntegrationOrchestrator.startup() — all subsystems ready")
+        logger.info("IntegrationOrchestrator.startup() - all subsystems ready")
 
     def _seed_default_policy(self) -> None:
         """Seed a default allow-all policy for the guru_pipeline principal.
@@ -414,7 +414,7 @@ class IntegrationOrchestrator:
             create_fn = getattr(self.policy, "create_policy", None)
             find_fn = getattr(self.policy, "find_policies", None)
             if create_fn is None:
-                return  # Not a real PolicyEngine — skip
+                return  # Not a real PolicyEngine - skip
 
             # Only seed if no policies exist yet
             if find_fn is not None:
@@ -445,7 +445,7 @@ class IntegrationOrchestrator:
             create_fn(policy)
             logger.info("Policy: seeded default allow policy for guru_pipeline")
         except Exception:
-            logger.exception("Policy seed failed — policy check will default to allow")
+            logger.exception("Policy seed failed - policy check will default to allow")
 
     async def _init_subsystem(self, name: str, subsystem: Any, device_cfg: Any = None) -> None:
         """Initialise a single subsystem, passing device_cfg if accepted."""
@@ -462,7 +462,7 @@ class IntegrationOrchestrator:
                 else:
                     await init()
             else:
-                # Synchronous initialize — run in executor to avoid blocking
+                # Synchronous initialize - run in executor to avoid blocking
                 loop = asyncio.get_running_loop()
                 if device_cfg is not None:
                     try:
@@ -473,7 +473,7 @@ class IntegrationOrchestrator:
                     await loop.run_in_executor(None, init)
             logger.debug("Subsystem '%s' initialised", name)
         except Exception as exc:
-            logger.exception("Subsystem '%s' init failed: %s — continuing", name, exc)
+            logger.exception("Subsystem '%s' init failed: %s - continuing", name, exc)
 
     # ------------------------------------------------------------------
     # Startup caches
@@ -542,20 +542,20 @@ class IntegrationOrchestrator:
     # ------------------------------------------------------------------
 
     async def sleep(self) -> None:
-        """Enter sleep mode — only wake word detection remains active."""
+        """Enter sleep mode - only wake word detection remains active."""
         if self._sleeping_lock is None:
             self._sleeping_lock = asyncio.Lock()
         async with self._sleeping_lock:
             self._sleeping = True
-        logger.info("IntegrationOrchestrator: sleep mode — wake word detection only")
+        logger.info("IntegrationOrchestrator: sleep mode - wake word detection only")
 
     async def wake(self) -> None:
-        """Exit sleep mode — all subsystems active."""
+        """Exit sleep mode - all subsystems active."""
         if self._sleeping_lock is None:
             self._sleeping_lock = asyncio.Lock()
         async with self._sleeping_lock:
             self._sleeping = False
-        logger.info("IntegrationOrchestrator: wake mode — all subsystems active")
+        logger.info("IntegrationOrchestrator: wake mode - all subsystems active")
 
     # ------------------------------------------------------------------
     # End-to-end pipeline
@@ -652,16 +652,16 @@ class IntegrationOrchestrator:
                 )
             except TimeoutError:
                 logger.debug(
-                    "Reasoning stage timed out (>%.1fs) — continuing without it",
+                    "Reasoning stage timed out (>%.1fs) - continuing without it",
                     REASONING_TIMEOUT_S,
                 )
                 result.reasoning_output = None
             except Exception:
-                logger.debug("Reasoning stage error — continuing without it")
+                logger.debug("Reasoning stage error - continuing without it")
                 result.reasoning_output = None
             result.stages_completed = 3
 
-            # Stage 5 (before 4): Intent detection — fast path
+            # Stage 5 (before 4): Intent detection - fast path
             try:
                 result.intent = await asyncio.wait_for(
                     self._stage_intent(result.transcript or ""), timeout=INTENT_TIMEOUT_S,
@@ -742,7 +742,7 @@ class IntegrationOrchestrator:
                 result.error = f"tts_timeout after {TTS_TIMEOUT_S:.1f}s"
             result.stages_completed = 8
 
-            # Track in chat history (single source of truth — see _llm_complete()
+            # Track in chat history (single source of truth - see _llm_complete()
             # for why the second, duplicate append that used to live there was
             # removed). Uses the real detected emotion for this turn instead of
             # the "neutral" placeholder this used to hardcode regardless of what
@@ -759,7 +759,7 @@ class IntegrationOrchestrator:
 
                 # Persist this turn to long-term memory. Previously self.memory
                 # was queried for recall on every turn (_stage_memory) but
-                # nothing ever fed it — store_interaction() was never called,
+                # nothing ever fed it - store_interaction() was never called,
                 # so retrieval always ran against an empty/stale store. See
                 # docs/audit/claude_companion_and_control_audit_2026-09-13.md.
                 # Bounded: the user already has their answer by this point, so
@@ -818,14 +818,14 @@ class IntegrationOrchestrator:
         if any(kw in transcript_lower[:30] for kw in ("maya", "hey maya", "hi maya")):
             if result.personality != Personality.MAYA:
                 logger.info(
-                    "Personality corrected: transcript starts with 'Maya' — "
+                    "Personality corrected: transcript starts with 'Maya' - "
                     "switching from GURU to MAYA",
                 )
                 result.personality = Personality.MAYA
         elif any(kw in transcript_lower[:30] for kw in ("guru", "hey guru", "hi guru")):
             if result.personality != Personality.GURU:
                 logger.info(
-                    "Personality corrected: transcript starts with 'Guru' — "
+                    "Personality corrected: transcript starts with 'Guru' - "
                     "switching from MAYA to GURU",
                 )
                 result.personality = Personality.GURU
@@ -972,7 +972,7 @@ class IntegrationOrchestrator:
     ) -> tuple[Any, PipelineResult]:
         """Dispatch vision and speech pipelines as parallel asyncio tasks.
 
-        Both pipelines run concurrently — total time ≤ max(vision, speech).
+        Both pipelines run concurrently - total time ≤ max(vision, speech).
 
         Args:
             vision_event: Video frame event for face recognition.
@@ -1015,7 +1015,7 @@ class IntegrationOrchestrator:
 
         Args:
             audio: Raw audio bytes (float32 PCM at 16kHz).
-            personality: Active personality (GURU or MAYA) — passed to STT
+            personality: Active personality (GURU or MAYA) - passed to STT
                          engine when it accepts a personality parameter.
 
         Returns:
@@ -1034,7 +1034,7 @@ class IntegrationOrchestrator:
                 logger.warning("STT: no transcription function found on speech engine")
                 return ("", "")
 
-            # Async STT functions (e.g. AsyncMock in tests) — call directly
+            # Async STT functions (e.g. AsyncMock in tests) - call directly
             if inspect.iscoroutinefunction(fn):
                 try:
                     result = await fn(audio)
@@ -1141,7 +1141,7 @@ class IntegrationOrchestrator:
                 lang_prob = getattr(result, "language_confidence", None)
             if lang_prob is not None and float(lang_prob) < 0.70:
                 logger.info(
-                    "STT: low language confidence (%.2f) for '%s' — defaulting to 'en'",
+                    "STT: low language confidence (%.2f) for '%s' - defaulting to 'en'",
                     float(lang_prob), raw_language,
                 )
                 language = "en"
@@ -1173,7 +1173,7 @@ class IntegrationOrchestrator:
         and the ReasoningEngine.process(RawInput) API used in production.
         """
         try:
-            # Prefer analyze() — used by mocks and simpler subsystems
+            # Prefer analyze() - used by mocks and simpler subsystems
             fn = getattr(self.reasoning, "analyze", None)
             if fn is not None:
                 if inspect.iscoroutinefunction(fn):
@@ -1205,7 +1205,7 @@ class IntegrationOrchestrator:
                     result = await loop.run_in_executor(None, process_fn, raw)
                 return result
             except ImportError:
-                # RawInput not available — call with transcript only
+                # RawInput not available - call with transcript only
                 if inspect.iscoroutinefunction(process_fn):
                     return await process_fn(transcript)
                 loop = asyncio.get_running_loop()
@@ -1214,7 +1214,7 @@ class IntegrationOrchestrator:
             logger.exception("Reasoning stage error")
             return None
 
-    # Known model knowledge cutoffs — class-level constant
+    # Known model knowledge cutoffs - class-level constant
     _KNOWN_CUTOFFS: ClassVar[dict[str, str]] = {
         "gemma3": "early 2025",
         "gemma2": "mid 2024",
@@ -1235,7 +1235,7 @@ class IntegrationOrchestrator:
     ) -> str:
         """Stage 4: LLM inference with enriched context."""
         try:
-            # Prefer infer() — used by mocks and simpler subsystems
+            # Prefer infer() - used by mocks and simpler subsystems
             fn = getattr(self.llm_runtime, "infer", None) or getattr(
                 self.llm_runtime, "execute", None,
             )
@@ -1293,6 +1293,7 @@ class IntegrationOrchestrator:
             ollama_model = os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
             system_prompt = self._build_system_prompt(
                 personality, emotion_hint, language_code, ollama_model,
+                transcript=transcript,
             )
 
             # Build message list with token-budgeted history
@@ -1307,7 +1308,7 @@ class IntegrationOrchestrator:
             llm_response = response.content or ""
 
             # NOTE: conversation history is recorded exactly once, in
-            # run_pipeline() after TTS finalizes the actually-spoken text —
+            # run_pipeline() after TTS finalizes the actually-spoken text -
             # this function used to *also* append here with the pre-TTS
             # llm_response, so every LLM-driven turn was written into
             # _chat_history twice (wasting half of the 12-exchange window on
@@ -1323,7 +1324,7 @@ class IntegrationOrchestrator:
         except Exception as e:
             ollama_model = os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
             logger.error(
-                "LLM stage: inference failed (model=%s): %s — "
+                "LLM stage: inference failed (model=%s): %s - "
                 "check Ollama is running and the model is pulled: "
                 "ollama pull %s",
                 ollama_model, e, ollama_model,
@@ -1383,7 +1384,7 @@ class IntegrationOrchestrator:
                 emotion_hint = _emo_state.emotion
                 logger.info("Emotion detected: %s (%.2f)", _emo_state.emotion, _emo_state.confidence)
             # Track for distress support AND capture the real adaptation (tone/
-            # pacing/vocabulary_level) instead of discarding it — this used to be
+            # pacing/vocabulary_level) instead of discarding it - this used to be
             # called with "" so the only thing that survived was _emo_state
             # itself (still needed for should_offer_support()'s 3-turn tracker).
             self._last_adapted_response = self._empathy_adapter.adapt_response(_raw_text, _emo_state)
@@ -1401,7 +1402,7 @@ class IntegrationOrchestrator:
     ) -> None:
         """Persist a completed turn to self.memory (best-effort, never raises).
 
-        Mirrors _stage_memory()'s duck-typed retrieval pattern below — same
+        Mirrors _stage_memory()'s duck-typed retrieval pattern below - same
         idea, opposite direction. self.memory (a MemoryManager instance in
         production, see main.py's _load_memory()) was being asked for recall
         every turn without ever being told what to remember; this is the
@@ -1449,8 +1450,15 @@ class IntegrationOrchestrator:
         emotion_hint: str,
         language_code: str,
         ollama_model: str,
+        transcript: str = "",
     ) -> str:
-        """Build the full system prompt with persona, emotion, distress, and language hints."""
+        """Build the full system prompt with persona, emotion, distress, and language hints.
+
+        `transcript` is what the user actually said this turn. It is read only
+        by the explicit self-harm check below, which deliberately does not go
+        through the emotion label -- see detect_crisis_language(). Defaults to
+        "" so existing callers keep working; the check simply does not fire.
+        """
         from Agent_Guru.llm.companion_prompts import build_companion_prompt
         from Agent_Guru.platform.features.user_memory import get_user_memory
 
@@ -1480,7 +1488,30 @@ class IntegrationOrchestrator:
                 f"You MUST respond in the same language. Do NOT respond in English."
             )
 
-        # Distress support (real 3-consecutive-turn escalation — see
+        # Explicit self-harm language in THIS turn. Checked before, and
+        # independently of, the multi-turn escalation below: that path needs
+        # three consecutive distress turns, so on its own it cannot answer a
+        # first message that says outright "I want to kill myself". This reads
+        # what the user said rather than the emotion label, which is why it
+        # works on turn one.
+        _crisis_now = False
+        try:
+            from Agent_Guru.llm.companion_prompts import (
+                build_crisis_block,
+                detect_crisis_language,
+            )
+
+            if transcript and detect_crisis_language(transcript):
+                _crisis_now = True
+                system_prompt += build_crisis_block(user_country)
+                logger.warning(
+                    "Crisis language detected in this turn - crisis guidance "
+                    "added to the system prompt",
+                )
+        except Exception:
+            logger.exception("Crisis-language check failed")
+
+        # Distress support (real 3-consecutive-turn escalation - see
         # EmpathyAdapter.should_offer_support(), whose DISTRESS_EMOTIONS set
         # correctly matches EmotionDetector's real labels, unlike the now-
         # removed dead "crisis" tier that used to live in
@@ -1488,22 +1519,26 @@ class IntegrationOrchestrator:
         # locale-appropriate helpline instead of offering generic support with
         # no actual resource attached.
         try:
-            if self._empathy_adapter and self._empathy_adapter.should_offer_support():
+            if (
+                not _crisis_now
+                and self._empathy_adapter
+                and self._empathy_adapter.should_offer_support()
+            ):
                 from Agent_Guru.llm.companion_prompts import resolve_crisis_resource
 
                 _crisis_resource = resolve_crisis_resource(user_country)
                 system_prompt += (
                     "\n\nIMPORTANT: The user has been in distress for multiple turns. "
-                    "Gently check in on them — ask how they're really doing. "
+                    "Gently check in on them - ask how they're really doing. "
                     "Offer genuine support, not generic platitudes. If they mention "
                     f"self-harm or feeling hopeless, gently suggest {_crisis_resource}."
                 )
-                logger.info("Distress support triggered — 3+ consecutive distress turns")
+                logger.info("Distress support triggered - 3+ consecutive distress turns")
         except Exception:
             logger.debug("Empathy adapter check failed", exc_info=True)
 
         # Tone/pacing guidance from EmpathyAdapter.adapt_response() (see
-        # _detect_emotion() — this used to be computed against an empty string
+        # _detect_emotion() - this used to be computed against an empty string
         # and its result discarded entirely, so it never reached the LLM).
         _adapted = getattr(self, "_last_adapted_response", None)
         if _adapted is not None and emotion_hint and emotion_hint != "neutral":
@@ -1567,7 +1602,7 @@ class IntegrationOrchestrator:
     async def _stage_intent(self, llm_response: str) -> str:
         """Stage 5: Extract structured intent from the user's transcript.
 
-        Uses rule-based recognition ONLY — never calls LLM for intent
+        Uses rule-based recognition ONLY - never calls LLM for intent
         classification. This avoids the 8-38s timeout from the intent
         recognizer's own LLM fallback.
 
@@ -1581,12 +1616,12 @@ class IntegrationOrchestrator:
             # Remove filler words, false starts, and noise that confuse the
             # multi-step splitter (e.g. "sorry, open edge" → "open edge")
             cleaned = self._clean_transcript(llm_response)
-            # Lazy-init intent recognizer — NO llm_manager so it stays rule-based only
+            # Lazy-init intent recognizer - NO llm_manager so it stays rule-based only
             if self._intent_recognizer is None:
                 from Agent_Guru.platform.intent_recognizer import IntentRecognizer
 
                 self._intent_recognizer = IntentRecognizer(
-                    llm_manager=None,  # Rule-based only — LLM handled by _stage_llm
+                    llm_manager=None,  # Rule-based only - LLM handled by _stage_llm
                 )
                 await self._intent_recognizer.initialize()
 
@@ -1631,7 +1666,7 @@ class IntegrationOrchestrator:
         _ACTION_VERBS in _split_multi_step either, so those commands
         currently fall through to conversational/LLM handling instead of
         being recognized as system_control intents. Extending this to the
-        rest of the multilingual language set is separate, larger scope —
+        rest of the multilingual language set is separate, larger scope -
         it needs per-language verb tables reviewed the same way the filler/
         reaction-rule connector tables do, not a quick patch here.
         """
@@ -1649,14 +1684,14 @@ class IntegrationOrchestrator:
             t = first_sentence
 
         # Remove wake word fragments (including all Whisper mishearings of "Hey Guru/Maya")
-        # Order matters — most specific patterns first
+        # Order matters - most specific patterns first
         wake_patterns = [
             # Full wake word variants (most specific)
             r"^(hey\s+|hi\s+|a\s+)?(guru|maya|himaya|hemaaya|hi\s*maya|hey\s*maya|hey\s*guru|he\s*maya|he\s*guru|give\s*maya|give\s*guru)\s*[,.]?\s*",
-            # "This is Maya" / "This is Guru" — Whisper adds "This is" prefix
+            # "This is Maya" / "This is Guru" - Whisper adds "This is" prefix
             r"^this\s+is\s+(maya|guru)\s*[,.]?\s*",
             # Standalone "He," or "Hey " at start (Whisper mishearing of "Hey")
-            # Only strip if followed by nothing or a comma — NOT if it's part of a word
+            # Only strip if followed by nothing or a comma - NOT if it's part of a word
             r"^he\s*,\s*",  # "He, open notepad" → "open notepad"
             r"^hey\s+",  # "Hey open" → "open"
         ]
@@ -1748,7 +1783,7 @@ class IntegrationOrchestrator:
             "open notepad and type hello world"
             → ["open notepad", "type hello world"]
 
-            "notepad and write" → ["notepad and write"]  (no split — "notepad" has no verb)
+            "notepad and write" → ["notepad and write"]  (no split - "notepad" has no verb)
 
         Only splits when EACH part starts with an action verb.
 
@@ -1784,14 +1819,14 @@ class IntegrationOrchestrator:
     async def _encode_single_intent(self, text: str) -> str:
         """Encode a single command text as 'intent_type:action:param:level'.
 
-        Always uses rule-based recognition only — never calls LLM for intent
+        Always uses rule-based recognition only - never calls LLM for intent
         classification. The main LLM (_stage_llm) handles questions/conversation.
         Using LLM here caused 8-38s timeouts for every command.
         """
         if not text or not text.strip():
             return ""
 
-        # Always use rule-based — fast (<5ms), accurate for all common commands.
+        # Always use rule-based - fast (<5ms), accurate for all common commands.
         # Low-confidence results (conversation/information) are handled by the
         # main LLM in _stage_llm, not by the intent classifier.
         rule_result = self._intent_recognizer._rule_engine.recognize(
@@ -1822,16 +1857,16 @@ class IntegrationOrchestrator:
         return encoded
 
     async def _stage_policy(self, intent: str) -> bool:
-        """Stage 6: Policy check — returns True if execution is allowed.
+        """Stage 6: Policy check - returns True if execution is allowed.
 
         Supports both:
-          - evaluate(intent) — simple API used in tests/mocks
-          - evaluate_policy(principal, resource, action) — full PolicyEngine API
+          - evaluate(intent) - simple API used in tests/mocks
+          - evaluate_policy(principal, resource, action) - full PolicyEngine API
 
         Defaults to True (allow) when policy engine is unavailable or a stub.
         """
         try:
-            # Prefer evaluate() — used by mocks and simpler subsystems
+            # Prefer evaluate() - used by mocks and simpler subsystems
             fn = getattr(self.policy, "evaluate", None)
             if fn is not None:
                 if inspect.iscoroutinefunction(fn):
@@ -1841,7 +1876,7 @@ class IntegrationOrchestrator:
                     decision = await loop.run_in_executor(None, fn, intent)
                 if hasattr(decision, "effect"):
                     return decision.effect.value.upper() == "ALLOW"
-                # MagicMock returns a truthy MagicMock — treat as allow
+                # MagicMock returns a truthy MagicMock - treat as allow
                 if hasattr(decision, "_mock_name"):
                     return True
                 return bool(decision)
@@ -1853,7 +1888,7 @@ class IntegrationOrchestrator:
                 None,
             )
             if eval_fn is None:
-                return False  # No policy engine — deny by default (secure)
+                return False  # No policy engine - deny by default (secure)
 
             try:
                 from Agent_Guru.policy.models import Principal, Resource
@@ -1875,9 +1910,9 @@ class IntegrationOrchestrator:
                     return decision.effect.value.upper() == "ALLOW"
                 return bool(decision)
             except ImportError:
-                return False  # Can't build Principal/Resource — deny by default (secure)
+                return False  # Can't build Principal/Resource - deny by default (secure)
         except Exception:
-            logger.exception("Policy stage error — defaulting to deny for safety")
+            logger.exception("Policy stage error - defaulting to deny for safety")
             return False  # Deny by default when policy check fails
 
     async def _stage_action(self, intent: str, pipeline_mode: str = "full") -> Any:
@@ -1891,7 +1926,7 @@ class IntegrationOrchestrator:
             intent: Encoded intent string (single or pipe-separated multi-step).
             pipeline_mode: "full" or "restricted". Determines whether
                 destructive actions and memory writes are permitted this
-                call. Passed through explicitly to _execute_single_action —
+                call. Passed through explicitly to _execute_single_action -
                 never read off `self`. See the module docstring's
                 "Concurrency note" for why.
 
@@ -1928,15 +1963,15 @@ class IntegrationOrchestrator:
         Fail-safe by design: if a live ConfirmationManager (wired with real
         TTS/STT callbacks) isn't available yet, this DENIES the action rather
         than proceeding. A logged "would confirm" comment is not a safety
-        gate — until the callback wiring exists, "can't confirm" must mean
+        gate - until the callback wiring exists, "can't confirm" must mean
         "don't do it," not "do it anyway and hope."
 
         Expects (soft-imported) Agent_Guru.platform.features.confirmation to
         expose a get_confirmation_manager() factory returning an object with:
-          - is_wired: bool — True once real speak/listen callbacks are injected
+          - is_wired: bool - True once real speak/listen callbacks are injected
           - request_confirmation(description: str) -> Awaitable[bool]
         If confirmation.py doesn't yet expose exactly that shape, this method
-        still fails safe (denies) rather than raising — but you'll want to
+        still fails safe (denies) rather than raising - but you'll want to
         add that factory/attribute so confirmed destructive actions actually
         become possible instead of always denied.
 
@@ -1960,7 +1995,7 @@ class IntegrationOrchestrator:
                 # "delete file") as a positional "description" argument.
                 # request_confirmation()'s real signature takes the RAW
                 # action name and does its own _ACTION_DESCRIPTIONS lookup
-                # internally (e.g. "delete_file" -> "delete this file") —
+                # internally (e.g. "delete_file" -> "delete this file") -
                 # passing the space-replaced version made that lookup miss,
                 # falling back to the less natural raw string. Pass the
                 # action unmodified so the intended human-readable prompt
@@ -1988,7 +2023,7 @@ class IntegrationOrchestrator:
             intent: Encoded intent string 'intent_type:action:param:level'.
             pipeline_mode: "full" or "restricted". Gates destructive actions
                 and memory writes for this call. Always passed explicitly by
-                the caller (_stage_action) — never read off `self`. See the
+                the caller (_stage_action) - never read off `self`. See the
                 module docstring's "Concurrency note".
         """
         if not intent:
@@ -2023,7 +2058,7 @@ class IntegrationOrchestrator:
                         return result
                 except AttributeError as exc:
                     logger.warning(
-                        "Agent orchestrator execute failed: %s — trying direct platform control",
+                        "Agent orchestrator execute failed: %s - trying direct platform control",
                         exc,
                     )
         except Exception:
@@ -2046,7 +2081,7 @@ class IntegrationOrchestrator:
 
             if intent_type not in ("system_control", "file_ops", "communication", "information"):
                 logger.info(
-                    "ACTION SKIPPED — intent_type=%r. Full intent: %r",
+                    "ACTION SKIPPED - intent_type=%r. Full intent: %r",
                     intent_type, safe_intent,
                 )
                 return None
@@ -2078,27 +2113,27 @@ class IntegrationOrchestrator:
             if is_destructive_action(action):
                 if pipeline_mode == "restricted":
                     logger.info(
-                        "Destructive action '%s' blocked — unverified speaker "
+                        "Destructive action '%s' blocked - unverified speaker "
                         "(restricted mode)", action,
                     )
                     return "Sorry, can't do that without verifying it's you."
 
                 confirmed = await self._confirm_destructive_action(action, safe_intent)
                 if not confirmed:
-                    return "Okay, cancelled — didn't do that."
+                    return "Okay, cancelled - didn't do that."
         except ImportError:
             if action in {
                 "delete_file", "delete_folder", "remove", "shutdown",
                 "restart", "uninstall", "format", "wipe", "empty_trash",
             }:
                 logger.warning(
-                    "confirmation module unavailable — denying destructive "
+                    "confirmation module unavailable - denying destructive "
                     "action '%s' for safety", action,
                 )
                 return "Sorry, I can't confirm that action right now, so I won't do it."
         except Exception:
-            logger.exception("Destructive-action gate failed — denying for safety")
-            return "Something went wrong checking that — I didn't do it, try again."
+            logger.exception("Destructive-action gate failed - denying for safety")
+            return "Something went wrong checking that - I didn't do it, try again."
         return None
 
     async def _detect_universal_features(
@@ -2170,14 +2205,14 @@ class IntegrationOrchestrator:
     async def _handle_presentation_request(self, raw_text: str) -> str | None:
         """Turn a source document into a .pptx, wiring
         platform.features.presentation.generate_presentation() into the
-        live pipeline (Round 10 — see that module's docstring for the full
+        live pipeline (Round 10 - see that module's docstring for the full
         rationale). Runs as a universal feature check, same as briefing/
         dictation/clipboard above, so it works regardless of what the
         rule-based intent recognizer would have classified this as.
 
         Returns None (not handled) when the transcript isn't asking for a
         presentation, or when it is but no source file could be identified
-        — in the latter case the conversational LLM gets a turn instead of
+        - in the latter case the conversational LLM gets a turn instead of
         this method guessing a file, since generating from the wrong file
         would be a worse outcome than asking a clarifying question.
         """
@@ -2204,15 +2239,15 @@ class IntegrationOrchestrator:
         from Agent_Guru.security.path_utils import safe_path
 
         try:
-            # Sandbox to the user's home directory — the same boundary
-            # reasoning/tools/system/file_operations.py uses (Round 8) — so
+            # Sandbox to the user's home directory - the same boundary
+            # reasoning/tools/system/file_operations.py uses (Round 8) - so
             # a spoken/transcribed command can't be used to read arbitrary
             # filesystem locations via path traversal.
             source_path = safe_path(source_ref, Path.home())
         except ValueError:
             return (
                 f"I can only build presentations from files under your home "
-                f"folder — {self._sanitize_output(source_ref)} is outside that."
+                f"folder - {self._sanitize_output(source_ref)} is outside that."
             )
 
         logger.info("ACTION: create_presentation(%r)", str(source_path))
@@ -2290,24 +2325,24 @@ class IntegrationOrchestrator:
         _ack_map = {
             "name": f"Nice to meet you, {_sval}! I'll remember that.",
             "nickname": f"Alright {_sval}! That's what I'll call you from now on.",
-            "location": f"{_sval} — cool, I'll keep that in mind.",
+            "location": f"{_sval} - cool, I'll keep that in mind.",
             "occupation": f"That's awesome. I'll remember you're into {_sval}.",
-            "age": f"Got it — {_sval}. I'll remember.",
-            "current_project": f"Nice — {_sval} sounds interesting. Keep me posted on how it goes.",
+            "age": f"Got it - {_sval}. I'll remember.",
+            "current_project": f"Nice - {_sval} sounds interesting. Keep me posted on how it goes.",
             "current_goal": f"Love that. I'll remember you're working toward {_sval}.",
             "hobbies": f"Good taste! I'll remember you're into {_sval}.",
             "interests": "That's interesting! I'll keep that in mind.",
             "friends": "Cool, I'll remember that.",
             "family": "Got it, thanks for sharing that.",
-            "preferred_language": f"{_sval} — got it, I'll keep that in mind.",
-            "communication_style": f"Understood — I'll adjust to a {_sval} style.",
+            "preferred_language": f"{_sval} - got it, I'll keep that in mind.",
+            "communication_style": f"Understood - I'll adjust to a {_sval} style.",
             "code_mixing": "Switched! I'll talk to you in English only from now on." if value == "english" else "Chal done! Hinglish mein baat karenge ab.",
         }
         if key.startswith("custom_fact_"):
             if _lang == "hinglish":
-                return f"done, yaad rakh liya — {_sval}"
-            return f"noted — {_sval}"
-        return _ack_map.get(key, "Noted — I'll keep that in mind.")
+                return f"done, yaad rakh liya - {_sval}"
+            return f"noted - {_sval}"
+        return _ack_map.get(key, "Noted - I'll keep that in mind.")
 
     async def _dispatch_action(
         self, action: str, intent_type: str, param: str, level_str: str,
@@ -2345,7 +2380,7 @@ class IntegrationOrchestrator:
             if fn:
                 await asyncio.to_thread(fn, param)
                 return "Typed text"
-            return "Cannot type — controller unavailable"
+            return "Cannot type - controller unavailable"
 
         # Shutdown / Restart
         if action in ("shutdown", "restart"):
@@ -2353,7 +2388,7 @@ class IntegrationOrchestrator:
             if fn:
                 await asyncio.to_thread(fn, confirmed=True)
                 return f"System {action} initiated"
-            return f"Cannot {action} — controller unavailable"
+            return f"Cannot {action} - controller unavailable"
 
         # Intent-type-based dispatch
         _type_handlers: dict[str, Any] = {
@@ -2381,7 +2416,7 @@ class IntegrationOrchestrator:
             return f"Opening {safe_param} for you! What are we doing?"
         err = getattr(result, "error", "unknown error")
         logger.error("Failed to open '%s': %s", param, err)
-        return f"Hmm, couldn't open {safe_param} — let me know if you wanna try something else"
+        return f"Hmm, couldn't open {safe_param} - let me know if you wanna try something else"
 
     async def _action_close_app(self, ctrl: Any, param: str) -> str:
         param = param.rstrip(".,!?;:")
@@ -2394,12 +2429,12 @@ class IntegrationOrchestrator:
             else f"Failed to close {safe_param}"
         )
 
-    # Known URL map — class-level to avoid re-creating per call
+    # Known URL map - class-level to avoid re-creating per call
     # NOTE: the site-name → URL table used to live here as a 60+-entry
     # `_URL_MAP`, duplicating (and drifting from) platform/os_controller.py's
     # own 15-entry `_shortcuts` and a third, separate registry in
     # platform/browser_manager.py. All three have been consolidated into
-    # browser_manager._SITE_REGISTRY (consolidated 2026-09-13) — see that
+    # browser_manager._SITE_REGISTRY (consolidated 2026-09-13) - see that
     # module for the merged table and conflict resolutions. Both this method
     # and OSController._resolve_url() now delegate to
     # browser_manager._resolve_site_url() instead of keeping their own copy.
@@ -2421,17 +2456,17 @@ class IntegrationOrchestrator:
         from Agent_Guru.platform.browser_manager import _resolve_site_url
 
         # _resolve_site_url() covers: known site names (the merged registry),
-        # and anything already shaped like a URL (http(s):// or www.) — safe
+        # and anything already shaped like a URL (http(s):// or www.) - safe
         # by construction, since it only ever returns those two forms.
         target_url = _resolve_site_url(param)
         if not target_url:
             if "." in param and " " not in param:
-                # Bare domain name (e.g. "example.com") — not in the
+                # Bare domain name (e.g. "example.com") - not in the
                 # registry and no scheme/www prefix for _resolve_site_url
                 # to recognize, but still clearly a domain.
                 target_url = param if param.startswith("http") else f"https://{param}"
             else:
-                # Unrecognized site name — best-effort guess, same
+                # Unrecognized site name - best-effort guess, same
                 # fallback behavior this method has always had.
                 target_url = f"https://www.{param_lower.replace(' ', '')}.com"
 
@@ -2443,14 +2478,14 @@ class IntegrationOrchestrator:
         # plain webbrowser.open(), which always behaves like a fresh,
         # disconnected request. Falls back to ctrl.open_url (webbrowser.open)
         # if the persistent browser can't start for any reason, so "open X"
-        # still does something either way — never a silent no-op.
+        # still does something either way - never a silent no-op.
         try:
             mgr = await self._get_browser_mgr()
             await mgr.open_url(target_url)
             return f"Opening {self._sanitize_output(param)}"
         except Exception:
             logger.exception(
-                "Persistent BrowserManager failed for open_url(%s) — falling back to "
+                "Persistent BrowserManager failed for open_url(%s) - falling back to "
                 "plain webbrowser.open()", target_url,
             )
 
@@ -2458,7 +2493,7 @@ class IntegrationOrchestrator:
         if fn:
             await asyncio.to_thread(fn, target_url)
             return f"Opening {self._sanitize_output(param)}"
-        return f"Cannot open {self._sanitize_output(param)} — browser unavailable"
+        return f"Cannot open {self._sanitize_output(param)} - browser unavailable"
 
     async def _action_web_search(self, ctrl: Any, param: str, level_str: str) -> str:
         query = param.strip()
@@ -2473,7 +2508,7 @@ class IntegrationOrchestrator:
                 return f"Playing {self._sanitize_output(query)} on YouTube"
             except Exception as yt_exc:
                 logger.exception(
-                    "YouTube auto-play failed (%s) — opening search page instead", yt_exc,
+                    "YouTube auto-play failed (%s) - opening search page instead", yt_exc,
                 )
                 search_url = "https://www.youtube.com/results?search_query=" + _up.quote_plus(query)
                 fn = getattr(ctrl, "open_url", None)
@@ -2481,7 +2516,7 @@ class IntegrationOrchestrator:
                     await asyncio.to_thread(fn, search_url)
                 return f"Opening YouTube search for {self._sanitize_output(query)}"
 
-        # Prefer the persistent BrowserManager here too — same tab-reuse
+        # Prefer the persistent BrowserManager here too - same tab-reuse
         # rationale as _action_open_url(), and it shares the exact same
         # engine URLs (see browser_manager.py's search_and_open()) so
         # there's one source of truth for how a search URL gets built.
@@ -2491,7 +2526,7 @@ class IntegrationOrchestrator:
             return f"Searching for {self._sanitize_output(query)} on {engine}"
         except Exception:
             logger.exception(
-                "Persistent BrowserManager failed for web_search(%s) — falling back to "
+                "Persistent BrowserManager failed for web_search(%s) - falling back to "
                 "plain webbrowser.open()", query,
             )
 
@@ -2504,7 +2539,7 @@ class IntegrationOrchestrator:
         if fn:
             await asyncio.to_thread(fn, search_url)
             return f"Searching for {self._sanitize_output(query)} on {engine}"
-        return "Cannot search — controller unavailable"
+        return "Cannot search - controller unavailable"
 
     async def _action_volume(
         self, ctrl: Any, param: str, level_str: str, loop: Any,
@@ -2804,7 +2839,7 @@ class IntegrationOrchestrator:
                     frames = wf.readframes(wf.getnframes())
                 audio_array = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
             elif isinstance(wav_bytes, (bytes, bytearray)):
-                # Short bytes (e.g. b"<audio>" from mock) — return sentinel
+                # Short bytes (e.g. b"<audio>" from mock) - return sentinel
                 return wav_bytes, sample_rate  # type: ignore[return-value]
 
         return audio_array, sample_rate
@@ -2829,16 +2864,16 @@ class IntegrationOrchestrator:
                     else PersonalityType.GURU
                 )
             except ImportError:
-                pt = personality  # fallback — pass as-is
+                pt = personality  # fallback - pass as-is
             audio_array: Any = None
             sample_rate = 22050
 
-            # Build ordered candidate list — cached fn first, then runtime probes
+            # Build ordered candidate list - cached fn first, then runtime probes
             tts_eng = getattr(self.speech_engine, "tts_engine", None)
             if self._tts_fn is not None:
                 candidates = [(self._tts_fn, self._tts_fn_type)]
             else:
-                # startup() was not called — probe at call time
+                # startup() was not called - probe at call time
                 candidates = [
                     (
                         getattr(self.speech_engine, "synthesize_to_array", None)
@@ -2885,12 +2920,12 @@ class IntegrationOrchestrator:
                     await loop.run_in_executor(None, _play)
                     logger.info("TTS played: %.1fs of audio", len(audio_array) / sample_rate)
                 except ImportError:
-                    # BUG-FIX: sounddevice missing was silently swallowed — the
+                    # BUG-FIX: sounddevice missing was silently swallowed - the
                     # TTS audio was synthesized but never played, so the user
                     # heard nothing. Now falls back to pyttsx3 (always available
                     # on Windows/macOS/Linux) so the reply is always spoken.
                     logger.exception(
-                        "sounddevice not installed — falling back to pyttsx3 TTS. "
+                        "sounddevice not installed - falling back to pyttsx3 TTS. "
                         "For best audio quality: pip install sounddevice",
                     )
                     try:
@@ -2926,7 +2961,7 @@ class IntegrationOrchestrator:
                         logger.info("TTS played via pyttsx3 fallback")
                     except Exception as tts_exc:
                         logger.error(
-                            "TTS playback failed (sounddevice + pyttsx3 both unavailable): %s — "
+                            "TTS playback failed (sounddevice + pyttsx3 both unavailable): %s - "
                             "install sounddevice: pip install sounddevice",
                             tts_exc,
                         )
@@ -2966,7 +3001,7 @@ class IntegrationOrchestrator:
 
         Uses shlex.quote() to prevent shell injection when passing
         user-controlled strings to subprocess, win32api, or os.system.
-        Always use this — not _sanitize_output — for OS command params.
+        Always use this - not _sanitize_output - for OS command params.
 
         Args:
             text: Raw user input or parameter.
@@ -3000,7 +3035,7 @@ class IntegrationOrchestrator:
         """Return True if this intent requires an LLM response.
 
         System control commands (open app, volume, screenshot, web search, etc.)
-        do NOT need LLM — the action confirmation IS the response.
+        do NOT need LLM - the action confirmation IS the response.
 
         Conversation and information intents DO need LLM to generate an answer.
 
