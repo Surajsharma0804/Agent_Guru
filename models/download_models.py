@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-Agent Guru — Production Model Downloader
+Agent Guru - Production Model Downloader
 =========================================
 Downloads all required ONNX model files from their official sources.
 
@@ -31,13 +31,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import logging
-import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -116,7 +115,7 @@ def _export_midas() -> None:
 
     # Official pre-built ONNX from isl-org/MiDaS GitHub releases
     mirrors = [
-        # v2.1 small — 256×256, ~83 MB, officially supported ONNX
+        # v2.1 small - 256×256, ~83 MB, officially supported ONNX
         "https://github.com/isl-org/MiDaS/releases/download/v2_1/model-small.onnx",
         # Mirror via HuggingFace
         "https://huggingface.co/Intel/dpt-large/resolve/main/onnx/model.onnx",
@@ -131,7 +130,7 @@ def _export_midas() -> None:
             log.warning("Mirror failed (%s): %s", url, exc)
 
     # Final fallback: export MiDaS v2.1 small via torch.hub (exportable model)
-    log.info("All mirrors failed — exporting MiDaS v2.1 small via torch.hub …")
+    log.info("All mirrors failed - exporting MiDaS v2.1 small via torch.hub …")
     try:
         import torch  # type: ignore[import]
     except ImportError:
@@ -205,7 +204,13 @@ def _export_trocr() -> None:
     log.info("Exporting TrOCR encoder directly via torch.onnx.export …")
     try:
         import torch  # type: ignore[import]
-        from transformers import TrOCRProcessor, VisionEncoderDecoderModel  # type: ignore[import]
+        # TrOCRProcessor is imported to prove the transformers install is
+        # complete before the long export below starts, not to be called
+        # here -- hence the F401 suppression rather than a deletion.
+        from transformers import (  # type: ignore[import]  # noqa: F401
+            TrOCRProcessor,
+            VisionEncoderDecoderModel,
+        )
     except ImportError as exc:
         raise RuntimeError(f"transformers / torch required for TrOCR export: {exc}")
 
@@ -264,7 +269,7 @@ def _export_liveness_minifasnet() -> None:
             log.warning("Mirror failed (%s): %s", url, exc)
 
     # Final fallback: clone repo and export from .pth weights
-    log.info("All mirrors failed — attempting PyTorch export of MiniFASNetV2 …")
+    log.info("All mirrors failed - attempting PyTorch export of MiniFASNetV2 …")
     try:
         import torch  # type: ignore[import]
     except ImportError:
@@ -333,7 +338,10 @@ def _export_scene_efficientnet() -> None:
 
     try:
         import torch  # type: ignore[import]
-        import torchvision  # type: ignore[import]
+        # Imported for its side effect of proving torchvision is present
+        # and ABI-compatible with this torch build; the export below
+        # fails obscurely otherwise.
+        import torchvision  # type: ignore[import]  # noqa: F401
     except ImportError:
         raise RuntimeError("PyTorch + torchvision required to export scene model.")
 
@@ -369,12 +377,12 @@ def _export_scene_efficientnet() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Model registry — ordered by download size (smallest first)
+# Model registry - ordered by download size (smallest first)
 # ---------------------------------------------------------------------------
 
 MODEL_REGISTRY: list[ModelSpec] = [
     # ------------------------------------------------------------------
-    # YOLOv8n — object detection
+    # YOLOv8n - object detection
     # ------------------------------------------------------------------
     ModelSpec(
         name="yolov8n",
@@ -387,14 +395,14 @@ MODEL_REGISTRY: list[ModelSpec] = [
         export_fn=_export_yolov8n,  # fallback if direct URL fails
     ),
     # ------------------------------------------------------------------
-    # ArcFace R100 — face recognition
+    # ArcFace R100 - face recognition
     # ------------------------------------------------------------------
     ModelSpec(
         name="arcface",
         filename="arcface_r100.onnx",
         description="ArcFace R100 face recognition (InsightFace buffalo_l)",
         size_mb=248.0,
-        # InsightFace model zoo — buffalo_l pack
+        # InsightFace model zoo - buffalo_l pack
         url=(
             "https://github.com/deepinsight/insightface/releases/download/"
             "v0.7/buffalo_l.zip"
@@ -403,7 +411,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         export_fn=None,
     ),
     # ------------------------------------------------------------------
-    # Emotion — HSEmotion 7-class
+    # Emotion - HSEmotion 7-class
     # ------------------------------------------------------------------
     ModelSpec(
         name="emotion",
@@ -417,14 +425,14 @@ MODEL_REGISTRY: list[ModelSpec] = [
         sha256=None,
     ),
     # ------------------------------------------------------------------
-    # Liveness — MiniFASNet anti-spoofing
+    # Liveness - MiniFASNet anti-spoofing
     # ------------------------------------------------------------------
     ModelSpec(
         name="liveness",
         filename="liveness_minifasnet.onnx",
         description="MiniFASNet anti-spoofing liveness detection",
         size_mb=1.0,
-        # Hugging Face mirror — more stable than the GitHub raw path
+        # Hugging Face mirror - more stable than the GitHub raw path
         url=(
             "https://huggingface.co/datasets/Gourieff/ReActor/resolve/main/"
             "models/liveness/2.7_80x80_MiniFASNetV2.onnx"
@@ -433,7 +441,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         export_fn=_export_liveness_minifasnet,
     ),
     # ------------------------------------------------------------------
-    # MiDaS v2.1 small — monocular depth
+    # MiDaS v2.1 small - monocular depth
     # ------------------------------------------------------------------
     ModelSpec(
         name="midas",
@@ -444,7 +452,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         export_fn=_export_midas,
     ),
     # ------------------------------------------------------------------
-    # TrOCR — handwriting recognition
+    # TrOCR - handwriting recognition
     # ------------------------------------------------------------------
     ModelSpec(
         name="trocr",
@@ -455,7 +463,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         export_fn=_export_trocr,
     ),
     # ------------------------------------------------------------------
-    # Scene EfficientNet — scene classification
+    # Scene EfficientNet - scene classification
     # ------------------------------------------------------------------
     ModelSpec(
         name="scene",
