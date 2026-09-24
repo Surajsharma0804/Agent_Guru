@@ -1,4 +1,4 @@
-"""Module: agent_guru.goal_manager.goal_storage
+﻿"""Module: agent_guru.goal_manager.goal_storage
 Purpose: Persistent storage for goals using SQLite with ACID transactions.
 
 This module implements the storage layer for the Goal Manager system,
@@ -60,7 +60,7 @@ class GoalStorage:
     Space Complexity: O(n) where n is number of goals
 
     Concurrency (BUG FIX note): every public method here is declared
-    `async def`, but the underlying sqlite3 driver is synchronous — the
+    `async def`, but the underlying sqlite3 driver is synchronous - the
     actual DB work used to run inline on whatever thread called it, meaning
     every store/update/get/query blocked the calling event loop for the
     full duration of the SQLite call. Since GoalStorage is the module every
@@ -70,7 +70,7 @@ class GoalStorage:
     method's DB work now runs via `asyncio.to_thread()` so it executes on a
     worker thread instead. The connection was already created with
     `check_same_thread=False` and already guarded by `self._lock` (a real
-    `threading.RLock`, correct for cross-OS-thread synchronization) — both
+    `threading.RLock`, correct for cross-OS-thread synchronization) - both
     were already correctly chosen for a connection shared across threads,
     they just weren't being given other threads to actually run on.
 
@@ -115,7 +115,7 @@ class GoalStorage:
             db_p.parent.mkdir(parents=True, exist_ok=True)
             # _data_dir is the validated parent; used by export/import helpers.
             self._data_dir: Path = intended_parent
-            # Use the fully-resolved absolute path — never the raw user input.
+            # Use the fully-resolved absolute path - never the raw user input.
             connect_path: str = resolved.as_posix()
         else:
             self._data_dir = Path.cwd()
@@ -148,8 +148,21 @@ class GoalStorage:
             self._conn.close()
 
     def __del__(self) -> None:
-        """Ensure connection is closed on garbage collection."""
-        self.close()
+        """Last-resort finalizer; see AgentStorage.__del__ for the rationale.
+
+        close() is not reused here: it suppresses only sqlite3.Error, and a
+        half-constructed instance (an __init__ that raised before _conn was
+        assigned) would make this raise AttributeError during garbage
+        collection.
+        """
+        conn = getattr(self, "_conn", None)
+        if conn is None:
+            return
+        # contextlib.suppress rather than try/except/pass: a finalizer
+        # must never raise, and this form says so without an inline
+        # scanner suppression.
+        with contextlib.suppress(Exception):
+            conn.close()
 
     # ------------------------------------------------------------------
     # Path helpers
@@ -174,7 +187,7 @@ class GoalStorage:
         return resolved
 
     async def initialize(self) -> None:
-        """Async initialization (no-op — schema already created in __init__).
+        """Async initialization (no-op - schema already created in __init__).
 
         Provided for API compatibility with tests that call
         ``await storage.initialize()`` before use.
@@ -185,7 +198,7 @@ class GoalStorage:
     async def update_goal_status(self, goal_id: str, status: "GoalStatus") -> None:
         """Update only the status field of a goal.
 
-        Time Complexity: O(1) — single indexed UPDATE
+        Time Complexity: O(1) - single indexed UPDATE
         Space Complexity: O(1)
 
         Args:
@@ -435,7 +448,7 @@ class GoalStorage:
                 )
 
                 if cursor.rowcount == 0:
-                    # BUG FIX: see update_goal_status() — raising without a
+                    # BUG FIX: see update_goal_status() - raising without a
                     # rollback here left a dangling open transaction on the
                     # shared persistent connection (sqlite3 auto-starts one
                     # on the UPDATE even though it matched 0 rows).
