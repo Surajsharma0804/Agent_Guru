@@ -1,4 +1,4 @@
-"""
+﻿"""
 Comprehensive Property-Based Tests for Core Reasoning Engine
 =============================================================
 
@@ -485,7 +485,7 @@ class TestLatencyProperties:
         # Start stage
         timer = controller.start_stage(stage)
         
-        # Simulate a tiny amount of work — we only need to verify that the
+        # Simulate a tiny amount of work - we only need to verify that the
         # controller records metrics, not that it's accurate at large scales.
         # Cap at 10ms so 100 examples finish in <1s total.
         time.sleep(min((budget_ms + 100) / 1000.0, 0.01))
@@ -552,36 +552,65 @@ class TestErrorHandlingProperties:
     def test_property_25_fallback_strategies_are_applied(self, error_type: ErrorType, fallback: FallbackStrategy):
         """
         Property 25: Fallback strategies are applied
-        
+
         For any known error type, the registered fallback strategy must
         be applied automatically.
+
+        NOTE: this test previously asserted NOTHING. It constructed a
+        FallbackRegistry and an error, discarded both (`FallbackRegistry()` on
+        a bare line, `error` assigned and never read), and then ran
+        `assert True` in both branches of its if/else. It passed for every
+        input no matter how broken the fallback machinery was, while
+        reporting that "Property 25" was validated. It now actually drives
+        FallbackRegistry.handle_error() and checks the outcome.
         """
-        FallbackRegistry()
-        
-        # Create error manager error
+        import asyncio as _asyncio
+
+        registry = FallbackRegistry()
+
         error_manager = ErrorManager()
         error = error_manager.create_error(
             error_type=error_type,
             message="Test error",
             context=None
         )
-        
-        # Check that fallback registry has handlers for common error types
-        # The registry is pre-populated with default handlers
-        common_error_types = [
+
+        result = _asyncio.run(registry.handle_error(error, context={}))
+
+        # Whatever the error type, handle_error must return a usable result
+        # rather than raising or returning None - that is the property the
+        # rest of the engine depends on.
+        assert result is not None, "handle_error must always return a result"  # nosec B101
+        assert isinstance(result.success, bool), "result.success must be a bool"  # nosec B101
+        assert result.strategy_used is not None, "a strategy must always be named"  # nosec B101
+        assert isinstance(result.strategy_used, FallbackStrategy), \
+            f"strategy_used must be a FallbackStrategy, got {type(result.strategy_used)}"  # nosec B101
+
+        # These error types are wired to default handlers in
+        # FallbackRegistry._register_default_handlers(), so a real strategy -
+        # not the "no fallback available" path - must be chosen for them.
+        handled_error_types = [
             ErrorType.LLM_UNAVAILABLE,
             ErrorType.LLM_TIMEOUT,
+            ErrorType.LLM_RATE_LIMIT,
+            ErrorType.LLM_INVALID_RESPONSE,
             ErrorType.TOOL_NOT_FOUND,
             ErrorType.TOOL_EXECUTION_FAILED,
+            ErrorType.TOOL_TIMEOUT,
+            ErrorType.TOOL_UNAVAILABLE,
             ErrorType.TIMEOUT,
         ]
-        
-        if error_type in common_error_types:
-            # These should have fallback handlers registered
-            assert True, f"Fallback strategy should be available for {error_type}"  # nosec B101
+
+        if error_type in handled_error_types:
+            assert result.error != "No fallback strategy available", \
+                f"{error_type} has a registered handler but none was applied"  # nosec B101
         else:
-            # Other error types may not have specific fallback handlers
-            assert True, "Error type may not have specific fallback handler"  # nosec B101
+            # An unregistered error type must degrade to user notification
+            # rather than pretending a strategy succeeded.
+            assert result.success is False, \
+                f"{error_type} has no handler, so success must be False"  # nosec B101
+            assert result.strategy_used == FallbackStrategy.USER_NOTIFICATION, \
+                "unhandled error types must fall back to notifying the user"  # nosec B101
 
 
 # ============================================================================
@@ -655,15 +684,20 @@ class TestEdgeCases:
             result = normalizer.normalize(raw_input)
             assert isinstance(result, NormalizedInput), "Must handle Unicode"  # nosec B101
         except ValueError as e:
-            # Empty after normalization is acceptable (whitespace-only input)
+            # Rejecting whitespace-only input is CORRECT behaviour and other
+            # tests assert it, so it is accepted here.
+            #
+            # This except block used to end with a SECOND, unindented copy of
+            # the pytest.fail() from the else branch. Being outside the
+            # if/else it ran unconditionally - including for the
+            # "empty after normalization" case the branch above had just
+            # accepted - so every whitespace-only example failed the test no
+            # matter what the normalizer did. The duplicate is removed; the
+            # branch below still fails the test for any OTHER ValueError.
             err_lower = str(e).lower()
             if "empty after normalization" in err_lower or "cannot be empty" in err_lower:
-                assert True, "Whitespace-only input handled correctly"  # nosec B101
-            else:
-                # Other ValueErrors should not occur for valid Unicode
-                if all(ord(c) < 0x110000 for c in text):  # Valid Unicode range
-                    pytest.fail(f"Should handle valid Unicode: {e}")
-            # Should not throw on valid Unicode
+                return
+            # Other ValueErrors should not occur for valid Unicode
             if all(ord(c) < 0x110000 for c in text):  # Valid Unicode range
                 pytest.fail(f"Should handle valid Unicode: {e}")
     @given(
@@ -715,7 +749,7 @@ class TestEdgeCases:
         stage = PipelineStage.INPUT_NORMALIZATION
         timer = controller.start_stage(stage)
         
-        # Simulate work — capped at 10ms so 50 examples finish in <1s total
+        # Simulate work - capped at 10ms so 50 examples finish in <1s total
         time.sleep(latency)
         
         metrics = controller.end_stage(timer)
