@@ -199,7 +199,7 @@ class MasterReportWriter:
                 )
             
             if len(report.remediation_backlog) > 20:
-                lines.append(f"| ... | ... | ... | ... | ... | ... | ... | ... |")
+                lines.append("| ... | ... | ... | ... | ... | ... | ... | ... |")
                 lines.append(f"*Showing top 20 of {len(report.remediation_backlog)} total items*")
             
             lines.append("")
