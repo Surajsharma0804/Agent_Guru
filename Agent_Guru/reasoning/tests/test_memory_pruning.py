@@ -21,6 +21,11 @@ from Agent_Guru.reasoning.models.memory import (
     TaskMemory,
 )
 
+# Building a MemoryRetriever/EmbeddingGenerator loads a 420 MB
+# sentence-transformer. Warm it once per session, in fixture setup, so no
+# individual test is charged the load inside its own timeout budget.
+pytestmark = pytest.mark.usefixtures("warm_embedding_model")
+
 
 class TestImportanceScoring:
     """Tests for compute_importance_score method."""
@@ -532,14 +537,21 @@ class TestRetrievalCountTracking:
         )
         retriever.store(memory)
 
-        # Retrieve the memory
-        results = retriever.retrieve("test", "user_123")
+        # The query has to actually match semantically -- this test is about
+        # retrieval_count bookkeeping, not about ranking. The bare word "test"
+        # scores 0.323 against this content, just under the measured
+        # RETRIEVAL_THRESHOLD of 0.35, so it returned nothing and the
+        # bookkeeping was never reached. (The threshold is calibrated against
+        # real query/memory pairs -- see
+        # reasoning/tests/test_retrieval_calibration.py -- and is deliberately
+        # not tuned to rescue a one-word query.)
+        results = retriever.retrieve("memory retrieval tracking", "user_123")
 
         assert len(results) == 1  # nosec B101
         assert results[0].metadata.get("retrieval_count", 0) == 1  # nosec B101
 
         # Retrieve again
-        results = retriever.retrieve("test", "user_123")
+        results = retriever.retrieve("memory retrieval tracking", "user_123")
         assert results[0].metadata.get("retrieval_count", 0) == 2  # nosec B101
 
     def test_retrieval_count_affects_importance(self):
