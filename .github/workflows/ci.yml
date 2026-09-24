@@ -295,8 +295,18 @@ jobs:
       # The suite imports torch for real. Installing it from PyPI on a GPU-less
       # runner drags in ~2.5 GB of CUDA wheels that will never be used, so the
       # CPU index goes first and wins the resolution.
-      - name: Install PyTorch (CPU build)
-        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      #
+      # torch and torchvision MUST come from the same index, in the same
+      # command. torchvision ships compiled ops built against one specific
+      # torch build. If only torch comes from the CPU index, the test extra
+      # below pulls torchvision from PyPI, and pip accepts the pair because
+      # "2.14.0+cpu" satisfies "torch==2.14.0". On Linux the PyPI torchvision
+      # is built against the CUDA torch, so its ops never register and any
+      # import of torchvision (including transitively via transformers and
+      # sentence-transformers) fails with
+      # "RuntimeError: operator torchvision::nms does not exist".
+      - name: Install PyTorch and torchvision (CPU build)
+        run: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
       - name: Install project and declared test dependencies
         run: pip install -e ".[test]"
