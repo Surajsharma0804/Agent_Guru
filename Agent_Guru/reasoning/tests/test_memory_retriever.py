@@ -34,6 +34,19 @@ from Agent_Guru.reasoning.models.memory import (
     TaskMemory,
 )
 
+# Building a MemoryRetriever/EmbeddingGenerator loads a 420 MB
+# sentence-transformer. Warm it once per session, in fixture setup, so no
+# individual test is charged the load inside its own timeout budget.
+pytestmark = pytest.mark.usefixtures("warm_embedding_model")
+
+# Memory validates user_id and content as non-blank. st.text() happily
+# produces " " and "\r", so those examples died in the model constructor
+# instead of reaching the property. Excluding separators and control
+# characters makes every drawn string valid by construction.
+_NONBLANK = st.characters(
+    blacklist_categories=("Cs", "Cc", "Cf", "Zs", "Zl", "Zp"),
+)
+
 
 class TestMemoryRetrieverInitialization:
     """Tests for MemoryRetriever initialization."""
@@ -753,7 +766,7 @@ class TestMemoryRetrieverProperties:
         assert retriever.max_results == max_results  # nosec B101
         assert retriever.relevance_decay_days == decay_days  # nosec B101
 
-    @given(content=st.text(min_size=1, max_size=100), user_id=st.text(min_size=1, max_size=50))
+    @given(content=st.text(alphabet=_NONBLANK, min_size=1, max_size=100), user_id=st.text(alphabet=_NONBLANK, min_size=1, max_size=50))
     @settings(deadline=None, max_examples=50)  # Disable deadline, reduce examples
     def test_store_always_increases_count(self, content: str, user_id: str):
         """Property: Storing memory always increases count."""
