@@ -133,7 +133,7 @@ sqlalchemy>=2.0.0
 aiosqlite>=0.19.0
 
 # Git Integration (for self-improvement versioning)
-gitpython>=3.1.40
+gitpython>=3.1.60  # <3.1.60: config_writer() round trip injects config directives, GHSA-284h-m62q-gf8w
 
 # HTTP & Networking
 httpx>=0.24.0
