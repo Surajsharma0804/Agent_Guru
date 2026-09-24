@@ -268,7 +268,7 @@ Ordered by real risk to this project, highest first.
 | httplib2 0.31.2 (1 high, gzip bomb) | google-generativeai -> google-api-python-client | `vision/vqa.py` only calls `GenerativeModel.generate_content`, which goes through google-api-core, not the httplib2 discovery client. It would also need a hostile Google endpoint. |
 | langsmith 0.8.9 (1 high, TracingMiddleware file read) | langchain-core | Server-side tracing middleware. Nothing imports langsmith. |
 | msgpack 1.1.2 (1 high, Unpacker reuse after error) | librosa | The project never unpacks msgpack streams. |
-| pyasn1 0.6.3 (3 high, BER decoder DoS) | google-auth -> pyasn1-modules/rsa | Only decodes service-account keys and certificates. The project uses API-key auth. |
+| pyasn1 0.6.3 (3 high, BER decoder DoS) | google-auth -> pyasn1-modules/rsa | google-auth only uses it in its pure-Python RSA fallback, to parse a service-account key. cryptography is installed, so that fallback is not used, and the key would be the user's own file. |
 | starlette 1.2.1 (1 high, urlencoded `form()` limits) | fastapi (Docker API only) | No route calls `request.form()` or declares `Form(...)` / `UploadFile`. |
 
 Upgrading these would clear alerts without reducing any risk, and each
