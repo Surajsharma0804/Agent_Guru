@@ -19,7 +19,6 @@ from typing import Any
 from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider
 
-
 # Rolling window for latency samples. Bounded so a long-running session
 # cannot grow these without limit.
 MAX_LATENCY_SAMPLES = 1000
