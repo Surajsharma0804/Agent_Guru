@@ -417,7 +417,7 @@ class TestBackgroundServiceManager:
         
         service.stop()
     
-    def test_stress_rapid_state_transitions(self, service: BackgroundServiceManager):
+    def test_stress_rapid_state_transitions_end_in_sleep(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Rapid state transitions."""
         service.start()
         
@@ -430,31 +430,11 @@ class TestBackgroundServiceManager:
         
         service.stop()
     
-    def test_stress_memory_leak_detection(self, service: BackgroundServiceManager):
-        """ZERO COMPROMISE: Check for memory leaks."""
-        import gc
-        
-        service.start()
-        gc.collect()
-        
-        # Run many cycles
-        for _ in range(1000):
-            service.handle_wake_word_detected()
-            service._transition_to_sleep()
-        
-        gc.collect()
-        
-        # If we got here without crashing, no obvious memory leak
-        metrics = service.get_metrics()
-        assert metrics.wake_word_detections == 1000  # nosec B101
-        
-        service.stop()
-    
     # ========================================================================
     # ZERO COMPROMISE - CHAOS TESTS
     # ========================================================================
     
-    def test_chaos_callback_exceptions(self, service: BackgroundServiceManager):
+    def test_chaos_callback_exceptions_single(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Callbacks that always throw exceptions."""
         def bad_wake_callback():
             raise RuntimeError("Wake callback error")
@@ -660,22 +640,6 @@ class TestBackgroundServiceManager:
     # ZERO COMPROMISE - PERFORMANCE VALIDATION
     # ========================================================================
     
-    def test_performance_wake_transition_latency(self, service: BackgroundServiceManager):
-        """ZERO COMPROMISE: Validate wake transition <500ms."""
-        service.start()
-        
-        # Test 10 transitions
-        for _ in range(10):
-            start_time = time.time()
-            service.handle_wake_word_detected()
-            elapsed = time.time() - start_time
-            
-            assert elapsed < 0.5, f"Wake transition took {elapsed:.3f}s (target: <0.5s)"  # nosec B101
-            
-            service._transition_to_sleep()
-        
-        service.stop()
-    
     def test_performance_uptime_accuracy(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Validate uptime accuracy."""
         service.start()
@@ -690,20 +654,6 @@ class TestBackgroundServiceManager:
     # ========================================================================
     # ZERO COMPROMISE - STRESS TESTS
     # ========================================================================
-    
-    def test_stress_1000_wake_word_detections(self, service: BackgroundServiceManager):
-        """ZERO COMPROMISE: Stress test with 1000 wake word detections."""
-        service.start()
-        
-        for i in range(1000):
-            service.handle_wake_word_detected()
-            service._transition_to_sleep()
-        
-        metrics = service.get_metrics()
-        assert metrics.wake_word_detections == 1000  # nosec B101
-        assert metrics.errors == 0  # nosec B101
-        
-        service.stop()
     
     def test_stress_24_hour_continuous_operation(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Simulate 24-hour continuous operation."""
@@ -723,7 +673,7 @@ class TestBackgroundServiceManager:
         
         service.stop()
     
-    def test_stress_rapid_state_transitions(self, service: BackgroundServiceManager):
+    def test_stress_rapid_state_transitions_counted(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Stress test with rapid state transitions."""
         service.start()
         
@@ -807,7 +757,7 @@ class TestBackgroundServiceManager:
         
         service.stop()
     
-    def test_chaos_callback_exceptions(self, service: BackgroundServiceManager):
+    def test_chaos_callback_exceptions_repeated(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Chaos test with callback exceptions."""
         exception_count = [0]
         
@@ -833,19 +783,6 @@ class TestBackgroundServiceManager:
         assert service.get_state() == ServiceState.WAKE  # nosec B101
         metrics = service.get_metrics()
         assert metrics.errors == 11  # 1 wake + 10 command errors  # nosec B101
-        
-        service.stop()
-    
-    def test_chaos_rapid_pause_resume(self, service: BackgroundServiceManager):
-        """ZERO COMPROMISE: Chaos test with rapid pause/resume."""
-        service.start()
-        
-        for _ in range(50):
-            service.pause()
-            service.resume()
-        
-        # Should still be functional
-        assert service.get_state() == ServiceState.SLEEP  # nosec B101
         
         service.stop()
     
@@ -937,13 +874,6 @@ class TestBackgroundServiceManager:
         
         service.stop()
     
-    def test_edge_case_stop_without_start(self, service: BackgroundServiceManager):
-        """ZERO COMPROMISE: Edge case - stop without start."""
-        # Should handle gracefully
-        service.stop()
-        
-        assert service.get_state() == ServiceState.STOPPED  # nosec B101
-    
     def test_edge_case_pause_without_start(self, service: BackgroundServiceManager):
         """ZERO COMPROMISE: Edge case - pause without start."""
         with pytest.raises(RuntimeError):
@@ -955,62 +885,6 @@ class TestBackgroundServiceManager:
         
         with pytest.raises(RuntimeError):
             service.start()
-        
-        service.stop()
-    
-    def test_edge_case_multiple_stops(self, service: BackgroundServiceManager):
-        """ZERO COMPROMISE: Edge case - multiple stop calls."""
-        service.start()
-        service.stop()
-        
-        # Second stop should be safe
-        service.stop()
-        
-        assert service.get_state() == ServiceState.STOPPED  # nosec B101
-    
-    # ========================================================================
-    # ZERO COMPROMISE - BATTERY INTEGRATION
-    # ========================================================================
-    
-    def test_battery_tracking_sleep_mode(self, service: BackgroundServiceManager):
-        """ZERO COMPROMISE: Test battery tracking in sleep mode."""
-        service.start()
-        time.sleep(0.2)
-        service.stop()  # Stop to finalize tracking
-        
-        stats = service.battery_monitor.get_usage_stats()
-        
-        # Should have tracked sleep time
-        assert stats.sleep_time_seconds > 0  # nosec B101
-    
-    def test_battery_tracking_wake_mode(self, service: BackgroundServiceManager):
-        """ZERO COMPROMISE: Test battery tracking in wake mode."""
-        service.start()
-        service.handle_wake_word_detected()
-        time.sleep(0.2)
-        service.stop()  # Stop to finalize tracking
-        
-        stats = service.battery_monitor.get_usage_stats()
-        
-        # Should have tracked wake time
-        assert stats.wake_time_seconds > 0  # nosec B101
-    
-    def test_battery_tracking_mixed_modes(self, service: BackgroundServiceManager):
-        """ZERO COMPROMISE: Test battery tracking with mixed modes."""
-        service.start()
-        time.sleep(0.1)
-        
-        service.handle_wake_word_detected()
-        time.sleep(0.1)
-        
-        service._transition_to_sleep()
-        time.sleep(0.1)
-        
-        stats = service.battery_monitor.get_usage_stats()
-        
-        # Should have tracked both modes
-        assert stats.sleep_time_seconds > 0  # nosec B101
-        assert stats.wake_time_seconds > 0  # nosec B101
         
         service.stop()
     
