@@ -636,7 +636,7 @@ class TestPropertyBased:
         noise_level=st.floats(min_value=0.0, max_value=0.3),
         num_tasks=st.integers(min_value=15, max_value=30)
     )
-    @settings(max_examples=20, deadline=1000, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_patterns_robust_to_noise(
         self,
         noise_level,
