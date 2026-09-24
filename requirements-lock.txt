@@ -270,7 +270,7 @@ PyGetWindow==0.0.9
 Pygments==2.20.0
 pyinstaller==6.21.0
 pyinstaller-hooks-contrib==2026.6
-PyJWT==2.12.1
+PyJWT==2.13.0
 PyMsgBox==2.0.1
 pynput==1.8.1
 pyparsing==3.3.2
