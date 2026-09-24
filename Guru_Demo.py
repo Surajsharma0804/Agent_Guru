@@ -1,5 +1,5 @@
-"""
-Agent Guru — Investor / Client Demo  (Production-Level)
+﻿"""
+Agent Guru - Investor / Client Demo  (Production-Level)
 =========================================================
 Hybrid demo: automated backbone + optional live voice moments.
 
@@ -29,12 +29,11 @@ import os
 import subprocess
 import sys
 import time
-import urllib.parse
 import webbrowser
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pyautogui
@@ -43,7 +42,7 @@ from Agent_Guru.platform.controllers.media_control import MediaController
 from Agent_Guru.platform.controllers.screen_capture import ScreenCaptureController
 from Agent_Guru.platform.controllers.text_input import TextInputConfig, TextInputController
 
-pyautogui.FAILSAFE = False  # Disabled for demo — re-enable in production
+pyautogui.FAILSAFE = False  # Disabled for demo - re-enable in production
 pyautogui.PAUSE = 0.05  # Reduced: adaptive waits handle timing instead
 
 # --- Colour helpers (works on Windows 10+ terminal) --------------------------
@@ -158,7 +157,7 @@ def _ask_local_llm(
 
 
 def demo_folder() -> Path:
-    """Root output folder — DEMO_FILES/ beside this script."""
+    """Root output folder - DEMO_FILES/ beside this script."""
     if _DEMO_OUTPUT_OVERRIDE:
         p = Path(_DEMO_OUTPUT_OVERRIDE).expanduser()
     else:
@@ -168,7 +167,7 @@ def demo_folder() -> Path:
 
 
 def screenshot_folder() -> Path:
-    """Screenshot sub-folder — DEMO_FILES/SCREENSHOOT/"""
+    """Screenshot sub-folder - DEMO_FILES/SCREENSHOOT/"""
     p = demo_folder() / "SCREENSHOOT"
     p.mkdir(parents=True, exist_ok=True)
     return p
@@ -265,7 +264,7 @@ def _focus_or_warn(title_fragment: str, label: str) -> int | None:
     """Find + focus a window; warn and return None if not found."""
     hwnd = _find_window(title_fragment)
     if hwnd is None:
-        warn(f"{label} window not found — skipping focus")
+        warn(f"{label} window not found - skipping focus")
         return None
     _focus_window(hwnd)
     return hwnd
@@ -310,19 +309,27 @@ def _clipboard_type(text: str) -> None:
     time.sleep(0.2)
 
 
-# --- TTS — Kokoro (human-quality) ? Coqui VCTK ? pyttsx3 --------------------
+# --- TTS - Kokoro (human-quality) ? Coqui VCTK ? pyttsx3 --------------------
 #
 # Voice quality ranking (best ? worst):
-#   1. Kokoro ONNX  — near-human American English, male + female, ~86MB download
-#   2. Coqui VCTK   — multi-speaker British/American, already downloaded
-#   3. pyttsx3      — Windows SAPI, robotic but always available
+#   1. Kokoro ONNX  - near-human American English, male + female, ~86MB download
+#   2. Coqui VCTK   - multi-speaker British/American, already downloaded
+#   3. pyttsx3      - Windows SAPI, robotic but always available
 #
 # Kokoro voices used:
-#   Guru (male)  ? "am_michael"  — deep, clear American male
-#   Maya (female)? "af_heart"    — warm, natural American female
+#   Guru (male)  ? "am_michael"  - deep, clear American male
+#   Maya (female)? "af_heart"    - warm, natural American female
 #
 # Kokoro model files are auto-downloaded to DEMO_FILES/kokoro/ on first run.
 # Total download: ~86 MB (model.onnx ~83MB + voices.bin ~3MB).
+
+if TYPE_CHECKING:
+    # _tts_engine is annotated with this class below, but the class itself
+    # is only imported inside _init_tts(). The annotation was therefore an
+    # undefined name (ruff F821): harmless at run time, since the annotation
+    # is never evaluated, but unresolvable by any type checker -- which is
+    # the whole point of writing it.
+    from Agent_Guru.speech.tts.tts_engine import CoquiTTSEngine
 
 _tts_engine: "CoquiTTSEngine | None" = None
 _tts_ready = False
@@ -343,7 +350,7 @@ def _init_tts() -> None:
         _tts_ready = True
         info("TTS: Kokoro ONNX (human-quality, multilingual) ?")
     except Exception as e:
-        warn(f"Kokoro TTS unavailable ({e}) — pyttsx3 fallback active")
+        warn(f"Kokoro TTS unavailable ({e}) - pyttsx3 fallback active")
         _tts_ready = False
 
 
@@ -370,7 +377,7 @@ def speak(text: str, personality: str = "guru", lang: str = "en-us") -> None:
     Args:
         text: Text to speak.
         personality: ``"guru"`` (male) or ``"maya"`` (female).
-        lang: BCP-47 language code — e.g. ``"en-us"``, ``"hi"`` (Hindi),
+        lang: BCP-47 language code - e.g. ``"en-us"``, ``"hi"`` (Hindi),
               ``"fr-fr"``, ``"ja"``, ``"ko"``, ``"zh"``, ``"es"``, ``"de"``.
     """
     label = "GURU" if personality == "guru" else "MAYA"
@@ -388,7 +395,7 @@ def speak(text: str, personality: str = "guru", lang: str = "en-us") -> None:
             _play_audio_array(audio, sr)
             return
         except Exception as e:
-            warn(f"TTS speak failed ({e}) — pyttsx3 fallback")
+            warn(f"TTS speak failed ({e}) - pyttsx3 fallback")
 
 
 # --- System info panel -------------------------------------------------------
@@ -479,7 +486,7 @@ def live_voice_moment(prompt_text: str, timeout: int = 10) -> str | None:
             # Skip silent captures to avoid unnecessary model inference.
             peak = float(np.max(np.abs(audio_np)))
             if peak < 0.003:
-                warn("Microphone input was too quiet — continuing with automated demo")
+                warn("Microphone input was too quiet - continuing with automated demo")
                 return None
         except Exception as e:
             warn(f"Audio capture failed: {e}")
@@ -501,7 +508,7 @@ def live_voice_moment(prompt_text: str, timeout: int = 10) -> str | None:
         except Exception:
             # If CUDA path fails at runtime, retry once on CPU.
             if device == "cuda":
-                warn("CUDA transcription failed — retrying on CPU")
+                warn("CUDA transcription failed - retrying on CPU")
                 from Agent_Guru.speech.stt.whisper_stt import WhisperTranscriber
 
                 stt = WhisperTranscriber(model_size=_DEMO_WHISPER_MODEL, device="cpu", compute_type="float32")
@@ -515,11 +522,11 @@ def live_voice_moment(prompt_text: str, timeout: int = 10) -> str | None:
             ok(f'Heard: "{transcript}"')
             return transcript
         else:
-            warn("Nothing heard — continuing with automated demo")
+            warn("Nothing heard - continuing with automated demo")
             return None
 
     except Exception as e:
-        warn(f"Live voice moment failed: {e} — continuing automated")
+        warn(f"Live voice moment failed: {e} - continuing automated")
         return None
 
 
@@ -527,7 +534,7 @@ def live_voice_moment(prompt_text: str, timeout: int = 10) -> str | None:
 
 
 def section_intro() -> None:
-    banner("Section 1 — Introduction")
+    banner("Section 1 - Introduction")
 
     speak(
         "Hello. I am Guru, an AI voice assistant built to compete with Alexa, Siri, and Google Assistant. "
@@ -551,7 +558,7 @@ def section_intro() -> None:
 
 
 def section_voice_pipeline(live: bool = False, services: DemoServices | None = None) -> None:
-    banner("Section 2 — Voice Pipeline (STT ? LLM ? TTS)")
+    banner("Section 2 - Voice Pipeline (STT ? LLM ? TTS)")
 
     speak(
         "This section demonstrates the full voice pipeline. "
@@ -592,7 +599,7 @@ def section_voice_pipeline(live: bool = False, services: DemoServices | None = N
 
 
 def _automated_llm_demo(services: DemoServices | None = None) -> None:
-    step("Automated LLM demo — asking Guru a question")
+    step("Automated LLM demo - asking Guru a question")
     question = "What makes you better than Alexa or Siri?"
     speak(f"Let me answer this question: {question}")
     wait(0.5)
@@ -622,7 +629,7 @@ def _automated_llm_demo(services: DemoServices | None = None) -> None:
 
 
 def section_system_control(live: bool = False, services: DemoServices | None = None) -> None:
-    banner("Section 3 — System Control")
+    banner("Section 3 - System Control")
 
     speak(
         "Now I will demonstrate direct system control. "
@@ -665,17 +672,17 @@ def _execute_app_command(transcript: str, services: DemoServices | None = None) 
 
 
 def _automated_system_demo(services: DemoServices | None = None) -> None:
-    # 3a — Open Notepad and write
+    # 3a - Open Notepad and write
     step("Opening Notepad and writing a structured document")
     speak("I am opening Notepad and writing a document.")
     _open_notepad_and_write(services)
 
-    # 3b — Screenshot (saved to DEMO_FILES/SCREENSHOOT/)
+    # 3b - Screenshot (saved to DEMO_FILES/SCREENSHOOT/)
     step("Taking a screenshot")
     speak("Taking a screenshot of the current screen.")
     _take_screenshot(services)
 
-    # 3c — Calculator
+    # 3c - Calculator
     step("Opening Calculator")
     speak("Now opening the system calculator.")
     _open_calculator_demo(services)
@@ -742,7 +749,7 @@ def _open_notepad_and_write(services: DemoServices | None = None) -> None:
       1. Generate a unique timestamped path in DEMO_FILES/.
       2. Kill ALL existing Notepad processes, then launch a BRAND NEW
          notepad.exe via subprocess.Popen so we have the exact PID.
-      3. Find the window by PID (not title) — immune to stale windows.
+      3. Find the window by PID (not title) - immune to stale windows.
       4. Type the ENTIRE document character-by-character at ~80 WPM
          using _human_type() which re-focuses every 8 chars.
       5. Ctrl+S ? Save-As dialog (new file has no name yet).
@@ -754,10 +761,10 @@ def _open_notepad_and_write(services: DemoServices | None = None) -> None:
     is set at module level). The text_input controller is also configured with
     fail_safe=False in build_demo_services().
     """
-    # -- 1. Unique path — brand new every run ---------------------------------
+    # -- 1. Unique path - brand new every run ---------------------------------
     save_path = demo_folder() / f"GURU_Demo_{ts()}.txt"
 
-    # The document to type — written live, character by character
+    # The document to type - written live, character by character
     doc_lines = [
         "AGENT GURU - Live Demonstration",
         "================================",
@@ -798,14 +805,14 @@ def _open_notepad_and_write(services: DemoServices | None = None) -> None:
         # On some systems notepad is at the full path
         proc = subprocess.Popen([r"C:\Windows\System32\notepad.exe"])
 
-    # Find the window by PID — guaranteed to be OUR new instance
+    # Find the window by PID - guaranteed to be OUR new instance
     hwnd = _find_window_by_pid(proc.pid, title_fragment="Notepad", timeout=12.0)
     if hwnd is None:
         # Fallback: find by title if PID lookup failed (e.g. win32process unavailable)
         hwnd = _wait_for_window("Notepad", timeout=8.0)
 
     if hwnd is None:
-        warn("Notepad window did not appear — skipping write demo")
+        warn("Notepad window did not appear - skipping write demo")
         proc.terminate()
         return
 
@@ -823,13 +830,13 @@ def _open_notepad_and_write(services: DemoServices | None = None) -> None:
     speak("Watch as I type the full document in real time.")
     wait(0.4)
 
-    # _human_type re-focuses the window every 8 chars — robust against drift.
+    # _human_type re-focuses the window every 8 chars - robust against drift.
     # It uses pyautogui.write() char-by-char with FAILSAFE=False (set at module level).
     _human_type(hwnd, "\n".join(doc_lines), wpm=80)
 
     wait(0.8)
 
-    # -- 5. Save-As dialog — Ctrl+S on a new file opens Save-As ---------------
+    # -- 5. Save-As dialog - Ctrl+S on a new file opens Save-As ---------------
     speak("Saving the document now.")
     _focus_window(hwnd)
     pyautogui.hotkey("ctrl", "s")
@@ -842,7 +849,7 @@ def _open_notepad_and_write(services: DemoServices | None = None) -> None:
 
     if save_dlg is None:
         # Last resort: write directly from Python (no UI interaction needed)
-        warn("Save-As dialog did not appear — writing file directly")
+        warn("Save-As dialog did not appear - writing file directly")
         full = "\n".join(doc_lines) + "\n"
         try:
             save_path.write_text(full, encoding="utf-8")
@@ -871,7 +878,7 @@ def _open_notepad_and_write(services: DemoServices | None = None) -> None:
         ok(f"Saved: {save_path.name}")
         speak("Document saved successfully to the demo folder.")
     else:
-        warn("File not found after save — writing directly")
+        warn("File not found after save - writing directly")
         full = "\n".join(doc_lines) + "\n"
         try:
             save_path.write_text(full, encoding="utf-8")
@@ -891,7 +898,7 @@ def _open_notepad_and_write(services: DemoServices | None = None) -> None:
             pyautogui.hotkey("alt", "n")
         ok("Notepad closed.")
     except Exception as e:
-        warn(f"Notepad close took longer than expected ({e}) — continuing.")
+        warn(f"Notepad close took longer than expected ({e}) - continuing.")
     wait(0.5)
 
 
@@ -926,7 +933,7 @@ def _open_calculator_demo(services: DemoServices | None = None) -> None:
         services.app.open_application("calculator")
         services.app.maximize_window("Calculator")
     except Exception as e:
-        warn(f"Calculator did not open — skipping ({e})")
+        warn(f"Calculator did not open - skipping ({e})")
         return
 
     wait(1.0)   # let Calculator fully render its UI
@@ -1040,7 +1047,7 @@ async def _async_wait(seconds: float) -> None:
 
 
 async def _section_browser_playwright() -> None:
-    banner("Section 4 — Browser & Web Automation")
+    banner("Section 4 - Browser & Web Automation")
 
     await _async_speak(
         "Now I will demonstrate browser control. "
@@ -1061,7 +1068,6 @@ async def _section_browser_playwright() -> None:
     # IMPORTANT: speak() must COMPLETE before the next browser action runs.
     # We use a threading.Event to block the on_status callback until TTS finishes.
     import concurrent.futures as _cf
-    import threading as _threading
     _speak_executor = _cf.ThreadPoolExecutor(max_workers=1, thread_name_prefix="demo_speak")
     _speak_futures: list[_cf.Future] = []
     _spoken: set[str] = set()
@@ -1160,7 +1166,7 @@ async def _section_browser_playwright() -> None:
 
 
 def _section_browser_legacy() -> None:
-    banner("Section 4 — Browser & Web Automation")
+    banner("Section 4 - Browser & Web Automation")
 
     speak(
         "Now I will demonstrate browser control. "
@@ -1187,7 +1193,7 @@ def _section_browser_legacy() -> None:
         time.sleep(0.5)
 
     if browser_hwnd is None:
-        warn("Browser window not detected — continuing with system media keys only")
+        warn("Browser window not detected - continuing with system media keys only")
     else:
         _focus_window(browser_hwnd)
         wait(3)
@@ -1210,7 +1216,7 @@ def _section_browser_legacy() -> None:
         wait(1.0)
         ok("System media controls executed.")
     except Exception as e:
-        warn(f"Media controller unavailable: {e} — skipping volume controls")
+        warn(f"Media controller unavailable: {e} - skipping volume controls")
 
     speak("Browser and media control demonstration complete.")
 
@@ -1238,17 +1244,17 @@ def _section_browser_legacy() -> None:
 
 
 def section_dual_personality() -> None:
-    banner("Section 5 — Dual Personality: Guru & Maya")
+    banner("Section 5 - Dual Personality: Guru & Maya")
 
     speak(
         "Agent Guru has two distinct personalities. "
-        "I am Guru — professional, analytical, and focused on productivity.",
+        "I am Guru - professional, analytical, and focused on productivity.",
         personality="guru",
     )
     wait(1)
 
     speak(
-        "And I am Maya — warm, creative, and here for personal assistance. "
+        "And I am Maya - warm, creative, and here for personal assistance. "
         "You can switch between us mid-conversation just by saying our name.",
         personality="maya",
     )
@@ -1262,7 +1268,7 @@ def section_dual_personality() -> None:
     wait(1)
 
     speak(
-        "Together we cover every use case — from writing code to planning your day.",
+        "Together we cover every use case - from writing code to planning your day.",
         personality="maya",
     )
     wait(1)
@@ -1272,7 +1278,7 @@ def section_dual_personality() -> None:
 
 
 def section_summary() -> None:
-    banner("Section 6 — Summary & Competitive Advantage")
+    banner("Section 6 - Summary & Competitive Advantage")
 
     speak(
         "Let me summarise what you just saw.",
@@ -1347,7 +1353,7 @@ def main() -> None:
             BOLD + CYAN,
             """
 +------------------------------------------------------------------+
-¦              AGENT GURU — Investor Demo                          ¦
+¦              AGENT GURU - Investor Demo                          ¦
 ¦              The AI Voice Assistant That Beats Alexa             ¦
 +------------------------------------------------------------------+
 """,
@@ -1355,7 +1361,7 @@ def main() -> None:
     )
 
     if args.live:
-        print(_c(YELLOW, "  ?  LIVE MODE — real voice input enabled\n"))
+        print(_c(YELLOW, "  ?  LIVE MODE - real voice input enabled\n"))
     else:
         print(_c(DIM, "  ?   Automated mode. Use --live for real voice input.\n"))
 
