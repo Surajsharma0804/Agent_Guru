@@ -111,6 +111,15 @@ class RichContentGenerator:
         # Data intents
         "show_stats": ContentType.CHART,
         "show_report": ContentType.TABLE,
+        # Interactive intents.
+        # _generate_button_group(), _generate_quick_reply() and
+        # _generate_form() were all implemented and unit-tested by calling
+        # them directly, but no map entry selected them -- so BUTTON_GROUP,
+        # QUICK_REPLY and FORM were the three ContentTypes that generate()
+        # could never produce. The map is what makes them reachable.
+        "show_options": ContentType.BUTTON_GROUP,
+        "show_replies": ContentType.QUICK_REPLY,
+        "show_form": ContentType.FORM,
     }
 
     def __init__(self) -> None:
