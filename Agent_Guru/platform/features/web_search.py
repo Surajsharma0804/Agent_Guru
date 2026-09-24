@@ -35,10 +35,15 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Keywords that suggest the user wants current/live information
+# Keywords that suggest the user wants current/live information.
+# "who is the", "who are the" and "what is the" used to be in this list. They
+# are how questions are phrased, not a sign that the answer changes over
+# time, so "What is the capital of France?" went to the web like "Who is the
+# Prime Minister?". An office-holder question is still caught by the office
+# ("prime minister", "ceo", ...) below.
 _CURRENT_EVENT_KEYWORDS = re.compile(
     r"\b(current|currently|now|today|latest|recent|right now|"
-    r"who is the|who are the|what is the|president|prime minister|"
+    r"president|prime minister|"
     r"chancellor|king|queen|ceo|leader|winner|champion|score|"
     r"price|stock|weather|news|headline|just happened|"
     r"2024|2025|2026)\b",
