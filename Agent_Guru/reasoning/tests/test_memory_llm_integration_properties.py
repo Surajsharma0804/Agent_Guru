@@ -15,6 +15,7 @@ Coverage Target: 100 iterations per property
 
 from datetime import datetime, timezone
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -86,6 +87,25 @@ memory_type_strategy = st.sampled_from(
 )
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _warm_embedding_model():
+    """Load the sentence-transformer model once, before any property runs.
+
+    The FIRST MemoryRetriever() in a process loads the embedding model - 10.7 s
+    measured here, more on a cold Hugging Face cache because the weights are
+    fetched. Every property below constructed a MemoryRetriever inside the test
+    body, so Hypothesis's very first example paid that cost and tripped
+    pytest-timeout's 30 s budget; Hypothesis then reported it as
+    "FlakyFailure ... Failed on the first call but did not on a subsequent one"
+    and the properties never ran to completion.
+
+    Subsequent constructions are free (the model is process-cached), so warming
+    up in module setup - outside any example - is all that is needed. The
+    properties are unchanged and still construct their own retrievers.
+    """
+    MemoryRetriever()
+
+
 class TestMemoryLLMIntegrationProperties:
     """Property-based tests for MemoryLLMIntegration."""
 
@@ -136,16 +156,23 @@ class TestMemoryLLMIntegrationProperties:
         retriever = MemoryRetriever()
         integration = MemoryLLMIntegration(retriever, max_memories=max_memories)
 
-        # Store more memories than max_memories
-        for i in range(max_memories + 10):
-            memory = EpisodicMemory(
-                content=f"Memory {i}",
-                action_taken="test_action",
-                result="Success",
-                success=True,
-                user_id=user_id,
-            )
-            retriever.store(memory)
+        # Store more memories than max_memories.
+        # store_many() embeds the whole batch in one pass; storing them one at
+        # a time cost ~5x more sentence-transformer inference and pushed this
+        # property past the suite's 30s per-test budget, so it never ran to
+        # completion.
+        retriever.store_many(
+            [
+                EpisodicMemory(
+                    content=f"Memory {i}",
+                    action_taken="test_action",
+                    result="Success",
+                    success=True,
+                    user_id=user_id,
+                )
+                for i in range(max_memories + 10)
+            ],
+        )
 
         context = integration.retrieve_for_reasoning(intent, user_id)
 
@@ -294,7 +321,13 @@ class TestMemoryLLMIntegrationProperties:
     @given(
         memory_type=memory_type_strategy,
         user_id=user_id_strategy,
-        content=st.text(min_size=1, max_size=200),
+        # Memory models reject blank content ("Content cannot be empty or
+        # whitespace only"), and rightly so - a memory with nothing in it is
+        # not something the formatter should be asked to render. The strategy
+        # must therefore produce content the model accepts; without the filter
+        # this property raised ValidationError on inputs like "\r" instead of
+        # exercising formatting.
+        content=st.text(min_size=1, max_size=200).filter(lambda text: text.strip()),
     )
     @settings(deadline=None, max_examples=50)  # Disable deadline, reduce examples
     def test_format_handles_all_memory_types(self, memory_type, user_id, content):
@@ -330,7 +363,12 @@ class TestMemoryLLMIntegrationProperties:
                 content=content,
                 preference_key="test_key",
                 preference_value="test_value",
-                learned_from="test_source",
+                # PreferenceMemory validates learned_from against
+                # {"observed", "default", "explicit", "inferred"}; the old
+                # "test_source" was rejected by the model, so this branch of
+                # the property raised a ValidationError instead of testing
+                # preference formatting.
+                learned_from="explicit",
                 user_id=user_id,
             )
         else:  # TASK
@@ -339,7 +377,11 @@ class TestMemoryLLMIntegrationProperties:
                 task_id="task_123",
                 task_description="Test task",
                 outcome="Success",
-                lessons_learned="Test lessons",
+                # TaskMemory.lessons_learned is a list[str], not a str - the
+                # old scalar was rejected by the model, so the TASK branch of
+                # this property raised ValidationError instead of testing
+                # task-memory formatting.
+                lessons_learned=["Test lessons"],
                 user_id=user_id,
             )
 
@@ -349,7 +391,13 @@ class TestMemoryLLMIntegrationProperties:
         assert len(formatted) > 0  # nosec B101
         assert "## Relevant Memories" in formatted  # nosec B101
         assert memory_type.value in formatted.lower()  # nosec B101
-        assert content in formatted  # nosec B101
+        # Assert against the STORED content, not the raw generated string: the
+        # memory models normalise content on validation (e.g. "0\r" is stored
+        # as "0"), so comparing the pre-validation text asserted that the
+        # formatter reproduces characters the model deliberately removed.
+        # memory.content is also the stronger check - it verifies the formatter
+        # renders exactly what was stored.
+        assert memory.content in formatted  # nosec B101
 
     @given(
         retrieval_count=st.integers(min_value=1, max_value=10),
@@ -368,16 +416,20 @@ class TestMemoryLLMIntegrationProperties:
         retriever = MemoryRetriever()
         integration = MemoryLLMIntegration(retriever)
 
-        # Store some memories
-        for i in range(5):
-            memory = EpisodicMemory(
-                content=f"Memory {i}",
-                action_taken="test_action",
-                result="Success",
-                success=True,
-                user_id=user_id,
-            )
-            retriever.store(memory)
+        # Store some memories (batched - see the note in
+        # test_retrieve_respects_max_memories).
+        retriever.store_many(
+            [
+                EpisodicMemory(
+                    content=f"Memory {i}",
+                    action_taken="test_action",
+                    result="Success",
+                    success=True,
+                    user_id=user_id,
+                )
+                for i in range(5)
+            ],
+        )
 
         # Perform multiple retrievals
         contexts = []
