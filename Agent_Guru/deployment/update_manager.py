@@ -378,7 +378,7 @@ class UpdateManager:
 
         # EVENT-LOOP FIX: this previously called urllib.request.urlopen()
         # directly inside an `async def`, with the linter warning silenced by
-        # `# noqa: ASYNC210` rather than fixed. urlopen() blocks the calling
+        # an ASYNC210 suppression comment rather than fixed. urlopen() blocks the calling
         # thread -- here, the event loop -- for up to network_timeout seconds,
         # which stalls every other coroutine in the process (voice included)
         # on a machine that merely lacks aiohttp. Running it on a worker
