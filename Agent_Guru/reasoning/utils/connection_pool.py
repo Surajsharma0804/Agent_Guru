@@ -171,17 +171,27 @@ class DatabasePool:
 
         finally:
             # Return connection to pool
+            # If close() ran while this was checked out, it already closed
+            # the connection and dropped it from _in_use. Requeueing it would
+            # hand a dead connection to the next caller.
             if conn is not None:
                 async with self._lock:
-                    self._in_use.discard(conn)
-                    if len(self._pool) < self.max_size:
-                        self._pool.append(conn)
-                    else:
-                        # Close excess connections
-                        conn.close()
+                    if conn in self._in_use:
+                        self._in_use.discard(conn)
+                        if len(self._pool) < self.max_size:
+                            self._pool.append(conn)
+                        else:
+                            # Close excess connections
+                            conn.close()
 
     async def close(self) -> None:
-        """Close all connections in the pool."""
+        """Close all connections in the pool, idle and checked out.
+
+        Checked-out connections are force-closed without waiting, so a
+        holder's next use raises ``sqlite3.ProgrammingError``. Releasing such
+        a connection is a no-op; it is not returned to the pool. The pool
+        re-initializes with fresh connections on the next acquire().
+        """
         async with self._lock:
             for conn in self._pool:
                 conn.close()

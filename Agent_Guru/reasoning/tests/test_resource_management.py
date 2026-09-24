@@ -196,6 +196,27 @@ class TestDatabasePool:
         
         await pool.close()
 
+    @pytest.mark.asyncio
+    async def test_release_after_close_does_not_repopulate(self):
+        """A connection released after close() must not rejoin the pool."""
+        pool = DatabasePool(":memory:", min_size=1, max_size=3)
+
+        async with pool.acquire():
+            await pool.close()
+
+        assert pool.stats()["pool_size"] == 0  # nosec B101
+
+        # The pool re-initializes on the next acquire. Every connection it
+        # hands out must be live, not the one close() already shut.
+        async def query():
+            async with pool.acquire() as conn:
+                conn.execute("SELECT 1")
+                await asyncio.sleep(0.01)
+
+        await asyncio.gather(query(), query())
+
+        await pool.close()
+
 
 class TestHTTPPool:
     """Tests for HTTPPool."""
