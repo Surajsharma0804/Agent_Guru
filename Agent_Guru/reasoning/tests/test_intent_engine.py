@@ -424,8 +424,10 @@ class TestIntentDetectionEngine:
         """Test recording user feedback."""
         engine = IntentDetectionEngine()
 
-        # Mock feedback store
-        mock_store = Mock()
+        # FeedbackStore.store_feedback is a coroutine function, so the double
+        # must be an AsyncMock - a plain Mock returns a Mock where the engine
+        # expects an awaitable.
+        mock_store = AsyncMock()
         engine.feedback_store = mock_store
 
         # Record feedback
@@ -436,27 +438,66 @@ class TestIntentDetectionEngine:
             user_id="user123",
         )
 
-        # Verify feedback was recorded
-        mock_store.add_feedback.assert_called_once_with(
-            input_text="set timer for 5 minutes",
+        # Verify the feedback record reached the store with the right content.
+        mock_store.store_feedback.assert_awaited_once()
+        (feedback,) = mock_store.store_feedback.await_args.args
+        assert feedback.original_input == "set timer for 5 minutes"  # nosec B101
+        assert feedback.predicted_intent == "set_alarm"  # nosec B101
+        assert feedback.correct_intent == "set_timer"  # nosec B101
+        assert feedback.user_id == "user123"  # nosec B101
+
+    def test_record_feedback_requires_user_id(self):
+        """Feedback without a user ID is not stored."""
+        engine = IntentDetectionEngine()
+        mock_store = AsyncMock()
+        engine.feedback_store = mock_store
+
+        engine.record_feedback(
+            text="set timer for 5 minutes",
             predicted_intent="set_alarm",
             correct_intent="set_timer",
-            user_id="user123",
         )
+
+        mock_store.store_feedback.assert_not_awaited()
 
     def test_trigger_retraining(self):
         """Test triggering model retraining."""
         engine = IntentDetectionEngine()
 
-        # Mock online learner
-        mock_learner = Mock()
+        # OnlineLearner.should_retrain() is async and returns (bool, reason).
+        mock_learner = AsyncMock()
+        mock_learner.should_retrain.return_value = (True, "Model drift detected")
         engine.online_learner = mock_learner
 
         # Trigger retraining
         engine.trigger_retraining()
 
-        # Verify retraining was triggered
-        mock_learner.retrain_models.assert_called_once()
+        # Verify the retraining decision was actually requested.
+        mock_learner.should_retrain.assert_awaited_once()
+
+    def test_trigger_retraining_without_learner(self):
+        """Without an online learner the call is a no-op, not a crash."""
+        engine = IntentDetectionEngine()
+        engine.online_learner = None
+
+        engine.trigger_retraining()
+
+    def test_detect_intent_sync_rejected_inside_running_loop(self):
+        """The sync wrapper must refuse to run inside a live event loop.
+
+        Calling it there would either deadlock the caller's loop or raise
+        asyncio's own "cannot be called from a running event loop", so the
+        engine raises a message that names the async entry point instead.
+        """
+        import asyncio as _asyncio
+
+        engine = IntentDetectionEngine()
+
+        async def _inner():
+            with pytest.raises(RuntimeError, match="detect_intent_async"):
+                engine.detect_intent("what time is it")
+
+        _asyncio.run(_inner())
 
     def test_update_metrics(self):
         """Test metrics tracking."""
