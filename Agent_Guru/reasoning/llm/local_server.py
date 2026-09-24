@@ -1,4 +1,4 @@
-"""Local LLM Server using llama.cpp.
+﻿"""Local LLM Server using llama.cpp.
 
 Manages llama.cpp server process with GPU acceleration for local inference.
 Provides health checks, model loading, and inference endpoints.
@@ -56,9 +56,30 @@ class LocalLLMServer:
             config: Server configuration
 
         Raises:
+            FileNotFoundError: If the configured model file does not exist
             ValueError: If configuration is invalid
 
         """
+        # This constructor documented "Raises: ValueError: If configuration is
+        # invalid" and then validated NOTHING. A server pointing at a model
+        # file that does not exist was constructed happily, and the problem
+        # only surfaced later inside start(), as a llama.cpp subprocess exiting
+        # with its own opaque message after the caller had already waited on
+        # process spawn and a 60 s readiness poll. Failing here names the file.
+        model_path = Path(config.model_path)
+        if not model_path.exists():
+            msg = f"Model file not found: {model_path}"
+            raise FileNotFoundError(msg)
+        if not model_path.is_file():
+            msg = f"Model path is not a file: {model_path}"
+            raise ValueError(msg)
+        if not 1 <= config.port <= 65535:
+            msg = f"Invalid port: {config.port} (must be in [1, 65535])"
+            raise ValueError(msg)
+        if not config.host or not config.host.strip():
+            msg = "host must be a non-empty hostname or IP address"
+            raise ValueError(msg)
+
         self.config = config
         self.process: subprocess.Popen | None = None
         self._is_running = False
@@ -68,12 +89,12 @@ class LocalLLMServer:
         # FIX: previously every health_check()/generate() call created a
         # brand-new `ThreadPoolExecutor(max_workers=1)` via
         # `with concurrent.futures.ThreadPoolExecutor(...) as pool:` and
-        # tore it down immediately after — real, avoidable thread-spawn
+        # tore it down immediately after - real, avoidable thread-spawn
         # overhead on every single call, including every health-check poll
         # (this class's own `start()` polls health_check() in a loop every
         # 0.5s until the server is ready, potentially dozens of times).
         # One executor, built once, reused for the lifetime of this
-        # instance — same fix already applied to the sibling OllamaServer
+        # instance - same fix already applied to the sibling OllamaServer
         # class for consistency.
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
@@ -97,7 +118,7 @@ class LocalLLMServer:
         # FIX: _build_server_command() -> _detect_server_binary() ->
         # _is_command_available() runs up to 3 synchronous
         # `subprocess.run(..., timeout=1)` calls directly inside this
-        # `async def`, unwrapped — blocking the event loop for up to ~3
+        # `async def`, unwrapped - blocking the event loop for up to ~3
         # seconds while probing for the llama.cpp binary (same bug class
         # as the subprocess.run-inside-async-def issue already found and
         # fixed elsewhere in reasoning/tools/system/*.py). Offloaded to a
@@ -105,15 +126,21 @@ class LocalLLMServer:
         # concurrently-running asyncio task.
         cmd = await asyncio.to_thread(self._build_server_command)
 
-        # Start server process
-        self.process = subprocess.Popen(  # nosec B603  # noqa: S603
+        # Start server process.
+        # subprocess.Popen forks and execs synchronously - on a process
+        # holding a loaded model that is tens of milliseconds of stalled event
+        # loop. Off-loaded to a thread for the same reason
+        # _build_server_command() above is. It remains a Popen because stop()
+        # and the health loop drive it as one.
+        self.process = await asyncio.to_thread(
+            subprocess.Popen,  # nosec B603  # noqa: S603
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
         )
 
-        # FIX: was `time.time()` — see OllamaServer.start() for why
+        # FIX: was `time.time()` - see OllamaServer.start() for why
         # `time.monotonic()` is the correct choice for measuring elapsed
         # durations against a timeout (immune to wall-clock adjustments).
         start_time = time.monotonic()
@@ -229,7 +256,7 @@ class LocalLLMServer:
         Requirements: 4.2
 
         """
-        # FIX: was time.time() — see start() above.
+        # FIX: was time.time() - see start() above.
         start_time = time.monotonic()
 
         try:
@@ -247,7 +274,7 @@ class LocalLLMServer:
             # Run blocking HTTP call in thread pool to avoid blocking event loop.
             # FIX: reuses self._executor (built once in __init__) instead of
             # creating and tearing down a new ThreadPoolExecutor on every call
-            # — see __init__ FIX note.
+            # - see __init__ FIX note.
             loop = asyncio.get_running_loop()
             response = await loop.run_in_executor(
                 self._executor,
@@ -306,7 +333,7 @@ class LocalLLMServer:
             msg = "Server not running. Call start() first."
             raise RuntimeError(msg)
 
-        # FIX: was time.time() — see start() above.
+        # FIX: was time.time() - see start() above.
         start_time = time.monotonic()
 
         try:
@@ -321,7 +348,7 @@ class LocalLLMServer:
             }
 
             # Run blocking HTTP call in thread pool to avoid blocking event loop.
-            # FIX: reuses self._executor — see __init__ FIX note.
+            # FIX: reuses self._executor - see __init__ FIX note.
             loop = asyncio.get_running_loop()
             response = await loop.run_in_executor(
                 self._executor,
@@ -364,7 +391,7 @@ class LocalLLMServer:
             self.process.terminate()
             try:
                 # FIX: `self.process.wait(timeout=5.0)` is a blocking
-                # synchronous call — was executed directly inside this
+                # synchronous call - was executed directly inside this
                 # `async def`, able to stall the event loop for up to 5
                 # seconds waiting for the llama.cpp process to exit. Same
                 # blocking-call-in-async-def bug class as the subprocess
