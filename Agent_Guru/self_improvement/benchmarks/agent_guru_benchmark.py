@@ -1,10 +1,12 @@
-"""Agent Guru self-improvement engine benchmark implementation.
+﻿"""Agent Guru self-improvement engine benchmark implementation.
 
 Provides benchmark wrapper for Agent Guru's self-improvement engine
 to measure its performance and learning capabilities.
 """
 
+import contextlib
 import os
+import shutil
 import tempfile
 from typing import Any, ClassVar
 
@@ -129,7 +131,7 @@ class AgentGuruBenchmark(BaseBenchmark):
                 self.initial_success_rate = self._own_successes / max(self.task_count, 1) * 100
             return error_result
 
-    # Dispatch table for simulated task execution — each entry is
+    # Dispatch table for simulated task execution - each entry is
     # (substring_to_match, response). Checked in order, first match wins.
     _TASK_DISPATCH: ClassVar[list[tuple[str, str]]] = [
         # Math questions
@@ -261,16 +263,24 @@ class AgentGuruBenchmark(BaseBenchmark):
         return result
 
     def __del__(self) -> None:
-        """Cleanup temporary directory if created."""
-        if self.temp_dir and os.path.exists(self.temp_dir):
-            import shutil
+        """Remove the temporary directory if one was created.
 
-            try:
-                shutil.rmtree(self.temp_dir)
-            except OSError as exc:
-                import logging as _logging
-
-                _logging.getLogger(__name__).debug("Temp dir cleanup failed: %s", exc)
+        Both `import shutil` and `import logging` used to happen here. A
+        finalizer can run during interpreter shutdown, where any import fails
+        with ``ImportError: sys.meta_path is None``, so the cleanup this is
+        meant to guarantee would be skipped precisely when it is the last
+        chance to run. shutil is now imported at module scope and nothing is
+        logged.
+        """
+        temp_dir = getattr(self, "temp_dir", None)
+        if not temp_dir:
+            return
+        self.temp_dir = None
+        # contextlib.suppress rather than try/except/pass: a finalizer
+        # must never raise, and this form says so without an inline
+        # scanner suppression.
+        with contextlib.suppress(Exception):
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 def create_agent_guru_benchmark(storage_path: str | None = None) -> AgentGuruBenchmark:
