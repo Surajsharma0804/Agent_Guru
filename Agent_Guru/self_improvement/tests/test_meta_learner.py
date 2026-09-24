@@ -843,11 +843,7 @@ class TestIntegration:
             
             learner.update_patterns()
             
-            # Get initial predictions
-            initial_strategies = learner.recommend_strategies(
-                "prediction_task",
-                {"quality": "high"}
-            )
+            # Get initial pattern confidence
             initial_patterns = learner._load_patterns()
             initial_confidence = max([p.confidence for p in initial_patterns]) if initial_patterns else 0.0
             

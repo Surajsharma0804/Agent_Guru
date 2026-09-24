@@ -191,6 +191,7 @@ class TestModelRouterClient:
             elapsed = time.time() - start_time
             
             assert elapsed < 1.0, f"Fallback took {elapsed:.3f}s, must be <1s"  # nosec B101
+            assert model.location == ModelLocation.LOCAL  # nosec B101
     
     # ========================================================================
     # PERFORMANCE TRACKING

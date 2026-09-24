@@ -348,6 +348,7 @@ class TestWindowsAPIEdgeCases:
             
             # Should complete within reasonable time
             assert elapsed < 10  # 3 pings should finish in <10s  # nosec B101
+            assert result.return_code == 0  # nosec B101
         except TimeoutError:
             elapsed = time.time() - start
             assert elapsed < 35  # nosec B101

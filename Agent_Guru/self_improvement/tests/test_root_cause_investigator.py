@@ -139,8 +139,6 @@ class TestDegradationInvestigation:
     def test_investigate_with_correlated_change(self, investigator, rollback_manager):
         """Test investigation identifies correlated change."""
         # Record a change that should correlate with degradation
-        change_time = datetime.now(tz=timezone.utc) - timedelta(hours=2)
-
         rollback_manager.record_change(
             change_type=ChangeType.STRATEGY_UPDATE,
             component_id="strategy_1",

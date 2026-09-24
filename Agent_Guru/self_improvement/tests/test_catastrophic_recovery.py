@@ -844,6 +844,7 @@ class TestRecoveryUnderResourceConstraints:
         
         # Even under constraints, should complete within 5 seconds
         assert rollback_result.success  # nosec B101
+        assert catastrophic_strategy in rollback_result.components_affected  # nosec B101
         assert rollback_time < 5.0, f"Rollback took {rollback_time:.3f}s under constraints"  # nosec B101
         
         # Verify recovery

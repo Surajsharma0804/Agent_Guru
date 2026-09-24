@@ -850,7 +850,7 @@ class TestCommandParser:
             result = parser.interpret(huge_input)
             # Should handle gracefully without crashing
             assert result is not None  # nosec B101
-        except MemoryError as e:
+        except MemoryError:
             # Acceptable to raise MemoryError for huge inputs
             pass
     

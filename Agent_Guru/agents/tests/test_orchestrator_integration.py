@@ -378,6 +378,10 @@ class TestOrchestratorPerformance:
             )
         orchestrated_time = time.perf_counter() - start
         
+        # The timing is only meaningful if the tasks actually ran
+        assert result.success  # nosec B101
+        assert result.result == 100  # nosec B101
+        
         # Calculate average time per task
         avg_time_per_task_ms = (orchestrated_time / 100) * 1000
         

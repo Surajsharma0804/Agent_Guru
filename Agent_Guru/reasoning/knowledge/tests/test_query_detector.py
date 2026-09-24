@@ -13,6 +13,8 @@ Target: 80%+ coverage
 
 from datetime import datetime, timezone
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from Agent_Guru.reasoning.knowledge.query_detector import KnowledgeQueryDetector
@@ -379,12 +381,15 @@ class TestKnowledgeQueryDetector:
 
     def test_llm_fallback_disabled_by_default(self, detector):
         """Test that LLM fallback is not used when disabled."""
-        # Ambiguous query that doesn't match patterns
-        query = detector.detect_knowledge_query("tell me something", use_llm_fallback=False)
+        detector.llm_fallback = MagicMock()
+        with patch.object(detector, "_classify_with_llm") as mock_classify:
+            # Ambiguous query that doesn't match patterns
+            query = detector.detect_knowledge_query("tell me something", use_llm_fallback=False)
 
         # Should return None or factual (if "tell me" matches)
         # Either way, LLM should not be called
-        assert True  # No exception means LLM wasn't called  # nosec B101
+        assert query is None or query.query_type == KnowledgeQueryType.FACTUAL  # nosec B101
+        mock_classify.assert_not_called()
 
     def test_llm_fallback_not_called_for_clear_patterns(self, detector):
         """Test that LLM fallback is not used for clear pattern matches."""

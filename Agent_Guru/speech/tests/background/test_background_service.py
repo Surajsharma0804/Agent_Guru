@@ -799,7 +799,7 @@ class TestBackgroundServiceManager:
             action = random.choice(actions)  # nosec B311
             try:
                 action()
-            except Exception as e:
+            except Exception:
                 pass  # nosec B110
         
         # Service should still be running
