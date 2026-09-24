@@ -254,10 +254,12 @@ class _AudioCapture:
             # - Reported latency 26 ms (MME) vs 22 ms (WASAPI), next to
             #   chunks of 500-1500 ms. No overflows on either over 20 s,
             #   process CPU 0.5% vs 0.2%.
-            # - Recording the same tones through both at once, neither was
-            #   consistently better: the in-band and alias levels differed
-            #   by a few dB and which one looked better changed from run to
-            #   run.
+            # - Audio quality (MME's resampler against soxr) is NOT settled.
+            #   Test tones played through the laptop speaker barely reach its
+            #   own mic, because the driver's echo cancellation removes them
+            #   (3 s of speech-band noise at 0.6 recorded at rms 0.00005), so
+            #   that comparison measured echo-cancelled residue, not the
+            #   resampler. It needs an external speaker or a second machine.
             # - Device indices are not stable (the WASAPI default moved from
             #   15 to 9 between two runs as Bluetooth devices came and went),
             #   so pinning one would break for users.
