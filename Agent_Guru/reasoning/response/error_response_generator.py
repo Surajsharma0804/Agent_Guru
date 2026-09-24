@@ -104,7 +104,15 @@ class ErrorResponseGenerator:
             Response object with user-friendly error message
 
         """
-        # Get error template
+        # Get error template. Resolve which type was ACTUALLY used first --
+        # _get_error_template() silently falls back to SYSTEM_ERROR, and the
+        # metadata below should name the template that answered, not the one
+        # that was asked for.
+        selected_type = (
+            error.error_type
+            if error.error_type in self._error_templates
+            else ErrorType.SYSTEM_ERROR
+        )
         template = self._get_error_template(error.error_type)
 
         # Select message based on modality
@@ -124,6 +132,13 @@ class ErrorResponseGenerator:
             text=message,
             modality=modality,
             metadata={
+                # template_id and template_type were missing here while the
+                # success path in TemplateGenerator always supplies them, so
+                # metadata["template_id"] raised KeyError for any error
+                # response -- an inconsistent contract for every caller that
+                # reads response metadata uniformly.
+                "template_id": f"error_{selected_type.value}",
+                "template_type": "error",
                 "error_type": error.error_type.value,
                 "error_code": error.error_code,
                 "recoverable": error.recoverable,
