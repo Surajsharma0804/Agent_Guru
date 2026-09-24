@@ -104,6 +104,23 @@ class StreamingAudioManager:
             StreamingError: If streaming fails
 
         """
+        # A source that is not an async iterable is a caller bug, not a
+        # streaming failure. Without this check the bare `async for` below
+        # raised TypeError INSIDE the try, which the generic handler rewrapped
+        # as "Input streaming failed: 'async for' requires an object with
+        # __aiter__ method, got coroutine" - a message that points at the
+        # audio pipeline when the real problem is the argument. A common
+        # source of this is passing `f()` where f is `async def f(): return`
+        # (a coroutine) instead of an async generator.
+        if not hasattr(audio_source, "__aiter__"):
+            msg = (
+                f"audio_source must be an async iterable, got "
+                f"{type(audio_source).__name__}. If you passed an `async def` "
+                f"function's result, make sure it is an async GENERATOR (it "
+                f"must contain a `yield`)."
+            )
+            raise TypeError(msg)
+
         self._running = True
         self._input_state = StreamState()
         self._input_state.start_time = time.time()
