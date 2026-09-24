@@ -3,8 +3,11 @@
 import pytest
 import numpy as np
 import tempfile
-import soundfile as sf
 from pathlib import Path
+
+# soundfile is optional and only writes the WAV fixtures, so it is imported
+# where a fixture needs it. At module scope its absence stopped this whole
+# file collecting, including the tests that never touch a file.
 
 from Agent_Guru.speech.audio.capture import (
     AudioCapture,
@@ -105,6 +108,7 @@ class TestFileCapture:
     @pytest.fixture
     def temp_audio_file(self):
         """Create a temporary audio file for testing."""
+        sf = pytest.importorskip("soundfile")
         # Generate test audio
         duration = 1.0
         sample_rate = 16000
@@ -124,6 +128,7 @@ class TestFileCapture:
     @pytest.fixture
     def temp_stereo_file(self):
         """Create a temporary stereo audio file."""
+        sf = pytest.importorskip("soundfile")
         duration = 1.0
         sample_rate = 16000
         t = np.linspace(0, duration, int(sample_rate * duration))
@@ -213,6 +218,7 @@ class TestFileCapture:
     
     def test_load_different_formats(self):
         """Test loading different audio formats."""
+        sf = pytest.importorskip("soundfile")
         formats = ['.wav', '.flac']
         
         for fmt in formats:
@@ -242,6 +248,7 @@ class TestAudioCaptureIntegration:
     
     def test_file_capture_to_processing_pipeline(self):
         """Test file capture in a processing pipeline."""
+        sf = pytest.importorskip("soundfile")
         # Create test audio file
         duration = 1.0
         sample_rate = 16000
@@ -269,6 +276,7 @@ class TestAudioCaptureIntegration:
     
     def test_format_conversion_workflow(self):
         """Test format conversion in capture workflow."""
+        sf = pytest.importorskip("soundfile")
         # Create audio at different sample rates
         for original_rate in [8000, 16000, 44100]:
             duration = 0.5

@@ -4,7 +4,6 @@ import logging
 import time
 from collections.abc import AsyncIterator
 
-import librosa
 import numpy as np
 
 from Agent_Guru.speech.exceptions import EmotionDetectionError
@@ -278,6 +277,15 @@ class EmotionDetector:
             Dictionary of acoustic features
 
         """
+        # librosa is an optional extra. At module scope its absence made
+        # Agent_Guru.speech.emotion unimportable, and through it SpeechEngine.
+        # It is imported here, outside the try below, on purpose: that try
+        # swallows every failure into a set of default features, so a missing
+        # librosa would otherwise come back as a confident-looking NEUTRAL
+        # reading for every utterance. Outside it, detect_emotion() reports
+        # the missing module as the EmotionDetectionError it documents.
+        import librosa
+
         try:
             # Ensure audio is float32
             audio = audio.astype(np.float32)

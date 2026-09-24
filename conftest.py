@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import os
 import pathlib
@@ -169,9 +170,14 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 #
 # A warm-up failure must degrade, never abort: an exception raised from a
 # collection hook is an INTERNALERROR that stops the whole session and hides
-# its collection-error summary. librosa is also optional for the code under
-# test - every caller has a numpy fallback - so unlike the embedding fixture,
-# the warm_librosa fixture never raises either.
+# its collection-error summary. librosa is also an optional extra, so unlike
+# the embedding fixture, the warm_librosa fixture never raises either.
+#
+# Not every librosa caller has a fallback: voice_features, voice_cloner and
+# emotion_detector need it to produce any result at all. Tests that drive
+# those paths request `requires_librosa` below, so a machine without librosa
+# reports them as skipped with the reason, instead of as dozens of failures
+# that look like broken code.
 # ---------------------------------------------------------------------------
 _LIBROSA_WARMUP_ATTEMPTED = False
 
@@ -183,6 +189,13 @@ def _warm_librosa_once() -> None:
         return
     # Set before the work so a failure is not retried by the fixture backstop.
     _LIBROSA_WARMUP_ATTEMPTED = True
+
+    # Absent is a supported configuration, not a warm-up failure. Reporting
+    # it as one printed a "warm-up failed" warning on every run of every
+    # machine without the extra, which is exactly the noise that teaches
+    # people to stop reading the test output.
+    if importlib.util.find_spec("librosa") is None:
+        return
 
     import librosa
     import numpy as np
@@ -246,6 +259,18 @@ def warm_librosa(pytestconfig: pytest.Config) -> None:
         _warm_librosa_once()
     except Exception as exc:
         _report_warmup_failure(pytestconfig, "librosa", exc)
+
+
+@pytest.fixture
+def requires_librosa() -> None:
+    """Skip the requesting test when librosa is not installed.
+
+    For tests whose code path cannot produce a result without librosa. Before
+    librosa was imported lazily, its absence broke collection of whole files;
+    now those files collect, and only the tests that really need it are
+    skipped, while the rest of each file still runs.
+    """
+    pytest.importorskip("librosa")
 
 
 @pytest.fixture

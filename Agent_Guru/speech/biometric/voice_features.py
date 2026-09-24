@@ -7,7 +7,6 @@ authentication itself.
 
 import logging
 
-import librosa
 import numpy as np
 from scipy.signal import butter, filtfilt
 
@@ -75,6 +74,18 @@ class VoiceFeatureExtractor:
             if sample_rate <= 0:
                 msg = f"Invalid sample rate: {sample_rate}"
                 raise VoiceBiometricError(msg)
+
+            # librosa is an optional extra, imported here and not at module
+            # scope. At module scope its absence broke `import
+            # Agent_Guru.speech.biometric` and, because speech/engine.py
+            # imports this module at load time, SpeechEngine as well: a
+            # machine without librosa could not start speech at all, and five
+            # test files failed to even collect. Imported here, a missing
+            # librosa surfaces as the VoiceBiometricError this method already
+            # promises, naming the module, only on the path that needs it.
+            # It comes after the input checks so a bad argument is still
+            # reported as itself rather than as a missing package.
+            import librosa
 
             # Ensure audio is float32
             if audio.dtype != np.float32:
@@ -396,6 +407,11 @@ class VoiceFeatureExtractor:
         try:
             if len(audio) == 0:
                 return False, 0.0
+
+            # Lazy for the reason given in extract_features, and after the
+            # empty check so empty input keeps its definite 0.0 verdict. A
+            # missing librosa lands in the except below and fails closed.
+            import librosa
 
             # Ensure audio is float32
             if audio.dtype != np.float32:

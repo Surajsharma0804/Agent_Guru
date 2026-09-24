@@ -64,6 +64,7 @@ def audio_sample_strategy(draw):
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large, HealthCheck.function_scoped_fixture]
 )
 @pytest.mark.timeout(600)
+@pytest.mark.usefixtures("requires_librosa")
 def test_property_17_voice_cloning_quality(voice_cloner, num_samples, voice_id):
     """
     Property 17: Voice Cloning Quality
@@ -171,6 +172,7 @@ def test_property_17_voice_cloning_quality(voice_cloner, num_samples, voice_id):
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture]
 )
 @pytest.mark.timeout(600)
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_similarity_consistency(voice_cloner, audio_duration, base_freq):
     """
     Test that voice similarity is consistent and symmetric.
@@ -223,6 +225,7 @@ def test_voice_similarity_consistency(voice_cloner, audio_duration, base_freq):
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture]
 )
 @pytest.mark.timeout(600)
+@pytest.mark.usefixtures("requires_librosa")
 def test_incremental_learning_stability(voice_cloner, num_updates):
     """
     Test that incremental learning is stable and doesn't degrade quality.
@@ -298,6 +301,7 @@ def test_incremental_learning_stability(voice_cloner, num_updates):
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture]
 )
 @pytest.mark.timeout(300)
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloning_different_sample_rates(voice_cloner, sample_rate):
     """
     Test voice cloning works with different sample rates.
@@ -335,6 +339,7 @@ def test_voice_cloning_different_sample_rates(voice_cloner, sample_rate):
 
 # Unit tests for edge cases
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloning_empty_audio(voice_cloner):
     """Test handling of empty audio."""
     empty_audio = np.array([], dtype=np.float32)
@@ -344,6 +349,7 @@ def test_voice_cloning_empty_audio(voice_cloner):
     assert features is not None  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloning_silent_audio(voice_cloner):
     """Test handling of silent audio."""
     silent_audio = np.zeros(16000, dtype=np.float32)
@@ -364,6 +370,7 @@ def test_voice_cloning_clipped_audio(voice_cloner):
     assert quality < 0.8  # Clipped audio should have reduced quality  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloning_very_short_audio(voice_cloner):
     """Test handling of very short audio."""
     # 0.01 seconds
@@ -376,6 +383,7 @@ def test_voice_cloning_very_short_audio(voice_cloner):
     assert 0.0 <= quality <= 1.0  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloning_very_long_audio(voice_cloner):
     """Test handling of very long audio."""
     # 60 seconds
@@ -388,6 +396,7 @@ def test_voice_cloning_very_long_audio(voice_cloner):
     assert 0.0 <= quality <= 1.0  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloning_feature_consistency(voice_cloner):
     """Test that feature extraction is consistent."""
     # Generate audio

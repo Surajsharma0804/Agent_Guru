@@ -244,3 +244,118 @@ class TestConfigModule:
         # Test Maya personality config
         maya_config = SpeechEngineConfig.for_maya_personality()
         assert maya_config is not None  # nosec B101
+
+
+# librosa, sounddevice and soundfile are optional audio extras. When
+# voice_features, voice_cloner, emotion_detector and audio/capture imported
+# them at module scope, a machine without them could not import SpeechEngine
+# at all, and whole test files failed to collect, so the run reported errors
+# for code that was not broken. Each check runs in a fresh interpreter with the
+# three packages blocked, so it proves the point whether or not they happen to
+# be installed here.
+_BLOCK_OPTIONAL_AUDIO = (
+    "import sys\n"
+    "for _name in ('librosa', 'sounddevice', 'soundfile'):\n"
+    "    sys.modules[_name] = None\n"
+)
+
+
+def _run_without_optional_audio(body: str) -> None:
+    import subprocess
+    import sys
+    import textwrap
+
+    repo_root = Path(__file__).resolve().parents[3]
+    result = subprocess.run(  # noqa: S603  # nosec B603
+        [sys.executable, "-c", _BLOCK_OPTIONAL_AUDIO + textwrap.dedent(body)],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        timeout=25,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr  # nosec B101
+
+
+class TestImportableWithoutOptionalAudioExtras:
+    """The speech package must import, and fail clearly, without the audio extras."""
+
+    def test_speech_modules_import(self):
+        _run_without_optional_audio(
+            """
+            import Agent_Guru.speech.engine
+            import Agent_Guru.speech.biometric
+            import Agent_Guru.speech.emotion
+            import Agent_Guru.speech.tts.voice_cloner
+            import Agent_Guru.speech.audio.capture
+            """
+        )
+
+    def test_voice_features_report_the_missing_package(self):
+        _run_without_optional_audio(
+            """
+            import asyncio
+            import numpy as np
+            from Agent_Guru.speech.biometric import VoiceFeatureExtractor
+            from Agent_Guru.speech.exceptions import VoiceBiometricError
+
+            extractor = VoiceFeatureExtractor()
+            audio = np.sin(np.linspace(0, 2000, 16000)).astype(np.float32)
+            try:
+                asyncio.run(extractor.extract_features(audio, 16000))
+            except VoiceBiometricError as exc:
+                assert "librosa" in str(exc), exc
+            else:
+                raise AssertionError("extract_features succeeded without librosa")
+
+            # Input errors are still reported as themselves, not as a missing
+            # package, and empty audio keeps its definite liveness verdict.
+            try:
+                asyncio.run(extractor.extract_features(np.zeros(0, np.float32), 16000))
+            except VoiceBiometricError as exc:
+                assert "empty" in str(exc), exc
+            assert extractor.detect_liveness(np.zeros(0, np.float32), 16000) == (False, 0.0)
+            # Liveness without librosa must fail closed.
+            assert extractor.detect_liveness(audio, 16000)[0] is False
+            """
+        )
+
+    def test_emotion_detection_does_not_fake_a_result(self):
+        # extract_acoustic_features swallows its own failures into default
+        # features. A missing librosa must not be swallowed with them, or
+        # every utterance would come back as a confident-looking reading.
+        _run_without_optional_audio(
+            """
+            import numpy as np
+            from Agent_Guru.speech.emotion import EmotionDetector
+            from Agent_Guru.speech.exceptions import EmotionDetectionError
+
+            audio = np.sin(np.linspace(0, 2000, 16000)).astype(np.float32)
+            try:
+                EmotionDetector().detect_emotion(audio, 16000)
+            except EmotionDetectionError as exc:
+                assert "librosa" in str(exc), exc
+            else:
+                raise AssertionError("detect_emotion returned a result without librosa")
+            """
+        )
+
+    def test_audio_capture_reports_the_missing_package(self):
+        _run_without_optional_audio(
+            """
+            from Agent_Guru.speech.audio.capture import FileCapture, MicrophoneCapture
+            from Agent_Guru.speech.exceptions import AudioInputError
+
+            for call in (
+                lambda: FileCapture.get_file_info("missing.wav"),
+                lambda: MicrophoneCapture().capture(duration=0.1),
+            ):
+                try:
+                    call()
+                except AudioInputError as exc:
+                    assert "sound" in str(exc), exc
+                else:
+                    raise AssertionError("capture succeeded without its backend")
+            assert MicrophoneCapture.list_devices() == []
+            """
+        )

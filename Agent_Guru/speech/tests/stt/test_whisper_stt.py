@@ -4,7 +4,10 @@ import numpy as np
 import pytest
 from pathlib import Path
 import tempfile
-import soundfile as sf
+
+# soundfile is optional and only writes the WAV fixtures, so it is imported
+# where a fixture needs it. At module scope its absence stopped this whole
+# file collecting, including the tests that never touch a file.
 
 from Agent_Guru.speech.stt.whisper_stt import WhisperTranscriber
 from Agent_Guru.speech.models import TranscriptionResult, TranscriptionSegment
@@ -33,6 +36,7 @@ class TestWhisperTranscriber:
     @pytest.fixture
     def audio_file(self, sample_audio):
         """Create a temporary audio file."""
+        sf = pytest.importorskip("soundfile")
         audio, sample_rate = sample_audio
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
             sf.write(f.name, audio, sample_rate)

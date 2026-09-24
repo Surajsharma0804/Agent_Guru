@@ -251,6 +251,7 @@ class TestSpeechEngine:
     # EMOTION DETECTION
     # ========================================================================
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_detect_emotion(
         self,
         initialized_engine: SpeechEngine,
@@ -267,6 +268,7 @@ class TestSpeechEngine:
     # VOICE BIOMETRICS
     # ========================================================================
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_extract_voice_features(
         self,
         initialized_engine: SpeechEngine,
@@ -283,6 +285,7 @@ class TestSpeechEngine:
     # VOICE CLONING
     # ========================================================================
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_clone_voice(
         self,
         initialized_engine: SpeechEngine,
@@ -315,6 +318,7 @@ class TestSpeechEngine:
         assert model.voice_characteristics["sample_count"] == 300  # nosec B101
         assert model.training_duration_seconds >= 300.0  # nosec B101
 
+    @pytest.mark.usefixtures("requires_librosa")
     def test_clone_voice_rejects_out_of_range_audio(
         self,
         initialized_engine: SpeechEngine,
@@ -707,6 +711,7 @@ class TestSpeechEngine:
         finally:
             initialized_engine.wake_word_detector.detect = original_detect
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_command_none_when_transcription_empty(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
         """ZERO COMPROMISE: Test command is None when transcription is empty."""
         import asyncio
@@ -766,6 +771,7 @@ class TestSpeechEngine:
     # ZERO COMPROMISE - FINAL 100% COVERAGE TESTS
     # ========================================================================
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_coverage_command_interpret_call(self, initialized_engine: SpeechEngine, sample_audio: np.ndarray):
         """ZERO COMPROMISE: Ensure line 251 is covered - command_parser.interpret() call."""
         import asyncio

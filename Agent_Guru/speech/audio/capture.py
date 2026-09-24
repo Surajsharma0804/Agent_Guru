@@ -3,8 +3,6 @@
 import logging
 
 import numpy as np
-import sounddevice as sd
-import soundfile as sf
 
 from Agent_Guru.speech.exceptions import AudioInputError
 
@@ -53,6 +51,8 @@ class MicrophoneCapture(AudioCapture):
         # Verify device is available
         try:
             if device is not None:
+                import sounddevice as sd
+
                 device_info = sd.query_devices(device)
                 logger.info("Using audio device: %s", device_info["name"])
             else:
@@ -84,6 +84,17 @@ class MicrophoneCapture(AudioCapture):
             raise AudioInputError(msg)
 
         try:
+            # sounddevice and soundfile are imported where they are used, as
+            # every other caller in this package already does. At module
+            # scope they made this file, and through speech/engine.py the
+            # whole SpeechEngine, unimportable on a machine without them,
+            # including file-only and test setups that never touch a
+            # microphone. sounddevice also raises OSError, not ImportError,
+            # when the PortAudio system library is missing, so an installed
+            # package was not enough either. Here the failure becomes the
+            # AudioInputError this method documents.
+            import sounddevice as sd
+
             logger.debug("Capturing %.3fs of audio at %dHz", duration, self.sample_rate)
 
             # Record audio
@@ -119,6 +130,8 @@ class MicrophoneCapture(AudioCapture):
 
         """
         try:
+            import sounddevice as sd
+
             devices = sd.query_devices()
             return [
                 {
@@ -179,6 +192,9 @@ class FileCapture(AudioCapture):
 
         """
         try:
+            # Lazy for the reason given in MicrophoneCapture.capture.
+            import soundfile as sf
+
             logger.debug("Loading audio from: %s", file_path)
 
             # Load audio file
@@ -234,6 +250,8 @@ class FileCapture(AudioCapture):
 
         """
         try:
+            import soundfile as sf
+
             info = sf.info(file_path)
             return {
                 "duration": info.duration,

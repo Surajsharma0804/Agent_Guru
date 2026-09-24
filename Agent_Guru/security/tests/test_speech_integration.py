@@ -125,6 +125,7 @@ class TestSpeechSecurityIntegration:
     # ENROLLMENT TESTS
     # ========================================================================
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_enroll_user_from_audio(
         self,
         integration: SpeechSecurityIntegration,
@@ -137,6 +138,7 @@ class TestSpeechSecurityIntegration:
         assert profile.sample_count == 1  # nosec B101
         assert profile.quality_score > 0.0  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_enroll_duplicate_user_from_audio(
         self,
         integration: SpeechSecurityIntegration,
@@ -152,6 +154,7 @@ class TestSpeechSecurityIntegration:
     # AUTHENTICATION TESTS
     # ========================================================================
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_authenticate_from_audio_verification(
         self,
         integration: SpeechSecurityIntegration,
@@ -171,6 +174,7 @@ class TestSpeechSecurityIntegration:
         assert user_id == "user1"  # nosec B101
         assert similarity >= 0.85  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_authenticate_from_audio_identification(
         self,
         integration: SpeechSecurityIntegration,
@@ -187,6 +191,7 @@ class TestSpeechSecurityIntegration:
         assert user_id == "user1"  # nosec B101
         assert similarity >= 0.85  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_authenticate_wrong_audio(
         self,
         integration: SpeechSecurityIntegration,
@@ -212,6 +217,7 @@ class TestSpeechSecurityIntegration:
     # PROFILE MANAGEMENT TESTS
     # ========================================================================
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_update_profile_from_audio(
         self,
         integration: SpeechSecurityIntegration,
@@ -227,6 +233,7 @@ class TestSpeechSecurityIntegration:
         
         assert updated_profile.sample_count == 2  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_delete_user(
         self,
         integration: SpeechSecurityIntegration,
@@ -242,6 +249,7 @@ class TestSpeechSecurityIntegration:
         # Verify deleted
         assert integration.get_user_profile("user1") is None  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_get_user_profile(
         self,
         integration: SpeechSecurityIntegration,
@@ -257,6 +265,7 @@ class TestSpeechSecurityIntegration:
         assert profile is not None  # nosec B101
         assert profile.user_id == "user1"  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_list_enrolled_users(
         self,
         integration: SpeechSecurityIntegration,
@@ -278,6 +287,7 @@ class TestSpeechSecurityIntegration:
     # END-TO-END WORKFLOW TESTS
     # ========================================================================
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_end_to_end_enrollment_and_authentication(
         self,
         integration: SpeechSecurityIntegration,
@@ -305,6 +315,7 @@ class TestSpeechSecurityIntegration:
         integration.delete_user("user1")
         assert integration.get_user_profile("user1") is None  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_multi_user_authentication(
         self,
         integration: SpeechSecurityIntegration,
@@ -346,6 +357,7 @@ class TestSpeechSecurityIntegration:
         with pytest.raises(VoiceBiometricError, match="Audio data is empty"):
             integration.enroll_user_from_audio("user1", empty_audio)
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_enroll_with_very_short_audio(
         self,
         integration: SpeechSecurityIntegration
@@ -357,6 +369,7 @@ class TestSpeechSecurityIntegration:
         with pytest.raises(VoiceAuthenticationError, match="Voice quality too low"):
             integration.enroll_user_from_audio("user1", short_audio)
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_enroll_with_very_long_audio(
         self,
         integration: SpeechSecurityIntegration
@@ -368,6 +381,7 @@ class TestSpeechSecurityIntegration:
         profile = integration.enroll_user_from_audio("user1", long_audio)
         assert profile.user_id == "user1"  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_enroll_with_silent_audio(
         self,
         integration: SpeechSecurityIntegration
@@ -390,6 +404,7 @@ class TestSpeechSecurityIntegration:
 
         assert "user1" not in integration.list_enrolled_users()  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_enroll_with_clipped_audio(
         self,
         integration: SpeechSecurityIntegration
@@ -431,6 +446,7 @@ class TestSpeechSecurityIntegration:
             # Acceptable to fail with inf audio
             logger.debug("Inf audio enrollment failed as expected: %s", exc)
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_authenticate_after_multiple_updates(
         self,
         integration: SpeechSecurityIntegration,
@@ -454,6 +470,7 @@ class TestSpeechSecurityIntegration:
         # May or may not authenticate depending on how much profile drifted
         assert user_id in [None, "user1"]  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_concurrent_user_operations(
         self,
         integration: SpeechSecurityIntegration,
@@ -477,6 +494,7 @@ class TestSpeechSecurityIntegration:
         users = integration.list_enrolled_users()
         assert len(users) == 25  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_profile_quality_degradation(
         self,
         integration: SpeechSecurityIntegration,
@@ -505,6 +523,7 @@ class TestSpeechSecurityIntegration:
         # Quality is averaged, so it may not strictly degrade
         assert 0.0 < profile.quality_score <= 1.0  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_authentication_with_different_audio_lengths(
         self,
         integration: SpeechSecurityIntegration
@@ -526,6 +545,7 @@ class TestSpeechSecurityIntegration:
         assert isinstance(authenticated1, (bool, np.bool_))  # nosec B101
         assert isinstance(authenticated2, (bool, np.bool_))  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_delete_and_reenroll_same_user(
         self,
         integration: SpeechSecurityIntegration,
@@ -554,6 +574,7 @@ class TestSpeechSecurityIntegration:
         profile = integration.get_user_profile("nonexistent_user")
         assert profile is None  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_update_nonexistent_profile(
         self,
         integration: SpeechSecurityIntegration,
@@ -579,6 +600,7 @@ class TestSpeechSecurityIntegration:
         users = integration.list_enrolled_users()
         assert users == []  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_authenticate_identification_no_match(
         self,
         integration: SpeechSecurityIntegration,
