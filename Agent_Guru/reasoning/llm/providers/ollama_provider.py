@@ -21,6 +21,7 @@ from typing import Any
 
 import aiohttp
 
+from Agent_Guru.reasoning.llm.generation import context_fits, ollama_options
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderConfig
 
@@ -101,25 +102,22 @@ class OllamaProvider(BaseLLMProvider):
         """
         start_time = time.perf_counter()
 
+        # Options come from the shared generation policy. This client used to
+        # send num_gpu but no num_ctx, so it ran at whatever context the
+        # server defaulted to (131072 on a machine where the Ollama app's
+        # slider was set high). It also disagreed with the voice client,
+        # which made Ollama reload the model between their requests.
         payload: dict[str, Any] = {
             "model": self.ollama_config.model,
             "prompt": request.prompt,
             "stream": False,
-            "options": {
-                "temperature": request.temperature,
-                "top_p": request.top_p,
-                "num_predict": request.max_tokens,
-                # Request GPU offloading per-request so it works even when
-                # OLLAMA_NO_CUDA or OLLAMA_LLM_LIBRARY=cpu is set at system level.
-                # 99 = offload as many layers as fit in VRAM.
-                "num_gpu": 99,
-            },
+            "options": ollama_options(
+                num_predict=request.max_tokens,
+                temperature=request.temperature,
+                top_p=request.top_p,
+                stop=request.stop_sequences,
+            ),
         }
-
-        if request.stop_sequences:
-            options = payload["options"]
-            if isinstance(options, dict):
-                options["stop"] = request.stop_sequences
 
         # aiohttp timeout: short connect (fail fast offline), long read (allow inference)
         timeout = aiohttp.ClientTimeout(
@@ -149,6 +147,11 @@ class OllamaProvider(BaseLLMProvider):
                         finish_reason = "error"
 
                     tokens_generated: int = data.get("eval_count", len(text.split()))
+                    context_fits(
+                        data.get("prompt_eval_count"),
+                        request.max_tokens,
+                        source="OllamaProvider",
+                    )
 
                     return LLMResponse(
                         text=text,
