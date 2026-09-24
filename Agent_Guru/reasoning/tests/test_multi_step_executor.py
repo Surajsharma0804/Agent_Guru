@@ -69,6 +69,38 @@ def identity_tool_function(params: dict[str, Any]) -> Any:
 # Unit Tests
 
 
+# ---------------------------------------------------------------------------
+# WALL-CLOCK BUDGET FOR THE TIMEOUT PROPERTIES
+#
+# The four timeout properties below are exercised by really sleeping, so their
+# runtime is max_examples x (time each example spends blocked). As originally
+# written they cost roughly 50 x 0.9 s, 50 x 1.5 s, 30 x 1.5 s and 30 x 0.7 s
+# - each far beyond the `--timeout=30` pytest.ini sets for every test - so all
+# four hit pytest-timeout's SIGALRM on every run and Hypothesis reported them
+# as "FlakyFailure ... produces unreliable results" rather than as passes or
+# failures. None of their assertions had ever been evaluated.
+#
+# What each property asserts is a RELATION between a delay and a timeout
+# (delay > step timeout, sum of delays > plan timeout), not any particular
+# number of seconds. The constants below preserve every one of those relations
+# while scaling the absolute durations down by ~5x, keeping every interval an
+# order of magnitude above scheduler granularity, and bounding each property
+# to a few seconds.
+# ---------------------------------------------------------------------------
+# Step timeout used by the step-timeout properties, and the delay of a step
+# that must exceed it (SLOW) or comfortably fit inside it (FAST).
+STEP_TIMEOUT = 0.2
+SLOW_STEP_MIN = 0.35
+SLOW_STEP_MAX = 0.5
+FAST_STEP = 0.05
+# Plan-level timeout used by the total-timeout property, and the per-step delay
+# that makes 4-5 such steps overrun it.
+PLAN_TIMEOUT = 0.5
+PLAN_STEP_MIN = 0.18
+PLAN_STEP_MAX = 0.25
+TIMEOUT_EXAMPLES = 20
+
+
 class TestMultiStepExecutor:
     """Unit tests for MultiStepExecutor."""
 
@@ -670,9 +702,9 @@ class TestMultiStepExecutorProperties:
 
     @given(
         num_steps=st.integers(min_value=2, max_value=5),
-        step_delay=st.floats(min_value=0.6, max_value=1.5),
+        step_delay=st.floats(min_value=SLOW_STEP_MIN, max_value=SLOW_STEP_MAX),
     )
-    @settings(deadline=None, max_examples=50)
+    @settings(deadline=None, max_examples=TIMEOUT_EXAMPLES)
     def test_step_timeout_returns_partial_results(self, num_steps: int, step_delay: float):
         """Property 29: Partial results are returned on step timeout.
 
@@ -685,7 +717,7 @@ class TestMultiStepExecutorProperties:
         # Create executor with short step timeout
         executor = MultiStepExecutor(
             max_steps=5,
-            default_step_timeout=0.5,  # Short timeout
+            default_step_timeout=STEP_TIMEOUT,  # Short timeout
             total_timeout=15.0,
         )
 
@@ -693,9 +725,9 @@ class TestMultiStepExecutorProperties:
         steps = []
         for i in range(1, num_steps + 1):
             if i == 2:  # Second step will timeout
-                delay = step_delay  # Exceeds 0.5s timeout
+                delay = step_delay  # Exceeds STEP_TIMEOUT by construction
             else:
-                delay = 0.1  # Fast steps
+                delay = FAST_STEP  # Fast steps
 
             steps.append(
                 PlanStep(
@@ -729,9 +761,9 @@ class TestMultiStepExecutorProperties:
 
     @given(
         num_steps=st.integers(min_value=4, max_value=5),
-        step_delay=st.floats(min_value=0.5, max_value=0.7),
+        step_delay=st.floats(min_value=PLAN_STEP_MIN, max_value=PLAN_STEP_MAX),
     )
-    @settings(deadline=None, max_examples=50)
+    @settings(deadline=None, max_examples=TIMEOUT_EXAMPLES)
     def test_plan_timeout_returns_partial_results(self, num_steps: int, step_delay: float):
         """Property 29: Partial results are returned on plan timeout.
 
@@ -745,11 +777,11 @@ class TestMultiStepExecutorProperties:
         executor = MultiStepExecutor(
             max_steps=5,
             default_step_timeout=5.0,  # Long step timeout
-            total_timeout=1.5,  # Short total timeout
+            total_timeout=PLAN_TIMEOUT,  # Short total timeout
         )
 
-        # Create steps that will exceed total timeout
-        # With 4-5 steps at 0.5-0.7s each, we'll definitely exceed 1.5s
+        # Create steps that will exceed total timeout: 4-5 steps of at least
+        # PLAN_STEP_MIN each necessarily overrun PLAN_TIMEOUT.
         steps = [
             PlanStep(
                 step_number=i,
@@ -790,7 +822,7 @@ class TestMultiStepExecutorProperties:
         num_steps=st.integers(min_value=1, max_value=3),
         timeout_multiplier=st.floats(min_value=2.0, max_value=3.0),
     )
-    @settings(deadline=None, max_examples=30)
+    @settings(deadline=None, max_examples=TIMEOUT_EXAMPLES)
     def test_timeout_enforcement_is_consistent(self, num_steps: int, timeout_multiplier: float):
         """Property: Timeout enforcement is consistent across executions.
 
@@ -799,7 +831,7 @@ class TestMultiStepExecutorProperties:
         For any execution that should timeout, the timeout is consistently
         enforced and produces the same type of result.
         """
-        step_timeout = 0.5
+        step_timeout = STEP_TIMEOUT
         total_timeout = 2.0
 
         executor = MultiStepExecutor(
@@ -879,7 +911,7 @@ class TestMultiStepExecutorProperties:
         num_steps=st.integers(min_value=2, max_value=4),
         timeout_at_step=st.integers(min_value=1, max_value=4),
     )
-    @settings(deadline=None, max_examples=30)
+    @settings(deadline=None, max_examples=TIMEOUT_EXAMPLES)
     def test_timeout_at_any_step_returns_partial_results(
         self, num_steps: int, timeout_at_step: int
     ):
@@ -895,7 +927,7 @@ class TestMultiStepExecutorProperties:
 
         executor = MultiStepExecutor(
             max_steps=5,
-            default_step_timeout=0.5,
+            default_step_timeout=STEP_TIMEOUT,
             total_timeout=15.0,
         )
 
@@ -903,9 +935,9 @@ class TestMultiStepExecutorProperties:
         steps = []
         for i in range(1, num_steps + 1):
             if i == timeout_at_step:
-                delay = 1.0  # Will timeout
+                delay = SLOW_STEP_MAX  # Will timeout
             else:
-                delay = 0.1  # Fast
+                delay = FAST_STEP  # Fast
 
             steps.append(
                 PlanStep(
