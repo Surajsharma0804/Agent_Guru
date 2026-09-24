@@ -547,6 +547,24 @@ async def run() -> None:
             logger.error("Pipeline crashed (will keep listening): %s", exc, exc_info=True)
             logger.warning("[%s] Error - still listening.", personality_name)
 
+    async def _say_microphone_status(message: str) -> None:
+        """Speak a microphone-lost or microphone-restored notice.
+
+        When the input stream died, the only trace used to be a log line
+        nobody at a voice assistant reads, while the startup banner still
+        said it was listening. Speaking is the one channel that reaches a
+        user who is talking to it. Bounded like the pipeline's own TTS stage
+        so a stuck synthesiser cannot stall the loop that reopens the mic.
+        """
+        from Agent_Guru.integration.orchestrator import TTS_TIMEOUT_S, Personality
+
+        try:
+            await asyncio.wait_for(
+                orch._stage_tts(message, Personality.GURU), timeout=TTS_TIMEOUT_S,
+            )
+        except TimeoutError:
+            logger.warning("Microphone status notice not spoken: TTS exceeded %.1fs", TTS_TIMEOUT_S)
+
     # --- Initialise wake word manager and open microphone ---
     wake_cfg = WakeWordConfig(
         wake_words={
@@ -565,6 +583,8 @@ async def run() -> None:
         # Poll every 50ms in sleep mode - low CPU, still responsive
         sleep_poll_interval=0.05,
         on_detection_callback=_on_wake_word,
+        on_microphone_lost=_say_microphone_status,
+        on_microphone_restored=_say_microphone_status,
     )
     wake_manager = WakeWordManager(mgr_cfg)
 
