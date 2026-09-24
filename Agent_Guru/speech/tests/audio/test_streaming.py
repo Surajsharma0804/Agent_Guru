@@ -503,8 +503,13 @@ class TestStreamingAudioManager:
     @pytest.mark.asyncio
     async def test_empty_audio_stream(self, manager: StreamingAudioManager):
         """Test handling of empty audio stream."""
+        # `async def f(): return` is a COROUTINE, not an async generator -
+        # calling it produces an object with no __aiter__, so this test never
+        # exercised the empty-stream path at all. An async generator needs a
+        # `yield` in its body; the unreachable one below makes it empty.
         async def empty_source() -> AsyncIterator[bytes]:
             return
+            yield b""  # pragma: no cover - makes this an async generator
         
         chunks = []
         async for chunk in manager.stream_input(empty_source()):
