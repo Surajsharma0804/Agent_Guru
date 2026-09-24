@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import pathlib
 import tempfile
 
 import pytest
 from hypothesis import HealthCheck, Verbosity, settings
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Hypothesis configuration
@@ -81,6 +84,110 @@ if os.environ.get("AGENT_GURU_ALLOW_MODEL_DOWNLOAD", "").strip().lower() not in 
     "on",
 }:
     os.environ.setdefault("AGENT_GURU_NO_DOWNLOAD", "1")
+
+
+# ---------------------------------------------------------------------------
+# librosa warm-up
+#
+# The first use of librosa.feature imports librosa.util.utils, whose
+# @numba.vectorize functions are JIT-compiled at import time, and piptrack and
+# beat_track compile further numba code on their first call. That one-off cost
+# (about 18 s on a cold Linux cache, 19-30 s on the Windows CI runners) was
+# charged to whichever test touched librosa first, inside that test's timeout
+# budget. avatar/tests/test_properties.py::
+# test_property_5_audio_feature_extraction_completeness took 19-22 s on one CI
+# run and was killed at 30 s on the next, with the same code.
+#
+# This is the problem Agent_Guru/reasoning/tests/conftest.py already solves
+# for the embedding model, solved the same way. The compile happens in
+# pytest_collection_finish, outside every test's timeout window, and only when
+# a collected test opts in with
+#
+#     pytestmark = pytest.mark.usefixtures("warm_librosa")
+#
+# It lives here rather than beside the embedding warm-up because the modules
+# that need it are under avatar/ and speech/, which that conftest cannot
+# serve.
+#
+# A warm-up failure must degrade, never abort: an exception raised from a
+# collection hook is an INTERNALERROR that stops the whole session and hides
+# its collection-error summary. librosa is also optional for the code under
+# test - every caller has a numpy fallback - so unlike the embedding fixture,
+# the warm_librosa fixture never raises either.
+# ---------------------------------------------------------------------------
+_LIBROSA_WARMUP_ATTEMPTED = False
+
+
+def _warm_librosa_once() -> None:
+    """Run the librosa calls the suite relies on once, compiling their numba code."""
+    global _LIBROSA_WARMUP_ATTEMPTED
+    if _LIBROSA_WARMUP_ATTEMPTED:
+        return
+    # Set before the work so a failure is not retried by the fixture backstop.
+    _LIBROSA_WARMUP_ATTEMPTED = True
+
+    import librosa
+    import numpy as np
+
+    sample_rate = 16000
+    t = np.arange(sample_rate, dtype=np.float32) / sample_rate
+    y = (0.5 * np.sin(2 * np.pi * 220.0 * t)).astype(np.float32)
+
+    librosa.feature.mfcc(y=y, sr=sample_rate, n_mfcc=13)
+    librosa.feature.melspectrogram(y=y, sr=sample_rate)
+    librosa.feature.rms(y=y)
+    librosa.feature.zero_crossing_rate(y)
+    librosa.feature.spectral_centroid(y=y, sr=sample_rate)
+    librosa.feature.spectral_bandwidth(y=y, sr=sample_rate)
+    librosa.feature.spectral_rolloff(y=y, sr=sample_rate)
+    librosa.piptrack(y=y, sr=sample_rate)
+    librosa.beat.beat_track(y=y, sr=sample_rate)
+
+
+def _report_warmup_failure(config: pytest.Config, what: str, exc: Exception) -> None:
+    """Log a warm-up failure and show it in the terminal, naming the root cause."""
+    root: BaseException = exc
+    while root.__cause__ is not None:
+        root = root.__cause__
+    detail = f"{type(exc).__name__}: {exc}"
+    if root is not exc:
+        detail += f" (caused by {type(root).__name__}: {root})"
+    message = (
+        f"{what} warm-up failed - {detail}. Tests that use it pay the "
+        "first-use cost themselves or take their fallback path; all other "
+        "tests run normally."
+    )
+    logger.warning(message)
+    # Captured log records are not shown for a collection hook, so also
+    # write the warning to the terminal where it is visible in CI logs.
+    reporter = config.pluginmanager.get_plugin("terminalreporter")
+    if reporter is not None:
+        reporter.write_line(f"WARNING: {message}", yellow=True)
+
+
+def pytest_collection_finish(session: pytest.Session) -> None:
+    """Warm librosa after collection, before any test starts, if a test opted in."""
+    if not any("warm_librosa" in item.fixturenames for item in session.items):
+        return
+    try:
+        _warm_librosa_once()
+    except Exception as exc:
+        _report_warmup_failure(session.config, "librosa", exc)
+
+
+@pytest.fixture(scope="session")
+def warm_librosa(pytestconfig: pytest.Config) -> None:
+    """Ensure librosa's numba code is compiled before the tests that use it.
+
+    pytest_collection_finish above normally does this before any test starts.
+    This fixture is the backstop for a run where that hook did not fire, and
+    is a no-op once the warm-up has been attempted. It never raises: librosa
+    is optional for the code under test.
+    """
+    try:
+        _warm_librosa_once()
+    except Exception as exc:
+        _report_warmup_failure(pytestconfig, "librosa", exc)
 
 
 @pytest.fixture

@@ -11,6 +11,11 @@ from hypothesis import given, strategies as st, settings
 from Agent_Guru.speech.biometric import VoiceFeatureExtractor
 from Agent_Guru.speech.exceptions import VoiceBiometricError
 
+# The first librosa call JIT-compiles numba code (18-30 s cold). Warm it once
+# per session, before any test starts, so no individual test is charged the
+# compile inside its own timeout budget.
+pytestmark = pytest.mark.usefixtures("warm_librosa")
+
 
 # Strategy for generating valid audio data
 @st.composite
