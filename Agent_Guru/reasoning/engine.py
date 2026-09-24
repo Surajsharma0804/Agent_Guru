@@ -1,4 +1,4 @@
-"""Production-Grade Reasoning Engine.
+﻿"""Production-Grade Reasoning Engine.
 
 This module implements the main ReasoningEngine class that orchestrates all components
 of the reasoning pipeline with comprehensive error handling, distributed tracing,
@@ -75,7 +75,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 # Sentinel used to distinguish "llm_reasoning not provided" from "llm_reasoning=None".
-# Passing None explicitly disables LLM (no Ollama/API calls â€” useful in tests).
+# Passing None explicitly disables LLM (no Ollama/API calls - useful in tests).
 # Omitting the argument (default=_UNSET) triggers auto-initialisation from env.
 _UNSET: Any = object()
 
@@ -291,7 +291,7 @@ class ReasoningEngine:
 
         # Initialize LLM reasoning:
         #   - _UNSET (default): auto-initialise from environment (tries Ollama/API keys)
-        #   - None (explicit): disable LLM entirely â€” no network calls, tests stay fast
+        #   - None (explicit): disable LLM entirely - no network calls, tests stay fast
         #   - ReasoningPlanGenerator instance: use as-is
         if llm_reasoning is _UNSET:
             llm_provider = self._initialize_llm_provider()
@@ -337,11 +337,21 @@ class ReasoningEngine:
 
         Priority order (first available wins):
         1. Skip entirely in test mode (AGENT_GURU_TEST_MODE=1 or PYTEST_CURRENT_TEST set)
-        2. Gemini  â€” if GEMINI_API_KEY is set  (best reasoning, low latency)
-        3. DeepSeek â€” if DEEPSEEK_API_KEY is set (fast and cheap)
-        4. OpenAI  â€” if OPENAI_API_KEY is set  (reliable)
-        5. Ollama  â€” local fallback (free, offline, unlimited)
+        2. OpenAI  - if OPENAI_API_KEY is set AND the optional `cloud` extra is
+           installed. Agent_Guru is offline-first: the openai SDK is NOT a base
+           dependency, so this branch is inert unless the operator opted in with
+           `pip install agent-guru[cloud]`.
+        3. Ollama  - local default (free, offline, unlimited).
            Uses OLLAMA_TIMEOUT_SECONDS env var (default 8s dev / 120s prod).
+
+        DEAD BRANCHES REMOVED: this chain used to begin with Gemini and
+        DeepSeek branches that imported
+        `...llm.providers.gemini_provider` and `...deepseek_provider`. Neither
+        module exists anywhere in the repository. Both branches therefore built
+        a ProviderConfig, failed the import, logged "module not installed" at
+        DEBUG and fell through - every time, on every machine. The docstring
+        advertised a five-provider chain that was really two, and an operator
+        who set GEMINI_API_KEY got silence rather than an answer.
 
         Returns:
             LLM provider instance, or None if all providers fail / test mode.
@@ -350,75 +360,63 @@ class ReasoningEngine:
         import os
 
         # ------------------------------------------------------------------ #
-        # Test-mode guard â€” skip ALL network calls during pytest runs.        #
+        # Test-mode guard - skip ALL network calls during pytest runs.        #
         # Set AGENT_GURU_REAL_OLLAMA=1 to override and test with real Ollama. #
         # ------------------------------------------------------------------ #
         in_test = (
             os.environ.get("AGENT_GURU_TEST_MODE") == "1" or "PYTEST_CURRENT_TEST" in os.environ
         )
         if in_test and os.environ.get("AGENT_GURU_REAL_OLLAMA") != "1":
-            logger.debug("Test mode detected â€” LLM provider disabled (no network calls)")
+            logger.debug("Test mode detected - LLM provider disabled (no network calls)")
             return None
 
         # ------------------------------------------------------------------ #
-        # 1. Gemini â€” best for reasoning, lowest latency on cloud             #
-        # ------------------------------------------------------------------ #
-        gemini_key = os.environ.get("GEMINI_API_KEY")
-        if gemini_key:
-            try:
-                from Agent_Guru.reasoning.llm.providers.base import ProviderConfig
-                from Agent_Guru.reasoning.llm.providers.gemini_provider import GeminiProvider
-
-                config = ProviderConfig(
-                    api_key=gemini_key,
-                    timeout_seconds=30.0,
-                    max_retries=2,
-                )
-                provider = GeminiProvider(config)
-                logger.info("LLM provider: Gemini")
-                return provider
-            except Exception as e:
-                logger.debug("Gemini provider not available (module not installed): %s", e)
-        # ------------------------------------------------------------------ #
-        # 2. DeepSeek â€” fast and cost-effective                               #
-        # ------------------------------------------------------------------ #
-        deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
-        if deepseek_key:
-            try:
-                from Agent_Guru.reasoning.llm.providers.base import ProviderConfig
-                from Agent_Guru.reasoning.llm.providers.deepseek_provider import DeepSeekProvider
-
-                config = ProviderConfig(
-                    api_key=deepseek_key,
-                    timeout_seconds=30.0,
-                    max_retries=2,
-                )
-                provider = DeepSeekProvider(config)
-                logger.info("LLM provider: DeepSeek")
-                return provider
-            except Exception as e:
-                logger.debug("DeepSeek provider not available (module not installed): %s", e)
-        # ------------------------------------------------------------------ #
-        # 3. OpenAI â€” reliable, widely supported                              #
+        # 1. OpenAI - optional, only when the `cloud` extra is installed       #
         # ------------------------------------------------------------------ #
         openai_key = os.environ.get("OPENAI_API_KEY")
         if openai_key:
             try:
                 from Agent_Guru.reasoning.llm.providers.base import ProviderConfig
                 from Agent_Guru.reasoning.llm.providers.openai_provider import OpenAIProvider
-
-                config = ProviderConfig(
-                    api_key=openai_key,
-                    timeout_seconds=30.0,
-                    max_retries=2,
+            except ImportError as exc:
+                # Expected on a default (offline-first) install: the openai SDK
+                # lives in the optional `cloud` extra. Say so plainly, and at
+                # INFO rather than DEBUG - the operator set an API key, so they
+                # expect this provider to be used and deserve to know why it
+                # is not.
+                logger.info(
+                    "OPENAI_API_KEY is set but the OpenAI provider is unavailable "
+                    "(%s). Install the optional extra with "
+                    "`pip install agent-guru[cloud]` to enable it. Falling back "
+                    "to the local provider.",
+                    exc,
                 )
-                provider = OpenAIProvider(config)
-                logger.info("LLM provider: OpenAI")
-                return provider
-            except Exception as e:
-                logger.debug("OpenAI provider not available (module not installed): %s", e)
+            else:
+                try:
+                    provider = OpenAIProvider(
+                        ProviderConfig(
+                            api_key=openai_key,
+                            timeout_seconds=30.0,
+                            max_retries=2,
+                        ),
+                    )
+                except Exception:
+                    # A construction failure here is NOT "module not installed"
+                    # - it is a bad key, bad config or a broken environment.
+                    # The old code caught both cases in one `except Exception`
+                    # and logged the same DEBUG line for each, so a
+                    # misconfigured provider was indistinguishable from an
+                    # absent one.
+                    logger.exception(
+                        "OpenAI provider could not be constructed; "
+                        "falling back to the local provider",
+                    )
+                else:
+                    logger.info("LLM provider: OpenAI")
+                    return provider
+
         # ------------------------------------------------------------------ #
-        # 4. Ollama â€” local fallback (desktop / self-hosted production)       #
+        # 2. Ollama - local default (desktop / self-hosted production)        #
         #    OLLAMA_TIMEOUT_SECONDS: 8s default (dev), set 120s for prod.     #
         # ------------------------------------------------------------------ #
         try:
@@ -431,7 +429,7 @@ class ReasoningEngine:
             config = OllamaProviderConfig(
                 model="gemma3:4b",
                 timeout_seconds=ollama_timeout,
-                max_retries=1,  # No retries on local â€” fail fast, let caller handle
+                max_retries=1,  # No retries on local - fail fast, let caller handle
             )
             provider = OllamaProvider(config)
             logger.info(
