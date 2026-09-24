@@ -1,4 +1,4 @@
-"""Whisper-based speech-to-text transcription for desktop platforms."""
+﻿"""Whisper-based speech-to-text transcription for desktop platforms."""
 
 import logging
 import time
@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 # faster_whisper depends on ctranslate2 which may be blocked by Windows
-# Application Control policies — graceful fallback
+# Application Control policies - graceful fallback
 try:
     from faster_whisper import WhisperModel
 except (ImportError, OSError) as _fw_err:
@@ -93,11 +93,27 @@ class WhisperTranscriber:
         """
         if self._model is None:
             if self._model_load_failed:
-                msg = "Whisper model previously failed to load — not retrying automatically"
+                msg = "Whisper model previously failed to load - not retrying automatically"
+                raise GuruSpeechError(msg)
+            if WhisperModel is None:
+                # The import at the top of this module already failed and
+                # logged why, but that warning is long gone by the time a user
+                # speaks. Calling WhisperModel(...) here would raise
+                # "TypeError: 'NoneType' object is not callable", which the
+                # handler below then wrapped into
+                # "Failed to load Whisper model: 'NoneType' object is not
+                # callable" -- a message that tells nobody what to actually do.
+                self._model_load_failed = True
+                msg = (
+                    "Speech recognition is unavailable: faster-whisper could "
+                    "not be imported at startup (commonly a missing install, "
+                    "or ctranslate2's DLL blocked by Windows Application "
+                    "Control). Install it with: pip install faster-whisper"
+                )
                 raise GuruSpeechError(msg)
             try:
                 model_id = self.model_path or self.model_size
-                # Try local cache first — no HuggingFace ping
+                # Try local cache first - no HuggingFace ping
                 try:
                     self._model = WhisperModel(
                         model_id,
@@ -106,7 +122,7 @@ class WhisperTranscriber:
                         local_files_only=True,
                     )
                 except Exception:
-                    # Model not cached yet — allow download, then it's cached forever
+                    # Model not cached yet - allow download, then it's cached forever
                     self._model = WhisperModel(
                         model_id,
                         device=self.device,
@@ -122,7 +138,7 @@ class WhisperTranscriber:
         """Load Whisper model asynchronously in a background thread.
 
         Call this during startup to avoid blocking the event loop on first
-        transcription request.  Safe to call multiple times — subsequent calls
+        transcription request.  Safe to call multiple times - subsequent calls
         are no-ops if the model is already loaded.
         """
         if self._model is not None:
