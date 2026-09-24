@@ -16,31 +16,38 @@
 #   import under Python >= 3.11, this project's declared minimum. See the
 #   note in requirements-docker.txt.
 #
+# Removed 2026-09-24: 79 pins that nothing in this project declares,
+#   requires or imports - the Jupyter stack (jupyter, jupyterlab,
+#   jupyter-server, notebook, nbconvert, tornado, mistune, bleach,
+#   beautifulsoup4, soupsieve, ...), the vLLM serving stack (vllm, mcp,
+#   diskcache, mistral-common, outlines-core, ...), trl/peft/datasets/
+#   accelerate, streamlit, and js2py. They were on the machine that produced
+#   this freeze, not in the project. They carried 1 critical and 15 high
+#   advisories (plus 36 moderate/low) that no Agent Guru install is exposed
+#   to, and that noise is why the ones that did matter went unread. js2py
+#   and diskcache have no fixed release at all, so removal was the only fix.
+#   See docs/security/dependency-triage-2026-09.md. Each removed pin was
+#   checked: no remaining pin, no manifest and no import needs it.
+#
 # This snapshot predates several declared dependencies (pytest-timeout,
 # pytorch-lightning). Regenerate it from a clean install before relying on
 # it for a reproducible build.
 
-accelerate==1.13.0
 aiohappyeyeballs==2.6.1
-aiohttp==3.13.5
+aiohttp==3.14.3
 redis==5.2.1
 aiosignal==1.4.0
 aiosqlite==0.22.1
 alembic==1.18.5
-altair==6.1.0
 altgraph==0.17.5
 amqp==5.3.1
 annotated-doc==0.0.4
 annotated-types==0.8.0
 anthropic==0.120.0
 anyio==4.14.2
-argon2-cffi==25.1.0
-argon2-cffi-bindings==25.1.0
 arrow==1.4.0
 ast_serialize==0.6.0
-astor==0.8.1
 asttokens==3.0.1
-async-lru==2.3.0
 async-timeout==5.0.1
 asyncpg==0.31.0
 attrs==26.1.0
@@ -51,21 +58,16 @@ av==17.0.1
 babel==2.18.0
 bandit==1.9.4
 bcrypt==5.0.0
-beautifulsoup4==4.14.3
 bidict==0.23.1
 billiard==4.2.4
 bitsandbytes==0.49.2
 black==26.5.1
-blake3==1.0.8
-bleach==6.3.0
 blinker==1.9.0
 blis==1.3.3
 brotli==1.2.0
 build==1.5.0
 cabarchive==0.2.5
-cachetools==7.1.4
 catalogue==2.0.10
-cbor2==6.1.2
 celery==5.6.3
 certifi==2026.7.22
 cffi==2.0.0
@@ -77,30 +79,23 @@ click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
 cloudpathlib==0.24.0
-cloudpickle==3.1.2
 colorama==0.4.6
-comm==0.2.3
-compressed-tensors==0.15.0.1
 comtypes==1.4.16
 confection==1.3.3
 ConfigArgParse==1.7.5
 contourpy==1.3.3
 coverage==7.15.2
-cryptography==48.0.0
+cryptography==48.0.1
 csvw==4.0.0
 ctranslate2==4.8.1
 cx_Freeze==8.6.4
 cycler==0.12.1
 cymem==2.0.13
-datasets==4.8.5
-debugpy==1.8.21
 decorator==5.2.1
 defusedxml==0.7.1
 Deprecated==1.3.1
-depyf==0.20.0
 detect-installer==0.1.0
 dill==0.4.1
-diskcache==5.6.3
 distlib==0.4.3
 distro==1.9.0
 dlinfo==2.0.0
@@ -118,7 +113,6 @@ fastapi-cli==0.0.24
 fastapi-cloud-cli==0.19.0
 fastar==0.11.0
 faster-whisper==1.2.1
-fastjsonschema==2.21.2
 filelock==3.29.0
 Flask==3.1.3
 flask-cors==6.0.5
@@ -131,9 +125,8 @@ frozenlist==1.8.0
 fsspec==2026.2.0
 gevent==26.7.0
 geventhttpclient==2.3.9
-gguf==0.19.0
 gitdb==4.0.12
-GitPython==3.1.50
+GitPython==3.1.60
 gliner==0.2.28
 google-ai-generativelanguage==0.6.15
 google-api-core==2.25.2
@@ -157,15 +150,11 @@ huggingface_hub==1.14.0
 hypothesis==6.156.6
 identify==2.6.19
 idna==3.18
-ijson==3.5.0
 importlib_metadata==8.7.1
 importlib_resources==7.1.0
 iniconfig==2.3.0
-interegular==0.3.3
-ipykernel==7.2.0
 ipython==9.14.0
 ipython_pygments_lexers==1.1.1
-ipywidgets==8.1.8
 isodate==0.7.2
 isoduration==20.11.0
 itsdangerous==2.2.0
@@ -175,24 +164,10 @@ jiter==0.16.0
 jmespath==1.1.0
 joblib==1.5.3
 joserfc==1.7.3
-Js2Py==0.74
-json5==0.14.0
 jsonpatch==1.33
 jsonpointer==3.1.1
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
-jupyter==1.1.1
-jupyter-console==6.6.3
-jupyter-events==0.12.1
-jupyter-lsp==2.3.1
-jupyter_client==8.8.0
-jupyter_core==5.9.1
-jupyter_server==2.19.0
-jupyter_server_terminals==0.5.4
-jupyterlab==4.5.7
-jupyterlab_pygments==0.3.0
-jupyterlab_server==2.28.0
-jupyterlab_widgets==3.0.16
 kiwisolver==1.5.0
 kokoro-onnx==0.5.0
 kombu==5.6.2
@@ -212,7 +187,6 @@ librt==0.13.0
 lief==0.17.6
 lightning-utilities==0.15.3
 llvmlite==0.47.0
-lm-format-enforcer==0.11.3
 locust==2.46.2
 loguru==0.7.3
 Mako==1.3.12
@@ -222,41 +196,27 @@ MarkupSafe==3.0.3
 marshmallow==4.3.0
 matplotlib==3.11.1
 matplotlib-inline==0.2.2
-mcp==1.27.2
 mdurl==0.1.2
-mistral_common==1.11.2
-mistune==3.2.1
 mmh3==5.2.1
-model-hosting-container-standards==0.1.15
 more-itertools==11.1.0
 MouseInfo==0.1.3
 mpmath==1.3.0
 msgpack==1.1.2
-msgspec==0.21.1
 multidict==6.7.1
-multiprocess==0.70.19
 murmurhash==1.0.15
 mypy==2.2.0
 mypy_extensions==1.1.0
 narwhals==2.24.0
-nbclient==0.10.4
-nbconvert==7.17.1
-nbformat==5.10.4
-nest-asyncio==1.6.0
 networkx==3.6.1
-ninja==1.13.0
-nltk==3.10.0
+nltk==3.10.3
 nodeenv==1.10.0
 noisereduce==3.0.3
-notebook==7.5.6
-notebook_shim==0.2.4
 numba==0.65.1
 numpy==2.4.6
 oauthlib==3.3.1
 ollama==0.6.2
 onnxruntime==1.28.0
 openai==2.36.0
-openai-harmony==0.0.8
 openai-whisper==20250625
 opencv-python==4.13.0.92
 opencv-python-headless==4.13.0.92
@@ -268,19 +228,14 @@ opentelemetry-exporter-otlp-proto-http==1.42.1
 opentelemetry-proto==1.42.1
 opentelemetry-sdk==1.42.1
 opentelemetry-semantic-conventions==0.63b1
-opentelemetry-semantic-conventions-ai==0.5.1
 orjson==3.11.9
 ormsgpack==1.12.2
-outlines_core==0.2.14
 overrides==7.7.0
 packaging==26.2
 pandas==3.0.3
-pandocfilters==1.5.1
 parso==0.8.7
-partial-json-parser==0.2.1.1.post7
 pathspec==1.1.1
 pefile==2024.8.26
-peft==0.19.1
 phonemizer-fork==3.3.2
 pillow==12.3.0
 pipwin==0.5.2
@@ -290,7 +245,6 @@ pluggy==1.6.0
 pooch==1.9.0
 pre_commit==4.6.0
 preshed==3.0.13
-prometheus-fastapi-instrumentator==8.0.0
 prometheus_client==0.25.0
 prompt_toolkit==3.0.52
 propcache==0.5.2
@@ -298,7 +252,6 @@ proto-plus==1.28.0
 protobuf==5.29.6
 psutil==7.2.2
 pure_eval==0.2.3
-py-cpuinfo==9.0.0
 pyarrow==24.0.0
 pyasn1==0.6.3
 pyasn1_modules==0.4.2
@@ -312,14 +265,12 @@ pydantic==2.13.4
 pydantic-extra-types==2.11.1
 pydantic-settings==2.14.1
 pydantic_core==2.46.4
-pydeck==0.9.2
 pyee==13.0.1
 PyGetWindow==0.0.9
 Pygments==2.20.0
 pyinstaller==6.21.0
 pyinstaller-hooks-contrib==2026.6
-pyjsparser==2.7.1
-PyJWT==2.12.1
+PyJWT==2.13.0
 PyMsgBox==2.0.1
 pynput==1.8.1
 pyparsing==3.3.2
@@ -338,17 +289,14 @@ python-dateutil==2.9.0.post0
 python-discovery==1.4.4
 python-dotenv==1.2.2
 python-engineio==4.13.3
-python-json-logger==4.1.0
 python-msilib==0.6.0
-python-multipart==0.0.30
 python-socketio==5.16.3
 pytokens==0.4.1
-pytorch-lightning==2.6.5
+pytorch-lightning==2.6.6
 pyttsx3==2.99
 pytweening==1.2.0
 pywin32==312
 pywin32-ctypes==0.2.3
-pywinpty==3.0.3
 PyYAML==6.0.3
 pyzmq==27.1.0
 radon==6.0.1
@@ -358,9 +306,7 @@ regex==2026.7.19
 requests==2.33.1
 requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
-rfc3339-validator==0.1.4
 rfc3986==1.5.0
-rfc3986-validator==0.1.1
 rfc3987-syntax==1.1.0
 rich==15.0.0
 rich-toolkit==0.20.0
@@ -374,11 +320,9 @@ safety-schemas==0.0.16
 scikit-learn==1.9.0
 scipy==1.18.0
 segments==2.4.0
-Send2Trash==2.1.0
 sentence-transformers==5.5.1
 sentencepiece==0.2.1
 sentry-sdk==2.61.1
-setproctitle==1.3.7
 setuptools==80.10.2
 shellingham==1.5.4
 silero-vad==6.2.1
@@ -390,31 +334,25 @@ sniffio==1.3.1
 sortedcontainers==2.4.0
 sounddevice==0.5.5
 soundfile==0.13.1
-soupsieve==2.8.3
 soxr==1.1.0
 spacy==3.8.14
 spacy-legacy==3.0.12
 spacy-loggers==1.0.5
 SQLAlchemy==2.0.49
 srsly==2.5.3
-sse-starlette==3.4.4
 stack-data==0.6.3
 standard-aifc==3.13.0
 standard-chunk==3.13.0
 standard-sunau==3.13.0
 starlette==1.2.1
 stevedore==5.9.0
-streamlit==1.58.0
 striprtf==0.0.32
 structlog==25.5.0
-supervisor==4.3.0
 sympy==1.14.0
 tenacity==9.1.4
 termcolor==3.3.0
-terminado==0.18.1
 thinc==8.3.13
 threadpoolctl==3.6.0
-thrift==0.24.0
 tiktoken==0.13.0
 tinycss2==1.4.0
 tokenizers==0.22.2
@@ -424,11 +362,9 @@ torch==2.11.0+cu128
 torchaudio==2.11.0+cu128
 torchmetrics==1.9.0
 torchvision==0.26.0+cu128
-tornado==6.5.6
 tqdm==4.67.3
 traitlets==5.15.1
-transformers==5.8.0
-trl==1.5.1
+transformers==5.10.4
 truststore==0.10.4
 typer==0.25.1
 types-psutil==7.2.2.20260518
@@ -444,7 +380,6 @@ uuid_utils==0.16.0
 uvicorn==0.46.0
 vine==5.1.0
 virtualenv==21.6.1
-vllm==0.22.0
 wasabi==1.1.3
 watchdog==6.0.0
 watchfiles==1.1.1
@@ -456,7 +391,6 @@ websocket-client==1.9.0
 websockets==15.0.1
 Werkzeug==3.1.8
 wheel==0.47.0
-widgetsnbextension==4.0.15
 win32_setctime==1.2.0
 wrapt==2.2.2
 wsproto==1.3.2
