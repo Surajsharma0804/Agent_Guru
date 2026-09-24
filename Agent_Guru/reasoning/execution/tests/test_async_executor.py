@@ -228,8 +228,9 @@ class TestAsyncExecutor:
         assert success is True  # nosec B101
         mock_result.revoke.assert_called_once_with(terminate=True)
 
+    @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
-    def test_wait_for_task_success(self, mock_async_result):
+    async def test_wait_for_task_success(self, mock_async_result):
         """Test waiting for task to complete successfully."""
         # Mock task that completes after 2 polls
         mock_result = Mock()
@@ -243,13 +244,14 @@ class TestAsyncExecutor:
         mock_async_result.return_value = mock_result
 
         executor = AsyncExecutor()
-        result = executor.wait_for_task("task_123", timeout=5.0, poll_interval=0.1)
+        result = await executor.wait_for_task("task_123", timeout=5.0, poll_interval=0.1)
 
         assert result.status == TaskStatus.SUCCESS  # nosec B101
         assert result.result_data == {"output": "test"}  # nosec B101
 
+    @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
-    def test_wait_for_task_timeout(self, mock_async_result):
+    async def test_wait_for_task_timeout(self, mock_async_result):
         """Test waiting for task with timeout."""
         # Mock task that never completes
         mock_result = Mock()
@@ -259,7 +261,7 @@ class TestAsyncExecutor:
         executor = AsyncExecutor()
 
         with pytest.raises(TimeoutError) as exc_info:
-            executor.wait_for_task("task_123", timeout=0.2, poll_interval=0.1)
+            await executor.wait_for_task("task_123", timeout=0.2, poll_interval=0.1)
 
         assert "did not complete" in str(exc_info.value)  # nosec B101
 
@@ -317,8 +319,9 @@ class TestAsyncExecutionController:
         assert success is True  # nosec B101
         mock_result.revoke.assert_called_once()
 
+    @pytest.mark.asyncio
     @patch("Agent_Guru.reasoning.execution.async_executor.AsyncResult")
-    def test_wait(self, mock_async_result):
+    async def test_wait(self, mock_async_result):
         """Test waiting for task through controller."""
         mock_result = Mock()
         mock_result.state = "SUCCESS"
@@ -331,7 +334,7 @@ class TestAsyncExecutionController:
         mock_async_result.return_value = mock_result
 
         controller = AsyncExecutionController()
-        result = controller.wait("task_123", timeout=5.0)
+        result = await controller.wait("task_123", timeout=5.0)
 
         assert result.status == TaskStatus.SUCCESS  # nosec B101
 
