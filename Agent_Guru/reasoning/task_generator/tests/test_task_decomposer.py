@@ -195,12 +195,16 @@ class TestTaskModelGenerator:
             ],
         }
 
-        # Confidence too high
-        with pytest.raises((ValueError, Exception), match="I couldn't create a plan"):
+        # Asserted against what generate_task() documents and raises -- a
+        # ValueError naming the offending value. "I couldn't create a plan"
+        # is the USER-FACING string for ErrorType.PLAN_GENERATION_FAILED, which
+        # lives in reasoning/error/error_manager.py and is produced a layer
+        # above this one; a low-level validator has no business emitting it,
+        # and matching on it here tested nothing that exists.
+        with pytest.raises(ValueError, match=r"Confidence must be in \[0.0, 1.0\]"):
             generator.generate_task(llm_output, sample_intent, 1.5)
 
-        # Confidence too low
-        with pytest.raises((ValueError, Exception), match="I couldn't create a plan"):
+        with pytest.raises(ValueError, match=r"Confidence must be in \[0.0, 1.0\]"):
             generator.generate_task(llm_output, sample_intent, -0.1)
 
     def test_step_missing_description(self, generator, sample_intent):
