@@ -1,22 +1,22 @@
-"""Global test configuration and fixtures for Agent Guru reasoning tests.
+﻿"""Global test configuration and fixtures for Agent Guru reasoning tests.
 
 This conftest.py is automatically loaded by pytest for ALL tests in this
 directory and subdirectories. It provides:
 
-1. Ollama mock — prevents any test from making real HTTP calls to Ollama.
+1. Ollama mock - prevents any test from making real HTTP calls to Ollama.
    Set AGENT_GURU_REAL_OLLAMA=1 to opt-out and test with real Ollama.
 
-2. Session-scoped intent engine — IntentDetectionEngine is expensive to
+2. Session-scoped intent engine - IntentDetectionEngine is expensive to
    initialize (NER/neural model loading). We initialize it once per session
    and share it across all tests via the `shared_intent_engine` fixture.
 
-3. Fast engine factory — `make_engine` fixture creates a ReasoningEngine
+3. Fast engine factory - `make_engine` fixture creates a ReasoningEngine
    with LLM disabled and the shared intent engine injected.
 
-4. Environment hardening — sets OLLAMA_TIMEOUT_SECONDS=2 so any test that
+4. Environment hardening - sets OLLAMA_TIMEOUT_SECONDS=2 so any test that
    accidentally bypasses the mock fails fast instead of hanging.
 
-5. Tool registry isolation — each test function gets a clean tool registry
+5. Tool registry isolation - each test function gets a clean tool registry
    snapshot to prevent cross-test pollution from double-registration.
 
 Performance contract:
@@ -34,7 +34,72 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 # ---------------------------------------------------------------------------
-# Environment hardening — applied before any test module is imported
+# Embedding model warm-up
+# ---------------------------------------------------------------------------
+
+
+_EMBEDDING_MODEL_WARMED = False
+
+
+def _warm_embedding_model_once() -> None:
+    """Load the sentence-transformer embedding model, at most once."""
+    global _EMBEDDING_MODEL_WARMED
+    if _EMBEDDING_MODEL_WARMED:
+        return
+    from Agent_Guru.reasoning.memory.embedding import EmbeddingGenerator
+
+    EmbeddingGenerator()
+    _EMBEDDING_MODEL_WARMED = True
+
+
+def pytest_collection_finish(session: pytest.Session) -> None:
+    """Warm the embedding model after collection, before any test starts.
+
+    TIMEOUT FIX: the warm-up used to live entirely in the session fixture
+    below. pytest-timeout's budget covers the whole runtest protocol - setup
+    included - so the fixture's 420 MB model load was still charged against
+    the FIRST dependent test's 30 s allowance. It had merely moved the cost
+    from "whichever test constructed a retriever first" to "whichever test
+    runs first", which is the same failure with a more predictable victim: on
+    a cold Hugging Face cache or a machine already busy running another suite,
+    the load overran 30 s, the session fixture raised, and pytest replayed
+    that cached exception as "ERROR at setup" for every single test in every
+    opted-in module - 68 of them in one observed run.
+
+    Collection hooks run outside any test's timeout window, so doing the load
+    here removes it from the budget entirely. It stays opt-in: the model is
+    only loaded when some collected test actually asked for the fixture, so
+    suites that never touch memory pay nothing.
+    """
+    if any("warm_embedding_model" in item.fixturenames for item in session.items):
+        _warm_embedding_model_once()
+
+
+@pytest.fixture(scope="session")
+def warm_embedding_model():
+    """Ensure the sentence-transformer embedding model is loaded.
+
+    The FIRST MemoryRetriever()/EmbeddingGenerator() in a process loads a
+    420 MB sentence-transformer (~11 s warm, longer on a cold Hugging Face
+    cache). Whichever test happened to construct one first was charged that
+    cost inside its own 30 s budget and failed with
+    "Timeout (>30.0s) from pytest-timeout" - a failure that had nothing to do
+    with the code under test and that moved around as tests were reordered.
+
+    Modules that build memory components opt in with
+
+        pytestmark = pytest.mark.usefixtures("warm_embedding_model")
+
+    pytest_collection_finish above normally does the load before any test
+    starts. This fixture is the backstop for the cases that hook cannot cover
+    - a test that requests the fixture dynamically, or a run where the hook
+    did not fire - and is a no-op once the model is loaded.
+    """
+    _warm_embedding_model_once()
+
+
+# ---------------------------------------------------------------------------
+# Environment hardening - applied before any test module is imported
 # ---------------------------------------------------------------------------
 
 # Short Ollama timeout so any accidental real call fails in 2s, not 300s.
@@ -47,7 +112,7 @@ os.environ.setdefault("AGENT_GURU_TEST_MODE", "1")
 
 
 # ---------------------------------------------------------------------------
-# Ollama mock — applied globally via autouse session fixture
+# Ollama mock - applied globally via autouse session fixture
 # ---------------------------------------------------------------------------
 
 
@@ -120,7 +185,7 @@ def _patch_ollama_globally() -> Any:
 
 
 # ---------------------------------------------------------------------------
-# Session-scoped intent engine — initialized ONCE per test session
+# Session-scoped intent engine - initialized ONCE per test session
 # ---------------------------------------------------------------------------
 
 
@@ -143,7 +208,7 @@ def shared_intent_engine():
 
 
 # ---------------------------------------------------------------------------
-# Session-scoped tool pre-loader — loads all tools ONCE per session
+# Session-scoped tool pre-loader - loads all tools ONCE per session
 # ---------------------------------------------------------------------------
 
 
@@ -199,7 +264,7 @@ def make_engine(shared_intent_engine):
 
 
 # ---------------------------------------------------------------------------
-# Mock intent engine fixture — for tests that don't need real NLP inference
+# Mock intent engine fixture - for tests that don't need real NLP inference
 # ---------------------------------------------------------------------------
 
 
@@ -208,7 +273,7 @@ def mock_intent_engine():
     """Mock IntentDetectionEngine that returns a pre-configured intent instantly.
 
     Use this in tests that exercise engine plumbing but don't need real
-    NLP inference — saves ~0.5-1.5s per test call to detect_intent_async.
+    NLP inference - saves ~0.5-1.5s per test call to detect_intent_async.
 
     The mock returns SET_TIMER with confidence=0.95 by default.
     Override mock_intent_engine.detect_intent_async.return_value to change.
@@ -299,7 +364,7 @@ def mock_llm_reasoning():
 
 
 # ---------------------------------------------------------------------------
-# Tool registry isolation — prevents cross-test pollution
+# Tool registry isolation - prevents cross-test pollution
 # ---------------------------------------------------------------------------
 
 
@@ -310,14 +375,14 @@ def _isolate_tool_registry(_preload_tools):
     double-registration errors.
 
     Depends on _preload_tools so the snapshot always includes the full
-    pre-loaded tool set — restoring to this baseline means subsequent
+    pre-loaded tool set - restoring to this baseline means subsequent
     load_all_tools_sync() calls in ReasoningEngine.__init__ are no-ops.
     """
     from Agent_Guru.reasoning.tools.registry import get_registry
 
     registry = get_registry()
 
-    # Snapshot current state (shallow copy is sufficient — dicts of immutables)
+    # Snapshot current state (shallow copy is sufficient - dicts of immutables)
     snapshot_tools = dict(registry._tools)
     snapshot_metadata = dict(registry._metadata)
     snapshot_capabilities = {k: set(v) for k, v in registry._capability_index.items()}
