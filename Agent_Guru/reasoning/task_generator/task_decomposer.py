@@ -107,7 +107,22 @@ class TaskModelGenerator:
             message=message,
             context=context,
         )
-        raise ValueError(error.user_message)
+
+        # The raised ValueError deliberately CARRIES the user-facing sentence
+        # as its str(), because that is what reaches the person. But the
+        # technical detail -- "Goal too long: 612 chars (max 500)",
+        # "Missing required field: goal", "Goal must be string, got
+        # <class 'int'>" -- used to be discarded entirely at this point, so
+        # every plan-generation failure in a log or traceback read only
+        # "I couldn't create a plan for that." and could not be diagnosed.
+        #
+        # It is now logged, and attached to the exception so a caller can
+        # recover it without parsing prose.
+        self.logger.warning("plan_generation_failed", detail=message, **context_data)
+        exc = ValueError(error.user_message)
+        exc.technical_message = message
+        exc.error = error
+        raise exc
 
     def _raise_validation_error(self, message: str, **context_data) -> None:
         """Helper to raise validation error with ErrorManager.
