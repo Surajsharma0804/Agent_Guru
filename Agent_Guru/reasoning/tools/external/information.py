@@ -65,7 +65,8 @@ class GetNewsTool(Tool):
             Execution result with news articles
 
         """
-        query = kwargs.get("query", "")
+        # query is accepted and documented above but unread: there is no news
+        # backend in this build to search with it (see the note below).
         category = kwargs.get("category", "general").lower()
         max_results = kwargs.get("max_results", 10)
 
