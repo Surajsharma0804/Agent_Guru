@@ -15,9 +15,13 @@
 # Install PyTorch with CUDA separately:
 #   CUDA 11.8: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 #   CUDA 12.1: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-torch>=2.1.0
-torchvision>=0.16.0
-torchaudio>=2.1.0
+# torch >= 2.6.0: older torch lets torch.load(weights_only=True) execute code
+# from a crafted file (GHSA-53q9-r3pm-6pq6, critical), and vision/training
+# relies on that call being safe. pip keeps an installed torch that meets
+# the floor, so a floor of 2.1 left existing environments on the bug.
+torch>=2.6.0
+torchvision>=0.21.0
+torchaudio>=2.6.0
 
 # ONNX Runtime (GPU-accelerated)
 onnxruntime-gpu>=1.16.0

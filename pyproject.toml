@@ -37,7 +37,11 @@ dependencies = [
     # both of those are imported lazily inside functions, so a default install
     # imports cleanly without them.
     "transformers>=4.36.0",
-    "torch>=2.1.0",
+    # Not 2.1: before 2.6.0, torch.load(weights_only=True) still executes code
+    # from a crafted file (GHSA-53q9-r3pm-6pq6, critical). vision/training
+    # loads user-supplied checkpoints with that call and relies on it being
+    # safe, and pip keeps any installed torch that meets the floor.
+    "torch>=2.6.0",
     "spacy>=3.7.0",
     "onnxruntime>=1.16.0",
     "opentelemetry-api>=1.21.0",
@@ -126,7 +130,7 @@ test = [
     "openai>=1.6.0",
     "anthropic>=0.8.0",
     # ML / speech / vision stack the tests exercise for real
-    "torch>=2.1.0",
+    "torch>=2.6.0",
     "transformers>=4.36.0",
     "sentence-transformers>=2.2.0",
     "pytorch-lightning>=2.0.0",
@@ -152,7 +156,7 @@ test = [
     # contradicts the numpy<2 pin above for Python < 3.13.
     "opencv-python-headless>=4.8.0,<5.0.0",
     # Agent_Guru/vision/training/train.py imports torchvision.models.
-    "torchvision>=0.16.0",
+    "torchvision>=0.21.0",
     # torch>=2.6 routes torch.onnx.export through the dynamo exporter, which
     # imports onnxscript. Agent_Guru/vision/training/export.py calls
     # torch.onnx.export, so without this the ONNX export feature raises
@@ -182,9 +186,9 @@ test = [
 # CUDA, which would make this extra uninstallable on a stock machine.
 training = [
     "agent-guru[test]",
-    "torch>=2.1.0",
-    "torchvision>=0.16.0",
-    "torchaudio>=2.1.0",
+    "torch>=2.6.0",
+    "torchvision>=0.21.0",
+    "torchaudio>=2.6.0",
     "pytorch-lightning>=2.1.0",
     "transformers>=4.36.0",
     "tensorboard>=2.15.0",

@@ -16,9 +16,9 @@
 # The Dockerfile handles this automatically. For local CPU installs run:
 #   pip install -r requirements-cpu.txt
 #   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-# torch>=2.0.0        # installed via --index-url in Dockerfile / manually
-# torchvision>=0.15.0
-# torchaudio>=2.0.0
+# torch>=2.6.0        # installed via --index-url in Dockerfile / manually
+# torchvision>=0.21.0 # (<2.6 torch.load(weights_only=True) runs code: GHSA-53q9-r3pm-6pq6)
+# torchaudio>=2.6.0
 
 # ONNX Runtime (CPU-only)
 onnxruntime>=1.15.0
