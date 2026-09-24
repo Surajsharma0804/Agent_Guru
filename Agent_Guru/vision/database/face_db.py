@@ -35,6 +35,16 @@ logger = logging.getLogger(__name__)
 # Valid permission levels
 VALID_PERMISSION_LEVELS = frozenset({"admin", "user", "guest", "denied"})
 
+# Windows rejects ":" in filenames, so a path containing it arrives here with
+# the colon swapped for U+F03A, the private-use look-alike the Win32 layer
+# substitutes. Both spellings mean a caller typed the SQLite in-memory token.
+_SQLITE_MEMORY_TOKENS = frozenset({":memory:", "\uf03amemory\uf03a"})
+
+
+def _is_sqlite_memory_token(db_path: str) -> bool:
+    """Report whether *db_path* is the SQLite in-memory token in any spelling."""
+    return db_path.strip() in _SQLITE_MEMORY_TOKENS
+
 
 @dataclass
 class Embedding:
@@ -82,7 +92,7 @@ class MatchResult:
 
     Attributes:
         identity: Matched identity name, or "Unknown" if no match found.
-        confidence: Cosine similarity score of the best match (0.0–1.0).
+        confidence: Cosine similarity score of the best match (0.0-1.0).
         permission_level: Permission level of the matched identity.
 
     """
@@ -141,24 +151,50 @@ class FaceDatabase:
 
     def __init__(
         self,
-        db_path: str = "Agent_Guru/vision/data/database/identities.json",
+        db_path: str | None = "Agent_Guru/vision/data/database/identities.json",
     ) -> None:
         """Initialise the database and load existing data from disk.
 
         Creates parent directories for *db_path* if they do not exist.
         If the file does not exist, the database starts empty (no error).
+        Pass db_path=None for a throwaway database that never touches disk.
 
         Args:
-            db_path: Path to the JSON persistence file.
+            db_path: Path to the JSON persistence file, or None to keep the
+                identities in memory only and never write them out.
+
+        Raises:
+            ValueError: If db_path is ":memory:". That is the SQLite idiom for
+                an in-memory database, and this store is a JSON file, not
+                SQLite. Callers who assumed otherwise did not get an in-memory
+                database: they got a real file literally named ":memory:"
+                dropped in whatever directory the process happened to be in,
+                holding the face biometric templates of everyone the database
+                had seen. On Windows ":" is not a legal filename character, so
+                the same call produced a file with a look-alike character in
+                its place that ordinary tooling could not match or clean up.
+                Failing loudly here and naming the alternative costs one line
+                at the call site and stops biometric data leaking into the
+                working directory.
 
         """
+        if db_path is not None and _is_sqlite_memory_token(db_path):
+            msg = (
+                "FaceDatabase stores identities in a JSON file, not SQLite, so "
+                '":memory:" is not a supported path and would be created as a '
+                "real file holding face biometric templates. Pass db_path=None "
+                "for a database that is never written to disk, or a real path."
+            )
+            raise ValueError(msg)
+
         self._db_path = db_path
         self._identities: dict[str, Identity] = {}
 
-        # Ensure parent directory exists
-        parent = os.path.dirname(db_path)
-        if parent:
-            os.makedirs(parent, exist_ok=True)  # noqa: PTH103
+        if db_path is not None:
+            # Ensure parent directory exists
+            parent = os.path.dirname(db_path)
+            if parent:
+                os.makedirs(parent, exist_ok=True)  # noqa: PTH103
 
         self.load()
 
@@ -297,7 +333,7 @@ class FaceDatabase:
 
         Args:
             embedding: Query embedding vector (will be L2-normalised).
-            threshold: Minimum similarity score to accept a match (0.0–1.0).
+            threshold: Minimum similarity score to accept a match (0.0-1.0).
                 Defaults to :data:`~Agent_Guru.security.embedding_auth.BIOMETRIC_THRESHOLD`
                 (0.97) to enforce FAR < 0.1%.
 
@@ -408,6 +444,12 @@ class FaceDatabase:
         half-written JSON as the real database. secure_write_bytes() uses a
         unique temporary name per call, so overlapping saves cannot interleave.
         """
+        if self._db_path is None:
+            # Constructed with db_path=None: the caller asked for a database
+            # that never touches disk, so there is nothing to persist.
+            logger.debug("save: in-memory database, nothing written")
+            return
+
         data = self._serialise()
         try:
             restrict_dir_permissions(pathlib.Path(self._db_path).parent)
@@ -425,6 +467,10 @@ class FaceDatabase:
         If the file does not exist the database starts empty (no error).
         Embedding vectors are base64-decoded back to float32 numpy arrays.
         """
+        if self._db_path is None:
+            self._identities = {}
+            return
+
         if not os.path.exists(self._db_path):
             logger.debug("load: no database file at '%s', starting empty", self._db_path)
             self._identities = {}

@@ -2,9 +2,9 @@
 Integration tests for the GuruVision recognition pipeline.
 
 Tests:
-  28.1 — Training pipeline end-to-end (preprocess → train → ONNX export)
-  28.2 — Recognition pipeline end-to-end (engine init → process_frame)
-  28.3 — Incremental identity addition (add → recognise → existing still works)
+  28.1 - Training pipeline end-to-end (preprocess → train → ONNX export)
+  28.2 - Recognition pipeline end-to-end (engine init → process_frame)
+  28.3 - Incremental identity addition (add → recognise → existing still works)
 
 Requirements: 1.1, 1.2, 1.3, 3.1, 5.3, 10.1, 16.1, 16.3, 16.6, 28.1
 """
@@ -54,7 +54,7 @@ def _make_engine(
     engine._liveness = None
     engine._emotion = None
     engine._tracker = None
-    engine._database = FaceDatabase(db_path=":memory:")
+    engine._database = FaceDatabase(db_path=None)
     engine._initialized = True
     return engine
 
@@ -64,12 +64,12 @@ def _blank_frame(h: int = 64, w: int = 64) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
-# 28.1 Training pipeline (lightweight — no real model training)
+# 28.1 Training pipeline (lightweight - no real model training)
 # ---------------------------------------------------------------------------
 
 @pytest.mark.integration
 class TestTrainingPipelineIntegration:
-    """28.1 — Training pipeline components work together."""
+    """28.1 - Training pipeline components work together."""
 
     def test_validate_dataset_structure_accepts_valid_layout(self, tmp_path: Path) -> None:
         """validate_dataset_structure returns a (bool, list) tuple."""
@@ -111,7 +111,7 @@ class TestTrainingPipelineIntegration:
         from Agent_Guru.vision.training.train import setup_arcface_training, TrainingConfig
         from Agent_Guru.vision.training.export import export_to_onnx
 
-        # Build a real ResNet-50 backbone (no training needed — just save weights)
+        # Build a real ResNet-50 backbone (no training needed - just save weights)
         cfg = TrainingConfig(dataset_dir=str(tmp_path), output_dir=str(tmp_path), num_classes=2)
         backbone, _, _, _ = setup_arcface_training(cfg)
 
@@ -130,7 +130,7 @@ class TestTrainingPipelineIntegration:
 
 @pytest.mark.integration
 class TestRecognitionPipelineIntegration:
-    """28.2 — process_frame returns valid results for any frame."""
+    """28.2 - process_frame returns valid results for any frame."""
 
     def test_process_frame_returns_recognition_result(self) -> None:
         engine = _make_engine()
@@ -171,7 +171,7 @@ class TestRecognitionPipelineIntegration:
 
 @pytest.mark.integration
 class TestIncrementalIdentityAddition:
-    """28.3 — Adding identities incrementally works without retraining."""
+    """28.3 - Adding identities incrementally works without retraining."""
 
     def test_add_identity_appears_immediately(self) -> None:
         """Identity added via database is immediately in get_identities."""
@@ -257,7 +257,7 @@ class TestEventSystemIntegration:
         engine._liveness = None
         engine._emotion = None
         engine._tracker = None
-        engine._database = FaceDatabase(db_path=":memory:")
+        engine._database = FaceDatabase(db_path=None)
         engine._initialized = True
         engine._emit("system_ready", {})
 
