@@ -29,9 +29,19 @@ import time  # noqa: E402
 from dataclasses import dataclass  # noqa: E402
 from datetime import UTC, datetime  # noqa: E402
 from enum import Enum  # noqa: E402
-from typing import Any  # noqa: E402
+from typing import TYPE_CHECKING, Any  # noqa: E402
 
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool  # noqa: E402
+
+if TYPE_CHECKING:
+    # Three method signatures annotate their cursor as "sqlite3.Cursor",
+    # but the name was never imported anywhere in this module: ruff reported
+    # it as F821 undefined-name and no type checker could resolve it, so the
+    # annotation documented an intent it could not enforce. Under
+    # TYPE_CHECKING rather than at run time because the project's ruff
+    # configuration (TC rules, select = ALL) requires typing-only imports to
+    # live here, and because it keeps the import off the startup path.
+    import sqlite3
 
 
 class FailureType(Enum):
