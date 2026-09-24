@@ -1220,7 +1220,7 @@ class TestLearningPropertiesWithFailureInjection:
         assert len(failure_types) == 1, \
             f"Inconsistent failure types: {failure_types}"  # nosec B101
         assert failure_types.pop() == failure_type.value, \
-            f"Wrong failure type categorization"  # nosec B101
+            "Wrong failure type categorization"  # nosec B101
     
     @given(
         batch_size=st.integers(min_value=5, max_value=20)
@@ -1257,7 +1257,7 @@ class TestLearningPropertiesWithFailureInjection:
         
         # Property: All task IDs must be unique
         assert len(set(batch_task_ids)) == batch_size, \
-            f"Duplicate task IDs in batch injection"  # nosec B101
+            "Duplicate task IDs in batch injection"  # nosec B101
         
         # Property: All failures must be recorded
         failures = engine.failure_analyzer.get_recent_failures(limit=batch_size + 5)

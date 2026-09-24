@@ -714,7 +714,7 @@ def test_hardest_15_percent_improvement_guarantee(reporter, tracker):
         additional_improvements += 1
     
     assert additional_improvements >= 1, (  # nosec B101
-        f"FAILED: No additional metrics improved beyond success rate"
+        "FAILED: No additional metrics improved beyond success rate"
     )
     
     # 7. No alert should be triggered

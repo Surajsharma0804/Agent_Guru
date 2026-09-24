@@ -2,7 +2,7 @@
 
 import pytest
 import numpy as np
-from datetime import datetime, timezone
+from datetime import datetime
 
 from Agent_Guru.security.voice_auth import (
     VoiceAuthenticator,

@@ -21,7 +21,6 @@ from hypothesis import strategies as st
 
 from audit.models import (
     AuditReport,
-    DependencyEdge,
     Finding,
     FindingCategory,
     IntegrationCheckResult,

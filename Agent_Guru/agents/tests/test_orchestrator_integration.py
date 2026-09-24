@@ -381,7 +381,7 @@ class TestOrchestratorPerformance:
         # Calculate average time per task
         avg_time_per_task_ms = (orchestrated_time / 100) * 1000
         
-        print(f"\nOrchestration performance:")
+        print("\nOrchestration performance:")
         print(f"Total time: {orchestrated_time*1000:.2f}ms")
         print(f"Average per task: {avg_time_per_task_ms:.2f}ms")
         

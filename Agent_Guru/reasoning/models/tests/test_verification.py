@@ -3,7 +3,7 @@ Tests for verification data models.
 Coverage Target: >80% (enforced by CI/CD)
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 from hypothesis import given

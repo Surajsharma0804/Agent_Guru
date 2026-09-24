@@ -581,7 +581,7 @@ Total Failures: {report.failed_tasks}
         for rec in report.recommendations:
             md += f"{rec}\n\n"
         
-        md += f"""## Conclusion
+        md += """## Conclusion
 
 """
         

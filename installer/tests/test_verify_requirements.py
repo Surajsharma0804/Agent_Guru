@@ -19,14 +19,12 @@ from __future__ import annotations
 import sys
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 # Add installer to path
 sys.path.insert(0, "installer")
 from verify_requirements import (
     CheckStatus,
     check_disk_space,
-    check_gpu,
     check_internet,
     check_microphone,
     check_os_version,
@@ -221,7 +219,6 @@ class TestInternetCheck:
         assert result.status == CheckStatus.PASS
 
     def test_no_connection_warns(self):
-        import socket
         with patch("socket.socket") as mock_sock_class:
             mock_sock_class.return_value.connect.side_effect = OSError("Network unreachable")
             result = check_internet()

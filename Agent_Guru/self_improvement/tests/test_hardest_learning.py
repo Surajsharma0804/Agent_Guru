@@ -97,8 +97,8 @@ class TestHardestLearningConvergence:
         print("\n" + "="*80)
         print("HARDEST TEST PASSED ✓")
         print("="*80)
-        print(f"✓ Processed 100 tasks (50 baseline + 50 improved)")
-        print(f"✓ Learned from 50 injected failures")
+        print("✓ Processed 100 tasks (50 baseline + 50 improved)")
+        print("✓ Learned from 50 injected failures")
         print(f"✓ Identified {total_patterns} failure patterns")
         print(f"✓ Improved from {baseline_success_rate:.1%} to {improved_success_rate:.1%} success rate")
         if improvement is not None:
@@ -226,7 +226,7 @@ class TestHardestLearningConvergence:
         """Phase 5: Verify learning convergence."""
         print("\nPhase 5: Verifying learning convergence...")
         metrics = engine.get_improvement_metrics()
-        print(f"\nFinal Metrics:")
+        print("\nFinal Metrics:")
         print(f"  Total tasks: {metrics['total_tasks']}")
         print(f"  Success rate: {metrics['success_rate']:.1%}")
         print(f"  Avg execution time: {metrics['avg_execution_time_ms']:.1f}ms")
@@ -236,7 +236,7 @@ class TestHardestLearningConvergence:
         
         if "improvement" in metrics:
             improvement = metrics["improvement"]
-            print(f"\nImprovement Metrics:")
+            print("\nImprovement Metrics:")
             print(f"  Success rate improvement: {improvement['success_rate_improvement']:.1%}")
             print(f"  Relative improvement: {improvement['relative_improvement']:.1f}%")
             print(f"  Execution time improvement: {improvement['execution_time_improvement']:.1f}%")
@@ -278,7 +278,7 @@ class TestHardestLearningConvergence:
             from collections import Counter
             selection_counts = Counter(selections)
             most_selected = selection_counts.most_common(1)[0]
-            print(f"  Strategy selection distribution:")
+            print("  Strategy selection distribution:")
             for strategy_id, count in selection_counts.most_common():
                 print(f"    {strategy_id}: {count}/{len(selections)} ({count/len(selections):.1%})")
             print(f"✓ Most selected strategy: {most_selected[0]} ({most_selected[1]}/{len(selections)})")
@@ -329,7 +329,7 @@ class TestHardestLearningConvergence:
                 parameters={}
             )
         
-        print(f"✓ Registered 5 strategies for 3 task types")
+        print("✓ Registered 5 strategies for 3 task types")
         
         # Inject 100 diverse failures
         print("\nInjecting 100 diverse failures...")
@@ -359,7 +359,7 @@ class TestHardestLearningConvergence:
             if (i + 1) % 25 == 0:
                 print(f"  Injected {i + 1}/100 diverse failures...")
         
-        print(f"✓ Successfully injected 100 diverse failures")
+        print("✓ Successfully injected 100 diverse failures")
         
         # Verify patterns identified across scenarios
         total_patterns = 0

@@ -2123,7 +2123,7 @@ class TestMonotonicPromptQualityImprovement:
             improved_version = num_poor_prompts + 1
             improved_prompt_id = system.register_prompt(
                 prompt_type,
-                f"Improved prompt",
+                "Improved prompt",
                 version=improved_version,
                 force=True
             )

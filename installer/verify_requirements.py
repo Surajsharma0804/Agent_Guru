@@ -28,7 +28,7 @@ import json
 import platform
 import shutil
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional
 
