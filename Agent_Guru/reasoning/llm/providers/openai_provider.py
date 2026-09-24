@@ -19,12 +19,17 @@ import time
 from typing import Any
 
 from openai import (
+    APIConnectionError,
+    APIError,
+    APIStatusError,
+    APITimeoutError,
     AsyncOpenAI,
     RateLimitError,
 )
 
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderConfig
+
 
 class OpenAIProvider(BaseLLMProvider):
     """OpenAI GPT LLM provider.
@@ -128,6 +133,29 @@ class OpenAIProvider(BaseLLMProvider):
                 },
             )
 
+        # Every openai exception is translated to RuntimeError, which is what
+        # this method's own docstring promises and what BaseLLMProvider and
+        # the failover router are written against. Only RateLimitError was
+        # translated before, so a refused connection or an HTTP 500 escaped as
+        # a raw openai.* exception that no caller was catching.
         except RateLimitError as e:
             msg = f"OpenAI rate limit exceeded: {e}"
+            raise RuntimeError(msg) from e
+        except APITimeoutError as e:
+            # A timeout surfaces as the BUILTIN TimeoutError, not RuntimeError.
+            # OpenAI's APITimeoutError is NOT a subclass of it (verified),
+            # so BaseLLMProvider.generate()'s retry loop -- written as
+            # `except TimeoutError` -- never saw provider timeouts at all.
+            # Translating here makes the semantic type available to
+            # timeout-aware callers and to that loop.
+            msg = f"OpenAI request timeout: {e}"
+            raise TimeoutError(msg) from e
+        except APIConnectionError as e:
+            msg = f"OpenAI connection error: {e}"
+            raise RuntimeError(msg) from e
+        except APIStatusError as e:
+            msg = f"OpenAI status error ({e.status_code}): {e}"
+            raise RuntimeError(msg) from e
+        except APIError as e:
+            msg = f"OpenAI API error: {e}"
             raise RuntimeError(msg) from e
