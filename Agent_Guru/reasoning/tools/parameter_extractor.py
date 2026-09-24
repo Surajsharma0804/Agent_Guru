@@ -17,6 +17,32 @@ from Agent_Guru.reasoning.models.intent import Entity, Intent
 from Agent_Guru.reasoning.tools.base import Tool, ToolParameter, ToolParameterType
 
 
+def _missing_parameter_error(
+    param: Any,
+    metadata: Any,
+    technical_message: str,
+    error: Any,
+) -> ValueError:
+    """Build the exception raised when a required tool parameter is absent.
+
+    str() is the technical message so logs and tracebacks are diagnosable.
+    ``user_message`` is what a caller renders to the person: a request for the
+    one missing detail, not a claim that the request was not understood -
+    the intent was matched to a tool, so "Could you rephrase?" is both
+    unhelpful and inaccurate.
+    """
+    described = getattr(param, "description", None) or param.name
+    exc = ValueError(technical_message)
+    exc.user_message = (
+        f"I need one more detail before I can do that: {described}."
+    )
+    exc.technical_message = technical_message
+    exc.error = error
+    exc.missing_parameter = param.name
+    exc.tool_id = metadata.tool_id
+    return exc
+
+
 class ParameterExtractor:
     """Extracts and validates tool parameters from intent entities."""
 
@@ -51,12 +77,28 @@ class ParameterExtractor:
                             "intent_type": intent.intent_type.value,
                         },
                     )
+                    technical_message = (
+                        f"Required parameter '{param.name}' not found in intent"
+                    )
                     error = error_manager.create_error(
                         error_type=ErrorType.INVALID_INPUT,
-                        message=f"Required parameter '{param.name}' not found in intent",
+                        message=technical_message,
                         context=context,
                     )
-                    raise ValueError(error.user_message)
+                    # The technical detail used to be built, handed to the
+                    # ErrorManager, and then DISCARDED: only
+                    # error.user_message was raised, so every missing-parameter
+                    # failure surfaced - in logs, in tracebacks, to every
+                    # caller - as the generic "I didn't understand that. Could
+                    # you rephrase?", with no way to tell WHICH parameter of
+                    # WHICH tool was missing.
+                    #
+                    # str(exc) now carries the diagnosable message; the
+                    # user-facing sentence stays available on the exception for
+                    # anything that renders to the person, and it now names the
+                    # missing detail instead of claiming incomprehension - the
+                    # intent WAS understood, one value is simply absent.
+                    raise _missing_parameter_error(param, metadata, technical_message, error)
                 # Apply default value for optional parameters
                 if hasattr(param, "default_value") and param.default_value is not None:
                     value = param.default_value
@@ -75,12 +117,17 @@ class ParameterExtractor:
                         "expected_type": param.type.value,
                     },
                 )
+                technical_message = f"Parameter '{param.name}' validation failed: {e!s}"
                 error = error_manager.create_error(
                     error_type=ErrorType.INVALID_INPUT,
-                    message=f"Parameter '{param.name}' validation failed: {e!s}",
+                    message=technical_message,
                     context=context,
                 )
-                raise ValueError(error.user_message) from e
+                # Same reasoning as above: keep the diagnosable text in str().
+                exc = ValueError(technical_message)
+                exc.user_message = error.user_message
+                exc.error = error
+                raise exc from e
 
             parameters[param.name] = value
 
