@@ -13,12 +13,22 @@ except ImportError:
 
 from Agent_Guru.reasoning.models.conversation import ConversationState
 
+# Matches RedisPool's default in reasoning/utils/connection_pool.py, so the two
+# Redis users in this codebase agree on where Redis lives when nothing says
+# otherwise.
+DEFAULT_REDIS_URL = "redis://localhost:6379"
+
 
 class RedisCache:
     """Redis cache for hot conversation data."""
 
     def __init__(self, url: str | None = None, ttl: int = 3600) -> None:
-        self.url = url
+        # `url or DEFAULT` rather than plain assignment: the parameter is
+        # declared optional, but nothing supplied a fallback, so RedisCache()
+        # left self.url as None and initialize() then called
+        # redis.from_url(None), which fails with an obscure type error instead
+        # of connecting to the obvious default.
+        self.url = url or DEFAULT_REDIS_URL
         self.ttl = ttl
         self._client: redis.Redis | None = None
 
@@ -32,7 +42,12 @@ class RedisCache:
     async def close(self) -> None:
         """Close Redis connection."""
         if self._client:
-            await self._client.close()
+            client, self._client = self._client, None
+            # redis-py >= 5.0.1 spells this aclose(); close() is the
+            # deprecated alias. Preferring aclose() where present keeps this
+            # quiet on current releases without breaking older ones.
+            closer = getattr(client, "aclose", None) or client.close
+            await closer()
 
     async def get(self, conversation_id: str) -> ConversationState | None:
         """Get conversation from cache."""
