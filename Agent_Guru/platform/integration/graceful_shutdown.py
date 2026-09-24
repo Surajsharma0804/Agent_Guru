@@ -1,4 +1,4 @@
-"""Module: Agent_Guru.platform.integration.graceful_shutdown
+﻿"""Module: Agent_Guru.platform.integration.graceful_shutdown
 Purpose: Graceful shutdown with signal handling, in-flight tracking, and state persistence.
 
 Performance Requirements:
@@ -20,6 +20,7 @@ Date: 2026-03-16
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import signal
@@ -148,7 +149,13 @@ class GracefulShutdownManager:
         self._in_flight: int = 0
         self._lock: asyncio.Lock | None = None  # Lazy init
         self._shutdown_event: asyncio.Event | None = None  # Lazy init
+        # Set whenever _in_flight reaches 0, so shutdown() can WAIT for the
+        # drain instead of polling for it (see shutdown(), phase 1).
+        self._drained_event: asyncio.Event | None = None
         self._shutdown_start: float | None = None
+        #: Result of the last completed shutdown, or None. Also returned by
+        #: shutdown(); see the note there.
+        self.last_shutdown_state: ShutdownState | None = None
 
     # ─── Lazy Async Primitives ────────────────────────────────────────────
 
@@ -163,6 +170,14 @@ class GracefulShutdownManager:
         if self._shutdown_event is None:
             self._shutdown_event = asyncio.Event()
         return self._shutdown_event
+
+    def _get_drained_event(self) -> asyncio.Event:
+        """Lazily create the "no operations in flight" event."""
+        if self._drained_event is None:
+            self._drained_event = asyncio.Event()
+            if self._in_flight == 0:
+                self._drained_event.set()
+        return self._drained_event
 
     # ─── Registration ─────────────────────────────────────────────────────
 
@@ -206,7 +221,7 @@ class GracefulShutdownManager:
     def register_signals(self) -> None:
         """Register SIGTERM and SIGINT handlers.
 
-        On Windows, add_signal_handler is not supported — logs a warning
+        On Windows, add_signal_handler is not supported - logs a warning
         and falls back to signal.signal() for SIGINT only.
         """
         try:
@@ -244,11 +259,14 @@ class GracefulShutdownManager:
         """Thread-safe increment of in-flight counter."""
         async with self._get_lock():
             self._in_flight += 1
+            self._get_drained_event().clear()
 
     async def _decrement_in_flight(self) -> None:
         """Thread-safe decrement of in-flight counter (floor at 0)."""
         async with self._get_lock():
             self._in_flight = max(0, self._in_flight - 1)
+            if self._in_flight == 0:
+                self._get_drained_event().set()
 
     # ─── Properties ───────────────────────────────────────────────────────
 
@@ -276,7 +294,7 @@ class GracefulShutdownManager:
         """
         await self._get_shutdown_event().wait()
 
-    async def shutdown(self, reason: str = "normal") -> None:
+    async def shutdown(self, reason: str = "normal") -> ShutdownState | None:
         """Execute graceful shutdown sequence.
 
         Steps:
@@ -292,10 +310,16 @@ class GracefulShutdownManager:
         Args:
             reason: Human-readable shutdown reason (logged and persisted)
 
+        Returns:
+            The ShutdownState for this shutdown - handlers run, errors
+            recorded, duration - or the previous one if a shutdown had
+            already happened. None only if called before any shutdown
+            completed while another is in progress.
+
         """
         if self._phase != ShutdownPhase.RUNNING:
             logger.debug("Shutdown already in progress (phase=%s), ignoring", self._phase.value)
-            return
+            return self.last_shutdown_state
 
         self._shutdown_start = time.monotonic()
         logger.info("Graceful shutdown initiated: reason='%s'", reason)
@@ -313,9 +337,18 @@ class GracefulShutdownManager:
                 self.timeout,
                 self._in_flight,
             )
-            deadline = time.monotonic() + self.timeout
-            while self._in_flight > 0 and time.monotonic() < deadline:
-                await asyncio.sleep(0.1)
+            # Wait on an event rather than polling. The old loop was
+            #     while self._in_flight > 0 and time.monotonic() < deadline:
+            #         await asyncio.sleep(0.1)
+            # which woke 10x a second for up to `timeout` seconds and, worse,
+            # added up to 100 ms to EVERY shutdown after the last operation
+            # actually finished - latency paid on a user-visible path (closing
+            # the app) for nothing.
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(
+                    self._get_drained_event().wait(),
+                    timeout=self.timeout,
+                )
 
             if self._in_flight > 0:
                 logger.warning(
@@ -334,10 +367,31 @@ class GracefulShutdownManager:
                 await asyncio.wait_for(entry.handler(), timeout=entry.timeout)
                 handlers_run += 1
                 logger.debug("Cleanup handler completed: '%s'", entry.name)
-            except TimeoutError as e:
+            except TimeoutError:
                 msg = f"Cleanup handler '{entry.name}' timed out after {entry.timeout}s"
                 logger.exception(msg)
                 state.cleanup_errors.append(msg)
+
+            except Exception as e:
+                # BUG FIX: this handler did not exist. Its body had been merged
+                # into the TimeoutError handler above, where the second half
+                # still read
+                #     msg = f"... raised {type(e).__name__}: {e}"
+                # - a message that only makes sense for a generic exception.
+                #
+                # Two consequences, both on the shutdown path:
+                #   1. every timeout was recorded TWICE in cleanup_errors,
+                #      once as a timeout and once as "raised TimeoutError";
+                #   2. any NON-timeout exception from a cleanup handler
+                #      propagated out of shutdown(), abandoning the rest of
+                #      the LIFO chain. One failing handler therefore prevented
+                #      every earlier-registered handler from running at all -
+                #      unflushed buffers, unclosed databases, unsaved state,
+                #      precisely at the moment cleanup matters most.
+                #
+                # Cleanup is best-effort by definition: record the failure and
+                # keep going. asyncio.CancelledError derives from
+                # BaseException, so a cancelled shutdown still propagates.
                 msg = f"Cleanup handler '{entry.name}' raised {type(e).__name__}: {e}"
                 logger.exception(msg)
                 state.cleanup_errors.append(msg)
@@ -348,6 +402,14 @@ class GracefulShutdownManager:
         if self.state_file:
             await self._persist_state(state)
 
+        # The ShutdownState - crucially its cleanup_errors - used to be built
+        # and then DISCARDED unless a state_file happened to be configured.
+        # A caller had no programmatic way to learn that cleanup handlers had
+        # failed; shutdown() returned None and the object was dropped. It is
+        # now returned and kept, so a supervisor can decide whether the
+        # shutdown was clean without parsing a log or a JSON file that may
+        # not exist.
+        self.last_shutdown_state = state
         self._phase = ShutdownPhase.COMPLETE
         logger.info(
             "Graceful shutdown complete in %.2fs (%d/%d handlers, %d errors)",
@@ -356,6 +418,7 @@ class GracefulShutdownManager:
             len(self._cleanup_entries),
             len(state.cleanup_errors),
         )
+        return state
 
     async def _persist_state(self, state: ShutdownState) -> None:
         """Write shutdown state to JSON file."""
