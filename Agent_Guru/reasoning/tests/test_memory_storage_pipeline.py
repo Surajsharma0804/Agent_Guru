@@ -21,6 +21,11 @@ from Agent_Guru.reasoning.memory.embedding import EmbeddingGenerator
 from Agent_Guru.reasoning.memory.storage_pipeline import MemoryStoragePipeline
 from Agent_Guru.reasoning.memory.vector_db import VectorDatabase
 
+# Building a MemoryRetriever/EmbeddingGenerator loads a 420 MB
+# sentence-transformer. Warm it once per session, in fixture setup, so no
+# individual test is charged the load inside its own timeout budget.
+pytestmark = pytest.mark.usefixtures("warm_embedding_model")
+
 
 @pytest.fixture
 def vector_db():
