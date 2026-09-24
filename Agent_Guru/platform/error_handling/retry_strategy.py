@@ -39,8 +39,10 @@ Date: 2026-02-26
 Version: 1.0.0
 """
 
+import asyncio
 import logging
 import random
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -264,17 +266,42 @@ class RetryStrategy:
                     total_delay=total_delay,
                 )
 
-            except (KeyboardInterrupt, SystemExit) as e:
-                # Non-retryable errors - abort immediately without retry
-                logger.info("Non-retryable error encountered, aborting")
-                return RetryResult(
-                    success=False,
-                    error=f"{type(e).__name__}: {e}",
-                    attempts=attempt + 1,
-                    total_delay=total_delay,
-                )
-                # Check if should retry
-                # Calculate delay and wait (only if not the last attempt)
+            except (KeyboardInterrupt, SystemExit):
+                # Interpreter-level control flow, not an operation failure.
+                # This used to be swallowed into a RetryResult, so a Ctrl-C or
+                # a sys.exit() raised inside the operation was converted into
+                # an ordinary failed result and the process kept running.
+                logger.info("Non-retryable interrupt encountered, aborting")
+                raise
+
+            except Exception as e:  # noqa: BLE001 - classified by should_retry()
+                # BUG FIX: this handler did not exist. The two orphaned
+                # comments that used to sit here - "# Check if should retry"
+                # and "# Calculate delay and wait (only if not the last
+                # attempt)" - were all that remained of it.
+                #
+                # Consequences, all confirmed by running the code:
+                #   * any real exception propagated out of execute() on the
+                #     FIRST attempt, so RetryStrategy never retried anything.
+                #     The class, its config (max_attempts, base_delay,
+                #     max_delay, jitter_factor) and both helper methods were
+                #     inert;
+                #   * should_retry() and calculate_delay() were dead code;
+                #   * `last_error` was never assigned, so the "All retries
+                #     exhausted" branch below could only ever have produced
+                #     the literal string "Unknown error" - if it had been
+                #     reachable at all.
+                last_error = e
+                attempts_made = attempt + 1
+
+                if self.should_retry(attempts_made, e) is RetryDecision.ABORT:
+                    break
+
+                delay = self.calculate_delay(attempt)
+                logger.debug("Retrying in %.2fs", delay)
+                time.sleep(delay)
+                total_delay += delay
+
         # All retries exhausted
         error_msg = f"{type(last_error).__name__}: {last_error}" if last_error else "Unknown error"
         logger.error(
@@ -286,7 +313,7 @@ class RetryStrategy:
         return RetryResult(
             success=False,
             error=error_msg,
-            attempts=self.config.max_attempts,
+            attempts=attempt + 1,
             total_delay=total_delay,
         )
 
@@ -344,17 +371,27 @@ class RetryStrategy:
                     total_delay=total_delay,
                 )
 
-            except (KeyboardInterrupt, SystemExit) as e:
-                # Non-retryable errors - abort immediately without retry
-                logger.info("Non-retryable error encountered, aborting")
-                return RetryResult(
-                    success=False,
-                    error=f"{type(e).__name__}: {e}",
-                    attempts=attempt + 1,
-                    total_delay=total_delay,
-                )
-                # Check if should retry
-                # Calculate delay and wait (only if not the last attempt)
+            except (KeyboardInterrupt, SystemExit):
+                # See execute(): interpreter control flow must propagate.
+                logger.info("Non-retryable interrupt encountered, aborting")
+                raise
+
+            except Exception as e:  # noqa: BLE001 - classified by should_retry()
+                # Same missing handler as in execute(); see the explanation
+                # there. asyncio.CancelledError derives from BaseException on
+                # Python 3.8+, so it is NOT caught here and cancellation still
+                # propagates to the caller instead of being retried.
+                last_error = e
+                attempts_made = attempt + 1
+
+                if self.should_retry(attempts_made, e) is RetryDecision.ABORT:
+                    break
+
+                delay = self.calculate_delay(attempt)
+                logger.debug("Retrying in %.2fs", delay)
+                await asyncio.sleep(delay)
+                total_delay += delay
+
         # All retries exhausted
         error_msg = f"{type(last_error).__name__}: {last_error}" if last_error else "Unknown error"
         logger.error(
@@ -366,6 +403,6 @@ class RetryStrategy:
         return RetryResult(
             success=False,
             error=error_msg,
-            attempts=self.config.max_attempts,
+            attempts=attempt + 1,
             total_delay=total_delay,
         )
