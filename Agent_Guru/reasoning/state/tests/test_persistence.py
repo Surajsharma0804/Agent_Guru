@@ -13,13 +13,24 @@ from Agent_Guru.reasoning.state.persistence import ConversationPersistence
 
 
 @pytest.fixture
-async def persistence():
-    """Create persistence instance with test database."""
-    db_path = "test_conversations.db"
+async def persistence(tmp_path):
+    """Create persistence instance with test database.
 
-    # Clean up if exists
-    if os.path.exists(db_path):
-        os.remove(db_path)
+    The database lives under pytest's per-test tmp_path, not in the current
+    working directory. The previous fixed relative path
+    ("test_conversations.db") meant three things:
+
+      * every run wrote a stray SQLite file into whatever directory pytest
+        happened to be started from -- in practice the repository root;
+      * two runs in parallel (pytest-xdist, or simply two terminals) shared
+        one database file and corrupted each other's expectations;
+      * a crash between create and teardown left the file behind, so the NEXT
+        run started against a populated database.
+
+    tmp_path is unique per test and cleaned up by pytest, which removes all
+    three.
+    """
+    db_path = str(tmp_path / "conversations.db")
 
     persist = ConversationPersistence(db_path=db_path)
     await persist.initialize()
@@ -27,10 +38,6 @@ async def persistence():
     yield persist
 
     await persist.close()
-
-    # Clean up
-    if os.path.exists(db_path):
-        os.remove(db_path)
 
 
 @pytest.fixture
