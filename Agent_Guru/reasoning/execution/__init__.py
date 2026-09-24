@@ -10,6 +10,7 @@ from Agent_Guru.reasoning.execution.evaluator import (
     ValidationResult,
 )
 from Agent_Guru.reasoning.execution.executor import (
+    ExecutionCancelledError,
     ExecutionController,
     ExecutionResult,
     SyncExecutor,
@@ -26,6 +27,7 @@ __all__ = [
     "ErrorType",
     "EvaluationResult",
     # Executor
+    "ExecutionCancelledError",
     "ExecutionController",
     "ExecutionEvaluator",
     "ExecutionResult",
