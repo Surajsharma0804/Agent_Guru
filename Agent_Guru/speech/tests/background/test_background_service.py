@@ -299,19 +299,46 @@ class TestBackgroundServiceManager:
     # RESOURCE USAGE
     # ========================================================================
     
+    @pytest.mark.performance
     def test_sleep_mode_resource_usage(self, service: BackgroundServiceManager):
-        """Test sleep mode resource usage."""
+        """Test sleep mode resource usage.
+
+        get_metrics() reports WHOLE-PROCESS RSS - correct for a deployment
+        where the process is the assistant, but meaningless as an absolute
+        number inside a test process that has also loaded torch, whisper,
+        sentence-transformers and chromadb. The old
+        `assert metrics.memory_mb < 500` measured the test runner: it passed
+        when this file ran alone and failed at 792 MB in a full-suite run,
+        with nothing about the background service having changed.
+
+        What the test's own comment is reaching for - "sleep mode should use
+        <100MB RAM" - is the memory the SERVICE adds, so that is what is
+        measured: RSS before start() against RSS after. The delta is
+        independent of whatever else the process has loaded, which makes this
+        both stable and a stronger assertion than the absolute bound.
+        """
+        import os
+
+        import psutil
+
+        process = psutil.Process(os.getpid())
+        baseline_mb = process.memory_info().rss / (1024 * 1024)
+
         service.start()
         time.sleep(0.1)
-        
+
         metrics = service.get_metrics()
-        
-        # Sleep mode should use <5% CPU, <100MB RAM
-        # Note: In real implementation with actual wake word detection
-        assert metrics.cpu_percent < 30  # Relaxed for testing  # nosec B101
-        assert metrics.memory_mb < 500  # Relaxed for testing  # nosec B101
-        
         service.stop()
+
+        added_mb = metrics.memory_mb - baseline_mb
+        assert added_mb < 100, (  # nosec B101
+            f"sleep mode added {added_mb:.1f} MB "
+            f"({baseline_mb:.1f} -> {metrics.memory_mb:.1f} MB)"
+        )
+        # CPU is sampled over a 100 ms window inside get_metrics(), so it is
+        # already a rate rather than a total; 30% leaves room for a loaded
+        # runner while still catching a spin-loop.
+        assert metrics.cpu_percent < 30  # nosec B101
     
     # ========================================================================
     # STATE MANAGEMENT
