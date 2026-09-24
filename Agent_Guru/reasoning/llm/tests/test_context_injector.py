@@ -42,6 +42,7 @@ async def sample_conversation_state():
         turns=[
             ConversationTurn(
                 turn_id="turn_1",
+                turn_number=1,
                 user_input="What's the weather?",
                 intent=Intent(
                     intent_type=IntentType.QUERY_WEATHER,
@@ -54,12 +55,17 @@ async def sample_conversation_state():
                     requires_reasoning=False,
                     original_input="What's the weather?",
                 ),
-                action_taken={"tool_id": "weather_tool", "parameters": {"location": "current"}},
+                action_taken={
+                    "action_id": "act_1",
+                    "tool_id": "weather_tool",
+                    "parameters": {"location": "current"},
+                },
                 response="It's sunny, 72°F",
                 timestamp=datetime.now(tz=timezone.utc),
             ),
             ConversationTurn(
                 turn_id="turn_2",
+                turn_number=2,
                 user_input="What about tomorrow?",
                 intent=Intent(
                     intent_type=IntentType.QUERY_WEATHER,
@@ -74,6 +80,7 @@ async def sample_conversation_state():
                     original_input="What about tomorrow?",
                 ),
                 action_taken={
+                    "action_id": "act_2",
                     "tool_id": "weather_tool",
                     "parameters": {"location": "current", "time": "tomorrow"},
                 },
@@ -82,6 +89,7 @@ async def sample_conversation_state():
             ),
             ConversationTurn(
                 turn_id="turn_3",
+                turn_number=3,
                 user_input="Set a timer for 5 minutes",
                 intent=Intent(
                     intent_type=IntentType.SET_TIMER,
@@ -97,7 +105,11 @@ async def sample_conversation_state():
                     requires_reasoning=False,
                     original_input="Set a timer for 5 minutes",
                 ),
-                action_taken={"tool_id": "timer_tool", "parameters": {"duration_seconds": 300}},
+                action_taken={
+                    "action_id": "act_3",
+                    "tool_id": "timer_tool",
+                    "parameters": {"duration_seconds": 300},
+                },
                 response="Timer set for 5 minutes",
                 timestamp=datetime.now(tz=timezone.utc),
             ),
@@ -584,6 +596,7 @@ class TestContextInjectorIntegration:
         for i in range(10):
             turn = ConversationTurn(
                 turn_id=f"turn_{i}",
+                turn_number=i,
                 user_input=f"User input {i}",
                 intent=Intent(
                     intent_type=IntentType.QUERY_WEATHER,
@@ -596,7 +609,9 @@ class TestContextInjectorIntegration:
                     requires_reasoning=False,
                     original_input=f"User input {i}",
                 ),
-                action_taken={"tool_id": "test_tool", "parameters": {"param": f"value_{i}"}},
+                action_taken={
+                        "action_id": f"act_{i}",
+                        "tool_id": "test_tool", "parameters": {"param": f"value_{i}"}},
                 response=f"Response {i}",
                 timestamp=datetime.now(tz=timezone.utc),
             )
@@ -625,6 +640,7 @@ class TestContextInjectorIntegration:
             turns=[
                 ConversationTurn(
                     turn_id=f"turn_{i}",
+                    turn_number=i,
                     user_input=f"This is a very long user input with lots of text to make it exceed token limits {i}"
                     * 5,
                     intent=Intent(
