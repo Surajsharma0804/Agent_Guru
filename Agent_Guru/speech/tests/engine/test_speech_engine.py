@@ -30,6 +30,29 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def require_tts_backend() -> None:
+    """Skip when synthesising would have to download a model first.
+
+    SpeechEngine.synthesize_response() reaches KokoroTTSEngine._ensure_loaded(),
+    which auto-downloads ~83 MB on first use. In a test run that meant a
+    network fetch inside a test with a 30-second budget: the four synthesis
+    tests below timed out rather than testing anything, and a CI runner would
+    have pulled model weights on every cold cache.
+
+    Setting AGENT_GURU_NO_DOWNLOAD=1 turns that download into an immediate
+    error; either way, with no backend on the machine there is nothing here to
+    assert about synthesised audio.
+    """
+    from Agent_Guru.speech.tts.tts_engine import TTSEngine, downloads_disabled
+
+    backend = TTSEngine().active_backend
+    if backend == "none" or (backend == "kokoro" and downloads_disabled()):
+        pytest.skip(
+            "UNVERIFIED on this host: no local TTS backend "
+            "(Kokoro model not cached and pyttsx3 unavailable)",
+        )
+
+
 class TestSpeechEngine:
     """Comprehensive tests for Speech Engine."""
     
@@ -188,6 +211,7 @@ class TestSpeechEngine:
     
     def test_synthesize_response(self, initialized_engine: SpeechEngine):
         """Test response synthesis."""
+        require_tts_backend()
         audio = initialized_engine.synthesize_response(
             text="Hello, how can I help you?",
             personality=PersonalityType.GURU,
@@ -200,6 +224,7 @@ class TestSpeechEngine:
     
     def test_synthesize_response_with_emotion(self, initialized_engine: SpeechEngine):
         """Test response synthesis with different emotions."""
+        require_tts_backend()
         emotions = [
             EmotionType.HAPPY,
             EmotionType.SAD,
@@ -258,16 +283,50 @@ class TestSpeechEngine:
         initialized_engine: SpeechEngine,
         sample_audio: np.ndarray
     ):
-        """Test voice cloning."""
-        # Create multiple samples (need 5+ minutes total = 300+ seconds at 16kHz = 4,800,000+ samples)
-        # Create 300 samples of 1 second each = 300 seconds total (5 minutes minimum)
-        samples = [np.random.randn(16000).astype(np.float32) for _ in range(300)]
-        
-        # Clone voice
-        initialized_engine.clone_voice(samples, "test_voice_001")
-        
-        # Should not raise exception
-        assert True  # nosec B101
+        """Test voice cloning.
+
+        The samples must be VALID audio. This used to build them with a bare
+        `np.random.randn(16000)` - Gaussian noise with unit standard
+        deviation, so roughly a third of every sample sits outside the
+        [-1.0, 1.0] range that float32 PCM is defined on. Enrolment now
+        rejects that (quality 0.03 against a 0.60 minimum) and is right to:
+        a recording that is one third full-scale is not a voice. The test also
+        ended in `assert True`, so it asserted nothing about the result.
+        """
+        # 5+ minutes of audio is required: 300 samples x 1 second at 16 kHz.
+        rng = np.random.default_rng(1234)
+        t = np.linspace(0, 1.0, 16000, endpoint=False)
+        tone = np.sin(2 * np.pi * 140 * t) + 0.3 * np.sin(2 * np.pi * 280 * t)
+        samples = []
+        for _ in range(300):
+            audio = tone + 0.05 * rng.standard_normal(16000)
+            audio = audio / np.max(np.abs(audio)) * 0.8  # in-range, with headroom
+            samples.append(audio.astype(np.float32))
+
+        model = initialized_engine.clone_voice(samples, "test_voice_001")
+
+        assert model is not None  # nosec B101
+        assert model.model_id == "test_voice_001"  # nosec B101
+        assert model.voice_characteristics["sample_count"] == 300  # nosec B101
+        assert model.training_duration_seconds >= 300.0  # nosec B101
+
+    def test_clone_voice_rejects_out_of_range_audio(
+        self,
+        initialized_engine: SpeechEngine,
+    ):
+        """Audio outside [-1, 1] must not be enrolled as a voice.
+
+        Quality is measured on the ORIGINAL sample, so unnormalised noise -
+        the exact input the test above used to pass - is now refused instead
+        of being silently peak-normalised into apparent validity.
+        """
+        from Agent_Guru.speech.tts.voice_cloner import VoiceCloningError
+
+        rng = np.random.default_rng(99)
+        samples = [rng.standard_normal(16000).astype(np.float32) for _ in range(300)]
+
+        with pytest.raises(VoiceCloningError, match="quality"):
+            initialized_engine.clone_voice(samples, "bad_voice_001")
     
     # ========================================================================
     # BACKGROUND SERVICE
@@ -441,6 +500,7 @@ class TestSpeechEngine:
         sample_audio: np.ndarray
     ):
         """ZERO COMPROMISE: Test complete voice interaction flow."""
+        require_tts_backend()
         import asyncio
         
         # Process voice input
@@ -493,6 +553,7 @@ class TestSpeechEngine:
         sample_audio: np.ndarray
     ):
         """ZERO COMPROMISE: Test emotion-aware response generation."""
+        require_tts_backend()
         import asyncio
         
         # Process input
@@ -726,8 +787,17 @@ class TestSpeechEngine:
         original_transcribe = initialized_engine.stt_transcriber.transcribe
         original_interpret = initialized_engine.command_parser.interpret
         
-        initialized_engine.stt_transcriber.transcribe = lambda x, sr: mock_transcription
-        initialized_engine.command_parser.interpret = lambda text: mock_command
+        # Stubs mirror the real signatures rather than the narrowest call:
+        # transcribe_with_personality() passes language= to transcribe(), and
+        # the speech path passes language= to interpret(). A stub that accepts
+        # only the positional arguments turns a signature change into a
+        # TypeError inside the code under test, which is what happened here.
+        initialized_engine.stt_transcriber.transcribe = (
+            lambda audio, sample_rate, language=None, **_kw: mock_transcription
+        )
+        initialized_engine.command_parser.interpret = (
+            lambda text, language="en", context=None, **_kw: mock_command
+        )
         
         try:
             result = asyncio.run(initialized_engine.process_voice_input(
