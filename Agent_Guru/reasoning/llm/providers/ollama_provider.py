@@ -1,4 +1,4 @@
-"""Ollama LLM Provider.
+﻿"""Ollama LLM Provider.
 
 Provides local LLM inference using Ollama server.
 Supports models like Mistral, Qwen, Llama, etc.
@@ -23,6 +23,7 @@ import aiohttp
 
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderConfig
+
 
 class OllamaProviderConfig(ProviderConfig):
     """Configuration for Ollama provider."""
@@ -54,7 +55,7 @@ class OllamaProvider(BaseLLMProvider):
     """Ollama LLM provider for local inference.
 
     Active model (May 2025, best for 4GB VRAM):
-    - gemma3:4b — Google Gemma 3, 3.3GB, best quality at this size
+    - gemma3:4b - Google Gemma 3, 3.3GB, best quality at this size
 
     Example:
         >>> config = OllamaProviderConfig(model="gemma3:4b")
