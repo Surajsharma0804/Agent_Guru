@@ -11,6 +11,8 @@ Test Categories:
 
 import pytest
 import platform
+import sys
+from unittest.mock import MagicMock
 import subprocess  # nosec B404
 import time
 from unittest.mock import Mock, patch
@@ -237,21 +239,31 @@ class TestWindowsMediaBackend:
     
     @pytest.fixture
     def backend(self):
-        """Create Windows media backend with mocked dependencies."""
+        """Create Windows media backend with pywin32 stubbed in sys.modules.
+
+        WindowsMediaBackend.__init__ imports win32api/win32con INSIDE the
+        method (the lazy-optional-dependency pattern) and stores them on the
+        instance. They are therefore never module attributes of
+        media_control, so the previous
+        `patch('...media_control.win32api')` raised AttributeError and took
+        all 15 tests in this class down at setup.
+
+        Stubbing sys.modules instead means the real __init__ runs and the real
+        import path is exercised -- the previous fallback used
+        `object.__new__` to skip __init__ entirely, so test_initialization was
+        asserting attributes the fixture had just assigned to itself.
+        """
         if platform.system() == "Windows":
             try:
                 return WindowsMediaBackend()
             except ImportError:
                 pass
-        
-        # Mock for non-Windows platforms
-        with patch('Agent_Guru.platform.controllers.media_control.win32api') as mock_api:
-            with patch('Agent_Guru.platform.controllers.media_control.win32con') as mock_con:
-                backend = object.__new__(WindowsMediaBackend)
-                backend.win32api = mock_api
-                backend.win32con = mock_con
-                backend.win32con.KEYEVENTF_KEYUP = 2
-                return backend
+
+        mock_api = MagicMock(name="win32api")
+        mock_con = MagicMock(name="win32con")
+        mock_con.KEYEVENTF_KEYUP = 2
+        with patch.dict(sys.modules, {"win32api": mock_api, "win32con": mock_con}):
+            return WindowsMediaBackend()
     
     def test_initialization(self, backend):
         """Test Windows backend initialization."""
