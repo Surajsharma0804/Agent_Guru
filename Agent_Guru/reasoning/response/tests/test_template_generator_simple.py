@@ -46,8 +46,16 @@ class TestTemplateGeneratorCore:
 
         assert isinstance(response, Response)  # nosec B101
         assert response.text  # nosec B101
-        assert "timed out" in response.text.lower() or "too long" in response.text.lower()  # nosec B101
-        assert response.metadata["generation_method"] == "template"  # nosec B101
+        # See the matching test in test_template_generator.py: the exact
+        # classification is the behaviour worth pinning, and error responses
+        # are produced by ErrorResponseGenerator rather than the template
+        # table.
+        assert response.metadata["error_type"] == "execution_timeout"  # nosec B101
+        assert any(  # nosec B101
+            phrase in response.text.lower()
+            for phrase in ("timed out", "too long", "taking longer")
+        )
+        assert response.metadata["generation_method"] == "error_response"  # nosec B101
 
     def test_voice_modality_uses_concise_template(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
