@@ -294,3 +294,5 @@ Claude outputs/
 # Scratch directory for files awaiting manual deletion.
 _to_delete/
 
+# Same file with Windows-substituted colons (U+F03A private use area char)
+memory
