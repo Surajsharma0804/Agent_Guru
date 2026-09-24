@@ -28,12 +28,17 @@ async def main() -> None:
     audio = np.random.randn(16000).astype(np.float32) * 0.1
 
     result = await engine.process_voice_input(audio, personality=PersonalityType.MAYA)
-    detected_emotion = result.emotion.primary_emotion
 
-    response_text, response_emotion = EMOTION_RESPONSES.get(
-        detected_emotion,
-        ("How can I help?", EmotionType.NEUTRAL),
-    )
+    # result.emotion is None when emotion could not be measured. Answering as
+    # if the user were calm would be a guess presented as a reading, so reply
+    # without assuming a mood instead. result.emotion_error says why.
+    if result.emotion is None:
+        response_text, response_emotion = "How can I help?", EmotionType.NEUTRAL
+    else:
+        response_text, response_emotion = EMOTION_RESPONSES.get(
+            result.emotion.primary_emotion,
+            ("How can I help?", EmotionType.NEUTRAL),
+        )
     engine.synthesize_response(
         response_text,
         PersonalityType.MAYA,

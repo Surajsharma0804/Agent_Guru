@@ -846,3 +846,163 @@ class TestSpeechEngine:
             assert initialized_engine._current_personality == PersonalityType.GURU  # nosec B101
         finally:
             initialized_engine.wake_word_detector.detect = original_detect
+
+
+class _FixedTranscriber:
+    """Stands in for Whisper, whose model is not always available offline.
+
+    These tests are about what happens after transcription has succeeded, so
+    they need a transcription that succeeds on every machine.
+    """
+
+    def transcribe(self, audio, sample_rate, language=None):
+        from Agent_Guru.speech.models import TranscriptionResult
+
+        return TranscriptionResult(text="turn on the lights", language="en", confidence=0.95)
+
+
+class TestSecondaryStepsDoNotDiscardTranscription:
+    """An utterance that was understood must not be lost to a secondary step.
+
+    Emotion detection and conversation bookkeeping used to share one try with
+    transcription, so their failures raised GuruSpeechError and the caller got
+    nothing, although the words had been transcribed correctly.
+    """
+
+    @pytest.fixture
+    def engine(self) -> SpeechEngine:
+        from Agent_Guru.speech.memory_client import MemoryClient
+
+        engine = SpeechEngine()
+        engine.initialize()
+        engine.stt_transcriber = _FixedTranscriber()
+        engine.memory_client = MemoryClient()
+        return engine
+
+    @pytest.fixture
+    def audio(self) -> np.ndarray:
+        t = np.arange(16000, dtype=np.float32) / 16000
+        return (0.1 * np.sin(2 * np.pi * 220.0 * t)).astype(np.float32)
+
+    @staticmethod
+    def _utter(engine: SpeechEngine, audio: np.ndarray) -> VoiceInteractionResult:
+        import asyncio
+
+        return asyncio.run(engine.process_voice_input(audio, PersonalityType.GURU))
+
+    def test_missing_librosa_keeps_transcription(self, engine, audio, monkeypatch):
+        # None in sys.modules makes `import librosa` raise ImportError, so this
+        # exercises the missing-extra path whether or not librosa is installed.
+        monkeypatch.setitem(__import__("sys").modules, "librosa", None)
+
+        result = self._utter(engine, audio)
+
+        assert result.transcription.text == "turn on the lights"  # nosec B101
+        assert result.emotion is None  # nosec B101
+        assert "librosa" in result.emotion_error  # nosec B101
+        assert engine.get_state() == EngineState.READY  # nosec B101
+
+        # The turn is still recorded, without an invented emotion, and no
+        # emotion observation is written to the user's history.
+        turn = engine.context_manager.get_context(result.context_id).turns[-1]
+        assert turn.text == "turn on the lights"  # nosec B101
+        assert turn.emotion is None  # nosec B101
+        assert engine.memory_client.get_recent_emotions("default_user") == []  # nosec B101
+        stored = engine.memory_client.get_recent_turns("default_user")[-1]
+        assert stored.emotion is None  # nosec B101
+
+    def test_uninitialised_emotion_detector_keeps_transcription(self, engine, audio):
+        engine.emotion_detector = None
+
+        result = self._utter(engine, audio)
+
+        assert result.transcription.text == "turn on the lights"  # nosec B101
+        assert result.emotion is None  # nosec B101
+        assert result.emotion_error == "Emotion detector not initialized"  # nosec B101
+
+    def test_measured_neutral_is_distinguishable_from_unmeasured(self, engine, audio, monkeypatch):
+        import time
+
+        from Agent_Guru.speech.models import EmotionResult
+
+        measured = EmotionResult(
+            primary_emotion=EmotionType.NEUTRAL,
+            emotion_scores={EmotionType.NEUTRAL: 0.8},
+            confidence=0.8,
+            timestamp=time.time(),
+            audio_quality=1.0,
+        )
+        monkeypatch.setattr(engine, "detect_emotion", lambda _audio: measured)
+
+        result = self._utter(engine, audio)
+
+        assert result.emotion is measured  # nosec B101
+        assert result.emotion_error is None  # nosec B101
+        assert len(engine.memory_client.get_recent_emotions("default_user")) == 1  # nosec B101
+
+    def test_unexpected_emotion_failure_still_fails_loudly(self, engine, audio, monkeypatch):
+        # Only the detector's documented failure is downgraded. Anything else
+        # is a bug and must not be hidden behind an "emotion not measured".
+        def broken(_audio):
+            raise ValueError("detector bug")
+
+        monkeypatch.setattr(engine, "detect_emotion", broken)
+
+        with pytest.raises(GuruSpeechError, match="detector bug"):
+            self._utter(engine, audio)
+
+    def test_transcription_failure_still_fails_loudly(self, engine, audio, monkeypatch):
+        def broken(*_args, **_kwargs):
+            raise RuntimeError("whisper failed")
+
+        monkeypatch.setattr(engine.stt_transcriber, "transcribe", broken)
+
+        with pytest.raises(GuruSpeechError, match="whisper failed"):
+            self._utter(engine, audio)
+
+    def test_cleared_context_does_not_discard_later_utterances(self, engine, audio, monkeypatch):
+        import time
+
+        from Agent_Guru.speech.models import EmotionResult
+
+        # Emotion succeeds here so that only the context step can fail.
+        measured = EmotionResult(
+            primary_emotion=EmotionType.HAPPY,
+            emotion_scores={EmotionType.HAPPY: 0.9},
+            confidence=0.9,
+            timestamp=time.time(),
+            audio_quality=1.0,
+        )
+        monkeypatch.setattr(engine, "detect_emotion", lambda _audio: measured)
+        first = self._utter(engine, audio)
+        engine.context_manager.clear_context(first.context_id)
+
+        second = self._utter(engine, audio)
+        third = self._utter(engine, audio)
+
+        assert second.transcription.text == "turn on the lights"  # nosec B101
+        assert second.context_id != first.context_id  # nosec B101
+        assert third.context_id == second.context_id  # nosec B101
+        assert len(engine.context_manager.get_context(second.context_id).turns) == 2  # nosec B101
+
+    def test_unmeasured_emotion_is_not_persisted_as_a_label(self, engine, audio, monkeypatch):
+        class RecordingSystem:
+            def __init__(self):
+                self.turns = []
+                self.emotions = []
+
+            async def store_conversation_turn(self, user_id, record):
+                self.turns.append(record)
+
+            async def store_emotion_state(self, user_id, record):
+                self.emotions.append(record)
+
+        system = RecordingSystem()
+        engine.memory_client._system = system
+        monkeypatch.setitem(__import__("sys").modules, "librosa", None)
+
+        self._utter(engine, audio)
+
+        # str(None) used to reach the store as the emotion label "None".
+        assert system.turns[-1]["emotion"] is None  # nosec B101
+        assert system.emotions == []  # nosec B101

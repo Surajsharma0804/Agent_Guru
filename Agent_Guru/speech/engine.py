@@ -34,9 +34,12 @@ from Agent_Guru.speech.background_service import BackgroundServiceManager
 from Agent_Guru.speech.biometric.voice_features import VoiceFeatureExtractor
 from Agent_Guru.speech.commands.command_parser import CommandParser
 from Agent_Guru.speech.config import SpeechEngineConfig
-from Agent_Guru.speech.context.context_manager import ConversationContextManager
+from Agent_Guru.speech.context.context_manager import (
+    ContextNotFoundError,
+    ConversationContextManager,
+)
 from Agent_Guru.speech.emotion.emotion_detector import EmotionDetector
-from Agent_Guru.speech.exceptions import GuruSpeechError
+from Agent_Guru.speech.exceptions import EmotionDetectionError, GuruSpeechError
 from Agent_Guru.speech.goal_manager_client import GoalManagerClient
 from Agent_Guru.speech.memory_client import MemoryClient
 from Agent_Guru.speech.model_router_client import ModelRouterClient
@@ -69,7 +72,12 @@ class VoiceInteractionResult:
     """Result of a complete voice interaction."""
 
     transcription: TranscriptionResult
-    emotion: EmotionResult
+    # None means emotion could not be measured for this utterance, and
+    # emotion_error says why. It is deliberately not a NEUTRAL placeholder:
+    # a caller must be able to tell "calm, and we measured that" from "we
+    # could not tell", or it would comfort or reassure the user on the
+    # strength of a reading that was never taken.
+    emotion: EmotionResult | None
     command: CommandResult | None
     response_text: str | None
     response_audio: np.ndarray | None
@@ -88,6 +96,14 @@ class VoiceInteractionResult:
     # dropped; command_error then carries the reason.
     command_executed: bool | None = None
     command_error: str | None = None
+
+    # Emotion used to be detected inside the same try as transcription, so a
+    # detector failure (librosa not installed, detector not initialised)
+    # raised GuruSpeechError and threw away a transcription that had already
+    # succeeded: the user was understood perfectly and got nothing back
+    # because Guru could not tell how they felt. Emotion is a secondary
+    # signal, so like command routing above it is now reported, not fatal.
+    emotion_error: str | None = None
 
 
 class SpeechEngine:
@@ -258,7 +274,7 @@ class SpeechEngine:
 
             # Step 3-4: Transcription + emotion
             transcription = self.transcribe_with_personality(processed_audio, personality)
-            emotion = self.detect_emotion(processed_audio)
+            emotion, emotion_error = self._detect_turn_emotion(processed_audio)
 
             # Step 5: Command recognition + routing
             command, command_executed, command_error = await self._process_command(
@@ -284,6 +300,7 @@ class SpeechEngine:
                 processing_time_ms=processing_time,
                 command_executed=command_executed,
                 command_error=command_error,
+                emotion_error=emotion_error,
             )
 
         except Exception as e:
@@ -340,6 +357,27 @@ class SpeechEngine:
             # quietly making every interaction sound like GURU.
             self.logger.debug("Wake-word detection failed; defaulting to GURU", exc_info=True)
         return PersonalityType.GURU
+
+    def _detect_turn_emotion(
+        self, audio: np.ndarray,
+    ) -> tuple[EmotionResult | None, str | None]:
+        """Detect emotion for one utterance, reporting failure instead of raising.
+
+        Returns:
+            (emotion, emotion_error). Exactly one of the two is None.
+
+        """
+        # Checked here rather than by catching detect_emotion()'s RuntimeError,
+        # so that only this known condition is downgraded and any other
+        # RuntimeError from the detector still fails the turn loudly.
+        if self.emotion_detector is None:
+            self.logger.warning("Emotion detector not initialized - emotion not measured")
+            return None, "Emotion detector not initialized"
+        try:
+            return self.detect_emotion(audio), None
+        except EmotionDetectionError as exc:
+            self.logger.warning("Emotion not measured for this utterance: %s", exc)
+            return None, str(exc)
 
     async def _process_command(
         self, transcription: Any,
@@ -404,43 +442,71 @@ class SpeechEngine:
         return command, False, getattr(routing, "error", None) or "Command execution failed"
 
     async def _update_context(
-        self, transcription: Any, emotion: Any, personality: PersonalityType,
+        self,
+        transcription: Any,
+        emotion: EmotionResult | None,
+        personality: PersonalityType,
     ) -> None:
         """Update conversation context and store to memory."""
+        turn_emotion = emotion.primary_emotion if emotion is not None else None
+        try:
+            self._add_user_turn(transcription.text, turn_emotion, personality)
+        except ContextNotFoundError:
+            # context_manager.clear_context() is public, and clearing the
+            # current conversation left this engine holding a dead id. Every
+            # later utterance then raised here and was discarded after it had
+            # been transcribed, for good, until the process restarted. The
+            # conversation was ended on purpose, so continue in a new one.
+            self.logger.warning(
+                "Conversation context %s no longer exists - starting a new one",
+                self._current_context_id,
+            )
+            self._current_context_id = None
+            self._add_user_turn(transcription.text, turn_emotion, personality)
+
+        if self.memory_client:
+            try:
+                # No emotion state is stored for an unmeasured utterance: a
+                # stand-in value would enter the user's emotion history as
+                # if it had been observed.
+                if emotion is not None:
+                    await self.memory_client.store_emotion_state(
+                        user_id="default_user",
+                        emotion=emotion.primary_emotion,
+                        timestamp=datetime.now(tz=UTC),
+                        confidence=emotion.confidence,
+                    )
+                await self.memory_client.store_conversation_turn(
+                    user_id="default_user",
+                    speaker="user",
+                    text=transcription.text,
+                    emotion=turn_emotion,
+                    personality=personality.value,
+                )
+            except Exception:
+                self.logger.exception("Memory storage failed")
+
+    def _add_user_turn(
+        self,
+        text: str,
+        emotion: EmotionType | None,
+        personality: PersonalityType,
+    ) -> None:
+        """Record a user turn, creating the conversation context if there is none."""
         if self.context_manager is None:
             msg = "Context manager not initialized"
             raise RuntimeError(msg)
-
         if self._current_context_id is None:
             context_id, _ = self.context_manager.create_context(
                 user_id="default_user", personality=personality,
             )
             self._current_context_id = context_id
-
         self.context_manager.add_turn(
             context_id=self._current_context_id,
             speaker="user",
-            text=transcription.text,
-            emotion=emotion.primary_emotion,
+            text=text,
+            emotion=emotion,
         )
-
-        if self.memory_client:
-            try:
-                await self.memory_client.store_emotion_state(
-                    user_id="default_user",
-                    emotion=emotion.primary_emotion,
-                    timestamp=datetime.now(tz=UTC),
-                    confidence=emotion.confidence,
-                )
-                await self.memory_client.store_conversation_turn(
-                    user_id="default_user",
-                    speaker="user",
-                    text=transcription.text,
-                    emotion=emotion.primary_emotion,
-                    personality=personality.value,
-                )
-            except Exception:
-                self.logger.exception("Memory storage failed")
 
     def transcribe(
         self,
