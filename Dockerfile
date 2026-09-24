@@ -1,11 +1,11 @@
-# Multi-stage Production Dockerfile for Agent Guru — Core Reasoning Engine API
+# Multi-stage Production Dockerfile for Agent Guru - Core Reasoning Engine API
 #
 # Design decisions:
 #   - Base: python:3.11-slim (Debian/glibc). Alpine (musl) cannot install
 #     manylinux wheels (numpy, cryptography, etc.) without recompiling.
 #   - No PyTorch / OpenCV / Whisper / audio libs in this image.
 #     Those require GPU drivers, system audio devices, and large model
-#     downloads — none of which belong in a stateless API container.
+#     downloads - none of which belong in a stateless API container.
 #     The reasoning engine talks to LLM providers over HTTP; it does not
 #     run local inference inside Docker.
 #   - requirements-docker.txt contains only what the API actually needs.
@@ -17,7 +17,7 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# System build deps — only what's needed to compile C extensions in the
+# System build deps - only what's needed to compile C extensions in the
 # requirements-docker.txt set (cryptography, aiohttp, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy manifests first — Docker layer cache is reused when only source changes
+# Copy manifests first - Docker layer cache is reused when only source changes
 COPY pyproject.toml ./
 COPY requirements-docker.txt ./
 
@@ -57,7 +57,7 @@ LABEL org.opencontainers.image.created="${BUILD_DATE}" \
 
 WORKDIR /app
 
-# Minimal runtime system libs — no compiler, no dev headers
+# Minimal runtime system libs - no compiler, no dev headers
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi8 \
     libssl3 \

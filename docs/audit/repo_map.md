@@ -1,11 +1,11 @@
-# Agent Guru — Repository Map
+# Agent Guru - Repository Map
 *Generated: 2026-04-18*
 
 ## Entry Points
 
 | File | Purpose |
 |------|---------|
-| `main.py` | Primary entry point — starts full voice assistant pipeline |
+| `main.py` | Primary entry point - starts full voice assistant pipeline |
 | `Agent_Guru/vision/train.py` | Vision model training (ArcFace, RetinaFace) |
 | `installer/verify_requirements.py` | System requirements verification |
 
@@ -49,14 +49,14 @@ Implemented in: `Agent_Guru/integration/orchestrator.py`
 
 ## Dependency Order (initialization)
 
-1. `security/` — auth, encryption
-2. `platform/` — OS abstraction
-3. `llm/` — LLM runtime
-4. `speech/` — speech engine
-5. `vision/` — vision engine
-6. `memory/` — depends on security
-7. `reasoning/` — depends on LLM, memory
-8. `agents/` — depends on platform, reasoning
-9. `policy/` — depends on security
-10. `avatar/` — depends on speech, vision
-11. `integration/` — wires all subsystems
+1. `security/` - auth, encryption
+2. `platform/` - OS abstraction
+3. `llm/` - LLM runtime
+4. `speech/` - speech engine
+5. `vision/` - vision engine
+6. `memory/` - depends on security
+7. `reasoning/` - depends on LLM, memory
+8. `agents/` - depends on platform, reasoning
+9. `policy/` - depends on security
+10. `avatar/` - depends on speech, vision
+11. `integration/` - wires all subsystems

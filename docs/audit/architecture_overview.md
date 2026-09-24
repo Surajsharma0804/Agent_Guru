@@ -1,4 +1,4 @@
-# Agent Guru — Architecture Overview
+# Agent Guru - Architecture Overview
 
 > Generated: 2026-06-13 | Version: 1.0
 
@@ -76,37 +76,37 @@ main.py
 
 ### Extended Modules (enhance but not required for core)
 ```
-reasoning/       — Advanced reasoning (345 files, largest module)
-vision/          — Face detection/recognition
-self_improvement/ — Meta-learning, stability monitoring
-agents/          — Multi-agent orchestration
-goal_manager/    — Goal planning/tracking
-verifier/        — Fact verification
-avatar/          — Visual avatar
-sdk/             — Public API
+reasoning/       - Advanced reasoning (345 files, largest module)
+vision/          - Face detection/recognition
+self_improvement/ - Meta-learning, stability monitoring
+agents/          - Multi-agent orchestration
+goal_manager/    - Goal planning/tracking
+verifier/        - Fact verification
+avatar/          - Visual avatar
+sdk/             - Public API
 ```
 
 ### Infrastructure Modules
 ```
-deployment/   — Docker, K8s, Terraform
-core/         — AgentGuru service, config
-health/       — Health checks
-resilience/   — Circuit breakers
+deployment/   - Docker, K8s, Terraform
+core/         - AgentGuru service, config
+health/       - Health checks
+resilience/   - Circuit breakers
 ```
 
 ### Support Modules (minimal)
 ```
-context/      — Context aggregation (191 lines)
-translation/  — Language translation (189 lines)
-learning/     — Online learning (172 lines)
-fusion/       — Multimodal fusion (125 lines)
-training/     — Model training (66 lines)
-utils/        — Shared utilities (65 lines)
-skills/       — Skill registry (374 lines)
-iot/          — IoT control (422 lines)
-sync/         — Data sync (245 lines)
-proactive/    — Proactive suggestions (207 lines)
-explainability/ — XAI (342 lines)
+context/      - Context aggregation (191 lines)
+translation/  - Language translation (189 lines)
+learning/     - Online learning (172 lines)
+fusion/       - Multimodal fusion (125 lines)
+training/     - Model training (66 lines)
+utils/        - Shared utilities (65 lines)
+skills/       - Skill registry (374 lines)
+iot/          - IoT control (422 lines)
+sync/         - Data sync (245 lines)
+proactive/    - Proactive suggestions (207 lines)
+explainability/ - XAI (342 lines)
 ```
 
 ## Data Flow

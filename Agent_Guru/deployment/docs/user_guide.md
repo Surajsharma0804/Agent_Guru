@@ -1,10 +1,10 @@
-# Agent Guru — User Guide
+# Agent Guru - User Guide
 
 ## Overview
 
 Agent Guru is an always-on AI voice assistant with dual personalities:
-- **Guru** (male voice) — professional, analytical, productivity-focused
-- **Maya** (female voice) — warm, creative, personal assistance
+- **Guru** (male voice) - professional, analytical, productivity-focused
+- **Maya** (female voice) - warm, creative, personal assistance
 
 ---
 
@@ -12,7 +12,7 @@ Agent Guru is an always-on AI voice assistant with dual personalities:
 
 ### Windows
 1. Download `AgentGuru-Setup.msi` from https://agentguru.ai/download
-2. Run the installer — Agent Guru starts automatically on boot
+2. Run the installer - Agent Guru starts automatically on boot
 3. Say **"Hey Guru"** or **"Hey Maya"** to begin
 
 ### macOS
@@ -42,14 +42,14 @@ Install from App Store: search **"Agent Guru"**
 
 ## First-Time Setup (Onboarding)
 
-1. **Welcome** — Choose your preferred personality (Guru or Maya)
-2. **Profile** — Enter your name, age, and preferences
-3. **Biometric Enrollment** — Enroll face and/or voice for secure authentication
+1. **Welcome** - Choose your preferred personality (Guru or Maya)
+2. **Profile** - Enter your name, age, and preferences
+3. **Biometric Enrollment** - Enroll face and/or voice for secure authentication
 4. **LLM Configuration**:
    - Desktop: Choose local Ollama (free, private) or cloud API
    - Mobile: Enter your cloud API key (OpenAI, Gemini, Anthropic, or DeepSeek)
-5. **Permissions** — Grant microphone, camera, and accessibility access
-6. **Test** — Say "Hey Guru" to verify everything works
+5. **Permissions** - Grant microphone, camera, and accessibility access
+6. **Test** - Say "Hey Guru" to verify everything works
 
 ---
 
@@ -95,7 +95,7 @@ Say **"Hey Maya"** to activate the Maya personality (personal mode).
 
 ## Privacy & Security
 
-- **Local LLM (Desktop)**: All processing stays on your device — no data sent to cloud
+- **Local LLM (Desktop)**: All processing stays on your device - no data sent to cloud
 - **Cloud API**: Your API key is stored securely in the OS keychain
 - **Biometric data**: Never leaves your device
 - **Audit log**: All actions are logged locally for your review

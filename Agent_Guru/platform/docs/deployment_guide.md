@@ -271,12 +271,12 @@ scrape_configs:
 ```
 
 Key metrics exported:
-- `agent_guru_cpu_percent` — current CPU usage
-- `agent_guru_memory_bytes` — current memory usage
-- `agent_guru_operations_total` — total operations by type
-- `agent_guru_operation_errors_total` — errors by type
-- `agent_guru_cache_hit_rate` — duplicate detector cache hit rate
-- `agent_guru_throttle_events_total` — throttle activations
+- `agent_guru_cpu_percent` - current CPU usage
+- `agent_guru_memory_bytes` - current memory usage
+- `agent_guru_operations_total` - total operations by type
+- `agent_guru_operation_errors_total` - errors by type
+- `agent_guru_cache_hit_rate` - duplicate detector cache hit rate
+- `agent_guru_throttle_events_total` - throttle activations
 
 ### Grafana
 

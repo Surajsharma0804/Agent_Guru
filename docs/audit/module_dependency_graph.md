@@ -1,4 +1,4 @@
-# Agent Guru — Module Dependency Graph
+# Agent Guru - Module Dependency Graph
 *Generated: 2026-04-18*
 
 ## Layer Architecture

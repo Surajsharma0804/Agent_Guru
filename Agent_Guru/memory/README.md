@@ -1,18 +1,18 @@
-# Agent Guru — Memory System
+# Agent Guru - Memory System
 
 The Memory System is the Intelligence Layer's persistent knowledge store. It provides:
 
-- **Knowledge Graph** — temporal entity/relationship storage with semantic querying
-- **Preference Learning** — Bayesian confidence updates with temporal decay
-- **Experience Repository** — causal trace storage with similarity search
-- **Personality Evolution** — bounded parameter updates with rollback
-- **Deduplication Engine** — semantic similarity merge
-- **Verifier Integration** — mandatory pre-storage verification
-- **GitHub Sync** — async README-only sync with exponential backoff
-- **Metrics Engine** — time-series tracking with alerting
-- **Adversarial Robustness** — conflict preservation, poisoning detection, tamper detection
-- **Security** — AES-256-GCM encryption, RBAC, GDPR deletion, redaction
-- **WAL** — write-ahead logging and crash recovery
+- **Knowledge Graph** - temporal entity/relationship storage with semantic querying
+- **Preference Learning** - Bayesian confidence updates with temporal decay
+- **Experience Repository** - causal trace storage with similarity search
+- **Personality Evolution** - bounded parameter updates with rollback
+- **Deduplication Engine** - semantic similarity merge
+- **Verifier Integration** - mandatory pre-storage verification
+- **GitHub Sync** - async README-only sync with exponential backoff
+- **Metrics Engine** - time-series tracking with alerting
+- **Adversarial Robustness** - conflict preservation, poisoning detection, tamper detection
+- **Security** - AES-256-GCM encryption, RBAC, GDPR deletion, redaction
+- **WAL** - write-ahead logging and crash recovery
 
 ## Quick Start
 

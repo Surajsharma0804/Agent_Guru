@@ -1,4 +1,4 @@
-# Agent Guru — Repository Map
+# Agent Guru - Repository Map
 
 > Generated: 2026-06-13 | Source: Full automated scan
 > **972 Python files | 337,627 lines of code | 33 top-level modules**
@@ -7,21 +7,21 @@
 
 | File/Dir | Type | Size | Purpose |
 |----------|------|------|---------|
-| `main.py` | Entry | 648 lines | Primary entry point — wires all subsystems via IntegrationOrchestrator |
+| `main.py` | Entry | 648 lines | Primary entry point - wires all subsystems via IntegrationOrchestrator |
 | `Guru_Demo.py` | Demo | 1,402 lines | Standalone demo script |
-| `fix_pipeline.py` | **DEAD** | 53 lines | One-time fix script — already executed, 0 references |
+| `fix_pipeline.py` | **DEAD** | 53 lines | One-time fix script - already executed, 0 references |
 | `test_execute.py` | Test | 96 lines | Root-level test file |
-| `pyproject.toml` | Config | — | Project metadata, build config |
-| `requirements.txt` | Deps | — | Primary dependencies |
-| `requirements-cpu.txt` | Deps | — | CPU-only variant |
-| `requirements-docker.txt` | Deps | — | Docker variant |
-| `requirements-reasoning.txt` | Deps | — | Reasoning module deps |
-| `requirements-torch.txt` | Deps | — | PyTorch deps |
-| `Dockerfile` | Deploy | — | Container build |
-| `docker-compose.yml` | Deploy | — | Multi-container orchestration |
-| `.env` | **SECURITY** | 928 bytes | Environment variables — **NOT IN .gitignore** |
-| `.env.example` | Config | — | Template for .env |
-| `s -ExecutionPolicy...` | **GARBAGE** | 17,735 bytes | Accidental file from PowerShell — must delete |
+| `pyproject.toml` | Config | - | Project metadata, build config |
+| `requirements.txt` | Deps | - | Primary dependencies |
+| `requirements-cpu.txt` | Deps | - | CPU-only variant |
+| `requirements-docker.txt` | Deps | - | Docker variant |
+| `requirements-reasoning.txt` | Deps | - | Reasoning module deps |
+| `requirements-torch.txt` | Deps | - | PyTorch deps |
+| `Dockerfile` | Deploy | - | Container build |
+| `docker-compose.yml` | Deploy | - | Multi-container orchestration |
+| `.env` | **SECURITY** | 928 bytes | Environment variables - **NOT IN .gitignore** |
+| `.env.example` | Config | - | Template for .env |
+| `s -ExecutionPolicy...` | **GARBAGE** | 17,735 bytes | Accidental file from PowerShell - must delete |
 
 ## Core Modules (Agent_Guru/)
 

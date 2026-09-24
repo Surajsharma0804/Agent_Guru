@@ -21,11 +21,11 @@ specialization:
 
 # ── Agent Merger ──────────────────────────────────────────────────────────────
 merger:
-  similarity_threshold: 0.85         # Cosine similarity above which agents are merged (0.0–1.0)
+  similarity_threshold: 0.85         # Cosine similarity above which agents are merged (0.0-1.0)
 
 # ── Agent Splitter ────────────────────────────────────────────────────────────
 splitter:
-  divergence_threshold: 0.5          # Divergence score above which agents are split (0.0–1.0)
+  divergence_threshold: 0.5          # Divergence score above which agents are split (0.0-1.0)
   min_tasks_for_split: 10            # Minimum task history required before splitting
 
 # ── Task Decomposer ───────────────────────────────────────────────────────────
@@ -33,13 +33,13 @@ decomposer:
   max_decomposition_depth: 3         # Maximum recursion depth for task decomposition
   min_subtask_count: 2               # Minimum sub-tasks required to decompose
   max_subtask_count: 7               # Maximum sub-tasks produced per decomposition
-  complexity_threshold: 0.6          # Complexity score above which decomposition occurs (0.0–1.0)
+  complexity_threshold: 0.6          # Complexity score above which decomposition occurs (0.0-1.0)
 
 # ── Task Assigner ─────────────────────────────────────────────────────────────
 assigner:
   max_workload_per_agent: 5          # Maximum concurrent tasks per agent
-  specialization_weight: 0.7         # Weight for specialization score in assignment (0.0–1.0)
-  workload_weight: 0.3               # Weight for workload headroom in assignment (0.0–1.0)
+  specialization_weight: 0.7         # Weight for specialization score in assignment (0.0-1.0)
+  workload_weight: 0.3               # Weight for workload headroom in assignment (0.0-1.0)
 
 # ── Delegation Manager ────────────────────────────────────────────────────────
 delegation:

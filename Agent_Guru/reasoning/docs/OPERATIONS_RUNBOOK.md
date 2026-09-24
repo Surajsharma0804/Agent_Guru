@@ -235,7 +235,7 @@ kubectl set resources deployment/reasoning-engine --limits=memory=8Gi -n agent-g
 
 ### Scheduled Maintenance Window
 
-- **When:** First Sunday of each month, 2:00–4:00 AM UTC
+- **When:** First Sunday of each month, 2:00-4:00 AM UTC
 - **Notification:** 7 days advance notice to users
 
 **Pre-maintenance checklist:**

@@ -8,7 +8,7 @@
     "offline_capable": false,
     "multi_platform": true,
     "open_api": true,
-    "notes": "Amazon Alexa — cloud-dependent, strong ecosystem integration"
+    "notes": "Amazon Alexa - cloud-dependent, strong ecosystem integration"
   },
   "Siri": {
     "wake_word_p95_ms": 300,
@@ -19,7 +19,7 @@
     "offline_capable": false,
     "multi_platform": true,
     "open_api": false,
-    "notes": "Apple Siri — tightly integrated into Apple ecosystem, closed API"
+    "notes": "Apple Siri - tightly integrated into Apple ecosystem, closed API"
   },
   "Google Assistant": {
     "wake_word_p95_ms": 220,
@@ -30,7 +30,7 @@
     "offline_capable": false,
     "multi_platform": true,
     "open_api": true,
-    "notes": "Google Assistant — best STT accuracy, cloud-dependent"
+    "notes": "Google Assistant - best STT accuracy, cloud-dependent"
   },
   "ChatGPT Desktop": {
     "wake_word_p95_ms": null,
@@ -41,7 +41,7 @@
     "offline_capable": false,
     "multi_platform": true,
     "open_api": true,
-    "notes": "ChatGPT Desktop — no wake word, cloud-dependent, best LLM quality"
+    "notes": "ChatGPT Desktop - no wake word, cloud-dependent, best LLM quality"
   },
   "Claude Desktop": {
     "wake_word_p95_ms": null,
@@ -52,7 +52,7 @@
     "offline_capable": false,
     "multi_platform": true,
     "open_api": true,
-    "notes": "Claude Desktop — no wake word, cloud-dependent, strong reasoning"
+    "notes": "Claude Desktop - no wake word, cloud-dependent, strong reasoning"
   },
   "Open Interpreter": {
     "wake_word_p95_ms": null,
@@ -63,7 +63,7 @@
     "offline_capable": true,
     "multi_platform": true,
     "open_api": true,
-    "notes": "Open Interpreter — open source, no wake word, code execution focus"
+    "notes": "Open Interpreter - open source, no wake word, code execution focus"
   },
   "OpenVoiceOS": {
     "wake_word_p95_ms": 280,
@@ -74,7 +74,7 @@
     "offline_capable": true,
     "multi_platform": true,
     "open_api": true,
-    "notes": "OpenVoiceOS — fully offline, open source, higher WER than cloud solutions"
+    "notes": "OpenVoiceOS - fully offline, open source, higher WER than cloud solutions"
   },
   "_agent_guru_targets": {
     "wake_word_p95_ms": 200,

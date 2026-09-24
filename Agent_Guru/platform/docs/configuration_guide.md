@@ -70,7 +70,7 @@ commands:
     - "^cat .*"
     - "^grep .*"
 
-  # Blocked patterns (checked first — security)
+  # Blocked patterns (checked first - security)
   blocked_patterns:
     - ".*rm -rf.*"
     - ".*sudo.*"

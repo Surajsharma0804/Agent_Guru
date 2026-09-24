@@ -1,4 +1,4 @@
-# Agent Guru — Production ONNX Models
+# Agent Guru - Production ONNX Models
 
 This directory holds all ONNX model files required by the Agent Guru vision system.
 **Model files are not committed to git** (they are listed in `.gitignore`).
@@ -34,7 +34,7 @@ python models/download_models.py --force
 ## Model Details
 
 ### yolov8n.onnx
-- Input: `float32 [1, 3, 640, 640]` (RGB, normalised 0–1)
+- Input: `float32 [1, 3, 640, 640]` (RGB, normalised 0-1)
 - Output: `float32 [1, 84, 8400]` (cx, cy, w, h + 80 class scores)
 - Used by: `Agent_Guru/vision/scene.py` → `ObjectDetector`
 
@@ -44,7 +44,7 @@ python models/download_models.py --force
 - Used by: `Agent_Guru/vision/recognition/recognizer.py` → `FaceRecognizer`
 
 ### emotion_model.onnx
-- Input: `float32 [1, 3, 112, 112]` (RGB, normalised 0–1)
+- Input: `float32 [1, 3, 112, 112]` (RGB, normalised 0-1)
 - Output: `float32 [1, 7]` (logits for 7 emotions)
 - Classes: neutral, happy, sad, angry, surprised, fearful, disgusted
 - Used by: `Agent_Guru/vision/emotion/recognizer.py` → `EmotionRecognizer`
@@ -55,7 +55,7 @@ python models/download_models.py --force
 - Used by: `Agent_Guru/vision/liveness/detector.py` → `LivenessDetector`
 
 ### midas_v31.onnx
-- Input: `float32 [1, 3, 384, 384]` (RGB, normalised 0–1)
+- Input: `float32 [1, 3, 384, 384]` (RGB, normalised 0-1)
 - Output: `float32 [1, 384, 384]` (inverse relative depth)
 - Used by: `Agent_Guru/vision/depth.py` → `DepthEstimator`
 
@@ -65,7 +65,7 @@ python models/download_models.py --force
 - Used by: `Agent_Guru/vision/handwriting.py` → `HandwritingRecognizer`
 
 ### scene_efficientnet.onnx
-- Input: `float32 [1, 3, 224, 224]` (RGB, normalised 0–1)
+- Input: `float32 [1, 3, 224, 224]` (RGB, normalised 0-1)
 - Output: `float32 [1, 30]` (logits for 30 scene categories)
 - Used by: `Agent_Guru/vision/scene.py` → `SceneClassifier`
 

@@ -1,4 +1,4 @@
-# Agent Guru — API Reference
+# Agent Guru - API Reference
 
 ## Core Components
 
@@ -15,14 +15,14 @@ app.run_as_background_service()  # blocks until shutdown()
 ```
 
 **Methods**:
-- `initialize()` — Load all subsystems
-- `run_as_background_service()` — Start always-on service (blocking)
-- `shutdown()` — Graceful shutdown
-- `on_wake_word(personality)` — Signal wake word detected
-- `on_speech_captured(transcript)` — Signal STT result
-- `on_response_ready(response)` — Signal LLM response
-- `on_playback_complete()` — Signal TTS finished
-- `on_error(error)` — Signal error
+- `initialize()` - Load all subsystems
+- `run_as_background_service()` - Start always-on service (blocking)
+- `shutdown()` - Graceful shutdown
+- `on_wake_word(personality)` - Signal wake word detected
+- `on_speech_captured(transcript)` - Signal STT result
+- `on_response_ready(response)` - Signal LLM response
+- `on_playback_complete()` - Signal TTS finished
+- `on_error(error)` - Signal error
 
 ---
 

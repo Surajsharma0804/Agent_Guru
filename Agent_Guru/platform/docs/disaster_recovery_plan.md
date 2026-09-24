@@ -1,4 +1,4 @@
-# Disaster Recovery Plan — Agent Guru Platform Integration
+# Disaster Recovery Plan - Agent Guru Platform Integration
 
 ## Overview
 
@@ -132,7 +132,7 @@ curl http://localhost:8080/health
 
 If audit logs are corrupted:
 ```bash
-# Audit logs are append-only JSONL — truncate at last valid line
+# Audit logs are append-only JSONL - truncate at last valid line
 python3 << 'EOF'
 import json
 

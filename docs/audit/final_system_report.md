@@ -1,4 +1,4 @@
-# Agent Guru — Final System Report
+# Agent Guru - Final System Report
 *Generated: 2026-04-18*
 *Auditor: Guru-Audit-Engine*
 

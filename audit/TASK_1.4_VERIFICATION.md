@@ -1,6 +1,6 @@
 # Task 1.4 Verification Report
 
-## Task: Implement `audit/runner.py` — the `AuditRunner` orchestrator
+## Task: Implement `audit/runner.py` - the `AuditRunner` orchestrator
 
 ### Requirements
 1. Implement `async run_phase(phase_fn, phase_name: str) -> bool` with try/except that logs failures and skips dependent phases per the DAG

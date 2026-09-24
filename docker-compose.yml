@@ -1,4 +1,4 @@
-# docker-compose.yml — Agent Guru backend services
+# docker-compose.yml - Agent Guru backend services
 # Run with: docker-compose up -d
 # The voice assistant (main.py) runs on the HOST so it can access mic/screen/speakers.
 # This file starts the backend services it connects to.
@@ -13,14 +13,14 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - LOG_LEVEL=DEBUG
-      # LLM API keys — set in .env or CI secrets (never hardcode)
+      # LLM API keys - set in .env or CI secrets (never hardcode)
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       # Database connections
       - DATABASE_URL=${DATABASE_URL:-postgresql://agent_guru:${POSTGRES_PASSWORD}@postgres:5432/agent_guru}
       - REDIS_URL=${REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379/0}
-      # Ollama (local LLM) — points to the ollama service in this compose stack
+      # Ollama (local LLM) - points to the ollama service in this compose stack
       - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
       # App settings
       - AGENT_GURU_ENV=${AGENT_GURU_ENV:-development}
@@ -46,7 +46,7 @@ services:
     tty: true
 
   # ----------------------------------------------------------------
-  # Ollama — local LLM backend (GPU-accelerated when available)
+  # Ollama - local LLM backend (GPU-accelerated when available)
   # ----------------------------------------------------------------
   ollama:
     image: ollama/ollama:latest

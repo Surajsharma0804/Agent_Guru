@@ -27,16 +27,16 @@
 
 ## ⚡ Agent Guru vs The Big Three
 
-> *"Why build another voice assistant?"* — Because the existing ones don't respect your privacy, don't learn from mistakes, and can't actually control your computer.
+> *"Why build another voice assistant?"* - Because the existing ones don't respect your privacy, don't learn from mistakes, and can't actually control your computer.
 
 | | <img width="20" src="https://img.icons8.com/color/48/siri.png"> Siri / Alexa / Google | <img width="20" src="https://img.icons8.com/color/48/bot.png"> **Agent Guru** |
 |:---|:---|:---|
-| 🔒 **Privacy** | Cloud-dependent — your data gets uploaded | **100% local** — nothing ever leaves your device |
-| 💰 **Cost** | Subscription / locked ecosystem | **Free forever** — no API keys required |
-| 🖥️ **Device Control** | Limited sandbox actions | **Full OS control** — files, apps, settings, anything |
-| 🧠 **Learning** | Static — same mistakes repeated forever | **Self-improving** — gets 40% better after 100 tasks |
-| ⚡ **Wake Latency** | 250–300ms | **<200ms** |
-| 🎭 **Personality** | One voice, one tone | **Dual personas** — Guru (analytical) + Maya (warm) |
+| 🔒 **Privacy** | Cloud-dependent - your data gets uploaded | **100% local** - nothing ever leaves your device |
+| 💰 **Cost** | Subscription / locked ecosystem | **Free forever** - no API keys required |
+| 🖥️ **Device Control** | Limited sandbox actions | **Full OS control** - files, apps, settings, anything |
+| 🧠 **Learning** | Static - same mistakes repeated forever | **Self-improving** - gets 40% better after 100 tasks |
+| ⚡ **Wake Latency** | 250-300ms | **<200ms** |
+| 🎭 **Personality** | One voice, one tone | **Dual personas** - Guru (analytical) + Maya (warm) |
 | 🌍 **Platforms** | Locked to one ecosystem | **Windows, macOS, Linux, Android, iOS** |
 
 <br>
@@ -53,12 +53,12 @@
 "Hey Maya, send a WhatsApp message to Mom"
 "Hey Guru, what did we talk about yesterday?"
 ```
-- 🎙️ Always-on wake word — "Hey Guru" / "Hey Maya"
+- 🎙️ Always-on wake word - "Hey Guru" / "Hey Maya"
 - ⚡ GPU-accelerated speech recognition (Whisper + CUDA)
 - 🗣️ Natural text-to-speech with gender-specific voices
-- 🔊 Speaker verification — knows who's talking
-- 😊 14-emotion detection — responds to your mood
-- 🧠 Persistent memory — remembers your preferences
+- 🔊 Speaker verification - knows who's talking
+- 😊 14-emotion detection - responds to your mood
+- 🧠 Persistent memory - remembers your preferences
 
 </td>
 <td width="50%" valign="top">
@@ -71,10 +71,10 @@
 ```
 - 📱 Open/close any application
 - 💬 Send messages (WhatsApp, Telegram, Slack, SMS)
-- 📁 File operations — create, delete, move, copy
-- ⚙️ System settings — volume, brightness, WiFi
-- 🎵 Media control — play, pause, skip, mute
-- 🖥️ Window management — minimize, maximize, snap
+- 📁 File operations - create, delete, move, copy
+- ⚙️ System settings - volume, brightness, WiFi
+- 🎵 Media control - play, pause, skip, mute
+- 🖥️ Window management - minimize, maximize, snap
 
 </td>
 </tr>
@@ -84,14 +84,14 @@
 ### 👁️ Vision & Security
 ```
 "Who's in front of the camera?"
-"Unlock — it's me"
+"Unlock - it's me"
 ```
 - 🔍 Real-time face detection + recognition
 - 🛡️ Liveness detection (anti-spoofing)
 - 👥 Multi-face tracking, frame-by-frame
 - 🗝️ Voice biometrics + face auth (multi-factor)
 - 🔐 Ed25519 cryptographic identity
-- 📋 Complete audit trail — every action logged
+- 📋 Complete audit trail - every action logged
 
 </td>
 <td width="50%" valign="top">
@@ -101,10 +101,10 @@
 "Research this topic and summarize it for me"
 "Break this task into smaller steps"
 ```
-- 🤖 Multi-LLM — Ollama (free local), OpenAI, Gemini, Anthropic
-- 🔀 Smart routing — picks the best model per task
-- 📈 Self-improvement — learns from every interaction
-- 🎯 Goal decomposition — handles complex multi-step tasks
+- 🤖 Multi-LLM - Ollama (free local), OpenAI, Gemini, Anthropic
+- 🔀 Smart routing - picks the best model per task
+- 📈 Self-improvement - learns from every interaction
+- 🎯 Goal decomposition - handles complex multi-step tasks
 - 🌐 Real-time web search integration
 - 💡 Context-aware conversation flow
 
@@ -166,7 +166,7 @@ graph TB
     end
     
     subgraph "🔗 Orchestrator"
-        ORCH["orchestrator.py<br/><i>2,400 lines — wires everything</i>"]
+        ORCH["orchestrator.py<br/><i>2,400 lines - wires everything</i>"]
     end
     
     STT --> ORCH
@@ -226,7 +226,7 @@ Agent_Guru/
 
 ## 📈 Self-Improvement Engine
 
-> **The thing that makes Agent Guru fundamentally different.** It doesn't just execute — it *learns*.
+> **The thing that makes Agent Guru fundamentally different.** It doesn't just execute - it *learns*.
 
 ### How It Works
 
@@ -320,7 +320,7 @@ pip install -r requirements-cpu.txt
 
 # Run
 python Guru_Demo.py
-# Say "Hey Guru" — done. 🎉
+# Say "Hey Guru" - done. 🎉
 ```
 
 <br>
@@ -397,7 +397,7 @@ graph TB
 ## 🔐 Security & Privacy
 
 <table>
-<tr><td>🔒</td><td><strong>100% Local Processing</strong></td><td>Zero cloud dependency — your data never leaves your machine</td></tr>
+<tr><td>🔒</td><td><strong>100% Local Processing</strong></td><td>Zero cloud dependency - your data never leaves your machine</td></tr>
 <tr><td>👤</td><td><strong>Multi-Factor Biometrics</strong></td><td>Face + Voice + Fingerprint authentication</td></tr>
 <tr><td>🔑</td><td><strong>Cryptographic Identity</strong></td><td>Ed25519 digital signatures for every action</td></tr>
 <tr><td>🛡️</td><td><strong>Shell Injection Protection</strong></td><td>All OS commands sanitized through shlex.quote()</td></tr>
@@ -466,7 +466,7 @@ Fork → Branch → Code → Test → PR
 
 ## 📝 License
 
-This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
+This project is licensed under the **MIT License** - see [LICENSE](LICENSE) for details.
 
 <br>
 
@@ -494,5 +494,5 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fo
 </p>
 
 <p align="center">
-  <sub>⭐ Star this repo if Agent Guru impressed you — it helps more people discover it!</sub>
+  <sub>⭐ Star this repo if Agent Guru impressed you - it helps more people discover it!</sub>
 </p>

@@ -5,7 +5,7 @@ All notable changes to Agent Guru will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] — 2026-07-26
+## [1.0.0] - 2026-07-26
 
 ### 🎉 First Production Release
 
@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Architecture
 - 812 Python modules, 970 source files
-- 42 functional tests — all passing
+- 42 functional tests - all passing
 - O(1) exact match, O(k) fuzzy match for reaction rules (k ≤ 200)
 - LRU eviction with pinned keys for user memory
 - Hash-based rule table with capability-table guard
@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] — 2026-07-01
+## [0.1.0] - 2026-07-01
 
 ### Initial Development
 

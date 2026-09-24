@@ -1,4 +1,4 @@
-# Agent Guru — Speech Engine
+# Agent Guru - Speech Engine
 
 World-class voice processing engine with dual personalities (Guru and Maya),
 GPU-accelerated STT/TTS, emotion detection, voice biometrics, and full system
@@ -6,18 +6,18 @@ integration.
 
 ## Features
 
-- **Dual Wake Word Detection** — "Hey Guru" / "Hey Maya" (<200ms latency)
-- **GPU-Accelerated STT** — Whisper with faster-whisper (<1s, <2% WER)
-- **Gender-Specific TTS** — Guru (male) and Maya (female) with emotion support
-- **Emotion Detection** — 7 emotion types from voice (<50ms)
-- **Voice Biometrics** — ArcFace-based authentication with liveness detection
-- **Voice Cloning** — Personalized voice synthesis (>0.85 similarity)
-- **Advanced Noise Cancellation** — >20dB reduction, 6 noise types
-- **Streaming Audio** — <500ms end-to-end latency
-- **Command Recognition** — 20+ built-in system control commands
-- **Conversation Context** — Multi-turn context with reference resolution
-- **Multi-Language** — 8+ languages with automatic detection
-- **System Integrations** — Agent Orchestration, Memory System, Goal Manager
+- **Dual Wake Word Detection** - "Hey Guru" / "Hey Maya" (<200ms latency)
+- **GPU-Accelerated STT** - Whisper with faster-whisper (<1s, <2% WER)
+- **Gender-Specific TTS** - Guru (male) and Maya (female) with emotion support
+- **Emotion Detection** - 7 emotion types from voice (<50ms)
+- **Voice Biometrics** - ArcFace-based authentication with liveness detection
+- **Voice Cloning** - Personalized voice synthesis (>0.85 similarity)
+- **Advanced Noise Cancellation** - >20dB reduction, 6 noise types
+- **Streaming Audio** - <500ms end-to-end latency
+- **Command Recognition** - 20+ built-in system control commands
+- **Conversation Context** - Multi-turn context with reference resolution
+- **Multi-Language** - 8+ languages with automatic detection
+- **System Integrations** - Agent Orchestration, Memory System, Goal Manager
 
 ## Installation
 

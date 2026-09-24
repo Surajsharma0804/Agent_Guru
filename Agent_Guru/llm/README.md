@@ -1,4 +1,4 @@
-# Agent Guru — LLM Runtime
+# Agent Guru - LLM Runtime
 
 Unified interface for running language models across **Ollama** (local GPU),
 **OpenAI**, **Anthropic**, and **Google** providers with streaming, function
@@ -134,7 +134,7 @@ await runtime.complete(CompletionRequest(
     session_id=session_id,
 ))
 
-# Turn 2 — history injected automatically
+# Turn 2 - history injected automatically
 response = await runtime.complete(CompletionRequest(
     model="gpt-3.5-turbo",
     messages=[Message(role="user", content="What is my name?")],
@@ -179,6 +179,6 @@ pytest Agent_Guru/llm/tests/ --cov=Agent_Guru.llm --cov-report=html
 
 ## See Also
 
-- [API Reference](API.md) — complete API documentation
+- [API Reference](API.md) - complete API documentation
 - [Spec: Requirements](../../.kiro/specs/guru-llm-runtime/requirements.md)
 - [Spec: Design](../../.kiro/specs/guru-llm-runtime/design.md)

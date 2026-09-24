@@ -1,4 +1,4 @@
-# LLM Runtime — API Reference
+# LLM Runtime - API Reference
 
 ## Overview
 
@@ -49,8 +49,8 @@ Non-streaming completion. Injects session context, validates token budget,
 executes with retry logic, updates context, and records metrics.
 
 **Raises:**
-- `ContextWindowExceededError` — request exceeds model context limit
-- `CircuitBreakerOpenError` — provider circuit is open after repeated failures
+- `ContextWindowExceededError` - request exceeds model context limit
+- `CircuitBreakerOpenError` - provider circuit is open after repeated failures
 
 #### `stream(request: CompletionRequest) -> AsyncIterator[StreamChunk]`
 
@@ -58,7 +58,7 @@ Streaming completion. Yields `StreamChunk` objects incrementally.
 Updates context and records metrics after the stream completes.
 
 **Raises:**
-- `ContextWindowExceededError` — request exceeds model context limit
+- `ContextWindowExceededError` - request exceeds model context limit
 
 #### `embed(text: str | list[str], model: str) -> list[list[float]]`
 
@@ -240,7 +240,7 @@ await runtime.complete(CompletionRequest(
     session_id="my-session",
 ))
 
-# Turn 2 — previous messages injected automatically
+# Turn 2 - previous messages injected automatically
 await runtime.complete(CompletionRequest(
     model="gpt-3.5-turbo",
     messages=[Message(role="user", content="What is my name?")],

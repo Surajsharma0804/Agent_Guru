@@ -19,7 +19,7 @@ groups:
           severity: critical
         annotations:
           summary: "Critical CPU usage on Agent Guru Platform"
-          description: "CPU usage is {{ $value }}% — immediate action required"
+          description: "CPU usage is {{ $value }}% - immediate action required"
 
       # Memory alert
       - alert: HighMemoryUsage
@@ -68,7 +68,7 @@ groups:
           severity: warning
         annotations:
           summary: "Frequent operation throttling"
-          description: "Throttle rate is {{ $value }} events/sec — system under pressure"
+          description: "Throttle rate is {{ $value }} events/sec - system under pressure"
 
       # Cache performance alert
       - alert: LowCacheHitRate
@@ -88,7 +88,7 @@ groups:
           severity: critical
         annotations:
           summary: "Circuit breaker is OPEN"
-          description: "Circuit breaker for {{ $labels.service }} is open — service unavailable"
+          description: "Circuit breaker for {{ $labels.service }} is open - service unavailable"
 
       # Security alert
       - alert: SecurityViolationDetected

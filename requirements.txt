@@ -150,7 +150,7 @@ pynput>=1.7.6  # Keyboard/mouse input monitoring
 
 # Presentation / Document Generation (platform/features/presentation.py)
 # python-pptx is required to render decks locally (the always-available,
-# offline-first path). python-docx / pypdf are optional — only needed if
+# offline-first path). python-docx / pypdf are optional - only needed if
 # the source file to turn into slides is a .docx or .pdf; .txt/.md and
 # most other text formats work without them.
 python-pptx>=0.6.23

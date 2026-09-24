@@ -1,7 +1,7 @@
-# GuruVision — Facial Recognition System
+# GuruVision - Facial Recognition System
 
 Real-time face detection, recognition, liveness detection, emotion recognition,
-and multi-face tracking — all in one engine.
+and multi-face tracking - all in one engine.
 
 ## Requirements
 
@@ -81,13 +81,13 @@ engine.shutdown()
 
 ## Configuration
 
-Create a `config.yaml` (all fields optional — defaults shown):
+Create a `config.yaml` (all fields optional - defaults shown):
 
 ```yaml
 onnx_model_path: Agent_Guru/vision/data/model/vision_model.onnx
 database_path: Agent_Guru/vision/data/database/identities.json
-recognition_threshold: 0.6      # 0.4–0.9
-detection_confidence: 0.5       # 0.0–1.0
+recognition_threshold: 0.6      # 0.4-0.9
+detection_confidence: 0.5       # 0.0-1.0
 use_gpu: true
 enable_liveness: true
 enable_emotion: true
@@ -120,7 +120,7 @@ engine.register_callback("system_ready",        lambda d: print("Ready"))
 
 | Metric              | Target      |
 |---------------------|-------------|
-| Face detection      | 30–60 FPS   |
+| Face detection      | 30-60 FPS   |
 | Recognition latency | < 50 ms     |
 | Emotion latency     | < 50 ms     |
 | Liveness detection  | Real-time   |

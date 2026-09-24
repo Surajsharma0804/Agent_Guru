@@ -8,16 +8,16 @@ Agent Orchestration, and Memory System.
 
 ```
 VerifierSystem
-├── HallucinationDetector          — 4-technique hallucination detection
-├── OutputValidator                — JSON/XML/Markdown schema validation
-├── ToolOutputChecker              — Tool result safety verification
-├── LoopDetector                   — State-hash-based loop detection
-├── ConfidenceScorer               — Weighted confidence aggregation
-├── VerificationStrategySelector   — Task-type-aware strategy selection
-├── SelfCorrectionFeedbackGenerator — Actionable failure feedback
-├── VerificationResultStorage      — SQLite audit trail
-├── AccuracyTracker                — FP/FN rate monitoring
-└── TestingModeManager             — Injection & detection rate testing
+├── HallucinationDetector          - 4-technique hallucination detection
+├── OutputValidator                - JSON/XML/Markdown schema validation
+├── ToolOutputChecker              - Tool result safety verification
+├── LoopDetector                   - State-hash-based loop detection
+├── ConfidenceScorer               - Weighted confidence aggregation
+├── VerificationStrategySelector   - Task-type-aware strategy selection
+├── SelfCorrectionFeedbackGenerator - Actionable failure feedback
+├── VerificationResultStorage      - SQLite audit trail
+├── AccuracyTracker                - FP/FN rate monitoring
+└── TestingModeManager             - Injection & detection rate testing
 ```
 
 ## Integration Points
@@ -75,19 +75,19 @@ from Agent_Guru.verifier.integrations import (
     SelfImprovementIntegration,
 )
 
-# LLM Runtime — intercept and verify responses
+# LLM Runtime - intercept and verify responses
 llm_integration = LLMRuntimeIntegration(verifier)
 should_forward, result = await llm_integration.intercept_response(
     response, context=context, session_id=session_id
 )
 
-# Agent Orchestration — validate task outputs with retry
+# Agent Orchestration - validate task outputs with retry
 agent_integration = AgentOrchestrationIntegration(verifier, max_retries=3)
 is_valid, result, should_escalate = await agent_integration.validate_task_output(
     task_id, output, expected_schema=schema
 )
 
-# Memory System — prevent hallucinated storage
+# Memory System - prevent hallucinated storage
 memory_integration = MemorySystemIntegration(verifier, reverification_age_days=30)
 should_store, result = await memory_integration.verify_before_storage(
     content, content_id="mem_001"
@@ -95,7 +95,7 @@ should_store, result = await memory_integration.verify_before_storage(
 meta = memory_integration.get_confidence_metadata("mem_001")
 needs_refresh = memory_integration.needs_reverification("mem_001")
 
-# Self-Improvement — get failure reports
+# Self-Improvement - get failure reports
 si_integration = SelfImprovementIntegration(verifier)
 report = si_integration.get_failure_report()
 history = si_integration.get_historical_data(limit=100)
@@ -173,8 +173,8 @@ manager.disable()
 
 ## Error Handling & Graceful Degradation
 
-- Individual strategy failures are caught and logged — verification continues with remaining strategies
-- Storage failures are non-fatal — result is returned even if audit trail write fails
+- Individual strategy failures are caught and logged - verification continues with remaining strategies
+- Storage failures are non-fatal - result is returned even if audit trail write fails
 - Timeout (configurable via `max_latency_ms`) returns a degraded result rather than raising
 - None/invalid inputs are normalized to empty strings before processing
 

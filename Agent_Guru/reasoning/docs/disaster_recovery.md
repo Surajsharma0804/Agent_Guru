@@ -58,7 +58,7 @@ aws s3 ls s3://agent-guru-backups/postgres/ --recursive | tail -5
 
 ### 2. Redis Cache Backup
 
-Redis holds ephemeral conversation state (TTL: 1 hour). Loss is acceptable — state rebuilds from PostgreSQL on next request.
+Redis holds ephemeral conversation state (TTL: 1 hour). Loss is acceptable - state rebuilds from PostgreSQL on next request.
 
 **Optional snapshot (for warm cache restore):**
 
@@ -166,7 +166,7 @@ Follow Step 1 above, then Step 4 (restart engine).
 
 ```bash
 kubectl rollout restart deployment/redis -n agent-guru
-# State rebuilds automatically — no data loss
+# State rebuilds automatically - no data loss
 ```
 
 ---

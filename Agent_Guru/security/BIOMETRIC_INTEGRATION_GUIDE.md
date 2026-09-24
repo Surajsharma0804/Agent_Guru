@@ -77,7 +77,7 @@ from Agent_Guru.security.biometric_auth import BiometricAuthenticator
 
 auth = BiometricAuthenticator(voice_threshold=0.85)
 
-# Enroll — audio_data is a float32 numpy array (16 kHz mono)
+# Enroll - audio_data is a float32 numpy array (16 kHz mono)
 auth.enroll_voice("alice", enrollment_audio)
 
 # Authenticate
@@ -95,7 +95,7 @@ else:
 result = auth.authenticate_multi_factor(
     profile_id="alice",
     face_image=face_bytes,   # optional
-    voice_audio=audio_array, # optional — at least one required
+    voice_audio=audio_array, # optional - at least one required
 )
 
 # Fused confidence: face × 0.6 + voice × 0.4
@@ -166,7 +166,7 @@ print(result.authenticated, result.confidence, result.modality)  # "multi"
 
 **Old pattern (vision-based auth):**
 ```python
-# ❌ Old — authentication in vision module
+# ❌ Old - authentication in vision module
 from Agent_Guru.vision.recognition import FaceRecognizer
 recognizer = FaceRecognizer()
 is_match = recognizer.verify_identity(profile_id, image_data)
@@ -174,7 +174,7 @@ is_match = recognizer.verify_identity(profile_id, image_data)
 
 **New pattern:**
 ```python
-# ✅ New — feature extraction in vision, auth in security
+# ✅ New - feature extraction in vision, auth in security
 from Agent_Guru.security.biometric_auth import BiometricAuthenticator
 auth = BiometricAuthenticator()
 result = auth.authenticate_face(profile_id, image_data)
@@ -183,7 +183,7 @@ is_match = result.authenticated
 
 **Old pattern (speech-based auth):**
 ```python
-# ❌ Old — authentication in speech module
+# ❌ Old - authentication in speech module
 from Agent_Guru.speech.biometric import SpeechBiometricAuth
 speech_auth = SpeechBiometricAuth()
 verified = speech_auth.verify_speaker(profile_id, audio)
@@ -191,7 +191,7 @@ verified = speech_auth.verify_speaker(profile_id, audio)
 
 **New pattern:**
 ```python
-# ✅ New — feature extraction in speech, auth in security
+# ✅ New - feature extraction in speech, auth in security
 from Agent_Guru.security.biometric_auth import BiometricAuthenticator
 auth = BiometricAuthenticator()
 result = auth.authenticate_voice(profile_id, audio)
@@ -201,7 +201,7 @@ verified = result.authenticated
 ### Deprecation Notes
 
 - Any authentication methods previously on `vision/` or `speech/` modules are removed.
-- `FaceFeatureExtractor` and `SpeechEngine.extract_voice_features()` are the supported feature extraction APIs — they return data only, never authentication decisions.
+- `FaceFeatureExtractor` and `SpeechEngine.extract_voice_features()` are the supported feature extraction APIs - they return data only, never authentication decisions.
 - Template storage is now exclusively managed by `BiometricAuthenticator._face_templates` and `VoiceAuthenticator._profiles`.
 
 ---
@@ -215,7 +215,7 @@ Both modalities enforce liveness before any template comparison:
 - **Face**: Texture-based Laplacian variance heuristic (configurable via `liveness_threshold`, default `0.5`). InsightFace's built-in anti-spoofing is used when available.
 - **Voice**: `VoiceFeatures.is_live` is set by the speech engine (`liveness_score >= 0.55`). `VoiceAuthenticator.authenticate()` rejects non-live audio immediately, before any similarity computation.
 
-In multi-modal mode, a liveness failure in **any** modality causes immediate rejection of the entire attempt — the other modality is not evaluated.
+In multi-modal mode, a liveness failure in **any** modality causes immediate rejection of the entire attempt - the other modality is not evaluated.
 
 ### Anti-Spoofing
 

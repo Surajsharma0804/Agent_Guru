@@ -3,7 +3,7 @@
 # ============================================================================
 # Minimal set for running the Core Reasoning Engine API in a container.
 # Heavy ML/audio/vision packages (torch, opencv, whisper, insightface, etc.)
-# are NOT included here — they require GPU drivers, system audio libs, or
+# are NOT included here - they require GPU drivers, system audio libs, or
 # large model downloads that don't belong in a stateless API container.
 #
 # For full local development install, use requirements.txt or requirements-cpu.txt.
