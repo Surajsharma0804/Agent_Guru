@@ -90,6 +90,35 @@ class TestCloseAllReachesCheckedOutConnections:
 
         assert "force-closing 2 connection(s)" in caplog.text
 
+    def test_close_all_does_not_return_before_released_connection_closes(self, db_path):
+        # release() used to wake close_all() before closing the connection,
+        # so close_all() could return while the handle was still open. A slow
+        # close() makes that window wide enough to observe.
+        pool = ConnectionPool(str(db_path), min_size=1, max_size=3, timeout=5.0)
+        held = pool.acquire()
+        real = held.connection
+
+        class SlowClose:
+            closed = False
+
+            def __getattr__(self, name):
+                return getattr(real, name)
+
+            def close(self):
+                time.sleep(0.3)
+                real.close()
+                SlowClose.closed = True
+
+        held.connection = SlowClose()
+        worker = threading.Thread(target=lambda: (time.sleep(0.1), pool.release(held)))
+        worker.start()
+
+        pool.close_all()
+        closed_when_close_all_returned = SlowClose.closed
+        worker.join()
+
+        assert closed_when_close_all_returned
+
 
 class TestClosedPoolStaysClosed:
     def test_release_during_close_does_not_repopulate(self, db_path):

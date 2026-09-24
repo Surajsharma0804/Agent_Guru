@@ -354,14 +354,15 @@ class ConnectionPool:
             self._checked_out.discard(conn)
             pool_closed = self._closed
             if pool_closed and tracked:
+                # Never repopulate a closed pool. Close before notifying:
+                # close_all() is waiting on this condition and must not
+                # return while the file handle is still open. If close_all()
+                # already claimed the connection as a straggler, it closes it.
+                conn.connection.close()
                 self._total_connections -= 1
             self._released.notify_all()
 
         if pool_closed:
-            # Never repopulate a closed pool. If close_all() already claimed
-            # this connection as a straggler it closes it; otherwise we do.
-            if tracked:
-                conn.connection.close()
             return
 
         # Rollback any uncommitted transaction
