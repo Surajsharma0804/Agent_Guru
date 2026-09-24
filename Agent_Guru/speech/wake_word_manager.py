@@ -29,6 +29,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import math
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -114,6 +115,39 @@ class WakeWordManagerConfig:
 #: Bluetooth headset re-pairing does not produce a false alarm, short enough
 #: that the user hears about it before giving up on the assistant.
 MIC_LOST_REPORT_AFTER_ATTEMPTS = 4
+
+
+#: A wake word must be at least this many times louder (RMS) than the room's
+#: measured noise floor: 6 dB, so steady noise sitting just under the
+#: threshold cannot cross it on a louder moment, while speech in a moderately
+#: noisy room still can.
+#:
+#: What this can and cannot do, measured on a laptop with an Intel Smart
+#: Sound array: its driver already removes steady noise (fan-like brown
+#: noise from the speaker never reached the app), and intermittent,
+#: TV-like sound keeps a low median floor because the driver gates the gaps,
+#: so it woke the fixed and the calibrated threshold equally (5 of 8 chunks).
+#: On that machine calibration never moved the threshold. It matters where
+#: steady noise does reach the app: a USB or desktop mic next to a fan,
+#: which could not be tested here.
+NOISE_FLOOR_MARGIN = 2.0
+
+#: Length of the windows the noise floor is measured over. Their median RMS
+#: is the floor: a word spoken during calibration raises a window or two but
+#: not the median, so it cannot deafen the assistant for the whole session.
+_NOISE_WINDOW_S = 0.5
+
+
+@dataclass
+class NoiseCalibration:
+    """What :meth:`WakeWordManager.calibrate_noise_floor` measured and set."""
+
+    seconds: float
+    noise_rms: float
+    peak: float
+    threshold_before: float
+    threshold_after: float
+    digital_silence: bool
 
 
 # ---------------------------------------------------------------------------
@@ -779,6 +813,72 @@ class WakeWordManager:
             )
 
         return detection
+
+    async def calibrate_noise_floor(self, seconds: float = 3.0) -> NoiseCalibration | None:
+        """Measure the room through the microphone and set the wake threshold from it.
+
+        main.py used to log "Calibrating microphone (3s)" and then only sleep:
+        nothing read the mic, and the threshold stayed at the shipped 0.015
+        (0.0112 after sensitivity scaling) on every machine, in a silent room
+        or next to a running fan. On the energy-based fallback detector that
+        threshold is the only thing separating a wake word from room noise.
+
+        The threshold is only ever raised above the configured one, never
+        lowered, so a quiet room behaves exactly as before. It rises when the
+        room's steady noise floor would otherwise sit within 6 dB of it. It
+        cannot tell intermittent sound such as a TV from a wake word; see
+        NOISE_FLOOR_MARGIN for what was measured.
+
+        Returns:
+            What was measured and set, or ``None`` if there is no working
+            microphone to measure.
+
+        """
+        if not self._initialized or self._detector is None or self._audio_capture is None:
+            return None
+        capture = self._audio_capture
+        chunks = max(1, math.ceil(seconds / self._config.audio_capture_duration))
+        loop = asyncio.get_running_loop()
+        audio = np.concatenate(
+            [await loop.run_in_executor(None, capture.capture) for _ in range(chunks)],
+        )
+        if capture.failing_since is not None:
+            logger.warning("Microphone calibration skipped: the microphone is not delivering audio")
+            return None
+
+        sample_rate = self._config.wake_word_config.sample_rate
+        window = max(1, int(sample_rate * _NOISE_WINDOW_S))
+        window_rms = [
+            float(np.sqrt(np.mean(audio[i : i + window] ** 2)))
+            for i in range(0, max(1, len(audio) - window + 1), window)
+        ]
+        noise_rms = float(np.median(window_rms))
+
+        config = self._detector.config
+        scale = 1.0 - config.sensitivity * 0.5
+        before = config.energy_threshold * scale
+        after = max(before, NOISE_FLOOR_MARGIN * noise_rms)
+        config.energy_threshold = after / scale
+
+        result = NoiseCalibration(
+            seconds=len(audio) / sample_rate,
+            noise_rms=noise_rms,
+            peak=float(np.max(np.abs(audio))) if len(audio) else 0.0,
+            threshold_before=before,
+            threshold_after=after,
+            # Only the whole window being exact zeros counts: this hardware
+            # returns plenty of exact zeros while sound is present, because the
+            # driver's noise suppression gates the gaps.
+            digital_silence=bool(len(audio)) and not np.any(audio),
+        )
+        if result.digital_silence:
+            logger.warning(
+                "Microphone delivered %.1fs of digital silence (every sample exactly 0). "
+                "If wake words are not heard, check the microphone is not muted or "
+                "blocked by a privacy switch.",
+                result.seconds,
+            )
+        return result
 
     def get_last_detection(self) -> WakeWordDetection | None:
         """Return the most recent detection result (or ``None``)."""
