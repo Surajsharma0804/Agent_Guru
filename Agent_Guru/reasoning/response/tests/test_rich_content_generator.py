@@ -6,13 +6,34 @@ Coverage Target: >80%
 
 import pytest
 
-from Agent_Guru.reasoning.models.intent import Intent
+from Agent_Guru.reasoning.models.intent import Entity, Intent
 from Agent_Guru.reasoning.models.result import ExecutionResult
 from Agent_Guru.reasoning.response.rich_content_generator import (
+
+
     ClientCapability,
     ContentType,
     RichContentGenerator,
 )
+
+
+def _entities(**values: object) -> dict[str, Entity]:
+    """Build the Entity-valued mapping Intent.entities requires.
+
+    Intent.entities is ``dict[str, Entity]`` (reasoning/models/intent.py), not
+    ``dict[str, str]``. These tests still passed raw strings, so every Intent
+    they built died in the pydantic constructor with "Input should be a valid
+    dictionary or instance of Entity" before the code under test ran -- a
+    failure that said nothing about the behaviour being tested.
+
+    The raw text is carried through unchanged, so any assertion that looks for
+    an entity's value still sees exactly the same string it saw before.
+    """
+    return {
+        name: Entity(entity_type=name, value=value, raw_text=str(value))
+        for name, value in values.items()
+    }
+
 
 
 class TestRichContentGenerator:
@@ -39,7 +60,8 @@ class TestRichContentGenerator:
         """Create timer intent."""
         return Intent(
             intent_type="set_timer",
-            entities={"duration": "5 minutes"},
+            original_input="test input for set_timer",
+            entities=_entities(duration="5 minutes"),
             confidence=0.95,
             requires_reasoning=False,
         )
@@ -64,7 +86,8 @@ class TestRichContentGenerator:
         """Create weather intent."""
         return Intent(
             intent_type="query_weather",
-            entities={"location": "San Francisco"},
+            original_input="test input for query_weather",
+            entities=_entities(location="San Francisco"),
             confidence=0.92,
             requires_reasoning=False,
         )
@@ -147,7 +170,8 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="search_web",
-            entities={"query": "test"},
+            original_input="test input for search_web",
+            entities=_entities(query="test"),
             confidence=0.9,
             requires_reasoning=False,
         )
@@ -176,7 +200,8 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="weather_forecast",
-            entities={"location": "Seattle"},
+            original_input="test input for weather_forecast",
+            entities=_entities(location="Seattle"),
             confidence=0.88,
             requires_reasoning=False,
         )
@@ -203,6 +228,7 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="take_photo",
+            original_input="test input for take_photo",
             entities={},
             confidence=0.95,
             requires_reasoning=False,
@@ -234,7 +260,8 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="play_music",
-            entities={"song": "Great Song"},
+            original_input="test input for play_music",
+            entities=_entities(song="Great Song"),
             confidence=0.93,
             requires_reasoning=False,
         )
@@ -266,7 +293,8 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="navigate_to",
-            entities={"destination": "San Francisco"},
+            original_input="test input for navigate_to",
+            entities=_entities(destination="San Francisco"),
             confidence=0.91,
             requires_reasoning=False,
         )
@@ -297,7 +325,8 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="show_stats",
-            entities={"metric": "temperature"},
+            original_input="test input for show_stats",
+            entities=_entities(metric="temperature"),
             confidence=0.87,
             requires_reasoning=False,
         )
@@ -329,6 +358,7 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="show_calendar",
+            original_input="test input for show_calendar",
             entities={},
             confidence=0.89,
             requires_reasoning=False,
@@ -352,7 +382,8 @@ class TestRichContentGenerator:
             tool_id="unknown_tool",
         )
         intent = Intent(
-            intent_type="unknown_intent",
+            intent_type="unknown",
+            original_input="test input for unknown",
             entities={},
             confidence=0.5,
             requires_reasoning=False,
@@ -425,7 +456,8 @@ class TestRichContentGenerator:
             tool_id="generic_tool",
         )
         intent = Intent(
-            intent_type="generic_intent",
+            intent_type="unknown",
+            original_input="test input for unknown",
             entities={},
             confidence=0.8,
             requires_reasoning=False,
@@ -452,6 +484,7 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="list_timers",
+            original_input="test input for list_timers",
             entities={},
             confidence=0.9,
             requires_reasoning=False,
@@ -478,7 +511,8 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="search_web",
-            entities={"query": "test"},
+            original_input="test input for search_web",
+            entities=_entities(query="test"),
             confidence=0.9,
             requires_reasoning=False,
         )
@@ -503,6 +537,7 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="show_photos",
+            original_input="test input for show_photos",
             entities={},
             confidence=0.92,
             requires_reasoning=False,
@@ -527,6 +562,7 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="show_options",
+            original_input="test input for show_options",
             entities={},
             confidence=0.85,
             requires_reasoning=False,
@@ -551,6 +587,7 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="show_replies",
+            original_input="test input for show_replies",
             entities={},
             confidence=0.88,
             requires_reasoning=False,
@@ -592,6 +629,7 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="show_form",
+            original_input="test input for show_form",
             entities={},
             confidence=0.86,
             requires_reasoning=False,
@@ -618,7 +656,8 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="send_message",
-            entities={"recipient": "John"},
+            original_input="test input for send_message",
+            entities=_entities(recipient="John"),
             confidence=0.94,
             requires_reasoning=False,
         )
@@ -645,6 +684,7 @@ class TestRichContentGenerator:
         )
         intent = Intent(
             intent_type="weather_forecast",
+            original_input="test input for weather_forecast",
             entities={},
             confidence=0.9,
             requires_reasoning=False,
