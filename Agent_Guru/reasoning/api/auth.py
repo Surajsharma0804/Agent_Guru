@@ -37,6 +37,7 @@ from enum import Enum
 
 import jwt
 from fastapi import HTTPException, Security, status
+from pydantic import ValidationError
 from fastapi.security import (
     APIKeyHeader,
     HTTPAuthorizationCredentials,
@@ -582,6 +583,43 @@ def verify_token(token: str) -> TokenData:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
+    except jwt.InvalidTokenError as e:
+        # SECURITY FIX: only ExpiredSignatureError was handled here, so every
+        # OTHER way a token can be rejected escaped this function raw:
+        # InvalidSignatureError (a FORGED token), DecodeError (malformed),
+        # InvalidAlgorithmError (algorithm confusion attempt),
+        # ImmatureSignatureError, InvalidAudienceError, ...
+        #
+        # In FastAPI an unhandled exception inside a dependency is not a 401 -
+        # it becomes a 500 Internal Server Error. So a forged or corrupt token
+        # produced a server error instead of an authentication failure: the
+        # wrong status for clients and proxies to act on, noise that buries
+        # real 5xx incidents, and a stack trace in the logs carrying attacker-
+        # controlled token bytes.
+        #
+        # jwt.InvalidTokenError is the base class of all of these (and of
+        # ExpiredSignatureError, which is why it is matched first above).
+        #
+        # The detail deliberately stays generic: telling a caller WHICH check
+        # failed - bad signature vs. malformed vs. wrong algorithm - is an
+        # oracle that helps an attacker refine a forgery.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
+    except (ValidationError, ValueError, KeyError, TypeError) as e:
+        # The signature verified, but the payload is not a TokenData: an
+        # unknown role string (Role(...) raises ValueError), a missing claim,
+        # or a claim of the wrong type. That is still an invalid token, not a
+        # server fault - and it is reachable by anyone holding a signing key
+        # for a token this deployment no longer understands, e.g. after a role
+        # was renamed.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
 
