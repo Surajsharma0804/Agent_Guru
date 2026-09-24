@@ -360,13 +360,44 @@ class TestAsyncExecutionController:
 
 
 class TestTimeoutProperties:
-    """Property-based tests for timeout functionality."""
+    """Property-based tests for timeout functionality.
+
+    WALL-CLOCK BUDGET
+    -----------------
+    These properties are exercised by really sleeping, so their runtime is
+    max_examples x (time spent per example). The original parameters were
+    max_examples=50 with sleeps of up to 3.0s, i.e. up to 150 seconds of real
+    sleeping for ONE test - while pytest.ini passes ``--timeout=30``. Both
+    properties therefore hit pytest-timeout's 30s SIGALRM every run, which
+    Hypothesis reported as "FlakyFailure ... Failed on the first call but did
+    not on a subsequent one" because the alarm lands on whichever example
+    happens to be executing. They could not pass on any machine.
+
+    The constants below keep the property identical - the assertion is about
+    the RELATION between execution time and timeout, not about any particular
+    number of seconds - while bounding the worst case to
+    MAX_EXAMPLES * MAX_TIMEOUT = 30 * 0.3 = 9s, comfortably inside the 30s
+    budget, and keeping the timeouts an order of magnitude above scheduler
+    jitter so the comparison stays meaningful.
+    """
+
+    # Timeouts stay >= 100ms: far above event-loop/thread scheduling jitter.
+    MIN_TIMEOUT = 0.1
+    MAX_TIMEOUT = 0.3
+    # Execution times span well below AND well above every possible timeout,
+    # so both branches of the property are reached.
+    MAX_EXECUTION = 0.6
+    # Outcomes within this band of the timeout are a genuine race: the sleep
+    # and the timer are scheduled independently and either may win. Asserting
+    # an outcome there would be asserting something that is not true.
+    BOUNDARY_BAND = 0.05
+    MAX_EXAMPLES = 30
 
     @given(
-        timeout=st.floats(min_value=0.1, max_value=2.0),
-        execution_time=st.floats(min_value=0.0, max_value=3.0),
+        timeout=st.floats(min_value=MIN_TIMEOUT, max_value=MAX_TIMEOUT),
+        execution_time=st.floats(min_value=0.0, max_value=MAX_EXECUTION),
     )
-    @settings(max_examples=50, deadline=5000)
+    @settings(max_examples=MAX_EXAMPLES, deadline=5000)
     def test_property_timeout_enforcement(self, timeout: float, execution_time: float):
         """Property: Execution exceeding timeout should fail with TIMEOUT error.
 
@@ -381,21 +412,26 @@ class TestTimeoutProperties:
 
         result = executor.execute(action, timed_function, timeout=timeout)
 
-        # If execution time exceeds timeout, should fail with TIMEOUT
-        if execution_time > timeout:
+        # If execution time clearly exceeds the timeout, it must fail with
+        # TIMEOUT. The band matters: this branch used to be a bare
+        # `if execution_time > timeout: ... else: assert success`, which
+        # asserted success at execution_time == timeout exactly - a tie that
+        # time.sleep() loses as often as it wins, because sleep() guarantees
+        # only a LOWER bound on how long it sleeps.
+        if execution_time > timeout + self.BOUNDARY_BAND:
             assert result.success is False  # nosec B101
             assert result.error is not None  # nosec B101
             assert result.error["error_code"] == "TIMEOUT"  # nosec B101
-        else:
-            # Should succeed
+        elif execution_time < timeout - self.BOUNDARY_BAND:
             assert result.success is True  # nosec B101
+        # else: genuine race at the boundary, either outcome is correct.
 
     @pytest.mark.asyncio
     @given(
-        timeout=st.floats(min_value=0.1, max_value=2.0),
-        execution_time=st.floats(min_value=0.0, max_value=3.0),
+        timeout=st.floats(min_value=MIN_TIMEOUT, max_value=MAX_TIMEOUT),
+        execution_time=st.floats(min_value=0.0, max_value=MAX_EXECUTION),
     )
-    @settings(max_examples=50, deadline=5000)
+    @settings(max_examples=MAX_EXAMPLES, deadline=5000)
     async def test_property_async_timeout_enforcement(self, timeout: float, execution_time: float):
         """Property: Async execution exceeding timeout should fail with TIMEOUT error.
 
@@ -411,12 +447,12 @@ class TestTimeoutProperties:
         result = await executor.execute_async(action, timed_async_function, timeout=timeout)
 
         # If execution time exceeds timeout (with small margin for timing precision)
-        if execution_time > timeout + 0.05:  # Add 50ms margin for timing precision
+        if execution_time > timeout + self.BOUNDARY_BAND:
             assert result.success is False  # nosec B101
             assert result.error is not None  # nosec B101
             assert result.error["error_code"] == "TIMEOUT"  # nosec B101
             assert result.timed_out is True  # nosec B101
-        elif execution_time < timeout - 0.05:  # Clear success case
+        elif execution_time < timeout - self.BOUNDARY_BAND:
             # Should succeed
             assert result.success is True  # nosec B101
             assert result.timed_out is False  # nosec B101
