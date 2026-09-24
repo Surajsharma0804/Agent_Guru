@@ -105,28 +105,71 @@ class TestLoggingConfig:
         assert hasattr(logger, "error")  # nosec B101
     
     def test_bind_context(self):
-        """Test binding context variables."""
+        """Test binding context variables.
+
+        The bound values ARE observable - structlog.contextvars.get_contextvars()
+        returns them - so this no longer has to settle for `assert True`.
+        """
+        import structlog
+
+        clear_context()
         bind_context(user_id="user123", conversation_id="conv456")
-        
-        # Context should be bound (we can't easily verify without logging)
-        # Just ensure no errors
-        assert True  # nosec B101
-    
+
+        bound = structlog.contextvars.get_contextvars()
+        assert bound.get("user_id") == "user123"  # nosec B101
+        assert bound.get("conversation_id") == "conv456"  # nosec B101
+        clear_context()
+
+    def test_bind_context_is_additive(self):
+        """A second bind must not erase the first.
+
+        bind_context() used to call clear_contextvars() before binding, so a
+        later bind silently dropped every identifier bound earlier in the turn.
+        """
+        import structlog
+
+        clear_context()
+        bind_context(user_id="user123")
+        bind_context(turn_id="turn789")
+
+        bound = structlog.contextvars.get_contextvars()
+        assert bound.get("user_id") == "user123", "earlier context was dropped"  # nosec B101
+        assert bound.get("turn_id") == "turn789"  # nosec B101
+        clear_context()
+
+    def test_bind_context_overwrites_same_key(self):
+        """Re-binding a key replaces its value."""
+        import structlog
+
+        clear_context()
+        bind_context(user_id="first")
+        bind_context(user_id="second")
+
+        assert structlog.contextvars.get_contextvars().get("user_id") == "second"  # nosec B101
+        clear_context()
+
     def test_unbind_context(self):
         """Test unbinding specific context variables."""
+        import structlog
+
+        clear_context()
         bind_context(user_id="user123", conversation_id="conv456")
         unbind_context("user_id")
-        
-        # Context should be unbound
-        assert True  # nosec B101
-    
+
+        bound = structlog.contextvars.get_contextvars()
+        assert "user_id" not in bound  # nosec B101
+        assert bound.get("conversation_id") == "conv456", \
+            "unbinding one key must not remove the others"  # nosec B101
+        clear_context()
+
     def test_clear_context(self):
         """Test clearing all context variables."""
+        import structlog
+
         bind_context(user_id="user123", conversation_id="conv456")
         clear_context()
-        
-        # All context should be cleared
-        assert True  # nosec B101
+
+        assert structlog.contextvars.get_contextvars() == {}  # nosec B101
     
     def test_logging_levels(self):
         """Test all logging levels."""
