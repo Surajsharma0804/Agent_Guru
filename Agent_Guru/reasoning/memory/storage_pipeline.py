@@ -127,8 +127,12 @@ class MemoryStoragePipeline:
             raise ValueError(msg)
 
         # Initialize components
+        # db_path is left to VectorDatabase, which resolves it to the
+        # per-user data directory. Hard-coding "./memory_db" here put the
+        # long-term store under whatever directory the process was started
+        # from -- so the assistant's memory depended on the shell's cwd, and
+        # a restricted cwd made initialisation fail outright.
         self.vector_db = vector_db or VectorDatabase(
-            db_path="./memory_db",
             embedding_dimension=384,
             in_memory=False,
         )
