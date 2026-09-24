@@ -38,6 +38,13 @@ class NoiseType(Enum):
     WIND = "wind"
     UNKNOWN = "unknown"
 
+# Reduction strength per documented noise level. Module-level so it is the
+# single source of truth for which values reduce_noise() accepts - it used
+# to be a dict literal rebuilt inside the method with a silent .get(..., 0.8)
+# default, so a typo like "agressive" was quietly treated as "medium".
+_NOISE_STRENGTH = {"light": 0.5, "medium": 0.8, "aggressive": 0.95}
+
+
 class AdvancedNoiseCancellation:
     """Advanced noise cancellation with >20dB reduction and adaptive filtering.
 
@@ -75,20 +82,33 @@ class AdvancedNoiseCancellation:
             AudioProcessingError: If noise reduction fails
 
         """
+        # Validate the REQUEST before consulting the optional backend.
+        #
+        # These checks used to sit after the `nr is None` early-return, so on
+        # any machine without noisereduce installed - which is the documented
+        # optional-dependency case, not an error - empty or malformed audio
+        # was accepted silently and handed straight back to the caller as if
+        # it had been processed. Whether an input is valid cannot depend on
+        # which optional package happens to be installed.
+        if audio is None or len(audio) == 0:
+            msg = "Cannot reduce noise on empty audio"
+            raise AudioProcessingError(msg)
+
+        if noise_level not in _NOISE_STRENGTH:
+            msg = (
+                f"Unknown noise_level {noise_level!r}; "
+                f"expected one of {sorted(_NOISE_STRENGTH)}"
+            )
+            raise AudioProcessingError(msg)
+
         try:
             nr = _get_noisereduce()
             if nr is None:
                 logger.warning("noisereduce not available, returning original audio")
                 return audio
 
-            # Validate input
-            if len(audio) == 0:
-                msg = "Cannot reduce noise on empty audio"
-                raise AudioProcessingError(msg)
-
             # Map noise level to reduction strength
-            strength_map = {"light": 0.5, "medium": 0.8, "aggressive": 0.95}
-            prop_decrease = strength_map.get(noise_level, 0.8)
+            prop_decrease = _NOISE_STRENGTH[noise_level]
 
             # Ensure audio is float32
             audio_float = audio.astype(np.float32)
