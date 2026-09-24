@@ -311,6 +311,15 @@ jobs:
       - name: Install project and declared test dependencies
         run: pip install -e ".[test]"
 
+      # faster-whisper is listed in requirements.txt but not in pyproject.toml,
+      # so the step above never installed it. Without it 42 speech-to-text
+      # tests failed on every platform with "faster-whisper could not be
+      # imported", masking every other result in speech/. The tests use the
+      # "tiny" Whisper model (~75 MB), fetched from Hugging Face on first use
+      # and kept by the cache step below.
+      - name: Install speech-to-text dependency (faster-whisper)
+        run: pip install "faster-whisper>=0.9.0"
+
       - name: Record the resolved environment
         run: |
           python -VV
