@@ -31,6 +31,11 @@ from Agent_Guru.reasoning.models.memory import (
     TaskMemory,
 )
 
+# Building a MemoryRetriever/EmbeddingGenerator loads a 420 MB
+# sentence-transformer. Warm it once per session, in fixture setup, so no
+# individual test is charged the load inside its own timeout budget.
+pytestmark = pytest.mark.usefixtures("warm_embedding_model")
+
 
 def create_test_intent(
     intent_type: IntentType = IntentType.SET_TIMER,
