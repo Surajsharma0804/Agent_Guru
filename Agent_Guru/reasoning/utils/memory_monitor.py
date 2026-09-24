@@ -322,7 +322,9 @@ class MemoryMonitor:
         """Get current memory usage as percentage of limit.
 
         Returns:
-            Memory usage percentage (0-100)
+            Memory usage as a percentage of max_memory_mb. Not clamped: it
+            exceeds 100 when usage is over the limit, consistent with
+            is_over_limit().
 
         """
         current_mb = self.get_current_usage()

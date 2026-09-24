@@ -10,6 +10,7 @@ Tests cover:
 import asyncio
 import pytest
 import time
+from unittest.mock import patch
 
 from Agent_Guru.reasoning.utils.memory_monitor import (
     MemoryMonitor,
@@ -61,11 +62,25 @@ class TestMemoryMonitor:
         assert isinstance(usage, float)  # nosec B101
     
     def test_get_usage_percent(self):
-        """Test getting usage percentage."""
+        """Usage is reported as a percentage of the configured limit.
+        
+        This process's real memory use depends on what the run has already
+        loaded - the full suite passes 1 GB once torch and the embedding
+        model are in memory - so the arithmetic is checked against controlled
+        usage rather than against whatever this process happens to hold.
+        """
         monitor = MemoryMonitor(max_memory_mb=1000)
         
-        percent = monitor.get_usage_percent()
-        assert 0 <= percent <= 100  # nosec B101
+        with patch.object(monitor, "get_current_usage", return_value=250.0):
+            assert monitor.get_usage_percent() == pytest.approx(25.0)  # nosec B101
+        
+        # Over the limit reads above 100%, consistent with is_over_limit()
+        with patch.object(monitor, "get_current_usage", return_value=1500.0):
+            assert monitor.get_usage_percent() == pytest.approx(150.0)  # nosec B101
+            assert monitor.is_over_limit()  # nosec B101
+        
+        # The real measurement is a non-negative percentage
+        assert monitor.get_usage_percent() >= 0  # nosec B101
     
     def test_is_over_limit(self):
         """Test limit checking."""
