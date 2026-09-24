@@ -1,5 +1,4 @@
 """Type stubs for vosk."""
-from typing import Any
 
 def SetLogLevel(level: int) -> None: ...
 
