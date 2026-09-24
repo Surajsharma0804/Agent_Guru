@@ -4,6 +4,7 @@ Property 17: Voice Cloning Quality
 Validates: Requirements 14.2, 14.3, 14.5
 """
 
+import zlib
 import numpy as np
 from hypothesis import given, strategies as st, settings, HealthCheck
 import pytest
@@ -74,16 +75,28 @@ def test_property_17_voice_cloning_quality(voice_cloner, num_samples, voice_id):
     sample_rate = 16000
     num_audio_samples = int(duration * sample_rate)
     
-    # Generate consistent audio for this voice
-    np.random.seed(hash(voice_id) % (2**32))
-    base_freq = 100 + (hash(voice_id) % 200)
-    
+    # Generate consistent audio for this voice.
+    #
+    # zlib.crc32 rather than hash(): Python randomises str hashing per process
+    # unless PYTHONHASHSEED is fixed, so `np.random.seed(hash(voice_id))` and
+    # the derived base_freq differed between runs. A property test that claims
+    # "consistent audio for this voice" cannot be reproduced from a Hypothesis
+    # failure report when its own input changes every process. crc32 of the
+    # encoded id is stable everywhere.
+    voice_seed = zlib.crc32(voice_id.encode("utf-8"))
+    np.random.seed(voice_seed)
+    base_freq = 100 + (voice_seed % 200)
+
+    # The tone is identical for every sample of this voice - only the noise
+    # differs - so it is computed once instead of up to 50 times per example
+    # (up to 5,000 redundant linspace+sine passes over 160,000 points across
+    # the 100 examples this property runs).
+    t = np.linspace(0, duration, num_audio_samples)
+    tone = np.sin(2 * np.pi * base_freq * t) + 0.3 * np.sin(2 * np.pi * base_freq * 2 * t)
+
     audio_samples = []
     for _ in range(num_samples):
-        t = np.linspace(0, duration, num_audio_samples)
-        audio = np.sin(2 * np.pi * base_freq * t)
-        audio += 0.3 * np.sin(2 * np.pi * base_freq * 2 * t)
-        audio += 0.1 * np.random.randn(num_audio_samples)
+        audio = tone + 0.1 * np.random.randn(num_audio_samples)
         audio = audio / np.max(np.abs(audio)) * 0.8
         audio_samples.append(audio.astype(np.float32))
     
