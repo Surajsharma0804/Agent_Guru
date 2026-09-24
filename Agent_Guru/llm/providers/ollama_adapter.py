@@ -31,6 +31,7 @@ from Agent_Guru.llm.models import (
     TokenUsage,
 )
 from Agent_Guru.llm.providers.base import ProviderAdapter
+from Agent_Guru.reasoning.llm.generation import context_fits, ollama_options
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -67,6 +68,11 @@ class OllamaAdapter(ProviderAdapter):
         os.environ.setdefault("OLLAMA_FLASH_ATTENTION", "1")
         os.environ.setdefault("OLLAMA_NUM_PARALLEL", "1")
 
+    @staticmethod
+    def _options(request: CompletionRequest) -> dict[str, Any]:
+        """Ollama options for this request, from the shared generation policy."""
+        return ollama_options(num_predict=request.max_tokens, temperature=request.temperature)
+
     def _get_client(self) -> Any:
         """Lazy-initialize the Ollama async client."""
         if self._client is None:
@@ -89,18 +95,16 @@ class OllamaAdapter(ProviderAdapter):
         client = self._get_client()
         messages = [{"role": m.role, "content": m.content} for m in request.messages]
 
-        options: dict[str, Any] = {"temperature": request.temperature}
-        if request.max_tokens is not None:
-            options["num_predict"] = request.max_tokens
-        # GPU offloading - offload as many layers as fit in VRAM.
-        # num_gpu=99 = offload all layers (Ollama caps at available VRAM).
-        options["num_gpu"] = 99
-        # Smaller context window = less VRAM used for KV cache = more VRAM
-        # available for model weights = more layers on GPU = faster inference.
-        # 1024 tokens is enough for voice assistant conversations.
-        options["num_ctx"] = 1024
-        # More CPU threads for any layers that spill to CPU
-        options["num_thread"] = 8
+        # Options come from the shared generation policy, the same ones every
+        # other Ollama client sends. This adapter had its own copy: num_ctx
+        # 1024, which cannot hold even the 1619-token first voice prompt (it
+        # only worked because Ollama silently raises anything under 2048 to
+        # 2048), and which differed from the intent fallback's, so Ollama
+        # reloaded the model between the two calls on every voice turn.
+        # num_thread=8 is gone: it bought nothing with every layer on the GPU
+        # (2.66 s vs 2.60 s measured), and it would oversubscribe a CPU with
+        # fewer cores.
+        options = self._options(request)
 
         # BUG FIX: latency_ms was previously hardcoded to 0.0 below instead of
         # being measured, so every CompletionResponse this adapter produced
@@ -143,12 +147,16 @@ class OllamaAdapter(ProviderAdapter):
         latency_ms = (time.perf_counter() - call_start) * 1000
         prompt_tokens = response.get("prompt_eval_count", 0)
         completion_tokens = response.get("eval_count", 0)
+        context_fits(prompt_tokens, request.max_tokens, source="OllamaAdapter")
 
         return CompletionResponse(
             content=response["message"]["content"],
             model=request.model,
             provider=ModelProvider.OLLAMA,
-            finish_reason="stop",
+            # Was hard-coded "stop", so a reply cut off by num_predict looked
+            # finished and the voice pipeline spoke it mid-sentence. Ollama
+            # reports "length" when the cap ended it.
+            finish_reason=response.get("done_reason") or "stop",
             usage=TokenUsage(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
@@ -169,12 +177,7 @@ class OllamaAdapter(ProviderAdapter):
         client = self._get_client()
         messages = [{"role": m.role, "content": m.content} for m in request.messages]
 
-        options: dict[str, Any] = {"temperature": request.temperature}
-        if request.max_tokens is not None:
-            options["num_predict"] = request.max_tokens
-        options["num_gpu"] = 99  # GPU offloading for streaming too
-        options["num_ctx"] = 1024  # Smaller context = more VRAM for model layers
-        options["num_thread"] = 8  # CPU threads for spilled layers
+        options = self._options(request)
 
         # BUG FIX: same unbounded-hang risk as complete() above - guard the
         # initial call that opens the stream with the configured timeout.

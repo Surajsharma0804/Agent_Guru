@@ -1300,6 +1300,7 @@ class IntegrationOrchestrator:
         """Build enriched prompt and run LLM completion."""
         try:
             from Agent_Guru.llm.models import CompletionRequest, Message
+            from Agent_Guru.reasoning.llm.generation import spoken_reply_tokens
 
             prompt = self._enrich_prompt(transcript, memory_context, reasoning_output)
             if not prompt.strip():
@@ -1323,13 +1324,24 @@ class IntegrationOrchestrator:
             # Build message list with token-budgeted history
             messages = self._build_llm_messages(Message, system_prompt, prompt)
 
+            # A spoken reply is capped (see spoken_reply_tokens() for the
+            # measurements). A clipboard rewrite is not spoken, it is written
+            # back for the user to paste, and a capped one would silently lose
+            # the end of their text, so it keeps the old budget.
+            rewrites_clipboard = self._rewrites_clipboard(transcript)
             request = CompletionRequest(
                 model=ollama_model,
                 messages=messages,
-                max_tokens=400,
+                max_tokens=(
+                    self._CLIPBOARD_REWRITE_MAX_TOKENS
+                    if rewrites_clipboard
+                    else spoken_reply_tokens()
+                ),
             )
             response = await complete_fn(request)
             llm_response = response.content or ""
+            if not rewrites_clipboard and getattr(response, "finish_reason", None) == "length":
+                llm_response = self._drop_unfinished_sentence(llm_response)
 
             # NOTE: conversation history is recorded exactly once, in
             # run_pipeline() after TTS finalizes the actually-spoken text -
@@ -1354,6 +1366,36 @@ class IntegrationOrchestrator:
                 ollama_model, e, ollama_model,
             )
             return ""
+
+    #: Reply budget for a clipboard "fix", which returns up to 1000 characters
+    #: of the user's text rewritten (_enrich_prompt() caps the input there).
+    _CLIPBOARD_REWRITE_MAX_TOKENS: ClassVar[int] = 400
+
+    @staticmethod
+    def _rewrites_clipboard(transcript: str) -> bool:
+        """True if this turn's reply is written back to the clipboard, not spoken."""
+        from Agent_Guru.platform.features.dictation import (
+            get_clipboard_action,
+            is_clipboard_command,
+        )
+
+        return bool(transcript) and is_clipboard_command(transcript) and (
+            get_clipboard_action(transcript) == "fix"
+        )
+
+    @staticmethod
+    def _drop_unfinished_sentence(text: str) -> str:
+        """Cut a reply that hit the token cap back to its last full sentence.
+
+        Without this, the cap would end speech mid-word ("the Indus Valley
+        Civilization was one of the"). If the reply has no sentence end at
+        all, it is kept whole: half an answer is better than silence.
+        """
+        stripped = text.rstrip()
+        last_end = max(stripped.rfind(mark) for mark in ".!?")
+        if last_end <= 0:
+            return stripped
+        return stripped[: last_end + 1]
 
     @staticmethod
     def _enrich_prompt(

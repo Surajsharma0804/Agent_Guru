@@ -40,6 +40,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from Agent_Guru.reasoning.llm.generation import context_fits, ollama_options
 from Agent_Guru.reasoning.llm.timeouts import intent_timeout
 from Agent_Guru.reasoning.models.intent import Entity
 
@@ -478,15 +479,20 @@ Classify the following input:"""
 
         base_url = f"http://{self.config.ollama_host}:{self.config.ollama_port}"
 
-        # Build request payload
+        # Options come from the shared generation policy. This call used to
+        # send neither num_ctx nor num_gpu. Measured on a 4 GB RTX 2050, it
+        # loaded gemma3:4b at the server's 131072-token default, 61% on the
+        # CPU, and took 25 s cold. It runs in a thread the voice pipeline
+        # cannot cancel, so the spoken answer queued behind it and then paid
+        # for a second model load at the voice client's context size.
         payload = {
             "model": self.config.model,
             "prompt": f"{self.SYSTEM_PROMPT}\n\n{user_prompt}",
             "stream": False,
-            "options": {
-                "temperature": self.config.temperature,
-                "num_predict": self.config.max_tokens,
-            },
+            "options": ollama_options(
+                num_predict=self.config.max_tokens,
+                temperature=self.config.temperature,
+            ),
             "format": "json",
         }
 
@@ -501,6 +507,11 @@ Classify the following input:"""
 
         if response.status_code == 200:
             data = response.json()
+            context_fits(
+                data.get("prompt_eval_count"),
+                self.config.max_tokens,
+                source="LLMFallbackClassifier",
+            )
             result = data.get("response", "")
             return str(result) if result else ""
         msg = f"Ollama API error: {response.status_code} - {response.text}"

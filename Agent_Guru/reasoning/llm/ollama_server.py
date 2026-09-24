@@ -23,6 +23,7 @@ from typing import Any
 
 import requests
 
+from Agent_Guru.reasoning.llm.generation import context_fits, ollama_options
 from Agent_Guru.reasoning.llm.models import (
     GPUBackend,
     LLMProvider,
@@ -358,21 +359,22 @@ class OllamaServer:
         start_time = time.monotonic()  # FIX: was time.time(), see start()
 
         try:
-            # Build request payload for Ollama API
+            # Options come from the shared generation policy. This client used
+            # to send no num_ctx and no num_gpu, so it loaded the model with
+            # the server's default context (131072 where the Ollama app's
+            # slider is set high) and forced a reload whenever any other
+            # client ran next.
             payload: dict[str, Any] = {
                 "model": model_name,
                 "prompt": request.prompt,
                 "stream": False,
-                "options": {
-                    "temperature": request.temperature,
-                    "top_p": request.top_p,
-                    "num_predict": request.max_tokens,
-                },
+                "options": ollama_options(
+                    num_predict=request.max_tokens,
+                    temperature=request.temperature,
+                    top_p=request.top_p,
+                    stop=request.stop_sequences,
+                ),
             }
-
-            # Add stop sequences if provided
-            if request.stop_sequences:
-                payload["options"]["stop"] = request.stop_sequences
 
             # Run blocking HTTP call in thread pool to avoid blocking event loop
             # FIX: removed a redundant second `import asyncio` here too
@@ -412,6 +414,11 @@ class OllamaServer:
 
                 # Count tokens (approximate from eval_count)
                 tokens_generated = data.get("eval_count", len(text.split()))
+                context_fits(
+                    data.get("prompt_eval_count"),
+                    request.max_tokens,
+                    source="OllamaServer",
+                )
 
                 return LLMResponse(
                     text=text,
