@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -66,12 +67,28 @@ class ContextSnapshot:
 class ContextEngine:
     """Provides real-time ambient context with ≤10ms snapshot response."""
 
-    def __init__(self, ambient_mode: bool = False) -> None:
+    def __init__(
+        self,
+        ambient_mode: bool = False,
+        sensor_provider: Callable[[], SensorSignals] | None = None,
+    ) -> None:
+        """Initialize the context engine.
+
+        Args:
+            ambient_mode: Use the slower ambient poll interval.
+            sensor_provider: Callable returning the current SensorSignals.
+                start_polling() calls it once per interval and feeds the
+                result to update(). Without it there is nothing to poll and
+                start_polling() says so instead of spinning - see there.
+
+        """
         self._classifier = ActivityClassifier()
         self._snapshot: ContextSnapshot = ContextSnapshot()
         self._ambient_mode = ambient_mode
+        self._sensor_provider = sensor_provider
         self._running = False
         self._prev_activity: str | None = None
+        self._stop_event: asyncio.Event | None = None
 
     def get_snapshot(self) -> ContextSnapshot:
         """Return current context snapshot in ≤10ms."""
@@ -106,14 +123,62 @@ class ContextEngine:
         return self._snapshot
 
     async def start_polling(self) -> None:
-        """Start background polling."""
+        """Poll the sensor provider until stop_polling() is called.
+
+        BUG FIX: the body of this loop used to be nothing but
+        ``await asyncio.sleep(interval)``. It polled NOTHING - the snapshot
+        was never refreshed, so "real-time ambient context" was a coroutine
+        that slept forever and get_snapshot() kept returning whatever the last
+        external update() call had left behind, or the all-defaults snapshot
+        if there had never been one.
+
+        Two further problems came with it: stop_polling() only flipped a flag,
+        so the task kept sleeping for up to AMBIENT_POLL_INTERVAL_S (60 s)
+        before noticing - a minute added to shutdown - and a failing sensor
+        read would have taken the whole loop down.
+
+        Raises:
+            ValueError: If no sensor_provider was supplied. Spinning forever
+                over a provider that does not exist is not a useful default;
+                the caller is told at once.
+
+        """
+        if self._sensor_provider is None:
+            msg = (
+                "start_polling() needs a sensor_provider; construct "
+                "ContextEngine(sensor_provider=...) or push signals with "
+                "update() instead."
+            )
+            raise ValueError(msg)
+
         self._running = True
+        self._stop_event = asyncio.Event()
         interval = AMBIENT_POLL_INTERVAL_S if self._ambient_mode else POLL_INTERVAL_S
+
         while self._running:
-            await asyncio.sleep(interval)
+            try:
+                signals = self._sensor_provider()
+                self.update(signals)
+            except Exception:
+                # One bad sensor read must not end ambient context for the
+                # rest of the session.
+                logger.exception("Context sensor poll failed; keeping last snapshot")
+
+            # Wait on the stop event rather than sleeping blindly, so
+            # stop_polling() takes effect immediately instead of up to one
+            # full interval later.
+            try:
+                await asyncio.wait_for(self._stop_event.wait(), timeout=interval)
+            except TimeoutError:
+                continue
+            else:
+                break
 
     def stop_polling(self) -> None:
+        """Ask start_polling() to stop; it returns on its next scheduling."""
         self._running = False
+        if self._stop_event is not None:
+            self._stop_event.set()
 
     def persist(self, path: str = "~/.agent_guru/context.enc") -> None:
         """Persist encrypted context snapshot."""
