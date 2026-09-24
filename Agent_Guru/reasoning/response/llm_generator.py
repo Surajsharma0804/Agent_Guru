@@ -498,7 +498,18 @@ Response:"""
         # Create prompt
         return self.RESPONSE_TEMPLATE.format(
             user_input=intent.original_input if hasattr(intent, "original_input") else "N/A",
-            intent_type=intent.intent_type,
+            # .value, not the member. IntentType is `class IntentType(str,
+            # Enum)`, and on Python 3.11+ both str() and format() on such a
+            # member return "IntentType.SET_TIMER", not "set_timer". Every
+            # prompt this builder produced therefore told the model
+            # `Intent: IntentType.SET_TIMER` -- an internal Python class name
+            # leaked into the LLM's context on the main response path, costing
+            # tokens and giving the model a worse signal than the plain label.
+            intent_type=(
+                intent.intent_type.value
+                if hasattr(intent.intent_type, "value")
+                else str(intent.intent_type)
+            ),
             entities=entities_str,
             success=result.success,
             result_data=result_data_str,
