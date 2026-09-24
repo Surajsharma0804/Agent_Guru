@@ -60,7 +60,14 @@ class TestLLMClientInitialization:
     @patch("Agent_Guru.reasoning.knowledge.synthesizer.OPENAI_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.knowledge.synthesizer.openai")
     def test_initialize_openai_client(self, mock_openai):
-        """Test OpenAI client initialization."""
+        """Test OpenAI client initialization.
+
+        The client is now built on FIRST USE rather than in __init__:
+        openai.OpenAI() raises OpenAIError at construction when no credentials
+        are configured, which made a default KnowledgeSynthesizer impossible
+        to create on an offline machine. Both assertions below are unchanged;
+        only the moment the client is built has moved.
+        """
         mock_openai.OpenAI = Mock()
         memory_retriever = Mock(spec=MemoryRetriever)
 
@@ -71,13 +78,23 @@ class TestLLMClientInitialization:
             use_llm_synthesis=True,
         )
 
+        # Nothing built yet -- that is the point of the change.
+        assert synthesizer.llm_client is None  # nosec B101
+        mock_openai.OpenAI.assert_not_called()
+
+        synthesizer._ensure_llm_client()
+
         assert synthesizer.llm_client is not None  # nosec B101
+        mock_openai.OpenAI.assert_called_once_with(api_key="test-key")
+
+        # Built once, then reused.
+        synthesizer._ensure_llm_client()
         mock_openai.OpenAI.assert_called_once_with(api_key="test-key")
 
     @patch("Agent_Guru.reasoning.knowledge.synthesizer.ANTHROPIC_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.knowledge.synthesizer.anthropic")
     def test_initialize_anthropic_client(self, mock_anthropic):
-        """Test Anthropic client initialization."""
+        """Test Anthropic client initialization (built on first use)."""
         mock_anthropic.Anthropic = Mock()
         memory_retriever = Mock(spec=MemoryRetriever)
 
@@ -87,6 +104,8 @@ class TestLLMClientInitialization:
             llm_api_key="test-key",
             use_llm_synthesis=True,
         )
+
+        synthesizer._ensure_llm_client()
 
         assert synthesizer.llm_client is not None  # nosec B101
         mock_anthropic.Anthropic.assert_called_once_with(api_key="test-key")
@@ -103,15 +122,51 @@ class TestLLMClientInitialization:
 
     @patch("Agent_Guru.reasoning.knowledge.synthesizer.OPENAI_AVAILABLE", False)
     def test_initialize_openai_not_available(self):
-        """Test error when OpenAI not available."""
+        """Test error when OpenAI not available.
+
+        Constructing the synthesizer no longer raises -- an offline-first
+        assistant must be constructible without a cloud SDK installed. The
+        actionable RuntimeError still comes from the client build itself,
+        with the same message.
+        """
         memory_retriever = Mock(spec=MemoryRetriever)
 
+        synthesizer = KnowledgeSynthesizer(
+            memory_retriever=memory_retriever,
+            llm_provider="openai",
+            use_llm_synthesis=True,
+        )
+
         with pytest.raises(RuntimeError, match="OpenAI client not available"):
-            KnowledgeSynthesizer(
-                memory_retriever=memory_retriever,
-                llm_provider="openai",
-                use_llm_synthesis=True,
-            )
+            synthesizer._initialize_llm_client()
+
+        # And the synthesis path degrades instead of propagating it.
+        assert synthesizer._ensure_llm_client() is None  # nosec B101
+
+    def test_constructible_without_any_credentials(self):
+        """The default constructor must work on a machine with no API key.
+
+        Regression test for the defect this class's other tests were built
+        around: use_llm_synthesis defaults to True, and openai.OpenAI() raises
+        OpenAIError("Missing credentials...") at CONSTRUCTION, so building a
+        KnowledgeSynthesizer with default arguments used to be impossible
+        without cloud credentials in the environment -- in a product whose
+        headline property is that it works offline.
+        """
+        import os
+
+        memory_retriever = Mock(spec=MemoryRetriever)
+        saved = {k: os.environ.pop(k, None)
+                 for k in ("OPENAI_API_KEY", "OPENAI_ADMIN_KEY")}
+        try:
+            synthesizer = KnowledgeSynthesizer(memory_retriever=memory_retriever)
+        finally:
+            for k, v in saved.items():
+                if v is not None:
+                    os.environ[k] = v
+
+        assert synthesizer.use_llm_synthesis is True  # nosec B101
+        assert synthesizer.llm_client is None  # nosec B101
 
     def test_initialize_unsupported_provider(self):
         """Test error with unsupported provider."""
