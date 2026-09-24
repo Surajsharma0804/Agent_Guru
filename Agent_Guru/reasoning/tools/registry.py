@@ -5,12 +5,15 @@ and capability-based matching.
 """
 
 import asyncio
+import logging
 import time
 from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
 from Agent_Guru.reasoning.tools.base import Tool, ToolMetadata, ToolSensitivity
+
+logger = logging.getLogger(__name__)
 
 class ToolRegistry:
     """Registry for managing tools with plugin architecture.
@@ -193,6 +196,28 @@ class ToolRegistry:
             return {
                 "success": False,
                 "error": f"Tool execution timed out after {timeout_ms}ms",
+                "execution_time_ms": execution_time_ms,
+            }
+
+        except Exception as exc:
+            # BUG FIX: only the timeout path was handled, so ANY exception a
+            # tool raised propagated straight out of the registry. Tools are
+            # the least trustworthy code in the system - third-party
+            # integrations, subprocesses, network calls - and this is the
+            # boundary that is supposed to contain them: every caller above
+            # consumes the {"success": ..., "error": ...} dict this method
+            # documents, so one misbehaving tool could take down a whole
+            # reasoning turn instead of returning a failed tool result the
+            # planner can react to.
+            #
+            # asyncio.CancelledError derives from BaseException, so genuine
+            # cancellation still propagates rather than being reported as a
+            # tool failure.
+            execution_time_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.exception("Tool '%s' raised during execution", tool_id)
+            return {
+                "success": False,
+                "error": f"{type(exc).__name__}: {exc}",
                 "execution_time_ms": execution_time_ms,
             }
 
