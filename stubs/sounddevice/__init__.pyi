@@ -1,6 +1,5 @@
 """Type stubs for sounddevice."""
-from typing import Any, Optional, Callable, List, Dict
-import numpy as np
+from typing import Any, Optional, Callable, Dict
 from numpy.typing import NDArray
 
 def query_devices(device: Optional[int] = None, kind: Optional[str] = None) -> Any: ...
