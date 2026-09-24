@@ -1,4 +1,4 @@
-"""Main Speech Engine Facade - ZERO COMPROMISE IMPLEMENTATION.
+﻿"""Main Speech Engine Facade - ZERO COMPROMISE IMPLEMENTATION.
 
 This module provides the main facade for the speech engine, integrating all components:
 - Wake word detection (dual personality)
@@ -333,8 +333,12 @@ class SpeechEngine:
             wake_word_result = await self.wake_word_detector.detect(audio)
             if wake_word_result:
                 return wake_word_result.personality
-        except Exception:  # nosec B110 — wake word detection failure is non-critical; default to GURU
-            pass
+        except Exception:
+            # Non-critical: fall back to the default personality. Logged at
+            # debug rather than swallowed outright, so a wake-word detector
+            # that is failing on EVERY utterance is visible instead of just
+            # quietly making every interaction sound like GURU.
+            self.logger.debug("Wake-word detection failed; defaulting to GURU", exc_info=True)
         return PersonalityType.GURU
 
     async def _process_command(
@@ -354,7 +358,22 @@ class SpeechEngine:
             msg = "Command parser not initialized"
             raise RuntimeError(msg)
 
-        command = self.command_parser.interpret(transcription.text)
+        # Pass the transcription's language through. CommandParser stores
+        # patterns keyed by (action_id, language) precisely so a command can
+        # have a different pattern set per language -- but this, the only
+        # call site on the live speech path, omitted the argument, so the
+        # parameter always defaulted to "en" and every non-English pattern
+        # set was unreachable no matter what was registered.
+        #
+        # Behaviour is unchanged today: transcribe_with_personality() forces
+        # the STT language from config (currently "en"), so this resolves to
+        # "en" exactly as before. What changes is that relaxing that forcing
+        # now actually reaches the matching patterns instead of silently
+        # continuing to match English ones.
+        command = self.command_parser.interpret(
+            transcription.text,
+            language=transcription.language or "en",
+        )
         if not (command and command.is_command):
             return command, None, None
 
@@ -363,10 +382,10 @@ class SpeechEngine:
         # simply skipped routing and returned as though all was well.
         if not self.agent_orchestration:
             self.logger.warning(
-                "Command %s recognised but no orchestration is attached — not executed",
+                "Command %s recognised but no orchestration is attached - not executed",
                 getattr(command, "action_id", None),
             )
-            return command, False, "No orchestration attached — command not executed"
+            return command, False, "No orchestration attached - command not executed"
 
         # Routing failures stay non-fatal (one failed tool must not kill the
         # whole voice turn) but are now REPORTED rather than swallowed.
@@ -547,7 +566,7 @@ class SpeechEngine:
         FOR SECURITY SYSTEM USE ONLY.  This method is the integration point
         between the speech engine and guru-security-cryptography.  Callers
         outside the security system MUST NOT use this method to make
-        authentication decisions – all authentication logic lives in
+        authentication decisions - all authentication logic lives in
         ``BiometricAuthenticator`` (Agent_Guru/security/).
 
         The returned :class:`~Agent_Guru.speech.models.VoiceFeatures` object
@@ -590,12 +609,12 @@ class SpeechEngine:
                 is_running = False
 
             if is_running:
-                # Called from inside an async context — run in a separate thread.
+                # Called from inside an async context - run in a separate thread.
                 #
                 # BUG FIX (voice/vision/avatar audit): this previously used
                 # `with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:`.
                 # ThreadPoolExecutor.__exit__ calls shutdown(wait=True), which
-                # blocks until the submitted task actually finishes — even
+                # blocks until the submitted task actually finishes - even
                 # after future.result(timeout=10) has already raised
                 # TimeoutError. Verified concretely with a standalone repro:
                 # future.result(timeout=0.5) against a 3-second task raised
@@ -606,8 +625,8 @@ class SpeechEngine:
                 # hung extraction (this method feeds
                 # BiometricAuthenticator.authenticate_voice(), which MUST
                 # be able to bound how long it waits) would block the
-                # caller for however long the runaway task actually took —
-                # potentially forever — not 10 seconds.
+                # caller for however long the runaway task actually took -
+                # potentially forever - not 10 seconds.
                 #
                 # Fix: don't use the pool as a context manager. Shut it down
                 # with wait=False so the caller's timeout is honored
@@ -643,20 +662,33 @@ class SpeechEngine:
 
         return self.emotion_detector.detect_emotion(audio, self.config.audio.sample_rate)
 
-    def clone_voice(self, audio_samples: list[np.ndarray], voice_id: str) -> None:
+    def clone_voice(self, audio_samples: list[np.ndarray], voice_id: str) -> Any:
         """Clone voice from audio samples.
 
         Args:
-            audio_samples: List of audio samples (5+ minutes total)
+            audio_samples: List of audio samples (5+ minutes total). Samples
+                must be valid float PCM in [-1.0, 1.0]; enrolment rejects
+                audio whose measured quality is below the cloner's minimum.
             voice_id: Unique identifier for cloned voice
+
+        Returns:
+            The enrolled VoiceModel. The model used to be built by
+            enroll_voice() and then DISCARDED here - the caller got None and
+            had no way to read the enrolment's quality score, sample count or
+            training duration without going back to the cloner.
+
+        Raises:
+            RuntimeError: If the voice cloner is not initialised.
+            VoiceCloningError: If the audio is insufficient or too low quality.
 
         """
         if self.voice_cloner is None:
             msg = "Voice cloner not initialized"
             raise RuntimeError(msg)
 
-        self.voice_cloner.enroll_voice(audio_samples, voice_id)
+        model = self.voice_cloner.enroll_voice(audio_samples, voice_id)
         self.logger.info("Voice cloned successfully: %s", voice_id)
+        return model
 
     def start_background_service(self) -> None:
         """Start always-on background service."""
