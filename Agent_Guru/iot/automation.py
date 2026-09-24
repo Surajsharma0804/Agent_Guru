@@ -104,8 +104,8 @@ class AutomationEngine:
                 )
                 await controller.control(cmd)
             except KeyError:
-                logger.exception("Scene action missing field — skipping")
-                logger.exception("Scene action failed — continuing")
+                logger.exception("Scene action missing field - skipping")
+                logger.exception("Scene action failed - continuing")
         logger.info("Activated scene %s", scene_id)
         return True
 

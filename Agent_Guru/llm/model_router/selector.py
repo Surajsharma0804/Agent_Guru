@@ -1,5 +1,5 @@
 """Module: Agent_Guru.llm.model_router.selector
-Purpose: Model Selector — scores and selects optimal models for tasks.
+Purpose: Model Selector - scores and selects optimal models for tasks.
 
 Implements cost-performance scoring with epsilon-greedy exploration.
 """

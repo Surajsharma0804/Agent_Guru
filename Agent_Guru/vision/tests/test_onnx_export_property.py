@@ -35,7 +35,7 @@ _TOLERANCE = 1e-3
 # ---------------------------------------------------------------------------
 
 class _TinyBackbone(nn.Module):
-    """Single linear layer — fast to run, sufficient to test ONNX equivalence."""
+    """Single linear layer - fast to run, sufficient to test ONNX equivalence."""
 
     def __init__(self) -> None:
         super().__init__()

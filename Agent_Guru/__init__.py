@@ -19,7 +19,7 @@ Components:
 __version__ = "0.1.0"
 __author__ = "Agent Guru Team"
 
-# Lazy imports — sub-packages are only loaded when accessed.
+# Lazy imports - sub-packages are only loaded when accessed.
 # This prevents heavy ML libraries (TTS, insightface, vosk, etc.) from
 # being imported at package import time, which would crash on platforms
 # where optional dependencies are not installed.
@@ -29,7 +29,7 @@ def __getattr__(name: str):
     """Lazy-load sub-packages on first access.
 
     Uses an explicit match statement so the module path passed to
-    import_module is always a hardcoded string literal — never derived
+    import_module is always a hardcoded string literal - never derived
     from the caller-supplied ``name``.  This makes it structurally
     impossible for external input to influence the import target.
     """

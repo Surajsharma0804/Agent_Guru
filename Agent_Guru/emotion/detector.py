@@ -19,7 +19,7 @@ COMPANION_EMOTIONS = (
 
 # ── Precompiled keyword → emotion mapping ─────────────────────────────────
 # Each entry: (tuple of keyword phrases, emotion_scores dict)
-# Built once at import time — zero per-call allocation.
+# Built once at import time - zero per-call allocation.
 #
 # DESIGN RULE: Every keyword must be specific enough to avoid false positives
 # on normal commands. Single common words like "ready", "lost", "love", "great"
@@ -115,11 +115,11 @@ class EmotionDetector:
     """Fuses voice prosody, text sentiment, and facial expression for emotion detection.
 
     Complexity:
-        detect()           — O(E) where E = number of emotions (14), constant
-        _detect_from_text() — O(K × L) where K = total keywords (~100), L = avg keyword length
+        detect()           - O(E) where E = number of emotions (14), constant
+        _detect_from_text() - O(K × L) where K = total keywords (~100), L = avg keyword length
                               Effectively O(1) since K and L are bounded constants.
-        _detect_from_voice() — O(N) where N = audio samples (np.mean)
-        get_trend()         — O(H) where H = history size (capped at 1000)
+        _detect_from_voice() - O(N) where N = audio samples (np.mean)
+        get_trend()         - O(H) where H = history size (capped at 1000)
     Space:
         O(1000) for history deque (bounded)
     """
@@ -165,7 +165,7 @@ class EmotionDetector:
             for e, s in face_scores.items():
                 scores[e] = scores.get(e, 0.0) + s * 0.2
 
-        # Normalize — O(E)
+        # Normalize - O(E)
         total = sum(scores.values())
         if total > 0:
             scores = {e: s / total for e, s in scores.items()}
@@ -173,7 +173,7 @@ class EmotionDetector:
         best_emotion = max(scores, key=scores.__getitem__)  # O(E), avoids lambda overhead
         confidence = scores[best_emotion]
 
-        # Determine source — O(1)
+        # Determine source - O(1)
         sources_mask = (
             (audio is not None) + (text is not None) + (face_features is not None)
         )
@@ -222,10 +222,10 @@ class EmotionDetector:
         if len(text) < 4:
             return _NEUTRAL_SCORES
 
-        # Normalize: lowercase, strip apostrophes — O(T)
+        # Normalize: lowercase, strip apostrophes - O(T)
         t = text.lower().replace("'", "").replace("\u2019", "")
 
-        # Check each emotion group — short-circuits on first match
+        # Check each emotion group - short-circuits on first match
         for keywords, scores in _EMOTION_KEYWORDS:
             if any(w in t for w in keywords):
                 return scores

@@ -1,7 +1,7 @@
 """Face feature extraction for Agent Guru.
 
 Provides face detection and 512-dim embedding extraction.
-NO authentication logic — all auth decisions go to BiometricAuthenticator.
+NO authentication logic - all auth decisions go to BiometricAuthenticator.
 
 Performance target: 500 ms per image.
 InsightFace is initialised lazily with a 15-second thread timeout to guard
@@ -51,7 +51,7 @@ def _check_insightface_available(timeout: float = 0.0) -> bool:
     disk without executing any module-level code, so it never blocks.
 
     The ``timeout`` parameter is accepted for backward compatibility but is
-    not used — the check is always instantaneous.
+    not used - the check is always instantaneous.
     """
     import importlib.util
 
@@ -72,12 +72,12 @@ def _decode_image(image_data: bytes) -> np.ndarray:
         msg = "image_data is empty"
         raise InvalidImageError(msg)
     if not _CV2_AVAILABLE:
-        logger.warning("cv2 unavailable — using synthetic image")
+        logger.warning("cv2 unavailable - using synthetic image")
         return np.full((64, 64, 3), 128, dtype=np.uint8)
     arr = np.frombuffer(image_data, dtype=np.uint8)
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if img is None:
-        msg = "Failed to decode image — unsupported format or corrupt bytes"
+        msg = "Failed to decode image - unsupported format or corrupt bytes"
         raise InvalidImageError(msg)
     return img
 
@@ -151,7 +151,7 @@ class FaceFeatureExtractor:
         self._use_gpu = use_gpu
         self._insightface_init_timeout = insightface_init_timeout
         if not _INSIGHTFACE_AVAILABLE:
-            logger.warning("InsightFace not available — stub embeddings will be returned.")
+            logger.warning("InsightFace not available - stub embeddings will be returned.")
 
     # ------------------------------------------------------------------
     # Public API
@@ -237,12 +237,12 @@ class FaceFeatureExtractor:
                 return FaceFeatureExtractor._shared_app.get(key)
 
             if event is None:
-                # First caller — create the event and start the init thread.
+                # First caller - create the event and start the init thread.
                 event = threading.Event()
                 FaceFeatureExtractor._shared_events[key] = event
                 start_init = True
             else:
-                # Another thread is already initialising — just wait.
+                # Another thread is already initialising - just wait.
                 start_init = False
 
         if not start_init:
@@ -279,11 +279,11 @@ class FaceFeatureExtractor:
         app: object | None = None
         if t.is_alive():
             logger.warning(
-                "InsightFace init timed out after %.1fs — using stub embeddings",
+                "InsightFace init timed out after %.1fs - using stub embeddings",
                 self._insightface_init_timeout,
             )
         elif error_holder:
-            logger.warning("InsightFace init failed: %s — using stub", error_holder[0])
+            logger.warning("InsightFace init failed: %s - using stub", error_holder[0])
         elif result_holder:
             app = result_holder[0]
             logger.info("InsightFace initialised (gpu=%s)", self._use_gpu)
@@ -397,7 +397,7 @@ class FaceFeatureExtractor:
         not a real face recognition result.
         """
         logger.warning(
-            "InsightFace unavailable — returning stub embedding. "
+            "InsightFace unavailable - returning stub embedding. "
             "Install insightface for production-quality face recognition.",
         )
         h, w = img.shape[:2]
@@ -426,5 +426,5 @@ class FaceFeatureExtractor:
             score = min(1.0, lap_var / 200.0)
             return score >= self.liveness_threshold, round(score, 4)
         except Exception:
-            logger.exception("Liveness check failed — defaulting to not-live")
+            logger.exception("Liveness check failed - defaulting to not-live")
             return False, 0.0

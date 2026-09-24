@@ -37,7 +37,7 @@ class LoopDetector:
             state: Current state (will be hashed)
 
         Returns:
-            LoopDetectionResult — loop_detected=True if threshold exceeded
+            LoopDetectionResult - loop_detected=True if threshold exceeded
 
         """
         state_hash = self._hash_state(state)
@@ -47,7 +47,7 @@ class LoopDetector:
 
         trace = self._traces[session_id]
         trace.append(state_hash)
-        # deque(maxlen=window_size) auto-evicts oldest — no manual pop needed
+        # deque(maxlen=window_size) auto-evicts oldest - no manual pop needed
 
         # Count occurrences
         counts = Counter(trace)

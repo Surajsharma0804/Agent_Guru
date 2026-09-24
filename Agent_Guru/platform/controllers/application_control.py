@@ -126,7 +126,7 @@ class ApplicationController:
     """
 
     # Process names close_application()/_taskkill_by_name() must never
-    # terminate — killing any of these takes down the OS shell or a core
+    # terminate - killing any of these takes down the OS shell or a core
     # system service, not just "an app".
     #
     # BUG FIX (found 2026-09-13, this round): this used to be a local class
@@ -152,7 +152,7 @@ class ApplicationController:
         """Look up the real executable name currently running as *pid*.
 
         Used to re-check a process against the protected-process set right
-        before termination — see the BUG FIX note in close_application()
+        before termination - see the BUG FIX note in close_application()
         for why checking the caller's input string alone isn't enough.
         """
         try:
@@ -584,7 +584,7 @@ class ApplicationController:
         # Guard: never allow closing system-critical or IDE processes.
         # This first check catches the identifier being ALREADY the literal
         # protected exe name (e.g. someone/something passes "explorer.exe"
-        # directly) — it is not, by itself, enough; see the second check
+        # directly) - it is not, by itself, enough; see the second check
         # below for why.
         if isinstance(app_identifier, str) and self._is_protected_process_name(app_identifier):
             msg = f"Refusing to close protected process: {app_identifier}"
@@ -608,7 +608,7 @@ class ApplicationController:
                 raise ProcessLookupError(msg)
 
             # BUG FIX (found 2026-09-13): the guard above only catches an
-            # identifier that IS ALREADY the literal protected exe name —
+            # identifier that IS ALREADY the literal protected exe name -
             # but real voice/text input uses friendly names ("explorer",
             # "file explorer"), and _find_process_by_name() resolves those
             # straight to the protected process (explorer.exe IS the
@@ -616,7 +616,7 @@ class ApplicationController:
             # _PROCESS_NAME_ALIASES without ever tripping that check. That
             # meant an entirely ordinary command like "close explorer"
             # could silently bypass "never kill system-critical processes"
-            # and take down the desktop shell — the guard existed but
+            # and take down the desktop shell - the guard existed but
             # didn't actually guard the case it was clearly written for.
             # Re-checking the REAL resolved process name right before
             # termination closes that gap for every path that reaches this
@@ -664,13 +664,13 @@ class ApplicationController:
         # BUG FIX (found 2026-09-13, same class as close_application()'s
         # fix above): this method is the fallback close_application() uses
         # when _find_process_by_name() can't find a PID via psutil (e.g. a
-        # UWP/Store app, or a lookup that's flaky for some other reason) —
+        # UWP/Store app, or a lookup that's flaky for some other reason) -
         # which is precisely the case where the caller-input-only guard at
         # the top of close_application() is the ONLY check that ran, and
         # that guard only catches the input already being the literal
         # protected exe name. A friendly name like "explorer" sails through
         # unblocked and resolves right here, via _PROCESS_NAME_ALIASES, to
-        # the real protected exe (e.g. "explorer.exe") — so without a check
+        # the real protected exe (e.g. "explorer.exe") - so without a check
         # in this method too, "close explorer" could still reach a real
         # `taskkill /IM explorer.exe` through this path even after the
         # close_application() fix, defeating it entirely for any app whose

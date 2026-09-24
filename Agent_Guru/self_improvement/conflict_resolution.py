@@ -26,7 +26,7 @@ Architecture Principles:
 - Quarantine system with expiration and release mechanisms
 - Conflict resolution with majority vote and ensemble methods
 
-ARCHITECTURAL NOTE (flagged, not changed here — needs the calling code to
+ARCHITECTURAL NOTE (flagged, not changed here - needs the calling code to
 verify, which isn't in this file): every public method on ConflictResolver
 is a plain synchronous `def`, including quarantine_data/is_quarantined/
 get_quarantined_data, all of which do real SQLite I/O via self.pool. Every
@@ -35,11 +35,11 @@ PopulationManager, OllamaServer, etc.) uses `async def` for I/O-bound work
 specifically so it can be awaited without blocking the event loop. If
 ConflictResolver's methods are ever called directly from `async def` code
 without an executor/asyncio.to_thread wrapper, that call blocks the entire
-event loop for the DB round-trip — the exact bug class already found and
+event loop for the DB round-trip - the exact bug class already found and
 fixed multiple times elsewhere in this codebase (filler_response.py,
 reasoning/tools/system/*.py, local_server.py). Not converting this class's
 whole public API to async blind, since the actual callers (self_improvement_
-engine.py) aren't in this file and an async conversion could break them —
+engine.py) aren't in this file and an async conversion could break them -
 flagging clearly instead so whoever owns the call sites can verify.
 
 Author: Agent Guru Team
@@ -65,7 +65,7 @@ from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 # underscore) and was defined BEFORE the rest of the imports, with every
 # subsequent import line carrying a lint-suppression comment (nine of
 # them) to silence the resulting "module level import not at top of file"
-# warnings. There was no functional reason for this ordering — none of the
+# warnings. There was no functional reason for this ordering - none of the
 # imports below reference the logger, and there's no try/except around
 # them that would need it pre-defined for error logging. Reordered to the
 # normal, unremarkable position (after all imports, no noqa needed), and
@@ -73,7 +73,7 @@ from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 # module audited in this codebase. (This specific rename is also a
 # deliberate defusal: `_logger` vs `logger` is exactly the naming
 # inconsistency that caused real NameError bugs elsewhere in this codebase
-# — this file was internally consistent so it never actually broke, but
+# - this file was internally consistent so it never actually broke, but
 # the mismatched convention is exactly the kind of thing that trips up a
 # future copy-paste between files.)
 logger = logging.getLogger(__name__)
@@ -391,24 +391,24 @@ class ConflictResolver:
         return 0.0
 
     # ------------------------------------------------------------------
-    # Data poisoning detection — decomposed via Extract Method.
+    # Data poisoning detection - decomposed via Extract Method.
     #
     # FIX: `detect_data_poisoning` was previously a single ~180-line method
     # with cyclomatic complexity E (38 in the shipped file; 36 in an
-    # isolated reproduction used to verify this refactor) — by a wide
+    # isolated reproduction used to verify this refactor) - by a wide
     # margin the single most complex function in the entire ~340K-line
     # codebase (confirmed via a full-repo radon scan). Decomposed into the
     # six focused helpers below, each doing exactly one of the steps the
     # original did (feature extraction, Isolation Forest, LOF, MAD
-    # anomalies, ensemble voting, confidence calculation) — a pure
+    # anomalies, ensemble voting, confidence calculation) - a pure
     # decomposition, not a rewrite of the math, thresholds, or control
     # flow. Verified this is behaviorally IDENTICAL to the original, not
     # just "looks equivalent": ran both the original monolithic version
     # and this decomposed version against 35 different deterministic
     # synthetic datasets (7 random seeds x 5 dataset sizes, each
     # containing known planted outliers) and asserted byte-identical
-    # output — has_conflict, confidence, conflicting_executions, and every
-    # field in `details` — on every single one. Post-refactor complexity:
+    # output - has_conflict, confidence, conflicting_executions, and every
+    # field in `details` - on every single one. Post-refactor complexity:
     # every individual function is now C-11 or lower (most are A/B), and
     # the orchestrating `detect_data_poisoning` itself is A-3.
     # ------------------------------------------------------------------
@@ -511,7 +511,7 @@ class ConflictResolver:
         """Modified Z-score (MAD-based) anomalies, robust to outliers.
 
         Also flags the minority outcome when the success rate is mixed
-        (0.2 < rate < 0.8) — a separate, additional signal for cases where
+        (0.2 < rate < 0.8) - a separate, additional signal for cases where
         execution time is uniform but outcomes are suspiciously skewed.
         """
         modified_zscores = np.abs((np.array(execution_times) - median_time) / mad_scaled)
@@ -544,7 +544,7 @@ class ConflictResolver:
         agree. Fallback: if MAD alone found significantly more anomalies
         than the contamination rate would predict, but the primary vote
         found none (the ML methods may be confused by high contamination),
-        trust MAD — it's the most outlier-robust of the three by design.
+        trust MAD - it's the most outlier-robust of the three by design.
 
         Returns:
             (anomaly_indices, per-index vote counts)
@@ -781,7 +781,7 @@ class ConflictResolver:
 
         For contradictory feedback: Uses majority vote to determine correct
         outcome when use_majority_vote=True. When use_majority_vote=False,
-        there's no basis to determine which side is "correct" — quarantines
+        there's no basis to determine which side is "correct" - quarantines
         ALL conflicting executions instead (same conservative approach
         already used for data poisoning, where every anomalous execution is
         quarantined unconditionally).
@@ -850,7 +850,7 @@ class ConflictResolver:
             # FIX: previously, use_majority_vote=False on a CONTRADICTORY_
             # FEEDBACK conflict fell all the way through to the final
             # `return {"method": "unknown", "reason": "unsupported_conflict_
-            # type"}` at the bottom of this method — even though
+            # type"}` at the bottom of this method - even though
             # CONTRADICTORY_FEEDBACK is very much a supported conflict
             # type; the method signature just never implemented anything
             # for use_majority_vote=False. That response actively
@@ -884,7 +884,7 @@ class ConflictResolver:
                 "quarantined_count": quarantined_count,
                 "actions": [
                     f"Quarantined {quarantined_count} conflicting executions "
-                    "(no majority vote requested — cannot determine which "
+                    "(no majority vote requested - cannot determine which "
                     "outcome is correct, so all flagged executions were "
                     "quarantined conservatively)",
                 ],

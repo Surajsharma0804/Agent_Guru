@@ -1,6 +1,6 @@
 """Property-based tests for Phase 3: Bug detection.
 
-Task 4.8 — Properties 6, 7, 8.
+Task 4.8 - Properties 6, 7, 8.
 
 Property 6: Async Anti-pattern Detection Completeness
     Any async def with a blocking call (time.sleep, requests.*,
@@ -31,7 +31,7 @@ from hypothesis import strategies as st
 
 
 # ---------------------------------------------------------------------------
-# Helpers — in-process async anti-pattern detector
+# Helpers - in-process async anti-pattern detector
 # ---------------------------------------------------------------------------
 
 BLOCKING_CALLS = {
@@ -100,7 +100,7 @@ def _extract_public_symbols(source: str) -> set[str]:
 
 
 class TestAsyncAntipatternDetection:
-    """Property 6 — blocking calls in async def → finding; clean → no finding."""
+    """Property 6 - blocking calls in async def → finding; clean → no finding."""
 
     def test_time_sleep_in_async_flagged(self) -> None:
         source = """
@@ -199,10 +199,10 @@ class TestAsyncAntipatternDetection:
 
 
 class TestBrokenImportDetection:
-    """Property 7 — import of non-existent symbol → finding; existing → no finding."""
+    """Property 7 - import of non-existent symbol → finding; existing → no finding."""
 
     def test_existing_builtin_import_not_flagged(self) -> None:
-        # pathlib is always available — no finding expected
+        # pathlib is always available - no finding expected
         try:
             from pathlib import Path as _  # noqa: F401
             import_ok = True
@@ -265,7 +265,7 @@ class TestBrokenImportDetection:
 
 
 class TestDuplicateImplementationDetection:
-    """Property 8 — >= 2 shared public symbols → finding; < 2 → no finding."""
+    """Property 8 - >= 2 shared public symbols → finding; < 2 → no finding."""
 
     def test_two_shared_symbols_triggers_finding(self) -> None:
         source_a = "def foo(): pass\ndef bar(): pass\ndef unique_a(): pass"

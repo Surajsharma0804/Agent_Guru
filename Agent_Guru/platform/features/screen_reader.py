@@ -1,13 +1,13 @@
-"""Screen reading for Agent Guru — 'what's on my screen?'.
+"""Screen reading for Agent Guru - 'what's on my screen?'.
 
 This is one of the flagship features of Gemini Live and Siri iOS 26.
 The user can ask 'what's on my screen?' or 'summarize what I'm looking at'
 and the assistant reads the screen content and answers.
 
 We use two approaches:
-1. Windows UIA (UI Automation) — reads text from UI elements directly.
+1. Windows UIA (UI Automation) - reads text from UI elements directly.
    Fast, accurate, no OCR needed. Works on most Windows apps.
-2. Screenshot + pytesseract OCR — fallback for apps that don't expose
+2. Screenshot + pytesseract OCR - fallback for apps that don't expose
    text via UIA (games, PDFs, images).
 
 The extracted text is injected into the LLM prompt so the assistant
@@ -34,7 +34,7 @@ def read_screen_text(max_chars: int = 2000) -> str | None:
         Extracted text, or None if extraction failed.
 
     """
-    # Try Windows UI Automation first — reads text from focused window
+    # Try Windows UI Automation first - reads text from focused window
     text = _read_via_uia(max_chars)
     if text:
         return text
@@ -86,9 +86,9 @@ def _read_via_ocr(max_chars: int) -> str | None:
     """Take a screenshot and extract text via OCR.
 
     Tries in order:
-    1. Windows built-in OCR (WinRT) — no install needed, works on Win10/11
-    2. pytesseract — needs Tesseract installed, auto-detects path
-    3. easyocr — GPU-accelerated, no install needed beyond pip
+    1. Windows built-in OCR (WinRT) - no install needed, works on Win10/11
+    2. pytesseract - needs Tesseract installed, auto-detects path
+    3. easyocr - GPU-accelerated, no install needed beyond pip
     """
     try:
         import io
@@ -97,7 +97,7 @@ def _read_via_ocr(max_chars: int) -> str | None:
 
         screenshot = pyautogui.screenshot()
 
-        # 1. Windows built-in OCR (WinRT) — best option, no extra install
+        # 1. Windows built-in OCR (WinRT) - best option, no extra install
         try:
             import asyncio as _asyncio
 
@@ -109,7 +109,7 @@ def _read_via_ocr(max_chars: int) -> str | None:
                 return text[:max_chars]
         except Exception:
             logger.exception("Operation failed")
-        # 2. pytesseract — auto-detect Tesseract path on Windows
+        # 2. pytesseract - auto-detect Tesseract path on Windows
         try:
             # Auto-detect Tesseract on Windows (common install locations)
             import os
@@ -140,7 +140,7 @@ def _read_via_ocr(max_chars: int) -> str | None:
         except ImportError as exc:
             logger.exception("Operation failed")
             logger.debug("Tesseract OCR failed: %s", exc)
-        # 3. easyocr — works without any system install
+        # 3. easyocr - works without any system install
         try:
             import easyocr  # type: ignore[import]
             import numpy as np

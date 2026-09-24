@@ -9,7 +9,7 @@ Platform support:
 
 Design Decisions:
     - All public methods are async (asyncio.create_subprocess_exec for I/O)
-    - Returns True on success, False on failure — never raises for normal failures
+    - Returns True on success, False on failure - never raises for normal failures
     - Fuzzy app name matching: case-insensitive, partial match against known app map
     - Raises RuntimeError only on desktop platforms (windows/macos/linux) where
       mobile control is not applicable
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 def _detect_platform() -> str:
-    """Thin wrapper — delegates to canonical PlatformDetector."""
+    """Thin wrapper - delegates to canonical PlatformDetector."""
     return PlatformDetector.detect().os_name.lower()
 
 
@@ -231,7 +231,7 @@ class MobileApplicationController:
                 msg,
             )
 
-        logger.info("MobileApplicationController created — platform=%s", self._platform)
+        logger.info("MobileApplicationController created - platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -240,14 +240,14 @@ class MobileApplicationController:
     async def initialize(self) -> None:
         """Initialize the controller.
 
-        Idempotent — safe to call multiple times.
+        Idempotent - safe to call multiple times.
         """
         if self._initialized:
             logger.debug("MobileApplicationController already initialized")
             return
 
         self._initialized = True
-        logger.info("MobileApplicationController initialized — platform=%s", self._platform)
+        logger.info("MobileApplicationController initialized - platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -336,7 +336,7 @@ class MobileApplicationController:
         """
         if not await self._adb_available():
             logger.warning(
-                "adb not available — cannot open %r on Android. "
+                "adb not available - cannot open %r on Android. "
                 "Ensure adb is installed and the device is connected.",
                 app_name,
             )
@@ -399,7 +399,7 @@ class MobileApplicationController:
         """
         if not await self._adb_available():
             logger.warning(
-                "adb not available — cannot close %r on Android. "
+                "adb not available - cannot close %r on Android. "
                 "Ensure adb is installed and the device is connected.",
                 app_name,
             )
@@ -447,7 +447,7 @@ class MobileApplicationController:
         """
         if not await self._xcrun_available():
             logger.warning(
-                "xcrun not available — cannot open %r on iOS. "
+                "xcrun not available - cannot open %r on iOS. "
                 "To open apps on a physical iOS device, use the Shortcuts app "
                 "or an MDM solution. For simulators, install Xcode.",
                 app_name,
@@ -493,7 +493,7 @@ class MobileApplicationController:
         """
         if not await self._xcrun_available():
             logger.warning(
-                "xcrun not available — cannot close %r on iOS. "
+                "xcrun not available - cannot close %r on iOS. "
                 "To close apps on a physical iOS device, use the Shortcuts app "
                 "or an MDM solution. For simulators, install Xcode.",
                 app_name,

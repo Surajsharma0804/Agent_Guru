@@ -10,7 +10,7 @@ Provides:
   Held gesture: same gesture held ≥500ms → is_held=True.
   Sustains ≥20 FPS on GPU.
 
-Requirements: 5.1–5.8
+Requirements: 5.1-5.8
 """
 
 from __future__ import annotations
@@ -202,7 +202,7 @@ class GestureRecognizer:
             frame: uint8 RGB array of shape (H, W, 3).
 
         Returns:
-            List of GestureResult (0–2 entries, one per hand).
+            List of GestureResult (0-2 entries, one per hand).
 
         """
         raw_hands = self._run_inference(frame)

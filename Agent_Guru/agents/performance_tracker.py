@@ -34,7 +34,7 @@ class PerformanceTracker:
     emphasizing recent performance over historical data.
 
     Time Complexity: O(w) per metrics query, where w = window_size
-    Space Complexity: O(1) — delegates storage to AgentStorage
+    Space Complexity: O(1) - delegates storage to AgentStorage
 
     Example:
         >>> tracker = PerformanceTracker(storage, window_size=100)

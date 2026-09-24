@@ -9,16 +9,16 @@ with:
   "Hey Maya" → MAYA)
 
 Performance Requirements:
-    - Detection latency: <200ms (95th percentile) — beats Alexa 250ms, Siri 300ms
+    - Detection latency: <200ms (95th percentile) - beats Alexa 250ms, Siri 300ms
     - Accuracy: >95% in noisy environments
     - Sleep mode CPU: <5% (low-power idle)
     - Wake mode CPU: <15%
 
 Architecture:
     WakeWordManager
-    ├── WakeWordDetector  (audio/wake_word.py) — backend detection
-    ├── _AudioCapture     — platform-specific audio I/O
-    └── asyncio loop      — continuous non-blocking detection
+    ├── WakeWordDetector  (audio/wake_word.py) - backend detection
+    ├── _AudioCapture     - platform-specific audio I/O
+    └── asyncio loop      - continuous non-blocking detection
 
 Author: Agent Guru Team
 Date: 2026-03-20
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 
 def _detect_platform() -> str:
-    """Thin wrapper — delegates to canonical PlatformDetector."""
+    """Thin wrapper - delegates to canonical PlatformDetector."""
     return PlatformDetector.detect().os_name.lower()
 
 
@@ -64,8 +64,8 @@ def _detect_platform() -> str:
 class PowerMode(Enum):
     """Operating power mode for the wake word manager."""
 
-    SLEEP = "sleep"  # Low-power idle — minimal CPU, waiting for wake word
-    ACTIVE = "active"  # Full processing — command listening after wake word
+    SLEEP = "sleep"  # Low-power idle - minimal CPU, waiting for wake word
+    ACTIVE = "active"  # Full processing - command listening after wake word
 
 
 # ---------------------------------------------------------------------------
@@ -93,8 +93,8 @@ class WakeWordManagerConfig:
 
     wake_word_config: WakeWordConfig = field(default_factory=WakeWordConfig)
     platform: str = ""
-    sleep_poll_interval: float = 0.05  # 50 ms — low-power idle
-    active_poll_interval: float = 0.01  # 10 ms — active listening
+    sleep_poll_interval: float = 0.05  # 50 ms - low-power idle
+    active_poll_interval: float = 0.01  # 10 ms - active listening
     audio_capture_duration: float = 0.5  # 500 ms of audio per capture
     on_detection_callback: Callable[[WakeWordDetection], Coroutine[Any, Any, None]] | None = None
     max_detection_latency_ms: float = 200.0
@@ -132,7 +132,7 @@ class _AudioCapture:
         elif self._platform == "ios":
             self._open_ios()
         else:
-            # Unknown platform — try sounddevice as best-effort
+            # Unknown platform - try sounddevice as best-effort
             self._open_sounddevice()
 
     def capture(self) -> np.ndarray:
@@ -196,7 +196,7 @@ class _AudioCapture:
         try:
             import sounddevice as sd  # type: ignore[import]
 
-            # Use the system default input device — don't try to pick a
+            # Use the system default input device - don't try to pick a
             # specific device by sample rate, because devices that advertise
             # 16 kHz natively (e.g. "Microphone Array 3 ()") are often
             # virtual WAS endpoints that can't be opened for mono capture.
@@ -226,7 +226,7 @@ class _AudioCapture:
             logger.info("Desktop audio opened via sounddevice (rate=%d)", self._sample_rate)
             return
         except Exception as exc:
-            logger.warning("sounddevice failed: %s — trying PyAudio", exc)
+            logger.warning("sounddevice failed: %s - trying PyAudio", exc)
 
         # --- Fallback: PyAudio ---
         try:
@@ -243,14 +243,14 @@ class _AudioCapture:
             )
             logger.info("Desktop audio opened via PyAudio")
         except Exception as exc:
-            logger.warning("PyAudio also unavailable (%s) — no audio capture", exc)
+            logger.warning("PyAudio also unavailable (%s) - no audio capture", exc)
             self._stream = None
 
     def _capture_desktop(self) -> np.ndarray:
         """Capture audio on desktop (sounddevice or PyAudio)."""
         if self._stream is None:
             return np.zeros(int(self._sample_rate * self._duration), dtype=np.float32)
-        # sounddevice path — _pyaudio_instance is None when using sounddevice
+        # sounddevice path - _pyaudio_instance is None when using sounddevice
         if self._pyaudio_instance is None:
             return self._capture_sounddevice()
         # PyAudio path
@@ -267,9 +267,9 @@ class _AudioCapture:
                 audio = audio / 32768.0
             return audio
         except Exception as exc:
-            # -9988 = paStreamIsStopped / stream closed — reopen transparently
+            # -9988 = paStreamIsStopped / stream closed - reopen transparently
             if "-9988" in str(exc) or "Stream closed" in str(exc) or "Stream is stopped" in str(exc):
-                logger.info("PyAudio stream closed — reopening...")
+                logger.info("PyAudio stream closed - reopening...")
                 try:
                     self.close()
                 except Exception:
@@ -284,7 +284,7 @@ class _AudioCapture:
                         logger.info("PyAudio stream reopened successfully")
                         return audio
                 except Exception as reopen_exc:
-                    logger.warning("PyAudio reopen failed (%s) — trying sounddevice", reopen_exc)
+                    logger.warning("PyAudio reopen failed (%s) - trying sounddevice", reopen_exc)
                     self._open_sounddevice()
             else:
                 logger.warning("PyAudio read error: %s", exc)
@@ -304,7 +304,7 @@ class _AudioCapture:
             self._stream.start()
             logger.debug("Desktop audio opened via sounddevice")
         except Exception:
-            logger.exception("sounddevice unavailable — using silence")
+            logger.exception("sounddevice unavailable - using silence")
             self._stream = None
 
     def _capture_sounddevice(self) -> np.ndarray:
@@ -347,7 +347,7 @@ class _AudioCapture:
             self._stream.startRecording()
             logger.debug("Android AudioRecord opened")
         except Exception:
-            logger.exception("Android AudioRecord unavailable — using silence")
+            logger.exception("Android AudioRecord unavailable - using silence")
             self._stream = None
 
     def _capture_android(self) -> np.ndarray:
@@ -381,7 +381,7 @@ class _AudioCapture:
             engine.startAndReturnError_(None)
             logger.debug("iOS AVAudioEngine opened")
         except Exception:
-            logger.exception("iOS AVAudioEngine unavailable — using silence")
+            logger.exception("iOS AVAudioEngine unavailable - using silence")
             self._stream = None
 
     def _capture_ios(self) -> np.ndarray:
@@ -389,7 +389,7 @@ class _AudioCapture:
         n_samples = int(self._sample_rate * self._duration)
         if self._stream is None:
             return np.zeros(n_samples, dtype=np.float32)
-        # AVAudioEngine tap-based capture — simplified synchronous read
+        # AVAudioEngine tap-based capture - simplified synchronous read
         try:
             import AVFoundation  # type: ignore[import]
 
@@ -462,7 +462,7 @@ class WakeWordManager:
         self._last_detection: WakeWordDetection | None = None
         self._initialized: bool = False
 
-        logger.info("WakeWordManager created — platform=%s", self._config.platform)
+        logger.info("WakeWordManager created - platform=%s", self._config.platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -497,7 +497,7 @@ class WakeWordManager:
         await asyncio.to_thread(self._audio_capture.open)
         self._initialized = True
         logger.info(
-            "WakeWordManager initialized — backend=%s, platform=%s",
+            "WakeWordManager initialized - backend=%s, platform=%s",
             self._detector._backend,
             self._config.platform,
         )
@@ -566,7 +566,7 @@ class WakeWordManager:
             self._audio_capture = None
 
         # BUG-026: do NOT reset _initialized here. Stopping the listening loop
-        # is a separate concern from the initialization state — resetting it
+        # is a separate concern from the initialization state - resetting it
         # would force callers to call initialize() again before start_listening().
         logger.info("WakeWordManager stopped")
 

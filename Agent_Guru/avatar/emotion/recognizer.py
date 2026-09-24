@@ -176,7 +176,7 @@ class EmotionRecognizer:
             return EmotionState.neutral()
 
         if not self._is_valid_frame(frame):
-            logger.debug("Invalid frame shape %s — returning neutral", frame.shape)
+            logger.debug("Invalid frame shape %s - returning neutral", frame.shape)
             return EmotionState.neutral()
 
         # Try backends in priority order
@@ -330,7 +330,7 @@ class EmotionRecognizer:
             )
             if len(faces) == 0:
                 return EmotionState.neutral()
-            # Face detected — return neutral with moderate confidence
+            # Face detected - return neutral with moderate confidence
             return EmotionState.from_emotion_name("neutral", confidence=0.6)
         except Exception as exc:
             logger.debug("Heuristic detection failed: %s", exc)

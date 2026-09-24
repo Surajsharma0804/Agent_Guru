@@ -97,7 +97,7 @@ class LoopDetector:
         """
         history = self._action_history[agent_id]
         history.append(action)
-        # deque(maxlen=pattern_window) auto-evicts oldest — no manual pop needed
+        # deque(maxlen=pattern_window) auto-evicts oldest - no manual pop needed
 
     def detect_action_loop(self, agent_id: str) -> bool:
         """Detect whether an agent is stuck in an action loop.
@@ -186,7 +186,7 @@ class LoopDetector:
         """
         history = self._delegation_history[task_type]
         history.append((from_agent, to_agent))
-        # deque(maxlen=pattern_window) auto-evicts oldest — no manual pop needed
+        # deque(maxlen=pattern_window) auto-evicts oldest - no manual pop needed
 
     def detect_delegation_loop(self, task_type: str) -> bool:
         """Detect whether a task type has a delegation loop.

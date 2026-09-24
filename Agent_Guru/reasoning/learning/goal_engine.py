@@ -282,7 +282,7 @@ class GoalEngine:
                     return await self.get_goal(goal_id)
 
                 values.append(goal_id)
-                # Build query — column names are validated against allowlist above; values are parameterized
+                # Build query - column names are validated against allowlist above; values are parameterized
                 query = (
                     "UPDATE persistent_goals SET " + ", ".join(set_clauses) + " WHERE goal_id = ?"  # nosec B608  # noqa: S608 - SQL parameterization reviewed
                 )

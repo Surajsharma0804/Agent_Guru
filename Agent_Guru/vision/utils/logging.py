@@ -30,8 +30,8 @@ def setup_logging(
 
     The logger is configured with two handlers:
 
-    * **StreamHandler** – writes to the console (stdout/stderr).
-    * **RotatingFileHandler** – writes to *log_file*; rotates when the file
+    * **StreamHandler** - writes to the console (stdout/stderr).
+    * **RotatingFileHandler** - writes to *log_file*; rotates when the file
       reaches *max_size_mb* MB, keeping up to 5 backup files.
 
     Parent directories for *log_file* are created automatically if they do

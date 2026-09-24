@@ -11,7 +11,7 @@ Provides:
   Detects headings, paragraphs, tables, form fields.
   Extracts tables as list[list[str]] and form fields as dict[str, str].
 
-Requirements: 3.1–3.9
+Requirements: 3.1-3.9
 """
 
 from __future__ import annotations

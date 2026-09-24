@@ -61,7 +61,7 @@ _MIGRATE_ADD_RECORD_HASH = (
 class AuditLogger:
     """Maintains an immutable audit trail of all policy decisions.
 
-    Validates: Requirements 6.1–6.6
+    Validates: Requirements 6.1-6.6
     """
 
     def __init__(self, db_path: str = ":memory:", retention_days: int = 90) -> None:

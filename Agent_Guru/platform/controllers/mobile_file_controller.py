@@ -9,12 +9,12 @@ Platform support:
 
 Design Decisions:
     - All public methods are async
-    - Returns True on success, False on failure — never raises for normal failures
+    - Returns True on success, False on failure - never raises for normal failures
     - Safety checks block operations on system paths (OS-specific)
     - Path resolution: expand ~ and env vars
     - Raises RuntimeError only on desktop platforms (windows/macos/linux/unknown)
     - Since these are mobile-only and can't run on desktop test machines,
-      all actual device operations are simulated — the real implementations
+      all actual device operations are simulated - the real implementations
       log what would be done and return True
 
 Performance Characteristics:
@@ -37,7 +37,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Constants — blocked system path prefixes per platform
+# Constants - blocked system path prefixes per platform
 # ---------------------------------------------------------------------------
 
 _BLOCKED_PATHS_ANDROID: tuple[str, ...] = (
@@ -122,7 +122,7 @@ def _resolve_path(raw: str) -> Path:
         Absolute :class:`pathlib.Path`.
 
     """
-    # Strip null bytes — they cause ValueError on Windows resolve()
+    # Strip null bytes - they cause ValueError on Windows resolve()
     raw = raw.replace("\x00", "")
     expanded = os.path.expandvars(os.path.expanduser(raw))  # noqa: PTH111
     try:
@@ -213,7 +213,7 @@ class MobileFileController:
     support ``~`` expansion and environment variable substitution.
 
     Since these are mobile-only and can't run on desktop test machines,
-    all actual device operations are simulated — the real implementations
+    all actual device operations are simulated - the real implementations
     log what would be done and return True.
 
     Example::
@@ -256,7 +256,7 @@ class MobileFileController:
                 msg,
             )
 
-        logger.info("MobileFileController created — platform=%s", self._platform)
+        logger.info("MobileFileController created - platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -265,14 +265,14 @@ class MobileFileController:
     async def initialize(self) -> None:
         """Initialize the controller.
 
-        Idempotent — safe to call multiple times.
+        Idempotent - safe to call multiple times.
         """
         if self._initialized:
             logger.debug("MobileFileController already initialized")
             return
 
         self._initialized = True
-        logger.info("MobileFileController initialized — platform=%s", self._platform)
+        logger.info("MobileFileController initialized - platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -280,7 +280,7 @@ class MobileFileController:
         logger.info("MobileFileController shut down")
 
     # ------------------------------------------------------------------
-    # Public API — file operations
+    # Public API - file operations
     # ------------------------------------------------------------------
 
     async def create_file(self, path: str, content: str = "") -> bool:
@@ -436,7 +436,7 @@ class MobileFileController:
     async def request_permission(self, permission: str) -> bool:
         """Request a storage permission from the user.
 
-        Simulates a permission request — always returns True in simulation.
+        Simulates a permission request - always returns True in simulation.
 
         Android: Simulates requesting READ_EXTERNAL_STORAGE / WRITE_EXTERNAL_STORAGE.
         iOS: Simulates requesting NSPhotoLibraryUsageDescription / NSDocumentsFolderUsageDescription.
@@ -445,11 +445,11 @@ class MobileFileController:
             permission: Permission name to request.
 
         Returns:
-            ``True`` — always granted in simulation.
+            ``True`` - always granted in simulation.
 
         """
         logger.info(
-            "request_permission: %r (platform=%s) — simulated, always True",
+            "request_permission: %r (platform=%s) - simulated, always True",
             permission,
             self._platform,
         )

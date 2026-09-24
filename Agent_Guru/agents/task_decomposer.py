@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .agent_lifecycle import Agent  # noqa: F401 – re-exported for convenience
+from .agent_lifecycle import Agent  # noqa: F401 - re-exported for convenience
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -289,7 +289,7 @@ class TaskDecomposer:
         Validates: Requirements 6.2, 6.3, 6.4, 6.5
 
         """
-        # Depth limit – return as-is
+        # Depth limit - return as-is
         if current_depth >= self.max_depth:
             return [task]
 
@@ -395,7 +395,7 @@ class TaskDecomposer:
         Returns:
             List of SubTask objects (may be empty).
 
-        Time Complexity: O(1) – template lookup
+        Time Complexity: O(1) - template lookup
         Validates: Requirements 6.2, 6.3
 
         """

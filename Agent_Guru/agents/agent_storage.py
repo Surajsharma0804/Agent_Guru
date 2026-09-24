@@ -39,7 +39,7 @@ class AgentStorage:
     Concurrency: every public method is `async def`, but the underlying
     sqlite3 driver is synchronous. Each method's actual database work is
     run via `asyncio.to_thread()` so the blocking I/O happens on a worker
-    thread instead of the event loop — see the BUG FIX note below.
+    thread instead of the event loop - see the BUG FIX note below.
 
     Example:
         >>> storage = AgentStorage("data/agents.db")
@@ -60,7 +60,7 @@ class AgentStorage:
 
         """
         self.db_path = db_path
-        # Cache for active agents — invalidated on any write
+        # Cache for active agents - invalidated on any write
         self._active_agents_cache: list | None = None
         # BUG FIX: guards the read-modify-write sequence in
         # record_task_assignment() below against a lost-update race
@@ -79,7 +79,7 @@ class AgentStorage:
         released even if an exception is raised.
 
         Every caller of this context manager must run entirely inside a
-        single asyncio.to_thread() call (see each public method below) — the
+        single asyncio.to_thread() call (see each public method below) - the
         connection is opened with the default check_same_thread=True, so it
         must never be used from a different thread than the one that opened
         it, and it must never be handed back across the async/thread
@@ -207,14 +207,14 @@ class AgentStorage:
         # BUG FIX: this method was declared `async def` but every previous
         # version ran sqlite3 (a synchronous driver) directly inline, so the
         # actual database I/O executed synchronously on the event loop
-        # thread — "async in name only". Every other coroutine scheduled on
+        # thread - "async in name only". Every other coroutine scheduled on
         # this process's event loop (wake-word detection, STT/TTS streaming,
         # any concurrent voice command) would stall for the full duration of
         # every agent write. Wrapping the blocking body in asyncio.to_thread
         # moves the actual I/O onto a worker thread so the event loop stays
         # responsive, without changing this method's signature, return
         # value, or SQL. The sqlite3 connection is opened, used, and closed
-        # entirely inside the thread function below — it is never passed
+        # entirely inside the thread function below - it is never passed
         # across the thread boundary, which is required since it's opened
         # with the default check_same_thread=True.
         def _write() -> None:
@@ -247,7 +247,7 @@ class AgentStorage:
         self._active_agents_cache = None  # Invalidate cache
 
     async def get_agent(self, agent_id: str) -> Agent | None:
-        # BUG FIX: see store_agent() above — same asyncio.to_thread fix,
+        # BUG FIX: see store_agent() above - same asyncio.to_thread fix,
         # applied consistently to every method in this class that touches
         # the database.
         def _read() -> tuple | None:
@@ -350,7 +350,7 @@ class AgentStorage:
         """
         if not agent_ids:
             return {}
-        # Placeholders are a fixed-length sequence of literal "?" tokens —
+        # Placeholders are a fixed-length sequence of literal "?" tokens -
         # no user data ever enters the query string itself. Values are bound
         # via the parameterized execute() call below (CWE-89 safe).
         placeholders = ",".join(["?"] * len(agent_ids))
@@ -417,7 +417,7 @@ class AgentStorage:
         if not rows:
             return []
 
-        # Single bulk query for all performance records — eliminates N+1
+        # Single bulk query for all performance records - eliminates N+1
         agent_ids = [row[0] for row in rows]
         perf_map = await self.get_performance_records_bulk(agent_ids)
 

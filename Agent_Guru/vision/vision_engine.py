@@ -4,13 +4,13 @@ Top-level coordinator that initialises all vision modules, manages lifecycle,
 and exposes the public API for the rest of Agent Guru.
 
 Public API:
-    start()              — initialise all modules (≤10s on GPU)
-    stop()               — graceful shutdown
-    process_frame()      — route a frame through the Frame Dispatcher
-    analyze_screenshot() — synchronous screenshot analysis via ScreenAnalyzer
-    answer_question()    — synchronous VQA via VQAEngine
-    get_active_modules() — list of currently active module names
-    get_event_bus()      — access to the VisionEventBus
+    start()              - initialise all modules (≤10s on GPU)
+    stop()               - graceful shutdown
+    process_frame()      - route a frame through the Frame Dispatcher
+    analyze_screenshot() - synchronous screenshot analysis via ScreenAnalyzer
+    answer_question()    - synchronous VQA via VQAEngine
+    get_active_modules() - list of currently active module names
+    get_event_bus()      - access to the VisionEventBus
 
 Requirements: 12.8, 13.7, 13.8
 """
@@ -55,7 +55,7 @@ class VisionEngine:
 
     Args:
         config: VisionConfig controlling which modules are active and their settings.
-        platform: "desktop" or "mobile" — affects VQA routing.
+        platform: "desktop" or "mobile" - affects VQA routing.
 
     """
 
@@ -193,11 +193,11 @@ class VisionEngine:
             camera_enabled=True,
         )
 
-        # VQA (not registered as a frame module — used via answer_question())
+        # VQA (not registered as a frame module - used via answer_question())
         if _is_enabled("vqa"):
             self._vqa_engine = VQAEngine(platform=self._platform)
 
-        # Screen analyzer (not registered as a frame module — used via analyze_screenshot())
+        # Screen analyzer (not registered as a frame module - used via analyze_screenshot())
         if _is_enabled("screen"):
             self._screen_analyzer = ScreenAnalyzer()
 

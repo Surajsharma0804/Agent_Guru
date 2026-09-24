@@ -295,7 +295,7 @@ def test_property_12_minimum_frame_rate(n_frames: int) -> None:
     for _ in range(n_frames):
         r.render_frame(state)
     elapsed = time.perf_counter() - t0
-    # Should render at least 24 FPS — i.e. n_frames / elapsed >= 24
+    # Should render at least 24 FPS - i.e. n_frames / elapsed >= 24
     # We use a generous bound for CI
     assert elapsed < n_frames * 0.5  # each frame < 500ms  # nosec B101
 
@@ -527,7 +527,7 @@ def test_property_24_configuration_validation(threshold: float, fps: int) -> Non
 # Feature: guru-avatar-emotion, Property 26
 # ---------------------------------------------------------------------------
 
-# Shared system instance for property 26 — avoids 30x init/stop overhead
+# Shared system instance for property 26 - avoids 30x init/stop overhead
 _prop26_system: GuruAvatarSystem | None = None
 
 

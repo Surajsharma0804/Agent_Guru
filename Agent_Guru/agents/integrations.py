@@ -66,7 +66,7 @@ class GoalManagerIntegration:
         return await self.system.receive_task(task)
 
     async def return_result(self, result: "TaskResult") -> None:
-        """Return task result to Goal Manager (stub — implement with actual client)."""
+        """Return task result to Goal Manager (stub - implement with actual client)."""
         logger.info("Returning result for task %s: success=%s", result.task_id, result.success)
 
 
@@ -151,7 +151,7 @@ class VerifierSystemIntegration:
                 except Exception:
                     logger.exception("Verifier attempt %d failed", attempt + 1)
             else:
-                # No verifier — pass by default
+                # No verifier - pass by default
                 return VerificationResult(passed=True, feedback="No verifier configured")
 
         return VerificationResult(passed=False, feedback="Verification failed after retries")

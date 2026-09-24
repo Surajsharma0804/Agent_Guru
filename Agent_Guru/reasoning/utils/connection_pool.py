@@ -156,7 +156,7 @@ class DatabasePool:
             if conn is None:
                 start_time = asyncio.get_running_loop().time()
                 while conn is None:
-                    # Use asyncio.sleep — NOT time.sleep — to yield the event loop
+                    # Use asyncio.sleep - NOT time.sleep - to yield the event loop
                     await asyncio.sleep(0.01)  # 10ms
 
                     async with self._lock:

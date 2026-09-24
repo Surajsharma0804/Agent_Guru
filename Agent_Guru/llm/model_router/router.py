@@ -1,5 +1,5 @@
 """Module: Agent_Guru.llm.model_router.router
-Purpose: ModelRouter — top-level facade coordinating all sub-components.
+Purpose: ModelRouter - top-level facade coordinating all sub-components.
 
 Provides a single entry point for model selection with full observability.
 """
@@ -69,14 +69,14 @@ class ModelRouter:
         # selector, monitor, cost_tracker, fallback_manager, learning_engine)
         # is independently thread-safe via its own internal lock, and
         # select_model()/record_outcome() have no invariant that requires
-        # those calls to be atomic as a single unit — e.g. register_model()'s
+        # those calls to be atomic as a single unit - e.g. register_model()'s
         # brief window between registry.register_model() and
         # learning_engine.initialize_new_model() only means a concurrent
         # select_model() may briefly see the new model with neutral (1.0)
         # learning weight, which is harmless. A prior revision declared
         # `self._lock = threading.RLock()` here but never acquired it
         # anywhere in the class (confirmed via a repo-wide grep for
-        # `_lock` in this file and for external `router._lock` references) —
+        # `_lock` in this file and for external `router._lock` references) -
         # that was dead code implying a protection that did not exist, so it
         # has been removed rather than left as a misleading no-op.
 
@@ -207,7 +207,7 @@ class ModelRouter:
             latency_ms: Observed latency in milliseconds.
             input_tokens: Input tokens consumed.
             output_tokens: Output tokens generated.
-            quality_score: Optional quality score (0.0–1.0).
+            quality_score: Optional quality score (0.0-1.0).
             failure_reason: Optional failure description.
 
         """
@@ -218,7 +218,7 @@ class ModelRouter:
         # Compute the actual cost of this invocation so LearningEngine can
         # factor cost into its reward signal (previously PerformanceRecord had
         # no cost field, so LearningEngine's _COST_PENALTY_SCALE was defined
-        # but silently never applied — see learning_engine.py). This mirrors
+        # but silently never applied - see learning_engine.py). This mirrors
         # CostTracker.record_cost()'s formula; it is computed here rather than
         # read back from CostTracker because record_cost() is only called
         # below when tokens > 0, and because computing it locally avoids

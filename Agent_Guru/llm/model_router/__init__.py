@@ -1,4 +1,4 @@
-"""Agent_Guru.llm.model_router — Intelligent LLM Model Selection.
+"""Agent_Guru.llm.model_router - Intelligent LLM Model Selection.
 
 Dynamically selects optimal language models based on task requirements,
 cost constraints, performance history, and learned patterns.

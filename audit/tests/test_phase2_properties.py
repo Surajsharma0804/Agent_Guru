@@ -1,10 +1,10 @@
 """Property-based tests for Phase 2: Competitive analysis.
 
-Task 3.4 — Properties 4 and 5.
+Task 3.4 - Properties 4 and 5.
 
 Property 4: Competitive Gap Detection Correctness
     For any (measured, target) pair where measured > target (i.e., higher
-    is worse — latency, CPU), gap analysis classifies as gap.
+    is worse - latency, CPU), gap analysis classifies as gap.
     Where measured <= target, no gap is raised.
 
 Property 5: Remediation List Ordering
@@ -148,7 +148,7 @@ class TestCompetitiveBaselinesFile:
 
 
 class TestGapDetectionCorrectness:
-    """Property 4 — measured > target → gap; measured <= target → no gap."""
+    """Property 4 - measured > target → gap; measured <= target → no gap."""
 
     @given(
         measured=st.floats(min_value=0.001, max_value=10_000.0, allow_nan=False),
@@ -203,7 +203,7 @@ class TestGapDetectionCorrectness:
 
 
 class TestRemediationListOrdering:
-    """Property 5 — remediation output sorted descending by competitive_impact_score."""
+    """Property 5 - remediation output sorted descending by competitive_impact_score."""
 
     def test_empty_list_is_sorted(self) -> None:
         items: list[RemediationItem] = []

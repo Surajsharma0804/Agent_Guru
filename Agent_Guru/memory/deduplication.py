@@ -107,7 +107,7 @@ class DeduplicationEngine:
         return score, {"type_match": type_sim, "action_sim": action_sim, "outcome_sim": outcome_sim}
 
     def _sequence_similarity(self, s1: list[str], s2: list[str]) -> float:
-        """Normalized LCS similarity — O(min(m,n)) space, O(m*n) time."""
+        """Normalized LCS similarity - O(min(m,n)) space, O(m*n) time."""
         if not s1 and not s2:
             return 1.0
         if not s1 or not s2:

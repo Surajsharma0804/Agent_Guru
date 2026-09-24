@@ -136,7 +136,7 @@ class SafetyPolicyEngine:
     Runs as a pre-check before standard policy evaluation.
     Any matching safety rule results in an immediate DENY.
 
-    Validates: Requirements 5.1–5.6
+    Validates: Requirements 5.1-5.6
     """
 
     def __init__(

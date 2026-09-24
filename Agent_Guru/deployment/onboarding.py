@@ -232,7 +232,7 @@ class OnboardingManager:
             msg = f"Step '{step.value}' is not skippable"
             raise ValueError(msg)
         if step != self._state.current_step:
-            msg = f"Cannot skip step '{step.value}' — not the current step"
+            msg = f"Cannot skip step '{step.value}' - not the current step"
             raise ValueError(msg)
 
         next_step = self._next_step(step)

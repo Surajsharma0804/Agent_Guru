@@ -1,4 +1,4 @@
-"""Reaction-rule memory — user-taught trigger→response pairs.
+"""Reaction-rule memory - user-taught trigger→response pairs.
 
 Implements the "teach it habits" system from the spec (§4b):
     "jab main bolu 'thak gaya', tu bolna 'aaram kar le bhai'"
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 _RULES_PATH = Path.home() / ".cache" / "agent_guru" / "reaction_rules.json"
 
 # ---------------------------------------------------------------------------
-# Teaching detection — anchor phrases + connectors
+# Teaching detection - anchor phrases + connectors
 # ---------------------------------------------------------------------------
 
 # Anchor phrases that START a teaching command (required)
@@ -96,7 +96,7 @@ def _levenshtein_ratio(s1: str, s2: str) -> float:
     """Compute Levenshtein similarity ratio between two strings.
 
     Returns a value in [0.0, 1.0] where 1.0 means identical.
-    Uses a simple DP approach — fine for short trigger phrases.
+    Uses a simple DP approach - fine for short trigger phrases.
     """
     if s1 == s2:
         return 1.0
@@ -104,7 +104,7 @@ def _levenshtein_ratio(s1: str, s2: str) -> float:
     if len1 == 0 or len2 == 0:
         return 0.0
 
-    # Full DP matrix (both strings are short — typically <50 chars)
+    # Full DP matrix (both strings are short - typically <50 chars)
     matrix = list(range(len2 + 1))
     for i in range(1, len1 + 1):
         prev = matrix[:]
@@ -148,7 +148,7 @@ def extract_teaching_intent(transcript: str) -> tuple[str, str] | None:
             break
 
     if anchor_end == -1:
-        return None  # No anchor phrase found — not a teaching command
+        return None  # No anchor phrase found - not a teaching command
 
     # Everything after the anchor
     remainder = text_lower[anchor_end:].strip()
@@ -167,13 +167,13 @@ def extract_teaching_intent(transcript: str) -> tuple[str, str] | None:
                 best_connector_len = len(connector)
 
     if best_connector_pos == -1:
-        return None  # No connector found — incomplete teaching command
+        return None  # No connector found - incomplete teaching command
 
     # Step 3: Extract trigger and response
     trigger = remainder[:best_connector_pos].strip()
     response = remainder[best_connector_pos + best_connector_len:].strip()
 
-    # Clean up — remove leading/trailing punctuation and quotes
+    # Clean up - remove leading/trailing punctuation and quotes
     trigger = trigger.strip(".,!?;:'\"- ")
     response = response.strip(".,!?;:'\"- ")
 
@@ -213,7 +213,7 @@ class ReactionRuleStore:
 
     def __init__(self, path: Path | None = None) -> None:
         self._path = path or _RULES_PATH
-        # OrderedDict for LRU — most recently accessed at the end
+        # OrderedDict for LRU - most recently accessed at the end
         self._rules: OrderedDict[str, str] = OrderedDict()
         self._lock = threading.Lock()
         self._load()
@@ -235,14 +235,14 @@ class ReactionRuleStore:
             return None
 
         with self._lock:
-            # Exact match — O(1)
+            # Exact match - O(1)
             if normalized in self._rules:
                 self._rules.move_to_end(normalized)  # LRU touch
                 response = self._rules[normalized]
                 logger.info("ReactionRule: exact match %r → %r", normalized, response)
                 return response
 
-            # Substring containment — O(k), catches "bro thak gaya yaar"
+            # Substring containment - O(k), catches "bro thak gaya yaar"
             # matching trigger "thak gaya". Most common real-world pattern.
             for key in self._rules:
                 if key in normalized:
@@ -254,7 +254,7 @@ class ReactionRuleStore:
                     )
                     return response
 
-            # Fuzzy match — O(k), k ≤ _MAX_RULES
+            # Fuzzy match - O(k), k ≤ _MAX_RULES
             best_ratio = 0.0
             best_key: str | None = None
             for key in self._rules:
@@ -290,7 +290,7 @@ class ReactionRuleStore:
                 a system command.
 
         Returns:
-            (success, message) — (True, "ok") or (False, "reason").
+            (success, message) - (True, "ok") or (False, "reason").
         """
         normalized = _normalize(trigger)
         if not normalized:
@@ -313,10 +313,10 @@ class ReactionRuleStore:
                     ):
                         return (
                             False,
-                            f"that's already a system command ({result.intent_type}:{result.parameters.get('action', '')}) — pick a different phrase",
+                            f"that's already a system command ({result.intent_type}:{result.parameters.get('action', '')}) - pick a different phrase",
                         )
             except Exception:
-                logger.debug("Capability guard check failed — allowing rule", exc_info=True)
+                logger.debug("Capability guard check failed - allowing rule", exc_info=True)
 
         with self._lock:
             # Evict oldest if at capacity (before adding)

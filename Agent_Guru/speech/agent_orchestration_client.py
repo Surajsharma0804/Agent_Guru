@@ -105,14 +105,14 @@ class AgentOrchestrationClient:
             # be done. Logged at warning level -- a dropped user command is
             # not a debug-level detail.
             logger.warning(
-                "Orchestration unavailable — command %s was NOT executed",
+                "Orchestration unavailable - command %s was NOT executed",
                 command.action_id,
             )
             return RoutingResult(
                 success=False,
                 task_id=None,
                 output=None,
-                error="Orchestration system unavailable — command not executed",
+                error="Orchestration system unavailable - command not executed",
             )
 
         try:

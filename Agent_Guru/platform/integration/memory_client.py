@@ -400,7 +400,7 @@ class MemorySystemClient:
 
         if not self._circuit.allow_request():
             self._circuit_rejected_count += 1
-            logger.warning("Circuit breaker OPEN — rejecting store of %s records", len(batch))
+            logger.warning("Circuit breaker OPEN - rejecting store of %s records", len(batch))
             return False
 
         url = f"{self.base_url}/api/v1/memory/operations"
@@ -423,19 +423,19 @@ class MemorySystemClient:
                         return True
 
                     if resp.status == 429:
-                        # Rate limited — always retry with backoff
+                        # Rate limited - always retry with backoff
                         retry_after = float(resp.headers.get("Retry-After", 1.0))
                         logger.warning("Memory System rate limited, retrying in %ss", retry_after)
                         await asyncio.sleep(retry_after)
                         continue
 
                     if resp.status >= 500:
-                        # Server error — retryable
+                        # Server error - retryable
                         body = await resp.text()
                         logger.warning("Memory System server error %s: %s", resp.status, body[:200])
                         self._circuit.record_failure()
                     else:
-                        # 4xx client error — not retryable
+                        # 4xx client error - not retryable
                         body = await resp.text()
                         logger.error("Memory System client error %s: %s", resp.status, body[:200])
                         return False
@@ -537,7 +537,7 @@ class MemorySystemClient:
             end_time: Filter records before this time
             tags: Filter records containing all specified tags
             success_only: If True, return only successful operations
-            limit: Maximum records per page (1–1000)
+            limit: Maximum records per page (1-1000)
             cursor: Pagination cursor from previous result's next_cursor
 
         Returns:
@@ -549,7 +549,7 @@ class MemorySystemClient:
 
         """
         if not 1 <= limit <= 1000:
-            msg = f"limit must be 1–1000, got {limit}"
+            msg = f"limit must be 1-1000, got {limit}"
             raise ValueError(msg)
         self._require_connected()
 

@@ -19,7 +19,7 @@ def redact(data: dict[str, Any]) -> dict[str, Any]:
     """Return a copy of *data* with sensitive fields replaced by a placeholder.
 
     A field is considered sensitive when its key (lowercased) *contains* one
-    of the ``_REDACT_KEYS`` substrings — so ``api_key``, ``user_api_key``,
+    of the ``_REDACT_KEYS`` substrings - so ``api_key``, ``user_api_key``,
     ``session_token``, and ``credentials`` are all caught, not just an exact
     key of ``"api_key"``/``"token"``/``"credential"``. Nested dicts and
     lists/tuples of dicts are redacted recursively, so a secret nested under
@@ -28,7 +28,7 @@ def redact(data: dict[str, Any]) -> dict[str, Any]:
     fields.
 
     BUG FIX (Round 24): both of the above were gaps in the previous
-    implementation — it only matched a key *exactly equal* to one of
+    implementation - it only matched a key *exactly equal* to one of
     ``_REDACT_KEYS`` (so ``api_key`` was redacted but ``user_api_key`` or
     ``credentials`` were not, since neither equals a set member verbatim),
     and it only ever looked at top-level values (a secret one level deeper

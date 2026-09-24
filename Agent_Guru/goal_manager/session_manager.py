@@ -138,7 +138,7 @@ class SessionManager:
         goals = []
 
         # Query via the storage lock so we don't race with other writers.
-        # We borrow the persistent connection but never close it — ownership
+        # We borrow the persistent connection but never close it - ownership
         # stays with GoalStorage.  The cursor is closed in the finally block.
         with self.storage._lock:
             cursor = self.storage._conn.cursor()

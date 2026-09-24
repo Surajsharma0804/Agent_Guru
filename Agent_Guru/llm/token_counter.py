@@ -128,7 +128,7 @@ class TokenCounter:
                     # Fall back to cl100k_base for unknown models
                     self._openai_encoders[model] = tiktoken.get_encoding("cl100k_base")
             except ImportError:
-                # tiktoken not installed — fall back to approximation
+                # tiktoken not installed - fall back to approximation
                 self._openai_encoders[model] = _ApproxEncoder()
 
         return self._openai_encoders[model]
@@ -149,7 +149,7 @@ class TokenCounter:
         return max(1, len(text) // 4)
 
     def _get_anthropic_client(self) -> object | None:
-        """Anthropic client — not used for token counting (approximation only)."""
+        """Anthropic client - not used for token counting (approximation only)."""
         return None
 
     # ------------------------------------------------------------------

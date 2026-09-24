@@ -25,7 +25,7 @@ from Agent_Guru.vision.utils.preprocessing import (
 )
 
 # ---------------------------------------------------------------------------
-# Hypothesis strategies — use a seed + numpy to avoid Hypothesis list limits
+# Hypothesis strategies - use a seed + numpy to avoid Hypothesis list limits
 # ---------------------------------------------------------------------------
 
 @st.composite
@@ -131,7 +131,7 @@ def test_enhance_dark_frame_increases_mean(frame: np.ndarray) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Property 24e: idempotency — shape/dtype preserved on double enhancement
+# Property 24e: idempotency - shape/dtype preserved on double enhancement
 # ---------------------------------------------------------------------------
 
 @pytest.mark.property

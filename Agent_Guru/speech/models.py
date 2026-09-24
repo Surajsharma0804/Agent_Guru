@@ -88,7 +88,7 @@ class VoiceFeatures:
     sample_rate: int
     duration: float
     quality_score: float  # 0.0 to 1.0
-    liveness_score: float = 0.0  # 0.0 to 1.0 – populated by VoiceFeatureExtractor
+    liveness_score: float = 0.0  # 0.0 to 1.0 - populated by VoiceFeatureExtractor
     is_live: bool = False  # True when liveness_score >= 0.55
 
 

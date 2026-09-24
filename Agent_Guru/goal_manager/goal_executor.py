@@ -106,7 +106,7 @@ class GoalExecutor:
                 error=str(e),
                 error_type=type(e).__name__,
             )
-            # Gracefully degrade — GitHub commits will be skipped
+            # Gracefully degrade - GitHub commits will be skipped
             self.git_repo = None
 
         # Track active executions: goal_id -> task_id

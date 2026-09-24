@@ -452,7 +452,7 @@ def verify_gpu() -> dict[str, Any]:
         ]
         if result["available"]:
             logger.info(
-                "GPU available: %d device(s) — %s (CUDA %s)",
+                "GPU available: %d device(s) - %s (CUDA %s)",
                 result["device_count"],
                 result["device_names"],
                 result["cuda_version"],

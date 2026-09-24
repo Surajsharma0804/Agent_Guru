@@ -178,7 +178,7 @@ class SelfImprovementIntegration:
 
     def provide_performance_data(self, time_range: TimeRange | None = None) -> PerformanceData:
         """Aggregate success rates and failure patterns across task types."""
-        # Was `list(self._experiences._experiences.values())` — reaching into
+        # Was `list(self._experiences._experiences.values())` - reaching into
         # ExperienceRepository's private dict directly. Uses the new public
         # get_all_experiences() instead (added alongside this fix), which
         # returns the same unfiltered/untruncated data without breaking

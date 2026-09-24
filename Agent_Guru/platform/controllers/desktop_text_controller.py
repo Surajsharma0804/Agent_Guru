@@ -10,7 +10,7 @@ Platform support:
 
 Design Decisions:
     - All public methods are async (run_in_executor for blocking pyautogui calls)
-    - Returns True on success, False on failure — never raises for normal failures
+    - Returns True on success, False on failure - never raises for normal failures
     - ASCII text typed via pyautogui.typewrite(); unicode/emoji via clipboard
     - Raises RuntimeError only on mobile platforms (android/ios)
     - Input sanitization: strip null bytes, limit to 10 000 chars
@@ -94,7 +94,7 @@ _SPECIAL_KEY_MAP: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 def _detect_platform() -> str:
-    """Thin wrapper — delegates to canonical PlatformDetector."""
+    """Thin wrapper - delegates to canonical PlatformDetector."""
     return PlatformDetector.detect().os_name.lower()
 
 def _is_desktop(plat: str) -> bool:
@@ -186,7 +186,7 @@ class DesktopTextController:
                 msg,
             )
 
-        logger.info("DesktopTextController created — platform=%s", self._platform)
+        logger.info("DesktopTextController created - platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -195,14 +195,14 @@ class DesktopTextController:
     async def initialize(self) -> None:
         """Initialize the controller.
 
-        Idempotent — safe to call multiple times.
+        Idempotent - safe to call multiple times.
         """
         if self._initialized:
             logger.debug("DesktopTextController already initialized")
             return
 
         self._initialized = True
-        logger.info("DesktopTextController initialized — platform=%s", self._platform)
+        logger.info("DesktopTextController initialized - platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -258,7 +258,7 @@ class DesktopTextController:
         """Press a special key by logical name.
 
         Supported keys: enter, tab, escape, backspace, delete, space,
-        arrow keys, function keys (f1–f12), home, end, pageup, pagedown,
+        arrow keys, function keys (f1-f12), home, end, pageup, pagedown,
         and modifier keys.
 
         Args:
@@ -351,30 +351,30 @@ class DesktopTextController:
     # ------------------------------------------------------------------
 
     def _blocking_typewrite(self, text: str, interval: float) -> None:
-        """Blocking pyautogui.typewrite call — must run in executor."""
+        """Blocking pyautogui.typewrite call - must run in executor."""
         try:
             import pyautogui  # type: ignore[import]
         except ImportError:
-            logger.exception("pyautogui not available — cannot type text")
+            logger.exception("pyautogui not available - cannot type text")
             raise
         pyautogui.typewrite(text, interval=interval)
 
     def _blocking_press(self, key: str) -> None:
-        """Blocking pyautogui.press call — must run in executor."""
+        """Blocking pyautogui.press call - must run in executor."""
         try:
             import pyautogui  # type: ignore[import]
         except ImportError:
-            logger.exception("pyautogui not available — cannot press key")
+            logger.exception("pyautogui not available - cannot press key")
             raise
         pyautogui.press(key)
 
     def _blocking_paste(self, text: str) -> None:
-        """Copy *text* to clipboard then send paste hotkey — blocking."""
+        """Copy *text* to clipboard then send paste hotkey - blocking."""
         self._clipboard_copy(text)
         try:
             import pyautogui  # type: ignore[import]
         except ImportError:
-            logger.exception("pyautogui not available — cannot send paste hotkey")
+            logger.exception("pyautogui not available - cannot send paste hotkey")
             raise
         if self._platform == "macos":
             pyautogui.hotkey("command", "v")
@@ -382,11 +382,11 @@ class DesktopTextController:
             pyautogui.hotkey("ctrl", "v")
 
     def _blocking_clear_field(self) -> None:
-        """Select-all then delete — blocking."""
+        """Select-all then delete - blocking."""
         try:
             import pyautogui  # type: ignore[import]
         except ImportError:
-            logger.exception("pyautogui not available — cannot clear field")
+            logger.exception("pyautogui not available - cannot clear field")
             raise
         if self._platform == "macos":
             pyautogui.hotkey("command", "a")
@@ -407,8 +407,8 @@ class DesktopTextController:
             pyperclip.copy(text)
             return
         except ImportError as e:
-            logger.debug("pyperclip not available — trying platform clipboard: %s", e)
-            logger.debug("pyperclip.copy failed: %s — trying platform clipboard", e)
+            logger.debug("pyperclip not available - trying platform clipboard: %s", e)
+            logger.debug("pyperclip.copy failed: %s - trying platform clipboard", e)
         # Platform-native fallback
         if self._platform == "macos":
             self._clipboard_copy_macos(text)

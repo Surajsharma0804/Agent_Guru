@@ -441,7 +441,7 @@ class TestAuditLogging:
         """Test that latency warnings are logged."""
         mock_retriever = MagicMock()
 
-        # Simulate slow retrieval — use a minimal sleep that still exceeds
+        # Simulate slow retrieval - use a minimal sleep that still exceeds
         # the budget threshold so the warning path is exercised, but keeps
         # the test fast.  The budget check is based on elapsed time, so even
         # 1ms over is enough to trigger the warning.

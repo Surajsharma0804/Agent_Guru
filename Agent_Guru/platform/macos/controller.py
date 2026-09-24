@@ -38,7 +38,7 @@ try:
     pyautogui.FAILSAFE = False
     _PYAUTOGUI_AVAILABLE = True
 except ImportError:
-    logger.exception("pyautogui not available – keyboard/mouse simulation limited")
+    logger.exception("pyautogui not available - keyboard/mouse simulation limited")
 if sys.platform == "darwin":
     try:
         import AppKit  # type: ignore[import]
@@ -215,7 +215,7 @@ class MacOSController:
                     metadata={"url": resolved},
                 )
 
-            # 'open -a <AppName>' — standard macOS app launch
+            # 'open -a <AppName>' - standard macOS app launch
             cmd = ["open", "-a", resolved] + (["--args", *args] if args else [])
             result = subprocess.run(  # nosec B603 B607  # noqa: S603
                 cmd,

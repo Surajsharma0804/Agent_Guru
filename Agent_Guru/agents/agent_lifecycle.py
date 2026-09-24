@@ -190,7 +190,7 @@ class AgentLifecycleManager:
                     msg,
                 )
 
-        # Create agent with unique ID — start directly as ACTIVE to avoid
+        # Create agent with unique ID - start directly as ACTIVE to avoid
         # a separate UPDATE round-trip.
         # Validates: Requirements 1.1, 1.2
         agent = Agent(

@@ -101,7 +101,7 @@ def validate_dataset_structure(dataset_dir: str) -> tuple[bool, list[str]]:
         dataset_dir: Path to the root dataset directory.
 
     Returns:
-        (is_valid, errors) — is_valid is True when at least one identity
+        (is_valid, errors) - is_valid is True when at least one identity
         sub-directory containing at least one image file is found.
         errors is a list of human-readable problem descriptions.
 
@@ -353,7 +353,7 @@ def _select_largest(detections: list[object]) -> object:
 
 
 class _StubDetector:
-    """Returns an empty detection list — simulates no-face scenario."""
+    """Returns an empty detection list - simulates no-face scenario."""
 
     def detect(self, frame: np.ndarray) -> list[object]:
         return []

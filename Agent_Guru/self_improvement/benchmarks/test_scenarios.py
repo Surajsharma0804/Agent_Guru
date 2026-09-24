@@ -16,7 +16,7 @@ from Agent_Guru.self_improvement.benchmarks.base_benchmark import (
 
 
 # ---------------------------------------------------------------------------
-# Simple scenarios — basic command execution
+# Simple scenarios - basic command execution
 # ---------------------------------------------------------------------------
 
 _SIMPLE_SCENARIOS = [
@@ -64,7 +64,7 @@ _SIMPLE_SCENARIOS = [
 
 
 # ---------------------------------------------------------------------------
-# Complex scenarios — multi-step reasoning
+# Complex scenarios - multi-step reasoning
 # ---------------------------------------------------------------------------
 
 _COMPLEX_SCENARIOS = [
@@ -160,7 +160,7 @@ _ERROR_RECOVERY_SCENARIOS = [
 
 
 # ---------------------------------------------------------------------------
-# Learning scenarios — improvement over time
+# Learning scenarios - improvement over time
 # ---------------------------------------------------------------------------
 
 _LEARNING_SCENARIOS = [
@@ -192,7 +192,7 @@ _LEARNING_SCENARIOS = [
 
 
 # ---------------------------------------------------------------------------
-# Public API — scenario getters
+# Public API - scenario getters
 # ---------------------------------------------------------------------------
 
 

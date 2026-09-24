@@ -1,4 +1,4 @@
-"""Face tracking module — maintains identity across video frames.
+"""Face tracking module - maintains identity across video frames.
 
 Uses IoU-based greedy matching to associate new detections with existing
 tracks. Tracks are aged out after max_age frames without a match.
@@ -50,7 +50,7 @@ class FaceTracker:
     Args:
         max_age: Maximum number of frames a track can go unmatched before
             being removed.
-        algorithm: Matching algorithm — "iou" or "deepsort" (both use IoU
+        algorithm: Matching algorithm - "iou" or "deepsort" (both use IoU
             in this implementation; "deepsort" is a placeholder).
 
     """
@@ -199,7 +199,7 @@ class FaceTracker:
             count = len(self._tracks)
             self._tracks.clear()
             self._next_id = 0
-            logger.info("Tracker reset — cleared %d tracks", count)
+            logger.info("Tracker reset - cleared %d tracks", count)
 
     # ------------------------------------------------------------------
     # Internal helpers (must be called with lock held)

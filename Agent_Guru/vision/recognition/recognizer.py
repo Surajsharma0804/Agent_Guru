@@ -83,7 +83,7 @@ class FaceRecognizer:
     def compute_similarity_batch(self, query: np.ndarray, gallery: np.ndarray) -> np.ndarray:
         """Vectorized cosine similarity between one query and N gallery embeddings.
 
-        Uses matrix multiplication instead of a Python loop — O(n) with a
+        Uses matrix multiplication instead of a Python loop - O(n) with a
         single BLAS call, ~100x faster than iterating compute_similarity().
 
         Args:
@@ -139,7 +139,7 @@ class FaceRecognizer:
         if not os.path.isfile(self.model_path):  # noqa: PTH113
             if _is_test_mode:
                 logger.warning(
-                    "FaceRecognizer: test mode — no model at '%s', random fallback active",
+                    "FaceRecognizer: test mode - no model at '%s', random fallback active",
                     self.model_path,
                 )
                 return None
@@ -208,7 +208,7 @@ class FaceRecognizer:
         """Return a random L2-normalised 512-dim vector.
 
         ONLY used in test/dev mode (model_path is empty or starts with "test_").
-        Never called in production — _get_session() raises RuntimeError instead.
+        Never called in production - _get_session() raises RuntimeError instead.
         """
         vec = np.random.randn(self.EMBEDDING_DIM).astype(np.float32)
         return self._l2_normalize(vec)

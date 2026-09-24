@@ -1,6 +1,6 @@
-"""Property-based tests for Phase 7: Code quality — layer violations.
+"""Property-based tests for Phase 7: Code quality - layer violations.
 
-Task 10.9 — Property 19.
+Task 10.9 - Property 19.
 
 Property 19: Layer Violation Detection
     Any import in llm/, memory/, or reasoning/ referencing platform/ or
@@ -22,7 +22,7 @@ from hypothesis import strategies as st
 
 
 # ---------------------------------------------------------------------------
-# Layer violation detector — self-contained for property testing.
+# Layer violation detector - self-contained for property testing.
 # Mirrors the logic in audit/phases/phase3_bug_detection.py.
 # ---------------------------------------------------------------------------
 
@@ -89,7 +89,7 @@ def detect_layer_violations(
     """
     source_layer = _module_layer(source_file)
     if source_layer not in RESTRICTED_IMPORTERS:
-        return []  # Not a restricted layer — no check needed
+        return []  # Not a restricted layer - no check needed
 
     violations: list[str] = []
     try:
@@ -123,10 +123,10 @@ def _is_internal_layer_import(module_name: str) -> bool:
     """Return True if module_name refers to an internal Agent_Guru forbidden layer.
 
     We flag imports that start with 'Agent_Guru.platform', 'Agent_Guru.deployment',
-    or that are bare 'deployment' (not stdlib) — but NOT the stdlib 'platform' module.
+    or that are bare 'deployment' (not stdlib) - but NOT the stdlib 'platform' module.
     """
     first = _first_component(module_name)
-    # 'platform' alone is the Python stdlib module — never a layer violation
+    # 'platform' alone is the Python stdlib module - never a layer violation
     if module_name == "platform":
         return False
     # Agent_Guru.platform.* or Agent_Guru.deployment.* are forbidden targets
@@ -154,7 +154,7 @@ def _first_component(dotted_name: str) -> str:
 
 
 class TestLayerViolationDetectionProperty19:
-    """Property 19 — cross-boundary imports produce a finding; valid imports do not."""
+    """Property 19 - cross-boundary imports produce a finding; valid imports do not."""
 
     # ── Positive cases: violations should be detected ──────────────────────
 

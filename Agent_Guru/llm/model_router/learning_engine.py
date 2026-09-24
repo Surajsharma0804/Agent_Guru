@@ -15,7 +15,7 @@ from Agent_Guru.llm.model_router.models import LearningWeights, PerformanceRecor
 
 logger = structlog.get_logger("model_router.learning_engine")
 
-# EMA learning rate — how fast weights adapt to new observations
+# EMA learning rate - how fast weights adapt to new observations
 _LEARNING_RATE = 0.1
 # Minimum samples before confidence reaches 1.0
 _MIN_SAMPLES_FOR_CONFIDENCE = 50
@@ -224,7 +224,7 @@ class LearningEngine:
         Args:
             model_id: Model to check.
             task_type: Task type.
-            recent_success_rate: Recent success rate (0.0–1.0).
+            recent_success_rate: Recent success rate (0.0-1.0).
 
         Returns:
             True if degradation was detected.
@@ -268,7 +268,7 @@ class LearningEngine:
         # BUG FIX: _COST_PENALTY_SCALE was defined and documented above as one
         # of the four reward components, but PerformanceRecord previously had
         # no `cost` field to read from, so this penalty was silently always
-        # zero — cost never influenced learned selection weights despite the
+        # zero - cost never influenced learned selection weights despite the
         # module's stated design. PerformanceRecord.cost is now populated by
         # ModelRouter.record_outcome() (router.py), so it is applied here.
         cost_penalty = record.cost * _COST_PENALTY_SCALE

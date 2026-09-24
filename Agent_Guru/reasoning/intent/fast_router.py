@@ -34,7 +34,7 @@ from Agent_Guru.reasoning.models.intent import Entity, EntityType
 
 _logger = logging.getLogger(__name__)
 
-# Module-level entity type mapping — allocated once, not per-call.
+# Module-level entity type mapping - allocated once, not per-call.
 # Previously rebuilt inside _get_entity_type() on every invocation.
 _ENTITY_TYPE_MAPPING: dict[str, EntityType] = {
     "duration": EntityType.DURATION,

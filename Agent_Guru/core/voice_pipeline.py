@@ -205,7 +205,7 @@ class VoicePipeline:
                 event.value,
             )
 
-        # Notify listeners outside lock — use snapshot copies for thread safety
+        # Notify listeners outside lock - use snapshot copies for thread safety
         with self._listener_lock:
             state_listeners = list(self._state_listeners)
             event_listeners = list(self._event_listeners)

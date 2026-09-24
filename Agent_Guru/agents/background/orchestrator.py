@@ -55,8 +55,8 @@ class ServiceState(Enum):
 class SystemMode(Enum):
     """System-wide power mode."""
 
-    SLEEP = "sleep"  # <5% battery per hour — wake word detection only
-    WAKE = "wake"  # <10% battery per hour — full processing
+    SLEEP = "sleep"  # <5% battery per hour - wake word detection only
+    WAKE = "wake"  # <10% battery per hour - full processing
 
 
 @dataclass
@@ -335,7 +335,7 @@ class BackgroundServiceOrchestrator:
         await self._stop_service(service_name)
         await self._start_service(service_name)
 
-        # Restore restart_count — _start_service creates a fresh ServiceHealth
+        # Restore restart_count - _start_service creates a fresh ServiceHealth
         if service_name in self.services:
             self.services[service_name].restart_count = preserved_restart_count
 

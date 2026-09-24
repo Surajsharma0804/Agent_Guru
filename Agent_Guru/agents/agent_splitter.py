@@ -380,7 +380,7 @@ class AgentSplitter:
         # Check if both terms belong to the same domain group
         for group in self._DOMAIN_GROUPS:
             if t1 in group and t2 in group:
-                return 0.1  # Very similar — same domain
+                return 0.1  # Very similar - same domain
 
         # Bigram-based similarity (better than character sets)
         def bigrams(s: str) -> set:

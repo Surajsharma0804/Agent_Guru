@@ -60,7 +60,7 @@ class OllamaAdapter(ProviderAdapter):
         self._logger = logging.getLogger(__name__)
 
         # P2-61/62/63: Production Ollama optimization via env vars.
-        # KEEP_ALIVE=-1 pins model in VRAM permanently — eliminates cold-start.
+        # KEEP_ALIVE=-1 pins model in VRAM permanently - eliminates cold-start.
         # FLASH_ATTENTION=1 enables fused attention kernels on supported GPUs.
         # NUM_PARALLEL controls concurrent request handling based on VRAM.
         os.environ.setdefault("OLLAMA_KEEP_ALIVE", "-1")
@@ -92,7 +92,7 @@ class OllamaAdapter(ProviderAdapter):
         options: dict[str, Any] = {"temperature": request.temperature}
         if request.max_tokens is not None:
             options["num_predict"] = request.max_tokens
-        # GPU offloading — offload as many layers as fit in VRAM.
+        # GPU offloading - offload as many layers as fit in VRAM.
         # num_gpu=99 = offload all layers (Ollama caps at available VRAM).
         options["num_gpu"] = 99
         # Smaller context window = less VRAM used for KV cache = more VRAM
@@ -106,8 +106,8 @@ class OllamaAdapter(ProviderAdapter):
         # being measured, so every CompletionResponse this adapter produced
         # silently reported zero latency. ProviderFailoverRouter.complete_
         # with_failover() computes its own accurate round-trip latency but
-        # only stores it on FailoverResult.latency_ms — it never propagates
-        # that back into response.latency_ms — and LLMManager.generate_
+        # only stores it on FailoverResult.latency_ms - it never propagates
+        # that back into response.latency_ms - and LLMManager.generate_
         # response()'s telemetry call (record_request(latency_ms=result.
         # response.latency_ms, ...)) reads the per-provider field on the
         # response, by design, so that a slow/failed earlier provider in the
@@ -120,7 +120,7 @@ class OllamaAdapter(ProviderAdapter):
         # is documented to be used everywhere else.
         # BUG FIX: OllamaConfig.timeout_s was declared (llm/models.py) but
         # never read anywhere in this adapter, and ProviderFailoverRouter
-        # (the production caller — llm/failover_router.py) awaits
+        # (the production caller - llm/failover_router.py) awaits
         # adapter.complete() directly with no timeout of its own either. A
         # stalled Ollama server (model still loading, GPU driver wedged, a
         # dropped local socket that never errors) would previously hang this
@@ -176,11 +176,11 @@ class OllamaAdapter(ProviderAdapter):
         options["num_ctx"] = 1024  # Smaller context = more VRAM for model layers
         options["num_thread"] = 8  # CPU threads for spilled layers
 
-        # BUG FIX: same unbounded-hang risk as complete() above — guard the
+        # BUG FIX: same unbounded-hang risk as complete() above - guard the
         # initial call that opens the stream with the configured timeout.
         # (Not currently reached in production: only LLMRuntime.complete()
         # calls adapter.stream(), and production goes through LLMManager /
-        # ProviderFailoverRouter instead — see llm_manager.py. Fixed here
+        # ProviderFailoverRouter instead - see llm_manager.py. Fixed here
         # too so this adapter is safe regardless of which caller reaches it,
         # and so it doesn't silently regress if streaming is wired in later.
         # A stall *mid-stream*, after this call returns, would need a

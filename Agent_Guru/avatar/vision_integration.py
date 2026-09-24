@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger("guruvision.avatar.vision_integration")
 
 # Sentinel distinguishing "vision explicitly found zero faces" from "vision
-# unavailable, use the full frame as a fallback" — see _extract_face_region.
+# unavailable, use the full frame as a fallback" - see _extract_face_region.
 _NO_FACE_DETECTED = object()
 
 
@@ -81,12 +81,12 @@ class VisionAvatarBridge:
         # FIX: previously, when the vision engine was available and
         # explicitly reported zero faces in this frame, _extract_face_region
         # fell through to `return frame` (the same fallback used for "vision
-        # unavailable") — so the full, uncropped frame (background, empty
+        # unavailable") - so the full, uncropped frame (background, empty
         # room, whatever's in view) got fed straight into
         # detect_emotion_smooth() as if it were a face. Verified this
         # concretely with an isolated repro before fixing. Contrast with
         # on_no_face() below, which has always correctly short-circuited to
-        # neutral in this exact situation — process_frame() just never
+        # neutral in this exact situation - process_frame() just never
         # matched that behavior. Now it does: _extract_face_region returns
         # the _NO_FACE_DETECTED sentinel specifically for "vision confirmed
         # there's no face here" (distinct from "vision unavailable, fall
@@ -125,7 +125,7 @@ class VisionAvatarBridge:
         if self._emotion_recognizer is None:
             return
         try:
-            # NOTE (documented gap, not silently dropped — flagged rather
+            # NOTE (documented gap, not silently dropped - flagged rather
             # than guessed at): `face_id` was previously accepted but never
             # used anywhere in this method (confirmed by vulture as an
             # unused parameter). If detect_emotion_smooth()'s smoothing
@@ -136,7 +136,7 @@ class VisionAvatarBridge:
             # correctly requires knowing EmotionRecognizer's real
             # signature (does it accept a track/identity key for
             # per-person smoothing state?), which isn't available in this
-            # file — so rather than guess at an unverified API call, this
+            # file - so rather than guess at an unverified API call, this
             # at least surfaces the identity in logs so the gap is visible
             # and traceable instead of silently invisible.
             state = self._emotion_recognizer.detect_emotion_smooth(face_frame)
@@ -164,9 +164,9 @@ class VisionAvatarBridge:
               at least one face.
             - The full, unmodified frame, when vision is unavailable (the
               standalone emotion recognizer may do its own face detection
-              internally — this is a legitimate fallback).
+              internally - this is a legitimate fallback).
             - The `_NO_FACE_DETECTED` sentinel, when vision IS available
-              and explicitly reported zero faces — FIX: this case used to
+              and explicitly reported zero faces - FIX: this case used to
               be indistinguishable from "vision unavailable" and silently
               fell through to `return frame`, feeding full-frame garbage
               into emotion recognition. See process_frame()'s FIX note.
@@ -194,7 +194,7 @@ class VisionAvatarBridge:
                 y2 = min(frame.shape[0], y + h)
                 if x2 > x1 and y2 > y1:
                     return frame[y1:y2, x1:x2]
-                # Degenerate/invalid box after clamping — treat like "no
+                # Degenerate/invalid box after clamping - treat like "no
                 # usable face region" rather than silently falling through
                 # to full-frame (same reasoning as the empty-faces case).
                 return _NO_FACE_DETECTED
@@ -203,7 +203,7 @@ class VisionAvatarBridge:
             logger.debug("Vision engine face extraction failed: %s", exc)
 
         # Only reached on an actual exception from the vision engine itself
-        # (e.g. a transient CV backend error) — full-frame fallback remains
+        # (e.g. a transient CV backend error) - full-frame fallback remains
         # correct here, since we don't actually know whether a face was
         # present or not.
         return frame
@@ -217,7 +217,7 @@ class VisionAvatarBridge:
             self._vision_available = True
             logger.info("Agent_Guru.vision engine connected")
         except Exception as exc:
-            logger.debug("Agent_Guru.vision not available: %s — using standalone detection", exc)
+            logger.debug("Agent_Guru.vision not available: %s - using standalone detection", exc)
             self._vision_available = False
 
     def _init_emotion_recognizer(self) -> None:

@@ -1,6 +1,6 @@
 """Property-based tests for Phase 1: RepositoryScanner and dependency DAG.
 
-Tasks 2.6 and 2.7 — Properties 1, 2, 3.
+Tasks 2.6 and 2.7 - Properties 1, 2, 3.
 
 Property 1: Module Inventory Completeness
     scan_all_modules() returns exactly one ModuleInventory per .py file
@@ -47,7 +47,7 @@ def _write_py(directory: Path, name: str, source: str) -> Path:
 
 
 class TestModuleInventoryCompleteness:
-    """Property 1 — one ModuleInventory per .py file, no duplicates."""
+    """Property 1 - one ModuleInventory per .py file, no duplicates."""
 
     def test_empty_directory_returns_empty_list(self, tmp_path: Path) -> None:
         scanner = RepositoryScanner(package_root=tmp_path)
@@ -149,7 +149,7 @@ class TestModuleInventoryCompleteness:
 
 
 class TestDependencyDAGCorrectness:
-    """Property 2 — edge present iff import statement present.
+    """Property 2 - edge present iff import statement present.
 
     Note: RepositoryScanner._resolve_import only resolves Agent_Guru.*
     imports to concrete files.  Bare 'import b' does not resolve unless
@@ -174,7 +174,7 @@ class TestDependencyDAGCorrectness:
             scanner = RepositoryScanner(package_root=d)
             inventories = scanner.scan_all_modules()
             dag, _ = scanner.build_dependency_dag(inventories)
-            # numpy is external — no edge should be created
+            # numpy is external - no edge should be created
             assert dag.number_of_edges() == 0
 
     def test_nodes_added_for_every_module(self, tmp_path: Path) -> None:
@@ -201,11 +201,11 @@ class TestDependencyDAGCorrectness:
 
 
 class TestCycleDetectionCompleteness:
-    """Property 3 — every cycle reported, no false positives.
+    """Property 3 - every cycle reported, no false positives.
 
     The scanner detects cycles only in the resolved DAG edges.  For cycles
     between bare module names (not Agent_Guru.* qualified), the resolver
-    returns None and no edge is added — so no cycle is detected.
+    returns None and no edge is added - so no cycle is detected.
     We test the cycle detection algorithm directly using networkx.
     """
 

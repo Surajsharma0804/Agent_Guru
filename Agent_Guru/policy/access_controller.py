@@ -41,7 +41,7 @@ MAX_ROLE_DEPTH = 20
 class AccessController:
     """Implements RBAC and ABAC access control.
 
-    Validates: Requirements 3.1–3.6, 4.1–4.6
+    Validates: Requirements 3.1-3.6, 4.1-4.6
     """
 
     def __init__(
@@ -91,7 +91,7 @@ class AccessController:
         Returns:
             AccessDecision with ALLOW or DENY.
 
-        Validates: Requirements 3.4, 4.1–4.4
+        Validates: Requirements 3.4, 4.1-4.4
 
         """
         start = time.monotonic()

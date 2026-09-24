@@ -162,7 +162,7 @@ class PerformanceMonitor:
                 logger.warning("Memory %.1fMB exceeds limit %.1fMB", memory, self._max_memory)
                 _last_mem_warn = now
 
-            # Interruptible sleep — stop() sets the event for instant wakeup
+            # Interruptible sleep - stop() sets the event for instant wakeup
             self._stop_event.wait(timeout=self._sample_interval)
 
     def _get_cpu(self) -> float:
@@ -203,5 +203,5 @@ class PerformanceMonitor:
 
             return True
         except ImportError as e:
-            logger.debug("psutil not available — performance monitoring limited: %s", e)
+            logger.debug("psutil not available - performance monitoring limited: %s", e)
             return False

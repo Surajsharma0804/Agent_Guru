@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     import threading
 
 # ---------------------------------------------------------------------------
-# Class-level cache isolation — prevents test order-dependent failures
+# Class-level cache isolation - prevents test order-dependent failures
 # ---------------------------------------------------------------------------
 
 
@@ -52,7 +52,7 @@ def _isolate_insightface_cache() -> Any:
 
     yield
 
-    # Restore — replace contents in-place so existing references stay valid
+    # Restore - replace contents in-place so existing references stay valid
     FaceFeatureExtractor._shared_app.clear()
     FaceFeatureExtractor._shared_app.update(saved_app)
     FaceFeatureExtractor._shared_events.clear()

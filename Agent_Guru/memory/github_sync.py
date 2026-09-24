@@ -7,15 +7,15 @@ Persists memory updates to GitHub with:
 - Batching window of 5 seconds
 - Continued local operation when GitHub unavailable
 
-`queue_sync()` (enqueueing) never delays memory writes — it's a fast local
+`queue_sync()` (enqueueing) never delays memory writes - it's a fast local
 SQLite insert. Two ways to *process* the queue are provided:
 
 - `process_sync_queue()`: fully synchronous, including blocking
   `time.sleep()` between retries (up to ~3.1s per failing operation with the
   default backoff). Safe to call from a plain thread, or from async code via
-  `await loop.run_in_executor(None, engine.process_sync_queue)` — NOT safe to
+  `await loop.run_in_executor(None, engine.process_sync_queue)` - NOT safe to
   call directly from a coroutine running on the event loop.
-- `process_sync_queue_async()`: genuinely non-blocking — awaits
+- `process_sync_queue_async()`: genuinely non-blocking - awaits
   `asyncio.sleep()` for backoff and runs the (possibly network-blocking)
   `client.push()` call in an executor, so it can be awaited directly from a
   coroutine without stalling the event loop.
@@ -64,7 +64,7 @@ class GitHubClientProtocol:
 
 
 class StubGitHubClient(GitHubClientProtocol):
-    """In-memory stub for testing — records all pushes."""
+    """In-memory stub for testing - records all pushes."""
 
     def __init__(self, fail_times: int = 0) -> None:
         self.pushes: list[dict[str, Any]] = []
@@ -95,13 +95,13 @@ class PersistentSyncQueue:
     """SQLite-backed queue that survives process restarts (Property 47).
 
     `check_same_thread=False` only disables sqlite3's own cross-thread
-    safety check — it does not make the connection itself safe for
+    safety check - it does not make the connection itself safe for
     concurrent use from multiple threads. This queue is written from
     `queue_sync()` (typically called from the event-loop thread) and read
     from `process_sync_queue()` (typically dispatched to a worker thread via
-    `run_in_executor`, per this module's docstring) — a real cross-thread
+    `run_in_executor`, per this module's docstring) - a real cross-thread
     access pattern, not a hypothetical one. `self._lock` (a real
-    `threading.Lock`, not an `asyncio.Lock` — this class has no event-loop
+    `threading.Lock`, not an `asyncio.Lock` - this class has no event-loop
     affinity) serializes every operation against the shared connection.
     """
 
@@ -272,13 +272,13 @@ class GitHubSyncEngine:
 
         This performs blocking sqlite I/O and, on a push failure, blocking
         `time.sleep()` retries (up to ~3.1s per failing operation with the
-        default backoff/retry settings) — do not call this directly from a
+        default backoff/retry settings) - do not call this directly from a
         coroutine running on the event loop; use a worker thread (e.g.
         `await loop.run_in_executor(None, engine.process_sync_queue)`) or
         call `process_sync_queue_async()` instead.
         """
         if not self._client.is_available():
-            logger.warning("GitHub unavailable — skipping sync, operations remain queued")
+            logger.warning("GitHub unavailable - skipping sync, operations remain queued")
             return {"processed": 0, "succeeded": 0, "failed": 0}
 
         pending = self._queue.dequeue_pending()
@@ -325,7 +325,7 @@ class GitHubSyncEngine:
         return False
 
     # ------------------------------------------------------------------
-    # Async processing — genuinely non-blocking (does not stall the event
+    # Async processing - genuinely non-blocking (does not stall the event
     # loop the way process_sync_queue()'s time.sleep()-based retries would)
     # ------------------------------------------------------------------
 
@@ -334,7 +334,7 @@ class GitHubSyncEngine:
         from a coroutine on the event loop.
         """
         if not self._client.is_available():
-            logger.warning("GitHub unavailable — skipping sync, operations remain queued")
+            logger.warning("GitHub unavailable - skipping sync, operations remain queued")
             return {"processed": 0, "succeeded": 0, "failed": 0}
 
         pending = await asyncio.get_running_loop().run_in_executor(

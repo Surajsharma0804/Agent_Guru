@@ -1,4 +1,4 @@
-"""Agent Guru — Package entry point.
+"""Agent Guru - Package entry point.
 
 Enables `python -m Agent_Guru` and serves as the PyInstaller entry point.
 Delegates to main.py's async main() function.

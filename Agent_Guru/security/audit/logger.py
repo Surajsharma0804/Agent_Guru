@@ -108,7 +108,7 @@ class AuditLogger:
         self._conn.row_factory = sqlite3.Row
         # check_same_thread=False only disables sqlite3's own cross-thread
         # check, it doesn't make the connection itself safe for concurrent
-        # use — this lock serializes every operation against self._conn, the
+        # use - this lock serializes every operation against self._conn, the
         # same fix applied to KeyStore and TrustManager in this same round
         # (all three share the identical unprotected-shared-connection
         # pattern found and fixed in memory/github_sync.py last round).
@@ -125,13 +125,13 @@ class AuditLogger:
             # content and checks it against *this instance's* public key,
             # every entry written by a *previous* process (a different,
             # already-discarded random key) will fail verification the
-            # moment this process restarts — reported as tampered=True even
+            # moment this process restarts - reported as tampered=True even
             # though nothing was actually tampered with. This doesn't
             # silently corrupt anything, but it makes the audit log's core
             # promise ("tamper-evidence") produce false positives on every
             # restart unless the caller persists and re-supplies the same
             # signing_key bytes (e.g. via KeyStore) across instantiations
-            # against the same storage_path — surfacing that here rather
+            # against the same storage_path - surfacing that here rather
             # than leaving it a silent, confusing surprise.
             logger.warning(
                 "AuditLogger(storage_path=%r) created with no signing_key: "
@@ -409,7 +409,7 @@ class AuditLogger:
         """Recursively sanitize a value that may itself carry sensitive keys.
 
         The previous version only recursed into `dict` values directly under
-        a details dict — a sensitive key nested one level deeper through a
+        a details dict - a sensitive key nested one level deeper through a
         `list` (e.g. `details={"items": [{"api_key": "..."}]}`) was never
         inspected at all and got persisted to the audit log, and included in
         export_logs() output, completely unredacted despite `api_key` being

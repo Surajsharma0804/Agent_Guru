@@ -1,6 +1,6 @@
 """Property-based tests for Phase 4: Performance components.
 
-Tasks 5.6, 5.9, 5.12, 5.18 — Properties 9, 10, 11, 12, 13, 14, 21, 22.
+Tasks 5.6, 5.9, 5.12, 5.18 - Properties 9, 10, 11, 12, 13, 14, 21, 22.
 
 Property 9:  Ring Buffer Capacity Invariant
 Property 10: Ring Buffer Read/Write Round Trip
@@ -28,7 +28,7 @@ from hypothesis import strategies as st
 
 
 # ---------------------------------------------------------------------------
-# LockFreeRingBuffer — standalone implementation for property testing.
+# LockFreeRingBuffer - standalone implementation for property testing.
 # This mirrors the contract defined in task 5.5 / speech/audio/capture.py.
 # ---------------------------------------------------------------------------
 
@@ -65,7 +65,7 @@ class LockFreeRingBuffer:
             # Protect capacity - 1 invariant: stop writing if we'd fill the buffer
             avail = (self._write_pos - self._read_pos) % (self._capacity * 2)
             if avail >= self._capacity - 1:
-                break  # Buffer full — oldest data preserved for SPSC
+                break  # Buffer full - oldest data preserved for SPSC
             self._buf[self._write_pos & self._mask] = samples[i]
             self._write_pos = (self._write_pos + 1) % (self._capacity * 2)
 
@@ -81,7 +81,7 @@ class LockFreeRingBuffer:
 
 
 # ---------------------------------------------------------------------------
-# LRUResponseCache — standalone implementation for property testing.
+# LRUResponseCache - standalone implementation for property testing.
 # Mirrors the contract from task 5.11 / reasoning/response/response_cache.py.
 # ---------------------------------------------------------------------------
 
@@ -137,7 +137,7 @@ class LRUResponseCache:
 
 
 # ---------------------------------------------------------------------------
-# GPUMemoryPool — simplified mock for property testing.
+# GPUMemoryPool - simplified mock for property testing.
 # Mirrors the contract from task 5.8 / integration/gpu_pool.py.
 # (Real implementation uses torch; this uses plain ints for property tests.)
 # ---------------------------------------------------------------------------
@@ -174,7 +174,7 @@ class GPUMemoryPoolMock:
 
 
 # ---------------------------------------------------------------------------
-# TrieNode & IntentTrie — mirrors reasoning/intent/fast_router.py contract.
+# TrieNode & IntentTrie - mirrors reasoning/intent/fast_router.py contract.
 # ---------------------------------------------------------------------------
 
 
@@ -217,7 +217,7 @@ class IntentTrie:
 
 
 class TestLockFreeRingBufferProperties:
-    """Properties 9 and 10 — ring buffer invariants."""
+    """Properties 9 and 10 - ring buffer invariants."""
 
     # ── Construction ──────────────────────────────────────────────────────
 
@@ -286,7 +286,7 @@ class TestLockFreeRingBufferProperties:
         arr = np.array(data, dtype=np.float32)
 
         if len(arr) >= cap:
-            pytest.skip("Data exceeds ring buffer capacity — wrap-around case")
+            pytest.skip("Data exceeds ring buffer capacity - wrap-around case")
 
         rb.write(arr)
         result = rb.read_frame(len(arr))
@@ -327,7 +327,7 @@ class TestLockFreeRingBufferProperties:
 
 
 class TestLRUCacheProperties:
-    """Properties 11, 12, 13, 14 — LRU cache invariants."""
+    """Properties 11, 12, 13, 14 - LRU cache invariants."""
 
     # ── Property 11: Size Invariant ────────────────────────────────────────
 
@@ -359,7 +359,7 @@ class TestLRUCacheProperties:
         cache.put("a", "A")
         cache.put("b", "B")
         cache.put("c", "C")
-        # Access 'a' to make it recently used — 'b' becomes LRU
+        # Access 'a' to make it recently used - 'b' becomes LRU
         cache.get("a")
         # Adding 'd' should evict 'b' (LRU)
         cache.put("d", "D")
@@ -468,7 +468,7 @@ class TestLRUCacheProperties:
 
 
 class TestGPUMemoryPoolProperty21:
-    """Property 21 — allocated_bytes never exceeds max_vram_bytes."""
+    """Property 21 - allocated_bytes never exceeds max_vram_bytes."""
 
     @given(
         allocations=st.lists(
@@ -539,7 +539,7 @@ class TestGPUMemoryPoolProperty21:
 
 
 class TestTrieIntentClassificationProperty22:
-    """Property 22 — exact match returns correct intent; non-match returns None."""
+    """Property 22 - exact match returns correct intent; non-match returns None."""
 
     SAMPLE_COMMANDS = [
         ("open edge", "open_browser"),
@@ -597,7 +597,7 @@ class TestTrieIntentClassificationProperty22:
 
     def test_extra_word_returns_none(self) -> None:
         trie = self._build_trie()
-        # "open edge browser" is not registered — should not match "open edge"
+        # "open edge browser" is not registered - should not match "open edge"
         assert trie.classify("open edge browser") is None
 
     def test_empty_trie_always_returns_none(self) -> None:
@@ -629,7 +629,7 @@ class TestTrieIntentClassificationProperty22:
             )
 
     @given(
-        # Generate single lowercase words — these will never match any two-word pattern
+        # Generate single lowercase words - these will never match any two-word pattern
         word=st.text(
             min_size=2,
             max_size=20,

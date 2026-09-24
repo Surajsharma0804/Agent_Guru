@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS role_assignments (
 class PolicyStorage:
     """SQLite-backed storage for policies and roles.
 
-    Validates: Requirements 1.1–1.6, 3.1–3.5
+    Validates: Requirements 1.1-1.6, 3.1-3.5
     """
 
     def __init__(self, db_path: str = ":memory:") -> None:
@@ -246,7 +246,7 @@ class PolicyStorage:
 
         Validates: Requirement 1.6
         """
-        # where is built from hardcoded strings only — no user data in SQL structure
+        # where is built from hardcoded strings only - no user data in SQL structure
         where = "WHERE active = 1" if active_only else ""
         with self._conn() as conn:
             rows = conn.execute(

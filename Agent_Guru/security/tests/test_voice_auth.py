@@ -384,7 +384,7 @@ class TestVoiceAuthenticator:
         # Similarity should be very close to 1.0 (floating-point precision)
         assert similarity == pytest.approx(1.0, abs=1e-5)  # nosec B101
         # With threshold=1.0, floating-point similarity (~0.9999999) may not pass
-        # This is expected behaviour — the test verifies consistency, not a specific outcome
+        # This is expected behaviour - the test verifies consistency, not a specific outcome
     
     def test_boundary_quality_threshold_exact(self):
         """Test enrollment with quality score exactly at threshold."""

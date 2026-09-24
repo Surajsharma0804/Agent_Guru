@@ -154,7 +154,7 @@ class DelegationManager:
             exclude_agent_id=requester,
         )
 
-        # Rule 2: cycle detection – reject if adding requester→assigned creates cycle
+        # Rule 2: cycle detection - reject if adding requester→assigned creates cycle
         # (also structurally covers self-delegation; see the note above)
         # Validates: Requirements 10.2, 11.1, 11.2
         if self.would_create_cycle(requester, assigned_id):

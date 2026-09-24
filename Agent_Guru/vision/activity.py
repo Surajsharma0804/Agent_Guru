@@ -10,7 +10,7 @@ Design:
 - Emits activity_changed event with previous + new labels on transition.
 - Update rate ≥ 1 Hz during continuous operation.
 
-Requirements: 10.1–10.6
+Requirements: 10.1-10.6
 """
 
 from __future__ import annotations
@@ -203,7 +203,7 @@ class ActivityRecognizer:
             frame_seq: Current frame sequence number.
 
         Returns:
-            List of 0–2 VisionEvents.
+            List of 0-2 VisionEvents.
 
         """
         events: list[VisionEvent] = []

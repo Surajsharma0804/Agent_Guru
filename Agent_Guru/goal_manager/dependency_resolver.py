@@ -208,7 +208,7 @@ class DependencyResolver:
         return True
 
     async def check_dependencies(self, goal: Goal) -> bool:
-        """Alias for is_ready — check if all dependencies are satisfied.
+        """Alias for is_ready - check if all dependencies are satisfied.
 
         Args:
             goal: Goal to check
@@ -232,7 +232,7 @@ class DependencyResolver:
 
         Args:
             goal_id: Goal to mark as blocked
-            _visited: Internal — goal IDs already processed in this
+            _visited: Internal - goal IDs already processed in this
                 propagation, to avoid revisiting a goal reachable through
                 multiple dependency paths. Callers should not pass this.
 

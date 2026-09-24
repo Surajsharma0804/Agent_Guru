@@ -10,7 +10,7 @@ Design:
 - Latency ≤2s on GPU for images up to 1920×1080.
 - Supported question types: identity, count, color, spatial, text content, scene.
 
-Requirements: 8.1–8.8
+Requirements: 8.1-8.8
 """
 
 from __future__ import annotations

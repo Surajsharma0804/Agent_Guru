@@ -60,7 +60,7 @@ class StateManager:
 
         """
         try:
-            # Validate by constructing — raises on bad values
+            # Validate by constructing - raises on bad values
             validated = EmotionState(
                 emotion=emotion.emotion,
                 confidence=emotion.confidence,

@@ -146,7 +146,7 @@ class HallucinationDetector:
             return HallucinationDetectionResult(
                 detected=False,
                 confidence=1.0,
-                details="Empty text — no hallucination possible",
+                details="Empty text - no hallucination possible",
                 techniques_used=["empty_check"],
             )
 
@@ -296,7 +296,7 @@ class HallucinationDetector:
                 fabrication_count += len(matches)
                 matched_patterns.extend([str(m) for m in matches[:2]])
 
-        # Fabrication patterns alone aren't conclusive — need density
+        # Fabrication patterns alone aren't conclusive - need density
         words = len(text.split())
         fabrication_density = fabrication_count / max(words, 1)
 

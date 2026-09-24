@@ -1,5 +1,5 @@
 """
-Preservation Property Tests — Remove Cloud API Keys
+Preservation Property Tests - Remove Cloud API Keys
 
 These tests capture the BASELINE Ollama behavior that MUST be preserved after
 the fix. They are designed to PASS on the current (unfixed) code and MUST
@@ -18,7 +18,7 @@ import hypothesis.strategies as st
 
 
 # ---------------------------------------------------------------------------
-# Test 1 — OllamaAdapter is importable
+# Test 1 - OllamaAdapter is importable
 # ---------------------------------------------------------------------------
 
 
@@ -38,7 +38,7 @@ def test_ollama_adapter_is_importable() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 2 — ModelProvider.OLLAMA exists
+# Test 2 - ModelProvider.OLLAMA exists
 # ---------------------------------------------------------------------------
 
 
@@ -62,7 +62,7 @@ def test_model_provider_ollama_exists() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 3 — LLMRuntime routes non-cloud model names to Ollama (property-based)
+# Test 3 - LLMRuntime routes non-cloud model names to Ollama (property-based)
 # ---------------------------------------------------------------------------
 
 
@@ -106,7 +106,7 @@ def test_llm_runtime_routes_non_cloud_models_to_ollama(model_name: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 4 — DegradationController always contains "ollama"
+# Test 4 - DegradationController always contains "ollama"
 # ---------------------------------------------------------------------------
 
 
@@ -130,7 +130,7 @@ def test_degradation_controller_always_contains_ollama() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 5 — LLMFallbackConfig accepts "ollama" without error
+# Test 5 - LLMFallbackConfig accepts "ollama" without error
 # ---------------------------------------------------------------------------
 
 
@@ -154,7 +154,7 @@ def test_llm_fallback_config_accepts_ollama() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 6 — VQAEngine desktop has a local inference path (_call_local_llm)
+# Test 6 - VQAEngine desktop has a local inference path (_call_local_llm)
 # ---------------------------------------------------------------------------
 
 

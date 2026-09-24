@@ -145,7 +145,7 @@ class ErrorHandler:
         last_error: Exception | None = None
         backoff_ms = self.initial_backoff_ms
 
-        # For local Ollama, reduce retries to 1 — if the model times out once
+        # For local Ollama, reduce retries to 1 - if the model times out once
         # it will time out again. 3 retries × 15s = 45s of silence for the user.
         effective_max_retries = self.max_retries
         if provider == "ollama":
@@ -171,7 +171,7 @@ class ErrorHandler:
                         await self._record_failure(provider)
 
                 logger.exception(
-                    "LLM request failed (attempt %d/%d): %s — %s",
+                    "LLM request failed (attempt %d/%d): %s - %s",
                     attempt + 1,
                     effective_max_retries + 1,
                     error_type.value,

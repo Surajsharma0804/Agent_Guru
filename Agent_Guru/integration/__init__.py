@@ -1,4 +1,4 @@
-"""Agent_Guru/integration — unified integration layer.
+"""Agent_Guru/integration - unified integration layer.
 
 Exports the public API for wiring all Agent Guru subsystems together
 and coordinating GPU/CPU resource allocation.

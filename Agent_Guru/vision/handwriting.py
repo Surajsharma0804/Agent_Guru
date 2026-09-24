@@ -8,7 +8,7 @@ Provides:
   Latency ≤500ms per image.
   classify_region() distinguishes printed vs handwritten vs mixed.
 
-Requirements: 4.1–4.6
+Requirements: 4.1-4.6
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ logger: structlog.BoundLogger = structlog.get_logger(__name__)
 _UNREADABLE_CONFIDENCE_THRESHOLD: float = 0.3
 _UNREADABLE_TEXT: str = "[unreadable]"
 
-# Heuristic: ratio of stroke-like pixels to total — above this → handwritten
+# Heuristic: ratio of stroke-like pixels to total - above this → handwritten
 _HANDWRITTEN_STROKE_RATIO: float = 0.08
 
 
@@ -134,7 +134,7 @@ class HandwritingRecognizer:
         tokenizer: Any = None
         model_name = "microsoft/trocr-base-handwritten"
 
-        # Attempt 1: transformers (preferred — handles BPE correctly)
+        # Attempt 1: transformers (preferred - handles BPE correctly)
         try:
             from transformers import AutoTokenizer  # type: ignore[import]
 
@@ -152,7 +152,7 @@ class HandwritingRecognizer:
                 logger.info("HandwritingRecognizer: loaded tokenizers library tokenizer")
             except Exception as exc:
                 logger.exception(
-                    "HandwritingRecognizer: no tokenizer available (%s) — "
+                    "HandwritingRecognizer: no tokenizer available (%s) - "
                     "text output will be empty on ONNX path",
                     exc,
                 )

@@ -182,7 +182,7 @@ class ContextManager:
                 ctx.messages = ctx.messages[-self.max_history_messages :]
 
             # BUG-016: token count must use the session's actual model, not the
-            # hardcoded "gpt-3.5-turbo" — caller can pass model via session metadata.
+            # hardcoded "gpt-3.5-turbo" - caller can pass model via session metadata.
             # Fall back to gpt-3.5-turbo only if no model recorded yet.
             model_for_count = ctx.metadata.get("model", "gpt-3.5-turbo")
             ctx.token_count = self.token_counter.count_messages(ctx.messages, model_for_count)
@@ -214,7 +214,7 @@ class ContextManager:
         usage_pct = (ctx.token_count / limit * 100) if limit > 0 else 0.0
 
         if usage_pct >= self.compression_threshold * 100:
-            # BUG-030: was warnings.warn() — replaced with logger.warning so it
+            # BUG-030: was warnings.warn() - replaced with logger.warning so it
             # flows through structured logging and is not silently suppressed.
             logger.warning(
                 "Session '%s' context usage at %.1f%% of %s context window (%d tokens).",
@@ -272,7 +272,7 @@ class ContextManager:
                 count = self.token_counter.count_messages(candidate, model_for_count)
                 if count <= target_tokens:
                     break
-                keep_count = keep_count // 2  # Halve each iteration — O(log n)
+                keep_count = keep_count // 2  # Halve each iteration - O(log n)
 
             if keep_count == 0:
                 ctx.messages = [system_msg] if system_msg else []

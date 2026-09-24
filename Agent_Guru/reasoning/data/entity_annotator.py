@@ -20,7 +20,7 @@ class EntityAnnotator:
     """Annotate training data with entity spans and types."""
 
     # -----------------------------------------------------------------------
-    # Known values for each entity type — used for exact/fuzzy matching
+    # Known values for each entity type - used for exact/fuzzy matching
     # -----------------------------------------------------------------------
 
     _KNOWN_APPS = {
@@ -491,7 +491,7 @@ class EntityAnnotator:
         "stay",
     }
 
-    # Intents that intentionally have NO entities — excluded from coverage calc
+    # Intents that intentionally have NO entities - excluded from coverage calc
     _NO_ENTITY_INTENTS = {
         "confirmation",
         "cancellation",
@@ -552,7 +552,7 @@ class EntityAnnotator:
         "lower",
     }
 
-    # Query fact subjects — what/who/when/where/how questions
+    # Query fact subjects - what/who/when/where/how questions
     _FACT_QUESTION_WORDS = {
         "what",
         "who",
@@ -1389,7 +1389,7 @@ class EntityAnnotator:
         with_entities = sum(1 for item in data if item["entities"])
         total_entities = sum(len(item["entities"]) for item in data)
 
-        # Adjusted coverage — exclude no-entity intents
+        # Adjusted coverage - exclude no-entity intents
         adj_data = [item for item in data if item["intent"] not in self._NO_ENTITY_INTENTS]
         adj_total = len(adj_data)
         adj_with_entities = sum(1 for item in adj_data if item["entities"])

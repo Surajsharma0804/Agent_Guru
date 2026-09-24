@@ -1,5 +1,5 @@
 """Module: Agent_Guru.vision.training.integration
-Purpose: GuruVision system integration — deployment artifact generation.
+Purpose: GuruVision system integration - deployment artifact generation.
 
 Requirements: 11.1, 11.3, 11.5
 """

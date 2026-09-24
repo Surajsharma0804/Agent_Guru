@@ -162,7 +162,7 @@ class AudioFeatureExtractor:
 
             return True
         except ImportError as e:
-            logger.debug("librosa not available — using energy fallback: %s", e)
+            logger.debug("librosa not available - using energy fallback: %s", e)
             return False
 
 
@@ -344,7 +344,7 @@ class LandmarkGenerator:
 
             return True
         except ImportError as e:
-            logger.debug("MediaPipe not available — using parametric landmarks: %s", e)
+            logger.debug("MediaPipe not available - using parametric landmarks: %s", e)
             return False
 
 

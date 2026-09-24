@@ -7,7 +7,7 @@ entity resolution.
 
 Performance Characteristics:
     - Time Complexity: O(n) where n is the size of the XML document
-    - Space Complexity: O(n) — the parsed element tree is held in memory
+    - Space Complexity: O(n) - the parsed element tree is held in memory
 
 Security Guarantees:
     - External entity declarations are disabled
@@ -28,7 +28,7 @@ try:
     import defusedxml.ElementTree as _defused_ET  # type: ignore[import-untyped]  # noqa: F401
 
     _DEFUSEDXML_AVAILABLE = True
-except ImportError:  # pragma: no cover — defusedxml is optional
+except ImportError:  # pragma: no cover - defusedxml is optional
     _DEFUSEDXML_AVAILABLE = False
 
 
@@ -110,13 +110,13 @@ def _parse_with_stdlib(source: str | Path | IO[bytes] | IO[str]) -> ET.Element:
     expat parser as a public ``.parser`` attribute at all (that instantiation
     raised ``AttributeError`` unconditionally), and ``ET.XMLParser`` has
     never called methods named ``handle_entityref``/``handle_charref`` in
-    the first place — those names belong to the unrelated, long-removed
+    the first place - those names belong to the unrelated, long-removed
     ``xmllib.XMLParser`` API, not to ``ET.XMLParser``'s target-callback
     contract (``start``/``end``/``data``/``comment``/``pi``/``close``). So
     even before the ``AttributeError``, the "hardening" itself could never
-    have fired. Net effect: this fallback path — reached only when
+    have fired. Net effect: this fallback path - reached only when
     ``defusedxml`` (a hard ``requirements.txt`` dependency) is somehow
-    unavailable — crashed on every single call rather than providing any
+    unavailable - crashed on every single call rather than providing any
     protection, turning every XML parse in the whole application into a
     guaranteed failure in that situation instead of a safe one.
 
@@ -130,7 +130,7 @@ def _parse_with_stdlib(source: str | Path | IO[bytes] | IO[str]) -> ET.Element:
     ``ExternalEntityRefHandler`` is also rejected as defense in depth in
     case a DOCTYPE construct ever reaches that callback by some other path.
     This is intentionally stricter than ``defusedxml``'s own default
-    posture (which permits declaration-free DTDs) — that tradeoff is
+    posture (which permits declaration-free DTDs) - that tradeoff is
     accepted here because this code path exists only as a fallback for an
     already-exceptional situation, and "no DOCTYPE, ever" is far easier to
     verify correct than replicating defusedxml's full entity-handling
@@ -148,7 +148,7 @@ def _parse_with_stdlib(source: str | Path | IO[bytes] | IO[str]) -> ET.Element:
         has_internal_subset: bool,  # noqa: FBT001
     ) -> None:
         msg = (
-            f"DOCTYPE declaration detected (name={doctype_name!r}) — "
+            f"DOCTYPE declaration detected (name={doctype_name!r}) - "
             "DTDs are not permitted (XML external entity / entity-expansion "
             "protection)."
         )
@@ -161,7 +161,7 @@ def _parse_with_stdlib(source: str | Path | IO[bytes] | IO[str]) -> ET.Element:
         public_id: str | None,
     ) -> None:
         msg = (
-            f"External entity reference detected (system_id={system_id!r}) — "
+            f"External entity reference detected (system_id={system_id!r}) - "
             "XML external entity injection (XXE) is not permitted."
         )
         raise ValueError(msg)
@@ -177,14 +177,14 @@ def _parse_with_stdlib(source: str | Path | IO[bytes] | IO[str]) -> ET.Element:
     elif isinstance(source, Path):
         data = source.read_bytes()
     else:
-        # File-like object (bytes or str content, either is fine — expat's
+        # File-like object (bytes or str content, either is fine - expat's
         # Parse() accepts both).
         data = source.read()
 
     try:
         parser.Parse(data, True)  # noqa: FBT003 - expat's own `isfinal` positional arg
     except expat.ExpatError as exc:
-        # Malformed (but not DOCTYPE/entity-related) XML — surface the same
+        # Malformed (but not DOCTYPE/entity-related) XML - surface the same
         # exception type ET.fromstring()/ET.parse() would have raised, so
         # callers of safe_xml_parse() see a consistent contract regardless
         # of which backend handled the parse.

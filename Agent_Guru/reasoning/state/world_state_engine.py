@@ -140,7 +140,7 @@ class WorldStateEngine:
                     )
                     changes.append(event)
 
-                    # Add to history — deque(maxlen=1000) auto-evicts oldest
+                    # Add to history - deque(maxlen=1000) auto-evicts oldest
                     self._change_history.append(event)
 
             # Notify subscribers (outside lock to avoid deadlock)

@@ -133,12 +133,12 @@ def load_all_tools_sync() -> int:
     """
     try:
         asyncio.get_running_loop()
-        # Already in a running event loop — use a thread to avoid deadlock
+        # Already in a running event loop - use a thread to avoid deadlock
         import concurrent.futures
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(asyncio.run, load_all_tools())
             return future.result()
     except RuntimeError:
-        # No running loop — safe to call asyncio.run() directly
+        # No running loop - safe to call asyncio.run() directly
         return asyncio.run(load_all_tools())

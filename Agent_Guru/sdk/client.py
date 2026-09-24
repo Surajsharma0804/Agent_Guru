@@ -64,7 +64,7 @@ try:
             return v
 
 except ImportError:
-    logger.exception("pydantic not installed — using lightweight request validation fallback")
+    logger.exception("pydantic not installed - using lightweight request validation fallback")
 
     class TranscribeRequest:  # type: ignore[no-redef]
         def __init__(self, audio_b64: str, language: str | None = None) -> None:
@@ -119,7 +119,7 @@ class AgentGuruClient:
 
     def __init__(self, api_key: str = "", base_url: str = "http://localhost:8080") -> None:
         if not api_key:
-            logger.debug("AgentGuruClient: no api_key provided — using unauthenticated mode")
+            logger.debug("AgentGuruClient: no api_key provided - using unauthenticated mode")
         self.api_key = api_key
         self.base_url = base_url
         self._request_count = 0

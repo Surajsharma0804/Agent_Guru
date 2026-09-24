@@ -5,19 +5,19 @@ a position, the LLM's training data is stale. This module fetches live web
 results and injects them into the LLM prompt so the answer is accurate.
 
 We use three approaches in priority order:
-1. duckduckgo-search (ddgs) — real search results, no API key, best quality
-2. DuckDuckGo instant answer API — fallback, shallower but always works
-3. Real browser search (added 2026-09-13) — when NEITHER of the above finds
+1. duckduckgo-search (ddgs) - real search results, no API key, best quality
+2. DuckDuckGo instant answer API - fallback, shallower but always works
+3. Real browser search (added 2026-09-13) - when NEITHER of the above finds
    anything (ddgs not installed, or both return nothing for an obscure/very
    current query), fall back to actually driving the persistent browser
-   (platform/browser_manager.py::BrowserManager — the same real Chrome/Edge/
+   (platform/browser_manager.py::BrowserManager - the same real Chrome/Edge/
    whatever-is-installed instance used for YouTube playback) to run a real
    Google search and read the results page. This is the "no API key, no
-   dedicated integration, just use the browser like a person would" tier —
+   dedicated integration, just use the browser like a person would" tier -
    it works for effectively any query, at the cost of being slower and
    needing a real, running browser (so it's tried last, not first).
 
-All three are free — no API key needed for any of them. Only the third
+All three are free - no API key needed for any of them. Only the third
 requires a browser environment (won't work in a headless-only server
 deployment with no GUI browser available; degrades to returning None in
 that case, same as the other two tiers do on failure).
@@ -60,8 +60,8 @@ async def search_web(
     """Search the web and return a short answer snippet.
 
     Tries duckduckgo-search (ddgs) first for real results, falls back to
-    the DuckDuckGo instant answer API, and — only if both of those find
-    nothing — falls back to a real browser-driven Google search (see the
+    the DuckDuckGo instant answer API, and - only if both of those find
+    nothing - falls back to a real browser-driven Google search (see the
     module docstring's tier 3). The browser fallback is the slowest tier
     (it has to launch/reconnect to a real browser and load a real page),
     so it's only attempted after the two fast, API-based tiers both come
@@ -79,7 +79,7 @@ async def search_web(
         A short text snippet, or None if all attempted tiers failed.
 
     """
-    # Try ddgs first — real search results, much better quality
+    # Try ddgs first - real search results, much better quality
     result = await _search_ddgs(query, max_chars)
     if result:
         return result
@@ -120,7 +120,7 @@ async def _search_ddgs(query: str, max_chars: int) -> str | None:
             timeout=5.0,
         )
     except ImportError:
-        logger.debug("duckduckgo-search not installed — run: pip install duckduckgo-search")
+        logger.debug("duckduckgo-search not installed - run: pip install duckduckgo-search")
         return None
     except TimeoutError:
         logger.debug("ddgs search timed out")
@@ -175,7 +175,7 @@ async def _search_ddg_instant(query: str, max_chars: int) -> str | None:
 
 # Module-level singleton so this fallback reuses the SAME persistent browser
 # instance (and its CDP connection, cookies, open tabs) that YouTube playback
-# and any other browser-driven feature use — never spins up a second Chrome.
+# and any other browser-driven feature use - never spins up a second Chrome.
 _shared_browser_manager: Any = None
 _shared_browser_manager_lock: asyncio.Lock | None = None
 
@@ -198,7 +198,7 @@ async def _get_shared_browser_manager() -> Any:
 async def _search_browser_fallback(query: str, max_chars: int) -> str | None:
     """Last-resort tier: search Google via a real, persistent browser.
 
-    No API key, no dedicated integration for the query's topic — this is
+    No API key, no dedicated integration for the query's topic - this is
     the "just use the browser like a person would" fallback described in
     the module docstring. Only reached when both API-based tiers above
     have already returned nothing.
@@ -224,10 +224,10 @@ async def _search_browser_fallback(query: str, max_chars: int) -> str | None:
         return None
 
     # A raw Google results page's innerText is mostly UI chrome (nav links,
-    # "Settings", "Tools", footer links) — crudely trim the obvious leading
+    # "Settings", "Tools", footer links) - crudely trim the obvious leading
     # boilerplate so what we return is closer to actual result content
     # rather than the search box and top nav. This is a heuristic, not a
-    # real parser — good enough for "some real, current text about the
+    # real parser - good enough for "some real, current text about the
     # query" rather than a precise structured extraction.
     cleaned = text
     for marker in ("All\n", "About\n", "Search Results\n"):

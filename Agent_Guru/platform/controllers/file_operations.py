@@ -243,7 +243,7 @@ class FileOperationsController:
             raise ValueError(msg)
 
         # Use safe_path to enforce base directory containment (raises PermissionError
-        # for any path — including those with '..' or absolute escapes — that resolves
+        # for any path - including those with '..' or absolute escapes - that resolves
         # outside self.base_dir).
         return safe_path(path, self.base_dir)
 
@@ -409,19 +409,19 @@ class FileOperationsController:
             # Unlike create_file/update_file/delete_file/copy_file/move_file
             # (which catch a blanket `Exception` and return a
             # FileOperationResult(success=False, ...)), read_file()'s
-            # documented contract is to raise — its callers (e.g.
+            # documented contract is to raise - its callers (e.g.
             # OSController.read_file()) catch these themselves. That part
             # was already correct; what was missing is this audit log call.
             #
             # BUG FIX (found 2026-09-13): this used to be `except
             # PermissionError: raise` with a comment claiming it let callers
-            # "detect path traversal violations" — but _validate_path()
+            # "detect path traversal violations" - but _validate_path()
             # (via security/path_utils.py::safe_path) raises ValueError for
             # a traversal attempt, not PermissionError, so that handler
             # never actually caught a traversal attempt at all; it only
             # matched the unrelated real-OS-permission-denied case from
             # _check_permissions(). Worse, unlike every sibling method here,
-            # a failed read was never written to the audit log — for a
+            # a failed read was never written to the audit log - for a
             # module whose own docstring promises "audit trail for all
             # operations", a path-traversal attempt (exactly the kind of
             # event an audit trail exists to catch) went completely

@@ -101,7 +101,7 @@ class AgentGuru:
         self._on_response: Callable[[str], None] | None = None
         self._on_error: Callable[[str], None] | None = None
 
-        # BUG-008: wake word listener thread (optional — registered by caller)
+        # BUG-008: wake word listener thread (optional - registered by caller)
         # When set, _service_loop() starts this in a daemon thread so it runs
         # concurrently with the housekeeping loop.
         self._wake_word_listener: Callable[[], None] | None = None
@@ -296,7 +296,7 @@ class AgentGuru:
         runs concurrently with pipeline housekeeping.
 
         BUG-008 fix: without this, the sync service loop never triggered
-        any detection — the pipeline stayed in IDLE indefinitely.
+        any detection - the pipeline stayed in IDLE indefinitely.
         """
         self._wake_word_listener = listener
 
@@ -324,7 +324,7 @@ class AgentGuru:
     # ------------------------------------------------------------------
 
     def _service_loop(self) -> None:
-        """Main service loop — runs until stop event is set.
+        """Main service loop - runs until stop event is set.
 
         BUG-008 fix: the old implementation was a plain ``time.sleep(0.1)``
         busy-wait that never drove any detection.  The pipeline started in

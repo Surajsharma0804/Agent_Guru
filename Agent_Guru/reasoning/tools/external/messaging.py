@@ -10,7 +10,7 @@ Real dispatch (fixed 2026-09-13):
     Every tool below used to be a pure placeholder: ``execute()`` did some
     input validation and then unconditionally returned
     ``{"success": True, ...}`` with a fabricated ``message_id`` built from
-    ``hash(...)`` — no message was ever sent, opened, or delivered anywhere.
+    ``hash(...)`` - no message was ever sent, opened, or delivered anywhere.
     Because the agent's tool-calling path is tried *before* the rule-based
     fallback (see ``IntegrationOrchestrator._execute_single_action``), this
     meant the single most common way these intents get handled told the user
@@ -29,7 +29,7 @@ Real dispatch (fixed 2026-09-13):
         ``xcrun`` intents that open the target app with the message
         pre-filled; on desktop via the same URL-scheme pre-fill
         (``wa.me``/``t.me``/``mailto:``) opened in the real browser;
-      - never auto-taps "send" on any platform — the message is prepared
+      - never auto-taps "send" on any platform - the message is prepared
         and the app is opened with it ready to go, and the user (or a
         vision-driven follow-up automation, if Agent Guru gains one) does
         the final confirmation tap. That is a deliberate safety choice
@@ -39,10 +39,10 @@ Real dispatch (fixed 2026-09-13):
         so explicitly rather than overclaiming.
       - SMS has no real desktop delivery path (no carrier gateway is
         wired up), so on desktop it honestly reports failure instead of
-        pretending to send — matching MessagingController's own behavior.
+        pretending to send - matching MessagingController's own behavior.
       - Slack's URL scheme (``slack://open``) cannot target a specific
         channel or pre-fill text, so a Slack "send" only opens the app and
-        says so — it does not claim the message reached the channel.
+        says so - it does not claim the message reached the channel.
 """
 
 from __future__ import annotations
@@ -138,7 +138,7 @@ async def _dispatch(app: str, contact: str, message: str, *, label: str) -> dict
             "app": app,
             "message_length": len(message),
             "message": (
-                f"{label} opened for {contact} with the message ready to send — "
+                f"{label} opened for {contact} with the message ready to send - "
                 f"confirm the send in {label} to deliver it."
             ),
         },
@@ -176,7 +176,7 @@ class SendSMSTool(Tool):
     """Tool for sending SMS messages.
 
     Real delivery only on Android (via an adb SENDTO intent to the default
-    SMS app, pre-filled and ready to send) — there is no carrier gateway
+    SMS app, pre-filled and ready to send) - there is no carrier gateway
     wired up for desktop, so a desktop call honestly returns failure instead
     of a fabricated success, matching MessagingController's own behavior.
     """
@@ -290,7 +290,7 @@ class SendSlackTool(Tool):
     """Tool for opening Slack toward a channel (real dispatch via MessagingController).
 
     Slack's URL scheme (``slack://open``) cannot target a specific channel or
-    pre-fill message text, unlike the other three apps — so unlike them, this
+    pre-fill message text, unlike the other three apps - so unlike them, this
     genuinely cannot prepare the message for the user. The result message
     says exactly that instead of claiming the text is ready to send.
     """
@@ -301,7 +301,7 @@ class SendSlackTool(Tool):
         result = await _dispatch("slack", channel, message, label="Slack")
         if result.get("success"):
             result["result"]["message"] = (
-                f"Slack opened — it can't be pre-addressed to {channel} or pre-filled "
+                f"Slack opened - it can't be pre-addressed to {channel} or pre-filled "
                 f"with your message (Slack's desktop URL scheme doesn't support that), "
                 f"so navigate to {channel} and send it yourself."
             )

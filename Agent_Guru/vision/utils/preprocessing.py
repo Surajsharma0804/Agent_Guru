@@ -20,7 +20,7 @@ logger = logging.getLogger("guruvision.preprocessing")
 # Mean pixel brightness (0-255) below which enhancement is triggered.
 LOW_LIGHT_THRESHOLD: int = 50
 
-# CLAHE clip limit — controls contrast amplification.
+# CLAHE clip limit - controls contrast amplification.
 _CLAHE_CLIP_LIMIT: float = 2.0
 
 # CLAHE tile grid size.
@@ -64,7 +64,7 @@ def enhance_low_light(frame: np.ndarray) -> np.ndarray:
         return frame
 
     logger.debug(
-        "Low-light frame detected (mean=%.1f) — applying CLAHE enhancement",
+        "Low-light frame detected (mean=%.1f) - applying CLAHE enhancement",
         float(np.mean(frame)),
     )
 
@@ -82,7 +82,7 @@ def enhance_low_light(frame: np.ndarray) -> np.ndarray:
         return cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2BGR)
 
     except ImportError:
-        logger.exception("cv2 not available — falling back to numpy histogram equalisation")
+        logger.exception("cv2 not available - falling back to numpy histogram equalisation")
         return _numpy_equalize(frame)
 
 

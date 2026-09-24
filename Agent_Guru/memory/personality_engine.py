@@ -99,7 +99,7 @@ class PersonalityEvolutionEngine:
         # they were immediately before *this* update. The snapshot taken at
         # the top of this method (before the version increment above) was
         # recorded at `profile.version - 1` (post-increment), so that is the
-        # correct rollback target — not `profile.version - 2`, which skips
+        # correct rollback target - not `profile.version - 2`, which skips
         # past that snapshot and discards one additional, unrelated update.
         if (
             profile.metrics.user_satisfaction < _AUTO_ROLLBACK_THRESHOLD

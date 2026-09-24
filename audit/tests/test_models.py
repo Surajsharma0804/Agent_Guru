@@ -1,4 +1,4 @@
-"""Unit tests for audit/models.py — task 1.6.
+"""Unit tests for audit/models.py - task 1.6.
 
 Verifies that every dataclass can be instantiated with valid arguments
 and that both enums have exactly the expected members.

@@ -295,7 +295,7 @@ class PolicyManager:
             req.expires_at = req.created_at + timedelta(seconds=timeout_seconds)
             status = self._confirmation_handler.get_status(req.id)  # type: ignore[union-attr]
         except Exception:
-            logger.exception("Confirmation request failed — defaulting to DENY")
+            logger.exception("Confirmation request failed - defaulting to DENY")
             return False
         return status == ConfirmationStatus.APPROVED
 

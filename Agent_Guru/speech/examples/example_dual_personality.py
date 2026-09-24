@@ -17,7 +17,7 @@ async def main() -> None:
 
     audio = np.random.randn(16000).astype(np.float32) * 0.1
 
-    # Guru personality — professional, analytical
+    # Guru personality - professional, analytical
     await engine.process_voice_input(audio, personality=PersonalityType.GURU)
     engine.synthesize_response(
         "I'll handle that for you right away.",
@@ -25,7 +25,7 @@ async def main() -> None:
         EmotionType.NEUTRAL,
     )
 
-    # Maya personality — warm, creative
+    # Maya personality - warm, creative
     await engine.process_voice_input(audio, personality=PersonalityType.MAYA)
     engine.synthesize_response(
         "Of course! I'd be happy to help with that.",

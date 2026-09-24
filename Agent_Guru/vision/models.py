@@ -1,7 +1,7 @@
 """Data models for the vision feature extraction module.
 
 These models represent the output of face detection and embedding extraction.
-They carry NO authentication logic — they are pure data containers that the
+They carry NO authentication logic - they are pure data containers that the
 guru-security-cryptography BiometricAuthenticator uses to make auth decisions.
 """
 
@@ -52,7 +52,7 @@ class FaceDetection:
     """
 
     bounding_box: BoundingBox
-    landmarks: np.ndarray | None = None  # shape (N, 2) — (x, y) pairs
+    landmarks: np.ndarray | None = None  # shape (N, 2) - (x, y) pairs
     detection_confidence: float = 1.0
 
     def __post_init__(self) -> None:
@@ -96,7 +96,7 @@ class FaceFeatures:
 
     This is the primary output of FaceFeatureExtractor.extract_face_embedding().
     It contains everything the BiometricAuthenticator needs to make an
-    authentication decision — but makes NO decision itself.
+    authentication decision - but makes NO decision itself.
 
     Attributes:
         embedding: 512-dimensional face embedding vector (L2-normalised)

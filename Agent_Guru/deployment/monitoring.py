@@ -1,4 +1,4 @@
-"""Monitoring and analytics for Agent Guru — Task 28.
+"""Monitoring and analytics for Agent Guru - Task 28.
 
 Integrates:
 - Crash reporting (Sentry SDK)

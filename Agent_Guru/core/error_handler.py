@@ -5,7 +5,7 @@ Provides:
 - ErrorHandler: Centralized error handling with speech feedback. Automatic
   recovery for critical component failures is implemented directly on this
   class via register_recovery_handler()/_attempt_recovery() (there is no
-  separate RecoveryManager class — this docstring previously advertised one
+  separate RecoveryManager class - this docstring previously advertised one
   that was never implemented; corrected in Round 25 to match reality).
 - RetryPolicy: Exponential backoff for transient failures
 - ErrorLogger: Structured error logging with rotation
@@ -337,7 +337,7 @@ class ErrorLogger:
         records = []
         try:
             # Read only the tail of the file (avoid O(filesize) memory)
-            chunk_size = 65536  # 64KB — enough for ~100 JSONL records
+            chunk_size = 65536  # 64KB - enough for ~100 JSONL records
             with open(self._log_path, "rb") as f:
                 f.seek(0, 2)  # Seek to end
                 file_size = f.tell()

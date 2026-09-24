@@ -20,7 +20,7 @@ import structlog
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
-# Optional ONNX Runtime import — graceful fallback when not installed
+# Optional ONNX Runtime import - graceful fallback when not installed
 # ---------------------------------------------------------------------------
 
 try:
@@ -125,7 +125,7 @@ class ModelManager:
             FileNotFoundError: If the model file does not exist.
 
         """
-        # Cache hit — move to end (most recently used)
+        # Cache hit - move to end (most recently used)
         if name in self._cache:
             self._cache.move_to_end(name)
             logger.debug("Model cache hit", model=name)

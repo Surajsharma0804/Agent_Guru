@@ -219,7 +219,7 @@ def setup_arcface_training(config: TrainingConfig) -> tuple[object, object, obje
     device = torch.device("cuda" if config.use_gpu and torch.cuda.is_available() else "cpu")
     logger.info("Training device: %s", device)
 
-    # ResNet-50 backbone — replace final FC with embedding projection.
+    # ResNet-50 backbone - replace final FC with embedding projection.
     backbone = models.resnet50(weights=None)
     backbone.fc = nn.Linear(backbone.fc.in_features, config.embedding_dim)
     backbone = backbone.to(device)
@@ -330,7 +330,7 @@ def train_arcface_model(config: TrainingConfig) -> str:
         scheduler.step()
 
         logger.info(
-            "Epoch %d/%d — train_loss=%.4f  val_loss=%.4f",
+            "Epoch %d/%d - train_loss=%.4f  val_loss=%.4f",
             epoch,
             config.epochs,
             train_loss,

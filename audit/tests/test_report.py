@@ -1,4 +1,4 @@
-"""Unit tests for audit/report.py — task 1.7.
+"""Unit tests for audit/report.py - task 1.7.
 
 Validates:
 - atomic_write produces correct file content with crash-safe rename
@@ -78,7 +78,7 @@ class TestAtomicWrite:
         target = tmp_path / "clean.md"
         writer = MasterReportWriter(report_path=target)
         writer.atomic_write(target, "content")
-        # Only the target file should exist — no .tmp files
+        # Only the target file should exist - no .tmp files
         remaining = list(tmp_path.glob("*.tmp"))
         assert remaining == []
 
@@ -116,7 +116,7 @@ class TestAtomicWrite:
 
 
 # ---------------------------------------------------------------------------
-# write() — section structure
+# write() - section structure
 # ---------------------------------------------------------------------------
 
 

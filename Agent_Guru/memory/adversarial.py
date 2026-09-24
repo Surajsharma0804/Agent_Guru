@@ -100,7 +100,7 @@ class AdversarialRobustnessEngine:
         confidence_a: float = 1.0,
         confidence_b: float = 1.0,
     ) -> ConflictRecord:
-        """Store both conflicting versions — neither is discarded."""
+        """Store both conflicting versions - neither is discarded."""
         record = ConflictRecord(
             item_id=item_id,
             version_a=version_a,
@@ -246,7 +246,7 @@ class AdversarialRobustnessEngine:
         """Return True if data matches registered checksum."""
         expected = self._checksums.get(structure_id)
         if expected is None:
-            return True  # Not registered — nothing to verify
+            return True  # Not registered - nothing to verify
         actual = self.compute_checksum(data)
         if actual != expected:
             violation = IntegrityViolation(

@@ -1,4 +1,4 @@
-"""Shared retry utilities — eliminates duplication across IoT, resilience, SDK.
+"""Shared retry utilities - eliminates duplication across IoT, resilience, SDK.
 
 Single source of truth for exponential backoff retry logic with jitter.
 Time Complexity: O(n) where n = max_attempts
@@ -71,5 +71,5 @@ async def retry_async(
             return await fn()
         except exceptions as exc:
             last_exc = exc
-            logger.debug("%s: attempt %d failed — %s", label, attempt + 1, exc)
+            logger.debug("%s: attempt %d failed - %s", label, attempt + 1, exc)
     raise last_exc

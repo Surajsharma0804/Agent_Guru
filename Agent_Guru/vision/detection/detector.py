@@ -83,7 +83,7 @@ class Detection:
     """
 
     bbox: tuple[int, int, int, int]  # x, y, w, h
-    landmarks: np.ndarray | None  # shape (5, 2) — 5 facial keypoints
+    landmarks: np.ndarray | None  # shape (5, 2) - 5 facial keypoints
     confidence: float  # 0.0 to 1.0
 
 
@@ -132,13 +132,13 @@ class FaceDetector:
         self.confidence_threshold = confidence_threshold
         self._use_gpu = use_gpu
 
-        # Lazy-init state — populated on first detect() call
+        # Lazy-init state - populated on first detect() call
         self._insightface_app: object | None = None
         self._insightface_init_attempted: bool = False
 
         if not _INSIGHTFACE_AVAILABLE:
             logger.warning(
-                "InsightFace not available — FaceDetector will use OpenCV Haar cascade fallback.",
+                "InsightFace not available - FaceDetector will use OpenCV Haar cascade fallback.",
             )
 
     # ------------------------------------------------------------------
@@ -176,7 +176,7 @@ class FaceDetector:
         return self._detect_opencv(frame)
 
     async def detect_async(self, frame: np.ndarray) -> list[Detection]:
-        """Async wrapper around detect() — runs GPU inference in a thread pool.
+        """Async wrapper around detect() - runs GPU inference in a thread pool.
 
         Use this from async contexts to avoid blocking the event loop during
         GPU/CPU inference.
@@ -227,11 +227,11 @@ class FaceDetector:
 
         if t.is_alive():
             logger.warning(
-                "InsightFace init timed out after 15s — falling back to OpenCV Haar cascade.",
+                "InsightFace init timed out after 15s - falling back to OpenCV Haar cascade.",
             )
         elif error_holder:
             logger.warning(
-                "InsightFace init failed: %s — falling back to OpenCV Haar cascade.",
+                "InsightFace init failed: %s - falling back to OpenCV Haar cascade.",
                 error_holder[0],
             )
         elif result_holder:
@@ -249,7 +249,7 @@ class FaceDetector:
         try:
             faces = app.get(frame)  # type: ignore[union-attr]
         except Exception:
-            logger.exception("InsightFace detection failed — returning empty list.")
+            logger.exception("InsightFace detection failed - returning empty list.")
             return []
 
         results: list[Detection] = []
@@ -284,7 +284,7 @@ class FaceDetector:
     def _detect_opencv(self, frame: np.ndarray) -> list[Detection]:
         """Run OpenCV Haar cascade detection as fallback."""
         if not _CV2_AVAILABLE:
-            logger.warning("cv2 unavailable — returning empty detection list.")
+            logger.warning("cv2 unavailable - returning empty detection list.")
             return []
 
         try:
@@ -299,7 +299,7 @@ class FaceDetector:
                 minSize=(30, 30),
             )
         except Exception:
-            logger.exception("OpenCV Haar detection failed — returning empty list.")
+            logger.exception("OpenCV Haar detection failed - returning empty list.")
             return []
 
         results: list[Detection] = []

@@ -14,7 +14,7 @@ Design:
 - Primary content region: largest non-chrome area.
 - Latency ≤300ms for 1920×1080 on GPU.
 
-Requirements: 7.1–7.9
+Requirements: 7.1-7.9
 """
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
 """Module: Agent_Guru.vision.training.pipeline
-Purpose: Pipeline orchestrator — coordinate all pipeline stages.
+Purpose: Pipeline orchestrator - coordinate all pipeline stages.
 
 Requirements: 12.3
 """

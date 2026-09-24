@@ -1,6 +1,6 @@
 """Agent_Guru/integration/gpu_pool.py.
 
-GPUResourcePool — coordinates GPU VRAM allocation across PyTorch, ONNX Runtime,
+GPUResourcePool - coordinates GPU VRAM allocation across PyTorch, ONNX Runtime,
 and faster-whisper so all three coexist without contention.
 
 Budget partitioning (when GPU is available):
@@ -13,7 +13,7 @@ DeviceConfig(device="cpu", memory_limit=0) without raising any exception.
 
 Performance:
   - Time Complexity: O(1) for all operations
-  - Space Complexity: O(1) — fixed number of subsystems
+  - Space Complexity: O(1) - fixed number of subsystems
 """
 
 from __future__ import annotations
@@ -23,12 +23,12 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-# Budget fractions — must sum to 1.0
+# Budget fractions - must sum to 1.0
 # On a 4GB VRAM device (RTX 2050):
 #   - Whisper small needs ~500MB → give it 40% (1.6GB headroom)
 #   - ONNX (vision) runs headless, minimal usage → 20%
 #   - Torch (avatar/emotion) → 40%
-# Ollama (LLM) manages its own VRAM separately — not tracked here.
+# Ollama (LLM) manages its own VRAM separately - not tracked here.
 _BUDGETS: dict[str, float] = {
     "whisper": 0.40,
     "onnx": 0.20,
@@ -78,16 +78,16 @@ class GPUResourcePool:
                 self.device: str = "cuda"
                 self.total_vram: int = props.total_memory
                 logger.info(
-                    "GPUResourcePool: CUDA device '%s' detected — total VRAM %.1f GB",
+                    "GPUResourcePool: CUDA device '%s' detected - total VRAM %.1f GB",
                     props.name,
                     self.total_vram / (1024**3),
                 )
             else:
                 self.device = "cpu"
                 self.total_vram = 0
-                logger.info("GPUResourcePool: no CUDA device — CPU-only mode")
+                logger.info("GPUResourcePool: no CUDA device - CPU-only mode")
         except Exception:  # torch not installed or CUDA error
-            logger.exception("GPUResourcePool: GPU detection failed — CPU-only mode")
+            logger.exception("GPUResourcePool: GPU detection failed - CPU-only mode")
             self.device = "cpu"
             self.total_vram = 0
 
@@ -97,7 +97,7 @@ class GPUResourcePool:
         self.torch_budget: int = int(self.total_vram * _BUDGETS["torch"])
 
         logger.info(
-            "GPUResourcePool budgets — whisper: %d MB, onnx: %d MB, torch: %d MB",
+            "GPUResourcePool budgets - whisper: %d MB, onnx: %d MB, torch: %d MB",
             self.whisper_budget // (1024**2),
             self.onnx_budget // (1024**2),
             self.torch_budget // (1024**2),
@@ -222,7 +222,7 @@ class GPUResourcePool:
                 setattr(self, f"{name}_budget", 0)
 
         logger.info(
-            "GPUResourcePool rebalanced — active: %s, budgets: whisper=%dMB onnx=%dMB torch=%dMB",
+            "GPUResourcePool rebalanced - active: %s, budgets: whisper=%dMB onnx=%dMB torch=%dMB",
             active,
             self.whisper_budget // (1024**2),
             self.onnx_budget // (1024**2),

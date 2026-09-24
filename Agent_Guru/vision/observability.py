@@ -8,7 +8,7 @@ Provides:
 - Latency warning when any module exceeds its target by >50%.
 - Error counter increment on unhandled module exception.
 
-Requirements: 14.1–14.6
+Requirements: 14.1-14.6
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import structlog
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
-# Prometheus metrics (optional — graceful fallback when not installed)
+# Prometheus metrics (optional - graceful fallback when not installed)
 # ---------------------------------------------------------------------------
 
 try:

@@ -5,8 +5,8 @@ traversal attacks (CWE-22) by asserting that any resolved path remains
 within a designated base directory.
 
 Performance Characteristics:
-    - Time Complexity: O(1) — single ``Path.resolve()`` call
-    - Space Complexity: O(1) — no caching or state
+    - Time Complexity: O(1) - single ``Path.resolve()`` call
+    - Space Complexity: O(1) - no caching or state
 
 Security Guarantees:
     - Symlinks are fully resolved before the containment check

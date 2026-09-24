@@ -2,12 +2,12 @@
 
 REGRESSION TEST for a defect that made long-term memory functionally dead.
 
-security/embedding_auth.RETRIEVAL_THRESHOLD was 0.85 — a biometric-grade
+security/embedding_auth.RETRIEVAL_THRESHOLD was 0.85 - a biometric-grade
 number (BIOMETRIC_THRESHOLD is 0.97) applied to semantic search. Raw cosine
 similarity between a short query and a stored sentence does not reach it:
 measured against this project's own embedding model, "timer" scores 0.641
 against "User set a timer for 5 minutes" and was discarded, while the
-unrelated "User played music" scores 0.177. Recall at 0.85 was **0%** — the
+unrelated "User played music" scores 0.177. Recall at 0.85 was **0%** - the
 assistant could recall a fact only if the user repeated it close to verbatim.
 
 These tests are deliberately about END-TO-END RECALL rather than the constant
@@ -111,7 +111,7 @@ def test_ranking_uses_semantics_not_just_recency(
     """rank_memories() scored 0.0 for any memory whose embedding was absent.
 
     store() embeds its own copy, not the caller's object, so the obvious usage
-    — store it, then rank it — left every semantic score at zero and the order
+    - store it, then rank it - left every semantic score at zero and the order
     was decided by microseconds of timestamp difference.
     """
     stored = list(retriever.memories.values())

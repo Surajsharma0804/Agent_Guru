@@ -17,7 +17,7 @@ def test(name, condition, detail=""):
 
 
 print("=" * 60)
-print("AGENT GURU — COMPREHENSIVE VERIFICATION")
+print("AGENT GURU - COMPREHENSIVE VERIFICATION")
 print("=" * 60)
 
 # --- 1. Reaction Rules ---

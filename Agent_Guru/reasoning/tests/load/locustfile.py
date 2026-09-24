@@ -99,7 +99,7 @@ class ReasoningEngineUser(HttpUser):
     conversation_id) and cycles through common command categories with
     realistic wait times between requests.
 
-    Wait time: 1–3 seconds between tasks (simulates natural speech cadence).
+    Wait time: 1-3 seconds between tasks (simulates natural speech cadence).
     """
 
     wait_time = between(1, 3)
@@ -110,7 +110,7 @@ class ReasoningEngineUser(HttpUser):
         self.conversation_id = _random_conversation_id()
 
     # ------------------------------------------------------------------
-    # Task methods – weighted to reflect real-world usage distribution
+    # Task methods - weighted to reflect real-world usage distribution
     # ------------------------------------------------------------------
 
     @task(3)

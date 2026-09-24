@@ -108,7 +108,7 @@ class BenchmarkLoader:
         pairs_file = path / "pairs.txt"
         if pairs_file.exists():
             return self._parse_pairs_file(pairs_file)
-        # Return empty list — caller handles missing data
+        # Return empty list - caller handles missing data
         return []
 
     def load_labels(self) -> list[bool]:

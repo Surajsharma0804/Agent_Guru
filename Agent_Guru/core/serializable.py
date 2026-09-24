@@ -1,4 +1,4 @@
-"""Shared serialization mixin — eliminates to_dict/serialize duplication.
+"""Shared serialization mixin - eliminates to_dict/serialize duplication.
 
 Used by: ContextDelta, DeviceState, FusedIntent, HealthAlert, etc.
 Time Complexity: O(n) where n = number of fields
@@ -35,13 +35,13 @@ class Serializable:
 
         BUG FIX (Round 25): serialize() uses ``json.dumps(..., default=str)``,
         which is a *lossy* one-way conversion for any field type JSON can't
-        represent natively — most commonly ``datetime``/``date`` and
+        represent natively - most commonly ``datetime``/``date`` and
         ``Enum`` fields, both squarely expected in the dataclasses this
         mixin's own docstring names (ContextDelta, DeviceState, FusedIntent,
-        HealthAlert — status/timestamp-bearing classes by nature).
+        HealthAlert - status/timestamp-bearing classes by nature).
         ``deserialize()`` used to just do ``cls(**json.loads(data))``,
         which loads those fields back as plain strings and hands them
-        straight to the constructor — no exception, no warning, just a
+        straight to the constructor - no exception, no warning, just a
         dataclass instance whose ``created_at`` (say) is silently a `str`
         instead of a `datetime`, ready to break the next `.isoformat()`,
         comparison, or arithmetic a caller performs on it. Verified this
@@ -54,8 +54,8 @@ class Serializable:
         serialize() lost for those specific, common cases. Anything this
         can't confidently coerce (an unresolvable forward reference, a
         string that doesn't parse against the declared type, or any other
-        field type) is left exactly as `json.loads()` produced it — matching
-        this method's original behavior for that field — but now with a
+        field type) is left exactly as `json.loads()` produced it - matching
+        this method's original behavior for that field - but now with a
         logged warning instead of silent corruption, so the gap stays
         visible and callers with e.g. nested-dataclass or `set`/`bytes`
         fields still know to override this method rather than discovering
@@ -105,7 +105,7 @@ class Serializable:
         if value is None or field_type is None:
             return value
 
-        # Unwrap `Optional[X]` / `X | None` to X — both spellings can appear
+        # Unwrap `Optional[X]` / `X | None` to X - both spellings can appear
         # depending on whether the dataclass uses `from __future__ import
         # annotations` and which Python version wrote the type hint.
         origin = get_origin(field_type)

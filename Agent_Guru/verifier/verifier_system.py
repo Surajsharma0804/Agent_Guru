@@ -113,7 +113,7 @@ class VerifierSystem:
             VerificationResult
 
         """
-        # Cache check — skip cache when session_id is provided (loop detector needs to accumulate state)
+        # Cache check - skip cache when session_id is provided (loop detector needs to accumulate state)
         use_cache = self.config.enable_caching and session_id is None
         cache_key = ""
         # Normalize response to string
@@ -259,7 +259,7 @@ class VerifierSystem:
             metadata: Optional metadata about the content
 
         Returns:
-            VerificationResult — storage should be blocked if result.failed
+            VerificationResult - storage should be blocked if result.failed
 
         """
         start = time.perf_counter()
@@ -337,7 +337,7 @@ class VerifierSystem:
         if strategy is None:
             strategy = VerificationStrategy()
 
-        # Validate inputs — gracefully handle None/empty text
+        # Validate inputs - gracefully handle None/empty text
         if not isinstance(text, str):
             try:
                 text = str(text)
@@ -418,7 +418,7 @@ class VerifierSystem:
                     )
         except TimeoutError:
             logger.exception(
-                "Verification timed out after %.0fms — returning degraded result",
+                "Verification timed out after %.0fms - returning degraded result",
                 self.config.max_latency_ms,
             )
 
@@ -533,7 +533,7 @@ class VerifierSystem:
         """
         p = self._priority_map.get(priority, 2)
         if p <= 1:
-            # critical or high — no throttling
+            # critical or high - no throttling
             return None
         if p == 2:
             await self._semaphore_normal.acquire()
@@ -553,6 +553,6 @@ class VerifierSystem:
                 "timestamp": result.timestamp.isoformat(),
             },
         )
-        # Keep last 1000 reports — use list slicing to avoid O(n) pop(0)
+        # Keep last 1000 reports - use list slicing to avoid O(n) pop(0)
         if len(self._failure_reports) > 1000:
             self._failure_reports = self._failure_reports[-1000:]

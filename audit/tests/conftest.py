@@ -3,24 +3,24 @@
 This module registers Hypothesis profiles and provides shared pytest fixtures
 used across all property-based and unit tests in the ``audit/tests/`` package.
 
-The CI profile is activated immediately at import time so every test run —
-including local developer runs — uses the same deterministic, reproducible
+The CI profile is activated immediately at import time so every test run -
+including local developer runs - uses the same deterministic, reproducible
 settings as CI.
 
 Hypothesis profiles:
 
     ci:
-        max_examples=100        — 100 examples per property (quality.md: ≥100)
-        derandomize=True        — fixed seed derived from test name for
+        max_examples=100        - 100 examples per property (quality.md: ≥100)
+        derandomize=True        - fixed seed derived from test name for
                                   reproducibility across runs
         suppress_health_check=[HealthCheck.too_slow]
-                                — suppress the "too slow" health check so that
+                                - suppress the "too slow" health check so that
                                   property tests involving I/O or subprocess
                                   calls are not aborted prematurely
 
     dev:
-        max_examples=10         — only 10 examples for fast local iteration
-        derandomize=False       — random seed so each run explores new space
+        max_examples=10         - only 10 examples for fast local iteration
+        derandomize=False       - random seed so each run explores new space
 
 Subsystem: audit
 Primary public API: repo_root, sample_audit_report (pytest fixtures)

@@ -137,7 +137,7 @@ class MetricsEngine:
         """Compute a linear-regression trend over an already-selected snapshot list.
 
         Factored out of calculate_trend() so callers that need a trend over a
-        specific (e.g. time-filtered) slice — see generate_dashboard() — get a
+        specific (e.g. time-filtered) slice - see generate_dashboard() - get a
         trend computed over that same slice, instead of silently recomputing
         it over the full, unfiltered history.
         """

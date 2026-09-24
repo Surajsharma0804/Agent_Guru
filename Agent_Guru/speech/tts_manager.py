@@ -9,18 +9,18 @@ with:
 - Graceful fallback chain when preferred backend is unavailable
 
 Performance Requirements:
-    - TTS latency: <1 second (95th percentile) — beats Alexa 1.5s, Siri 2.0s
+    - TTS latency: <1 second (95th percentile) - beats Alexa 1.5s, Siri 2.0s
     - Male voice for Guru personality (deep, confident)
     - Female voice for Maya personality (warm, friendly)
     - Emotion and prosody control
 
 Architecture:
     TTSManager
-    ├── SynthesisEngine  (tts/synthesis_engine.py) — Kokoro ONNX backend
-    ├── _DesktopTTSBackend  — pyttsx3 fallback for desktop
-    ├── _AndroidTTSBackend  — Android TextToSpeech API
-    ├── _IOSTTSBackend      — iOS AVSpeechSynthesizer
-    └── asyncio             — async synthesis loop
+    ├── SynthesisEngine  (tts/synthesis_engine.py) - Kokoro ONNX backend
+    ├── _DesktopTTSBackend  - pyttsx3 fallback for desktop
+    ├── _AndroidTTSBackend  - Android TextToSpeech API
+    ├── _IOSTTSBackend      - iOS AVSpeechSynthesizer
+    └── asyncio             - async synthesis loop
 
 Author: Agent Guru Team
 Date: 2026-03-20
@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 
 
 def _detect_platform() -> str:
-    """Thin wrapper — delegates to canonical PlatformDetector."""
+    """Thin wrapper - delegates to canonical PlatformDetector."""
     return PlatformDetector.detect().os_name.lower()
 
 
@@ -70,7 +70,7 @@ def _detect_platform() -> str:
 class TTSBackend(Enum):
     """Available TTS backend implementations."""
 
-    KOKORO = "kokoro"  # Kokoro ONNX (primary — human-quality, multilingual)
+    KOKORO = "kokoro"  # Kokoro ONNX (primary - human-quality, multilingual)
     PYTTSX3 = "pyttsx3"  # pyttsx3 (desktop, lightweight fallback)
     ANDROID_TTS = "android_tts"  # Android TextToSpeech API
     IOS_TTS = "ios_tts"  # iOS AVSpeechSynthesizer
@@ -163,7 +163,7 @@ class _DesktopTTSBackend:
         ``self._speech_rate`` / ``self._volume`` directly from outside this
         class (see TTSManager._synthesize_pyttsx3). That changed the
         attributes but never re-invoked pyttsx3's own
-        ``setProperty("rate"/"volume", ...)`` or re-ran voice selection —
+        ``setProperty("rate"/"volume", ...)`` or re-ran voice selection -
         so after the FIRST synthesize() call, every subsequent request
         silently kept using whichever voice/rate/volume was chosen at
         ``initialize()`` time, no matter what personality/rate/volume was
@@ -257,7 +257,7 @@ class _DesktopTTSBackend:
                 if os.path.exists(tmp_path):
                     os.unlink(tmp_path)
         except Exception:
-            logger.exception("pyttsx3 synthesis failed — using silence")
+            logger.exception("pyttsx3 synthesis failed - using silence")
             return self._silence_bytes(text)
 
     @staticmethod
@@ -293,13 +293,13 @@ class _AndroidTTSBackend:
 
     KNOWN GAP (documented, not silently hidden): unlike the pyttsx3 backend
     above, this backend does not currently re-select voice/gender per
-    request — ``initialize()`` sets the language/rate once, and there is no
+    request - ``initialize()`` sets the language/rate once, and there is no
     equivalent of ``update_voice()`` wired up on the Android side yet. In
     practice this means Guru vs. Maya personality switching is not
     currently audible when this backend is active. Fixing this properly
     requires querying Android's ``TextToSpeech.getVoices()`` for a female
     voice and calling ``setVoice()``, which needs a real Android runtime to
-    verify against — flagged here rather than guessed at blind.
+    verify against - flagged here rather than guessed at blind.
     """
 
     def __init__(self, gender: VoiceGender, speech_rate: float, volume: float) -> None:
@@ -325,7 +325,7 @@ class _AndroidTTSBackend:
             self._initialized = True
             logger.debug("Android TextToSpeech initialized")
         except Exception:
-            logger.exception("Android TTS unavailable — using silence")
+            logger.exception("Android TTS unavailable - using silence")
             self._tts = None
 
     def synthesize(self, text: str) -> bytes:
@@ -381,10 +381,10 @@ class _IOSTTSBackend:
     Uses ``AVFoundation.AVSpeechSynthesizer`` via pyobjc.  Falls back to
     silence when the framework is unavailable.
 
-    KNOWN GAP: same as `_AndroidTTSBackend` above — voice gender is not
+    KNOWN GAP: same as `_AndroidTTSBackend` above - voice gender is not
     currently re-selected per request on this backend either. `synthesize()`
     does pick a voice by language each call, but never varies it by gender/
-    personality — see the TODO inline below.
+    personality - see the TODO inline below.
     """
 
     def __init__(self, gender: VoiceGender, speech_rate: float, volume: float) -> None:
@@ -403,7 +403,7 @@ class _IOSTTSBackend:
             self._initialized = True
             logger.debug("iOS AVSpeechSynthesizer initialized")
         except Exception:
-            logger.exception("iOS AVSpeechSynthesizer unavailable — using silence")
+            logger.exception("iOS AVSpeechSynthesizer unavailable - using silence")
             self._synthesizer = None
 
     def synthesize(self, text: str) -> bytes:
@@ -470,7 +470,7 @@ class TTSManager:
     volume switching works). Concurrent synthesize() calls on the same
     backend are therefore serialized internally (see `_coqui_lock`) so that
     one request's voice/rate/volume settings can never bleed into another
-    in-flight request — see `_synthesize_coqui` for details of the bug this
+    in-flight request - see `_synthesize_coqui` for details of the bug this
     fixes and how it was verified.
 
     Example::
@@ -524,7 +524,7 @@ class TTSManager:
         # voice/rate/volume, THEN read asynchronously via run_in_executor).
         # Verified concretely: two concurrent synthesize() calls (Guru +
         # Maya) with no lock produced audio synthesized with the WRONG
-        # request's voice_profile and speech_rate — Guru's text came back
+        # request's voice_profile and speech_rate - Guru's text came back
         # tagged with Maya's settings. This lock serializes access to the
         # shared engine so a request's configure-then-synthesize sequence
         # can never be interleaved by another concurrent request.
@@ -550,7 +550,7 @@ class TTSManager:
         # initialize sequence atomic, exactly like the STTManager fix.
         self._init_lock: asyncio.Lock = asyncio.Lock()
 
-        logger.info("TTSManager created — platform=%s", self._config.platform)
+        logger.info("TTSManager created - platform=%s", self._config.platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -584,7 +584,7 @@ class TTSManager:
 
             self._initialized = True
             logger.info(
-                "TTSManager initialized — backend=%s, platform=%s",
+                "TTSManager initialized - backend=%s, platform=%s",
                 self._active_backend.value,
                 plat,
             )
@@ -609,7 +609,7 @@ class TTSManager:
             self._active_backend = TTSBackend.KOKORO
             logger.debug("Desktop Kokoro TTS backend initialized")
         except Exception:
-            logger.exception("Kokoro TTS init failed — trying pyttsx3")
+            logger.exception("Kokoro TTS init failed - trying pyttsx3")
             await self._init_pyttsx3_fallback()
 
     async def _init_pyttsx3_fallback(self) -> None:
@@ -698,9 +698,9 @@ class TTSManager:
             text: Text to synthesize.
             personality: Personality determining voice gender and style.
             emotion: Optional emotion for prosody adjustment.
-            speech_rate: Override speech rate (0.5–2.0).  Uses config default
+            speech_rate: Override speech rate (0.5-2.0).  Uses config default
                 when ``None``.
-            volume: Override volume (0.0–1.0).  Uses config default when
+            volume: Override volume (0.0-1.0).  Uses config default when
                 ``None``.
 
         Returns:
@@ -735,7 +735,7 @@ class TTSManager:
 
         latency_ms = (time.monotonic() - t_start) * 1000
         logger.debug(
-            "TTS synthesis complete — personality=%s, latency=%.1fms, success=%s",
+            "TTS synthesis complete - personality=%s, latency=%.1fms, success=%s",
             personality.value,
             latency_ms,
             result.success,
@@ -803,7 +803,7 @@ class TTSManager:
         run_in_executor(). Without serialization, two concurrent calls can
         interleave: request A sets voice=GURU, request B sets voice=MAYA
         before A's queued executor job actually runs `engine.synthesize()`
-        — so A's audio comes back synthesized with B's voice. Confirmed
+        - so A's audio comes back synthesized with B's voice. Confirmed
         this exact failure mode with an isolated repro before applying this
         fix. `_coqui_lock` now serializes the whole
         configure-then-synthesize sequence per engine, so concurrent
@@ -817,7 +817,7 @@ class TTSManager:
             engine = self._synthesis_engine
             engine.set_voice_profile(voice_profile)
             engine.set_speech_rate(speech_rate)
-            engine._config.volume = volume  # noqa: SLF001 — SynthesisEngine has no public
+            engine._config.volume = volume  # noqa: SLF001 - SynthesisEngine has no public
             # volume setter; see synthesis_engine.py TODO to add one.
 
             loop = asyncio.get_running_loop()
@@ -837,7 +837,7 @@ class TTSManager:
 
         FIX: previously mutated `self._desktop_backend._gender` /
         `._speech_rate` / `._volume` directly, which had NO effect on
-        actual synthesis — pyttsx3's own voice/rate/volume properties were
+        actual synthesis - pyttsx3's own voice/rate/volume properties were
         only ever applied once, at initialize() time. Verified concretely:
         a Guru request followed by a Maya request produced byte-identical
         audio. Now calls `update_voice()`, which actually re-applies these
@@ -845,7 +845,7 @@ class TTSManager:
         update_voice` for the fix and its own verification).
 
         Also serialized with `_pyttsx3_lock` for the same reason as
-        `_synthesize_coqui` above — this is a single shared backend
+        `_synthesize_coqui` above - this is a single shared backend
         instance too.
         """
         if self._desktop_backend is None:
@@ -1044,7 +1044,7 @@ class TTSManager:
             voice_profile: Voice profile used.
             speech_rate: Speech rate used.
             latency_ms: Synthesis latency in milliseconds.
-            sample_rate: Actual output sample rate — FIX: previously
+            sample_rate: Actual output sample rate - FIX: previously
                 hardcoded to 22050 regardless of `TTSManagerConfig.
                 sample_rate`, so changing the config's sample rate silently
                 stopped propagating into the result metadata for every
@@ -1074,7 +1074,7 @@ class TTSManager:
         Args:
             audio_bytes: WAV audio bytes.
             sample_rate: Fallback sample rate to assume if the WAV header
-                can't be parsed — FIX: previously hardcoded to 22050 even
+                can't be parsed - FIX: previously hardcoded to 22050 even
                 when the actual configured/synthesized rate (e.g. Kokoro's
                 24000Hz) was different, which would silently under- or
                 over-estimate duration whenever header parsing failed.

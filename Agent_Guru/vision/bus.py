@@ -24,7 +24,7 @@ import structlog
 
 from Agent_Guru.vision.vision_models import VisionEvent
 
-# Single canonical logger — structlog for structured event processing.
+# Single canonical logger - structlog for structured event processing.
 # stdlib logging._logger removed to eliminate dual-logger confusion.
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 

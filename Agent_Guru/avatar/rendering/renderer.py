@@ -306,7 +306,7 @@ class AvatarRenderer:
         """Initialize the display window or widget."""
         if self._backend == "opencv":
             if not self._cv2_available:
-                logger.warning("OpenCV not available — falling back to headless")
+                logger.warning("OpenCV not available - falling back to headless")
                 self._backend = "headless"
                 return True
             try:
@@ -316,7 +316,7 @@ class AvatarRenderer:
                 logger.info("OpenCV display initialized (%dx%d)", self._width, self._height)
                 return True
             except Exception:
-                logger.exception("OpenCV display init failed — using headless")
+                logger.exception("OpenCV display init failed - using headless")
                 self._backend = "headless"
                 return True
         elif self._backend == "pyqt":
@@ -511,7 +511,7 @@ class AvatarRenderer:
         self._frame_count += 1
         self._update_fps()
 
-        # Track frame time — deque(maxlen=100) auto-evicts oldest
+        # Track frame time - deque(maxlen=100) auto-evicts oldest
         frame_ms = (time.perf_counter() - t_start) * 1000.0
         self._frame_times.append(frame_ms)
 

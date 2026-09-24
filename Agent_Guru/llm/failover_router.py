@@ -66,15 +66,15 @@ class ProviderHealth:
         (meaning it is eligible for a retry check).
 
         BUG-010 fix: the old method returned True for UNAVAILABLE providers
-        after TTL — which could be read as "OK to use" but is really "OK to
+        after TTL - which could be read as "OK to use" but is really "OK to
         retry". The semantics are preserved; the name and docstring now correctly
         reflect the intent so future readers don't misread it.
         """
         if self.status == ProviderStatus.UNAVAILABLE:
-            # Still within the blackout window — do NOT retry yet
+            # Still within the blackout window - do NOT retry yet
             if (time.time() - self.last_check_ts) <= ttl_seconds:
                 return False
-            # TTL expired — allow a retry attempt
+            # TTL expired - allow a retry attempt
             return True
         return self.status != ProviderStatus.UNAVAILABLE
 
@@ -113,7 +113,7 @@ _RULE_BASED_RESPONSES: dict[str, str] = {
     "what's the weather": "I can't check the weather right now, but you can ask me to open a weather website.",
     "weather": "For weather info, try saying 'open weather' and I'll pull up a weather site for you.",
     # System commands help
-    "open": "Sure! Tell me what you'd like to open — an app, website, or file.",
+    "open": "Sure! Tell me what you'd like to open - an app, website, or file.",
     "play": "Tell me what you'd like to play! I can play music on YouTube or open your music app.",
     "search": "What would you like me to search for? I can search the web for you.",
     # Status
@@ -392,7 +392,7 @@ class ProviderFailoverRouter:
                     health.last_error = str(e)
                 continue
 
-        # All providers failed — use rule-based fallback
+        # All providers failed - use rule-based fallback
         latency_ms = (time.perf_counter() - start) * 1000
         # BUG-013: replaced f-string logger call with %s lazy-format
         logger.warning(
@@ -411,7 +411,7 @@ class ProviderFailoverRouter:
             model="rule-based",
             # BUG-033: was ModelProvider.OLLAMA as a wrong placeholder; None
             # signals "no real LLM provider" so cost/routing callers behave correctly.
-            # BUG-004: was __import__("datetime").datetime.now() — fragile and naive;
+            # BUG-004: was __import__("datetime").datetime.now() - fragile and naive;
             # replaced with proper import + UTC-aware timestamp.
             provider=None,  # type: ignore[arg-type]
             finish_reason="stop",

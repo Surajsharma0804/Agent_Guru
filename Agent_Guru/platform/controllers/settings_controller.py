@@ -4,16 +4,16 @@ Provides async system settings operations across ALL platforms:
 Windows, macOS, Linux, Android, iOS, and unknown.
 
 Platform support:
-    - Windows:  nircmd / powershell commands (simulated — log and return True)
-    - macOS:    osascript / brightness commands (simulated — log and return True)
-    - Linux:    amixer / xrandr / nmcli commands (simulated — log and return True)
-    - Android:  Android Settings API via adb (simulated — log and return True)
-    - iOS:      iOS Settings via xcrun simctl (simulated — log and return True)
+    - Windows:  nircmd / powershell commands (simulated - log and return True)
+    - macOS:    osascript / brightness commands (simulated - log and return True)
+    - Linux:    amixer / xrandr / nmcli commands (simulated - log and return True)
+    - Android:  Android Settings API via adb (simulated - log and return True)
+    - iOS:      iOS Settings via xcrun simctl (simulated - log and return True)
     - unknown:  Logs warning and returns True for supported ops
 
 Design Decisions:
     - All public methods are async
-    - Returns True on success, False on failure — never raises for normal failures
+    - Returns True on success, False on failure - never raises for normal failures
     - Validation: volume/brightness must be 0-100; display dims must be > 0
     - Desktop (windows/macos/linux/unknown): toggle_wifi/toggle_bluetooth log
       warning and return True (not primarily supported)
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 
 def _detect_platform() -> str:
-    """Thin wrapper — delegates to canonical PlatformDetector."""
+    """Thin wrapper - delegates to canonical PlatformDetector."""
     return PlatformDetector.detect().os_name.lower()
 
 
@@ -108,7 +108,7 @@ class SystemSettingsController:
         self._wifi_enabled: bool = True
         self._bluetooth_enabled: bool = True
 
-        logger.info("SystemSettingsController created — platform=%s", self._platform)
+        logger.info("SystemSettingsController created - platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -117,13 +117,13 @@ class SystemSettingsController:
     async def initialize(self) -> None:
         """Initialize the controller.
 
-        Idempotent — safe to call multiple times.
+        Idempotent - safe to call multiple times.
         """
         if self._initialized:
             logger.debug("SystemSettingsController already initialized")
             return
         self._initialized = True
-        logger.info("SystemSettingsController initialized — platform=%s", self._platform)
+        logger.info("SystemSettingsController initialized - platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -135,10 +135,10 @@ class SystemSettingsController:
     # ------------------------------------------------------------------
 
     async def adjust_volume(self, level: int) -> bool:
-        """Set system volume to *level* (0–100).
+        """Set system volume to *level* (0-100).
 
         Args:
-            level: Target volume level 0–100.
+            level: Target volume level 0-100.
 
         Returns:
             ``True`` on success, ``False`` if level is out of range or
@@ -163,7 +163,7 @@ class SystemSettingsController:
             if self._platform == "ios":
                 return await self._adjust_volume_ios(level)
             logger.warning(
-                "adjust_volume: unknown platform %r — simulating success",
+                "adjust_volume: unknown platform %r - simulating success",
                 self._platform,
             )
             self._volume = level
@@ -173,10 +173,10 @@ class SystemSettingsController:
             return False
 
     async def get_volume(self) -> int:
-        """Return current system volume (0–100), or -1 on error.
+        """Return current system volume (0-100), or -1 on error.
 
         Returns:
-            Volume level 0–100, or -1 on error.
+            Volume level 0-100, or -1 on error.
 
         """
         logger.info("get_volume: platform=%s", self._platform)
@@ -191,10 +191,10 @@ class SystemSettingsController:
     # ------------------------------------------------------------------
 
     async def adjust_brightness(self, level: int) -> bool:
-        """Set screen brightness to *level* (0–100).
+        """Set screen brightness to *level* (0-100).
 
         Args:
-            level: Target brightness level 0–100.
+            level: Target brightness level 0-100.
 
         Returns:
             ``True`` on success, ``False`` if level is out of range or
@@ -219,7 +219,7 @@ class SystemSettingsController:
             if self._platform == "ios":
                 return await self._adjust_brightness_ios(level)
             logger.warning(
-                "adjust_brightness: unknown platform %r — simulating success",
+                "adjust_brightness: unknown platform %r - simulating success",
                 self._platform,
             )
             self._brightness = level
@@ -229,10 +229,10 @@ class SystemSettingsController:
             return False
 
     async def get_brightness(self) -> int:
-        """Return current screen brightness (0–100), or -1 on error.
+        """Return current screen brightness (0-100), or -1 on error.
 
         Returns:
-            Brightness level 0–100, or -1 on error.
+            Brightness level 0-100, or -1 on error.
 
         """
         logger.info("get_brightness: platform=%s", self._platform)
@@ -267,7 +267,7 @@ class SystemSettingsController:
             if _is_desktop(self._platform):
                 logger.warning(
                     "toggle_wifi: not primarily supported on desktop "
-                    "platform %r — simulating success",
+                    "platform %r - simulating success",
                     self._platform,
                 )
                 self._wifi_enabled = enabled
@@ -277,7 +277,7 @@ class SystemSettingsController:
             if self._platform == "ios":
                 return await self._toggle_wifi_ios(enabled)
             logger.warning(
-                "toggle_wifi: unknown platform %r — simulating success",
+                "toggle_wifi: unknown platform %r - simulating success",
                 self._platform,
             )
             self._wifi_enabled = enabled
@@ -306,7 +306,7 @@ class SystemSettingsController:
             if _is_desktop(self._platform):
                 logger.warning(
                     "toggle_bluetooth: not primarily supported on desktop "
-                    "platform %r — simulating success",
+                    "platform %r - simulating success",
                     self._platform,
                 )
                 self._bluetooth_enabled = enabled
@@ -316,7 +316,7 @@ class SystemSettingsController:
             if self._platform == "ios":
                 return await self._toggle_bluetooth_ios(enabled)
             logger.warning(
-                "toggle_bluetooth: unknown platform %r — simulating success",
+                "toggle_bluetooth: unknown platform %r - simulating success",
                 self._platform,
             )
             self._bluetooth_enabled = enabled
@@ -364,7 +364,7 @@ class SystemSettingsController:
             if _is_mobile(self._platform):
                 logger.warning(
                     "change_display_settings: not primarily supported on "
-                    "mobile platform %r — simulating success",
+                    "mobile platform %r - simulating success",
                     self._platform,
                 )
                 return True
@@ -375,7 +375,7 @@ class SystemSettingsController:
             if self._platform == "linux":
                 return await self._change_display_linux(width, height)
             logger.warning(
-                "change_display_settings: unknown platform %r — simulating success",
+                "change_display_settings: unknown platform %r - simulating success",
                 self._platform,
             )
             return True

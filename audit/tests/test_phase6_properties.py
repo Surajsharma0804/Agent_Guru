@@ -1,6 +1,6 @@
 """Property-based tests for Phase 6: Integration validation.
 
-Task 9.6 — Properties 15, 16, 17, 18.
+Task 9.6 - Properties 15, 16, 17, 18.
 
 Property 15: Conversation Memory LRU Eviction
     For any sequence of add_turn() calls with max_turns=N,
@@ -39,7 +39,7 @@ from hypothesis import strategies as st
 
 
 # ---------------------------------------------------------------------------
-# ConversationMemory — mirrors task 9.1 / memory/conversation_memory.py
+# ConversationMemory - mirrors task 9.1 / memory/conversation_memory.py
 # ---------------------------------------------------------------------------
 
 
@@ -71,7 +71,7 @@ class ConversationMemory:
 
 
 # ---------------------------------------------------------------------------
-# AuditTrail — mirrors security/security_system.py hash chain
+# AuditTrail - mirrors security/security_system.py hash chain
 # ---------------------------------------------------------------------------
 
 _GENESIS_HASH = "0" * 64  # SHA-256 of empty string placeholder
@@ -114,7 +114,7 @@ class AuditTrail:
 
 
 # ---------------------------------------------------------------------------
-# PolicyEngine — minimal DENY/ALLOW engine for property testing
+# PolicyEngine - minimal DENY/ALLOW engine for property testing
 # ---------------------------------------------------------------------------
 
 
@@ -154,7 +154,7 @@ def run_pipeline(
 
 
 # ---------------------------------------------------------------------------
-# TranscriptionResult — mirrors speech/stt/whisper_stt.py
+# TranscriptionResult - mirrors speech/stt/whisper_stt.py
 # ---------------------------------------------------------------------------
 
 
@@ -185,7 +185,7 @@ def mock_transcribe(audio: np.ndarray) -> Optional[TranscriptionResult]:
 
 
 class TestConversationMemoryProperty15:
-    """Property 15 — turn_count never exceeds N; oldest evicted at N+1."""
+    """Property 15 - turn_count never exceeds N; oldest evicted at N+1."""
 
     @given(
         max_turns=st.integers(min_value=1, max_value=20),
@@ -270,7 +270,7 @@ class TestConversationMemoryProperty15:
 
 
 class TestAuditTrailHashChainProperty16:
-    """Property 16 — hash chain is unbroken for any sequence of log_action()."""
+    """Property 16 - hash chain is unbroken for any sequence of log_action()."""
 
     @given(
         actions=st.lists(
@@ -329,7 +329,7 @@ class TestAuditTrailHashChainProperty16:
 
 
 class TestPolicyDENYEnforcementProperty17:
-    """Property 17 — DENY always prevents action invocation."""
+    """Property 17 - DENY always prevents action invocation."""
 
     @given(
         action=st.text(min_size=1, max_size=50),
@@ -372,7 +372,7 @@ class TestPolicyDENYEnforcementProperty17:
         assert invoked
 
     def test_deny_is_independent_of_user_identity(self) -> None:
-        """DENY fires regardless of action name variations — only exact match matters."""
+        """DENY fires regardless of action name variations - only exact match matters."""
         for action_name in ["delete_files", "format_drive", "rm_rf"]:
             invoked = False
 
@@ -408,7 +408,7 @@ class TestPolicyDENYEnforcementProperty17:
 
 
 class TestSTTOutputValidityProperty18:
-    """Property 18 — RMS > 0.005 audio → valid TranscriptionResult."""
+    """Property 18 - RMS > 0.005 audio → valid TranscriptionResult."""
 
     @given(
         amplitude=st.floats(min_value=0.01, max_value=1.0, allow_nan=False),

@@ -76,7 +76,7 @@ class DatabaseSchema:
         else:
             # Relative path - validate no traversal and use safe_path
             if ".." in db_path_clean.replace("\\", "/").split("/"):
-                msg = f"Invalid db_path — path traversal sequences are not allowed: {db_path!r}"
+                msg = f"Invalid db_path - path traversal sequences are not allowed: {db_path!r}"
                 raise ValueError(
                     msg,
                 )
@@ -620,7 +620,7 @@ class DatabaseSchema:
                     "edge_case_metrics",
                 ]
 
-                # Use parameterized placeholders — table names are hardcoded, only values are parameterized
+                # Use parameterized placeholders - table names are hardcoded, only values are parameterized
                 placeholders = ",".join("?" * len(required_tables))
                 cursor.execute(
                     "SELECT name FROM sqlite_master "  # noqa: S608 - SQL parameterization reviewed

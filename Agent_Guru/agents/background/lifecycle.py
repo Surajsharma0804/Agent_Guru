@@ -209,7 +209,7 @@ class PlatformLifecycleHandler:
         Returns:
             Normalised LifecycleEvent or None if not found.
 
-        Time Complexity: O(1) — dict lookup
+        Time Complexity: O(1) - dict lookup
 
         """
         # Try platform-specific map first

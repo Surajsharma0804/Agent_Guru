@@ -148,7 +148,7 @@ class PerformanceMonitor:
                 cutoff = now - timedelta(seconds=_FAILURE_WINDOW_S)
                 self._recent_failures[key] = [t for t in self._recent_failures[key] if t >= cutoff]
 
-            # Latency history — O(1) amortized append; deque(maxlen=...)
+            # Latency history - O(1) amortized append; deque(maxlen=...)
             # evicts the oldest sample automatically once at capacity.
             self._latency_history[key].append(latency_ms)
 
@@ -157,7 +157,7 @@ class PerformanceMonitor:
             # (i.e. on the hot path for every LLM completion, while holding
             # the lock that serializes ALL record_request()/get_metrics()
             # calls across every model/provider pair), has been moved to
-            # get_metrics()/_compute_latency_stats() — computed lazily, only
+            # get_metrics()/_compute_latency_stats() - computed lazily, only
             # when a report is actually requested. Reports are requested far
             # less often than completions happen, and this mirrors the
             # pattern this codebase already uses elsewhere for the identical
@@ -195,7 +195,7 @@ class PerformanceMonitor:
 
         Latency statistics (average_latency_ms/p95_latency_ms/p99_latency_ms)
         are computed here, lazily, from the raw sample history rather than
-        being read off a pre-computed field — see the Round 26 fix note on
+        being read off a pre-computed field - see the Round 26 fix note on
         record_request() and _compute_latency_stats().
 
         Args:
@@ -241,7 +241,7 @@ class PerformanceMonitor:
         """Compute (mean_ms, p95_ms, p99_ms) from a latency sample collection.
 
         Time Complexity: O(n log n) for the sort, n = len(history) <= _MAX_LATENCY_SAMPLES.
-        Called only from the (comparatively rare) read path — see the Round 26
+        Called only from the (comparatively rare) read path - see the Round 26
         fix note on record_request().
         """
         if not history:

@@ -194,7 +194,7 @@ class CircuitBreaker:
 
     def call(self, fn: Callable[[], Any]) -> Any:
         if self.is_open:
-            msg = "Circuit breaker is OPEN — call rejected"
+            msg = "Circuit breaker is OPEN - call rejected"
             raise RuntimeError(msg)
         try:
             result = fn()

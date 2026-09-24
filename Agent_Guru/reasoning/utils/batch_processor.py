@@ -163,7 +163,7 @@ class BatchProcessor(Generic[T, R]):
     async def _process_loop(self) -> None:
         """Background loop for processing batches."""
         self._processing = True
-        # P2-21: Guard against infinite spinning — cap at 10000 iterations
+        # P2-21: Guard against infinite spinning - cap at 10000 iterations
         _MAX_ITERATIONS = 10_000
 
         try:
@@ -341,12 +341,12 @@ class DatabaseBatchWriter:
             if not rows:
                 continue
 
-            # Validate table name — must be a simple identifier (letters, digits, underscores)
+            # Validate table name - must be a simple identifier (letters, digits, underscores)
             if not table.replace("_", "").isalnum():
                 msg = f"Invalid table name: {table!r}"
                 raise ValueError(msg)
 
-            # Build batch INSERT — table name is validated above; values are parameterized
+            # Build batch INSERT - table name is validated above; values are parameterized
             columns = list(rows[0].keys())
             # Validate column names as well
             for col in columns:

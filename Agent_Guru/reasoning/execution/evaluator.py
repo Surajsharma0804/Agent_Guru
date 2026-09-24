@@ -179,12 +179,12 @@ class ResultValidator:
 
         # Business rules validation
         # FIX: previously only ever consulted the `business_rules` argument
-        # passed explicitly to THIS call — self._validation_rules (populated
+        # passed explicitly to THIS call - self._validation_rules (populated
         # by add_validation_rule()/removed by remove_validation_rule()) was
         # never read anywhere in this method. That made add_validation_rule
         # a complete no-op: a caller could register a rule, validate data
         # that clearly violated it, and get zero issues back. Verified this
-        # concretely before fixing. Now both sources are actually applied —
+        # concretely before fixing. Now both sources are actually applied -
         # explicitly-passed business_rules first, then any rules registered
         # on the instance via add_validation_rule().
         effective_business_rules: dict[str, Callable[[Any], bool]] = {}
@@ -192,7 +192,7 @@ class ResultValidator:
             effective_business_rules.update(business_rules)
         if self._validation_rules:
             # Instance-registered rules don't override an explicitly-passed
-            # rule for the same field in this call — the caller's explicit,
+            # rule for the same field in this call - the caller's explicit,
             # per-call rule wins if both target the same field.
             for field_name, rule_func in self._validation_rules.items():
                 effective_business_rules.setdefault(field_name, rule_func)
@@ -453,7 +453,7 @@ class ResultValidator:
         NOTE: `rule_name` doubles as the field name the rule is applied to
         (it's looked up against `result_data[rule_name]` during validate()),
         matching how `business_rules` dicts are already keyed elsewhere in
-        this class — not an arbitrary label.
+        this class - not an arbitrary label.
 
         Args:
             rule_name: Name of the rule (== the field it validates).
@@ -513,7 +513,7 @@ class ExecutionEvaluator:
         self.base_retry_delay = base_retry_delay
         self.validator = ResultValidator()
 
-        # Track retry patterns for improvement — use defaultdict of deque for O(1) bounded append
+        # Track retry patterns for improvement - use defaultdict of deque for O(1) bounded append
         self._retry_stats: dict[str, deque[bool]] = defaultdict(lambda: deque(maxlen=100))
 
     def evaluate(
@@ -634,7 +634,7 @@ class ExecutionEvaluator:
         # Transient errors (network, rate limit)
         # FIX: "timeout" previously appeared in this list too, but the
         # explicit `if "timeout" in error_text: return ErrorType.TIMEOUT`
-        # check above always catches it first — so "timeout" here was
+        # check above always catches it first - so "timeout" here was
         # provably unreachable dead weight, not a bug that changes
         # behavior (TIMEOUT correctly took precedence either way), just
         # misleading: it implied this branch could still be reached for
@@ -801,7 +801,7 @@ class ExecutionEvaluator:
             success: Whether retry was successful
 
         """
-        # defaultdict(deque(maxlen=100)) auto-creates and auto-evicts — no manual management needed
+        # defaultdict(deque(maxlen=100)) auto-creates and auto-evicts - no manual management needed
         self._retry_stats[error_type].append(success)
 
     def get_retry_stats(self, error_type: str) -> dict[str, Any]:

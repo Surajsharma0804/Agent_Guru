@@ -9,16 +9,16 @@ with:
 - Graceful fallback chain when preferred backend is unavailable
 
 Performance Requirements:
-    - STT latency: <1 second (95th percentile) — beats Alexa 1.5s, Siri 2.0s
+    - STT latency: <1 second (95th percentile) - beats Alexa 1.5s, Siri 2.0s
     - Accuracy: >90% on each platform
     - Streaming: first partial result within 200ms of speech start
 
 Architecture:
     STTManager
-    ├── WhisperTranscriber  (stt/whisper_stt.py) — desktop backend
-    ├── _MobileSTTBackend   — Android / iOS native speech recognition
-    ├── LanguageDetector    (stt/language_detector.py) — auto-detection
-    └── asyncio             — streaming transcription loop
+    ├── WhisperTranscriber  (stt/whisper_stt.py) - desktop backend
+    ├── _MobileSTTBackend   - Android / iOS native speech recognition
+    ├── LanguageDetector    (stt/language_detector.py) - auto-detection
+    └── asyncio             - streaming transcription loop
 
 Author: Agent Guru Team
 Date: 2026-03-20
@@ -53,7 +53,7 @@ logger = logging.getLogger(__name__)
 
 
 def _detect_platform() -> str:
-    """Thin wrapper — delegates to canonical PlatformDetector."""
+    """Thin wrapper - delegates to canonical PlatformDetector."""
     return PlatformDetector.detect().os_name.lower()
 
 
@@ -192,7 +192,7 @@ class _MobileSTTBackend:
         """
         duration = len(audio) / sample_rate
         if getattr(self, "_SpeechRecognizer", None) is None:
-            logger.debug("Android STT unavailable — returning empty result")
+            logger.debug("Android STT unavailable - returning empty result")
             return TranscriptionResult(
                 text="",
                 language=language or "en",
@@ -256,7 +256,7 @@ class _MobileSTTBackend:
         """
         duration = len(audio) / sample_rate
         if getattr(self, "_SFSpeechRecognizer", None) is None:
-            logger.debug("iOS STT unavailable — returning empty result")
+            logger.debug("iOS STT unavailable - returning empty result")
             return TranscriptionResult(
                 text="",
                 language=language or "en",
@@ -367,7 +367,7 @@ class STTManager:
         # re-running backend init.
         self._init_lock: asyncio.Lock = asyncio.Lock()
 
-        logger.info("STTManager created — platform=%s", self._config.platform)
+        logger.info("STTManager created - platform=%s", self._config.platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -399,7 +399,7 @@ class STTManager:
             elif plat == "ios":
                 await self._init_ios()
             else:
-                # Unknown platform — try desktop backend as best-effort
+                # Unknown platform - try desktop backend as best-effort
                 await self._init_desktop()
 
             if self._config.enable_language_detection:
@@ -407,7 +407,7 @@ class STTManager:
 
             self._initialized = True
             logger.info(
-                "STTManager initialized — backend=%s, platform=%s",
+                "STTManager initialized - backend=%s, platform=%s",
                 self._active_backend,
                 plat,
             )
@@ -436,7 +436,7 @@ class STTManager:
             self._mobile_backend.initialize()
             self._active_backend = STTBackend.ANDROID_SPEECH
         except Exception:
-            logger.exception("Android STT init failed — using fallback")
+            logger.exception("Android STT init failed - using fallback")
             # Fall back to Whisper if available
             try:
                 await self._init_desktop()
@@ -450,7 +450,7 @@ class STTManager:
             self._mobile_backend.initialize()
             self._active_backend = STTBackend.IOS_SPEECH
         except Exception:
-            logger.exception("iOS STT init failed — using fallback")
+            logger.exception("iOS STT init failed - using fallback")
             try:
                 await self._init_desktop()
             except ModelLoadError:
@@ -526,7 +526,7 @@ class STTManager:
 
         latency_ms = (time.perf_counter() - t_start) * 1000
         logger.debug(
-            "Transcription complete — text=%r, lang=%s, latency=%.1fms",
+            "Transcription complete - text=%r, lang=%s, latency=%.1fms",
             result.text[:50] if result.text else "",
             result.language,
             latency_ms,
@@ -578,8 +578,8 @@ class STTManager:
                 lambda: self._mobile_backend.transcribe(audio, sample_rate, language),  # type: ignore[union-attr]
             )
 
-        # No backend available — return empty result
-        logger.warning("No STT backend available — returning empty result")
+        # No backend available - return empty result
+        logger.warning("No STT backend available - returning empty result")
         return TranscriptionResult(
             text="",
             language=language or "en",

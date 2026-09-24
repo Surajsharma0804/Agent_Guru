@@ -5,11 +5,11 @@ Provides monocular depth estimation via MiDaS/Depth Anything ONNX models.
 Design:
 - Output normalised to [0.0, 1.0]: 0.0 = nearest, 1.0 = farthest.
 - Returns null DepthMap (is_null=True) when mean brightness < 20 or
-  pixel variance < 5 — frame is too dark/featureless for reliable estimation.
+  pixel variance < 5 - frame is too dark/featureless for reliable estimation.
 - Latency target: ≤100 ms per frame on GPU.
 - No stereo camera or depth sensor required.
 
-Requirements: 2.1–2.7
+Requirements: 2.1-2.7
 """
 
 from __future__ import annotations

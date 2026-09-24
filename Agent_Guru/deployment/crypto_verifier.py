@@ -190,7 +190,7 @@ class CryptoVerifier:
     def compute_package_hash(self, package_path: Path) -> bytes:
         """Compute SHA-256 hash of a package file using streaming.
 
-        Space Complexity: O(1) — processes in 64 KB chunks.
+        Space Complexity: O(1) - processes in 64 KB chunks.
 
         Raises:
             ValueError: If package_path resolves outside the configured cache_dir.

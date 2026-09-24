@@ -7,18 +7,18 @@ are delegated to the ``BiometricAuthenticator`` in
 ``Agent_Guru.security``.
 
 Public API:
-    FaceFeatureExtractor  — detect faces and extract embeddings
-    FaceFeatures          — extraction result (embedding + quality + liveness)
-    FaceDetection         — single detected face with bounding box
-    FaceQuality           — quality metrics for a detected face
-    BoundingBox           — face bounding box in image coordinates
+    FaceFeatureExtractor  - detect faces and extract embeddings
+    FaceFeatures          - extraction result (embedding + quality + liveness)
+    FaceDetection         - single detected face with bounding box
+    FaceQuality           - quality metrics for a detected face
+    BoundingBox           - face bounding box in image coordinates
 
 Exceptions:
-    FaceExtractionError   — base exception
-    FaceNotFoundError     — no face detected
-    LivenessFailedError   — liveness check failed
-    InvalidImageError     — image cannot be decoded
-    ExtractionTimeoutError — extraction exceeded 500 ms
+    FaceExtractionError   - base exception
+    FaceNotFoundError     - no face detected
+    LivenessFailedError   - liveness check failed
+    InvalidImageError     - image cannot be decoded
+    ExtractionTimeoutError - extraction exceeded 500 ms
 
 Example:
     >>> from Agent_Guru.vision import FaceFeatureExtractor

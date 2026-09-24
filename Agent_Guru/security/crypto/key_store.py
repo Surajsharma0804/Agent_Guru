@@ -77,7 +77,7 @@ class KeyStore:
         self._conn.row_factory = sqlite3.Row
         # check_same_thread=False only disables sqlite3's own cross-thread
         # check, it doesn't make the connection itself safe for concurrent
-        # use from multiple real threads — this lock serializes every
+        # use from multiple real threads - this lock serializes every
         # operation against self._conn (same fix applied to AuditLogger and
         # TrustManager this round, and to memory/github_sync.py last round).
         self._lock = threading.Lock()
@@ -104,13 +104,13 @@ class KeyStore:
         if not master_password:
             # An empty master_password derives the encryption key from a
             # well-known constant (b"") plus a salt that is itself stored,
-            # unencrypted, in this same database's metadata table — anyone
+            # unencrypted, in this same database's metadata table - anyone
             # with read access to storage_path can reproduce the exact same
             # encryption key and read every "encrypted at rest" key this
             # store holds. This may be a deliberate choice when a caller
             # layers its own protection (e.g. full-disk encryption, a
             # hardware-backed keyring) on top, so it isn't refused outright
-            # — but it silently defeats this class's own stated security
+            # - but it silently defeats this class's own stated security
             # property ("Keys are encrypted at rest"), so make that visible
             # instead of letting it pass unnoticed.
             logger.warning(
@@ -445,7 +445,7 @@ class KeyStore:
 
         IMPORTANT LIMITATION, documented rather than silently left implied:
         this only works on a mutable `bytearray`. It is never actually
-        called anywhere in this class — `store_key()`'s `key_material` and
+        called anywhere in this class - `store_key()`'s `key_material` and
         `retrieve_key()`'s decrypted return value are both plain `bytes`,
         which are immutable in Python and therefore cannot be zeroed in
         place by this or any other method; the interpreter is also free to
@@ -455,7 +455,7 @@ class KeyStore:
         from process memory after use would require threading `bytearray`
         (or a `ctypes`/`mmap`-backed buffer) through the whole key lifecycle
         in `store_key()`/`retrieve_key()` and every caller that consumes the
-        returned key bytes — a larger, deliberate design change, not a
+        returned key bytes - a larger, deliberate design change, not a
         one-line fix. This method is kept as a real, working primitive for
         callers that do manage their key material as `bytearray`, but it
         does not currently provide the secure-erasure property its

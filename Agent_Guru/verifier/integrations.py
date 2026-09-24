@@ -39,7 +39,7 @@ class LLMRuntimeIntegration:
         """Intercept and verify an LLM response.
 
         Returns:
-            (should_forward, result) — if should_forward=False, use result.feedback
+            (should_forward, result) - if should_forward=False, use result.feedback
 
         """
         result = await self._verifier.verify_llm_response(
@@ -97,7 +97,7 @@ class AgentOrchestrationIntegration:
             if self._retry_counts[task_id] >= self._max_retries:
                 should_escalate = True
                 logger.error(
-                    "Task %s failed verification %d times — escalating",
+                    "Task %s failed verification %d times - escalating",
                     task_id,
                     self._retry_counts[task_id],
                 )

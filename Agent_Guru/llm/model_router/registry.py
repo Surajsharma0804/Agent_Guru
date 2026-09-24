@@ -1,5 +1,5 @@
 """Module: Agent_Guru.llm.model_router.registry
-Purpose: Model Registry — catalog of available models with capabilities and costs.
+Purpose: Model Registry - catalog of available models with capabilities and costs.
 
 Thread-safe in-memory registry with optional SQLite persistence.
 """

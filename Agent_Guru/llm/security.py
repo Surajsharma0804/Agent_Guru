@@ -79,7 +79,7 @@ def _redact_match(match: re.Match) -> str:  # type: ignore[type-arg]
     if groups:
         # Keep the prefix (e.g., "Bearer ") and redact the value
         return groups[0] + "[REDACTED]"
-    # No capture group — replace the entire match
+    # No capture group - replace the entire match
     return "[REDACTED]"
 
 
@@ -205,7 +205,7 @@ def detect_prompt_injection(text: str) -> bool:
 def sanitize_user_input(text: str) -> str:
     """Sanitize user input by removing potential injection markers.
 
-    Does NOT block the input — just strips obvious injection prefixes
+    Does NOT block the input - just strips obvious injection prefixes
     so the LLM sees clean input. Use detect_prompt_injection() for
     hard blocking decisions.
 

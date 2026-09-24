@@ -1,5 +1,5 @@
 """Module: Agent_Guru.llm.model_router.analyzer
-Purpose: Task Analyzer — extracts task features and requirements.
+Purpose: Task Analyzer - extracts task features and requirements.
 
 Uses keyword pattern matching and heuristics for fast, dependency-free analysis.
 """

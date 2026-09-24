@@ -7,7 +7,7 @@ injection (CWE-77/78/88).
 Performance Characteristics:
     - Time Complexity: O(1) per call (excluding subprocess execution time)
     - Space Complexity: O(n) where n is the size of stdout/stderr output
-    - No caching — each call spawns a fresh subprocess
+    - No caching - each call spawns a fresh subprocess
 
 Security Guarantees:
     - ``shell=False`` is enforced unconditionally; cannot be overridden by callers
@@ -65,7 +65,7 @@ def run_cmd(
     if isinstance(args, str):
         msg = (
             "run_cmd() requires a list of strings, not a bare string. "
-            "Passing a string would enable shell interpretation — use "
+            "Passing a string would enable shell interpretation - use "
             "args=['cmd', 'arg1', 'arg2'] instead."
         )
         raise TypeError(
@@ -74,7 +74,7 @@ def run_cmd(
 
     return subprocess.run(  # noqa: S603
         args,
-        shell=False,  # unconditional — never allow shell interpretation  # nosec B603
+        shell=False,  # unconditional - never allow shell interpretation  # nosec B603
         cwd=cwd,
         timeout=timeout,
         check=check,

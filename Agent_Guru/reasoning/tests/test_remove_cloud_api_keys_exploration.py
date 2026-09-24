@@ -27,7 +27,7 @@ import hypothesis.strategies as st
 
 
 # ---------------------------------------------------------------------------
-# Test 1 — Cloud Adapter Import
+# Test 1 - Cloud Adapter Import
 # ---------------------------------------------------------------------------
 
 
@@ -62,7 +62,7 @@ def test_cloud_adapters_not_importable() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 2 — RuntimeConfig Cloud Fields
+# Test 2 - RuntimeConfig Cloud Fields
 # ---------------------------------------------------------------------------
 
 
@@ -96,7 +96,7 @@ def test_runtime_config_has_no_cloud_fields() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 3 — cloud SDKs are not base dependencies
+# Test 3 - cloud SDKs are not base dependencies
 # ---------------------------------------------------------------------------
 #
 # DECISION (2026-09-24): Agent_Guru keeps its OpenAI and Anthropic providers,
@@ -258,7 +258,7 @@ def test_default_install_imports_without_the_cloud_sdks() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 4 — the local provider is the default
+# Test 4 - the local provider is the default
 # ---------------------------------------------------------------------------
 
 
@@ -271,7 +271,7 @@ def test_local_provider_is_the_default() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 5 — configuration validation
+# Test 5 - configuration validation
 # ---------------------------------------------------------------------------
 
 

@@ -83,7 +83,7 @@ class KnowledgeGraph:
         """Store a new entity. Returns its UUID."""
         async with self._get_or_create_lock(entity.id):
             if entity.id in self._entities:
-                # Already exists — create a new version instead
+                # Already exists - create a new version instead
                 return await self._create_version(
                     entity.id,
                     entity.attributes,

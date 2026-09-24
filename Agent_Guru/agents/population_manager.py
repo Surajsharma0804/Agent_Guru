@@ -19,13 +19,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # FIX: self._history previously grew without bound for the entire lifetime
-# of a PopulationManager instance — every evaluate_population_size() call
+# of a PopulationManager instance - every evaluate_population_size() call
 # appended a new PopulationSnapshot and nothing ever evicted an old one.
 # The class's own docstring claims "Space Complexity: O(h) where h =
 # history length" but never actually bounds h. For a long-running
 # background population-health monitor (which this clearly is, given it's
 # meant to be evaluated repeatedly over the process lifetime), this is a
-# real, unbounded memory leak. Capped via deque(maxlen=...) below — same
+# real, unbounded memory leak. Capped via deque(maxlen=...) below - same
 # fix pattern (list -> deque) already applied elsewhere in this codebase
 # for the unrelated-but-same-shaped "unbounded/O(n)-list-as-queue" issue.
 _DEFAULT_HISTORY_LIMIT = 1000
@@ -49,7 +49,7 @@ class PopulationManager:
 
     Time Complexity: O(n) for evaluation, where n = active agents
     Space Complexity: O(h) where h = history length, bounded by
-        `history_limit` (default 1000) — older snapshots are evicted
+        `history_limit` (default 1000) - older snapshots are evicted
         automatically once the cap is reached.
 
     Example:
@@ -73,13 +73,13 @@ class PopulationManager:
         self.merger = merger
         self.min_agents = min_agents
         self.max_agents = max_agents
-        # FIX: was `list[PopulationSnapshot] = []` (unbounded growth — see
+        # FIX: was `list[PopulationSnapshot] = []` (unbounded growth - see
         # module-level FIX note above). deque(maxlen=history_limit)
         # automatically evicts the oldest snapshot once the cap is
         # reached, giving O(1) bounded space instead of O(unbounded)
         # growth, at O(1) append cost either way. All existing usages
         # ([-1] indexing, full iteration in track_population_trends) are
-        # fully compatible with deque — no slicing is used anywhere on
+        # fully compatible with deque - no slicing is used anywhere on
         # this attribute.
         self._history: deque[PopulationSnapshot] = deque(maxlen=history_limit)
 
@@ -104,12 +104,12 @@ class PopulationManager:
 
         """
         # FIX: previously two SEQUENTIAL `await self.storage.query_agents(...)`
-        # calls — one filtered (status=ACTIVE), one unfiltered — each a
+        # calls - one filtered (status=ACTIVE), one unfiltered - each a
         # separate round-trip to (presumably) a database/storage backend,
         # awaited one after another even though neither depends on the
         # other's result. Running them concurrently via asyncio.gather cuts
         # the wall-clock latency of this method from roughly T1+T2 down to
-        # max(T1, T2) — a real, verifiable latency win, though it doesn't
+        # max(T1, T2) - a real, verifiable latency win, though it doesn't
         # change the O(n) asymptotic complexity the docstring claims (that
         # was already correct; this is a constant-factor/concurrency fix,
         # not an algorithmic one).
@@ -185,12 +185,12 @@ class PopulationManager:
                 merged_ids.add(agent_b_id)
                 count += 1
             except Exception:
-                # FIX: was `except (ValueError, Exception):` — Exception is
+                # FIX: was `except (ValueError, Exception):` - Exception is
                 # the superclass of ValueError, so listing both in the
                 # tuple was pure redundancy: this line was already exactly
                 # equivalent to `except Exception:`. Harmless at runtime
                 # (Python doesn't error on a redundant tuple member), but
-                # misleading to read — it implies ValueError gets some kind
+                # misleading to read - it implies ValueError gets some kind
                 # of special handling here, which it never did. Simplified
                 # to what it actually does.
                 logger.exception("Merge failed for %s + %s", agent_a_id, agent_b_id)

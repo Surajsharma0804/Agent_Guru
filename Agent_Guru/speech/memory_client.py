@@ -42,7 +42,7 @@ class MemoryClient:
     - Conversation turn storage for context learning
     - User preference extraction and storage
 
-    Gracefully degrades when the Memory System is unavailable —
+    Gracefully degrades when the Memory System is unavailable -
     all operations are fire-and-forget with error logging.
 
     Time Complexity: O(1) per store call
@@ -68,7 +68,7 @@ class MemoryClient:
         """
         self._system = memory_system
         self._max_buffer = max_buffer_size
-        # Local ring-buffer for offline/degraded operation — deque for O(1) eviction
+        # Local ring-buffer for offline/degraded operation - deque for O(1) eviction
         self._emotion_buffer: deque[dict[str, Any]] = deque(maxlen=max_buffer_size)
         self._conversation_buffer: deque[ConversationTurn] = deque(maxlen=max_buffer_size)
         logger.info(
@@ -90,7 +90,7 @@ class MemoryClient:
             user_id: User identifier
             emotion: Detected emotion type
             timestamp: When the emotion was detected
-            confidence: Detection confidence (0.0–1.0)
+            confidence: Detection confidence (0.0-1.0)
             metadata: Optional additional context
 
         Returns:
@@ -105,7 +105,7 @@ class MemoryClient:
             "metadata": metadata or {},
         }
 
-        # Buffer locally (bounded ring-buffer — deque auto-evicts oldest)
+        # Buffer locally (bounded ring-buffer - deque auto-evicts oldest)
         self._emotion_buffer.append(record)
 
         if self._system is None:
@@ -150,7 +150,7 @@ class MemoryClient:
             timestamp=timestamp or datetime.now(tz=UTC),
         )
 
-        # Buffer locally — deque auto-evicts oldest
+        # Buffer locally - deque auto-evicts oldest
         self._conversation_buffer.append(turn)
 
         if self._system is None:

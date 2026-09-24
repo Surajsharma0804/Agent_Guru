@@ -4,7 +4,7 @@ Automatically detects and manages CUDA GPU availability across all AI models.
 
 import logging
 
-# BUG-002: torch was imported unconditionally — crashes on any machine without
+# BUG-002: torch was imported unconditionally - crashes on any machine without
 # PyTorch installed (common in CPU-only / lightweight deployments).
 # Now gracefully falls back so the rest of the app still loads.
 try:
@@ -34,7 +34,7 @@ class DeviceManager:
 
     def __init__(self) -> None:
         """Initialize device manager and detect CUDA availability."""
-        # BUG-002: guard all torch usage — torch may be None if not installed
+        # BUG-002: guard all torch usage - torch may be None if not installed
         if _TORCH_AVAILABLE and torch is not None and torch.cuda.is_available():
             self._device = "cuda"
         else:
@@ -49,7 +49,7 @@ class DeviceManager:
             except Exception as e:
                 _logger.warning("GPU detected but couldn't get device name: %s", e)
         elif not _TORCH_AVAILABLE:
-            _logger.info("PyTorch not installed — running in CPU-only mode")
+            _logger.info("PyTorch not installed - running in CPU-only mode")
         else:
             _logger.info("No GPU detected - using CPU")
 

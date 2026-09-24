@@ -2,30 +2,30 @@
 
 Plays a short filler ("haan bol", "yeah?", etc.) in the natural pause after
 the user says the wake word, before they start their actual command. This is
-the same slot where Alexa/Google put their listening chime — it makes the
+the same slot where Alexa/Google put their listening chime - it makes the
 assistant feel present instead of laggy.
 
 Design:
     - Fillers are pre-synthesized once (Kokoro TTS or fallback) and cached
       in memory as (samples, sample_rate) pairs (~50KB per language set).
     - play_filler() picks a random clip and plays it via sounddevice.
-      play_filler() is a BLOCKING call (it calls sd.wait()) — callers on
+      play_filler() is a BLOCKING call (it calls sd.wait()) - callers on
       an asyncio event loop MUST use play_filler_async() instead, or they
       will freeze every other concurrent task for the clip's duration.
     - Mic should be gated for ~300ms during playback to prevent echo.
     - Timing instrumentation logs wake_to_filler_ms for verification.
 
 Performance:
-    - Time Complexity: O(1) per play_filler() call — random.choice() on
+    - Time Complexity: O(1) per play_filler() call - random.choice() on
       pre-cached arrays, no synthesis on the hot path.
     - Space Complexity: O(L * P) where L = number of language sets (~2) and
-      P = phrases per set (~5) — a fixed, small number of short clips.
+      P = phrases per set (~5) - a fixed, small number of short clips.
     - Latency: sub-millisecond from call to sd.play() dispatch. Actual audio
       onset depends on the audio backend, not this module.
 
-Fixes applied in this revision (all verified — see notes inline):
+Fixes applied in this revision (all verified - see notes inline):
 
-    1. CRITICAL — `Kokoro.from_pretrained(...)` is not a real API. The
+    1. CRITICAL - `Kokoro.from_pretrained(...)` is not a real API. The
        kokoro_onnx package's actual constructor is
        `Kokoro(model_path, voices_path)` (verified against the project's
        README/examples and released wheel). `Kokoro.from_pretrained` does
@@ -33,11 +33,11 @@ Fixes applied in this revision (all verified — see notes inline):
        silently fell through to the pyttsx3 fallback (or the sine-wave
        beep, if pyttsx3 was also unavailable). In other words: the "haan
        bol" / natural-voice filler described in this module's own
-       docstring was never actually being produced — only a robotic
+       docstring was never actually being produced - only a robotic
        pyttsx3 voice or, on many installs, a plain beep. Fixed to call the
        real constructor.
 
-    2. CRITICAL — a brand-new Kokoro instance (which loads a ~80-300MB
+    2. CRITICAL - a brand-new Kokoro instance (which loads a ~80-300MB
        ONNX model + voice bank off disk) was being constructed once PER
        PHRASE inside _synthesize_clip(), i.e. 10 separate full model loads
        for 10 short phrases, instead of 1 load + 10 cheap .create() calls.
@@ -46,17 +46,17 @@ Fixes applied in this revision (all verified — see notes inline):
        make instant. Fixed: the Kokoro engine is now built once and reused
        for every phrase.
 
-    3. CRITICAL — play_filler() calls sd.play(); sd.wait(), which blocks
+    3. CRITICAL - play_filler() calls sd.play(); sd.wait(), which blocks
        the calling thread until the whole clip has finished playing. The
        only real call site for this module (orchestrator.py's
        run_pipeline(), an `async def`) calls it directly, un-awaited and
-       not off-loaded to a thread — meaning every concurrent asyncio task
+       not off-loaded to a thread - meaning every concurrent asyncio task
        (STT streaming, the parallel vision pipeline in
        handle_concurrent_event, etc.) froze for the ~300-500ms the filler
        played. That is the opposite of "instant, non-blocking presence
        feedback". Fixed by adding play_filler_async(), an awaitable
        wrapper that runs the blocking call in a worker thread via
-       asyncio.to_thread — this is the version call sites under asyncio
+       asyncio.to_thread - this is the version call sites under asyncio
        must use. (The orchestrator call site is patched to use it.)
 
     4. Per-clip sample rate was being lost. _synthesize_clip() previously
@@ -66,14 +66,14 @@ Fixes applied in this revision (all verified — see notes inline):
        pyttsx3 (OS-native rate, e.g. 22050Hz) while others were
        successfully synthesized by Kokoro (fixed 24000Hz), every clip in
        the cache would be played back at whichever rate happened to be
-       set *last* — audibly pitched/sped up or down. Fixed: every cached
+       set *last* - audibly pitched/sped up or down. Fixed: every cached
        clip is now stored as an explicit (samples, sample_rate) pair, and
        played back at its own rate, never a shared mutable one.
 
     5. initialize() and the module-level singleton had no locking at all,
        unlike the equivalent stores already hardened elsewhere in this
        codebase (reaction_rules.get_reaction_rules(), user_memory's
-       get_user_memory(), speaker_verifier's get_speaker_verifier()) —
+       get_user_memory(), speaker_verifier's get_speaker_verifier()) -
        all of which anticipate concurrent access. The orchestrator's own
        call site does a check-then-act
        `if not _filler_cache._initialized: _filler_cache.initialize()`,
@@ -93,13 +93,13 @@ Fixes applied in this revision (all verified — see notes inline):
     7. Known, NOT silently papered over: Kokoro's shipped voice set
        (af_*/am_*/bf_*/bm_* etc.) has no dedicated Hindi/Hinglish voice.
        Feeding "haan bol" / "bol bhai" through an English voice's G2P
-       front-end will not sound like natural Hinglish — it will sound like
+       front-end will not sound like natural Hinglish - it will sound like
        an English voice attempting Romanized Hindi. There is no verified
        fix for this within Kokoro's current voice bank; this is a real
        product gap, not just a code bug, and is flagged here rather than
        hidden behind a "works on my machine" beep fallback.
 
-    8. CRITICAL — _get_kokoro_engine()'s default model paths were the bare
+    8. CRITICAL - _get_kokoro_engine()'s default model paths were the bare
        relative filenames "kokoro-v1.0.onnx" / "voices-v1.0.bin", resolved
        against the process's current working directory at runtime. The
        sibling module actually used for real Guru/Maya speech,
@@ -110,7 +110,7 @@ Fixes applied in this revision (all verified — see notes inline):
        reliably the install directory (or any directory containing these
        files), so on essentially any real-world launch this module would
        silently fail to find a model that is correctly present on disk at
-       the canonical cache path — falling through to the pyttsx3/beep
+       the canonical cache path - falling through to the pyttsx3/beep
        fallback every time, defeating fixes #1 and #2 above by accident of
        CWD rather than genuine model unavailability. Fixed: the defaults
        now point at the same canonical cache directory tts_engine.py uses,
@@ -137,7 +137,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Filler phrase banks — grouped by language preference
+# Filler phrase banks - grouped by language preference
 # ---------------------------------------------------------------------------
 
 _FILLER_PHRASES: dict[str, list[str]] = {
@@ -152,11 +152,11 @@ _DEFAULT_LANG = "hinglish"
 FILLER_MIC_GATE_DURATION_S = 0.35
 
 # Fixed sample rate for the synthetic beep fallback. Independent of whatever
-# rate any real TTS backend happens to return — see fix #4 above for why
+# rate any real TTS backend happens to return - see fix #4 above for why
 # clip sample rates must never be shared mutable state.
 _BEEP_SAMPLE_RATE = 24000
 
-# Canonical Kokoro model cache location — MUST match
+# Canonical Kokoro model cache location - MUST match
 # speech/tts/tts_engine.py's _CACHE_DIR exactly (fix #8): both modules
 # load the SAME physical model files, downloaded once by that module's
 # CoquiTTSEngine._ensure_loaded(). Bare relative filenames here would
@@ -182,13 +182,13 @@ class FillerResponseCache:
         # From synchronous code:
         cache.play_filler("guru", "hinglish", wake_timestamp=t0)
 
-        # From asyncio code (REQUIRED — play_filler() itself blocks):
+        # From asyncio code (REQUIRED - play_filler() itself blocks):
         await cache.play_filler_async("guru", "hinglish", wake_timestamp=t0)
 
     The cache tries to synthesize fillers via Kokoro TTS at startup, using a
     single Kokoro engine instance shared across all phrases. If Kokoro is
     unavailable, it falls back to a single shared pyttsx3 engine. If neither
-    is available, it generates simple sine-wave beep tones — still better
+    is available, it generates simple sine-wave beep tones - still better
     than silence for presence feedback.
     """
 
@@ -212,7 +212,7 @@ class FillerResponseCache:
     def initialize(self) -> None:
         """Pre-synthesize all filler clips. Safe to call once at startup.
 
-        Thread-safe double-checked locking (fix #5) — safe to call from
+        Thread-safe double-checked locking (fix #5) - safe to call from
         multiple threads/tasks racing to warm the cache on first use.
 
         This does real, potentially slow, disk + model-load work (loading
@@ -243,7 +243,7 @@ class FillerResponseCache:
                     # Fallback: generate a short listening beep
                     clips.append((self._generate_beep(duration_s=0.15), _BEEP_SAMPLE_RATE))
                     logger.info(
-                        "FillerCache: no TTS clips for '%s' — using beep fallback",
+                        "FillerCache: no TTS clips for '%s' - using beep fallback",
                         lang,
                     )
 
@@ -271,12 +271,12 @@ class FillerResponseCache:
 
         BLOCKING: this calls sd.wait() and does not return until the clip
         has finished playing. Callers running inside an asyncio event loop
-        must use play_filler_async() instead (fix #3) — calling this
+        must use play_filler_async() instead (fix #3) - calling this
         directly from an `async def` freezes every other concurrent task
         for the clip's duration.
 
         Args:
-            personality: "guru" or "maya" — currently unused but reserved for
+            personality: "guru" or "maya" - currently unused but reserved for
                          personality-specific filler voices in future.
             language_pref: "hinglish" or "english". Falls back to default.
             wake_timestamp: time.perf_counter() at wake-word detection, for
@@ -287,7 +287,7 @@ class FillerResponseCache:
             Duration of the played filler in seconds, or 0.0 if playback failed.
         """
         if not self._initialized:
-            logger.warning("FillerCache: not initialized — skipping filler")
+            logger.warning("FillerCache: not initialized - skipping filler")
             return 0.0
 
         lang = language_pref if language_pref in self._cache else _DEFAULT_LANG
@@ -295,7 +295,7 @@ class FillerResponseCache:
         if not clips:
             return 0.0
 
-        samples, sample_rate = random.choice(clips)  # noqa: S311 — not security-sensitive  # nosec B311
+        samples, sample_rate = random.choice(clips)  # noqa: S311 - not security-sensitive  # nosec B311
 
         # Timing instrumentation
         play_start = time.perf_counter()
@@ -347,7 +347,7 @@ class FillerResponseCache:
 
         FIX: previously a new `Kokoro.from_pretrained(...)` was constructed
         per phrase, and `.from_pretrained` isn't a real method on this
-        class in the first place — the real constructor is
+        class in the first place - the real constructor is
         `Kokoro(model_path, voices_path)`. Built once here and cached on
         the instance so every phrase reuses the same loaded model
         (fixes #1 and #2).
@@ -371,7 +371,7 @@ class FillerResponseCache:
             return self._kokoro
         except Exception:
             logger.info(
-                "FillerCache: Kokoro unavailable — will use fallback backend",
+                "FillerCache: Kokoro unavailable - will use fallback backend",
                 exc_info=True,
             )
             self._kokoro_unavailable = True
@@ -381,7 +381,7 @@ class FillerResponseCache:
         """Synthesize one phrase with the shared Kokoro engine.
 
         Returns (samples, sample_rate), or None on failure for this phrase
-        only — a single bad phrase no longer disables Kokoro for the rest
+        only - a single bad phrase no longer disables Kokoro for the rest
         of the batch.
         """
         try:
@@ -397,7 +397,7 @@ class FillerResponseCache:
         """Build (once) and return the shared pyttsx3 engine, or None.
 
         FIX: previously a new pyttsx3.init() engine was created per phrase
-        and never stopped — a resource leak, and on some native drivers a
+        and never stopped - a resource leak, and on some native drivers a
         source of hangs on the next init() in the same process. Built once
         here and reused.
         """
@@ -414,7 +414,7 @@ class FillerResponseCache:
             return engine
         except Exception:
             logger.info(
-                "FillerCache: pyttsx3 unavailable — will use beep fallback",
+                "FillerCache: pyttsx3 unavailable - will use beep fallback",
                 exc_info=True,
             )
             self._pyttsx3_unavailable = True
@@ -460,7 +460,7 @@ class FillerResponseCache:
         """Generate a short sine-wave beep as ultimate fallback.
 
         A gentle 800Hz tone that sounds like a subtle "listening" indicator.
-        Always at _BEEP_SAMPLE_RATE — a fixed constant, not shared mutable
+        Always at _BEEP_SAMPLE_RATE - a fixed constant, not shared mutable
         instance state (see fix #4).
         """
         t = np.linspace(
@@ -478,7 +478,7 @@ class FillerResponseCache:
             signal[:fade_samples] *= fade_in
             signal[-fade_samples:] *= fade_out
 
-        # Keep volume low — this is a subtle acknowledgement, not an alarm
+        # Keep volume low - this is a subtle acknowledgement, not an alarm
         signal *= 0.3
         return signal
 
@@ -495,7 +495,7 @@ def get_filler_cache() -> FillerResponseCache:
     """Return the global FillerResponseCache (lazy init, thread-safe).
 
     FIX: previously a bare `if _filler_cache is None: _filler_cache = ...`
-    with no lock — a real race if the first wake event and a concurrent
+    with no lock - a real race if the first wake event and a concurrent
     vision-pipeline task (see handle_concurrent_event) both hit this at
     once. Double-checked locking, matching the pattern already used by
     get_user_memory() and get_reaction_rules() elsewhere in this codebase.

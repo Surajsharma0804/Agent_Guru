@@ -61,7 +61,7 @@ TestScenario = scenarios_module.TestScenario
 
 
 def _safe_percent_change(baseline: float, final: float, *, higher_is_better: bool = True) -> float:
-    """Percent change from baseline to final — safe when baseline is 0.
+    """Percent change from baseline to final - safe when baseline is 0.
 
     FIX: the original inline formulas (`((final - baseline) / baseline) *
     100` for success rate and reasoning quality, and the numerator-reversed
@@ -70,7 +70,7 @@ def _safe_percent_change(baseline: float, final: float, *, higher_is_better: boo
     baseline metric is exactly 0.0. That's not a theoretical edge case
     here: baseline_success_rate is computed from only the first 10 tasks,
     and TaskExecutor._calculate_success_probability() clamps per-task
-    success probability to a minimum of 30% — meaning there's a real,
+    success probability to a minimum of 30% - meaning there's a real,
     non-trivial ~2.8% chance ((1-0.3)^10) that all 10 baseline tasks fail
     simply by bad luck, which would crash this entire 100-task validation
     run (and, per this module's own docstring, its automatic GitHub
@@ -748,10 +748,10 @@ def main() -> int:
     # FIX: this used to be
     #     if report.validation_passed or not report.meets_15_percent_target:
     #         pass
-    # — a comment saying "Print final status" followed by a no-op `pass` in
+    # - a comment saying "Print final status" followed by a no-op `pass` in
     # both branches. Running this script produced ZERO console feedback
     # about the actual validation outcome (only the JSON/markdown files
-    # written to disk carried any information) — a real usability gap for
+    # written to disk carried any information) - a real usability gap for
     # a script meant to be run interactively or watched in CI. Restored
     # an actual summary print.
     print()

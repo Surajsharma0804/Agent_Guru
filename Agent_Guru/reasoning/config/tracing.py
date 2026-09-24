@@ -4,7 +4,7 @@ from contextlib import contextmanager
 
 from opentelemetry import trace
 
-# Jaeger exporter was removed in newer OpenTelemetry versions — graceful fallback
+# Jaeger exporter was removed in newer OpenTelemetry versions - graceful fallback
 try:
     from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 except ImportError:

@@ -59,7 +59,7 @@ class ZKProofSystem:
         # Track seen proof nonces to prevent replay, mapped to when each was
         # recorded so _prune_expired_nonces() can evict entries outside the
         # replay window (see that method for why retaining them forever is
-        # pointless — a set() that only ever grows was the previous, leaky
+        # pointless - a set() that only ever grows was the previous, leaky
         # implementation).
         self._seen_nonces: dict[bytes, datetime] = {}
 
@@ -107,7 +107,7 @@ class ZKProofSystem:
             # Public inputs: claim info + public key (no private key).
             # profile_id is included so verify_proof() can independently
             # recompute commitment_hash from the claimed data (see the fix
-            # note in verify_proof() below) — public_key is already included
+            # note in verify_proof() below) - public_key is already included
             # here, and a freshly-generated Ed25519 key pair is effectively
             # a 1:1 fingerprint of its identity in this design, so including
             # profile_id too does not reduce anonymity beyond what including
@@ -164,7 +164,7 @@ class ZKProofSystem:
             msg = "Proof timestamp indicates replay attack"
             raise ReplayAttackError(msg)
 
-        # Prune nonces outside the replay window before checking/recording —
+        # Prune nonces outside the replay window before checking/recording -
         # see _prune_expired_nonces() for why this bounds memory growth.
         self._prune_expired_nonces()
 
@@ -175,13 +175,13 @@ class ZKProofSystem:
 
         try:
             # Reconstruct the commitment hash from the claim data actually
-            # being verified (profile_id now travels in public_inputs — see
+            # being verified (profile_id now travels in public_inputs - see
             # generate_proof()) and require it to match the self-reported
             # public_inputs["commitment_hash"] *before* trusting that hash
             # for signature verification.
             #
             # Previously this block built the reconstructed dict as a bare
-            # expression and never assigned or used it — meaning nothing
+            # expression and never assigned or used it - meaning nothing
             # here actually confirmed that public_inputs["commitment_hash"]
             # corresponded to public_inputs["claim_type"]/["claim_value"] at
             # all. Since the claim_type/claim_value/commitment_hash fields
@@ -192,7 +192,7 @@ class ZKProofSystem:
             # public_inputs (commitment_hash and proof_data, both still
             # bound to the *original* claim, were never touched or checked
             # against the new claim_type/claim_value) and verify_proof()
-            # would still report success — a real proof-forgery bypass of
+            # would still report success - a real proof-forgery bypass of
             # this module's own documented "Soundness" guarantee.
             reconstructed_commitment = {
                 "claim_type": proof.public_inputs.get("claim_type"),
@@ -202,7 +202,7 @@ class ZKProofSystem:
                 "nonce": proof.nonce.hex(),
             }
             if reconstructed_commitment["profile_id"] is None:
-                # Legacy proof format predating the profile_id field above —
+                # Legacy proof format predating the profile_id field above -
                 # there is no way to independently verify its commitment
                 # hash, so fail closed rather than trust the self-reported
                 # one.
@@ -214,7 +214,7 @@ class ZKProofSystem:
             expected_hash = bytes.fromhex(proof.public_inputs["commitment_hash"])
             if recomputed_hash != expected_hash:
                 # The claimed data doesn't hash to the commitment the
-                # signature actually covers — reject before even attempting
+                # signature actually covers - reject before even attempting
                 # signature verification.
                 return False
 
@@ -252,7 +252,7 @@ class ZKProofSystem:
         _check_replay() already rejects any proof whose own timestamp is
         older than _REPLAY_WINDOW_SECONDS, so a nonce recorded that long ago
         can never again match a proof that would pass the timestamp check in
-        the first place — retaining it forever bought no additional replay
+        the first place - retaining it forever bought no additional replay
         protection while growing this set without bound for the lifetime of
         a long-running process (a real memory leak in a companion app meant
         to run continuously).

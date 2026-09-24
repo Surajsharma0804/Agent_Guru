@@ -90,7 +90,7 @@ class GoalManagerClient:
             )
 
         if self._manager is None:
-            logger.debug("Goal manager unavailable — task creation skipped")
+            logger.debug("Goal manager unavailable - task creation skipped")
             return TaskCreationResult(
                 success=True,
                 goal_id=None,

@@ -82,7 +82,7 @@ class FaceAligner:
 
     Args:
         output_size: Target ``(height, width)`` of the aligned face image.
-            Defaults to ``(112, 112)`` — the ArcFace standard.
+            Defaults to ``(112, 112)`` - the ArcFace standard.
 
     Example::
 
@@ -165,7 +165,7 @@ class FaceAligner:
 
         """
         if not _CV2_AVAILABLE:
-            logger.warning("cv2 not available — cannot perform landmark-based alignment.")
+            logger.warning("cv2 not available - cannot perform landmark-based alignment.")
             return None
 
         try:
@@ -178,7 +178,7 @@ class FaceAligner:
             template = self._scaled_template()
 
             # Estimate partial affine (similarity) transform: rotation, scale,
-            # translation — no shear.
+            # translation - no shear.
             transform_matrix, _ = cv2.estimateAffinePartial2D(lm, template, method=cv2.LMEDS)
 
             if transform_matrix is None:
@@ -226,7 +226,7 @@ class FaceAligner:
         y2 = min(frame_h, int(y) + int(bh))
 
         if x2 <= x1 or y2 <= y1:
-            # Empty crop — return black image
+            # Empty crop - return black image
             logger.debug(
                 "Bbox %s results in empty crop after clamping to frame %dx%d; "
                 "returning black image.",

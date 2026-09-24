@@ -30,7 +30,7 @@ class CacheManager:
     Uses an OrderedDict for O(1) LRU operations.
     Each entry stores (decision, expiry_timestamp).
 
-    Validates: Requirements 7.1–7.6
+    Validates: Requirements 7.1-7.6
     """
 
     def __init__(
@@ -80,7 +80,7 @@ class CacheManager:
 
         decision, expiry = entry
         if time.monotonic() > expiry:
-            # Expired — remove and treat as miss
+            # Expired - remove and treat as miss
             del self._cache[cache_key]
             self._misses += 1
             return None

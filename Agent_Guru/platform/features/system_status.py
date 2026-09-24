@@ -62,7 +62,7 @@ def get_system_status(transcript: str) -> str:
     if re.search(r"\bbattery\b", t):
         battery = psutil.sensors_battery()
         if battery is None:
-            return "No battery detected — this device is running on AC power."
+            return "No battery detected - this device is running on AC power."
         pct = battery.percent
         plugged = "plugged in" if battery.power_plugged else "on battery"
         if battery.power_plugged:

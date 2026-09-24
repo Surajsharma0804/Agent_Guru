@@ -36,7 +36,7 @@ class TaskResult:
 
 
 class OrchestrationSystem:
-    """Main orchestration API — wires all components together.
+    """Main orchestration API - wires all components together.
 
     Receives tasks from the Goal Manager, decomposes them, assigns agents,
     executes in dependency order (with parallelism for independent sub-tasks),
@@ -88,7 +88,7 @@ class OrchestrationSystem:
         sub_tasks = await self.decomposer.decompose(task)
 
         if len(sub_tasks) == 1 and sub_tasks[0].id == task.id:
-            # Atomic task — execute directly
+            # Atomic task - execute directly
             # BUG FIX: was an unprotected `return await
             # self._execute_task(task)` -- this class's own contract
             # (docstring/example: callers always get a TaskResult
@@ -133,7 +133,7 @@ class OrchestrationSystem:
             ready = [t for t in remaining if all(dep in completed for dep in t.dependencies)]
 
             if not ready:
-                # Circular dependency or unresolvable — execute remaining sequentially
+                # Circular dependency or unresolvable - execute remaining sequentially
                 logger.warning("Could not resolve dependencies, executing remaining sequentially")
                 for t in remaining:
                     # BUG FIX: was an unprotected `await
@@ -261,5 +261,5 @@ class OrchestrationSystem:
 
     @staticmethod
     async def _default_executor(agent_id: str, task: Task):
-        """Default stub executor — always succeeds with no output."""
+        """Default stub executor - always succeeds with no output."""
         return True, None

@@ -44,7 +44,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 def _is_android_available() -> bool:
-    """Check Android availability — separate function so tests can patch it."""
+    """Check Android availability - separate function so tests can patch it."""
     return ANDROID_AVAILABLE
 
 class PermissionStatus(Enum):
@@ -238,12 +238,12 @@ class AndroidIntegration:
     # ========== UI Automation ==========
 
     def simulate_touch(self, x: int, y: int) -> None:
-        """Simulate touch — requires Accessibility Service."""
+        """Simulate touch - requires Accessibility Service."""
         msg = "Touch simulation requires Accessibility Service implementation"
         raise NotImplementedError(msg)
 
     def type_text(self, text: str) -> None:
-        """Type text — requires Accessibility Service."""
+        """Type text - requires Accessibility Service."""
         msg = "Text input requires Accessibility Service implementation"
         raise NotImplementedError(msg)
 

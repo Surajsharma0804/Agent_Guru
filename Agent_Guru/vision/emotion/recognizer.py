@@ -154,13 +154,13 @@ class EmotionRecognizer:
 
     @staticmethod
     def _heuristic_scores(face: np.ndarray) -> np.ndarray:
-        """Brightness/contrast heuristic — returns a valid probability distribution.
+        """Brightness/contrast heuristic - returns a valid probability distribution.
 
         Note: This is a dev/test fallback only. It has no real correlation with
         actual emotions and should never be used in production without a real model.
         """
         logger.warning(
-            "No emotion model available — using brightness/contrast heuristic fallback. "
+            "No emotion model available - using brightness/contrast heuristic fallback. "
             "Results are not meaningful without a real ONNX model.",
         )
         gray = (

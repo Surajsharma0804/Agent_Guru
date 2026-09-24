@@ -34,7 +34,7 @@ from Agent_Guru.llm.models import (
 )
 from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
 
-# Cloud adapters are optional — only available if the adapter files exist.
+# Cloud adapters are optional - only available if the adapter files exist.
 # We import them lazily so a missing file doesn't crash the whole module.
 try:
     from Agent_Guru.llm.providers.openai_adapter import (
@@ -233,7 +233,7 @@ class LLMManager:
         self._initialized: bool = False
 
         logger.info(
-            "LLMManager created — platform=%s, is_desktop=%s, mode=%s",
+            "LLMManager created - platform=%s, is_desktop=%s, mode=%s",
             self._platform,
             self._is_desktop,
             self._config.mode,
@@ -271,14 +271,14 @@ class LLMManager:
             )
             if not has_any_cloud_key:
                 logger.info(
-                    "No cloud API key found — switching to local Ollama mode (model: %s at %s)",
+                    "No cloud API key found - switching to local Ollama mode (model: %s at %s)",
                     self._config.ollama_model,
                     self._config.ollama_host,
                 )
                 self._config.mode = "local"
                 self._config.provider = LLMProvider.OLLAMA
 
-        # Build runtime config (Ollama only — cloud configs added if adapters exist)
+        # Build runtime config (Ollama only - cloud configs added if adapters exist)
         runtime_config = self._build_runtime_config()
 
         # Build provider adapters
@@ -296,7 +296,7 @@ class LLMManager:
 
         self._initialized = True
         logger.info(
-            "LLMManager initialized — platform=%s, provider=%s, mode=%s",
+            "LLMManager initialized - platform=%s, provider=%s, mode=%s",
             self._platform,
             self._config.provider.value,
             self._config.mode,
@@ -373,7 +373,7 @@ class LLMManager:
         t_start = time.perf_counter()
 
         if self._failover_router is None:
-            msg = "LLMManager not initialized — call initialize() first"
+            msg = "LLMManager not initialized - call initialize() first"
             raise RuntimeError(msg)
 
         result: FailoverResult = await self._failover_router.complete_with_failover(
@@ -385,13 +385,13 @@ class LLMManager:
 
         # BUG FIX (Round 26): generate_response() is the real production
         # entry point (per this module's own docstring), but it calls
-        # ProviderFailoverRouter.complete_with_failover() directly — it
+        # ProviderFailoverRouter.complete_with_failover() directly - it
         # never calls self._runtime.complete(), which is the only code path
         # that reports metrics to self._runtime.performance_monitor (see
         # llm_runtime.py). LLMRuntime.from_config() still builds a fully
         # configured PerformanceMonitor (and ErrorHandler, with its retry +
         # circuit-breaker logic), but neither ever receives a single call in
-        # this — the actual — flow: PerformanceMonitor.report_to_self_improvement()
+        # this - the actual - flow: PerformanceMonitor.report_to_self_improvement()
         # would always return empty metrics in production, and
         # _emit_reliability_warning() could never fire, even for a provider
         # that is failing constantly, because nothing was ever recording
@@ -403,7 +403,7 @@ class LLMManager:
         # returns the final aggregate result, not each individual
         # provider's own latency/error from the failover loop, so an
         # accurate per-provider failure record can't be reconstructed after
-        # the fact from this call site — that per-provider failure detail
+        # the fact from this call site - that per-provider failure detail
         # already lives in ProviderFailoverRouter.get_health_status().
         # Separately, and left as a flagged, NOT-fixed architectural
         # finding rather than merged here: ErrorHandler's retry/circuit-
@@ -411,7 +411,7 @@ class LLMManager:
         # ProviderFailoverRouter's own, independent failover strategy.
         # Merging those two would change real failover/retry timing
         # behavior and needs to be validated against a live
-        # Ollama/cloud-provider environment this sandbox doesn't have —
+        # Ollama/cloud-provider environment this sandbox doesn't have -
         # see the Round 26 report.)
         if self._runtime is not None and result.provider_used is not None:
             await self._runtime.performance_monitor.record_request(
@@ -438,7 +438,7 @@ class LLMManager:
         )
 
         logger.info(
-            "LLM response — personality=%s, provider=%s, latency=%.1fms, fallback=%s",
+            "LLM response - personality=%s, provider=%s, latency=%.1fms, fallback=%s",
             personality,
             provider_name,
             latency_ms,
@@ -462,7 +462,7 @@ class LLMManager:
     def validate_api_key(self, provider: LLMProvider, api_key: str) -> bool:
         """Validate an API key format for the given provider (no network call)."""
         if provider == LLMProvider.OLLAMA:
-            return True  # Ollama is local — no key needed
+            return True  # Ollama is local - no key needed
         if not api_key or not api_key.strip():
             return False
         key = api_key.strip()
@@ -589,7 +589,7 @@ class LLMManager:
     # ------------------------------------------------------------------
 
     def _build_runtime_config(self) -> RuntimeConfig:
-        """Build RuntimeConfig — only Ollama config needed right now."""
+        """Build RuntimeConfig - only Ollama config needed right now."""
         return RuntimeConfig(
             ollama_config=OllamaConfig(host=self._config.ollama_host),
             max_history_messages=self._config.max_context_messages,
@@ -605,7 +605,7 @@ class LLMManager:
                 OllamaConfig(host=self._config.ollama_host),
             )
 
-        # Cloud adapters — only add if the adapter file exists
+        # Cloud adapters - only add if the adapter file exists
         if _HAS_OPENAI and _OpenAIAdapter is not None:
             try:
                 adapters[ModelProvider.OPENAI] = _OpenAIAdapter(

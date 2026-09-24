@@ -164,9 +164,9 @@ class NEREntityExtractor:
                 if self._gpu_active:
                     _logger.info("NER extractor using GPU")
                 else:
-                    _logger.warning("GPU requested but not available — using CPU")
+                    _logger.warning("GPU requested but not available - using CPU")
             except Exception as e:
-                _logger.warning("GPU setup failed: %s — using CPU", e)
+                _logger.warning("GPU setup failed: %s - using CPU", e)
                 self._gpu_active = False
 
         _logger.info("NER model loaded: %s", model_path)
@@ -248,7 +248,7 @@ class NEREntityExtractor:
         # Calculate latency
         extraction_time_ms = (time.perf_counter() - start_time) * 1000
 
-        # Check if GPU was used — spacy.prefer_gpu() returns True only when
+        # Check if GPU was used - spacy.prefer_gpu() returns True only when
         # a GPU was successfully activated; store the result at load time.
         used_gpu = self._gpu_active
 

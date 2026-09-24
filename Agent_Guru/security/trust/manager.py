@@ -74,7 +74,7 @@ class TrustManager:
         self._conn.row_factory = sqlite3.Row
         # check_same_thread=False only disables sqlite3's own cross-thread
         # check, it doesn't make the connection itself safe for concurrent
-        # use — this lock serializes every operation against self._conn
+        # use - this lock serializes every operation against self._conn
         # (same fix applied to KeyStore and AuditLogger this round).
         self._lock = threading.Lock()
         self._audit_logger = audit_logger
@@ -361,8 +361,8 @@ class TrustManager:
         # exactly once), matching this class's own docstring ("decays by 0.8
         # per hop"). `current_trust` already carries forward every decay
         # factor applied at prior hops via this same loop, so the previous
-        # version's `(_TRANSITIVE_DECAY**hop)` — using the *absolute* hop
-        # index rather than a single per-iteration factor — double-applied
+        # version's `(_TRANSITIVE_DECAY**hop)` - using the *absolute* hop
+        # index rather than a single per-iteration factor - double-applied
         # decay on top of what `current_trust` already embedded: a 3-hop
         # path ended up decayed by 0.8**3 instead of the intended 0.8**2 (a
         # 2-hop path was unaffected, since hop=1 there only ever applied one

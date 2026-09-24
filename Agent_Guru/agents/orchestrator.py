@@ -32,7 +32,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# TYPE_CHECKING-only imports — no runtime overhead, no circular deps.
+# TYPE_CHECKING-only imports - no runtime overhead, no circular deps.
 # Injected instances are typed as Any at runtime; callers pass real objects.
 
 
@@ -150,7 +150,7 @@ class AgentOrchestrator:
         self.default_strategy = "default_strategy"
 
         logger.info(
-            "AgentOrchestrator initialized — fusion=%s context=%s proactive=%s audit=%s",
+            "AgentOrchestrator initialized - fusion=%s context=%s proactive=%s audit=%s",
             fusion_engine is not None,
             context_engine is not None,
             proactive_engine is not None,
@@ -170,7 +170,7 @@ class AgentOrchestrator:
 
         """
         logger.debug(
-            "AgentOrchestrator.execute called with intent: %r — delegating to platform control",
+            "AgentOrchestrator.execute called with intent: %r - delegating to platform control",
             intent,
         )
 

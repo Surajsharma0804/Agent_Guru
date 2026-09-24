@@ -10,7 +10,7 @@ Platform support:
 
 Design Decisions:
     - All public methods are async (run_in_executor for blocking file I/O)
-    - Returns True on success, False on failure — never raises for normal failures
+    - Returns True on success, False on failure - never raises for normal failures
     - Safety checks block operations on system paths (OS-specific)
     - Path resolution: expand ~ and env vars, resolve to absolute path
     - Raises RuntimeError only on mobile platforms (android/ios)
@@ -37,7 +37,7 @@ from Agent_Guru.platform.platform_detector import PlatformDetector
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Constants — blocked system path prefixes per platform
+# Constants - blocked system path prefixes per platform
 # ---------------------------------------------------------------------------
 
 _BLOCKED_PATHS_WINDOWS: tuple[str, ...] = (
@@ -73,7 +73,7 @@ _BLOCKED_PATHS_LINUX: tuple[str, ...] = (
 
 
 def _detect_platform() -> str:
-    """Thin wrapper — delegates to canonical PlatformDetector."""
+    """Thin wrapper - delegates to canonical PlatformDetector."""
     return PlatformDetector.detect().os_name.lower()
 
 
@@ -102,7 +102,7 @@ def _resolve_path(raw: str) -> Path:
         Absolute :class:`pathlib.Path`.
 
     """
-    # Strip null bytes — they cause ValueError on Windows path resolution
+    # Strip null bytes - they cause ValueError on Windows path resolution
     cleaned = raw.replace("\x00", "")
     expanded = os.path.expandvars(os.path.expanduser(cleaned))  # noqa: PTH111
     return Path(expanded).resolve()
@@ -139,7 +139,7 @@ def _is_blocked(path: Path, plat: str, raw: str = "") -> bool:
                 logger.warning("Blocked system path (Windows): %s", path_str)
                 return True
     elif plat == "macos":
-        # macOS paths are case-insensitive — compare lowercased
+        # macOS paths are case-insensitive - compare lowercased
         path_fwd = path_str.replace("\\", "/").lower()
         raw_clean = raw.replace("\x00", "")
         candidates = {path_fwd, raw_clean.replace("\\", "/").lower()}
@@ -149,7 +149,7 @@ def _is_blocked(path: Path, plat: str, raw: str = "") -> bool:
                 if candidate == blocked_lower or candidate.startswith(blocked_lower + "/"):
                     logger.warning("Blocked system path (macOS): %s", path_str)
                     return True
-    else:  # linux / unknown — case-sensitive
+    else:  # linux / unknown - case-sensitive
         path_fwd = path_str.replace("\\", "/")
         raw_clean = raw.replace("\x00", "")
         candidates = {path_fwd, raw_clean.replace("\\", "/")}
@@ -214,7 +214,7 @@ class DesktopFileController:
                 msg,
             )
 
-        logger.info("DesktopFileController created — platform=%s", self._platform)
+        logger.info("DesktopFileController created - platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -223,14 +223,14 @@ class DesktopFileController:
     async def initialize(self) -> None:
         """Initialize the controller.
 
-        Idempotent — safe to call multiple times.
+        Idempotent - safe to call multiple times.
         """
         if self._initialized:
             logger.debug("DesktopFileController already initialized")
             return
 
         self._initialized = True
-        logger.info("DesktopFileController initialized — platform=%s", self._platform)
+        logger.info("DesktopFileController initialized - platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -238,7 +238,7 @@ class DesktopFileController:
         logger.info("DesktopFileController shut down")
 
     # ------------------------------------------------------------------
-    # Public API — file operations
+    # Public API - file operations
     # ------------------------------------------------------------------
 
     async def create_file(self, path: str, content: str = "") -> bool:
@@ -379,7 +379,7 @@ class DesktopFileController:
             return False
 
     # ------------------------------------------------------------------
-    # Public API — directory operations
+    # Public API - directory operations
     # ------------------------------------------------------------------
 
     async def create_directory(self, path: str) -> bool:
@@ -472,39 +472,39 @@ class DesktopFileController:
     # ------------------------------------------------------------------
 
     def _blocking_create_file(self, path: Path, content: str) -> None:
-        """Create a file with content — blocking."""
+        """Create a file with content - blocking."""
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
 
     def _blocking_delete_file(self, path: Path) -> None:
-        """Delete a file — blocking."""
+        """Delete a file - blocking."""
         path.unlink()
 
     def _blocking_move_file(self, src: Path, dst: Path) -> None:
-        """Move a file — blocking."""
+        """Move a file - blocking."""
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(src), str(dst))
 
     def _blocking_copy_file(self, src: Path, dst: Path) -> None:
-        """Copy a file — blocking."""
+        """Copy a file - blocking."""
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(str(src), str(dst))
 
     def _blocking_rename_file(self, src: Path, dst: Path) -> None:
-        """Rename a file — blocking."""
+        """Rename a file - blocking."""
         src.rename(dst)
 
     def _blocking_create_directory(self, path: Path) -> None:
-        """Create a directory (with parents) — blocking."""
+        """Create a directory (with parents) - blocking."""
         path.mkdir(parents=True, exist_ok=True)
 
     def _blocking_delete_directory(self, path: Path, recursive: bool) -> None:
-        """Delete a directory — blocking."""
+        """Delete a directory - blocking."""
         if recursive:
             shutil.rmtree(str(path))
         else:
             path.rmdir()
 
     def _blocking_list_directory(self, path: Path) -> list[str]:
-        """List directory contents — blocking."""
+        """List directory contents - blocking."""
         return [entry.name for entry in path.iterdir()]

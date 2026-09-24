@@ -10,7 +10,7 @@ Platform support:
 
 Design Decisions:
     - All public methods are async (asyncio.create_subprocess_exec for I/O)
-    - Returns True on success, False on failure — never raises for normal failures
+    - Returns True on success, False on failure - never raises for normal failures
     - Fuzzy app name matching: case-insensitive, partial match
     - Raises RuntimeError only on mobile platforms (android/ios) where
       desktop control is not applicable
@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 def _detect_platform() -> str:
-    """Thin wrapper — delegates to canonical PlatformDetector."""
+    """Thin wrapper - delegates to canonical PlatformDetector."""
     return PlatformDetector.detect().os_name.lower()
 
 
@@ -102,7 +102,7 @@ class DesktopApplicationController:
                 msg,
             )
 
-        logger.info("DesktopApplicationController created — platform=%s", self._platform)
+        logger.info("DesktopApplicationController created - platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -111,14 +111,14 @@ class DesktopApplicationController:
     async def initialize(self) -> None:
         """Initialize the controller.
 
-        Idempotent — safe to call multiple times.
+        Idempotent - safe to call multiple times.
         """
         if self._initialized:
             logger.debug("DesktopApplicationController already initialized")
             return
 
         self._initialized = True
-        logger.info("DesktopApplicationController initialized — platform=%s", self._platform)
+        logger.info("DesktopApplicationController initialized - platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -357,7 +357,7 @@ class DesktopApplicationController:
                 return True
             return False
         except ImportError as e:
-            logger.debug("win32gui not available — skipping graceful close: %s", e)
+            logger.debug("win32gui not available - skipping graceful close: %s", e)
             return False
         except Exception as e:
             logger.debug("win32 close failed: %s", e)
@@ -548,7 +548,7 @@ class DesktopApplicationController:
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
-            # Don't wait — detach the process
+            # Don't wait - detach the process
             return True
         except FileNotFoundError as exc:
             logger.debug("Direct exec failed for %r: %s", app_name, exc)
@@ -598,7 +598,7 @@ class DesktopApplicationController:
     async def _minimize_linux(self, app_name: str) -> bool:
         """Minimize a window on Linux via wmctrl."""
         if not await self._wmctrl_available():
-            logger.debug("wmctrl not available — cannot minimize on Linux")
+            logger.debug("wmctrl not available - cannot minimize on Linux")
             return False
         try:
             # wmctrl -r <name> -b add,hidden  (iconify)
@@ -620,7 +620,7 @@ class DesktopApplicationController:
     async def _maximize_linux(self, app_name: str) -> bool:
         """Maximize a window on Linux via wmctrl."""
         if not await self._wmctrl_available():
-            logger.debug("wmctrl not available — cannot maximize on Linux")
+            logger.debug("wmctrl not available - cannot maximize on Linux")
             return False
         try:
             proc = await asyncio.create_subprocess_exec(  # nosec B603 B607

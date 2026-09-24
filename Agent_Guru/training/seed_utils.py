@@ -5,8 +5,8 @@ experiments are reproducible across runs and machines, which is required
 for scientific validity and debugging (Requirement 2.24).
 
 Performance Characteristics:
-    - Time Complexity: O(1) — constant number of seed calls
-    - Space Complexity: O(1) — no allocations
+    - Time Complexity: O(1) - constant number of seed calls
+    - Space Complexity: O(1) - no allocations
 
 Requirements: 2.24
 """
@@ -24,7 +24,7 @@ def set_deterministic_seeds(seed: int = 42) -> None:
 
     Sets seeds for the Python ``random`` module, NumPy, and PyTorch
     (both CPU and CUDA).  Missing optional libraries (NumPy, PyTorch)
-    are handled gracefully — a warning is logged but execution continues.
+    are handled gracefully - a warning is logged but execution continues.
 
     Args:
         seed: Integer seed value.  Default is ``42``.
@@ -52,7 +52,7 @@ def set_deterministic_seeds(seed: int = 42) -> None:
         np.random.seed(seed)
         logger.debug("NumPy seed set to %d", seed)
     except ImportError:
-        logger.exception("NumPy not available — skipping np.random.seed")
+        logger.exception("NumPy not available - skipping np.random.seed")
 
     # PyTorch CPU + CUDA (optional dependency)
     try:
@@ -62,4 +62,4 @@ def set_deterministic_seeds(seed: int = 42) -> None:
         torch.cuda.manual_seed_all(seed)
         logger.debug("PyTorch CPU and CUDA seeds set to %d", seed)
     except ImportError:
-        logger.exception("PyTorch not available — skipping torch seed calls for seed=")
+        logger.exception("PyTorch not available - skipping torch seed calls for seed=")

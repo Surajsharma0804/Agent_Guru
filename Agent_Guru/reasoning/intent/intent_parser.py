@@ -40,7 +40,7 @@ class ParseResult:
     Attributes:
         intent_type: Detected intent category
         entities: Extracted parameters keyed by name
-        confidence: Detection confidence (0.0–1.0)
+        confidence: Detection confidence (0.0-1.0)
         requires_llm: Whether LLM reasoning is needed
         raw_text: Original user input
         latency_ms: Parse time in milliseconds
@@ -168,7 +168,7 @@ class IntentParser:
                 method="pattern",
             )
 
-        # Low confidence or no match — flag for LLM routing
+        # Low confidence or no match - flag for LLM routing
         requires_llm = self._config.enable_llm_fallback
         intent_type = match.intent_type if match else IntentType.UNKNOWN.value
         confidence = match.confidence if match else 0.0

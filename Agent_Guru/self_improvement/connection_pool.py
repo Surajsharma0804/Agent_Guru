@@ -533,7 +533,7 @@ class ConnectionPool:
         conn = self.acquire()
 
         try:
-            # Begin transaction — use allowlist to prevent SQL injection via isolation_level
+            # Begin transaction - use allowlist to prevent SQL injection via isolation_level
             _VALID_ISOLATION_LEVELS = frozenset({"DEFERRED", "IMMEDIATE", "EXCLUSIVE"})
             if isolation_level:
                 level_upper = isolation_level.upper()
@@ -558,7 +558,7 @@ class ConnectionPool:
             transaction_time = (time.time() - start_time) * 1000  # ms
             with self._lock:
                 self._transaction_times.append(transaction_time)
-                # deque(maxlen=1000) auto-evicts oldest — no manual pop needed
+                # deque(maxlen=1000) auto-evicts oldest - no manual pop needed
 
         except Exception:
             # Rollback on error

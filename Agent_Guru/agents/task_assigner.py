@@ -114,7 +114,7 @@ class TaskAssigner:
                 selected_id = agent_id
                 break
 
-        # No suitable agent – create one on demand
+        # No suitable agent - create one on demand
         if selected_id is None:
             new_agent = await self.lifecycle_manager.create_agent(
                 task_requirements=task.requirements,

@@ -214,7 +214,7 @@ class ServiceRegistry:
         """Background loop that pings all registered services.
 
         Uses a single shared aiohttp.ClientSession for the entire loop
-        lifetime (not one per check — that was O(n) session overhead).
+        lifetime (not one per check - that was O(n) session overhead).
         All checks within each interval run concurrently via asyncio.gather.
         """
         import aiohttp

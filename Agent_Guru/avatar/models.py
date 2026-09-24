@@ -43,7 +43,7 @@ class PersonalityType(Enum):
 
 
 # ---------------------------------------------------------------------------
-# Cowen & Keltner (2017) — 27 distinct emotion categories
+# Cowen & Keltner (2017) - 27 distinct emotion categories
 # ---------------------------------------------------------------------------
 
 EMOTION_CATEGORIES_27: list[str] = [
@@ -76,7 +76,7 @@ EMOTION_CATEGORIES_27: list[str] = [
     "triumph",
 ]
 
-# Legacy 7-emotion set (Ekman) — kept for backward compatibility
+# Legacy 7-emotion set (Ekman) - kept for backward compatibility
 EMOTION_CATEGORIES_7: list[str] = [
     "happy",
     "sad",
@@ -252,56 +252,56 @@ PHONEME_VISEME_MAP: dict[str, int] = {
     # Silence
     "": 0,
     "sil": 0,
-    # P, B, M — lips together
+    # P, B, M - lips together
     "p": 1,
     "b": 1,
     "m": 1,
-    # F, V — upper teeth on lower lip
+    # F, V - upper teeth on lower lip
     "f": 2,
     "v": 2,
-    # TH — tongue between teeth
+    # TH - tongue between teeth
     "th": 3,
     "dh": 3,
-    # T, D, S, Z, N, L — tongue tip up
+    # T, D, S, Z, N, L - tongue tip up
     "t": 4,
     "d": 4,
     "s": 4,
     "z": 4,
     "n": 4,
     "l": 4,
-    # SH, ZH, CH, JH — tongue back
+    # SH, ZH, CH, JH - tongue back
     "sh": 5,
     "zh": 5,
     "ch": 5,
     "jh": 5,
-    # K, G, NG — back of tongue
+    # K, G, NG - back of tongue
     "k": 6,
     "g": 6,
     "ng": 6,
-    # R — rounded
+    # R - rounded
     "r": 7,
     "er": 7,
-    # W, OO — rounded lips
+    # W, OO - rounded lips
     "w": 8,
     "uw": 8,
     "ow": 8,
-    # AH, AA — open mouth
+    # AH, AA - open mouth
     "ah": 9,
     "aa": 9,
     "ae": 9,
-    # EH, EY — mid open
+    # EH, EY - mid open
     "eh": 10,
     "ey": 10,
     "ay": 10,
-    # IH, IY — smile
+    # IH, IY - smile
     "ih": 11,
     "iy": 11,
-    # AO, AW — rounded open
+    # AO, AW - rounded open
     "ao": 12,
     "aw": 12,
-    # OY — rounded mid
+    # OY - rounded mid
     "oy": 13,
-    # HH — open
+    # HH - open
     "hh": 14,
 }
 

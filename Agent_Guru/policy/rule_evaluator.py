@@ -93,7 +93,7 @@ class RuleEvaluator:
             ]
         }
 
-    Validates: Requirements 2.1–2.6, 8.1–8.5
+    Validates: Requirements 2.1-2.6, 8.1-8.5
     """
 
     def __init__(

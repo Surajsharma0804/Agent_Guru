@@ -38,19 +38,19 @@ class LatencyAccumulator:
     HIGH-001 fix: the previous implementation misrouted ALL stage names
     through ``PipelineStage.WAKE_WORD``, so every LatencyAccumulator instance
     shared the same slot and overwrote each other's data. This rewrite gives
-    each accumulator its own independent ``deque`` — semantically correct and
+    each accumulator its own independent ``deque`` - semantically correct and
     O(1) amortized append with O(n log n) percentile computation on demand.
 
     MED-002 fix: public ``reset()`` method added so ``PerformanceOptimizer``
     no longer needs to access private ``_tracker``/``_stage`` attributes.
 
-    Public API is identical to the previous version — zero callers need changes.
+    Public API is identical to the previous version - zero callers need changes.
     """
 
     def __init__(self, name: str, target_ms: float, window_size: int = 1000) -> None:
         self.name = name
         self.target_ms = target_ms
-        # Own deque — no shared slot, no PipelineStage dependency
+        # Own deque - no shared slot, no PipelineStage dependency
         self._samples: deque[float] = deque(maxlen=window_size)
         self._lock = threading.Lock()
 
@@ -175,7 +175,7 @@ class PerformanceOptimizer:
 
     """
 
-    # Latency targets per stage (ms) — matches _TARGETS_MS in core.performance
+    # Latency targets per stage (ms) - matches _TARGETS_MS in core.performance
     _TARGETS: dict[str, float] = {
         "wake_word": 50.0,  # ≤50ms  (core.performance.PipelineStage.WAKE_WORD)
         "stt": 120.0,  # ≤120ms/s of audio

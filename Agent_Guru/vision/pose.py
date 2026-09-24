@@ -9,7 +9,7 @@ Provides:
   Emits pose_estimated VisionEvent per detected person.
   Sustains ≥15 FPS on GPU.
 
-Requirements: 6.1–6.6
+Requirements: 6.1-6.6
 """
 
 from __future__ import annotations

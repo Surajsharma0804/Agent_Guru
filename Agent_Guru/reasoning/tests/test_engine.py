@@ -3,7 +3,7 @@ Tests for Reasoning Engine.
 
 Coverage Target: >80% (enforced by CI/CD)
 
-All tests use llm_reasoning=None (or a mock) — no real Ollama calls.
+All tests use llm_reasoning=None (or a mock) - no real Ollama calls.
 The global conftest.py also patches OllamaProvider for the entire session.
 
 Performance contract:

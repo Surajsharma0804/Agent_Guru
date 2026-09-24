@@ -33,7 +33,7 @@ class KeyPair:
     # repr=False: dataclass auto-generates __repr__ from every field by
     # default, which would print the raw private key bytes verbatim into
     # any log line, exception traceback, or debugger session that captures
-    # this object (or an IdentityProfile embedding it) — a direct secret
+    # this object (or an IdentityProfile embedding it) - a direct secret
     # leak. This also suppresses it from IdentityProfile's own auto-repr,
     # since that repr calls repr() on this nested KeyPair.
     private_key: bytes = field(repr=False)  # 32 bytes raw seed
@@ -286,7 +286,7 @@ class IdentityManager:
         except Exception:
             # cryptography raises InvalidSignature (subclass of Exception) on bad sig.
             # All other exceptions (ValueError for bad key length, etc.) also mean
-            # verification failed — return False rather than propagating.
+            # verification failed - return False rather than propagating.
             return False
 
     def get_identity(self, profile_id: str) -> IdentityProfile:

@@ -30,7 +30,7 @@ from Agent_Guru.vision.training.preprocess import (
 
 
 # ---------------------------------------------------------------------------
-# Helpers — build temporary dataset directories on disk
+# Helpers - build temporary dataset directories on disk
 # ---------------------------------------------------------------------------
 
 def _make_dataset(
@@ -77,7 +77,7 @@ def _write_tiny_image(path: str) -> None:
     except ImportError:
         pass
     # Last resort: write a non-empty placeholder (loader will return None,
-    # which is handled as skipped_error — acceptable for structure tests).
+    # which is handled as skipped_error - acceptable for structure tests).
     with open(path, "wb") as f:
         f.write(b"\xff\xd8\xff\xe0" + b"\x00" * 16)  # minimal JPEG header
 

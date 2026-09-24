@@ -7,7 +7,7 @@ Performance Requirements:
 - Thread-safe: Yes (asyncio.Lock for concurrent updates)
 
 Design Decisions:
-- Label keys serialized as sorted tuples (no eval() — was a security vulnerability)
+- Label keys serialized as sorted tuples (no eval() - was a security vulnerability)
 - Histogram uses pre-bucketed counters (O(log n) observe via bisect, not O(n²))
 - deque-based ring buffer for completed spans (O(1) append/pop vs O(n) list.pop(0))
 - Global registry singleton with explicit reset for testing
@@ -26,7 +26,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Label key type: sorted tuple of (name, value) pairs — no eval() needed
+# Label key type: sorted tuple of (name, value) pairs - no eval() needed
 _LabelKey = tuple[tuple[str, str], ...]
 
 
@@ -476,7 +476,7 @@ class MetricsRegistry:
     def reset_all(self) -> None:
         """Reset all metric values.
 
-        For test isolation only — do not call in production.
+        For test isolation only - do not call in production.
         """
         for metric in self._metrics.values():
             if hasattr(metric, "reset"):

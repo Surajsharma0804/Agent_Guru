@@ -15,8 +15,8 @@ Platform support:
 
 Design Decisions:
     - All public methods are async (asyncio.create_subprocess_exec for I/O)
-    - Returns True/False or list — never raises for normal failures
-    - Works on ALL platforms — no RuntimeError for wrong platform
+    - Returns True/False or list - never raises for normal failures
+    - Works on ALL platforms - no RuntimeError for wrong platform
     - Fuzzy contact name matching (case-insensitive, partial) against a
       local, on-device contacts store (see "Contact resolution" below)
     - Message sanitization: strip null bytes, truncate to 2000 chars
@@ -30,7 +30,7 @@ Contact resolution (added 2026-09-13):
     finding" the contact: a non-phone-number contact fell through to
     ``https://web.whatsapp.com/send?text=...`` with no ``phone=``
     parameter, which opens WhatsApp Web's generic compose screen with
-    NO recipient selected — the message reaches nobody — yet the method
+    NO recipient selected - the message reaches nobody - yet the method
     still returned True, so a caller (including the agent's own action
     layer) had no way to know the send didn't actually go anywhere.
 
@@ -42,7 +42,7 @@ Contact resolution (added 2026-09-13):
     dispatching:
       - A value that already looks like a real identifier for the app
         (a phone number for whatsapp/sms, an email address for email, an
-        @handle for telegram) is used as-is — unchanged from before.
+        @handle for telegram) is used as-is - unchanged from before.
       - Otherwise it is fuzzy-matched (case-insensitive substring, then
         difflib close-match) against saved contact names for that app.
       - For whatsapp/sms/email, if nothing resolves, send_message() now
@@ -50,7 +50,7 @@ Contact resolution (added 2026-09-13):
         "succeeding" at reaching nobody. For telegram/slack, a bare word
         can legitimately BE the identifier itself (a Telegram username
         needs no "@"; Slack's URL scheme does not address a specific
-        contact at all — see _send_desktop_slack), so those still fall
+        contact at all - see _send_desktop_slack), so those still fall
         back to using the raw value, matching the prior behavior.
 
 Performance Characteristics:
@@ -132,7 +132,7 @@ def _resolve_contacts_path() -> Path:
 def _load_contacts(path: Path) -> dict[str, dict[str, str]]:
     """Load the contacts store, keyed by lowercase contact name.
 
-    Never raises — a missing or corrupt file is treated as an empty
+    Never raises - a missing or corrupt file is treated as an empty
     address book (with a logged warning for the corrupt case) rather
     than crashing whatever asked to send a message.
     """
@@ -150,7 +150,7 @@ def _load_contacts(path: Path) -> dict[str, dict[str, str]]:
         }
     except (OSError, ValueError) as exc:
         logger.warning(
-            "Contacts store at %s is unreadable/corrupt (%s) — treating as empty",
+            "Contacts store at %s is unreadable/corrupt (%s) - treating as empty",
             path, exc,
         )
         return {}
@@ -173,7 +173,7 @@ def _fuzzy_match_names(query: str, candidate_names: list[str]) -> list[str]:
     """Case-insensitive substring match, falling back to close-match fuzzy
     search (via difflib) when nothing contains the query as a substring.
 
-    O(n) in the number of saved contacts — fine for a personal address
+    O(n) in the number of saved contacts - fine for a personal address
     book (tens to low hundreds of entries), not intended for a directory
     of thousands.
     """
@@ -193,7 +193,7 @@ def _fuzzy_match_names(query: str, candidate_names: list[str]) -> list[str]:
 
 
 def _detect_platform() -> str:
-    """Thin wrapper — delegates to canonical PlatformDetector."""
+    """Thin wrapper - delegates to canonical PlatformDetector."""
     return PlatformDetector.detect().os_name.lower()
 
 
@@ -242,7 +242,7 @@ class MessagingController:
     """Async controller for multi-platform messaging.
 
     Works on ALL platforms (windows, macos, linux, android, ios, unknown).
-    Never raises RuntimeError for wrong platform — returns False instead.
+    Never raises RuntimeError for wrong platform - returns False instead.
 
     Example::
 
@@ -284,7 +284,7 @@ class MessagingController:
             platform_override: Force a specific platform string (for testing).
                 When ``None`` the platform is auto-detected.
             contacts_path_override: Use this path for the local contacts
-                store instead of the OS-standard location (for testing —
+                store instead of the OS-standard location (for testing -
                 keeps tests from touching the real user's address book).
 
         """
@@ -294,7 +294,7 @@ class MessagingController:
             Path(contacts_path_override) if contacts_path_override else _resolve_contacts_path()
         )
 
-        logger.info("MessagingController created — platform=%s", self._platform)
+        logger.info("MessagingController created - platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -303,14 +303,14 @@ class MessagingController:
     async def initialize(self) -> None:
         """Initialize the controller.
 
-        Idempotent — safe to call multiple times.
+        Idempotent - safe to call multiple times.
         """
         if self._initialized:
             logger.debug("MessagingController already initialized")
             return
 
         self._initialized = True
-        logger.info("MessagingController initialized — platform=%s", self._platform)
+        logger.info("MessagingController initialized - platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -329,7 +329,7 @@ class MessagingController:
         applicable.
 
         Args:
-            app: Messaging app name — one of ``"whatsapp"``, ``"telegram"``,
+            app: Messaging app name - one of ``"whatsapp"``, ``"telegram"``,
                 ``"slack"``, ``"sms"``, ``"email"``.
             contact: Contact name, phone number, username, or email address.
             message: Message text to send.
@@ -367,7 +367,7 @@ class MessagingController:
         resolved_contact = await self.resolve_contact(app_norm, contact)
         if resolved_contact is None:
             logger.warning(
-                "send_message: could not resolve %r to a working %s contact — "
+                "send_message: could not resolve %r to a working %s contact - "
                 "no matching saved contact (or the match was ambiguous), and "
                 "the value isn't a phone number/email Agent Guru can send to "
                 "directly. Save it first with add_contact(%r, %s='...'), or "
@@ -401,7 +401,7 @@ class MessagingController:
 
         Fuzzy-matches (case-insensitive substring, then difflib close
         match) against names in the local contacts store that have a
-        saved identifier for *app* — see add_contact(). Returns an
+        saved identifier for *app* - see add_contact(). Returns an
         empty list when no contacts are saved yet, none match, or
         *app*/*query* is empty; never raises.
 
@@ -444,7 +444,7 @@ class MessagingController:
 
         If *name_or_identifier* already looks like a raw identifier for
         *app* (a phone number for whatsapp/sms, an email address for
-        email, an @handle for telegram) it is returned unchanged — this
+        email, an @handle for telegram) it is returned unchanged - this
         preserves send_message()'s original behavior of accepting raw
         identifiers directly.
 
@@ -456,17 +456,17 @@ class MessagingController:
         When there is still no match: for telegram and slack, the raw
         value is used as-is, because a bare word can legitimately BE the
         identifier itself (a Telegram username needs no "@"; Slack's URL
-        scheme does not address a specific contact at all — see
-        _send_desktop_slack) — this matches this module's pre-existing
+        scheme does not address a specific contact at all - see
+        _send_desktop_slack) - this matches this module's pre-existing
         behavior for those two apps. For whatsapp/sms/email, a
         non-phone/non-email string was never a working identifier (wa.me
         and mailto: both need the real thing), so this returns None
-        instead of building a URL that silently reaches nobody — see the
+        instead of building a URL that silently reaches nobody - see the
         "Contact resolution" note in this module's docstring.
 
         Args:
             app: Messaging app name.
-            name_or_identifier: What the caller has — a saved contact's
+            name_or_identifier: What the caller has - a saved contact's
                 display name, or a raw phone number/email/handle.
 
         Returns:
@@ -502,7 +502,7 @@ class MessagingController:
             if len(resolved) > 1:
                 logger.warning(
                     "resolve_contact: %r matched multiple saved contacts for "
-                    "app=%s (%s) — ambiguous, refusing to guess",
+                    "app=%s (%s) - ambiguous, refusing to guess",
                     value, app_norm, ", ".join(resolved),
                 )
                 return None
@@ -520,7 +520,7 @@ class MessagingController:
                 telegram="@rahul123")``.
             **identifiers: app-name -> identifier pairs. Keys are
                 normally one of "whatsapp", "telegram", "slack", "sms",
-                "email", but any key is stored (forward-compatible) —
+                "email", but any key is stored (forward-compatible) -
                 only recognized app keys are used by resolve_contact().
 
         Returns:
@@ -688,7 +688,7 @@ class MessagingController:
             return False
 
     def _blocking_open_url(self, url: str) -> None:
-        """Open *url* in the default browser/handler — blocking, run in executor."""
+        """Open *url* in the default browser/handler - blocking, run in executor."""
         import webbrowser
 
         webbrowser.open(url)
@@ -701,7 +701,7 @@ class MessagingController:
         """Dispatch to the correct Android send implementation."""
         if not await self._adb_available():
             logger.warning(
-                "adb not available — cannot send %r message on Android. "
+                "adb not available - cannot send %r message on Android. "
                 "Ensure adb is installed and the device is connected.",
                 app,
             )
@@ -825,7 +825,7 @@ class MessagingController:
         """Dispatch to the correct iOS send implementation."""
         if not await self._xcrun_available():
             logger.warning(
-                "xcrun not available — cannot send %r message on iOS. "
+                "xcrun not available - cannot send %r message on iOS. "
                 "Install Xcode to use xcrun simctl.",
                 app,
             )

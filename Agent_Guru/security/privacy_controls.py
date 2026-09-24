@@ -53,13 +53,13 @@ _INJECTION_PATTERNS = (
     re.compile(r"SELECT\s+\*", re.IGNORECASE),  # SQL injection
     # BUG FIX (Round 24): this only matched forward-slash path traversal
     # (`../`), completely missing the backslash form (`..\`) that Windows
-    # paths use — a real gap given AGENT_GURU explicitly targets Windows as
+    # paths use - a real gap given AGENT_GURU explicitly targets Windows as
     # a first-class desktop platform. `[/\\]` matches either separator.
     re.compile(r"\.\.[/\\]"),  # Path traversal (both / and \ separators)
     re.compile(r"__import__"),  # Python injection
     re.compile(r"eval\s*\("),  # Code injection
     # BUG FIX (Round 24): `eval(` was blocked but its equally dangerous
-    # sibling `exec(` was not — an oversight, not an intentional asymmetry;
+    # sibling `exec(` was not - an oversight, not an intentional asymmetry;
     # both execute arbitrary Python source from a string.
     re.compile(r"exec\s*\("),  # Code injection
 )
@@ -382,7 +382,7 @@ class SensitiveActionGuard:
 
     """
 
-    # Confirmation tokens expire after this many seconds (see confirm()) —
+    # Confirmation tokens expire after this many seconds (see confirm()) -
     # kept as a class constant so _prune_expired() can reuse the exact same
     # value rather than duplicating the literal.
     _CONFIRMATION_TIMEOUT_SECONDS = 30.0
@@ -429,7 +429,7 @@ class SensitiveActionGuard:
             # BUG FIX (Round 24): a token that's never confirmed or explicitly
             # cancelled (the user ignores the prompt, the calling flow is
             # abandoned, the app is scripted and just never calls back) used
-            # to sit in _pending_confirmations forever — confirm() only ever
+            # to sit in _pending_confirmations forever - confirm() only ever
             # pops a token when it's actually looked up, so nothing swept
             # stale entries out. In a long-running companion process that's
             # an unbounded memory leak, the same class of bug already fixed

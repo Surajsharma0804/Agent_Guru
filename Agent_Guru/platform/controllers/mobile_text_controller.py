@@ -9,7 +9,7 @@ Platform support:
 
 Design Decisions:
     - All public methods are async (asyncio.create_subprocess_exec for I/O)
-    - Returns True on success, False on failure — never raises for normal failures
+    - Returns True on success, False on failure - never raises for normal failures
     - ASCII text typed via adb shell input text; unicode/emoji via clipboard+paste
     - Raises RuntimeError only on desktop platforms (windows/macos/linux/unknown)
     - Input sanitization: strip null bytes, limit to 10 000 chars
@@ -253,7 +253,7 @@ class MobileTextController:
                 msg,
             )
 
-        logger.info("MobileTextController created — platform=%s", self._platform)
+        logger.info("MobileTextController created - platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -262,14 +262,14 @@ class MobileTextController:
     async def initialize(self) -> None:
         """Initialize the controller.
 
-        Idempotent — safe to call multiple times.
+        Idempotent - safe to call multiple times.
         """
         if self._initialized:
             logger.debug("MobileTextController already initialized")
             return
 
         self._initialized = True
-        logger.info("MobileTextController initialized — platform=%s", self._platform)
+        logger.info("MobileTextController initialized - platform=%s", self._platform)
 
     async def shutdown(self) -> None:
         """Shut down the controller and release resources."""
@@ -351,7 +351,7 @@ class MobileTextController:
         iOS: Limited support via xcrun simctl io booted sendkey.
 
         Supported keys: enter, backspace, delete, tab, escape, space,
-        arrow keys, function keys (f1–f12), home, end, pageup, pagedown.
+        arrow keys, function keys (f1-f12), home, end, pageup, pagedown.
 
         Args:
             key: Logical key name (case-insensitive).
@@ -423,7 +423,7 @@ class MobileTextController:
         """
         if not await self._adb_available():
             logger.warning(
-                "adb not available — cannot type text on Android. "
+                "adb not available - cannot type text on Android. "
                 "Ensure adb is installed and the device is connected.",
             )
             return False
@@ -461,7 +461,7 @@ class MobileTextController:
         """Copy text to Android clipboard via adb, then paste with Ctrl+V."""
         if not await self._adb_available():
             logger.warning(
-                "adb not available — cannot paste text on Android. "
+                "adb not available - cannot paste text on Android. "
                 "Ensure adb is installed and the device is connected.",
             )
             return False
@@ -483,7 +483,7 @@ class MobileTextController:
             )  # nosec B603 B607
             await asyncio.wait_for(proc.wait(), timeout=10.0)
         except Exception as exc:
-            logger.debug("adb clipboard set failed: %s — trying alternative", exc)
+            logger.debug("adb clipboard set failed: %s - trying alternative", exc)
             # Fallback: use input text with escaped content if ASCII
             if _is_ascii_typeable(text):
                 return await self._adb_input_text(text)
@@ -515,7 +515,7 @@ class MobileTextController:
     async def _special_key_android(self, key: str) -> bool:
         """Send a special key on Android via ``adb shell input keyevent``."""
         if not await self._adb_available():
-            logger.warning("adb not available — cannot send key %r on Android.", key)
+            logger.warning("adb not available - cannot send key %r on Android.", key)
             return False
 
         keycode = _ANDROID_KEYCODES.get(key)
@@ -547,7 +547,7 @@ class MobileTextController:
     async def _clear_field_android(self) -> bool:
         """Clear field on Android: KEYCODE_CTRL_A then KEYCODE_DEL."""
         if not await self._adb_available():
-            logger.warning("adb not available — cannot clear field on Android.")
+            logger.warning("adb not available - cannot clear field on Android.")
             return False
 
         # Select all: KEYCODE_CTRL_A = 277
@@ -598,7 +598,7 @@ class MobileTextController:
         """Type text on iOS via xcrun simctl pasteboard + paste."""
         if not await self._xcrun_available():
             logger.warning(
-                "xcrun not available — cannot type text on iOS. "
+                "xcrun not available - cannot type text on iOS. "
                 "To type text on a physical iOS device, use the Shortcuts app "
                 "or an MDM solution. For simulators, install Xcode.",
             )
@@ -610,7 +610,7 @@ class MobileTextController:
         """Paste text on iOS via xcrun simctl pasteboard set + Cmd+V."""
         if not await self._xcrun_available():
             logger.warning(
-                "xcrun not available — cannot paste text on iOS. "
+                "xcrun not available - cannot paste text on iOS. "
                 "To paste text on a physical iOS device, use the Shortcuts app "
                 "or an MDM solution. For simulators, install Xcode.",
             )
@@ -666,7 +666,7 @@ class MobileTextController:
         """Send a special key on iOS via xcrun simctl io booted sendkey."""
         if not await self._xcrun_available():
             logger.warning(
-                "xcrun not available — cannot send key %r on iOS. For simulators, install Xcode.",
+                "xcrun not available - cannot send key %r on iOS. For simulators, install Xcode.",
                 key,
             )
             return False
@@ -723,7 +723,7 @@ class MobileTextController:
     async def _clear_field_ios(self) -> bool:
         """Clear field on iOS: Cmd+A then Delete."""
         if not await self._xcrun_available():
-            logger.warning("xcrun not available — cannot clear field on iOS.")
+            logger.warning("xcrun not available - cannot clear field on iOS.")
             return False
 
         # Select all: Cmd+A

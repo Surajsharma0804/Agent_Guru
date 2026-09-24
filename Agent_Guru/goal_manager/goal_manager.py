@@ -248,7 +248,7 @@ class GoalManager:
                 parent.sub_goal_ids.append(goal.id)
                 await self.storage.update_goal(parent)
 
-        # Start decomposition asynchronously — store ref to prevent GC
+        # Start decomposition asynchronously - store ref to prevent GC
         _task = asyncio.create_task(self._decompose_goal(goal.id))
         self._background_tasks.add(_task)
         _task.add_done_callback(self._background_tasks.discard)
@@ -268,7 +268,7 @@ class GoalManager:
             GoalManagerError: If goal_id format is invalid
 
         """
-        # Validate UUID format — raise for invalid IDs (security)
+        # Validate UUID format - raise for invalid IDs (security)
         import re
 
         uuid_pattern = re.compile(

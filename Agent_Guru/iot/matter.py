@@ -135,7 +135,7 @@ class MatterController:
             return False
 
     async def _send_command(self, command: DeviceCommand) -> bool:
-        """Send command to device (stub — local LAN only)."""
+        """Send command to device (stub - local LAN only)."""
         await asyncio.sleep(0)
         device = self._devices.get(command.device_id)
         if device is None or not device.online:

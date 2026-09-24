@@ -8,12 +8,12 @@ Remembers facts about the user across sessions:
   - Frequently used apps
 
 This is what makes the assistant feel personal rather than generic.
-Alexa+ and Gemini both do this — they remember who you are.
+Alexa+ and Gemini both do this - they remember who you are.
 
 Storage: JSON file in the user's app data directory.
-No cloud, no sync — fully local and private.
+No cloud, no sync - fully local and private.
 File permissions: owner-only (0o600 on Unix, best-effort icacls ACL
-restriction on Windows — see _restrict_file_permissions()).
+restriction on Windows - see _restrict_file_permissions()).
 
 Memory architecture:
   - PINNED keys (nickname, name, code_mixing, etc.) are never evicted.
@@ -22,7 +22,7 @@ Memory architecture:
 
 Fixed (this revision):
     - self._lock previously only wrapped the disk I/O inside _save()/_load(),
-      not the actual dict/OrderedDict mutations in set()/get()/delete() — so
+      not the actual dict/OrderedDict mutations in set()/get()/delete() - so
       two concurrent calls (this module's own docstring anticipates "two
       tasks extracting facts at once" from the async pipeline) could race on
       self._facts / self._custom_facts_lru itself, not just the file write.
@@ -31,7 +31,7 @@ Fixed (this revision):
       self._lock:` instead, matching the pattern already used in this
       codebase's sibling module (reaction_rules.py).
     - get_user_memory()'s singleton creation had no lock at all (a real race
-      if ever called from concurrent tasks — the same class of bug already
+      if ever called from concurrent tasks - the same class of bug already
       fixed in reaction_rules.get_reaction_rules()). Added double-checked
       locking to match.
     - The module docstring claimed "ACL on Windows" for file permissions,
@@ -40,13 +40,13 @@ Fixed (this revision):
       inherited permissions on that platform. Added the same best-effort
       icacls-based restriction already used in reaction_rules.py.
     - _load() didn't validate that the parsed JSON was actually a dict
-      before assigning it to self._facts — a corrupted or unexpected file
+      before assigning it to self._facts - a corrupted or unexpected file
       (e.g. a JSON list) would silently break every subsequent .get()/.set()
       call. Now falls back to {} if the loaded value isn't a dict, matching
       reaction_rules.py's same defensive check.
     - _custom_fact_counter was a bare in-memory module global that resets to
       0 every process restart. Since it isn't persisted, the first "remember
-      that X" after any restart would be assigned custom_fact_1 again —
+      that X" after any restart would be assigned custom_fact_1 again -
       silently OVERWRITING whatever the user had previously asked to
       remember under that key. Replaced with a function that derives the
       next free index from what's actually persisted (via the already-
@@ -54,31 +54,31 @@ Fixed (this revision):
       an in-memory counter that doesn't survive the process it counts
       within. Residual limitation: two "remember" extractions in the same
       turn, before either is persisted, could still compute the same next
-      index — same class of caveat as reaction_rules.py's documented
+      index - same class of caveat as reaction_rules.py's documented
       leftmost-connector limitation; not fixed here since it needs the
       caller to persist between extractions, not a change to this function.
     - The generic "I am X [and/,/.]" pattern used for `name` extraction ran
-      third in the pattern list — BEFORE current_goal / current_project /
-      interests / age patterns — and its capture group was `.+?` with no
+      third in the pattern list - BEFORE current_goal / current_project /
+      interests / age patterns - and its capture group was `.+?` with no
       constraint on content. Any sentence shaped "I am <anything> and/,/."
       (e.g. "I am trying to lose weight and get fit", "I am so tired and
       need rest") matched THIS pattern first and got stored as the user's
-      `name` — a PINNED, never-evicted identity key — instead of falling
+      `name` - a PINNED, never-evicted identity key - instead of falling
       through to the more specific pattern that actually applied. Now
       requires the captured span to look like a proper noun (1-3
       capitalized words), which the more free-form patterns don't produce.
       Known limitation: this depends on STT preserving capitalization for
-      names, which isn't guaranteed for every STT backend — if names aren't
+      names, which isn't guaranteed for every STT backend - if names aren't
       being picked up, "my name is X" (a separate, unconstrained pattern)
       still works regardless of case.
     - The generic occupation catch-all (last of the "I am ..." patterns)
-      had an optional article — `(?:a |an )?` — so any otherwise-unmatched
+      had an optional article - `(?:a |an )?` - so any otherwise-unmatched
       "I am <filler>" sentence ("I am fine", "I am good", "I am here") was
       stored as the user's occupation. Made the article required, since
       real occupation statements are almost always phrased with one
       ("I am a teacher") while conversational filler almost never is.
     - Added a guard in set() against literally persisting the "__forget__"
-      sentinel key that extract_user_fact() returns for forget-commands —
+      sentinel key that extract_user_fact() returns for forget-commands -
       that value is meant for the caller to interpret and act on (find +
       delete a matching fact), not to be stored as a fact itself. Cheap
       defense against a caller passing it straight through.
@@ -114,8 +114,8 @@ class UserMemory:
     """Persistent key-value store for user facts.
 
     Two storage tiers:
-      - PINNED facts (identity, preferences) — never evicted
-      - CUSTOM facts (generic "remember that X") — LRU-evicted at 100 max
+      - PINNED facts (identity, preferences) - never evicted
+      - CUSTOM facts (generic "remember that X") - LRU-evicted at 100 max
 
     Thread-safe: every public method that reads or mutates state acquires
     self._lock for its entire body (not just the disk write).
@@ -137,7 +137,7 @@ class UserMemory:
         # LRU tracker for custom facts only (pinned keys are excluded)
         self._custom_facts_lru: OrderedDict[str, bool] = OrderedDict()
         # Thread safety: protects ALL reads/mutations of self._facts and
-        # self._custom_facts_lru, not just the disk write — see the "Fixed"
+        # self._custom_facts_lru, not just the disk write - see the "Fixed"
         # note in the module docstring.
         self._lock = threading.Lock()
         self._load()
@@ -147,7 +147,7 @@ class UserMemory:
 
         For list-type keys (hobbies, interests, friends), new values are
         MERGED with existing ones instead of overwriting. This matches
-        the behavior of Alexa+ and ChatGPT memory — users accumulate
+        the behavior of Alexa+ and ChatGPT memory - users accumulate
         preferences over time, they don't replace them.
 
         Custom fact keys (not in _PINNED_KEYS) are LRU-tracked and
@@ -155,7 +155,7 @@ class UserMemory:
         """
         if key == "__forget__":
             # FIX: this is a sentinel extract_user_fact() returns for the
-            # caller to interpret (find + delete a matching fact) — it must
+            # caller to interpret (find + delete a matching fact) - it must
             # never be persisted as a literal fact key.
             logger.debug("UserMemory.set: ignoring literal '__forget__' key")
             return
@@ -166,11 +166,11 @@ class UserMemory:
                 existing = self._facts[key]
                 merged = _merge_values(existing, value)
                 if merged == existing:
-                    return  # No change — skip disk write
+                    return  # No change - skip disk write
                 self._facts[key] = merged
             else:
                 if self._facts.get(key) == value:
-                    return  # No change — skip disk write
+                    return  # No change - skip disk write
                 self._facts[key] = value
 
             # LRU tracking for custom facts (pinned keys are exempt)
@@ -227,7 +227,7 @@ class UserMemory:
 
         parts = []
 
-        # Identity — nickname takes priority over name for addressing
+        # Identity - nickname takes priority over name for addressing
         if "nickname" in facts:
             parts.append(
                 f"ALWAYS address the user as {facts['nickname']}, "
@@ -242,7 +242,7 @@ class UserMemory:
             if cm == "hinglish":
                 parts.append("They prefer Hindi-English code-mixing (Hinglish).")
             elif cm == "english":
-                parts.append("They prefer pure English — no Hindi mixing.")
+                parts.append("They prefer pure English - no Hindi mixing.")
         if "location" in facts:
             parts.append(f"They are located in {facts['location']}.")
         if "occupation" in facts:
@@ -280,7 +280,7 @@ class UserMemory:
 
     def _load(self) -> None:
         """Load facts from disk. Only called from __init__, before the
-        instance is shared with any other thread/task — no lock needed
+        instance is shared with any other thread/task - no lock needed
         here, matching reaction_rules.py's ReactionRuleStore._load().
 
         Also rebuilds the LRU tracker for custom facts.
@@ -289,7 +289,7 @@ class UserMemory:
             if self._path.exists():
                 data = json.loads(self._path.read_text(encoding="utf-8"))
                 # FIX: previously assigned `data` to self._facts with no
-                # type check — a corrupted or unexpected file (e.g. a JSON
+                # type check - a corrupted or unexpected file (e.g. a JSON
                 # list) would silently break every subsequent get()/set()
                 # call. Matches reaction_rules.py's same defensive check.
                 if isinstance(data, dict):
@@ -307,7 +307,7 @@ class UserMemory:
                     )
                 else:
                     logger.warning(
-                        "UserMemory: %s did not contain a JSON object — ignoring",
+                        "UserMemory: %s did not contain a JSON object - ignoring",
                         self._path,
                     )
         except Exception:
@@ -319,7 +319,7 @@ class UserMemory:
 
         FIX: previously named _save() and acquired self._lock itself, but
         set()/delete() didn't hold the lock around their own dict mutations
-        before calling it — so the lock only ever protected the file write,
+        before calling it - so the lock only ever protected the file write,
         not the in-memory state (see module docstring). Renamed to make the
         "caller holds the lock" contract explicit; all call sites are
         methods that already wrap their whole body in `with self._lock:`.
@@ -340,7 +340,7 @@ class UserMemory:
             logger.exception("UserMemory: failed to save")
 
 
-# Module-level singleton — shared across the whole app
+# Module-level singleton - shared across the whole app
 _user_memory: UserMemory | None = None
 _user_memory_lock = threading.Lock()
 
@@ -349,7 +349,7 @@ def get_user_memory() -> UserMemory:
     """Return the global UserMemory instance (lazy init, thread-safe).
 
     FIX: previously a bare `if _user_memory is None: _user_memory = ...`
-    with no lock at all — a real race if ever called from concurrent tasks
+    with no lock at all - a real race if ever called from concurrent tasks
     (this module's own docstring anticipates "two tasks extracting facts at
     once"). Added double-checked locking, matching
     reaction_rules.get_reaction_rules()'s already-fixed pattern.
@@ -363,7 +363,7 @@ def get_user_memory() -> UserMemory:
 
 # ── Module-level constants ────────────────────────────────────────────────
 
-# PINNED KEYS — identity and preference keys that are NEVER LRU-evicted.
+# PINNED KEYS - identity and preference keys that are NEVER LRU-evicted.
 # "It forgot my name" is far worse than losing an old miscellaneous fact.
 _PINNED_KEYS = frozenset({
     "nickname", "name", "preferred_language", "location", "occupation",
@@ -374,18 +374,18 @@ _PINNED_KEYS = frozenset({
 # Maximum number of custom (non-pinned) facts before LRU eviction
 _MAX_CUSTOM_FACTS = 100
 
-# Keys handled explicitly by get_summary() — hoisted from per-call set creation
+# Keys handled explicitly by get_summary() - hoisted from per-call set creation
 _SUMMARY_SKIP_KEYS = frozenset({
     "nickname", "name", "preferred_language", "code_mixing",
     "location", "occupation", "age",
     "current_goal", "current_project", "hobbies", "interests",
     "friends", "family", "communication_style",
-    "__forget__",  # never actually stored (see set()'s guard) — belt & suspenders
+    "__forget__",  # never actually stored (see set()'s guard) - belt & suspenders
 })
 
 # Keys where values should MERGE instead of overwrite.
 # "I love hiking" + "I love photography" → "hiking, photography"
-# This is what Alexa+ and ChatGPT do — accumulate, don't replace.
+# This is what Alexa+ and ChatGPT do - accumulate, don't replace.
 _MERGEABLE_KEYS = frozenset({"hobbies", "interests", "friends"})
 
 # Separator pattern for splitting merged values
@@ -413,13 +413,13 @@ def _merge_values(existing: str, new: str) -> str:
 # Precompiled regex patterns for fact extraction.
 # Previously: 22 raw strings compiled by re.search() on EVERY call.
 # Now: compiled once at import time. re.compile() returns a cached Pattern
-# object — subsequent .search() calls skip the compile step entirely.
+# object - subsequent .search() calls skip the compile step entirely.
 _FACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    # Identity — nickname is DISTINCT from name
+    # Identity - nickname is DISTINCT from name
     (re.compile(r"my name is (.+)", re.I), "name"),
     (re.compile(r"call me (.+)", re.I), "nickname"),  # "call me" → nickname, not name
     # FIX: previously `i(?:'m| am) (.+?) (?:and|,|\.)` with an unconstrained
-    # capture group — this ran BEFORE current_goal/current_project/
+    # capture group - this ran BEFORE current_goal/current_project/
     # interests/age below, so ANY "I am <anything> and/,/." sentence
     # ("I am trying to lose weight and get fit", "I am so tired and need
     # rest") matched HERE first and got stored as the user's `name` (a
@@ -443,14 +443,14 @@ _FACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"hindi mein (?:baat|baat kar|bol)", re.I), "code_mixing_hinglish"),
     (re.compile(r"(?:sirf |only )?english mein (?:baat|baat kar|bol)", re.I), "code_mixing_english"),
     (re.compile(r"sirf english", re.I), "code_mixing_english"),
-    # Goals and projects — BEFORE the generic "I am a ..." occupation pattern
+    # Goals and projects - BEFORE the generic "I am a ..." occupation pattern
     (re.compile(r"my goal is (?:to )?(.+)", re.I), "current_goal"),
     (re.compile(r"i(?:'m| am) trying to (.+)", re.I), "current_goal"),
     (re.compile(r"i want to (.+)", re.I), "current_goal"),
     (re.compile(r"i(?:'m| am) (?:currently )?working on (.+)", re.I), "current_project"),
     (re.compile(r"my (?:current )?project is (.+)", re.I), "current_project"),
     (re.compile(r"i(?:'m| am) building (.+)", re.I), "current_project"),
-    # Hobbies, interests, and preferences — BEFORE the generic occupation
+    # Hobbies, interests, and preferences - BEFORE the generic occupation
     # fallback, because "I am into X" and "I am interested in X" would
     # otherwise match the generic "I am ..." occupation pattern.
     (re.compile(r"i (?:love|enjoy|like) (.+)", re.I), "hobbies"),
@@ -459,10 +459,10 @@ _FACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"i prefer (?:a )?(.+?) (?:language|lang)", re.I), "preferred_language"),
     (re.compile(r"i speak (.+)", re.I), "preferred_language"),
     (re.compile(r"i prefer (?:a )?(.+?) (?:tone|style|approach)", re.I), "communication_style"),
-    # Generic occupation — LAST of the "I am ..." patterns (catch-all).
+    # Generic occupation - LAST of the "I am ..." patterns (catch-all).
     # FIX: the article `(?:a |an )?` was optional, so any otherwise-
     # unmatched "I am <filler>" ("I am fine", "I am good", "I am here")
-    # was stored as occupation. Made the article required — real
+    # was stored as occupation. Made the article required - real
     # occupation statements are almost always phrased with one ("I am a
     # teacher"), filler almost never is.
     (re.compile(r"i(?:'m| am) (?:a|an) (.+?)(?:\s+and|\s*$)", re.I), "occupation"),
@@ -490,7 +490,7 @@ def _next_custom_fact_key() -> str:
     FIX: previously a bare module-level counter (`_custom_fact_counter`)
     that only lived in memory and reset to 0 on every process restart.
     Since it wasn't persisted, the first "remember that X" after any
-    restart would be assigned custom_fact_1 again — silently OVERWRITING
+    restart would be assigned custom_fact_1 again - silently OVERWRITING
     whatever the user had previously asked to remember under that key.
     Deriving the next index from what's actually persisted (via the
     already-loaded singleton) ties correctness to saved state instead of a
@@ -498,7 +498,7 @@ def _next_custom_fact_key() -> str:
 
     Residual limitation: two "remember" extractions in the same turn,
     before either has actually been persisted via UserMemory.set(), could
-    still compute the same next index — fixing that needs the caller to
+    still compute the same next index - fixing that needs the caller to
     persist between extractions, not a change here. Documented rather than
     speculatively patched, same spirit as reaction_rules.py's known
     leftmost-connector limitation.
@@ -533,9 +533,9 @@ def extract_user_fact(transcript: str) -> tuple[str, str] | None:
 
     Returns:
         (key, value) tuple or None if no fact found.
-        For "forget" commands: ("__forget__", fact_text) — caller should search
+        For "forget" commands: ("__forget__", fact_text) - caller should search
         existing facts for a match and delete. Never pass this straight to
-        UserMemory.set() — see its guard against persisting this key.
+        UserMemory.set() - see its guard against persisting this key.
 
     """
     t = transcript.strip()
@@ -554,7 +554,7 @@ def extract_user_fact(transcript: str) -> tuple[str, str] | None:
             if 1 < len(value) < 150:
                 return key, value
 
-    # Check "forget" commands (before "remember" — "forget that X" is more specific)
+    # Check "forget" commands (before "remember" - "forget that X" is more specific)
     fm = _FORGET_RE.search(t)
     if fm:
         fact_text = fm.group(1).strip().rstrip(".,!?")

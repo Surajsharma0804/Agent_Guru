@@ -24,7 +24,7 @@ class AdaptedResponse:
     vocabulary_level: str  # simple/normal/complex
 
 
-# ── Module-level constant maps — allocated once, shared across all instances ──
+# ── Module-level constant maps - allocated once, shared across all instances ──
 # Previously these were rebuilt inside adapt_response() on every call:
 # 4 dicts × 14 entries = 56 allocations per call → 0 allocations per call.
 
@@ -80,14 +80,14 @@ _VOCAB_MAP: dict[str, str] = {
 _ACKNOWLEDGMENT_MAP: dict[str, str] = {
     "happy": "That's great to hear! ",
     "sad": "That sounds really hard. ",
-    "fearful": "It's okay — I've got you. ",
+    "fearful": "It's okay - I've got you. ",
     "frustrated": "Yeah, that's genuinely annoying. ",
-    "tired": "Take a breath — let's keep this simple. ",
+    "tired": "Take a breath - let's keep this simple. ",
     "confused": "No worries, let me break that down. ",
     "angry": "I hear you. ",
-    "proud": "That's actually a big deal — nice. ",
+    "proud": "That's actually a big deal - nice. ",
     "motivated": "Let's go! ",
-    "curious": "Good question — ",
+    "curious": "Good question - ",
     "excited": "Okay, I'm with you on this! ",
     "surprised": "Whoa, didn't see that coming! ",
 }
@@ -97,8 +97,8 @@ class EmpathyAdapter:
     """Adapts responses based on detected emotional state (14-emotion companion coverage).
 
     Complexity:
-        adapt_response()      — O(1) — all lookups are dict.get(), deque.append()
-        should_offer_support() — O(K) where K = DISTRESS_CONSECUTIVE_TURNS = 3 (constant)
+        adapt_response()      - O(1) - all lookups are dict.get(), deque.append()
+        should_offer_support() - O(K) where K = DISTRESS_CONSECUTIVE_TURNS = 3 (constant)
     Space:
         O(10) for the recent_states deque (bounded)
     """
@@ -109,8 +109,8 @@ class EmpathyAdapter:
     def adapt_response(self, text: str, state: EmotionalState) -> AdaptedResponse:
         """Adapt response tone, vocabulary, and pacing for emotional state.
 
-        Time:  O(1) — 3 dict lookups + 1 string concat
-        Space: O(1) — no allocations beyond the return value
+        Time:  O(1) - 3 dict lookups + 1 string concat
+        Space: O(1) - no allocations beyond the return value
         """
         self._recent_states.append(state)
 
@@ -146,4 +146,4 @@ class EmpathyAdapter:
 
     def get_ai_honesty_disclaimer(self) -> str:
         """Return AI honesty disclaimer in companion-appropriate language."""
-        return "I should be real with you — I'm an AI, so I don't actually feel things. But I'm always here for you."
+        return "I should be real with you - I'm an AI, so I don't actually feel things. But I'm always here for you."

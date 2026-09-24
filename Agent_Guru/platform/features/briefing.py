@@ -9,7 +9,7 @@
 This is what Alexa, Google Assistant, and ChatGPT Pulse all do.
 It's the #2 most-used voice assistant feature after timers.
 
-No API keys needed — uses free public RSS feeds for news and
+No API keys needed - uses free public RSS feeds for news and
 wttr.in for weather (no key required).
 """
 

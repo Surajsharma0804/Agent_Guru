@@ -4,7 +4,7 @@ Handles downloading, installing, updating, and removing Python packages.
 Implements streaming downloads and retry with exponential backoff.
 
 Time Complexity: O(1) per chunk for streaming operations
-Space Complexity: O(chunk_size) — bounded memory for large packages
+Space Complexity: O(chunk_size) - bounded memory for large packages
 """
 
 from __future__ import annotations

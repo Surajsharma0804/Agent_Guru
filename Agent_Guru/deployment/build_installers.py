@@ -1,4 +1,4 @@
-"""Build scripts for all platform installers — Tasks 22-26.
+"""Build scripts for all platform installers - Tasks 22-26.
 
 Wraps InstallerBuilder to generate platform-specific packages:
   - Task 22: Windows MSI (WiX)

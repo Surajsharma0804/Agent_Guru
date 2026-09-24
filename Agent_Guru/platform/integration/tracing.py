@@ -7,7 +7,7 @@ Performance Requirements:
 - Memory: Bounded ring buffer (deque, O(1) append/pop)
 
 Design Decisions:
-- deque(maxlen=N) for completed spans — O(1) append and automatic eviction
+- deque(maxlen=N) for completed spans - O(1) append and automatic eviction
   (replaces list.pop(0) which was O(n))
 - W3C traceparent header format for interoperability
 - SpanManager is a synchronous context manager (spans are sync objects;
@@ -253,7 +253,7 @@ class Tracer:
 
     Features:
     - W3C traceparent context propagation
-    - Configurable sampling rate (0.0–1.0)
+    - Configurable sampling rate (0.0-1.0)
     - O(1) span ring buffer using deque(maxlen=N)
     - Optional async export to OpenTelemetry collector
     - Nested span support via parent_context
@@ -284,7 +284,7 @@ class Tracer:
             service_name: Name of this service (added to all spans)
             collector_url: Optional OpenTelemetry collector endpoint
             enabled: If False, start_span() returns a no-op SpanManager
-            sample_rate: Fraction of traces to record (0.0–1.0)
+            sample_rate: Fraction of traces to record (0.0-1.0)
             max_completed_spans: Ring buffer size for completed spans
 
         Raises:
@@ -295,7 +295,7 @@ class Tracer:
             msg = "service_name cannot be empty"
             raise ValueError(msg)
         if not 0.0 <= sample_rate <= 1.0:
-            msg = f"sample_rate must be 0.0–1.0, got {sample_rate}"
+            msg = f"sample_rate must be 0.0-1.0, got {sample_rate}"
             raise ValueError(msg)
         if max_completed_spans <= 0:
             msg = f"max_completed_spans must be positive, got {max_completed_spans}"
@@ -309,7 +309,7 @@ class Tracer:
         # Active spans: span_id → Span
         self._active_spans: dict[str, Span] = {}
 
-        # Completed spans ring buffer — O(1) append, O(1) pop from left
+        # Completed spans ring buffer - O(1) append, O(1) pop from left
         self._completed_spans: deque[Span] = deque(maxlen=max_completed_spans)
 
         # Statistics
@@ -372,7 +372,7 @@ class Tracer:
     def finish_span(self, span: Span, error: str | None = None) -> None:
         """Finish a span and move it to the completed ring buffer.
 
-        Time Complexity: O(1) — deque append is O(1)
+        Time Complexity: O(1) - deque append is O(1)
 
         Args:
             span: Span to finish

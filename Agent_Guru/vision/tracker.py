@@ -11,7 +11,7 @@ Tracking_ID persistence:
   - object_appeared event on new ID; object_disappeared on release.
   - Update latency ≤10ms per frame.
 
-Requirements: 9.1–9.8
+Requirements: 9.1-9.8
 """
 
 from __future__ import annotations

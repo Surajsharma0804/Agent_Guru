@@ -27,7 +27,7 @@ class GitHubSyncEngine:
     """Queues agent evolution events and syncs them to GitHub.
 
     Uses exponential backoff for retries on network failures.
-    Only updates README.md — never creates other markdown files.
+    Only updates README.md - never creates other markdown files.
 
     Time Complexity: O(1) for queue operations
     Space Complexity: O(q) where q = queue size
@@ -136,7 +136,7 @@ class GitHubSyncEngine:
         """Push a single event to GitHub via the client."""
         commit_message = self._build_commit_message(event)
         readme_content = self._build_readme_content(event)
-        # Only update README.md — never create other markdown files (Req 20.2, 20.5)
+        # Only update README.md - never create other markdown files (Req 20.2, 20.5)
         await self.github_client.update_readme(readme_content, commit_message)
 
     def _build_commit_message(self, event: SyncEvent) -> str:

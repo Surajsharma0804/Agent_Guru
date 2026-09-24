@@ -118,7 +118,7 @@ class PersonalityEngine:
         """Return the profile for the given personality type."""
         name = personality_type.value
         if name not in self._profiles:
-            logger.warning("Profile '%s' not loaded — using default", name)
+            logger.warning("Profile '%s' not loaded - using default", name)
             self._load_defaults()
         return self._profiles.get(name, PersonalityProfile())
 
@@ -240,7 +240,7 @@ class PersonalityEngine:
             self.load_profile(profile_path)
         except (FileNotFoundError, ValueError, json.JSONDecodeError) as exc:
             logger.exception(
-                "Could not load profile from '%s': %s — using defaults",
+                "Could not load profile from '%s': %s - using defaults",
                 profile_path,
                 exc,
             )

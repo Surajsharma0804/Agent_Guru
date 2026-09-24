@@ -119,7 +119,7 @@ class DependencyGraph:
                 dfs(node)
 
         # order is post-order: dependencies appended before their dependents
-        # So order already has deps first — no reversal needed
+        # So order already has deps first - no reversal needed
         return order
 
 

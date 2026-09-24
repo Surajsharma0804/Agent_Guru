@@ -97,7 +97,7 @@ class VoiceContextManager:
         BUG FIX (Round 26): this used to try bridging into the async
         ContextManager.update_context() from this synchronous method, with
         two problems. First, `asyncio.get_running_loop()` only ever returns
-        successfully when a loop IS running in this thread — so the
+        successfully when a loop IS running in this thread - so the
         `if loop.is_running(): ... else: loop.run_until_complete(...)` split
         was checking a condition that can never be False at that point; the
         `else` branch was dead, unreachable code (and would itself raise if
@@ -114,8 +114,8 @@ class VoiceContextManager:
         happened to retrieve it.
 
         `add_turn_sync()` already implements this exact operation correctly
-        and synchronously — direct, immediate mutation of session state,
-        no event loop required — so `add_turn()` now simply delegates to
+        and synchronously - direct, immediate mutation of session state,
+        no event loop required - so `add_turn()` now simply delegates to
         it. Both methods now have identical, deterministic,
         immediately-visible-on-return behavior regardless of whether an
         event loop happens to be running when this is called, and this also
@@ -159,7 +159,7 @@ class VoiceContextManager:
         ctx = self._context_manager.sessions[session_id]
         ctx.messages.extend([user_msg, assistant_msg])
 
-        # Enforce max_turns (LRU eviction — remove oldest pairs)
+        # Enforce max_turns (LRU eviction - remove oldest pairs)
         max_msgs = self._config.max_turns * 2
         if len(ctx.messages) > max_msgs:
             ctx.messages = ctx.messages[-max_msgs:]

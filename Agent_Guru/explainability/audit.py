@@ -83,7 +83,7 @@ class AuditTrail:
         self._memory_conn: sqlite3.Connection | None = None
         if db_path == ":memory:":
             # closing() documents that this connection has a defined owner and
-            # will be explicitly released — satisfies CWE-400/664 static checks.
+            # will be explicitly released - satisfies CWE-400/664 static checks.
             _conn = closing(sqlite3.connect(":memory:", check_same_thread=False))
             self._memory_conn = _conn.__enter__()
             self._memory_conn.execute("PRAGMA journal_mode=WAL")
@@ -195,7 +195,7 @@ class AuditTrail:
         if min_confidence is not None:
             conditions.append("confidence >= ?")
             params.append(min_confidence)
-        # `where` is built from hardcoded condition strings with ? placeholders only —
+        # `where` is built from hardcoded condition strings with ? placeholders only -
         # no user data is interpolated into the query string.  nosec B608
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         params.extend([limit, offset])

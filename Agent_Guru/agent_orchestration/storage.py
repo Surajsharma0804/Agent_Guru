@@ -130,7 +130,7 @@ class AgentStorage:
             )
             self._memory_conn.row_factory = sqlite3.Row
         else:
-            # Resolve the full path first — never split off .name before
+            # Resolve the full path first - never split off .name before
             # validation, because .name silently discards all directory
             # components (including traversal sequences like ../../).
             # safe_path validates the ENTIRE resolved path stays within base.
@@ -163,7 +163,7 @@ class AgentStorage:
         self.close()
 
     def __del__(self) -> None:
-        """Fallback cleanup — prefer explicit close() or context manager."""
+        """Fallback cleanup - prefer explicit close() or context manager."""
         self.close()
 
     @contextmanager

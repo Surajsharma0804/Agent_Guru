@@ -232,7 +232,7 @@ class SynthesisEngine:
         # of synthesizing anyway and only exposing the flag to a caller
         # who has to remember to check it themselves.
         if self._interrupted.is_set():
-            logger.info("SynthesisEngine: synthesize() skipped — already interrupted")
+            logger.info("SynthesisEngine: synthesize() skipped - already interrupted")
             # Consume the interrupt: this skip is what interrupt() asked
             # for. Without clearing here, the flag would stay set forever
             # (the only other clear() is further below, on the path this

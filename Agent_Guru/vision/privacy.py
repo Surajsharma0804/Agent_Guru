@@ -6,7 +6,7 @@ Anonymizes frames before any persistence:
 - Camera disable config: all modules return empty results without error.
 - Anonymization latency ≤20ms per frame.
 
-Requirements: 11.1–11.7
+Requirements: 11.1-11.7
 """
 
 from __future__ import annotations

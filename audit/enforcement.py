@@ -41,7 +41,7 @@ def run_enforcement_gate(phase_name: str) -> bool:
         ["pytest", str(PACKAGE_ROOT), "-x", "--tb=short", "-q"],
         ["ruff", "format", "--check", str(PACKAGE_ROOT)],
         # ruff check reads pyproject.toml which has select=["ALL"] and the full
-        # documented ignore list — no extra flags needed.
+        # documented ignore list - no extra flags needed.
         ["ruff", "check", str(PACKAGE_ROOT)],
         ["mypy", str(PACKAGE_ROOT), "--strict"],
     ]

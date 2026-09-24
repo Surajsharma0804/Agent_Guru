@@ -62,10 +62,10 @@ try:
         display_height: int = Field(default=480, ge=120)
         transition_duration_ms: float = Field(default=350.0, ge=100.0, le=1000.0)
 
-        # Performance — realistic limits for a voice assistant on a dev machine.
+        # Performance - realistic limits for a voice assistant on a dev machine.
         # CPU% is reported as sum across all cores (8 cores = 800% max).
         # Memory includes Whisper + LLM + avatar + all subsystems.
-        # These are informational only — the assistant keeps working when exceeded.
+        # These are informational only - the assistant keeps working when exceeded.
         max_cpu_percent: float = Field(default=800.0, gt=0.0, le=10000.0)  # sum across all cores
         max_memory_mb: float = Field(default=6144.0, gt=0.0)  # 6GB covers everything
         enable_gpu: bool = Field(default=True)
@@ -77,7 +77,7 @@ try:
         @classmethod
         def validate_emotion_model(cls, v: str) -> str:
             if v not in _VALID_EMOTION_MODELS:
-                logger.warning("Invalid emotion_model '%s' — using 'auto'", v)
+                logger.warning("Invalid emotion_model '%s' - using 'auto'", v)
                 return "auto"
             return v
 
@@ -85,7 +85,7 @@ try:
         @classmethod
         def validate_render_backend(cls, v: str) -> str:
             if v not in _VALID_BACKENDS:
-                logger.warning("Invalid render_backend '%s' — using 'headless'", v)
+                logger.warning("Invalid render_backend '%s' - using 'headless'", v)
                 return "headless"
             return v
 
@@ -97,7 +97,7 @@ try:
             from Agent_Guru.utils.path_utils import safe_path as _safe_path
 
             # Resolve the full path first so that any .. sequences are collapsed
-            # before we validate containment — prevents CWE-22 path traversal.
+            # before we validate containment - prevents CWE-22 path traversal.
             resolved = _safe_path(Path(path).resolve().parent, Path(path).resolve().name)
             if not resolved.exists():
                 msg = f"Config file not found: {path}"
@@ -162,8 +162,8 @@ except ImportError:
         display_width: int = 640
         display_height: int = 480
         transition_duration_ms: float = 350.0
-        max_cpu_percent: float = 800.0  # sum across all cores — 8 cores × 100% = 800% max
-        max_memory_mb: float = 6144.0  # 6GB — covers Whisper + LLM + avatar
+        max_cpu_percent: float = 800.0  # sum across all cores - 8 cores × 100% = 800% max
+        max_memory_mb: float = 6144.0  # 6GB - covers Whisper + LLM + avatar
         enable_gpu: bool = True
         avatar_model_path: str | None = None
 
@@ -250,7 +250,7 @@ class ConfigWatcher:
                 if self._config_path.exists():
                     mtime = self._config_path.stat().st_mtime
                     if self._last_mtime is not None and mtime != self._last_mtime:
-                        logger.info("Config file changed — reloading")
+                        logger.info("Config file changed - reloading")
                         try:
                             new_config = AvatarConfig.from_file(str(self._config_path))
                             self._callback(new_config)

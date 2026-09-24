@@ -7,21 +7,21 @@ Design:
     - Enrollment: 3-5 short clips → average embedding → stored to disk
     - Verification: O(1) cosine similarity against one stored embedding
     - Threshold: starts from published ECAPA-TDNN default (0.75), nudged by
-      calibration data — NOT derived outright from n=3-5 samples. Capped so
+      calibration data - NOT derived outright from n=3-5 samples. Capped so
       calibration can never push the bar above what the owner's OWN weakest
-      enrollment clip achieved (see enroll()'s "Fixed" note) — otherwise
+      enrollment clip achieved (see enroll()'s "Fixed" note) - otherwise
       calibration could lock the real owner out.
     - Unverified speakers → restricted mode (not silent drop)
     - No profile, or no backend installed at all → pipeline_mode="full"
-      (fresh installs work normally — there is nothing to check against).
+      (fresh installs work normally - there is nothing to check against).
       Once a profile AND a backend both exist, any failure during an actual
       verification attempt (compute error, dimension mismatch from a
-      changed backend) now fails CLOSED to "restricted" — see verify()'s
+      changed backend) now fails CLOSED to "restricted" - see verify()'s
       "Fixed" note. Only the "nothing to check against" cases fail open.
 
 Storage: ~/.cache/agent_guru/speaker_profile.npz
 File permissions: owner-only (0o600 on Unix, best-effort icacls ACL
-restriction on Windows — see _restrict_file_permissions()). Biometric data,
+restriction on Windows - see _restrict_file_permissions()). Biometric data,
 so this gets the same treatment as this codebase's other personal-data
 stores (reaction_rules.py, user_memory.py).
 
@@ -33,11 +33,11 @@ Fixed (this revision):
     - _load_profile() saved the threshold as a shape-(1,) array
       (`np.array([self._threshold])`) but loaded it with `float(...)`.
       float() on a non-0-dimensional array raises TypeError on modern numpy
-      (2.x) — confirmed by direct test. That exception was swallowed by
+      (2.x) - confirmed by direct test. That exception was swallowed by
       _load_profile()'s broad except-block, which then set
       self._embedding = None, silently discarding a real enrollment on
       EVERY load. Net effect: verification silently never actually ran on
-      numpy 2.x — is_enrolled() always returned False, so every utterance
+      numpy 2.x - is_enrolled() always returned False, so every utterance
       got full/unrestricted mode with no owner check at all, defeating the
       entire feature without any visible error. Now saves the threshold as
       a plain scalar (which numpy stores as a 0-d array) and loads via a
@@ -47,7 +47,7 @@ Fixed (this revision):
     - enroll()'s threshold calibration had a floor (never go below 0.75)
       but no ceiling. If the impostor sample happened to score close to the
       owner's own same-speaker similarity, the calibrated midpoint could be
-      pushed close to 1.0 with nothing capping it — a threshold that high
+      pushed close to 1.0 with nothing capping it - a threshold that high
       risks the legitimate owner failing their OWN future verifications due
       to ordinary voice variability (background noise, mic, illness,
       mood), i.e. calibration could lock the real owner out. Now also caps
@@ -56,7 +56,7 @@ Fixed (this revision):
       set itself always still passes.
     - verify() previously fell through to full/unrestricted access
       ("fail-open") whenever embedding computation returned None or raised
-      — even when a profile AND a working backend both existed, meaning a
+      - even when a profile AND a working backend both existed, meaning a
       live check was possible and simply failed this one time (bad audio
       frame, transient backend hiccup, or the backend having silently
       changed since enrollment, e.g. SpeechBrain became unavailable and the
@@ -65,7 +65,7 @@ Fixed (this revision):
       for security-relevant gates elsewhere (confirmation.py denies on TTS
       failure rather than proceeding). verify() now distinguishes "nothing
       to check against" (no profile at all, or no backend installed at
-      all — both still fail open, since that matches a fresh install) from
+      all - both still fail open, since that matches a fresh install) from
       "a check was attempted and failed" (now fails CLOSED to restricted).
       Embedding dimension mismatches between the stored profile and a
       freshly computed embedding are now detected explicitly (not left to
@@ -81,7 +81,7 @@ Fixed (this revision):
     - The module docstring claimed "owner-only (0o600)" file permissions
       but the code only ever called chmod() (a no-op on Windows), same gap
       already found and fixed in reaction_rules.py and user_memory.py.
-      Added the same best-effort icacls-based restriction — biometric data
+      Added the same best-effort icacls-based restriction - biometric data
       arguably deserves this at least as much as the other two.
 
 Author: Agent Guru Team
@@ -116,10 +116,10 @@ _restrict_file_permissions = restrict_file_permissions
 _PROFILE_DIR = Path.home() / ".cache" / "agent_guru"
 _PROFILE_PATH = _PROFILE_DIR / "speaker_profile.npz"
 
-# Default threshold — published ECAPA-TDNN same/different-speaker separation
+# Default threshold - published ECAPA-TDNN same/different-speaker separation
 _DEFAULT_THRESHOLD = 0.75
 
-# Absolute floor — never go below this regardless of calibration
+# Absolute floor - never go below this regardless of calibration
 _THRESHOLD_FLOOR = 0.75
 
 
@@ -127,7 +127,7 @@ def _to_scalar(value: Any, default: float = 0.0) -> float:
     """Robustly extract a Python float from a loaded npz value.
 
     Handles a plain scalar, a 0-d array, OR a shape-(1,) array (the format
-    older profile files were saved in — see module docstring's "Fixed"
+    older profile files were saved in - see module docstring's "Fixed"
     note) without relying on float(), which raises TypeError on non-0-d
     arrays on modern numpy (2.x).
     """
@@ -147,7 +147,7 @@ class VerifyResult:
         similarity: Cosine similarity score (0.0 to 1.0).
         mode: "full" (owner, not enrolled, or no backend) or "restricted"
               (enrolled but not matched, OR a live verification attempt
-              failed — see verify()'s "Fixed" note on the distinction).
+              failed - see verify()'s "Fixed" note on the distinction).
     """
 
     is_owner: bool
@@ -177,7 +177,7 @@ class SpeakerVerifier:
 
         # Fresh install (no enrollment)
         if not verifier.is_enrolled():
-            # pipeline_mode = "full" — everything works
+            # pipeline_mode = "full" - everything works
             ...
     """
 
@@ -188,15 +188,15 @@ class SpeakerVerifier:
         self._backend: str = "none"  # "ecapa", "mfcc", or "none"
         self._encoder: Any = None
         # Protects self._embedding / self._threshold across concurrent
-        # enroll()/verify()/unenroll() calls — see module docstring's
+        # enroll()/verify()/unenroll() calls - see module docstring's
         # "Fixed" note.
         self._lock = threading.Lock()
         self._load_profile()
         self._init_backend()
 
     def _init_backend(self) -> None:
-        """Initialize the embedding backend — ECAPA-TDNN primary, MFCC fallback."""
-        # Try SpeechBrain ECAPA-TDNN first (primary — purpose-built for speaker ID)
+        """Initialize the embedding backend - ECAPA-TDNN primary, MFCC fallback."""
+        # Try SpeechBrain ECAPA-TDNN first (primary - purpose-built for speaker ID)
         try:
             from speechbrain.inference.speaker import EncoderClassifier  # type: ignore[import]
 
@@ -208,9 +208,9 @@ class SpeakerVerifier:
             logger.info("SpeakerVerifier: using SpeechBrain ECAPA-TDNN (primary)")
             return
         except ImportError:
-            logger.info("SpeakerVerifier: SpeechBrain not installed — trying MFCC fallback")
+            logger.info("SpeakerVerifier: SpeechBrain not installed - trying MFCC fallback")
         except Exception:
-            logger.exception("SpeakerVerifier: ECAPA-TDNN init failed — trying MFCC fallback")
+            logger.exception("SpeakerVerifier: ECAPA-TDNN init failed - trying MFCC fallback")
 
         # Fallback: MFCC-based (less accurate but zero extra dependencies)
         try:
@@ -250,7 +250,7 @@ class SpeakerVerifier:
             True if enrollment succeeded.
         """
         if self._backend == "none":
-            logger.error("SpeakerVerifier: no backend — cannot enroll")
+            logger.error("SpeakerVerifier: no backend - cannot enroll")
             return False
 
         if len(audio_samples) < 2:
@@ -259,7 +259,7 @@ class SpeakerVerifier:
 
         try:
             # Compute embeddings for all enrollment clips (outside the lock
-            # — this is the expensive part and doesn't touch shared state)
+            # - this is the expensive part and doesn't touch shared state)
             embeddings = []
             for i, audio in enumerate(audio_samples):
                 emb = self._compute_embedding(audio, sample_rate)
@@ -275,7 +275,7 @@ class SpeakerVerifier:
             mean_embedding = np.mean(embeddings, axis=0)
             mean_embedding = mean_embedding / (np.linalg.norm(mean_embedding) + 1e-8)
 
-            # Threshold calibration — start from published default, nudge
+            # Threshold calibration - start from published default, nudge
             # with calibration data.
             threshold = _DEFAULT_THRESHOLD
 
@@ -298,7 +298,7 @@ class SpeakerVerifier:
                     # FIX: cap the calibrated threshold at the WEAKEST
                     # same-speaker similarity seen during enrollment. Without
                     # this, a high-scoring impostor sample could push the
-                    # threshold up toward 1.0 with nothing capping it —
+                    # threshold up toward 1.0 with nothing capping it -
                     # risking the legitimate owner failing their own future
                     # verifications due to ordinary voice variability. This
                     # cap guarantees, by construction, that the enrollment
@@ -313,7 +313,7 @@ class SpeakerVerifier:
                         logger.warning(
                             "SpeakerVerifier: weakest enrollment clip only "
                             "reached %.3f similarity, below the safety floor "
-                            "%.3f — the floor still applies, but consider "
+                            "%.3f - the floor still applies, but consider "
                             "re-enrolling with clearer/quieter audio for more "
                             "reliable future verification.",
                             min_same, _THRESHOLD_FLOOR,
@@ -365,17 +365,17 @@ class SpeakerVerifier:
         backend = self._backend
 
         if embedding is None:
-            # Nothing enrolled — full access is the correct default for a
+            # Nothing enrolled - full access is the correct default for a
             # fresh install, not a security bypass.
             return VerifyResult(is_owner=True, similarity=1.0, mode="full")
 
         if backend == "none":
-            # No backend installed at all — there is no way to ever verify,
+            # No backend installed at all - there is no way to ever verify,
             # which is the same "nothing to check against" situation as no
             # profile, not a fail-open on a live check.
             logger.warning(
                 "SpeakerVerifier: profile exists but no backend is available "
-                "(install speechbrain or librosa) — cannot verify."
+                "(install speechbrain or librosa) - cannot verify."
             )
             return VerifyResult(is_owner=True, similarity=1.0, mode="full")
 
@@ -385,7 +385,7 @@ class SpeakerVerifier:
             if emb is None:
                 logger.warning(
                     "SpeakerVerifier: embedding computation returned nothing "
-                    "for this utterance — defaulting to restricted, not full "
+                    "for this utterance - defaulting to restricted, not full "
                     "access (a profile and backend both exist, so this was a "
                     "live check that failed, not an absence of one)."
                 )
@@ -394,13 +394,13 @@ class SpeakerVerifier:
             if emb.shape != embedding.shape:
                 logger.warning(
                     "SpeakerVerifier: embedding dimension mismatch "
-                    "(enrolled=%s, current=%s, backend=%s) — the "
+                    "(enrolled=%s, current=%s, backend=%s) - the "
                     "verification backend likely changed since enrollment "
                     "(e.g. SpeechBrain became unavailable and the MFCC "
                     "fallback kicked in). Comparing mismatched-dimension "
                     "embeddings would be meaningless, so this fails CLOSED "
                     "(restricted) rather than silently granting full access "
-                    "— re-enroll with the current backend to fix this "
+                    "- re-enroll with the current backend to fix this "
                     "permanently.",
                     embedding.shape, emb.shape, backend,
                 )
@@ -419,12 +419,12 @@ class SpeakerVerifier:
         except Exception:
             # FIX: previously defaulted to mode="full" here. A profile and
             # backend both existed, so verification was possible in
-            # principle — this failure is a live check going wrong, not an
+            # principle - this failure is a live check going wrong, not an
             # absence of one, so it now fails CLOSED to restricted instead
             # of silently trusting an unverified speaker. See module
             # docstring's "Fixed" note.
             logger.exception(
-                "SpeakerVerifier: verification raised unexpectedly — "
+                "SpeakerVerifier: verification raised unexpectedly - "
                 "defaulting to restricted"
             )
             return VerifyResult(is_owner=False, similarity=0.0, mode="restricted")
@@ -537,7 +537,7 @@ class SpeakerVerifier:
 
     def _load_profile(self) -> None:
         """Load speaker profile from disk. Only called from __init__,
-        before the instance is shared with any other thread — no lock
+        before the instance is shared with any other thread - no lock
         needed here, matching the sibling stores' _load()/_load_profile().
         """
         try:
@@ -564,7 +564,7 @@ class SpeakerVerifier:
 
     def _save_profile_locked(self) -> None:
         """Persist speaker profile to disk. Caller MUST already hold
-        self._lock — threading.Lock is non-reentrant, so this never
+        self._lock - threading.Lock is non-reentrant, so this never
         acquires it itself. All call sites already wrap their whole
         operation in `with self._lock:`.
         """
@@ -584,7 +584,7 @@ class SpeakerVerifier:
                 # FIX: previously np.array([self._threshold]) (shape (1,)),
                 # which _load_profile()'s old float() call couldn't parse
                 # on modern numpy. Saving a plain scalar stores it as a 0-d
-                # array, which float() handles natively — see module
+                # array, which float() handles natively - see module
                 # docstring's "Fixed" note. _to_scalar() on the load side
                 # still reads old shape-(1,) profiles correctly too.
                 threshold=float(self._threshold),
@@ -607,7 +607,7 @@ def get_speaker_verifier() -> SpeakerVerifier:
     """Return the global SpeakerVerifier (lazy init, thread-safe).
 
     FIX: previously a bare `if _verifier is None: _verifier = ...` with no
-    lock — the same class of race already fixed in this codebase's sibling
+    lock - the same class of race already fixed in this codebase's sibling
     singletons (reaction_rules.get_reaction_rules(),
     user_memory.get_user_memory()). Added double-checked locking to match.
     """

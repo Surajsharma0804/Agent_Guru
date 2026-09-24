@@ -328,7 +328,7 @@ class AudioPipeline:
         with self._lock:
             if self._reconnect_thread is not None and self._reconnect_thread.is_alive():
                 logger.debug(
-                    "Reconnect already in progress — ignoring duplicate disconnect event",
+                    "Reconnect already in progress - ignoring duplicate disconnect event",
                 )
                 return
             self._device_state = DeviceState.DISCONNECTED

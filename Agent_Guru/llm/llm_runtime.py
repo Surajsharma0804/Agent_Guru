@@ -175,17 +175,17 @@ class LLMRuntime:
         # BUG FIX (Round 26): unlike stream() just below (which wraps its
         # equivalent call in try/except and calls
         # performance_monitor.record_request(success=False, ...) on failure),
-        # this call had no such handling — if every retry attempt raised
+        # this call had no such handling - if every retry attempt raised
         # (or a permanent/non-retryable error occurred), the exception from
         # execute_with_retry() propagated straight out of complete() and
         # performance_monitor.record_request() below was simply never
         # reached for that request. Because ErrorHandler's circuit breaker
         # tracks failures independently (via its own internal state, not
-        # through PerformanceMonitor), the app still recovered correctly —
+        # through PerformanceMonitor), the app still recovered correctly -
         # but PerformanceMonitor, whose failure counter is what
         # _emit_reliability_warning() and report_to_self_improvement()'s
         # success_rate are actually computed from, never saw a single
-        # failed request on this — the primary, non-streaming — call path.
+        # failed request on this - the primary, non-streaming - call path.
         # A model/provider that was failing constantly would have reported
         # a misleading 100% success_rate to the Self-Improvement Engine,
         # since only successes were ever recorded. Wrapping this the same

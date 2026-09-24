@@ -119,7 +119,7 @@ class AuditLogger:
         self._platform = _get_platform()
         self._user = _get_username()
 
-        # Ensure log directory exists — validate path stays within .kiro or an absolute parent
+        # Ensure log directory exists - validate path stays within .kiro or an absolute parent
         log_p = Path(log_path)
         if not log_p.is_absolute():
             self._log_path = safe_path(_BASE_DIR, str(log_p))

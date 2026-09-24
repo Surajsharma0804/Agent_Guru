@@ -37,7 +37,7 @@ class LangChainBenchmark(BaseBenchmark):
         try:
             self._initialize_agent()
         except ImportError:
-            logger.warning("LangChain not installed — benchmark will run in simulation mode")
+            logger.warning("LangChain not installed - benchmark will run in simulation mode")
 
     def _initialize_agent(self) -> None:
         """Initialize LangChain agent."""

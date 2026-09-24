@@ -236,7 +236,7 @@ class DuplicateDetector:
                 merged_ids.add(agent2_id)
 
             except Exception:
-                # FIX: previously caught only `ValueError` — but this loop's
+                # FIX: previously caught only `ValueError` - but this loop's
                 # own intent (documented in the comment below) is "an agent
                 # may have been merged/modified concurrently by another
                 # operation, skip and keep going". Any other exception type
@@ -244,16 +244,16 @@ class DuplicateDetector:
                 # concurrently-deleted agent, etc.) previously propagated
                 # straight out of this method, silently discarding every
                 # merge already completed in this call (merged_agents /
-                # merged_ids built so far were never returned — the whole
+                # merged_ids built so far were never returned - the whole
                 # batch was lost on the first unexpected error type).
-                # Also previously logged NOTHING on failure — a silent
-                # `continue` — making merge failures completely invisible.
+                # Also previously logged NOTHING on failure - a silent
+                # `continue` - making merge failures completely invisible.
                 # PopulationManager.trigger_aggressive_merging (a sibling
                 # "merge in a loop, keep going" function calling the same
                 # merger.merge_agents()) already caught broadly AND logged;
                 # this brings auto_merge_duplicates in line with that.
                 logger.exception(
-                    "Merge failed for %s + %s — skipping, continuing with remaining duplicates",
+                    "Merge failed for %s + %s - skipping, continuing with remaining duplicates",
                     agent1_id,
                     agent2_id,
                 )
@@ -337,7 +337,7 @@ class DuplicateDetector:
         # had similarity of exactly 0.0 (completely dissimilar, not merely
         # "below some threshold"), the strict `similarity > max_similarity`
         # comparison would never fire even once, and this would silently
-        # return None — even though there WAS another agent to compare
+        # return None - even though there WAS another agent to compare
         # against, and the docstring promises to find "the most similar
         # agent" unconditionally (no threshold mentioned), not "the most
         # similar agent, or None if the best match happens to be weak".
@@ -413,20 +413,20 @@ class DuplicateDetector:
             adjacency[agent1_id].append(agent2_id)
             adjacency[agent2_id].append(agent1_id)
 
-        # Find connected components (clusters) — iterative BFS to avoid recursion limit
+        # Find connected components (clusters) - iterative BFS to avoid recursion limit
         #
         # FIX: this used to be `queue = [start_id]` / `queue.pop()` (pop with
-        # no index pops from the END of a list — LIFO — which is actually
+        # no index pops from the END of a list - LIFO - which is actually
         # DFS, not BFS, despite the comment). Verified concretely with a
         # small graph: the old code visited nodes in DFS order (deeper
         # before wider), not BFS order. For finding connected components
         # specifically this didn't change WHICH agents end up in the same
         # cluster (component membership doesn't depend on traversal order)
-        # — so it wasn't a functional bug for this particular use — but the
+        # - so it wasn't a functional bug for this particular use - but the
         # comment claiming BFS while the code did DFS is exactly the kind
         # of mismatch that misleads whoever edits this next. Fixed with a
         # real deque-based FIFO so the code now actually does what it says.
-        # (Using `collections.deque.popleft()` rather than `list.pop(0)` —
+        # (Using `collections.deque.popleft()` rather than `list.pop(0)` -
         # `list.pop(0)` is O(n) per call, an anti-pattern already found and
         # fixed elsewhere in this codebase; deque.popleft() is O(1).)
         visited = set()

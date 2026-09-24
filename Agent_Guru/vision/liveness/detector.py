@@ -1,4 +1,4 @@
-"""Liveness detection module — anti-spoofing for face recognition.
+"""Liveness detection module - anti-spoofing for face recognition.
 
 Primary: ONNX anti-spoofing model (e.g. Silent-Face / MiniFASNet).
 Fallback: Laplacian variance (texture richness) only.
@@ -49,7 +49,7 @@ class LivenessResult:
     Attributes:
         is_live: True if the face is classified as live.
         score: Confidence score in [0.0, 1.0]; higher = more likely live.
-        method: Analysis method used — "onnx", "texture", or "combined".
+        method: Analysis method used - "onnx", "texture", or "combined".
 
     """
 
@@ -134,7 +134,7 @@ class LivenessDetector:
         except Exception as exc:
             self._session_load_failed = True
             logger.exception(
-                "Failed to load liveness ONNX model from '%s': %s — using heuristic fallback "
+                "Failed to load liveness ONNX model from '%s': %s - using heuristic fallback "
                 "(will not retry loading this session again)",
                 self._model_path,
                 exc,
@@ -186,7 +186,7 @@ class LivenessDetector:
                 return float(probs[1])  # live probability
             return float(1.0 / (1.0 + np.exp(-float(logits[0]))))
         except Exception:
-            logger.exception("Liveness ONNX inference failed — using heuristic")
+            logger.exception("Liveness ONNX inference failed - using heuristic")
             return -1.0
 
     def check_liveness(
@@ -200,7 +200,7 @@ class LivenessDetector:
 
         Args:
             aligned_face: BGR image of shape (112, 112, 3), dtype uint8.
-            landmarks: Optional 5-point landmarks of shape (5, 2) — the
+            landmarks: Optional 5-point landmarks of shape (5, 2) - the
                 standard ArcFace layout: left eye, right eye, nose tip,
                 left mouth corner, right mouth corner. Accepted for API
                 compatibility with callers (e.g. vision/engine.py passes
@@ -261,7 +261,7 @@ class LivenessDetector:
             gray = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
             lap = cv2.Laplacian(gray, cv2.CV_64F)
         except ImportError:
-            logger.exception("cv2 not available — falling back to numpy Laplacian")
+            logger.exception("cv2 not available - falling back to numpy Laplacian")
             gray = (
                 0.114 * face[:, :, 0].astype(np.float64)
                 + 0.587 * face[:, :, 1].astype(np.float64)

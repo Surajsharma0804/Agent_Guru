@@ -125,11 +125,11 @@ class IntentClassifierEvaluator:
             raise ValueError(msg)
         self.model_path = resolved
 
-        # Load model — must use DeBERTa-v3 (same architecture as training)
+        # Load model - must use DeBERTa-v3 (same architecture as training)
         self.model = DebertaV2ForSequenceClassification.from_pretrained(model_path)  # nosec B615
         self.tokenizer = DebertaV2Tokenizer.from_pretrained(model_path)  # nosec B615
 
-        # Load intent mappings — path already validated via self.model_path
+        # Load intent mappings - path already validated via self.model_path
         mappings_path = (self.model_path / "intent_mappings.json").resolve()
         if not str(mappings_path).startswith(
             str(base := Path("Agent_Guru/reasoning/models").resolve()),

@@ -121,7 +121,7 @@ _DEPENDENCY_RULES: dict[str, list[str]] = {
 
 
 # ---------------------------------------------------------------------------
-# ParsedStep – intermediate representation
+# ParsedStep - intermediate representation
 # ---------------------------------------------------------------------------
 
 
@@ -320,7 +320,7 @@ class CommandDecomposer:
         steps = self._split_into_steps(command)
         if len(steps) > self.max_steps:
             logger.warning(
-                "Command decomposed into %d steps, exceeding max_steps=%d — "
+                "Command decomposed into %d steps, exceeding max_steps=%d - "
                 "dropping %d trailing step(s): %r",
                 len(steps),
                 self.max_steps,
@@ -387,7 +387,7 @@ class CommandDecomposer:
         Returns:
             Tuple of (action_verb, task_type).  Falls back to ("", "generic").
 
-        Time Complexity: O(1) – dict lookup
+        Time Complexity: O(1) - dict lookup
 
         """
         for token in tokens[:2]:

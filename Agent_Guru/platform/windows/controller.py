@@ -45,9 +45,9 @@ try:
 except ImportError:
     # Expected on non-Windows dev/CI machines (this import runs unconditionally
     # at module load, regardless of platform) and whenever the optional
-    # dependency simply isn't installed — not an application error, so this
+    # dependency simply isn't installed - not an application error, so this
     # should not log a full ERROR-level traceback via logger.exception().
-    logger.debug("pyautogui not available – keyboard/mouse simulation limited")
+    logger.debug("pyautogui not available - keyboard/mouse simulation limited")
 if sys.platform == "win32":
     try:
         import pywintypes  # type: ignore[import]  # noqa: F401
@@ -58,7 +58,7 @@ if sys.platform == "win32":
 
         _PYWIN32_AVAILABLE = True
     except ImportError:
-        logger.warning("pywin32 not available – window management limited")
+        logger.warning("pywin32 not available - window management limited")
     with contextlib.suppress(ImportError):
         import ctypes  # noqa: F401
 
@@ -204,14 +204,14 @@ class WindowsController:
             )
 
         except (FileNotFoundError, OSError) as e:
-            # Log the ORIGINAL failure before attempting the shell fallback —
+            # Log the ORIGINAL failure before attempting the shell fallback -
             # previously this exception variable was bound but never used
             # (confirmed by ruff F841) after an earlier dead-code cleanup,
             # meaning the real reason the primary launch attempt failed was
             # silently discarded; only the fallback's own exception (e2)
             # ever reached the logs on ultimate failure.
             logger.debug(
-                "Primary launch of %s failed (%s) — trying shell fallback",
+                "Primary launch of %s failed (%s) - trying shell fallback",
                 app_name,
                 e,
             )

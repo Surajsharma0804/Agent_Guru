@@ -8,7 +8,7 @@ Handles voice commands like:
 Reminders fire by speaking the reminder text via TTS. They're stored in
 memory so they survive across sessions (if the app is running).
 
-This is intentionally simple — no external calendar integration needed.
+This is intentionally simple - no external calendar integration needed.
 Just asyncio tasks that sleep and then speak.
 """
 

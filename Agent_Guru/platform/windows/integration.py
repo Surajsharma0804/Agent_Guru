@@ -486,7 +486,7 @@ class WindowsIntegration:
                 try:
                     proc = subprocess.Popen(
                         executable,
-                        shell=True,  # noqa: S602 — validated above  # nosec B602
+                        shell=True,  # noqa: S602 - validated above  # nosec B602
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                         stdin=subprocess.DEVNULL,

@@ -1,4 +1,4 @@
-"""Voice dictation — type anywhere by speaking.
+"""Voice dictation - type anywhere by speaking.
 
 This lets the user say "dictate: hello world" or "type this: ..." and the
 text gets typed into whatever app is currently focused. It's one of the

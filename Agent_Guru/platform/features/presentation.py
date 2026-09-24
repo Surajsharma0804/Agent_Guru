@@ -1,29 +1,29 @@
 """File-to-presentation generation for Agent Guru.
 
 Turns an arbitrary document (a project file, a set of notes) into a
-real, valid .pptx a person can open in PowerPoint — offline, no cloud
+real, valid .pptx a person can open in PowerPoint - offline, no cloud
 services and no API key required for the default path.
 
 Three cooperating pieces, from simplest to richest:
 
 1. Source extraction (_read_source_text): .txt/.md are read natively.
    .docx (python-docx) and .pdf (pypdf) are OPTIONAL soft dependencies
-   — matching the rest of this codebase's pattern (see
-   platform/features/web_search.py) — a missing library raises a
+   - matching the rest of this codebase's pattern (see
+   platform/features/web_search.py) - a missing library raises a
    PresentationError with an actionable install hint rather than a
    bare ImportError or a crash.
 2. Outline building: a heuristic, dependency-free splitter
    (_heuristic_outline) always works and is markdown-header-aware, so
    a well-structured .md file produces a well-structured deck with no
    LLM involved at all. When an async LLM completion callable is
-   available (the same shape Agent Guru's orchestrator already uses —
+   available (the same shape Agent Guru's orchestrator already uses -
    see integration/orchestrator.py::_llm_complete, which builds a
    `CompletionRequest` and awaits `complete_fn(request)`), an optional
    richer outline (_llm_outline) asks the model to group the material
    into slide-sized chunks. If the model is unavailable, times out, or
    returns something that cannot be parsed as JSON, this silently
    falls back to the heuristic splitter rather than failing the whole
-   request — generating *a* deck always succeeds for any non-empty
+   request - generating *a* deck always succeeds for any non-empty
    source, LLM or not.
 3. Rendering (render_pptx): turns a list of SlidePlan objects into a
    real python-pptx Presentation and saves it. This is the only part
@@ -34,13 +34,13 @@ together end to end.
 
 Wiring into the live pipeline (Round 10): this module IS now connected
 to integration/orchestrator.py, via _detect_universal_features() /
-_handle_presentation_request() there — the same "runs for every intent
+_handle_presentation_request() there - the same "runs for every intent
 type, before system_control/file_ops dispatch" hook that briefing/
 system-status/dictation/clipboard/screen-reading already use.
 wants_presentation() detects the request and extract_source_path()
 (below) does the slot-filling: a quoted path or a bare filename ending
 in a recognized extension, not full NLU resolution of "my notes" to an
-actual file (a real limitation — a request with no identifiable file
+actual file (a real limitation - a request with no identifiable file
 extension falls through to the conversational LLM instead of guessing).
 The orchestrator resolves the extracted path through
 security.path_utils.safe_path() (the same sandbox
@@ -49,7 +49,7 @@ reasoning/tools/system/file_operations.py uses) before calling
 "complete", None))`, and reports the resulting Path back to the user
 (e.g. "Your presentation is ready at ..."). This was done as a small,
 additive hook rather than an edit to the rule-based intent recognizer's
-regex tables (platform/intent_recognizer.py) — this module was built
+regex tables (platform/intent_recognizer.py) - this module was built
 and tested standalone first, and is wired in now with a real executed
 test covering both the wiring and the security boundary.
 
@@ -57,7 +57,7 @@ An additional, fully optional cloud path (generate_presentation_gamma)
 talks to Gamma's public API (https://developers.gamma.app) instead of
 rendering locally. It is opt-in only: it never activates unless the
 caller passes an explicit api_key or has set GAMMA_API_KEY themselves
-— offline-first means the local python-pptx path above is always what
+- offline-first means the local python-pptx path above is always what
 runs by default.
 
 Install (optional, only what you need):
@@ -89,11 +89,11 @@ _LLM_OUTLINE_TIMEOUT_S = 30.0
 _LLM_SOURCE_CHAR_LIMIT = 12_000
 
 # Cheap regex pre-filter an intent-recognition stage could use before
-# doing any real work — mirrors web_search.py's needs_web_search().
+# doing any real work - mirrors web_search.py's needs_web_search().
 # WIRED (Round 10): called from
 # integration/orchestrator.py::_detect_universal_features(), the same
 # "universal feature detection" hook that is_briefing_command()/
-# is_dictation_command()/is_screen_read_command() already use — see
+# is_dictation_command()/is_screen_read_command() already use - see
 # _handle_presentation_request() there for the full wiring. That method
 # runs for every intent type, before the rule-based intent recognizer's
 # system_control/file_ops dispatch, so this needed no change to the
@@ -119,7 +119,7 @@ _PRESENTATION_KEYWORDS = re.compile(
 
 # Matches an explicit source-file reference in the transcript: a quoted
 # path, or a bare filename/path ending in a recognized extension. This is
-# intentionally simple slot-filling (not full NLU) — it resolves "make a
+# intentionally simple slot-filling (not full NLU) - it resolves "make a
 # presentation from notes.txt" or "turn ~/Documents/report.docx into
 # slides" but NOT "make a presentation from my notes" (no file extension
 # to anchor on). The latter is left to fall through to the conversational
@@ -141,7 +141,7 @@ def extract_source_path(query: str) -> str | None:
     """Best-effort extraction of a source file path from a presentation request.
 
     Checks a quoted path first (least ambiguous), then a bare filename/path
-    token ending in a known extension. Returns None if neither is found —
+    token ending in a known extension. Returns None if neither is found -
     callers should treat that as "couldn't identify a file" rather than
     guessing, since generating a presentation from the wrong file silently
     would be worse than asking the user which file they meant.
@@ -165,7 +165,7 @@ class SlidePlan:
 
 class PresentationError(Exception):
     """Raised when a presentation cannot be generated (bad source, missing
-    optional dependency, empty content, etc.) — always carries an
+    optional dependency, empty content, etc.) - always carries an
     actionable message rather than surfacing a raw library exception.
     """
 
@@ -253,7 +253,7 @@ async def _read_pdf(path: Path, loop: asyncio.AbstractEventLoop) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 2a. Heuristic outline (no LLM required — always available)
+# 2a. Heuristic outline (no LLM required - always available)
 # ---------------------------------------------------------------------------
 
 _HEADING_RE = re.compile(r"^(#{1,3})\s+(.+)$", re.MULTILINE)
@@ -271,7 +271,7 @@ def _heuristic_outline(text: str, max_slides: int = _MAX_SLIDES_DEFAULT) -> list
        short title from each chunk's opening words.
 
     Always produces at least one slide for non-empty input and never
-    raises — an effectively empty source simply yields no slides,
+    raises - an effectively empty source simply yields no slides,
     which generate_presentation() reports as an error before any pptx
     machinery is touched.
     """
@@ -374,7 +374,7 @@ _LLM_OUTLINE_SYSTEM_PROMPT = (
     '{{"title": "...", "bullets": ["...", "..."]}}. '
     "Each slide needs a short title (under 8 words) and 2-5 concise "
     "bullets (each under 20 words). Produce at most {max_slides} "
-    "slides. Cover the document's actual content — never invent facts "
+    "slides. Cover the document's actual content - never invent facts "
     "that are not in the source."
 )
 
@@ -391,8 +391,8 @@ async def _llm_outline(
     `LLMRuntime.complete()` used throughout
     integration/orchestrator.py's `_llm_complete()`: an async callable
     taking a single `CompletionRequest` and returning an object with a
-    `.content` string. Returns None (never raises) on any failure —
-    missing dependency, timeout, malformed JSON, empty result — so the
+    `.content` string. Returns None (never raises) on any failure -
+    missing dependency, timeout, malformed JSON, empty result - so the
     caller can always fall back to `_heuristic_outline()`.
     """
     if complete_fn is None:
@@ -419,10 +419,10 @@ async def _llm_outline(
     try:
         response = await asyncio.wait_for(complete_fn(request), timeout=_LLM_OUTLINE_TIMEOUT_S)
     except TimeoutError:
-        logger.debug("presentation: LLM outline timed out — using heuristic outline")
+        logger.debug("presentation: LLM outline timed out - using heuristic outline")
         return None
     except Exception as exc:
-        logger.debug("presentation: LLM outline failed (%s) — using heuristic outline", exc)
+        logger.debug("presentation: LLM outline failed (%s) - using heuristic outline", exc)
         return None
 
     content = getattr(response, "content", None) or ""
@@ -474,7 +474,7 @@ def render_pptx(
 ) -> Path:
     """Render a slide outline into a real .pptx file at output_path.
 
-    Synchronous — python-pptx has no async API. generate_presentation()
+    Synchronous - python-pptx has no async API. generate_presentation()
     below runs this in an executor so it never blocks the event loop.
     """
     try:
@@ -528,7 +528,7 @@ async def generate_presentation(
     deck_title: str | None = None,
     max_slides: int = _MAX_SLIDES_DEFAULT,
 ) -> Path:
-    """Generate a .pptx from a source document — this module's main entry point.
+    """Generate a .pptx from a source document - this module's main entry point.
 
     Args:
         source_path: Path to the source file (.txt, .md, .docx, .pdf,
@@ -538,7 +538,7 @@ async def generate_presentation(
         complete_fn: Optional async LLM completion callable (same
             shape as `LLMRuntime.complete()`) for a richer outline.
             When None (the default) or when it fails for any reason,
-            the dependency-free heuristic outline is used instead —
+            the dependency-free heuristic outline is used instead -
             this function ALWAYS succeeds at producing *a* deck for
             any non-empty source, LLM or not.
         llm_model: Model name to request if complete_fn is given.
@@ -578,7 +578,7 @@ async def generate_presentation(
         logger.info("presentation: using heuristic outline (%d slides)", len(outline))
 
     if not outline:
-        msg = f"Could not build any slides from {source_path.name} — the file appears to have no usable text content"
+        msg = f"Could not build any slides from {source_path.name} - the file appears to have no usable text content"
         raise PresentationError(msg)
 
     title = deck_title or source_path.stem.replace("_", " ").replace("-", " ").strip().title()
@@ -605,7 +605,7 @@ async def generate_presentation_gamma(
 ) -> dict[str, Any]:
     """Generate a presentation via Gamma's cloud API instead of locally.
 
-    Entirely optional and OFF by default — Agent Guru is offline-first
+    Entirely optional and OFF by default - Agent Guru is offline-first
     and `generate_presentation()` above is the local path that always
     works with no network and no account. Use this only when the user
     has explicitly asked for a Gamma-generated deck and has their own
@@ -613,14 +613,14 @@ async def generate_presentation_gamma(
 
     api_key is never read implicitly from anywhere the user did not
     put it themselves: pass it explicitly, or set the GAMMA_API_KEY
-    environment variable yourself before calling this — there is no
+    environment variable yourself before calling this - there is no
     silent fallback between the two, and if neither is present this
     raises rather than guessing or sending data without a key.
 
     Gamma's generation endpoint is asynchronous: this call starts a
     generation job and returns Gamma's response payload (containing a
     generationId to poll for the finished file), not a finished file
-    itself — see
+    itself - see
     https://developers.gamma.app/generations/create-generation for the
     full, evolving contract.
 
@@ -634,7 +634,7 @@ async def generate_presentation_gamma(
         msg = (
             "Gamma generation requires an API key. Pass api_key= "
             "explicitly or set the GAMMA_API_KEY environment variable "
-            "— Agent Guru never sends your document to Gamma without "
+            "- Agent Guru never sends your document to Gamma without "
             "an explicit key you provided."
         )
         raise PresentationError(msg)

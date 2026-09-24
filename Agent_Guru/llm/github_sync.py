@@ -137,7 +137,7 @@ class GitHubSyncEngine:
         asyncio.CancelledError. _process_pending_operations() wraps its own
         network call (_update_readme()) in a try/except that retries with
         backoff, but the batching step right before it (list(...)/deque
-        reassignment) runs outside that inner try — so any exception raised
+        reassignment) runs outside that inner try - so any exception raised
         there (or anywhere else in this loop's body that isn't already
         caught deeper down) would propagate out of this while loop and kill
         the background asyncio.Task permanently and silently: start() only
@@ -148,7 +148,7 @@ class GitHubSyncEngine:
         retrieved" warning logged whenever the Task object happens to be
         garbage-collected. A background loop that is supposed to survive
         individual failures must not be allowed to die from an unexpected
-        one — so any non-cancellation exception is now logged and the loop
+        one - so any non-cancellation exception is now logged and the loop
         continues to the next cycle instead of terminating the task.
         """
         while True:
@@ -160,7 +160,7 @@ class GitHubSyncEngine:
                 break
             except Exception:
                 logger.exception(
-                    "Unexpected error in GitHub sync loop — will retry next cycle "
+                    "Unexpected error in GitHub sync loop - will retry next cycle "
                     "(%.0fs) instead of stopping the background sync task.",
                     self.batch_window_s,
                 )
@@ -191,7 +191,7 @@ class GitHubSyncEngine:
                 operation.status = "failed"
                 self.pending_operations.popleft()
                 logger.exception(
-                    "GitHub sync failed after %d retries: %s — %s",
+                    "GitHub sync failed after %d retries: %s - %s",
                     self.max_retries,
                     operation.operation_id,
                     exc,
@@ -288,7 +288,7 @@ class GitHubSyncEngine:
                 total_requests += m.get("total_requests", 0)
             else:
                 total_requests += getattr(m, "total_requests", 0)
-        return f"[LLM Runtime] Performance update — {total_requests} requests processed"
+        return f"[LLM Runtime] Performance update - {total_requests} requests processed"
 
     @staticmethod
     def _generate_operation_id() -> str:
@@ -302,6 +302,6 @@ class GitHubSyncEngine:
         return SyncOperation(
             operation_id=self._generate_operation_id(),
             content=latest.content,
-            commit_message=f"[LLM Runtime] Batched update — {len(operations)} changes",
+            commit_message=f"[LLM Runtime] Batched update - {len(operations)} changes",
             timestamp=datetime.now(tz=UTC),
         )

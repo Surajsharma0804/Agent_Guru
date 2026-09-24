@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""train.py — GuruVision ArcFace training entry-point.
+r"""train.py - GuruVision ArcFace training entry-point.
 
 Usage:
     python -m Agent_Guru.vision.train \\
@@ -84,7 +84,7 @@ def _load_config_overrides(config_path: str, config: TrainingConfig) -> Training
     path = safe_path(BASE_DIR, config_path)
     if not path.exists():
         logging.getLogger("guruvision.train").warning(
-            "Config file not found: %s — using defaults",
+            "Config file not found: %s - using defaults",
             config_path,
         )
         return config
@@ -97,7 +97,7 @@ def _load_config_overrides(config_path: str, config: TrainingConfig) -> Training
             data = yaml.safe_load(text) or {}
         except ImportError:
             logging.getLogger("guruvision.train").warning(
-                "PyYAML not installed — cannot load YAML config",
+                "PyYAML not installed - cannot load YAML config",
             )
             return config
     else:

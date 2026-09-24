@@ -11,7 +11,7 @@ Architecture:
 
 Performance Requirements:
     - Time Complexity: O(1) per feedback record, O(n) for analysis
-    - Space Complexity: O(max_history) bounded — no unbounded growth
+    - Space Complexity: O(max_history) bounded - no unbounded growth
     - Latency: <50ms for feedback collection
 
 Requirements: 13.4
@@ -362,7 +362,7 @@ class FeedbackCollector:
             correction=correction,
             error_description=error_description,
         )
-        # deque with maxlen automatically evicts oldest — O(1), no memory leak
+        # deque with maxlen automatically evicts oldest - O(1), no memory leak
         self._feedback_buffer.append(feedback)
         logger.debug(
             "feedback_recorded",

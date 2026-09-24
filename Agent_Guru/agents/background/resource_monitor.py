@@ -27,8 +27,8 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # Battery thresholds
-BATTERY_LOW_THRESHOLD = 20.0  # % — enter sleep mode
-BATTERY_CRITICAL_THRESHOLD = 10.0  # % — stop all services
+BATTERY_LOW_THRESHOLD = 20.0  # % - enter sleep mode
+BATTERY_CRITICAL_THRESHOLD = 10.0  # % - stop all services
 
 
 class ThermalState(Enum):
@@ -62,7 +62,7 @@ class ResourceSnapshot:
     """Point-in-time snapshot of all monitored resources.
 
     Attributes:
-        battery_percent: Battery level 0–100. None if not applicable.
+        battery_percent: Battery level 0-100. None if not applicable.
         is_charging: Whether the device is currently charging.
         thermal_state: Current thermal state.
         network_state: Current network connectivity.
@@ -150,7 +150,7 @@ class ResourceMonitor:
         """Update battery level and trigger callbacks.
 
         Args:
-            percent: Battery percentage 0–100.
+            percent: Battery percentage 0-100.
             is_charging: Whether the device is charging.
 
         Raises:

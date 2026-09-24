@@ -123,7 +123,7 @@ class VoiceAuthenticator:
         # test's failure from "quality too low" to a liveness rejection).
         if not voice_features.is_live:
             self.logger.warning(
-                "SECURITY: Voice enrollment rejected for %s — liveness check failed (score=%.3f)",
+                "SECURITY: Voice enrollment rejected for %s - liveness check failed (score=%.3f)",
                 user_id,
                 voice_features.liveness_score,
             )
@@ -168,7 +168,7 @@ class VoiceAuthenticator:
         # Liveness check: reject non-live audio immediately
         if not voice_features.is_live:
             self.logger.warning(
-                "SECURITY: Liveness check failed for %s (liveness_score: %.3f) — authentication rejected",
+                "SECURITY: Liveness check failed for %s (liveness_score: %.3f) - authentication rejected",
                 ("user " + user_id) if user_id else "identification",
                 voice_features.liveness_score,
             )
@@ -257,7 +257,7 @@ class VoiceAuthenticator:
         # time, without ever needing to pass the enrollment-time liveness check.
         if not voice_features.is_live:
             self.logger.warning(
-                "SECURITY: Voice profile update rejected for %s — liveness check failed (score=%.3f)",
+                "SECURITY: Voice profile update rejected for %s - liveness check failed (score=%.3f)",
                 user_id,
                 voice_features.liveness_score,
             )

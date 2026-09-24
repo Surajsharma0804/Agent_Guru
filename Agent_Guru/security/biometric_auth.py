@@ -85,7 +85,7 @@ class BiometricAuthenticator:
 
         # In-memory face template store: {profile_id: embedding (512,)}
         self._face_templates: dict[str, np.ndarray] = {}
-        # Cached SpeechEngine — initialized lazily, reused across calls
+        # Cached SpeechEngine - initialized lazily, reused across calls
         self._speech_engine: Any = None
 
     # ------------------------------------------------------------------
@@ -105,7 +105,7 @@ class BiometricAuthenticator:
         features: FaceFeatures = self.face_extractor.extract_face_embedding(image_data)
         if not features.is_live:
             logger.warning(
-                "SECURITY: Face enrollment rejected for %s — liveness failed (score=%.3f)",
+                "SECURITY: Face enrollment rejected for %s - liveness failed (score=%.3f)",
                 profile_id,
                 features.liveness_score,
             )
@@ -151,7 +151,7 @@ class BiometricAuthenticator:
         # Liveness gate
         if not features.is_live:
             logger.warning(
-                "SECURITY: Face auth rejected for %s — liveness failed (score=%.3f)",
+                "SECURITY: Face auth rejected for %s - liveness failed (score=%.3f)",
                 profile_id,
                 features.liveness_score,
             )
@@ -350,7 +350,7 @@ class BiometricAuthenticator:
             # what actually happened.
             if not face_result.authenticated and face_result.liveness_failed:
                 logger.warning(
-                    "SECURITY: Multi-factor auth rejected for %s — face liveness failed",
+                    "SECURITY: Multi-factor auth rejected for %s - face liveness failed",
                     profile_id,
                 )
                 return AuthenticationResult(
@@ -369,7 +369,7 @@ class BiometricAuthenticator:
             # comment above for why this now checks the structured flag).
             if not voice_result.authenticated and voice_result.liveness_failed:
                 logger.warning(
-                    "SECURITY: Multi-factor auth rejected for %s — voice liveness failed",
+                    "SECURITY: Multi-factor auth rejected for %s - voice liveness failed",
                     profile_id,
                 )
                 return AuthenticationResult(

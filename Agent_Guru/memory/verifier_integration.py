@@ -78,7 +78,7 @@ class AlwaysApproveVerifier:
 
 
 class AlwaysRejectVerifier:
-    """Stub that rejects everything — useful for testing rejection handling."""
+    """Stub that rejects everything - useful for testing rejection handling."""
 
     def verify(self, item_id: UUID, item_type: str, data: dict[str, Any]) -> VerificationResult:
         return VerificationResult(verified=False, confidence=0.0, explanation="auto-rejected")
@@ -141,11 +141,11 @@ class VerifierIntegration:
         """
         if not self._backend.is_available():
             self._pending_queue.append((item_id, item_type, data))
-            logger.warning("Verifier unavailable — queued item %s for later verification", item_id)
+            logger.warning("Verifier unavailable - queued item %s for later verification", item_id)
             return VerificationResult(
                 verified=False,
                 confidence=0.0,
-                explanation="Verifier unavailable — queued for later",
+                explanation="Verifier unavailable - queued for later",
             )
 
         try:
@@ -153,7 +153,7 @@ class VerifierIntegration:
         except Exception as exc:
             # The item_id/item_type were previously dropped from this log
             # line (the message read just "Verification error for", with no
-            # interpolation at all) — during a real verifier-backend outage,
+            # interpolation at all) - during a real verifier-backend outage,
             # every failure logged identically, making it impossible to tell
             # from the log which item actually failed.
             logger.exception("Verification error for item %s (%s)", item_id, item_type)
@@ -214,7 +214,7 @@ class VerifierIntegration:
         compatibility with existing callers that don't have it on hand; in
         that case this falls back to the previous, deliberately conservative
         behavior of flagging any non-empty `new_data` against a high-confidence
-        item — callers that *can* provide `existing_data` should, since the
+        item - callers that *can* provide `existing_data` should, since the
         fallback cannot tell a real contradiction from an unrelated update.
         """
         if existing_confidence < contradiction_threshold:

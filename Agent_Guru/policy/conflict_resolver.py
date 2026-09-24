@@ -29,7 +29,7 @@ class ConflictResolver:
     Time Complexity: O(n) where n is number of applicable policies
     Space Complexity: O(n)
 
-    Validates: Requirements 5.1–5.6
+    Validates: Requirements 5.1-5.6
     """
 
     def __init__(
@@ -172,7 +172,7 @@ class ConflictResolver:
 
     @staticmethod
     def _abstain(policies: list[EvaluatedPolicy]) -> PolicyDecision:
-        """No applicable policies — default deny."""
+        """No applicable policies - default deny."""
         return PolicyDecision(
             effect=PolicyEffect.DENY,
             winning_policy_id="",

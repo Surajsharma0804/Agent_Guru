@@ -38,7 +38,7 @@ class PermissionManager:
     grant/revoke/check API without requiring callers to construct
     full Policy objects.
 
-    Validates: Requirements 3.1–3.6, 4.1–4.6
+    Validates: Requirements 3.1-3.6, 4.1-4.6
     """
 
     def __init__(

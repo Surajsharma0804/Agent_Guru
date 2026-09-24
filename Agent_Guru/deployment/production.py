@@ -1,4 +1,4 @@
-"""Production deployment manager — Task 29.
+"""Production deployment manager - Task 29.
 
 Handles:
 - Pre-deployment health checks
@@ -163,7 +163,7 @@ class ProductionDeployment:
         return PreflightResult(
             "monitoring",
             True,
-            "Sentry DSN not set — crash reporting disabled (acceptable)",
+            "Sentry DSN not set - crash reporting disabled (acceptable)",
         )
 
     def _check_docs_present(self) -> PreflightResult:
@@ -190,7 +190,7 @@ class ProductionDeployment:
         """
         if not self._report.all_preflight_passed:
             logger.error("deployment_blocked_preflight_failed")
-            self._report.errors.append("Preflight checks failed — deployment blocked")
+            self._report.errors.append("Preflight checks failed - deployment blocked")
             return self._report
 
         self._generate_download_page()

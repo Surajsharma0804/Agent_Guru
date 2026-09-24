@@ -75,7 +75,7 @@ def _import_optional(module_path: str, *class_names: str) -> tuple[Any, ...]:
     a single `try: ... except ImportError: logger.exception(...)` block.
     Every one of those classes is later constructed through `_safe_init()`,
     which clearly exists to isolate a single controller's failure from the
-    rest (missing dependency, platform-unsupported feature, whatever) — but
+    rest (missing dependency, platform-unsupported feature, whatever) - but
     the shared import block undid that entirely: if even ONE of the eleven
     modules failed to import (an optional dependency like pyautogui missing,
     a platform-only module on the wrong OS, an unrelated bug in any single
@@ -83,7 +83,7 @@ def _import_optional(module_path: str, *class_names: str) -> tuple[Any, ...]:
     was left unbound. `_init_controllers()` then referenced an undefined
     name directly (e.g. `FileOperationsController` in `_safe_init(
     FileOperationsController, ...)`), raising a bare `NameError` that
-    propagates out of `_init_controllers()` and `__init__()` uncaught — not
+    propagates out of `_init_controllers()` and `__init__()` uncaught - not
     the graceful "some controllers unavailable" degradation the log message
     implied, but a hard crash of the *entire* OSController over one
     unrelated missing piece.
@@ -92,7 +92,7 @@ def _import_optional(module_path: str, *class_names: str) -> tuple[Any, ...]:
     only takes down the controller(s) it defines: this returns None for
     each requested class name instead of raising, and `_safe_init()`
     already handles a None class gracefully (`None(*args, **kwargs)` raises
-    TypeError, which `_safe_init()` catches and turns into `None` — exactly
+    TypeError, which `_safe_init()` catches and turns into `None` - exactly
     the same "controller unavailable" outcome _safe_init() already produces
     for a class that imported fine but failed to construct).
 
@@ -101,7 +101,7 @@ def _import_optional(module_path: str, *class_names: str) -> tuple[Any, ...]:
         *class_names: Attribute name(s) to pull from that module.
 
     Returns:
-        A tuple the same length as *class_names* — either the real classes,
+        A tuple the same length as *class_names* - either the real classes,
         or None per name if the module could not be imported.
 
     """
@@ -109,7 +109,7 @@ def _import_optional(module_path: str, *class_names: str) -> tuple[Any, ...]:
         mod = __import__(module_path, fromlist=list(class_names))
     except ImportError:
         logger.warning(
-            "Controller module unavailable (%s) — %s will be disabled, other "
+            "Controller module unavailable (%s) - %s will be disabled, other "
             "controllers are unaffected",
             module_path,
             ", ".join(class_names),
@@ -261,7 +261,7 @@ class OSController:
         require_confirmation: Whether to require confirmation for destructive ops
         platform: Current platform name
         _file_base_dir: Sandbox root for all file operations (defaults to the
-            user's home directory — see __init__'s file_base_dir docstring)
+            user's home directory - see __init__'s file_base_dir docstring)
         _file_controller: File operations controller
         _app_controller: Application control controller
         _text_controller: Text input controller
@@ -297,7 +297,7 @@ class OSController:
 
                 Found and fixed 2026-09-13: this used to be left unset when
                 constructing FileOperationsController below, which made ITS
-                own default apply instead — Path.cwd(), i.e. whatever
+                own default apply instead - Path.cwd(), i.e. whatever
                 directory the *process* happened to start in. For a desktop
                 companion that can be launched from a shortcut, a terminal,
                 or a service, that is not a stable or meaningful security
@@ -305,7 +305,7 @@ class OSController:
                 file called notes.txt" could either be confined to a
                 near-arbitrary install/launch directory (most user file
                 locations then correctly rejected as "path traversal", which
-                is the failure mode a user actually hit — not a crash, just a
+                is the failure mode a user actually hit - not a crash, just a
                 silently-too-narrow sandbox) or, if launched from a broad cwd,
                 effectively unconfined. Defaulting to the user's home
                 directory makes the sandbox boundary predictable, always
@@ -686,7 +686,7 @@ class OSController:
             try:
                 try:
                     asyncio.get_running_loop()
-                    # Running inside an event loop — run in a separate thread's loop
+                    # Running inside an event loop - run in a separate thread's loop
                     import concurrent.futures
 
                     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
@@ -695,7 +695,7 @@ class OSController:
                             self._desktop_app_controller.open_app(app_name),
                         ).result()
                 except RuntimeError:
-                    # No running event loop — safe to use asyncio.run() directly
+                    # No running event loop - safe to use asyncio.run() directly
                     success = asyncio.run(self._desktop_app_controller.open_app(app_name))
                 if success:
                     self._log_operation(
@@ -713,7 +713,7 @@ class OSController:
                     )
             except Exception as exc:
                 logger.debug(
-                    "DesktopApplicationController.open_app failed for %s: %s — falling back",
+                    "DesktopApplicationController.open_app failed for %s: %s - falling back",
                     app_name,
                     exc,
                 )
@@ -1350,7 +1350,7 @@ class OSController:
         """Perform a web search by opening the real system browser.
 
         Opens the search URL in the user's default browser (Chrome/Edge/Firefox).
-        No automation — the user controls playback themselves.
+        No automation - the user controls playback themselves.
 
         Args:
             query: Search query
@@ -1396,7 +1396,7 @@ class OSController:
             max_ad_wait_s:       Max seconds to wait for a skippable ad.
             on_status:           Optional callable(str) for status messages.
             pre_close_callback:  Optional callable() called BEFORE browser.close()
-                                 — use this to flush any pending TTS/speak tasks
+                                 - use this to flush any pending TTS/speak tasks
                                  so they finish before the browser window disappears.
 
         Returns:
@@ -1432,7 +1432,7 @@ class OSController:
         }
 
         async with async_playwright() as p:
-            # Use real installed Chrome/Edge — not Playwright's bundled Chromium.
+            # Use real installed Chrome/Edge - not Playwright's bundled Chromium.
             # channel="chrome" uses the system Google Chrome (with all codecs,
             # user profile, saved passwords, YouTube login etc.)
             # Fallback chain: chrome → msedge → bundled chromium
@@ -1463,7 +1463,7 @@ class OSController:
                     # Final fallback: bundled Playwright Chromium
                     browser = await p.chromium.launch(headless=headless)
                     _log(
-                        "Browser launched (Playwright bundled Chromium — install Chrome for best experience).",
+                        "Browser launched (Playwright bundled Chromium - install Chrome for best experience).",
                     )
             results["browser_launched"] = True
             try:
@@ -1501,7 +1501,7 @@ class OSController:
                     results["page_loaded"] = True
                     _log("Watch page loaded.")
                 except PlaywrightTimeoutError:
-                    _log("Watch URL timeout — continuing anyway.")
+                    _log("Watch URL timeout - continuing anyway.")
                 # Give the player time to initialise
                 await page.wait_for_timeout(2500)
 
@@ -1581,7 +1581,7 @@ class OSController:
 
                 # ── Step 12: Flush all pending TTS BEFORE closing ─────
                 # This ensures "I am now closing YouTube" is spoken while
-                # the browser is still open — not after it's already gone.
+                # the browser is still open - not after it's already gone.
                 _log("Closing YouTube now.")
                 if pre_close_callback is not None:
                     try:
@@ -1658,7 +1658,7 @@ class OSController:
             except Exception:
                 break
             if ad_showing:
-                _log("Ad detected — waiting for skip button…")
+                _log("Ad detected - waiting for skip button…")
                 skipped = await self._skip_ad_if_present(page)
                 if skipped:
                     _log("Ad skipped.")
@@ -1666,7 +1666,7 @@ class OSController:
                     break
                 await page.wait_for_timeout(1000)
             else:
-                _log("No ad detected — proceeding.")
+                _log("No ad detected - proceeding.")
                 break
 
         return skipped
@@ -1688,13 +1688,13 @@ class OSController:
 
         raw = raw.strip()
 
-        # Known site name, already-a-URL, or www.-prefixed string —
+        # Known site name, already-a-URL, or www.-prefixed string -
         # delegates to the single canonical site registry in
         # browser_manager.py. This method used to keep its own separate
-        # 15-entry `_shortcuts` copy — one of three duplicate site-name
+        # 15-entry `_shortcuts` copy - one of three duplicate site-name
         # registries found in the codebase (the others: orchestrator.py's
         # `_URL_MAP` and browser_manager.py's own original, smaller
-        # table) — consolidated into one source of truth 2026-09-13.
+        # table) - consolidated into one source of truth 2026-09-13.
         resolved = _resolve_site_url(raw)
         if resolved:
             return resolved
@@ -1723,7 +1723,7 @@ class OSController:
             confirmed: Must be True to proceed (user confirmed)
 
         Returns:
-            OperationResult — fails with permission error if not confirmed
+            OperationResult - fails with permission error if not confirmed
 
         """
         if not confirmed:
@@ -1784,15 +1784,15 @@ class OSController:
         BUG FIX (found 2026-09-13): reset_pc()/shutdown_pc() used to
         fire-and-forget `subprocess.Popen(["sudo", "shutdown", ...])` (or
         `["sudo", "reboot"]`/`["sudo", "poweroff"]`) on macOS/Linux and then
-        unconditionally report success — but plain `sudo` with no cached
+        unconditionally report success - but plain `sudo` with no cached
         credentials and no NOPASSWD entry blocks waiting for a password on
         stdin, which a detached Popen has no way to supply. That means the
         call could hang forever in the background while Agent Guru had
-        already told the user "PC restarting now" — a real silent failure:
+        already told the user "PC restarting now" - a real silent failure:
         nothing happens, and there is no way to tell from the returned
         OperationResult.
 
-        This runs the *real* command (unchanged for the success path — it
+        This runs the *real* command (unchanged for the success path - it
         is not weakened to a dry run) but via `sudo -n` (non-interactive):
         if sudo would need a password, `-n` makes it fail immediately
         instead of blocking, so this can tell the difference between "the
@@ -1813,7 +1813,7 @@ class OSController:
 
         Returns:
             (True, None) if the command launched and is proceeding (or
-            exited 0). (False, detail) if it failed fast — e.g. sudo needs a
+            exited 0). (False, detail) if it failed fast - e.g. sudo needs a
             password, or the binary doesn't exist.
 
         """
@@ -1831,7 +1831,7 @@ class OSController:
         try:
             _, stderr_bytes = proc.communicate(timeout=wait_seconds)
         except subprocess.TimeoutExpired:
-            # Still running with no fast failure — genuinely proceeding.
+            # Still running with no fast failure - genuinely proceeding.
             return True, None
 
         if proc.returncode == 0:
@@ -1849,7 +1849,7 @@ class OSController:
             confirmed: Must be True to proceed
 
         Returns:
-            OperationResult — fails with permission error if not confirmed
+            OperationResult - fails with permission error if not confirmed
 
         """
         if not confirmed:
@@ -1919,7 +1919,7 @@ class OSController:
             confirmed: Must be True to proceed
 
         Returns:
-            OperationResult — fails with permission error if not confirmed
+            OperationResult - fails with permission error if not confirmed
 
         """
         if not confirmed:

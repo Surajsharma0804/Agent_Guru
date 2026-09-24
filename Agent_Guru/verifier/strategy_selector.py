@@ -109,7 +109,7 @@ class VerificationStrategySelector:
                 use_tool_checking=False,
                 use_loop_detection=False,
                 use_confidence_scoring=True,
-                reason="Creative content — minimal verification",
+                reason="Creative content - minimal verification",
             )
         # Default: full verification
         return VerificationStrategy(
