@@ -1,6 +1,5 @@
 """Type stubs for soundfile."""
 from typing import Any, Optional, Tuple
-import numpy as np
 from numpy.typing import NDArray
 
 class SoundFileInfo:
