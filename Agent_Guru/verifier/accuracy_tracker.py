@@ -31,25 +31,86 @@ class AccuracyTracker:
     Requirements: 13.1, 13.2, 13.3, 13.4
     """
 
+    #: How many recent alerts and snapshots to retain.
+    #:
+    #: MEMORY-LEAK FIX: _alerts and _snapshots were plain lists that only ever
+    #: grew. record() appends an alert on EVERY call once a rate is above its
+    #: threshold, so a persistently degraded verifier added two strings per
+    #: verification, for the life of the process - the failure path itself was
+    #: the leak. _labels was already correctly bounded with
+    #: deque(maxlen=window_size); these two were simply missed.
+    DEFAULT_HISTORY = 1000
+
     def __init__(
         self,
         max_fp_rate: float = 0.05,
         max_fn_rate: float = 0.02,
         window_size: int = 100,
+        history_size: int | None = None,
     ) -> None:
+        """Initialize the tracker.
+
+        Args:
+            max_fp_rate: False-positive rate above which an alert is raised.
+            max_fn_rate: False-negative rate above which an alert is raised.
+            window_size: How many recent outcomes the rates are computed over.
+            history_size: How many recent alerts and snapshots to retain
+                (default DEFAULT_HISTORY). Bounded so a long-running process
+                cannot accumulate them without limit.
+
+        """
+        if window_size <= 0:
+            msg = f"window_size must be positive, got {window_size}"
+            raise ValueError(msg)
+        retained = self.DEFAULT_HISTORY if history_size is None else history_size
+        if retained <= 0:
+            msg = f"history_size must be positive, got {retained}"
+            raise ValueError(msg)
+
         self._max_fp_rate = max_fp_rate
         self._max_fn_rate = max_fn_rate
         self._window_size = window_size
+        self._history_size = retained
 
-        # Ground truth labels: result_id -> (predicted_positive, actual_positive)
+        # Ground truth labels: (predicted_positive, actual_positive)
         self._labels: deque[tuple[bool, bool]] = deque(maxlen=window_size)
-        self._snapshots: list[AccuracySnapshot] = []
-        self._alerts: list[str] = []
+        self._snapshots: deque[AccuracySnapshot] = deque(maxlen=retained)
+        self._alerts: deque[str] = deque(maxlen=retained)
+
+        # PERFORMANCE: confusion-matrix cells maintained incrementally.
+        #
+        # The rate properties used to recompute themselves by scanning the whole
+        # window - four generator passes over `window_size` tuples - and record()
+        # reads both of them on every call. That made recording a single outcome
+        # O(window_size) (400 iterations at the default window of 100) on the
+        # per-verification hot path, for numbers that change by exactly one
+        # observation. The window is a bounded deque, so the only entry that can
+        # leave on an append is the leftmost one: decrement its cell before
+        # appending and the counts stay exact at O(1) per record.
+        self._tp = 0
+        self._fp = 0
+        self._tn = 0
+        self._fn = 0
+
+    def _cell(self, predicted_positive: bool, actual_positive: bool) -> str:
+        """Return the confusion-matrix attribute name for one outcome."""
+        if predicted_positive:
+            return "_tp" if actual_positive else "_fp"
+        return "_fn" if actual_positive else "_tn"
 
     def record(self, predicted_positive: bool, actual_positive: bool) -> None:
         """Record a verification outcome with ground truth label."""
-        self._labels.append((predicted_positive, actual_positive))
-        # deque(maxlen=window_size) auto-evicts oldest — no manual pop needed
+        # deque(maxlen=window_size) auto-evicts the oldest entry on append, so
+        # drop its contribution to the counts first - otherwise the confusion
+        # matrix would describe more observations than the window holds.
+        labels = self._labels
+        if labels.maxlen is not None and len(labels) == labels.maxlen:
+            evicted = self._cell(*labels[0])
+            setattr(self, evicted, getattr(self, evicted) - 1)
+
+        labels.append((predicted_positive, actual_positive))
+        added = self._cell(predicted_positive, actual_positive)
+        setattr(self, added, getattr(self, added) + 1)
 
         # Check for degradation
         fp_rate = self.false_positive_rate
@@ -67,19 +128,15 @@ class AccuracyTracker:
 
     @property
     def false_positive_rate(self) -> float:
-        """FP / (FP + TN)."""
-        fp = sum(1 for pred, actual in self._labels if pred and not actual)
-        tn = sum(1 for pred, actual in self._labels if not pred and not actual)
-        denom = fp + tn
-        return fp / denom if denom > 0 else 0.0
+        """FP / (FP + TN) over the current window. O(1)."""
+        denom = self._fp + self._tn
+        return self._fp / denom if denom > 0 else 0.0
 
     @property
     def false_negative_rate(self) -> float:
-        """FN / (FN + TP)."""
-        fn = sum(1 for pred, actual in self._labels if not pred and actual)
-        tp = sum(1 for pred, actual in self._labels if pred and actual)
-        denom = fn + tp
-        return fn / denom if denom > 0 else 0.0
+        """FN / (FN + TP) over the current window. O(1)."""
+        denom = self._fn + self._tp
+        return self._fn / denom if denom > 0 else 0.0
 
     @property
     def total(self) -> int:
