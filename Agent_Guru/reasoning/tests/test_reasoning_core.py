@@ -522,11 +522,21 @@ class TestReasoningPlanGenerator:
         assert mock_llm_provider.generate.call_count == 3  # nosec B101
 
     @pytest.mark.asyncio
-    async def test_generate_plan_timeout(self, generator, mock_llm_provider):
-        """Test timeout handling."""
+    async def test_generate_plan_timeout(self, mock_llm_provider):
+        """Test timeout handling.
+
+        The generator is given an explicit, tiny timeout rather than relying
+        on the shipped default. That default is now a policy value sized for
+        local CPU inference (see Agent_Guru.reasoning.llm.timeouts), so a test
+        that sleeps "longer than the timeout" against it would have to sleep
+        for minutes - and silently stopped testing anything the moment the
+        default changed. Pinning the timeout here makes the assertion about
+        the timeout mechanism itself, which is what the test is named for.
+        """
+        generator = ReasoningPlanGenerator(mock_llm_provider, timeout_seconds=0.05)
 
         async def slow_generate(*args, **kwargs):
-            await asyncio.sleep(10)  # Longer than timeout
+            await asyncio.sleep(10)  # Far longer than the 0.05s budget above
             return LLMResponse(
                 text="{}",
                 provider=LLMProvider.LOCAL,
