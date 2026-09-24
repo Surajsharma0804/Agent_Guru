@@ -1,9 +1,9 @@
-"""Production-grade wake word detection for Agent Guru.
+﻿"""Production-grade wake word detection for Agent Guru.
 
 Supports three backends in priority order:
-1. Picovoice Porcupine  — <5% CPU, <10ms latency (requires API key)
-2. Vosk keyword spotting — offline, no API key, ~50ms latency
-3. MFCC energy fallback  — always available, ~5ms latency
+1. Picovoice Porcupine  - <5% CPU, <10ms latency (requires API key)
+2. Vosk keyword spotting - offline, no API key, ~50ms latency
+3. MFCC energy fallback  - always available, ~5ms latency
 
 All backends share the same async API and WakeWordDetection result type.
 """
@@ -11,6 +11,7 @@ All backends share the same async API and WakeWordDetection result type.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -145,7 +146,7 @@ class WakeWordDetector:
         self.config = config or WakeWordConfig()
         self._last_detection_time: float = 0.0
 
-        # MFCC energy buffer for fallback detector — deque for O(1) bounded append
+        # MFCC energy buffer for fallback detector - deque for O(1) bounded append
         self._energy_buffer: deque[float] = deque(maxlen=10)
 
         # Vosk recognizer (lazy-initialised)
@@ -162,7 +163,7 @@ class WakeWordDetector:
 
         # Determine active backend
         self._backend: str = self._select_backend()
-        logger.info("WakeWordDetector initialised — backend=%s", self._backend)
+        logger.info("WakeWordDetector initialised - backend=%s", self._backend)
 
     # ------------------------------------------------------------------
     # Backend selection
@@ -172,10 +173,10 @@ class WakeWordDetector:
         """Choose the best available backend.
 
         Priority:
-        1. Porcupine — best accuracy, needs API key
-        2. openWakeWord — free, no API key, neural network, good accuracy
-        3. Vosk — offline keyword spotting
-        4. MFCC energy fallback — always available, least accurate
+        1. Porcupine - best accuracy, needs API key
+        2. openWakeWord - free, no API key, neural network, good accuracy
+        3. Vosk - offline keyword spotting
+        4. MFCC energy fallback - always available, least accurate
         """
         access_key = self.config.porcupine_access_key or os.environ.get("PICOVOICE_ACCESS_KEY", "")
         if _HAS_PORCUPINE and access_key:
@@ -194,7 +195,7 @@ class WakeWordDetector:
         """Lazily initialise and return the Vosk recogniser."""
         if self._vosk_recognizer is None:
             if not _HAS_VOSK:
-                msg = "vosk is not installed — run: pip install vosk"
+                msg = "vosk is not installed - run: pip install vosk"
                 raise WakeWordError(msg)
             if not os.path.isdir(self.config.vosk_model_path):  # noqa: PTH112
                 msg = (
@@ -218,7 +219,7 @@ class WakeWordDetector:
         """Lazily initialise and return the Porcupine handle."""
         if self._porcupine is None:
             if not _HAS_PORCUPINE:
-                msg = "pvporcupine is not installed — run: pip install pvporcupine"
+                msg = "pvporcupine is not installed - run: pip install pvporcupine"
                 raise WakeWordError(msg)
             access_key = self.config.porcupine_access_key or os.environ.get(
                 "PICOVOICE_ACCESS_KEY",
@@ -280,14 +281,14 @@ class WakeWordDetector:
         try:
             # Raises RuntimeError if no loop is running
             asyncio.get_running_loop()
-            # A loop IS running — run in a separate thread to avoid deadlock
+            # A loop IS running - run in a separate thread to avoid deadlock
             import concurrent.futures
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 future = pool.submit(asyncio.run, self.detect(audio))
                 return future.result()
         except RuntimeError:
-            # No loop running — safe to create one
+            # No loop running - safe to create one
             return asyncio.run(self.detect(audio))
 
     async def add_wake_word(self, phrase: str, personality: PersonalityType) -> None:
@@ -397,7 +398,7 @@ class WakeWordDetector:
                 hop_length=self.config.hop_length,
                 n_fft=self.config.n_fft,
             )
-        # Pure-NumPy fallback — simplified MFCC approximation
+        # Pure-NumPy fallback - simplified MFCC approximation
         return self._numpy_mfcc(audio)
 
     def _numpy_mfcc(self, audio: np.ndarray) -> np.ndarray:
@@ -458,7 +459,7 @@ class WakeWordDetector:
     # ------------------------------------------------------------------
 
     async def _detect_openwakeword(self, audio: np.ndarray, now: float) -> WakeWordDetection | None:
-        """Detect using openWakeWord — free, no API key, neural network.
+        """Detect using openWakeWord - free, no API key, neural network.
 
         openWakeWord uses pre-trained ONNX models for common wake phrases.
         It's more accurate than MFCC energy detection and doesn't need
@@ -473,7 +474,7 @@ class WakeWordDetector:
         try:
             if not hasattr(self, "_oww_model") or self._oww_model is None:
                 # Load openWakeWord with the best available model for "hey" phrases
-                # hey_jarvis is a good proxy — similar phonetics to "hey guru"
+                # hey_jarvis is a good proxy - similar phonetics to "hey guru"
                 try:
                     self._oww_model = OWWModel(
                         wakeword_models=["hey_jarvis"],
@@ -544,7 +545,7 @@ class WakeWordDetector:
                 return detection
 
         except Exception:
-            logger.exception("openWakeWord error — falling back to MFCC")
+            logger.exception("openWakeWord error - falling back to MFCC")
             self._oww_model = None
             self._backend = "mfcc"
             return await self._detect_mfcc(audio, now)
@@ -576,7 +577,7 @@ class WakeWordDetector:
                     logger.info("Wake word detected (porcupine): %s", keyword)
                     return result
         except Exception:
-            logger.exception("Porcupine detection error — falling back to MFCC")
+            logger.exception("Porcupine detection error - falling back to MFCC")
             return await self._detect_mfcc(audio, now)
         return None
 
@@ -621,7 +622,7 @@ class WakeWordDetector:
                     logger.info("Wake word detected (vosk): %s", phrase)
                     return detection
         except Exception:
-            logger.exception("Vosk detection error — falling back to MFCC")
+            logger.exception("Vosk detection error - falling back to MFCC")
             return await self._detect_mfcc(audio, now)
         return None
 
@@ -646,7 +647,7 @@ class WakeWordDetector:
         peak = float(np.max(np.abs(audio)))
         threshold = self.config.energy_threshold * (1.0 - self.config.sensitivity * 0.5)
 
-        # Periodic audio level logging — shows whether the mic is actually
+        # Periodic audio level logging - shows whether the mic is actually
         # capturing real audio.  Fires every ~30 frames (~45s at 1.5s chunks).
         if not hasattr(self, "_mfcc_frame_counter"):
             self._mfcc_frame_counter = 0
@@ -673,13 +674,13 @@ class WakeWordDetector:
         # variance compared to speech. Speech has bursty energy with clear
         # formant structure. We reject audio that looks like music.
         if self._looks_like_music(audio):
-            logger.info("MFCC: rejected — audio looks like music/speaker output (rms=%.4f, peak=%.4f)", rms, peak)
+            logger.info("MFCC: rejected - audio looks like music/speaker output (rms=%.4f, peak=%.4f)", rms, peak)
             return None
 
         self._energy_buffer.append(rms)
-        # deque(maxlen=10) auto-evicts oldest — no manual pop needed
+        # deque(maxlen=10) auto-evicts oldest - no manual pop needed
 
-        # 1 frame minimum — a single spoken word should trigger detection
+        # 1 frame minimum - a single spoken word should trigger detection
         required_frames = 1
         high_energy = sum(1 for e in self._energy_buffer if e > threshold)
 
@@ -718,16 +719,16 @@ class WakeWordDetector:
         """Return True if *audio* looks like music/speaker output rather than speech.
 
         Uses two fast heuristics:
-        1. Spectral flatness — music has many simultaneous frequency components
+        1. Spectral flatness - music has many simultaneous frequency components
            (flatness close to 1.0). Speech has sparse formant structure (low flatness).
-        2. Zero-crossing rate variance — speech has highly variable ZCR due to
+        2. Zero-crossing rate variance - speech has highly variable ZCR due to
            voiced/unvoiced transitions. Music has smoother, more periodic ZCR.
 
         Thresholds calibrated empirically:
-        - Speech spectral flatness: typically 0.01 – 0.15
-        - Music spectral flatness: typically 0.25 – 0.80
-        - Speech ZCR std: typically 0.05 – 0.20
-        - Music ZCR std: typically 0.01 – 0.06
+        - Speech spectral flatness: typically 0.01 - 0.15
+        - Music spectral flatness: typically 0.25 - 0.80
+        - Speech ZCR std: typically 0.05 - 0.20
+        - Music ZCR std: typically 0.01 - 0.06
         """
         if len(audio) < 512:
             return False
@@ -759,7 +760,7 @@ class WakeWordDetector:
             )
             zcr_std = float(np.std(zcr_per_frame))
         else:
-            zcr_std = 1.0  # can't compute — assume speech
+            zcr_std = 1.0  # can't compute - assume speech
 
         # Music: high flatness AND low ZCR variance
         is_music = flatness > 0.20 and zcr_std < 0.08
@@ -791,11 +792,11 @@ class WakeWordDetector:
                 if result is not None:
                     return result
                 logger.debug(
-                    "Wake word transcript %r — no keyword match, using spectral",
+                    "Wake word transcript %r - no keyword match, using spectral",
                     transcript,
                 )
         except Exception as exc:
-            logger.debug("Wake word transcription failed: %s — using spectral fallback", exc)
+            logger.debug("Wake word transcription failed: %s - using spectral fallback", exc)
 
         # ── Fallback: spectral heuristic ──────────────────────────────────
         return self._match_spectral_fallback(audio)
@@ -844,14 +845,14 @@ class WakeWordDetector:
             phrase = guru_phrases[0]
             return phrase, self.config.wake_words[phrase]
 
-        # Absolute fallback — should never reach here with default config
+        # Absolute fallback - should never reach here with default config
         first_phrase = next(iter(self.config.wake_words))
         return first_phrase, self.config.wake_words[first_phrase]
 
     def _transcribe_wake_word(self, audio: np.ndarray) -> str:
         """Transcribe wake word audio using faster-whisper (tiny model, fast).
 
-        Uses the tiny Whisper model for speed — only needs to detect
+        Uses the tiny Whisper model for speed - only needs to detect
         "guru" or "maya", not full sentences.
 
         Model loading priority:
@@ -866,7 +867,7 @@ class WakeWordDetector:
         try:
             from faster_whisper import WhisperModel
 
-            # Use cached instance — injected at startup or loaded on first call
+            # Use cached instance - injected at startup or loaded on first call
             if not hasattr(self, "_whisper_tiny") or self._whisper_tiny is None:
                 import torch
 
@@ -893,7 +894,7 @@ class WakeWordDetector:
                 beam_size=1,
                 best_of=1,
                 temperature=0.0,
-                vad_filter=False,  # Don't filter — wake word audio is short
+                vad_filter=False,  # Don't filter - wake word audio is short
                 word_timestamps=False,
             )
             text = " ".join(s.text for s in segments).strip()
@@ -908,10 +909,19 @@ class WakeWordDetector:
     # ------------------------------------------------------------------
 
     def __del__(self) -> None:
-        if self._porcupine is not None:
-            try:
-                self._porcupine.delete()
-            except Exception as exc:
-                import logging as _logging
+        """Release the Porcupine handle.
 
-                _logging.getLogger(__name__).debug("Porcupine cleanup failed: %s", exc)
+        Deliberately does no logging: a finalizer can run during interpreter
+        shutdown, where the `import logging` this used to do raises
+        ``ImportError: sys.meta_path is None``, turning a best-effort cleanup
+        into noise on stderr at every exit.
+        """
+        porcupine = getattr(self, "_porcupine", None)
+        if porcupine is None:
+            return
+        self._porcupine = None
+        # contextlib.suppress rather than try/except/pass: a finalizer
+        # must never raise, and this form says so without an inline
+        # scanner suppression.
+        with contextlib.suppress(Exception):
+            porcupine.delete()
