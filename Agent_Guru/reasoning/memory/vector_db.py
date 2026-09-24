@@ -30,6 +30,7 @@ from uuid import UUID
 import chromadb
 from chromadb.config import Settings
 
+from Agent_Guru.utils.path_utils import app_data_dir
 from Agent_Guru.reasoning.models.memory import MemoryType
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,8 @@ class VectorDatabase:
         collections: Dictionary of collection name to collection object
 
     Example:
-        >>> db = VectorDatabase(db_path="./memory_db")
+        >>> db = VectorDatabase()  # per-user data directory
+        >>> db = VectorDatabase(db_path="/explicit/path")
         >>> # Store a memory
         >>> memory_id = db.store(
         ...     memory_type=MemoryType.EPISODIC,
@@ -82,14 +84,16 @@ class VectorDatabase:
 
     def __init__(
         self,
-        db_path: str = "./memory_db",
+        db_path: str | None = None,
         embedding_dimension: int = 384,
         in_memory: bool = False,
     ) -> None:
         """Initialize vector database.
 
         Args:
-            db_path: Path to database storage directory
+            db_path: Path to database storage directory. Defaults to
+                Agent Guru's per-user data directory (see
+                utils.path_utils.app_data_dir), NOT the working directory.
             embedding_dimension: Dimension of embedding vectors (default 384)
             in_memory: Use in-memory database (for testing, default False)
 
@@ -97,7 +101,15 @@ class VectorDatabase:
             RuntimeError: If database initialization fails
 
         """
-        self.db_path = Path(db_path)
+        # BUG FIX: db_path defaulted to the RELATIVE "./memory_db", so the
+        # vector store was created under whatever directory the process
+        # happened to be started from. Launch the assistant from somewhere
+        # else and its long-term memory is a different, empty database;
+        # launch it from a read-only or restricted directory and
+        # initialisation fails outright. Per-user state belongs in the
+        # platform's data directory, which is what memory/memory_manager.py
+        # and memory/conversation_memory.py already do.
+        self.db_path = Path(db_path) if db_path else app_data_dir("memory_db")
         self.embedding_dimension = embedding_dimension
         self.in_memory = in_memory
 
@@ -335,7 +347,7 @@ class VectorDatabase:
                     # returns raw cosine similarity in [-1.0, 1.0], and
                     # MemoryStoragePipeline's deduplication_threshold (default
                     # 0.95, docstring: "similarity >= deduplication_threshold")
-                    # and security/embedding_auth.RETRIEVAL_THRESHOLD (0.85) are
+                    # and security/embedding_auth.RETRIEVAL_THRESHOLD (0.35) are
                     # both calibrated against that raw-cosine convention. Mixing
                     # a silently-rescaled similarity into that same threshold
                     # ecosystem changed what those thresholds actually enforced
