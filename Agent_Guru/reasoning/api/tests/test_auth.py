@@ -52,6 +52,145 @@ class TestJWTTokens:
         assert token_data.user_id == user_id  # nosec B101
 
 
+class TestJWTTokenRejection:
+    """Every way a token can be rejected must produce 401, never 500.
+
+    verify_token() used to handle only ExpiredSignatureError. Every other
+    failure - a forged signature above all - escaped the function raw, which
+    FastAPI turns into a 500 Internal Server Error rather than an
+    authentication failure. These tests pin each rejection path.
+    """
+
+    @staticmethod
+    def _assert_rejected(token):
+        with pytest.raises(HTTPException) as exc_info:
+            verify_token(token)
+        assert exc_info.value.status_code == 401  # nosec B101
+        return exc_info.value
+
+    def test_forged_signature_is_rejected(self):
+        """A token signed with the WRONG key must not authenticate anyone."""
+        import jwt as pyjwt
+
+        from Agent_Guru.reasoning.api.auth import JWT_ALGORITHM
+
+        forged = pyjwt.encode(
+            {
+                "user_id": "attacker",
+                "role": "admin",
+                "exp": int(time.time()) + 3600,
+                "iat": int(time.time()),
+            },
+            "not-the-server-secret",
+            algorithm=JWT_ALGORITHM,
+        )
+
+        self._assert_rejected(forged)
+
+    def test_unsigned_alg_none_token_is_rejected(self):
+        """The classic algorithm-confusion attack must not be accepted."""
+        import jwt as pyjwt
+
+        unsigned = pyjwt.encode(
+            {
+                "user_id": "attacker",
+                "role": "admin",
+                "exp": int(time.time()) + 3600,
+                "iat": int(time.time()),
+            },
+            key="",
+            algorithm="none",
+        )
+
+        self._assert_rejected(unsigned)
+
+    def test_tampered_payload_is_rejected(self):
+        """Flipping a byte of a genuine token must invalidate it."""
+        token = create_access_token("user_123")
+        header, payload, signature = token.split(".")
+        # Corrupt the payload segment while keeping the structure valid.
+        tampered = f"{header}.{payload[:-2]}XY.{signature}"
+
+        self._assert_rejected(tampered)
+
+    @pytest.mark.parametrize(
+        "token",
+        ["", "   ", "not.a.jwt", "onlyonesegment", "a.b", "a.b.c.d"],
+    )
+    def test_malformed_tokens_are_rejected(self, token):
+        self._assert_rejected(token)
+
+    def test_unknown_role_claim_is_rejected(self):
+        """A correctly signed token whose role this build cannot parse."""
+        import jwt as pyjwt
+
+        from Agent_Guru.reasoning.api.auth import JWT_ALGORITHM, JWT_SECRET
+
+        token = pyjwt.encode(
+            {
+                "user_id": "user_123",
+                "role": "superuser-that-does-not-exist",
+                "exp": int(time.time()) + 3600,
+                "iat": int(time.time()),
+            },
+            JWT_SECRET,
+            algorithm=JWT_ALGORITHM,
+        )
+
+        self._assert_rejected(token)
+
+    def test_missing_claims_are_rejected(self):
+        """A correctly signed token that is missing required claims."""
+        import jwt as pyjwt
+
+        from Agent_Guru.reasoning.api.auth import JWT_ALGORITHM, JWT_SECRET
+
+        token = pyjwt.encode({"user_id": "user_123"}, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+        self._assert_rejected(token)
+
+    def test_rejection_detail_does_not_leak_the_reason(self):
+        """Saying WHICH check failed is an oracle for refining a forgery."""
+        import jwt as pyjwt
+
+        from Agent_Guru.reasoning.api.auth import JWT_ALGORITHM
+
+        forged = pyjwt.encode(
+            {
+                "user_id": "attacker",
+                "role": "admin",
+                "exp": int(time.time()) + 3600,
+                "iat": int(time.time()),
+            },
+            "not-the-server-secret",
+            algorithm=JWT_ALGORITHM,
+        )
+
+        forged_detail = self._assert_rejected(forged).detail
+        malformed_detail = self._assert_rejected("not.a.jwt").detail
+
+        assert forged_detail == malformed_detail == "Invalid token"  # nosec B101
+
+    def test_expired_token_is_still_distinguished(self):
+        """Expiry is safe to report - it tells an attacker nothing useful."""
+        import jwt as pyjwt
+
+        from Agent_Guru.reasoning.api.auth import JWT_ALGORITHM, JWT_SECRET
+
+        expired = pyjwt.encode(
+            {
+                "user_id": "user_123",
+                "role": "user",
+                "exp": int(time.time()) - 10,
+                "iat": int(time.time()) - 3600,
+            },
+            JWT_SECRET,
+            algorithm=JWT_ALGORITHM,
+        )
+
+        assert "expired" in self._assert_rejected(expired).detail.lower()  # nosec B101
+
+
 class TestRateLimiter:
     """Tests for rate limiter."""
     
