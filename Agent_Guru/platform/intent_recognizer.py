@@ -1,4 +1,4 @@
-"""Multi-platform Intent Recognition System for Agent Guru.
+﻿"""Multi-platform Intent Recognition System for Agent Guru.
 
 Extracts structured intent from natural language text using:
 - Primary: LLM (LLMManager) for accurate natural language understanding
@@ -18,12 +18,12 @@ Platform Behaviour:
 Performance Requirements:
     - Intent recognition latency: <500ms (95th percentile)
     - Accuracy: >90% on standard command set
-    - Confidence scoring: 0.0â€“1.0
+    - Confidence scoring: 0.0-1.0
 
 Architecture:
     IntentRecognizer
-    â”œâ”€â”€ LLMManager  â€” primary structured intent extraction
-    â””â”€â”€ _RuleEngine â€” regex fallback when LLM unavailable
+    ├── LLMManager  - primary structured intent extraction
+    └── _RuleEngine - regex fallback when LLM unavailable
 
 Author: Agent Guru Team
 Date: 2026-03-20
@@ -121,7 +121,7 @@ class IntentResult:
         confidence: Confidence score in [0.0, 1.0].
         raw_text: Original input text.
         platform: Platform the recognition ran on.
-        method: ``"llm"`` or ``"rule_based"`` â€” which engine produced this.
+        method: ``"llm"`` or ``"rule_based"`` - which engine produced this.
 
     """
 
@@ -151,11 +151,11 @@ class IntentResult:
 # param_extractor_fn receives the re.Match and returns a dict of parameters.
 
 _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    # App control — handles "open", "launch", "can you open", "I want to open", "open up"
+    # App control - handles "open", "launch", "can you open", "I want to open", "open up"
     (re.compile(r"\b(open|launch|start|run|open up|fire up)\b.+", re.IGNORECASE), "open_app"),
     (re.compile(r"\b(close|quit|exit|kill|shut down|terminate)\b.+", re.IGNORECASE), "close_app"),
     (re.compile(r"\b(uninstall|remove app|delete app)\b.+", re.IGNORECASE), "uninstall_app"),
-    # Volume — handles "louder", "quieter", "make it louder", "turn up", "turn down"
+    # Volume - handles "louder", "quieter", "make it louder", "turn up", "turn down"
     (re.compile(r"\b(volume|sound)\b.*(up|down|mute|unmute|\d+)", re.IGNORECASE), "volume"),
     (re.compile(r"\b(mute|unmute|silence)\b", re.IGNORECASE), "volume"),
     (
@@ -170,7 +170,7 @@ _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         "volume",
     ),
     (re.compile(r"\b(make it louder|make it quieter|make it softer)\b", re.IGNORECASE), "volume"),
-    # Brightness — handles "brighter", "dimmer", "make it brighter"
+    # Brightness - handles "brighter", "dimmer", "make it brighter"
     (re.compile(r"\b(brightness)\b.*(up|down|\d+)", re.IGNORECASE), "brightness"),
     (re.compile(r"\b(brighter|increase brightness|brightness up)\b", re.IGNORECASE), "brightness"),
     (
@@ -196,7 +196,7 @@ _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         re.compile(r"\b(minimize|minimise|maximize|maximise|restore|fullscreen)\b", re.IGNORECASE),
         "window",
     ),
-    # Screenshot — handles "take a screenshot", "snap a screenshot", "grab a screenshot"
+    # Screenshot - handles "take a screenshot", "snap a screenshot", "grab a screenshot"
     (
         re.compile(
             r"\b(screenshot|screen shot|capture screen|take screenshot|snap screenshot|grab screenshot)\b",
@@ -286,7 +286,7 @@ _SYSTEM_CONTROL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     ),
 ]
 
-# Known desktop application names â€” these should NEVER be treated as websites.
+# Known desktop application names - these should NEVER be treated as websites.
 # When "open X" matches one of these, it's an app launch, not a URL open.
 _KNOWN_DESKTOP_APPS: frozenset[str] = frozenset(
     {
@@ -411,7 +411,7 @@ _KNOWN_DESKTOP_APPS: frozenset[str] = frozenset(
     },
 )
 
-# Web / browser patterns â€” matched before information to catch "open youtube", "play X on youtube"
+# Web / browser patterns - matched before information to catch "open youtube", "play X on youtube"
 # The catch-all at the end handles ANY "open X" where X looks like a website.
 _WEB_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # Explicit URL
@@ -437,7 +437,7 @@ _WEB_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     ),
     # Play X on youtube/spotify
     (re.compile(r"\bplay\b.+\bon\s+(youtube|spotify)\b", re.IGNORECASE), "web_search"),
-    # "play X" without engine â€” default to youtube search
+    # "play X" without engine - default to youtube search
     (re.compile(r"^\s*play\s+\S", re.IGNORECASE), "web_search"),
     # Search X on engine
     (
@@ -445,7 +445,7 @@ _WEB_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         "web_search",
     ),
     (re.compile(r"\b(youtube|google)\b.*(search|find|look up)\b.+", re.IGNORECASE), "web_search"),
-    # "open X.com" / "open X.org" / "open X.io" / "open X.net" â€” any domain
+    # "open X.com" / "open X.org" / "open X.io" / "open X.net" - any domain
     (
         re.compile(
             r"\b(open|go to|visit|navigate to)\s+\S+\.(com|org|io|net|in|co|edu|gov|app|dev)\b",
@@ -454,7 +454,7 @@ _WEB_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         "open_url",
     ),
     # Catch-all: "open X" where X is NOT a known desktop app
-    # This is the last resort â€” matches anything after "open" that wasn't caught above
+    # This is the last resort - matches anything after "open" that wasn't caught above
     (
         re.compile(r"\b(open|go to|visit|navigate to)\s+(\w[\w\s]{1,40})\s*$", re.IGNORECASE),
         "open_url",
@@ -536,23 +536,23 @@ def _extract_web_query(text: str) -> dict[str, str]:
     """Extract URL/query and engine from a web command.
 
     Handles:
-    - "play despacito on youtube" â†’ query="despacito", engine="youtube"
-    - "play chak de india" â†’ query="chak de india", engine="youtube" (default for play)
-    - "open leetcode" â†’ query="leetcode", engine="direct" (will be resolved to URL)
-    - "open leetcode.com" â†’ query="leetcode.com", engine="direct"
-    - "search python on google" â†’ query="python", engine="google"
-    - "open X" (any unknown name) â†’ query="X", engine="google" (will search)
+    - "play despacito on youtube" → query="despacito", engine="youtube"
+    - "play chak de india" → query="chak de india", engine="youtube" (default for play)
+    - "open leetcode" → query="leetcode", engine="direct" (will be resolved to URL)
+    - "open leetcode.com" → query="leetcode.com", engine="direct"
+    - "search python on google" → query="python", engine="google"
+    - "open X" (any unknown name) → query="X", engine="google" (will search)
 
     Returns:
         dict with keys 'query' and 'engine'
 
     """
-    # "play despacito on youtube" â†’ query="despacito", engine="youtube"
+    # "play despacito on youtube" → query="despacito", engine="youtube"
     m = re.search(r"\bplay\s+(.+?)\s+on\s+(youtube|spotify)\b", text, re.IGNORECASE)
     if m:
         return {"query": m.group(1).strip(), "engine": m.group(2).lower()}
 
-    # "play X" without "on youtube" â†’ default to youtube search
+    # "play X" without "on youtube" → default to youtube search
     m = re.search(r"^\s*play\s+(.+?)(?:\s+(?:on|in)\s+\w+)?$", text, re.IGNORECASE)
     if m:
         query = m.group(1).strip().rstrip(".,!?")
@@ -567,7 +567,7 @@ def _extract_web_query(text: str) -> dict[str, str]:
     if m:
         return {"query": m.group(1).strip(), "engine": m.group(2).lower()}
 
-    # "open X.com" / "go to X.org" â€” explicit domain
+    # "open X.com" / "go to X.org" - explicit domain
     m = re.search(
         r"\b(?:open|go to|navigate to|visit)\s+(\S+\.(com|org|io|net|in|co|edu|gov|app|dev)\S*)",
         text,
@@ -577,7 +577,7 @@ def _extract_web_query(text: str) -> dict[str, str]:
         domain = m.group(1).strip()
         return {"query": domain, "engine": "direct"}
 
-    # "open youtube" / "go to github" â€” known site names
+    # "open youtube" / "go to github" - known site names
     m = re.search(
         r"\b(?:open|go to|navigate to|visit)\s+"
         r"(youtube|google|gmail|github|reddit|twitter|facebook|instagram|linkedin|"
@@ -594,7 +594,7 @@ def _extract_web_query(text: str) -> dict[str, str]:
     if m:
         return {"query": m.group(1).strip(), "engine": "direct"}
 
-    # "open X" â€” any unknown name â†’ treat as web search on Google
+    # "open X" - any unknown name → treat as web search on Google
     m = re.search(
         r"\b(?:open|go to|visit|navigate to)\s+(.+?)(?:\s+(?:and|then|in|on)\b.*)?$",
         text,
@@ -618,10 +618,10 @@ def _extract_app_name(text: str) -> str:
     """Extract application name from a command string.
 
     Handles:
-    - "open notepad" â†’ "notepad"
-    - "open google chrome" â†’ "google chrome"
-    - "open notepad and write something" â†’ "notepad" (stops at "and")
-    - "Open Notepad. Himaya Open Notepad." â†’ "notepad" (stops at punctuation)
+    - "open notepad" → "notepad"
+    - "open google chrome" → "google chrome"
+    - "open notepad and write something" → "notepad" (stops at "and")
+    - "Open Notepad. Himaya Open Notepad." → "notepad" (stops at punctuation)
     """
     # Remove leading action words
     cleaned = re.sub(
@@ -807,7 +807,7 @@ class _RuleEngine:
                     else:
                         params["app"] = _extract_app_name(text)
                 elif action == "type_text":
-                    # Extract the text to type â€” everything after the verb and optional target
+                    # Extract the text to type - everything after the verb and optional target
                     m = re.search(
                         r'\b(?:type|write|input)\b\s+["\']?(.+?)["\']?\s*(?:\b(?:in|into|on)\b.+)?$',
                         text,
@@ -1014,7 +1014,7 @@ class IntentRecognizer:
         self._initialized: bool = False
         self._llm_available: bool = False
 
-        logger.info("IntentRecognizer created â€” platform=%s", self._platform)
+        logger.info("IntentRecognizer created - platform=%s", self._platform)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -1044,18 +1044,18 @@ class IntentRecognizer:
                 logger.info("IntentRecognizer: LLM initialized successfully")
             except Exception as exc:
                 logger.exception(
-                    "IntentRecognizer: LLM unavailable (%s) â€” using rule-based fallback",
+                    "IntentRecognizer: LLM unavailable (%s) - using rule-based fallback",
                     exc,
                 )
                 self._llm_manager = None
                 self._llm_available = False
         else:
-            # Caller provided a manager â€” assume it's ready
+            # Caller provided a manager - assume it's ready
             self._llm_available = True
 
         self._initialized = True
         logger.info(
-            "IntentRecognizer initialized â€” platform=%s, llm_available=%s",
+            "IntentRecognizer initialized - platform=%s, llm_available=%s",
             self._platform,
             self._llm_available,
         )
@@ -1098,7 +1098,7 @@ class IntentRecognizer:
         """
         effective_platform = platform or self._platform
 
-        # Empty / whitespace-only input â†’ conversation with low confidence
+        # Empty / whitespace-only input → conversation with low confidence
         if not text or not text.strip():
             return IntentResult(
                 intent_type="conversation",
