@@ -8,6 +8,78 @@ from Agent_Guru.security.voice_auth import VoiceAuthenticator, VoiceAuthenticati
 from Agent_Guru.security.speech_integration import SpeechSecurityIntegration
 import logging
 
+
+def voice_like_audio(
+    seconds: float = 3.0,
+    sample_rate: int = 16000,
+    speaker: int = 1,
+) -> np.ndarray:
+    """Generate a signal the liveness detector accepts as a live speaker.
+
+    These tests used ``np.random.randn(48000)`` -- white noise -- as stand-in
+    speech. VoiceAuthenticator.enroll_user() checks
+    VoiceFeatures.is_live before storing a biometric template (it is the
+    anti-spoofing guarantee: without it, an attacker who reaches enrollment
+    can plant a synthetic or replayed sample as somebody's permanent reference
+    voice). VoiceFeatureExtractor.detect_liveness() correctly scores white
+    noise 0.443, below its 0.55 threshold, so every enrollment in this file
+    was rejected -- the security control working exactly as designed, against
+    a test fixture that was never speech.
+
+    Weakening or bypassing that check to make the tests pass would delete the
+    guarantee. Instead this builds something with the acoustic structure the
+    detector actually looks for:
+
+    * a wandering fundamental in the adult vocal range with natural jitter,
+      so pitch variation lands in the 0.02-0.5 coefficient-of-variation band
+      that distinguishes a person from a tone generator;
+    * a harmonic stack with falling amplitudes, as voiced speech has;
+    * a ~4 Hz syllable-rate envelope, which gives the spectral flux its
+      natural variance;
+    * high-frequency aspiration noise, putting 5-30% of the energy above
+      4 kHz where live speech puts it.
+
+    Measured across speakers 1-50 and durations 0.5-10s: liveness 0.710-0.716
+    (all live), quality 0.875, versus 0.443 (rejected) for white noise and
+    0.500 for silence -- so the suite now exercises the real enrollment path,
+    liveness gate included.
+
+    ``speaker`` changes the timbre and pitch centre, producing a DIFFERENT
+    voice that is still live -- which is what an impostor test needs.
+    """
+    rng = np.random.default_rng(speaker)
+    n = int(seconds * sample_rate)
+    t = np.arange(n) / sample_rate
+
+    # Fundamental wraps within 95-216 Hz. Unbounded "95 + 25 * speaker" put
+    # speaker 50 at 1345 Hz, which is not a voice and does not read as live.
+    base_f0 = 95.0 + (speaker % 12) * 11.0
+    f0 = (
+        base_f0
+        + 0.15 * base_f0 * np.sin(2 * np.pi * 0.7 * t)
+        + rng.normal(0, 1.5, n).cumsum() * 0.002
+    )
+    phase = 2 * np.pi * np.cumsum(f0) / sample_rate
+
+    # One always-falling harmonic profile, with a speaker-dependent tilt.
+    # Swapping in an arbitrary profile for even speakers made some of them
+    # score below the liveness threshold, which is not what those tests are
+    # about.
+    signal = np.zeros(n)
+    for k, amplitude in enumerate([1.0, 0.6, 0.45, 0.3, 0.22, 0.16, 0.12, 0.09], start=1):
+        tilt = 0.85 + 0.3 * ((speaker * k) % 3) / 2.0
+        signal += amplitude * tilt * np.sin(k * phase)
+
+    envelope = np.clip(0.5 * (1 + np.sin(2 * np.pi * 4.0 * t - np.pi / 2)) ** 2, 0.02, None)
+    signal *= envelope
+
+    aspiration = np.diff(np.concatenate([[0.0], rng.normal(0, 1, n)]))
+    signal += 0.22 * aspiration * envelope
+
+    signal /= np.max(np.abs(signal)) + 1e-9
+    return (0.6 * signal).astype(np.float32)
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +119,7 @@ class TestSpeechSecurityIntegration:
     def sample_audio(self) -> np.ndarray:
         """Create sample audio data."""
         # 3 seconds of audio at 16kHz
-        return np.random.randn(48000).astype(np.float32)
+        return voice_like_audio(speaker=1)
     
     # ========================================================================
     # ENROLLMENT TESTS
@@ -125,7 +197,9 @@ class TestSpeechSecurityIntegration:
         integration.enroll_user_from_audio("user1", sample_audio)
         
         # Try to authenticate with very different audio (zeros - orthogonal to any random vector)
-        different_audio = np.zeros(48000, dtype=np.float32)
+        # A DIFFERENT speaker, still live: an impostor who fails because
+        # the voice does not match, not because the audio is not speech.
+        different_audio = voice_like_audio(speaker=4)
         authenticated, user_id, similarity = integration.authenticate_from_audio(
             different_audio,
             user_id="user1"
@@ -148,7 +222,7 @@ class TestSpeechSecurityIntegration:
         integration.enroll_user_from_audio("user1", sample_audio)
         
         # Update with new audio
-        new_audio = np.random.randn(48000).astype(np.float32)
+        new_audio = voice_like_audio(speaker=1, seconds=2.5)
         updated_profile = integration.update_profile_from_audio("user1", new_audio)
         
         assert updated_profile.sample_count == 2  # nosec B101
@@ -223,7 +297,7 @@ class TestSpeechSecurityIntegration:
         assert user_id == "user1"  # nosec B101
         
         # Step 3: Update profile
-        new_audio = np.random.randn(48000).astype(np.float32)
+        new_audio = voice_like_audio(speaker=1, seconds=2.5)
         updated_profile = integration.update_profile_from_audio("user1", new_audio)
         assert updated_profile.sample_count == 2  # nosec B101
         
@@ -239,8 +313,8 @@ class TestSpeechSecurityIntegration:
         """Test authentication with multiple enrolled users."""
         # Enroll multiple users
         audio1 = sample_audio
-        audio2 = np.random.randn(48000).astype(np.float32)
-        audio3 = np.random.randn(48000).astype(np.float32)
+        audio2 = voice_like_audio(speaker=2)
+        audio3 = voice_like_audio(speaker=3)
         
         integration.enroll_user_from_audio("user1", audio1)
         integration.enroll_user_from_audio("user2", audio2)
@@ -289,7 +363,7 @@ class TestSpeechSecurityIntegration:
     ):
         """Test enrollment with very long audio (10 minutes)."""
         # 10 minutes at 16kHz = 9,600,000 samples
-        long_audio = np.random.randn(9600000).astype(np.float32)
+        long_audio = np.tile(voice_like_audio(seconds=10.0, speaker=1), 60)
         
         profile = integration.enroll_user_from_audio("user1", long_audio)
         assert profile.user_id == "user1"  # nosec B101
@@ -298,12 +372,23 @@ class TestSpeechSecurityIntegration:
         self,
         integration: SpeechSecurityIntegration
     ):
-        """Test enrollment with silent audio (all zeros)."""
+        """Silent audio must be REJECTED, not enrolled as a voice template.
+
+        This previously asserted that enrolling 48,000 zeros SUCCEEDS and
+        returns a usable profile -- i.e. it asserted the absence of the
+        anti-spoofing guarantee. Anything that is not a live voice must not
+        become somebody's permanent reference template; silence is the most
+        trivial possible spoof. VoiceFeatureExtractor scores it 0.500, below
+        the 0.55 liveness threshold, and enroll_user() rejects it. The
+        assertion is corrected to match the security property, not the other
+        way round.
+        """
         silent_audio = np.zeros(48000, dtype=np.float32)
-        
-        # Should handle but may have low quality
-        profile = integration.enroll_user_from_audio("user1", silent_audio)
-        assert profile.user_id == "user1"  # nosec B101
+
+        with pytest.raises(VoiceAuthenticationError, match="liveness"):
+            integration.enroll_user_from_audio("user1", silent_audio)
+
+        assert "user1" not in integration.list_enrolled_users()  # nosec B101
     
     def test_enroll_with_clipped_audio(
         self,
@@ -357,7 +442,7 @@ class TestSpeechSecurityIntegration:
         
         # Update profile 20 times
         for _ in range(20):
-            update_audio = np.random.randn(48000).astype(np.float32)
+            update_audio = voice_like_audio(speaker=1)
             integration.update_profile_from_audio("user1", update_audio)
         
         # Original audio should still authenticate (profile adapts)
@@ -377,7 +462,7 @@ class TestSpeechSecurityIntegration:
         """Test enrolling and authenticating multiple users rapidly."""
         # Enroll 50 users rapidly
         for i in range(50):
-            audio = np.random.randn(48000).astype(np.float32)
+            audio = voice_like_audio(speaker=i + 1)
             integration.enroll_user_from_audio(f"user{i}", audio)
         
         # Verify all users are enrolled
@@ -405,7 +490,14 @@ class TestSpeechSecurityIntegration:
         # Update with progressively noisier audio
         for i in range(10):
             # Add increasing noise
-            noisy_audio = sample_audio + np.random.randn(len(sample_audio)).astype(np.float32) * (i + 1) * 0.1
+            # Scaled so the signal stays SPEECH plus noise across all ten
+            # steps (measured live at 0.592-0.646). At the previous 0.1 step
+            # the last iterations were noise with a voice buried in it, which
+            # the liveness gate rightly refuses -- that is a different test
+            # from "quality degrades as audio gets noisier".
+            noisy_audio = sample_audio + np.random.randn(len(sample_audio)).astype(
+                np.float32
+            ) * (i + 1) * 0.012
             profile = integration.update_profile_from_audio("user1", noisy_audio)
         
         # Quality may fluctuate but sample count should increase
@@ -419,15 +511,15 @@ class TestSpeechSecurityIntegration:
     ):
         """Test authentication with different audio lengths."""
         # Enroll with 3 seconds
-        enroll_audio = np.random.randn(48000).astype(np.float32)
+        enroll_audio = voice_like_audio(speaker=1, seconds=3.0)
         integration.enroll_user_from_audio("user1", enroll_audio)
         
         # Authenticate with 1 second
-        short_audio = np.random.randn(16000).astype(np.float32)
+        short_audio = voice_like_audio(speaker=1, seconds=1.0)
         authenticated1, _, _ = integration.authenticate_from_audio(short_audio, user_id="user1")
         
         # Authenticate with 10 seconds
-        long_audio = np.random.randn(160000).astype(np.float32)
+        long_audio = voice_like_audio(speaker=1, seconds=10.0)
         authenticated2, _, _ = integration.authenticate_from_audio(long_audio, user_id="user1")
         
         # Both should work (may or may not authenticate depending on features)
@@ -447,7 +539,7 @@ class TestSpeechSecurityIntegration:
         integration.delete_user("user1")
         
         # Re-enroll with different audio
-        different_audio = np.random.randn(48000).astype(np.float32)
+        different_audio = voice_like_audio(speaker=6)
         profile2 = integration.enroll_user_from_audio("user1", different_audio)
         
         # Should be a fresh profile
@@ -497,10 +589,17 @@ class TestSpeechSecurityIntegration:
         integration.enroll_user_from_audio("user1", sample_audio)
         
         # Try to identify with very different audio (zeros)
-        different_audio = np.zeros(48000, dtype=np.float32)
+        # A DIFFERENT speaker, still live: an impostor who fails because
+        # the voice does not match, not because the audio is not speech.
+        different_audio = voice_like_audio(speaker=4)
         authenticated, user_id, similarity = integration.authenticate_from_audio(different_audio)
         
         # Should not authenticate
         assert bool(authenticated) == False  # nosec B101
         assert user_id is None  # nosec B101
-        assert similarity < 0.85  # nosec B101
+        # Asserted against the threshold the authenticator actually enforces,
+        # not a magic 0.85. The old constant matched nothing: under the
+        # previous (broken) feature scaling every comparison scored ~0.9998,
+        # so this line could not pass either. What the test is really about is
+        # that an impostor lands BELOW the bar that grants access.
+        assert similarity < integration.voice_authenticator.effective_similarity_threshold  # nosec B101
