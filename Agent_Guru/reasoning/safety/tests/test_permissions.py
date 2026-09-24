@@ -441,6 +441,7 @@ class TestPermissionManager:
         
         manager.grant_permission("user123", "messaging", "admin")
         manager.close()
-        
-        # Should not raise error
-        assert True  # nosec B101
+
+        assert manager._conn is None, "close() must release the connection"  # nosec B101
+        manager.close()  # idempotent
+        assert manager._conn is None  # nosec B101
