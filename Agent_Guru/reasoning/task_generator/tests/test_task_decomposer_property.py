@@ -10,11 +10,32 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from Agent_Guru.reasoning.models.intent import Intent, IntentType
+from Agent_Guru.reasoning.models.intent import Entity, Intent, IntentType
 from Agent_Guru.reasoning.models.task import TaskStatus, TaskType
 from Agent_Guru.reasoning.task_generator.task_decomposer import (
+
+
     TaskModelGenerator,
 )
+
+
+def _entities(**values: object) -> dict[str, "Entity"]:
+    """Build the Entity-valued mapping Intent.entities requires.
+
+    Intent.entities is ``dict[str, Entity]`` (reasoning/models/intent.py), not
+    ``dict[str, str]``. These tests still passed raw strings, so every Intent
+    they built died in the pydantic constructor with "Input should be a valid
+    dictionary or instance of Entity" before the code under test ran -- a
+    failure that said nothing about the behaviour being tested.
+
+    The raw text is carried through unchanged, so any assertion that looks for
+    an entity's value still sees exactly the same string it saw before.
+    """
+    return {
+        name: Entity(entity_type=name, value=value, raw_text=str(value))
+        for name, value in values.items()
+    }
+
 
 
 # Strategy for generating valid step data
@@ -57,17 +78,26 @@ def valid_llm_output_strategy(draw):
 class TestTaskModelGeneratorProperties:
     """Property-based tests for TaskModelGenerator."""
 
-    @pytest.fixture
+    # Class-scoped: TaskModelGenerator holds no per-test state, and
+    # hypothesis's function_scoped_fixture health check correctly objects to a
+    # function-scoped fixture under @given (it is NOT reset between generated
+    # inputs, which is surprising and hides bugs). Widening the scope removes
+    # the hazard rather than suppressing the warning about it.
+    @pytest.fixture(scope="class")
     def generator(self) -> TaskModelGenerator:
         """Create TaskModelGenerator instance."""
         return TaskModelGenerator()
 
-    @pytest.fixture
+    # Class-scoped for the same reason as `generator` above: an immutable
+    # Intent shared across generated inputs, so the health check's hazard does
+    # not apply and does not need suppressing.
+    @pytest.fixture(scope="class")
     def sample_intent(self) -> Intent:
         """Create sample intent for testing."""
         return Intent(
             intent_type=IntentType.SET_TIMER,
-            entities={"duration": "5 minutes"},
+            original_input="property-test input",
+            entities=_entities(duration="5 minutes"),
             confidence=0.95,
             requires_reasoning=False,
         )
@@ -441,17 +471,27 @@ class TestTaskModelGeneratorProperties:
         if goal_length <= 500:
             # Should succeed
             try:
-                task = generator.generate_task(
-                    llm_output, sample_intent, confidence, "user123", "conv456"
-                )
+                # generate_task(llm_output, intent, confidence) -- the two
+                # trailing positional arguments this used to pass
+                # ("user123", "conv456") are not in the signature and never
+                # were, so every example raised TypeError instead of
+                # exercising the goal-length rule.
+                task = generator.generate_task(llm_output, sample_intent, confidence)
                 assert task is not None  # nosec B101
             except (ValueError, TypeError, KeyError):
                 # May fail for other reasons
                 pass
         else:
             # Should fail
-            with pytest.raises((ValueError, TypeError), match="Goal too long"):
-                generator.generate_task(llm_output, sample_intent, confidence, "user123", "conv456")
+            # str(exc) is the user-facing sentence by design ("I couldn't
+            # create a plan for that."), so the technical reason is asserted
+            # where it actually lives. Before, that reason was discarded
+            # altogether and no assertion could have reached it.
+            with pytest.raises((ValueError, TypeError)) as exc_info:
+                generator.generate_task(llm_output, sample_intent, confidence)
+            assert "Goal too long" in getattr(  # nosec B101
+                exc_info.value, "technical_message", ""
+            )
 
     @given(
         llm_output=valid_llm_output_strategy(),
