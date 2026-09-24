@@ -13,7 +13,7 @@ This test suite provides comprehensive coverage including:
 import pytest
 import sys
 import subprocess  # nosec B404
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 from hypothesis import given, strategies as st
 
 from Agent_Guru.platform.controllers.window_management import (
@@ -23,6 +23,32 @@ from Agent_Guru.platform.controllers.window_management import (
     ScreenInfo,
     VirtualDesktopInfo
 )
+
+
+@pytest.fixture(autouse=True)
+def _stub_pywin32():
+    """Make the Windows-only modules importable on every platform.
+
+    WindowManager imports win32api/win32con/win32gui lazily inside the
+    Windows branches, which is right. But several tests below patch those
+    modules directly -- `patch('win32gui.FindWindow')` -- and
+    unittest.mock.patch has to IMPORT the module to patch it. On Linux and
+    macOS that raised ModuleNotFoundError at setup, so the Windows logic was
+    not merely unverified, the tests claiming to cover it errored out.
+
+    Stubbing them into sys.modules lets those tests run everywhere. On
+    Windows the real modules are already imported and this leaves them alone.
+    """
+    if sys.platform == "win32":
+        yield
+        return
+    stubs = {
+        name: MagicMock(name=name)
+        for name in ("win32api", "win32con", "win32gui")
+        if name not in sys.modules
+    }
+    with patch.dict(sys.modules, stubs):
+        yield
 
 
 class TestWindowManager:
@@ -942,6 +968,11 @@ class TestWindowManagerComprehensiveIntegration:
     def test_cache_invalidation_on_ttl_expiry(self):
         """Test cache is invalidated after TTL expires."""
         manager = WindowManager()
+        # get_screens() dispatches on self.platform, so a test that asserts
+        # _get_screens_windows was called has to say it is on Windows.
+        # Without this the Linux branch ran and the assertion read 0 == 1 --
+        # the cache behaviour under test was never reached at all.
+        manager.platform = "win32"
 
         with patch('Agent_Guru.platform.controllers.window_management.time.time') as mock_time:
             with patch.object(manager, '_get_screens_windows', return_value=[ScreenInfo(0, 0, 0, 1920, 1080, True)]) as mock_get:
