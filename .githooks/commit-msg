@@ -1,0 +1,29 @@
+#!/bin/sh
+# Strip AI attribution from commit messages.
+#
+# Claude Code's attribution setting is documented but unreliable: its own
+# issue tracker carries several reports that the trailer is added regardless
+# (anthropics/claude-code #18253, #45137, #65657). Relying on a setting that
+# silently does nothing is how the footer reached this repository's pull
+# requests all through 2026-09-24 and had to be deleted by hand each time.
+#
+# A hook cannot be ignored. Every commit message passes through here, whoever
+# or whatever wrote it.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+msg_file="$1"
+[ -f "$msg_file" ] || exit 0
+
+# Remove the trailer lines and the "Generated with" footer, then collapse the
+# blank lines they leave behind at the end of the message.
+sed -i \
+  -e '/^Co-[Aa]uthored-[Bb]y:.*[Cc]laude/d' \
+  -e '/^Co-[Aa]uthored-[Bb]y:.*noreply@anthropic\.com/d' \
+  -e '/[Gg]enerated with \[*Claude Code/d' \
+  -e '/^Claude-Session:/d' \
+  -e '/claude\.ai\/code\/session_/d' \
+  "$msg_file"
+
+# Drop trailing blank lines left by the deletions.
+printf '%s\n' "$(sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba' "$msg_file")" > "$msg_file"
+exit 0
