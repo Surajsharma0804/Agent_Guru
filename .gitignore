@@ -287,3 +287,10 @@ test_conversations.db
 test_conversations.db-journal
 Claude outputs/
 
+# Face biometric data written here by a bug where ":memory:" was treated
+# as a file path instead of an in-memory store. See issue for the fix.
+:memory:
+
+# Scratch directory for files awaiting manual deletion.
+_to_delete/
+
