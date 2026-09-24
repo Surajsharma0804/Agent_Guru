@@ -10,6 +10,11 @@ from Agent_Guru.speech.audio.wake_word import (
 )
 from Agent_Guru.speech.models import PersonalityType, WakeWordDetection
 
+# The first librosa call JIT-compiles numba code (18-30 s cold). Warm it once
+# per session, before any test starts, so no individual test is charged the
+# compile inside its own timeout budget.
+pytestmark = pytest.mark.usefixtures("warm_librosa")
+
 
 class TestWakeWordDetector:
     """Unit tests for WakeWordDetector."""
