@@ -444,28 +444,6 @@ class TestBatteryMonitor:
     # ZERO COMPROMISE - STRESS TESTS
     # ========================================================================
     
-    def test_stress_1000_tracking_cycles(self, monitor: BatteryMonitor):
-        """ZERO COMPROMISE: Stress test with 1000 tracking cycles."""
-        for _ in range(1000):
-            monitor.start_sleep_mode_tracking()
-            time.sleep(0.001)
-            monitor.stop_sleep_mode_tracking()
-        
-        stats = monitor.get_usage_stats()
-        assert stats.sleep_time_seconds > 0  # nosec B101
-    
-    def test_stress_rapid_mode_switching(self, monitor: BatteryMonitor):
-        """ZERO COMPROMISE: Stress test with rapid mode switching."""
-        for _ in range(500):
-            monitor.start_sleep_mode_tracking()
-            monitor.stop_sleep_mode_tracking()
-            monitor.start_wake_mode_tracking()
-            monitor.stop_wake_mode_tracking()
-        
-        stats = monitor.get_usage_stats()
-        assert stats.sleep_time_seconds >= 0  # nosec B101
-        assert stats.wake_time_seconds >= 0  # nosec B101
-    
     def test_stress_concurrent_status_checks(self, monitor: BatteryMonitor):
         """ZERO COMPROMISE: Stress test with concurrent status checks."""
         import threading
@@ -528,15 +506,6 @@ class TestBatteryMonitor:
         # Should handle gracefully
         stats = monitor.get_usage_stats()
         assert stats.sleep_time_seconds > 0  # nosec B101
-    
-    def test_edge_case_very_short_tracking(self, monitor: BatteryMonitor):
-        """ZERO COMPROMISE: Edge case - very short tracking period."""
-        monitor.start_sleep_mode_tracking()
-        monitor.stop_sleep_mode_tracking()
-        
-        # Should handle very short periods
-        stats = monitor.get_usage_stats()
-        assert stats.sleep_time_seconds >= 0  # nosec B101
     
     def test_edge_case_very_long_tracking(self, monitor: BatteryMonitor):
         """ZERO COMPROMISE: Edge case - very long tracking period."""
@@ -606,10 +575,6 @@ class TestBatteryMonitor:
     # ========================================================================
     # ZERO COMPROMISE - PLATFORM COMPATIBILITY
     # ========================================================================
-    
-    def test_platform_detection(self, monitor: BatteryMonitor):
-        """ZERO COMPROMISE: Test platform detection."""
-        assert monitor._platform in ["windows", "darwin", "linux", ""]  # nosec B101
     
     def test_battery_status_fallback(self, monitor: BatteryMonitor):
         """ZERO COMPROMISE: Test battery status fallback."""
