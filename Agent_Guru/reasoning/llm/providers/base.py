@@ -1,4 +1,4 @@
-"""Base LLM Provider Interface.
+﻿"""Base LLM Provider Interface.
 
 Defines the common interface and utilities for all LLM providers.
 Includes circuit breaker, rate limiting, and retry logic.
@@ -12,6 +12,8 @@ from enum import Enum
 from typing import Any
 
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
+from Agent_Guru.reasoning.llm.timeouts import generate_timeout
+
 
 class CircuitState(str, Enum):
     """Circuit breaker states."""
@@ -26,7 +28,11 @@ class ProviderConfig:
 
     api_key: str
     max_retries: int = 3
-    timeout_seconds: float = 30.0
+    # Was a hard-coded 30.0. That is a reasonable budget for a hosted API and
+    # a poor one for a local model on a CPU, which is the default deployment;
+    # the policy default is sized for the latter and OLLAMA_TIMEOUT_SECONDS
+    # tightens it for anyone running against something faster.
+    timeout_seconds: float = field(default_factory=generate_timeout)
     rate_limit_rpm: int = 60  # Requests per minute
     rate_limit_tpm: int = 90000  # Tokens per minute
     circuit_breaker_threshold: int = 5  # Failures before opening
@@ -219,7 +225,7 @@ class BaseLLMProvider(ABC):
         last_exception: Exception | None = None
         for attempt in range(self.config.max_retries):
             try:
-                # Make request — do NOT wrap in asyncio.wait_for here.
+                # Make request - do NOT wrap in asyncio.wait_for here.
                 # The aiohttp ClientTimeout inside _generate_impl already
                 # enforces the per-request deadline.  Adding a second
                 # wait_for causes CancelledError to propagate incorrectly
@@ -234,15 +240,42 @@ class BaseLLMProvider(ABC):
 
                 return response
 
-            except TimeoutError as e:
+            except asyncio.CancelledError:
+                # Propagate cancellation immediately - do not retry, and do
+                # not count it against the provider. This fires when an outer
+                # asyncio.wait_for gives up; retrying here would defeat that
+                # deadline. (The orphaned comment this replaces sat after an
+                # unconditional `continue`, i.e. the handler it described had
+                # been lost.)
+                raise
+
+            except Exception as e:
+                # BUG FIX: this used to be `except TimeoutError`. Every other
+                # failure mode -- a refused connection, a 500, an expired key,
+                # a rate limit the provider already translated -- escaped the
+                # loop without being retried AND without
+                # circuit_breaker.record_failure() ever being called. The
+                # circuit breaker therefore could not open on the failure that
+                # matters most: an endpoint that is simply down. It stayed
+                # CLOSED with failure_count 0 while every single request
+                # failed, so nothing ever failed over and the assistant kept
+                # calling a dead endpoint.
+                #
+                # TRADE-OFF, stated rather than hidden: a permanently fatal
+                # error (a bad API key) is now retried up to max_retries with
+                # backoff before surfacing, costing up to ~7s on that path.
+                # That is the right side to err on here -- an assistant that
+                # never notices a dead provider is a worse failure than one
+                # that takes a few extra seconds to report a bad key -- and
+                # the breaker now opens, so the cost is paid once, not on
+                # every subsequent request.
                 last_exception = e
                 self.circuit_breaker.record_failure(self.config)
                 if attempt < self.config.max_retries - 1:
                     # Exponential backoff: 1s, 2s, 4s
                     await asyncio.sleep(2**attempt)
                 continue
-                # Propagate cancellation immediately — do not retry.
-                # This happens when an outer asyncio.wait_for fires.
+
         # All retries failed
         raise last_exception or RuntimeError("All retries failed")
 
