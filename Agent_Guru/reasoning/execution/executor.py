@@ -1,4 +1,4 @@
-"""Synchronous execution engine for Core Reasoning Engine.
+﻿"""Synchronous execution engine for Core Reasoning Engine.
 
 Performance Requirements:
 - Time Complexity: O(1) per action execution
@@ -58,6 +58,17 @@ class ExecutionResult:
             "timed_out": self.timed_out,
             "timestamp": self.timestamp.isoformat(),
         }
+
+class ExecutionCancelledError(Exception):
+    """Raised inside SyncExecutor when a cancellation token fires.
+
+    _execute_with_timeout used to signal this with a plain
+    ``ValueError("Execution was cancelled")``, which forced the caller to
+    recognise cancellation by string-matching an error message - fragile, and
+    indistinguishable from a tool that legitimately raises ValueError with
+    that text.
+    """
+
 
 class SyncExecutor:
     """Synchronous action executor with timeout and retry support.
@@ -193,13 +204,68 @@ class SyncExecutor:
                     retries=retries,
                     timed_out=True,
                 )
-                # Check if this is a cancellation error (from ErrorManager)
-                # Not a cancellation - treat as regular error
-                # Check if error is transient and retryable
-                # Non-transient error or max retries reached
-                # Check if error is transient and retryable
-                # Non-transient error or max retries reached
-        # Should never reach here, but handle gracefully
+
+            except ExecutionCancelledError:
+                # A cancellation token fired mid-execution.
+                execution_time = time.perf_counter() - start_time
+                return ExecutionResult(
+                    success=False,
+                    error={
+                        "error_code": "CANCELLED",
+                        "message": "Execution was cancelled",
+                        "details": {},
+                        "recoverable": False,
+                    },
+                    execution_time=execution_time,
+                    action_id=action.action_id,
+                    retries=retries,
+                )
+
+            except Exception as e:
+                # BUG FIX: this handler did not exist. All that was left of it
+                # were the six orphaned comments that used to sit here
+                # ("Check if this is a cancellation error (from ErrorManager)",
+                # "Check if error is transient and retryable",
+                # "Non-transient error or max retries reached", ...).
+                #
+                # Without it:
+                #   * every exception from a tool function propagated out of
+                #     execute(), flatly contradicting this method's documented
+                #     "Raises: Never raises - all errors captured in
+                #     ExecutionResult" and leaving every caller of the
+                #     reasoning engine's action executor exposed to arbitrary
+                #     tool exceptions;
+                #   * nothing ever reached the bottom of the `while retries <=
+                #     self.max_retries` loop, so max_retries and retry_delay
+                #     were dead configuration - NO retry ever happened;
+                #   * _is_transient_error() below was dead code;
+                #   * the MAX_RETRIES result at the end of this method was
+                #     unreachable.
+                execution_time = time.perf_counter() - start_time
+                transient = self._is_transient_error(e)
+
+                if transient and retries < self.max_retries:
+                    retries += 1
+                    # Exponential backoff, as documented at the top of this
+                    # module: retry_delay, 2x, 4x, ...
+                    time.sleep(self.retry_delay * (2 ** (retries - 1)))
+                    continue
+
+                return ExecutionResult(
+                    success=False,
+                    error={
+                        "error_code": type(e).__name__,
+                        "message": str(e),
+                        "details": {"exception_type": type(e).__name__},
+                        "recoverable": transient,
+                    },
+                    execution_time=execution_time,
+                    action_id=action.action_id,
+                    retries=retries,
+                )
+
+        # Reached only if max_retries < 0 slipped past validation; kept as a
+        # defined outcome rather than falling off the end returning None.
         execution_time = time.perf_counter() - start_time
         return ExecutionResult(
             success=False,
@@ -272,7 +338,7 @@ class SyncExecutor:
                         future.cancel()
                         # Raise cancellation error
                         msg = "Execution was cancelled"
-                        raise ValueError(msg)
+                        raise ExecutionCancelledError(msg)
 
                     remaining = deadline - time.monotonic()
                     if remaining <= 0:
@@ -358,7 +424,7 @@ class SyncExecutor:
         if tool_id not in self._latency_stats:
             self._latency_stats[tool_id] = []
 
-        # Keep last 100 measurements per tool — use deque for O(1) eviction
+        # Keep last 100 measurements per tool - use deque for O(1) eviction
         stats = self._latency_stats[tool_id]
         stats.append(latency)
         if len(stats) > 100:
