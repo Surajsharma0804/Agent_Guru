@@ -25,6 +25,8 @@ from Agent_Guru.reasoning.llm.models import (
 )
 from Agent_Guru.reasoning.llm.ollama_server import (
     OLLAMA_MODELS,
+    OLLAMA_USE_CASES,
+    OllamaModelConfig,
     OllamaServer,
 )
 
@@ -34,30 +36,56 @@ class TestOllamaModelConfig:
 
     def test_predefined_models_exist(self):
         """Test that predefined models are configured."""
+        assert OLLAMA_MODELS  # nosec B101
         assert "gemma3:4b" in OLLAMA_MODELS  # nosec B101
-        assert "gemma3:4b" in OLLAMA_MODELS  # nosec B101
+        # The default a bare OllamaServer() uses must be a model the registry
+        # can describe, otherwise get_model_config() returns None for the very
+        # model the server will actually call.
+        assert OllamaServer().default_model in OLLAMA_MODELS  # nosec B101
 
-    def test_qwen_model_config(self):
-        """Test Qwen model configuration."""
+    def test_gemma3_model_config(self):
+        """Test the registered gemma3:4b configuration."""
         config = OLLAMA_MODELS["gemma3:4b"]
         assert config.name == "gemma3:4b"  # nosec B101
         assert config.size_gb == 3.3  # nosec B101
         assert config.parameters == "4B"  # nosec B101
-        assert config.use_case == "complex"  # nosec B101
+        assert config.use_case == "general"  # nosec B101
         assert config.temperature == 0.7  # nosec B101
         assert config.top_p == 0.9  # nosec B101
         assert config.max_tokens == 512  # nosec B101
 
-    def test_mistral_model_config(self):
-        """Test Mistral model configuration."""
-        config = OLLAMA_MODELS["gemma3:4b"]
-        assert config.name == "gemma3:4b"  # nosec B101
-        assert config.size_gb == 3.3  # nosec B101
-        assert config.parameters == "7B"  # nosec B101
-        assert config.use_case == "simple"  # nosec B101
-        assert config.temperature == 0.7  # nosec B101
-        assert config.top_p == 0.9  # nosec B101
-        assert config.max_tokens == 512  # nosec B101
+    def test_every_registered_model_is_self_consistent(self):
+        """Every registry entry must satisfy the config invariants."""
+        for key, config in OLLAMA_MODELS.items():
+            # The dict key is what callers pass to get_model_config(); if it
+            # disagreed with config.name the server would request a model that
+            # does not match the sampling parameters it loaded.
+            assert key == config.name, key  # nosec B101
+            assert config.size_gb > 0, key  # nosec B101
+            assert config.parameters, key  # nosec B101
+            assert config.use_case in OLLAMA_USE_CASES, key  # nosec B101
+            assert 0.0 <= config.temperature <= 2.0, key  # nosec B101
+            assert 0.0 < config.top_p <= 1.0, key  # nosec B101
+            assert config.max_tokens > 0, key  # nosec B101
+
+    def test_model_config_rejects_invalid_values(self):
+        """OllamaModelConfig validates its own fields on construction."""
+        base = {
+            "name": "gemma3:4b",
+            "size_gb": 3.3,
+            "parameters": "4B",
+            "use_case": "general",
+        }
+        for field, bad in (
+            ("name", ""),
+            ("size_gb", 0.0),
+            ("use_case", "medium"),
+            ("temperature", 2.5),
+            ("top_p", 0.0),
+            ("max_tokens", 0),
+        ):
+            with pytest.raises(ValueError, match=field):
+                OllamaModelConfig(**{**base, field: bad})
 
 
 class TestOllamaServerInitialization:
@@ -82,10 +110,38 @@ class TestOllamaServerInitialization:
         assert server.port == 8080  # nosec B101
         assert server.default_model == "gemma3:4b"  # nosec B101
 
-    def test_init_with_invalid_model(self):
-        """Test initialization with invalid model raises error."""
+    def test_init_accepts_models_outside_the_registry(self):
+        """Any model name Ollama might serve is accepted.
+
+        OLLAMA_MODELS is a table of models whose sampling parameters this
+        project has tuned, NOT an allow-list. Ollama serves whatever the
+        operator has pulled, and the OLLAMA_MODEL environment variable is
+        honoured in five places, so rejecting unregistered names here would
+        break every one of those overrides. This test pins that contract so a
+        future "validation" change cannot silently reintroduce the restriction.
+        """
+        server = OllamaServer(default_model="llama3.2:1b")
+        assert server.default_model == "llama3.2:1b"  # nosec B101
+        # ...but an unregistered model has no tuned configuration.
+        assert server.get_model_config("llama3.2:1b") is None  # nosec B101
+
+    @pytest.mark.parametrize("bad_model", ["", "   ", "\t\n"])
+    def test_init_with_blank_model(self, bad_model):
+        """A blank model name can never be a model Ollama serves."""
         with pytest.raises(ValueError, match="Unknown model"):
-            OllamaServer(default_model="invalid-model")
+            OllamaServer(default_model=bad_model)
+
+    @pytest.mark.parametrize("bad_port", [0, -1, 65536, 100000])
+    def test_init_with_invalid_port(self, bad_port):
+        """A port outside the TCP range is a configuration mistake."""
+        with pytest.raises(ValueError, match="port"):
+            OllamaServer(port=bad_port)
+
+    @pytest.mark.parametrize("bad_host", ["", "   "])
+    def test_init_with_blank_host(self, bad_host):
+        """A blank host would build the nonsense base URL 'http://:11434'."""
+        with pytest.raises(ValueError, match="host"):
+            OllamaServer(host=bad_host)
 
     def test_base_url_construction(self):
         """Test base URL is constructed correctly."""
@@ -190,7 +246,7 @@ class TestOllamaServerStart:
 
     @pytest.mark.asyncio
     async def test_start_missing_models(self):
-        """Test start fails when required models missing."""
+        """Test start fails when the configured model is missing."""
         server = OllamaServer()
 
         # Mock response with missing models
@@ -199,7 +255,60 @@ class TestOllamaServerStart:
         mock_response.json.return_value = {"models": [{"name": "other-model"}]}
 
         with patch("requests.get", return_value=mock_response):
-            with pytest.raises(RuntimeError, match="Required models not found"):
+            with pytest.raises(RuntimeError, match="Configured model not found"):
+                await server.start()
+
+    @pytest.mark.asyncio
+    async def test_start_accepts_the_model_named_by_ollama_model(self, monkeypatch):
+        """start() must require the model the server will actually use.
+
+        DEFECT FIX: start() used to demand the literal "gemma3:4b" while
+        select_model_for_task() honoured OLLAMA_MODEL. Anyone who pulled a
+        smaller model to suit weaker hardware - the whole reason that
+        environment variable exists - had the server refuse to start, naming
+        a model they had deliberately not installed.
+        """
+        monkeypatch.setenv("OLLAMA_MODEL", "gemma3:1b")
+        server = OllamaServer()
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"models": [{"name": "gemma3:1b"}]}
+
+        with patch("requests.get", return_value=mock_response):
+            await server.start()
+
+        assert server.is_running()  # nosec B101
+
+    @pytest.mark.asyncio
+    async def test_start_rejects_when_the_configured_model_is_absent(self, monkeypatch):
+        """The error must name the configured model, not a hard-coded one."""
+        monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:0.5b")
+        server = OllamaServer()
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"models": [{"name": "gemma3:4b"}]}
+
+        with patch("requests.get", return_value=mock_response):
+            with pytest.raises(RuntimeError, match="qwen2.5:0.5b"):
+                await server.start()
+
+    @pytest.mark.asyncio
+    async def test_start_timeout_defaults_to_the_policy(self, monkeypatch):
+        """A cold server still loading a model must not be declared missing.
+
+        The old default was a hard-coded 10 s, which assumed an already-warm
+        server; the policy default allows for reading model weights off disk
+        on a machine without a GPU.
+        """
+        from Agent_Guru.reasoning.llm.timeouts import start_timeout
+
+        monkeypatch.setenv("OLLAMA_START_TIMEOUT_SECONDS", "0.3")
+        assert start_timeout() == 0.3
+        server = OllamaServer()
+        with patch("requests.get", side_effect=requests.ConnectionError()):
+            with pytest.raises(TimeoutError, match="not available"):
                 await server.start()
 
     @pytest.mark.asyncio
@@ -368,11 +477,11 @@ class TestOllamaServerModelSelection:
         config = server.get_model_config("gemma3:4b")
         assert config is not None  # nosec B101
         assert config.name == "gemma3:4b"  # nosec B101
-        assert config.use_case == "simple"  # nosec B101
+        assert config.use_case == "general"  # nosec B101
 
-        config = server.get_model_config("gemma3:4b")
-        assert config is not None  # nosec B101
-        assert config.use_case == "complex"  # nosec B101
+        # Repeated lookups must return the same configuration object, not a
+        # per-call copy callers could mutate independently.
+        assert server.get_model_config("gemma3:4b") is config  # nosec B101
 
         config = server.get_model_config("unknown")
         assert config is None  # nosec B101
