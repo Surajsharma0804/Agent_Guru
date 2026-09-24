@@ -214,18 +214,34 @@ class TestCircuitBreakerProperties:
         )
         breaker = CircuitBreakerState()
         breaker.state = CircuitState.OPEN
-        # Add a small buffer to account for test execution time
-        breaker.last_failure_time = datetime.now(tz=timezone.utc) - timedelta(seconds=elapsed + 0.001)
+        breaker.last_failure_time = datetime.now(tz=timezone.utc) - timedelta(seconds=elapsed)
 
         # Check if can attempt
         can_attempt = breaker.can_attempt(config)
 
-        if elapsed >= timeout:
+        # can_attempt() compares `now - last_failure_time` against the
+        # timeout, and `now` is read AFTER the setup above - so the effective
+        # elapsed time is `elapsed` plus however long this test body took.
+        # When `elapsed` lands within microseconds of `timeout`, which
+        # Hypothesis will find, that execution delay decides the outcome and
+        # the test fails intermittently (observed only under load, in a full
+        # suite run).
+        #
+        # The previous attempt at handling this - "add a small buffer to
+        # account for test execution time", `elapsed + 0.001` - made it worse:
+        # biasing the elapsed time UPWARD is exactly what breaks the
+        # `elapsed < timeout` branch.
+        #
+        # Skipping a band around the boundary is the honest fix: the property
+        # is about the transition, and at a tie either outcome is correct.
+        boundary_band = 0.5
+        if elapsed > timeout + boundary_band:
             assert can_attempt  # nosec B101
             assert breaker.state == CircuitState.HALF_OPEN  # nosec B101
-        else:
+        elif elapsed < timeout - boundary_band:
             assert not can_attempt  # nosec B101
             assert breaker.state == CircuitState.OPEN  # nosec B101
+        # else: within the band, the wall clock decides - no assertion.
 
 
 # ============================================================================
