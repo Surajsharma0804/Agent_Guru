@@ -1,5 +1,5 @@
-"""
-Agent Guru — Main Entry Point
+﻿"""
+Agent Guru - Main Entry Point
 
 Wires all subsystems through IntegrationOrchestrator and starts the assistant.
 
@@ -7,8 +7,8 @@ Usage:
     python main.py
 
 Wake words:
-    "Hey Guru" / "Guru" — activates Guru (professional, analytical)
-    "Hey Maya" / "Maya" — activates Maya (warm, creative)
+    "Hey Guru" / "Guru" - activates Guru (professional, analytical)
+    "Hey Maya" / "Maya" - activates Maya (warm, creative)
 """
 from __future__ import annotations
 
@@ -18,17 +18,17 @@ import logging
 import os
 import signal
 import sys
-from typing import Any, Optional
+from typing import Any
 
 # Load .env before anything else so OLLAMA_MODEL, API keys, etc. are available
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
-    pass  # dotenv not installed — env vars must be set manually
+    pass  # dotenv not installed - env vars must be set manually
 
 # ---------------------------------------------------------------------------
-# GPU / Ollama environment — set BEFORE any imports that touch CUDA or Ollama.
+# GPU / Ollama environment - set BEFORE any imports that touch CUDA or Ollama.
 # ---------------------------------------------------------------------------
 os.environ.pop("OLLAMA_NO_CUDA", None)
 os.environ.pop("OLLAMA_LLM_LIBRARY", None)
@@ -41,7 +41,7 @@ if _cuda_dev in ("-1", ""):
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # ---------------------------------------------------------------------------
-# Console encoding — Windows UTF-8 setup
+# Console encoding - Windows UTF-8 setup
 # ---------------------------------------------------------------------------
 if os.name == 'nt':
     import subprocess
@@ -52,7 +52,7 @@ if os.name == 'nt':
             timeout=5,
         )
     except (subprocess.TimeoutExpired, OSError):
-        pass  # Non-critical — UTF-8 code page is best-effort
+        pass  # Non-critical - UTF-8 code page is best-effort
 
 # Fix Python stdout/stderr encoding
 if hasattr(sys.stdout, 'buffer'):
@@ -71,7 +71,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("guru.main")
 
-# Startup timeout — prevents infinite hang if Ollama or Whisper download stalls
+# Startup timeout - prevents infinite hang if Ollama or Whisper download stalls
 _STARTUP_TIMEOUT_S = float(os.environ.get("AGENT_GURU_STARTUP_TIMEOUT", "120"))
 # Max restart attempts with exponential backoff before giving up
 _MAX_RESTART_ATTEMPTS = int(os.environ.get("AGENT_GURU_MAX_RESTARTS", "5"))
@@ -84,7 +84,7 @@ logging.getLogger("faster_whisper").setLevel(logging.WARNING)
 
 
 # ---------------------------------------------------------------------------
-# Subsystem imports — each wrapped so a missing dep logs clearly and raises
+# Subsystem imports - each wrapped so a missing dep logs clearly and raises
 # ---------------------------------------------------------------------------
 
 def _load_speech():
@@ -102,7 +102,7 @@ def _load_vision():
         from Agent_Guru.vision.engine import GuruVisionEngine
         return GuruVisionEngine()
     except Exception as e:
-        logger.warning("VisionEngine unavailable (%s) — vision disabled", e)
+        logger.warning("VisionEngine unavailable (%s) - vision disabled", e)
         return _stub("vision_engine")
 
 
@@ -124,12 +124,12 @@ def _load_platform():
         from Agent_Guru.platform.os_controller import OSController
         return OSController(require_confirmation=False)
     except Exception as e:
-        logger.warning("OSController unavailable (%s) — trying SystemSettingsController", e)
+        logger.warning("OSController unavailable (%s) - trying SystemSettingsController", e)
         try:
             from Agent_Guru.platform.controllers.system_settings import SystemSettingsController
             return SystemSettingsController()
         except Exception as e2:
-            logger.warning("PlatformController unavailable (%s) — platform control disabled", e2)
+            logger.warning("PlatformController unavailable (%s) - platform control disabled", e2)
             return _stub("platform_controller")
 
 
@@ -138,7 +138,7 @@ def _load_agents():
         from Agent_Guru.agents import AgentOrchestrator
         return AgentOrchestrator()
     except Exception as e:
-        logger.warning("AgentOrchestrator unavailable (%s) — agent actions disabled", e)
+        logger.warning("AgentOrchestrator unavailable (%s) - agent actions disabled", e)
         return _stub("agent_orchestrator")
 
 
@@ -148,7 +148,7 @@ def _load_memory():
         from Agent_Guru.memory.memory_manager import MemoryManager
         return MemoryManager(MemoryConfig())
     except Exception as e:
-        logger.warning("MemoryManager unavailable (%s) — memory disabled", e)
+        logger.warning("MemoryManager unavailable (%s) - memory disabled", e)
         return _stub("memory")
 
 
@@ -157,7 +157,7 @@ def _load_reasoning():
         from Agent_Guru.reasoning.engine import ReasoningEngine
         return ReasoningEngine()
     except Exception as e:
-        logger.warning("ReasoningEngine unavailable (%s) — reasoning disabled", e)
+        logger.warning("ReasoningEngine unavailable (%s) - reasoning disabled", e)
         return _stub("reasoning")
 
 
@@ -166,7 +166,7 @@ def _load_security():
         from Agent_Guru.security.biometric_auth import BiometricAuthenticator
         return BiometricAuthenticator()
     except Exception as e:
-        logger.warning("SecuritySystem unavailable (%s) — security disabled", e)
+        logger.warning("SecuritySystem unavailable (%s) - security disabled", e)
         return _stub("security")
 
 
@@ -175,7 +175,7 @@ def _load_policy():
         from Agent_Guru.policy import PolicyEngine
         return PolicyEngine()
     except Exception as e:
-        logger.warning("PolicyEngine unavailable (%s) — policy disabled", e)
+        logger.warning("PolicyEngine unavailable (%s) - policy disabled", e)
         return _stub("policy")
 
 
@@ -184,7 +184,7 @@ def _load_avatar():
         from Agent_Guru.avatar import GuruAvatarSystem
         return GuruAvatarSystem(render_backend="headless")
     except Exception as e:
-        logger.warning("AvatarSystem unavailable (%s) — avatar disabled", e)
+        logger.warning("AvatarSystem unavailable (%s) - avatar disabled", e)
         return _stub("avatar")
 
 
@@ -193,7 +193,7 @@ def _load_deployment():
         from Agent_Guru.deployment import OnboardingManager
         return OnboardingManager()
     except Exception as e:
-        logger.warning("DeploymentSystem unavailable (%s) — deployment disabled", e)
+        logger.warning("DeploymentSystem unavailable (%s) - deployment disabled", e)
         return _stub("deployment")
 
 
@@ -206,7 +206,7 @@ def _stub(name: str, critical: bool = False):
     from unittest.mock import AsyncMock, MagicMock
     if critical:
         logger.error(
-            "DEGRADED: '%s' is running as a stub — responses will be limited.", name
+            "DEGRADED: '%s' is running as a stub - responses will be limited.", name
         )
     m = MagicMock(name=name)
     m.initialize = AsyncMock(return_value=None)
@@ -223,7 +223,7 @@ def _load_gpu_pool():
         return GPUResourcePool()
     except Exception as e:
         logger.warning(
-            "GPUResourcePool unavailable (%s) — falling back to CPU-only pool", e
+            "GPUResourcePool unavailable (%s) - falling back to CPU-only pool", e
         )
         # MED-003 fix: previous __new__ path omitted whisper_budget/onnx_budget/torch_budget.
         # Now all attributes that GPUResourcePool.allocate() touches are initialised so
@@ -245,7 +245,7 @@ def _load_gpu_pool():
 
 
 # ---------------------------------------------------------------------------
-# Silero VAD — production-grade end-of-speech detection (same as Alexa/Siri)
+# Silero VAD - production-grade end-of-speech detection (same as Alexa/Siri)
 # ---------------------------------------------------------------------------
 
 _silero_vad_model: Any = None
@@ -261,10 +261,10 @@ def _load_silero_vad() -> bool:
         from silero_vad import load_silero_vad, get_speech_timestamps  # type: ignore[import]
         _silero_vad_model = load_silero_vad()
         _silero_get_speech_ts = get_speech_timestamps
-        logger.info("Silero VAD loaded — production-grade end-of-speech detection active")
+        logger.info("Silero VAD loaded - production-grade end-of-speech detection active")
         return True
     except Exception as exc:
-        logger.warning("Silero VAD unavailable (%s) — using energy fallback", exc)
+        logger.warning("Silero VAD unavailable (%s) - using energy fallback", exc)
         return False
 
 
@@ -328,7 +328,7 @@ async def _capture_command_with_vad(
                         audio_tensor,
                         _silero_vad_model,
                         sampling_rate=16000,
-                        threshold=0.5,               # standard — balanced sensitivity
+                        threshold=0.5,               # standard - balanced sensitivity
                         min_speech_duration_ms=250,  # filter clicks/pops
                         min_silence_duration_ms=100, # allow natural pauses
                         speech_pad_ms=30,            # pad speech segments slightly
@@ -355,7 +355,7 @@ async def _capture_command_with_vad(
             break
 
         if not speech_ever_detected and len(all_audio) * chunk_duration_s >= 8.0:
-            logger.info("VAD: no speech detected after 8s — stopping")
+            logger.info("VAD: no speech detected after 8s - stopping")
             break
 
     if not all_audio:
@@ -366,7 +366,7 @@ async def _capture_command_with_vad(
 
     # Gate: if overall RMS is near silence, don't waste time on STT
     if combined_rms < 0.005:
-        logger.info("VAD: audio is near-silence (rms=%.4f) — discarding", combined_rms)
+        logger.info("VAD: audio is near-silence (rms=%.4f) - discarding", combined_rms)
         return b""
 
     # Only reject background audio if NO speech was detected at all
@@ -374,7 +374,7 @@ async def _capture_command_with_vad(
         try:
             from Agent_Guru.speech.audio.wake_word import WakeWordDetector
             if WakeWordDetector._looks_like_music(combined):
-                logger.info("VAD: no speech + music detected — discarding")
+                logger.info("VAD: no speech + music detected - discarding")
                 return b""
         except Exception:
             pass
@@ -458,7 +458,7 @@ async def run() -> None:
             except Exception:
                 return WhisperModel("tiny", device=device, compute_type=compute_type)
 
-        # Try GPU (int8) first — 10x faster than CPU, safe on Windows with CTranslate2
+        # Try GPU (int8) first - 10x faster than CPU, safe on Windows with CTranslate2
         # Fall back to CPU float32 if CUDA is unavailable or has DLL issues
         _ww_device = "cpu"
         _ww_compute = "float32"
@@ -470,19 +470,19 @@ async def run() -> None:
                 _ww_device = "cuda"
                 _ww_compute = "int8"
                 _whisper_tiny_global = _test
-                logger.info("Whisper tiny pre-warmed on GPU (int8) — fast Maya detection ready")
+                logger.info("Whisper tiny pre-warmed on GPU (int8) - fast Maya detection ready")
             except Exception as _gpu_err:
-                logger.warning("Whisper tiny GPU failed (%s) — using CPU", _gpu_err)
+                logger.warning("Whisper tiny GPU failed (%s) - using CPU", _gpu_err)
                 _whisper_tiny_global = None
 
         if _whisper_tiny_global is None:
             _whisper_tiny_global = _load_whisper_tiny("cpu", "float32")
             _dummy = np.zeros(16000, dtype=np.float32)
             list(_whisper_tiny_global.transcribe(_dummy, language="en", beam_size=1)[0])
-            logger.info("Whisper tiny pre-warmed on CPU — Maya detection ready")
+            logger.info("Whisper tiny pre-warmed on CPU - Maya detection ready")
 
     except Exception as _e:
-        logger.warning("Whisper tiny pre-warm failed (%s) — Maya detection uses spectral fallback", _e)
+        logger.warning("Whisper tiny pre-warm failed (%s) - Maya detection uses spectral fallback", _e)
         _whisper_tiny_global = None
 
     # --- Define pipeline callback BEFORE starting the listener ---
@@ -515,7 +515,7 @@ async def run() -> None:
             event = WakeWordEvent(wake_word=detection.wake_word, audio=audio_bytes)
 
             # Play a short "thinking" tone so the user knows we heard them
-            # and are processing — prevents them thinking it's broken during LLM wait
+            # and are processing - prevents them thinking it's broken during LLM wait
             try:
                 import sounddevice as _sd_beep
                 import numpy as _np_beep
@@ -532,20 +532,20 @@ async def run() -> None:
 
             actual_personality = result.personality.value.upper()
             logger.info(
-                "Pipeline complete — stages: %d/8, personality: %s, transcript: %r",
+                "Pipeline complete - stages: %d/8, personality: %s, transcript: %r",
                 result.stages_completed, result.personality.value, result.transcript,
             )
             if result.error:
                 logger.warning("Pipeline error: %s", result.error)
             logger.info(
-                "[%s] Ready — say 'Hey Guru' or 'Hey Maya' again.",
+                "[%s] Ready - say 'Hey Guru' or 'Hey Maya' again.",
                 actual_personality,
             )
 
         except Exception as exc:
             # Never let a pipeline crash kill the whole process
             logger.error("Pipeline crashed (will keep listening): %s", exc, exc_info=True)
-            logger.warning("[%s] Error — still listening.", personality_name)
+            logger.warning("[%s] Error - still listening.", personality_name)
 
     # --- Initialise wake word manager and open microphone ---
     wake_cfg = WakeWordConfig(
@@ -555,14 +555,14 @@ async def run() -> None:
             "hey maya": PersonalityType.MAYA,
             "maya":     PersonalityType.MAYA,
         },
-        energy_threshold=0.015,  # tuned for sounddevice — ambient RMS ~0.001, speech ~0.01-0.05
-        cooldown_seconds=3.0,    # 3s cooldown — stops rapid re-triggers from music
+        energy_threshold=0.015,  # tuned for sounddevice - ambient RMS ~0.001, speech ~0.01-0.05
+        cooldown_seconds=3.0,    # 3s cooldown - stops rapid re-triggers from music
     )
     mgr_cfg = WakeWordManagerConfig(
         wake_word_config=wake_cfg,
-        # Capture 1.5s chunks — longer audio = more reliable MFCC detection
+        # Capture 1.5s chunks - longer audio = more reliable MFCC detection
         audio_capture_duration=1.5,
-        # Poll every 50ms in sleep mode — low CPU, still responsive
+        # Poll every 50ms in sleep mode - low CPU, still responsive
         sleep_poll_interval=0.05,
         on_detection_callback=_on_wake_word,
     )
@@ -571,7 +571,7 @@ async def run() -> None:
     await wake_manager.initialize()
 
     # Inject the pre-warmed Whisper tiny model into the detector so it never
-    # reloads from disk on the first detection — zero latency on first Maya call.
+    # reloads from disk on the first detection - zero latency on first Maya call.
     if _whisper_tiny_global is not None:
         try:
             detector = getattr(wake_manager, "_detector", None) or getattr(wake_manager, "_wake_word_detector", None)
@@ -581,13 +581,13 @@ async def run() -> None:
         except Exception as _inj_err:
             logger.warning("Could not inject pre-warmed Whisper: %s", _inj_err)
 
-    # Extended warmup — lets the mic AGC stabilise and energy buffer fill
+    # Extended warmup - lets the mic AGC stabilise and energy buffer fill
     # with real ambient noise levels so the first detection isn't a false positive.
     # 3s matches Alexa/Google's standard mic calibration window.
     logger.info("Calibrating microphone (3s)...")
     await asyncio.sleep(3.0)
     await wake_manager.start_listening()
-    logger.info("Microphone open — listening for wake words.")
+    logger.info("Microphone open - listening for wake words.")
 
     logger.info("[OK] Agent Guru is running.")
     logger.info("  GPU device  : %s", gpu_pool.device)
@@ -636,7 +636,7 @@ async def run() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Entry point — with auto-restart on crash
+# Entry point - with auto-restart on crash
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
@@ -657,12 +657,12 @@ if __name__ == "__main__":
             _restart_count += 1
             if _restart_count >= _MAX_RESTART_ATTEMPTS:
                 logger.critical(
-                    "Agent Guru crashed %d times — giving up. Last error: %s",
+                    "Agent Guru crashed %d times - giving up. Last error: %s",
                     _restart_count, _crash, exc_info=True,
                 )
                 sys.exit(1)
             logger.error(
-                "Agent Guru crashed (%d/%d): %s — restarting in %.0fs...",
+                "Agent Guru crashed (%d/%d): %s - restarting in %.0fs...",
                 _restart_count, _MAX_RESTART_ATTEMPTS,
                 _crash, _backoff_s, exc_info=True,
             )
