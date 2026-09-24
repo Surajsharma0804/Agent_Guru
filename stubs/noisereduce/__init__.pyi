@@ -1,6 +1,5 @@
 """Type stubs for noisereduce."""
 from typing import Any, Optional
-import numpy as np
 from numpy.typing import NDArray
 
 def reduce_noise(
