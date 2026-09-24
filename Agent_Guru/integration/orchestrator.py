@@ -185,6 +185,27 @@ MEMORY_WRITE_TIMEOUT_S = _env_seconds("AGENT_GURU_MEMORY_WRITE_TIMEOUT", 10.0)
 LLM_TIMEOUT_REPLY = "Sorry, that took too long for me to work out. Could you ask me again?"
 
 
+def _local_now() -> _dt.datetime:
+    """The system clock in the machine's own time zone (a seam for tests)."""
+    return _dt.datetime.now().astimezone()
+
+
+def _clock_answer() -> str:
+    """Answer "what's the time / date / day" from the system clock.
+
+    The intent recognizer has always tagged these questions as
+    information:time_date, and nothing consumed that action. They went to the
+    LLM (about 45 seconds on the CPU-only machine of the first Windows run),
+    whose prompt carries no clock at all, and then to a web search. The machine
+    the assistant runs on already knows the answer, offline and instantly.
+    Time and date are both given, so the one answer fits "what time is it",
+    "what's the date" and "what day is it" alike.
+    """
+    now = _local_now()
+    hour = now.strftime("%I").lstrip("0")
+    return f"It's {hour}:{now:%M} {now:%p} on {now:%A}, {now.day} {now:%B} {now.year}."
+
+
 # ---------------------------------------------------------------------------
 # IntegrationOrchestrator
 # ---------------------------------------------------------------------------
@@ -685,6 +706,7 @@ class IntegrationOrchestrator:
                             result.transcript, result.memory_context,
                             result.reasoning_output, result.detected_language,
                             personality=result.personality,
+                            intent=result.intent,
                         ),
                         timeout=LLM_TIMEOUT_S,
                     )
@@ -1232,6 +1254,7 @@ class IntegrationOrchestrator:
         reasoning_output: Any,
         language_code: str = "",
         personality: Personality | None = None,
+        intent: str | None = None,
     ) -> str:
         """Stage 4: LLM inference with enriched context."""
         try:
@@ -1258,7 +1281,7 @@ class IntegrationOrchestrator:
 
             return await self._llm_complete(
                 complete_fn, transcript, memory_context,
-                reasoning_output, language_code, personality,
+                reasoning_output, language_code, personality, intent,
             )
         except Exception:
             logger.exception("LLM stage error")
@@ -1272,6 +1295,7 @@ class IntegrationOrchestrator:
         reasoning_output: Any,
         language_code: str,
         personality: Personality | None,
+        intent: str | None = None,
     ) -> str:
         """Build enriched prompt and run LLM completion."""
         try:
@@ -1285,7 +1309,7 @@ class IntegrationOrchestrator:
             emotion_hint = self._detect_emotion(transcript)
 
             # Web search enrichment
-            web_context = await self._fetch_web_context(prompt)
+            web_context = await self._fetch_web_context(transcript, intent)
             if web_context:
                 prompt = prompt + web_context
 
@@ -1423,24 +1447,71 @@ class IntegrationOrchestrator:
         except Exception:
             logger.debug("Memory store_interaction failed", exc_info=True)
 
-    async def _fetch_web_context(self, prompt: str) -> str:
-        """Fetch web search context if the prompt looks like a question."""
-        from Agent_Guru.platform.features.web_search import needs_web_search, search_web
+    #: Information actions whose answer is newer than any model by definition:
+    #: a forecast, the news, or an explicit request to search.
+    _LIVE_INFORMATION_ACTIONS: ClassVar[frozenset[str]] = frozenset(
+        {"weather", "news", "search"},
+    )
 
-        is_question = (
-            needs_web_search(prompt)
-            or prompt.strip().endswith("?")
-            or re.search(
-                r"^(who|what|when|where|why|how|is|are|was|were|will|can|does|did)\b",
-                prompt.strip(),
-                re.IGNORECASE,
+    @staticmethod
+    def _intent_needs_web(intent: str | None, transcript: str) -> bool:
+        """Return True if answering this turn needs facts from outside the machine.
+
+        The test is the intent engine's verdict, not the wording. Only an
+        information intent can need the web, and among those only a request
+        for live data (weather, news, an explicit search), or a general
+        question about something that changes over time (who holds an office
+        now, a price, a score). Everything else (conversation, a clock
+        reading, a calculation, a translation, a definition) the local model
+        answers on its own.
+
+        The old gate searched whenever the text ended in "?" or began with a
+        question word, whatever the intent engine had said. "Tell me a joke?"
+        and "I feel a bit lonely, can you talk with me?", both classified as
+        conversation, were sent to Google from a product whose README says it
+        runs 100% locally, and every such turn waited on the search.
+
+        No intent (the intent stage timed out) means no search: the offline
+        answer is the safe default for a local-first assistant.
+        """
+        if not intent:
+            return False
+        if "|" in intent:
+            return any(
+                IntegrationOrchestrator._intent_needs_web(step, transcript)
+                for step in intent.split("|")
             )
-        )
-        if not is_question:
+        parts = intent.split(":", 2)
+        intent_type = parts[0].lower().strip()
+        action = parts[1].lower().strip() if len(parts) > 1 else ""
+        if intent_type != "information":
+            return False
+        if action in IntegrationOrchestrator._LIVE_INFORMATION_ACTIONS:
+            return True
+        if action == "question":
+            from Agent_Guru.platform.features.web_search import needs_web_search
+
+            return needs_web_search(transcript)
+        return False
+
+    async def _fetch_web_context(self, transcript: str, intent: str | None) -> str:
+        """Fetch web search context when the intent says the turn needs it.
+
+        The query is this turn's transcript and nothing else. It used to be the
+        enriched LLM prompt, which starts with "[Context: ...]" holding the
+        recalled earlier turns, word for word, and can carry the reasoning
+        output, clipboard text or screen text. All of it went out in a search
+        URL to DuckDuckGo, or to Google through the browser fallback, which
+        also logged it. Whatever the user said on an earlier turn, however
+        private, left the machine attached to an unrelated question.
+        """
+        from Agent_Guru.platform.features.web_search import search_web
+
+        if not self._intent_needs_web(intent, transcript):
             return ""
-        web_snippet = await search_web(prompt)
+        web_snippet = await search_web(transcript)
         if web_snippet:
-            logger.info("Web search injected for: %r", prompt[:60])
+            logger.info("Web search injected for: %r", transcript[:60])
             return f"\n\nLive web search result: {web_snippet}"
         return ""
 
@@ -2070,7 +2141,7 @@ class IntegrationOrchestrator:
 
             # Universal feature detection (runs for ALL intent types)
             feature_result = await self._detect_universal_features(
-                raw_text, pipeline_mode,
+                raw_text, pipeline_mode, intent_type,
             )
             if feature_result is not None:
                 return feature_result
@@ -2085,6 +2156,11 @@ class IntegrationOrchestrator:
                     intent_type, safe_intent,
                 )
                 return None
+
+            # Before the controller check: reading the clock needs no platform
+            # controller, and a missing one must not turn this into silence.
+            if intent_type == "information" and action == "time_date":
+                return _clock_answer()
 
             ctrl = self.platform_controller
             if ctrl is None:
@@ -2137,7 +2213,7 @@ class IntegrationOrchestrator:
         return None
 
     async def _detect_universal_features(
-        self, raw_text: str, pipeline_mode: str,
+        self, raw_text: str, pipeline_mode: str, intent_type: str = "",
     ) -> Any | None:
         """Detect universal features (briefing, status, reminders, dictation, etc.)."""
         # Morning briefing
@@ -2191,7 +2267,7 @@ class IntegrationOrchestrator:
             return "I couldn't read the screen content right now."
 
         # User memory extraction
-        result = await self._handle_user_memory(raw_text, pipeline_mode)
+        result = await self._handle_user_memory(raw_text, pipeline_mode, intent_type)
         if result is not None:
             return result
 
@@ -2294,7 +2370,9 @@ class IntegrationOrchestrator:
         at_t = reminder_params.get("at_time")
         return await self._reminder_mgr.set_reminder(msg, minutes=mins, seconds=secs, at_time=at_t)
 
-    async def _handle_user_memory(self, raw_text: str, pipeline_mode: str) -> str | None:
+    async def _handle_user_memory(
+        self, raw_text: str, pipeline_mode: str, intent_type: str = "",
+    ) -> str | None:
         """Handle user memory extraction (remember/forget commands)."""
         from Agent_Guru.platform.features.user_memory import extract_user_fact, get_user_memory
         if pipeline_mode != "full":
@@ -2320,6 +2398,16 @@ class IntegrationOrchestrator:
             return "hmm, I don't remember that one."
 
         get_user_memory().set(key, value)
+
+        # The user asked a question. Whatever this returns becomes the spoken
+        # reply (_finalize_tts_text prefers action_result over llm_response),
+        # so returning the acknowledgement here threw away the answer the LLM
+        # had already produced: "My name is Suraj, what's the weather?" was
+        # answered with "Nice to meet you, Suraj!" and nothing else. Keep the
+        # fact, let the answer through.
+        if intent_type == "information":
+            return None
+
         _sval = self._sanitize_output(value)
         _lang = get_user_memory().get("code_mixing", "hinglish")
         _ack_map = {
@@ -3052,8 +3140,15 @@ class IntegrationOrchestrator:
                 for step in intent.split("|")
             )
 
-        parts = intent.split(":", 1)
+        parts = intent.split(":", 2)
         intent_type = parts[0].lower().strip() if parts else ""
+        action = parts[1].lower().strip() if len(parts) > 1 else ""
+
+        # Answered from the system clock in the action stage (_clock_answer).
+        # Running the LLM first cost the user 45 seconds for a reply that was
+        # then thrown away, because the spoken reply prefers action_result.
+        if intent_type == "information" and action == "time_date":
+            return False
 
         # These intent types always need LLM (they are questions/conversation)
         if intent_type in ("conversation", "information"):
