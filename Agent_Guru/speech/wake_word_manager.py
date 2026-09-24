@@ -227,9 +227,14 @@ class _AudioCapture:
             try:
                 default_dev_idx = sd.default.device[0]
                 dev_info = sd.query_devices(default_dev_idx)
+                # This used to say "native_rate", but the figure is whatever
+                # the host API reports. Through MME the Intel array reported
+                # 44100 Hz x4 while its real format (per WASAPI) is
+                # 48000 Hz x2, which misleads anyone debugging the mic.
                 logger.info(
-                    "Opening mic via sounddevice: [%d] %s (native_rate=%d, channels=%d) -> resampled to %dHz mono",
+                    "Opening mic via sounddevice: [%d] %s (%s, reported %d Hz x%d) -> %d Hz mono",
                     default_dev_idx, dev_info["name"],
+                    sd.query_hostapis(dev_info["hostapi"])["name"],
                     int(dev_info["default_samplerate"]),
                     dev_info["max_input_channels"],
                     self._sample_rate,
@@ -237,6 +242,28 @@ class _AudioCapture:
             except Exception:
                 logger.info("Using system default input device")
 
+            # No device= and no host API is chosen here, so on Windows
+            # PortAudio opens the default device through MME. That was
+            # measured against WASAPI shared mode on an Intel Smart Sound
+            # array (the WASAPI stream at the device's 48000 Hz, resampled
+            # with soxr) and MME was kept:
+            # - MME opens at 16000 Hz and Windows converts the rate. WASAPI
+            #   shared mode refuses anything but the device's own rate
+            #   (-9997 "Invalid sample rate"), so switching means rate
+            #   negotiation, channel handling and a resampler of our own.
+            # - Reported latency 26 ms (MME) vs 22 ms (WASAPI), next to
+            #   chunks of 500-1500 ms. No overflows on either over 20 s,
+            #   process CPU 0.5% vs 0.2%.
+            # - Recording the same tones through both at once, neither was
+            #   consistently better: the in-band and alias levels differed
+            #   by a few dB and which one looked better changed from run to
+            #   run.
+            # - Device indices are not stable (the WASAPI default moved from
+            #   15 to 9 between two runs as Bluetooth devices came and went),
+            #   so pinning one would break for users.
+            # Not measured: how each API reports a device being unplugged,
+            # and drivers other than this one. Revisit if a user's mic
+            # opens but delivers audio that is silent or distorted.
             self._stream = sd.InputStream(
                 samplerate=self._sample_rate,
                 channels=1,
