@@ -1,4 +1,4 @@
-"""Intent Detection Engine - Hybrid Approach with Fast-Path Router.
+﻿"""Intent Detection Engine - Hybrid Approach with Fast-Path Router.
 
 This module provides the main Intent Detection Engine that integrates all intent
 detection components into a unified pipeline with intelligent routing.
@@ -169,6 +169,13 @@ class IntentDetectionEngine:
         self.feedback_store: FeedbackStore | None = None
         self.online_learner: OnlineLearner | None = None
 
+        # Strong references to fire-and-forget background tasks started by
+        # record_feedback()/trigger_retraining() when a loop is already
+        # running. asyncio only holds a WEAK reference to a running task, so
+        # without this set a feedback write could be garbage-collected
+        # mid-flight and silently never reach the store.
+        self._background_tasks: set[asyncio.Task[Any]] = set()
+
         # Intent detection cache (5-minute TTL, 10000 entries)
         self.intent_cache = IntentDetectionCache(max_size=10000, ttl_seconds=300)
 
@@ -226,7 +233,7 @@ class IntentDetectionEngine:
             )
         else:
             _logger.warning(
-                "Patterns file not found: %s — Fast-Path Router disabled",
+                "Patterns file not found: %s - Fast-Path Router disabled",
                 self.config.patterns_file,
             )
             self.fast_router = None
@@ -239,7 +246,7 @@ class IntentDetectionEngine:
             self.neural_classifier.load_model()
             _logger.info("Neural Classifier initialized")
         except Exception as e:
-            _logger.warning("Neural Classifier initialization failed: %s — disabled", e)
+            _logger.warning("Neural Classifier initialization failed: %s - disabled", e)
             self.neural_classifier = None
 
     def _init_ner_extractor(self) -> None:
@@ -250,7 +257,7 @@ class IntentDetectionEngine:
             self.ner_extractor.load_model()
             _logger.info("NER Extractor initialized")
         except Exception as e:
-            _logger.warning("NER Extractor initialization failed: %s — disabled", e)
+            _logger.warning("NER Extractor initialization failed: %s - disabled", e)
             self.ner_extractor = None
 
     def _init_llm_fallback(self) -> None:
@@ -278,7 +285,7 @@ class IntentDetectionEngine:
             self.llm_fallback = LLMFallbackClassifier(llm_config)
 
         except Exception as e:
-            _logger.warning("LLM Fallback initialization failed: %s — disabled", e)
+            _logger.warning("LLM Fallback initialization failed: %s - disabled", e)
             self.llm_fallback = None
 
     @staticmethod
@@ -316,12 +323,12 @@ class IntentDetectionEngine:
         if gemini_key:
             _logger.info(
                 "LLM Fallback: Ollama (GEMINI_API_KEY set but Gemini provider "
-                "not supported in this classifier — using Ollama). "
+                "not supported in this classifier - using Ollama). "
                 "Set DEEPSEEK_API_KEY for fast cloud intent classification.",
             )
         else:
             _logger.warning(
-                "LLM Fallback: Ollama (%s) — may be slow on CPU. "
+                "LLM Fallback: Ollama (%s) - may be slow on CPU. "
                 "Set DEEPSEEK_API_KEY for fast cloud responses.",
                 model,
             )
@@ -341,7 +348,7 @@ class IntentDetectionEngine:
             )
             _logger.info("Online Learning initialized")
         except Exception as e:
-            _logger.warning("Online Learning initialization failed: %s — disabled", e)
+            _logger.warning("Online Learning initialization failed: %s - disabled", e)
             self.feedback_store = None
             self.online_learner = None
 
@@ -520,25 +527,36 @@ class IntentDetectionEngine:
             Detection result with intent and metadata
 
         """
-        # Run async method in event loop
+        # BUG FIX: this used to raise RuntimeError unconditionally, from BOTH
+        # sync and async callers, making the synchronous entry point of the
+        # intent engine completely unusable.
+        #
+        # The old code raised its own RuntimeError("detect_intent() called
+        # from inside a running event loop...") inside the `try`, then caught
+        # RuntimeError and re-raised if `"running event loop" in str(exc)`.
+        # But the exception asyncio.get_running_loop() raises when there is NO
+        # loop reads "no running event loop" - which also contains the
+        # substring "running event loop". So the guard matched both cases and
+        # the asyncio.run() branch below it could never execute.
+        #
+        # get_running_loop() raises exactly when there is no running loop, so
+        # no message inspection is needed at all.
         try:
             asyncio.get_running_loop()
-            # Already inside a running loop â€” cannot call run_until_complete.
-            # Callers inside async code should use detect_intent_async() directly.
-            msg = (
-                "detect_intent() called from inside a running event loop. "
-                "Use 'await detect_intent_async()' instead."
-            )
-            raise RuntimeError(
-                msg,
-            )
-        except RuntimeError as exc:
-            if "running event loop" in str(exc):
-                raise
-            # No running loop â€” safe to use asyncio.run()
+        except RuntimeError:
+            # No running loop - safe to drive the coroutine ourselves.
             return asyncio.run(self.detect_intent_async(text, context, user_id))
 
-    # Mapping from pattern-file intent strings â†’ valid IntentType enum values.
+        # Already inside a running loop: asyncio.run() would raise
+        # "cannot be called from a running event loop", and blocking on the
+        # coroutine would deadlock the caller's loop.
+        msg = (
+            "detect_intent() called from inside a running event loop. "
+            "Use 'await detect_intent_async()' instead."
+        )
+        raise RuntimeError(msg)
+
+    # Mapping from pattern-file intent strings → valid IntentType enum values.
     # Pattern files may use fine-grained labels (e.g. "device_off") that don't
     # exist in the IntentType enum.  We normalise them here so Pydantic never
     # sees an invalid value.
@@ -581,7 +599,7 @@ class IntentDetectionEngine:
             Intent object
 
         """
-        # Normalise pattern intent string â†’ valid IntentType value
+        # Normalise pattern intent string → valid IntentType value
         intent_type_str = self._PATTERN_INTENT_MAP.get(match.intent_type, match.intent_type)
 
         # If the (possibly mapped) string is still not a valid enum value,
@@ -726,13 +744,41 @@ class IntentDetectionEngine:
                 feedback_type=FeedbackType.INTENT_CORRECTION,
                 model_version="v1.0",
             )
-            import asyncio
+            self._run_or_schedule(
+                self.feedback_store.store_feedback(feedback),
+                "store_feedback",
+            )
 
-            try:
-                loop = asyncio.get_running_loop()
-                _task = loop.create_task(self.feedback_store.store_feedback(feedback))  # noqa: RUF006
-            except RuntimeError:
-                asyncio.run(self.feedback_store.store_feedback(feedback))
+    def _run_or_schedule(self, coro: Any, label: str) -> Any:
+        """Drive `coro` to completion, or schedule it on the running loop.
+
+        Sync callers get the result. Callers already inside a loop get a
+        scheduled task instead, because blocking on the coroutine there would
+        deadlock their loop.
+
+        The scheduled task is kept in ``self._background_tasks`` (asyncio only
+        keeps a weak reference to it) and its exception is logged when it
+        finishes - previously it was discarded, so a failing feedback write
+        vanished without a trace.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coro)
+
+        task = loop.create_task(coro)
+        self._background_tasks.add(task)
+
+        def _done(finished: asyncio.Task[Any]) -> None:
+            self._background_tasks.discard(finished)
+            if finished.cancelled():
+                return
+            exc = finished.exception()
+            if exc is not None:
+                _logger.error("Background %s task failed: %s", label, exc, exc_info=exc)
+
+        task.add_done_callback(_done)
+        return task
 
     def trigger_retraining(self) -> None:
         """Trigger model retraining with collected feedback.
@@ -741,13 +787,22 @@ class IntentDetectionEngine:
         based on user feedback.
         """
         if self.online_learner:
-            import asyncio
-
-            try:
-                loop = asyncio.get_running_loop()
-                _task = loop.create_task(self.online_learner.should_retrain())  # noqa: RUF006
-            except RuntimeError:
-                asyncio.run(self.online_learner.should_retrain())
+            outcome = self._run_or_schedule(
+                self.online_learner.should_retrain(),
+                "should_retrain",
+            )
+            # OnlineLearner.should_retrain() returns (should_retrain, reason).
+            # The result used to be dropped on the floor in BOTH branches, so
+            # this method did its work and then threw the answer away. Actual
+            # retraining is an offline job
+            # (Agent_Guru/reasoning/scripts/train_intent_classifier.py), so
+            # recording the decision is what this method can honestly do.
+            if isinstance(outcome, tuple):
+                should_retrain, reason = outcome
+                if should_retrain:
+                    _logger.warning("Retraining recommended: %s", reason)
+                else:
+                    _logger.info("Retraining not required: %s", reason)
 
     def _update_metrics(self, method: str, latency_ms: float) -> None:
         """Update detection metrics.
@@ -835,9 +890,9 @@ class IntentDetectionEngine:
             "target_fast_path_percent": target_percent,
             "actual_fast_path_percent": fast_path_percent,
             "performance_vs_target": (
-                "âœ“ Meeting target"
+                "✓ Meeting target"
                 if fast_path_percent >= target_percent
-                else f"âš  Below target ({fast_path_percent:.1f}% vs {target_percent}%)"
+                else f"⚠ Below target ({fast_path_percent:.1f}% vs {target_percent}%)"
             ),
         }
 
