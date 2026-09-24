@@ -27,11 +27,14 @@ Performance contract:
 """
 
 import asyncio
+import logging
 import os
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Embedding model warm-up
@@ -70,9 +73,37 @@ def pytest_collection_finish(session: pytest.Session) -> None:
     here removes it from the budget entirely. It stays opt-in: the model is
     only loaded when some collected test actually asked for the fixture, so
     suites that never touch memory pay nothing.
+
+    A warm-up failure must degrade, never abort. An exception raised from a
+    collection hook becomes an INTERNALERROR: pytest stops the whole session
+    and never prints the collection-error summary, so one broken dependency
+    hides every other problem in the run. The failure is logged and
+    collection continues. The warm_embedding_model fixture below retries the
+    load, so tests that genuinely need the model still fail on their own
+    with the real exception, while everything else runs and reports.
     """
-    if any("warm_embedding_model" in item.fixturenames for item in session.items):
+    if not any("warm_embedding_model" in item.fixturenames for item in session.items):
+        return
+    try:
         _warm_embedding_model_once()
+    except Exception as exc:
+        root = exc
+        while root.__cause__ is not None:
+            root = root.__cause__
+        detail = f"{type(exc).__name__}: {exc}"
+        if root is not exc:
+            detail += f" (caused by {type(root).__name__}: {root})"
+        message = (
+            f"Embedding model warm-up failed during collection - {detail}. "
+            "Tests using warm_embedding_model will retry the load and report "
+            "the failure themselves; all other tests run normally."
+        )
+        logger.warning(message)
+        # Captured log records are not shown for a collection hook, so also
+        # write the warning to the terminal where it is visible in CI logs.
+        reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+        if reporter is not None:
+            reporter.write_line(f"WARNING: {message}", yellow=True)
 
 
 @pytest.fixture(scope="session")
