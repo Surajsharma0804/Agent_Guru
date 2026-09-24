@@ -553,6 +553,8 @@ def test_voice_cloner_memory_efficiency(voice_cloner, sample_audio):
 
 # EXTREME STRESS TESTS - ZERO COMPROMISE - PRODUCTION GRADE
 
+@pytest.mark.stress
+@pytest.mark.timeout(180)
 def test_voice_cloner_extreme_enrollment_1000_samples(voice_cloner):
     """EXTREME TEST: Enroll voice with 1000 audio samples - ZERO COMPROMISE."""
     import gc
@@ -564,12 +566,14 @@ def test_voice_cloner_extreme_enrollment_1000_samples(voice_cloner):
     # Generate 1000 samples (10,000 seconds = 2.78 hours of audio)
     print("\n[EXTREME TEST] Enrolling 1000 samples (2.78 hours of audio)")
     
+    # The tone is loop-invariant - only the noise differs per sample - so it
+    # is built once instead of 1000 times. Same 1000 distinct noisy samples.
+    t = np.linspace(0, duration, num_samples)
+    tone = np.sin(2 * np.pi * 150 * t) + 0.3 * np.sin(2 * np.pi * 300 * t)
+
     audio_samples = []
     for i in range(1000):
-        t = np.linspace(0, duration, num_samples)
-        audio = np.sin(2 * np.pi * 150 * t)
-        audio += 0.3 * np.sin(2 * np.pi * 300 * t)
-        audio += 0.1 * np.random.randn(num_samples)
+        audio = tone + 0.1 * np.random.randn(num_samples)
         audio = audio / np.max(np.abs(audio)) * 0.8
         audio_samples.append(audio.astype(np.float32))
         
@@ -599,6 +603,8 @@ def test_voice_cloner_extreme_enrollment_1000_samples(voice_cloner):
     gc.collect()
 
 
+@pytest.mark.stress
+@pytest.mark.timeout(180)
 def test_voice_cloner_extreme_incremental_updates_500_times(voice_cloner, sample_audio):
     """EXTREME TEST: 500 incremental updates - ZERO COMPROMISE."""
     import gc
@@ -646,6 +652,8 @@ def test_voice_cloner_extreme_incremental_updates_500_times(voice_cloner, sample
     gc.collect()
 
 
+@pytest.mark.stress
+@pytest.mark.timeout(180)
 def test_voice_cloner_extreme_concurrent_enrollments(voice_cloner, sample_audio):
     """EXTREME TEST: Enroll 100 voices concurrently - ZERO COMPROMISE."""
     import concurrent.futures
@@ -690,6 +698,8 @@ def test_voice_cloner_extreme_concurrent_enrollments(voice_cloner, sample_audio)
     gc.collect()
 
 
+@pytest.mark.stress
+@pytest.mark.timeout(180)
 def test_voice_cloner_extreme_similarity_matrix_1000_comparisons(voice_cloner):
     """EXTREME TEST: Compute 1000 similarity comparisons - ZERO COMPROMISE."""
     import gc
@@ -742,6 +752,8 @@ def test_voice_cloner_extreme_similarity_matrix_1000_comparisons(voice_cloner):
     gc.collect()
 
 
+@pytest.mark.stress
+@pytest.mark.timeout(600)
 def test_voice_cloner_extreme_memory_stress_10000_features(voice_cloner):
     """EXTREME TEST: Extract features from 10,000 audio samples - ZERO COMPROMISE."""
     import gc
@@ -764,10 +776,13 @@ def test_voice_cloner_extreme_memory_stress_10000_features(voice_cloner):
     import time
     start = time.time()
     
+    # Loop-invariant tone hoisted out of the 10,000-iteration loop; only the
+    # noise, the feature extraction and the memory behaviour are under test.
+    t = np.linspace(0, duration, num_samples)
+    tone = np.sin(2 * np.pi * 150 * t)
+
     for i in range(10000):
-        t = np.linspace(0, duration, num_samples)
-        audio = np.sin(2 * np.pi * 150 * t)
-        audio += 0.1 * np.random.randn(num_samples)
+        audio = tone + 0.1 * np.random.randn(num_samples)
         audio = audio / np.max(np.abs(audio)) * 0.8
         audio = audio.astype(np.float32)
         
@@ -792,6 +807,8 @@ def test_voice_cloner_extreme_memory_stress_10000_features(voice_cloner):
     assert mem_increase < 500, f"Memory leak detected: {mem_increase:.2f}MB increase"  # nosec B101
 
 
+@pytest.mark.stress
+@pytest.mark.timeout(120)
 def test_voice_cloner_extreme_quality_all_edge_cases(voice_cloner):
     """EXTREME TEST: Test quality computation on ALL edge cases - ZERO COMPROMISE."""
     print("\n[EXTREME TEST] Quality computation on all edge cases")
@@ -847,6 +864,8 @@ def test_voice_cloner_extreme_quality_all_edge_cases(voice_cloner):
     print(f"  [OK] All {len(test_cases)} edge cases handled correctly")
 
 
+@pytest.mark.stress
+@pytest.mark.timeout(180)
 def test_voice_cloner_extreme_save_load_100_profiles(voice_cloner, sample_audio):
     """EXTREME TEST: Save and load 100 voice profiles - ZERO COMPROMISE."""
     import tempfile
@@ -914,6 +933,8 @@ def test_voice_cloner_extreme_save_load_100_profiles(voice_cloner, sample_audio)
         gc.collect()
 
 
+@pytest.mark.stress
+@pytest.mark.timeout(600)
 def test_voice_cloner_extreme_synthesis_1000_texts(voice_cloner, sample_audio):
     """EXTREME TEST: Synthesize 1000 different texts - ZERO COMPROMISE."""
     import gc
@@ -957,6 +978,8 @@ def test_voice_cloner_extreme_synthesis_1000_texts(voice_cloner, sample_audio):
     gc.collect()
 
 
+@pytest.mark.stress
+@pytest.mark.timeout(180)
 def test_voice_cloner_extreme_all_sample_rates(voice_cloner):
     """EXTREME TEST: Test with ALL common sample rates - ZERO COMPROMISE."""
     print("\n[EXTREME TEST] All sample rates")
