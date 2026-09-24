@@ -1935,6 +1935,7 @@ class TestMonotonicPromptQualityImprovement:
                 # Verify rollback restored better performance
                 active = system.get_active_prompt(prompt_type)
                 assert active is not None  # nosec B101
+                assert active.prompt_id == rolled_back_id  # nosec B101
                 assert active.success_rate >= best_success_rate * 0.95  # Allow 5% tolerance  # nosec B101
                 assert active.version < degradation_version  # nosec B101
             

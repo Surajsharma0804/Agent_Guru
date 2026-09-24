@@ -306,6 +306,10 @@ class TestWindowManagerWindows:
 
             # Should attempt to set window position
             assert isinstance(result, bool)  # nosec B101
+            mock_set.assert_called_once()
+            args = mock_set.call_args[0]
+            assert args[0] == 12345  # nosec B101
+            assert args[2:6] == (0, 0, 960, 1080)  # nosec B101
 
     def test_get_visible_windows_windows(self):
         """Test get visible windows on Windows."""

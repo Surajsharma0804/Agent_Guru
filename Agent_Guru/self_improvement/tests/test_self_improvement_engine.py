@@ -42,7 +42,7 @@ class TestSelfImprovementEngineIntegration:
                 time.sleep(0.2)
                 try:
                     os.unlink(path)
-                except Exception as e:
+                except Exception:
                     pass  # nosec B110
     
     @pytest.fixture

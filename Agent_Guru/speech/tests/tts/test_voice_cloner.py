@@ -497,6 +497,7 @@ def test_incremental_learning_convergence(voice_cloner, sample_audio):
         voice_id="test_convergence",
         sample_rate=16000
     )
+    assert initial_model.model_id == "test_convergence"  # nosec B101
     
     # Get initial profile
     initial_profile = voice_cloner._voice_profiles["test_convergence"]

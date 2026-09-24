@@ -38,7 +38,7 @@ class TestHardestLearningConvergence:
                 time.sleep(0.5)
                 try:
                     os.unlink(path)
-                except Exception as e:
+                except Exception:
                     pass  # nosec B110
     
     @pytest.fixture

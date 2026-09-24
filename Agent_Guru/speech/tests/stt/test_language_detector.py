@@ -821,14 +821,12 @@ class TestLanguageDetector:
         # Generate random bytes and try to decode
         for _ in range(100):
             random_bytes = bytes([random.randint(0, 255) for _ in range(50)])  # nosec B311
-            try:
-                text = random_bytes.decode('utf-8', errors='ignore')
-                result = detector.detect_language(text)
-                assert result is not None  # nosec B101
-                assert 0.0 <= result.confidence <= 1.0  # nosec B101
-            except Exception as e:
-                # If decode fails, that's ok
-                pass  # nosec B110
+            # errors='ignore' cannot raise, so there is no try/except here:
+            # "except Exception" around the asserts also swallowed AssertionError
+            text = random_bytes.decode('utf-8', errors='ignore')
+            result = detector.detect_language(text)
+            assert result is not None  # nosec B101
+            assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
     def test_chaos_corrupted_unicode(self, detector: LanguageDetector):
         """ZERO COMPROMISE: Chaos test with corrupted Unicode."""

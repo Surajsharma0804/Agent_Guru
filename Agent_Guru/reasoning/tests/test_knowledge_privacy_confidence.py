@@ -149,8 +149,8 @@ class TestUserDataIsolation:
             context={"person": "Jane"},
         )
 
-        # Mock retriever returns only user_1's data
-        mock_retriever.retrieve.return_value = [user1_memory]
+        # Mock retriever leaks user_2's data; the synthesizer must filter it out
+        mock_retriever.retrieve.return_value = [user1_memory, user2_memory]
 
         # Create synthesizer
         synthesizer = KnowledgeSynthesizer(
@@ -174,6 +174,7 @@ class TestUserDataIsolation:
         assert len(memories) == 1  # nosec B101
         assert memories[0].user_id == "user_1"  # nosec B101
         assert "John" in memories[0].content  # nosec B101
+        assert user2_memory not in memories  # nosec B101
 
         # Verify retriever was called with correct user_id
         mock_retriever.retrieve.assert_called_once()

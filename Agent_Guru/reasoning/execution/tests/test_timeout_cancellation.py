@@ -326,6 +326,10 @@ class TestAsyncExecutionController:
         # Note: Current implementation doesn't mark errors as recoverable
         # This test demonstrates the API
         assert attempt_count >= 1  # nosec B101
+        # Success is only possible once the third attempt returned 42
+        assert result.success is (attempt_count == 3)  # nosec B101
+        if result.success:
+            assert result.result_data == 42  # nosec B101
 
     @pytest.mark.asyncio
     async def test_controller_cancel_task(self):

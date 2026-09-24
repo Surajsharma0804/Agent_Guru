@@ -353,6 +353,8 @@ class TestLLMResponseGenerator:
         response = await llm_generator.generate(
             result=sample_result, intent=sample_intent, modality=ResponseModality.VOICE
         )
+        assert response.text == "Timer set for 5 minutes"  # nosec B101
+        assert response.modality == ResponseModality.VOICE  # nosec B101
 
         # Verify prompt includes voice instructions
         call_args = mock_llm_router.generate.call_args[0][0]
@@ -377,6 +379,8 @@ class TestLLMResponseGenerator:
         response = await llm_generator.generate(
             result=sample_result, intent=sample_intent, modality=ResponseModality.TEXT
         )
+        assert response.text.startswith("I've successfully set a timer")  # nosec B101
+        assert response.modality == ResponseModality.TEXT  # nosec B101
 
         # Verify prompt includes text instructions
         call_args = mock_llm_router.generate.call_args[0][0]
