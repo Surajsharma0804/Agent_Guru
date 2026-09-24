@@ -1,5 +1,6 @@
-"""Audit logging for safety decisions."""
+﻿"""Audit logging for safety decisions."""
 
+import contextlib
 import json
 import sqlite3
 import time
@@ -358,7 +359,7 @@ class AuditLogger:
             where_clause += " AND timestamp <= ?"
             params.append(end_time)
 
-        # Get total count — where_clause is built from hardcoded strings with ? placeholders only
+        # Get total count - where_clause is built from hardcoded strings with ? placeholders only
         cursor.execute(
             "SELECT COUNT(*) FROM audit_log " + where_clause,  # nosec B608  # noqa: S608 - SQL parameterization reviewed
             params,
@@ -495,5 +496,28 @@ class AuditLogger:
             logger.info("audit_database_closed")
 
     def __del__(self) -> None:
-        """Cleanup on deletion."""
-        self.close()
+        """Last-resort finalizer for callers that never called close().
+
+        A finalizer can run during interpreter shutdown, when the import
+        system is already torn down (``sys.meta_path is None``) and the
+        logging machinery may be half-dismantled. Calling close() from here
+        was therefore unsafe: close() emits a structlog record, structlog's
+        timestamper imports lazily, and the import raised
+        ``ImportError: sys.meta_path is None, Python is likely shutting
+        down``, which Python then printed as "Exception ignored in __del__"
+        on every interpreter exit that had left one of these objects alive.
+        (Observed for real while running Agent_Guru/reasoning/api/tests.)
+
+        So this does the one thing a finalizer must do - release the OS
+        handle - and nothing that can import, log, or raise. close() remains
+        the supported path and still reports.
+        """
+        conn = getattr(self, "_conn", None)
+        if conn is None:
+            return
+        self._conn = None
+        # contextlib.suppress rather than try/except/pass: a finalizer
+        # must never raise, and this form says so without an inline
+        # scanner suppression.
+        with contextlib.suppress(Exception):
+            conn.close()
