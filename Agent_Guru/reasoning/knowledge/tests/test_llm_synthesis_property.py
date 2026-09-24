@@ -36,13 +36,33 @@ from Agent_Guru.reasoning.models.knowledge import (
 )
 from Agent_Guru.reasoning.models.memory import Memory, MemoryType
 
+# Hypothesis's default st.text() alphabet includes lone surrogates (Unicode
+# category Cs). Those cannot be encoded as UTF-8, and pydantic rejects them
+# outright ("unable to parse raw data as a unicode string"), so any example
+# containing one failed while CONSTRUCTING the model rather than while
+# exercising the property under test -- a false failure that says nothing
+# about the code. No real input (typed, spoken, or read from disk) can carry
+# a lone surrogate, so excluding them tests the same properties against
+# inputs that can actually occur.
+_TEXT = st.characters(blacklist_categories=("Cs",))
+
+# Several models validate that a field is not blank (Memory.content raises
+# "Content cannot be empty or whitespace only"). st.text() happily produces
+# " " or "\r", so those examples died in the model constructor instead of
+# reaching the property. This alphabet additionally excludes every separator
+# and control character, so any string of length >= 1 drawn from it is
+# non-blank by construction -- no filter, no retry, no bias.
+_NONBLANK = st.characters(
+    blacklist_categories=("Cs", "Cc", "Cf", "Zs", "Zl", "Zp"),
+)
+
 
 # Hypothesis strategies
 @st.composite
 def knowledge_query_strategy(draw):
     """Generate random KnowledgeQuery."""
     query_text = draw(
-        st.text(min_size=1, max_size=200, alphabet=st.characters(blacklist_characters="\n\r\t "))
+        st.text(min_size=1, max_size=200, alphabet=st.characters(blacklist_characters="\n\r\t ", blacklist_categories=("Cs",)))
     )
     if not query_text or query_text.isspace():
         query_text = "test query"  # Fallback to valid query
@@ -56,8 +76,8 @@ def knowledge_query_strategy(draw):
 def memory_strategy(draw):
     """Generate random Memory."""
     memory_id = str(uuid.uuid4())
-    user_id = draw(st.text(min_size=1, max_size=50))
-    content = draw(st.text(min_size=1, max_size=500))
+    user_id = draw(st.text(alphabet=_NONBLANK, min_size=1, max_size=50))
+    content = draw(st.text(alphabet=_NONBLANK, min_size=1, max_size=500))
     memory_type = draw(st.sampled_from(list(MemoryType)))
     days_ago = draw(st.integers(min_value=0, max_value=365))
     timestamp = datetime.now(tz=timezone.utc) - timedelta(days=days_ago)
@@ -77,10 +97,10 @@ def memory_strategy(draw):
 def pattern_strategy(draw):
     """Generate random Pattern."""
     pattern_type = draw(st.sampled_from(["daily", "weekly", "monthly"]))
-    description = draw(st.text(min_size=1, max_size=200))
+    description = draw(st.text(alphabet=_NONBLANK, min_size=1, max_size=200))
     frequency = draw(st.floats(min_value=0.0, max_value=1.0))
     confidence = draw(st.floats(min_value=0.0, max_value=1.0))
-    examples = draw(st.lists(st.text(min_size=1, max_size=50), min_size=0, max_size=5))
+    examples = draw(st.lists(st.text(alphabet=_NONBLANK, min_size=1, max_size=50), min_size=0, max_size=5))
 
     return Pattern(
         pattern_type=pattern_type,
@@ -155,10 +175,10 @@ class TestResponseParsingProperties:
     """Property-based tests for response parsing."""
 
     @given(
-        summary=st.text(min_size=1, max_size=500),
+        summary=st.text(alphabet=_NONBLANK, min_size=1, max_size=500),
         confidence=st.floats(min_value=0.0, max_value=1.0),
-        reasoning=st.text(min_size=0, max_size=200),
-        key_insights=st.lists(st.text(min_size=1, max_size=100), min_size=0, max_size=5),
+        reasoning=st.text(alphabet=_TEXT, min_size=0, max_size=200),
+        key_insights=st.lists(st.text(alphabet=_TEXT, min_size=1, max_size=100), min_size=0, max_size=5),
     )
     @settings(max_examples=100)
     def test_parse_valid_response_always_succeeds(
@@ -187,7 +207,7 @@ class TestResponseParsingProperties:
         assert parsed.key_insights == key_insights  # nosec B101
 
     @given(
-        summary=st.text(min_size=1, max_size=500),
+        summary=st.text(alphabet=_NONBLANK, min_size=1, max_size=500),
         confidence=st.floats(min_value=0.0, max_value=1.0),
     )
     @settings(max_examples=100)
@@ -242,7 +262,7 @@ class TestAnswerCreationProperties:
     """Property-based tests for answer creation from LLM response."""
 
     @given(
-        summary=st.text(min_size=1, max_size=500),
+        summary=st.text(alphabet=_NONBLANK, min_size=1, max_size=500),
         llm_confidence=st.floats(min_value=0.0, max_value=1.0),
         memories=st.lists(memory_strategy(), min_size=0, max_size=20),
     )
@@ -268,7 +288,7 @@ class TestAnswerCreationProperties:
         assert 0.0 <= answer.confidence <= 1.0  # nosec B101
 
     @given(
-        summary=st.text(min_size=1, max_size=500),
+        summary=st.text(alphabet=_NONBLANK, min_size=1, max_size=500),
         llm_confidence=st.floats(min_value=0.0, max_value=1.0),
         memories=st.lists(memory_strategy(), min_size=0, max_size=50),
     )
@@ -293,7 +313,7 @@ class TestAnswerCreationProperties:
         assert len(answer.supporting_memories) <= 5  # nosec B101
 
     @given(
-        summary=st.text(min_size=1, max_size=500),
+        summary=st.text(alphabet=_NONBLANK, min_size=1, max_size=500),
         llm_confidence=st.floats(min_value=0.0, max_value=1.0),
     )
     @settings(max_examples=100)
@@ -319,7 +339,7 @@ class TestAnswerCreationProperties:
         assert answer.confidence == round(expected_confidence, 2)  # nosec B101
 
     @given(
-        summary=st.text(min_size=1, max_size=500),
+        summary=st.text(alphabet=_NONBLANK, min_size=1, max_size=500),
         llm_confidence=st.floats(min_value=0.0, max_value=1.0),
         num_memories=st.integers(min_value=1, max_value=2),
     )
@@ -343,7 +363,7 @@ class TestAnswerCreationProperties:
 
         memories = [
             Memory(
-                memory_id=f"mem{i}",
+                memory_id=str(uuid.uuid5(uuid.NAMESPACE_OID, f"mem{i}")),
                 user_id="user1",
                 content=f"Memory {i}",
                 memory_type=MemoryType.SEMANTIC,
@@ -364,7 +384,7 @@ class TestConfidenceIndicatorProperties:
     """Property-based tests for confidence indicator."""
 
     @given(
-        summary=st.text(min_size=1, max_size=500),
+        summary=st.text(alphabet=_NONBLANK, min_size=1, max_size=500),
         llm_confidence=st.floats(min_value=0.0, max_value=0.59),
         threshold=st.floats(min_value=0.6, max_value=0.9),
     )
@@ -388,7 +408,7 @@ class TestConfidenceIndicatorProperties:
 
         memories = [
             Memory(
-                memory_id="mem1",
+                memory_id=str(uuid.uuid5(uuid.NAMESPACE_OID, "mem1")),
                 user_id="user1",
                 content="Test",
                 memory_type=MemoryType.SEMANTIC,
@@ -403,13 +423,26 @@ class TestConfidenceIndicatorProperties:
         assert "I'm not very confident" in answer.summary  # nosec B101
 
     @given(
-        summary=st.text(min_size=1, max_size=500),
+        summary=st.text(alphabet=_NONBLANK, min_size=1, max_size=500),
         llm_confidence=st.floats(min_value=0.7, max_value=1.0),
         threshold=st.floats(min_value=0.5, max_value=0.69),
     )
     @settings(max_examples=100)
     def test_high_confidence_never_adds_indicator(self, summary, llm_confidence, threshold):
-        """Property: Confidence above threshold never adds indicator."""
+        """Property: Confidence above threshold never adds indicator.
+
+        The indicator is driven by the FINAL confidence, not by the LLM's raw
+        confidence: _create_answer_from_llm_response() scales the LLM value
+        down when there is little supporting data (x0.5 for none, x0.8 for
+        fewer than three memories). This test used to pass a single memory,
+        so llm_confidence=0.75 became 0.60 and legitimately fell below a
+        threshold of 0.625 -- the property was being read against the wrong
+        number, not violated. Three memories mean no scaling applies, which
+        is what makes "above threshold" mean what this test says it means.
+        The scaling itself is asserted by
+        test_create_answer_few_memories_reduces_confidence below, so nothing
+        stops being covered.
+        """
         memory_retriever = Mock(spec=MemoryRetriever)
         synthesizer = KnowledgeSynthesizer(
             memory_retriever=memory_retriever,
@@ -425,19 +458,23 @@ class TestConfidenceIndicatorProperties:
             query_text="test", query_type=KnowledgeQueryType.FACTUAL, confidence=0.9
         )
 
+        # Three memories: above the "small sample" cutoff, so the confidence
+        # reaches the threshold check unscaled.
         memories = [
             Memory(
-                memory_id="mem1",
+                memory_id=str(uuid.uuid5(uuid.NAMESPACE_OID, f"mem{i}")),
                 user_id="user1",
                 content="Test",
                 memory_type=MemoryType.SEMANTIC,
                 timestamp=datetime.now(tz=timezone.utc),
                 relevance_score=0.9,
             )
+            for i in range(3)
         ]
 
         answer = synthesizer._create_answer_from_llm_response(llm_response, query, memories, [], {})
 
         # Should NOT add confidence indicator
+        assert answer.confidence >= threshold  # nosec B101
         assert "I'm not very confident" not in answer.summary  # nosec B101
         assert answer.summary == summary  # nosec B101
