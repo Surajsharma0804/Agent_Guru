@@ -6,7 +6,15 @@ Coverage Target: >80% (enforced by CI/CD)
 
 import pytest
 import sys
-import winreg
+
+# winreg exists only on Windows. It has to come in through importorskip
+# rather than a bare `import`: the pytestmark skipif below cannot take
+# effect until this module has already been imported, so on a non-Windows
+# host a plain `import winreg` turned the SKIP the author asked for into a
+# collection ERROR -- which is why the suite could not even be collected on
+# Linux or macOS. On Windows the import succeeds and every test in this
+# file runs exactly as before.
+winreg = pytest.importorskip("winreg")
 from Agent_Guru.platform.windows.integration import WindowsIntegration
 import logging
 
