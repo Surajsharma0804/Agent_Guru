@@ -1,3 +1,9 @@
+# Line ending policy
+# Normalize text files to LF in the repository. Without this, correct line
+# endings depend on every contributor configuring core.autocrlf themselves,
+# which the repo cannot rely on.
+* text=auto
+
 # Language detection overrides
 *.rs linguist-language=Rust
 *.py linguist-language=Python
