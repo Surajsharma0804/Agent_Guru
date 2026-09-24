@@ -22,6 +22,7 @@ from Agent_Guru.reasoning.intent.llm_fallback import (
     LLMFallbackConfig,
     LLMIntentResponse,
 )
+from Agent_Guru.reasoning.llm.timeouts import intent_timeout
 from Agent_Guru.reasoning.models.intent import Entity
 
 # ============================================================================
@@ -39,7 +40,16 @@ class TestLLMFallbackConfig:
         assert config.provider == "ollama"  # nosec B101
         assert config.model == "gemma3:4b"  # nosec B101
         assert config.api_key is None  # nosec B101
-        assert config.timeout_ms == 1000.0  # nosec B101
+        # The default comes from the shared timing policy, not a literal.
+        # It used to be a hard-coded 1000.0 ("1 second for local Ollama"),
+        # which no local model on a CPU can meet, so the fallback timed out
+        # on every call on the hardware this project targets. The test now
+        # pins the contract - "whatever the policy says, in milliseconds" -
+        # rather than a number that was wrong.
+        assert config.timeout_ms == intent_timeout() * 1000.0  # nosec B101
+        assert config.timeout_ms >= 5_000.0, (  # nosec B101
+            "a local-model intent call needs seconds, not milliseconds"
+        )
         assert config.max_retries == 3  # nosec B101
         assert config.temperature == 0.0  # nosec B101
         assert config.max_tokens == 512  # nosec B101
@@ -154,10 +164,24 @@ class TestLLMFallbackClassifierInit:
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.intent.llm_fallback.openai")
     def test_init_unsupported_provider(self, mock_openai):
-        """Test initialization fails with unsupported provider."""
-        mock_openai.OpenAI = Mock()
-        config = LLMFallbackConfig(provider="unsupported")
+        """An unsupported provider is refused as early as possible.
 
+        LLMFallbackConfig now validates the name in __post_init__, so the
+        failure happens on the line that makes the mistake rather than later
+        inside LLMFallbackClassifier._initialize_client() - by which point the
+        bad config may have been passed around or persisted.
+
+        The classifier's own guard is still exercised below, via a config
+        mutated after construction, which is the only way to reach it now.
+        """
+        mock_openai.OpenAI = Mock()
+
+        with pytest.raises(ValueError, match="Unsupported provider"):
+            LLMFallbackConfig(provider="unsupported")
+
+        # Bypass the config's validation to prove the classifier still guards.
+        config = LLMFallbackConfig(provider="ollama")
+        config.provider = "unsupported"
         with pytest.raises(ValueError, match="Unsupported provider"):
             LLMFallbackClassifier(config)
 
@@ -221,7 +245,14 @@ class TestResponseParsing:
         mock_openai.OpenAI = Mock()
         classifier = LLMFallbackClassifier()
 
-        with pytest.raises(json.JSONDecodeError):
+        # _parse_response() deliberately normalises BOTH failure modes to
+        # ValueError -- its docstring says so ("raise ValueError on failure
+        # so caller can retry"), and classify_async()'s retry loop is
+        # written against that. Asserting the underlying JSONDecodeError /
+        # pydantic ValidationError pinned an implementation detail the
+        # method explicitly hides. The message is asserted instead, so the
+        # test still distinguishes the two causes.
+        with pytest.raises(ValueError, match="LLM returned invalid JSON"):
             classifier._parse_response("not valid json")
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
@@ -233,7 +264,7 @@ class TestResponseParsing:
 
         response_text = json.dumps({"intent_type": "set_timer"})  # Missing confidence
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValueError, match="failed schema validation"):
             classifier._parse_response(response_text)
 
     @patch("Agent_Guru.reasoning.intent.llm_fallback.OPENAI_AVAILABLE", True)
@@ -428,22 +459,10 @@ class TestAsyncClassification:
         mock_openai.OpenAI = Mock()
         classifier = LLMFallbackClassifier()
 
-        # Mock LLM response
-        mock_response = json.dumps(
-            {
-                "intent_type": "set_timer",
-                "confidence": 0.95,
-                "entities": {
-                    "duration": {
-                        "entity_type": "duration",
-                        "value": 300,
-                        "raw_text": "5 minutes",
-                    }
-                },
-                "reasoning": "Clear timer intent",
-            }
-        )
-
+        # NOTE: a `mock_response = json.dumps({...})` block used to sit here.
+        # Nothing read it - the test mocks _call_llm_async with a structured
+        # LLMIntentResponse, not with raw JSON - so it was dead setup that
+        # implied the test exercised JSON parsing when it does not.
         classifier._call_llm_async = AsyncMock(
             return_value=LLMIntentResponse(
                 intent_type="set_timer",
@@ -871,7 +890,7 @@ class TestEdgeCases:
             }
         )
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValueError, match="failed schema validation"):
             classifier._parse_response(response_text)
 
     @pytest.mark.asyncio
