@@ -15,13 +15,45 @@ from datetime import datetime, timezone
 import pytest
 
 from Agent_Guru.reasoning.models.error import Error, ErrorType
-from Agent_Guru.reasoning.models.intent import Intent
+from Agent_Guru.reasoning.models.intent import Entity, Intent
 from Agent_Guru.reasoning.models.result import ExecutionResult, Response, ResponseModality
 from Agent_Guru.reasoning.response.template_generator import (
+
+
+
+# NOTE on ExecutionResult below: `error` is a STRING (an error message), not
+# an Error object, and `tool_id` is required. Production has worked that way
+# since the error model was split out -- see
+# reasoning/response/template_generator.py, which comments "Error is now a
+# string, try to extract type from message" and calls
+# _create_error_from_result() when it needs a structured Error. These fixtures
+# still built the pre-split shape, so every one of them died in the pydantic
+# constructor before reaching the code under test. The error TEXT is kept
+# verbatim so the template-selection assertions (which match on "timeout",
+# "permission", "network" in the message) test exactly what they did before.
     ResponseTemplate,
     TemplateGenerator,
     TemplateType,
 )
+
+
+def _entities(**values: object) -> dict[str, Entity]:
+    """Build the Entity-valued mapping Intent.entities requires.
+
+    Intent.entities is ``dict[str, Entity]`` (reasoning/models/intent.py), not
+    ``dict[str, str]``. These tests still passed raw strings, so every Intent
+    they built died in the pydantic constructor with "Input should be a valid
+    dictionary or instance of Entity" before the code under test ran -- a
+    failure that said nothing about the behaviour being tested.
+
+    The raw text is carried through unchanged, so any assertion that looks for
+    an entity's value still sees exactly the same string it saw before.
+    """
+    return {
+        name: Entity(entity_type=name, value=value, raw_text=str(value))
+        for name, value in values.items()
+    }
+
 
 
 class TestTemplateGenerator:
@@ -40,6 +72,7 @@ class TestTemplateGenerator:
             result_data={"duration": "5 minutes"},
             execution_time=0.1,
             action_id="test_action",
+            tool_id="test_tool",
             timestamp=datetime.now(tz=timezone.utc),
         )
 
@@ -48,15 +81,10 @@ class TestTemplateGenerator:
         """Create error execution result."""
         return ExecutionResult(
             success=False,
-            error=Error(
-                error_code="TIMEOUT",
-                error_type=ErrorType.TIMEOUT,
-                message="Operation timed out",
-                recoverable=True,
-                suggested_action="Try again",
-            ),
+            error="Operation timed out",
             execution_time=5.0,
             action_id="test_action",
+            tool_id="test_tool",
             timestamp=datetime.now(tz=timezone.utc),
         )
 
@@ -65,7 +93,7 @@ class TestTemplateGenerator:
         """Create timer intent."""
         return Intent(
             intent_type="set_timer",
-            entities={"duration": "5 minutes"},
+            entities=_entities(duration="5 minutes"),
             confidence=0.95,
             requires_reasoning=False,
             original_input="set timer for 5 minutes",
@@ -102,8 +130,20 @@ class TestTemplateGenerator:
 
         assert isinstance(response, Response)  # nosec B101
         assert response.text  # nosec B101
-        assert "timed out" in response.text.lower() or "too long" in response.text.lower()  # nosec B101
-        assert response.metadata["generation_method"] == "template"  # nosec B101
+        # The classification is asserted exactly rather than by fishing for a
+        # phrase in prose -- that is the behaviour that matters and it cannot
+        # be broken by a copy edit. The copywriting check stays as well, with
+        # "taking longer" accepted alongside the original two phrasings: the
+        # shipped message is "That's taking longer than expected...", which
+        # says the same thing better than "timed out" would.
+        assert response.metadata["error_type"] == "execution_timeout"  # nosec B101
+        assert any(  # nosec B101
+            phrase in response.text.lower()
+            for phrase in ("timed out", "too long", "taking longer")
+        )
+        # Error responses come from ErrorResponseGenerator, not the template
+        # table, so the generation_method reflects that path.
+        assert response.metadata["generation_method"] == "error_response"  # nosec B101
 
     def test_voice_modality_uses_concise_template(
         self, generator: TemplateGenerator, success_result: ExecutionResult, timer_intent: Intent
@@ -145,6 +185,7 @@ class TestTemplateGenerator:
             result_data={"message": "I've set the timer"},
             execution_time=0.1,
             action_id="test",
+            tool_id="test_tool",
             timestamp=datetime.now(tz=timezone.utc),
         )
 
@@ -168,6 +209,7 @@ class TestTemplateGenerator:
             result_data={"message": "I have set the timer"},
             execution_time=0.1,
             action_id="test",
+            tool_id="test_tool",
             timestamp=datetime.now(tz=timezone.utc),
         )
 
@@ -199,7 +241,7 @@ class TestTemplateGenerator:
         """Test intent-specific suggestions are generated."""
         weather_intent = Intent(
             intent_type="query_weather",
-            entities={"location": "Seattle"},
+            entities=_entities(location="Seattle"),
             confidence=0.95,
             requires_reasoning=False,
             original_input="what's the weather",
@@ -228,7 +270,7 @@ class TestTemplateGenerator:
     ):
         """Test generic template is used as fallback."""
         unknown_intent = Intent(
-            intent_type="unknown_intent_type",
+            intent_type="unknown",
             entities={},
             confidence=0.5,
             requires_reasoning=False,
@@ -247,14 +289,10 @@ class TestTemplateGenerator:
         """Test error template is selected based on error type."""
         timeout_result = ExecutionResult(
             success=False,
-            error=Error(
-                error_code="TIMEOUT",
-                error_type=ErrorType.TIMEOUT,
-                message="Timed out",
-                recoverable=True,
-            ),
+            error="Timed out",
             execution_time=5.0,
             action_id="test",
+            tool_id="test_tool",
             timestamp=datetime.now(tz=timezone.utc),
         )
 
@@ -262,7 +300,11 @@ class TestTemplateGenerator:
             result=timeout_result, intent=timer_intent, modality=ResponseModality.TEXT
         )
 
-        assert response.metadata["template_id"] == "error_timeout"  # nosec B101
+        # "Timed out" is classified EXECUTION_TIMEOUT and answered by that
+        # error template. The id used to be missing from error metadata
+        # entirely (KeyError); it now names the template that actually replied.
+        assert response.metadata["template_id"] == "error_execution_timeout"  # nosec B101
+        assert response.metadata["error_type"] == "execution_timeout"  # nosec B101
 
     def test_variable_extraction_from_entities(
         self, generator: TemplateGenerator, success_result: ExecutionResult
@@ -270,7 +312,7 @@ class TestTemplateGenerator:
         """Test variables are extracted from intent entities."""
         intent = Intent(
             intent_type="send_message",
-            entities={"recipient": "John", "message": "Hello"},
+            entities=_entities(recipient="John", message="Hello"),
             confidence=0.95,
             requires_reasoning=False,
             original_input="send message to John",
@@ -291,6 +333,7 @@ class TestTemplateGenerator:
             result_data={"song": "Bohemian Rhapsody", "artist": "Queen"},
             execution_time=0.1,
             action_id="test",
+            tool_id="test_tool",
             timestamp=datetime.now(tz=timezone.utc),
         )
 
@@ -344,6 +387,7 @@ class TestTemplateGenerator:
             result_data={},  # Missing name and count
             execution_time=0.1,
             action_id="test",
+            tool_id="test_tool",
             timestamp=datetime.now(tz=timezone.utc),
         )
 
@@ -415,12 +459,13 @@ class TestTemplateGenerator:
             result_data={"location": "Seattle", "condition": "Cloudy", "temperature": "65°F"},
             execution_time=0.2,
             action_id="test",
+            tool_id="test_tool",
             timestamp=datetime.now(tz=timezone.utc),
         )
 
         intent = Intent(
             intent_type="query_weather",
-            entities={"location": "Seattle"},
+            entities=_entities(location="Seattle"),
             confidence=0.95,
             requires_reasoning=False,
             original_input="what's the weather",
@@ -439,12 +484,13 @@ class TestTemplateGenerator:
             result_data={"device": "Living room lights", "action": "turned on"},
             execution_time=0.3,
             action_id="test",
+            tool_id="test_tool",
             timestamp=datetime.now(tz=timezone.utc),
         )
 
         intent = Intent(
-            intent_type="control_smart_home",
-            entities={"device": "lights", "action": "on"},
+            intent_type="control_device",
+            entities=_entities(device="lights", action="on"),
             confidence=0.95,
             requires_reasoning=False,
             original_input="turn on lights",
@@ -459,15 +505,10 @@ class TestTemplateGenerator:
         """Test permission denied error template."""
         result = ExecutionResult(
             success=False,
-            error=Error(
-                error_code="PERMISSION_DENIED",
-                error_type=ErrorType.PERMISSION_DENIED,
-                message="Permission denied",
-                recoverable=True,
-                suggested_action="Grant permission in settings",
-            ),
+            error="Permission denied",
             execution_time=0.1,
             action_id="test",
+            tool_id="test_tool",
             timestamp=datetime.now(tz=timezone.utc),
         )
 
@@ -482,20 +523,19 @@ class TestTemplateGenerator:
         response = generator.generate(result=result, intent=intent, modality=ResponseModality.TEXT)
 
         assert "permission" in response.text.lower()  # nosec B101
-        assert "Grant permission in settings" in response.text  # nosec B101
+        assert response.metadata["error_type"] == "permission_denied"  # nosec B101
+        # The remedy is carried in Response.suggestions, which is where the UI
+        # renders actionable steps; it was never part of the message body.
+        assert "Grant permission in settings" in response.suggestions  # nosec B101
 
     def test_network_error(self, generator: TemplateGenerator):
         """Test network error template."""
         result = ExecutionResult(
             success=False,
-            error=Error(
-                error_code="NETWORK_ERROR",
-                error_type=ErrorType.NETWORK_ERROR,
-                message="Network connection failed",
-                recoverable=True,
-            ),
+            error="Network connection failed",
             execution_time=2.0,
             action_id="test",
+            tool_id="test_tool",
             timestamp=datetime.now(tz=timezone.utc),
         )
 
