@@ -57,6 +57,36 @@ class IntentType(str, Enum):
     SCREENSHOT = "screenshot"
     CLIPBOARD = "clipboard"
 
+    # Rich-content intents.
+    #
+    # These were missing, and their absence made a whole implemented feature
+    # unreachable: RichContentGenerator.INTENT_CONTENT_MAP dispatches on
+    # exactly these strings to produce galleries, charts, maps, tables and
+    # carousels, but Intent.intent_type is typed IntentType, so pydantic
+    # rejected every Intent carrying one before it could ever reach that map.
+    # Seven of the map's keys matched no enum member and appeared nowhere else
+    # in the codebase; the generator side is written and tested, only the
+    # vocabulary was absent. Adding the members is additive -- nothing in the
+    # codebase matches exhaustively over IntentType -- and it makes existing
+    # code reachable rather than deleting a built capability.
+    SHOW_PHOTOS = "show_photos"
+    TAKE_PHOTO = "take_photo"
+    SHOW_STATS = "show_stats"
+    SHOW_REPORT = "show_report"
+    SHOW_CALENDAR = "show_calendar"
+    SHOW_RESULTS = "show_results"
+    SHOW_DIRECTIONS = "show_directions"
+    NAVIGATE_TO = "navigate_to"
+    LIST_EVENTS = "list_events"
+    LIST_DEVICES = "list_devices"
+    LIST_TIMERS = "list_timers"
+    READ_MESSAGES = "read_messages"
+    SEARCH_MUSIC = "search_music"
+    WEATHER_FORECAST = "weather_forecast"
+    SHOW_OPTIONS = "show_options"
+    SHOW_REPLIES = "show_replies"
+    SHOW_FORM = "show_form"
+
     # Conversation Management
     CLARIFICATION_REQUEST = "clarification_request"
     CONFIRMATION = "confirmation"
