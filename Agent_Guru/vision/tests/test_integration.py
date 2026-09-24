@@ -107,7 +107,11 @@ class TestTrainingPipelineIntegration:
 
     def test_export_to_onnx_produces_file(self, tmp_path: Path) -> None:
         """export_to_onnx creates an .onnx file from a valid ResNet-50 checkpoint."""
-        import torch
+        # torch is an optional extra (requirements-torch.txt), so a plain
+        # "import torch" turned "this machine has no torch" into a failing
+        # test rather than a skipped one. The sibling property test in this
+        # directory already guards it this way; this one did not.
+        torch = pytest.importorskip("torch")
         from Agent_Guru.vision.training.train import setup_arcface_training, TrainingConfig
         from Agent_Guru.vision.training.export import export_to_onnx
 
