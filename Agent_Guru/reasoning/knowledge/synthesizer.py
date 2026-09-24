@@ -51,7 +51,7 @@ from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from Agent_Guru.reasoning.memory_retriever import MemoryRetriever
 from Agent_Guru.reasoning.models.knowledge import (
@@ -237,10 +237,22 @@ class KnowledgeSynthesizer:
         self.llm_max_retries = llm_max_retries
         self.use_llm_synthesis = use_llm_synthesis
 
-        # Initialize LLM client if enabled
+        # LLM client is built LAZILY, on first synthesis.
+        #
+        # openai.OpenAI() and anthropic.Anthropic() raise at CONSTRUCTION when
+        # no credentials are configured -- openai.OpenAIError("Missing
+        # credentials...") -- so building one here made a KnowledgeSynthesizer
+        # impossible to construct at all on a machine with no API key. With
+        # use_llm_synthesis defaulting to True, that meant the DEFAULT
+        # constructor of a core component of an offline-first assistant threw
+        # unless the user had cloud credentials in their environment.
+        #
+        # The provider name is still validated eagerly: a typo in
+        # configuration should fail loudly and immediately, and doing so costs
+        # nothing and touches no network.
         self.llm_client: Any | None = None
         if self.use_llm_synthesis:
-            self._initialize_llm_client()
+            self._validate_llm_provider()
 
     def synthesize_answer(self, query: KnowledgeQuery, user_id: str) -> KnowledgeAnswer:
         """Synthesize comprehensive answer to knowledge query.
@@ -571,8 +583,11 @@ class KnowledgeSynthesizer:
             >>> print(answer.summary)
 
         """
-        # Try LLM synthesis if enabled
-        if self.use_llm_synthesis and self.llm_client is not None:
+        # Try LLM synthesis if enabled. _ensure_llm_client() builds the client
+        # the first time it is genuinely needed and returns None if it cannot,
+        # so this falls through to template synthesis exactly as it used to
+        # when the client had failed to initialise.
+        if self.use_llm_synthesis and self._ensure_llm_client() is not None:
             try:
                 # Run async LLM synthesis in sync context
                 loop = asyncio.get_running_loop()
@@ -1444,6 +1459,17 @@ class KnowledgeSynthesizer:
 
         return summary
 
+    def _validate_llm_provider(self) -> None:
+        """Check the configured provider name without touching the network.
+
+        Raises:
+            ValueError: If the provider is not one this class can drive.
+
+        """
+        if self.llm_provider not in ("openai", "anthropic"):
+            msg = f"Unsupported LLM provider: {self.llm_provider}. Supported: openai, anthropic"
+            raise ValueError(msg)
+
     def _initialize_llm_client(self) -> None:
         """Initialize LLM client based on provider.
 
@@ -1464,10 +1490,29 @@ class KnowledgeSynthesizer:
                 )
             self.llm_client = anthropic.Anthropic(api_key=self.llm_api_key)
         else:
-            msg = f"Unsupported LLM provider: {self.llm_provider}. Supported: openai, anthropic"
-            raise ValueError(
-                msg,
+            self._validate_llm_provider()
+
+    def _ensure_llm_client(self) -> Any | None:
+        """Build the LLM client on first use, or report that it cannot be built.
+
+        Returns the client, or None if it could not be constructed -- missing
+        credentials, a missing package, a bad endpoint. Returning None rather
+        than raising keeps the caller on the template-synthesis path, which is
+        the whole point of having one: an assistant that can still answer from
+        local memory when the cloud is unreachable.
+        """
+        if self.llm_client is not None:
+            return self.llm_client
+        try:
+            self._initialize_llm_client()
+        except Exception:
+            logger.warning(
+                "LLM client unavailable (%s); falling back to template synthesis",
+                self.llm_provider,
+                exc_info=True,
             )
+            self.llm_client = None
+        return self.llm_client
 
     async def synthesize_answer_with_llm(
         self,
@@ -1526,24 +1571,70 @@ class KnowledgeSynthesizer:
                     statistics,
                 )
 
+            # BUG FIX: this used to be a single `except TimeoutError:` whose
+            # body was the SAME three lines repeated three times -- the
+            # signature of handlers for the other failure modes having been
+            # collapsed into one during an edit. Two things were broken by it.
+            #
+            # First, a MALFORMED LLM RESPONSE was not caught at all.
+            # _parse_llm_synthesis_response() raises json.JSONDecodeError or
+            # pydantic ValidationError, and neither is a TimeoutError, so both
+            # propagated straight out of this method to the caller -- even
+            # though the docstring above promises "retry logic for malformed
+            # responses" and a template fallback. A provider returning one bad
+            # token took the whole answer down instead of degrading.
+            #
+            # Second, the duplicated body meant every non-final attempt slept
+            # THREE times, so the backoff was 3x longer than the 0.1 * 2**n it
+            # reads as.
             except TimeoutError:
-                if attempt == self.llm_max_retries - 1:
-                    # Final attempt failed, fall back to template-based generation
-                    return self.generate_answer(query, memories, patterns, statistics)
-                # Exponential backoff
-                await asyncio.sleep(0.1 * (2**attempt))
-                if attempt == self.llm_max_retries - 1:
-                    # Final attempt failed, fall back to template-based generation
-                    return self.generate_answer(query, memories, patterns, statistics)
-                # Exponential backoff
-                await asyncio.sleep(0.1 * (2**attempt))
-                if attempt == self.llm_max_retries - 1:
-                    # Final attempt failed, fall back to template-based generation
-                    return self.generate_answer(query, memories, patterns, statistics)
-                # Exponential backoff
-                await asyncio.sleep(0.1 * (2**attempt))
-        # Should never reach here, but fall back to template-based generation
+                logger.warning(
+                    "LLM synthesis timed out after %.2fs (attempt %d/%d)",
+                    self.llm_timeout_ms / 1000.0,
+                    attempt + 1,
+                    self.llm_max_retries,
+                )
+                if not await self._retry_backoff(attempt):
+                    break
+            except (json.JSONDecodeError, ValidationError):
+                # The model returned something that is not the JSON object we
+                # asked for. Retrying is worthwhile: these are usually
+                # non-deterministic formatting slips.
+                logger.warning(
+                    "LLM returned a malformed synthesis response "
+                    "(attempt %d/%d)",
+                    attempt + 1,
+                    self.llm_max_retries,
+                    exc_info=True,
+                )
+                if not await self._retry_backoff(attempt):
+                    break
+            except Exception:
+                # Transport, auth, rate limiting, an unbuildable client. The
+                # whole point of having a template path is that none of these
+                # should cost the user their answer.
+                logger.warning(
+                    "LLM synthesis call failed (attempt %d/%d)",
+                    attempt + 1,
+                    self.llm_max_retries,
+                    exc_info=True,
+                )
+                if not await self._retry_backoff(attempt):
+                    break
+
+        # Every attempt failed -- answer from local memory instead.
         return self.generate_answer(query, memories, patterns, statistics)
+
+    async def _retry_backoff(self, attempt: int) -> bool:
+        """Sleep before the next attempt; return False if none remain.
+
+        Exponential: 0.1s, 0.2s, 0.4s ... Kept in one place so the three
+        handlers above cannot drift apart again.
+        """
+        if attempt >= self.llm_max_retries - 1:
+            return False
+        await asyncio.sleep(0.1 * (2**attempt))
+        return True
 
     def _build_synthesis_prompt(
         self,
@@ -1648,9 +1739,21 @@ Generate a natural language answer that directly addresses the query."""
             LLM response text
 
         Raises:
-            RuntimeError: If LLM call fails
+            RuntimeError: If the LLM client cannot be built, or the call fails
 
         """
+        # The client is built lazily (see _ensure_llm_client), so every path
+        # that actually calls the provider has to make sure it exists first.
+        # Without this, reaching here with an unbuilt client produced
+        # `AttributeError: 'NoneType' object has no attribute 'chat'` instead
+        # of a message saying what was actually wrong.
+        if self._ensure_llm_client() is None:
+            msg = (
+                f"LLM synthesis requested but the {self.llm_provider} client "
+                "could not be initialised (missing package or credentials)"
+            )
+            raise RuntimeError(msg)
+
         if self.llm_provider == "openai":
             return await self._call_openai_synthesis(prompt)
         if self.llm_provider == "anthropic":
@@ -1679,10 +1782,14 @@ Generate a natural language answer that directly addresses the query."""
                 response_format={"type": "json_object"},
             ),
         )
+        # The else branch used to be `""[0].message.content`, which raises
+        # IndexError: string index out of range. An empty response is a
+        # normal API outcome; it should yield an empty string, which every
+        # caller already handles, not a crash inside the fallback path.
         return (
             str(response.choices[0].message.content)
             if response and response.choices
-            else ""[0].message.content
+            else ""
         )
 
     async def _call_anthropic_synthesis(self, prompt: str) -> str:
@@ -1705,7 +1812,9 @@ Generate a natural language answer that directly addresses the query."""
                 messages=[{"role": "user", "content": prompt}],
             ),
         )
-        return str(response.content[0].text) if response and response.content else ""[0].text
+        # `""[0].text` (the previous else branch) raises IndexError -- see the
+        # note in _call_openai_synthesis().
+        return str(response.content[0].text) if response and response.content else ""
 
     def _parse_llm_synthesis_response(self, response_text: str) -> LLMSynthesisResponse:
         """Parse and validate LLM synthesis response.
