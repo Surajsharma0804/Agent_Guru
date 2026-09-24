@@ -601,11 +601,24 @@ async def run() -> None:
         except Exception as _inj_err:
             logger.warning("Could not inject pre-warmed Whisper: %s", _inj_err)
 
-    # Extended warmup - lets the mic AGC stabilise and energy buffer fill
-    # with real ambient noise levels so the first detection isn't a false positive.
-    # 3s matches Alexa/Google's standard mic calibration window.
-    logger.info("Calibrating microphone (3s)...")
-    await asyncio.sleep(3.0)
+    # This used to log "Calibrating microphone (3s)" and then only sleep. The
+    # mic was never read and the threshold printed afterwards was the shipped
+    # default on every machine, so the line sent anyone debugging a quiet mic
+    # looking at a calibration that never happened. It now measures the room
+    # and logs what it found.
+    calibration = await wake_manager.calibrate_noise_floor(3.0)
+    if calibration is not None:
+        logger.info(
+            "Microphone calibrated over %.1fs: noise floor rms=%.5f, peak=%.4f, "
+            "wake threshold %.4f%s",
+            calibration.seconds, calibration.noise_rms, calibration.peak,
+            calibration.threshold_after,
+            ""
+            if calibration.threshold_after == calibration.threshold_before
+            else f" (raised from {calibration.threshold_before:.4f} for a noisy room)",
+        )
+    else:
+        logger.warning("Microphone not calibrated: no working input device yet")
     await wake_manager.start_listening()
     logger.info("Microphone open - listening for wake words.")
 
