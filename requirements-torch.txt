@@ -1,5 +1,12 @@
 --index-url https://download.pytorch.org/whl/cpu
 
-torch==2.2.2
-torchvision==0.17.2
-torchaudio==2.2.2
+# torch 2.2.2 was pinned here until 2026-09-24. Every torch before 2.6.0 is
+# affected by GHSA-53q9-r3pm-6pq6 (critical): torch.load(..., weights_only=True)
+# can still execute code embedded in a crafted file. vision/training/
+# evaluation.py and export.py load user-supplied checkpoints with exactly
+# that call, and treat it as the safe way to do it, so on 2.2.2 a
+# checkpoint someone hands you is a program. These are the versions
+# requirements-lock.txt already runs, so this adds no new combination.
+torch==2.11.0
+torchvision==0.26.0
+torchaudio==2.11.0

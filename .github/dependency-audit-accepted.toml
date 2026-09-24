@@ -1,0 +1,122 @@
+# Critical and high advisories that the dependency audit reports but does
+# not fail on, because someone has decided, in writing, why the risk is
+# acceptable.
+#
+# Why this file exists. Without it, the only choices are failing the build
+# on every advisory, which people learn to ignore within a week, or never
+# failing it, which is how 145 alerts built up unread. This file is the
+# third option: a new critical or high finding fails CI until someone
+# either upgrades or adds an entry here. Each entry is reviewed in a pull
+# request like any other change.
+#
+# Rules, enforced by scripts/dependency_audit.py:
+#   - `reason` says why the vulnerable code is not reachable, or why the
+#     risk is acceptable. "No fix yet" on its own is not a reason.
+#   - `review_by` is at most a year after `accepted_on`. Once it passes,
+#     the finding blocks again, so the decision is made again instead of
+#     going stale. Entries that match no finding are reported for deletion.
+#   - Moderate and low never block, so they do not belong here.
+#
+# The reasoning behind each entry is in docs/security/dependency-triage-2026-09.md.
+
+# --- No fixed release exists. Review sooner, to pick up the fix. -----------
+
+[[accepted]]
+advisory = "GHSA-f4j7-r4q5-qw2c"
+package = "chromadb"
+reason = "Pre-auth code injection in Chroma's HTTP server (chroma run). The project only uses the embedded chromadb.Client / PersistentClient in reasoning/memory/vector_db.py, which opens no port. Never run `chroma run` on the memory directory."
+accepted_on = 2026-09-24
+review_by = 2026-12-31
+
+[[accepted]]
+advisory = "GHSA-36p7-vc44-83pf"
+package = "chromadb"
+reason = "Authenticated code injection through the HTTP server's collection-update endpoint. The server is not run by the project, see GHSA-f4j7."
+accepted_on = 2026-09-24
+review_by = 2026-12-31
+
+[[accepted]]
+advisory = "GHSA-xph7-9rjv-w5fr"
+package = "chromadb"
+reason = "Tenant check missing in the server's SimpleRBACAuthorizationProvider. The embedded client has no tenants and no authorization provider."
+accepted_on = 2026-09-24
+review_by = 2026-12-31
+
+[[accepted]]
+advisory = "GHSA-2wm9-hf6c-p5cr"
+package = "chromadb"
+reason = "Cross-tenant access through the HTTP server's API. The embedded client has no tenants or HTTP routes."
+accepted_on = 2026-09-24
+review_by = 2026-12-31
+
+[[accepted]]
+advisory = "GHSA-8mgp-746c-j5xp"
+package = "nltk"
+reason = "Model-artifact APIs bypass pathsec. nltk is imported only by the developer script reasoning/scripts/train_intent_classifier.py, which calls nltk.download and nltk.data.find and none of the affected APIs."
+accepted_on = 2026-09-24
+review_by = 2026-12-31
+
+# --- Fixed upstream, but the vulnerable code is not reached. -----------------
+
+[[accepted]]
+advisory = "GHSA-jwv3-5hgf-82ww"
+package = "cryptography"
+reason = "X.509 path building. Nothing imports cryptography.x509 or verifies certificates. The fix needs the 49.x major release. Revisit if certificate verification is ever added."
+accepted_on = 2026-09-24
+review_by = 2027-03-24
+
+[[accepted]]
+advisory = "GHSA-g6cj-pr64-35w5"
+package = "cryptography"
+reason = "PKCS#7 EnvelopedData decryption oracle. Nothing imports the pkcs7 module. The fix needs the 50.x major release."
+accepted_on = 2026-09-24
+review_by = 2027-03-24
+
+[[accepted]]
+advisory = "GHSA-j5g9-f88f-gfj3"
+package = "httplib2"
+reason = "Decompression bomb in httplib2 responses. It is pulled in by google-generativeai, but vision/vqa.py only calls generate_content, which goes through google-api-core, not httplib2, and the only server involved is Google's."
+accepted_on = 2026-09-24
+review_by = 2027-03-24
+
+[[accepted]]
+advisory = "GHSA-f4xh-w4cj-qxq8"
+package = "langsmith"
+reason = "File read in LangSmith's server-side TracingMiddleware. Pulled in by langchain-core. Nothing imports langsmith or runs its middleware."
+accepted_on = 2026-09-24
+review_by = 2027-03-24
+
+[[accepted]]
+advisory = "GHSA-6v7p-g79w-8964"
+package = "msgpack"
+reason = "Out-of-bounds read when an Unpacker is reused after an error. Pulled in by librosa. The project never unpacks msgpack streams."
+accepted_on = 2026-09-24
+review_by = 2027-03-24
+
+[[accepted]]
+advisory = "GHSA-m4p7-r5rc-7g4j"
+package = "pyasn1"
+reason = "BER decoder DoS. Pulled in by google-auth, which uses it only in its pure-Python RSA fallback to parse a service-account key. cryptography is installed, so that fallback is not used, and the key would be the user's own file, not attacker input."
+accepted_on = 2026-09-24
+review_by = 2027-03-24
+
+[[accepted]]
+advisory = "GHSA-8ppf-4f7h-5ppj"
+package = "pyasn1"
+reason = "Quadratic OID decoding DoS. Same reach as GHSA-m4p7: only the user's own service-account key, and only in a fallback that is not used."
+accepted_on = 2026-09-24
+review_by = 2027-03-24
+
+[[accepted]]
+advisory = "GHSA-hm4w-wwcw-mr6r"
+package = "pyasn1"
+reason = "REAL value conversion DoS. Same reach as GHSA-m4p7: only the user's own service-account key, and only in a fallback that is not used."
+accepted_on = 2026-09-24
+review_by = 2027-03-24
+
+[[accepted]]
+advisory = "GHSA-82w8-qh3p-5jfq"
+package = "starlette"
+reason = "request.form() ignores its limits for urlencoded bodies. Pulled in by fastapi for the Docker-only reasoning API, and no route calls request.form() or declares Form() or UploadFile."
+accepted_on = 2026-09-24
+review_by = 2027-03-24

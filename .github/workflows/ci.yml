@@ -25,6 +25,11 @@
 #     below each one. Nothing is silenced: the advisory jobs publish their
 #     full output as artifacts on every run.
 #
+#   * The dependency audit blocks on unaccepted critical and high advisories
+#     and reports into the job summary and a tracking issue. It used to run
+#     with `|| true` into an artifact nobody opened; see the dependency-audit
+#     job for why that let 145 alerts accumulate.
+#
 # =============================================================================
 
 name: CI - Agent Guru
@@ -35,7 +40,8 @@ name: CI - Agent Guru
 #   * push and pull_request: the gate. Linux only - lint, security, mypy and
 #     pytest on Python 3.11, 3.12 and 3.13.
 #   * schedule (weekly) and workflow_dispatch (by hand): the platform run.
-#     pytest on Windows (3.11, 3.12, 3.13) and macOS (3.13) only.
+#     pytest on Windows (3.11, 3.12, 3.13) and macOS (3.13), plus the
+#     dependency audit, which is under a minute of Linux time.
 #
 # Why. GitHub bills Linux minutes 1x, Windows 2x and macOS 10x against a
 # 3,000 minute monthly allowance, and each test leg takes about 19 minutes:
@@ -244,12 +250,11 @@ jobs:
   # ---------------------------------------------------------------------------
   # Gate 2 - security.
   # Blocking. bandit reports zero issues across Agent_Guru/ as of this commit
-  # (verified), so this is a gate that can hold. The dependency audit is
-  # separate and advisory: a newly published CVE in a third-party package is
-  # not a reason to block a pull request that did not introduce it.
+  # (verified), so this is a gate that can hold. The dependency audit is its
+  # own job, below.
   # ---------------------------------------------------------------------------
   security:
-    name: Security - bandit (blocking) + dependency audit (advisory)
+    name: Security - bandit (blocking)
     # Gate run only; the platform run is pytest on Windows and macOS.
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -266,7 +271,7 @@ jobs:
             requirements*.txt
 
       - name: Install security tooling
-        run: pip install "bandit[toml]>=1.7.6" pip-audit
+        run: pip install "bandit[toml]>=1.7.6"
 
       - name: bandit - static analysis (blocking)
         run: bandit -r Agent_Guru -c pyproject.toml -f screen
@@ -275,24 +280,130 @@ jobs:
         if: always()
         run: bandit -r Agent_Guru -c pyproject.toml -f json -o bandit.json || true
 
-      - name: pip-audit - known vulnerable dependencies (advisory)
-        run: |
-          pip-audit -r requirements-lock.txt --format json --output pip-audit.json || true
-          {
-            echo "### pip-audit (advisory)"
-            echo ""
-            echo "Audited requirements-lock.txt; see the pip-audit artifact."
-          } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Upload security reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: security-reports
-          path: |
-            bandit.json
-            pip-audit.json
+          path: bandit.json
           retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # Gate 2b - known-vulnerable dependencies.
+  #
+  # What this replaced, and why. The old step was
+  #   pip-audit -r requirements-lock.txt ... || true
+  # with the JSON uploaded as an artifact. Nobody opened the artifact, and
+  # `|| true` meant the step could not fail, so 145 Dependabot alerts
+  # (7 critical, 57 high) built up with no human ever seeing one. The same
+  # `|| true` hid that the audit never worked: it made pip resolve the whole
+  # Windows-frozen lock, and it skipped torch, torchvision and torchaudio as
+  # "not found on PyPI" because the lock pins +cu128 builds. The triage is in
+  # docs/security/dependency-triage-2026-09.md.
+  #
+  # What it does now (scripts/dependency_audit.py):
+  #   * Audits requirements-lock.txt and requirements-torch.txt pin by pin.
+  #     Those are the only files with exact pins, so they are exactly what
+  #     Dependabot alerts on.
+  #   * FAILS on a critical or high advisory that nobody has accepted. That
+  #     includes a newly published one against a dependency this pull request
+  #     did not touch. That is deliberate: finding out when the advisory
+  #     appears, not months later, is the point. Clearing it takes one of
+  #     two small, reviewable changes: upgrade, or add an entry to
+  #     .github/dependency-audit-accepted.toml saying why the code is not
+  #     reachable, with a review-by date at most a year out.
+  #   * NEVER fails on moderate or low. They are listed in the job summary.
+  #     Failing on all of them is how an audit gets ignored within a week.
+  #   * FAILS if the audit itself did not complete: a package pip-audit
+  #     skipped, fewer packages audited than pinned, or a severity that
+  #     could not be looked up. A check that could not run must not look
+  #     like a check that passed.
+  #   * Puts the result where it will be read: a one-line headline and
+  #     tables in the job summary, an error annotation for each blocking
+  #     finding, and, on the weekly scheduled run, a GitHub issue labelled
+  #     dependency-audit. The issue is opened on the first failure, commented
+  #     on each week while it stays unresolved, and closed when the audit is
+  #     clean. Advisories are published without any push, so without the
+  #     weekly run a new critical could sit unseen until the next pull request.
+  #
+  # Runs on every event, the schedule included, and "CI status" requires it
+  # on pushes and pull requests. It takes well under a minute: pinned files
+  # with --no-deps need no resolver and no install.
+  # ---------------------------------------------------------------------------
+  dependency-audit:
+    name: Security - dependency audit (blocking on critical/high)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Only the scheduled run writes. It opens, comments on or closes the
+      # dependency-audit tracking issue.
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements*.txt
+
+      - name: Install audit tooling
+        run: pip install "pip-audit>=2.9,<3" pytest
+
+      # The script decides whether CI is red, so its own failure modes are
+      # tested before its answer is trusted.
+      - name: Self-test the audit script
+        # --noconftest: the root conftest.py imports hypothesis, which these
+        # tests do not need and this job does not install.
+        run: python -m pytest --noconftest -p no:cacheprovider -o addopts="" -q scripts/tests/test_dependency_audit.py
+
+      - name: pip-audit - pinned dependencies (blocking on critical/high)
+        id: audit
+        run: python scripts/dependency_audit.py requirements-lock.txt requirements-torch.txt
+
+      - name: Upload the audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit
+          path: dependency-audit/
+          retention-days: 30
+
+      - name: Open, update or close the tracking issue (scheduled run only)
+        if: always() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.audit.outcome }}
+        run: |
+          set -euo pipefail
+          label=dependency-audit
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          existing=$(gh issue list --label "$label" --state open --json number --jq '.[0].number // empty')
+
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -n "$existing" ]; then
+              gh issue close "$existing" --comment "The scheduled dependency audit on $(date -u +%F) found nothing that needs a decision. Closing. Run: $run_url"
+            fi
+            exit 0
+          fi
+
+          if [ -f dependency-audit/report.md ]; then
+            cp dependency-audit/report.md issue.md
+          else
+            echo "The audit step ($OUTCOME) failed before it wrote a report. Read the job log." > issue.md
+          fi
+          printf '\n\nRun: %s\n' "$run_url" >> issue.md
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file issue.md
+          else
+            gh label create "$label" --color B60205 --description "Opened by the scheduled dependency audit" --force
+            gh issue create --label "$label" --body-file issue.md \
+              --title "Dependency audit: critical or high findings need a decision"
+          fi
 
   # ---------------------------------------------------------------------------
   # Gate 3 - the actual test suite.
@@ -438,16 +549,18 @@ jobs:
   ci-status:
     name: CI status
     runs-on: ubuntu-latest
-    needs: [lint-errors, security, test]
+    needs: [lint-errors, security, dependency-audit, test]
     if: always() && (github.event_name == 'push' || github.event_name == 'pull_request')
     steps:
       - name: Fail if any required job did not succeed
         run: |
-          echo "lint-errors: ${{ needs.lint-errors.result }}"
-          echo "security:    ${{ needs.security.result }}"
-          echo "test:        ${{ needs.test.result }}"
+          echo "lint-errors:      ${{ needs.lint-errors.result }}"
+          echo "security:         ${{ needs.security.result }}"
+          echo "dependency-audit: ${{ needs.dependency-audit.result }}"
+          echo "test:             ${{ needs.test.result }}"
           if [ "${{ needs.lint-errors.result }}" != "success" ] \
           || [ "${{ needs.security.result }}" != "success" ] \
+          || [ "${{ needs.dependency-audit.result }}" != "success" ] \
           || [ "${{ needs.test.result }}" != "success" ]; then
             echo "::error::A required CI job failed."
             exit 1
