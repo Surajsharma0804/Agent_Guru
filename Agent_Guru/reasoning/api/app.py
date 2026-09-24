@@ -29,6 +29,8 @@ Version: 1.0.0
 """
 
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -39,7 +41,7 @@ from opentelemetry import trace
 from prometheus_client import Counter, Histogram, generate_latest
 from starlette.responses import Response
 
-from Agent_Guru.reasoning.api.auth import get_current_user
+from Agent_Guru.reasoning.api.auth import get_current_user, get_jwt_secret
 from Agent_Guru.reasoning.api.models import (
     ConversationResponse,
     ErrorResponse,
@@ -81,6 +83,25 @@ processing_duration = Histogram(
 # Global app instance
 _app: FastAPI | None = None
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Refuse to start serving unless the JWT secret is safely configured.
+
+    auth.py used to fall back to a public placeholder secret, so a deployment
+    that forgot JWT_SECRET started normally and accepted forged tokens. The
+    request path now refuses to sign or verify without a real secret, but on
+    its own that would only show up as a 500 on the first authenticated
+    request, possibly long after the rollout was declared healthy. Checking
+    here makes uvicorn exit at startup with a message naming JWT_SECRET.
+
+    This is a lifespan hook rather than a check in create_app() because this
+    module builds the default app at import time, and the api package imports
+    this module, so a check in create_app() would break every import of
+    Role, Permission or the models in code that never serves a request.
+    """
+    get_jwt_secret()
+    yield
+
 def create_app(
     title: str = "Agent Guru Reasoning Engine API",
     version: str = "1.0.0",
@@ -110,6 +131,7 @@ def create_app(
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+        lifespan=_lifespan,
     )
 
     # Add CORS middleware

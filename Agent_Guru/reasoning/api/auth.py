@@ -46,13 +46,87 @@ from fastapi.security import (
 from pydantic import BaseModel
 
 # JWT configuration
-JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+#
+# SECURITY FIX: JWT_SECRET used to be a module constant read with a fallback
+# to "your-secret-key-change-in-production", so any deployment that did not
+# set the variable signed and verified every token with a placeholder string
+# that is printed in public tutorials and was listed as the default in this
+# package's own README. Anyone could mint a valid token for any user id and
+# any role, including admin. Nothing warned, nothing logged, and the server
+# started normally: a complete authentication bypass that looked like working
+# software.
+#
+# The secret is now read by get_jwt_secret() at the moment a token is signed or
+# verified, and there is no fallback. It is not a module constant for two
+# reasons. First, a constant evaluated at import cannot fail usefully: this
+# module is imported by anything that needs Role or Permission, and by the
+# package __init__, so refusing to import would break code that never touches
+# a token, and accepting the import leaves a bad value loaded before anyone can
+# react. Second, the API server checks the secret once in its startup hook
+# (app.py), which is the point where a missing secret should stop a deployment,
+# and it must see the same value the request path sees.
+#
+# There is deliberately no generated fallback secret either. A random
+# per-process secret would not be forgeable, but it would change on every
+# restart and differ between uvicorn workers and replicas, so tokens would be
+# rejected at random and the missing configuration would stay hidden behind
+# intermittent 401s.
+JWT_SECRET_ENV = "JWT_SECRET"  # nosec B105  # noqa: S105 - the variable name, not a secret
+# RFC 7518 section 3.2: an HS256 key must be at least 256 bits. PyJWT warns
+# below this length but still signs, so the check has to be ours.
+JWT_MIN_SECRET_BYTES = 32
+# The value this module used to fall back to. It is documented in public
+# places, so a deployment that copied it into its environment is exactly as
+# forgeable as one that set nothing.
+_JWT_PUBLIC_PLACEHOLDER = "your-secret-key-change-in-production"  # nosec B105
+_JWT_SECRET_HINT = (
+    "Set JWT_SECRET to a random value of at least "
+    f"{JWT_MIN_SECRET_BYTES} bytes, for example the output of: "
+    'python -c "import secrets; print(secrets.token_urlsafe(48))". '
+    "Every API process and replica must use the same value."
+)
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
 # Rate limiting configuration
 RATE_LIMIT_REQUESTS = 100  # requests per window
 RATE_LIMIT_WINDOW = 60  # seconds
+
+class JWTSecretNotConfiguredError(RuntimeError):
+    """JWT_SECRET is missing or unusable, so no token can be signed or trusted."""
+
+
+def get_jwt_secret() -> str:
+    """Return the JWT signing secret, or refuse if it is not safe to use.
+
+    Returns:
+        The value of the JWT_SECRET environment variable.
+
+    Raises:
+        JWTSecretNotConfiguredError: If JWT_SECRET is unset, blank, the old
+            public placeholder, or shorter than JWT_MIN_SECRET_BYTES. The
+            message names the variable and says what to set.
+
+    """
+    secret = os.environ.get(JWT_SECRET_ENV, "")
+    if not secret.strip():
+        raise JWTSecretNotConfiguredError(
+            f"{JWT_SECRET_ENV} is not set. The API signs and verifies every "
+            "access token with it and has no default. " + _JWT_SECRET_HINT,
+        )
+    if secret == _JWT_PUBLIC_PLACEHOLDER:
+        raise JWTSecretNotConfiguredError(
+            f"{JWT_SECRET_ENV} is set to the public placeholder "
+            f"'{_JWT_PUBLIC_PLACEHOLDER}', which anyone can use to forge "
+            "tokens. " + _JWT_SECRET_HINT,
+        )
+    if len(secret.encode()) < JWT_MIN_SECRET_BYTES:
+        raise JWTSecretNotConfiguredError(
+            f"{JWT_SECRET_ENV} is {len(secret.encode())} bytes long, below the "
+            f"{JWT_MIN_SECRET_BYTES}-byte minimum for HS256. " + _JWT_SECRET_HINT,
+        )
+    return secret
+
 
 # Security schemes
 security = HTTPBearer()
@@ -538,6 +612,9 @@ def create_access_token(user_id: str, role: Role = Role.USER) -> str:
     Returns:
         JWT token string
 
+    Raises:
+        JWTSecretNotConfiguredError: If JWT_SECRET is not safely configured
+
     Example:
         >>> token = create_access_token("user_123", Role.ADMIN)
         >>> print(token)
@@ -553,7 +630,7 @@ def create_access_token(user_id: str, role: Role = Role.USER) -> str:
         "iat": int(now.timestamp()),
     }
 
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
 
 def verify_token(token: str) -> TokenData:
     """Verify JWT token and extract data.
@@ -568,14 +645,19 @@ def verify_token(token: str) -> TokenData:
 
     Raises:
         HTTPException: If token is invalid or expired
+        JWTSecretNotConfiguredError: If JWT_SECRET is not safely configured
 
     Example:
         >>> data = verify_token(token)
         >>> print(data.user_id, data.role)
 
     """
+    # Read outside the try below on purpose: a missing secret is a server
+    # misconfiguration, not a bad token, and must surface as such instead of
+    # being folded into the generic "Invalid token" 401.
+    secret = get_jwt_secret()
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, secret, algorithms=[JWT_ALGORITHM])
         # Convert role string to Role enum
         payload["role"] = Role(payload["role"])
         return TokenData(**payload)

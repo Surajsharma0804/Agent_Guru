@@ -235,6 +235,8 @@ Ordered by real risk to this project, highest first.
   the environment variable is unset. Any deployment that forgets the variable
   accepts tokens that anyone can forge. This should fail at startup instead.
   It is out of scope here, and needs its own change.
+  Since fixed: `auth.py` now has no fallback, and the API refuses to
+  start until `JWT_SECRET` is set.
 
 ### 8. pytorch-lightning 2.6.5: not in the 145, reachable in the training script
 
