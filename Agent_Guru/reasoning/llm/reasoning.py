@@ -1,4 +1,4 @@
-"""LLM Reasoning Core.
+﻿"""LLM Reasoning Core.
 
 Implements reasoning plan generation with:
 - ReasoningPlan and ReasoningStep data structures
@@ -12,6 +12,7 @@ Performance Target: <2s end-to-end reasoning (95th percentile)
 
 import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -19,6 +20,9 @@ from typing import Any
 
 from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.prompts import ConversationContext, ReasoningPrompts
+from Agent_Guru.reasoning.llm.timeouts import DEFAULT_PLAN_TIMEOUT_S, plan_timeout
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ReasoningStep:
@@ -109,16 +113,30 @@ class ReasoningPlanGenerator:
 
     MAX_STEPS = 5
     MAX_RETRIES = 3
-    TIMEOUT_SECONDS = 5.0
 
-    def __init__(self, llm_provider: Any) -> None:
+    #: Fallback used when no timeout is supplied and the environment says
+    #: nothing. Was a hard-coded 5.0 applied to every attempt: a local model
+    #: on a CPU cannot produce a multi-step plan in five seconds, so planning
+    #: failed by the clock on exactly the hardware this project targets, three
+    #: times over because MAX_RETRIES re-ran the call that was on track to
+    #: succeed. See Agent_Guru.reasoning.llm.timeouts.
+    TIMEOUT_SECONDS = DEFAULT_PLAN_TIMEOUT_S
+
+    def __init__(self, llm_provider: Any, timeout_seconds: float | None = None) -> None:
         """Initialize reasoning plan generator.
 
         Args:
             llm_provider: LLM provider instance (OpenAI, Anthropic, etc.)
+            timeout_seconds: Per-attempt timeout. Defaults to the
+                AGENT_GURU_PLAN_TIMEOUT_SECONDS policy.
 
         """
         self.llm_provider = llm_provider
+        resolved = plan_timeout() if timeout_seconds is None else timeout_seconds
+        if resolved <= 0:
+            msg = f"timeout_seconds must be positive, got {resolved}"
+            raise ValueError(msg)
+        self.timeout_seconds = resolved
 
     async def generate_plan(
         self,
@@ -170,13 +188,14 @@ class ReasoningPlanGenerator:
         full_prompt = f"{ReasoningPrompts.SYSTEM_PROMPT}\n\n{prompt}"
 
         # Generate plan with retry logic
+        last_parse_error: Exception | None = None
         for _attempt in range(self.MAX_RETRIES):
             try:
-                # Call LLM with timeout — single wait_for here; _call_llm must NOT
+                # Call LLM with timeout - single wait_for here; _call_llm must NOT
                 # add its own wait_for so the cancellation propagates cleanly.
                 response = await asyncio.wait_for(
                     self._call_llm(full_prompt),
-                    timeout=self.TIMEOUT_SECONDS,
+                    timeout=self.timeout_seconds,
                 )
 
                 # Parse and validate response
@@ -192,14 +211,43 @@ class ReasoningPlanGenerator:
                 return plan
 
             except asyncio.CancelledError as e:
-                # Outer wait_for cancelled the inner coroutine — treat as timeout
-                msg = f"LLM plan generation timed out after {self.TIMEOUT_SECONDS}s"
+                # Outer wait_for cancelled the inner coroutine - treat as timeout
+                msg = f"LLM plan generation timed out after {self.timeout_seconds}s"
                 raise TimeoutError(
                     msg,
                 ) from e
-                # Retry with more explicit instructions
-        msg = "Failed to generate plan"
-        raise ValueError(msg)
+
+            except (json.JSONDecodeError, ValueError) as e:
+                # BUG FIX: this handler was missing entirely. The loop was
+                # built to retry (MAX_RETRIES, and the "# Retry with more
+                # explicit instructions" comment that had been stranded after
+                # an unconditional `raise`), but the only surviving clause
+                # caught CancelledError -- so a model returning malformed JSON,
+                # or a plan failing validation, raised straight out of
+                # generate_plan() on the FIRST attempt. No retry ever happened.
+                #
+                # That is the single most common failure mode of a local
+                # model: a stray token before the JSON, a trailing comma, one
+                # step too many. It took the whole turn down instead of being
+                # asked again.
+                #
+                # Only parse/validation failures are retried here. Transport
+                # failures are already retried inside BaseLLMProvider, and
+                # repeating them at this layer would multiply the backoff.
+                last_parse_error = e
+                logger.warning(
+                    "LLM returned an unusable plan (attempt %d/%d): %s",
+                    _attempt + 1,
+                    self.MAX_RETRIES,
+                    e,
+                )
+                continue
+
+        msg = (
+            f"Failed to generate valid plan after {self.MAX_RETRIES} attempts"
+            f"{f': {last_parse_error}' if last_parse_error else ''}"
+        )
+        raise ValueError(msg) from last_parse_error
 
     async def stream_plan(
         self,
@@ -234,7 +282,7 @@ class ReasoningPlanGenerator:
         """Call LLM provider with prompt.
 
         The caller (generate_plan) wraps this in asyncio.wait_for, so we do NOT
-        add a second wait_for here — nested wait_for calls cause CancelledError
+        add a second wait_for here - nested wait_for calls cause CancelledError
         to propagate incorrectly when the outer timeout fires.
 
         Args:
