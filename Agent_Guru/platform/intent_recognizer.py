@@ -462,7 +462,25 @@ _WEB_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 _INFORMATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\b(time|date|day|today|what time|what day)\b", re.IGNORECASE), "time_date"),
+    # Only a question about the clock or the calendar right here, right now.
+    # This used to be any mention of time|date|day|today, which was harmless
+    # while nothing consumed time_date. It is now answered from the system
+    # clock without the LLM, and the old pattern would have answered "How was
+    # your day?" and "I had a long day" with the time. A time somewhere else
+    # ("the time in London", "the date of Diwali", "what time does the match
+    # start") is not a clock reading and is left to the question patterns.
+    (
+        re.compile(
+            r"\b(?:what(?:'s|\s+is)|tell\s+me|know)\s+the\s+(?:current\s+)?(?:time|date)"
+            r"(?=\s*(?:[?.!,]|$|(?:right\s+)?now\b|today\b|currently\b|please\b|and\b))"
+            r"|\bwhat\s+time\s+is\s+it\b(?!\s+(?:in|at)\b)"
+            r"|\bwhat\s+(?:day|date)\s+is\s+(?:it|today)\b"
+            r"|\bwhat(?:'s|\s+is)\s+today'?s\s+date\b"
+            r"|\bkitne\s+baje\b|\btime\s+kya\s+(?:hai|hua|ho\s+gaya)\b",
+            re.IGNORECASE,
+        ),
+        "time_date",
+    ),
     (re.compile(r"\b(weather|temperature|forecast)\b", re.IGNORECASE), "weather"),
     (re.compile(r"\b(news|headlines|latest)\b", re.IGNORECASE), "news"),
     (re.compile(r"\b(search|look up|find|google)\b.+", re.IGNORECASE), "search"),

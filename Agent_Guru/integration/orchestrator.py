@@ -185,6 +185,27 @@ MEMORY_WRITE_TIMEOUT_S = _env_seconds("AGENT_GURU_MEMORY_WRITE_TIMEOUT", 10.0)
 LLM_TIMEOUT_REPLY = "Sorry, that took too long for me to work out. Could you ask me again?"
 
 
+def _local_now() -> _dt.datetime:
+    """The system clock in the machine's own time zone (a seam for tests)."""
+    return _dt.datetime.now().astimezone()
+
+
+def _clock_answer() -> str:
+    """Answer "what's the time / date / day" from the system clock.
+
+    The intent recognizer has always tagged these questions as
+    information:time_date, and nothing consumed that action. They went to the
+    LLM (about 45 seconds on the CPU-only machine of the first Windows run),
+    whose prompt carries no clock at all, and then to a web search. The machine
+    the assistant runs on already knows the answer, offline and instantly.
+    Time and date are both given, so the one answer fits "what time is it",
+    "what's the date" and "what day is it" alike.
+    """
+    now = _local_now()
+    hour = now.strftime("%I").lstrip("0")
+    return f"It's {hour}:{now:%M} {now:%p} on {now:%A}, {now.day} {now:%B} {now.year}."
+
+
 # ---------------------------------------------------------------------------
 # IntegrationOrchestrator
 # ---------------------------------------------------------------------------
@@ -2086,6 +2107,11 @@ class IntegrationOrchestrator:
                 )
                 return None
 
+            # Before the controller check: reading the clock needs no platform
+            # controller, and a missing one must not turn this into silence.
+            if intent_type == "information" and action == "time_date":
+                return _clock_answer()
+
             ctrl = self.platform_controller
             if ctrl is None:
                 return None
@@ -3064,8 +3090,15 @@ class IntegrationOrchestrator:
                 for step in intent.split("|")
             )
 
-        parts = intent.split(":", 1)
+        parts = intent.split(":", 2)
         intent_type = parts[0].lower().strip() if parts else ""
+        action = parts[1].lower().strip() if len(parts) > 1 else ""
+
+        # Answered from the system clock in the action stage (_clock_answer).
+        # Running the LLM first cost the user 45 seconds for a reply that was
+        # then thrown away, because the spoken reply prefers action_result.
+        if intent_type == "information" and action == "time_date":
+            return False
 
         # These intent types always need LLM (they are questions/conversation)
         if intent_type in ("conversation", "information"):
