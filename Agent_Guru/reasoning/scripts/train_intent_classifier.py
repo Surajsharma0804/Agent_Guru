@@ -1,4 +1,4 @@
-"""STATE-OF-THE-ART Intent Classification Training - DeBERTa-v3.
+﻿"""STATE-OF-THE-ART Intent Classification Training - DeBERTa-v3.
 
 Based on latest research (2024-2025):
 - DeBERTa-v3-large: SOTA for text classification (91.37% GLUE)
@@ -135,14 +135,14 @@ class TrainingConfig:
     gradient_clip_val: float = 1.0
     label_smoothing: float = 0.1
 
-    # GPU optimization — tuned for RTX 2050 (4GB VRAM)
+    # GPU optimization - tuned for RTX 2050 (4GB VRAM)
     mixed_precision: bool = True
     gradient_accumulation_steps: int = 32  # Effective batch 32 (1*32)
     num_workers: int = min(4, os.cpu_count() or 1)
 
-    # Data augmentation — reduced to 3x to avoid OOM on 4GB GPU
+    # Data augmentation - reduced to 3x to avoid OOM on 4GB GPU
     use_augmentation: bool = True
-    augmentation_factor: int = 3  # 3x is safe for 4GB VRAM (was 10x — caused OOM)
+    augmentation_factor: int = 3  # 3x is safe for 4GB VRAM (was 10x - caused OOM)
 
     # Advanced techniques (proven effective)
     use_adversarial_training: bool = False  # DISABLED to save memory (4GB VRAM limit)
@@ -162,6 +162,20 @@ class TrainingConfig:
     # Early stopping
     patience: int = 7  # Optimal patience for 30 epochs (stops if no improvement for 7 epochs)
     min_delta: float = 0.001
+
+
+def _downloads_disabled() -> bool:
+    """True when AGENT_GURU_NO_DOWNLOAD asks us not to fetch model weights.
+
+    The same switch the TTS engine honours, so an offline-first deployment (or
+    a hermetic test run) has ONE thing to set rather than one per subsystem.
+    """
+    return os.environ.get("AGENT_GURU_NO_DOWNLOAD", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 class DataAugmenter:
@@ -205,12 +219,51 @@ class DataAugmenter:
         # Synonym replacement
         self.synonym_aug = naw.SynonymAug(aug_src="wordnet", aug_max=3)
 
-        # Contextual word embeddings (BERT-based)
-        self.context_aug = naw.ContextualWordEmbsAug(
-            model_path="roberta-base",
-            action="substitute",
-            aug_max=3,
-        )
+        # Contextual word embeddings (BERT-based).
+        #
+        # Guarded like back-translation below, because it is NOT optional in
+        # practice: nlpaug's last release predates the transformers versions
+        # this project requires (>=4.36.0) and reaches for a private tokenizer
+        # API that has since been removed, so constructing it raises
+        # "AttributeError: RobertaTokenizer has no attribute
+        # _convert_token_to_id". Unguarded, that took the whole DataAugmenter
+        # down at construction -- one unavailable augmentation strategy
+        # disabling the entire training-data pipeline, even though augment()
+        # below already skips individual strategies that fail.
+        # Constructing either of the two model-backed augmenters below FETCHES
+        # weights from the Hugging Face Hub on a cold cache (roberta-base, and
+        # two ~1 GB WMT19 translation models). Agent_Guru is offline-first and
+        # already has one switch that means "do not fetch model weights" -
+        # AGENT_GURU_NO_DOWNLOAD, honoured by the TTS engine - so this honours
+        # the same switch rather than blocking on a download that may never
+        # complete. Without it an automated run of this module's tests stalled
+        # inside AutoTokenizer.from_pretrained("roberta-base") until it was
+        # killed by the suite's 30-second timeout.
+        skip_downloads = _downloads_disabled()
+
+        if skip_downloads:
+            _logger.info(
+                "AGENT_GURU_NO_DOWNLOAD is set; skipping the contextual and "
+                "back-translation augmenters (both fetch model weights). "
+                "Synonym augmentation still runs.",
+            )
+            self.context_aug = None
+            self.back_translation_aug = None
+            return
+
+        try:
+            self.context_aug = naw.ContextualWordEmbsAug(
+                model_path="roberta-base",
+                action="substitute",
+                aug_max=3,
+            )
+        except Exception as exc:
+            _logger.warning(
+                "Contextual augmentation unavailable (%s); continuing with "
+                "synonym and back-translation strategies",
+                exc,
+            )
+            self.context_aug = None
 
         # Back translation (if available)
         try:
@@ -249,6 +302,8 @@ class DataAugmenter:
 
         # Contextual embeddings
         try:
+            if self.context_aug is None:
+                raise RuntimeError("contextual augmenter unavailable")
             aug_text = self.context_aug.augment(text)
             if isinstance(aug_text, list):
                 augmented.extend(aug_text[:num_augmentations])
@@ -478,7 +533,7 @@ class IntentDataset(Dataset):
         self.attention_masks: torch.Tensor = encodings["attention_mask"]
         self.labels_tensor: torch.Tensor = torch.tensor(labels, dtype=torch.long)
 
-        # Release Python objects — workers only need the pre-built tensors
+        # Release Python objects - workers only need the pre-built tensors
         del self.data
         del self.tokenizer
         del self.intent_to_id
@@ -489,7 +544,7 @@ class IntentDataset(Dataset):
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         """Get pre-tokenized item.
 
-        Time Complexity: O(1) — direct tensor index
+        Time Complexity: O(1) - direct tensor index
         Space Complexity: O(1)
         """
         return {
@@ -1005,7 +1060,7 @@ def train_intent_classifier(config: TrainingConfig) -> None:
     class_weights = train_dataset.class_weights.to(_device)
 
     # Create data loaders
-    # num_workers=0: dataset is pre-tokenized as tensors, so __getitem__ is O(1) index —
+    # num_workers=0: dataset is pre-tokenized as tensors, so __getitem__ is O(1) index -
     # multiprocessing workers provide no throughput benefit and are not needed.
     train_loader = DataLoader(
         train_dataset,
@@ -1117,7 +1172,7 @@ def train_intent_classifier(config: TrainingConfig) -> None:
     best_model.model.save_pretrained(final_model_path)
     tokenizer.save_pretrained(final_model_path)
 
-    # Save intent mappings — save BOTH formats so both the training pipeline
+    # Save intent mappings - save BOTH formats so both the training pipeline
     # and the NeuralIntentClassifier (which expects label_mappings.yaml) work.
     mappings = {
         "intent_to_id": intent_to_id,
