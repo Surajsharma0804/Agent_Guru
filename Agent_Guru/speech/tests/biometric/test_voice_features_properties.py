@@ -67,6 +67,7 @@ class TestVoiceBiometricConfidenceBounds:
     @given(audio_data())
     @settings(max_examples=100, deadline=None)
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("requires_librosa")
     async def test_confidence_bounds(self, audio_sample):
         """Test that confidence scores are always between 0.0 and 1.0.
         
@@ -88,6 +89,7 @@ class TestVoiceBiometricConfidenceBounds:
     @given(audio_data())
     @settings(max_examples=100, deadline=None)
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("requires_librosa")
     async def test_feature_vector_properties(self, audio_sample):
         """Test that feature vectors have expected properties.
         
@@ -119,6 +121,7 @@ class TestVoiceBiometricConfidenceBounds:
     @given(audio_data())
     @settings(max_examples=100, deadline=None)
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("requires_librosa")
     async def test_metadata_validity(self, audio_sample):
         """Test that metadata fields are valid.
         
@@ -150,6 +153,7 @@ class TestVoiceBiometricConfidenceBounds:
     @given(st.integers(min_value=1, max_value=10))
     @settings(max_examples=50, deadline=None)
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("requires_librosa")
     async def test_consistency_across_calls(self, seed):
         """Test that same audio produces same features.
         
@@ -188,6 +192,7 @@ class TestVoiceBiometricConfidenceBounds:
     )
     @settings(max_examples=50, deadline=None)
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("requires_librosa")
     async def test_quality_score_sensitivity(self, noise_level, sample_rate):
         """Test that quality score responds to audio quality.
         

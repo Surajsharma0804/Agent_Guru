@@ -25,6 +25,7 @@ class TestLivenessDetection:
     Tests Requirement 3.4: Anti-spoofing detection.
     """
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_genuine_voice_detection(self):
         """Test liveness detection with genuine voice characteristics.
         
@@ -218,6 +219,7 @@ class TestLivenessDetection:
                     f"Confidence {confidence} < 0.55 but is_live is True"
                 )
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_liveness_with_high_frequency_content(self):
         """Test that audio with good high-frequency content scores higher."""
         sample_rate = 16000

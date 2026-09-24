@@ -48,6 +48,7 @@ def test_voice_cloner_initialization(voice_cloner):
     assert len(voice_cloner.list_voices()) == 0  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_enroll_voice_success(voice_cloner, sample_audio):
     """Test successful voice enrollment."""
     # Create 30 samples of 10 seconds each (300 seconds total)
@@ -93,6 +94,7 @@ def test_enroll_voice_empty_samples(voice_cloner):
         )
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_enroll_voice_low_quality(voice_cloner):
     """Test enrollment with low quality audio (should succeed but with lower quality score)."""
     # Generate audio with low SNR (noisy)
@@ -123,6 +125,7 @@ def test_enroll_voice_low_quality(voice_cloner):
     assert voice_model.model_id == "test_voice_low_quality"  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_update_voice_model(voice_cloner, sample_audio):
     """Test voice model update with new samples."""
     # Initial enrollment
@@ -159,6 +162,7 @@ def test_update_voice_model_not_found(voice_cloner, sample_audio):
         )
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_synthesize_with_cloned_voice(voice_cloner, sample_audio):
     """Test synthesis with cloned voice."""
     # Enroll voice
@@ -191,6 +195,7 @@ def test_synthesize_voice_not_found(voice_cloner):
         )
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_compute_similarity_identical(voice_cloner, sample_audio):
     """Test similarity computation for identical audio."""
     similarity = voice_cloner.compute_similarity(
@@ -224,6 +229,7 @@ def test_compute_similarity_different(voice_cloner, sample_audio):
     assert similarity < 0.95  # Should be less than identical  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_compute_similarity_similar(voice_cloner, sample_audio):
     """Test similarity computation for similar audio."""
     # Create slightly modified version
@@ -240,6 +246,7 @@ def test_compute_similarity_similar(voice_cloner, sample_audio):
     assert similarity > 0.7  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_get_voice_model(voice_cloner, sample_audio):
     """Test retrieving voice model."""
     # Enroll voice
@@ -264,6 +271,7 @@ def test_get_voice_model_not_found(voice_cloner):
     assert model is None  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_list_voices(voice_cloner, sample_audio):
     """Test listing enrolled voices."""
     # Initially empty
@@ -283,6 +291,7 @@ def test_list_voices(voice_cloner, sample_audio):
     assert "voice3" in voices  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_delete_voice(voice_cloner, sample_audio):
     """Test deleting a voice."""
     # Enroll voice
@@ -304,6 +313,7 @@ def test_delete_voice_not_found(voice_cloner):
     assert result is False  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_save_and_load_voice_profile(voice_cloner, sample_audio):
     """Test saving and loading voice profile."""
     # Enroll voice
@@ -367,6 +377,7 @@ def test_load_voice_profile_invalid_file(voice_cloner):
             os.unlink(filepath)
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_enroll_voice_with_metadata(voice_cloner, sample_audio):
     """Test enrollment with metadata."""
     audio_samples = [sample_audio for _ in range(30)]
@@ -387,6 +398,7 @@ def test_enroll_voice_with_metadata(voice_cloner, sample_audio):
     assert voice_model.model_id == "test_voice_metadata"  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_multiple_voice_enrollment(voice_cloner, sample_audio):
     """Test enrolling multiple voices."""
     audio_samples = [sample_audio for _ in range(30)]
@@ -407,6 +419,7 @@ def test_multiple_voice_enrollment(voice_cloner, sample_audio):
         assert f"voice_{i}" in voices  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_feature_extraction(voice_cloner, sample_audio):
     """Test feature extraction."""
     features = voice_cloner._extract_voice_features(sample_audio, 16000)
@@ -428,6 +441,7 @@ def test_voice_cloner_audio_quality(voice_cloner, sample_audio):
     assert quality > 0.5  # Sample audio should have decent quality  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_short_audio_handling(voice_cloner):
     """Test handling of very short audio."""
     # Generate 0.1 second of audio
@@ -441,6 +455,7 @@ def test_voice_cloner_short_audio_handling(voice_cloner):
     assert 0.0 <= quality <= 1.0  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_different_sample_rates(voice_cloner):
     """Test with different sample rates."""
     for sample_rate in [8000, 16000, 22050, 44100]:
@@ -453,6 +468,7 @@ def test_voice_cloner_different_sample_rates(voice_cloner):
         assert len(features) > 0  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_enroll_voice_various_audio_types(voice_cloner):
     """Test enrollment with various audio characteristics."""
     sample_rate = 16000
@@ -493,6 +509,7 @@ def test_enroll_voice_various_audio_types(voice_cloner):
         assert voice_model.model_id == f"voice_type_{i}"  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_incremental_learning_convergence(voice_cloner, sample_audio):
     """Test that incremental learning converges."""
     # Initial enrollment
@@ -528,6 +545,7 @@ def test_incremental_learning_convergence(voice_cloner, sample_audio):
     assert similarity > 0.9  # Should be very similar  # nosec B101
 
 
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_memory_efficiency(voice_cloner, sample_audio):
     """Test memory efficiency with many voices."""
     import gc
@@ -561,6 +579,7 @@ def test_voice_cloner_memory_efficiency(voice_cloner, sample_audio):
 
 @pytest.mark.stress
 @pytest.mark.timeout(180)
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_extreme_enrollment_1000_samples(voice_cloner):
     """EXTREME TEST: Enroll voice with 1000 audio samples - ZERO COMPROMISE."""
     import gc
@@ -611,6 +630,7 @@ def test_voice_cloner_extreme_enrollment_1000_samples(voice_cloner):
 
 @pytest.mark.stress
 @pytest.mark.timeout(180)
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_extreme_incremental_updates_500_times(voice_cloner, sample_audio):
     """EXTREME TEST: 500 incremental updates - ZERO COMPROMISE."""
     import gc
@@ -660,6 +680,7 @@ def test_voice_cloner_extreme_incremental_updates_500_times(voice_cloner, sample
 
 @pytest.mark.stress
 @pytest.mark.timeout(180)
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_extreme_concurrent_enrollments(voice_cloner, sample_audio):
     """EXTREME TEST: Enroll 100 voices concurrently - ZERO COMPROMISE."""
     import concurrent.futures
@@ -760,6 +781,7 @@ def test_voice_cloner_extreme_similarity_matrix_1000_comparisons(voice_cloner):
 
 @pytest.mark.stress
 @pytest.mark.timeout(600)
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_extreme_memory_stress_10000_features(voice_cloner):
     """EXTREME TEST: Extract features from 10,000 audio samples - ZERO COMPROMISE."""
     import gc
@@ -872,6 +894,7 @@ def test_voice_cloner_extreme_quality_all_edge_cases(voice_cloner):
 
 @pytest.mark.stress
 @pytest.mark.timeout(180)
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_extreme_save_load_100_profiles(voice_cloner, sample_audio):
     """EXTREME TEST: Save and load 100 voice profiles - ZERO COMPROMISE."""
     import tempfile
@@ -941,6 +964,7 @@ def test_voice_cloner_extreme_save_load_100_profiles(voice_cloner, sample_audio)
 
 @pytest.mark.stress
 @pytest.mark.timeout(600)
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_extreme_synthesis_1000_texts(voice_cloner, sample_audio):
     """EXTREME TEST: Synthesize 1000 different texts - ZERO COMPROMISE."""
     import gc
@@ -986,6 +1010,7 @@ def test_voice_cloner_extreme_synthesis_1000_texts(voice_cloner, sample_audio):
 
 @pytest.mark.stress
 @pytest.mark.timeout(180)
+@pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_extreme_all_sample_rates(voice_cloner):
     """EXTREME TEST: Test with ALL common sample rates - ZERO COMPROMISE."""
     print("\n[EXTREME TEST] All sample rates")

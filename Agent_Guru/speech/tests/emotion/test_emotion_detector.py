@@ -30,6 +30,7 @@ class TestEmotionDetector:
         assert detector.model_path == model_path  # nosec B101
         assert detector._use_ml_model  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_detect_emotion_basic(self):
         """Test basic emotion detection."""
         detector = EmotionDetector()
@@ -53,6 +54,7 @@ class TestEmotionDetector:
         assert 0.0 <= result.audio_quality <= 1.0  # nosec B101
         assert result.timestamp > 0  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_detect_emotion_all_emotions_present(self):
         """Test that all 7 emotion types are in the result."""
         detector = EmotionDetector()
@@ -75,6 +77,7 @@ class TestEmotionDetector:
         }
         assert set(result.emotion_scores.keys()) == expected_emotions  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_detect_emotion_performance(self):
         """Test that emotion detection completes within 200ms."""
         detector = EmotionDetector()
@@ -90,6 +93,7 @@ class TestEmotionDetector:
         # Should complete within 200ms (Requirement 13.4)
         assert processing_time < 200, f"Processing took {processing_time:.1f}ms"  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_extract_acoustic_features(self):
         """Test acoustic feature extraction."""
         detector = EmotionDetector()
@@ -117,6 +121,7 @@ class TestEmotionDetector:
         assert features['tempo'] > 0  # nosec B101
         assert features['zcr_mean'] >= 0  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_extract_acoustic_features_mfcc(self):
         """Test that MFCC features are extracted."""
         detector = EmotionDetector()
@@ -131,6 +136,7 @@ class TestEmotionDetector:
         mfcc_features = [k for k in features.keys() if k.startswith('mfcc_')]
         assert len(mfcc_features) >= 13 * 2  # mean and std for each coefficient  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_poor_quality_audio(self):
         """Test emotion detection with poor quality audio."""
         detector = EmotionDetector()
@@ -393,6 +399,7 @@ class TestEmotionHistoryTracking:
 class TestEmotionDetectionEdgeCases:
     """Test edge cases for emotion detection."""
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_very_short_audio(self):
         """Test emotion detection with very short audio."""
         detector = EmotionDetector()
@@ -408,6 +415,7 @@ class TestEmotionDetectionEdgeCases:
         # Very short audio should have lower quality due to duration penalty
         assert result.audio_quality < 0.9  # Relaxed threshold  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_silent_audio(self):
         """Test emotion detection with silent audio."""
         detector = EmotionDetector()
@@ -422,6 +430,7 @@ class TestEmotionDetectionEdgeCases:
         assert isinstance(result, EmotionResult)  # nosec B101
         assert result.audio_quality < 0.7  # Silence should have low quality  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_very_loud_audio(self):
         """Test emotion detection with very loud audio."""
         detector = EmotionDetector()
@@ -436,6 +445,7 @@ class TestEmotionDetectionEdgeCases:
         assert isinstance(result, EmotionResult)  # nosec B101
         assert 0.0 <= result.confidence <= 1.0  # nosec B101
     
+    @pytest.mark.usefixtures("requires_librosa")
     def test_different_sample_rates(self):
         """Test emotion detection with different sample rates."""
         detector = EmotionDetector()

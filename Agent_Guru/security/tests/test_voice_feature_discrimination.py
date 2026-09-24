@@ -61,6 +61,7 @@ def extractor() -> VoiceFeatureExtractor:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("requires_librosa")
 async def test_no_single_component_dominates_the_feature_vector(
     extractor: VoiceFeatureExtractor,
 ) -> None:
@@ -78,6 +79,7 @@ async def test_no_single_component_dominates_the_feature_vector(
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("requires_librosa")
 async def test_impostor_is_rejected(extractor: VoiceFeatureExtractor) -> None:
     """An octave apart must not authenticate. This is the bypass itself."""
     authenticator = VoiceAuthenticator()
@@ -95,6 +97,7 @@ async def test_impostor_is_rejected(extractor: VoiceFeatureExtractor) -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("requires_librosa")
 async def test_genuine_speaker_still_authenticates(
     extractor: VoiceFeatureExtractor,
 ) -> None:
@@ -117,6 +120,7 @@ async def test_genuine_speaker_still_authenticates(
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("requires_librosa")
 async def test_there_is_a_usable_margin(extractor: VoiceFeatureExtractor) -> None:
     """Genuine and impostor scores must be separated, not merely ordered.
 

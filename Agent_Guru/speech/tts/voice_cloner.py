@@ -12,7 +12,6 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-import librosa
 import numpy as np
 
 from Agent_Guru.security.embedding_auth import BIOMETRIC_THRESHOLD, verify_embedding
@@ -662,6 +661,14 @@ class VoiceCloner:
             Feature vector
 
         """
+        # librosa is an optional extra. Imported at module scope, its absence
+        # made voice_cloner unimportable, so two test files could not collect
+        # and nothing else in the module (profile save/load, listing,
+        # deletion) was usable either. Only feature extraction needs it, and
+        # every caller already turns an exception here into a
+        # VoiceCloningError or a logged, fail-closed result.
+        import librosa
+
         # Adjust n_fft for short audio
         audio_length = len(audio)
         n_fft = min(self.n_fft, audio_length)

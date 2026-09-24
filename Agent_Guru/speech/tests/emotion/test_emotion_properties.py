@@ -78,6 +78,7 @@ class TestEmotionDetectionProperties:
     
     @given(audio_samples())
     @settings(max_examples=100, deadline=5000)
+    @pytest.mark.usefixtures("requires_librosa")
     def test_emotion_detection_completeness(self, audio_data):
         """
         Property 15: Emotion Detection Completeness
@@ -154,6 +155,7 @@ class TestEmotionDetectionProperties:
     
     @given(audio_samples())
     @settings(max_examples=50, deadline=5000)
+    @pytest.mark.usefixtures("requires_librosa")
     def test_emotion_detection_consistency(self, audio_data):
         """
         Test that emotion detection is consistent for the same input.
@@ -180,6 +182,7 @@ class TestEmotionDetectionProperties:
     
     @given(st.lists(audio_samples(), min_size=2, max_size=10))
     @settings(max_examples=30, deadline=10000)
+    @pytest.mark.usefixtures("requires_librosa")
     def test_emotion_history_tracking(self, audio_list):
         """
         Test emotion history tracking and transition detection.
@@ -237,6 +240,7 @@ class TestEmotionDetectionConfidenceCalibration:
     
     @given(st.floats(min_value=0.0, max_value=0.005))
     @settings(max_examples=50, deadline=5000)
+    @pytest.mark.usefixtures("requires_librosa")
     def test_low_quality_audio_confidence(self, noise_level):
         """
         Property 16: Emotion Detection Confidence Calibration
@@ -275,6 +279,7 @@ class TestEmotionDetectionConfidenceCalibration:
     
     @given(audio_samples(min_duration=1.0, max_duration=3.0))
     @settings(max_examples=50, deadline=5000)
+    @pytest.mark.usefixtures("requires_librosa")
     def test_clean_audio_confidence(self, audio_data):
         """
         Test that clean audio produces reasonable confidence.
@@ -299,6 +304,7 @@ class TestEmotionDetectionConfidenceCalibration:
     
     @given(st.floats(min_value=0.1, max_value=2.0))
     @settings(max_examples=30, deadline=5000)
+    @pytest.mark.usefixtures("requires_librosa")
     def test_duration_impact_on_quality(self, duration):
         """
         Test that audio duration impacts quality assessment.
