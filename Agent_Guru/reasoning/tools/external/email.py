@@ -81,7 +81,8 @@ class SendEmailTool(Tool):
         to = kwargs["to"]
         subject = kwargs["subject"]
         body = kwargs["body"]
-        cc = kwargs.get("cc", "")
+        # cc is accepted and documented above but unread: there is no email
+        # backend in this build to pass it to (see the note below).
         provider = kwargs.get("provider", "gmail").lower()
 
         # Validate email
