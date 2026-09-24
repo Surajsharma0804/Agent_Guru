@@ -36,6 +36,20 @@ class TestMicrophoneCapture:
     
     def test_initialization_custom(self):
         """Test microphone capture initialization with custom settings."""
+        # Device 0 has to exist for this to mean anything. On a headless host
+        # (CI containers, this project's own test runners) sounddevice has no
+        # devices at all and MicrophoneCapture correctly raises AudioInputError
+        # - asserting otherwise would be asserting that the machine has a
+        # microphone, which is not a property of this code.
+        import sounddevice as sd
+
+        try:
+            devices = sd.query_devices()
+        except Exception as exc:  # pragma: no cover - depends on the host
+            pytest.skip(f"UNVERIFIED on this host: no audio backend ({exc})")
+        if len(devices) == 0:
+            pytest.skip("UNVERIFIED on this host: no audio devices present")
+
         capture = MicrophoneCapture(
             sample_rate=44100,
             channels=2,
