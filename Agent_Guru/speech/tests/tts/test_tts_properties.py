@@ -7,7 +7,7 @@ import numpy as np
 from hypothesis import given, strategies as st, settings, HealthCheck
 import pytest
 
-from Agent_Guru.speech.tts.tts_engine import TTSEngine
+from Agent_Guru.speech.tts.tts_engine import TTSError, TTSEngine
 from Agent_Guru.speech.models import PersonalityType, EmotionType
 import logging
 
@@ -26,6 +26,25 @@ def tts_engine():
             del engine.engine
     except OSError as exc:
         logger.debug("Cleanup skipped: %s", exc)
+
+
+def require_real_backend(engine) -> None:
+    """Skip when no TTS backend can actually produce audio on this machine.
+
+    With no Kokoro model and no pyttsx3, TTSEngine still returns a well-formed
+    WAV - but it is SILENCE (_silence_wav). Assertions about audio CONTENT or
+    about synthesis TIMING are meaningless against that stub: RMS is exactly
+    0.0 and every call takes microseconds, so timing variance is pure noise.
+    Skipping states the result honestly as UNVERIFIED on this host instead of
+    asserting something the environment cannot answer.
+    """
+    backend = engine.active_backend
+    if backend == "none":
+        pytest.skip(
+            "UNVERIFIED on this host: no TTS backend available (Kokoro model "
+            "absent and pyttsx3 not installed), so the engine returns silence "
+            "and audio-content/timing assertions cannot be evaluated",
+        )
 
 
 # Helper functions
@@ -510,6 +529,7 @@ def test_tts_concurrent_stress(tts_engine):
 
 def test_tts_audio_quality_metrics(tts_engine):
     """Test audio quality metrics - PRODUCTION GRADE."""
+    require_real_backend(tts_engine)
     text = "This is a comprehensive audio quality test for production deployment."
     
     # Suppress numpy warnings for edge cases
@@ -556,24 +576,15 @@ def test_tts_audio_quality_metrics(tts_engine):
 def test_tts_error_recovery(tts_engine):
     """Test error recovery and robustness - ZERO FAILURES."""
     # Test empty text handling
-    try:
+    with pytest.raises(TTSError, match="empty"):
         tts_engine.synthesize("", personality=PersonalityType.GURU)
-        assert False, "Should raise error for empty text"  # nosec B101
-    except OSError as exc:
-        logger.debug("Cleanup skipped: %s", exc)  # Expected
-    
+
     # Test invalid parameters
-    try:
+    with pytest.raises(TTSError, match="speech_rate"):
         tts_engine.synthesize("test", speech_rate=10.0)
-        assert False, "Should raise error for invalid speech rate"  # nosec B101
-    except OSError as exc:
-        logger.debug("Cleanup skipped: %s", exc)  # Expected
-    
-    try:
+
+    with pytest.raises(TTSError, match="volume"):
         tts_engine.synthesize("test", volume=5.0)
-        assert False, "Should raise error for invalid volume"  # nosec B101
-    except OSError as exc:
-        logger.debug("Cleanup skipped: %s", exc)  # Expected
     
     # Engine should still work after errors
     audio = tts_engine.synthesize("Recovery test", personality=PersonalityType.GURU)
@@ -582,6 +593,7 @@ def test_tts_error_recovery(tts_engine):
 
 def test_tts_performance_consistency(tts_engine):
     """Test performance consistency - variance should be low."""
+    require_real_backend(tts_engine)
     text = "Performance consistency test for production deployment."
     times = []
     
