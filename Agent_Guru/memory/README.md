@@ -36,6 +36,8 @@ Set `MEMORY_ENV=dev|staging|prod` and override via environment variables:
 | Variable | Default | Description |
 |---|---|---|
 | `NEO4J_URI` | `bolt://localhost:7687` | Neo4j connection |
+| `NEO4J_USER` | `neo4j` | Neo4j user |
+| `NEO4J_PASSWORD` | Required, no default | Neo4j password; also required by `docker-compose.yml` |
 | `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection |
 | `REDIS_HOST` | `localhost` | Redis host |
 | `GITHUB_TOKEN` | `` | GitHub API token |

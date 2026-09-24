@@ -455,7 +455,10 @@ OpenTelemetry traces are generated for all requests with:
 
 - **Algorithm**: HS256
 - **Expiration**: 24 hours
-- **Secret**: Configure via `JWT_SECRET` environment variable
+- **Secret**: Configure via the `JWT_SECRET` environment variable. It is required:
+  there is no default, and the server refuses to start without it. It must be at
+  least 32 bytes and the same on every process and replica. Generate one with
+  `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
 
 ### Best Practices
 
@@ -523,7 +526,7 @@ spec:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `JWT_SECRET` | JWT signing secret | `your-secret-key-change-in-production` |
+| `JWT_SECRET` | JWT signing secret, at least 32 bytes | Required, no default |
 | `JWT_ALGORITHM` | JWT algorithm | `HS256` |
 | `JWT_EXPIRATION_HOURS` | Token expiration | `24` |
 | `RATE_LIMIT_REQUESTS` | Requests per window | `100` |

@@ -124,7 +124,7 @@ class TestJWTTokenRejection:
         """A correctly signed token whose role this build cannot parse."""
         import jwt as pyjwt
 
-        from Agent_Guru.reasoning.api.auth import JWT_ALGORITHM, JWT_SECRET
+        from Agent_Guru.reasoning.api.auth import JWT_ALGORITHM, get_jwt_secret
 
         token = pyjwt.encode(
             {
@@ -133,7 +133,7 @@ class TestJWTTokenRejection:
                 "exp": int(time.time()) + 3600,
                 "iat": int(time.time()),
             },
-            JWT_SECRET,
+            get_jwt_secret(),
             algorithm=JWT_ALGORITHM,
         )
 
@@ -143,9 +143,11 @@ class TestJWTTokenRejection:
         """A correctly signed token that is missing required claims."""
         import jwt as pyjwt
 
-        from Agent_Guru.reasoning.api.auth import JWT_ALGORITHM, JWT_SECRET
+        from Agent_Guru.reasoning.api.auth import JWT_ALGORITHM, get_jwt_secret
 
-        token = pyjwt.encode({"user_id": "user_123"}, JWT_SECRET, algorithm=JWT_ALGORITHM)
+        token = pyjwt.encode(
+            {"user_id": "user_123"}, get_jwt_secret(), algorithm=JWT_ALGORITHM,
+        )
 
         self._assert_rejected(token)
 
@@ -175,7 +177,7 @@ class TestJWTTokenRejection:
         """Expiry is safe to report - it tells an attacker nothing useful."""
         import jwt as pyjwt
 
-        from Agent_Guru.reasoning.api.auth import JWT_ALGORITHM, JWT_SECRET
+        from Agent_Guru.reasoning.api.auth import JWT_ALGORITHM, get_jwt_secret
 
         expired = pyjwt.encode(
             {
@@ -184,11 +186,117 @@ class TestJWTTokenRejection:
                 "exp": int(time.time()) - 10,
                 "iat": int(time.time()) - 3600,
             },
-            JWT_SECRET,
+            get_jwt_secret(),
             algorithm=JWT_ALGORITHM,
         )
 
         assert "expired" in self._assert_rejected(expired).detail.lower()  # nosec B101
+
+
+class TestJWTSecretConfiguration:
+    """No JWT_SECRET must mean no authentication, never forgeable authentication.
+
+    auth.py used to fall back to the public string
+    "your-secret-key-change-in-production" when JWT_SECRET was unset, so any
+    such deployment accepted tokens that anyone could mint for any user id and
+    role, and nothing warned. These tests pin the refusal and its message.
+    """
+
+    PLACEHOLDER = "your-secret-key-change-in-production"  # nosec B105
+
+    @staticmethod
+    def _sign_admin_token(key):
+        import jwt as pyjwt
+
+        return pyjwt.encode(
+            {
+                "user_id": "attacker-chosen-id",
+                "role": "admin",
+                "exp": int(time.time()) + 3600,
+                "iat": int(time.time()),
+            },
+            key,
+            algorithm="HS256",
+        )
+
+    def test_unset_secret_does_not_accept_a_placeholder_forgery(self, monkeypatch):
+        """The original bypass: no secret set, token signed with the placeholder."""
+        monkeypatch.delenv("JWT_SECRET")
+        forged = self._sign_admin_token(self.PLACEHOLDER)
+
+        # RuntimeError and not HTTPException: a missing secret is a server
+        # misconfiguration and must not be disguised as an ordinary bad token.
+        with pytest.raises(RuntimeError, match="JWT_SECRET"):
+            verify_token(forged)
+
+    def test_unset_secret_refuses_to_sign(self, monkeypatch):
+        monkeypatch.delenv("JWT_SECRET")
+
+        with pytest.raises(RuntimeError, match="JWT_SECRET") as exc_info:
+            create_access_token("user_123")
+
+        # The message must say what to set, not just which variable is missing.
+        assert "secrets.token_urlsafe" in str(exc_info.value)  # nosec B101
+
+    def test_error_type_is_the_named_configuration_error(self, monkeypatch):
+        from Agent_Guru.reasoning.api.auth import JWTSecretNotConfiguredError
+
+        monkeypatch.delenv("JWT_SECRET")
+
+        with pytest.raises(JWTSecretNotConfiguredError):
+            create_access_token("user_123")
+
+    def test_blank_secret_is_treated_as_unset(self, monkeypatch):
+        monkeypatch.setenv("JWT_SECRET", "   ")
+
+        with pytest.raises(RuntimeError, match="JWT_SECRET is not set"):
+            verify_token(self._sign_admin_token("   "))
+
+    def test_public_placeholder_set_explicitly_is_refused(self, monkeypatch):
+        """Copying the old default into the environment is the same hole."""
+        monkeypatch.setenv("JWT_SECRET", self.PLACEHOLDER)
+
+        with pytest.raises(RuntimeError, match="public placeholder"):
+            verify_token(self._sign_admin_token(self.PLACEHOLDER))
+
+    def test_secret_shorter_than_hs256_minimum_is_refused(self, monkeypatch):
+        from Agent_Guru.reasoning.api.auth import JWT_MIN_SECRET_BYTES
+
+        monkeypatch.setenv("JWT_SECRET", "k" * (JWT_MIN_SECRET_BYTES - 1))
+
+        with pytest.raises(RuntimeError, match=f"JWT_SECRET is {JWT_MIN_SECRET_BYTES - 1} bytes"):
+            create_access_token("user_123")
+
+    def test_secret_at_hs256_minimum_is_accepted(self, monkeypatch):
+        from Agent_Guru.reasoning.api.auth import JWT_MIN_SECRET_BYTES
+
+        monkeypatch.setenv("JWT_SECRET", "k" * JWT_MIN_SECRET_BYTES)
+
+        assert verify_token(create_access_token("user_123")).user_id == "user_123"  # nosec B101
+
+    def test_token_signed_with_the_configured_secret_is_accepted(self, jwt_secret):
+        token_data = verify_token(self._sign_admin_token(jwt_secret))
+
+        assert token_data.user_id == "attacker-chosen-id"  # nosec B101
+
+    def test_server_refuses_to_start_without_secret(self, monkeypatch):
+        """A deployment missing JWT_SECRET must fail at startup, not on first use."""
+        from fastapi.testclient import TestClient
+
+        from Agent_Guru.reasoning.api.app import create_app
+
+        monkeypatch.delenv("JWT_SECRET")
+
+        with pytest.raises(RuntimeError, match="JWT_SECRET"), TestClient(create_app()):
+            pass
+
+    def test_server_starts_with_secret(self):
+        from fastapi.testclient import TestClient
+
+        from Agent_Guru.reasoning.api.app import create_app
+
+        with TestClient(create_app()) as client:
+            assert client.get("/health").status_code == 200  # nosec B101
 
 
 class TestRateLimiter:

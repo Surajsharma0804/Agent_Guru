@@ -4,12 +4,15 @@ services:
   neo4j:
     image: neo4j:5
     environment:
-      NEO4J_AUTH: neo4j/password
+      # The password used to be the literal "password", with the Bolt and HTTP
+      # ports published on every host interface, and the memory service below
+      # was given the same literal. Compose now refuses to start without it.
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set in .env or environment}
     ports:
       - "7474:7474"
       - "7687:7687"
     healthcheck:
-      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "${NEO4J_PASSWORD}", "RETURN 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -42,7 +45,7 @@ services:
       MEMORY_ENV: prod
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USER: neo4j
-      NEO4J_PASSWORD: password
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set in .env or environment}
       MONGO_URI: mongodb://mongodb:27017
       REDIS_HOST: redis
     depends_on:

@@ -7,6 +7,8 @@ Usage: python -m Agent_Guru.memory.scripts.init_db
 import logging
 import os
 
+from Agent_Guru.memory.config import Neo4jConfig
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,10 +17,14 @@ def init_neo4j() -> None:
     try:
         from neo4j import GraphDatabase  # type: ignore[import]
 
-        uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-        user = os.getenv("NEO4J_USER", "neo4j")
-        password = os.getenv("NEO4J_PASSWORD", "password")
-        driver = GraphDatabase.driver(uri, auth=(user, password))
+        # SECURITY FIX: this read NEO4J_PASSWORD itself with a fallback to the
+        # literal "password", a second copy of the default Neo4jConfig had, so
+        # running the script without the variable sent that guessable
+        # password to whatever server NEO4J_URI named. Neo4jConfig.auth() is
+        # now the one place credentials come from, and it raises, naming
+        # NEO4J_PASSWORD, before any connection is attempted.
+        cfg = Neo4jConfig()
+        driver = GraphDatabase.driver(cfg.uri, auth=cfg.auth())
         with driver.session() as session:
             session.run(
                 "CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE e.entity_id IS UNIQUE",
