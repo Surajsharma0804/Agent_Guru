@@ -806,9 +806,23 @@ class TestSynthesizeAnswer:
         # Synthesize answer
         answer = synthesizer.synthesize_answer(query, "user_123")
 
-        # Verify answer
+        # Verify answer.
+        #
+        # synthesize_answer() redacts PII from the summary before returning it
+        # (see the "PRIVACY: Redact PII from summary" step in
+        # KnowledgeSynthesizer.synthesize_answer and redact_pii() above it).
+        # That behaviour is specified deliberately and has its own dedicated
+        # coverage in test_knowledge_privacy_confidence.py; this assertion
+        # predated it and contradicted it, which is why it failed.
+        #
+        # Pinned precisely rather than loosened: the summary must still be
+        # DERIVED from the retrieved memory, and the address within it must be
+        # the redacted form. Asserting only "isinstance(str)" would let a
+        # regression that dropped the memory entirely slip through.
         assert isinstance(answer.summary, str)  # nosec B101
-        assert "john@example.com" in answer.summary  # nosec B101
+        assert "User email is" in answer.summary  # nosec B101
+        assert "[EMAIL]" in answer.summary  # nosec B101
+        assert "john@example.com" not in answer.summary  # nosec B101
         assert answer.confidence > 0.0  # nosec B101
 
 
