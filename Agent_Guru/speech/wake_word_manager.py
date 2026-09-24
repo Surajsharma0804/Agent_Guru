@@ -88,6 +88,12 @@ class WakeWordManagerConfig:
         on_detection_callback: Optional async callback invoked on detection.
         max_detection_latency_ms: Target maximum detection latency in ms.
             Used for performance assertions in tests.
+        on_microphone_lost: Optional async callback, given a sentence for
+            the user, invoked once when the microphone has failed and
+            several reopen attempts have not brought it back.
+        on_microphone_restored: Optional async callback, given a sentence
+            for the user, invoked when a reported lost microphone works
+            again.
 
     """
 
@@ -98,6 +104,16 @@ class WakeWordManagerConfig:
     audio_capture_duration: float = 0.5  # 500 ms of audio per capture
     on_detection_callback: Callable[[WakeWordDetection], Coroutine[Any, Any, None]] | None = None
     max_detection_latency_ms: float = 200.0
+    on_microphone_lost: Callable[[str], Coroutine[Any, Any, None]] | None = None
+    on_microphone_restored: Callable[[str], Coroutine[Any, Any, None]] | None = None
+
+
+#: Failed reopen attempts before a lost microphone is reported to the user.
+#: With the backoff in _AudioCapture (0, 1, 2, 5 s) the fourth failure lands
+#: about 8 s after the stream died: long enough that a mic reconnecting or a
+#: Bluetooth headset re-pairing does not produce a false alarm, short enough
+#: that the user hears about it before giving up on the assistant.
+MIC_LOST_REPORT_AFTER_ATTEMPTS = 4
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +134,12 @@ class _AudioCapture:
         self._platform = platform_name
         self._stream: Any = None
         self._pyaudio_instance: Any = None
+        # Lost-stream state, read by WakeWordManager to tell the user. See
+        # _mark_stream_failed(). failing_since is None while the mic works.
+        self.failing_since: float | None = None
+        self.reopen_attempts: int = 0
+        self.last_error: str = ""
+        self._next_reopen_at: float = 0.0
 
     # ------------------------------------------------------------------
     # Public API
@@ -245,11 +267,18 @@ class _AudioCapture:
         except Exception as exc:
             logger.warning("PyAudio also unavailable (%s) - no audio capture", exc)
             self._stream = None
+            # A mic that could not be opened at startup (unplugged, held by
+            # another app) used to mean silence for the whole session, even
+            # after it became available. It now gets the same reopen attempts
+            # as a stream that failed mid-session.
+            self._pyaudio_instance = None
+            self._mark_stream_failed(f"could not open an input device: {exc}")
 
     def _capture_desktop(self) -> np.ndarray:
         """Capture audio on desktop (sounddevice or PyAudio)."""
         if self._stream is None:
-            return np.zeros(int(self._sample_rate * self._duration), dtype=np.float32)
+            # Silence, or a reopen attempt if the stream was lost.
+            return self._capture_sounddevice()
         # sounddevice path - _pyaudio_instance is None when using sounddevice
         if self._pyaudio_instance is None:
             return self._capture_sounddevice()
@@ -307,16 +336,117 @@ class _AudioCapture:
             logger.exception("sounddevice unavailable - using silence")
             self._stream = None
 
+    # ------------------------------------------------------------------
+    # Recovering a lost input stream
+    # ------------------------------------------------------------------
+    #
+    # A read error used to be logged and answered with silence, and the
+    # stream was never touched again. PortAudio never recovers a stream
+    # that has failed: measured on Windows, every later read on it raises
+    # the same error (-9988 "Invalid stream pointer" once the handle is
+    # gone, -9983 "Stream is stopped" after an abort). So one error (a
+    # USB mic replugged, a Bluetooth headset dropping, Windows moving the
+    # default device, PaErrorCode -9999) left the assistant deaf until it
+    # was restarted, while it went on reporting that it was listening and
+    # logged a traceback about 64 times a second.
+    #
+    # What recovers, measured on the same machine:
+    # - Reopening the stream recovers as long as the device still exists
+    #   (about 150 ms to open, first audio after about 650 ms through MME).
+    # - A device that disappeared and came back, or a new default device,
+    #   is invisible to PortAudio until it is re-initialised: it enumerates
+    #   devices once, so the old default index keeps pointing at the stale
+    #   device. Re-initialising takes about 80 ms, but it also invalidates
+    #   every other open PortAudio stream (TTS playback included), so it is
+    #   the second step, not the first.
+    # - A machine with no working input device at all does not recover.
+    #   That is why the failure is reported to the user after a few
+    #   attempts, instead of retrying silently.
+    #
+    # Not measured here: a physical unplug and a Windows default-device
+    # change. Both can only be produced by hand. The PortAudio
+    # re-enumeration step above exists for exactly those cases.
+
+    #: Seconds to wait before each reopen attempt. The first attempt is
+    #: immediate, because the device is usually still there. After that the
+    #: wait grows to cover a device reconnecting, then holds at 10 s: an
+    #: attempt costs about 230 ms, so 10 s is cheap and means a mic that
+    #: comes back is heard again within 10 s.
+    _REOPEN_BACKOFF_S: tuple[float, ...] = (0.0, 1.0, 2.0, 5.0, 10.0)
+
+    def _mark_stream_failed(self, error: str) -> None:
+        """Drop a failed stream and schedule the first reopen attempt."""
+        if self._stream is not None:
+            try:
+                self._stream.close()
+            except Exception:
+                logger.debug("Closing the failed input stream raised", exc_info=True)
+            self._stream = None
+        if self.failing_since is None:
+            self.failing_since = time.monotonic()
+            self.reopen_attempts = 0
+            self._next_reopen_at = self.failing_since
+            logger.warning("Microphone stream failed (%s) - reopening", error)
+        self.last_error = error
+
+    def _try_reopen_sounddevice(self) -> bool:
+        """Make one reopen attempt. Returns True when the stream is back."""
+        attempt = self.reopen_attempts + 1
+        try:
+            import sounddevice as sd  # type: ignore[import]
+
+            if attempt > 1:
+                # Re-enumerate devices so a reconnected mic or a new default
+                # device can be found. See the notes above.
+                sd._terminate()
+                sd._initialize()
+            stream = sd.InputStream(
+                samplerate=self._sample_rate,
+                channels=1,
+                dtype="float32",
+                blocksize=int(self._sample_rate * self._duration),
+            )
+            stream.start()
+        except Exception as exc:
+            self.reopen_attempts = attempt
+            self.last_error = str(exc)
+            delay = self._REOPEN_BACKOFF_S[min(attempt, len(self._REOPEN_BACKOFF_S) - 1)]
+            self._next_reopen_at = time.monotonic() + delay
+            logger.warning(
+                "Microphone reopen attempt %d failed (%s) - next attempt in %.0fs",
+                attempt, exc, delay,
+            )
+            return False
+        self._stream = stream
+        self._pyaudio_instance = None
+        logger.warning(
+            "Microphone stream reopened after %.1fs (%d attempt(s))",
+            time.monotonic() - (self.failing_since or time.monotonic()), attempt,
+        )
+        self.failing_since = None
+        self.reopen_attempts = 0
+        self.last_error = ""
+        return True
+
     def _capture_sounddevice(self) -> np.ndarray:
-        """Read one frame from a sounddevice stream."""
+        """Read one frame from a sounddevice stream, reopening it if it failed."""
         n_samples = int(self._sample_rate * self._duration)
         if self._stream is None:
-            return np.zeros(n_samples, dtype=np.float32)
+            if self.failing_since is None:
+                return np.zeros(n_samples, dtype=np.float32)
+            wait = self._next_reopen_at - time.monotonic()
+            if wait > 0:
+                # Pace the listen loop like real audio would instead of
+                # spinning on silence while waiting for the next attempt.
+                time.sleep(min(wait, self._duration))
+                return np.zeros(n_samples, dtype=np.float32)
+            if not self._try_reopen_sounddevice():
+                return np.zeros(n_samples, dtype=np.float32)
         try:
             data, _ = self._stream.read(n_samples)
             return data[:, 0].astype(np.float32)
-        except Exception:
-            logger.exception("sounddevice read error")
+        except Exception as exc:
+            self._mark_stream_failed(str(exc))
             return np.zeros(n_samples, dtype=np.float32)
 
     # ------------------------------------------------------------------
@@ -461,6 +591,7 @@ class WakeWordManager:
         self._listen_task: asyncio.Task[None] | None = None
         self._last_detection: WakeWordDetection | None = None
         self._initialized: bool = False
+        self._mic_loss_reported: bool = False
 
         logger.info("WakeWordManager created - platform=%s", self._config.platform)
 
@@ -661,8 +792,18 @@ class WakeWordManager:
 
     @property
     def is_listening(self) -> bool:
-        """True when the background listening loop is active."""
+        """True when the background listening loop is active.
+
+        The loop keeps running while the microphone is lost, so it can
+        reopen it. Whether audio is actually arriving is
+        :attr:`microphone_available`.
+        """
         return self._is_listening
+
+    @property
+    def microphone_available(self) -> bool:
+        """False while the input stream is lost and being reopened."""
+        return self._audio_capture is not None and self._audio_capture.failing_since is None
 
     @property
     def platform(self) -> str:
@@ -742,6 +883,7 @@ class WakeWordManager:
                     # thread so only this coroutine is suspended, not the loop.
                     loop = asyncio.get_running_loop()
                     audio = await loop.run_in_executor(None, self._audio_capture.capture)
+                    await self._report_microphone_health()
                     detection = await self.detect(audio)
 
                     if detection is not None:
@@ -761,6 +903,52 @@ class WakeWordManager:
             except Exception:
                 logger.exception("Listen loop error")
                 await asyncio.sleep(0.1)
+
+    async def _report_microphone_health(self) -> None:
+        """Tell the user once when the mic stays lost, and again when it is back.
+
+        Before this, a lost microphone was visible only as a log line, and the
+        assistant kept announcing that it was listening. A voice user never
+        sees the log, so they had no way to know it could not hear them.
+        """
+        capture = self._audio_capture
+        if capture is None:
+            return
+        if capture.failing_since is not None:
+            if self._mic_loss_reported or capture.reopen_attempts < MIC_LOST_REPORT_AFTER_ATTEMPTS:
+                return
+            self._mic_loss_reported = True
+            logger.error(
+                "Microphone lost for %.0fs and %d reopen attempts failed (%s). "
+                "Wake words cannot be heard. Still retrying every %.0fs.",
+                time.monotonic() - capture.failing_since,
+                capture.reopen_attempts,
+                capture.last_error,
+                _AudioCapture._REOPEN_BACKOFF_S[-1],
+            )
+            await self._notify(
+                self._config.on_microphone_lost,
+                "I can't hear you. I've lost the microphone. Check that it's "
+                "connected. I'll keep trying to reconnect.",
+            )
+        elif self._mic_loss_reported:
+            self._mic_loss_reported = False
+            logger.warning("Microphone is working again - listening for wake words.")
+            await self._notify(
+                self._config.on_microphone_restored,
+                "The microphone is working again. I can hear you.",
+            )
+
+    @staticmethod
+    async def _notify(
+        callback: Callable[[str], Coroutine[Any, Any, None]] | None, message: str,
+    ) -> None:
+        if callback is None:
+            return
+        try:
+            await callback(message)
+        except Exception:
+            logger.exception("Microphone status callback failed")
 
     @staticmethod
     def _resolve_personality(detection: WakeWordDetection) -> WakeWordDetection:
