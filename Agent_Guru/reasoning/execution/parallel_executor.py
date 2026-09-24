@@ -223,12 +223,26 @@ class ParallelExecutor:
             Dictionary mapping step_id to ExecutionResult
 
         """
-        # Create tasks for all steps in batch
-        tasks = []
+        # Create tasks for all steps in batch.
+        #
+        # BUG FIX: this list used to hold bare COROUTINE objects
+        # (`self._execute_step_async(step)` without scheduling them). That is
+        # fine for asyncio.gather(), which wraps them itself, but it broke the
+        # fail_fast recovery path below in two separate ways:
+        #   1. `task_obj.cancel()` -> AttributeError: 'coroutine' object has
+        #      no attribute 'cancel'. So the very first step failure in
+        #      fail_fast mode raised an AttributeError out of the executor
+        #      instead of cancelling the siblings - the error the caller saw
+        #      had nothing to do with the step that actually failed.
+        #   2. `await task_obj` on a coroutine gather() had already consumed
+        #      would raise "cannot reuse already awaited coroutine".
+        # Scheduling them as real Tasks fixes both: Tasks are cancellable, and
+        # awaiting an already-finished Task simply returns its stored result.
+        tasks: list[asyncio.Task[ExecutionResult]] = []
         step_ids = []
 
         for step in batch:
-            task = self._execute_step_async(step)
+            task = asyncio.ensure_future(self._execute_step_async(step))
             tasks.append(task)
             step_ids.append(step.step_id)
 
