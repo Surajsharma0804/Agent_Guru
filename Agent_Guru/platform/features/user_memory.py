@@ -410,14 +410,44 @@ def _merge_values(existing: str, new: str) -> str:
             seen.add(part.lower())
     return ", ".join(merged)
 
+# Verbs that ask for something in THIS turn rather than name an aim the user
+# is working toward. "I want to learn Spanish" is a goal; "I want to know what
+# time it is" is a question. Without this distinction `i want to (.+)` stored
+# the question as the user's current_goal (a pinned key that is never
+# evicted), and the orchestrator then spoke "Love that. I'll remember you're
+# working toward know what time it is" INSTEAD of the answer it had just
+# spent 45 seconds generating. Deliberately narrow: "learn", "understand",
+# "speak", "see" and "play" stay goals, because "I want to learn Spanish",
+# "I want to speak French" and "I want to see Japan" are exactly the aims
+# this key exists for.
+_REQUEST_VERBS = (
+    r"know|ask|find\s+out|figure\s+out|check|confirm|verify|look\s+up|search|"
+    r"google|hear|tell|say|talk|discuss"
+)
+
+# Objects that point at something in the conversation, not at a durable fact
+# about the user. "I love you", "I like that", "I'm working on it" were each
+# stored as a hobby or a project, and the pinned key kept the pronoun forever.
+_DEICTIC_OBJECTS = r"you|it|that|this|them|him|her|those|these|how|what|when"
+
 # Precompiled regex patterns for fact extraction.
 # Previously: 22 raw strings compiled by re.search() on EVERY call.
 # Now: compiled once at import time. re.compile() returns a cached Pattern
 # object - subsequent .search() calls skip the compile step entirely.
+#
+# Every pattern now starts at a word boundary. Without it "i like" matched
+# inside "Hi like the new song?" and "i want to" inside "Delhi want to...",
+# because re.search() is happy to start a match mid-word.
 _FACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # Identity - nickname is DISTINCT from name
-    (re.compile(r"my name is (.+)", re.I), "name"),
-    (re.compile(r"call me (.+)", re.I), "nickname"),  # "call me" → nickname, not name
+    (re.compile(r"\bmy name is (.+)", re.I), "name"),
+    # "call me" is also how people ask for a callback. "call me back in ten
+    # minutes" and "call me later" were stored as the user's nickname, and
+    # every later reply opened with "Alright back in ten minutes!".
+    (re.compile(
+        r"\bcall me (?!(?:back|later|when|if|at|in|on|tomorrow|tonight|after|before|up|a|an|the)\b)(.+)",
+        re.I,
+    ), "nickname"),  # "call me" → nickname, not name
     # FIX: previously `i(?:'m| am) (.+?) (?:and|,|\.)` with an unconstrained
     # capture group - this ran BEFORE current_goal/current_project/
     # interests/age below, so ANY "I am <anything> and/,/." sentence
@@ -429,48 +459,107 @@ _FACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # so free-form clauses (which are virtually never Title-Cased) no
     # longer qualify. Depends on STT preserving name capitalization; if it
     # doesn't, "my name is X" (unconstrained, above) still works.
-    (re.compile(r"(?i:i(?:'m| am)) ([A-Z][a-zA-Z]*(?:\s[A-Z][a-zA-Z]*){0,2})(?:\s+and\b|,|\.)"), "name"),
-    (re.compile(r"i live in (.+)", re.I), "location"),
-    (re.compile(r"i(?:'m| am) from (.+)", re.I), "location"),
-    (re.compile(r"i work as (?:a |an )?(.+)", re.I), "occupation"),
-    (re.compile(r"i(?:'m| am) (\d+)(?: years old)?", re.I), "age"),
+    (re.compile(r"\b(?i:i(?:'m| am)) ([A-Z][a-zA-Z]*(?:\s[A-Z][a-zA-Z]*){0,2})(?:\s+and\b|,|\.)"), "name"),
+    (re.compile(r"\bi live in (.+)", re.I), "location"),
+    (re.compile(r"\bi(?:'m| am) from (.+)", re.I), "location"),
+    (re.compile(r"\bi work as (?:a |an )?(.+)", re.I), "occupation"),
+    # The number must be an age, not a quantity: "(years old)" or the end of
+    # the clause. `(\d+)(?: years old)?` stored "I'm 25 minutes late" as age
+    # 25, a pinned key the companion prompt then repeated back to the user.
+    (re.compile(r"\bi(?:'m| am) (\d{1,3})(?:\s+years?\s+old\b|(?=\s*(?:[.,!?;]|$|and\b)))", re.I), "age"),
     # Code-mixing preference
-    (re.compile(r"talk to me in (?:only )?english(?:\s+only)?", re.I), "code_mixing_english"),
-    (re.compile(r"(?:talk|speak) (?:to me )?in hinglish", re.I), "code_mixing_hinglish"),
-    (re.compile(r"(?:talk|speak) (?:to me )?in hindi", re.I), "code_mixing_hinglish"),
+    (re.compile(r"\btalk to me in (?:only )?english(?:\s+only)?", re.I), "code_mixing_english"),
+    (re.compile(r"\b(?:talk|speak) (?:to me )?in hinglish", re.I), "code_mixing_hinglish"),
+    (re.compile(r"\b(?:talk|speak) (?:to me )?in hindi", re.I), "code_mixing_hinglish"),
     # Hindi-phrased code-mixing preferences
-    (re.compile(r"hinglish mein (?:baat|baat kar|bol)", re.I), "code_mixing_hinglish"),
-    (re.compile(r"hindi mein (?:baat|baat kar|bol)", re.I), "code_mixing_hinglish"),
-    (re.compile(r"(?:sirf |only )?english mein (?:baat|baat kar|bol)", re.I), "code_mixing_english"),
-    (re.compile(r"sirf english", re.I), "code_mixing_english"),
-    # Goals and projects - BEFORE the generic "I am a ..." occupation pattern
-    (re.compile(r"my goal is (?:to )?(.+)", re.I), "current_goal"),
-    (re.compile(r"i(?:'m| am) trying to (.+)", re.I), "current_goal"),
-    (re.compile(r"i want to (.+)", re.I), "current_goal"),
-    (re.compile(r"i(?:'m| am) (?:currently )?working on (.+)", re.I), "current_project"),
-    (re.compile(r"my (?:current )?project is (.+)", re.I), "current_project"),
-    (re.compile(r"i(?:'m| am) building (.+)", re.I), "current_project"),
+    (re.compile(r"\bhinglish mein (?:baat|baat kar|bol)", re.I), "code_mixing_hinglish"),
+    (re.compile(r"\bhindi mein (?:baat|baat kar|bol)", re.I), "code_mixing_hinglish"),
+    (re.compile(r"\b(?:sirf |only )?english mein (?:baat|baat kar|bol)", re.I), "code_mixing_english"),
+    (re.compile(r"\bsirf english", re.I), "code_mixing_english"),
+    # Goals and projects - BEFORE the generic "I am a ..." occupation pattern.
+    # The two open-ended goal patterns skip request verbs (see _REQUEST_VERBS).
+    # re.search() then keeps scanning, so "I want to know the time and I want
+    # to learn Spanish" still finds the real goal in the second clause.
+    (re.compile(r"\bmy goal is (?:to )?(.+)", re.I), "current_goal"),
+    (re.compile(rf"\bi(?:'m| am) trying to (?!(?:{_REQUEST_VERBS})\b)(.+)", re.I), "current_goal"),
+    (re.compile(rf"\bi want to (?!(?:{_REQUEST_VERBS})\b)(.+)", re.I), "current_goal"),
+    (re.compile(rf"\bi(?:'m| am) (?:currently )?working on (?!(?:{_DEICTIC_OBJECTS})\b)(.+)", re.I), "current_project"),
+    (re.compile(r"\bmy (?:current )?project is (.+)", re.I), "current_project"),
+    (re.compile(r"\bi(?:'m| am) building (.+)", re.I), "current_project"),
     # Hobbies, interests, and preferences - BEFORE the generic occupation
     # fallback, because "I am into X" and "I am interested in X" would
     # otherwise match the generic "I am ..." occupation pattern.
-    (re.compile(r"i (?:love|enjoy|like) (.+)", re.I), "hobbies"),
-    (re.compile(r"my hobb(?:y|ies) (?:is|are|include) (.+)", re.I), "hobbies"),
-    (re.compile(r"i(?:'m| am) (?:into|interested in) (.+)", re.I), "interests"),
-    (re.compile(r"i prefer (?:a )?(.+?) (?:language|lang)", re.I), "preferred_language"),
-    (re.compile(r"i speak (.+)", re.I), "preferred_language"),
-    (re.compile(r"i prefer (?:a )?(.+?) (?:tone|style|approach)", re.I), "communication_style"),
+    (re.compile(rf"\bi (?:love|enjoy|like) (?!(?:{_DEICTIC_OBJECTS})\b)(.+)", re.I), "hobbies"),
+    (re.compile(r"\bmy hobb(?:y|ies) (?:is|are|include) (.+)", re.I), "hobbies"),
+    (re.compile(r"\bi(?:'m| am) (?:into|interested in) (.+)", re.I), "interests"),
+    (re.compile(r"\bi prefer (?:a )?(.+?) (?:language|lang)", re.I), "preferred_language"),
+    # "I speak to my mom every day" is not a language. Only "I speak <X>".
+    (re.compile(r"\bi speak (?!(?:to|with|about|up)\b)(.+)", re.I), "preferred_language"),
+    (re.compile(r"\bi prefer (?:a )?(.+?) (?:tone|style|approach)", re.I), "communication_style"),
     # Generic occupation - LAST of the "I am ..." patterns (catch-all).
     # FIX: the article `(?:a |an )?` was optional, so any otherwise-
     # unmatched "I am <filler>" ("I am fine", "I am good", "I am here")
     # was stored as occupation. Made the article required - real
     # occupation statements are almost always phrased with one ("I am a
-    # teacher"), filler almost never is.
-    (re.compile(r"i(?:'m| am) (?:a|an) (.+?)(?:\s+and|\s*$)", re.I), "occupation"),
-    # Relationships
-    (re.compile(r"my (?:best )?friend(?:s)? (?:is|are) (.+)", re.I), "friends"),
-    (re.compile(r"my (?:wife|husband|partner|girlfriend|boyfriend) (?:is )?(?:named )?(.+)", re.I), "family"),
-    (re.compile(r"my (?:mom|mother|dad|father|sister|brother) (?:is )?(?:named )?(.+)", re.I), "family"),
+    # teacher"), filler almost never is. "I'm a bit tired" and "I am a
+    # little confused" still slipped through the article, so degree words
+    # are excluded as well.
+    (re.compile(r"\bi(?:'m| am) (?:a|an) (?!(?:bit|little|lot|tad)\b)(.+?)(?:\s+and|\s*$)", re.I), "occupation"),
+    # Relationships. The value must be a name, for the same reason as the
+    # "I am <Name>" pattern above: `my wife (?:is )?(.+)` stored "my wife is
+    # angry with me" as family = "angry with me", and `my friend is (.+)`
+    # stored "my friend is sick" as friends = "sick". Case-sensitive name
+    # group, so this depends on STT capitalizing names.
+    (re.compile(r"\b(?i:my (?:best )?friends? (?:is|are)) ([A-Z][a-zA-Z]*(?:(?:\s|,\s*|\s+and\s+)[A-Z][a-zA-Z]*)*)"), "friends"),
+    (re.compile(r"\b(?i:my (?:wife|husband|partner|girlfriend|boyfriend) (?:is )?(?:named |called )?)([A-Z][a-zA-Z]*(?:\s[A-Z][a-zA-Z]*)?)"), "family"),
+    (re.compile(r"\b(?i:my (?:mom|mother|dad|father|sister|brother) (?:is )?(?:named |called )?)([A-Z][a-zA-Z]*(?:\s[A-Z][a-zA-Z]*)?)"), "family"),
 ]
+
+# Keys produced by a command ("talk to me in English"), not by the user
+# describing themselves. A command phrased as a question ("can you talk to me
+# in Hindi?") is still a command, so these skip the question check below.
+_COMMAND_KEYS = frozenset({"code_mixing_english", "code_mixing_hinglish"})
+
+# A clause that opens with a question word or an inverted auxiliary is asking,
+# not telling. "Can I speak to Rahul?" was stored as preferred_language = "to
+# Rahul" and "Do you think I like her?" as hobbies = "her".
+_INTERROGATIVE_OPENER_RE = re.compile(
+    r"^\s*(?:(?:and|but|so|also|then|okay|ok)\s+)*"
+    r"(?:what|who|whom|whose|where|when|why|how|which|can|could|do|does|did|"
+    r"should|shall|will|would|is|are|am|was|were|may|might|have|has)\b",
+    re.I,
+)
+_CLAUSE_BREAK_RE = re.compile(r"[.?!,;]")
+
+# Where a captured value stops. `(.+)` ran to the end of the transcript, so
+# "I live in Mumbai, what is the weather there?" stored location = "Mumbai,
+# what is the weather there" and "I want to learn Spanish. What's the
+# weather?" stored the second sentence inside the goal. A value ends at the
+# end of its sentence, at a following clause that asks a question, or at a
+# following clause with its own "I" as the subject.
+_VALUE_END_RE = re.compile(
+    r"[.?!;](?=\s|$)"
+    r"|,?\s+(?:and|but)\s+(?:also\s+)?i(?:'m|'d|'ll|'ve|\s)"
+    r"|,\s*(?:(?:and|but|so)\s+)?(?:what|who|where|when|why|how|which|can|could|"
+    r"do|does|did|should|will|would|is|are)\b",
+    re.I,
+)
+
+
+def _in_question_clause(text: str, match_start: int) -> bool:
+    """Return True if the clause holding *match_start* is a question."""
+    clause_start = 0
+    for brk in _CLAUSE_BREAK_RE.finditer(text, 0, match_start):
+        clause_start = brk.end()
+    return bool(_INTERROGATIVE_OPENER_RE.match(text[clause_start:match_start]))
+
+
+def _bound_value(value: str) -> str:
+    """Cut a captured value where its own clause ends."""
+    end = _VALUE_END_RE.search(value)
+    if end:
+        value = value[:end.start()]
+    return value.strip().rstrip(".,!?")
 
 
 # Patterns for explicit "remember" / "forget" commands
@@ -542,15 +631,17 @@ def extract_user_fact(transcript: str) -> tuple[str, str] | None:
 
     # Check structured patterns first
     for compiled_pattern, key in _FACT_PATTERNS:
-        m = compiled_pattern.search(t)
-        if m:
+        for m in compiled_pattern.finditer(t):
             # Special handling for code-mixing preference patterns
             if key == "code_mixing_english":
                 return "code_mixing", "english"
             if key == "code_mixing_hinglish":
                 return "code_mixing", "hinglish"
 
-            value = m.group(1).strip().rstrip(".,!?")
+            if key not in _COMMAND_KEYS and _in_question_clause(t, m.start()):
+                continue
+
+            value = _bound_value(m.group(1))
             if 1 < len(value) < 150:
                 return key, value
 

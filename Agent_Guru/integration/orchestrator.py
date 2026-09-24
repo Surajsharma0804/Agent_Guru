@@ -2070,7 +2070,7 @@ class IntegrationOrchestrator:
 
             # Universal feature detection (runs for ALL intent types)
             feature_result = await self._detect_universal_features(
-                raw_text, pipeline_mode,
+                raw_text, pipeline_mode, intent_type,
             )
             if feature_result is not None:
                 return feature_result
@@ -2137,7 +2137,7 @@ class IntegrationOrchestrator:
         return None
 
     async def _detect_universal_features(
-        self, raw_text: str, pipeline_mode: str,
+        self, raw_text: str, pipeline_mode: str, intent_type: str = "",
     ) -> Any | None:
         """Detect universal features (briefing, status, reminders, dictation, etc.)."""
         # Morning briefing
@@ -2191,7 +2191,7 @@ class IntegrationOrchestrator:
             return "I couldn't read the screen content right now."
 
         # User memory extraction
-        result = await self._handle_user_memory(raw_text, pipeline_mode)
+        result = await self._handle_user_memory(raw_text, pipeline_mode, intent_type)
         if result is not None:
             return result
 
@@ -2294,7 +2294,9 @@ class IntegrationOrchestrator:
         at_t = reminder_params.get("at_time")
         return await self._reminder_mgr.set_reminder(msg, minutes=mins, seconds=secs, at_time=at_t)
 
-    async def _handle_user_memory(self, raw_text: str, pipeline_mode: str) -> str | None:
+    async def _handle_user_memory(
+        self, raw_text: str, pipeline_mode: str, intent_type: str = "",
+    ) -> str | None:
         """Handle user memory extraction (remember/forget commands)."""
         from Agent_Guru.platform.features.user_memory import extract_user_fact, get_user_memory
         if pipeline_mode != "full":
@@ -2320,6 +2322,16 @@ class IntegrationOrchestrator:
             return "hmm, I don't remember that one."
 
         get_user_memory().set(key, value)
+
+        # The user asked a question. Whatever this returns becomes the spoken
+        # reply (_finalize_tts_text prefers action_result over llm_response),
+        # so returning the acknowledgement here threw away the answer the LLM
+        # had already produced: "My name is Suraj, what's the weather?" was
+        # answered with "Nice to meet you, Suraj!" and nothing else. Keep the
+        # fact, let the answer through.
+        if intent_type == "information":
+            return None
+
         _sval = self._sanitize_output(value)
         _lang = get_user_memory().get("code_mixing", "hinglish")
         _ack_map = {
