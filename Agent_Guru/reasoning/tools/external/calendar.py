@@ -82,8 +82,11 @@ class CreateCalendarEventTool(Tool):
         title = kwargs["title"]
         start_time = kwargs["start_time"]
         end_time = kwargs["end_time"]
-        description = kwargs.get("description", "")
-        location = kwargs.get("location", "")
+        # description and location are accepted and documented above, but
+        # nothing reads them: this tool has had no calendar backend to send
+        # them to since it was changed to fail honestly. Left unread rather
+        # than removed from the documented signature, so the day a backend
+        # arrives the caller contract does not change.
 
         # Validate title
         if not title or not title.strip():
