@@ -21,6 +21,12 @@ from Agent_Guru.reasoning.models.result import ExecutionResult, ResponseModality
 from Agent_Guru.reasoning.response.llm_generator import LLMResponseGenerator
 from Agent_Guru.reasoning.response.template_generator import TemplateGenerator
 
+# NOTE: LLMResponse (reasoning/llm/models.py) is a dataclass with
+# tokens_generated / finish_reason. It has no prompt_tokens or
+# completion_tokens fields, so these constructions raised TypeError
+# before the generator under test ever ran.
+
+
 
 @pytest.fixture
 def mock_llm_router():
@@ -89,6 +95,7 @@ def sample_conversation_state():
         turns=[
             ConversationTurn(
                 turn_id="turn_1",
+                turn_number=1,
                 user_input="What's the weather?",
                 resolved_input="What's the weather?",
                 intent=Intent(
@@ -144,8 +151,8 @@ class TestLLMResponseGenerator:
             text="I've set a timer for 5 minutes",
             provider=LLMProvider.LOCAL,
             latency_ms=150.0,
-            prompt_tokens=50,
-            completion_tokens=10,
+            tokens_generated=10,
+            finish_reason="stop",
         )
 
         # Generate response
@@ -183,8 +190,8 @@ class TestLLMResponseGenerator:
             text="Timer set for 5 minutes",
             provider=LLMProvider.LOCAL,
             latency_ms=150.0,
-            prompt_tokens=100,
-            completion_tokens=10,
+            tokens_generated=10,
+            finish_reason="stop",
         )
 
         # Generate response with context
@@ -213,8 +220,8 @@ class TestLLMResponseGenerator:
             text="Timer set",
             provider=LLMProvider.LOCAL,
             latency_ms=150.0,
-            prompt_tokens=50,
-            completion_tokens=5,
+            tokens_generated=5,
+            finish_reason="stop",
         )
 
         # Generate response with preferences
@@ -247,8 +254,8 @@ class TestLLMResponseGenerator:
             text="Sorry, I couldn't set the timer. The timer service is currently unavailable.",
             provider=LLMProvider.LOCAL,
             latency_ms=150.0,
-            prompt_tokens=60,
-            completion_tokens=15,
+            tokens_generated=15,
+            finish_reason="stop",
         )
 
         # Generate response
@@ -338,8 +345,8 @@ class TestLLMResponseGenerator:
             text="Timer set for 5 minutes",
             provider=LLMProvider.LOCAL,
             latency_ms=150.0,
-            prompt_tokens=50,
-            completion_tokens=10,
+            tokens_generated=10,
+            finish_reason="stop",
         )
 
         # Generate voice response
@@ -362,8 +369,8 @@ class TestLLMResponseGenerator:
             text="I've successfully set a timer for 5 minutes. I'll notify you when it's done.",
             provider=LLMProvider.LOCAL,
             latency_ms=150.0,
-            prompt_tokens=50,
-            completion_tokens=20,
+            tokens_generated=20,
+            finish_reason="stop",
         )
 
         # Generate text response
@@ -385,8 +392,8 @@ class TestLLMResponseGenerator:
             text="Timer set for 5 minutes",
             provider=LLMProvider.LOCAL,
             latency_ms=150.0,
-            prompt_tokens=50,
-            completion_tokens=10,
+            tokens_generated=10,
+            finish_reason="stop",
         )
 
         # Generate response
@@ -410,8 +417,8 @@ class TestLLMResponseGenerator:
             text="Timer set for 5 minutes",
             provider=LLMProvider.LOCAL,
             latency_ms=150.0,
-            prompt_tokens=50,
-            completion_tokens=10,
+            tokens_generated=10,
+            finish_reason="stop",
         )
 
         # Generate streaming response
@@ -443,8 +450,8 @@ class TestLLMResponseGenerator:
             text="Timer set for 5 minutes",
             provider=LLMProvider.LOCAL,
             latency_ms=150.0,
-            prompt_tokens=50,
-            completion_tokens=10,
+            tokens_generated=10,
+            finish_reason="stop",
         )
 
         # Generate streaming response
@@ -554,10 +561,12 @@ class TestLLMResponseGeneratorIntegration:
         # Mock LLM response
         mock_llm_router.generate.return_value = LLMResponse(
             text="I've set a timer for 5 minutes. I'll let you know when it's done.",
-            provider=LLMProvider.CLOUD,
+            # LLMProvider has no CLOUD member -- the cloud backends are named
+            # individually (OPENAI, ANTHROPIC, GEMINI, DEEPSEEK).
+            provider=LLMProvider.OPENAI,
             latency_ms=180.0,
-            prompt_tokens=75,
-            completion_tokens=15,
+            tokens_generated=15,
+            finish_reason="stop",
         )
 
         # Generate response
@@ -569,7 +578,7 @@ class TestLLMResponseGeneratorIntegration:
         assert response.text  # nosec B101
         assert response.modality == ResponseModality.TEXT  # nosec B101
         assert response.metadata["generation_method"] == "llm"  # nosec B101
-        assert response.metadata["llm_provider"] == "cloud"  # nosec B101
+        assert response.metadata["llm_provider"] == "openai"  # nosec B101
         assert response.suggestions  # nosec B101
         assert len(response.suggestions) > 0  # nosec B101
 
