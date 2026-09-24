@@ -1,4 +1,4 @@
-"""Module: agent_guru.reasoning.verification.integration
+﻿"""Module: agent_guru.reasoning.verification.integration
 Purpose: BEST-IN-CLASS Verification Layer Integration for Reasoning Pipeline
 Author: Agent Guru Team
 Date: 2026-02-22.
@@ -396,6 +396,9 @@ class VerificationIntegration:
 
     """
 
+    #: Most recent verification audit entries retained in memory.
+    AUDIT_LOG_SIZE = 1000
+
     def __init__(
         self,
         llm_client: LLMClient,
@@ -429,7 +432,16 @@ class VerificationIntegration:
         self.circuit_breaker = CircuitBreaker()
 
         # Audit log (in-memory, should be persisted to database in production)
-        self.audit_log: list[VerificationAuditLog] = []
+        # MEMORY-LEAK FIX: this was a plain list holding one
+        # VerificationAuditLog per verification, for the life of the process,
+        # with a "# In production, persist to database" note where the
+        # persistence should be. get_audit_log() only ever returns the last
+        # `limit` entries after filtering, so everything older than that was
+        # unreachable AND retained - memory consumed to hold records nothing
+        # could read. Bounded to the most recent AUDIT_LOG_SIZE entries; the
+        # structured logger call beside the append is what carries the full
+        # history off-process.
+        self.audit_log: deque[VerificationAuditLog] = deque(maxlen=self.AUDIT_LOG_SIZE)
 
         # Result cache (LRU with 5-minute TTL)
         self.result_cache: dict[str, tuple[VerificationResult, float]] = {}
@@ -647,7 +659,7 @@ class VerificationIntegration:
             )
             return False, None, error_msg
 
-        return None  # Unknown recommendation — retry
+        return None  # Unknown recommendation - retry
 
     async def _handle_clarify(
         self,
@@ -913,21 +925,38 @@ class VerificationIntegration:
         Args:
             user_id: Filter by user ID
             conversation_id: Filter by conversation ID
-            limit: Maximum number of entries to return
+            limit: Maximum number of entries to return. Zero or negative
+                returns nothing.
 
         Returns:
-            List of audit log entries
+            List of audit log entries, oldest first.
 
         """
-        filtered_log = self.audit_log
+        # DEFECT FIX: the previous implementation ended with
+        # `filtered_log[-limit:]`. For limit=0 that is `[-0:]`, i.e. `[0:]`,
+        # which returns the ENTIRE log - the exact opposite of "at most zero
+        # entries" - and a negative limit sliced from the wrong end. A caller
+        # passing a computed limit that happened to reach zero got the whole
+        # audit trail serialised instead of an empty list.
+        if limit <= 0:
+            return []
 
-        if user_id:
-            filtered_log = [entry for entry in filtered_log if entry.user_id == user_id]
+        # Walk newest-first and stop as soon as `limit` matches are in hand.
+        # The old code materialised the whole deque, built one new list per
+        # active filter, then threw all but the last `limit` entries away;
+        # to_dict() was only ever called on the survivors but the filtering
+        # itself scanned everything. Early exit makes the common
+        # "last 100 for this conversation" query O(scanned) instead of
+        # O(AUDIT_LOG_SIZE), with identical results.
+        matches: list[VerificationAuditLog] = []
+        for entry in reversed(self.audit_log):
+            if user_id and entry.user_id != user_id:
+                continue
+            if conversation_id and entry.conversation_id != conversation_id:
+                continue
+            matches.append(entry)
+            if len(matches) >= limit:
+                break
 
-        if conversation_id:
-            filtered_log = [
-                entry for entry in filtered_log if entry.conversation_id == conversation_id
-            ]
-
-        # Return most recent entries
-        return [entry.to_dict() for entry in filtered_log[-limit:]]
+        matches.reverse()
+        return [entry.to_dict() for entry in matches]
