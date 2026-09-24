@@ -113,6 +113,14 @@ class AsyncTimeoutExecutor:
         # Track in-flight tasks for cancellation
         self._in_flight_tasks: dict[str, asyncio.Task] = {}
 
+        # Task IDs for which cancel_task()/cancel_all_tasks() has been called.
+        # execute_async() needs to tell "somebody cancelled the action I am
+        # running" (-> report a CANCELLED result) apart from "my own caller
+        # cancelled me" (-> must re-raise, or structured cancellation breaks).
+        # Both arrive as the same asyncio.CancelledError out of wait_for, so
+        # the distinction cannot be made from the exception alone.
+        self._cancel_requests: set[str] = set()
+
         # Track partial results for timeout handling
         self._partial_results: dict[str, Any] = {}
 
@@ -187,7 +195,49 @@ class AsyncTimeoutExecutor:
                     timed_out=True,
                     partial_result=partial_result if self.enable_partial_results else None,
                 )
-                # Cancelled by user
+
+            except asyncio.CancelledError:
+                # BUG FIX: this handler did not exist. All that remained of it
+                # was the orphaned "# Cancelled by user" comment below the
+                # timeout branch, and `except Exception` cannot stand in for
+                # it because CancelledError has derived from BaseException
+                # since Python 3.8. So cancel_task() - the documented, tested
+                # way to stop an action - made execute_async() raise
+                # CancelledError straight through to its caller, in direct
+                # contradiction of this method's own "Raises: Never raises -
+                # all errors captured in AsyncExecutionResult" contract, and
+                # of the AsyncExecutionResult.cancelled field that exists
+                # precisely to report this outcome.
+                current = asyncio.current_task()
+                if (current is not None and current.cancelling() > 0) or (
+                    task_id not in self._cancel_requests
+                ):
+                    # Our own caller cancelled us (or something cancelled the
+                    # child behind our back). Swallowing that would leave the
+                    # caller believing its cancellation had no effect and is
+                    # exactly how "uncancellable" coroutines are created, so
+                    # make sure the child is finished and propagate.
+                    task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await task
+                    raise
+
+                execution_time = time.perf_counter() - start_time
+                partial_result = self._partial_results.pop(task_id, None)
+                return AsyncExecutionResult(
+                    success=False,
+                    error={
+                        "error_code": "CANCELLED",
+                        "message": "Execution was cancelled",
+                        "details": {"task_id": task_id},
+                        "recoverable": True,
+                    },
+                    execution_time=execution_time,
+                    action_id=action.action_id,
+                    task_id=task_id,
+                    cancelled=True,
+                    partial_result=partial_result if self.enable_partial_results else None,
+                )
         except Exception as e:
             # Unexpected error
             execution_time = time.perf_counter() - start_time
@@ -207,6 +257,7 @@ class AsyncTimeoutExecutor:
             # Cleanup
             self._in_flight_tasks.pop(task_id, None)
             self._partial_results.pop(task_id, None)
+            self._cancel_requests.discard(task_id)
 
     async def _execute_with_partial_tracking(
         self,
@@ -254,6 +305,12 @@ class AsyncTimeoutExecutor:
         task = self._in_flight_tasks.get(task_id)
         if task is None:
             return False
+
+        # Record the request BEFORE cancelling: execute_async() may be resumed
+        # by the cancellation before this coroutine runs again, and it reads
+        # this set to decide whether the CancelledError is this deliberate
+        # cancellation or its own caller's.
+        self._cancel_requests.add(task_id)
 
         # Cancel task
         task.cancel()
