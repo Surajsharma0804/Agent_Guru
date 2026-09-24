@@ -29,7 +29,8 @@ class ConversationTurn:
     user_id: str
     speaker: str  # "user" | "assistant"
     text: str
-    emotion: EmotionType
+    # None when emotion was not measured for this turn.
+    emotion: EmotionType | None
     personality: str
     timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
@@ -123,7 +124,7 @@ class MemoryClient:
         user_id: str,
         speaker: str,
         text: str,
-        emotion: EmotionType,
+        emotion: EmotionType | None,
         personality: str,
         timestamp: datetime | None = None,
     ) -> bool:
@@ -133,7 +134,7 @@ class MemoryClient:
             user_id: User identifier
             speaker: "user" or "assistant"
             text: Spoken/synthesized text
-            emotion: Emotion during this turn
+            emotion: Emotion during this turn, or None if it was not measured
             personality: Active personality (GURU/MAYA)
             timestamp: Turn timestamp (defaults to now)
 
@@ -161,7 +162,11 @@ class MemoryClient:
                 "user_id": turn.user_id,
                 "speaker": turn.speaker,
                 "text": turn.text,
-                "emotion": turn.emotion.value
+                # str(None) would store the text "None", which reads back
+                # as a label rather than as the absence of a reading.
+                "emotion": None
+                if turn.emotion is None
+                else turn.emotion.value
                 if hasattr(turn.emotion, "value")
                 else str(turn.emotion),
                 "personality": turn.personality,

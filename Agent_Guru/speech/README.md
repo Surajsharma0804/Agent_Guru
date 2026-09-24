@@ -46,7 +46,11 @@ async def main():
     result = await engine.process_voice_input(audio, personality=PersonalityType.GURU)
 
     print(f"Transcription: {result.transcription.text}")
-    print(f"Emotion: {result.emotion.primary_emotion.value}")
+    # emotion is None when it could not be measured; emotion_error says why.
+    if result.emotion is not None:
+        print(f"Emotion: {result.emotion.primary_emotion.value}")
+    else:
+        print(f"Emotion: not measured ({result.emotion_error})")
     print(f"Command: {result.command.action_id if result.command else 'none'}")
 
     engine.shutdown()
