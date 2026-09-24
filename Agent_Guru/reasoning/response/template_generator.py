@@ -1,4 +1,4 @@
-"""Template-Based Response Generator.
+﻿"""Template-Based Response Generator.
 
 Provides fast (<100ms), deterministic response generation using templates
 for common success/error scenarios.
@@ -16,6 +16,7 @@ Design:
 - Zero LLM calls for maximum speed
 """
 
+import string
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -30,6 +31,110 @@ from Agent_Guru.reasoning.response.error_response_generator import ErrorResponse
 
 logger = get_logger(__name__)
 metrics = get_metrics_collector()
+
+
+
+# Ordered most-general-first, matching the original inference order exactly so
+# no message that used to classify one way now classifies another. Only the
+# PHRASES per type are widened.
+#
+# The old single-keyword tests missed the most common real wordings outright.
+# "Operation timed out" does not contain "timeout" -- and "timed out" is how
+# Python's own asyncio and subprocess messages put it, and how nearly every
+# human does. Genuine timeouts were therefore classified SYSTEM_ERROR and the
+# user was told "Something went wrong. Please try again." instead of that it
+# took too long. "Connection refused" and "Name or service not known" missed
+# "network" the same way.
+#
+# This lived in TWO places -- _create_error_from_result() and
+# _select_template() -- with the same list copied into both, which is exactly
+# how they drift. One function now, used by both.
+_ERROR_SIGNATURES: tuple[tuple[ErrorType, tuple[str, ...]], ...] = (
+    (
+        ErrorType.EXECUTION_TIMEOUT,
+        ("timeout", "timed out", "timed-out", "time out", "timing out",
+         "took too long", "deadline exceeded", "etimedout"),
+    ),
+    (
+        ErrorType.PERMISSION_DENIED,
+        ("permission", "denied", "unauthorized", "unauthorised", "forbidden",
+         "not allowed", "not permitted", "eacces", "eperm"),
+    ),
+    (
+        ErrorType.NETWORK_ERROR,
+        ("network", "connection", "unreachable", "offline", "dns",
+         "name or service not known", "socket", "econnrefused", "ehostunreach",
+         "no route to host", "ssl", "certificate"),
+    ),
+    (
+        ErrorType.INVALID_INPUT,
+        ("invalid", "malformed", "bad request", "could not parse",
+         "cannot parse", "unparseable", "decode error"),
+    ),
+    (
+        ErrorType.TOOL_UNAVAILABLE,
+        ("unavailable", "not available", "disabled", "service down",
+         "temporarily down"),
+    ),
+    (
+        ErrorType.NO_TOOL_FOUND,
+        ("not found", "no such", "unknown tool", "enoent", "missing tool"),
+    ),
+)
+
+
+# Template keys are built as f"{intent_type}_{success|error}", so a template
+# whose prefix is not an IntentType value can never be selected: pydantic
+# rejects the Intent before it reaches this class.
+#
+# Three success templates were in exactly that state --
+# "create_reminder_success", "query_calendar_success" and
+# "control_smart_home_success" -- because the vocabulary drifted after they
+# were written (the enum says set_reminder, query_events and control_device).
+# Every smart-home command consequently fell through to "Done!" instead of
+# naming the device and what happened to it.
+#
+# Aliasing rather than renaming the templates or minting duplicate enum
+# members: several distinct intents legitimately share one response shape
+# (control_lights and control_thermostat are smart-home replies too), and a
+# lookup table expresses that without copying templates.
+_INTENT_TEMPLATE_ALIASES: dict[str, str] = {
+    "set_reminder": "create_reminder",
+    "query_events": "query_calendar",
+    "show_calendar": "query_calendar",
+    "list_events": "query_calendar",
+    "control_device": "control_smart_home",
+    "control_lights": "control_smart_home",
+    "control_thermostat": "control_smart_home",
+}
+
+# Maps a classified error onto this generator's own fallback templates. Only
+# the types that have a dedicated template appear; anything else falls through
+# to "generic_error".
+_ERROR_TYPE_TEMPLATES: dict[ErrorType, str] = {
+    ErrorType.EXECUTION_TIMEOUT: "error_timeout",
+    ErrorType.PERMISSION_DENIED: "error_permission_denied",
+    ErrorType.NETWORK_ERROR: "error_network_error",
+    ErrorType.INVALID_INPUT: "error_invalid_input",
+    ErrorType.TOOL_UNAVAILABLE: "error_tool_unavailable",
+}
+
+
+def classify_error_message(message: str) -> ErrorType:
+    """Infer an ErrorType from a free-form error message.
+
+    Time:  O(n * m) for n = len(message), m = the fixed phrase count.
+    Space: O(n) for the lower-cased copy.
+
+    Returns ErrorType.SYSTEM_ERROR when nothing matches, which is what the
+    caller wants: a generic apology is the right answer for an error we cannot
+    characterise, and a WRONG characterisation is worse than none.
+    """
+    lowered = (message or "").lower()
+    for error_type, phrases in _ERROR_SIGNATURES:
+        if any(phrase in lowered for phrase in phrases):
+            return error_type
+    return ErrorType.SYSTEM_ERROR
 
 
 class TemplateType(str, Enum):
@@ -216,32 +321,30 @@ class TemplateGenerator:
             if hasattr(intent.intent_type, "value")
             else str(intent.intent_type)
         )
-        template_key = f"{intent_type_str}_{('success' if result.success else 'error')}"
-        if template_key in self._templates:
-            return self._templates[template_key]
+        suffix = "success" if result.success else "error"
+        for key in (
+            f"{intent_type_str}_{suffix}",
+            f"{_INTENT_TEMPLATE_ALIASES.get(intent_type_str, intent_type_str)}_{suffix}",
+        ):
+            if key in self._templates:
+                return self._templates[key]
 
         # Fall back to generic template
         if result.success:
             return self._templates["generic_success"]
-        # Error is now a string, try to extract type from message
+        # Error is now a string; classify it with the SAME function
+        # _create_error_from_result() uses, so the two cannot disagree about
+        # what "Operation timed out" means.
         error_msg = result.error if result.error else "unknown"
-        if "timeout" in error_msg.lower():
-            error_template_key = "error_timeout"
-        elif "permission" in error_msg.lower():
-            error_template_key = "error_permission_denied"
-        elif "network" in error_msg.lower():
-            error_template_key = "error_network_error"
-        elif "invalid" in error_msg.lower():
-            error_template_key = "error_invalid_input"
-        elif "unavailable" in error_msg.lower():
-            error_template_key = "error_tool_unavailable"
-        else:
-            error_template_key = "generic_error"
+        error_template_key = _ERROR_TYPE_TEMPLATES.get(
+            classify_error_message(error_msg),
+            "generic_error",
+        )
 
         if error_template_key in self._templates:
             return self._templates[error_template_key]
 
-        # Final fallback — always return a valid template
+        # Final fallback - always return a valid template
         return self._templates.get(
             "generic_success" if result.success else "generic_error",
             next(iter(self._templates.values())),
@@ -258,21 +361,7 @@ class TemplateGenerator:
 
         """
         error_msg = result.error if result.error else "Unknown error"
-
-        # Infer error type from message
-        error_type = ErrorType.SYSTEM_ERROR
-        if "timeout" in error_msg.lower():
-            error_type = ErrorType.EXECUTION_TIMEOUT
-        elif "permission" in error_msg.lower():
-            error_type = ErrorType.PERMISSION_DENIED
-        elif "network" in error_msg.lower():
-            error_type = ErrorType.NETWORK_ERROR
-        elif "invalid" in error_msg.lower():
-            error_type = ErrorType.INVALID_INPUT
-        elif "unavailable" in error_msg.lower():
-            error_type = ErrorType.TOOL_UNAVAILABLE
-        elif "not found" in error_msg.lower():
-            error_type = ErrorType.NO_TOOL_FOUND
+        error_type = classify_error_message(error_msg)
 
         return Error(
             error_code="ERR_EXEC",
@@ -381,13 +470,32 @@ class TemplateGenerator:
         try:
             return template_str.format(**variables)
         except KeyError:
-            # Fallback: use safe_substitute-like behavior
-            logger.exception("Variable not found in template, using empty string")
-            # Replace missing variables with empty strings
-            safe_vars = dict(variables.items())
-            for var in template.variables:
-                if var not in safe_vars:
-                    safe_vars[var] = ""
+            # BUG FIX: this fallback used to fill only the names listed in
+            # template.variables. That list can drift from the template text,
+            # and it had -- the play_music template declares
+            # variables=["song"] while its text_template is
+            # "Now playing {song} by {artist}". A result without an artist
+            # therefore raised KeyError, fell in here, filled "song" only, and
+            # raised KeyError('artist') AGAIN from inside the except block.
+            # A cosmetic declaration gap became a crash on the response path.
+            #
+            # The placeholders are now read out of the template string itself,
+            # which by construction cannot drift from it.
+            missing = sorted(
+                {
+                    field.split(".")[0].split("[")[0]
+                    for _, field, _, _ in string.Formatter().parse(template_str)
+                    if field
+                }
+                - set(variables),
+            )
+            logger.warning(
+                "Template %s is missing variable(s) %s; substituting empty strings",
+                getattr(template, "template_id", "<unknown>"),
+                missing,
+            )
+            safe_vars: dict[str, Any] = dict.fromkeys(missing, "")
+            safe_vars.update(variables)
             return template_str.format(**safe_vars)
 
     def _personalize_response(self, text: str, user_preferences: dict[str, Any]) -> str:
@@ -580,7 +688,8 @@ class TemplateGenerator:
             template_type=TemplateType.SUCCESS,
             text_template="Now playing {song} by {artist}",
             voice_template="Playing {song}",
-            variables=["song"],
+            # "artist" was missing here while the text template used it.
+            variables=["song", "artist"],
             suggestions=["Next song", "Pause", "Add to playlist"],
         )
 
