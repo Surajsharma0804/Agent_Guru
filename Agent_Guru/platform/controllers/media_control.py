@@ -46,6 +46,11 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
+# Every external media helper (osascript, playerctl, xdotool) is bounded by
+# this. Named rather than repeated so the value and the messages that quote it
+# cannot drift apart.
+_SUBPROCESS_TIMEOUT_S = 5.0
+
 # Data Models
 
 @dataclass
@@ -345,7 +350,7 @@ class MacOSMediaBackend(MediaBackend):
                 ["osascript", "-e", script],
                 capture_output=True,
                 text=True,
-                timeout=5.0,
+                timeout=_SUBPROCESS_TIMEOUT_S,
                 check=True,
             )
             logger.debug("AppleScript executed: %s...", script[:50])
@@ -353,6 +358,20 @@ class MacOSMediaBackend(MediaBackend):
         except subprocess.CalledProcessError as e:
             logger.exception("AppleScript failed: %s", e.stderr)
             msg = f"AppleScript execution failed: {e.stderr}"
+            raise MediaCommandError(msg) from e
+        except subprocess.TimeoutExpired as e:
+            # The timeout= above exists precisely to produce this, yet it was
+            # not caught: a hung osascript -- routine while macOS is waiting
+            # on an automation-permission prompt -- escaped as a raw
+            # TimeoutExpired instead of the MediaCommandError this method
+            # documents, crashing the caller rather than failing the command.
+            logger.warning("AppleScript timed out after %.1fs", _SUBPROCESS_TIMEOUT_S)
+            msg = f"AppleScript execution timeout after {_SUBPROCESS_TIMEOUT_S:.1f}s"
+            raise MediaCommandError(msg) from e
+        except (FileNotFoundError, OSError) as e:
+            # osascript missing, or the exec itself failed.
+            logger.warning("Could not run osascript: %s", e)
+            msg = f"AppleScript execution failed: {e}"
             raise MediaCommandError(msg) from e
 
     def _send_media_key(self, key_code: int) -> None:
@@ -544,7 +563,7 @@ class LinuxMediaBackend(MediaBackend):
                 ["playerctl", command],
                 capture_output=True,
                 text=True,
-                timeout=5.0,
+                timeout=_SUBPROCESS_TIMEOUT_S,
                 check=True,
             )
             logger.debug("playerctl %s executed", command)
@@ -552,6 +571,19 @@ class LinuxMediaBackend(MediaBackend):
         except subprocess.CalledProcessError as e:
             logger.exception("playerctl %s failed: %s", command, e.stderr)
             msg = f"playerctl {command} failed: {e.stderr}"
+            raise MediaCommandError(msg) from e
+        except subprocess.TimeoutExpired as e:
+            # Same gap as the AppleScript path: the timeout was set but never
+            # handled, so an unresponsive player took the caller down with a
+            # raw TimeoutExpired.
+            logger.warning(
+                "playerctl %s timed out after %.1fs", command, _SUBPROCESS_TIMEOUT_S,
+            )
+            msg = f"playerctl {command} timeout after {_SUBPROCESS_TIMEOUT_S:.1f}s"
+            raise MediaCommandError(msg) from e
+        except (FileNotFoundError, OSError) as e:
+            logger.warning("Could not run playerctl: %s", e)
+            msg = f"playerctl {command} failed: {e}"
             raise MediaCommandError(msg) from e
 
     def _send_xdotool_key(self, key: str) -> None:
@@ -565,10 +597,22 @@ class LinuxMediaBackend(MediaBackend):
 
         """
         try:
-            subprocess.run(["xdotool", "key", key], capture_output=True, timeout=5.0, check=True)  # nosec B603 B607  # noqa: S603
+            subprocess.run(  # noqa: S603
+                ["xdotool", "key", key],
+                capture_output=True,
+                timeout=_SUBPROCESS_TIMEOUT_S,
+                check=True,
+            )  # nosec B603 B607  # noqa: S603
             logger.debug("xdotool key %s sent", key)
-        except (subprocess.CalledProcessError, FileNotFoundError) as e:
-            logger.exception("xdotool key failed")
+        except (
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+            OSError,
+        ) as e:
+            # TimeoutExpired added: this one already handled a missing binary
+            # but not a hung one, despite setting timeout=.
+            logger.warning("xdotool key %s failed: %s", key, e)
             msg = f"xdotool key {key} failed: {e}"
             raise MediaCommandError(msg) from e
 
