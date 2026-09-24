@@ -151,3 +151,32 @@ class TestClosedPoolStaysClosed:
         assert isinstance(outcome[0], RuntimeError)
         with pytest.raises(sqlite3.ProgrammingError):
             created[0].connection.execute("SELECT 1")
+
+
+class TestConnectionCount:
+    def test_count_stays_exact_when_acquire_races_close(self, db_path, monkeypatch):
+        # _total_connections gates creation against max_size, so it must
+        # equal the connections the pool actually has open. Zeroing it in
+        # close_all() while an acquire() still held a reserved slot drove it
+        # to -1 once that acquire closed its connection.
+        pool = ConnectionPool(str(db_path), min_size=2, max_size=3, timeout=0.05)
+        pool.acquire()
+        pool.acquire()
+        creating = threading.Event()
+        proceed = threading.Event()
+        real_create = pool._create_connection_unlocked
+
+        def slow_create():
+            creating.set()
+            proceed.wait(5)
+            return real_create()
+
+        monkeypatch.setattr(pool, "_create_connection_unlocked", slow_create)
+        worker = threading.Thread(target=lambda: pytest.raises(RuntimeError, pool.acquire))
+        worker.start()
+        assert creating.wait(5)
+        pool.close_all(timeout=0)
+        proceed.set()
+        worker.join(5)
+
+        assert pool.get_stats().total_connections == 0

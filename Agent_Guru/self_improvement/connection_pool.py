@@ -431,9 +431,8 @@ class ConnectionPool:
             for conn in stragglers:
                 conn.mark_released()
                 conn.connection.close()
-
-        with self._lock:
-            self._total_connections = 0
+            with self._lock:
+                self._total_connections -= len(stragglers)
 
     def _drain_idle(self) -> None:
         """Close every connection currently sitting in the idle queue."""
@@ -443,6 +442,8 @@ class ConnectionPool:
             except Empty:
                 break
             conn.connection.close()
+            with self._lock:
+                self._total_connections -= 1
 
     def get_stats(self) -> ConnectionStats:
         """Get connection pool statistics.
