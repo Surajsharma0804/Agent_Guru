@@ -208,7 +208,7 @@ mypy==2.2.0
 mypy_extensions==1.1.0
 narwhals==2.24.0
 networkx==3.6.1
-nltk==3.10.0
+nltk==3.10.3
 nodeenv==1.10.0
 noisereduce==3.0.3
 numba==0.65.1
@@ -292,7 +292,7 @@ python-engineio==4.13.3
 python-msilib==0.6.0
 python-socketio==5.16.3
 pytokens==0.4.1
-pytorch-lightning==2.6.5
+pytorch-lightning==2.6.6
 pyttsx3==2.99
 pytweening==1.2.0
 pywin32==312
@@ -364,7 +364,7 @@ torchmetrics==1.9.0
 torchvision==0.26.0+cu128
 tqdm==4.67.3
 traitlets==5.15.1
-transformers==5.8.0
+transformers==5.10.4
 truststore==0.10.4
 typer==0.25.1
 types-psutil==7.2.2.20260518
