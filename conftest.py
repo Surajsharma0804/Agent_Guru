@@ -2,10 +2,85 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
 import tempfile
 
 import pytest
+from hypothesis import HealthCheck, Verbosity, settings
+
+# ---------------------------------------------------------------------------
+# Hypothesis configuration
+#
+# pytest.ini carries a `[hypothesis]` section (max_examples, derandomize,
+# deadline, print_blob, database). Hypothesis DOES NOT READ pytest.ini - it is
+# configured through profiles, the HYPOTHESIS_PROFILE environment variable or
+# --hypothesis-profile - so that section was dead configuration and every
+# property test in this repository ran with Hypothesis's built-in defaults
+# instead: a 200 ms per-example deadline, non-derandomised input, and the
+# on-disk example database.
+#
+# The visible symptom was recurring, non-reproducible failures of the form
+#     hypothesis.errors.FlakyFailure: ... produces unreliable results:
+#     Failed on the first call but did not on a subsequent one
+#     Unreliable test timings! On an initial run this test took 414.08ms,
+#     which exceeded the deadline of 200.00ms, but on a subsequent run it
+#     took 0.33ms
+# - i.e. the FIRST example of a property paid a one-off warm-up (building a
+# tool registry, loading a model, importing a backend) and Hypothesis reported
+# it as a defect in the code under test.
+#
+# A wall-clock deadline is not a correctness property; this project asserts
+# performance explicitly in its `performance`-marked tests. Registering the
+# profile the repository already describes makes that configuration real.
+# ---------------------------------------------------------------------------
+settings.register_profile(
+    "agent_guru",
+    max_examples=100,
+    derandomize=True,
+    deadline=None,
+    print_blob=False,
+    database=None,
+    suppress_health_check=[HealthCheck.too_slow],
+)
+settings.register_profile(
+    "fast",
+    parent=settings.get_profile("agent_guru"),
+    max_examples=10,
+)
+settings.register_profile(
+    "debug",
+    parent=settings.get_profile("agent_guru"),
+    verbosity=Verbosity.verbose,
+)
+settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "agent_guru"))
+
+
+# ---------------------------------------------------------------------------
+# Hermetic test runs: no model downloads
+#
+# KokoroTTSEngine._ensure_loaded() auto-downloads ~83 MB of ONNX weights the
+# first time anything synthesises speech. Under test that turned ordinary unit
+# tests into network transfers: Agent_Guru/speech/tests/tts/test_tts_properties.py
+# and .../engine/test_speech_engine.py both blew their 30-second budget pulling
+# model weights, and a CI runner would have re-downloaded them on every cold
+# cache - slow, flaky, and dependent on a third-party host being up.
+#
+# A test suite has to be hermetic, so downloads are off by default here. The
+# TTS engine treats the resulting TTSError as "this backend is unavailable" and
+# falls back exactly as it does on a machine without the model, which is a
+# state the suite should be able to exercise anyway. Tests that genuinely need
+# real audio check TTSEngine.active_backend and skip themselves.
+#
+# Set AGENT_GURU_ALLOW_MODEL_DOWNLOAD=1 to run the suite against real weights.
+# ---------------------------------------------------------------------------
+if os.environ.get("AGENT_GURU_ALLOW_MODEL_DOWNLOAD", "").strip().lower() not in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}:
+    os.environ.setdefault("AGENT_GURU_NO_DOWNLOAD", "1")
 
 
 @pytest.fixture
