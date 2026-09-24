@@ -10,7 +10,7 @@ Tests the enhanced confidence scoring system including:
 Coverage Target: >80%
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 

@@ -2,7 +2,7 @@
 Tests for tone and personality adaptation.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 

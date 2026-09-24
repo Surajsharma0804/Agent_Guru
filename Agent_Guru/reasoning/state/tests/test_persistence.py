@@ -1,6 +1,5 @@
 """Tests for conversation persistence."""
 
-import os
 from datetime import datetime, timezone
 
 import pytest

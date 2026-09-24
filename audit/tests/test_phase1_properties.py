@@ -20,11 +20,9 @@ Requirements: 1.1, 1.2, 3.5
 
 from __future__ import annotations
 
-import ast
 import textwrap
 from pathlib import Path
 
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 

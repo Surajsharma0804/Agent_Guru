@@ -4,7 +4,7 @@ Tests for LLM data models.
 Tests LLMRequest, LLMResponse, LocalLLMConfig, and ServerHealth models.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 

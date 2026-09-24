@@ -24,7 +24,6 @@ torchvision = pytest.importorskip("torchvision")
 ort = pytest.importorskip("onnxruntime")
 
 import torch.nn as nn
-import torchvision.models as models  # type: ignore[import]
 
 
 _EMBEDDING_DIM = 16   # tiny dim for fast property tests

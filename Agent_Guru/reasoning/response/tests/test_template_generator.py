@@ -14,7 +14,6 @@ from datetime import datetime, timezone
 
 import pytest
 
-from Agent_Guru.reasoning.models.error import Error, ErrorType
 from Agent_Guru.reasoning.models.intent import Entity, Intent
 from Agent_Guru.reasoning.models.result import ExecutionResult, Response, ResponseModality
 from Agent_Guru.reasoning.response.template_generator import (
