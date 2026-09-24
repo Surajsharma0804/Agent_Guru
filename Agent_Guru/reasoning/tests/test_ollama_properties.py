@@ -19,7 +19,11 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse
-from Agent_Guru.reasoning.llm.ollama_server import OLLAMA_MODELS, OllamaServer
+from Agent_Guru.reasoning.llm.ollama_server import (
+    OLLAMA_MODELS,
+    OLLAMA_USE_CASES,
+    OllamaServer,
+)
 
 
 # Custom strategies for LLM testing
@@ -193,7 +197,10 @@ class TestOllamaModelSelection:
 
         assert config is not None  # nosec B101
         assert config.name == model  # nosec B101
-        assert config.use_case in ["simple", "complex"]  # nosec B101
+        # The registry's single entry is "general"; assert against the
+        # declared vocabulary rather than a hard-coded pair that predates the
+        # consolidation to one model.
+        assert config.use_case in OLLAMA_USE_CASES  # nosec B101
 
     def test_simple_uses_mistral(self):
         """Property: Simple tasks always use Mistral 7B."""
@@ -266,10 +273,26 @@ class TestOllamaServerInitialization:
         server = OllamaServer(default_model=model)
         assert server.default_model == model  # nosec B101
 
-    @given(st.text(min_size=1, max_size=100).filter(lambda x: x not in OLLAMA_MODELS))
+    @given(st.text(min_size=1, max_size=100).filter(lambda x: x.strip()))
     @settings(max_examples=100)
-    def test_initialization_fails_with_invalid_model(self, model):
-        """Property: Initialization fails with invalid model.
+    def test_initialization_accepts_any_non_blank_model(self, model):
+        """Property: any non-blank model name is accepted.
+
+        OLLAMA_MODELS is a tuned-parameter table, not an allow-list - Ollama
+        serves whatever the operator pulled, and OLLAMA_MODEL may name it.
+        This property used to assert the opposite (that anything outside the
+        table raised) which contradicted the implementation and five call
+        sites that rely on the override.
+
+        Validates: Requirements 4.2
+        """
+        server = OllamaServer(default_model=model)
+        assert server.default_model == model  # nosec B101
+
+    @given(st.text(max_size=10).filter(lambda x: not x.strip()))
+    @settings(max_examples=50)
+    def test_initialization_fails_with_blank_model(self, model):
+        """Property: a blank model name is always rejected.
 
         Validates: Requirements 4.2
         """
