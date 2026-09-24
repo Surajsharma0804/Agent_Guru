@@ -89,3 +89,65 @@ class TestCloseAllReachesCheckedOutConnections:
             pool.close_all()
 
         assert "force-closing 2 connection(s)" in caplog.text
+
+
+class TestClosedPoolStaysClosed:
+    def test_release_during_close_does_not_repopulate(self, db_path):
+        pool = ConnectionPool(str(db_path), min_size=1, max_size=3, timeout=5.0)
+        held = pool.acquire()
+        worker = threading.Thread(target=lambda: (time.sleep(0.1), pool.release(held)))
+        worker.start()
+
+        pool.close_all()
+        worker.join()
+
+        assert pool.get_stats().idle_connections == 0
+        with pytest.raises(sqlite3.ProgrammingError):
+            held.connection.execute("SELECT 1")
+
+    def test_acquire_after_close_raises_immediately(self, db_path):
+        # Refuse up front rather than waiting out the queue timeout and
+        # opening a fresh connection only to throw it away.
+        pool = ConnectionPool(str(db_path), min_size=1, max_size=3, timeout=2.0)
+        pool.close_all()
+
+        started = time.monotonic()
+        with pytest.raises(RuntimeError, match="closed"):
+            pool.acquire()
+        assert time.monotonic() - started < 0.5
+
+    def test_acquire_racing_close_does_not_leak(self, db_path, monkeypatch):
+        # An acquire() already past its entry check when close_all() runs
+        # must not hand a live connection out of a closed pool.
+        pool = ConnectionPool(str(db_path), min_size=0, max_size=3, timeout=0.05)
+        creating = threading.Event()
+        proceed = threading.Event()
+        created = []
+        real_create = pool._create_connection_unlocked
+
+        def slow_create():
+            creating.set()
+            proceed.wait(5)
+            conn = real_create()
+            created.append(conn)
+            return conn
+
+        monkeypatch.setattr(pool, "_create_connection_unlocked", slow_create)
+        outcome = []
+
+        def racer():
+            try:
+                outcome.append(pool.acquire())
+            except RuntimeError as exc:
+                outcome.append(exc)
+
+        worker = threading.Thread(target=racer)
+        worker.start()
+        assert creating.wait(5)
+        pool.close_all()
+        proceed.set()
+        worker.join(5)
+
+        assert isinstance(outcome[0], RuntimeError)
+        with pytest.raises(sqlite3.ProgrammingError):
+            created[0].connection.execute("SELECT 1")

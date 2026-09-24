@@ -168,6 +168,9 @@ class ConnectionPool:
         # Connections currently handed out to callers. The idle queue cannot
         # see these, so without this set close_all() has no way to reach them.
         self._checked_out: set[PooledConnection] = set()
+        # Set by close_all(). A closed pool is terminal: acquire() refuses and
+        # release() closes the connection instead of returning it to the pool.
+        self._closed = False
 
         # Statistics tracking
         self._total_connections = 0
@@ -218,11 +221,16 @@ class ConnectionPool:
 
         Raises:
             TimeoutError: If timeout exceeded
+            RuntimeError: If the pool has been closed
 
         Time Complexity: O(1) average
         Performance Target: <1ms
 
         """
+        if self._closed:
+            msg = "ConnectionPool is closed"
+            raise RuntimeError(msg)
+
         start_time = time.time()
         timeout = timeout or self.timeout
 
@@ -258,10 +266,22 @@ class ConnectionPool:
             # Track statistics
             acquisition_time = (time.time() - start_time) * 1000  # ms
             with self._lock:
-                self._checked_out.add(conn)
-                self._total_acquisitions += 1
-                self._acquisition_times.append(acquisition_time)
-                # deque(maxlen=1000) auto-evicts oldest — no manual pop needed
+                # close_all() may have run while this call was waiting on the
+                # queue or creating a connection. Handing the connection out
+                # now would leak it past the close, so close it instead.
+                rejected = self._closed
+                if not rejected:
+                    self._checked_out.add(conn)
+                    self._total_acquisitions += 1
+                    self._acquisition_times.append(acquisition_time)
+                    # deque(maxlen=1000) auto-evicts oldest - no manual pop needed
+
+            if rejected:
+                conn.connection.close()
+                with self._lock:
+                    self._total_connections -= 1
+                msg = "ConnectionPool was closed during acquire"
+                raise RuntimeError(msg)
 
             return conn
 
@@ -330,8 +350,19 @@ class ConnectionPool:
         # Mark as released
         conn.mark_released()
         with self._released:
+            tracked = conn in self._checked_out
             self._checked_out.discard(conn)
+            pool_closed = self._closed
+            if pool_closed and tracked:
+                self._total_connections -= 1
             self._released.notify_all()
+
+        if pool_closed:
+            # Never repopulate a closed pool. If close_all() already claimed
+            # this connection as a straggler it closes it; otherwise we do.
+            if tracked:
+                conn.connection.close()
+            return
 
         # Rollback any uncommitted transaction
         try:
@@ -366,12 +397,18 @@ class ConnectionPool:
 
         Pass ``timeout=0`` to skip the wait and force-close immediately.
 
+        Closing is terminal. Afterwards acquire() raises RuntimeError and a
+        late release() closes the connection rather than returning it.
+
         Args:
             timeout: Seconds to wait for checked-out connections to be
                 released before force-closing them.
 
         """
         wait = self.timeout if timeout is None else timeout
+
+        with self._lock:
+            self._closed = True
 
         self._drain_idle()
 
@@ -384,9 +421,6 @@ class ConnectionPool:
                 self._released.wait(remaining)
             stragglers = list(self._checked_out)
             self._checked_out.clear()
-
-        # Connections released during the wait went back to the idle queue.
-        self._drain_idle()
 
         if stragglers:
             _logger.warning(
