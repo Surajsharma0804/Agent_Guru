@@ -204,10 +204,21 @@ class TestBackgroundServiceProperties:
     # PROPERTY: UPTIME ACCURACY
     # ========================================================================
     
+    # This property is exercised by really sleeping, so its runtime is
+    # max_examples x sleep_seconds. At the original 100 examples of up to
+    # 0.5 s that is up to 50 seconds for ONE test, against the --timeout=30
+    # this project sets in pytest.ini - so it hit pytest-timeout's SIGALRM on
+    # every run and Hypothesis reported it as "FlakyFailure ... produces
+    # unreliable results", never actually validating the property.
+    #
+    # The property is about the RELATION between elapsed time and reported
+    # uptime, not about any particular number of seconds. 25 examples of up
+    # to 0.2 s bounds the worst case at 5 s, well inside the budget, while
+    # keeping every sleep an order of magnitude above timer granularity.
     @given(
-        sleep_seconds=st.floats(min_value=0.1, max_value=0.5),
+        sleep_seconds=st.floats(min_value=0.05, max_value=0.2),
     )
-    @settings(max_examples=100, deadline=None)
+    @settings(max_examples=25, deadline=None)
     def test_property_uptime_accuracy(self, sleep_seconds: float):
         """
         Property: Uptime Accuracy
