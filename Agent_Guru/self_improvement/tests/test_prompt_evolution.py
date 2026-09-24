@@ -944,7 +944,7 @@ class TestPromptEvolutionProperties:
         iterations=st.integers(min_value=1, max_value=20),
         success_rate_increase=st.floats(min_value=0.05, max_value=0.3),
     )
-    @settings(max_examples=10, deadline=500)  # Reduce examples and increase deadline for iterations
+    @settings(max_examples=10)  # Reduced examples; no deadline, per the project profile
     def test_property_prompt_quality_improves_over_iterations(
         self, iterations, success_rate_increase
     ):
