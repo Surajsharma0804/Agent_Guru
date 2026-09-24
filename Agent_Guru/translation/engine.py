@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 from Agent_Guru.translation.subtitles import SubtitleEntry, SubtitleGenerator
 
@@ -28,6 +31,61 @@ DOMAIN_TERMS: dict[str, dict[str, str]] = {
     "technical": {"bug": "defect", "fix": "patch"},
 }
 
+#: Upper bound on session corrections retained per engine instance.
+#:
+#: Corrections come from the user and were previously kept in an unbounded
+#: dict for the life of the engine, so a long conversation grew memory without
+#: limit AND made every later translation slower (see _build_replacer).
+MAX_SESSION_CORRECTIONS = 500
+
+
+def _build_replacer(
+    mapping: tuple[tuple[str, str], ...],
+) -> tuple[re.Pattern[str], dict[str, str]] | None:
+    """Compile a substitution table into one single-pass regex.
+
+    CORRECTNESS: the previous code applied ``str.replace`` once per entry, in
+    insertion order, each pass over the *output* of the last. That chains:
+    with ``cat -> dog`` and ``dog -> bird`` recorded, "the cat sat" came out as
+    "the bird sat", because the second rule re-matched the first rule's own
+    output. One alternation pass replaces each span of the input exactly once,
+    which is what a substitution table means.
+
+    PERFORMANCE: it also collapses N passes over the text into one. The old
+    loop was O(len(mapping) x len(text)) on a path with a 300 ms latency
+    budget, so translation slowed down in proportion to how much the user had
+    corrected it - the feature degraded itself the more it was used.
+
+    Alternatives are sorted longest-first so that a longer key always wins over
+    a shorter one it contains ("blood pressure" over "blood"). No word
+    boundaries are applied, preserving ``str.replace`` semantics exactly.
+    """
+    if not mapping:
+        return None
+    table = dict(mapping)
+    keys = sorted((k for k in table if k), key=len, reverse=True)
+    if not keys:
+        return None
+    pattern = re.compile("|".join(re.escape(key) for key in keys))
+    return pattern, table
+
+
+@lru_cache(maxsize=len(DOMAIN_TERMS) + 8)
+def _domain_replacer(domain: str) -> tuple[re.Pattern[str], dict[str, str]] | None:
+    """Compiled replacer for a domain's terminology, built at most once."""
+    terms = DOMAIN_TERMS.get(domain)
+    if not terms:
+        return None
+    return _build_replacer(tuple(terms.items()))
+
+
+def _apply(replacer: tuple[re.Pattern[str], dict[str, str]] | None, text: str) -> str:
+    """Apply a compiled replacer to text."""
+    if replacer is None:
+        return text
+    pattern, table = replacer
+    return pattern.sub(lambda m: table[m.group(0)], text)
+
 
 @dataclass
 class TranslationResult:
@@ -48,8 +106,13 @@ class TranslationEngine:
 
     def __init__(self) -> None:
         self._subtitle_gen = SubtitleGenerator()
-        self._session_corrections: dict[str, str] = {}
+        # Bounded LRU: the oldest correction is dropped once the cap is hit,
+        # and re-correcting a phrase refreshes its recency.
+        self._session_corrections: OrderedDict[str, str] = OrderedDict()
         self._domain: str | None = None
+        # Lazily compiled from _session_corrections; invalidated by correct().
+        self._correction_replacer: tuple[re.Pattern[str], dict[str, str]] | None = None
+        self._correction_replacer_valid = True
 
     def set_domain(self, domain: str) -> None:
         """Set domain for terminology adaptation."""
@@ -73,17 +136,35 @@ class TranslationEngine:
         """Translate text with ≤300ms latency target."""
         start = time.perf_counter()
 
-        # Apply session corrections
-        for original, correction in self._session_corrections.items():
-            text = text.replace(original, correction)
+        # DEFECT FIX: empty or whitespace-only input used to be fed straight
+        # through the translator, which produced a non-empty string (the stub's
+        # "[es] " language tag, and whatever a real backend emits for empty
+        # input) and then a spurious subtitle entry containing that tag alone -
+        # a caption displayed over silence. Translating nothing yields nothing,
+        # and short-circuiting also keeps empty turns off the latency budget.
+        if not text or not text.strip():
+            return TranslationResult(
+                source_text=text,
+                translated_text="",
+                source_language=source_language or "und",
+                target_language=target_language,
+                confidence=0.0,
+                latency_ms=(time.perf_counter() - start) * 1000,
+            )
+
+        # Apply session corrections in a single pass. `text` is deliberately
+        # not rebound: TranslationResult.source_text must carry what the user
+        # actually said, and the old code overwrote it with the corrected form
+        # before returning, losing the original input for good.
+        corrected = _apply(self._correction_table(), text)
 
         if source_language is None:
-            source_language, lang_conf = self.detect_language(text)
+            source_language, lang_conf = self.detect_language(corrected)
             if lang_conf < LANGUAGE_DETECTION_THRESHOLD:
                 logger.warning("Low language detection confidence: %.2f", lang_conf)
 
         # Apply domain terminology
-        translated = self._do_translate(text, source_language, target_language)
+        translated = self._do_translate(corrected, source_language, target_language)
         confidence = 0.85
 
         alternatives: list[str] = []
@@ -116,9 +197,44 @@ class TranslationEngine:
         result_b = self.translate(speaker_b_text, lang_a, lang_b)
         return result_a, result_b
 
+    def _correction_table(self) -> tuple[re.Pattern[str], dict[str, str]] | None:
+        """Return the compiled correction replacer, rebuilding only if stale."""
+        if not self._correction_replacer_valid:
+            self._correction_replacer = _build_replacer(
+                tuple(self._session_corrections.items())
+            )
+            self._correction_replacer_valid = True
+        return self._correction_replacer
+
     def correct(self, original: str, correction: str) -> None:
-        """Store session correction for subsequent translations."""
+        """Store a session correction applied to subsequent translations.
+
+        Corrections form a substitution table over the *input*: each one is
+        applied to the text the user supplied, never to another correction's
+        output. Recording the same phrase again replaces the earlier entry.
+
+        An empty ``original`` is ignored - it would match at every position.
+        """
+        if not original:
+            logger.warning("Ignoring session correction with an empty source phrase")
+            return
+
+        # move_to_end keeps this an LRU rather than a plain FIFO, so a phrase
+        # the user keeps correcting is not evicted by a burst of one-offs.
+        if original in self._session_corrections:
+            self._session_corrections.move_to_end(original)
         self._session_corrections[original] = correction
+        while len(self._session_corrections) > MAX_SESSION_CORRECTIONS:
+            evicted, _ = self._session_corrections.popitem(last=False)
+            logger.debug("Evicted oldest session correction: %r", evicted)
+
+        self._correction_replacer_valid = False
+
+    def clear_corrections(self) -> None:
+        """Drop every session correction (e.g. when a conversation ends)."""
+        self._session_corrections.clear()
+        self._correction_replacer = None
+        self._correction_replacer_valid = True
 
     def generate_subtitles(
         self,
@@ -133,9 +249,9 @@ class TranslationEngine:
         """Stub translation (in production uses SeamlessM4T v2 or NLLB-200)."""
         if _SEAMLESS_AVAILABLE:
             pass  # Would use seamless_communication here
-        # Apply domain terms
-        result = text
-        if self._domain and self._domain in DOMAIN_TERMS:
-            for term, replacement in DOMAIN_TERMS[self._domain].items():
-                result = result.replace(term, replacement)
+        # Apply domain terms in one pass, from a replacer compiled once per
+        # domain rather than looped per term on every call. Same chaining fix
+        # as session corrections: a replacement must not be re-matched by a
+        # later term in the same table.
+        result = _apply(_domain_replacer(self._domain), text) if self._domain else text
         return f"[{target}] {result}"
