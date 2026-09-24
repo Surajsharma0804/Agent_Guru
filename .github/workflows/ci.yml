@@ -29,19 +29,58 @@
 
 name: CI - Agent Guru
 
+# ---------------------------------------------------------------------------
+# Two kinds of run, chosen to fit the GitHub Actions minute allowance.
+#
+#   * push and pull_request: the gate. Linux only - lint, security, mypy and
+#     pytest on Python 3.11, 3.12 and 3.13.
+#   * schedule (nightly) and workflow_dispatch (by hand): the platform run.
+#     pytest on Windows (3.11, 3.12, 3.13) and macOS (3.13) only.
+#
+# Why. GitHub bills Linux minutes 1x, Windows 2x and macOS 10x against a
+# 3,000 minute monthly allowance, and each test leg takes about 19 minutes:
+#
+#   old matrix, every push and PR:
+#     3 Linux legs    x 19 min x  1  =  57
+#     3 Windows legs  x 19 min x  2  = 114
+#     1 macOS leg     x 19 min x 10  = 190
+#                                     -----
+#                                      361 billed minutes per run
+#
+#   Linux only: 57 billed minutes per run.
+#
+# (The lint, security and mypy jobs add a few minutes on top of either.)
+# At 361 minutes a run the allowance covered about eight pushes a month, and
+# it ran out on 2026-09-24, after which GitHub refused every job. At 57 it
+# covers about fifty.
+#
+# The Windows and macOS legs were already non-blocking (continue-on-error),
+# so 304 of every 361 minutes bought a signal that no pull request was gated
+# on. They now run nightly and on demand instead. Note that one platform run
+# costs the same 304 billed minutes, so a nightly schedule on its own spends
+# about 9,100 minutes a month: check the allowance before relying on it.
+# ---------------------------------------------------------------------------
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # 03:00 UTC nightly. Scheduled runs use the default branch.
+    - cron: "0 3 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 # A new push to the same branch makes the previous run's result irrelevant.
+# Platform runs get their own group: they run on main too, and sharing the
+# group would let a push to main cancel a nightly run, or the reverse.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: >-
+    ${{ github.workflow }}-${{ github.ref }}-${{
+    (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    && 'platforms' || 'gate' }}
   cancel-in-progress: true
 
 env:
@@ -63,6 +102,8 @@ jobs:
   # ---------------------------------------------------------------------------
   lint-errors:
     name: Lint - real errors (blocking)
+    # Gate run only; the platform run is pytest on Windows and macOS.
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -92,6 +133,8 @@ jobs:
   # ---------------------------------------------------------------------------
   lint-full:
     name: Lint - full report (advisory)
+    # Gate run only; the platform run is pytest on Windows and macOS.
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -154,6 +197,8 @@ jobs:
   # ---------------------------------------------------------------------------
   typecheck:
     name: Type check - mypy (advisory)
+    # Gate run only; the platform run is pytest on Windows and macOS.
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -200,6 +245,8 @@ jobs:
   # ---------------------------------------------------------------------------
   security:
     name: Security - bandit (blocking) + dependency audit (advisory)
+    # Gate run only; the platform run is pytest on Windows and macOS.
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -244,12 +291,13 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Gate 3 - the actual test suite.
-  # Blocking, across the declared Python range and every platform the README
-  # calls production-ready.
+  # Blocking on Linux across the declared Python range, on every push and
+  # pull request. Windows and macOS, which the README also calls
+  # production-ready, run in the platform run (nightly and on demand); see
+  # the cost note at the top of this file.
   #
-  # TEMPORARY: the Windows and macOS legs are non-blocking; Linux blocks.
-  #
-  # The suite had never run in CI until 2026-09-24 (a UTF-8 BOM in
+  # The Windows and macOS legs are not a gate. The suite had never run in
+  # CI until 2026-09-24 (a UTF-8 BOM in
   # pyproject.toml broke every install). Its first full runs pass about 4,870
   # of 4,950 tests on Linux. Windows and macOS also have outstanding
   # platform-specific failures: pywin32 is not declared as a dependency,
@@ -257,29 +305,30 @@ jobs:
   # errors on Windows), and several timing-sensitive tests fail on slower
   # runners. Those are real findings, tracked as separate work, not noise.
   #
-  # Until they are fixed, a Windows or macOS failure is reported (the leg
-  # still shows red) but does not fail the run or the "CI status" gate, so
-  # main can go green on Linux in the meantime. Nothing else is relaxed:
-  # every Linux leg, lint and security still block. Remove the
-  # continue-on-error line below once the Windows and macOS legs pass.
+  # They used to run on every pull request with continue-on-error, so a
+  # failure showed red on the leg but never failed the run or the "CI status"
+  # gate. In the platform run nothing is gated, so continue-on-error is
+  # dropped there: a platform failure now fails that run, which is what makes
+  # GitHub report a failed scheduled run. Every Linux leg, lint and security
+  # still block pull requests exactly as before.
   # ---------------------------------------------------------------------------
   test:
     name: pytest - ${{ matrix.os }} / py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
-    # TEMPORARY - see the comment above.
-    continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
-        # Windows is the platform pyproject.toml classifies; Linux and macOS
-        # are claimed "production ready" by the README, so they are tested
-        # rather than assumed.
-        os: [windows-latest, ubuntu-latest]
-        python-version: ["3.11", "3.12", "3.13"]
-        include:
-          - os: macos-latest
-            python-version: "3.13"
+        # Gate run: Linux on the full declared Python range.
+        # Platform run: Windows, the platform pyproject.toml classifies, on
+        # the same range, and macOS on the newest version. The README claims
+        # all three are production ready, so they are tested, not assumed.
+        include: >-
+          ${{ fromJSON(
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+          && '[{"os":"windows-latest","python-version":"3.11"},{"os":"windows-latest","python-version":"3.12"},{"os":"windows-latest","python-version":"3.13"},{"os":"macos-latest","python-version":"3.13"}]'
+          || '[{"os":"ubuntu-latest","python-version":"3.11"},{"os":"ubuntu-latest","python-version":"3.12"},{"os":"ubuntu-latest","python-version":"3.13"}]'
+          ) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -378,13 +427,14 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # A single check to require on the branch, so the protection rule does not
-  # have to enumerate every matrix leg.
+  # have to enumerate every matrix leg. Gate run only: in the platform run the
+  # lint and security jobs are skipped, which this check would read as failed.
   # ---------------------------------------------------------------------------
   ci-status:
     name: CI status
     runs-on: ubuntu-latest
     needs: [lint-errors, security, test]
-    if: always()
+    if: always() && (github.event_name == 'push' || github.event_name == 'pull_request')
     steps:
       - name: Fail if any required job did not succeed
         run: |
