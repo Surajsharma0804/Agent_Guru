@@ -628,5 +628,9 @@ class TestAuditLogger:
 
         logger.close()
 
-        # Should not raise error
-        assert True  # nosec B101
+        # close() must actually release the handle, and must be safe to call
+        # again - both are observable, so this no longer settles for
+        # `assert True`.
+        assert logger._conn is None, "close() must release the connection"  # nosec B101
+        logger.close()  # idempotent
+        assert logger._conn is None  # nosec B101
