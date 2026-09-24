@@ -1,26 +1,26 @@
-"""Agent_Guru/platform/browser_manager.py.
+﻿"""Agent_Guru/platform/browser_manager.py.
 
 Production-grade persistent browser manager for Agent Guru.
 
 Architecture (how current leaders do it):
 ──────────────────────────────────────────
 1. Launch ONE Chrome instance at startup with --remote-debugging-port=9222
-2. Every command reconnects via CDP (connectOverCDP) — no new browser spawned
+2. Every command reconnects via CDP (connectOverCDP) - no new browser spawned
 3. YouTube Data API v3 → get exact video ID → open watch?v=ID&autoplay=1
 4. Fallback: Playwright search scrape if no API key
 5. All playback controls (pause/resume/mute/volume) via JS evaluate on the
-   persistent page — no media keys, no system-level hacks
+   persistent page - no media keys, no system-level hacks
 
 Why this beats the old approach:
 - No zombie Chrome processes
 - Session/cookies persist (YouTube remembers login, preferences)
 - Controls work on the ACTUAL open tab, not a new one
-- CDP reconnect is <50ms — imperceptible to user
-- YouTube API gives exact video ID — no fragile CSS selectors
+- CDP reconnect is <50ms - imperceptible to user
+- YouTube API gives exact video ID - no fragile CSS selectors
 
 Environment variables:
-  YOUTUBE_API_KEY  — YouTube Data API v3 key (optional but recommended)
-  AGENT_GURU_DEMO_BROWSER — "chromium" | "firefox" | "webkit" (default: chromium)
+  YOUTUBE_API_KEY  - YouTube Data API v3 key (optional but recommended)
+  AGENT_GURU_DEMO_BROWSER - "chromium" | "firefox" | "webkit" (default: chromium)
 
 Author: Agent Guru Team
 """
@@ -32,14 +32,17 @@ import logging
 import os
 import re
 import subprocess  # nosec B404
+import time
 import urllib.parse
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# CDP debug port — Chrome launched with this flag
+# CDP debug port - Chrome launched with this flag
 _CDP_PORT = 9222
+_CDP_STARTUP_TIMEOUT_S = 10.0
+_CDP_POLL_INTERVAL_S = 0.25
 _CDP_URL = f"http://localhost:{_CDP_PORT}"
 
 # User data dir so Chrome keeps cookies/session between restarts
@@ -53,27 +56,27 @@ _USER_DATA_DIR = Path.home() / ".cache" / "agent_guru" / "chrome_profile"
 # infrastructure (CDP reconnect, tab reuse, real Chrome/Edge/Brave/whatever
 # is installed) to arbitrary sites: open_url()/open_website() navigate
 # anywhere directly, and search_and_open() drives a real search engine when
-# there's no dedicated API for the task at hand — the point being that
+# there's no dedicated API for the task at hand - the point being that
 # Agent Guru doesn't need a per-site API key to act on a website; it can
 # fall back to genuinely using the browser, the way a person would.
 #
 # This does NOT attempt full in-page task automation (filling out an
-# arbitrary form, clicking through a checkout flow on an arbitrary site) —
+# arbitrary form, clicking through a checkout flow on an arbitrary site) -
 # that is a much larger, open-ended capability and claiming it "works on
 # every website" would not be honest. What IS covered, and works on
 # effectively any site without per-site code: opening it, and searching it.
 #
 # CANONICAL REGISTRY (consolidated 2026-09-13): this used to be one of
-# THREE separate, drifting site-name-to-URL tables — this one (~20
+# THREE separate, drifting site-name-to-URL tables - this one (~20
 # entries), integration/orchestrator.py's IntegrationOrchestrator._URL_MAP
 # (60+ entries), and platform/os_controller.py's OSController._resolve_url
-# _shortcuts (15 entries) — a direct instance of the duplicate-
+# _shortcuts (15 entries) - a direct instance of the duplicate-
 # implementation debt this project explicitly forbids. All three have been
 # merged into this single table; orchestrator.py and os_controller.py now
 # both import and delegate to _resolve_site_url() below instead of keeping
 # their own copies. Where the old tables disagreed, the more useful entry
 # won: "amazon" resolves to amazon.in (this product's primary market, a
-# deliberate prior decision — not a default that should silently flip back
+# deliberate prior decision - not a default that should silently flip back
 # to .com), "spotify" to open.spotify.com (the actual app, not the
 # marketing homepage), and github/twitter/x to their canonical no-www
 # domains.
@@ -233,7 +236,7 @@ async def _yt_api_search(query: str) -> str | None:
 
 
 class BrowserManager:
-    """Persistent browser manager — one Chrome instance, reconnect via CDP.
+    """Persistent browser manager - one Chrome instance, reconnect via CDP.
 
     Usage::
 
@@ -269,7 +272,7 @@ class BrowserManager:
                 return
             await self._launch_chrome()
             self._started = True
-            logger.info("BrowserManager started — CDP on port %d", _CDP_PORT)
+            logger.info("BrowserManager started - CDP on port %d", _CDP_PORT)
 
     async def stop(self) -> None:
         """Close the browser and kill the Chrome process."""
@@ -302,7 +305,7 @@ class BrowserManager:
         video_url = await _yt_api_search(query)
 
         if video_url:
-            # Direct watch URL — fastest, most reliable
+            # Direct watch URL - fastest, most reliable
             page = await self._get_or_create_page()
             logger.info("YouTube: navigating to %s", video_url)
             await page.goto(video_url, wait_until="domcontentloaded", timeout=30000)
@@ -374,10 +377,10 @@ class BrowserManager:
         )
         return f"Skipped forward {seconds} seconds"
 
-    # ── Generic navigation (any website — no API key required) ───────────────
+    # ── Generic navigation (any website - no API key required) ───────────────
 
     async def open_url(self, url: str) -> str:
-        """Navigate the persistent browser directly to *url* — any website.
+        """Navigate the persistent browser directly to *url* - any website.
 
         Reuses an existing tab already open on the same domain (same
         strategy play_youtube() uses for YouTube, generalized here to any
@@ -404,7 +407,7 @@ class BrowserManager:
         if resolved:
             return await self.open_url(resolved)
         logger.info(
-            "open_website: %r isn't a known site or URL — searching instead",
+            "open_website: %r isn't a known site or URL - searching instead",
             name_or_url,
         )
         return await self.search_and_open(name_or_url)
@@ -415,7 +418,7 @@ class BrowserManager:
         This is the no-API-needed fallback: whenever a task needs
         information (or a site) there's no dedicated API/tool for, driving
         the actual installed browser to search works for effectively any
-        site, the way a person would do it themselves — instead of the
+        site, the way a person would do it themselves - instead of the
         agent being limited to only the handful of capabilities that
         happen to have a dedicated API integration.
 
@@ -461,18 +464,22 @@ class BrowserManager:
         """Launch Chrome with --remote-debugging-port if not already running."""
         # Check if Chrome is already listening on the CDP port
         if await self._cdp_alive():
-            logger.info("Chrome already running on port %d — reusing", _CDP_PORT)
+            logger.info("Chrome already running on port %d - reusing", _CDP_PORT)
             await self._connect_cdp()
             return
 
-        # Find Chrome executable
-        chrome = self._find_chrome()
+        # Find Chrome executable.
+        # _find_chrome() stats up to ~20 candidate paths and may fall back to
+        # a PATH search - blocking filesystem work, so it runs in a thread
+        # rather than stalling the event loop while every other coroutine
+        # (speech, reasoning, timers) waits on it.
+        chrome = await asyncio.to_thread(self._find_chrome)
         if not chrome:
-            logger.warning("Chrome not found — falling back to Playwright Chromium")
+            logger.warning("Chrome not found - falling back to Playwright Chromium")
             await self._launch_playwright_chromium()
             return
 
-        _USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(_USER_DATA_DIR.mkdir, parents=True, exist_ok=True)
         cmd = [
             chrome,
             f"--remote-debugging-port={_CDP_PORT}",
@@ -484,20 +491,35 @@ class BrowserManager:
             "--disable-backgrounding-occluded-windows",
         ]
         logger.info("Launching Chrome: %s", chrome)
-        self._proc = subprocess.Popen(  # nosec B603  # noqa: S603
+        # subprocess.Popen forks and execs synchronously; on a process with a
+        # large address space that stalls the event loop for tens of
+        # milliseconds. Off-loaded to a thread. It stays a Popen (not
+        # asyncio.create_subprocess_exec) because the rest of this class
+        # drives it as one - see stop(), which calls self._proc.wait(timeout=3).
+        self._proc = await asyncio.to_thread(
+            subprocess.Popen,  # nosec B603  # noqa: S603
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
 
-        # Wait for CDP to become available (up to 10s)
-        for _ in range(20):
-            await asyncio.sleep(0.5)
+        # Wait for CDP to become available (up to ~10s).
+        #
+        # The loop used to sleep BEFORE its first check, so a Chrome that was
+        # ready in 50 ms still cost the caller a full 500 ms. Checking first
+        # and sleeping only between attempts removes that fixed penalty from
+        # every browser launch.
+        deadline = time.monotonic() + _CDP_STARTUP_TIMEOUT_S
+        while True:
             if await self._cdp_alive():
                 break
-        else:
-            msg = "Chrome did not start CDP in time"
-            raise RuntimeError(msg)
+            if time.monotonic() >= deadline:
+                msg = (
+                    f"Chrome did not start CDP on port {_CDP_PORT} within "
+                    f"{_CDP_STARTUP_TIMEOUT_S}s"
+                )
+                raise RuntimeError(msg)
+            await asyncio.sleep(_CDP_POLL_INTERVAL_S)
 
         await self._connect_cdp()
 
@@ -586,7 +608,7 @@ class BrowserManager:
     async def _get_or_create_page(self) -> Any:
         """Get the current YouTube tab or open a new one.
 
-        Thin YouTube-specific wrapper over _get_or_create_page_for() — see
+        Thin YouTube-specific wrapper over _get_or_create_page_for() - see
         that method for the generalized (any-site) tab-reuse logic this
         delegates to, so the two don't drift into duplicate implementations
         of the same tab-matching logic.
@@ -598,12 +620,12 @@ class BrowserManager:
 
         BUG FIX (found by real testing, 2026-09-13): self._browser is a real
         Playwright ``Browser`` (has ``.contexts`` -> list of ``BrowserContext``,
-        each with ``.pages``) when connected via CDP — the path taken whenever
+        each with ``.pages``) when connected via CDP - the path taken whenever
         a real Chrome/Edge/etc. binary is found (_find_chrome()) or Chrome is
         already running. But _launch_playwright_chromium()'s fallback (no
         matching browser binary found on the system at all) sets
         self._browser to the return of ``launch_persistent_context()``,
-        which is a ``BrowserContext`` directly — it has ``.pages`` but NO
+        which is a ``BrowserContext`` directly - it has ``.pages`` but NO
         ``.contexts`` and NO ``.new_context()``. Every page-lookup method
         here used to assume the Browser shape unconditionally, so on that
         fallback path the very first play_youtube()/open_url()/etc. call
@@ -629,13 +651,13 @@ class BrowserManager:
             except IndexError:
                 ctx = await self._browser.new_context(viewport={"width": 1440, "height": 900})
             return await ctx.new_page()
-        # BrowserContext — it IS the context already; open a page directly in it.
+        # BrowserContext - it IS the context already; open a page directly in it.
         return await self._browser.new_page()
 
     async def _get_or_create_page_for(self, url: str) -> Any:
         """Get a tab already open on *url*'s domain, or open a new one.
 
-        Domain match is exact (www.-insensitive), not substring — a
+        Domain match is exact (www.-insensitive), not substring - a
         substring check like ``"youtube.com" in page.url`` would also
         (incorrectly) match a page at ``notyoutube.com``. Generalizes the
         tab-reuse strategy play_youtube() already relied on to any site.
@@ -657,7 +679,7 @@ class BrowserManager:
             except Exception:
                 logger.exception("Operation failed")
 
-        # No matching tab — open a new one.
+        # No matching tab - open a new one.
         return await self._new_page()
 
     async def _search_and_click(self, query: str) -> Any:
@@ -692,7 +714,7 @@ class BrowserManager:
         try:
             await page.wait_for_url("**/watch**", timeout=30000)
         except _PWTimeout:
-            logger.exception("YouTube: watch URL timeout — continuing")
+            logger.exception("YouTube: watch URL timeout - continuing")
         return page
 
     async def _skip_ad(self, page: Any) -> None:
@@ -725,7 +747,7 @@ class BrowserManager:
             if not ad_info.get("ad", False):
                 if ads_skipped > 0:
                     logger.info("YouTube: all ads handled (%d skipped)", ads_skipped)
-                return  # No ad — done
+                return  # No ad - done
 
             # Try to click skip button
             skipped = False
@@ -749,7 +771,7 @@ class BrowserManager:
                 except Exception:
                     logger.exception("Operation failed")
             if not skipped:
-                # Ad showing but not yet skippable — wait 1s and retry
+                # Ad showing but not yet skippable - wait 1s and retry
                 await page.wait_for_timeout(1000)
 
     async def _active_page(self) -> Any:
@@ -760,9 +782,9 @@ class BrowserManager:
                 await self._page.evaluate("() => document.title")
                 return self._page
             except Exception:
-                logger.exception("YouTube page lost — reconnecting")
+                logger.exception("YouTube page lost - reconnecting")
                 self._page = None
-        # Try to find an open YouTube tab (via _all_pages() — handles both
+        # Try to find an open YouTube tab (via _all_pages() - handles both
         # the Browser and BrowserContext shapes self._browser can be; see
         # _all_pages()'s docstring for why that distinction matters)
         if self._browser:
@@ -797,7 +819,7 @@ class BrowserManager:
                 await self._page.evaluate("() => document.title")
                 return self._page
             except Exception:
-                logger.exception("Active page lost — reconnecting")
+                logger.exception("Active page lost - reconnecting")
                 self._page = None
 
         if self._browser:
@@ -832,21 +854,21 @@ class BrowserManager:
         Falls back to PATH search for any of these.
         """
         candidates = [
-            # Windows — Chrome
+            # Windows - Chrome
             r"C:\Program Files\Google\Chrome\Application\chrome.exe",
             r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-            # Windows — Edge
+            # Windows - Edge
             r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
             r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-            # Windows — Brave
+            # Windows - Brave
             r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
             r"C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe",
-            # Windows — Opera
+            # Windows - Opera
             r"C:\Users\{user}\AppData\Local\Programs\Opera\opera.exe",
             r"C:\Program Files\Opera\opera.exe",
-            # Windows — Vivaldi
+            # Windows - Vivaldi
             r"C:\Users\{user}\AppData\Local\Vivaldi\Application\vivaldi.exe",
-            # macOS — Chrome
+            # macOS - Chrome
             "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
             "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
             "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
