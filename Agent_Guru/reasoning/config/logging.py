@@ -120,11 +120,18 @@ def get_logger(name: str) -> Any:
 def bind_context(**kwargs: Any) -> None:
     """Bind context variables that will be included in all subsequent log entries.
 
+    Binding is ADDITIVE: keys bound earlier in the turn survive, and a repeated
+    key is overwritten. It used to call ``clear_contextvars()`` first, which
+    made the function a silent *replace* - so a request handler that bound
+    ``user_id`` at the top of a turn lost it the moment any component further
+    down bound, say, ``turn_id``, and every log line after that point was
+    missing the identifier needed to correlate it. Callers that genuinely want
+    a clean slate have ``clear_context()`` for exactly that.
+
     Args:
         **kwargs: Context key-value pairs (user_id, conversation_id, turn_id, etc.)
 
     """
-    structlog.contextvars.clear_contextvars()
     structlog.contextvars.bind_contextvars(**kwargs)
 
 
