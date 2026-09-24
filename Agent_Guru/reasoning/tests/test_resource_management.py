@@ -8,6 +8,7 @@ Tests cover:
 """
 
 import asyncio
+import sqlite3
 import pytest
 import time
 from unittest.mock import patch
@@ -216,6 +217,37 @@ class TestDatabasePool:
         await asyncio.gather(query(), query())
 
         await pool.close()
+
+    @pytest.mark.asyncio
+    async def test_close_during_acquire_does_not_leak(self):
+        """close() running between acquire's pop and its _in_use bookkeeping
+        must not let the popped connection outlive the close."""
+        pool = DatabasePool(":memory:", min_size=1, max_size=3)
+        await pool.initialize()
+        popped = pool._pool[0]
+        outcome = {}
+
+        async def user():
+            try:
+                async with pool.acquire() as conn:
+                    outcome["conn"] = conn
+            except RuntimeError as exc:
+                outcome["error"] = exc
+
+        # Queue acquire() and then close() on the held lock. acquire() pops
+        # first; its second lock acquisition then queues behind close().
+        await pool._lock.acquire()
+        acquirer = asyncio.create_task(user())
+        await asyncio.sleep(0)
+        closer = asyncio.create_task(pool.close())
+        await asyncio.sleep(0)
+        pool._lock.release()
+        await asyncio.gather(acquirer, closer)
+
+        assert "conn" not in outcome  # nosec B101
+        assert isinstance(outcome.get("error"), RuntimeError)  # nosec B101
+        with pytest.raises(sqlite3.ProgrammingError):
+            popped.execute("SELECT 1")
 
 
 class TestHTTPPool:

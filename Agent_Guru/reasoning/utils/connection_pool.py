@@ -76,6 +76,10 @@ class DatabasePool:
         self._in_use: set[sqlite3.Connection] = set()
         self._lock = asyncio.Lock()
         self._initialized = False
+        # Bumped by close(). acquire() records it when it takes a connection
+        # and re-checks it when marking the connection in use, so a close()
+        # that ran in between cannot miss the connection.
+        self._generation = 0
 
     async def initialize(self) -> None:
         """Initialize the connection pool with minimum connections."""
@@ -138,6 +142,7 @@ class DatabasePool:
         try:
             # Try to get connection from pool
             async with self._lock:
+                generation = self._generation
                 if self._pool:
                     conn = self._pool.pop()
                 elif len(self._in_use) < self.max_size:
@@ -156,6 +161,7 @@ class DatabasePool:
 
                     async with self._lock:
                         if self._pool:
+                            generation = self._generation
                             conn = self._pool.pop()
                             break
 
@@ -163,9 +169,18 @@ class DatabasePool:
                         msg = f"Could not acquire connection within {self.timeout}s"
                         raise TimeoutError(msg)
 
-            # Mark as in use
+            # Mark as in use, unless close() ran after the connection was
+            # taken. close() could not see it then, so close it here rather
+            # than hand out a connection that outlives the close.
             async with self._lock:
-                self._in_use.add(conn)
+                stale = self._generation != generation
+                if not stale:
+                    self._in_use.add(conn)
+            if stale:
+                conn.close()
+                conn = None
+                msg = "DatabasePool was closed during acquire"
+                raise RuntimeError(msg)
 
             yield conn
 
@@ -189,8 +204,9 @@ class DatabasePool:
 
         Checked-out connections are force-closed without waiting, so a
         holder's next use raises ``sqlite3.ProgrammingError``. Releasing such
-        a connection is a no-op; it is not returned to the pool. The pool
-        re-initializes with fresh connections on the next acquire().
+        a connection is a no-op; it is not returned to the pool. An acquire()
+        that overlaps close() closes its connection and raises RuntimeError.
+        The pool re-initializes with fresh connections on the next acquire().
         """
         async with self._lock:
             for conn in self._pool:
@@ -202,6 +218,7 @@ class DatabasePool:
             self._in_use.clear()
 
             self._initialized = False
+            self._generation += 1
             logger.info("Database pool closed")
 
     def stats(self) -> dict:
