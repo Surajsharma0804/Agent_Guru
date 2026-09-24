@@ -1376,20 +1376,35 @@ class NetworkManager:
         response_status = None
 
         try:
-            # Validate file exists
-            if not file_path.exists():
+            # Validate file exists and get its size. On a network or cloud
+            # filesystem a stat() can take seconds, so it is off-loaded like
+            # the reads below rather than stalling the loop.
+            try:
+                file_size = (await asyncio.to_thread(file_path.stat)).st_size
+            except OSError as exc:
                 msg = f"File not found: {file_path}"
-                raise FileNotFoundError(msg)
+                raise FileNotFoundError(msg) from exc
 
-            # Get file size
-            file_size = file_path.stat().st_size
-
-            # Create async generator for file chunks
+            # Create async generator for file chunks.
+            #
+            # BUG FIX: this generator was `async def` but every read inside it
+            # was SYNCHRONOUS - `with open(...)` plus `f.read(chunk_size)` in a
+            # loop, with the resulting ASYNC230 warning silenced by an inline
+            # suppression comment rather than fixed. Uploading a large file
+            # therefore blocked the loop once per chunk for the whole transfer:
+            # with the default 8 KB chunk that is one blocking read per 8 KB,
+            # so a 100 MB upload stalled every other coroutine (speech
+            # capture, timers, the reasoning pipeline) 12,800 times.
+            #
+            # The file handle is opened and read in a worker thread; the
+            # generator stays async and yields as before, so callers are
+            # unaffected.
             async def file_chunk_generator():
                 nonlocal total_bytes
-                with open(file_path, "rb") as f:  # noqa: ASYNC230
+                handle = await asyncio.to_thread(file_path.open, "rb")
+                try:
                     while True:
-                        chunk = f.read(chunk_size)
+                        chunk = await asyncio.to_thread(handle.read, chunk_size)
                         if not chunk:
                             break
                         total_bytes += len(chunk)
@@ -1401,6 +1416,8 @@ class NetworkManager:
                             except Exception:
                                 logger.exception("Progress callback error")
                         yield chunk
+                finally:
+                    await asyncio.to_thread(handle.close)
 
             # Prepare headers
             request_headers = headers.copy() if headers else {}
