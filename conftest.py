@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import pathlib
+import sys
 import tempfile
 
 import pytest
@@ -84,6 +85,63 @@ if os.environ.get("AGENT_GURU_ALLOW_MODEL_DOWNLOAD", "").strip().lower() not in 
     "on",
 }:
     os.environ.setdefault("AGENT_GURU_NO_DOWNLOAD", "1")
+
+
+# ---------------------------------------------------------------------------
+# Windows: raise the per-test timeout, because it is a hang guard
+#
+# pytest.ini passes --timeout=30. That timeout is a HANG guard, not a
+# performance assertion. It exists to stop a deadlocked test from hanging CI,
+# not to measure how fast a runner is. A test that cares about speed must
+# assert it explicitly in its body, as the `performance`-marked tests do.
+# One test currently relies on the timeout instead:
+# speech/tests/stt/test_language_detector.py::
+# test_performance_40_languages_rapid_detection is named and documented as a
+# "rapid detection" test but makes no timing assertion, so its only speed
+# check is this timeout. That assertion belongs in the test body.
+#
+# On Linux and macOS pytest-timeout uses SIGALRM, so a timeout fails the one
+# test and the run continues. Windows has no SIGALRM, so pytest-timeout falls
+# back to its thread method, which dumps every stack and calls os._exit(1):
+# one slow test kills the whole process, and the run's failure summary is
+# never printed. The Windows CI runners are also highly variable - the same
+# test took 2 s on one run and 31 s on the next - so a 30 s budget made every
+# Windows run end at a random point.
+#
+# So on Windows only, every per-test timeout (the default, and any
+# @pytest.mark.timeout marker) is raised to at least
+# _WINDOWS_HANG_GUARD_SECONDS. A real deadlock is still stopped, with a stack
+# dump; runner variance no longer is. A timeout of 0 (disabled) is left
+# alone. Linux and macOS are not touched.
+# ---------------------------------------------------------------------------
+_WINDOWS_HANG_GUARD_SECONDS = 300.0
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config: pytest.Config) -> None:
+    """On Windows, raise the default timeout before pytest-timeout reads it."""
+    if sys.platform != "win32":
+        return
+    timeout = config.getoption("timeout", default=None)
+    if timeout:
+        config.option.timeout = max(float(timeout), _WINDOWS_HANG_GUARD_SECONDS)
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """On Windows, raise explicit @pytest.mark.timeout values to the same floor."""
+    if sys.platform != "win32":
+        return
+    for item in items:
+        marker = item.get_closest_marker("timeout")
+        if marker is None or not marker.args:
+            continue
+        value = marker.args[0]
+        if isinstance(value, (int, float)) and 0 < value < _WINDOWS_HANG_GUARD_SECONDS:
+            # Prepended, so pytest-timeout's get_closest_marker() finds it first.
+            item.add_marker(
+                pytest.mark.timeout(_WINDOWS_HANG_GUARD_SECONDS, *marker.args[1:], **marker.kwargs),
+                append=False,
+            )
 
 
 # ---------------------------------------------------------------------------
