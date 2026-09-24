@@ -858,7 +858,12 @@ class WakeWordManager:
         scale = 1.0 - config.sensitivity * 0.5
         before = config.energy_threshold * scale
         after = max(before, NOISE_FLOOR_MARGIN * noise_rms)
-        config.energy_threshold = after / scale
+        if after > before:
+            # Written only when raised: dividing an unchanged threshold back by
+            # the scale does not round-trip exactly (0.05 came back as
+            # 0.05000000000000001), so "a quiet room behaves exactly as before"
+            # was not quite true.
+            config.energy_threshold = after / scale
 
         result = NoiseCalibration(
             seconds=len(audio) / sample_rate,
