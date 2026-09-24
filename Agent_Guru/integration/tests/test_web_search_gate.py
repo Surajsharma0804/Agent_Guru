@@ -2,12 +2,15 @@
 
 It used to run for any turn that ended in "?" or began with a question word,
 including turns the intent engine had classified as conversation, in a
-product whose README says it runs 100% locally.
+product whose README says it runs 100% locally. The query it sent was the
+whole enriched prompt, earlier turns included.
 """
 
 import pytest
 
 from Agent_Guru.integration.orchestrator import IntegrationOrchestrator
+
+from .conftest import PRIOR_TURNS
 
 
 @pytest.mark.parametrize(
@@ -60,3 +63,16 @@ async def test_questions_about_live_facts_are_searched(run_turn, utterance):
 def test_the_gate_reads_the_intent(intent, needs_web):
     transcript = intent.rsplit(":", 1)[-1] if intent else ""
     assert IntegrationOrchestrator._intent_needs_web(intent, transcript) is needs_web
+
+
+async def test_only_this_turn_goes_to_the_search_engine(run_turn):
+    question = "Who is the Prime Minister of India currently?"
+
+    turn = await run_turn(question)
+
+    assert turn.web_queries == [question]
+    earlier = PRIOR_TURNS[0]["user_message"]
+    assert not any(earlier in query for query in turn.web_queries)
+    # The recalled turns still reach the local model, which is where they belong.
+    prompt = "\n".join(message.content for message in turn.llm.requests[0].messages)
+    assert earlier in prompt

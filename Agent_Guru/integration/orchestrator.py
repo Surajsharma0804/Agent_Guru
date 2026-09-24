@@ -1309,7 +1309,7 @@ class IntegrationOrchestrator:
             emotion_hint = self._detect_emotion(transcript)
 
             # Web search enrichment
-            web_context = await self._fetch_web_context(prompt, transcript, intent)
+            web_context = await self._fetch_web_context(transcript, intent)
             if web_context:
                 prompt = prompt + web_context
 
@@ -1494,17 +1494,24 @@ class IntegrationOrchestrator:
             return needs_web_search(transcript)
         return False
 
-    async def _fetch_web_context(
-        self, prompt: str, transcript: str, intent: str | None,
-    ) -> str:
-        """Fetch web search context when the intent says the turn needs it."""
+    async def _fetch_web_context(self, transcript: str, intent: str | None) -> str:
+        """Fetch web search context when the intent says the turn needs it.
+
+        The query is this turn's transcript and nothing else. It used to be the
+        enriched LLM prompt, which starts with "[Context: ...]" holding the
+        recalled earlier turns, word for word, and can carry the reasoning
+        output, clipboard text or screen text. All of it went out in a search
+        URL to DuckDuckGo, or to Google through the browser fallback, which
+        also logged it. Whatever the user said on an earlier turn, however
+        private, left the machine attached to an unrelated question.
+        """
         from Agent_Guru.platform.features.web_search import search_web
 
         if not self._intent_needs_web(intent, transcript):
             return ""
-        web_snippet = await search_web(prompt)
+        web_snippet = await search_web(transcript)
         if web_snippet:
-            logger.info("Web search injected for: %r", prompt[:60])
+            logger.info("Web search injected for: %r", transcript[:60])
             return f"\n\nLive web search result: {web_snippet}"
         return ""
 
