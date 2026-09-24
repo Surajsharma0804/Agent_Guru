@@ -331,27 +331,47 @@ class TestWindowsAPIEdgeCases:
         pid = integration.start_process("cmd.exe", long_args)
         assert pid > 0  # nosec B101
     
-    def test_command_execution_timeout(self):
-        """Test that command execution respects timeout."""
+    def test_command_completes_within_timeout(self):
+        """A command that finishes before its timeout returns normally."""
         integration = WindowsIntegration()
-        
+
         import time
         start = time.time()
-        
-        try:
-            # Use a short ping that completes quickly to test timeout handling
-            result = integration.execute_command(
+
+        # 3 pings take about 2 s; the 10 s timeout sits well inside pytest's budget
+        result = integration.execute_command(
+            "ping",
+            ["127.0.0.1", "-n", "3"],
+            timeout=10.0,
+        )
+        elapsed = time.time() - start
+
+        # Should complete within reasonable time
+        assert elapsed < 10  # 3 pings should finish in <10s  # nosec B101
+        assert result.return_code == 0  # nosec B101
+
+    def test_command_execution_timeout(self):
+        """A command that outlives its timeout raises TimeoutError.
+
+        The timeout must sit well below pytest's per-test budget. With the old
+        fixed 30 s timeout, equal to that budget, pytest killed the process
+        before execute_command's own timeout handling could run, so this path
+        was never exercised.
+        """
+        import subprocess  # nosec B404
+
+        integration = WindowsIntegration()
+
+        # ping -n 30 runs for about 29 s, so a 2 s timeout must cut it short
+        with pytest.raises(TimeoutError, match="timed out after 2.0s: ping") as excinfo:
+            integration.execute_command(
                 "ping",
-                ["127.0.0.1", "-n", "3"]
+                ["127.0.0.1", "-n", "30"],
+                timeout=2.0,
             )
-            elapsed = time.time() - start
-            
-            # Should complete within reasonable time
-            assert elapsed < 10  # 3 pings should finish in <10s  # nosec B101
-            assert result.return_code == 0  # nosec B101
-        except TimeoutError:
-            elapsed = time.time() - start
-            assert elapsed < 35  # nosec B101
+
+        # Raised by the code's own handling of subprocess's timeout
+        assert isinstance(excinfo.value.__cause__, subprocess.TimeoutExpired)  # nosec B101
 
 
 class TestWindowsAPIPerformance:
