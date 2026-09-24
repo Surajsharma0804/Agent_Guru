@@ -1,9 +1,10 @@
-"""Degradation controller for offline-first resilience."""
+﻿"""Degradation controller for offline-first resilience."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -44,10 +45,38 @@ class DegradationMode(Enum):
 class DegradationController:
     """Controls degradation modes based on network and resource state."""
 
-    def __init__(self) -> None:
+    #: Default failover chain. Cloud providers ("openai", "gemini") were
+    #: removed: Agent_Guru is offline-first and the cloud adapters they would
+    #: have needed no longer exist in Agent_Guru/llm/providers, so each one
+    #: could only ever burn a full LLM_TIMEOUT_S (3 s) before the chain moved
+    #: on - up to 6 wasted seconds on the path to the rule-based answer that
+    #: was always going to be the result.
+    DEFAULT_PROVIDERS = ("ollama", "rule_based")
+
+    def __init__(
+        self,
+        providers: list[str] | None = None,
+        provider_callables: dict[str, Callable[[str], Awaitable[str]]] | None = None,
+    ) -> None:
+        """Initialize the controller.
+
+        Args:
+            providers: Failover chain to try, in order. Defaults to
+                DEFAULT_PROVIDERS.
+            provider_callables: Real async ``(prompt) -> text`` callables per
+                provider name. _call_provider()'s docstring already told
+                callers to "inject real provider callables via the
+                constructor" - but the constructor took no arguments at all,
+                so there was no way to do it and the stub below was the only
+                code path that ever ran.
+
+        """
         self._mode = DegradationMode.FULL
         self._online = True
-        self._llm_providers: list[str] = ["ollama", "openai", "gemini", "rule_based"]
+        self._llm_providers: list[str] = list(providers or self.DEFAULT_PROVIDERS)
+        self._provider_callables: dict[str, Callable[[str], Awaitable[str]]] = dict(
+            provider_callables or {},
+        )
         # Tracks consecutive healthy polls for recovery hysteresis (see
         # monitor_resources()).
         self._consecutive_healthy_polls = 0
@@ -109,7 +138,7 @@ class DegradationController:
             if self._mode == DegradationMode.FULL:
                 self.switch_mode(DegradationMode.DEGRADED)
         else:
-            # Resources are healthy this poll — only recover once that has
+            # Resources are healthy this poll - only recover once that has
             # held for RECOVERY_STABLE_POLLS consecutive polls, and require
             # a fresh streak of stability before each further recovery step.
             self._consecutive_healthy_polls += 1
@@ -136,24 +165,55 @@ class DegradationController:
                     self._call_provider(provider, prompt),
                     timeout=LLM_TIMEOUT_S,
                 )
-            except (TimeoutError, Exception):
-                logger.exception("Provider failed")
+            except Exception:
+                # `except (TimeoutError, Exception)` before: TimeoutError is
+                # already an Exception, so the tuple was redundant. The log
+                # also did not say WHICH provider failed, which is the one
+                # thing worth knowing when a failover chain degrades.
+                # asyncio.CancelledError derives from BaseException and still
+                # propagates, so cancelling a request does not silently fall
+                # through the whole chain.
+                logger.exception("LLM provider %r failed; trying next in chain", provider)
         return self._rule_based_response(prompt)
 
     async def _call_provider(self, provider: str, prompt: str) -> str:
         """Call an LLM provider.
 
-        NOTE: This is a stub implementation. In production, this should
-        delegate to the actual FailoverRouter or provider adapters.
-        Override this method or inject real provider callables via the
-        constructor to enable real LLM calls in degradation mode.
+        Real providers are supplied through ``provider_callables`` on the
+        constructor (or by overriding this method).
+
+        This used to end with::
+
+            return f"[{provider}] Response to: {prompt[:50]}"
+
+        - a stub that FABRICATED an answer. Any caller wiring this controller
+        in would have shipped "[ollama] Response to: what is the weather" to
+        the user as though it were a model response, and llm_with_failover()
+        would have reported success. A stub that returns plausible-looking
+        text is worse than no stub: it cannot be detected downstream. It now
+        raises instead, so an unconfigured provider fails over to the
+        rule-based answer - which is honest about being offline - rather than
+        inventing content.
+
+        Raises:
+            NotImplementedError: If no callable is configured for *provider*.
+
         """
-        await asyncio.sleep(0)
         if provider == "rule_based":
             return self._rule_based_response(prompt)
         if self._mode == DegradationMode.SAFE:
+            # Emergency mode: no external calls at all, whatever is configured.
             return self._rule_based_response(prompt)
-        return f"[{provider}] Response to: {prompt[:50]}"
+
+        handler = self._provider_callables.get(provider)
+        if handler is None:
+            msg = (
+                f"No LLM callable configured for provider {provider!r}. Pass "
+                f"provider_callables={{{provider!r}: <async fn>}} to "
+                f"DegradationController, or override _call_provider()."
+            )
+            raise NotImplementedError(msg)
+        return await handler(prompt)
 
     def _rule_based_response(self, prompt: str) -> str:
         return f"[offline] I'm operating in offline mode. Query: {prompt[:50]}"
