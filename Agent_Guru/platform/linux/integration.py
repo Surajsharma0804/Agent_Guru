@@ -263,6 +263,20 @@ class LinuxIntegration:
             error_msg = "systemctl not found. Is systemd installed?"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+        except (subprocess.TimeoutExpired, TimeoutError) as e:
+            # subprocess.run(timeout=5) raises TimeoutExpired, which is a
+            # SubprocessError and NOT a builtin TimeoutError, so neither was
+            # covered here: a systemd hang propagated an undocumented
+            # exception type to every caller.
+            error_msg = f"Timeout querying status of service {service_name}"
+            logger.exception(error_msg)
+            raise RuntimeError(error_msg) from e
+        except OSError as e:
+            # EACCES, EMFILE, ENOMEM on fork, ... - the documented contract is
+            # RuntimeError, so translate rather than leaking errno objects.
+            error_msg = f"Failed to query status of service {service_name}: {e}"
+            logger.exception(error_msg)
+            raise RuntimeError(error_msg) from e
 
     def _get_service_startup_type(self, service_name: str) -> str:
         """Get service startup type from systemctl.
@@ -356,6 +370,13 @@ class LinuxIntegration:
             error_msg = f"Timeout starting service {service_name}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+        except FileNotFoundError as e:
+            # Same systemd-absent case get_systemd_service_status already
+            # translates. Left unhandled here, a non-systemd host raised a raw
+            # FileNotFoundError from a method documented to raise RuntimeError.
+            error_msg = "systemctl not found. Is systemd installed?"
+            logger.exception(error_msg)
+            raise RuntimeError(error_msg) from e
 
     def stop_systemd_service(self, service_name: str) -> bool:
         """Stop a systemd service.
@@ -414,6 +435,13 @@ class LinuxIntegration:
             error_msg = f"Timeout stopping service {service_name}"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
+        except FileNotFoundError as e:
+            # Same systemd-absent case get_systemd_service_status already
+            # translates. Left unhandled here, a non-systemd host raised a raw
+            # FileNotFoundError from a method documented to raise RuntimeError.
+            error_msg = "systemctl not found. Is systemd installed?"
+            logger.exception(error_msg)
+            raise RuntimeError(error_msg) from e
 
     def restart_systemd_service(self, service_name: str) -> bool:
         """Restart a systemd service.
@@ -470,6 +498,13 @@ class LinuxIntegration:
 
         except subprocess.TimeoutExpired as e:
             error_msg = f"Timeout restarting service {service_name}"
+            logger.exception(error_msg)
+            raise RuntimeError(error_msg) from e
+        except FileNotFoundError as e:
+            # Same systemd-absent case get_systemd_service_status already
+            # translates. Left unhandled here, a non-systemd host raised a raw
+            # FileNotFoundError from a method documented to raise RuntimeError.
+            error_msg = "systemctl not found. Is systemd installed?"
             logger.exception(error_msg)
             raise RuntimeError(error_msg) from e
 
@@ -554,6 +589,16 @@ class LinuxIntegration:
             error_msg = f"Executable not found: {executable}"
             logger.exception(error_msg)
             raise FileNotFoundError(error_msg) from e
+        except PermissionError as e:
+            error_msg = f"Permission denied executing: {executable}"
+            logger.exception(error_msg)
+            raise PermissionError(error_msg) from e
+        except OSError as e:
+            # ENOEXEC (not a binary), ENOMEM, EMFILE, ETXTBSY ... all reached
+            # callers as bare errno objects before this.
+            error_msg = f"Failed to start process {executable}: {e}"
+            logger.exception(error_msg)
+            raise OSError(error_msg) from e
 
     def terminate_process(self, pid: int, force: bool = False) -> bool:
         """Terminate a process.
@@ -592,6 +637,10 @@ class LinuxIntegration:
             error_msg = f"Process not found: PID {pid}"
             logger.exception(error_msg)
             raise ProcessLookupError(error_msg) from e
+        except psutil.AccessDenied as e:
+            error_msg = f"Permission denied terminating process {pid}"
+            logger.exception(error_msg)
+            raise PermissionError(error_msg) from e
 
     def execute_command(self, command: str, args: list[str]) -> CommandResult:
         """Execute a Linux command.
@@ -644,6 +693,21 @@ class LinuxIntegration:
             error_msg = f"Command timed out: {command}"
             logger.exception(error_msg)
             raise TimeoutError(error_msg) from e
+        except FileNotFoundError as e:
+            error_msg = f"Error executing command {command}: executable not found"
+            logger.exception(error_msg)
+            raise RuntimeError(error_msg) from e
+        except Exception as e:
+            # This is the process-execution boundary: everything below it is
+            # OS-level and everything above it expects a CommandResult or a
+            # documented exception. Translating here is what keeps an unusual
+            # errno from taking down a caller that only knows about
+            # RuntimeError/TimeoutError. KeyboardInterrupt, SystemExit and
+            # asyncio.CancelledError derive from BaseException and still pass
+            # straight through.
+            error_msg = f"Error executing command {command}: {e}"
+            logger.exception(error_msg)
+            raise RuntimeError(error_msg) from e
 
     def get_system_info(self) -> SystemInfo:
         """Get Linux system information.
