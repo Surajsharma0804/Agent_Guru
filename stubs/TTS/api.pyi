@@ -1,6 +1,5 @@
 """Type stubs for TTS.api."""
 from typing import Any, Optional, List
-import numpy as np
 from numpy.typing import NDArray
 
 class TTS:
