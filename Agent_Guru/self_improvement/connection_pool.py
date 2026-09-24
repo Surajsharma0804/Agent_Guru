@@ -157,10 +157,17 @@ class ConnectionPool:
         self.timeout = timeout
         self.check_same_thread = check_same_thread
 
-        # Thread-safe connection queue
+        # Thread-safe queue of IDLE connections only
         self._pool: Queue[PooledConnection] = Queue(maxsize=max_size)
         self._lock = threading.Lock()
+        # Signalled whenever a checked-out connection comes back, so
+        # close_all() can wait for in-flight work instead of polling.
+        self._released = threading.Condition(self._lock)
         self._local = threading.local()
+
+        # Connections currently handed out to callers. The idle queue cannot
+        # see these, so without this set close_all() has no way to reach them.
+        self._checked_out: set[PooledConnection] = set()
 
         # Statistics tracking
         self._total_connections = 0
@@ -251,6 +258,7 @@ class ConnectionPool:
             # Track statistics
             acquisition_time = (time.time() - start_time) * 1000  # ms
             with self._lock:
+                self._checked_out.add(conn)
                 self._total_acquisitions += 1
                 self._acquisition_times.append(acquisition_time)
                 # deque(maxlen=1000) auto-evicts oldest — no manual pop needed
@@ -321,6 +329,9 @@ class ConnectionPool:
 
         # Mark as released
         conn.mark_released()
+        with self._released:
+            self._checked_out.discard(conn)
+            self._released.notify_all()
 
         # Rollback any uncommitted transaction
         try:
@@ -338,16 +349,66 @@ class ConnectionPool:
             with self._lock:
                 self._total_connections -= 1
 
-    def close_all(self) -> None:
-        """Close all connections in pool."""
-        while not self._pool.empty():
-            try:
-                conn = self._pool.get_nowait()
+    def close_all(self, timeout: float | None = None) -> None:
+        """Close every connection the pool owns, idle and checked out.
+
+        Semantics for in-flight work: wait, then force-close.
+
+        1. Idle connections are closed immediately.
+        2. For up to ``timeout`` seconds (default: the pool's acquisition
+           timeout) this waits for checked-out connections to be released.
+           Each one that comes back in time is closed normally.
+        3. Any connection still checked out when the wait expires is
+           force-closed and a warning is logged with the count. The holder's
+           next use of it raises ``sqlite3.ProgrammingError``, so a caller
+           that outlives close_all fails loudly instead of the pool leaking
+           an open file handle.
+
+        Pass ``timeout=0`` to skip the wait and force-close immediately.
+
+        Args:
+            timeout: Seconds to wait for checked-out connections to be
+                released before force-closing them.
+
+        """
+        wait = self.timeout if timeout is None else timeout
+
+        self._drain_idle()
+
+        deadline = time.monotonic() + wait
+        with self._released:
+            while self._checked_out:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                self._released.wait(remaining)
+            stragglers = list(self._checked_out)
+            self._checked_out.clear()
+
+        # Connections released during the wait went back to the idle queue.
+        self._drain_idle()
+
+        if stragglers:
+            _logger.warning(
+                "close_all: force-closing %d connection(s) still checked out after %.2fs",
+                len(stragglers),
+                wait,
+            )
+            for conn in stragglers:
+                conn.mark_released()
                 conn.connection.close()
-            except Empty:
-                break
+
         with self._lock:
             self._total_connections = 0
+
+    def _drain_idle(self) -> None:
+        """Close every connection currently sitting in the idle queue."""
+        while True:
+            try:
+                conn = self._pool.get_nowait()
+            except Empty:
+                break
+            conn.connection.close()
 
     def get_stats(self) -> ConnectionStats:
         """Get connection pool statistics.
@@ -357,7 +418,7 @@ class ConnectionPool:
 
         """
         with self._lock:
-            active = self._total_connections - self._pool.qsize()
+            active = len(self._checked_out)
             idle = self._pool.qsize()
 
             avg_acquisition = (
