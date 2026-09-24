@@ -61,6 +61,9 @@ else:
 
 logger = logging.getLogger(__name__)
 
+# Default budget for execute_command. Callers can pass their own timeout.
+DEFAULT_COMMAND_TIMEOUT_SECONDS = 30.0
+
 @dataclass
 class CommandResult:
     """Result of command execution."""
@@ -539,7 +542,12 @@ class WindowsIntegration:
             logger.exception(error_msg)
             raise ProcessLookupError(error_msg) from e
 
-    def execute_command(self, command: str, args: list[str]) -> CommandResult:
+    def execute_command(
+        self,
+        command: str,
+        args: list[str],
+        timeout: float = DEFAULT_COMMAND_TIMEOUT_SECONDS,
+    ) -> CommandResult:
         """Execute a Windows command.
 
         Time Complexity: O(1) + command execution time
@@ -548,9 +556,16 @@ class WindowsIntegration:
         Args:
             command: Command to execute
             args: Command arguments
+            timeout: Seconds to wait before the command is killed. Injectable
+                so callers, and tests, can choose a budget: a test must set it
+                well below pytest's per-test timeout, or pytest kills the
+                process before this method's own timeout handling can run.
 
         Returns:
             CommandResult with stdout, stderr, and return code
+
+        Raises:
+            TimeoutError: If the command runs longer than ``timeout`` seconds
 
         Example:
             >>> result = integration.execute_command("cmd", ["/c", "echo", "Hello"])
@@ -584,7 +599,7 @@ class WindowsIntegration:
                 check=False,
                 capture_output=True,
                 text=True,
-                timeout=30,  # 30 second timeout
+                timeout=timeout,
             )
 
             execution_time = time.time() - start_time
@@ -602,7 +617,7 @@ class WindowsIntegration:
             )
 
         except subprocess.TimeoutExpired as e:
-            error_msg = f"Command timed out: {command}"
+            error_msg = f"Command timed out after {timeout}s: {command}"
             logger.exception(error_msg)
             raise TimeoutError(error_msg) from e
 
