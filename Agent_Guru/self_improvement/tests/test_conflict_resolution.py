@@ -10,6 +10,7 @@ Author: Agent Guru Team
 Date: 2026-02-28
 """
 
+import logging
 import pytest
 import tempfile
 import os
@@ -25,6 +26,8 @@ from Agent_Guru.self_improvement.conflict_resolution import (
 )
 from Agent_Guru.self_improvement.connection_pool import ConnectionPool
 from Agent_Guru.self_improvement.database_schema import DatabaseSchema
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture

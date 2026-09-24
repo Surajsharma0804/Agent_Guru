@@ -283,31 +283,28 @@ class TestToolSelectionProperties:
             "string": TestToolSelectionProperties._check_string,
             "integer": TestToolSelectionProperties._check_integer,
             "float": TestToolSelectionProperties._check_float,
-            "boolean": lambda n, v: (
-                assert_true(isinstance(v, (bool, int, str)) or v is None)  # type: ignore[name-defined]
-            ),
-            "array": lambda n, v: (
-                assert_true(isinstance(v, list) or v is None)  # type: ignore[name-defined]
-            ),
-            "object": lambda n, v: (
-                assert_true(isinstance(v, dict) or v is None)  # type: ignore[name-defined]
-            ),
+            "boolean": TestToolSelectionProperties._check_boolean,
+            "array": TestToolSelectionProperties._check_array,
+            "object": TestToolSelectionProperties._check_object,
         }
-        type_val = expected_type.value
-
-        # Simple types: inline assertion
-        if type_val in ("boolean", "array", "object"):
-            if type_val == "boolean":
-                assert isinstance(param_value, (bool, int, str)) or param_value is None  # nosec B101
-            elif type_val == "array":
-                assert isinstance(param_value, list) or param_value is None  # nosec B101
-            else:
-                assert isinstance(param_value, dict) or param_value is None  # nosec B101
-            return
-
-        validator = _validators.get(type_val)
+        validator = _validators.get(expected_type.value)
         if validator is not None:
             validator(param_name, param_value)
+
+    @staticmethod
+    def _check_boolean(_param_name: str, param_value) -> None:
+        """Validate boolean-type parameter."""
+        assert isinstance(param_value, (bool, int, str)) or param_value is None  # nosec B101
+
+    @staticmethod
+    def _check_array(_param_name: str, param_value) -> None:
+        """Validate array-type parameter."""
+        assert isinstance(param_value, list) or param_value is None  # nosec B101
+
+    @staticmethod
+    def _check_object(_param_name: str, param_value) -> None:
+        """Validate object-type parameter."""
+        assert isinstance(param_value, dict) or param_value is None  # nosec B101
 
     @staticmethod
     def _check_string(_param_name: str, param_value) -> None:
