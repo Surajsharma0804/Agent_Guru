@@ -517,14 +517,17 @@ async def run() -> None:
             # Play a short "thinking" tone so the user knows we heard them
             # and are processing - prevents them thinking it's broken during LLM wait
             try:
-                import sounddevice as _sd_beep
                 import numpy as _np_beep
+
+                # Under the process-wide PortAudio lock, like all playback: the
+                # mic recovery path used to re-initialise PortAudio from another
+                # thread mid-playback, which cut audio off or crashed the process.
+                from Agent_Guru.speech.audio.portaudio_lock import play_and_wait
                 _sr = 22050
                 _t = _np_beep.linspace(0, 0.15, int(_sr * 0.15), False)
                 _beep = (_np_beep.sin(2 * _np_beep.pi * 880 * _t) * 0.3).astype(_np_beep.float32)
                 _fade = _np_beep.linspace(1, 0, len(_beep))
-                _sd_beep.play(_beep * _fade, samplerate=_sr)  # type: ignore[attr-defined]
-                _sd_beep.wait()
+                play_and_wait(_beep * _fade, _sr)
             except Exception:
                 pass
 
