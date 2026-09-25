@@ -279,6 +279,9 @@ class KokoroTTSEngine:
         self._kokoro: Any | None = None
         self._loaded = False
         self._use_gpu = use_gpu
+        #: Where synthesis actually runs, "cuda" or "cpu", known once the model
+        #: is loaded. use_gpu is a request; this is what was granted.
+        self.device: str | None = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -420,7 +423,7 @@ class KokoroTTSEngine:
 
         # Auto-download model files if missing
         if not _MODEL_PATH.exists():
-            logger.info("Kokoro model not found - downloading (~83 MB, one-time)...")
+            logger.info("Kokoro model not found - downloading (~326 MB, one-time)...")
             _download(_MODEL_URL, _MODEL_PATH, _MODEL_SHA256)
         else:
             # Verify cached file hasn't been tampered with
@@ -434,13 +437,55 @@ class KokoroTTSEngine:
 
         try:
             from kokoro_onnx import Kokoro
-
-            self._kokoro = Kokoro(str(_MODEL_PATH), str(_VOICES_PATH))
-            self._loaded = True
-            logger.info("Kokoro TTS engine loaded (voices: am_michael, af_heart)")
         except ImportError as exc:
             msg = "kokoro-onnx not installed. Run: pip install kokoro-onnx"
             raise TTSError(msg, exc) from exc
+
+        # The session is built here, with explicit providers, instead of by
+        # Kokoro(model, voices). use_gpu used to be stored and never read, so
+        # asking for the GPU did nothing; and Kokoro() on its own switches to
+        # every provider onnxruntime offers whenever onnxruntime-gpu happens to
+        # be installed, so use_gpu=False did not mean CPU either.
+        import onnxruntime as ort
+
+        session = ort.InferenceSession(str(_MODEL_PATH), providers=self._providers(ort))
+        self._kokoro = Kokoro.from_session(session, str(_VOICES_PATH))
+        self.device = "cuda" if session.get_providers()[0] == "CUDAExecutionProvider" else "cpu"
+        self._loaded = True
+        logger.info(
+            "Kokoro TTS engine loaded on %s (voices: am_michael, af_heart)", self.device.upper(),
+        )
+
+    def _providers(self, ort: Any) -> list[str]:
+        """ONNX Runtime providers for the Kokoro session.
+
+        Measured on an RTX 2050 (4 GB) with gemma3:4b resident in Ollama:
+        CUDA synthesised a short answer in 0.76 s against 1.43 s on the CPU,
+        and 13.7 s of speech in 1.4 s against 6.0 s, with Ollama still fully
+        on the GPU at the same speed. The session takes about 1.1 GB of VRAM,
+        which left 170 MiB free on that card. DirectML could not run the
+        model at all: its ConvTranspose node fails with "The parameter is
+        incorrect".
+        """
+        if not self._use_gpu:
+            return ["CPUExecutionProvider"]
+        if "CUDAExecutionProvider" not in ort.get_available_providers():
+            logger.warning(
+                "GPU speech synthesis was requested, but the installed onnxruntime is "
+                "the CPU-only build, so speech is synthesised on the CPU (measured about "
+                "2x slower to start speaking on an RTX 2050). Replacing onnxruntime with "
+                "onnxruntime-gpu[cuda,cudnn] (about 1.7 GB, NVIDIA only) enables it.",
+            )
+            return ["CPUExecutionProvider"]
+        # onnxruntime-gpu[cuda,cudnn] installs CUDA and cuDNN as pip packages;
+        # their DLLs are only found once they have been preloaded.
+        preload = getattr(ort, "preload_dlls", None)
+        if preload is not None:
+            try:
+                preload()
+            except Exception:
+                logger.warning("Could not preload the CUDA libraries", exc_info=True)
+        return ["CUDAExecutionProvider", "CPUExecutionProvider"]
 
 # ---------------------------------------------------------------------------
 # Pyttsx3 fallback engine
