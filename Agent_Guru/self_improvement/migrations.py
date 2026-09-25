@@ -30,6 +30,11 @@ from pathlib import Path
 
 from Agent_Guru.utils.path_utils import safe_path
 
+# `with sqlite3.connect() as conn:` only ends the transaction and leaves the
+# connection open until garbage collection, which on Windows keeps the database
+# file locked. Connections here go through open_sqlite(), which also closes.
+from Agent_Guru.utils.sqlite import open_sqlite
+
 BASE_DIR = Path(__file__).parent.resolve()
 
 logger = logging.getLogger(__name__)
@@ -89,7 +94,7 @@ class MigrationSystem:
 
         Creates table to track applied migrations if it doesn't exist.
         """
-        with sqlite3.connect(self.db_path) as conn:
+        with open_sqlite(self.db_path) as conn:
             cursor = conn.cursor()
 
             cursor.execute("""
@@ -238,7 +243,7 @@ class MigrationSystem:
         Time Complexity: O(1)
 
         """
-        with sqlite3.connect(self.db_path) as conn:
+        with open_sqlite(self.db_path) as conn:
             cursor = conn.cursor()
 
             try:
@@ -292,7 +297,7 @@ class MigrationSystem:
         Time Complexity: O(n) where n is number of applied migrations
 
         """
-        with sqlite3.connect(self.db_path) as conn:
+        with open_sqlite(self.db_path) as conn:
             cursor = conn.cursor()
 
             cursor.execute("""
