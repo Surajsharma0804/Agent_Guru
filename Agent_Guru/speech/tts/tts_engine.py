@@ -175,6 +175,19 @@ _DOWNLOAD_CHUNK = 1 << 20  # 1 MiB
 _NO_DOWNLOAD_ENV = "AGENT_GURU_NO_DOWNLOAD"
 
 
+def _kokoro_package_installed() -> bool:
+    """True if kokoro-onnx can be imported, checked without importing it."""
+    import importlib.util
+    import sys
+
+    if "kokoro_onnx" in sys.modules:
+        return sys.modules["kokoro_onnx"] is not None
+    try:
+        return importlib.util.find_spec("kokoro_onnx") is not None
+    except (ImportError, ValueError):
+        return False
+
+
 def downloads_disabled() -> bool:
     """Return True when model auto-download has been switched off."""
     return os.environ.get(_NO_DOWNLOAD_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
@@ -572,10 +585,17 @@ class CoquiTTSEngine:
         """
         if self._use_kokoro and (
             getattr(self._kokoro, "_loaded", False)
-            or (_MODEL_PATH.exists() and _VOICES_PATH.exists())
+            or (
+                _kokoro_package_installed()
+                and _MODEL_PATH.exists()
+                and _VOICES_PATH.exists()
+            )
         ):
             # Reports availability from what is already on disk - it must not
-            # itself trigger the 83 MB model download.
+            # itself trigger the 326 MB model download. It used to look at the
+            # model files only, so with kokoro-onnx not installed it still said
+            # "kokoro" while every call fell back to pyttsx3 or silence, which
+            # is exactly the degradation a caller asks this in order to detect.
             return "kokoro"
         if not self._pyttsx3_ready:
             self._pyttsx3_ready = self._pyttsx3.initialize()
