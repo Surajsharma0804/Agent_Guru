@@ -32,7 +32,6 @@ Version: 1.0.0
 
 import hashlib
 import json
-import sqlite3
 import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -42,6 +41,12 @@ from typing import Any
 import numpy as np
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
+
+# Connections go through open_sqlite(): `with sqlite3.connect() as conn:` only
+# ends the transaction and leaves the connection open, which on Windows keeps
+# the database file locked until garbage collection. SelfImprovementEngine's
+# tests failed to delete their temporary database for that reason.
+from Agent_Guru.utils.sqlite import open_sqlite
 
 
 class PatternType(Enum):
@@ -220,7 +225,7 @@ class MetaLearner:
         Time Complexity: O(1)
         Space Complexity: O(1)
         """
-        with sqlite3.connect(self.storage_path) as conn:
+        with open_sqlite(self.storage_path) as conn:
             cursor = conn.cursor()
 
             cursor.execute("""
@@ -423,7 +428,7 @@ class MetaLearner:
         Space Complexity: O(1)
 
         """
-        with sqlite3.connect(self.storage_path) as conn:
+        with open_sqlite(self.storage_path) as conn:
             cursor = conn.cursor()
 
             # Create execution_features table if not exists
@@ -476,7 +481,7 @@ class MetaLearner:
         Space Complexity: O(1)
 
         """
-        with sqlite3.connect(self.storage_path) as conn:
+        with open_sqlite(self.storage_path) as conn:
             cursor = conn.cursor()
 
             # Count total executions
@@ -534,7 +539,7 @@ class MetaLearner:
         Space Complexity: O(n)
 
         """
-        with sqlite3.connect(self.storage_path) as conn:
+        with open_sqlite(self.storage_path) as conn:
             cursor = conn.cursor()
 
             cursor.execute(
@@ -749,7 +754,7 @@ class MetaLearner:
         Space Complexity: O(1)
 
         """
-        with sqlite3.connect(self.storage_path) as conn:
+        with open_sqlite(self.storage_path) as conn:
             cursor = conn.cursor()
 
             cursor.execute(
@@ -851,7 +856,7 @@ class MetaLearner:
         Space Complexity: O(n)
 
         """
-        with sqlite3.connect(self.storage_path) as conn:
+        with open_sqlite(self.storage_path) as conn:
             cursor = conn.cursor()
 
             cursor.execute("""
@@ -962,7 +967,7 @@ class MetaLearner:
 
         """
         # Load all execution features
-        with sqlite3.connect(self.storage_path) as conn:
+        with open_sqlite(self.storage_path) as conn:
             cursor = conn.cursor()
 
             cursor.execute("""
