@@ -39,6 +39,7 @@ import numpy as np
 
 from Agent_Guru.platform.platform_detector import PlatformDetector
 
+from .audio.portaudio_lock import reinitialise_if_idle
 from .audio.wake_word import WakeWordConfig, WakeWordDetector
 from .models import PersonalityType, WakeWordDetection
 
@@ -419,9 +420,21 @@ class _AudioCapture:
     # - A device that disappeared and came back, or a new default device,
     #   is invisible to PortAudio until it is re-initialised: it enumerates
     #   devices once, so the old default index keeps pointing at the stale
-    #   device. Re-initialising takes about 80 ms, but it also invalidates
-    #   every other open PortAudio stream (TTS playback included), so it is
-    #   the second step, not the first.
+    #   device. Re-initialising takes about 80 ms.
+    # - Re-initialising is process-wide and destroys every stream. This
+    #   used to call it directly on every attempt from the second on, on
+    #   this thread, while answers played on others. Measured: speech cut
+    #   off mid-sentence with sd.wait() reporting success (8 of 8), and
+    #   the process killed by an access violation when playback overlapped
+    #   the repeated re-initialises of a mic that stays unplugged (5 of 5).
+    #   Making it the second step only delayed that by a second. It now
+    #   goes through portaudio_lock.reinitialise_if_idle(), which skips
+    #   the re-initialise while anything is playing; that attempt is then
+    #   a plain reopen, and the next attempt tries again.
+    # - Re-initialising only once per outage was rejected: it still tears
+    #   down whatever plays at that moment, and a mic plugged back in
+    #   after it would stay invisible for the rest of the outage, which is
+    #   the deaf-until-restart bug again.
     # - A machine with no working input device at all does not recover.
     #   That is why the failure is reported to the user after a few
     #   attempts, instead of retrying silently.
@@ -458,11 +471,11 @@ class _AudioCapture:
         try:
             import sounddevice as sd  # type: ignore[import]
 
-            if attempt > 1:
-                # Re-enumerate devices so a reconnected mic or a new default
-                # device can be found. See the notes above.
-                sd._terminate()
-                sd._initialize()
+            if attempt > 1 and not reinitialise_if_idle():
+                # Something is playing; tearing PortAudio down now would cut
+                # it off or crash the process. Reopen without re-enumerating
+                # this time. See the notes above.
+                logger.debug("PortAudio busy - reopen attempt %d without re-initialising", attempt)
             stream = sd.InputStream(
                 samplerate=self._sample_rate,
                 channels=1,
