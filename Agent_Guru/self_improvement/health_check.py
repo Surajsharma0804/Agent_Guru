@@ -4,13 +4,17 @@ Provides monitoring and diagnostic information for production deployment.
 """
 
 import os
-import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
 import psutil
+
+# `with sqlite3.connect() as conn:` only ends the transaction and leaves the
+# connection open until garbage collection, which on Windows keeps the database
+# file locked. Connections here go through open_sqlite(), which also closes.
+from Agent_Guru.utils.sqlite import open_sqlite
 
 
 class HealthStatus(Enum):
@@ -126,7 +130,7 @@ class HealthChecker:
                 )
 
             # Check database connectivity
-            with sqlite3.connect(self.storage_path) as conn:
+            with open_sqlite(self.storage_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM metrics")
                 task_count = cursor.fetchone()[0]
@@ -219,7 +223,7 @@ class HealthChecker:
     def _check_performance(self) -> HealthCheckResult:
         """Check performance metrics."""
         try:
-            with sqlite3.connect(self.storage_path) as conn:
+            with open_sqlite(self.storage_path) as conn:
                 cursor = conn.cursor()
 
                 # Get recent task execution times
@@ -275,7 +279,7 @@ class HealthChecker:
     def _check_learning(self) -> HealthCheckResult:
         """Check learning progress."""
         try:
-            with sqlite3.connect(self.storage_path) as conn:
+            with open_sqlite(self.storage_path) as conn:
                 cursor = conn.cursor()
 
                 # Get total task count
@@ -351,7 +355,7 @@ class HealthChecker:
 
         """
         try:
-            with sqlite3.connect(self.storage_path) as conn:
+            with open_sqlite(self.storage_path) as conn:
                 cursor = conn.cursor()
 
                 # Total tasks
