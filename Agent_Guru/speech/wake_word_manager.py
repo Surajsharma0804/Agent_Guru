@@ -31,6 +31,7 @@ import contextlib
 import logging
 import math
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -133,6 +134,33 @@ MIC_LOST_REPORT_AFTER_ATTEMPTS = 4
 #: which could not be tested here.
 NOISE_FLOOR_MARGIN = 2.0
 
+#: Highest wake threshold (RMS, after sensitivity scaling) calibration may set.
+#:
+#: Calibration used to have a lower bound only, and ran once at startup. On
+#: the development laptop 5 of 11 starts in one morning measured a "noise
+#: floor" of 0.078 to 0.231 and pinned the threshold at 0.156 to 0.462 for the
+#: whole session. Room recordings labelled by Silero VAD showed that level is
+#: people talking, not noise, and nobody could wake the assistant after.
+#:
+#: The cap comes from real speech on that mic: 120 s of room audio cut into
+#: the detector's 1.5 s chunks, 75 of which carried speech. The highest
+#: threshold each speech chunk still passes (both the RMS and the peak gate)
+#: had a median of 0.0163. The shipped 0.0112 lets 61% of those chunks wake
+#: it, 0.015 lets 52%, 0.03 lets 28%, and the 0.156 set that morning let 4%.
+#: So calibration may never push the threshold past the point where half of
+#: measured speech still gets through.
+MAX_CALIBRATED_THRESHOLD = 0.015
+
+#: The room is re-measured this often, from the audio the listen loop already
+#: reads, so a threshold set in a loud moment comes back down when the room
+#: quietens instead of holding for the rest of the session.
+RECALIBRATE_EVERY_S = 30.0
+
+#: How much recent audio a re-measurement looks at. The floor is the median
+#: 0.5 s window over this span, so talking for less than half of it does not
+#: count as noise.
+_RECALIBRATION_HISTORY_S = 60.0
+
 #: Length of the windows the noise floor is measured over. Their median RMS
 #: is the floor: a word spoken during calibration raises a window or two but
 #: not the median, so it cannot deafen the assistant for the whole session.
@@ -149,6 +177,9 @@ class NoiseCalibration:
     threshold_before: float
     threshold_after: float
     digital_silence: bool
+    #: True when the measured level was too loud to be a noise floor (speech
+    #: or music during calibration) and the default threshold was kept.
+    rejected: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -668,6 +699,14 @@ class WakeWordManager:
         self._last_detection: WakeWordDetection | None = None
         self._initialized: bool = False
         self._mic_loss_reported: bool = False
+        # The configured threshold, before any calibration. Every calibration
+        # is measured against it, and a rejected one returns to it exactly.
+        self._base_energy_threshold: float = self._config.wake_word_config.energy_threshold
+        self._recent_window_rms: deque[float] = deque(
+            maxlen=int(_RECALIBRATION_HISTORY_S / _NOISE_WINDOW_S),
+        )
+        self._last_recalibration: float = time.monotonic()
+        self._room_too_loud: bool = False
 
         logger.info("WakeWordManager created - platform=%s", self._config.platform)
 
@@ -860,23 +899,11 @@ class WakeWordManager:
             return None
 
         sample_rate = self._config.wake_word_config.sample_rate
-        window = max(1, int(sample_rate * _NOISE_WINDOW_S))
-        window_rms = [
-            float(np.sqrt(np.mean(audio[i : i + window] ** 2)))
-            for i in range(0, max(1, len(audio) - window + 1), window)
-        ]
+        window_rms = self._window_rms(audio)
         noise_rms = float(np.median(window_rms))
-
-        config = self._detector.config
-        scale = 1.0 - config.sensitivity * 0.5
-        before = config.energy_threshold * scale
-        after = max(before, NOISE_FLOOR_MARGIN * noise_rms)
-        if after > before:
-            # Written only when raised: dividing an unchanged threshold back by
-            # the scale does not round-trip exactly (0.05 came back as
-            # 0.05000000000000001), so "a quiet room behaves exactly as before"
-            # was not quite true.
-            config.energy_threshold = after / scale
+        before, after, rejected = self._apply_noise_floor(noise_rms)
+        self._recent_window_rms.extend(window_rms)
+        self._last_recalibration = time.monotonic()
 
         result = NoiseCalibration(
             seconds=len(audio) / sample_rate,
@@ -888,7 +915,9 @@ class WakeWordManager:
             # returns plenty of exact zeros while sound is present, because the
             # driver's noise suppression gates the gaps.
             digital_silence=bool(len(audio)) and not np.any(audio),
+            rejected=rejected,
         )
+        self._report_room_level(noise_rms, rejected)
         if result.digital_silence:
             logger.warning(
                 "Microphone delivered %.1fs of digital silence (every sample exactly 0). "
@@ -897,6 +926,91 @@ class WakeWordManager:
                 result.seconds,
             )
         return result
+
+    def _window_rms(self, audio: np.ndarray) -> list[float]:
+        """RMS of each 0.5 s window of *audio*."""
+        window = max(1, int(self._config.wake_word_config.sample_rate * _NOISE_WINDOW_S))
+        return [
+            float(np.sqrt(np.mean(audio[i : i + window] ** 2)))
+            for i in range(0, max(1, len(audio) - window + 1), window)
+        ]
+
+    def _apply_noise_floor(self, noise_rms: float) -> tuple[float, float, bool]:
+        """Set the wake threshold from a measured noise floor.
+
+        Returns ``(threshold_before, threshold_after, rejected)``, both after
+        sensitivity scaling. A floor whose margin would put the threshold
+        above MAX_CALIBRATED_THRESHOLD is as loud as the speech the assistant
+        has to hear, so it was talking or music, not noise. It is rejected and
+        the configured default restored, rather than trusted and left in
+        place for the session.
+        """
+        if self._detector is None:
+            return 0.0, 0.0, False
+        config = self._detector.config
+        scale = 1.0 - config.sensitivity * 0.5
+        before = config.energy_threshold * scale
+        default = self._base_energy_threshold * scale
+        proposed = NOISE_FLOOR_MARGIN * noise_rms
+        rejected = proposed > MAX_CALIBRATED_THRESHOLD
+        after = default if rejected else max(default, proposed)
+        if after != before:
+            # The default is written back as configured, not divided back out
+            # of the scale: that division does not round-trip exactly (0.05
+            # came back as 0.05000000000000001).
+            config.energy_threshold = (
+                self._base_energy_threshold if after == default else after / scale
+            )
+        return before, after, rejected
+
+    def _report_room_level(self, noise_rms: float, rejected: bool) -> None:
+        """Say, once per change, that the room was too loud to calibrate against."""
+        if rejected and not self._room_too_loud:
+            logger.warning(
+                "The room was too loud to measure the microphone's background noise "
+                "(level %.3f, as loud as talking or music), so wake sensitivity was left "
+                "at its normal setting. If 'Hey Guru' is not heard, turn music or the TV "
+                "down, or speak closer to the microphone. The room is measured again "
+                "every %.0f seconds.",
+                noise_rms, RECALIBRATE_EVERY_S,
+            )
+        elif not rejected and self._room_too_loud:
+            logger.info("The room is quiet enough to measure again (level %.5f)", noise_rms)
+        self._room_too_loud = rejected
+
+    def _recalibrate_from(self, audio: np.ndarray) -> None:
+        """Re-measure the room from audio the listen loop has already read.
+
+        Startup calibration used to be the only one, so a threshold raised by
+        a loud moment at startup could never come back down. Lowering it after
+        a long stretch with no wake was rejected: no wake cannot tell a noisy
+        room from a user who is not talking, so it would walk the threshold
+        down into the noise in exactly the rooms that raised it. Re-measuring
+        looks at the cause instead. Every chunk that did not wake the
+        assistant goes into a rolling minute of history, and the same rule as
+        startup is re-applied every RECALIBRATE_EVERY_S, with no extra
+        microphone reads.
+        """
+        capture = self._audio_capture
+        if self._detector is None or len(audio) == 0:
+            return
+        if capture is not None and capture.failing_since is not None:
+            return  # silence from a lost microphone is not the room
+        self._recent_window_rms.extend(self._window_rms(audio))
+        now = time.monotonic()
+        if now - self._last_recalibration < RECALIBRATE_EVERY_S:
+            return
+        if len(self._recent_window_rms) < (self._recent_window_rms.maxlen or 0) // 3:
+            return
+        self._last_recalibration = now
+        noise_rms = float(np.median(self._recent_window_rms))
+        before, after, rejected = self._apply_noise_floor(noise_rms)
+        if after != before:
+            logger.info(
+                "Room re-measured: noise floor %.5f, wake threshold %.4f -> %.4f",
+                noise_rms, before, after,
+            )
+        self._report_room_level(noise_rms, rejected)
 
     def get_last_detection(self) -> WakeWordDetection | None:
         """Return the most recent detection result (or ``None``)."""
@@ -1032,6 +1146,11 @@ class WakeWordManager:
                     audio = await loop.run_in_executor(None, self._audio_capture.capture)
                     await self._report_microphone_health()
                     detection = await self.detect(audio)
+                    if detection is None:
+                        # Only audio that did not wake it describes the room;
+                        # a wake word counted as noise would raise the bar
+                        # against the next one.
+                        self._recalibrate_from(audio)
 
                     if detection is not None:
                         self._power_mode = PowerMode.ACTIVE

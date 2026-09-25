@@ -87,32 +87,43 @@ async def test_a_quiet_room_keeps_the_shipped_threshold():
 
 
 async def test_steady_room_noise_raises_the_threshold_above_it():
-    noise = [_babble(1.5, 0.02, seed=s) for s in (2, 3)]
+    """A floor below speech level raises the threshold, up to the cap."""
+    noise = [_babble(1.5, 0.007, seed=s) for s in (2, 3)]
     manager = _manager(noise)
 
     result = await manager.calibrate_noise_floor(3.0)
 
     assert result.threshold_before == SHIPPED_EFFECTIVE
+    assert not result.rejected
     assert result.threshold_after == wwm.NOISE_FLOOR_MARGIN * result.noise_rms
-    assert result.threshold_after > 0.02
+    assert SHIPPED_EFFECTIVE < result.threshold_after <= wwm.MAX_CALIBRATED_THRESHOLD
     scale = 1 - manager._detector.config.sensitivity * 0.5
     assert np.isclose(manager._detector.config.energy_threshold * scale, result.threshold_after)
 
 
-async def test_the_raised_threshold_stops_waking_on_that_noise():
-    """The shipped threshold wakes on this noise; the calibrated one does not."""
-    later_noise = _babble(1.5, 0.02, seed=9)
-    fixed = WakeWordDetector(WakeWordConfig(energy_threshold=SHIPPED, cooldown_seconds=0))
-    manager = _manager([_babble(1.5, 0.02, seed=s) for s in (2, 3)])
-    await manager.calibrate_noise_floor(3.0)
-    calibrated = manager._detector
-    calibrated.config.cooldown_seconds = 0
-    for detector in (fixed, calibrated):
-        detector._backend = "mfcc"
-        detector._match_phrase_by_spectrum = lambda audio: ("hey guru", PersonalityType.GURU)
+async def test_speech_level_sound_during_calibration_does_not_deafen_it():
+    """Calibrating over talking used to raise the bar above the talking itself.
 
-    assert await fixed.detect(later_noise) is not None
-    assert await calibrated.detect(later_noise) is None
+    Sound at 0.02 RMS during the startup window set the threshold to about
+    0.04, and the same level of speech afterwards could no longer wake the
+    assistant for the whole session. On real room audio the equivalent was a
+    0.156 threshold that 96% of measured speech chunks could not pass. That
+    level is now rejected as a noise floor and the default kept, so speech
+    at that level still wakes it.
+    """
+    later_speech = _babble(1.5, 0.02, seed=9)
+    manager = _manager([_babble(1.5, 0.02, seed=s) for s in (2, 3)])
+
+    result = await manager.calibrate_noise_floor(3.0)
+    detector = manager._detector
+    detector.config.cooldown_seconds = 0
+    detector._backend = "mfcc"
+    detector._match_phrase_by_spectrum = lambda audio: ("hey guru", PersonalityType.GURU)
+
+    assert result.rejected
+    assert result.threshold_after == SHIPPED_EFFECTIVE
+    assert detector.config.energy_threshold == SHIPPED
+    assert await detector.detect(later_speech) is not None
 
 
 async def test_a_word_spoken_during_calibration_does_not_set_the_floor():
