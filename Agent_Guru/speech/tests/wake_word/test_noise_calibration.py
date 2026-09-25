@@ -174,3 +174,147 @@ async def test_no_working_microphone_means_no_calibration():
 
     assert result is None
     assert manager._detector.config.energy_threshold == SHIPPED
+
+
+# ---------------------------------------------------------------------------
+# The cap and the way back down.
+#
+# Calibration used to be max(default, 2 x floor) once at startup, with no
+# upper bound: a loud moment then pinned the threshold for the session. On
+# the development laptop 5 of 11 starts in one morning set 0.156 to 0.462,
+# where 96% or more of measured speech chunks could not wake the assistant.
+# ---------------------------------------------------------------------------
+
+
+def _steady(seconds: float, rms: float, seed: int = 7) -> np.ndarray:
+    """Steady noise whose every 0.5 s window measures very close to *rms*."""
+    noise = np.random.default_rng(seed).normal(0, 1, int(SR * seconds))
+    return (noise * rms / np.sqrt(np.mean(noise**2))).astype(np.float32)
+
+
+class FakeClock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def perf_counter(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.now += seconds
+
+
+def _feed(manager: wwm.WakeWordManager, clock: FakeClock, rms: float, seconds: float) -> None:
+    """Hand the re-measurement *seconds* of room audio, 1.5 s at a time, as the loop would."""
+    for i in range(int(seconds / 1.5)):
+        clock.now += 1.5
+        manager._recalibrate_from(_steady(1.5, rms, seed=100 + i))
+
+
+async def test_calibration_never_sets_a_threshold_above_the_cap():
+    just_under = wwm.MAX_CALIBRATED_THRESHOLD / wwm.NOISE_FLOOR_MARGIN * 0.97
+    manager = _manager([_steady(1.5, just_under), _steady(1.5, just_under, seed=8)])
+
+    result = await manager.calibrate_noise_floor(3.0)
+
+    assert not result.rejected
+    assert SHIPPED_EFFECTIVE < result.threshold_after <= wwm.MAX_CALIBRATED_THRESHOLD
+
+
+async def test_a_floor_louder_than_the_cap_allows_is_rejected():
+    just_over = wwm.MAX_CALIBRATED_THRESHOLD / wwm.NOISE_FLOOR_MARGIN * 1.05
+    manager = _manager([_steady(1.5, just_over), _steady(1.5, just_over, seed=8)])
+
+    result = await manager.calibrate_noise_floor(3.0)
+
+    assert result.rejected
+    assert manager._detector.config.energy_threshold == SHIPPED
+
+
+async def test_a_raised_threshold_comes_back_down_when_the_room_quietens(monkeypatch):
+    """The old calibration had no way back down for the rest of the session."""
+    clock = FakeClock()
+    monkeypatch.setattr(wwm, "time", clock)
+    manager = _manager([_steady(1.5, 0.007), _steady(1.5, 0.007, seed=8)])
+    raised = await manager.calibrate_noise_floor(3.0)
+    assert raised.threshold_after > SHIPPED_EFFECTIVE
+
+    _feed(manager, clock, rms=0.00005, seconds=90)
+
+    # Exactly the configured value, not a float that nearly equals it.
+    assert manager._detector.config.energy_threshold == SHIPPED
+
+
+async def test_the_room_is_not_re_measured_more_often_than_the_interval(monkeypatch):
+    clock = FakeClock()
+    monkeypatch.setattr(wwm, "time", clock)
+    manager = _manager([_steady(1.5, 0.007), _steady(1.5, 0.007, seed=8)])
+    await manager.calibrate_noise_floor(3.0)
+    raised = manager._detector.config.energy_threshold
+
+    _feed(manager, clock, rms=0.00005, seconds=wwm.RECALIBRATE_EVERY_S - 3)
+
+    assert manager._detector.config.energy_threshold == raised
+
+
+async def test_talking_through_a_quiet_session_is_rejected_and_reported_once(monkeypatch, caplog):
+    clock = FakeClock()
+    monkeypatch.setattr(wwm, "time", clock)
+    manager = _manager([_quiet(1.5), _quiet(1.5)])
+    await manager.calibrate_noise_floor(3.0)
+
+    with caplog.at_level(logging.WARNING):
+        _feed(manager, clock, rms=0.05, seconds=150)
+
+    assert manager._detector.config.energy_threshold == SHIPPED
+    warnings = [r for r in caplog.records if "too loud" in r.getMessage()]
+    assert len(warnings) == 1
+
+
+async def test_silence_from_a_lost_microphone_is_not_counted_as_the_room(monkeypatch):
+    clock = FakeClock()
+    monkeypatch.setattr(wwm, "time", clock)
+    manager = _manager([_quiet(1.5), _quiet(1.5)])
+    await manager.calibrate_noise_floor(3.0)
+    history = len(manager._recent_window_rms)
+    manager._audio_capture.failing_since = 1.0
+
+    _feed(manager, clock, rms=0.0, seconds=30)
+
+    assert len(manager._recent_window_rms) == history
+
+
+async def test_the_listen_loop_never_counts_a_wake_word_as_room_noise():
+    """A wake word taken as noise would raise the bar against the next one."""
+    from Agent_Guru.speech.models import WakeWordDetection
+
+    wake = _steady(1.5, 0.2, seed=11)
+    manager = _manager([_quiet(1.5), wake, _quiet(1.5)])
+    manager._config.sleep_poll_interval = 0.0
+    capture = manager._audio_capture
+    real_capture = capture.capture
+
+    def capture_then_stop() -> np.ndarray:
+        audio = real_capture()
+        if not capture.chunks:
+            manager._is_listening = False
+        return audio
+
+    capture.capture = capture_then_stop
+
+    async def detect(audio):
+        if float(np.sqrt(np.mean(audio**2))) > 0.1:
+            return WakeWordDetection(
+                wake_word="hey guru", personality=PersonalityType.GURU,
+                confidence=1.0, timestamp=0.0, audio_chunk=audio,
+            )
+        return None
+
+    manager.detect = detect
+    manager._is_listening = True
+    await manager._listen_loop()
+
+    assert len(manager._recent_window_rms) == 6  # the two quiet chunks, 3 windows each
+    assert max(manager._recent_window_rms) < 0.01
