@@ -610,7 +610,16 @@ async def run() -> None:
     # looking at a calibration that never happened. It now measures the room
     # and logs what it found.
     calibration = await wake_manager.calibrate_noise_floor(3.0)
-    if calibration is not None:
+    if calibration is not None and calibration.rejected:
+        # Not a noise floor: talking or music during the 3 s. Calling it one
+        # (as this line did, "noise floor rms=0.15609") misreports what was
+        # heard; the manager has already told the user what to do about it.
+        logger.info(
+            "Microphone not calibrated: the room was as loud as speech (level %.3f); "
+            "default wake threshold %.4f kept, room re-measured while listening",
+            calibration.noise_rms, calibration.threshold_after,
+        )
+    elif calibration is not None:
         logger.info(
             "Microphone calibrated over %.1fs: noise floor rms=%.5f, peak=%.4f, "
             "wake threshold %.4f%s",
