@@ -4,12 +4,16 @@ Tracks improvement metrics and triggers alerts when thresholds are not met.
 """
 
 import logging
-import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+
+# `with sqlite3.connect() as conn:` only ends the transaction and leaves the
+# connection open until garbage collection, which on Windows keeps the database
+# file locked. Connections here go through open_sqlite(), which also closes.
+from Agent_Guru.utils.sqlite import open_sqlite
 
 
 class AlertLevel(Enum):
@@ -88,7 +92,7 @@ class ImprovementMonitor:
 
         """
         try:
-            with sqlite3.connect(self.storage_path) as conn:
+            with open_sqlite(self.storage_path) as conn:
                 cursor = conn.cursor()
 
                 # KNOWN ISSUE (not fixed this round): "improvement_reports"
@@ -158,7 +162,7 @@ class ImprovementMonitor:
 
         """
         try:
-            with sqlite3.connect(self.storage_path) as conn:
+            with open_sqlite(self.storage_path) as conn:
                 cursor = conn.cursor()
 
                 # Get success rate for last 10 tasks vs previous 10 tasks
@@ -228,7 +232,7 @@ class ImprovementMonitor:
 
         """
         try:
-            with sqlite3.connect(self.storage_path) as conn:
+            with open_sqlite(self.storage_path) as conn:
                 cursor = conn.cursor()
 
                 # Get failure rate for last 100 tasks
@@ -306,7 +310,7 @@ class ImprovementMonitor:
 
         """
         try:
-            with sqlite3.connect(self.storage_path) as conn:
+            with open_sqlite(self.storage_path) as conn:
                 cursor = conn.cursor()
 
                 # Overall statistics
