@@ -15,13 +15,17 @@ Version: 1.0.0
 """
 
 import json
-import sqlite3
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import numpy as np
 from scipy import stats
+
+# `with sqlite3.connect() as conn:` only ends the transaction and leaves the
+# connection open until garbage collection, which on Windows keeps the database
+# file locked. Connections here go through open_sqlite(), which also closes.
+from Agent_Guru.utils.sqlite import open_sqlite
 
 
 @dataclass
@@ -211,7 +215,7 @@ class ImprovementVerifier:
     
     def _load_tasks(self) -> List[Dict[str, Any]]:
         """Load tasks from database."""
-        with sqlite3.connect(self.database_path) as conn:
+        with open_sqlite(self.database_path) as conn:
             cursor = conn.cursor()
 
             # Load from metrics table
