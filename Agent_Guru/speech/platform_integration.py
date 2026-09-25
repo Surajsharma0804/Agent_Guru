@@ -70,10 +70,15 @@ class PlatformIntegration:
         try:
             import sounddevice as sd
 
-            devices = sd.query_devices()
-            audio_devices = []
+            # Under the PortAudio lock: reading the device list while the mic
+            # recovery path re-initialises PortAudio on another thread raised
+            # PortAudioError tens of thousands of times in measurement.
+            from Agent_Guru.speech.audio.portaudio_lock import portaudio_in_use
 
-            default_device = sd.default.device[0]  # Input device
+            with portaudio_in_use():
+                devices = sd.query_devices()
+                default_device = sd.default.device[0]  # Input device
+            audio_devices = []
 
             for i, dev in enumerate(devices):
                 if dev["max_input_channels"] > 0:
