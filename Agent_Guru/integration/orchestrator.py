@@ -2393,15 +2393,19 @@ class IntegrationOrchestrator:
             self._reminder_mgr = ReminderManager()
             tts_eng = getattr(self.speech_engine, "tts_engine", None)
             if tts_eng:
-                import sounddevice as sd
+                import sounddevice  # noqa: F401 - checks PortAudio is present before wiring the speaker
                 def _speak_reminder(text: str) -> None:
                     try:
                         import numpy as np
                         audio, sr = tts_eng.synthesize_to_array(text)
                         tail = np.zeros(int(sr * 0.30), dtype=np.float32)
                         padded = np.concatenate([audio.astype(np.float32), tail])
-                        sd.play(padded, samplerate=sr)  # type: ignore[attr-defined]
-                        sd.wait()  # type: ignore[attr-defined]
+                        # Under the PortAudio lock, like every other playback:
+                        # a reminder fires on its own timer thread, possibly
+                        # while the mic recovery path is running.
+                        from Agent_Guru.speech.audio.portaudio_lock import play_and_wait
+
+                        play_and_wait(padded, sr)
                     except Exception as _e:
                         logger.exception("Reminder TTS failed")
                 self._reminder_mgr.set_speak_callback(_speak_reminder)
@@ -3035,7 +3039,7 @@ class IntegrationOrchestrator:
             # --- Play audio through speakers ---
             if audio_array is not None and len(audio_array) > 0:
                 try:
-                    import sounddevice as sd
+                    import sounddevice  # noqa: F401 - its ImportError selects the pyttsx3 fallback below
 
                     def _play() -> None:
                         import numpy as np
@@ -3043,8 +3047,15 @@ class IntegrationOrchestrator:
                         # Pad with 300ms silence to prevent last-word cutoff
                         tail = np.zeros(int(sample_rate * 0.30), dtype=np.float32)
                         padded = np.concatenate([audio_array.astype(np.float32), tail])
-                        sd.play(padded, samplerate=sample_rate)  # type: ignore[attr-defined]
-                        sd.wait()  # type: ignore[attr-defined]
+                        # Under the process-wide PortAudio lock. The mic
+                        # recovery path used to re-initialise PortAudio on the
+                        # listen thread mid-answer: the answer stopped while
+                        # sd.wait() reported success, and repeated, the
+                        # process died. The `import sounddevice` above stays:
+                        # its ImportError is what selects the pyttsx3 fallback.
+                        from Agent_Guru.speech.audio.portaudio_lock import play_and_wait
+
+                        play_and_wait(padded, sample_rate)
 
                     loop = asyncio.get_running_loop()
                     await loop.run_in_executor(None, _play)
