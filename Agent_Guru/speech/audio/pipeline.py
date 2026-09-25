@@ -27,6 +27,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from Agent_Guru.speech.audio.portaudio_lock import portaudio_in_use
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -490,9 +492,13 @@ class AudioPipeline:
         try:
             import sounddevice as sd
 
-            raw_devices = sd.query_devices()
-            default_input = sd.default.device[0] if hasattr(sd.default, "device") else None
-            default_output = sd.default.device[1] if hasattr(sd.default, "device") else None
+            # Under the PortAudio lock: reading the device list while the mic
+            # recovery path re-initialises PortAudio on another thread raised
+            # PortAudioError tens of thousands of times in measurement.
+            with portaudio_in_use():
+                raw_devices = sd.query_devices()
+                default_input = sd.default.device[0] if hasattr(sd.default, "device") else None
+                default_output = sd.default.device[1] if hasattr(sd.default, "device") else None
 
             devices = []
             for i, dev in enumerate(raw_devices):
