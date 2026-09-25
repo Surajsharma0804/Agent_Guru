@@ -306,10 +306,12 @@ class FillerResponseCache:
             )
 
         try:
-            import sounddevice as sd
+            # Played under the process-wide PortAudio lock: the mic recovery
+            # path used to re-initialise PortAudio under playback, which cut
+            # the clip off or crashed the process. See portaudio_lock.
+            from Agent_Guru.speech.audio.portaudio_lock import play_and_wait
 
-            sd.play(samples, samplerate=sample_rate)
-            sd.wait()
+            play_and_wait(samples, sample_rate)
             duration_s = len(samples) / sample_rate
             logger.debug(
                 "Filler played (%.0fms, lang=%s)", duration_s * 1000, lang
