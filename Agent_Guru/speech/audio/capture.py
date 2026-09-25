@@ -4,6 +4,7 @@ import logging
 
 import numpy as np
 
+from Agent_Guru.speech.audio.portaudio_lock import portaudio_in_use
 from Agent_Guru.speech.exceptions import AudioInputError
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,10 @@ class MicrophoneCapture(AudioCapture):
             if device is not None:
                 import sounddevice as sd
 
-                device_info = sd.query_devices(device)
+                # Under the PortAudio lock: querying while the mic recovery
+                # path re-initialises PortAudio on another thread fails.
+                with portaudio_in_use():
+                    device_info = sd.query_devices(device)
                 logger.info("Using audio device: %s", device_info["name"])
             else:
                 logger.info("Using default audio device")
@@ -98,14 +102,19 @@ class MicrophoneCapture(AudioCapture):
             logger.debug("Capturing %.3fs of audio at %dHz", duration, self.sample_rate)
 
             # Record audio
-            audio = sd.rec(
-                int(duration * self.sample_rate),
-                samplerate=self.sample_rate,
-                channels=self.channels,
-                device=self.device,
-                dtype="float32",
-            )
-            sd.wait()  # Wait for recording to complete  # type: ignore[attr-defined]
+            # Held for the whole recording: the mic recovery path used to
+            # re-initialise PortAudio from another thread, which destroys
+            # every running stream; overlapping playback was measured to be
+            # cut off and, repeated, to crash the process. See portaudio_lock.
+            with portaudio_in_use():
+                audio = sd.rec(
+                    int(duration * self.sample_rate),
+                    samplerate=self.sample_rate,
+                    channels=self.channels,
+                    device=self.device,
+                    dtype="float32",
+                )
+                sd.wait()  # Wait for recording to complete  # type: ignore[attr-defined]
 
             # Convert to mono if needed
             if self.channels > 1 and audio.ndim > 1:
@@ -132,7 +141,8 @@ class MicrophoneCapture(AudioCapture):
         try:
             import sounddevice as sd
 
-            devices = sd.query_devices()
+            with portaudio_in_use():
+                devices = sd.query_devices()
             return [
                 {
                     "id": i,
