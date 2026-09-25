@@ -44,6 +44,16 @@ dependencies = [
     "torch>=2.6.0",
     "spacy>=3.7.0",
     "onnxruntime>=1.16.0",
+    # The assistant's voice. It was listed only in requirements.txt and
+    # requirements-cpu.txt, so `pip install -e .` and CI never installed it,
+    # and the development venv only had it because it was created with
+    # include-system-site-packages and borrowed the system Python's copy. On
+    # a clean install Guru fell back to the pyttsx3 voice with a warning, or
+    # to silence where pyttsx3 is missing too. Measured in a fresh venv:
+    # this one package pulls in everything synthesis needs (espeakng-loader
+    # ships the espeak-ng library, plus phonemizer-fork and onnxruntime). The
+    # model itself is downloaded on first use by speech/tts/tts_engine.py.
+    "kokoro-onnx>=0.5.0,<0.6",
     "opentelemetry-api>=1.21.0",
     "opentelemetry-sdk>=1.21.0",
     "opentelemetry-exporter-otlp>=1.21.0",
