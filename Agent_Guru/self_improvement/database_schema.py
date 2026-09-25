@@ -29,6 +29,12 @@ from pathlib import Path  # noqa: E402
 
 from Agent_Guru.utils.path_utils import safe_path  # noqa: E402
 
+# Every connection here goes through open_sqlite(). `with sqlite3.connect()
+# as conn:` only ends the transaction and leaves the connection open, which on
+# Windows kept each database file locked: 149 self_improvement tests errored
+# at teardown with WinError 32 because the schema was created that way.
+from Agent_Guru.utils.sqlite import open_sqlite  # noqa: E402
+
 BASE_DIR = Path(__file__).parent.resolve()
 
 
@@ -85,7 +91,7 @@ class DatabaseSchema:
         # Ensure directory exists
         db_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with sqlite3.connect(str(db_file)) as conn:
+        with open_sqlite(db_file) as conn:
             cursor = conn.cursor()
 
             # Enable foreign keys
@@ -572,7 +578,7 @@ class DatabaseSchema:
 
         """
         try:
-            with sqlite3.connect(db_path) as conn:
+            with open_sqlite(db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1")
                 result = cursor.fetchone()
@@ -594,7 +600,7 @@ class DatabaseSchema:
 
         """
         try:
-            with sqlite3.connect(db_path) as conn:
+            with open_sqlite(db_path) as conn:
                 cursor = conn.cursor()
 
                 # Check all required tables exist
