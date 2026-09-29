@@ -58,6 +58,82 @@ dependencies = [
     "opentelemetry-sdk>=1.21.0",
     "opentelemetry-exporter-otlp>=1.21.0",
     "sentry-sdk>=1.39.0",
+    # Everything below was missing from this list. The development venv was
+    # created with include-system-site-packages and borrowed 478 packages
+    # from the system Python, so nothing here was ever noticed. Measured in a
+    # venv built from this file alone: main.py crashed at startup, and once
+    # past that it reached "listening" with no speech recognition, no memory
+    # and no way to answer a question.
+    #
+    # main.py crashed at startup without these two: security/crypto
+    # (key_store, identity) and security/audit/logger.py import cryptography
+    # at module scope, and speech/biometric/voice_features.py (speaker
+    # recognition) imports scipy.signal at module scope.
+    "cryptography>=41.0.0",
+    "scipy>=1.11.0",
+    # Imported unguarded at module scope by platform/process_manager.py and
+    # the resource and health monitors; without it a subsystem failed on
+    # every start.
+    "psutil>=5.9.0",
+    # The voice pipeline. sounddevice opens the microphone and plays speech,
+    # faster-whisper turns speech into text (without it every wake word
+    # ended in an error), silero-vad finds where speech starts and stops
+    # (without it main.py falls back to a plain energy threshold), and the
+    # ollama client is how llm/providers/ollama_adapter.py asks the local
+    # model for every spoken answer.
+    "sounddevice>=0.5.0",
+    "faster-whisper>=0.9.0",
+    "silero-vad>=5.1",
+    "ollama>=0.4.0",
+    # The offline voice of last resort: tts_engine.py uses it when Kokoro
+    # cannot load, most often because its model has not been downloaded yet
+    # on a machine with no network. Without it Guru answers in silence.
+    "pyttsx3>=2.90",
+    # Memory and reasoning. aiosqlite is imported unguarded by the memory
+    # manager and the reasoning state store; without it conversation history
+    # lived only in RAM and was lost on restart. chromadb is imported at
+    # module scope by reasoning/memory/vector_db.py, and without it the whole
+    # ReasoningEngine was disabled. aiohttp is imported at module scope by
+    # ten modules, including the reasoning Ollama provider.
+    "aiosqlite>=0.19.0",
+    "chromadb>=0.4.0",
+    "aiohttp>=3.8.0",
+    # Memory search ranks past conversations by meaning with
+    # reasoning/memory/embedding.py, which loads sentence-transformers inside
+    # a try block. Without it memory_manager.py fell back to a 26-dim
+    # letter-frequency vector, so "what did I say about my sister" matched
+    # on spelling, not meaning. The development venv borrowed the system
+    # Python's copy, which is why this was never seen.
+    "sentence-transformers>=2.2.0",
+    # speech/biometric/speaker_verifier.py uses librosa's MFCC features when
+    # SpeechBrain is absent, which is always, since SpeechBrain is not
+    # declared. Without librosa it had no backend at all and let every voice
+    # through in full mode, so an owner who enrolled their voice lost that
+    # protection on a clean install with only a log warning. Emotion
+    # detection and avatar lip sync use it too.
+    "librosa>=0.10.0",
+    # Desktop control ("open Notepad", "type this", "turn the volume down").
+    # pyautogui works on every desktop OS; pywin32 and pycaw exist only on
+    # Windows, where the window and volume controllers need them.
+    "pyautogui>=0.9.54",
+    "pywin32>=306; sys_platform == 'win32'",
+    "pycaw>=20230407; sys_platform == 'win32'",
+    # Vision and the avatar. main.py loads the avatar, whose renderer
+    # (avatar/rendering/renderer.py) opens its window with cv2.namedWindow and
+    # cv2.imshow. Those exist only in the desktop build, so this is
+    # opencv-python and not opencv-python-headless; the two ship the same cv2
+    # module and must never be installed together. Pillow is used by
+    # vision/ocr.py and vision/vqa.py. Both are imported inside functions or
+    # try blocks, so without them startup logged no error and the camera
+    # features and the avatar window simply never worked.
+    "opencv-python>=4.8.0",
+    "pillow>=10.0.0",
+    # insightface is deliberately not declared. vision/face_features.py and
+    # vision/detection/detector.py fall back to stub embeddings and OpenCV's
+    # Haar cascade without it, and it has never been installed in the
+    # development venv either, so the InsightFace path has never run. It
+    # also needs a C++ toolchain to build on Windows. Declaring it would
+    # make every install depend on code nobody has exercised.
 ]
 
 [project.urls]
@@ -152,22 +228,12 @@ test = [
     "librosa>=0.10.0",
     "soundfile>=0.12.0",
     "sounddevice>=0.5.0",
-    # Vision stack. cv2 is imported by 20+ modules under Agent_Guru/vision and
-    # Agent_Guru/avatar and by three vision test modules; it was declared only
-    # in requirements-cpu.txt, which nothing installs in CI, so three vision
-    # tests failed with ModuleNotFoundError.
-    #
-    # HEADLESS on purpose: CI runners have no display and the GUI build of
-    # opencv-python needs libGL.so.1 at import time. Only
-    # Agent_Guru/avatar/rendering/renderer.py uses the GUI calls
-    # (namedWindow/imshow/waitKey) and it is not exercised headlessly. A
-    # desktop install should use requirements-cpu.txt's opencv-python instead;
-    # the two distributions provide the same `cv2` module and MUST NOT both be
-    # installed.
-    #
-    # Pinned <5 because opencv-python-headless 5.x requires numpy>=2, which
-    # contradicts the numpy<2 pin above for Python < 3.13.
-    "opencv-python-headless>=4.8.0,<5.0.0",
+    # cv2 comes from opencv-python in the base list. This extra used to pin
+    # opencv-python-headless instead, so CI would not need libGL.so.1, but
+    # the headless build has no namedWindow/imshow, which the avatar renderer
+    # needs, and the two distributions install the same cv2 module and
+    # break each other when both are present. CI now installs libgl1 so the
+    # desktop build imports on its Linux runners.
     # Agent_Guru/vision/training/train.py imports torchvision.models.
     "torchvision>=0.21.0",
     # torch>=2.6 routes torch.onnx.export through the dynamo exporter, which
