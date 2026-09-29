@@ -13,6 +13,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Tests marked real_tts synthesise with the real Kokoro model many times over and
+# leave the default run (pytest.ini deselects them); the scheduled CI job runs
+# them with `pytest -m real_tts`. Measured on a laptop CPU: test_property_9 took
+# 35 to 45 minutes, test_tts_long_text 37.5 s against the default 30 s limit,
+# and on Windows the first overrun ended the whole test run. The tests left in
+# the default run each took 11 s or less there, including the one-time model load.
+
 
 # Shared TTS engine fixture - module scope for performance
 @pytest.fixture(scope="module")
@@ -154,6 +161,7 @@ def get_sample_rate(audio_bytes: bytes) -> int:
 
 # Property Tests - MAXIMUM COVERAGE
 
+@pytest.mark.real_tts
 @given(
     text=st.text(min_size=10, max_size=200, alphabet=st.characters(whitelist_categories=('L', 'N', 'P', 'Z'))),
     personality=st.sampled_from([PersonalityType.GURU, PersonalityType.MAYA])
@@ -189,6 +197,7 @@ def test_property_9_tts_personality_voice_mapping(tts_engine, text, personality)
         f"Voice characteristics should be consistent across sessions (similarity={similarity:.3f})"  # nosec B101
 
 
+@pytest.mark.real_tts
 @given(
     text=st.text(min_size=10, max_size=200, alphabet=st.characters(whitelist_categories=('L', 'N', 'P', 'Z'))),
     personality=st.sampled_from([PersonalityType.GURU, PersonalityType.MAYA])
@@ -221,6 +230,7 @@ def test_property_10_tts_real_time_performance(tts_engine, text, personality):
             f"(synthesis_time={synthesis_time:.3f}s, audio_duration={audio_duration:.3f}s)"  # nosec B101
 
 
+@pytest.mark.real_tts
 @given(
     text=st.text(min_size=10, max_size=200, alphabet=st.characters(whitelist_categories=('L', 'N', 'P', 'Z'))),
     personality=st.sampled_from([PersonalityType.GURU, PersonalityType.MAYA]),
@@ -293,6 +303,7 @@ def test_tts_maya_female_voice(tts_engine):
     assert voice_info["personality"] == "maya"  # nosec B101
 
 
+@pytest.mark.real_tts
 def test_tts_all_emotions(tts_engine):
     """Test TTS with ALL emotion types."""
     text = "This is a test of emotion support."
@@ -370,6 +381,7 @@ def test_tts_synthesize_to_array(tts_engine):
     assert np.all(audio_array <= 1.0)  # nosec B101
 
 
+@pytest.mark.real_tts
 def test_tts_long_text(tts_engine):
     """Test TTS with long text."""
     text = "This is a very long text. " * 50
@@ -404,6 +416,7 @@ def test_tts_concurrent_synthesis(tts_engine):
 
 # EXTREME STRESS TESTS - ZERO COMPROMISE
 
+@pytest.mark.real_tts
 def test_tts_extreme_long_text(tts_engine):
     """Test TTS with EXTREMELY long text - production stress test."""
     text = "This is an extremely long text for production stress testing. " * 200  # 12,600+ chars
@@ -412,6 +425,7 @@ def test_tts_extreme_long_text(tts_engine):
     assert get_audio_duration(audio) > 10.0  # Should be at least 10 seconds  # nosec B101
 
 
+@pytest.mark.real_tts
 def test_tts_rapid_fire_synthesis(tts_engine):
     """Test rapid-fire synthesis - 100 requests in quick succession."""
     texts = [f"Rapid test number {i}" for i in range(100)]
@@ -428,6 +442,7 @@ def test_tts_rapid_fire_synthesis(tts_engine):
     assert avg_time < 5.0, f"Average synthesis time {avg_time:.3f}s too slow for production"  # nosec B101
 
 
+@pytest.mark.real_tts
 def test_tts_all_emotion_combinations(tts_engine):
     """Test ALL emotion combinations with BOTH personalities."""
     text = "Testing all emotion combinations for maximum coverage."
@@ -447,6 +462,7 @@ def test_tts_all_emotion_combinations(tts_engine):
                         f"Failed: personality={personality}, emotion={emotion}, rate={rate}, vol={volume}"  # nosec B101
 
 
+@pytest.mark.real_tts
 def test_tts_unicode_and_special_chars(tts_engine):
     """Test with Unicode and special characters - FULL coverage."""
     test_cases = [
@@ -465,6 +481,7 @@ def test_tts_unicode_and_special_chars(tts_engine):
         assert len(audio) > 0, f"Failed for text: {text}"  # nosec B101
 
 
+@pytest.mark.real_tts
 def test_tts_memory_efficiency(tts_engine):
     """Test memory efficiency - no leaks over 1000 syntheses."""
     import gc
@@ -500,6 +517,7 @@ def test_tts_memory_efficiency(tts_engine):
         f"Memory leak detected: {mem_increase:.2f}MB increase over 1000 syntheses"  # nosec B101
 
 
+@pytest.mark.real_tts
 def test_tts_concurrent_stress(tts_engine):
     """Test concurrent synthesis under EXTREME load - 50 threads."""
     import concurrent.futures
@@ -591,6 +609,7 @@ def test_tts_error_recovery(tts_engine):
     assert len(audio) > 0  # nosec B101
 
 
+@pytest.mark.real_tts
 def test_tts_performance_consistency(tts_engine):
     """Test performance consistency - variance should be low."""
     require_real_backend(tts_engine)
