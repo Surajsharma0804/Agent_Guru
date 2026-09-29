@@ -461,9 +461,14 @@ jobs:
       # DLL; Linux and macOS do not, and without it eight test modules fail
       # to import with OSError: PortAudio library not found - a collection
       # error, not a skip.
-      - name: Install PortAudio (Linux)
+      #
+      # libgl1: opencv-python, the desktop cv2 build the avatar window needs,
+      # loads libGL.so.1 when it is imported. Without it every module that
+      # imports cv2 fails with ImportError. (The headless build does not need
+      # it, but cannot open the avatar window.)
+      - name: Install PortAudio and libGL (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libportaudio2
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libportaudio2 libgl1
 
       - name: Install PortAudio (macOS)
         if: runner.os == 'macOS'
@@ -579,8 +584,9 @@ jobs:
             pyproject.toml
             requirements*.txt
 
-      - name: Install PortAudio (Linux)
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libportaudio2
+      # libgl1 for opencv-python; see the same step in the test job.
+      - name: Install PortAudio and libGL (Linux)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libportaudio2 libgl1
 
       - name: Install PyTorch and torchvision (CPU build)
         run: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
