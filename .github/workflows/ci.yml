@@ -542,6 +542,75 @@ jobs:
           retention-days: 30
 
   # ---------------------------------------------------------------------------
+  # Scheduled only - the real-model TTS tests.
+  #
+  # Tests marked real_tts synthesise speech with the real Kokoro model hundreds
+  # or thousands of times. pytest.ini leaves them out of every other run: on a
+  # laptop CPU test_property_9 alone took 35 to 45 minutes, and on Windows the
+  # first per-test overrun ended the whole suite, so nothing after them ever
+  # ran. They run here, weekly with the platform run and on demand.
+  #
+  # Per-test timeouts stay on. --timeout=3600 is the limit for the tests that
+  # carry no timeout marker (the stress tests, which would otherwise inherit
+  # pytest.ini's 30 s: the 1000-synthesis memory test takes 25 to 35 minutes on
+  # that CPU). A marker beats the command line, so the three property tests
+  # keep their own 600 s, and at the measured speed they will exceed it and
+  # fail until those limits are revisited. On Linux a timeout fails only that
+  # test, not the run.
+  #
+  # Cost: roughly 90 to 170 Linux minutes a run from those timings, so about
+  # 400 to 700 of the 3,000 monthly minutes on top of the platform run. It
+  # shares the weekly trigger because a second cron would also start the
+  # Windows and macOS legs above.
+  # ---------------------------------------------------------------------------
+  tts-model-tests:
+    name: pytest - real Kokoro TTS (scheduled)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements*.txt
+
+      - name: Install PortAudio (Linux)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libportaudio2
+
+      - name: Install PyTorch and torchvision (CPU build)
+        run: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+      # kokoro-onnx is a base dependency, so this installs the voice too.
+      - name: Install project and declared test dependencies
+        run: pip install -e ".[test]"
+
+      # The model is 326 MB and the engine downloads it on first use.
+      - name: Cache the Kokoro model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/agent_guru/kokoro
+          key: kokoro-v1.0
+
+      - name: Run the real_tts tests
+        run: >
+          pytest -m real_tts --timeout=3600
+          Agent_Guru/speech/tests/tts/test_tts_properties.py
+          --junitxml=junit-real-tts.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-real-tts
+          path: junit-real-tts.xml
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
   # A single check to require on the branch, so the protection rule does not
   # have to enumerate every matrix leg. Gate run only: in the platform run the
   # lint and security jobs are skipped, which this check would read as failed.
