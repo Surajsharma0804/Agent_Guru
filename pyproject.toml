@@ -25,9 +25,6 @@ dependencies = [
     "pydantic>=2.5.0",
     "structlog>=23.2.0",
     "prometheus-client>=0.19.0",
-    "redis>=5.0.0",
-    "asyncpg>=0.29.0",
-    "alembic>=1.13.0",
     # NOTE: openai and anthropic are NOT base dependencies. Agent_Guru is an
     # offline-first assistant; requiring two cloud API SDKs in every install
     # was pure weight and supply-chain surface for the majority of users, who
@@ -42,7 +39,12 @@ dependencies = [
     # loads user-supplied checkpoints with that call and relies on it being
     # safe, and pip keeps any installed torch that meets the floor.
     "torch>=2.6.0",
-    "spacy>=3.7.0",
+    # spacy is not a base dependency. Its only user,
+    # reasoning/intent/ner_extractor.py, imports it inside a try block and
+    # also needs a trained model under reasoning/models/ner_model that is not
+    # shipped, so on every install it logged "spaCy model not found" and did
+    # nothing while costing a large download. It lives in the test extra so
+    # the NER extractor tests still run.
     "onnxruntime>=1.16.0",
     # The assistant's voice. It was listed only in requirements.txt and
     # requirements-cpu.txt, so `pip install -e .` and CI never installed it,
@@ -153,6 +155,18 @@ cloud = [
     "anthropic>=0.8.0",
 ]
 
+# Shared-state backends for running the reasoning service beside other
+# services. A voice install never uses them: reasoning/state/redis_cache.py,
+# reasoning/state/cloud_sync.py and reasoning/utils/connection_pool.py import
+# redis and asyncpg inside try blocks and report clearly when they are
+# missing. They used to be base dependencies, so every install pulled in a
+# Redis client and a PostgreSQL driver it could not use.
+#   pip install agent-guru[backends]
+backends = [
+    "redis>=5.0.0",
+    "asyncpg>=0.29.0",
+]
+
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
@@ -234,6 +248,10 @@ test = [
     # needs, and the two distributions install the same cv2 module and
     # break each other when both are present. CI now installs libgl1 so the
     # desktop build imports on its Linux runners.
+    #
+    # spacy: the NER extractor tests skip themselves without it. See the
+    # note in the base list for why it is no longer a base dependency.
+    "spacy>=3.7.0",
     # Agent_Guru/vision/training/train.py imports torchvision.models.
     "torchvision>=0.21.0",
     # torch>=2.6 routes torch.onnx.export through the dynamo exporter, which
