@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from Agent_Guru.policy.models import Policy, PolicyEffect, Role
+from Agent_Guru.utils.sqlite import open_sqlite
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -117,15 +118,16 @@ class PolicyStorage:
                 self._persistent_conn.rollback()
                 raise
         else:
-            with sqlite3.connect(self.db_path) as conn:
+            # open_sqlite() commits, rolls back on error, and closes.
+            # `with sqlite3.connect(...)` did the first two but never closed,
+            # so every policy lookup (one per voice turn) left a connection
+            # open until garbage collection, and on Windows the database file
+            # stayed locked: 3 lookups on a file database left 4 connections
+            # open and its folder could not be deleted.
+            with open_sqlite(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 conn.execute("PRAGMA foreign_keys = ON")
-                try:
-                    yield conn
-                    conn.commit()
-                except Exception:
-                    conn.rollback()
-                    raise
+                yield conn
 
     # ------------------------------------------------------------------
     # Policy CRUD
