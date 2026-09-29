@@ -294,7 +294,19 @@ class ImprovementVerifier:
         # Convert to binary arrays (1 = success, 0 = failure)
         baseline_results = np.array([1 if t["success"] else 0 for t in baseline_tasks])
         final_results = np.array([1 if t["success"] else 0 for t in final_tasks])
-        
+
+        # A t-test needs at least two tasks in each window: the variances
+        # below use ddof=1 and the degrees of freedom are n1 + n2 - 2. On a
+        # new install, where the database is empty, this used to raise
+        # ZeroDivisionError from `1 / n1`, so every first run of
+        # verify_improvement() crashed and only users who already had data
+        # got a report. With too little data the answer is "not
+        # significant", and the confidence interval is the whole possible
+        # range of a difference in success rates, which states that nothing
+        # is known instead of claiming a precise zero.
+        if len(baseline_results) < 2 or len(final_results) < 2:
+            return 0.0, 1.0, False, (-1.0, 1.0)
+
         # Perform t-test (scipy defaults to equal_var=True, a pooled-
         # variance / Student's t-test -- the confidence interval below
         # is computed to match that same model)
