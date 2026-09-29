@@ -218,9 +218,9 @@ class MetaLearner:
         self._init_pattern_storage()
 
     def _init_pattern_storage(self) -> None:
-        """Initialize pattern storage table.
+        """Initialize pattern storage tables.
 
-        Creates meta_patterns table if it doesn't exist.
+        Creates the meta_patterns and execution_features tables if they do not exist.
 
         Time Complexity: O(1)
         Space Complexity: O(1)
@@ -254,6 +254,25 @@ class MetaLearner:
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_meta_patterns_confidence
                 ON meta_patterns(confidence DESC)
+            """)
+
+            # Created here, with the learner, rather than on the first stored
+            # execution as it used to be. update_patterns() and
+            # analyze_feature_correlations() read this table, so on a new
+            # install, before any execution had been recorded, they crashed
+            # with "no such table: execution_features": every new user hit it
+            # and nobody with existing data ever did.
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS execution_features (
+                    task_id TEXT PRIMARY KEY,
+                    task_type TEXT NOT NULL,
+                    strategy_id TEXT NOT NULL,
+                    success INTEGER NOT NULL,
+                    features BLOB NOT NULL,
+                    timestamp TEXT NOT NULL,
+
+                    CHECK (success IN (0, 1))
+                )
             """)
 
             conn.commit()
@@ -430,20 +449,6 @@ class MetaLearner:
         """
         with open_sqlite(self.storage_path) as conn:
             cursor = conn.cursor()
-
-            # Create execution_features table if not exists
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS execution_features (
-                    task_id TEXT PRIMARY KEY,
-                    task_type TEXT NOT NULL,
-                    strategy_id TEXT NOT NULL,
-                    success INTEGER NOT NULL,
-                    features BLOB NOT NULL,
-                    timestamp TEXT NOT NULL,
-
-                    CHECK (success IN (0, 1))
-                )
-            """)
 
             # Store features as binary blob
             feature_vector = features.to_vector()
