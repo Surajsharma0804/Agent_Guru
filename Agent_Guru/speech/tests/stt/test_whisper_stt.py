@@ -303,3 +303,63 @@ class TestWhisperTranscriberEdgeCases:
             
             result = transcriber.transcribe(audio, sr)
             assert isinstance(result, TranscriptionResult)  # nosec B101
+
+
+class TestWhereTranscriptionRuns:
+    """The load must say where transcription runs.
+
+    SpeechEngine builds WhisperTranscriber without a device, so every command
+    was transcribed on the CPU, and nothing said so. The only related startup
+    line claimed there was no CUDA device on a machine that has one. Measured
+    with "base" on an RTX 2050 laptop: 1.77 s per 2.5 s command on the CPU,
+    0.21 s on the GPU.
+    """
+
+    class _FakeModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    @pytest.fixture
+    def fake_model(self, monkeypatch):
+        from Agent_Guru.speech.stt import whisper_stt
+
+        monkeypatch.setattr(whisper_stt, "WhisperModel", self._FakeModel)
+        return whisper_stt
+
+    def _load(self, caplog, device):
+        import logging
+
+        with caplog.at_level(logging.INFO, logger="Agent_Guru.speech.stt.whisper_stt"):
+            WhisperTranscriber(model_size="base", device=device)._load_model()
+        return [r for r in caplog.records if r.name == "Agent_Guru.speech.stt.whisper_stt"]
+
+    def test_cpu_with_a_gpu_present_is_a_warning(self, fake_model, monkeypatch, caplog):
+        monkeypatch.setattr(fake_model, "_cuda_device_count", lambda: 1)
+        records = self._load(caplog, "cpu")
+        warnings = [r for r in records if r.levelname == "WARNING"]
+        assert len(warnings) == 1  # nosec B101
+        message = warnings[0].getMessage()
+        assert "CPU" in message and "1 CUDA device" in message  # nosec B101
+
+    def test_cpu_without_a_gpu_is_stated_not_warned(self, fake_model, monkeypatch, caplog):
+        monkeypatch.setattr(fake_model, "_cuda_device_count", lambda: 0)
+        records = self._load(caplog, "cpu")
+        assert not [r for r in records if r.levelname == "WARNING"]  # nosec B101
+        assert any("on the CPU" in r.getMessage() for r in records)  # nosec B101
+
+    def test_gpu_load_names_the_device(self, fake_model, monkeypatch, caplog):
+        monkeypatch.setattr(fake_model, "_cuda_device_count", lambda: 1)
+        records = self._load(caplog, "cuda")
+        assert not [r for r in records if r.levelname == "WARNING"]  # nosec B101
+        assert any("loaded on cuda" in r.getMessage() for r in records)  # nosec B101
+
+    def test_device_count_comes_from_ctranslate2_not_torch(self, monkeypatch):
+        """A CPU-only torch reports no GPU on a machine that has one."""
+        import sys
+        import types
+
+        from Agent_Guru.speech.stt import whisper_stt
+
+        fake = types.SimpleNamespace(get_cuda_device_count=lambda: 2)
+        monkeypatch.setitem(sys.modules, "ctranslate2", fake)
+        assert whisper_stt._cuda_device_count() == 2  # nosec B101
