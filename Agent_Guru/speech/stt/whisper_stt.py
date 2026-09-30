@@ -1,7 +1,12 @@
 ﻿"""Whisper-based speech-to-text transcription for desktop platforms."""
 
+import contextlib
 import logging
+import os
+import sys
+import threading
 import time
+from collections.abc import Generator
 from pathlib import Path
 
 import numpy as np
@@ -41,6 +46,110 @@ def _cuda_device_count() -> int:
         return 0
 
 
+#: Quoted in every CPU-fallback message. Measured with the "base" model on an
+#: RTX 2050 laptop, warm, median of five runs.
+_GPU_COST = (
+    "a 2.5 s command takes about 1.8 s to transcribe on the CPU and 0.2 s on "
+    "the GPU (measured with the base model on an RTX 2050 laptop)"
+)
+_GPU_HOWTO = (
+    'install the optional CUDA 12 libraries (about 2 GB): pip install '
+    'nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*" (README, "GPU speech recognition")'
+)
+
+#: Compute types CTranslate2 can run on a CPU. A GPU type such as "float16"
+#: asked for in the config is replaced by float32 when the load falls back.
+_CPU_COMPUTE_TYPES = frozenset({"float32", "int8", "int8_float32"})
+
+#: The pip packages behind the "gpu" extra install their DLLs here, under
+#: site-packages/nvidia/<name>/bin, which Windows does not search.
+_NVIDIA_DLL_PACKAGES = ("cublas", "cudnn", "cuda_nvrtc")
+
+
+def _add_nvidia_runtime_to_path() -> list[str]:
+    """Make the pip-installed CUDA 12 libraries loadable on Windows.
+
+    CTranslate2 loads cuBLAS and cuDNN only when a model first runs, and
+    Windows looks for them on PATH. The nvidia-* wheels put them inside
+    site-packages, so without this they are installed but never found.
+    """
+    if sys.platform != "win32":
+        return []
+    try:
+        # Namespace package created by the optional nvidia-* wheels; untyped,
+        # and absent unless the "gpu" extra is installed.
+        import nvidia  # type: ignore[import-untyped, import-not-found, unused-ignore]
+    except ImportError:
+        return []
+    added: list[str] = []
+    path = os.environ.get("PATH", "")
+    for base in list(getattr(nvidia, "__path__", [])):
+        for name in _NVIDIA_DLL_PACKAGES:
+            bin_dir = Path(base) / name / "bin"
+            if bin_dir.is_dir() and str(bin_dir) not in path:
+                os.add_dll_directory(str(bin_dir))
+                path = str(bin_dir) + os.pathsep + path
+                added.append(str(bin_dir))
+    if added:
+        os.environ["PATH"] = path
+    return added
+
+
+#: Why CUDA failed earlier in this process, or None if it has not failed.
+#:
+#: CTranslate2 must be tried on CUDA at most once per process once it has
+#: failed. With cublas64_12.dll missing, the first attempt raises "Library
+#: cublas64_12.dll is not found or cannot be loaded" within a second, but a
+#: second attempt, on any thread, never returns: it blocks inside encode().
+#: main.py's wake-word model made the first attempt at startup and the
+#: command transcriber made the second on the first spoken command, so every
+#: command hit the orchestrator's 30 s STT timeout with an empty transcript.
+_cuda_failure: str | None = None
+#: Held for the whole of a CUDA trial, so two threads cannot both make a
+#: first attempt and one of them become the hanging second.
+_cuda_trial_lock = threading.Lock()
+
+
+def cuda_failure() -> str | None:
+    """Why CUDA failed earlier in this process, or None if it has not."""
+    return _cuda_failure
+
+
+@contextlib.contextmanager
+def cuda_trial() -> Generator[None, None, None]:
+    """Guard one attempt to load and run a model on CUDA.
+
+    Raises RuntimeError at once if an earlier attempt failed, and records
+    the failure of this one, so CUDA is never retried after it has failed
+    in this process. See _cuda_failure for why a retry hangs.
+    """
+    global _cuda_failure
+    with _cuda_trial_lock:
+        if _cuda_failure is not None:
+            msg = f"not retried after an earlier CUDA failure in this process ({_cuda_failure})"
+            raise RuntimeError(msg)
+        try:
+            yield
+        except Exception as exc:
+            _cuda_failure = f"{type(exc).__name__}: {exc}"
+            raise
+
+
+def prepare_cuda_runtime() -> int:
+    """Make the optional CUDA libraries findable; return CUDA devices worth trying.
+
+    A non-zero count means only that a GPU exists. Whether the libraries
+    load is known only once a model has run on it, so callers must still
+    run a transcription inside cuda_trial() and fall back to the CPU when
+    it fails. Returns 0 once CUDA has failed in this process, because a
+    second attempt hangs.
+    """
+    if _cuda_failure is not None:
+        return 0
+    _add_nvidia_runtime_to_path()
+    return _cuda_device_count()
+
+
 class WhisperTranscriber:
     """Speech-to-text transcriber using OpenAI Whisper (faster-whisper).
 
@@ -69,11 +178,17 @@ class WhisperTranscriber:
                           "int8_float16" on CUDA (saves ~50% VRAM),
                           "float32" on CPU.
             beam_size: Beam size for decoding
-            device: Device to run on ("cpu", "cuda")
+            device: "cpu", "cuda" or "auto". "cuda" and "auto" both try the
+                GPU at load and fall back to the CPU, with a log line saying
+                why, if the GPU or its CUDA libraries are unusable; "auto"
+                treats a missing GPU as normal, "cuda" warns about it.
 
         """
         self.model_size = model_size
         self.model_path = model_path
+        # Kept so the CPU fallback can replace a GPU-only type ("float16",
+        # "int8_float16") that the CPU cannot run.
+        self._requested_compute = compute_type
         # P2-77: Auto-detect optimal compute type for VRAM reduction.
         # int8_float16 on CUDA reduces VRAM from ~3GB to ~1.6GB for large-v3.
         if compute_type is None:
@@ -125,62 +240,105 @@ class WhisperTranscriber:
                     "Control). Install it with: pip install faster-whisper"
                 )
                 raise GuruSpeechError(msg)
+            model_id = self.model_path or self.model_size
+            requested = self.device
+            reason = ""
+            if requested in ("auto", "cuda"):
+                model, reason = self._load_on_gpu(model_id)
+                if model is not None:
+                    self._model = model
+                    return self._model
             try:
-                model_id = self.model_path or self.model_size
-                # Try local cache first - no HuggingFace ping
-                try:
-                    self._model = WhisperModel(
-                        model_id,
-                        device=self.device,
-                        compute_type=self.compute_type,
-                        local_files_only=True,
-                    )
-                except Exception:
-                    # Model not cached yet - allow download, then it's cached forever
-                    self._model = WhisperModel(
-                        model_id,
-                        device=self.device,
-                        compute_type=self.compute_type,
-                    )
+                cpu_compute = (
+                    self._requested_compute
+                    if self._requested_compute in _CPU_COMPUTE_TYPES
+                    else "float32"
+                )
+                self._model = self._construct(model_id, "cpu", cpu_compute)
             except Exception as e:
                 self._model_load_failed = True
                 msg = f"Failed to load Whisper model: {e}"
                 raise GuruSpeechError(msg) from e
-            self._log_device()
+            self.device, self.compute_type = "cpu", cpu_compute
+            self._log_cpu(requested, reason)
         return self._model
 
-    def _log_device(self) -> None:
-        """Say once, at load, where transcription runs.
-
-        Nothing used to. The one related line at startup was
-        GPUResourcePool's "no CUDA device - CPU-only mode", which is about
-        torch and was false on a machine with a GPU, and SpeechEngine builds
-        this class without a device, so every command was transcribed on the
-        CPU with no record of it. Measured with the "base" model on an RTX
-        2050 laptop: a 2.5 s command took 1.77 s on the CPU and 0.21 s on the
-        GPU, a 9.3 s one 2.51 s and 0.49 s. That second or two is paid on
-        every spoken command, so a machine that could avoid it is told so.
-        """
-        if self.device != "cpu":
-            logger.info(
-                "Whisper %s loaded on %s (%s)",
-                self.model_path or self.model_size, self.device, self.compute_type,
+    @staticmethod
+    def _construct(model_id: str, device: str, compute_type: str) -> WhisperModel:
+        """Build the model from the local cache, downloading only if it is not there."""
+        try:
+            # Try local cache first - no HuggingFace ping
+            return WhisperModel(
+                model_id, device=device, compute_type=compute_type, local_files_only=True
             )
-            return
+        except Exception:
+            # Model not cached yet - allow download, then it's cached forever
+            return WhisperModel(model_id, device=device, compute_type=compute_type)
+
+    def _load_on_gpu(self, model_id: str) -> tuple[WhisperModel | None, str]:
+        """Load on CUDA and prove it works, or return None and the reason.
+
+        CTranslate2 loads a model on CUDA without cuBLAS and cuDNN and fails
+        only when it first runs it: with cublas64_12.dll missing, the load
+        succeeded and the user's first command then failed with "Library
+        cublas64_12.dll is not found or cannot be loaded". So a load counts
+        only after a short transcription has actually run on the GPU. Half a
+        second of silence is enough to run the encoder, where it failed.
+        """
+        gpus = prepare_cuda_runtime()
+        if not gpus:
+            earlier = cuda_failure()
+            if earlier is not None:
+                return None, f"not retried after an earlier CUDA failure in this process ({earlier})"
+            return None, "no CUDA device found"
+        compute = self._requested_compute or "int8_float16"
+        try:
+            with cuda_trial():
+                model = self._construct(model_id, "cuda", compute)
+                silence = np.zeros(_WHISPER_SAMPLE_RATE // 2, dtype=np.float32)
+                segments, _ = model.transcribe(silence, beam_size=1, language="en")
+                list(segments)
+        except Exception as exc:
+            return None, f"{type(exc).__name__}: {exc}"
+        self.device, self.compute_type = "cuda", compute
+        logger.info("Whisper %s loaded on the GPU (cuda, %s)", model_id, compute)
+        return model, ""
+
+    def _log_cpu(self, requested: str, reason: str) -> None:
+        """Say once, at load, that transcription runs on the CPU, and why.
+
+        Nothing used to: SpeechEngine built this class without a device, so
+        every command was transcribed on the CPU with no record of it, and the
+        only related startup line was GPUResourcePool's "no CUDA device",
+        which was about torch and false on a machine with a GPU. That second
+        or two is paid on every spoken command, so a machine that could avoid
+        it is told how.
+        """
+        name = self.model_path or self.model_size
         gpus = _cuda_device_count()
-        if gpus:
+        if requested == "cpu":
+            logger.info(
+                "Whisper %s loaded on the CPU (%s) as configured%s",
+                name, self.compute_type,
+                f"; {gpus} CUDA device(s) present but not used" if gpus else "",
+            )
+        elif gpus:
             logger.warning(
-                "Speech recognition runs on the CPU (Whisper %s, %s) although "
-                "CTranslate2 sees %d CUDA device(s). Measured on an RTX 2050 "
-                "laptop, a 2.5 s command took 1.8 s to transcribe on the CPU "
-                "and 0.2 s on the GPU. GPU transcription needs the CUDA 12 "
-                "cuBLAS and cuDNN libraries and is not enabled in this build.",
-                self.model_path or self.model_size, self.compute_type, gpus,
+                "Speech recognition runs on the CPU (Whisper %s, %s): a CUDA GPU "
+                "is present but Whisper could not run on it (%s). %s. To use "
+                "the GPU, %s.",
+                name, self.compute_type, reason, _GPU_COST, _GPU_HOWTO,
+            )
+        elif requested == "cuda":
+            logger.warning(
+                "Whisper was configured for the GPU but no CUDA device was found; "
+                "running %s on the CPU (%s). %s.",
+                name, self.compute_type, _GPU_COST,
             )
         else:
             logger.info(
                 "Whisper %s loaded on the CPU (%s): no CUDA device found",
-                self.model_path or self.model_size, self.compute_type,
+                name, self.compute_type,
             )
 
     async def load_model_async(self) -> None:

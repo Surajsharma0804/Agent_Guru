@@ -1,5 +1,7 @@
 """Unit tests for Whisper STT transcriber."""
 
+import sys
+
 import numpy as np
 import pytest
 from pathlib import Path
@@ -306,52 +308,140 @@ class TestWhisperTranscriberEdgeCases:
 
 
 class TestWhereTranscriptionRuns:
-    """The load must say where transcription runs.
+    """Whisper uses the GPU when it works and says so when it does not.
 
-    SpeechEngine builds WhisperTranscriber without a device, so every command
-    was transcribed on the CPU, and nothing said so. The only related startup
-    line claimed there was no CUDA device on a machine that has one. Measured
-    with "base" on an RTX 2050 laptop: 1.77 s per 2.5 s command on the CPU,
-    0.21 s on the GPU.
+    SpeechEngine built WhisperTranscriber without a device, so every command
+    was transcribed on the CPU, and nothing said so. Measured with "base" on
+    an RTX 2050 laptop: 1.77 s per 2.5 s command on the CPU, 0.21 s on the
+    GPU. And CTranslate2 loads a model on CUDA without cuBLAS, then fails on
+    the first transcription with "Library cublas64_12.dll is not found or
+    cannot be loaded", so a GPU load only counts once a transcription ran.
     """
 
-    class _FakeModel:
-        def __init__(self, *args, **kwargs):
-            pass
+    CUBLAS_MISSING = "Library cublas64_12.dll is not found or cannot be loaded"
 
     @pytest.fixture
-    def fake_model(self, monkeypatch):
+    def fake(self, monkeypatch):
+        """A WhisperModel that records its device and can fail on first use."""
         from Agent_Guru.speech.stt import whisper_stt
 
-        monkeypatch.setattr(whisper_stt, "WhisperModel", self._FakeModel)
-        return whisper_stt
+        built = []
+        state = {"gpus": 0, "cuda_runs": True}
 
-    def _load(self, caplog, device):
+        class FakeModel:
+            def __init__(self, model_id, device, compute_type, **kwargs):
+                self.device, self.compute_type = device, compute_type
+                built.append(self)
+
+            def transcribe(self, audio, **kwargs):
+                if self.device == "cuda" and not state["cuda_runs"]:
+                    raise RuntimeError(TestWhereTranscriptionRuns.CUBLAS_MISSING)
+                import types
+
+                info = types.SimpleNamespace(language="en", language_probability=1.0, duration=1.0)
+                return iter([]), info
+
+        monkeypatch.setattr(whisper_stt, "WhisperModel", FakeModel)
+        monkeypatch.setattr(whisper_stt, "_cuda_device_count", lambda: state["gpus"])
+        monkeypatch.setattr(whisper_stt, "_add_nvidia_runtime_to_path", lambda: [])
+        # A CUDA failure is remembered for the whole process; start each test clean.
+        monkeypatch.setattr(whisper_stt, "_cuda_failure", None)
+        return state, built
+
+    def test_cuda_is_not_retried_after_it_failed_in_this_process(self, fake, caplog):
+        """A second CUDA attempt after a failed one hangs inside CTranslate2.
+
+        main.py's wake-word model failed on CUDA at startup, then the command
+        transcriber tried CUDA again on the first command and blocked in
+        encode(); every command hit the 30 s STT timeout with no transcript.
+        """
+        state, built = fake
+        state["gpus"], state["cuda_runs"] = 1, False
+        first, _, _ = self._load(caplog, device="auto")
+        assert [m.device for m in built] == ["cuda", "cpu"]  # nosec B101
+        built.clear()
+        caplog.clear()
+        second, _, records = self._load(caplog, device="auto")
+        assert [m.device for m in built] == ["cpu"]  # nosec B101
+        assert second.device == "cpu"  # nosec B101
+        warnings = self._warnings(records)
+        assert len(warnings) == 1 and "earlier CUDA failure" in warnings[0]  # nosec B101
+
+    def test_cuda_trial_records_a_failure_and_refuses_the_next(self, fake):
+        from Agent_Guru.speech.stt import whisper_stt
+
+        with pytest.raises(RuntimeError, match="cublas"):
+            with whisper_stt.cuda_trial():
+                raise RuntimeError(self.CUBLAS_MISSING)
+        assert "cublas64_12.dll" in whisper_stt.cuda_failure()  # nosec B101
+        assert whisper_stt.prepare_cuda_runtime() == 0  # nosec B101
+        ran = []
+        with pytest.raises(RuntimeError, match="not retried"):
+            with whisper_stt.cuda_trial():
+                ran.append(True)
+        assert not ran  # nosec B101
+
+    def _load(self, caplog, **kwargs):
         import logging
 
+        t = WhisperTranscriber(model_size="base", **kwargs)
         with caplog.at_level(logging.INFO, logger="Agent_Guru.speech.stt.whisper_stt"):
-            WhisperTranscriber(model_size="base", device=device)._load_model()
-        return [r for r in caplog.records if r.name == "Agent_Guru.speech.stt.whisper_stt"]
+            model = t._load_model()
+        records = [r for r in caplog.records if r.name == "Agent_Guru.speech.stt.whisper_stt"]
+        return t, model, records
 
-    def test_cpu_with_a_gpu_present_is_a_warning(self, fake_model, monkeypatch, caplog):
-        monkeypatch.setattr(fake_model, "_cuda_device_count", lambda: 1)
-        records = self._load(caplog, "cpu")
-        warnings = [r for r in records if r.levelname == "WARNING"]
+    @staticmethod
+    def _warnings(records):
+        return [r.getMessage() for r in records if r.levelname == "WARNING"]
+
+    def test_auto_uses_a_working_gpu(self, fake, caplog):
+        state, _ = fake
+        state["gpus"] = 1
+        t, model, records = self._load(caplog, device="auto")
+        assert (t.device, t.compute_type) == ("cuda", "int8_float16")  # nosec B101
+        assert model.device == "cuda"  # nosec B101
+        assert not self._warnings(records)  # nosec B101
+
+    def test_gpu_that_cannot_run_falls_back_before_the_first_command(self, fake, caplog):
+        """The exact failure seen here: loaded on CUDA, crashed on first use."""
+        state, built = fake
+        state["gpus"], state["cuda_runs"] = 1, False
+        t, model, records = self._load(caplog, device="auto")
+        assert t.device == "cpu" and model.device == "cpu"  # nosec B101
+        assert [m.device for m in built] == ["cuda", "cpu"]  # nosec B101
+        warnings = self._warnings(records)
         assert len(warnings) == 1  # nosec B101
-        message = warnings[0].getMessage()
-        assert "CPU" in message and "1 CUDA device" in message  # nosec B101
+        assert "cublas64_12.dll" in warnings[0]  # nosec B101
+        assert "1.8 s" in warnings[0] and "nvidia-cublas-cu12" in warnings[0]  # nosec B101
+        # The fallback model is the one transcriptions use.
+        assert t.transcribe(np.zeros(16000, dtype=np.float32), 16000) is not None  # nosec B101
 
-    def test_cpu_without_a_gpu_is_stated_not_warned(self, fake_model, monkeypatch, caplog):
-        monkeypatch.setattr(fake_model, "_cuda_device_count", lambda: 0)
-        records = self._load(caplog, "cpu")
-        assert not [r for r in records if r.levelname == "WARNING"]  # nosec B101
-        assert any("on the CPU" in r.getMessage() for r in records)  # nosec B101
+    def test_auto_without_a_gpu_is_stated_not_warned(self, fake, caplog):
+        t, _, records = self._load(caplog, device="auto")
+        assert t.device == "cpu"  # nosec B101
+        assert not self._warnings(records)  # nosec B101
+        assert any("no CUDA device found" in r.getMessage() for r in records)  # nosec B101
 
-    def test_gpu_load_names_the_device(self, fake_model, monkeypatch, caplog):
-        monkeypatch.setattr(fake_model, "_cuda_device_count", lambda: 1)
-        records = self._load(caplog, "cuda")
-        assert not [r for r in records if r.levelname == "WARNING"]  # nosec B101
-        assert any("loaded on cuda" in r.getMessage() for r in records)  # nosec B101
+    def test_cuda_requested_without_a_gpu_warns(self, fake, caplog):
+        t, _, records = self._load(caplog, device="cuda")
+        assert t.device == "cpu"  # nosec B101
+        assert len(self._warnings(records)) == 1  # nosec B101
+
+    def test_explicit_cpu_never_tries_the_gpu(self, fake, caplog):
+        state, built = fake
+        state["gpus"] = 1
+        t, _, records = self._load(caplog, device="cpu")
+        assert [m.device for m in built] == ["cpu"]  # nosec B101
+        assert not self._warnings(records)  # nosec B101
+        assert any("as configured" in r.getMessage() for r in records)  # nosec B101
+
+    def test_gpu_only_compute_type_is_replaced_on_the_cpu(self, fake, caplog):
+        """STTConfig used to ask for float16, which the CPU cannot run."""
+        state, built = fake
+        state["gpus"], state["cuda_runs"] = 1, False
+        t, _, _ = self._load(caplog, device="auto", compute_type="float16")
+        assert built[0].compute_type == "float16"  # nosec B101
+        assert (t.device, t.compute_type) == ("cpu", "float32")  # nosec B101
 
     def test_device_count_comes_from_ctranslate2_not_torch(self, monkeypatch):
         """A CPU-only torch reports no GPU on a machine that has one."""
@@ -363,3 +453,18 @@ class TestWhereTranscriptionRuns:
         fake = types.SimpleNamespace(get_cuda_device_count=lambda: 2)
         monkeypatch.setitem(sys.modules, "ctranslate2", fake)
         assert whisper_stt._cuda_device_count() == 2  # nosec B101
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="DLL search path is Windows-only")
+    def test_pip_installed_cuda_dlls_are_put_on_the_search_path(self, monkeypatch, tmp_path):
+        import os
+        import types
+
+        from Agent_Guru.speech.stt import whisper_stt
+
+        for name in ("cublas", "cudnn"):
+            (tmp_path / name / "bin").mkdir(parents=True)
+        monkeypatch.setitem(sys.modules, "nvidia", types.SimpleNamespace(__path__=[str(tmp_path)]))
+        monkeypatch.setenv("PATH", "C:\nothing")
+        added = whisper_stt._add_nvidia_runtime_to_path()
+        assert sorted(added) == sorted(str(tmp_path / n / "bin") for n in ("cublas", "cudnn"))  # nosec B101
+        assert all(d in os.environ["PATH"] for d in added)  # nosec B101
