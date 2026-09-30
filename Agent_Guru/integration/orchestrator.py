@@ -778,16 +778,22 @@ class IntegrationOrchestrator:
 
             # Stage 8: TTS
             tts_text = self._finalize_tts_text(result)
+            # Not wrapped in one wait_for any more: a streamed reply plays for
+            # as long as it is, and a 30 s cap on the whole stage cut a long
+            # answer off mid-sentence. _stage_tts bounds every wait for
+            # synthesis by TTS_TIMEOUT_S instead, and the whole-reply path
+            # keeps its old overall bound.
             try:
-                result.tts_response = await asyncio.wait_for(
-                    self._stage_tts(tts_text, result.personality), timeout=TTS_TIMEOUT_S,
-                )
+                result.tts_response = await self._stage_tts(tts_text, result.personality)
             except TimeoutError:
                 logger.warning(
                     "TTS stage exceeded %.1fs - no audio for this turn", TTS_TIMEOUT_S,
                 )
                 result.tts_response = None
                 result.error = f"tts_timeout after {TTS_TIMEOUT_S:.1f}s"
+            stream_error = getattr(result.tts_response, "error", None)
+            if isinstance(stream_error, str):
+                result.error = f"tts_incomplete: {stream_error}"
             result.stages_completed = 8
 
             # Track in chat history (single source of truth - see _llm_complete()
@@ -3005,13 +3011,87 @@ class IntegrationOrchestrator:
         return audio_array, sample_rate
 
     async def _stage_tts(self, text: str, personality: Personality) -> Any:
-        """Stage 8: TTS synthesis and audio playback.
+        """Stage 8: speak the reply, streamed sentence by sentence when possible.
+
+        This used to synthesise the whole reply and then play it, inside one
+        30 s budget. Kokoro on the development laptop's CPU is at or slower
+        than real time (17.3 s to synthesise a 211-character reply in "Best
+        power efficiency"), so the user heard nothing until all of it was
+        ready, and a reply over about 200 characters overran the budget and
+        was logged as no audio. Now the first sentence plays as soon as it is
+        synthesised and the rest are synthesised while it plays
+        (speech/tts/streaming.py). TTS_TIMEOUT_S bounds each wait for
+        synthesis, the silence the user hears, not the length of the reply.
+
+        Streaming needs a synchronous synthesiser that returns an array, which
+        Kokoro's is. Anything else, or a first sentence that cannot be
+        synthesised, takes the whole-reply path below, bounded as before.
+        Returns the StreamResult when streamed.
+        """
+        if not text or not text.strip():
+            return text
+        stream_fn = self._streamable_tts_fn()
+        if stream_fn is not None:
+            try:
+                return await self._speak_streaming(stream_fn, text, personality)
+            except ImportError:
+                pass  # no sounddevice: the whole-reply path's pyttsx3 fallback speaks
+            except Exception:
+                logger.exception(
+                    "Streamed TTS could not synthesise the first sentence - "
+                    "trying whole-reply synthesis",
+                )
+        return await asyncio.wait_for(
+            self._stage_tts_whole(text, personality), timeout=TTS_TIMEOUT_S,
+        )
+
+    def _streamable_tts_fn(self) -> Any:
+        """The array-returning synchronous synthesiser, or None if there is none."""
+        fn = self._tts_fn if self._tts_fn_type == "array" else None
+        if fn is None and self._tts_fn is None:
+            tts_eng = getattr(self.speech_engine, "tts_engine", None)
+            fn = getattr(self.speech_engine, "synthesize_to_array", None) or (
+                tts_eng and getattr(tts_eng, "synthesize_to_array", None)
+            )
+        if fn is None or inspect.iscoroutinefunction(fn):
+            return None
+        return fn
+
+    async def _speak_streaming(self, fn: Any, text: str, personality: Personality) -> Any:
+        """Stream text through fn, playing each sentence under the PortAudio lock."""
+        import numpy as np
+        import sounddevice  # noqa: F401 - its ImportError selects the pyttsx3 fallback
+
+        from Agent_Guru.speech.audio.portaudio_lock import play_and_wait
+        from Agent_Guru.speech.tts.streaming import speak_streaming
+
+        try:
+            from Agent_Guru.speech.models import PersonalityType
+
+            pt: Any = PersonalityType.MAYA if personality == Personality.MAYA else PersonalityType.GURU
+        except ImportError:
+            pt = personality
+
+        def synthesize(sentence: str) -> tuple[Any, int]:
+            out = fn(sentence, pt)
+            audio, rate = out if isinstance(out, tuple) and len(out) == 2 else (out, 22050)
+            return np.asarray(audio, dtype=np.float32), int(rate)
+
+        result = await speak_streaming(
+            text, synthesize, play_and_wait, synth_timeout_s=TTS_TIMEOUT_S,
+        )
+        logger.info(
+            "TTS played: %.1fs of audio in %d/%d sentences, first audio after %.2fs",
+            result.audio_seconds, result.spoken, result.sentences, result.first_audio_s or 0.0,
+        )
+        return result
+
+    async def _stage_tts_whole(self, text: str, personality: Personality) -> Any:
+        """Synthesise the whole reply, then play it: the path before streaming.
 
         Converts the orchestrator's Personality enum to the speech engine's
         PersonalityType enum before calling synthesis methods.
         """
-        if not text or not text.strip():
-            return text
         try:
 
             # Convert orchestrator Personality → speech engine PersonalityType
