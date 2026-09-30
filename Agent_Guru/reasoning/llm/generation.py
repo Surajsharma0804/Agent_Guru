@@ -71,7 +71,7 @@ logger = logging.getLogger(__name__)
 #: value sent the model name "" from one client and the default from the
 #: others. Changing the model meant finding every copy, and a missed copy kept
 #: asking Ollama for a model that was no longer pulled.
-DEFAULT_OLLAMA_MODEL = "gemma3:4b"
+DEFAULT_OLLAMA_MODEL = "gemma4:latest"
 
 #: The top-level ``think`` field of every chat and generate request.
 #:
