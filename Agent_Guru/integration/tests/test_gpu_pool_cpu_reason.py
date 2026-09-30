@@ -70,3 +70,16 @@ def test_pool_log_does_not_deny_a_present_gpu(
     text = " ".join(r.getMessage() for r in caplog.records)
     assert "no CUDA device - CPU-only mode" not in text
     assert "CUDA device(s) are present" in text
+
+
+def test_startup_banner_does_not_deny_a_gpu() -> None:
+    """main.py printed "CPU-only (no CUDA GPU detected)" from the torch pool.
+
+    With PyPI's CPU-only torch that line sat directly under the pool's own line
+    saying a CUDA device was present.
+    """
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[3] / "main.py").read_text(encoding="utf-8")
+    code = [line for line in source.splitlines() if not line.lstrip().startswith("#")]
+    assert not [line for line in code if "no CUDA GPU detected" in line]
