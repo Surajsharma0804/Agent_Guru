@@ -63,6 +63,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _accepts_device_cfg(init: Callable[..., Any]) -> bool:
+    """True if initialize() takes a device_cfg keyword, read from its signature."""
+    try:
+        params = inspect.signature(init).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(
+        p.name == "device_cfg" or p.kind is inspect.Parameter.VAR_KEYWORD for p in params
+    )
+
+
 # ---------------------------------------------------------------------------
 # Types
 # ---------------------------------------------------------------------------
@@ -470,29 +481,43 @@ class IntegrationOrchestrator:
             logger.exception("Policy seed failed - policy check will default to allow")
 
     async def _init_subsystem(self, name: str, subsystem: Any, device_cfg: Any = None) -> None:
-        """Initialise a single subsystem, passing device_cfg if accepted."""
+        """Initialise a single subsystem, passing device_cfg if it takes one.
+
+        This used to call initialize(device_cfg=...) and, on any TypeError,
+        call initialize() again with nothing. SpeechEngine.initialize() takes
+        no device_cfg, so Whisper's GPU allocation was dropped without a log
+        line and every command was transcribed on the CPU (1.8 s against
+        0.2 s for a 2.5 s command on an RTX 2050). The same except also
+        caught TypeErrors raised inside an initialize() that does take the
+        config, real bugs, and ran it a second time bare. Whether the config
+        is passed is now decided from the signature, a dropped GPU
+        allocation is a warning, and any exception is logged once as an
+        error with its traceback.
+        """
         try:
             init = getattr(subsystem, "initialize", None)
             if init is None:
                 return
+            kwargs: dict[str, Any] = {}
+            if device_cfg is not None:
+                if _accepts_device_cfg(init):
+                    kwargs["device_cfg"] = device_cfg
+                elif getattr(device_cfg, "device", "cpu") != "cpu":
+                    logger.warning(
+                        "Subsystem '%s' does not accept a device config: its %s "
+                        "allocation is not applied and it chooses its own device",
+                        name, device_cfg.device,
+                    )
+                else:
+                    logger.info(
+                        "Subsystem '%s' does not accept a device config; it chooses its own device",
+                        name,
+                    )
             if inspect.iscoroutinefunction(init):
-                if device_cfg is not None:
-                    try:
-                        await init(device_cfg=device_cfg)
-                    except TypeError:
-                        await init()
-                else:
-                    await init()
+                await init(**kwargs)
             else:
-                # Synchronous initialize - run in executor to avoid blocking
-                loop = asyncio.get_running_loop()
-                if device_cfg is not None:
-                    try:
-                        await asyncio.to_thread(init, device_cfg=device_cfg)
-                    except TypeError:
-                        await loop.run_in_executor(None, init)
-                else:
-                    await loop.run_in_executor(None, init)
+                # Synchronous initialize - run in a thread to avoid blocking
+                await asyncio.to_thread(init, **kwargs)
             logger.debug("Subsystem '%s' initialised", name)
         except Exception as exc:
             logger.exception("Subsystem '%s' init failed: %s - continuing", name, exc)
