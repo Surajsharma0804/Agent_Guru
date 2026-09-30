@@ -48,6 +48,7 @@ Environment variable                    Governs
 ``AGENT_GURU_NUM_CTX``                  Context window sent with every request
 ``AGENT_GURU_NUM_GPU``                  Model layers Ollama is asked to put on GPU
 ``AGENT_GURU_SPOKEN_REPLY_TOKENS``      Longest reply the voice pipeline generates
+``OLLAMA_MODEL``                        Model every client asks for
 ======================================  ==========================================
 
 ``OLLAMA_CONTEXT_LENGTH`` is deliberately NOT read. It configures the
@@ -62,6 +63,34 @@ import os
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+#: Model asked for when ``OLLAMA_MODEL`` is not set.
+#:
+#: This name used to be written out in ten modules, each with its own reading
+#: of ``OLLAMA_MODEL``: most stripped it, the intent engine did not, so a blank
+#: value sent the model name "" from one client and the default from the
+#: others. Changing the model meant finding every copy, and a missed copy kept
+#: asking Ollama for a model that was no longer pulled.
+DEFAULT_OLLAMA_MODEL = "gemma3:4b"
+
+#: The top-level ``think`` field of every chat and generate request.
+#:
+#: Thinking models (gemma4, qwen3, deepseek-r1) reason before they answer when
+#: the request does not say otherwise, and the reasoning counts against
+#: ``num_predict``. Measured with gemma4:latest on a 4 GB RTX 2050: with the
+#: voice pipeline's 100-token reply cap, every token went to reasoning and the
+#: spoken answer came back empty, "What is the capital of France?" took 21 s
+#: and Guru said nothing; the intent classifier spent 5.4 s and returned an
+#: empty string instead of JSON. With ``think`` false the same requests took
+#: 1.2 s and 0.7 s and answered correctly. Nothing in this codebase reads the
+#: reasoning, and a spoken answer cannot wait for it. Ollama accepts false for
+#: models that cannot think, so it is sent to every model.
+OLLAMA_THINK = False
+
+
+def ollama_model() -> str:
+    """Model name every Ollama client sends: ``OLLAMA_MODEL`` if set, else the default."""
+    return os.environ.get("OLLAMA_MODEL", "").strip() or DEFAULT_OLLAMA_MODEL
 
 #: Context window sent with every Ollama request.
 #:
