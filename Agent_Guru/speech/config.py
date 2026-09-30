@@ -42,9 +42,16 @@ class STTConfig:
     """Speech-to-text configuration."""
     model_size: str = "base"  # base fits in ~300MB VRAM, already cached - no HuggingFace download needed
     model_path: str | None = None
-    compute_type: str = "float16"  # float16 on GPU = 2x faster, same accuracy
+    # None picks per device: int8_float16 on the GPU (213 MiB for base,
+    # against 232 MiB for float16 at the same speed, measured on an RTX 2050
+    # where gemma4 leaves ~147 MiB spare), float32 on the CPU.
+    compute_type: str | None = None
     beam_size: int = 5
-    device: str = "cuda"   # use GPU - RTX 2050 has 4GB, base model fits easily
+    # "auto": the GPU when a CUDA device and the optional CUDA libraries work,
+    # otherwise the CPU with a log line saying why. This said "cuda" but was
+    # never read: SpeechEngine built the transcriber without a device, so
+    # every command ran on the CPU. See README, "GPU speech recognition".
+    device: str = "auto"
     language: str | None = "en"  # force English - stops Whisper misidentifying as Hindi
 
 
