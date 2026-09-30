@@ -40,7 +40,12 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from Agent_Guru.reasoning.llm.generation import context_fits, ollama_options
+from Agent_Guru.reasoning.llm.generation import (
+    OLLAMA_THINK,
+    context_fits,
+    ollama_model,
+    ollama_options,
+)
 from Agent_Guru.reasoning.llm.timeouts import intent_timeout
 from Agent_Guru.reasoning.models.intent import Entity
 
@@ -82,7 +87,8 @@ class LLMFallbackConfig:
 
     Attributes:
         provider: LLM provider ("ollama", "openai", or "anthropic")
-        model: Model name (e.g., "gemma3:4b", "gpt-4-turbo-preview", "claude-3-5-sonnet-20241022")
+        model: Model name (e.g., "gemma4:latest", "gpt-4-turbo-preview",
+            "claude-3-5-sonnet-20241022"). Defaults to generation.ollama_model().
         api_key: API key for LLM provider (not needed for Ollama)
         ollama_host: Ollama server host (default: "127.0.0.1")
         ollama_port: Ollama server port (default: 11434)
@@ -95,7 +101,10 @@ class LLMFallbackConfig:
     """
 
     provider: str = "ollama"  # Default to local Ollama
-    model: str = "gemma3:4b"  # Default to Qwen for complex reasoning
+    # Was a fixed "gemma3:4b" that ignored OLLAMA_MODEL, so a classifier
+    # built without an explicit model kept asking for the old model after the
+    # user switched.
+    model: str = field(default_factory=ollama_model)
     api_key: str | None = None
     ollama_host: str = "127.0.0.1"
     ollama_port: int = 11434
@@ -485,10 +494,14 @@ Classify the following input:"""
         # CPU, and took 25 s cold. It runs in a thread the voice pipeline
         # cannot cancel, so the spoken answer queued behind it and then paid
         # for a second model load at the voice client's context size.
+        # think: measured with gemma4:latest, leaving it out spent all 150
+        # tokens on reasoning, took 5.4 s and returned "" instead of JSON, so
+        # every fallback classification failed to parse.
         payload = {
             "model": self.config.model,
             "prompt": f"{self.SYSTEM_PROMPT}\n\n{user_prompt}",
             "stream": False,
+            "think": OLLAMA_THINK,
             "options": ollama_options(
                 num_predict=self.config.max_tokens,
                 temperature=self.config.temperature,
