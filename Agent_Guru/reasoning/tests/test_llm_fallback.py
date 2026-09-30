@@ -22,6 +22,7 @@ from Agent_Guru.reasoning.intent.llm_fallback import (
     LLMFallbackConfig,
     LLMIntentResponse,
 )
+from Agent_Guru.reasoning.llm.generation import DEFAULT_OLLAMA_MODEL
 from Agent_Guru.reasoning.llm.timeouts import intent_timeout
 from Agent_Guru.reasoning.models.intent import Entity
 
@@ -33,12 +34,13 @@ from Agent_Guru.reasoning.models.intent import Entity
 class TestLLMFallbackConfig:
     """Test LLMFallbackConfig data class."""
 
-    def test_default_config(self):
+    def test_default_config(self, monkeypatch):
         """Test default configuration values."""
+        monkeypatch.delenv("OLLAMA_MODEL", raising=False)
         config = LLMFallbackConfig()
 
         assert config.provider == "ollama"  # nosec B101
-        assert config.model == "gemma3:4b"  # nosec B101
+        assert config.model == DEFAULT_OLLAMA_MODEL  # nosec B101
         assert config.api_key is None  # nosec B101
         # The default comes from the shared timing policy, not a literal.
         # It used to be a hard-coded 1000.0 ("1 second for local Ollama"),
