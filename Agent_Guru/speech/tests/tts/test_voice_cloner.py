@@ -779,8 +779,13 @@ def test_voice_cloner_extreme_similarity_matrix_1000_comparisons(voice_cloner):
     gc.collect()
 
 
+# long_stress, not in the default run: 556 s alone on the development laptop,
+# which held the full suite for close to ten minutes and sat 44 s under the old
+# 600 s limit, so any extra load failed it. The limit is 1800 s so the
+# scheduled run measures the test instead of the machine's load that day.
 @pytest.mark.stress
-@pytest.mark.timeout(600)
+@pytest.mark.long_stress
+@pytest.mark.timeout(1800)
 @pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_extreme_memory_stress_10000_features(voice_cloner):
     """EXTREME TEST: Extract features from 10,000 audio samples - ZERO COMPROMISE."""
@@ -962,8 +967,14 @@ def test_voice_cloner_extreme_save_load_100_profiles(voice_cloner, sample_audio)
         gc.collect()
 
 
+# real_tts, like the Kokoro tests in test_tts_properties.py: once the model is
+# cached this runs 1,000 real syntheses. In the full suite on the development
+# laptop it was still running after 20 minutes, and the 600 s marker did not
+# stop it on Windows, so the rest of the suite never ran. The limit matches the
+# scheduled job's 3600 s; the old 600 s would have failed it there every week.
 @pytest.mark.stress
-@pytest.mark.timeout(600)
+@pytest.mark.real_tts
+@pytest.mark.timeout(3600)
 @pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_extreme_synthesis_1000_texts(voice_cloner, sample_audio):
     """EXTREME TEST: Synthesize 1000 different texts - ZERO COMPROMISE."""
