@@ -468,3 +468,14 @@ class TestWhereTranscriptionRuns:
         added = whisper_stt._add_nvidia_runtime_to_path()
         assert sorted(added) == sorted(str(tmp_path / n / "bin") for n in ("cublas", "cudnn"))  # nosec B101
         assert all(d in os.environ["PATH"] for d in added)  # nosec B101
+
+    def test_speech_engine_passes_its_stt_config(self):
+        """SpeechEngine passed only model_size, so the device setting was never read."""
+        import inspect
+
+        from Agent_Guru.speech import engine
+
+        source = inspect.getsource(engine.SpeechEngine.initialize)
+        call = source[source.index("WhisperTranscriber("):]
+        call = call[: call.index(")") + 1]
+        assert "device=" in call and "compute_type=" in call  # nosec B101
