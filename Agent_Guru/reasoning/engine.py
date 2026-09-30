@@ -426,8 +426,12 @@ class ReasoningEngine:
             )
 
             ollama_timeout = float(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "8.0"))
+            # No model here: the config's default is the model every other
+            # client uses. This passed a fixed "gemma3:4b", so after the user
+            # set OLLAMA_MODEL to another model the reasoning engine alone
+            # still asked for gemma3, and Ollama swapped the two in and out of
+            # a 4 GB GPU on every turn.
             config = OllamaProviderConfig(
-                model="gemma3:4b",
                 timeout_seconds=ollama_timeout,
                 max_retries=1,  # No retries on local - fail fast, let caller handle
             )
