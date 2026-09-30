@@ -52,6 +52,9 @@ vosk>=0.3.45  # FREE offline speech recognition for wake word detection
 # Speech Recognition
 openai-whisper>=20230314
 faster-whisper>=0.9.0
+# PyAV 19 removed av.open(metadata_errors=), which faster-whisper 1.2.1
+# still passes, so file transcription failed. See pyproject.toml.
+av>=11,<19
 
 # Text-to-Speech (FREE, LOCAL, NATURAL)
 kokoro-onnx>=0.5.0  # The assistant's voice: speech/tts/tts_engine.py speaks every answer with it
