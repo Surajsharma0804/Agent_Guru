@@ -206,6 +206,26 @@ class TestEveryPortAudioUserHoldsTheLock:
         assert [name for name, _ in sd.calls] == ["play", "wait"]
         assert sd.exposed_calls() == []
 
+    def test_streamed_multi_sentence_answer(self, monkeypatch):
+        """Streaming plays each sentence separately; every one must hold the lock."""
+        from Agent_Guru.integration.orchestrator import IntegrationOrchestrator, Personality
+
+        sd = _install(monkeypatch)
+        orch = IntegrationOrchestrator(*([None] * 12))
+        orch._tts_fn = lambda text, personality: (np.zeros(2205, np.float32), 22050)
+        orch._tts_fn_type = "array"
+        reply = (
+            "The capital of France is Paris, on the Seine. "
+            "It has been the capital for over a thousand years. "
+            "Would you like some tips for a short visit?"
+        )
+
+        result = asyncio.run(orch._stage_tts(reply, Personality.GURU))
+
+        assert result.complete and result.spoken == 3
+        assert [name for name, _ in sd.calls] == ["play", "wait"] * 3
+        assert sd.exposed_calls() == []
+
     def test_microphone_capture_recording_and_listing(self, monkeypatch):
         from Agent_Guru.speech.audio.capture import MicrophoneCapture
 
