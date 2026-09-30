@@ -97,6 +97,15 @@ dependencies = [
     # model for every spoken answer.
     "sounddevice>=0.5.0",
     "faster-whisper>=0.9.0",
+    # faster-whisper's decode_audio() calls av.open(..., metadata_errors=
+    # "ignore"), and PyAV 19.0.0 removed that argument. faster-whisper only
+    # asks for av>=11, so a fresh install took 19.0.0 and every file
+    # transcription failed with "open() got an unexpected keyword argument
+    # 'metadata_errors'". Live microphone audio goes in as an array and never
+    # touches av, which is why only new users saw it. faster-whisper 1.2.1,
+    # the newest release, still passes the argument; 18.1.0 accepts it.
+    # Lift the bound once a faster-whisper release stops passing it.
+    "av>=11,<19",
     "silero-vad>=5.1",
     # 0.5.0 is the first client whose chat() takes think=. The adapter sends
     # think=False so a thinking model such as gemma4 answers instead of
