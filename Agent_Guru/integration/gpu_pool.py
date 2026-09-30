@@ -36,6 +36,35 @@ _BUDGETS: dict[str, float] = {
 }
 
 
+def _cpu_mode_reason(torch_module: object) -> str:
+    """Why torch-based subsystems run on the CPU, said accurately.
+
+    This used to log "no CUDA device - CPU-only mode" whenever
+    torch.cuda.is_available() was False. A clean `pip install .` gets torch
+    from PyPI, which on Windows is a CPU-only build, so on a laptop with an
+    RTX 2050 that Ollama and CTranslate2 were both using, the log said there
+    was no GPU. Anyone reading it looked for a driver problem that did not
+    exist. The build is checked first, then the machine.
+    """
+    build_cuda = getattr(getattr(torch_module, "version", None), "cuda", None)
+    if build_cuda:
+        return "GPUResourcePool: torch has CUDA %s but no CUDA device is usable - CPU-only mode" % build_cuda
+    try:
+        import ctranslate2
+
+        gpus = int(ctranslate2.get_cuda_device_count())
+    except Exception:
+        gpus = 0
+    torch_version = getattr(torch_module, "__version__", "unknown")
+    if gpus:
+        return (
+            "GPUResourcePool: torch %s is a CPU-only build, so torch-based "
+            "subsystems run on the CPU although %d CUDA device(s) are present. "
+            "Install a CUDA build of torch to use the GPU for them." % (torch_version, gpus)
+        )
+    return "GPUResourcePool: torch %s is a CPU-only build and no CUDA device was found - CPU-only mode" % torch_version
+
+
 @dataclass
 class DeviceConfig:
     """Device configuration returned to each subsystem.
@@ -85,7 +114,7 @@ class GPUResourcePool:
             else:
                 self.device = "cpu"
                 self.total_vram = 0
-                logger.info("GPUResourcePool: no CUDA device - CPU-only mode")
+                logger.info(_cpu_mode_reason(torch))
         except Exception:  # torch not installed or CUDA error
             logger.exception("GPUResourcePool: GPU detection failed - CPU-only mode")
             self.device = "cpu"
