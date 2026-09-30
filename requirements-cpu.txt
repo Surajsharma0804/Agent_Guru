@@ -47,6 +47,9 @@ webrtcvad>=2.0.10
 # Speech Recognition
 openai-whisper>=20230314
 faster-whisper>=0.9.0
+# PyAV 19 removed av.open(metadata_errors=), which faster-whisper 1.2.1
+# still passes, so file transcription failed. See pyproject.toml.
+av>=11,<19
 
 # Natural Language Processing
 transformers>=4.30.0
