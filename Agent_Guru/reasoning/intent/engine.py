@@ -76,6 +76,7 @@ from Agent_Guru.reasoning.intent.neural_classifier import (  # noqa: E402
 )
 from Agent_Guru.reasoning.learning.feedback_store import FeedbackStore  # noqa: E402
 from Agent_Guru.reasoning.learning.online_learner import OnlineLearner  # noqa: E402
+from Agent_Guru.reasoning.llm.generation import ollama_model  # noqa: E402
 from Agent_Guru.reasoning.models.intent import Entity, Intent, IntentType  # noqa: E402
 
 
@@ -319,7 +320,9 @@ class IntentDetectionEngine:
             )
 
         # Fallback to Ollama (slow but free)
-        model = os.environ.get("OLLAMA_MODEL", "gemma3:4b")
+        # Did not strip OLLAMA_MODEL, unlike every other client, so a blank
+        # value asked Ollama for the model "" and every fallback failed.
+        model = ollama_model()
         if gemini_key:
             _logger.info(
                 "LLM Fallback: Ollama (GEMINI_API_KEY set but Gemini provider "
