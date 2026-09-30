@@ -55,3 +55,10 @@ def test_pyav_that_removed_metadata_errors_is_excluded(
     assert av is not None, "av must be declared with an upper bound"
     assert "19.0.0" not in av.specifier
     assert "18.1.0" in av.specifier
+
+
+def test_cuda_libraries_are_optional(project: dict, requirements: dict[str, Requirement]) -> None:
+    """About 2 GB that only NVIDIA machines can use must stay out of every install."""
+    assert not [name for name in requirements if name.startswith("nvidia-")]
+    gpu = {Requirement(line).name.lower() for line in project["optional-dependencies"]["gpu"]}
+    assert {"nvidia-cublas-cu12", "nvidia-cudnn-cu12"} <= gpu
