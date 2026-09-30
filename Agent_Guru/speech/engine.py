@@ -197,7 +197,16 @@ class SpeechEngine:
             self.streaming_manager = StreamingAudioManager(config=stream_config)
 
             # Initialize STT components
-            self.stt_transcriber = WhisperTranscriber(model_size=self.config.stt.model_size)
+            # Only model_size used to be passed, so STTConfig's device and
+            # compute type were ignored and Whisper always ran on the CPU.
+            stt = self.config.stt
+            self.stt_transcriber = WhisperTranscriber(
+                model_size=stt.model_size,
+                model_path=stt.model_path,
+                compute_type=stt.compute_type,
+                beam_size=stt.beam_size,
+                device=stt.device,
+            )
             self.language_detector = LanguageDetector()
 
             # Initialize TTS components
