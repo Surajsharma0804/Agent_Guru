@@ -21,7 +21,12 @@ from typing import Any
 
 import aiohttp
 
-from Agent_Guru.reasoning.llm.generation import context_fits, ollama_options
+from Agent_Guru.reasoning.llm.generation import (
+    OLLAMA_THINK,
+    context_fits,
+    ollama_model,
+    ollama_options,
+)
 from Agent_Guru.reasoning.llm.models import LLMProvider, LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.providers.base import BaseLLMProvider, ProviderConfig
 
@@ -33,7 +38,7 @@ class OllamaProviderConfig(ProviderConfig):
         self,
         host: str = "127.0.0.1",
         port: int = 11434,
-        model: str = "gemma3:4b",
+        model: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize Ollama config.
@@ -41,7 +46,12 @@ class OllamaProviderConfig(ProviderConfig):
         Args:
             host: Ollama server host
             port: Ollama server port
-            model: Model name to use
+            model: Model name to use. Defaults to the one every other Ollama
+                client uses (OLLAMA_MODEL, else the shared default). It was a
+                fixed "gemma3:4b" that ignored OLLAMA_MODEL, so after the user
+                changed models this client alone asked for the old one: a 404
+                if it was removed, and if it was still pulled, Ollama swapped
+                the two models in and out of a 4 GB GPU on every turn.
             **kwargs: Additional config parameters passed to ProviderConfig
 
         """
@@ -49,17 +59,17 @@ class OllamaProviderConfig(ProviderConfig):
         super().__init__(api_key="local", **kwargs)
         self.host = host
         self.port = port
-        self.model = model
+        self.model = model or ollama_model()
         self.base_url = f"http://{host}:{port}"
 
 class OllamaProvider(BaseLLMProvider):
     """Ollama LLM provider for local inference.
 
-    Active model (May 2025, best for 4GB VRAM):
-    - gemma3:4b - Google Gemma 3, 3.3GB, best quality at this size
+    The model comes from generation.ollama_model(), shared with every other
+    Ollama client.
 
     Example:
-        >>> config = OllamaProviderConfig(model="gemma3:4b")
+        >>> config = OllamaProviderConfig()
         >>> provider = OllamaProvider(config)
         >>> request = LLMRequest(prompt="What is the time?")
         >>> response = await provider.generate(request)
@@ -107,10 +117,13 @@ class OllamaProvider(BaseLLMProvider):
         # server defaulted to (131072 on a machine where the Ollama app's
         # slider was set high). It also disagreed with the voice client,
         # which made Ollama reload the model between their requests.
+        # think: a thinking model otherwise spends num_predict on reasoning
+        # this client never reads and returns an empty "response".
         payload: dict[str, Any] = {
             "model": self.ollama_config.model,
             "prompt": request.prompt,
             "stream": False,
+            "think": OLLAMA_THINK,
             "options": ollama_options(
                 num_predict=request.max_tokens,
                 temperature=request.temperature,
