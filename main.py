@@ -449,7 +449,8 @@ async def run() -> None:
     try:
         import numpy as np
         from faster_whisper import WhisperModel
-        import torch
+
+        from Agent_Guru.speech.stt.whisper_stt import cuda_trial, prepare_cuda_runtime
 
         def _load_whisper_tiny(device: str, compute_type: str) -> WhisperModel:
             """Load Whisper tiny, preferring local cache to avoid HuggingFace calls."""
@@ -460,13 +461,21 @@ async def run() -> None:
 
         # Try GPU (int8) first - 10x faster than CPU, safe on Windows with CTranslate2
         # Fall back to CPU float32 if CUDA is unavailable or has DLL issues
+        # Gated on torch.cuda.is_available() before, which a clean install's
+        # CPU-only torch always answers False, so this never tried the GPU
+        # even with a working one. CTranslate2 runs Whisper, so ask it; the
+        # trial transcription below still decides whether the GPU works.
         _ww_device = "cpu"
         _ww_compute = "float32"
-        if torch.cuda.is_available():
+        if prepare_cuda_runtime():
             try:
-                _test = _load_whisper_tiny("cuda", "int8")
-                _dummy = np.zeros(16000, dtype=np.float32)
-                list(_test.transcribe(_dummy, language="en", beam_size=1)[0])
+                # cuda_trial() records a failure for the whole process: after
+                # one failed CUDA attempt a second one hangs, and the command
+                # transcriber would otherwise make it on the first command.
+                with cuda_trial():
+                    _test = _load_whisper_tiny("cuda", "int8")
+                    _dummy = np.zeros(16000, dtype=np.float32)
+                    list(_test.transcribe(_dummy, language="en", beam_size=1)[0])
                 _ww_device = "cuda"
                 _ww_compute = "int8"
                 _whisper_tiny_global = _test
