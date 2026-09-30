@@ -554,8 +554,9 @@ jobs:
   # fail until those limits are revisited. On Linux a timeout fails only that
   # test, not the run.
   #
-  # Cost: roughly 90 to 170 Linux minutes a run from those timings, so about
-  # 400 to 700 of the 3,000 monthly minutes on top of the platform run. It
+  # Cost: roughly 90 to 170 Linux minutes a run from those timings, plus about
+  # 35 to 45 for the two test_voice_cloner.py tests, so about 500 to 850 of the
+  # 3,000 monthly minutes on top of the platform run. It
   # shares the weekly trigger because a second cron would also start the
   # Windows and macOS legs above.
   # ---------------------------------------------------------------------------
@@ -593,10 +594,14 @@ jobs:
           path: ~/.cache/agent_guru/kokoro
           key: kokoro-v1.0
 
-      - name: Run the real_tts tests
+      # test_voice_cloner.py holds one more real_tts test (1,000 syntheses) and
+      # the long_stress one (10,000 feature extractions, 556 s on a laptop).
+      # Both are deselected everywhere else, so this is the only run they get.
+      - name: Run the real_tts and long_stress tests
         run: >
-          pytest -m real_tts --timeout=3600
+          pytest -m "real_tts or long_stress" --timeout=3600
           Agent_Guru/speech/tests/tts/test_tts_properties.py
+          Agent_Guru/speech/tests/tts/test_voice_cloner.py
           --junitxml=junit-real-tts.xml
 
       - name: Upload test results
