@@ -649,7 +649,10 @@ async def run() -> None:
         total_gb = gpu_pool.total_vram / (1024 ** 3)
         logger.info("  Total VRAM  : %.1f GB", total_gb)
     else:
-        logger.info("  Mode        : CPU-only (no CUDA GPU detected)")
+        # Was "CPU-only (no CUDA GPU detected)", read from the torch-based pool:
+        # false with PyPI's CPU-only torch on a machine with a GPU, printed right
+        # under the pool's own line saying a CUDA device is present.
+        logger.info("  Mode        : CPU for torch features (reason in the GPUResourcePool line)")
     logger.info("  Listening for 'Hey Guru' or 'Hey Maya'...")
     logger.info("  Press Ctrl+C to stop.")
 
