@@ -33,7 +33,7 @@ WORST_MEASURED_VOICE_PROMPT_TOKENS = 4257
 #: returns up to 1000 characters of the user's text.
 LARGEST_VOICE_REPLY_BUDGET = 400
 
-ENV_VARS = ("AGENT_GURU_NUM_CTX", "AGENT_GURU_NUM_GPU")
+ENV_VARS = ("AGENT_GURU_NUM_CTX", "AGENT_GURU_NUM_GPU", "OLLAMA_MODEL")
 
 
 @pytest.fixture(autouse=True)
@@ -139,7 +139,7 @@ OLLAMA_REPLY: dict[str, Any] = {
 }
 
 
-async def _adapter_options(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+async def _adapter_request(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     from Agent_Guru.llm.models import CompletionRequest, Message, OllamaConfig
     from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
 
@@ -167,10 +167,10 @@ async def _adapter_options(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
             max_tokens=100,
         )
     )
-    return sent["options"]
+    return sent
 
 
-async def _provider_options(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+async def _provider_request(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     from Agent_Guru.reasoning.llm.models import LLMRequest
     from Agent_Guru.reasoning.llm.providers import ollama_provider
 
@@ -212,7 +212,7 @@ async def _provider_options(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     )
     provider = real_provider(ollama_provider.OllamaProviderConfig())
     await provider._generate_impl(LLMRequest(prompt="plan", max_tokens=100))
-    return sent["options"]
+    return sent
 
 
 class _FakeRequestsResponse:
@@ -224,7 +224,7 @@ class _FakeRequestsResponse:
         return OLLAMA_REPLY
 
 
-async def _server_options(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+async def _server_request(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     from Agent_Guru.reasoning.llm import ollama_server
     from Agent_Guru.reasoning.llm.models import LLMRequest
 
@@ -237,15 +237,15 @@ async def _server_options(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     monkeypatch.setattr(ollama_server.requests, "post", fake_post)
     server = ollama_server.OllamaServer()
     server._is_running = True
-    server._available_models = ["gemma3:4b"]
+    server._available_models = [generation.ollama_model()]
     try:
         await server.generate(LLMRequest(prompt="hello", max_tokens=100))
     finally:
         await server.stop()
-    return sent["options"]
+    return sent
 
 
-async def _fallback_options(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+async def _fallback_request(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     import requests
 
     from Agent_Guru.reasoning.intent.llm_fallback import LLMFallbackClassifier, LLMFallbackConfig
@@ -259,14 +259,14 @@ async def _fallback_options(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     monkeypatch.setattr(requests, "post", fake_post)
     classifier = LLMFallbackClassifier(LLMFallbackConfig(provider="ollama"))
     await classifier._call_ollama('Input: "what is the capital of France"')
-    return sent["options"]
+    return sent
 
 
 CLIENTS = {
-    "voice answer (OllamaAdapter)": _adapter_options,
-    "reasoning (OllamaProvider)": _provider_options,
-    "OllamaServer": _server_options,
-    "intent fallback (LLMFallbackClassifier)": _fallback_options,
+    "voice answer (OllamaAdapter)": _adapter_request,
+    "reasoning (OllamaProvider)": _provider_request,
+    "OllamaServer": _server_request,
+    "intent fallback (LLMFallbackClassifier)": _fallback_request,
 }
 
 
@@ -275,7 +275,7 @@ class TestEveryClientUsesThePolicy:
     async def test_client_sends_policy_load_options(
         self, monkeypatch: pytest.MonkeyPatch, client: str
     ) -> None:
-        options = await CLIENTS[client](monkeypatch)
+        options = (await CLIENTS[client](monkeypatch))["options"]
         assert options["num_ctx"] == generation.DEFAULT_NUM_CTX
         assert options["num_gpu"] == generation.DEFAULT_NUM_GPU
 
@@ -285,11 +285,113 @@ class TestEveryClientUsesThePolicy:
         """Ollama reloads the model when num_ctx or num_gpu change between requests."""
         load_options = set()
         for fetch in CLIENTS.values():
-            options = await fetch(monkeypatch)
+            options = (await fetch(monkeypatch))["options"]
             load_options.add((options.get("num_ctx"), options.get("num_gpu"), options.get("num_thread")))
         assert len(load_options) == 1, load_options
 
     async def test_override_reaches_every_client(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("AGENT_GURU_NUM_CTX", "8192")
         for fetch in CLIENTS.values():
-            assert (await fetch(monkeypatch))["num_ctx"] == 8192
+            assert (await fetch(monkeypatch))["options"]["num_ctx"] == 8192
+
+
+# ---------------------------------------------------------------------------
+# Thinking and the model name. Measured with gemma4:latest on a 4 GB RTX 2050:
+# without "think": false every one of these clients got an empty reply,
+# because the model spent the whole reply budget reasoning. "What is the
+# capital of France?" took 21 s and Guru said nothing; the intent classifier
+# took 5.4 s and returned "" instead of JSON. Three of the clients also asked
+# for a fixed "gemma3:4b" whatever OLLAMA_MODEL said.
+# ---------------------------------------------------------------------------
+
+#: A model name no default could produce, so a client that ignores
+#: OLLAMA_MODEL cannot pass by accident.
+CONFIGURED_MODEL = "qwen3:8b"
+
+#: The clients that choose a model themselves. The voice answer takes its
+#: model from the request the orchestrator builds.
+SELF_CONFIGURED = [name for name in CLIENTS if name != "voice answer (OllamaAdapter)"]
+
+
+class TestModel:
+    def test_default_when_unset(self) -> None:
+        assert generation.ollama_model() == generation.DEFAULT_OLLAMA_MODEL
+
+    def test_environment_names_the_model(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OLLAMA_MODEL", f"  {CONFIGURED_MODEL} ")
+        assert generation.ollama_model() == CONFIGURED_MODEL
+
+    @pytest.mark.parametrize("raw", ["", "   "])
+    def test_blank_setting_falls_back_to_default(
+        self, monkeypatch: pytest.MonkeyPatch, raw: str
+    ) -> None:
+        """The intent engine used to send "" to Ollama for a blank OLLAMA_MODEL."""
+        monkeypatch.setenv("OLLAMA_MODEL", raw)
+        assert generation.ollama_model() == generation.DEFAULT_OLLAMA_MODEL
+
+
+class TestThinkingIsOff:
+    def test_policy_turns_thinking_off(self) -> None:
+        assert generation.OLLAMA_THINK is False
+
+    @pytest.mark.parametrize("client", list(CLIENTS), ids=list(CLIENTS))
+    async def test_client_turns_thinking_off(
+        self, monkeypatch: pytest.MonkeyPatch, client: str
+    ) -> None:
+        request = await CLIENTS[client](monkeypatch)
+        # "is False", not falsy: a missing key means the model decides, and a
+        # thinking model decides to think.
+        assert request.get("think") is False
+
+    async def test_streamed_voice_answer_turns_thinking_off(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from Agent_Guru.llm.models import CompletionRequest, Message, OllamaConfig
+        from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
+
+        for name, value in (
+            ("OLLAMA_KEEP_ALIVE", "-1"),
+            ("OLLAMA_FLASH_ATTENTION", "1"),
+            ("OLLAMA_NUM_PARALLEL", "1"),
+        ):
+            monkeypatch.setenv(name, value)
+        sent: dict[str, Any] = {}
+
+        async def _chunks() -> Any:
+            yield {"message": {"content": "Paris."}, "done": True}
+
+        class FakeClient:
+            async def chat(self, **kwargs: Any) -> Any:
+                sent.update(kwargs)
+                return _chunks()
+
+        adapter = OllamaAdapter(OllamaConfig())
+        adapter._client = FakeClient()
+        chunks = [
+            chunk
+            async for chunk in adapter.stream(
+                CompletionRequest(
+                    model=generation.ollama_model(),
+                    messages=[Message(role="user", content="what is the capital of France")],
+                    max_tokens=100,
+                )
+            )
+        ]
+        assert [c.content for c in chunks] == ["Paris."]
+        assert sent.get("think") is False
+
+
+class TestEveryClientAsksForTheConfiguredModel:
+    @pytest.mark.parametrize("client", SELF_CONFIGURED, ids=SELF_CONFIGURED)
+    async def test_client_follows_ollama_model(
+        self, monkeypatch: pytest.MonkeyPatch, client: str
+    ) -> None:
+        """A client on a different model makes Ollama swap models on every turn."""
+        monkeypatch.setenv("OLLAMA_MODEL", CONFIGURED_MODEL)
+        assert (await CLIENTS[client](monkeypatch))["model"] == CONFIGURED_MODEL
+
+    @pytest.mark.parametrize("client", SELF_CONFIGURED, ids=SELF_CONFIGURED)
+    async def test_client_uses_the_shared_default(
+        self, monkeypatch: pytest.MonkeyPatch, client: str
+    ) -> None:
+        assert (await CLIENTS[client](monkeypatch))["model"] == generation.DEFAULT_OLLAMA_MODEL
