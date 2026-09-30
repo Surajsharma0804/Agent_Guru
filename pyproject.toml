@@ -9,7 +9,13 @@ description = "Agent_Guru - Production-grade AI voice assistant with Core Reason
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [{name = "Suraj Sharma"}]
-requires-python = ">=3.11"
+# Upper bound: kokoro-onnx, the assistant's voice, publishes no release for
+# Python 3.14 (every version from 0.4.8 on requires <3.14). Without the
+# bound, pip on 3.14 resolved half the dependency tree and then failed with
+# "No matching distribution found for kokoro-onnx", which reads like a
+# broken package rather than an unsupported Python. Raise it when
+# kokoro-onnx supports 3.14 and the suite passes there.
+requires-python = ">=3.11,<3.14"
 keywords = ["voice-assistant", "ai", "local", "privacy", "hinglish"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
