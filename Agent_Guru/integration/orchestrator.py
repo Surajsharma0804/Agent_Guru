@@ -52,6 +52,7 @@ from enum import Enum
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from Agent_Guru.reasoning.llm.generation import ollama_model as _configured_ollama_model
 from Agent_Guru.security.audit.logger import AuditLogger, EventType
 
 if TYPE_CHECKING:
@@ -1315,7 +1316,7 @@ class IntegrationOrchestrator:
                 prompt = prompt + web_context
 
             # Resolve model and build system prompt
-            ollama_model = os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
+            ollama_model = _configured_ollama_model()
             system_prompt = self._build_system_prompt(
                 personality, emotion_hint, language_code, ollama_model,
                 transcript=transcript,
@@ -1358,7 +1359,7 @@ class IntegrationOrchestrator:
             logger.warning("LLM stage: CompletionRequest import failed: %s", e)
             return ""
         except Exception as e:
-            ollama_model = os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
+            ollama_model = _configured_ollama_model()
             logger.error(
                 "LLM stage: inference failed (model=%s): %s - "
                 "check Ollama is running and the model is pulled: "
