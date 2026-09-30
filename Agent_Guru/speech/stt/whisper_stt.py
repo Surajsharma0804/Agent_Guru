@@ -61,6 +61,14 @@ _GPU_HOWTO = (
 #: asked for in the config is replaced by float32 when the load falls back.
 _CPU_COMPUTE_TYPES = frozenset({"float32", "int8", "int8_float32"})
 
+#: Compute type on the CPU when none is configured. It was float32. Measured
+#: with the base model on the development laptop through this class: 175 noisy
+#: command clips (25 commands, 7 voices, 15 dB SNR) went from WER 6.5% and a
+#: median 2.19 s per command at float32 to WER 5.5% and 0.84 s at int8, and 73
+#: LibriSpeech clips from 9.9% and 1.50 s to 10.2% and 0.98 s. The two differed
+#: on 11 command clips, int8 better on six of them.
+_CPU_DEFAULT_COMPUTE = "int8"
+
 #: The pip packages behind the "gpu" extra install their DLLs here, under
 #: site-packages/nvidia/<name>/bin, which Windows does not search.
 _NVIDIA_DLL_PACKAGES = ("cublas", "cudnn", "cuda_nvrtc")
@@ -176,7 +184,7 @@ class WhisperTranscriber:
             model_path: Path to custom model (overrides model_size)
             compute_type: Compute type for inference. Auto-detected if None:
                           "int8_float16" on CUDA (saves ~50% VRAM),
-                          "float32" on CPU.
+                          "int8" on CPU (see _CPU_DEFAULT_COMPUTE).
             beam_size: Beam size for decoding
             device: "cpu", "cuda" or "auto". "cuda" and "auto" both try the
                 GPU at load and fall back to the CPU, with a log line saying
@@ -192,7 +200,7 @@ class WhisperTranscriber:
         # P2-77: Auto-detect optimal compute type for VRAM reduction.
         # int8_float16 on CUDA reduces VRAM from ~3GB to ~1.6GB for large-v3.
         if compute_type is None:
-            self.compute_type = "int8_float16" if device == "cuda" else "float32"
+            self.compute_type = "int8_float16" if device == "cuda" else _CPU_DEFAULT_COMPUTE
         else:
             self.compute_type = compute_type
         self.beam_size = beam_size
@@ -252,7 +260,7 @@ class WhisperTranscriber:
                 cpu_compute = (
                     self._requested_compute
                     if self._requested_compute in _CPU_COMPUTE_TYPES
-                    else "float32"
+                    else _CPU_DEFAULT_COMPUTE
                 )
                 self._model = self._construct(model_id, "cpu", cpu_compute)
             except Exception as e:
