@@ -9,8 +9,8 @@ Performance Targets:
 - Health check: <50ms
 - Model switching: <100ms
 
-Active Model (May 2025):
-- gemma3:4b (3.3 GB) - 4B parameters - Best quality for 4GB VRAM
+The model asked for is generation.ollama_model(): OLLAMA_MODEL if set,
+otherwise generation.DEFAULT_OLLAMA_MODEL.
 
 Requirements: 4.2, 4.5
 """
@@ -23,7 +23,12 @@ from typing import Any
 
 import requests
 
-from Agent_Guru.reasoning.llm.generation import context_fits, ollama_options
+from Agent_Guru.reasoning.llm.generation import (
+    OLLAMA_THINK,
+    context_fits,
+    ollama_model,
+    ollama_options,
+)
 from Agent_Guru.reasoning.llm.models import (
     GPUBackend,
     LLMProvider,
@@ -82,17 +87,25 @@ class OllamaModelConfig:
             raise ValueError(msg)
 
 
-# Predefined model configurations - gemma3:4b is the single active model
-# Best choice for 4GB VRAM (RTX 2050/3050/4050) as of May 2025.
-# FIX: this comment previously contained mojibake ("-" instead of "-") -
-# UTF-8 bytes that had been decoded once as Latin-1/CP1252 and re-saved,
-# a classic double-encoding corruption. Harmless to execution (it was only
-# ever inside a comment) but real file-encoding damage worth fixing.
+# Models whose sampling settings have been tuned, not the model in use: that
+# is generation.ollama_model(). Both fit a 4 GB GPU with every layer on it.
+# Measured on an RTX 2050 at num_ctx 6144 with thinking off: gemma3:4b used
+# 3765 MiB at 37 tokens/s; gemma4:latest (8B total, about 3.2 GB of it loaded
+# for text) used 3949 MiB at 30 tokens/s and answered in the same 3-4 s.
 OLLAMA_MODELS = {
     "gemma3:4b": OllamaModelConfig(
         name="gemma3:4b",
         size_gb=3.3,
         parameters="4B",
+        use_case="general",
+        temperature=0.7,
+        top_p=0.9,
+        max_tokens=512,
+    ),
+    "gemma4:latest": OllamaModelConfig(
+        name="gemma4:latest",
+        size_gb=9.6,
+        parameters="8B",
         use_case="general",
         temperature=0.7,
         top_p=0.9,
@@ -113,7 +126,7 @@ class OllamaServer:
         >>> health = await server.health_check()
         >>> print(f"Server healthy: {health.is_healthy}")
         >>> request = LLMRequest(prompt="Hello, world!")
-        >>> response = await server.generate(request, model="gemma3:4b")
+        >>> response = await server.generate(request)
 
     """
 
@@ -121,16 +134,22 @@ class OllamaServer:
         self,
         host: str = "127.0.0.1",
         port: int = 11434,
-        default_model: str = "gemma3:4b",
+        default_model: str | None = None,
     ) -> None:
         """Initialize Ollama server client.
 
         Args:
             host: Ollama server host
             port: Ollama server port
-            default_model: Default model to use for inference
+            default_model: Default model to use for inference. None means
+                generation.ollama_model(). This defaulted to a fixed
+                "gemma3:4b", while start() checks for the model OLLAMA_MODEL
+                names, so with OLLAMA_MODEL set to another model start()
+                passed and generate() then asked Ollama for gemma3.
 
         """
+        if default_model is None:
+            default_model = ollama_model()
         if not host or not host.strip():
             msg = "OllamaServer host must be a non-empty hostname or IP address"
             raise ValueError(msg)
@@ -364,10 +383,14 @@ class OllamaServer:
             # the server's default context (131072 where the Ollama app's
             # slider is set high) and forced a reload whenever any other
             # client ran next.
+            # think: a thinking model otherwise spends num_predict on
+            # reasoning this client never reads and returns an empty
+            # "response".
             payload: dict[str, Any] = {
                 "model": model_name,
                 "prompt": request.prompt,
                 "stream": False,
+                "think": OLLAMA_THINK,
                 "options": ollama_options(
                     num_predict=request.max_tokens,
                     temperature=request.temperature,
@@ -445,9 +468,9 @@ class OllamaServer:
         """Return the model to use for a task.
 
         NOTE (fixed docstring - was misleading): the `complexity` parameter
-        is currently NOT used to route between models - `OLLAMA_MODELS`
-        has exactly one entry (gemma3:4b, chosen as the best fit for 4GB
-        VRAM), so there is nothing to route between yet. The original
+        is currently NOT used to route between models - only one model fits
+        a 4 GB GPU at a time, and switching per request would reload it on
+        every turn, so there is nothing to route between yet. The original
         docstring's doctest examples implied `"simple"` vs `"complex"`
         selected different models, which was never true and would mislead
         a caller into thinking this does more than it does. The parameter
@@ -460,13 +483,11 @@ class OllamaServer:
             complexity: Reserved for future use; currently ignored.
 
         Returns:
-            Model name to use - the OLLAMA_MODEL env var override if set,
-            otherwise "gemma3:4b".
+            Model name to use - generation.ollama_model(), the same model
+            every other Ollama client asks for.
 
         """
-        import os
-
-        return os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b"
+        return ollama_model()
 
     async def measure_latency(
         self,
