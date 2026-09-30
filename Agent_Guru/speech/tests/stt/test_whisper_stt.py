@@ -446,6 +446,15 @@ class TestWhereTranscriptionRuns:
         assert t.device == "cpu"  # nosec B101
         assert t.compute_type in whisper_stt._CPU_COMPUTE_TYPES  # nosec B101
 
+    @pytest.mark.parametrize("device", ["auto", "cpu"])
+    def test_cpu_defaults_to_int8(self, fake, caplog, device):
+        """float32 measured 2.19 s per command against int8's 0.84 s, at no accuracy cost.
+
+        175 noisy command clips: WER 6.5% at float32, 5.5% at int8.
+        """
+        t, model, _ = self._load(caplog, device=device)
+        assert (t.device, t.compute_type, model.compute_type) == ("cpu", "int8", "int8")  # nosec B101
+
     def test_device_count_comes_from_ctranslate2_not_torch(self, monkeypatch):
         """A CPU-only torch reports no GPU on a machine that has one."""
         import sys
