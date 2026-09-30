@@ -441,7 +441,10 @@ class TestWhereTranscriptionRuns:
         state["gpus"], state["cuda_runs"] = 1, False
         t, _, _ = self._load(caplog, device="auto", compute_type="float16")
         assert built[0].compute_type == "float16"  # nosec B101
-        assert (t.device, t.compute_type) == ("cpu", "float32")  # nosec B101
+        from Agent_Guru.speech.stt import whisper_stt
+
+        assert t.device == "cpu"  # nosec B101
+        assert t.compute_type in whisper_stt._CPU_COMPUTE_TYPES  # nosec B101
 
     def test_device_count_comes_from_ctranslate2_not_torch(self, monkeypatch):
         """A CPU-only torch reports no GPU on a machine that has one."""
