@@ -86,7 +86,11 @@ dependencies = [
     "sounddevice>=0.5.0",
     "faster-whisper>=0.9.0",
     "silero-vad>=5.1",
-    "ollama>=0.4.0",
+    # 0.5.0 is the first client whose chat() takes think=. The adapter sends
+    # think=False so a thinking model such as gemma4 answers instead of
+    # spending the reply budget on reasoning; on 0.4.x that argument is a
+    # TypeError and every spoken answer would fail.
+    "ollama>=0.5.0",
     # The offline voice of last resort: tts_engine.py uses it when Kokoro
     # cannot load, most often because its model has not been downloaded yet
     # on a machine with no network. Without it Guru answers in silence.
