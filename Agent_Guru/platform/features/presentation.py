@@ -400,6 +400,7 @@ async def _llm_outline(
 
     try:
         from Agent_Guru.llm.models import CompletionRequest, Message
+        from Agent_Guru.reasoning.llm.generation import ollama_model
     except ImportError:
         logger.debug("presentation: CompletionRequest/Message import failed")
         return None
@@ -411,7 +412,7 @@ async def _llm_outline(
         Message(role="user", content=truncated_text),
     ]
     request = CompletionRequest(
-        model=model or os.environ.get("OLLAMA_MODEL", "").strip() or "gemma3:4b",
+        model=model or ollama_model(),
         messages=messages,
         max_tokens=1200,
     )
