@@ -31,7 +31,7 @@ from Agent_Guru.llm.models import (
     TokenUsage,
 )
 from Agent_Guru.llm.providers.base import ProviderAdapter
-from Agent_Guru.reasoning.llm.generation import context_fits, ollama_options
+from Agent_Guru.reasoning.llm.generation import OLLAMA_THINK, context_fits, ollama_options
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -134,12 +134,16 @@ class OllamaAdapter(ProviderAdapter):
         # the call in asyncio.wait_for(timeout_s) turns that into a bounded
         # TimeoutError that ProviderFailoverRouter's except-and-continue
         # loop already handles correctly.
+        # think: without it a thinking model such as gemma4 spent the whole
+        # reply budget reasoning and returned empty content, so the voice
+        # pipeline had nothing to say. See OLLAMA_THINK for the measurements.
         call_start = time.perf_counter()
         response = await asyncio.wait_for(
             client.chat(
                 model=request.model,
                 messages=messages,
                 options=options,
+                think=OLLAMA_THINK,
                 keep_alive=-1,  # P2-61: keep model loaded permanently
             ),
             timeout=self.config.timeout_s,
@@ -197,6 +201,7 @@ class OllamaAdapter(ProviderAdapter):
                 messages=messages,
                 stream=True,
                 options=options,
+                think=OLLAMA_THINK,
             ),
             timeout=self.config.timeout_s,
         )
