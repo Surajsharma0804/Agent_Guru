@@ -192,6 +192,20 @@ backends = [
     "asyncpg>=0.29.0",
 ]
 
+# GPU speech recognition. faster-whisper runs on CTranslate2, which needs the
+# CUDA 12 cuBLAS and cuDNN 9 libraries to transcribe on the GPU. They are about
+# 2 GB, so they are not a base dependency: without them Whisper runs on the CPU
+# and says so at startup. Measured with the base model on an RTX 2050 laptop, a
+# 2.5 s command took 1.8 s to transcribe on the CPU and 0.2 s on the GPU.
+# speech/stt/whisper_stt.py finds these wheels' DLLs on Windows, runs a trial
+# transcription and falls back to the CPU if it fails. The wheels ship for
+# Windows and Linux; only Windows has been measured.
+#   pip install -e ".[gpu]"
+gpu = [
+    "nvidia-cublas-cu12; sys_platform == 'win32' or sys_platform == 'linux'",
+    "nvidia-cudnn-cu12>=9,<10; sys_platform == 'win32' or sys_platform == 'linux'",
+]
+
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
