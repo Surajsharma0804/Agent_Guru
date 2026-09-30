@@ -1174,9 +1174,13 @@ class IntentRecognizer:
                 )
             elif hasattr(self._llm_manager, "complete"):
                 from Agent_Guru.llm.models import CompletionRequest, Message
+                from Agent_Guru.reasoning.llm.generation import ollama_model
 
+                # Was a fixed "gemma3:4b" that ignored OLLAMA_MODEL. With a
+                # different model configured, this request made Ollama swap
+                # models on a GPU that holds only one, reloading on every turn.
                 request = CompletionRequest(
-                    model="gemma3:4b",
+                    model=ollama_model(),
                     messages=[Message(role="user", content=prompt)],
                     max_tokens=200,
                     temperature=0.0,
