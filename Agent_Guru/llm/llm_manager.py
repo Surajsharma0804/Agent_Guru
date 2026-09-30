@@ -9,7 +9,7 @@ Cloud providers (OpenAI, Anthropic, Google) are supported if their adapter
 files exist and an API key is configured. If not, we fall back to Ollama
 without crashing. The assistant should always work out of the box.
 
-Currently active: gemma3:4b via Ollama (best for 4GB VRAM).
+The Ollama model is generation.ollama_model(), shared with every other client.
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ from Agent_Guru.llm.models import (
     RuntimeConfig,
 )
 from Agent_Guru.llm.providers.ollama_adapter import OllamaAdapter
+from Agent_Guru.reasoning.llm.generation import DEFAULT_OLLAMA_MODEL
 
 # Cloud adapters are optional - only available if the adapter files exist.
 # We import them lazily so a missing file doesn't crash the whole module.
@@ -98,7 +99,7 @@ _DEFAULT_MODELS: dict[str, str] = {
     "openai": "gpt-4o-mini",
     "anthropic": "claude-3-haiku-20240307",
     "google": "gemini-1.5-flash",
-    "ollama": "gemma3:4b",
+    "ollama": DEFAULT_OLLAMA_MODEL,
 }
 
 
@@ -163,7 +164,7 @@ class LLMConfig:
     mode: str = "local"  # "local" or "cloud"
     provider: LLMProvider = LLMProvider.OLLAMA
     ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "gemma3:4b"
+    ollama_model: str = DEFAULT_OLLAMA_MODEL
     cloud_model: str | None = None
     api_key: str = ""
     max_context_messages: int = 20
