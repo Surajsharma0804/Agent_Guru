@@ -297,7 +297,7 @@ strategy = engine.get_optimal_strategy(task_type="voice_command")
 | Requirement | Required | Notes |
 |:------------|:---------|:------|
 | Python 3.11+ | ✅ Yes | Core runtime |
-| NVIDIA GPU | ⭐ Recommended | 10-50x faster STT. Works on CPU too. |
+| NVIDIA GPU | ⭐ Recommended | About 8x faster speech recognition (measured, see below). Works on CPU too. |
 | [Ollama](https://ollama.ai) | 🔄 Optional | For free local LLM. Can use cloud APIs instead. |
 
 ### Install & Run
@@ -311,17 +311,41 @@ cd Agent_Guru
 python -m venv .venv && .venv\Scripts\activate          # Windows
 python -m venv .venv && source .venv/bin/activate        # Linux/macOS
 
-# GPU install (recommended)
+# GPU install (recommended): CUDA torch for the torch-based features
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 pip install -r requirements.txt
 
 # OR CPU-only
 pip install -r requirements-cpu.txt
 
+# Optional: speech recognition on an NVIDIA GPU (see below)
+pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"
+
 # Run
 python Guru_Demo.py
 # Say "Hey Guru" - done. 🎉
 ```
+
+#### GPU speech recognition
+
+Speech recognition (faster-whisper) does not use torch, so the CUDA torch
+above does not make it faster. It needs the CUDA 12 cuBLAS and cuDNN 9
+libraries, about 2 GB, which are optional:
+
+```bash
+pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"   # any install
+pip install -e ".[gpu]"                                  # same, from pyproject.toml
+```
+
+Nothing else to configure. At startup Guru tries a short transcription on the
+GPU and uses it only if that works; otherwise it stays on the CPU. The log says
+which, for example `Whisper base loaded on the GPU (cuda, int8_float16)`, or a
+warning that starts `Speech recognition runs on the CPU` with the reason.
+Measured with the base model on an RTX 2050 laptop, a 2.5 s command took
+1.8 s to transcribe on the CPU and 0.2 s on the GPU. To force the CPU, set
+`device = "cpu"` in `STTConfig` (`Agent_Guru/speech/config.py`). Tested on
+Windows; on Linux the same packages install, but their libraries may need to
+be on `LD_LIBRARY_PATH`.
 
 <br>
 
@@ -329,7 +353,7 @@ python Guru_Demo.py
 
 ```
 Wake Word         ████████████████████████████████  <200ms   (Alexa: 250ms, Siri: 300ms)
-Speech-to-Text    ████████████████████████████░░░░  <1s GPU  (10-50x faster than CPU)
+Speech-to-Text    ████████████████████████████░░░░  <1s GPU  (about 8x faster than CPU, measured)
 Face Recognition  ████████████████████████████████  30-60 FPS real-time
 End-to-End        ████████████████████████░░░░░░░░  <2s wake word → spoken response
 Battery (Sleep)   ████████████░░░░░░░░░░░░░░░░░░░░  <5%/hr   (wake word only)
