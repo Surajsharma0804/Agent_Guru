@@ -5,7 +5,8 @@ for local LLM inference.
 
 Requirements:
 - Ollama installed and running (ollama serve)
-- Models downloaded: gemma3:4b, gemma3:4b
+- The model named by OLLAMA_MODEL pulled (default:
+  generation.DEFAULT_OLLAMA_MODEL)
 
 Usage:
     python -m Agent_Guru.reasoning.llm.example_ollama_usage
@@ -21,11 +22,7 @@ from Agent_Guru.reasoning.llm.ollama_server import OllamaServer
 async def main() -> None:
     """Demonstrate Ollama server usage."""
     # Initialize Ollama server
-    server = OllamaServer(
-        host="127.0.0.1",
-        port=11434,
-        default_model="gemma3:4b",
-    )
+    server = OllamaServer(host="127.0.0.1", port=11434)
 
     # Start server (check availability and list models)
     try:
@@ -44,7 +41,7 @@ async def main() -> None:
     )
 
     with contextlib.suppress(Exception):
-        await server.generate(simple_request, model="gemma3:4b")
+        await server.generate(simple_request)
 
     # Complex task with Qwen 14B (powerful)
     complex_request = LLMRequest(
@@ -54,7 +51,7 @@ async def main() -> None:
     )
 
     with contextlib.suppress(Exception):
-        await server.generate(complex_request, model="gemma3:4b")
+        await server.generate(complex_request)
 
     # Model selection based on complexity
     server.select_model_for_task("simple")
@@ -62,7 +59,7 @@ async def main() -> None:
 
     # Latency measurement
     with contextlib.suppress(Exception):
-        await server.measure_latency("gemma3:4b", num_samples=5)
+        await server.measure_latency(server.default_model, num_samples=5)
 
     # Stop server
     await server.stop()
