@@ -23,12 +23,24 @@ from Agent_Guru.reasoning.llm.models import (
     LLMRequest,
     LLMResponse,
 )
+from Agent_Guru.reasoning.llm.generation import DEFAULT_OLLAMA_MODEL
 from Agent_Guru.reasoning.llm.ollama_server import (
     OLLAMA_MODELS,
     OLLAMA_USE_CASES,
     OllamaModelConfig,
     OllamaServer,
 )
+
+#: The model a bare OllamaServer() asks for. These tests used the literal
+#: "gemma3:4b" for it, so changing the default model broke every test that
+#: never cared which model it was.
+DEFAULT_MODEL = DEFAULT_OLLAMA_MODEL
+
+
+@pytest.fixture(autouse=True)
+def _no_model_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    """OllamaServer() reads OLLAMA_MODEL, so a developer's own setting must not leak in."""
+    monkeypatch.delenv("OLLAMA_MODEL", raising=False)
 
 
 class TestOllamaModelConfig:
@@ -96,7 +108,7 @@ class TestOllamaServerInitialization:
         server = OllamaServer()
         assert server.host == "127.0.0.1"  # nosec B101
         assert server.port == 11434  # nosec B101
-        assert server.default_model == "gemma3:4b"  # nosec B101
+        assert server.default_model == DEFAULT_MODEL  # nosec B101
         assert not server.is_running()  # nosec B101
 
     def test_init_with_custom_params(self):
@@ -232,8 +244,8 @@ class TestOllamaServerStart:
         mock_list_response.status_code = 200
         mock_list_response.json.return_value = {
             "models": [
-                {"name": "gemma3:4b"},
-                {"name": "gemma3:4b"},
+                {"name": DEFAULT_MODEL},
+                {"name": "llama3.2:1b"},
             ]
         }
 
@@ -241,8 +253,8 @@ class TestOllamaServerStart:
             await server.start()
 
         assert server.is_running()  # nosec B101
-        assert "gemma3:4b" in server.get_available_models()  # nosec B101
-        assert "gemma3:4b" in server.get_available_models()  # nosec B101
+        assert DEFAULT_MODEL in server.get_available_models()  # nosec B101
+        assert "llama3.2:1b" in server.get_available_models()  # nosec B101
 
     @pytest.mark.asyncio
     async def test_start_missing_models(self):
@@ -330,7 +342,7 @@ class TestOllamaServerGeneration:
         """Test successful text generation."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["gemma3:4b"]
+        server._available_models = [DEFAULT_MODEL]
 
         request = LLMRequest(
             prompt="Hello, world!",
@@ -414,7 +426,7 @@ class TestOllamaServerGeneration:
         """Test generation handles API errors."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["gemma3:4b"]
+        server._available_models = [DEFAULT_MODEL]
 
         request = LLMRequest(prompt="Test")
 
@@ -432,7 +444,7 @@ class TestOllamaServerGeneration:
         """Test generation with stop sequences."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["gemma3:4b"]
+        server._available_models = [DEFAULT_MODEL]
 
         request = LLMRequest(
             prompt="Count to 5:",
@@ -462,13 +474,13 @@ class TestOllamaServerModelSelection:
         """Test model selection for simple tasks."""
         server = OllamaServer()
         model = server.select_model_for_task("simple")
-        assert model == "gemma3:4b"  # nosec B101
+        assert model == DEFAULT_MODEL  # nosec B101
 
     def test_select_model_complex_task(self):
         """Test model selection for complex tasks."""
         server = OllamaServer()
         model = server.select_model_for_task("complex")
-        assert model == "gemma3:4b"  # nosec B101
+        assert model == DEFAULT_MODEL  # nosec B101
 
     def test_get_model_config(self):
         """Test getting model configuration."""
@@ -560,7 +572,7 @@ class TestOllamaServerEdgeCases:
         """Test generation with length finish reason."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["gemma3:4b"]
+        server._available_models = [DEFAULT_MODEL]
 
         request = LLMRequest(prompt="Test", max_tokens=10)
 
@@ -583,7 +595,7 @@ class TestOllamaServerEdgeCases:
         """Test generation with incomplete response."""
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["gemma3:4b"]
+        server._available_models = [DEFAULT_MODEL]
 
         request = LLMRequest(prompt="Test")
 
