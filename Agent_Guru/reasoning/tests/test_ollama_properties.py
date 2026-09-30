@@ -18,6 +18,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from Agent_Guru.reasoning.llm.generation import DEFAULT_OLLAMA_MODEL
 from Agent_Guru.reasoning.llm.models import LLMRequest, LLMResponse
 from Agent_Guru.reasoning.llm.ollama_server import (
     OLLAMA_MODELS,
@@ -206,13 +207,13 @@ class TestOllamaModelSelection:
         """Property: Simple tasks always use Mistral 7B."""
         server = OllamaServer()
         model = server.select_model_for_task("simple")
-        assert model == "gemma3:4b"  # nosec B101
+        assert model == DEFAULT_OLLAMA_MODEL  # nosec B101
 
     def test_complex_uses_qwen(self):
         """Property: Complex tasks always use Qwen 14B."""
         server = OllamaServer()
         model = server.select_model_for_task("complex")
-        assert model == "gemma3:4b"  # nosec B101
+        assert model == DEFAULT_OLLAMA_MODEL  # nosec B101
 
 
 class TestOllamaHealthCheckIdempotence:
@@ -350,7 +351,7 @@ class TestOllamaRequestResponseRoundtrip:
         """
         server = OllamaServer()
         server._is_running = True
-        server._available_models = ["gemma3:4b"]
+        server._available_models = [DEFAULT_OLLAMA_MODEL]
 
         mock_response = Mock()
         mock_response.status_code = 200
