@@ -27,6 +27,20 @@ logger = logging.getLogger(__name__)
 _WHISPER_SAMPLE_RATE = 16000
 
 
+def _cuda_device_count() -> int:
+    """CUDA devices CTranslate2 (the engine under faster-whisper) can see.
+
+    Not torch.cuda: a clean install gets a CPU-only torch that reports no GPU
+    on a machine that has one, while CTranslate2 still sees it.
+    """
+    try:
+        import ctranslate2
+
+        return int(ctranslate2.get_cuda_device_count())
+    except Exception:
+        return 0
+
+
 class WhisperTranscriber:
     """Speech-to-text transcriber using OpenAI Whisper (faster-whisper).
 
@@ -132,7 +146,42 @@ class WhisperTranscriber:
                 self._model_load_failed = True
                 msg = f"Failed to load Whisper model: {e}"
                 raise GuruSpeechError(msg) from e
+            self._log_device()
         return self._model
+
+    def _log_device(self) -> None:
+        """Say once, at load, where transcription runs.
+
+        Nothing used to. The one related line at startup was
+        GPUResourcePool's "no CUDA device - CPU-only mode", which is about
+        torch and was false on a machine with a GPU, and SpeechEngine builds
+        this class without a device, so every command was transcribed on the
+        CPU with no record of it. Measured with the "base" model on an RTX
+        2050 laptop: a 2.5 s command took 1.77 s on the CPU and 0.21 s on the
+        GPU, a 9.3 s one 2.51 s and 0.49 s. That second or two is paid on
+        every spoken command, so a machine that could avoid it is told so.
+        """
+        if self.device != "cpu":
+            logger.info(
+                "Whisper %s loaded on %s (%s)",
+                self.model_path or self.model_size, self.device, self.compute_type,
+            )
+            return
+        gpus = _cuda_device_count()
+        if gpus:
+            logger.warning(
+                "Speech recognition runs on the CPU (Whisper %s, %s) although "
+                "CTranslate2 sees %d CUDA device(s). Measured on an RTX 2050 "
+                "laptop, a 2.5 s command took 1.8 s to transcribe on the CPU "
+                "and 0.2 s on the GPU. GPU transcription needs the CUDA 12 "
+                "cuBLAS and cuDNN libraries and is not enabled in this build.",
+                self.model_path or self.model_size, self.compute_type, gpus,
+            )
+        else:
+            logger.info(
+                "Whisper %s loaded on the CPU (%s): no CUDA device found",
+                self.model_path or self.model_size, self.compute_type,
+            )
 
     async def load_model_async(self) -> None:
         """Load Whisper model asynchronously in a background thread.
