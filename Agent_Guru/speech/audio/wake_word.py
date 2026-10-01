@@ -869,7 +869,7 @@ class WakeWordDetector:
 
             # Use cached instance - injected at startup or loaded on first call
             if not hasattr(self, "_whisper_tiny") or self._whisper_tiny is None:
-                import torch
+                from Agent_Guru.speech.stt.whisper_stt import cuda_trial, prepare_cuda_runtime
 
                 def _load_tiny(device: str, compute_type: str) -> "WhisperModel":
                     try:
@@ -877,16 +877,26 @@ class WakeWordDetector:
                     except Exception:
                         return WhisperModel("tiny", device=device, compute_type=compute_type)
 
-                if torch.cuda.is_available():
+                # Was gated on torch.cuda.is_available() and trusted the CUDA
+                # load. With a CUDA torch build but no CUDA 12 libraries (the
+                # README's cu118 install), the load succeeded, and after any
+                # earlier failed CUDA attempt in the process the first wake
+                # transcription hung inside CTranslate2's encode(), measured.
+                # It now goes through the same guard as every CUDA attempt: at
+                # most one failure per process, proven by a trial transcription.
+                if prepare_cuda_runtime():
                     try:
-                        self._whisper_tiny = _load_tiny("cuda", "int8")
+                        with cuda_trial():
+                            model = _load_tiny("cuda", "int8")
+                            silence = np.zeros(self.config.sample_rate // 2, dtype=np.float32)
+                            list(model.transcribe(silence, language="en", beam_size=1)[0])
+                        self._whisper_tiny = model
                         logger.info("Whisper tiny loaded for wake word detection on cuda (int8)")
-                    except Exception:
-                        self._whisper_tiny = _load_tiny("cpu", "float32")
-                        logger.info("Whisper tiny loaded for wake word detection on cpu (float32)")
-                else:
+                    except Exception as exc:
+                        logger.info("Whisper tiny for wake words stays on the CPU: %s", exc)
+                if getattr(self, "_whisper_tiny", None) is None:
                     self._whisper_tiny = _load_tiny("cpu", "float32")
-                    logger.info("Whisper tiny loaded for wake word detection on cpu")
+                    logger.info("Whisper tiny loaded for wake word detection on cpu (float32)")
 
             segments, _ = self._whisper_tiny.transcribe(
                 audio,
