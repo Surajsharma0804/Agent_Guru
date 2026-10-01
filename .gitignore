@@ -296,3 +296,8 @@ _to_delete/
 
 # Same file with Windows-substituted colons (U+F03A private use area char)
 memory
+
+# Wake-word training work: the Colab notebook, generated and recorded clips,
+# benchmark audio and trained models. Hundreds of MB of audio, some of it
+# family recordings, so it stays out of the repo; models ship separately.
+wakeword_training/
