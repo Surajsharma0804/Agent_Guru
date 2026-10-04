@@ -96,11 +96,52 @@ def test_real_path_still_persists(tmp_path: Path) -> None:
     assert reloaded.search(_unit_vector()).identity == "Alice"  # nosec B101
 
 
+def _windows_trustee_sids(path: Path) -> set[str]:
+    import win32security
+
+    sd = win32security.GetFileSecurity(str(path), win32security.DACL_SECURITY_INFORMATION)
+    dacl = sd.GetSecurityDescriptorDacl()
+    return {
+        win32security.ConvertSidToStringSid(dacl.GetAce(i)[2])
+        for i in range(dacl.GetAceCount())
+    }
+
+
+# Everyone, Authenticated Users, BUILTIN\Users: every local account.
+_BROAD_SIDS = {"S-1-1-0", "S-1-5-11", "S-1-5-32-545"}
+
+
 def test_persisted_file_is_owner_only(tmp_path: Path) -> None:
-    """The database file stays 0600, since it holds biometric templates."""
+    """The database file is readable by its owner only, since it holds biometric templates.
+
+    On Windows this used to check st_mode == 0o600, which Windows cannot
+    express: every file reports 666, so the test failed on every Windows run
+    while the real protection, an ACL set with icacls, was in place. It now
+    checks that ACL. The folder first grants BUILTIN\\Users read access to new
+    files, as an ordinary folder on a data drive does (Authenticated Users and
+    Users), and a plain file written beside the database must show it, so the
+    test cannot pass just because the temporary folder was already private.
+    """
+    import os
+
+    if os.name == "nt":
+        import subprocess
+
+        subprocess.run(  # nosec B603 B607
+            ["icacls", str(tmp_path), "/grant", "*S-1-5-32-545:(OI)(CI)(RX)"],
+            capture_output=True, check=True, timeout=10,
+        )
+        control = tmp_path / "plain.txt"
+        control.write_text("x", encoding="utf-8")
+        assert _windows_trustee_sids(control) & _BROAD_SIDS  # nosec B101
+
     db_path = tmp_path / "identities.json"
     db = FaceDatabase(db_path=str(db_path))
     db.add_identity("Alice", [_unit_vector()], permission_level="user")
 
-    mode = db_path.stat().st_mode & 0o777
-    assert mode == 0o600, f"expected 0600, got {mode:o}"  # nosec B101
+    if os.name == "nt":
+        broad = _windows_trustee_sids(db_path) & _BROAD_SIDS
+        assert not broad, f"face database readable by {sorted(broad)}"  # nosec B101
+    else:
+        mode = db_path.stat().st_mode & 0o777
+        assert mode == 0o600, f"expected 0600, got {mode:o}"  # nosec B101
