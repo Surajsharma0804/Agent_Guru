@@ -43,8 +43,14 @@ def connection_pool(temp_db):
 
 @pytest.fixture
 def optimizer(connection_pool):
-    """Create StrategyOptimizer instance for testing."""
-    return StrategyOptimizer(connection_pool, epsilon=0.1)
+    """Create StrategyOptimizer instance for testing.
+
+    Seeded: test_select_strategy_with_exploration expects the worse of two
+    strategies to be explored at least once in 100 picks at epsilon 0.1,
+    which fails 0.95**100 = 0.6% of the time with an unseeded source, and did
+    in a full run. A seed makes every test here repeat exactly.
+    """
+    return StrategyOptimizer(connection_pool, epsilon=0.1, rng=random.Random(1234))  # nosec B311
 
 
 # ============================================================================
