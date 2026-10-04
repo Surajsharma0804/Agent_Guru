@@ -897,8 +897,17 @@ def test_voice_cloner_extreme_quality_all_edge_cases(voice_cloner):
     print(f"  [OK] All {len(test_cases)} edge cases handled correctly")
 
 
+# long_stress, not in the default run, for the same reason as the 10,000-feature
+# test above: 100 enrolments of 30 ten-second clips are 3,000 feature
+# extractions. On the development laptop it passed inside its old 180 s limit
+# in one full run, was stopped after 80 of 100 voices in the next, and took
+# 312 s alone the same afternoon (the laptop's speed varies about 2x with its
+# power state). A pytest-timeout overrun on Windows ends the whole run, so the
+# last 4% of the suite went unrun. The assertions are about what is saved and
+# loaded, not speed, so the limit is 1800 s here too.
 @pytest.mark.stress
-@pytest.mark.timeout(180)
+@pytest.mark.long_stress
+@pytest.mark.timeout(1800)
 @pytest.mark.usefixtures("requires_librosa")
 def test_voice_cloner_extreme_save_load_100_profiles(voice_cloner, sample_audio):
     """EXTREME TEST: Save and load 100 voice profiles - ZERO COMPROMISE."""
