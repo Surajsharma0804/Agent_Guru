@@ -245,142 +245,12 @@ def _load_gpu_pool():
 
 
 # ---------------------------------------------------------------------------
-# Silero VAD - production-grade end-of-speech detection (same as Alexa/Siri)
+# Command capture after the wake word
 # ---------------------------------------------------------------------------
-
-_silero_vad_model: Any = None
-_silero_get_speech_ts: Any = None
-
-
-def _load_silero_vad() -> bool:
-    """Load Silero VAD model once. Returns True on success."""
-    global _silero_vad_model, _silero_get_speech_ts
-    if _silero_vad_model is not None:
-        return True
-    try:
-        from silero_vad import load_silero_vad, get_speech_timestamps  # type: ignore[import]
-        _silero_vad_model = load_silero_vad()
-        _silero_get_speech_ts = get_speech_timestamps
-        logger.info("Silero VAD loaded - production-grade end-of-speech detection active")
-        return True
-    except Exception as exc:
-        logger.warning("Silero VAD unavailable (%s) - using energy fallback", exc)
-        return False
-
-
-async def _capture_command_with_vad(
-    wake_manager: Any,
-    max_duration_s: float = 12.0,
-    silence_duration_s: float = 1.2,
-    silence_rms_threshold: float = 0.008,
-) -> bytes:
-    """Capture command audio after wake word fires.
-
-    Uses Silero VAD with the correct two-threshold hysteresis approach
-    (same as production voice assistants):
-    - positive_threshold=0.5: frame is speech if probability > 0.5
-    - negative_threshold=0.15: frame is silence if probability < 0.15
-    - Frames between 0.15-0.5 are ignored (hysteresis zone)
-
-    This prevents both false positives (background noise triggering speech)
-    and false negatives (soft speech being missed).
-
-    Standard settings from Silero VAD docs:
-    - threshold: 0.5 (standard), lower = more sensitive
-    - min_speech_duration_ms: 250ms (filters clicks/pops)
-    - min_silence_duration_ms: 100ms (allows natural pauses)
-    """
-    import numpy as np
-    import torch
-
-    use_silero = _load_silero_vad()
-
-    chunk_duration_s: float = getattr(
-        getattr(wake_manager, "_config", None), "audio_capture_duration", 1.5
-    )
-    if chunk_duration_s <= 0:
-        chunk_duration_s = 1.5
-
-    max_chunks = max(1, int(max_duration_s / chunk_duration_s))
-    all_audio: list[np.ndarray] = []
-    silence_after_speech_s = 0.0
-    speech_ever_detected = False
-
-    for i in range(max_chunks):
-        try:
-            chunk_bytes = await wake_manager.capture_command_audio(chunks=1)
-        except Exception as exc:
-            logger.warning("VAD capture chunk %d failed: %s", i, exc)
-            break
-
-        if not chunk_bytes:
-            silence_after_speech_s += chunk_duration_s
-        else:
-            chunk_np = np.frombuffer(chunk_bytes, dtype=np.float32).copy()
-            all_audio.append(chunk_np)
-
-            has_speech = False
-            if use_silero and _silero_vad_model is not None:
-                try:
-                    audio_tensor = torch.from_numpy(chunk_np)
-                    # Standard Silero VAD settings from official docs
-                    speech_ts = _silero_get_speech_ts(
-                        audio_tensor,
-                        _silero_vad_model,
-                        sampling_rate=16000,
-                        threshold=0.5,               # standard - balanced sensitivity
-                        min_speech_duration_ms=250,  # filter clicks/pops
-                        min_silence_duration_ms=100, # allow natural pauses
-                        speech_pad_ms=30,            # pad speech segments slightly
-                    )
-                    has_speech = len(speech_ts) > 0
-                except Exception:
-                    rms = float(np.sqrt(np.mean(chunk_np ** 2)))
-                    has_speech = rms >= silence_rms_threshold
-            else:
-                rms = float(np.sqrt(np.mean(chunk_np ** 2)))
-                has_speech = rms >= silence_rms_threshold
-
-            if has_speech:
-                speech_ever_detected = True
-                silence_after_speech_s = 0.0
-            else:
-                silence_after_speech_s += chunk_duration_s
-
-        if speech_ever_detected and silence_after_speech_s >= silence_duration_s:
-            logger.info(
-                "VAD: end-of-speech after %d chunks (%.1fs total, %.1fs silence)",
-                i + 1, len(all_audio) * chunk_duration_s, silence_after_speech_s,
-            )
-            break
-
-        if not speech_ever_detected and len(all_audio) * chunk_duration_s >= 8.0:
-            logger.info("VAD: no speech detected after 8s - stopping")
-            break
-
-    if not all_audio:
-        return b""
-
-    combined = np.concatenate(all_audio).astype(np.float32)
-    combined_rms = float(np.sqrt(np.mean(combined ** 2)))
-
-    # Gate: if overall RMS is near silence, don't waste time on STT
-    if combined_rms < 0.005:
-        logger.info("VAD: audio is near-silence (rms=%.4f) - discarding", combined_rms)
-        return b""
-
-    # Only reject background audio if NO speech was detected at all
-    if not speech_ever_detected:
-        try:
-            from Agent_Guru.speech.audio.wake_word import WakeWordDetector
-            if WakeWordDetector._looks_like_music(combined):
-                logger.info("VAD: no speech + music detected - discarding")
-                return b""
-        except Exception:
-            pass
-
-    logger.info("VAD: captured %.1fs of audio (rms=%.4f)", len(combined) / 16000, combined_rms)
-    return combined.tobytes()
+# Was _capture_command_with_vad here, judging whole 1.5 s chunks; it ran on a
+# median 2.06 s after the speaker stopped and could not be tested from main.py.
+# Agent_Guru/speech/audio/command_capture.py explains the replacement.
+from Agent_Guru.speech.audio.command_capture import capture_command, load_silero  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -442,7 +312,7 @@ async def run() -> None:
     # spectral heuristic (which always picks Guru).
     # --- Pre-warm Silero VAD and Whisper tiny at startup ---
     logger.info("Pre-loading Silero VAD...")
-    await asyncio.get_running_loop().run_in_executor(None, _load_silero_vad)
+    await asyncio.get_running_loop().run_in_executor(None, load_silero)
 
     logger.info("Pre-warming Whisper tiny for wake word detection...")
     _whisper_tiny_global: Any = None
@@ -505,7 +375,7 @@ async def run() -> None:
 
         import numpy as np
         try:
-            audio_bytes = await _capture_command_with_vad(wake_manager)
+            audio_bytes = await capture_command(wake_manager)
 
             wake_audio = getattr(detection, "audio_chunk", None)
             if wake_audio is not None and len(wake_audio) > 0:
