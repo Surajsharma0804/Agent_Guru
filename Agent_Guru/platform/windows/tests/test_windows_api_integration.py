@@ -212,6 +212,27 @@ class TestWindowsAPIIntegration:
         
         assert len(processes) > 0  # nosec B101
         assert elapsed < 5.0  # nosec B101
+
+    def test_process_lookup_listing_is_fast_and_complete(self):
+        """include_usage=False lists the same processes without the per-process reads.
+
+        The full read took 3 to 5 s over about 350 processes on the
+        development laptop; name and pid lookups needed none of it. The lean
+        read took 0.006 s there.
+        """
+        import time
+
+        integration = WindowsIntegration()
+        full = {(p.pid, p.name) for p in integration.get_process_list()}
+
+        start = time.perf_counter()
+        lean = integration.get_process_list(include_usage=False)
+        elapsed = time.perf_counter() - start
+
+        assert elapsed < 1.0  # nosec B101
+        # Processes start and stop between the two reads; nearly all must match.
+        assert len({(p.pid, p.name) for p in lean} & full) >= 0.9 * len(full)  # nosec B101
+        assert all(p.status == "unknown" and p.cpu_percent == 0.0 for p in lean)  # nosec B101
     
     def test_registry_read_performance(self):
         """Test that registry read is fast (<100ms)."""
