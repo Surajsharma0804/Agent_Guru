@@ -9,6 +9,7 @@ Coverage Target: >80%
 """
 
 import os
+import random
 import sqlite3
 import tempfile
 
@@ -113,6 +114,47 @@ class TestStrategyOptimizerInitialization:
 # ============================================================================
 # Strategy Registration Tests
 # ============================================================================
+
+
+class TestReproducibleSelection:
+    """The same seed gives the same selections.
+
+    Exploration and dampening drew from secrets.SystemRandom, which cannot be
+    seeded, so two runs over identical inputs chose differently and a property
+    test that failed could not be replayed (Hypothesis reported it as flaky).
+    """
+
+    @staticmethod
+    def _selections(seed: int, db_path: str) -> list[str]:
+        DatabaseSchema.create_schema(db_path)
+        pool = ConnectionPool(db_path, min_size=1, max_size=2)
+        try:
+            # epsilon=0.5: half the selections are exploration, so the draws
+            # decide most of the sequence.
+            opt = StrategyOptimizer(pool, epsilon=0.5, rng=random.Random(seed))  # nosec B311
+            for sid in ("a", "b", "c"):
+                opt.register_strategy(
+                    strategy_id=sid, name=sid, description=sid, task_types=["t"], parameters={},
+                )
+            picks = []
+            for i in range(60):
+                opt.update_strategy_performance("a", i % 3 != 0, 100.0)
+                picks.append(opt.select_strategy_with_exploration("t").strategy_id)
+            return picks
+        finally:
+            pool.close_all()
+
+    def test_same_seed_same_selections(self, tmp_path):
+        first = self._selections(7, str(tmp_path / "one.db"))
+        second = self._selections(7, str(tmp_path / "two.db"))
+        assert first == second  # nosec B101
+
+    def test_different_seeds_explore_differently(self, tmp_path):
+        # Guards against the generator being ignored: with half the picks
+        # random, two seeds agreeing on all 60 would mean no draws are used.
+        assert self._selections(7, str(tmp_path / "one.db")) != self._selections(  # nosec B101
+            8, str(tmp_path / "two.db"),
+        )
 
 
 class TestStrategyRegistration:
