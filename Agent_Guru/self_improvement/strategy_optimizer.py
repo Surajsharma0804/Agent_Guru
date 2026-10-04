@@ -17,7 +17,7 @@ Date: 2026-02-27
 
 import json
 import math
-import secrets
+import random
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -76,6 +76,7 @@ class StrategyOptimizer:
         min_executions_for_confidence: int = 10,
         stability_monitor: "StabilityMonitor | None" = None,
         enable_dampening: bool = True,
+        rng: random.Random | None = None,
     ) -> None:
         """Initialize strategy optimizer.
 
@@ -85,6 +86,8 @@ class StrategyOptimizer:
             min_executions_for_confidence: Minimum executions before trusting success rate
             stability_monitor: Optional StabilityMonitor for dampening rapid changes
             enable_dampening: Whether to enable dampening (default: True)
+            rng: Source of exploration and dampening draws; a fresh
+                random.Random if None. Pass a seeded one for reproducibility.
 
         Raises:
             ValueError: If epsilon not in [0.0, 1.0]
@@ -99,6 +102,13 @@ class StrategyOptimizer:
         self.min_executions_for_confidence = min_executions_for_confidence
         self.stability_monitor = stability_monitor
         self.enable_dampening = enable_dampening
+        # These draws were secrets.SystemRandom(), the OS's cryptographic
+        # source, which cannot be seeded: the same inputs selected different
+        # strategies on every run, and Hypothesis reported
+        # test_strategy_selection_converges as flaky (one example failed and
+        # then passed). Exploration has no security role, so an ordinary,
+        # seedable generator is the right tool.
+        self._rng = rng if rng is not None else random.Random()  # nosec B311
 
         # Track last selected strategy per task type for dampening
         self._last_selected: dict[str, str] = {}
@@ -316,8 +326,8 @@ class StrategyOptimizer:
             return None
 
         # Exploration: select random strategy
-        if secrets.SystemRandom().random() < self.epsilon:
-            selected = secrets.choice(strategies)
+        if self._rng.random() < self.epsilon:
+            selected = self._rng.choice(strategies)
         else:
             # Exploitation: select best strategy
             best = self.get_best_strategy(task_type)
@@ -394,7 +404,7 @@ class StrategyOptimizer:
                         # Higher stability score = more likely to allow switch
                         switch_probability = metrics.stability_score
 
-                        if secrets.SystemRandom().random() > switch_probability:
+                        if self._rng.random() > switch_probability:
                             # Don't switch - stick with last strategy
                             return last_strategy
 
