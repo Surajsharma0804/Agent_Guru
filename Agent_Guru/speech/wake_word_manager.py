@@ -223,20 +223,27 @@ class _AudioCapture:
             # Unknown platform - try sounddevice as best-effort
             self._open_sounddevice()
 
-    def capture(self) -> np.ndarray:
+    def capture(self, seconds: float | None = None) -> np.ndarray:
         """Capture one audio chunk.
+
+        Args:
+            seconds: Length to read; the configured chunk duration if None.
+                Command capture reads shorter pieces so it can notice the
+                end of speech sooner. The stream itself keeps its blocksize
+                of one full chunk (see _open_desktop).
 
         Returns:
             Float32 array of shape ``(n_samples,)`` normalised to [-1, 1].
 
         """
+        n_samples = int(self._sample_rate * (seconds if seconds else self._duration))
         if self._platform in ("windows", "macos", "linux"):
-            return self._capture_desktop()
+            return self._capture_desktop(n_samples)
         if self._platform == "android":
-            return self._capture_android()
+            return self._capture_android(n_samples)
         if self._platform == "ios":
-            return self._capture_ios()
-        return self._capture_sounddevice()
+            return self._capture_ios(n_samples)
+        return self._capture_sounddevice(n_samples)
 
     def close(self) -> None:
         """Release audio resources."""
@@ -332,6 +339,13 @@ class _AudioCapture:
             # Not measured: how each API reports a device being unplugged,
             # and drivers other than this one. Revisit if a user's mic
             # opens but delivers audio that is silent or distorted.
+            # blocksize stays one full chunk even though command capture
+            # reads shorter pieces. Measured on this MME stream: with
+            # PortAudio's default small blocks, audio that arrived while the
+            # listen loop was busy (Whisper on a wake candidate) was dropped,
+            # 0 s of a 2 s gap kept and no overflow flag raised; with one
+            # chunk per block, 2 to 2.5 s of it was still waiting to be read.
+            # Shorter reads then return in bursts every half chunk.
             self._stream = sd.InputStream(
                 samplerate=self._sample_rate,
                 channels=1,
@@ -369,20 +383,19 @@ class _AudioCapture:
             self._pyaudio_instance = None
             self._mark_stream_failed(f"could not open an input device: {exc}")
 
-    def _capture_desktop(self) -> np.ndarray:
+    def _capture_desktop(self, n_samples: int) -> np.ndarray:
         """Capture audio on desktop (sounddevice or PyAudio)."""
         if self._stream is None:
             # Silence, or a reopen attempt if the stream was lost.
-            return self._capture_sounddevice()
+            return self._capture_sounddevice(n_samples)
         # sounddevice path - _pyaudio_instance is None when using sounddevice
         if self._pyaudio_instance is None:
-            return self._capture_sounddevice()
+            return self._capture_sounddevice(n_samples)
         # PyAudio path
-        return self._capture_pyaudio()
+        return self._capture_pyaudio(n_samples)
 
-    def _capture_pyaudio(self) -> np.ndarray:
+    def _capture_pyaudio(self, n_samples: int) -> np.ndarray:
         """Read one frame from a PyAudio stream, auto-reopening on stream-closed errors."""
-        n_samples = int(self._sample_rate * self._duration)
         try:
             raw = self._stream.read(n_samples, exception_on_overflow=False)
             audio = np.frombuffer(raw, dtype=np.float32).copy()
@@ -535,9 +548,8 @@ class _AudioCapture:
         self.last_error = ""
         return True
 
-    def _capture_sounddevice(self) -> np.ndarray:
+    def _capture_sounddevice(self, n_samples: int) -> np.ndarray:
         """Read one frame from a sounddevice stream, reopening it if it failed."""
-        n_samples = int(self._sample_rate * self._duration)
         if self._stream is None:
             if self.failing_since is None:
                 return np.zeros(n_samples, dtype=np.float32)
@@ -545,7 +557,7 @@ class _AudioCapture:
             if wait > 0:
                 # Pace the listen loop like real audio would instead of
                 # spinning on silence while waiting for the next attempt.
-                time.sleep(min(wait, self._duration))
+                time.sleep(min(wait, n_samples / self._sample_rate))
                 return np.zeros(n_samples, dtype=np.float32)
             if not self._try_reopen_sounddevice():
                 return np.zeros(n_samples, dtype=np.float32)
@@ -587,9 +599,8 @@ class _AudioCapture:
             logger.exception("Android AudioRecord unavailable - using silence")
             self._stream = None
 
-    def _capture_android(self) -> np.ndarray:
+    def _capture_android(self, n_samples: int) -> np.ndarray:
         """Read audio from Android AudioRecord."""
-        n_samples = int(self._sample_rate * self._duration)
         if self._stream is None:
             return np.zeros(n_samples, dtype=np.float32)
         try:
@@ -621,9 +632,8 @@ class _AudioCapture:
             logger.exception("iOS AVAudioEngine unavailable - using silence")
             self._stream = None
 
-    def _capture_ios(self) -> np.ndarray:
+    def _capture_ios(self, n_samples: int) -> np.ndarray:
         """Read audio from iOS AVAudioEngine."""
-        n_samples = int(self._sample_rate * self._duration)
         if self._stream is None:
             return np.zeros(n_samples, dtype=np.float32)
         # AVAudioEngine tap-based capture - simplified synchronous read
@@ -1016,7 +1026,7 @@ class WakeWordManager:
         """Return the most recent detection result (or ``None``)."""
         return self._last_detection
 
-    async def capture_command_audio(self, chunks: int = 2) -> bytes:
+    async def capture_command_audio(self, chunks: int = 2, seconds: float | None = None) -> bytes:
         """Capture command audio after a wake word is detected.
 
         Reads *chunks* consecutive audio frames from the platform microphone
@@ -1028,6 +1038,9 @@ class WakeWordManager:
                 default of 2 captures ~1 second of command audio
                 (2 × 0.5s default ``audio_capture_duration``).
                 (BUG-034: old docstring incorrectly said ~3 seconds)
+            seconds: Length of each frame instead of the configured chunk
+                duration. Command capture reads 0.25 s pieces to notice the
+                end of speech sooner.
 
         Returns:
             Raw float32 bytes of the captured audio, or ``b""`` if the
@@ -1040,7 +1053,7 @@ class WakeWordManager:
         loop = asyncio.get_running_loop()
         captured: list[np.ndarray] = []
         for _ in range(chunks):
-            chunk = await loop.run_in_executor(None, self._audio_capture.capture)
+            chunk = await loop.run_in_executor(None, self._audio_capture.capture, seconds)
             captured.append(chunk)
 
         combined = np.concatenate(captured).astype(np.float32)
