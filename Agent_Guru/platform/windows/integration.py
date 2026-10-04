@@ -566,6 +566,9 @@ class WindowsIntegration:
 
         Raises:
             TimeoutError: If the command runs longer than ``timeout`` seconds
+            RuntimeError: If the command cannot be started (not found, not
+                an executable)
+            PermissionError: For a privileged command without admin rights
 
         Example:
             >>> result = integration.execute_command("cmd", ["/c", "echo", "Hello"])
@@ -593,14 +596,28 @@ class WindowsIntegration:
                     msg,
                 )
 
-            # Execute command
-            result = subprocess.run(  # nosec B603  # noqa: S603
-                cmd,
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-            )
+            # Execute command. A launch failure becomes RuntimeError, as on
+            # Linux. A June cleanup deleted this translation along with dead
+            # lines around it, so a missing program escaped as a raw
+            # FileNotFoundError to callers that only handle RuntimeError and
+            # TimeoutError, and test_execute_command_not_found failed on every
+            # Windows run since. Only the launch is wrapped: the PermissionError
+            # above for privileged commands is also an OSError and must reach
+            # the caller as it is.
+            try:
+                result = subprocess.run(  # nosec B603  # noqa: S603
+                    cmd,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                )
+            except FileNotFoundError as e:
+                msg = f"Error executing command {command}: executable not found"
+                raise RuntimeError(msg) from e
+            except OSError as e:
+                msg = f"Error executing command {command}: {e}"
+                raise RuntimeError(msg) from e
 
             execution_time = time.time() - start_time
 
