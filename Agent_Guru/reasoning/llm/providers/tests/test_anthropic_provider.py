@@ -109,6 +109,26 @@ class TestInitialization:
 # ============================================================================
 
 
+class TestSdkDeadline:
+    """The SDK client stops at the configured deadline and does not retry on its own.
+
+    The client used to be built from the API key alone, so the SDK kept its
+    600 s read timeout and 2 retries while BaseLLMProvider, which relies on
+    _generate_impl for the deadline, retried 3 times on top. Checked on the
+    real client object, with no request made.
+    """
+
+    @pytest.mark.parametrize("seconds", [7.5, 20.0, 45.0])
+    def test_client_uses_config_timeout(self, seconds):
+        provider = AnthropicProvider(ProviderConfig(api_key="k", timeout_seconds=seconds))
+        timeout = provider.client.timeout
+        assert getattr(timeout, "read", timeout) == seconds  # nosec B101
+
+    def test_client_leaves_retries_to_generate(self):
+        provider = AnthropicProvider(ProviderConfig(api_key="k"))
+        assert provider.client.max_retries == 0  # nosec B101
+
+
 class TestGeneration:
     """Test text generation."""
 
