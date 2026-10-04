@@ -85,11 +85,11 @@ class TestLLMClientInitialization:
         synthesizer._ensure_llm_client()
 
         assert synthesizer.llm_client is not None  # nosec B101
-        mock_openai.OpenAI.assert_called_once_with(api_key="test-key")
+        mock_openai.OpenAI.assert_called_once_with(api_key="test-key", timeout=1.0, max_retries=0)
 
         # Built once, then reused.
         synthesizer._ensure_llm_client()
-        mock_openai.OpenAI.assert_called_once_with(api_key="test-key")
+        mock_openai.OpenAI.assert_called_once_with(api_key="test-key", timeout=1.0, max_retries=0)
 
     @patch("Agent_Guru.reasoning.knowledge.synthesizer.ANTHROPIC_AVAILABLE", True)
     @patch("Agent_Guru.reasoning.knowledge.synthesizer.anthropic")
@@ -108,7 +108,9 @@ class TestLLMClientInitialization:
         synthesizer._ensure_llm_client()
 
         assert synthesizer.llm_client is not None  # nosec B101
-        mock_anthropic.Anthropic.assert_called_once_with(api_key="test-key")
+        mock_anthropic.Anthropic.assert_called_once_with(
+            api_key="test-key", timeout=1.0, max_retries=0,
+        )
 
     def test_initialize_without_llm(self):
         """Test initialization without LLM synthesis."""
@@ -448,8 +450,10 @@ class TestLLMSynthesis:
 
         synthesizer._call_llm_for_synthesis = timeout_llm_call
 
-        # Mock generate_answer to avoid recursion issue
-        def mock_generate_answer(query, memories, patterns, statistics):
+        # The fallback is the template path. This used to replace
+        # generate_answer "to avoid recursion issue": the real fallback called
+        # generate_answer, which retried the LLM from a new thread without end.
+        def mock_template_answer(query, memories, patterns, statistics):
             return KnowledgeAnswer(
                 summary="Fallback answer",
                 confidence=0.5,
@@ -458,7 +462,7 @@ class TestLLMSynthesis:
                 statistics={},
             )
 
-        synthesizer.generate_answer = mock_generate_answer
+        synthesizer._template_answer = mock_template_answer
 
         query = KnowledgeQuery(
             query_text="test query", query_type=KnowledgeQueryType.FACTUAL, confidence=0.9
@@ -502,8 +506,10 @@ class TestLLMSynthesis:
             use_llm_synthesis=True,
         )
 
-        # Mock generate_answer to avoid recursion issue
-        def mock_generate_answer(query, memories, patterns, statistics):
+        # The fallback is the template path. This used to replace
+        # generate_answer "to avoid recursion issue": the real fallback called
+        # generate_answer, which retried the LLM from a new thread without end.
+        def mock_template_answer(query, memories, patterns, statistics):
             return KnowledgeAnswer(
                 summary="Fallback answer after malformed response",
                 confidence=0.5,
@@ -512,7 +518,7 @@ class TestLLMSynthesis:
                 statistics={},
             )
 
-        synthesizer.generate_answer = mock_generate_answer
+        synthesizer._template_answer = mock_template_answer
 
         query = KnowledgeQuery(
             query_text="test query", query_type=KnowledgeQueryType.FACTUAL, confidence=0.9

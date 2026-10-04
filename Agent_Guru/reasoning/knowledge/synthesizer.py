@@ -589,29 +589,62 @@ class KnowledgeSynthesizer:
         # when the client had failed to initialise.
         if self.use_llm_synthesis and self._ensure_llm_client() is not None:
             try:
-                # Run async LLM synthesis in sync context
-                loop = asyncio.get_running_loop()
-                if loop.is_running():
-                    # If event loop is already running, create a new task
-                    # This handles the case where we're called from async context
-                    import concurrent.futures
-
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(
-                            asyncio.run,
-                            self.synthesize_answer_with_llm(query, memories, patterns, statistics),
-                        )
-                        return future.result(timeout=self.llm_timeout_ms / 1000.0)
-                else:
-                    # If no event loop is running, use asyncio.run
-                    return asyncio.run(
-                        self.synthesize_answer_with_llm(query, memories, patterns, statistics),
-                    )
+                return self._run_llm_synthesis(query, memories, patterns, statistics)
             except Exception:
-                # Fall back to template-based generation on any error
                 logger.debug("LLM synthesis failed, falling back to template", exc_info=True)
-        # Template-based generation (fallback or default)
-        # Route to specialized handler based on query type
+        return self._template_answer(query, memories, patterns, statistics)
+
+    def _run_llm_synthesis(
+        self,
+        query: KnowledgeQuery,
+        memories: list[Memory],
+        patterns: list[Pattern],
+        statistics: dict[str, Any],
+    ) -> KnowledgeAnswer:
+        """Run synthesize_answer_with_llm() from this synchronous method.
+
+        The bridge used to be broken both ways. It called
+        asyncio.get_running_loop() first, which raises when no loop is running,
+        so from a plain synchronous caller the LLM was never called at all
+        (measured: 0 calls with synthesis enabled) and the template answered.
+        From inside a running loop it ran the coroutine on a pool thread inside
+        a `with ThreadPoolExecutor()` block, whose exit waits for that thread
+        however long it takes, so the timeout given to future.result() bounded
+        nothing. And every failed synthesis fell back to generate_answer(),
+        which, inside that thread's own loop, started another thread: with a
+        failing or stalled LLM, generate_answer() did not return within 120 s.
+        """
+        def coro() -> Any:
+            return self.synthesize_answer_with_llm(query, memories, patterns, statistics)
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coro())
+
+        # Called synchronously from inside a running loop: the loop cannot run
+        # the coroutine while it is blocked here, so a worker thread runs it on
+        # its own loop. The deadline covers every attempt and its backoff, and
+        # the worker is abandoned rather than waited for if it overruns; the
+        # SDK client's own timeout (see _initialize_llm_client) ends its
+        # request soon after.
+        import concurrent.futures
+
+        deadline = self.llm_max_retries * (self.llm_timeout_ms / 1000.0 + 0.1 * 2**self.llm_max_retries) + 1.0
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            return executor.submit(asyncio.run, coro()).result(timeout=deadline)
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+    def _template_answer(
+        self,
+        query: KnowledgeQuery,
+        memories: list[Memory],
+        patterns: list[Pattern],
+        statistics: dict[str, Any],
+    ) -> KnowledgeAnswer:
+        """Answer from the retrieved data alone, routed by query type."""
         if query.query_type == KnowledgeQueryType.TEMPORAL:
             return self.handle_temporal_query(query, memories, statistics)
         if query.query_type == KnowledgeQueryType.AGGREGATION:
@@ -1481,14 +1514,25 @@ class KnowledgeSynthesizer:
             if not OPENAI_AVAILABLE:
                 msg = "OpenAI client not available. Install with: pip install openai"
                 raise RuntimeError(msg)
-            self.llm_client = openai.OpenAI(api_key=self.llm_api_key)
+            # The SDK's defaults are a 600 s read timeout and 2 retries; the
+            # synthesis loop allows llm_timeout_ms per attempt and does its own
+            # retrying, and a request the loop has given up on must end too.
+            self.llm_client = openai.OpenAI(
+                api_key=self.llm_api_key,
+                timeout=self.llm_timeout_ms / 1000.0,
+                max_retries=0,
+            )
         elif self.llm_provider == "anthropic":
             if not ANTHROPIC_AVAILABLE:
                 msg = "Anthropic client not available. Install with: pip install anthropic"
                 raise RuntimeError(
                     msg,
                 )
-            self.llm_client = anthropic.Anthropic(api_key=self.llm_api_key)
+            self.llm_client = anthropic.Anthropic(
+                api_key=self.llm_api_key,
+                timeout=self.llm_timeout_ms / 1000.0,
+                max_retries=0,
+            )
         else:
             self._validate_llm_provider()
 
@@ -1622,8 +1666,10 @@ class KnowledgeSynthesizer:
                 if not await self._retry_backoff(attempt):
                     break
 
-        # Every attempt failed -- answer from local memory instead.
-        return self.generate_answer(query, memories, patterns, statistics)
+        # Every attempt failed -- answer from local memory instead. This called
+        # generate_answer(), which tried the LLM again, from a new thread when
+        # a loop was running, so a failing LLM recursed without end.
+        return self._template_answer(query, memories, patterns, statistics)
 
     async def _retry_backoff(self, attempt: int) -> bool:
         """Sleep before the next attempt; return False if none remain.
