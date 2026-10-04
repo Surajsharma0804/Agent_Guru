@@ -16,6 +16,7 @@ Coverage Target: >80%
 
 import asyncio
 import json
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
@@ -705,3 +706,68 @@ class TestConfidenceIndicator:
 
         assert "I'm not very confident" not in answer.summary  # nosec B101
         assert answer.summary == "You called John yesterday"  # nosec B101
+
+
+class TestSyncBridge:
+    """generate_answer() is synchronous; it must reach the LLM and always return.
+
+    It used to never call the LLM from a plain synchronous caller (get_running_loop
+    raised first), and from inside a running loop a failing or stalled LLM made
+    it recurse through new threads: it did not return within 120 s. These use a
+    fake client: no network.
+    """
+
+    QUERY = KnowledgeQuery(query_text="what did I do?", query_type=KnowledgeQueryType.FACTUAL, confidence=0.9)
+
+    @staticmethod
+    def make(create, retries=2, timeout_ms=300.0):
+        synthesizer = KnowledgeSynthesizer(
+            memory_retriever=Mock(spec=MemoryRetriever),
+            llm_provider="openai",
+            llm_api_key="k",
+            use_llm_synthesis=True,
+            llm_timeout_ms=timeout_ms,
+            llm_max_retries=retries,
+        )
+        client = Mock()
+        client.chat.completions.create = create
+        synthesizer.llm_client = client
+        return synthesizer
+
+    def test_sync_caller_reaches_the_llm(self):
+        calls = []
+
+        def create(**kwargs):
+            calls.append(kwargs)
+            raise RuntimeError("401")
+
+        answer = self.make(create).generate_answer(self.QUERY, [], [], {})
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert len(calls) == 2  # nosec B101
+
+    @pytest.mark.asyncio
+    async def test_failing_llm_inside_a_loop_tries_each_attempt_once(self):
+        calls = []
+
+        def create(**kwargs):
+            calls.append(kwargs)
+            raise RuntimeError("401")
+
+        started = time.perf_counter()
+        answer = self.make(create, retries=3).generate_answer(self.QUERY, [], [], {})
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        assert len(calls) == 3  # nosec B101
+        assert time.perf_counter() - started < 5.0  # nosec B101
+
+    @pytest.mark.asyncio
+    async def test_stalled_llm_inside_a_loop_returns_by_the_deadline(self):
+        def create(**kwargs):
+            time.sleep(6.0)
+
+        synthesizer = self.make(create, retries=2, timeout_ms=300.0)
+        started = time.perf_counter()
+        answer = synthesizer.generate_answer(self.QUERY, [], [], {})
+        took = time.perf_counter() - started
+        assert isinstance(answer, KnowledgeAnswer)  # nosec B101
+        # 2 attempts of 0.3 s, their backoff and 1 s of slack; not the 6 s stall.
+        assert took < 3.5  # nosec B101
