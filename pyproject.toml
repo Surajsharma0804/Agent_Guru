@@ -131,7 +131,9 @@ dependencies = [
     # letter-frequency vector, so "what did I say about my sister" matched
     # on spelling, not meaning. The development venv borrowed the system
     # Python's copy, which is why this was never seen.
-    "sentence-transformers>=2.2.0",
+    # 5.6.0: earlier releases run custom Python from a local model directory
+    # even with trust_remote_code off (GHSA-jhr6-gm9c-rqjv, critical).
+    "sentence-transformers>=5.6.0",
     # speech/biometric/speaker_verifier.py uses librosa's MFCC features when
     # SpeechBrain is absent, which is always, since SpeechBrain is not
     # declared. Without librosa it had no backend at all and let every voice
@@ -262,7 +264,10 @@ test = [
     "pydantic>=2.5.0",
     "pydantic-settings>=2.0.0",
     "cryptography>=41.0.0",
-    "pyjwt>=2.8.0",
+    # 2.14.0: earlier releases accept public keys and empty keys as HMAC
+    # secrets (GHSA-ffc3-869f-jxw9, critical, and five high advisories).
+    # reasoning/api/auth.py verifies tokens with it.
+    "pyjwt>=2.14.0",
     "redis>=5.0.0",
     "celery>=5.3.0",
     "fastapi>=0.104.0",
@@ -281,7 +286,7 @@ test = [
     # ML / speech / vision stack the tests exercise for real
     "torch>=2.6.0",
     "transformers>=4.36.0",
-    "sentence-transformers>=2.2.0",
+    "sentence-transformers>=5.6.0",
     "pytorch-lightning>=2.0.0",
     "nltk>=3.8.1",
     "chromadb>=0.4.0",
